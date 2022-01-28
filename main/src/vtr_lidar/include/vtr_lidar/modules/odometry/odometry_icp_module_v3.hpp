@@ -18,17 +18,13 @@
  */
 #pragma once
 
-#include <random>
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "steam.hpp"
 
-#include "vtr_common/timing/stopwatch.hpp"
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
-
-// visualization
-#include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace vtr {
 
@@ -94,8 +90,8 @@ class OdometryICPModuleV3 : public tactic::BaseModule {
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
 
   void computeTrajectory(
       LidarQueryCache &qdata, const tactic::Graph::ConstPtr &graph,

@@ -13,56 +13,40 @@
 // limitations under the License.
 
 /**
- * \file inter_exp_merging_module.hpp
+ * \file localization_map_recall_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
+#include "sensor_msgs/msg/point_cloud2.hpp"
+
 #include "vtr_lidar/cache.hpp"
-#include "vtr_lidar/modules/dynamic_detection_module.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
-
-// visualization
-#include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace vtr {
 namespace lidar {
 
-/**
- * \brief Uses ray-tracing to detect short-term dynamic objects.
- * Asynchronous. Optional.
- */
-class InterExpMergingModule : public tactic::BaseModule {
+class LocalizationMapRecallModule : public tactic::BaseModule {
  public:
-  using Ptr = std::shared_ptr<InterExpMergingModule>;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
-  static constexpr auto static_name = "lidar.inter_exp_merging";
+  /** \brief Static module identifier. */
+  static constexpr auto static_name = "lidar.localization_map_recall";
 
-  /** \brief Collection of config parameters */
-  struct Config : public BaseModule::Config {
+  /** \brief Config parameters */
+  struct Config : public tactic::BaseModule::Config {
     using Ptr = std::shared_ptr<Config>;
     using ConstPtr = std::shared_ptr<const Config>;
 
-    // dependency
-    std::string dynamic_detection = DynamicDetectionModule::static_name;
-
-    int depth = 0;
-
-    float horizontal_resolution = 0.001;
-    float vertical_resolution = 0.001;
-    int max_num_observations = 20;
-
-    int max_num_experiences = 128;
-
+    std::string map_version = "multi_exp_point_map";
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  InterExpMergingModule(
+  LocalizationMapRecallModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -73,23 +57,14 @@ class InterExpMergingModule : public tactic::BaseModule {
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
 
-  void runAsync_(tactic::QueryCache &qdata, tactic::OutputCache &output,
-                 const tactic::Graph::Ptr &graph,
-                 const tactic::TaskExecutor::Ptr &executor,
-                 const tactic::Task::Priority &priority,
-                 const tactic::Task::DepId &dep_id) override;
-
   Config::ConstPtr config_;
-
-  /** \brief mutex to make publisher thread safe */
-  std::mutex mutex_;
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr old_map_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr new_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr test_map_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(InterExpMergingModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(LocalizationMapRecallModule);
 };
 
 }  // namespace lidar

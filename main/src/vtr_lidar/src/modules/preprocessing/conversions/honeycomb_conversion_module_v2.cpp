@@ -16,7 +16,7 @@
  * \file honeycomb_conversion_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/conversions/honeycomb_conversion_module_v2.hpp"
+#include "vtr_lidar/modules/preprocessing/conversions/honeycomb_conversion_module_v2.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"

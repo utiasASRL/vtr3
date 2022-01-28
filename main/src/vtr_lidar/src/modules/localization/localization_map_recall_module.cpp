@@ -16,7 +16,7 @@
  * \file localization_map_recall_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/localization_map_recall_module.hpp"
+#include "vtr_lidar/modules/localization/localization_map_recall_module.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 

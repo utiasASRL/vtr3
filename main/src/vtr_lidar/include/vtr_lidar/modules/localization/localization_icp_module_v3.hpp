@@ -18,9 +18,7 @@
  */
 #pragma once
 
-#include <random>
-
-#include <steam.hpp>
+#include "steam.hpp"
 
 #include "vtr_common/timing/stopwatch.hpp"
 #include "vtr_lidar/cache.hpp"
@@ -78,8 +76,8 @@ class LocalizationICPModuleV3 : public tactic::BaseModule {
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
 
   Config::ConstPtr config_;
 

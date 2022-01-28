@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file velodyne_conversion_module.cpp
+ * \file velodyne_conversion_module_v2.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/conversions/velodyne_conversion_module.hpp"
+#include "vtr_lidar/modules/preprocessing/conversions/velodyne_conversion_module_v2.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
@@ -46,7 +46,7 @@ void cart2pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
 
 }  // namespace
 
-auto VelodyneConversionModule::Config::fromROS(
+auto VelodyneConversionModuleV2::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -56,9 +56,9 @@ auto VelodyneConversionModule::Config::fromROS(
   return config;
 }
 
-void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
-                                    const Graph::Ptr &,
-                                    const TaskExecutor::Ptr &) {
+void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
+                                      const Graph::Ptr &,
+                                      const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Create a node for visualization if necessary
@@ -70,19 +70,26 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // Input
-  const auto &points = *qdata.points;
+  const auto &msg = qdata.pointcloud_msg.ptr();
 
-  auto point_cloud =
-      std::make_shared<pcl::PointCloud<PointWithInfo>>(points.rows(), 1);
+  auto point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(
+      msg->width * msg->height, 1);
 
-  for (size_t idx = 0; idx < (size_t)points.rows(); idx++) {
+  // iterators
+  // clang-format off
+  sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
+  sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
+  // clang-format on
+
+  for (size_t idx = 0; iter_x != iter_x.end();
+       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_time) {
     // cartesian coordinates
-    point_cloud->at(idx).x = points(idx, 0);
-    point_cloud->at(idx).y = points(idx, 1);
-    point_cloud->at(idx).z = points(idx, 2);
+    point_cloud->at(idx).x = *iter_x;
+    point_cloud->at(idx).y = *iter_y;
+    point_cloud->at(idx).z = *iter_z;
 
     // pointwise timestamp
-    point_cloud->at(idx).time = points(idx, 5);
+    point_cloud->at(idx).time = *iter_time;
   }
 
   // Velodyne has no polar coordinates, so compute them manually.

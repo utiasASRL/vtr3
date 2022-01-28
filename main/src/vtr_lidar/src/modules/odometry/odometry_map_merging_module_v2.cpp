@@ -16,7 +16,7 @@
  * \file odometry_map_merging_module_v2.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry_map_merging_module_v2.hpp"
+#include "vtr_lidar/modules/odometry/odometry_map_merging_module_v2.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 

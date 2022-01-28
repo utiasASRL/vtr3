@@ -13,42 +13,30 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module_v3.cpp
+ * \file localization_icp_module_v3.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry_icp_module_v3.hpp"
+#include "vtr_lidar/modules/localization/localization_icp_module_v3.hpp"
+
+#include "vtr_lidar_msgs/msg/icp_result.hpp"
 
 namespace vtr {
 namespace lidar {
 
-namespace {
-bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
-  for (int idx = 0; idx < 6; ++idx)
-    if (diag(idx) <= 0) return false;
-
-  return true;
-}
-}  // namespace
-
 using namespace tactic;
 using namespace steam;
-using namespace steam::se3;
+using namespace se3;
 
-auto OdometryICPModuleV3::Config::fromROS(const rclcpp::Node::SharedPtr &node,
-                                          const std::string &param_prefix)
+using LocalizationICPResult = vtr_lidar_msgs::msg::ICPResult;
+
+auto LocalizationICPModuleV3::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
-  // trajectory smoothing
-  config->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config->trajectory_smoothing);
-  config->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config->use_constant_acc);
-  config->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config->lin_acc_std_dev_x);
-  config->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config->lin_acc_std_dev_y);
-  config->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config->lin_acc_std_dev_z);
-  config->ang_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_x", config->ang_acc_std_dev_x);
-  config->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config->ang_acc_std_dev_y);
-  config->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config->ang_acc_std_dev_z);
+
+  config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -74,67 +62,24 @@ auto OdometryICPModuleV3::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
   config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
   config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
-
-  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
-
-  // Make Qc_inv
-  Eigen::Array<double, 1, 6> Qc_diag;
-  Qc_diag << config->lin_acc_std_dev_x, config->lin_acc_std_dev_y,
-      config->lin_acc_std_dev_z, config->ang_acc_std_dev_x,
-      config->ang_acc_std_dev_y, config->ang_acc_std_dev_z;
-  if (checkDiagonal(Qc_diag) == false && config->trajectory_smoothing) {
-    throw std::runtime_error(
-        "Elements of the smoothing factor must be greater than zero!");
-  }
-  config->smoothing_factor_information.setZero();
-  config->smoothing_factor_information.diagonal() = 1.0 / Qc_diag;
 
   return config;
 }
 
-void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
-                               const Graph::Ptr &, const TaskExecutor::Ptr &) {
+void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
+                                   const Graph::Ptr &graph,
+                                   const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  if (config_->visualize && !publisher_initialized_) {
-    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_scan", 5);
-    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_scan", 5);
-    publisher_initialized_ = true;
-  }
-
-  if (!qdata.point_map_odo) {
-    CLOG(INFO, "lidar.odometry_icp") << "First frame, simply return.";
-    // clang-format off
-#if false
-    // undistorted raw point cloud
-    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
-    cart2pol(*undistorted_raw_point_cloud);
-    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
-#endif
-    // undistorted preprocessed point cloud
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.preprocessed_point_cloud);
-    cart2pol(*undistorted_point_cloud);
-    qdata.undistorted_point_cloud = undistorted_point_cloud;
-    //
-    qdata.timestamp_odo.emplace(*qdata.stamp);
-    qdata.T_r_pm_odo.emplace(EdgeTransform(true));
-    qdata.w_pm_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
-    //
-    *qdata.odo_success = true;
-    // clang-format on
-    return;
-  }
-
   // Inputs
-  const auto &query_stamp = *qdata.stamp;
-  const auto &query_points = *qdata.preprocessed_point_cloud;
+  const auto &stamp = *qdata.stamp;
+  const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &timestamp_odo = *qdata.timestamp_odo;
-  const auto &T_r_pm_odo = *qdata.T_r_pm_odo;
-  const auto &w_pm_r_in_r_odo = *qdata.w_pm_r_in_r_odo;
-  auto &point_map_odo = *qdata.point_map_odo;
-  auto &point_map = point_map_odo.point_map();
+  const auto &T_r_v = *qdata.T_r_m_loc;  // used as prior
+  const auto &T_v_pm = qdata.curr_map_loc->T_vertex_map();
+  const auto &map_version = qdata.curr_map_loc->version();
+  auto &point_map = qdata.curr_map_loc->point_map();
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -143,45 +88,29 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   KDTreeSearchParams search_params;
+
   // clang-format off
-  /// Create and add the T_robot_map variable, here m = vertex frame.
-  auto T_r_pm_odo_extp = T_r_pm_odo;
-  if (config_->trajectory_smoothing) {
-    Eigen::Matrix<double,6,1> xi_pm_r_in_r_odo(Time(query_stamp - timestamp_odo).seconds() * w_pm_r_in_r_odo);
-    T_r_pm_odo_extp = tactic::EdgeTransform(xi_pm_r_in_r_odo) * T_r_pm_odo;
-  }
-  const auto T_r_pm_var = std::make_shared<TransformStateVar>(T_r_pm_odo_extp);
+  /// Create and add the T_robot_map variable, here map is in vertex frame.
+  const auto T_r_v_var = std::make_shared<TransformStateVar>(T_r_v);
 
   /// Create evaluators for passing into ICP
   const auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
-  const auto T_r_pm_eval = TransformStateEvaluator::MakeShared(T_r_pm_var);
+  const auto T_v_pm_eval = FixedTransformEvaluator::MakeShared(T_v_pm);
+  const auto T_r_v_eval = TransformStateEvaluator::MakeShared(T_r_v_var);
   // compound transform for alignment (sensor to point map transform)
-  const auto T_pm_s_eval = inverse(compose(T_s_r_eval, T_r_pm_eval));
+  const auto T_pm_s_eval = inverse(compose(T_s_r_eval, compose(T_r_v_eval, T_v_pm_eval)));
 
-  /// trajectory smoothing
-  std::shared_ptr<SteamTrajInterface> trajectory = nullptr;
-  std::vector<StateVariableBase::Ptr> trajectory_state_vars;
-  std::shared_ptr<VectorSpaceStateVar> w_pm_r_in_r_var = nullptr;
-  auto trajectory_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
-  if (config_->trajectory_smoothing) {
-    trajectory = std::make_shared<SteamTrajInterface>(config_->smoothing_factor_information, true);
-    // last frame state
-    Time prev_time(static_cast<int64_t>(timestamp_odo));
-    auto prev_T_r_pm_var = std::make_shared<TransformStateVar>(T_r_pm_odo);
-    prev_T_r_pm_var->setLock(true);
-    auto prev_T_r_pm_eval = std::make_shared<TransformStateEvaluator>(prev_T_r_pm_var);
-    auto prev_w_pm_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_pm_r_in_r_odo);
-    trajectory->add(prev_time, prev_T_r_pm_eval, prev_w_pm_r_in_r_var);
-    // curr frame state (+ velocity)
-    Time query_time(static_cast<int64_t>(query_stamp));
-    w_pm_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_pm_r_in_r_odo);
-    trajectory->add(query_time, T_r_pm_eval, w_pm_r_in_r_var);
-    // add state variables to the collection
-    trajectory_state_vars.emplace_back(prev_T_r_pm_var);
-    trajectory_state_vars.emplace_back(prev_w_pm_r_in_r_var);
-    trajectory_state_vars.emplace_back(w_pm_r_in_r_var);
-    // add prior cost terms
-    trajectory->appendPriorCostTerms(trajectory_cost_terms);
+  /// use odometry as a prior
+  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
+  if (config_->use_pose_prior) {
+    auto loss_func = std::make_shared<L2LossFunc>();
+    auto noise_model = std::make_shared<StaticNoiseModel<6>>(T_r_v.cov());
+    auto error_func = std::make_shared<TransformErrorEval>(T_r_v, T_r_v_eval);
+    auto cost = std::make_shared<WeightedLeastSqCostTerm<6, 6>>(error_func, noise_model, loss_func);
+    prior_cost_terms->add(cost);
+
+    CLOG(DEBUG, "lidar.localization_icp")
+        << "Adding prior cost term: " << prior_cost_terms->numCostTerms();
   }
 
   // Initialize aligned points for matching (Deep copy of targets)
@@ -203,7 +132,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   aligned_norms_mat = C_pm_s_init * query_norms_mat;
 
   // ICP results
-  EdgeTransform T_r_pm_icp;
+  EdgeTransform T_r_v_icp;
   float matched_points_ratio = 0.0;
 
   // Convergence variables
@@ -292,14 +221,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
       PointToPointErrorEval2::Ptr error_func;
-      if (config_->trajectory_smoothing) {
-        const auto &qry_time = query_points[ind.first].time;
-        const auto T_r_pm_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_pm_s_intp_eval = inverse(compose(T_s_r_eval, T_r_pm_intp_eval));
-        error_func.reset(new PointToPointErrorEval2(T_pm_s_intp_eval, ref_pt, qry_pt));
-      } else {
-        error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));
-      }
+      error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));
 
       // create cost term and add to problem
       auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(error_func, noise_model, loss_func);
@@ -310,19 +232,15 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 
     // initialize problem
     OptimizationProblem problem;
-    problem.addStateVariable(T_r_pm_var);
+    problem.addStateVariable(T_r_v_var);
     problem.addCostTerm(cost_terms);
     // add prior costs
-    if (config_->trajectory_smoothing) {
-      for (const auto &var : trajectory_state_vars)
-        problem.addStateVariable(var);
-      problem.addCostTerm(trajectory_cost_terms);
-    }
+    if (config_->use_pose_prior) problem.addCostTerm(prior_cost_terms);
 
     using SolverType = VanillaGaussNewtonSolver;
     SolverType::Params params;
-    params.verbose = config_->verbose;
-    params.maxIterations = config_->maxIterations;
+    params.verbose = false;
+    params.maxIterations = 1;
 
     // Make solver
     SolverType solver(&problem, params);
@@ -331,35 +249,21 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     try {
       solver.optimize();
     } catch (const decomp_failure &) {
-      CLOG(WARNING, "lidar.odometry_icp")
+      CLOG(WARNING, "lidar.localization_icp")
           << "Steam optimization failed! T_pm_s left unchanged.";
     }
     timer[3]->stop();
 
     timer[4]->start();
     /// Alignment
-    if (config_->trajectory_smoothing) {
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (unsigned i = 0; i < query_points.size(); i++) {
-        const auto &qry_time = query_points[i].time;
-        const auto T_r_pm_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_pm_s_intp_eval = inverse(compose(T_s_r_eval, T_r_pm_intp_eval));
-        const auto T_pm_s = T_pm_s_intp_eval->evaluate().matrix();
-        Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
-        Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
-        aligned_mat.block<3, 1>(0, i) = C_pm_s * query_mat.block<3, 1>(0, i) + r_s_pm_in_pm;
-        aligned_norms_mat.block<3, 1>(0, i) = C_pm_s * query_norms_mat.block<3, 1>(0, i);
-      }
-    } else {
-      const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
-      Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
-      Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
-      aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
-      aligned_norms_mat = C_pm_s * query_norms_mat;
-    }
+    const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
+    Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
+    aligned_norms_mat = C_pm_s * query_norms_mat;
 
     // Update all result matrices
-    const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
+    // const auto T_pm_s = T_pm_s_eval->evaluate().matrix(); // defined above
     if (step == 0)
       all_tfs = Eigen::MatrixXd(T_pm_s);
     else {
@@ -395,7 +299,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     if (!refinement_stage && step >= first_steps) {
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
-        CLOG(DEBUG, "lidar.odometry_icp") << "Initial alignment takes " << step << " steps.";
+        CLOG(DEBUG, "lidar.localization_icp") << "Initial alignment takes " << step << " steps.";
 
         // enter the second refine stage
         refinement_stage = true;
@@ -414,15 +318,15 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      CLOG(DEBUG, "lidar.odometry_icp") << "Total number of steps: " << step << ".";
+      CLOG(DEBUG, "lidar.localization_icp") << "Total number of steps: " << step << ".";
       // result
-      T_r_pm_icp = EdgeTransform(T_r_pm_var->getValue(), solver.queryCovariance(T_r_pm_var->getKey()));
+      T_r_v_icp = EdgeTransform(T_r_v_var->getValue(), solver.queryCovariance(T_r_v_var->getKey()));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "lidar.odometry_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
+        CLOG(WARNING, "lidar.localization_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
         if (!refinement_stage) {
-          CLOG(WARNING, "lidar.odometry_icp") << "ICP did not enter refinement stage at all.";
+          CLOG(WARNING, "lidar.localization_icp") << "ICP did not enter refinement stage at all.";
         }
         // matched_points_ratio = 0;
       }
@@ -432,91 +336,59 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 
   /// Dump timing info
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.odometry_icp") << clock_str[i] << timer[i]->count();
+    CLOG(DEBUG, "lidar.localization_icp") << clock_str[i] << timer[i]->count();
+  }
+
+  /// \todo DEBUGGING: dump the alignment results analysis
+  {
+    auto icp_result = std::make_shared<LocalizationICPResult>();
+    icp_result->timestamp = stamp;
+    icp_result->map_version = map_version;
+    icp_result->nn_inds.resize(aligned_points.size());
+    icp_result->nn_dists.resize(aligned_points.size());
+    icp_result->nn_planar_dists.resize(aligned_points.size());
+
+    // Find nearest neigbors
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (size_t i = 0; i < aligned_points.size(); i++) {
+      KDTreeResultSet result_set(1);
+      result_set.init(&icp_result->nn_inds[i], &icp_result->nn_dists[i]);
+      kdtree->findNeighbors(result_set, aligned_points[i].data, search_params);
+
+      auto diff = aligned_points[i].getVector3fMap() -
+                  point_map[icp_result->nn_inds[i]].getVector3fMap();
+      float planar_dist = abs(
+          diff.dot(point_map[icp_result->nn_inds[i]].getNormalVector3fMap()));
+      // planar distance update
+      icp_result->nn_planar_dists[i] = planar_dist;
+    }
+
+    // Store result into the current run (not associated with a vertex), slow!
+    const auto curr_run = graph->runs()->sharedLocked().get().rbegin()->second;
+    CLOG(DEBUG, "lidar.localization_icp")
+        << "Saving ICP localization result to run " << curr_run->id();
+    using LocICPResLM = storage::LockableMessage<LocalizationICPResult>;
+    auto msg = std::make_shared<LocICPResLM>(icp_result, stamp);
+    curr_run->write<LocalizationICPResult>("localization_icp_result",
+                                           "vtr_lidar_msgs/msg/ICPResult", msg);
   }
 
   /// Outputs
+  CLOG(DEBUG, "lidar.localization_icp")
+      << "Matched points ratio " << matched_points_ratio;
   if (matched_points_ratio > config_->min_matched_ratio) {
-    // undistort the preprocessed pointcloud
-    const auto T_s_pm = T_pm_s_eval->evaluate().matrix().inverse();
-    Eigen::Matrix3f C_s_pm = T_s_pm.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_pm_s_in_s = T_s_pm.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_s_pm * aligned_mat).colwise() + r_pm_s_in_s;
-    aligned_norms_mat = C_s_pm * aligned_norms_mat;
-
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
-    cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
-    qdata.undistorted_point_cloud = undistorted_point_cloud;
-#if false
-    // store potentially undistorted raw point cloud
-    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
-    if (config_->trajectory_smoothing) {
-      auto &raw_points = *undistorted_raw_point_cloud;
-      auto points_mat = raw_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (unsigned i = 0; i < raw_points.size(); i++) {
-        const auto &qry_time = raw_points[i].time;
-        const auto T_rintp_pm_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_s_sintp_eval = inverse(compose(T_s_r_eval, compose(T_rintp_pm_eval, T_pm_s_eval)));
-        const auto T_s_sintp = T_s_sintp_eval->evaluate().matrix();
-        Eigen::Matrix3f C_s_sintp = T_s_sintp.block<3, 3>(0, 0).cast<float>();
-        Eigen::Vector3f r_sintp_s_in_s = T_s_sintp.block<3, 1>(0, 3).cast<float>();
-        points_mat.block<3, 1>(0, i) = C_s_sintp * points_mat.block<3, 1>(0, i) + r_sintp_s_in_s;
-      }
-    }
-    cart2pol(*undistorted_raw_point_cloud);
-    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
-#endif
-    // store trajectory info
-    *qdata.timestamp_odo = query_stamp;
-    *qdata.T_r_pm_odo = T_r_pm_var->getValue();
-    if (config_->trajectory_smoothing)
-      *qdata.w_pm_r_in_r_odo = w_pm_r_in_r_var->getValue();
-    //
-    /// \todo double check validity when no vertex has been created
-    *qdata.T_r_m_odo = T_r_pm_icp * point_map_odo.T_vertex_map().inverse();
-    /// \todo double check that we can indeed treat pm same as m for velocity
-    if (config_->trajectory_smoothing)
-      *qdata.w_m_r_in_r_odo = w_pm_r_in_r_var->getValue();
-    //
-    *qdata.odo_success = true;
+    // update map to robot transform
+    *qdata.T_r_m_loc = T_r_v_icp;
+    // set success
+    *qdata.loc_success = true;
   } else {
-    CLOG(WARNING, "lidar.odometry_icp")
+    CLOG(WARNING, "lidar.localization_icp")
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
-    // do not undistort the pointcloud
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
-    cart2pol(*undistorted_point_cloud);
-    qdata.undistorted_point_cloud = undistorted_point_cloud;
-#if false
-    // do not undistort the raw pointcloud as well
-    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
-    cart2pol(*undistorted_raw_point_cloud);
-    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
-#endif
     // no update to map to robot transform
-    *qdata.odo_success = false;
+    // set success
+    *qdata.loc_success = false;
   }
-
-  if (config_->visualize) {
-#if false  /// publish raw point cloud
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(*qdata.undistorted_raw_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = *qdata.lidar_frame;
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      raw_pub_->publish(pc2_msg);
-    }
-#endif
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(*qdata.undistorted_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = *qdata.lidar_frame;
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      pub_->publish(pc2_msg);
-    }
-  }
-  // clang-format on
 }
 
 }  // namespace lidar

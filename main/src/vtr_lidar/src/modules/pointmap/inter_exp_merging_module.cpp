@@ -16,7 +16,7 @@
  * \file inter_exp_merging_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/inter_exp_merging_module.hpp"
+#include "vtr_lidar/modules/pointmap/inter_exp_merging_module.hpp"
 
 #include "vtr_lidar/data_structures/pointmap.hpp"
 #include "vtr_tactic/modules/factory.hpp"

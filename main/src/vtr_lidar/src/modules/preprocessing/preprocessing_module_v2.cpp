@@ -16,7 +16,7 @@
  * \file preprocessing_module_v2.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/preprocessing_module_v2.hpp"
+#include "vtr_lidar/modules/preprocessing/preprocessing_module_v2.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 

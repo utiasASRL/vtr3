@@ -13,36 +13,46 @@
 // limitations under the License.
 
 /**
- * \file odometry_map_merging_module_v2.hpp
+ * \file dynamic_detection_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "vtr_lidar/cache.hpp"
-#include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/task_queue.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include <sensor_msgs/msg/point_cloud2.hpp>
+#include "vtr_lidar/cache.hpp"
+#include "vtr_lidar/modules/pointmap/intra_exp_merging_module.hpp"
+#include "vtr_tactic/modules/base_module.hpp"
 
 namespace vtr {
 namespace lidar {
 
-/** \brief */
-class OdometryMapMergingModuleV2 : public tactic::BaseModule {
+/**
+ * \brief Uses ray-tracing to detect short-term dynamic objects.
+ * Asynchronous. Optional.
+ */
+class DynamicDetectionModule : public tactic::BaseModule {
  public:
+  using Ptr = std::shared_ptr<DynamicDetectionModule>;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
-  /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.odometry_map_merging_v2";
+  static constexpr auto static_name = "lidar.dynamic_detection";
 
-  /** \brief Config parameters. */
-  struct Config : public tactic::BaseModule::Config {
+  /** \brief Collection of config parameters */
+  struct Config : public BaseModule::Config {
     using Ptr = std::shared_ptr<Config>;
     using ConstPtr = std::shared_ptr<const Config>;
 
-    float map_voxel_size = 0.2;
-    float crop_range_front = 50.0;
-    float back_over_front_ratio = 0.5;
+    // dependencies
+    std::string intra_exp_merging = IntraExpMergingModule::static_name;
+
+    int depth = 0;
+
+    float horizontal_resolution = 0.001;
+    float vertical_resolution = 0.001;
+    int max_num_observations = 20;
+    int min_num_observations = 0;
+    float dynamic_threshold = 0.5;
 
     bool visualize = false;
 
@@ -50,7 +60,7 @@ class OdometryMapMergingModuleV2 : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  OdometryMapMergingModuleV2(
+  DynamicDetectionModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -58,16 +68,27 @@ class OdometryMapMergingModuleV2 : public tactic::BaseModule {
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
+
+  void runAsync_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+                 const tactic::Graph::Ptr &graph,
+                 const tactic::TaskExecutor::Ptr &executor,
+                 const tactic::Task::Priority &priority,
+                 const tactic::Task::DepId &dep_id) override;
 
   Config::ConstPtr config_;
 
+  /** \brief mutex to make publisher thread safe */
+  std::mutex mutex_;
+
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr old_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr new_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(OdometryMapMergingModuleV2);
+  VTR_REGISTER_MODULE_DEC_TYPE(DynamicDetectionModule);
 };
 
 }  // namespace lidar

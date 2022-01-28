@@ -16,7 +16,7 @@
  * \file keyframe_test_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/keyframe_test_module_v2.hpp"
+#include "vtr_lidar/modules/odometry/keyframe_test_module_v2.hpp"
 
 namespace vtr {
 namespace lidar {

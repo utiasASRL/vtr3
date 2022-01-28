@@ -16,7 +16,7 @@
  * \file dynamic_detection_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/dynamic_detection_module.hpp"
+#include "vtr_lidar/modules/pointmap/dynamic_detection_module.hpp"
 
 #include "vtr_tactic/modules/factory.hpp"
 #include "vtr_tactic/task_queue.hpp"

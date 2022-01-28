@@ -73,8 +73,8 @@ auto ChangeDetectionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 }
 
 void ChangeDetectionModule::run_(QueryCache &qdata0, OutputCache &output0,
-                                    const Graph::Ptr &graph,
-                                    const TaskExecutor::Ptr &executor) {
+                                 const Graph::Ptr &graph,
+                                 const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
@@ -86,7 +86,7 @@ void ChangeDetectionModule::run_(QueryCache &qdata0, OutputCache &output0,
         Task::DepId{}, "Change Detection", map_id));
   else
     runAsync_(qdata0, output0, graph, executor, Task::Priority(-1),
-                 Task::DepId());
+              Task::DepId());
 }
 
 void ChangeDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
