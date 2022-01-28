@@ -73,7 +73,7 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Inputs
-  const auto &stamp = *qdata.stamp;
+  const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &T_r_v = *qdata.T_r_m_loc;  // used as prior
@@ -88,9 +88,8 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   KDTreeSearchParams search_params;
-
   // clang-format off
-  /// Create and add the T_robot_map variable, here map is in vertex frame.
+  /// Create and add the T_robot_map variable, here m = vertex frame.
   const auto T_r_v_var = std::make_shared<TransformStateVar>(T_r_v);
 
   /// Create evaluators for passing into ICP
@@ -239,8 +238,8 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 
     using SolverType = VanillaGaussNewtonSolver;
     SolverType::Params params;
-    params.verbose = false;
-    params.maxIterations = 1;
+    params.verbose = config_->verbose;
+    params.maxIterations = config_->maxIterations;
 
     // Make solver
     SolverType solver(&problem, params);
@@ -340,9 +339,10 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// \todo DEBUGGING: dump the alignment results analysis
+#if false
   {
     auto icp_result = std::make_shared<LocalizationICPResult>();
-    icp_result->timestamp = stamp;
+    icp_result->timestamp = query_stamp;
     icp_result->map_version = map_version;
     icp_result->nn_inds.resize(aligned_points.size());
     icp_result->nn_dists.resize(aligned_points.size());
@@ -368,10 +368,11 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "lidar.localization_icp")
         << "Saving ICP localization result to run " << curr_run->id();
     using LocICPResLM = storage::LockableMessage<LocalizationICPResult>;
-    auto msg = std::make_shared<LocICPResLM>(icp_result, stamp);
+    auto msg = std::make_shared<LocICPResLM>(icp_result, query_stamp);
     curr_run->write<LocalizationICPResult>("localization_icp_result",
                                            "vtr_lidar_msgs/msg/ICPResult", msg);
   }
+#endif
 
   /// Outputs
   CLOG(DEBUG, "lidar.localization_icp")
