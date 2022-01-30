@@ -294,7 +294,7 @@ void TerrainAssessmentModule::runAsync_(
                                         config_->corridor_lookahead_distance,
                                         config_->corridor_width);
   costmap->update(compute_corridor_op);
-  // add transform to localization vertices
+  // add transform to the localization vertex
   costmap->T_vertex_this() = tactic::EdgeTransform(true);
   costmap->vertex_id() = loc_vid;
   costmap->vertex_sid() = loc_sid;

@@ -82,7 +82,7 @@ void ObstacleDetectionModule::runAsync_(
       // clang-format off
       tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(*qdata.node);
       map_pub_ = qdata.node->create_publisher<PointCloudMsg>("obstacle_detection", 5);
-      ogm_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("obstacle_detection_ogm", 5);
+      ogm_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("obstacle_detection_costmap", 5);
       // clang-format on
       publisher_initialized_ = true;
     }
@@ -174,9 +174,10 @@ void ObstacleDetectionModule::runAsync_(
   }
 
   /// output
-  auto obstacle_detection_ogm_ref = output.obstacle_detection_ogm.locked();
-  auto &obstacle_detection_ogm = obstacle_detection_ogm_ref.get();
-  obstacle_detection_ogm = ogm;
+  auto obstacle_detection_costmap_ref =
+      output.obstacle_detection_costmap.locked();
+  auto &obstacle_detection_costmap = obstacle_detection_costmap_ref.get();
+  obstacle_detection_costmap = ogm;
 
   CLOG(INFO, "lidar.obstacle_detection")
       << "Obstacle Detection for vertex: " << loc_vid << " - DONE!";

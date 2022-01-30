@@ -75,9 +75,9 @@ struct LidarQueryCache : public tactic::QueryCache {
 struct LidarOutputCache : public tactic::OutputCache {
   using Ptr = std::shared_ptr<LidarOutputCache>;
 
-  tactic::LockableCache<BaseCostMap> change_detection_ogm;
-  tactic::LockableCache<BaseCostMap> ground_extraction_ogm;
-  tactic::LockableCache<BaseCostMap> obstacle_detection_ogm;
+  tactic::LockableCache<BaseCostMap> change_detection_costmap;
+  tactic::LockableCache<BaseCostMap> ground_extraction_costmap;
+  tactic::LockableCache<BaseCostMap> obstacle_detection_costmap;
   tactic::LockableCache<BaseCostMap> terrain_assessment_costmap;
 };
 

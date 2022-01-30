@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file change_detection_module.hpp
+ * \file change_detection_module_v2.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -31,17 +31,20 @@
 namespace vtr {
 namespace lidar {
 
-class ChangeDetectionModule : public tactic::BaseModule {
+class ChangeDetectionModuleV2 : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(ChangeDetectionModule);
+  PTR_TYPEDEFS(ChangeDetectionModuleV2);
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
   using OccupancyGridMsg = nav_msgs::msg::OccupancyGrid;
 
-  static constexpr auto static_name = "lidar.change_detection";
+  static constexpr auto static_name = "lidar.change_detection_v2";
 
   /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
+
+    // change detection
+    float search_radius = 1.0;
 
     // cost map
     float resolution = 1.0;
@@ -57,7 +60,7 @@ class ChangeDetectionModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  ChangeDetectionModule(
+  ChangeDetectionModuleV2(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -85,8 +88,9 @@ class ChangeDetectionModule : public tactic::BaseModule {
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(ChangeDetectionModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(ChangeDetectionModuleV2);
 };
 
 }  // namespace lidar

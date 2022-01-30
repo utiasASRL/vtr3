@@ -92,7 +92,6 @@ auto DenseCostMap::toCostMapMsg() const -> CostMapMsg {
   T_this_ros_mat(0, 3) = origin_.x * dl_ - dl_ / 2.0;
   T_this_ros_mat(1, 3) = origin_.y * dl_ - dl_ / 2.0;
   tactic::EdgeTransform T_this_ros(T_this_ros_mat);
-  const auto T_vertex_ros = T_vertex_this_ * T_this_ros;
 
   // clamp and fill in data
   std::vector<int8_t> data(width_ * height_, default_value_);
@@ -104,7 +103,7 @@ auto DenseCostMap::toCostMapMsg() const -> CostMapMsg {
   costmap_msg.info.resolution = dl_;
   costmap_msg.info.width = width_;
   costmap_msg.info.height = height_;
-  costmap_msg.info.origin = common::conversions::toPoseMessage(T_vertex_ros);
+  costmap_msg.info.origin = common::conversions::toPoseMessage(T_this_ros);
   costmap_msg.data = data;
 
   return costmap_msg;

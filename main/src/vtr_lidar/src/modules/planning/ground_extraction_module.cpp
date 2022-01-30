@@ -206,9 +206,10 @@ void GroundExtractionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
   }
 
   /// output
-  auto ground_extraction_ogm_ref = output.ground_extraction_ogm.locked();
-  auto &ground_extraction_ogm = ground_extraction_ogm_ref.get();
-  ground_extraction_ogm = dense_ogm;
+  auto ground_extraction_costmap_ref =
+      output.ground_extraction_costmap.locked();
+  auto &ground_extraction_costmap = ground_extraction_costmap_ref.get();
+  ground_extraction_costmap = dense_ogm;
 
   CLOG(INFO, "lidar.ground_extraction")
       << "Ground Extraction for vertex: " << loc_vid << " - DONE!";
