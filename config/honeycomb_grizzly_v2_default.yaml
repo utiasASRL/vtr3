@@ -11,8 +11,8 @@
         # "navigation.graph_map_server",
         # tactic
         # "tactic",
-        # "tactic.module",
         # "tactic.pipeline",
+        # "tactic.module",
         # "tactic.module.live_mem_manager",
         # "tactic.module.graph_mem_manager",
         # path planner
@@ -113,8 +113,8 @@
           "recall",
           "icp",
           "change_detection",
-          "ground_extraction",
-          "obstacle_detection",
+          # "ground_extraction",
+          # "obstacle_detection",
           "memory",
         ]
 
@@ -131,7 +131,7 @@
 
         crop_range: 40.0
 
-        frame_voxel_size: 0.1 # grid subsampling voxel size
+        frame_voxel_size: 0.2 # grid subsampling voxel size
 
         vertical_angle_res: 0.0132645 # vertical angle resolution in radius, equal to 0.76 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
@@ -143,8 +143,8 @@
 
         num_sample2: 10000 # max number of sample after filtering based on planarity
         min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
-        min_normal_estimate_dist: 2.0 # minimum distance to estimate normal in meters
-        max_normal_estimate_angle: 0.42 # must <1/2, this value will be timed by M_PI
+        min_normal_estimate_dist: 1.0 # minimum distance to estimate normal in meters
+        max_normal_estimate_angle: 0.44 # must <1/2, this value will be timed by M_PI
 
         cluster_num_sample: 10000 # maxnumber of sample after removing isolated points
 
@@ -187,7 +187,7 @@
       mapping:
         type: lidar.odometry_map_merging_v2
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.2
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
 
@@ -196,7 +196,7 @@
       keyframe_test:
         type: lidar.keyframe_test_v2
 
-        max_translation: 3.0
+        max_translation: 1.5
         max_rotation: 30.0
 
       intra_exp_merging:
@@ -204,11 +204,11 @@
 
         depth: 3
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.2
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
 
-        visualize: false
+        visualize: true
 
       dynamic_detection:
         type: "lidar.dynamic_detection"
@@ -265,6 +265,11 @@
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 
+        # steam parameters
+        verbose: false
+        max_iterations: 1
+
+        # threshold
         min_matched_ratio: 0.3
 
       memory:
@@ -274,12 +279,15 @@
         window_size: 3
 
       change_detection:
-        type: "lidar.change_detection"
-
-        resolution: 1.0
-        size_x: 40.0
-        size_y: 20.0
-
+        type: "lidar.change_detection_v2"
+        # change detection
+        search_radius: 1.0
+        # cost map
+        resolution: 0.5
+        size_x: 16.0
+        size_y: 8.0
+        # general
+        run_online: false
         run_async: true
         visualize: true
 
@@ -340,7 +348,7 @@
 
     ############ tactic configuration ############
     path_planning:
-      type: teb.lidar
+      type: teb
       control_period: 100 # ms
       teb:
         # vtr specific
@@ -361,3 +369,4 @@
         max_vel_theta: 0.3
         min_turning_radius: 3.0
         weight_viapoint: 0.5
+        weight_costmap: 1000.0
