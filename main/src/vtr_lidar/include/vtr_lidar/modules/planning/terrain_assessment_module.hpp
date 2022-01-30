@@ -93,6 +93,7 @@ class TerrainAssessmentModule : public tactic::BaseModule {
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
   rclcpp::Publisher<PathMsg>::SharedPtr path_pub_;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(TerrainAssessmentModule);
 };

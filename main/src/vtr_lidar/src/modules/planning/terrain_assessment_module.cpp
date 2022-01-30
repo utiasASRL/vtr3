@@ -248,6 +248,7 @@ void TerrainAssessmentModule::runAsync_(
       map_pub_ = qdata.node->create_publisher<PointCloudMsg>("terrain_assessment", 5);
       path_pub_ = qdata.node->create_publisher<PathMsg>("terrain_assessment_path", 5);
       costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("terrain_assessment_costmap", 5);
+      pointcloud_pub_ = qdata.node->create_publisher<PointCloudMsg>("terrain_assessment_pointcloud", 5);
       // clang-format on
       publisher_initialized_ = true;
     }
@@ -335,10 +336,16 @@ void TerrainAssessmentModule::runAsync_(
     }
 
     // publish the occupancy grid
-    auto costmap_msg = costmap->toStorable();
+    auto costmap_msg = costmap->toCostMapMsg();
     costmap_msg.header.frame_id = "terrain assessment";
     // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     costmap_pub_->publish(costmap_msg);
+
+    // publish the point cloud
+    auto pointcloud_msg = costmap->toPointCloudMsg();
+    pointcloud_msg.header.frame_id = "terrain assessment";
+    // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    pointcloud_pub_->publish(pointcloud_msg);
   }
 
   /// output

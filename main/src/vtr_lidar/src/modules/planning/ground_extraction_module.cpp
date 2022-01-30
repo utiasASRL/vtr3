@@ -199,7 +199,7 @@ void GroundExtractionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
     }
 
     // publish the occupancy grid
-    auto grid_msg = dense_ogm->toStorable();
+    auto grid_msg = dense_ogm->toCostMapMsg();
     grid_msg.header.frame_id = "ground extraction";
     // grid_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     ogm_pub_->publish(grid_msg);

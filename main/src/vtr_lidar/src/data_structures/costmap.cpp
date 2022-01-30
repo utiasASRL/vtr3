@@ -18,6 +18,8 @@
  */
 #include "vtr_lidar/data_structures/costmap.hpp"
 
+#include "pcl_conversions/pcl_conversions.h"
+
 namespace vtr {
 namespace lidar {
 
@@ -82,8 +84,8 @@ DenseCostMap::DenseCostMap(const float& dl, const float& size_x,
     : BaseCostMap(dl, size_x, size_y, default_value),
       values_(Eigen::MatrixXf::Constant(width_, height_, default_value_)) {}
 
-auto DenseCostMap::toStorable() const -> CostMapMsg {
-  CostMapMsg storable;
+auto DenseCostMap::toCostMapMsg() const -> CostMapMsg {
+  CostMapMsg costmap_msg;
 
   // transform from (0, 0) of the ros msg to (0, 0) of this class
   Eigen::Matrix4d T_this_ros_mat = Eigen::Matrix4d::Identity();
@@ -99,13 +101,30 @@ auto DenseCostMap::toStorable() const -> CostMapMsg {
       data[x + y * width_] =
           (int8_t)(std::clamp(values_(x, y), 0.f, 1.f) * 100);
 
-  storable.info.resolution = dl_;
-  storable.info.width = width_;
-  storable.info.height = height_;
-  storable.info.origin = common::conversions::toPoseMessage(T_vertex_ros);
-  storable.data = data;
+  costmap_msg.info.resolution = dl_;
+  costmap_msg.info.width = width_;
+  costmap_msg.info.height = height_;
+  costmap_msg.info.origin = common::conversions::toPoseMessage(T_vertex_ros);
+  costmap_msg.data = data;
 
-  return storable;
+  return costmap_msg;
+}
+
+auto DenseCostMap::toPointCloudMsg() const -> PointCloudMsg {
+  pcl::PointCloud<pcl::PointXYZI> pointcloud;
+  for (int x = 0; x < width_; ++x)
+    for (int y = 0; y < height_; ++y) {
+      pcl::PointXYZI point;
+      point.x = (x + origin_.x) * dl_;
+      point.y = (y + origin_.y) * dl_;
+      point.z = 0.0f;
+      point.intensity = values_(x, y);
+      pointcloud.emplace_back(point);
+    }
+
+  PointCloudMsg pointcloud_msg;
+  pcl::toROSMsg(pointcloud, pointcloud_msg);
+  return pointcloud_msg;
 }
 
 void DenseCostMap::update(const std::unordered_map<PixKey, float>& values) {
@@ -160,8 +179,8 @@ auto SparseCostMap::filter(const float& threshold) const -> XY2ValueMap {
   return filtered;
 }
 
-auto SparseCostMap::toStorable() const -> CostMapMsg {
-  CostMapMsg storable;
+auto SparseCostMap::toCostMapMsg() const -> CostMapMsg {
+  CostMapMsg costmap_msg;
 
   // transform from (0, 0) of the ros msg to (0, 0) of this class
   Eigen::Matrix4d T_this_ros_mat = Eigen::Matrix4d::Identity();
@@ -178,13 +197,13 @@ auto SparseCostMap::toStorable() const -> CostMapMsg {
         (int8_t)(std::clamp(val.second, 0.f, 1.f) * 100);
   }
 
-  storable.info.resolution = dl_;
-  storable.info.width = width_;
-  storable.info.height = height_;
-  storable.info.origin = common::conversions::toPoseMessage(T_vertex_ros);
-  storable.data = data;
+  costmap_msg.info.resolution = dl_;
+  costmap_msg.info.width = width_;
+  costmap_msg.info.height = height_;
+  costmap_msg.info.origin = common::conversions::toPoseMessage(T_vertex_ros);
+  costmap_msg.data = data;
 
-  return storable;
+  return costmap_msg;
 }
 
 float SparseCostMap::at(const PixKey& k) const {

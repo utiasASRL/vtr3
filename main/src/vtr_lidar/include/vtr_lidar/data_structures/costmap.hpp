@@ -21,6 +21,7 @@
 #include <algorithm>
 
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 #include "teb_local_planner/costmap.h"
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
@@ -108,12 +109,13 @@ class DenseCostMap : public BaseCostMap {
 
   XY2ValueMap filter(const float& threshold) const override;
 
-  /**
-   * \brief Returns the ROS2 message to be stored
-   * \todo fromStorable and make this function return a customized message
-   */
+  /** \brief Returns content of this class as a OccupancyGrid message. */
   using CostMapMsg = nav_msgs::msg::OccupancyGrid;
-  CostMapMsg toStorable() const;
+  CostMapMsg toCostMapMsg() const;
+
+  /** \brief Returns content of this class as a PointCloud2 message. */
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  PointCloudMsg toPointCloudMsg() const;
 
  protected:
   float at(const PixKey& k) const override;
@@ -152,12 +154,13 @@ class SparseCostMap : public BaseCostMap {
 
   XY2ValueMap filter(const float& threshold) const override;
 
-  /**
-   * \brief Returns the ROS2 message to be stored
-   * \todo fromStorable and make this function return a customized message
-   */
+  /** \brief Returns content of this class as a OccupancyGrid message. */
   using CostMapMsg = nav_msgs::msg::OccupancyGrid;
-  CostMapMsg toStorable() const;
+  CostMapMsg toCostMapMsg() const;
+
+  /** \brief Returns content of this class as a PointCloud2 message. */
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  PointCloudMsg toPointCloudMsg() const;
 
  protected:
   float at(const PixKey& k) const override;

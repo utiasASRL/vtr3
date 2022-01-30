@@ -167,7 +167,7 @@ void ObstacleDetectionModule::runAsync_(
     }
 
     // publish the occupancy grid
-    auto grid_msg = ogm->toStorable();
+    auto grid_msg = ogm->toCostMapMsg();
     grid_msg.header.frame_id = "obstacle detection";
     // grid_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     ogm_pub_->publish(grid_msg);
