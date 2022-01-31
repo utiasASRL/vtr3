@@ -109,7 +109,7 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
     });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
-    pc2_msg->header.frame_id = *qdata.lidar_frame;
+    pc2_msg->header.frame_id = "lidar";
     pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
     pub_->publish(*pc2_msg);
   }

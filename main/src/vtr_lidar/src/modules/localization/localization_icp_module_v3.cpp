@@ -141,7 +141,7 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   bool refinement_stage = false;
   int refinement_step = 0;
 
-  using common::timing::Stopwatch;
+  using Stopwatch = common::timing::Stopwatch<>;
   std::vector<std::unique_ptr<Stopwatch>> timer;
   std::vector<std::string> clock_str;
   clock_str.push_back("Random Sample ..... ");

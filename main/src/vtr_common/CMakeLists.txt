@@ -7,6 +7,8 @@ include("vtr_include.cmake")
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 
+find_package(Boost REQUIRED)
+
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
@@ -27,6 +29,9 @@ add_library(${PROJECT_NAME}_utils ${UTILS_SRC})
 # timing
 file(GLOB_RECURSE TIMING_SRC src/timing/*.cpp)
 add_library(${PROJECT_NAME}_timing ${TIMING_SRC})
+ament_target_dependencies(${PROJECT_NAME}_timing
+  Boost
+)
 # conversions
 file(GLOB_RECURSE CONVERSIONS_SRC src/conversions/*.cpp)
 add_library(${PROJECT_NAME}_conversions ${CONVERSIONS_SRC})
@@ -38,6 +43,7 @@ ament_target_dependencies(${PROJECT_NAME}_conversions
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
+  Boost
   tf2_ros tf2_geometry_msgs
   lgmath
   vtr_common_msgs

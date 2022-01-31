@@ -36,7 +36,6 @@ struct LidarQueryCache : public tactic::QueryCache {
   // input
   tactic::Cache<const sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros
   tactic::Cache<const Eigen::MatrixXd> points;  // alternative input non-ros
-  tactic::Cache<const std::string> lidar_frame;
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
 
   // preprocessing

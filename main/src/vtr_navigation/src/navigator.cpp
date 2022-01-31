@@ -125,6 +125,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 #ifdef VTR_ENABLE_LIDAR
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
+  // static transform
+  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
+  auto msg =
+      tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
+  msg.header.frame_id = "robot";
+  msg.child_frame_id = "lidar";
+  tf_sbc_->sendTransform(msg);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
   // \note lidar point cloud data frequency is low, and we cannot afford dropping data
@@ -238,7 +245,6 @@ void Navigator::lidarCallback(
 
   // fill in the vehicle to sensor transform and frame names
   query_data->robot_frame.emplace(robot_frame_);
-  query_data->lidar_frame.emplace(lidar_frame_);
   query_data->T_s_r.emplace(T_lidar_robot_);
 
   // add to the queue and notify the processing thread

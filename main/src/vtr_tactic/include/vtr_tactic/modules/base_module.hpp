@@ -95,7 +95,8 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   const std::string name_;
 
   /** \brief counter&timer that measures total runtime and average run time */
-  common::timing::Stopwatch timer_{false};
+  common::timing::Stopwatch<> timer_{false};
+  common::timing::Stopwatch<boost::chrono::thread_clock> thread_timer_{false};
   std::atomic<int> count_{0};
 
   /// factory handlers (note: local static variable constructed on first use)

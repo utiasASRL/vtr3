@@ -87,6 +87,9 @@ void OdometryMapMergingModuleV2::run_(QueryCache &qdata0, OutputCache &,
   point_map_odo.crop(T_r_pm_odo.matrix().cast<float>(),
                      config_->crop_range_front, config_->back_over_front_ratio);
 
+  CLOG(DEBUG, "lidar.odometry_map_merging")
+      << "Updated point map size is: " << point_map_odo.point_map().size();
+
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {

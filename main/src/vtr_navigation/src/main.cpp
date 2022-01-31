@@ -50,6 +50,9 @@ int main(int argc, char** argv) {
   }
   configureLogging(log_filename, log_debug, log_enabled);
 
+  // disable eigen multi-threading
+  Eigen::setNbThreads(1);
+
   /// Navigator node that launches and runs the whole vtr navigation system
   Navigator navigator{node};
 

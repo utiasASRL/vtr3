@@ -126,6 +126,9 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     return;
   }
 
+  CLOG(DEBUG, "lidar.odometry_icp")
+      << "Retrieve input data and setup evaluators.";
+
   // Inputs
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
@@ -158,6 +161,9 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   // compound transform for alignment (sensor to point map transform)
   const auto T_pm_s_eval = inverse(compose(T_s_r_eval, T_r_pm_eval));
 
+  CLOG(DEBUG, "lidar.odometry_icp")
+            << "Trajectory smoothing initialization.";
+
   /// trajectory smoothing
   std::shared_ptr<SteamTrajInterface> trajectory = nullptr;
   std::vector<StateVariableBase::Ptr> trajectory_state_vars;
@@ -183,6 +189,9 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     // add prior cost terms
     trajectory->appendPriorCostTerms(trajectory_cost_terms);
   }
+
+  CLOG(DEBUG, "lidar.odometry_icp")
+            << "initial alignment.";
 
   // Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
@@ -213,27 +222,33 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   bool refinement_stage = false;
   int refinement_step = 0;
 
-  using common::timing::Stopwatch;
+  using Stopwatch = common::timing::Stopwatch<>;
   std::vector<std::unique_ptr<Stopwatch>> timer;
   std::vector<std::string> clock_str;
-  clock_str.push_back("Random Sample ..... ");
+  clock_str.push_back("Random Sample ...... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("KNN Search ........ ");
+  clock_str.push_back("KNN Search ......... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Point Filtering ... ");
+  clock_str.push_back("Point Filtering .... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Optimization ...... ");
+  clock_str.push_back("Optimization ....... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Alignment ......... ");
+  clock_str.push_back("Alignment .......... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Check Convergence . ");
+  clock_str.push_back("Check Convergence .. ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
+  clock_str.push_back("Compute Covariance . ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
+
+  CLOG(DEBUG, "lidar.odometry_icp") << "Start building a kd-tree of the map.";
 
   /// create kd-tree of the map
   NanoFLANNAdapter<PointWithInfo> adapter(point_map);
   KDTreeParams tree_params(10 /* max leaf */);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
+
+  CLOG(DEBUG, "lidar.odometry_icp") << "Start the ICP optimization loop.";
 
   for (int step = 0;; step++) {
     /// Points Association
@@ -409,6 +424,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[5]->stop();
 
+    timer[6]->start();
     // Last step
     if ((refinement_stage && step >= max_it - 1) ||
         (refinement_step > config_->averaging_num_steps &&
@@ -428,11 +444,13 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
       }
       break;
     }
+    timer[6]->stop();
   }
 
   /// Dump timing info
+  CLOG(DEBUG, "lidar.odometry_icp") << "Dump timing info inside loop: ";
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.odometry_icp") << clock_str[i] << timer[i]->count();
+    CLOG(DEBUG, "lidar.odometry_icp") << "  " << clock_str[i] << timer[i]->count();
   }
 
   /// Outputs
@@ -503,7 +521,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     {
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(*qdata.undistorted_raw_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = *qdata.lidar_frame;
+      pc2_msg.header.frame_id = "lidar";
       pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
       raw_pub_->publish(pc2_msg);
     }
@@ -511,7 +529,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     {
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(*qdata.undistorted_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = *qdata.lidar_frame;
+      pc2_msg.header.frame_id = "lidar";
       pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
       pub_->publish(pc2_msg);
     }

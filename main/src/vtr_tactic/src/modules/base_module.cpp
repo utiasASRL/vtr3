@@ -39,9 +39,11 @@ void BaseModule::initialize(OutputCache &output, const Graph::ConstPtr &graph) {
   CLOG(DEBUG, "tactic.module")
       << "\033[1;31mInitializing module: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
+  common::timing::Stopwatch<boost::chrono::thread_clock> thread_timer;
   initialize_(output, graph);
-  CLOG(DEBUG, "tactic.module") << "Finished initializing module: " << name()
-                               << ", which takes " << timer;
+  CLOG(DEBUG, "tactic.module")
+      << "Finished initializing module: " << name() << ", which takes "
+      << thread_timer << " / " << timer;
 }
 
 void BaseModule::run(QueryCache &qdata, OutputCache &output,
@@ -50,12 +52,14 @@ void BaseModule::run(QueryCache &qdata, OutputCache &output,
   CLOG(DEBUG, "tactic.module")
       << "\033[1;31mRunning module: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
+  common::timing::Stopwatch<boost::chrono::thread_clock> thread_timer;
   ++count_;
   timer_.start();
   run_(qdata, output, graph, executor);
   timer_.stop();
   CLOG(DEBUG, "tactic.module")
-      << "Finished running module: " << name() << ", which takes " << timer;
+      << "Finished running module: " << name() << ", which takes "
+      << thread_timer << " / " << timer;
 }
 
 void BaseModule::runAsync(QueryCache &qdata, OutputCache &output,
@@ -66,11 +70,13 @@ void BaseModule::runAsync(QueryCache &qdata, OutputCache &output,
   CLOG(DEBUG, "tactic.module")
       << "\033[1;31mRunning module (async): " << name() << "\033[0m";
   common::timing::Stopwatch timer;
+  common::timing::Stopwatch<boost::chrono::thread_clock> thread_timer;
   timer_.start();
   runAsync_(qdata, output, graph, executor, priority, dep_id);
   timer_.stop();
-  CLOG(DEBUG, "tactic.module") << "Finished running module (async): " << name()
-                               << ", which takes " << timer;
+  CLOG(DEBUG, "tactic.module")
+      << "Finished running module (async): " << name() << ", which takes "
+      << thread_timer << " / " << timer;
 }
 
 std::shared_ptr<ModuleFactory> BaseModule::factory() const {
