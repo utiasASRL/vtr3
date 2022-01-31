@@ -137,6 +137,9 @@ void PreprocessingModuleV2::run_(QueryCache &qdata0, OutputCache &,
         pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
   }
 
+  CLOG(DEBUG, "lidar.preprocessing")
+      << "range cropped point cloud size: " << filtered_point_cloud->size();
+
   /// Grid subsampling
 
   // Get subsampling of the frame in carthesian coordinates
