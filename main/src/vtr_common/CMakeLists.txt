@@ -7,7 +7,7 @@ include("vtr_include.cmake")
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS chrono timer)
 
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
