@@ -287,7 +287,7 @@
         size_x: 16.0
         size_y: 8.0
         # general
-        run_online: false
+        run_online: true
         run_async: true
         visualize: true
 
@@ -342,7 +342,7 @@
         size_x: 40.0
         size_y: 20.0
         # general
-        run_online: false
+        run_online: true
         run_async: true
         visualize: true
 
@@ -355,7 +355,7 @@
         visualize: true
         extrapolate: true
         extrapolation_timeout: 2.0
-        lookahead_distance: 8.0
+        lookahead_distance: 5.0
         # robot specific
         robot_model: circular
         robot_radius: 0.5
@@ -368,5 +368,5 @@
         max_vel_y: 0.0
         max_vel_theta: 0.3
         min_turning_radius: 3.0
-        weight_viapoint: 0.5
+        weight_viapoint: 1.0
         weight_costmap: 1000.0
