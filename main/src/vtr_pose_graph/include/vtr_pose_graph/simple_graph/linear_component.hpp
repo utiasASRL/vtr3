@@ -14,10 +14,7 @@
 
 /**
  * \file linear_component.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -36,12 +33,6 @@ class LinearComponent {
 
   template <class other_element_t>
   LinearComponent(const LinearComponent<other_element_t> &other);
-
-  LinearComponent(const LinearComponent &) = default;
-  LinearComponent(LinearComponent &&) = default;
-
-  LinearComponent &operator=(const LinearComponent &) = default;
-  LinearComponent &operator=(LinearComponent &&) = default;
 
   size_t size() const {
     return isCyclic() ? elements_.size() - 1 : elements_.size();

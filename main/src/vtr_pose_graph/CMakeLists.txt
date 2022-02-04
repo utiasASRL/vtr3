@@ -6,8 +6,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
+
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_storage REQUIRED)
@@ -20,21 +22,11 @@ include_directories(
     $<INSTALL_INTERFACE:include>
 )
 
-# evaluator base - basic evaluator types (used by simple graph iterator)
-file(GLOB_RECURSE EVALUATOR_BASE_SRC src/evaluator_base/*.cpp)
-add_library(${PROJECT_NAME}_evaluator_base ${EVALUATOR_BASE_SRC})
-ament_target_dependencies(${PROJECT_NAME}_evaluator_base
-  vtr_common
-)
-
 # simple graph - generic graph structure with searching functions
 file(GLOB_RECURSE SIMPLE_GRAPH_SRC src/simple_graph/*.cpp)
 add_library(${PROJECT_NAME}_simple_graph ${SIMPLE_GRAPH_SRC})
 ament_target_dependencies(${PROJECT_NAME}_simple_graph
   vtr_common vtr_logging
-)
-target_link_libraries(${PROJECT_NAME}_simple_graph
-  ${PROJECT_NAME}_evaluator_base
 )
 
 # index - spatio-temporal pose graph structure
@@ -131,10 +123,6 @@ if(BUILD_TESTING)
   # id tests
   ament_add_gmock(test_id test/id/test_id.cpp)
   ament_target_dependencies(test_id vtr_logging vtr_common)
-  # target_include_directories(test_id PUBLIC
-  #   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  #   $<INSTALL_INTERFACE:include>
-  # )
 
   # simple graph tests
   ament_add_gtest(test_simple_graph test/simple_graph/test_simple_graph.cpp)

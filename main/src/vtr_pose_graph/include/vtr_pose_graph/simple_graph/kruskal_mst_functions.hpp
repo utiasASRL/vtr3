@@ -14,9 +14,6 @@
 
 /**
  * \file kruskal_mst_functions.hpp
- * \brief
- * \details
- *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -26,41 +23,39 @@
 #include <unordered_map>
 #include <vector>
 
+#include "vtr_pose_graph/id/id.hpp"
+
 namespace vtr {
 namespace pose_graph {
 namespace simple {
 namespace kruskal {
 
-using SimpleVertex = uint64_t;
-
 /** \brief A structure to represent a weighted edge in graph */
 struct WeightedEdge {
-  using SimpleEdge = std::pair<SimpleVertex, SimpleVertex>;
-
   WeightedEdge() {}
-  WeightedEdge(const SimpleEdge &edge, double weight)
+  WeightedEdge(const EdgeId &edge, double weight)
       : edge(edge), weight(weight) {}
-
-  SimpleEdge edge;
-  double weight;
 
   bool operator<(const WeightedEdge &other) const {
     return (weight < other.weight);
   }
+
+  EdgeId edge;
+  double weight;
 };
 
 /** \brief A structure to represent a subset for union-find */
 struct UnionFindSubset {
-  SimpleVertex parent;
-  SimpleVertex rank;
+  VertexId parent;
+  VertexId rank;
 };
 
 /**
  * \brief A utility function to find set of an element i (uses path compression
  * technique)
  */
-SimpleVertex find(std::unordered_map<SimpleVertex, UnionFindSubset> *subsetMap,
-                  SimpleVertex i) {
+VertexId find(std::unordered_map<VertexId, UnionFindSubset> *subsetMap,
+              VertexId i) {
   // Find root and make root as parent of i (path compression)
   if (subsetMap->at(i).parent != i) {
     subsetMap->at(i).parent = find(subsetMap, subsetMap->at(i).parent);
@@ -72,10 +67,10 @@ SimpleVertex find(std::unordered_map<SimpleVertex, UnionFindSubset> *subsetMap,
  * \brief A function that does union of two sets of x and y (uses union by
  * rank)
  */
-void unionSubsets(std::unordered_map<SimpleVertex, UnionFindSubset> *subsetMap,
-                  SimpleVertex x, SimpleVertex y) {
-  SimpleVertex xroot = find(subsetMap, x);
-  SimpleVertex yroot = find(subsetMap, y);
+void unionSubsets(std::unordered_map<VertexId, UnionFindSubset> *subsetMap,
+                  VertexId x, VertexId y) {
+  VertexId xroot = find(subsetMap, x);
+  VertexId yroot = find(subsetMap, y);
 
   // Attach smaller rank tree under root of high rank tree (Union by Rank)
   if (subsetMap->at(xroot).rank < subsetMap->at(yroot).rank) {
