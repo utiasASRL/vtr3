@@ -14,107 +14,156 @@
 
 /**
  * \file graph_iterator.inl
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph_iterator.hpp>
+#include "vtr_pose_graph/index/graph_iterator.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
 template <class G>
-VertexIterator<G>::VertexIterator(const G* graph, const IterType& internalIter)
-    : graph_(graph), internalIter_(internalIter) {}
+VertexIterator<G>::VertexIterator(const G* graph, const IterType& internal_iter)
+    : graph_(graph), internal_iter_(internal_iter) {}
 
 template <class G>
 auto VertexIterator<G>::operator*() const -> VertexPtr& {
-  return graph_->at(internalIter_->first);
+  return graph_->at(internal_iter_->first);
 }
 
 template <class G>
-auto VertexIterator<G>::operator->() const -> VertexType* {
-  return graph_->at(internalIter_->first).get();
+auto VertexIterator<G>::operator->() const -> Vertex* {
+  return graph_->at(internal_iter_->first).get();
 }
 
 template <class G>
 VertexIterator<G>& VertexIterator<G>::operator++() {
-  ++internalIter_;
+  ++internal_iter_;
   return *this;
 }
 
 template <class G>
 VertexIterator<G> VertexIterator<G>::operator++(int) {
-  VertexIterator tmp(graph_, internalIter_);
-  ++internalIter_;
+  VertexIterator tmp(graph_, internal_iter_);
+  ++internal_iter_;
   return tmp;
 }
 
 template <class G>
 bool VertexIterator<G>::operator==(const VertexIterator& other) const {
   return (this->graph_ == other.graph_) &&
-         (this->internalIter_ == other.internalIter_);
+         (this->internal_iter_ == other.internal_iter_);
 }
 
 template <class G>
 bool VertexIterator<G>::operator!=(const VertexIterator& other) const {
   return (this->graph_ != other.graph_) ||
-         (this->internalIter_ != other.internalIter_);
+         (this->internal_iter_ != other.internal_iter_);
 }
 
 template <class G>
-EdgeIterator<G>::EdgeIterator(const G* graph, const IterType& internalIter)
-    : graph_(graph), internalIter_(internalIter) {}
+EdgeIterator<G>::EdgeIterator(const G* graph, const IterType& internal_iter)
+    : graph_(graph), internal_iter_(internal_iter) {}
 
 template <class G>
 auto EdgeIterator<G>::operator*() const -> EdgePtr& {
-  return graph_->at(*internalIter_);
+  return graph_->at(*internal_iter_);
 }
 
 template <class G>
-auto EdgeIterator<G>::operator->() const -> EdgeType* {
-  return graph_->at(*internalIter_).get();
+auto EdgeIterator<G>::operator->() const -> Edge* {
+  return graph_->at(*internal_iter_).get();
 }
 
 template <class G>
 EdgeIterator<G>& EdgeIterator<G>::operator++() {
-  ++internalIter_;
+  ++internal_iter_;
   return *this;
 }
 
 template <class G>
 EdgeIterator<G> EdgeIterator<G>::operator++(int) {
-  EdgeIterator tmp(graph_, internalIter_);
-  ++internalIter_;
+  EdgeIterator tmp(graph_, internal_iter_);
+  ++internal_iter_;
   return tmp;
 }
 
 template <class G>
 EdgeIterator<G>& EdgeIterator<G>::operator--() {
-  --internalIter_;
+  --internal_iter_;
   return *this;
 }
 
 template <class G>
 EdgeIterator<G> EdgeIterator<G>::operator--(int) {
-  EdgeIterator tmp(graph_, internalIter_);
-  --internalIter_;
+  EdgeIterator tmp(graph_, internal_iter_);
+  --internal_iter_;
   return tmp;
 }
 
 template <class G>
 bool EdgeIterator<G>::operator==(const EdgeIterator& other) const {
   return (this->graph_ == other.graph_) &&
-         (this->internalIter_ == other.internalIter_);
+         (this->internal_iter_ == other.internal_iter_);
 }
 
 template <class G>
 bool EdgeIterator<G>::operator!=(const EdgeIterator& other) const {
   return (this->graph_ != other.graph_) ||
-         (this->internalIter_ != other.internalIter_);
+         (this->internal_iter_ != other.internal_iter_);
+}
+
+template <class G>
+OrderedGraphIterator<G>::OrderedGraphIterator(const G* graph,
+                                              const IterType& internal_iter)
+    : internal_iter_(internal_iter) {
+  if (internal_iter_.empty())
+    data_ = NodeParent<G>(graph);
+  else
+    data_ = NodeParent<G>(graph, *internal_iter_);
+}
+
+template <class G>
+const NodeParent<G>& OrderedGraphIterator<G>::operator*() const {
+  return data_;
+}
+
+template <class G>
+const NodeParent<G>* OrderedGraphIterator<G>::operator->() const {
+  return &data_;
+}
+
+template <class G>
+OrderedGraphIterator<G>& OrderedGraphIterator<G>::operator++() {
+  ++internal_iter_;
+  if (!internal_iter_.empty())
+    data_ = NodeParent<G>(data_.graph_, *internal_iter_);
+  else
+    data_ = NodeParent<G>(data_.graph_);
+
+  return *this;
+}
+
+template <class G>
+OrderedGraphIterator<G> OrderedGraphIterator<G>::operator++(int) {
+  OrderedGraphIterator<G> tmp(data_.graph_, internal_iter_);
+  ++(*this);
+  return tmp;
+}
+
+template <class G>
+bool OrderedGraphIterator<G>::operator==(
+    const OrderedGraphIterator& other) const {
+  return (this->data_.graph_ == other.data_.graph_) &&
+         (this->internal_iter_ == other.internal_iter_);
+}
+
+template <class G>
+bool OrderedGraphIterator<G>::operator!=(
+    const OrderedGraphIterator& other) const {
+  return (this->data_.graph_ != other.data_.graph_) ||
+         (this->internal_iter_ != other.internal_iter_);
 }
 
 }  // namespace pose_graph

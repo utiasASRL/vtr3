@@ -21,9 +21,8 @@
 namespace vtr {
 namespace pose_graph {
 
-template class RunBase<VertexBase, EdgeBase>;
-template class GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
-template class Graph<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
+template class GraphBase<VertexBase, EdgeBase>;
+template class Graph<VertexBase, EdgeBase>;
 
 }  // namespace pose_graph
 }  // namespace vtr

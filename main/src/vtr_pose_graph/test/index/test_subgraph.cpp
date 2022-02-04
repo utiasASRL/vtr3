@@ -14,10 +14,7 @@
 
 /**
  * \file subgraph_tests.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
 
@@ -32,8 +29,7 @@ using namespace vtr::pose_graph;
 
 class SubGraphTestFixture : public Test {
  public:
-  SubGraphTestFixture() : graph_(new BasicGraph()) {}
-
+  SubGraphTestFixture() {}
   ~SubGraphTestFixture() {}
 
   void SetUp() override {
@@ -58,32 +54,35 @@ class SubGraphTestFixture : public Test {
       graph_->addVertex();
       for (int vidx = 1; vidx < 250; ++vidx) {
         graph_->addVertex();
-        graph_->addEdge(VertexId(idx, vidx - 1), VertexId(idx, vidx), Temporal,
-                        idx == 0 ? true : false);
+        graph_->addEdge(VertexId(idx, vidx - 1), VertexId(idx, vidx),
+                        EdgeType::Temporal, idx == 0 ? true : false,
+                        EdgeTransform(true));
       }
     }
     // Add spatial edge across runs.
-    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), Spatial);
-    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), Spatial);
-    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), Spatial);
-    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), Spatial);
+    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), EdgeType::Spatial, false,
+                    EdgeTransform(true));
+    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), EdgeType::Spatial, false,
+                    EdgeTransform(true));
+    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), EdgeType::Spatial, false,
+                    EdgeTransform(true));
+    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), EdgeType::Spatial, false,
+                    EdgeTransform(true));
 
     // set the edge's transform to something special;
-    const auto& edge_map = graph_->edges()->unlocked().get();
-    for (auto itr = edge_map.begin(); itr != edge_map.end(); ++itr) {
+    for (auto itr = graph_->beginEdge(); itr != graph_->beginEdge(); ++itr) {
       Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-      transform(0, 3) = itr->second->id().majorId2();
-      transform(1, 3) = itr->second->id().minorId2();
-      transform(2, 3) = itr->second->id().type();
-      itr->second->setTransform(lgmath::se3::Transformation(transform));
+      transform(0, 3) = itr->id().majorId2();
+      transform(1, 3) = itr->id().minorId2();
+      transform(2, 3) = (double)itr->type();
+      itr->setTransform(EdgeTransform(transform));
     }
   }
 
   void TearDown() override {}
 
  protected:
-  /// std::unique_ptr<RCGraph> graph_;
-  BasicGraph::Ptr graph_;
+  BasicGraph::Ptr graph_ = BasicGraph::MakeShared();
 };
 
 TEST_F(SubGraphTestFixture, SubGraphFromVertexList) {
@@ -92,61 +91,17 @@ TEST_F(SubGraphTestFixture, SubGraphFromVertexList) {
   vertices.push_back(VertexId(0, 1));
   vertices.push_back(VertexId(0, 2));
   auto sub_graph = graph_->getSubgraph(vertices);
+
   int count = 0;
   for (auto itr = sub_graph->beginEdge(); itr != sub_graph->endEdge(); ++itr)
     count++;
   EXPECT_EQ(count, 2);
-}
 
-TEST_F(SubGraphTestFixture, SubGraphUnion) {
-  std::vector<VertexId> v1, v2;
-  v1.push_back(VertexId(0, 0));
-  v1.push_back(VertexId(0, 1));
-  v1.push_back(VertexId(0, 2));
-
-  v2.push_back(VertexId(0, 2));
-  v2.push_back(VertexId(0, 3));
-  v2.push_back(VertexId(0, 4));
-
-  auto sub_graph1 = graph_->getSubgraph(v1);
-  auto sub_graph2 = graph_->getSubgraph(v2);
-  auto sub_graph = sub_graph1->setUnion(sub_graph2);
-
-  EXPECT_EQ(sub_graph->numberOfVertices(), (unsigned)5);
-  EXPECT_EQ(sub_graph->numberOfEdges(), (unsigned)4);
-
-  for (int i = 0; i < 5; ++i) {
-    EXPECT_TRUE(sub_graph->contains(VertexId(0, i)));
-  }
-
-  for (int i = 0; i < 4; ++i) {
-    EXPECT_TRUE(sub_graph->contains(VertexId(0, i), VertexId(0, i + 1)));
-  }
-}
-
-TEST_F(SubGraphTestFixture, InducedSubGraphs) {
-  std::vector<VertexId> v1, v2;
-  v1.push_back(VertexId(0, 0));
-  v1.push_back(VertexId(0, 1));
-  v1.push_back(VertexId(0, 2));
-
-  v2.push_back(VertexId(1, 0));
-  v2.push_back(VertexId(1, 1));
-  v2.push_back(VertexId(1, 2));
-
-  auto sub_graph1 = graph_->getSubgraph(v1);
-  auto sub_graph2 = graph_->getSubgraph(v2);
-  auto sub_graph = sub_graph1->setUnion(sub_graph2);
-
-  EXPECT_EQ(sub_graph->numberOfVertices(), (unsigned)6);
-  EXPECT_EQ(sub_graph->numberOfEdges(), (unsigned)4);
-  EXPECT_FALSE(sub_graph->contains(VertexId(0, 0), VertexId(1, 1)));
-
-  auto ind_graph = graph_->induced(*sub_graph);
-
-  EXPECT_EQ(ind_graph->numberOfVertices(), (unsigned)6);
-  EXPECT_EQ(ind_graph->numberOfEdges(), (unsigned)5);
-  EXPECT_TRUE(ind_graph->contains(VertexId(0, 0), VertexId(1, 1)));
+  count = 0;
+  for (auto itr = sub_graph->beginVertex(); itr != sub_graph->endVertex();
+       ++itr)
+    count++;
+  EXPECT_EQ(count, 3);
 }
 
 int main(int argc, char** argv) {

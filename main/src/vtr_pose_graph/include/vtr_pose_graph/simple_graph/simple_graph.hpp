@@ -31,6 +31,10 @@
 
 namespace vtr {
 namespace pose_graph {
+
+template <class V, class E>
+class GraphBase;
+
 namespace simple {
 
 class SimpleGraphIterator;
@@ -143,14 +147,6 @@ class SimpleGraph {
   EdgeIter endEdge() const { return edges_.end(); }
 
   /**
-   * \brief Get a decomposition of the graph containing only linear, acyclic
-   * components
-   * \returns A list of junction/dead end vertices
-   */
-  JunctionSet pathDecomposition(ComponentList &paths,
-                                ComponentList &cycles) const;
-
-  /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
@@ -230,6 +226,14 @@ class SimpleGraph {
       const eval::mask::Ptr &mask =
           std::make_shared<eval::mask::ConstEval>(true, true)) const;
 
+  /**
+   * \brief Get a decomposition of the graph containing only linear, acyclic
+   * components
+   * \returns A list of junction/dead end vertices
+   */
+  JunctionSet pathDecomposition(ComponentList &paths,
+                                ComponentList &cycles) const;
+
   /** \brief Print the structure of the graph */
   void print() const;
 
@@ -249,6 +253,9 @@ class SimpleGraph {
   EdgeList edges_;
 
   friend class SimpleGraphIterator;
+
+  template <class V, class E>
+  friend class pose_graph::GraphBase;
 };
 
 }  // namespace simple
