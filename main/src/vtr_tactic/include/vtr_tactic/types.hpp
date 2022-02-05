@@ -34,23 +34,22 @@ using Timestamp = storage::Timestamp;
 
 /// pose graph structures
 using Graph = pose_graph::RCGraph;
-using GraphBase = pose_graph::RCGraphBase;
-using RunId = pose_graph::RCRun::IdType;
-using RunIdSet = std::set<RunId>;
-using Vertex = pose_graph::RCVertex;
+using GraphBase = Graph::Base;
 using VertexId = pose_graph::VertexId;
+using Vertex = pose_graph::RCVertex;
 using EdgeId = pose_graph::EdgeId;
-using EdgeTransform = pose_graph::RCEdge::TransformType;
-using PersistentId = pose_graph::RCVertex::PersistentIdType;
+using Edge = pose_graph::RCEdge;
+using EdgeType = pose_graph::EdgeType;
+using EdgeTransform = pose_graph::EdgeTransform;
 
 template <class GraphT>
-using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<GraphT>;
+using PrivilegedEvaluator = pose_graph::eval::mask::privileged::Eval<GraphT>;
 template <class GraphT>
-using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<GraphT>;
+using TemporalEvaluator = pose_graph::eval::mask::temporal::Eval<GraphT>;
 using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 
 /// mission planning
-using PathType = pose_graph::VertexId::Vector;
+using PathType = VertexId::Vector;
 
 /// tactic types
 using EnvInfo = vtr_tactic_msgs::msg::EnvInfo;

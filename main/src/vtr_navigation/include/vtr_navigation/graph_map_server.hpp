@@ -61,10 +61,9 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   using VertexPtr = tactic::Graph::VertexPtr;
   using EdgePtr = tactic::Graph::EdgePtr;
-  using RunPtr = tactic::Graph::RunPtr;
-  using EdgeId = tactic::Graph::EdgeIdType;
-  using VertexId = tactic::Graph::VertexIdType;
-  using Transform = tactic::Graph::TransformType;
+  using EdgeId = tactic::EdgeId;
+  using VertexId = tactic::VertexId;
+  using Transform = tactic::EdgeTransform;
 
   using GraphPtr = tactic::Graph::Ptr;
   using GraphWeakPtr = tactic::Graph::WeakPtr;

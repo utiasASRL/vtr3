@@ -64,10 +64,8 @@ auto BFSPlanner::getGraph() const -> GraphPtr {
 auto BFSPlanner::getPrivilegedGraph() const -> GraphBasePtr {
   // get the current privileged graph
   const auto graph = getGraph();
-  using PrivEval =
-      typename pose_graph::eval::Mask::Privileged<tactic::GraphBase>::Caching;
-  auto priv_eval = std::make_shared<PrivEval>();
-  priv_eval->setGraph(graph.get());
+  using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+  auto priv_eval = std::make_shared<PrivEval>(*graph);
   return graph->getSubgraph(priv_eval);
 }
 

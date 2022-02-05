@@ -62,23 +62,23 @@ void GraphMemManagerModule::runAsync_(QueryCache &qdata, OutputCache &,
   const auto live_id = qdata.graph_mem_async->first;
   const auto map_id = qdata.graph_mem_async->second;
 
-  auto eval = std::make_shared<PrivilegedEvaluator<Graph>>();
-  eval->setGraph((void *)graph.get());
+  auto eval = std::make_shared<PrivilegedEvaluator<Graph>>(*graph);
 
-  std::vector<Graph::VertexPtr> vertices;
+  std::vector<VertexId> vertices;
   vertices.reserve(2 * config_->window_size);
 
   // subgraph is necessary to avoid concurrency issues.
   const auto subgraph = graph->getSubgraph(map_id, config_->window_size, eval);
   auto iter = subgraph->beginDfs(map_id, config_->window_size, eval);
-  for (; iter != subgraph->end(); ++iter) vertices.push_back(iter->v());
+  for (; iter != subgraph->end(); ++iter) vertices.push_back(iter->v()->id());
 
   for (auto &&vertex : vertices) {
     // load up the vertex and its spatial neighbors.
-    vid_life_map_[vertex->id()] = config_->vertex_life_span;
-    for (auto &&spatial_vid : vertex->spatialNeighbours()) {
-      if (spatial_vid.majorId() != live_id.majorId())
-        vid_life_map_[spatial_vid] = config_->vertex_life_span;
+    vid_life_map_[vertex] = config_->vertex_life_span;
+    for (auto &&vid : graph->neighbors(vertex)) {
+      if (graph->at(EdgeId(vid, vertex))->isSpatial() &&
+          (vid.majorId() != live_id.majorId()))
+        vid_life_map_[vid] = config_->vertex_life_span;
     }
   }
 

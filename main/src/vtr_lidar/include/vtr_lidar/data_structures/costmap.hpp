@@ -25,6 +25,7 @@
 #include "teb_local_planner/costmap.h"
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
+#include "vtr_common/utils/hash.hpp"  // for std::pair hash
 #include "vtr_lidar/utils.hpp"
 #include "vtr_tactic/types.hpp"
 
