@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file relaxation_factor.hpp
+ * \file pose_graph_relaxation.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -32,13 +32,11 @@ class PoseGraphRelaxation : public PGOFactorInterface<Graph> {
 
   // Explicity import things from the dependent scope
   using GraphPtr = typename Base::GraphPtr;
-  using VertexId = typename Base::VertexId;
-  using Transform = typename Base::Transform;
   using VertexId2TransformMap = typename Base::VertexId2TransformMap;
   using StateMap = typename Base::StateMap;
   using CostTermPtr = typename Base::CostTermPtr;
 
-  using ModelGen = NoiseModelGenerator<Transform, 6>;
+  using ModelGen = NoiseModelGenerator<EdgeTransform, 6>;
 
   using LossFuncPtr = steam::LossFunctionBase::Ptr;
   using NoiseModelPtr = steam::BaseNoiseModel<6>::Ptr;
