@@ -33,6 +33,7 @@ Graph<V, E>::Graph(const CallbackPtr& callback) : callback_(callback) {}
 
 template <class V, class E>
 BaseIdType Graph<V, E>::addRun() {
+  ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
 
   if ((curr_major_id_ == InvalidBaseId) || (curr_minor_id_ != InvalidBaseId)) {
@@ -51,6 +52,7 @@ BaseIdType Graph<V, E>::addRun() {
 template <class V, class E>
 template <class... Args>
 auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
+  ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
 
   if (curr_major_id_ == InvalidBaseId) {
@@ -75,6 +77,7 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
                           const EdgeType& type, const bool manual,
                           const EdgeTransform& T_to_from, Args&&... args)
     -> EdgePtr {
+  ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
 
   if ((vertices_.find(from) == vertices_.end()) ||

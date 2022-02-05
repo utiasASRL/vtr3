@@ -44,6 +44,10 @@ class Graph : public GraphBase<V, E> {
   using Callback = GraphCallbackInterface<V, E>;
   using CallbackPtr = typename Callback::Ptr;
 
+  using ChangeMutex = std::recursive_mutex;
+  using ChangeLock = std::unique_lock<ChangeMutex>;
+  using ChangeGuard = std::lock_guard<ChangeMutex>;
+
   /** \brief Pseudo-constructor to make shared pointers */
   static Ptr MakeShared(
       const CallbackPtr& callback = std::make_shared<Callback>());
@@ -63,6 +67,9 @@ class Graph : public GraphBase<V, E> {
                   const EdgeType& type, const bool manual,
                   const EdgeTransform& T_to_from, Args&&... args);
 
+  /** \brief Lock to prevent graph change */
+  ChangeLock guard() const { return ChangeLock(change_mutex_); }
+
  protected:
   /** \brief protects access to all members below include callback methods */
   using Base::mutex_;
@@ -79,6 +86,16 @@ class Graph : public GraphBase<V, E> {
 
   /** \brief The current maximum run index */
   const CallbackPtr callback_;
+
+  /**
+   * \brief Lock by methods that change graph structure, can be used externally
+   * to prevent graph structure changes during multiple calls to graph methods.
+   * \note Call to individual method is already safe with the use of
+   * shared_mutex, this is only for calls to multiple methods sequentially
+   * without potential graph change by another thread, and this is not a shared
+   * mutex.
+   */
+  mutable ChangeMutex change_mutex_;
 };
 
 extern template class Graph<VertexBase, EdgeBase>;

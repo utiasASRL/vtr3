@@ -34,6 +34,8 @@ class GraphBase {
   using Base = GraphBase<V, E>;
 
   using SimpleGraph = simple::SimpleGraph;
+  using JunctionSet = SimpleGraph::JunctionSet;
+  using ComponentList = SimpleGraph::ComponentList;
 
   using Vertex = V;
   using VertexPtr = typename V::Ptr;
@@ -292,9 +294,8 @@ class GraphBase {
    * components
    * \returns A list of junction/dead end vertices
    */
-  SimpleGraph::JunctionSet pathDecomposition(
-      SimpleGraph::ComponentList& paths,
-      SimpleGraph::ComponentList& cycles) const;
+  JunctionSet pathDecomposition(ComponentList& paths,
+                                ComponentList& cycles) const;
 
  protected:
   /** \brief protects access to graph_, vertices_ and edges_ */
