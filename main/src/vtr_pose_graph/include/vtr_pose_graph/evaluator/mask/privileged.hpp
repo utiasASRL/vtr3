@@ -13,144 +13,101 @@
 // limitations under the License.
 
 /**
- * \file common.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \file privileged.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator_base/common.hpp>
-
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
-#include <vtr_pose_graph/serializable/rc_graph_base.hpp>
+#include "vtr_pose_graph/evaluator_base/types.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace eval {
-namespace Mask {
+namespace mask {
+namespace privileged {
+
+namespace detail {
 
 template <class GRAPH>
-class PrivilegedDirect : public virtual Typed<GRAPH>::Direct {
+ReturnType computeVertex(const GRAPH &graph, const VertexId &v) {
+  const auto nbs = graph.neighbors(v);
+  for (const auto &nb : nbs) {
+    if (graph.at(EdgeId(v, nb))->isManual()) return true;
+  }
+  return false;
+}
+
+template <class GRAPH>
+ReturnType computeEdge(const GRAPH &graph, const EdgeId &e) {
+  return graph.at(e)->isManual() ||
+         (computeVertex(graph, e.id1()) && computeVertex(graph, e.id2()));
+}
+
+}  // namespace detail
+
+template <class GRAPH>
+class Eval : public BaseEval {
  public:
-  using Base = typename Typed<GRAPH>::Direct;
-  using Base::graph_;
+  PTR_TYPEDEFS(Eval);
 
-  PTR_TYPEDEFS(PrivilegedDirect);
-
-  static Ptr MakeShared() { return Ptr(new PrivilegedDirect()); }
-
-  PrivilegedDirect() {}
-  virtual ~PrivilegedDirect() {}
-
-  PrivilegedDirect(const PrivilegedDirect &) = default;
-  PrivilegedDirect &operator=(const PrivilegedDirect &) = default;
-  PrivilegedDirect(PrivilegedDirect &&) = default;
-  PrivilegedDirect &operator=(PrivilegedDirect &&) = default;
+  Eval(const GRAPH &graph) : graph_(graph) {}
 
  protected:
-  ReturnType computeEdge(const typename Base::EdgePtr &e) override {
-    // Return true if the edge is manual, or the edge is between two privileged
-    // vertices (computed recursively)
-    return e->isManual() || ((*this)[e->from()] && (*this)[e->to()]);
-  }
-  ReturnType computeVertex(const typename Base::VertexPtr &v) override {
-    typedef typename Base::EdgeIdType::Base::Type EidEnumType;
-    // Check to see if any of the connected edges are manual edges
-    for (uint32_t i = 0; i < Base::EdgeIdType::Base::NumTypes(); ++i) {
-      for (const typename Base::VertexIdType &nvid :
-           v->neighbours(EidEnumType(i))) {
-        try {
-          if (graph_->at(v->id(), nvid)->isManual()) return true;
-        } catch (const std::out_of_range &e) {
-        }
-      }
-    }
-    return false;
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
 
-  ReturnType computeEdge(const typename Base::EdgePtr &e) const override {
-    /// \todo This is going to involve a lot of stupid repetition if called in a
-    /// const scope...
-    // Return true if the edge is manual, or the edge is between two privileged
-    // vertices (computed recursively)
-    return e->isManual() || (this->at(e->from()) && this->at(e->to()));
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
   }
-  ReturnType computeVertex(const typename Base::VertexPtr &v) const override {
-    typedef typename Base::EdgeIdType::Base::Type EidEnumType;
-    // Check to see if any of the connected edges are manual edges
-    for (uint32_t i = 0; i < Base::EdgeIdType::Base::NumTypes(); ++i) {
-      for (const typename Base::VertexIdType &nvid :
-           v->neighbours(EidEnumType(i))) {
-        try {
-          if (graph_->at(v->id(), nvid)->isManual()) return true;
-        } catch (const std::out_of_range &e) {
-        }
-      }
-    }
-    return false;
-  }
+
+ private:
+  const GRAPH &graph_;
 };
 
 template <class GRAPH>
-class PrivilegedCaching : public virtual Typed<GRAPH>::Caching,
-                          public virtual PrivilegedDirect<GRAPH> {
+class CachedEval : public BaseCachedEval {
  public:
-  PTR_TYPEDEFS(PrivilegedCaching);
+  PTR_TYPEDEFS(CachedEval);
 
-  static Ptr MakeShared() { return Ptr(new PrivilegedCaching()); }
+  CachedEval(const GRAPH &graph) : graph_(graph) {}
 
-  PrivilegedCaching() {}
-  virtual ~PrivilegedCaching() {}
-
-  PrivilegedCaching(const PrivilegedCaching &) = default;
-  PrivilegedCaching &operator=(const PrivilegedCaching &) = default;
-  PrivilegedCaching(PrivilegedCaching &&other)
-      : Typed<GRAPH>::Caching(std::move(other)),
-        PrivilegedDirect<GRAPH>(std::move(other)) {}
-  PrivilegedCaching &operator=(PrivilegedCaching &&other) {
-    Typed<GRAPH>::Caching::operator=(std::move(other));
-    PrivilegedDirect<GRAPH>::operator=(std::move(other));
-    return *this;
+ protected:
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
+
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
+  }
+
+ private:
+  const GRAPH &graph_;
 };
 
 template <class GRAPH>
-class PrivilegedWindowed : public virtual Typed<GRAPH>::Windowed,
-                           public virtual PrivilegedCaching<GRAPH> {
+class WindowedEval : public BaseWindowedEval {
  public:
-  PTR_TYPEDEFS(PrivilegedWindowed);
+  PTR_TYPEDEFS(WindowedEval);
 
-  static Ptr MakeShared(const size_t &cacheSize) {
-    return Ptr(new PrivilegedWindowed(cacheSize));
+  WindowedEval(const GRAPH &graph, const size_t &cache_size)
+      : BaseWindowedEval(cache_size), graph_(graph) {}
+
+ protected:
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
 
-  PrivilegedWindowed(const size_t &cacheSize)
-      : Typed<GRAPH>::Windowed(cacheSize) {}
-  virtual ~PrivilegedWindowed() {}
-
-  PrivilegedWindowed(const PrivilegedWindowed &) = default;
-  PrivilegedWindowed &operator=(const PrivilegedWindowed &) = default;
-  PrivilegedWindowed(PrivilegedWindowed &&other)
-      : Typed<GRAPH>::Windowed(std::move(other)),
-        PrivilegedCaching<GRAPH>(std::move(other)) {}
-  PrivilegedWindowed &operator=(PrivilegedWindowed &&other) {
-    Typed<GRAPH>::Windowed::operator=(std::move(other));
-    PrivilegedCaching<GRAPH>::operator=(std::move(other));
-    return *this;
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
   }
+
+ private:
+  const GRAPH &graph_;
 };
 
-template <class GRAPH>
-struct Privileged {
-  using Direct = PrivilegedDirect<GRAPH>;
-  using Caching = PrivilegedCaching<GRAPH>;
-  using Windowed = PrivilegedWindowed<GRAPH>;
-};
-
-}  // namespace Mask
-
+}  // namespace privileged
+}  // namespace mask
 }  // namespace eval
 }  // namespace pose_graph
 }  // namespace vtr

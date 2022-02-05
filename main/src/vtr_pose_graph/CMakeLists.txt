@@ -51,18 +51,6 @@ target_link_libraries(${PROJECT_NAME}_serializable
   ${PROJECT_NAME}_index
 )
 
-# # evaluator
-# file(GLOB_RECURSE EVALUATOR_SRC
-#   src/evaluator/*.cpp
-# )
-# add_library(${PROJECT_NAME}_evaluator ${EVALUATOR_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_evaluator
-#   vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
-# )
-# target_link_libraries(${PROJECT_NAME}_evaluator
-#   ${PROJECT_NAME}_serializable
-# )
-
 # # path (localization chain)
 # file(GLOB_RECURSE PATH_SRC
 #   src/path/*.cpp
@@ -91,7 +79,6 @@ install(
     ${PROJECT_NAME}_simple_graph
     ${PROJECT_NAME}_index
     ${PROJECT_NAME}_serializable
-#     ${PROJECT_NAME}_evaluator
 #     ${PROJECT_NAME}_path
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
@@ -137,14 +124,14 @@ if(BUILD_TESTING)
   target_link_libraries(test_vertex_stream_time ${PROJECT_NAME}_serializable)
 
   # evaluator tests
-  # ament_add_gtest(test_evaluator_base test/evaluator/test_evaluator_base.cpp)
-  # target_link_libraries(test_evaluator_base ${PROJECT_NAME}_evaluator)
-  # ament_add_gtest(test_evaluator test/evaluator/test_evaluator.cpp)
-  # target_link_libraries(test_evaluator ${PROJECT_NAME}_evaluator)
-  # ament_add_gmock(test_graph_traversal test/evaluator/test_graph_traversal.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  # target_link_libraries(test_graph_traversal ${PROJECT_NAME}_evaluator)
-  # ament_add_gmock(test_subgraph_evaluator test/evaluator/test_subgraph_evaluator.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  # target_link_libraries(test_subgraph_evaluator ${PROJECT_NAME}_evaluator)
+  ament_add_gtest(test_evaluator_base test/evaluator/test_evaluator_base.cpp)
+  target_link_libraries(test_evaluator_base ${PROJECT_NAME}_index)
+  ament_add_gtest(test_evaluator test/evaluator/test_evaluator.cpp)
+  target_link_libraries(test_evaluator ${PROJECT_NAME}_index)
+  ament_add_gmock(test_graph_traversal test/evaluator/test_graph_traversal.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_graph_traversal ${PROJECT_NAME}_index)
+  ament_add_gmock(test_subgraph_evaluator test/evaluator/test_subgraph_evaluator.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_subgraph_evaluator ${PROJECT_NAME}_index)
 
   # # path tests
   # ament_add_gmock(test_path test/path/test_path.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

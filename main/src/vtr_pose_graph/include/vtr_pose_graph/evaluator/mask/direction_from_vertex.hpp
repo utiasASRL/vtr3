@@ -13,55 +13,30 @@
 // limitations under the License.
 
 /**
- * \file common.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \file direction_from_vertex.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator_base/common.hpp>
-
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
-#include <vtr_pose_graph/serializable/rc_graph_base.hpp>
+#include "vtr_pose_graph/evaluator_base/types.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace eval {
-namespace Mask {
+namespace mask {
+namespace direction_from_vertex {
 
-template <class GRAPH>
-class DirectionFromVertexDirect : public virtual Typed<GRAPH>::Direct {
+class Eval : public BaseEval {
  public:
-  using AbstractBase = typename Typed<GRAPH>::Direct;
-  PTR_TYPEDEFS(DirectionFromVertexDirect);
+  PTR_TYPEDEFS(Eval);
 
-  static Ptr MakeShared(VertexId id, bool reverse = false) {
-    return Ptr(new DirectionFromVertexDirect(id, reverse));
-  }
-  DirectionFromVertexDirect(VertexId id, bool reverse = false)
-      : reverse_(reverse), id_(id) {}
-
-  virtual ~DirectionFromVertexDirect() {}
-
-  DirectionFromVertexDirect(const DirectionFromVertexDirect &) = default;
-  DirectionFromVertexDirect &operator=(const DirectionFromVertexDirect &) =
-      default;
-  DirectionFromVertexDirect(DirectionFromVertexDirect &&) = default;
-  DirectionFromVertexDirect &operator=(DirectionFromVertexDirect &&) = default;
+  Eval(const VertexId &id, const bool reverse = false)
+      : id_(id), reverse_(reverse) {}
 
  protected:
-  ReturnType computeEdge(
-      const typename Typed<GRAPH>::Direct::EdgePtr &e) const override {
-    // Garbage computation to avoid warnings
-    (void)&e;
-    return true;
-  }
+  ReturnType computeEdge(const EdgeId &) override { return true; }
 
-  virtual ReturnType computeVertex(
-      const typename Typed<GRAPH>::Direct::VertexPtr &v) const override {
-    const auto &id = v->id();
+  ReturnType computeVertex(const VertexId &id) override {
     // We can't tell direction if the majors are different
     if (id_.majorId() != id.majorId()) return true;
     // Itself is in the mask
@@ -72,12 +47,13 @@ class DirectionFromVertexDirect : public virtual Typed<GRAPH>::Direct {
     return false;
   }
 
-  const bool reverse_;
+ private:
   const VertexId id_;
+  const bool reverse_;
 };
 
-}  // namespace Mask
-
+}  // namespace direction_from_vertex
+}  // namespace mask
 }  // namespace eval
 }  // namespace pose_graph
 }  // namespace vtr

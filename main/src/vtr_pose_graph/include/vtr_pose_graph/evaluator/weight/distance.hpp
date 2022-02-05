@@ -13,111 +13,96 @@
 // limitations under the License.
 
 /**
- * \file common.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \file distance.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator_base/common.hpp>
-
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
-#include <vtr_pose_graph/serializable/rc_graph_base.hpp>
+#include "vtr_pose_graph/evaluator_base/types.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace eval {
-namespace Weight {
+namespace weight {
+namespace distance {
+
+namespace detail {
 
 template <class GRAPH>
-class DistanceDirect : public virtual Typed<GRAPH>::Direct {
+ReturnType computeEdge(const GRAPH &graph, const EdgeId &e) {
+  return graph.at(e)->T().r_ab_inb().norm();
+}
+
+template <class GRAPH>
+ReturnType computeVertex(const GRAPH &, const VertexId &) {
+  return 0.0f;
+}
+
+}  // namespace detail
+
+template <class GRAPH>
+class Eval : public BaseEval {
  public:
-  using Base = typename Typed<GRAPH>::Direct;
-  using Base::graph_;
+  PTR_TYPEDEFS(Eval);
 
-  PTR_TYPEDEFS(DistanceDirect);
-
-  static Ptr MakeShared() { return Ptr(new DistanceDirect()); }
-
-  DistanceDirect() {}
-  virtual ~DistanceDirect() {}
-
-  DistanceDirect(const DistanceDirect &) = default;
-  DistanceDirect &operator=(const DistanceDirect &) = default;
-  DistanceDirect(DistanceDirect &&) = default;
-  DistanceDirect &operator=(DistanceDirect &&) = default;
+  Eval(const GRAPH &graph) : graph_(graph) {}
 
  protected:
-  ReturnType computeEdge(const typename Base::EdgePtr &e) const override {
-    // Compute the norm of the linear component of the edge transform
-    return e->T().r_ab_inb().norm();
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
-  ReturnType computeVertex(const typename Base::VertexPtr &) const {
-    // Garbage computation to avoid warnings; vertices do not have a "distance"
-    return 0.f;
+
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
   }
+
+ private:
+  const GRAPH &graph_;
 };
 
 template <class GRAPH>
-class DistanceCaching : public virtual Typed<GRAPH>::Caching,
-                        public virtual DistanceDirect<GRAPH> {
+class CachedEval : public BaseCachedEval {
  public:
-  PTR_TYPEDEFS(DistanceCaching);
+  PTR_TYPEDEFS(CachedEval);
 
-  static Ptr MakeShared() { return Ptr(new DistanceCaching()); }
+  CachedEval(const GRAPH &graph) : graph_(graph) {}
 
-  DistanceCaching() {}
-  virtual ~DistanceCaching() {}
-
-  DistanceCaching(const DistanceCaching &) = default;
-  DistanceCaching &operator=(const DistanceCaching &) = default;
-  DistanceCaching(DistanceCaching &&other)
-      : Typed<GRAPH>::Caching(std::move(other)),
-        DistanceDirect<GRAPH>(std::move(other)) {}
-  DistanceCaching &operator=(DistanceCaching &&other) {
-    Typed<GRAPH>::Caching::operator=(std::move(other));
-    DistanceDirect<GRAPH>::operator=(std::move(other));
-    return *this;
+ protected:
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
+
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
+  }
+
+ private:
+  const GRAPH &graph_;
 };
 
 template <class GRAPH>
-class DistanceWindowed : public virtual Typed<GRAPH>::Windowed,
-                         public virtual DistanceCaching<GRAPH> {
+class WindowedEval : public BaseWindowedEval {
  public:
-  PTR_TYPEDEFS(DistanceWindowed);
+  PTR_TYPEDEFS(WindowedEval);
 
-  static Ptr MakeShared(const size_t &cacheSize) {
-    return Ptr(new DistanceWindowed(cacheSize));
+  WindowedEval(const GRAPH &graph, const size_t &cache_size)
+      : BaseWindowedEval(cache_size), graph_(graph) {}
+
+ protected:
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
 
-  DistanceWindowed(const size_t &cacheSize)
-      : Typed<GRAPH>::Windowed(cacheSize) {}
-  virtual ~DistanceWindowed() {}
-
-  DistanceWindowed(const DistanceWindowed &) = default;
-  DistanceWindowed &operator=(const DistanceWindowed &) = default;
-  DistanceWindowed(DistanceWindowed &&other)
-      : Typed<GRAPH>::Windowed(std::move(other)),
-        DistanceCaching<GRAPH>(std::move(other)) {}
-  DistanceWindowed &operator=(DistanceWindowed &&other) {
-    Typed<GRAPH>::Windowed::operator=(std::move(other));
-    DistanceCaching<GRAPH>::operator=(std::move(other));
-    return *this;
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
   }
+
+ private:
+  const GRAPH &graph_;
 };
 
-template <class GRAPH>
-struct Distance {
-  using Direct = DistanceDirect<GRAPH>;
-  using Caching = DistanceCaching<GRAPH>;
-  using Windowed = DistanceWindowed<GRAPH>;
-};
-
-}  // namespace Weight
-
+}  // namespace distance
+}  // namespace weight
 }  // namespace eval
 }  // namespace pose_graph
 }  // namespace vtr

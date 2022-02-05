@@ -39,7 +39,7 @@ class BaseEval {
   virtual RVAL operator[](const EdgeId &e) { return computeEdge(e); }
   virtual RVAL operator[](const VertexId &v) { return computeVertex(v); }
 
- private:
+ protected:
   virtual RVAL computeEdge(const EdgeId &e) = 0;
   virtual RVAL computeVertex(const VertexId &v) = 0;
 };
@@ -129,7 +129,7 @@ class ConstEval : public BaseEval<RVAL> {
   ConstEval(const RVAL &edge_value = RVAL(), const RVAL &vertex_value = RVAL())
       : edge_value_(edge_value), vertex_value_(vertex_value) {}
 
- private:
+ protected:
   RVAL computeEdge(const EdgeId &) override { return edge_value_; }
   RVAL computeVertex(const VertexId &) override { return vertex_value_; }
 
@@ -158,7 +158,7 @@ class MapEval : public BaseEval<RVAL> {
   RVAL &ref(const EdgeId &e) { return edge_map_->operator[](e); }
   RVAL &ref(const VertexId &v) { return vertex_map_->operator[](v); }
 
- private:
+ protected:
   // clang-format off
   RVAL computeEdge(const EdgeId &e) override { return edge_map_->operator[](e); }
   RVAL computeVertex(const VertexId &v) override { return vertex_map_->operator[](v); }
