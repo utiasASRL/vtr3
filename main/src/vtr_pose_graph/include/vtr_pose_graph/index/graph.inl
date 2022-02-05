@@ -33,7 +33,7 @@ Graph<V, E>::Graph(const CallbackPtr& callback) : callback_(callback) {}
 
 template <class V, class E>
 BaseIdType Graph<V, E>::addRun() {
-  std::unique_lock lock(simple_graph_mutex_);
+  std::unique_lock lock(mutex_);
 
   if ((curr_major_id_ == InvalidBaseId) || (curr_minor_id_ != InvalidBaseId)) {
     ++curr_major_id_;
@@ -51,7 +51,7 @@ BaseIdType Graph<V, E>::addRun() {
 template <class V, class E>
 template <class... Args>
 auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
-  std::unique_lock lock(simple_graph_mutex_);
+  std::unique_lock lock(mutex_);
 
   if (curr_major_id_ == InvalidBaseId) {
     CLOG(ERROR, "pose_graph") << "No run added";
@@ -75,7 +75,7 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
                           const EdgeType& type, const bool manual,
                           const EdgeTransform& T_to_from, Args&&... args)
     -> EdgePtr {
-  std::unique_lock lock(simple_graph_mutex_);
+  std::unique_lock lock(mutex_);
 
   if ((vertices_.find(from) == vertices_.end()) ||
       (vertices_.find(to) == vertices_.end())) {
@@ -91,6 +91,15 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
     throw std::invalid_argument(
         "Spatial edges may only be added from higher run numbers to lower "
         "ones");
+  }
+
+  if (from.majorId() == to.majorId() && from.minorId() > to.minorId()) {
+    CLOG(ERROR, "pose_graph")
+        << "Cannot create edge from " << from << " to " << to
+        << " since the minor id of the from vertex is greater than the to "
+           "vertex when they have the same major id";
+    throw std::invalid_argument(
+        "Temporal edges may only be added from lower id to higher id");
   }
 
   EdgeId eid(from, to);

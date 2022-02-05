@@ -21,7 +21,7 @@
 namespace vtr {
 namespace pose_graph {
 
-RCVertex::RCVertex(const IdType &id, const Timestamp &keyframe_time,
+RCVertex::RCVertex(const VertexId &id, const Timestamp &keyframe_time,
                    const Name2AccessorMapPtr &name2accessor_map)
     : VertexBase(id),
       BubbleInterface(name2accessor_map),
@@ -31,10 +31,10 @@ RCVertex::RCVertex(const IdType &id, const Timestamp &keyframe_time,
   msg_ = std::make_shared<storage::LockableMessage<VertexMsg>>(data);
 }
 
-RCVertex::RCVertex(const VertexMsg &msg, const BaseIdType &runId,
+RCVertex::RCVertex(const VertexMsg &msg,
                    const Name2AccessorMapPtr &name2accessor_map,
                    const storage::LockableMessage<VertexMsg>::Ptr &msg_ptr)
-    : VertexBase(IdType(runId, msg.id)),
+    : VertexBase(msg.id),
       BubbleInterface(name2accessor_map),
       keyframe_time_(toTimestamp(msg.keyframe_time)),
       time_range_(toTimestampRange(msg.time_range)),
@@ -50,13 +50,14 @@ storage::LockableMessage<RCVertex::VertexMsg>::Ptr RCVertex::serialize() {
   auto &msg_ref = msg_locked.get();
   auto data = msg_ref.getData();  // copy of current data
 
-  if (data.id != id_.minorId()) {
-    data.id = id_.minorId();
+  if (data.id != (uint64_t)id_) {
+    data.id = (uint64_t)id_;
     changed = true;
   }
-  ss << "id: " << id_.minorId();
+  ss << "id: " << id_;
 
-  std::shared_lock lock2(data_time_mutex_);
+  std::shared_lock lock(mutex_);
+
   if (data.time_range.t1 != time_range_.first ||
       data.time_range.t2 != time_range_.second) {
     data.time_range.t1 = time_range_.first;
@@ -72,7 +73,8 @@ storage::LockableMessage<RCVertex::VertexMsg>::Ptr RCVertex::serialize() {
   }
   ss << ", stream keyframe time set to "
      << data.keyframe_time.nanoseconds_since_epoch;
-  lock2.unlock();
+
+  lock.unlock();
 
   if (changed) msg_ref.setData(data);
   ss << ", vertex changed  " << changed;

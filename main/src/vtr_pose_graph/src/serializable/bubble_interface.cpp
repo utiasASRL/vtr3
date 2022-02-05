@@ -13,27 +13,23 @@
 // limitations under the License.
 
 /**
- * \file common.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \file bubble_interface.cpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_pose_graph/evaluator_base/common.hpp>
+#include "vtr_pose_graph/serializable/bubble_interface.hpp"
 
 namespace vtr {
 namespace pose_graph {
-namespace eval {
 
-/** \brief boolean interfaces: evaluator base and operators */
-EVALUATOR_BASE_EXPLICIT_INSTANTIATE(bool);
-EVALUATOR_BOOLEAN_INTERFACE_CPP(bool, bool);
-EVALUATOR_COMPARISON_INTERFACE_CPP(bool);
+BubbleInterface::BubbleInterface(const Name2AccessorMapPtr &name2accessor_map)
+    : name2accessor_map_(name2accessor_map) {}
 
-/** \brief double interfaces: evaluator base and operators */
-EVALUATOR_BASE_EXPLICIT_INSTANTIATE(double);
-EVALUATOR_SCALAR_INTERFACE_CPP(double, double);
+bool BubbleInterface::unload(const bool clear) {
+  SharedLock lock(name2bubble_map_mutex_);
+  bool success = true;
+  for (const auto &itr : name2bubble_map_) success &= itr.second->unload(clear);
+  return success;
+}
 
-}  // namespace eval
 }  // namespace pose_graph
 }  // namespace vtr

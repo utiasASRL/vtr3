@@ -33,10 +33,10 @@ using namespace vtr::storage;
 using StringMsg = std_msgs::msg::String;
 
 TEST(TestSerializationVertex, construct_vertex_directly) {
-  VertexId id(0, 1);
+  VertexId id(2, 6);
   Timestamp keyframe_time(666);
   const auto name2accessor_map =
-      std::make_shared<BubbleInterface::Name2AccessorMap>();
+      std::make_shared<BubbleInterface::LockableName2AccessorMap>();
 
   RCVertex vertex(id, keyframe_time, name2accessor_map);
 
@@ -50,7 +50,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     EXPECT_FALSE(vertex_msg.getSaved());
     // check cata
     const auto data = vertex_msg.getData();
-    EXPECT_EQ(data.id, id.minorId());
+    EXPECT_EQ(data.id, id);
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
     EXPECT_EQ(data.time_range.t2, keyframe_time);
@@ -69,7 +69,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     EXPECT_TRUE(vertex_msg.getSaved());  // nothing changed
     // check cata
     const auto data = vertex_msg.getData();
-    EXPECT_EQ(data.id, id.minorId());
+    EXPECT_EQ(data.id, id);
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
     EXPECT_EQ(data.time_range.t2, keyframe_time);
@@ -77,13 +77,13 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
 }
 
 TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
-  VertexId id(0, 1);
+  VertexId id(16, 200);
   Timestamp keyframe_time(666);
   const auto name2accessor_map =
-      std::make_shared<BubbleInterface::Name2AccessorMap>();
+      std::make_shared<BubbleInterface::LockableName2AccessorMap>();
 
   const auto data = std::make_shared<RCVertex::VertexMsg>();
-  data->id = id.minorId();
+  data->id = id;
   data->keyframe_time.nanoseconds_since_epoch = keyframe_time;
   data->time_range.t1 = keyframe_time;
   data->time_range.t2 = keyframe_time;
@@ -92,7 +92,7 @@ TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
   auto msg = std::make_shared<LockableMessage<RCVertex::VertexMsg>>(
       data, NO_TIMESTAMP_VALUE, 1);
 
-  RCVertex vertex(*data, id.majorId(), name2accessor_map, msg);
+  RCVertex vertex(*data, name2accessor_map, msg);
 
   // get the ROS message for the second time (saved without modification)
   {
@@ -104,7 +104,7 @@ TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
     EXPECT_TRUE(vertex_msg.getSaved());  // nothing changed
     // check cata
     const auto data = vertex_msg.getData();
-    EXPECT_EQ(data.id, id.minorId());
+    EXPECT_EQ(data.id, id);
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
     EXPECT_EQ(data.time_range.t2, keyframe_time);

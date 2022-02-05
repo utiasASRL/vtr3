@@ -1,5 +1,5 @@
-# Stores the last run id used, in case runs are missing (might not be set)
-int32 last_run -1
+uint32 curr_major_id 4294967295
+uint32 curr_minor_id 4294967295
 
 # Parameters required for drawing the graph on a satellite map
 MapInfo map_info

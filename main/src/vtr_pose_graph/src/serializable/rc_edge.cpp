@@ -23,60 +23,67 @@
 namespace vtr {
 namespace pose_graph {
 
+namespace {
+
+using TransformT = EdgeTransform;
+using TransformMsg = vtr_common_msgs::msg::LieGroupTransform;
+
+TransformT fromMsg(const TransformMsg& msg) {
+  using TransformVecT = Eigen::Matrix<double, 6, 1>;
+
+  if (!msg.cov_set)
+    return TransformT(TransformVecT(msg.xi.data()));
+  else {
+    Eigen::Matrix<double, 6, 6> cov;
+    for (int row = 0; row < 6; ++row)
+      for (int col = 0; col < 6; ++col) cov(row, col) = msg.cov[row * 6 + col];
+    return TransformT(TransformVecT(msg.xi.data()), cov);
+  }
+}
+
+TransformMsg toMsg(const TransformT& T) {
+  TransformMsg msg;
+
+  // transform
+  msg.xi.clear();
+  msg.xi.reserve(6);
+  auto vec = T.vec();
+  for (int row = 0; row < 6; ++row) msg.xi.push_back(vec(row));
+
+  // covariance
+  msg.cov.clear();
+  msg.cov.reserve(36);
+  if (!T.covarianceSet()) {
+    msg.cov_set = false;
+  } else {
+    auto cov = T.cov();
+    for (int row = 0; row < 6; row++)
+      for (int col = 0; col < 6; col++) msg.cov.push_back(cov(row, col));
+    msg.cov_set = true;
+  }
+
+  return msg;
+}
+
+}  // namespace
+
 RCEdge::RCEdge(const VertexId& from_id, const VertexId& to_id,
-               const EnumType& type, bool manual)
-    : EdgeBase(from_id, to_id, type, manual) {
+               const EdgeType& type, const bool manual,
+               const EdgeTransform& T_to_from)
+    : EdgeBase(from_id, to_id, type, manual, T_to_from) {
   const auto data = std::make_shared<EdgeMsg>();
   msg_ = std::make_shared<storage::LockableMessage<EdgeMsg>>(data);
 }
 
-RCEdge::RCEdge(const VertexId& from_id, const VertexId& to_id,
-               const EnumType& type, const TransformType& T_to_from,
-               bool manual)
-    : EdgeBase(from_id, to_id, type, T_to_from, manual) {
-  const auto data = std::make_shared<EdgeMsg>();
-  msg_ = std::make_shared<storage::LockableMessage<EdgeMsg>>(data);
-}
-
-RCEdge::RCEdge(const EdgeMsg& msg, BaseIdType run_id,
+RCEdge::RCEdge(const EdgeMsg& msg,
                const storage::LockableMessage<EdgeMsg>::Ptr& msg_ptr)
-    : EdgeBase(
-          VertexId(run_id, msg.from_id),
-          VertexId(msg.to_run_id == -1 ? run_id : msg.to_run_id, msg.to_id),
-          msg.to_run_id == -1 ? IdType::Type::Temporal : IdType::Type::Spatial,
-          msg.mode.mode == EdgeModeMsg::MANUAL),
-      msg_(msg_ptr) {
-  const auto& transform = msg.t_to_from;
-  if (!transform.entries.size()) return;
-  if (transform.entries.size() != transform_vdim) {
-    CLOG(ERROR, "pose_graph")
-        << "Expected serialized transform vector to be of size "
-        << transform_vdim << " actual: " << transform.entries.size();
-    throw;
-  }
-
-  if (!msg.t_to_from_cov.entries.size()) {
-    setTransform(TransformType(TransformVecType(transform.entries.data())));
-    return;
-  }
-
-  const auto& transform_cov = msg.t_to_from_cov;
-  Eigen::Matrix<double, transform_vdim, transform_vdim> cov;
-  if (transform_cov.entries.size() != (unsigned)cov.size()) {
-    CLOG(ERROR, "pose_graph")
-        << "Expected serialized covariance to be of size " << cov.size();
-    throw;
-  }
-  for (int row = 0; row < transform_vdim; ++row)
-    for (int col = 0; col < transform_vdim; ++col)
-      cov(row, col) = transform_cov.entries[row * transform_vdim + col];
-  setTransform(TransformType(TransformVecType(transform.entries.data()), cov));
-}
+    : EdgeBase(msg.from_id, msg.to_id,
+               msg.type.type == EdgeTypeMsg::TEMPORAL ? EdgeType::Temporal
+                                                      : EdgeType::Spatial,
+               msg.mode.mode == EdgeModeMsg::MANUAL, fromMsg(msg.t_to_from)),
+      msg_(msg_ptr) {}
 
 storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
-  std::stringstream ss;
-  ss << "Edge " << id_ << " -> ROS msg: ";
-
   bool changed = false;
 
   const auto msg_locked = msg_->locked();
@@ -84,80 +91,61 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
   auto data = msg_ref.getData();  // copy of current data
 
   // potentially updated info
-  const auto type = static_cast<unsigned>(id_.type());
+  const auto type = static_cast<unsigned>(type_);
   const auto mode = manual_ ? EdgeModeMsg::MANUAL : EdgeModeMsg::AUTONOMOUS;
-  const auto from_id = from_.minorId();
-  const auto to_id = to_.minorId();
-  const auto to_run_id = id_.type() == IdType::Type::Spatial
-                             ? static_cast<int>(to_.majorId())
-                             : -1;
+  const auto from_id = (uint64_t)from_;
+  const auto to_id = (uint64_t)to_;
 
   if (data.type.type != type || data.mode.mode != mode ||
-      data.from_id != from_id || data.to_id != to_id ||
-      data.to_run_id != to_run_id) {
+      data.from_id != from_id || data.to_id != to_id) {
     data.type.type = type;
     data.mode.mode = mode;
     data.from_id = from_id;
     data.to_id = to_id;
-    data.to_run_id = to_run_id;
     changed = true;
   }
-  ss << "from_id: " << from_.minorId() << ", to_id: " << to_.minorId()
-     << ", mode (0:auto, 1:manual): " << manual_
-     << ", type (0:temporal, 1:spatial): " << type;
 
   std::shared_lock lock(mutex_);
-  // set the transform
-  TransformVecType vec(T_to_from_.vec());
-  std::vector<double> T_to_from_vec;
-  for (int row = 0; row < transform_vdim; ++row)
-    T_to_from_vec.push_back(vec(row));
-  if (data.t_to_from.entries != T_to_from_vec) {
-    data.t_to_from.entries = T_to_from_vec;
+
+  if (data.t_to_from.xi.empty() ||
+      (data.t_to_from.cov_set != T_to_from_.covarianceSet())) {
+    data.t_to_from = toMsg(T_to_from_);
     changed = true;
-  }
-  ss << ", T_to_from set";
+  } else {
+    auto t_to_from = toMsg(T_to_from_);
 
-  // save the covariance
-  if (T_to_from_.covarianceSet() == true) {
-    std::vector<double> T_to_from_cov_vec;
-    for (int row = 0; row < 6; row++)
-      for (int col = 0; col < 6; col++)
-        T_to_from_cov_vec.push_back(T_to_from_.cov()(row, col));
+    bool tf_approx_equal = true;
 
-    if (data.t_to_from_cov.entries != T_to_from_cov_vec) {
-      data.t_to_from_cov.entries = T_to_from_cov_vec;
+    // check if the transform is approximately equal
+    using TFMap = Eigen::Map<Eigen::Matrix<double, 6, 1>>;
+    tf_approx_equal &=
+        TFMap(t_to_from.xi.data()).isApprox(TFMap(data.t_to_from.xi.data()));
+
+    // check if the covariance is approximately equal
+    if (T_to_from_.covarianceSet()) {
+      using CovMap = Eigen::Map<Eigen::Matrix<double, 6, 6>>;
+      tf_approx_equal &= CovMap(t_to_from.cov.data())
+                             .isApprox(CovMap(data.t_to_from.cov.data()));
+    }
+
+    if (!tf_approx_equal) {
+      data.t_to_from = t_to_from;
       changed = true;
     }
-    ss << ", T_to_from_cov set";
   }
+
   lock.unlock();
 
   if (changed) msg_ref.setData(data);
-  ss << ", edge changed  " << changed;
 
-#if false
-  CLOG(DEBUG, "pose_graph") << ss.str();
-#else
-  CLOG(DEBUG, "pose_graph")
-      << "Edge " << id_ << " -> ROS msg: "
-      << "from_id: " << data.from_id << ", to_id: " << data.to_id
-      << ", to_run_id: " << data.to_run_id
-      << ", mode (0:auto, 1:manual): " << manual_
-      << ", type (0:temporal, 1:spatial): " << type
-      << ", T_to_from: " << data.t_to_from.entries << ", edge changed "
-      << changed;
-#endif
+  CLOG(DEBUG, "pose_graph") << "Edge " << id_ << " -> ROS msg: "
+                            << "from: " << from_ << ", to: " << to_
+                            << ", mode (0:auto, 1:manual): " << manual_
+                            << ", type (0:temporal, 1:spatial): " << type
+                            << ", T_to_from: " << T_to_from_.vec().transpose()
+                            << ", edge changed " << changed;
+
   return msg_;
-}
-
-const std::string RCEdge::name() const {
-  if (id_.type() == IdType::Type::Temporal)
-    return "temporal";
-  else if (id_.type() == IdType::Type::Spatial)
-    return "spatial";
-  else
-    return "unknown";
 }
 
 }  // namespace pose_graph

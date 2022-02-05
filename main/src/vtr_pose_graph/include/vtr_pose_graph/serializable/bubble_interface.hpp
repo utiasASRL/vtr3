@@ -15,7 +15,6 @@
 /**
  * \file bubble_interface.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief BubbleInterface class definition
  */
 #pragma once
 
@@ -30,26 +29,19 @@ using TimestampRange = storage::DataBubbleBase::TimestampRange;
 
 class BubbleInterface {
  public:
-  using Name2AccessorMapBase =
-      std::unordered_map<std::string,
-                         std::shared_ptr<storage::DataStreamAccessorBase>>;
-  using Name2AccessorMap = common::SharedLockable<
-      std::pair<Name2AccessorMapBase, const std::string>>;
-  using Name2AccessorMapPtr = std::shared_ptr<Name2AccessorMap>;
-  using Name2AccessorMapWeakPtr = std::weak_ptr<Name2AccessorMap>;
+  using DataAccessor = std::shared_ptr<storage::DataStreamAccessorBase>;
+  using Name2AccessorMapBase = std::unordered_map<std::string, DataAccessor>;
+  using Name2AccessorMap = std::pair<const std::string, Name2AccessorMapBase>;
+  using LockableName2AccessorMap = common::SharedLockable<Name2AccessorMap>;
+  using Name2AccessorMapPtr = std::shared_ptr<LockableName2AccessorMap>;
+  using Name2AccessorMapWeakPtr = std::weak_ptr<LockableName2AccessorMap>;
 
-  using Name2BubbleMap =
-      std::unordered_map<std::string, std::shared_ptr<storage::DataBubbleBase>>;
+  using DataBubbleBasePtr = std::shared_ptr<storage::DataBubbleBase>;
+  using Name2BubbleMap = std::unordered_map<std::string, DataBubbleBasePtr>;
 
   using MutexType = std::shared_mutex;
   using UniqueLock = std::unique_lock<MutexType>;
   using SharedLock = std::shared_lock<MutexType>;
-
-  BubbleInterface() = delete;
-  BubbleInterface(const BubbleInterface &) = delete;
-  BubbleInterface(BubbleInterface &&) = delete;
-  BubbleInterface &operator=(const BubbleInterface &) = delete;
-  BubbleInterface &operator=(BubbleInterface &&) = delete;
 
   BubbleInterface(const Name2AccessorMapPtr &name2accessor_map);
 
@@ -137,7 +129,7 @@ typename storage::DataBubble<DataType>::Ptr BubbleInterface::getBubble(
   const auto name2accessor_map = name2accessor_map_.lock();
   if (!name2accessor_map) {
     CLOG(WARNING, "pose_graph.interface")
-        << "Name2Accessor map has expired. Data bubble not iniitalized with an "
+        << "Name2Accessor map has expired. Data bubble not initialized with an "
            "accessor.";
     return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);
   }
@@ -147,8 +139,8 @@ typename storage::DataBubble<DataType>::Ptr BubbleInterface::getBubble(
     const auto name2accessor_map_locked = name2accessor_map->sharedLocked();
     const auto &name2accessor_map_ref = name2accessor_map_locked.get();
 
-    const auto accessor_itr = name2accessor_map_ref.first.find(stream_name);
-    if (accessor_itr != name2accessor_map_ref.first.end()) {
+    const auto accessor_itr = name2accessor_map_ref.second.find(stream_name);
+    if (accessor_itr != name2accessor_map_ref.second.end()) {
       bubble->setAccessor(accessor_itr->second);
       return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);
     }
@@ -157,9 +149,9 @@ typename storage::DataBubble<DataType>::Ptr BubbleInterface::getBubble(
   // perform insertion to the map
   const auto name2accessor_map_locked = name2accessor_map->locked();
   auto &name2accessor_map_ref = name2accessor_map_locked.get();
-  const auto accessor_itr = name2accessor_map_ref.first.try_emplace(
+  const auto accessor_itr = name2accessor_map_ref.second.try_emplace(
       stream_name, std::make_shared<storage::DataStreamAccessor<DataType>>(
-                       name2accessor_map_ref.second, stream_name, stream_type));
+                       name2accessor_map_ref.first, stream_name, stream_type));
 
   bubble->setAccessor(accessor_itr.first->second);
   return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);

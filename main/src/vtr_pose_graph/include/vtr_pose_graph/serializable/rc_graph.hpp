@@ -19,7 +19,8 @@
 #pragma once
 
 #include "vtr_pose_graph/index/graph.hpp"
-#include "vtr_pose_graph/serializable/rc_graph_base.hpp"
+#include "vtr_pose_graph/serializable/rc_edge.hpp"
+#include "vtr_pose_graph/serializable/rc_vertex.hpp"
 
 #include "vtr_pose_graph_msgs/msg/graph.hpp"
 #include "vtr_pose_graph_msgs/msg/map_info.hpp"
@@ -30,46 +31,35 @@ namespace pose_graph {
 
 // Virtual inheritance is necessary to ensure that relevant methods in GraphBase
 // stay overridden
-class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
+class RCGraph : public Graph<RCVertex, RCEdge> {
  public:
   PTR_TYPEDEFS(RCGraph);
 
-  using GraphType = Graph<RCVertex, RCEdge, RCRun>;
-  using Base = RCGraphBase;
-  using RType = RCGraphBase;
+  using GraphType = Graph<RCVertex, RCEdge>;
+  using Base = GraphType::Base;
 
-  using VertexType = typename Base::VertexType;
+  using Vertex = typename Base::Vertex;
   using VertexPtr = typename Base::VertexPtr;
-  using VertexIdType = typename Base::VertexIdType;
-  using SimpleVertexId = typename Base::SimpleVertexId;
 
-  using EdgeType = typename Base::EdgeType;
+  using Edge = typename Base::Edge;
   using EdgePtr = typename Base::EdgePtr;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using EdgeEnumType = typename Base::EdgeEnumType;
-  using SimpleEdgeId = typename Base::SimpleEdgeId;
-  using TransformType = typename Base::TransformType;
 
-  using RunType = typename Base::RunType;
-  using RunPtr = typename Base::RunPtr;
-  using RunIdType = typename Base::RunIdType;
-
-  using Callback = GraphCallbackInterface<RCVertex, RCEdge, RCRun>;
+  using Callback = GraphCallbackInterface<RCVertex, RCEdge>;
   using CallbackPtr = typename Callback::Ptr;
-
-  using Base::edges_;
-  using Base::graph_;
-  using Base::runs_;
-  using Base::vertices_;
-  using GraphType::mtx_;
-
-  using RunFilter = std::unordered_set<RunIdType>;
 
   using GraphMsg = vtr_pose_graph_msgs::msg::Graph;
   using MapInfoMsg = vtr_pose_graph_msgs::msg::MapInfo;
 
+  /// graph and data serialization
   using GraphMsgAccessor = storage::DataStreamAccessor<GraphMsg>;
-  using RunMsgAccessor = storage::DataStreamAccessor<RCRun::RunMsg>;
+  using VertexMsgAccessor = storage::DataStreamAccessor<RCVertex::VertexMsg>;
+  using EdgeMsgAccessor = storage::DataStreamAccessor<RCEdge::EdgeMsg>;
+
+  using DataAccessor = std::shared_ptr<storage::DataStreamAccessorBase>;
+  using Name2AccessorMapBase = std::unordered_map<std::string, DataAccessor>;
+  using Name2AccessorMap = std::pair<const std::string, Name2AccessorMapBase>;
+  using LockableName2AccessorMap = common::SharedLockable<Name2AccessorMap>;
+  using Name2AccessorMapPtr = std::shared_ptr<LockableName2AccessorMap>;
 
   /** \brief Pseudo constructor for making shared pointers */
   static Ptr MakeShared(
@@ -81,26 +71,13 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   /** \brief Construct an empty graph with an id and save location */
   RCGraph(const std::string& file_path, const bool load = true,
           const CallbackPtr& callback = std::make_shared<Callback>());
-  RCGraph(const RCGraph&) = delete;
-  RCGraph(RCGraph&& other) = delete;
-  RCGraph& operator=(const RCGraph&) = delete;
-  RCGraph& operator=(RCGraph&& other) = delete;
 
   virtual ~RCGraph() { save(); }
 
   void save();
 
-  /** \brief Add a new run an increment the run id */
-  RunIdType addRun();
-
   /** \brief Return a blank vertex with the next available Id */
-  VertexPtr addVertex(const Timestamp& time, const RunIdType& run_id);
-
-  /** \brief Return a blank vertex(current run) with the next available Id */
-  VertexPtr addVertex(const Timestamp& time) {
-    LockGuard lck(mtx_);
-    return addVertex(time, current_run_->id());
-  }
+  VertexPtr addVertex(const Timestamp& time);
 
   /** \brief Get the map display calibration */
   MapInfoMsg getMapInfo() const {
@@ -117,24 +94,35 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   /** \brief Get the file path of the graph index */
   std::string filePath() const { return file_path_; }
 
+  /** \brief Writes a message to disk directly, without associated vertex.*/
+  template <typename DataType>
+  void write(const std::string& stream_name, const std::string& stream_type,
+             const typename storage::LockableMessage<DataType>::Ptr& message);
+
  private:
-  /** \brief Load the top-level index from file */
+  /** \brief Helper methods for loading from disk */
   void loadGraphIndex();
-  /** \brief Deep load runs and their vertex/edge data */
-  void loadRuns(const RunFilter& r = RunFilter());
-  /** \brief Save the top-level index to file */
+  void loadVertices();
+  void loadEdges();
+  void buildSimpleGraph();
+
+  /** \brief Helper methods for saving to disk */
   void saveGraphIndex();
-  /** \brief Save all modified runs to file */
-  void saveRuns();
-  /**
-   * \brief Builds the simple graph using loaded vertices and edges, and add
-   * neighbor information to vertices_.
-   */
-  void buildSimpleGraphAndAddVertexNeighbors();
-  /** \brief Build map from persistent ids to existing vertex ids */
-  void buildPersistentMap();
+  void saveVertices();
+  void saveEdges();
+
+ private:
+  using Base::mutex_;
+
+  using Base::graph_;
+
+  using Base::vertices_;
+
+  using Base::edges_;
 
   const std::string file_path_;
+
+  const Name2AccessorMapPtr name2accessor_map_;
 
   /** \brief Ros message containing necessary information for a list of runs. */
   storage::LockableMessage<GraphMsg>::Ptr msg_ = nullptr;
@@ -142,6 +130,36 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   mutable std::shared_mutex map_info_mutex_;
   MapInfoMsg map_info_ = MapInfoMsg();
 };
+
+template <typename DataType>
+void RCGraph::write(
+    const std::string& stream_name, const std::string& stream_type,
+    const typename storage::LockableMessage<DataType>::Ptr& message) {
+  // check if exists (with a shared lock so that it does not block other reads)
+  {
+    const auto name2accessor_map_locked = name2accessor_map_->sharedLocked();
+    const auto& name2accessor_map_ref = name2accessor_map_locked.get();
+
+    const auto accessor_itr = name2accessor_map_ref.second.find(stream_name);
+    if (accessor_itr != name2accessor_map_ref.second.end()) {
+      std::dynamic_pointer_cast<storage::DataStreamAccessor<DataType>>(
+          accessor_itr->second)
+          ->write(message);
+      return;
+    }
+  }
+
+  // perform insertion to the map
+  const auto name2accessor_map_locked = name2accessor_map_->locked();
+  auto& name2accessor_map_ref = name2accessor_map_locked.get();
+
+  const auto accessor_itr = name2accessor_map_ref.second.try_emplace(
+      stream_name, std::make_shared<storage::DataStreamAccessor<DataType>>(
+                       name2accessor_map_ref.first, stream_name, stream_type));
+  std::dynamic_pointer_cast<storage::DataStreamAccessor<DataType>>(
+      accessor_itr.first->second)
+      ->write(message);
+}
 
 }  // namespace pose_graph
 }  // namespace vtr

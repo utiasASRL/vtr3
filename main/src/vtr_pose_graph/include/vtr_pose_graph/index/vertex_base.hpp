@@ -46,7 +46,7 @@ class VertexBase {
   /** \brief The vertex Id */
   const VertexId id_;
 
-  /** \brief protects non-const class members including: neighbours_ */
+  /** \brief protects non-const class members including */
   mutable std::shared_mutex mutex_;
 };
 

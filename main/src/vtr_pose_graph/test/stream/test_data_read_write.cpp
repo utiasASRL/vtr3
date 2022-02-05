@@ -14,9 +14,6 @@
 
 /**
  * \file test_data_read_write.cpp
- * \brief
- * \details
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
@@ -61,8 +58,8 @@ TEST(PoseGraph, ReadWrite) {
   graph->addVertex(stamp++);
   for (int idx = 1; idx < VERTICES; ++idx) {
     graph->addVertex(stamp++);
-    graph->addEdge(RCVertex::IdType(0, idx - 1), RCVertex::IdType(0, idx),
-                   Temporal);
+    graph->addEdge(VertexId(0, idx - 1), VertexId(0, idx), EdgeType::Temporal,
+                   false, EdgeTransform(true));
   }
 
   // Generate random data
@@ -75,14 +72,15 @@ TEST(PoseGraph, ReadWrite) {
   // Insert some dummy messages to each vertex
   stamp = 0;
   for (int vertex_idx = 0; vertex_idx < VERTICES; ++vertex_idx) {
-    RCVertex::IdType vertex_id(0, vertex_idx);
+    VertexId vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
     EXPECT_TRUE(vertex != nullptr);
     auto data = std::make_shared<TestMsg>();
     data->data = distribution(generator);
     auto message =
         std::make_shared<storage::LockableMessage<TestMsg>>(data, stamp++);
-    LOG(INFO) << "Store " << data->data << " into vertex " << vertex_id;
+    CLOG(INFO, "test") << "Store " << data->data << " into vertex "
+                       << vertex_id;
     vertex->insert<TestMsg>(stream_name, "std_msgs/msg/Float64", message);
 
     data_vec.push_back(*data);
@@ -95,19 +93,19 @@ TEST(PoseGraph, ReadWrite) {
   graph = std::make_shared<RCGraph>(working_dir.string());
 
   // Now load all the data back from disk.
-  LOG(INFO) << "Loading data from disk";
+  CLOG(INFO, "test") << "Loading data from disk";
   for (int vertex_idx = 9; vertex_idx >= 0; --vertex_idx) {
     // access the vertex
-    RCVertex::IdType vertex_id(0, vertex_idx);
+    VertexId vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
     auto message =
         vertex->retrieve<TestMsg>(stream_name, "std_msgs/msg/Float64");
     auto data = message->unlocked().get().getData();
-    LOG(INFO) << "Vertex " << vertex_id << " has value " << data.data;
+    CLOG(INFO, "test") << "Vertex " << vertex_id << " has value " << data.data;
     EXPECT_EQ(data_vec[vertex_idx].data, data.data);
     data.data = distribution(generator);
     message->unlocked().get().setData(data);
-    LOG(INFO) << "Store " << data.data << " into vertex " << vertex_id;
+    CLOG(INFO, "test") << "Store " << data.data << " into vertex " << vertex_id;
     data_vec[vertex_idx] = data;
   }
 
@@ -118,16 +116,16 @@ TEST(PoseGraph, ReadWrite) {
   graph = std::make_shared<RCGraph>(working_dir.string());
 
   // Now load all the data back from disk.
-  LOG(INFO) << "Loading data from disk";
+  CLOG(INFO, "test") << "Loading data from disk";
   for (int vertex_idx = 9; vertex_idx >= 0; --vertex_idx) {
     // access the vertex
-    RCVertex::IdType vertex_id(0, vertex_idx);
+    VertexId vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
     auto message =
         vertex->retrieve<TestMsg>(stream_name, "std_msgs/msg/Float64");
     auto data = message->unlocked().get().getData();
     EXPECT_EQ(data_vec[vertex_idx].data, data.data);
-    LOG(INFO) << "Vertex " << vertex_id << " has value " << data.data;
+    CLOG(INFO, "test") << "Vertex " << vertex_id << " has value " << data.data;
   }
 
   // save all data to disk

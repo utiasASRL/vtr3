@@ -14,17 +14,14 @@
 
 /**
  * \file test_serialization_run.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gmock/gmock.h>
 
 #include "rcpputils/filesystem_helper.hpp"
 
-#include <vtr_logging/logging_init.hpp>
-
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
 
 #include "std_msgs/msg/string.hpp"
 
@@ -35,12 +32,35 @@ using namespace vtr::storage;
 
 using StringMsg = std_msgs::msg::String;
 
+EdgeTransform trivialTransform(const VertexId& from, const VertexId& to) {
+  Eigen::Matrix4d mat = Eigen::Matrix4d::Identity();
+  mat(0, 3) = from.majorId();
+  mat(1, 3) = from.minorId();
+  mat(2, 3) = to.minorId();
+  EdgeTransform tf(mat);
+  Eigen::Matrix<double, 6, 6> cov = Eigen::Matrix<double, 6, 6>::Identity() * 3;
+  tf.setCovariance(cov);
+  return tf;
+}
+
+void verifyTransform(const VertexId& from, const VertexId& to,
+                     const EdgeTransform& tf) {
+  const auto mat = tf.matrix();
+  EXPECT_EQ(mat(0, 3), from.majorId());
+  EXPECT_EQ(mat(1, 3), from.minorId());
+  EXPECT_EQ(mat(2, 3), to.minorId());
+  EXPECT_TRUE(tf.covarianceSet());
+  for (int idx = 0; idx < 6; ++idx) {
+    EXPECT_EQ(tf.cov()(idx, idx), 3);
+  }
+}
+
 class TemporaryDirectoryFixture : public Test {
  public:
   TemporaryDirectoryFixture() {
-    temp_dir_ = rcpputils::fs::create_temp_directory("tmp_test_dir_").string();
-    // temp_dir_ = "/home/yuchen/ASRL/temp/test_posegraph";
-    // (void)rcpputils::fs::create_directories(temp_dir_);
+    temp_dir_ = rcpputils::fs::create_temp_directory("tmp_test_dir").string();
+    // temp_dir_ = "/home/yuchen/ASRL/temp/test_pose_graph";
+    // rcpputils::fs::create_directories(temp_dir_);
     graph_dir_ = (rcpputils::fs::path(temp_dir_) / "graph").string();
   }
 
@@ -63,6 +83,7 @@ TEST_F(TemporaryDirectoryFixture, simulate_loading_graph_from_disk) {
   auto graph = std::make_shared<RCGraph>(graph_dir_, false);
 
   RCGraph::MapInfoMsg map_info;
+  map_info.set = true;
   graph->setMapInfo(map_info);  // this sets map info (map_info.set=true)
 
   // destructor saves the graph
@@ -92,36 +113,20 @@ class GraphSerializationFixture : public TemporaryDirectoryFixture {
 
   GraphSerializationFixture() {
     graph_ = std::make_shared<RCGraph>(graph_dir_, false);
-
-    // add a graph with 5 runs and 3 vertices per run.
+    // clang-format off
     for (int idx = 0; idx < 5; ++idx) {
       graph_->addRun();
       graph_->addVertex(time_stamp_++);
       graph_->addVertex(time_stamp_++);
       graph_->addVertex(time_stamp_++);
-      graph_->addEdge(RCVertex::IdType(idx, 0), RCVertex::IdType(idx, 1),
-                      Temporal);
-      graph_->addEdge(RCVertex::IdType(idx, 1), RCVertex::IdType(idx, 2),
-                      Temporal);
+      graph_->addEdge(VertexId(idx, 0), VertexId(idx, 1), EdgeType::Temporal, false, trivialTransform(VertexId(idx, 0), VertexId(idx, 1)));
+      graph_->addEdge(VertexId(idx, 1), VertexId(idx, 2), EdgeType::Temporal, false, trivialTransform(VertexId(idx, 1), VertexId(idx, 2)));
     }
-    graph_->addEdge(RCVertex::IdType(1, 1), RCVertex::IdType(0, 0), Spatial);
-    graph_->addEdge(RCVertex::IdType(2, 2), RCVertex::IdType(1, 2), Spatial);
-    graph_->addEdge(RCVertex::IdType(3, 1), RCVertex::IdType(2, 1), Spatial);
-    graph_->addEdge(RCVertex::IdType(4, 2), RCVertex::IdType(3, 2), Spatial);
-
-    // set the edge's transform to something special;
-    auto& edge_map = graph_->edges()->unlocked().get();
-    for (auto itr = edge_map.begin(); itr != edge_map.end(); ++itr) {
-      Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-      transform(0, 3) = itr->second->id().majorId2();
-      transform(1, 3) = itr->second->id().minorId2();
-      transform(2, 3) = itr->second->id().type();
-      lgmath::se3::TransformationWithCovariance edge_transform(transform);
-      Eigen::Matrix<double, 6, 6> cov =
-          Eigen::Matrix<double, 6, 6>::Identity() * 100;
-      edge_transform.setCovariance(cov);
-      itr->second->setTransform(edge_transform);
-    }
+    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), EdgeType::Spatial, false, trivialTransform(VertexId(1, 1), VertexId(0, 0)));
+    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), EdgeType::Spatial, false, trivialTransform(VertexId(2, 2), VertexId(1, 2)));
+    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), EdgeType::Spatial, false, trivialTransform(VertexId(3, 1), VertexId(2, 1)));
+    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), EdgeType::Spatial, false, trivialTransform(VertexId(4, 2), VertexId(3, 2)));
+    // clang-format on
   }
 
  public:
@@ -129,70 +134,48 @@ class GraphSerializationFixture : public TemporaryDirectoryFixture {
   Timestamp time_stamp_ = 0;
 };
 
-void verifyGraphStructure(RCGraph* graph) {
+void verifyGraphStructure(RCGraph& graph) {
   for (int run_idx = 0; run_idx < 5; run_idx++)
     for (int vertex_idx = 0; vertex_idx < 3; vertex_idx++) {
-      RCVertex::IdType vertex_id(run_idx, vertex_idx);
-      auto vertex = graph->at(vertex_id);
-      EXPECT_TRUE(vertex != nullptr);
+      EXPECT_NO_THROW(graph.at(VertexId(run_idx, vertex_idx)));
     }
 
-  // Check temporal edges
-  std::vector<RCEdge::IdType> edgeids;
-  for (int run_idx = 0; run_idx < 5; ++run_idx) {
-    for (int vertex_idx = 0; vertex_idx < 2; ++vertex_idx) {
-      edgeids.emplace_back(RCVertex::IdType(run_idx, vertex_idx),
-                           RCVertex::IdType(run_idx, vertex_idx + 1), Temporal);
-    }
+  RCEdge::Ptr edge;
+  for (int idx = 0; idx < 5; ++idx) {
+    edge = graph.at(EdgeId(VertexId(idx, 0), VertexId(idx, 1)));
+    verifyTransform(VertexId(idx, 0), VertexId(idx, 1), edge->T());
+    edge = graph.at(EdgeId(VertexId(idx, 1), VertexId(idx, 2)));
+    verifyTransform(VertexId(idx, 1), VertexId(idx, 2), edge->T());
   }
+  edge = graph.at(EdgeId(VertexId(1, 1), VertexId(0, 0)));
+  verifyTransform(VertexId(1, 1), VertexId(0, 0), edge->T());
+  edge = graph.at(EdgeId(VertexId(2, 2), VertexId(1, 2)));
+  verifyTransform(VertexId(2, 2), VertexId(1, 2), edge->T());
+  edge = graph.at(EdgeId(VertexId(3, 1), VertexId(2, 1)));
+  verifyTransform(VertexId(3, 1), VertexId(2, 1), edge->T());
+  edge = graph.at(EdgeId(VertexId(4, 2), VertexId(3, 2)));
+  verifyTransform(VertexId(4, 2), VertexId(3, 2), edge->T());
 
-  edgeids.emplace_back(RCVertex::IdType(1, 1), RCVertex::IdType(0, 0), Spatial);
-  edgeids.emplace_back(RCVertex::IdType(2, 2), RCVertex::IdType(1, 2), Spatial);
-  edgeids.emplace_back(RCVertex::IdType(3, 1), RCVertex::IdType(2, 1), Spatial);
-  edgeids.emplace_back(RCVertex::IdType(4, 2), RCVertex::IdType(3, 2), Spatial);
-
-  for (uint32_t idx = 0; idx < edgeids.size(); ++idx) {
-    auto& edge_id = edgeids[idx];
-    auto edge = graph->at(edge_id);
-
-    // check the transform
-    auto edge_transform = edge->T().matrix();
-    EXPECT_EQ(edge_transform.rows(), 4);
-    EXPECT_EQ(edge_transform.cols(), 4);
-    EXPECT_EQ(edge_transform(0, 3), edge->id().majorId2());
-    EXPECT_EQ(edge_transform(1, 3), edge->id().minorId2());
-    EXPECT_EQ(edge_transform(2, 3), edge->id().type());
-
-    EXPECT_TRUE(edge->T().covarianceSet());
-    for (int idx = 0; idx < 6; ++idx) {
-      EXPECT_EQ(edge->T().cov()(idx, idx), 100);
-    }
-  }
-
-  // check the top level maps.
-  auto& edges = graph->edges()->unlocked().get();
-  auto& vertices = graph->vertices()->unlocked().get();
-
-  EXPECT_EQ(edges.size(), (unsigned)14);
-  EXPECT_EQ(vertices.size(), (unsigned)15);
+  EXPECT_EQ(graph.numberOfEdges(), (unsigned)14);
+  EXPECT_EQ(graph.numberOfVertices(), (unsigned)15);
 }
 
 TEST_F(GraphSerializationFixture, SaveLoadSaveLoad) {
-  verifyGraphStructure(graph_.get());
+  verifyGraphStructure(*graph_);
 
   // save graph to file
   graph_.reset();
 
   // load again
-  RCGraph::Ptr graph = std::make_shared<RCGraph>(graph_dir_);
-  verifyGraphStructure(graph.get());
+  auto graph = std::make_shared<RCGraph>(graph_dir_);
+  verifyGraphStructure(*graph);
 
   // save again
   graph.reset();
 
   // load again
   graph = std::make_shared<RCGraph>(graph_dir_);
-  verifyGraphStructure(graph.get());
+  verifyGraphStructure(*graph);
 }
 
 TEST_F(GraphSerializationFixture, PostLoadSubGraphExtraction) {
@@ -201,11 +184,11 @@ TEST_F(GraphSerializationFixture, PostLoadSubGraphExtraction) {
 
   // load again
   auto graph = std::make_shared<RCGraph>(graph_dir_);
-  verifyGraphStructure(graph.get());
+  verifyGraphStructure(*graph);
 
-  RCVertex::IdType root_id(0, 0);
-  EXPECT_NO_THROW(
-      graph->getSubgraph(root_id, eval::Mask::Const::MakeShared(true, true)));
+  VertexId root_id(0, 0);
+  EXPECT_NO_THROW(graph->getSubgraph(
+      root_id, std::make_shared<eval::mask::ConstEval>(true, true)));
 
   int count = 0;
   for (auto it = graph->beginVertex(); it != graph->endVertex(); ++it) count++;
@@ -222,21 +205,20 @@ TEST_F(GraphSerializationFixture, SaveLoadModifySaveLoad) {
   graph->addVertex(time_stamp_++);
   graph->addVertex(time_stamp_++);
   graph->addVertex(time_stamp_++);
-  graph->addEdge(RCVertex::IdType(5, 2), RCVertex::IdType(0, 2), Spatial);
+  graph->addEdge(VertexId(5, 2), VertexId(0, 2), EdgeType::Spatial, false,
+                 EdgeTransform(true));
   graph.reset();
 
   // load the graph again
   graph = std::make_shared<RCGraph>(graph_dir_);
-  EXPECT_EQ(graph->vertices()->unlocked().get().size(), (unsigned)18);
-  EXPECT_NO_THROW(graph->at(
-      RCEdge::IdType(RCVertex::IdType(5, 2), RCVertex::IdType(0, 2), Spatial)));
+  EXPECT_EQ(graph->numberOfVertices(), (unsigned)18);
+  EXPECT_NO_THROW(graph->at(EdgeId(VertexId(5, 2), VertexId(0, 2))));
   graph.reset();
 
   // load the graph again
   graph = std::make_shared<RCGraph>(graph_dir_);
-  EXPECT_EQ(graph->vertices()->unlocked().get().size(), (unsigned)18);
-  EXPECT_NO_THROW(graph->at(
-      RCEdge::IdType(RCVertex::IdType(5, 2), RCVertex::IdType(0, 2), Spatial)));
+  EXPECT_EQ(graph->numberOfVertices(), (unsigned)18);
+  EXPECT_NO_THROW(graph->at(EdgeId(VertexId(5, 2), VertexId(0, 2))));
   graph.reset();
 }
 

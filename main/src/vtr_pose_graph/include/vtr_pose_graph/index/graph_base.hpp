@@ -73,30 +73,31 @@ class GraphBase {
  public:
   /** Get the number of vertices */
   unsigned int numberOfVertices() const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return graph_.numberOfNodes();
   }
 
   /** \brief Get the number of edges */
   unsigned int numberOfEdges() const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return graph_.numberOfEdges();
   }
 
   /** \brief Determine if this graph/subgraph contains a specific vertex */
   bool contains(const VertexId& v) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return graph_.hasVertex(v);
   }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
   bool contains(const EdgeId& e) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return graph_.hasEdge(e);
   }
 
   /** \brief Const map interface for vertices */
   VertexPtr at(const VertexId& v) const {
+    std::shared_lock lock(mutex_);
     try {
       return vertices_.at(v);
     } catch (...) {
@@ -111,6 +112,7 @@ class GraphBase {
 
   /** \brief Const map interface for edges */
   EdgePtr at(const EdgeId& e) const {
+    std::shared_lock lock(mutex_);
     try {
       return edges_.at(e);
     } catch (...) {
@@ -180,7 +182,7 @@ class GraphBase {
    * interconnecting edges)
    */
   Ptr getSubgraph(const VertexId::Vector& nodes) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this, graph_.getSubgraph(nodes));
   }
 
@@ -189,7 +191,7 @@ class GraphBase {
    * interconnecting edges)
    */
   Ptr getSubgraph(const VertexId& root_id, const eval::mask::Ptr& mask) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this, graph_.getSubgraph(root_id, mask));
   }
 
@@ -199,7 +201,7 @@ class GraphBase {
    */
   Ptr getSubgraph(const VertexId& root_id, double max_depth,
                   const eval::mask::Ptr& mask) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this, graph_.getSubgraph(root_id, max_depth, mask));
   }
 
@@ -208,7 +210,7 @@ class GraphBase {
    * interconnecting edges)
    */
   Ptr getSubgraph(const eval::mask::Ptr& mask) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     for (auto it = graph_.beginVertex(); it != graph_.endVertex(); ++it) {
       if (mask->operator[](it->first))
         return MakeShared(*this, graph_.getSubgraph(it->first, mask));
@@ -223,7 +225,7 @@ class GraphBase {
           std::make_shared<eval::weight::ConstEval>(1, 1),
       const eval::mask::Ptr& mask =
           std::make_shared<eval::mask::ConstEval>(true, true)) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this, graph_.dijkstraTraverseToDepth(root_id, max_depth,
                                                             weights, mask));
   }
@@ -235,7 +237,7 @@ class GraphBase {
                      const eval::mask::Ptr& mask =
                          std::make_shared<eval::mask::ConstEval>(true,
                                                                  true)) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this,
                       graph_.dijkstraSearch(root_id, search_id, weights, mask));
   }
@@ -250,20 +252,20 @@ class GraphBase {
           std::make_shared<eval::weight::ConstEval>(1, 1),
       const eval::mask::Ptr& mask =
           std::make_shared<eval::mask::ConstEval>(true, true)) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(
         *this, graph_.dijkstraMultiSearch(root_id, search_ids, weights, mask));
   }
 
   /** \brief Use breadth first traversal up to a depth */
   Ptr breadthFirstTraversal(const VertexId& root_id, double max_depth) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this, graph_.breadthFirstTraversal(root_id, max_depth));
   }
 
   /** \brief Use breadth first search for an id */
   Ptr breadthFirstSearch(const VertexId& root_id, VertexId search_id) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this, graph_.breadthFirstSearch(root_id, search_id));
   }
 
@@ -271,7 +273,7 @@ class GraphBase {
   Ptr breadthFirstMultiSearch(
       const VertexId& root_id,
       const typename VertexId::Vector& search_ids) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this,
                       graph_.breadthFirstMultiSearch(root_id, search_ids));
   }
@@ -281,7 +283,7 @@ class GraphBase {
       const eval::weight::Ptr& weights,
       const eval::mask::Ptr& mask =
           std::make_shared<eval::mask::ConstEval>(true, true)) const {
-    std::shared_lock lock(simple_graph_mutex_);
+    std::shared_lock lock(mutex_);
     return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
   }
 
@@ -295,6 +297,9 @@ class GraphBase {
       SimpleGraph::ComponentList& cycles) const;
 
  protected:
+  /** \brief protects access to graph_, vertices_ and edges_ */
+  mutable std::shared_mutex mutex_;
+
   /** \brief SimpleGraph object to hold the structure */
   SimpleGraph graph_;
 
@@ -303,9 +308,6 @@ class GraphBase {
 
   /** \brief Map from SimpleEdgeId to edge object */
   EdgeMap edges_;
-
-  /** \brief protects the underlying simple graph */
-  mutable std::shared_mutex simple_graph_mutex_;
 };
 
 extern template class GraphBase<VertexBase, EdgeBase>;

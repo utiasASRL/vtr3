@@ -14,17 +14,14 @@
 
 /**
  * \file evaluator_tests.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
 
 #include <random>
 
-#include <vtr_logging/logging_init.hpp>
-#include <vtr_pose_graph/evaluator/evaluators.hpp>
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
 
 using namespace ::testing;
 using namespace vtr::common;

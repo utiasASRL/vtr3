@@ -43,7 +43,7 @@ GraphBase<V, E>::GraphBase(const GraphBase& other, SimpleGraph&& graph)
 
 template <class V, class E>
 VertexId::Set GraphBase<V, E>::neighbors(const VertexId& v) const {
-  std::shared_lock lock(simple_graph_mutex_);
+  std::shared_lock lock(mutex_);
 
   VertexId::Set neighbours;
   for (const auto& vid : graph_.node_map_.at(v).getAdjacent())
@@ -56,7 +56,7 @@ template <class V, class E>
 auto GraphBase<V, E>::pathDecomposition(
     SimpleGraph::ComponentList& paths, SimpleGraph::ComponentList& cycles) const
     -> SimpleGraph::JunctionSet {
-  std::shared_lock lock(simple_graph_mutex_);
+  std::shared_lock lock(mutex_);
   return graph_.pathDecomposition(paths, cycles);
 }
 

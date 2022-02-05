@@ -64,17 +64,18 @@ class Graph : public GraphBase<V, E> {
                   const EdgeTransform& T_to_from, Args&&... args);
 
  protected:
-  using Base::simple_graph_mutex_;
+  /** \brief protects access to all members below include callback methods */
+  using Base::mutex_;
 
   using Base::graph_;
 
-  using Base::edges_;
-
   using Base::vertices_;
 
+  using Base::edges_;
+
   /** \brief The current maximum run index */
-  BaseIdType curr_major_id_ = BaseIdType(-1);
-  BaseIdType curr_minor_id_ = BaseIdType(-1);
+  BaseIdType curr_major_id_ = InvalidBaseId;
+  BaseIdType curr_minor_id_ = InvalidBaseId;
 
   /** \brief The current maximum run index */
   const CallbackPtr callback_;

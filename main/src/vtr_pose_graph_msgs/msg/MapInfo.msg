@@ -9,6 +9,3 @@ float64 lng
 float64 lat
 float64 theta
 float64 scale
-
-# # additional pins
-# Pin[] pins
