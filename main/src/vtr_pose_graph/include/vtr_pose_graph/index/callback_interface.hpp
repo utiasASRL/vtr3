@@ -23,16 +23,14 @@
 namespace vtr {
 namespace pose_graph {
 
-template <class V, class E, class R>
+template <class V, class E>
 class GraphCallbackInterface {
  public:
   PTR_TYPEDEFS(GraphCallbackInterface);
 
-  using RunPtr = typename R::Ptr;
   using EdgePtr = typename E::Ptr;
   using VertexPtr = typename V::Ptr;
 
-  virtual void runAdded(const RunPtr&) {}
   virtual void vertexAdded(const VertexPtr&) {}
   virtual void edgeAdded(const EdgePtr&) {}
 };

@@ -14,32 +14,34 @@
 
 /**
  * \file test_localization_chain_.hpp
- * \brief
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
 
 #include "vtr_logging/logging_init.hpp"
 #include "vtr_pose_graph/evaluator/evaluators.hpp"
+#include "vtr_pose_graph/index/graph.hpp"
 #include "vtr_pose_graph/path/localization_chain.hpp"
 
 using namespace ::testing;  // NOLINT
 using namespace vtr::logging;
 using namespace vtr::pose_graph;
-using Transformation = lgmath::se3::TransformationWithCovariance;
 
 void print(const LocalizationChain<BasicGraph>& chain) {
-  LOG(INFO) << "trunk sid: " << chain.trunkSequenceId()
-            << ", trunk vid: " << chain.trunkVertexId();
-  LOG(INFO) << "T_branch_trunk: " << chain.T_branch_trunk().vec().transpose();
-  LOG(INFO) << "branch sid: " << chain.branchSequenceId()
-            << ", branch vid: " << chain.branchVertexId();
-  LOG(INFO) << "T_twig_branch: " << chain.T_twig_branch().vec().transpose();
-  LOG(INFO) << "twig vid: " << chain.twigVertexId();
-  LOG(INFO) << "T_petiole_twig: " << chain.T_petiole_twig().vec().transpose();
-  LOG(INFO) << "petiole vid: " << chain.petioleVertexId();
-  LOG(INFO) << "T_leaf_petiole: " << chain.T_leaf_petiole().vec().transpose();
+  CLOG(INFO, "test") << "trunk sid: " << chain.trunkSequenceId()
+                     << ", trunk vid: " << chain.trunkVertexId();
+  CLOG(INFO, "test") << "T_branch_trunk: "
+                     << chain.T_branch_trunk().vec().transpose();
+  CLOG(INFO, "test") << "branch sid: " << chain.branchSequenceId()
+                     << ", branch vid: " << chain.branchVertexId();
+  CLOG(INFO, "test") << "T_twig_branch: "
+                     << chain.T_twig_branch().vec().transpose();
+  CLOG(INFO, "test") << "twig vid: " << chain.twigVertexId();
+  CLOG(INFO, "test") << "T_petiole_twig: "
+                     << chain.T_petiole_twig().vec().transpose();
+  CLOG(INFO, "test") << "petiole vid: " << chain.petioleVertexId();
+  CLOG(INFO, "test") << "T_leaf_petiole: "
+                     << chain.T_leaf_petiole().vec().transpose();
 }
 
 class ChainTest : public Test {
@@ -61,10 +63,10 @@ class ChainTest : public Test {
       graph_->addVertex();
       Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
       transform(2, 3) = -1;
-      Transformation edge_transform(transform);
+      EdgeTransform edge_transform(transform);
       edge_transform.setZeroCovariance();
-      graph_->addEdge(VertexId(0, i), VertexId(0, i + 1), Temporal,
-                      Transformation(edge_transform, true), true);
+      graph_->addEdge(VertexId(0, i), VertexId(0, i + 1), EdgeType::Temporal,
+                      true, edge_transform);
     }
 
     // R1
@@ -74,13 +76,14 @@ class ChainTest : public Test {
       graph_->addVertex();
       Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
       transform(2, 3) = -0.4;
-      graph_->addEdge(VertexId(1, i), VertexId(1, i + 1), Temporal, transform,
-                      false);
+      EdgeTransform edge_transform(transform);
+      edge_transform.setZeroCovariance();
+      graph_->addEdge(VertexId(1, i), VertexId(1, i + 1), EdgeType::Temporal,
+                      false, edge_transform);
     }
 
-    using PrivEvaluator = eval::Mask::Privileged<BasicGraph>::Caching;
-    auto eval = std::make_shared<PrivEvaluator>();
-    eval->setGraph(graph_.get());
+    using PrivEvaluator = eval::mask::privileged::CachedEval<BasicGraph>;
+    auto eval = std::make_shared<PrivEvaluator>(*graph_);
     auto path = graph_->getSubgraph(0ul, eval);
     VertexId::Vector sequence;
     for (auto it = path->begin(0ul); it != path->end(); ++it)
@@ -110,7 +113,7 @@ class ChainTest : public Test {
 TEST_F(ChainTest, simulate_localization_every_keyframe) {
   // assume we have advanced multiple keyframes and update trunk
   chain_.setPetiole(VertexId(1, 4));
-  chain_.updatePetioleToLeafTransform(Transformation(true), true, false);
+  chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
 
   {
@@ -125,7 +128,7 @@ TEST_F(ChainTest, simulate_localization_every_keyframe) {
 
   // advanced another keyframe
   chain_.setPetiole(VertexId(1, 5));
-  chain_.updatePetioleToLeafTransform(Transformation(true), true, false);
+  chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
 
   {
@@ -142,7 +145,7 @@ TEST_F(ChainTest, simulate_localization_every_keyframe) {
 TEST_F(ChainTest, simulate_localization_every_frame) {
   // assume we have advanced multiple keyframes and update trunk
   chain_.setPetiole(VertexId(1, 4));
-  chain_.updatePetioleToLeafTransform(Transformation(true), true, false);
+  chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
 
   {
@@ -158,7 +161,7 @@ TEST_F(ChainTest, simulate_localization_every_frame) {
   // advanced another keyframes
   Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
   transform(2, 3) = -3;
-  Transformation edge_transform(transform);
+  EdgeTransform edge_transform(transform);
   edge_transform.setZeroCovariance();
   chain_.updatePetioleToLeafTransform(edge_transform, true, false);
 
@@ -176,7 +179,7 @@ TEST_F(ChainTest, simulate_localization_every_frame) {
 TEST_F(ChainTest, simulate_localization_skipped_frames) {
   // assume we have advanced multiple keyframes and update trunk
   chain_.setPetiole(VertexId(1, 4));
-  chain_.updatePetioleToLeafTransform(Transformation(true), true, false);
+  chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
 
   // store localization information
@@ -187,7 +190,7 @@ TEST_F(ChainTest, simulate_localization_skipped_frames) {
 
   // advanced another keyframes
   chain_.setPetiole(VertexId(1, 10));
-  chain_.updatePetioleToLeafTransform(Transformation(true), true, false);
+  chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
 
   // localize again

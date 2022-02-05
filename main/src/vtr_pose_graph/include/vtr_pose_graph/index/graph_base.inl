@@ -22,80 +22,42 @@
 
 namespace vtr {
 namespace pose_graph {
-template <class V, class E, class R>
-GraphBase<V, E, R>::GraphBase()
-    : runs_(new RunMap()), vertices_(new VertexMap()), edges_(new EdgeMap()) {}
 
-template <class V, class E, class R>
-GraphBase<V, E, R>::GraphBase(const GraphBase& other, const SimpleGraph& graph)
-    : graph_(graph),
-      runs_(other.runs_),
-      vertices_(other.vertices_),
-      edges_(other.edges_) {}
-
-template <class V, class E, class R>
-GraphBase<V, E, R>::GraphBase(const GraphBase& other, SimpleGraph&& graph)
-    : graph_(graph),
-      runs_(other.runs_),
-      vertices_(other.vertices_),
-      edges_(other.edges_) {}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::VertexPtrSet GraphBase<V, E, R>::neighbors(
-    const VertexPtr& v) const {
-  /// \note convention is lock graph first then vertices
-  std::shared_lock graph_lock(simple_graph_mutex_, std::defer_lock);
-  std::shared_lock vertices_lock(vertices_->mutex(), std::defer_lock);
-  std::lock(graph_lock, vertices_lock);
-
-  VertexPtrSet rval;
-  const auto neighbours = v->neighbours();
-
-  for (auto it = neighbours.begin(), ite = neighbours.end(); it != ite; ++it) {
-    if (graph_.hasVertex(*it)) rval.insert(vertices_->unlocked().get().at(*it));
-  }
-
-  return rval;
+template <class V, class E>
+GraphBase<V, E>::GraphBase(const GraphBase& other, const SimpleGraph& graph)
+    : graph_(graph) {
+  for (const auto& vid : graph_.node_map_)
+    vertices_.emplace(vid.first, other.vertices_.at(vid.first));
+  for (const auto& eid : graph_.edges_)
+    edges_.emplace(eid, other.edges_.at(eid));
 }
 
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::EdgePtrSet GraphBase<V, E, R>::incident(
-    const VertexPtr& v) const {
-  /// \note convention is lock graph first then edges
-  std::shared_lock graph_lock(simple_graph_mutex_, std::defer_lock);
-  std::shared_lock edges_lock(edges_->mutex(), std::defer_lock);
-  std::lock(graph_lock, edges_lock);
-
-  EdgePtrSet rval;
-  auto neighbours = v->neighbours();
-
-  for (auto it = neighbours.begin(), ite = neighbours.end(); it != ite; ++it) {
-    if (graph_.hasVertex(*it))
-      rval.insert(edges_->unlocked().get().at(
-          simple::SimpleGraph::getEdge(v->id(), *it)));
-  }
-
-  return rval;
+template <class V, class E>
+GraphBase<V, E>::GraphBase(const GraphBase& other, SimpleGraph&& graph)
+    : graph_(graph) {
+  for (const auto& vid : graph_.node_map_)
+    vertices_.emplace(vid.first, other.vertices_.at(vid.first));
+  for (const auto& eid : graph_.edges_)
+    edges_.emplace(eid, other.edges_.at(eid));
 }
 
-template <class V, class E, class R>
-auto GraphBase<V, E, R>::pathDecomposition(ComponentList& paths,
-                                           ComponentList& cycles) const ->
-    typename VertexIdType::UnorderedSet {
-  std::shared_lock lock(simple_graph_mutex_);
+template <class V, class E>
+VertexId::Set GraphBase<V, E>::neighbors(const VertexId& v) const {
+  std::shared_lock lock(mutex_);
 
-  SimpleGraph::ComponentList simplePaths, simpleCycles;
-  std::unordered_set<SimpleVertexId> simpleJunctions =
-      graph_.pathDecomposition(simplePaths, simpleCycles);
+  VertexId::Set neighbours;
+  for (const auto& vid : graph_.node_map_.at(v).getAdjacent())
+    neighbours.insert(vid);
 
-  // converts simple id to vertex id
-  for (auto&& it : simplePaths) paths.push_back(GraphComponent(it));
-  for (auto&& it : simpleCycles) cycles.push_back(GraphComponent(it));
+  return neighbours;
+}
 
-  typename VertexIdType::UnorderedSet junctions;
-  for (auto&& it : simpleJunctions) junctions.insert(VertexId(it));
-
-  return junctions;
+template <class V, class E>
+auto GraphBase<V, E>::pathDecomposition(ComponentList& paths,
+                                        ComponentList& cycles) const
+    -> JunctionSet {
+  std::shared_lock lock(mutex_);
+  return graph_.pathDecomposition(paths, cycles);
 }
 
 }  // namespace pose_graph

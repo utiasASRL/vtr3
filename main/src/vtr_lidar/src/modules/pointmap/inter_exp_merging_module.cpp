@@ -66,8 +66,19 @@ void InterExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
         VertexId(qdata.live_id->majorId(),
                  qdata.live_id->minorId() - (unsigned)config_->depth);
 
-    auto spatial_neighbors = graph->at(target_vid)->spatialNeighbours();
-    if (spatial_neighbors.empty()) {
+    /// \todo the following block needs more testing
+    bool has_spatial = false;
+    auto neighbors = graph->neighbors(target_vid);
+    for (const auto &map_vid : neighbors) {
+      if (graph->at(EdgeId(map_vid, target_vid))->isSpatial()) {
+        auto temp_qdata = std::make_shared<LidarQueryCache>(qdata);
+        temp_qdata->inter_exp_merging_async.emplace(target_vid, map_vid);
+        executor->dispatch(
+            std::make_shared<Task>(shared_from_this(), temp_qdata));
+        has_spatial = true;
+      }
+    }
+    if (!has_spatial) {
       /// \todo figure out whether this is a teach or a repeat, the current way
       /// does not work at branching/merging vertices
       CLOG(INFO, "lidar.inter_exp_merging")
@@ -76,18 +87,6 @@ void InterExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
       qdata.inter_exp_merging_async.emplace(target_vid, VertexId::Invalid());
       executor->dispatch(
           std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
-
-    } else {
-      CLOG(WARNING, "lidar.inter_exp_merging")
-          << "Spatial neighbors of " << target_vid << " are "
-          << spatial_neighbors << ", launching for repeat run.";
-
-      for (const auto &map_vid : spatial_neighbors) {
-        auto temp_qdata = std::make_shared<LidarQueryCache>(qdata);
-        temp_qdata->inter_exp_merging_async.emplace(target_vid, map_vid);
-        executor->dispatch(
-            std::make_shared<Task>(shared_from_this(), temp_qdata));
-      }
     }
   }
 }
@@ -224,7 +223,7 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     auto live_vertex = graph->at(live_vid);
     auto map_vertex = graph->at(map_vid);
     // get transform from live vertex to map vertex
-    const auto &T_mv_lv = graph->at(map_vid, live_vid)->T();
+    const auto &T_mv_lv = graph->at(EdgeId(map_vid, live_vid))->T();
     // retrieve messages
     const auto live_msg = live_vertex->retrieve<PointMap<PointWithInfo>>(
         "point_map", "vtr_lidar_msgs/msg/PointMap");

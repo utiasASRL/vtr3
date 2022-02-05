@@ -31,10 +31,8 @@ class PGOFactorInterface {
   PTR_TYPEDEFS(PGOFactorInterface);
 
   using GraphPtr = typename Graph::Ptr;
-  using VertexId = typename Graph::VertexIdType;
-  using Transform = typename Graph::EdgeType::TransformType;
   // clang-format off
-  using VertexId2TransformMap = std::unordered_map<VertexId, Transform>;
+  using VertexId2TransformMap = std::unordered_map<VertexId, EdgeTransform>;
   using StateMap = std::unordered_map<VertexId, steam::se3::TransformStateVar::Ptr>;
   using CostTermPtr = steam::ParallelizedCostTermCollection::Ptr;
   // clang-format on
@@ -53,10 +51,8 @@ class PoseGraphOptimizer {
   using GraphPtr = typename Graph::Ptr;
   using VertexPtr = typename Graph::VertexPtr;
   using EdgePtr = typename Graph::EdgePtr;
-  using VertexId = typename Graph::VertexIdType;
-  using Transform = typename Graph::EdgeType::TransformType;
   // clang-format off
-  using VertexId2TransformMap = std::unordered_map<VertexId, Transform>;
+  using VertexId2TransformMap = std::unordered_map<VertexId, EdgeTransform>;
   using StateMap = std::unordered_map<VertexId, steam::se3::TransformStateVar::Ptr>;
   using CostTermPtr = steam::ParallelizedCostTermCollection::Ptr;
   using ProblemPtr = std::shared_ptr<steam::OptimizationProblem>;

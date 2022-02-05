@@ -105,15 +105,13 @@ void IntraExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
   PointMap<PointWithInfo> updated_map(locked_map_msg.getData().dl());
 
   // Get the subgraph of interest to work on (thread safe)
-  using namespace pose_graph;
-  const auto tempeval = std::make_shared<TemporalEvaluator<RCGraphBase>>();
-  tempeval->setGraph((void *)graph.get());
+  const auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>(*graph);
   const auto subgraph =
       config_->depth ? graph->getSubgraph(target_vid, config_->depth, tempeval)
                      : graph->getSubgraph(std::vector<VertexId>({target_vid}));
 
   // cache all the transforms so we only calculate them once
-  PoseCache<RCGraphBase> pose_cache(subgraph, target_vid);
+  pose_graph::PoseCache<GraphBase> pose_cache(subgraph, target_vid);
 
   auto itr = subgraph->begin(target_vid);
   for (; itr != subgraph->end(); itr++) {

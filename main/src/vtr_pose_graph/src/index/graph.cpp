@@ -13,19 +13,16 @@
 // limitations under the License.
 
 /**
- * \file pose_graph_relaxation.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \file instantiation.cpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_pose_graph/relaxation/pose_graph_relaxation.hpp>
+#include "vtr_pose_graph/index/graph.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
-template class PoseGraphRelaxation<BasicGraph>;
-template class PoseGraphRelaxation<RCGraph>;
+template class GraphBase<VertexBase, EdgeBase>;
+template class Graph<VertexBase, EdgeBase>;
 
 }  // namespace pose_graph
 }  // namespace vtr

@@ -14,10 +14,7 @@
 
 /**
  * \file evaluator_base.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -25,808 +22,165 @@
 #include <functional>
 #include <unordered_map>
 
-#include <vtr_common/utils/macros.hpp>
-#include <vtr_pose_graph/id/id.hpp>
-#include <vtr_pose_graph/utils/hash.hpp>  // hash for std::pair<T1, T2> (for std::unordered_map)
+#include "vtr_common/utils/macros.hpp"
+#include "vtr_pose_graph/id/id.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace eval {
 
 template <class RVAL>
-class EvalBase {
+class BaseEval {
  public:
-  using VertexIdType = VertexId;
-  using EdgeIdType = EdgeId;
+  PTR_TYPEDEFS(BaseEval);
 
-  using SimpleVertex = uint64_t;
-  using SimpleEdge = std::pair<uint64_t, uint64_t>;
+  virtual ~BaseEval() = default;
 
-  using VertexMap = std::unordered_map<SimpleVertex, RVAL>;
-  using EdgeMap = std::unordered_map<SimpleEdge, RVAL>;
-
-  PTR_NAMED_TYPEDEFS(VertexMap);
-  PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(EvalBase);
-
-  EvalBase() = default;
-
-  EvalBase(const EvalBase &) = default;
-  EvalBase(EvalBase &&) = default;
-  EvalBase &operator=(const EvalBase &) = default;
-  EvalBase &operator=(EvalBase &&) = default;
-
-  virtual ~EvalBase() = default;
-
-  virtual void setGraph(void *) = 0;
-
-  // Reference returning operator[]
-  virtual RVAL operator[](const SimpleEdge &) = 0;
-  virtual RVAL operator[](const SimpleVertex &) = 0;
-  virtual RVAL operator[](const EdgeIdType &) = 0;
-  virtual RVAL operator[](const VertexIdType &) = 0;
-
-  // Copy returning at()
-  virtual RVAL at(const SimpleEdge &) const = 0;
-  virtual RVAL at(const SimpleVertex &) const = 0;
-  virtual RVAL at(const EdgeIdType &) const = 0;
-  virtual RVAL at(const VertexIdType &) const = 0;
-};
-
-template <class RVAL, class GRAPH>
-class TypedBase : public EvalBase<RVAL> {
- public:
-  using Base = EvalBase<RVAL>;
-
-  using VertexType = typename GRAPH::VertexType;
-  using EdgeType = typename GRAPH::EdgeType;
-
-  using VertexPtr = typename VertexType::Ptr;
-  using EdgePtr = typename EdgeType::Ptr;
-
-  using SimpleVertex = typename Base::SimpleVertex;
-  using SimpleEdge = typename Base::SimpleEdge;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using VertexMap = typename Base::VertexMap;
-  using EdgeMap = typename Base::EdgeMap;
-
-  PTR_NAMED_TYPEDEFS(VertexMap);
-  PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(TypedBase);
-
-  TypedBase() = default;
-  TypedBase(GRAPH *graph) : graph_(graph) {}
-
-  TypedBase(const TypedBase &) = default;
-  TypedBase(TypedBase &&) = default;
-  TypedBase &operator=(const TypedBase &) = default;
-  TypedBase &operator=(TypedBase &&) = default;
-
-  virtual ~TypedBase() {}  // NOTE: we intentionally do not delete the graph
-                           // pointer as we do not own it
-
-  virtual void setGraph(void *graph) {
-    graph_ = reinterpret_cast<GRAPH *>(graph);
-  }
-
-  virtual RVAL operator[](const EdgePtr &e) = 0;
-  virtual RVAL operator[](const VertexPtr &v) = 0;
-
-  virtual RVAL at(const EdgePtr &e) const = 0;
-  virtual RVAL at(const VertexPtr &v) const = 0;
+  virtual RVAL operator[](const EdgeId &e) { return computeEdge(e); }
+  virtual RVAL operator[](const VertexId &v) { return computeVertex(v); }
 
  protected:
-  GRAPH *graph_;  // NOTE: we intentionally do not delete the graph pointer as
-                  // we do not own it
+  virtual RVAL computeEdge(const EdgeId &e) = 0;
+  virtual RVAL computeVertex(const VertexId &v) = 0;
+};
+
+/** \brief Evaluator for a function on edge/vertex data, with caching */
+template <class RVAL>
+class BaseCachedEval : public BaseEval<RVAL> {
+ public:
+  PTR_TYPEDEFS(BaseCachedEval);
+
+  using Base = BaseEval<RVAL>;
+
+  using EdgeMap = std::unordered_map<EdgeId, RVAL>;
+  using VertexMap = std::unordered_map<VertexId, RVAL>;
+
+  RVAL operator[](const EdgeId &e) override {
+    auto rval = edge_map_.insert({e, RVAL()});
+    if (rval.second) rval.first->second = this->computeEdge(e);
+    return rval.first->second;
+  }
+
+  RVAL operator[](const VertexId &v) override {
+    auto rval = vertex_map_.insert({v, RVAL()});
+    if (rval.second) rval.first->second = this->computeVertex(v);
+    return rval.first->second;
+  }
+
+ protected:
+  EdgeMap edge_map_;
+  VertexMap vertex_map_;
+};
+
+/** \brief Evaluator for a function on edge/vertex data, with a fixed cache */
+template <class RVAL>
+class BaseWindowedEval : public BaseCachedEval<RVAL> {
+ public:
+  PTR_TYPEDEFS(BaseWindowedEval);
+
+  using Base = BaseCachedEval<RVAL>;
+
+  using EdgeMap = typename Base::EdgeMap;
+  using VertexMap = typename Base::VertexMap;
+
+  BaseWindowedEval(const size_t &size = 500)
+      : edge_queue_(size, EdgeId::Invalid()),
+        vertex_queue_(size, VertexId::Invalid()) {}
+
+  RVAL operator[](const VertexId &v) override {
+    auto rval = this->vertex_map_.insert({v, RVAL()});
+    if (rval.second) {
+      rval.first->second = this->computeVertex(v);
+
+      vertex_queue_.push_back(v);
+      this->vertex_map_.erase(vertex_queue_.front());
+      vertex_queue_.pop_front();
+    }
+
+    return rval.first->second;
+  }
+
+  RVAL operator[](const EdgeId &e) override {
+    auto rval = this->edge_map_.insert({e, RVAL()});
+    if (rval.second) {
+      rval.first->second = this->computeEdge(e);
+
+      edge_queue_.push_back(e);
+      this->edge_map_.erase(edge_queue_.front());
+      edge_queue_.pop_front();
+    }
+
+    return rval.first->second;
+  }
+
+ protected:
+  std::deque<EdgeId> edge_queue_;
+  std::deque<VertexId> vertex_queue_;
 };
 
 /** \brief Simple evaluator for a fixed constant weight */
 template <class RVAL>
-class ConstantBase : public EvalBase<RVAL> {
+class ConstEval : public BaseEval<RVAL> {
  public:
-  using Base = EvalBase<RVAL>;
+  PTR_TYPEDEFS(ConstEval);
 
-  using SimpleEdge = typename Base::SimpleEdge;
-  using SimpleVertex = typename Base::SimpleVertex;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgeMap = typename Base::EdgeMap;
-  using VertexMap = typename Base::VertexMap;
+  using Base = BaseEval<RVAL>;
 
-  PTR_NAMED_TYPEDEFS(VertexMap);
-  PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(ConstantBase);
-
-  static Ptr MakeShared(const RVAL &edgeValue = RVAL(),
-                        const RVAL &vertexValue = RVAL()) {
-    return Ptr(new ConstantBase(edgeValue, vertexValue));
-  }
-
-  static typename Base::Ptr MakeBase(const RVAL &edgeValue = RVAL(),
-                                     const RVAL &vertexValue = RVAL()) {
-    return typename Base::Ptr(new ConstantBase(edgeValue, vertexValue));
-  }
-
-  ConstantBase(const RVAL &edgeValue = RVAL(), const RVAL &vertexValue = RVAL())
-      : edgeValue_(edgeValue), vertexValue_(vertexValue){};
-
-  ConstantBase(const ConstantBase &) = default;
-  ConstantBase(ConstantBase &&) = default;
-  ConstantBase &operator=(const ConstantBase &) = default;
-  ConstantBase &operator=(ConstantBase &&) = default;
-
-  virtual ~ConstantBase() {}
-
-  void setGraph(void *) override {}
-
-  RVAL operator[](const SimpleVertex &) override { return this->vertexValue_; }
-  RVAL operator[](const SimpleEdge &) override { return this->edgeValue_; }
-  RVAL operator[](const VertexIdType &) override { return this->vertexValue_; }
-  RVAL operator[](const EdgeIdType &) override { return this->edgeValue_; }
-
-  RVAL at(const SimpleVertex &) const override { return this->vertexValue_; }
-  RVAL at(const SimpleEdge &) const override { return this->edgeValue_; }
-  RVAL at(const VertexIdType &) const override { return this->vertexValue_; }
-  RVAL at(const EdgeIdType &) const override { return this->edgeValue_; }
+  ConstEval(const RVAL &edge_value = RVAL(), const RVAL &vertex_value = RVAL())
+      : edge_value_(edge_value), vertex_value_(vertex_value) {}
 
  protected:
-  const RVAL edgeValue_;
-  const RVAL vertexValue_;
+  RVAL computeEdge(const EdgeId &) override { return edge_value_; }
+  RVAL computeVertex(const VertexId &) override { return vertex_value_; }
+
+ private:
+  const RVAL edge_value_;
+  const RVAL vertex_value_;
 };
 
 /** \brief Base evaluator for a fixed map */
 template <class RVAL>
-class MapBase : public EvalBase<RVAL> {
+class MapEval : public BaseEval<RVAL> {
  public:
-  using Base = EvalBase<RVAL>;
+  PTR_TYPEDEFS(MapEval);
 
-  using SimpleVertex = typename Base::SimpleVertex;
-  using SimpleEdge = typename Base::SimpleEdge;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using VertexMap = typename Base::VertexMap;
-  using EdgeMap = typename Base::EdgeMap;
+  using Base = BaseEval<RVAL>;
 
-  PTR_NAMED_TYPEDEFS(VertexMap);
+  using EdgeMap = std::unordered_map<EdgeId, RVAL>;
+  using VertexMap = std::unordered_map<VertexId, RVAL>;
   PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(MapBase);
+  PTR_NAMED_TYPEDEFS(VertexMap);
 
-  static Ptr MakeShared(
-      const EdgeMapPtr &edgeWeights = EdgeMapPtr(new EdgeMap()),
-      const VertexMapPtr &vertexWeights = VertexMapPtr(new VertexMap())) {
-    return Ptr(new MapBase(edgeWeights, vertexWeights));
-  }
+  MapEval(const EdgeMapPtr &edge_map = std::make_shared<EdgeMap>(),
+          const VertexMapPtr &vertex_map = std::make_shared<VertexMap>())
+      : edge_map_(edge_map), vertex_map_(vertex_map) {}
 
-  MapBase(const EdgeMapPtr &edgeWeights = EdgeMapPtr(new EdgeMap()),
-          const VertexMapPtr &vertexWeights = VertexMapPtr(new VertexMap()))
-      : edgeMap_(edgeWeights), vertexMap_(vertexWeights) {}
-  MapBase(const MapBase &) = default;
-  MapBase(MapBase &&) = default;
+  RVAL &ref(const EdgeId &e) { return edge_map_->operator[](e); }
+  RVAL &ref(const VertexId &v) { return vertex_map_->operator[](v); }
 
-  virtual ~MapBase() {}
-
-  MapBase &operator=(const MapBase &) = default;
-  MapBase &operator=(MapBase &&) = default;
-
-  void setGraph(void *) override {}
-
+ protected:
   // clang-format off
-  RVAL operator[](const SimpleVertex &v) override { return this->vertexMap_->operator[](v); }
-  RVAL operator[](const SimpleEdge &e) override { return this->edgeMap_->operator[](e); }
-  RVAL operator[](const VertexIdType &v) override { return this->vertexMap_->operator[](SimpleVertex(v)); }
-  RVAL operator[](const EdgeIdType &e) override { return this->edgeMap_->operator[](SimpleEdge(e)); }
-
-  RVAL at(const SimpleVertex &v) const override { return this->vertexMap_->at(v); }
-  RVAL at(const SimpleEdge &e) const override { return this->edgeMap_->at(e); }
-  RVAL at(const VertexIdType &v) const override { return this->vertexMap_->at(SimpleVertex(v)); }
-  RVAL at(const EdgeIdType &e) const override { return this->edgeMap_->at(SimpleEdge(e)); }
-
-  virtual RVAL &ref(const SimpleVertex &v) { return this->vertexMap_->operator[](v); }
-  virtual RVAL &ref(const SimpleEdge &e) { return this->edgeMap_->operator[](e); }
-  virtual RVAL &ref(const VertexIdType &v) { return this->vertexMap_->operator[](SimpleVertex(v)); }
-  virtual RVAL &ref(const EdgeIdType &e) { return this->edgeMap_->operator[](SimpleEdge(e)); }
+  RVAL computeEdge(const EdgeId &e) override { return edge_map_->operator[](e); }
+  RVAL computeVertex(const VertexId &v) override { return vertex_map_->operator[](v); }
   // clang-format on
 
- protected:
-  EdgeMapPtr edgeMap_;
-  VertexMapPtr vertexMap_;
-};
-
-/** \brief Evaluator for a function on edge/vertex data */
-template <class RVAL, class GRAPH>
-class DirectBase : public TypedBase<RVAL, GRAPH> {
- public:
-  using Base = TypedBase<RVAL, GRAPH>;
-
-  using SimpleEdge = typename Base::SimpleEdge;
-  using SimpleVertex = typename Base::SimpleVertex;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgePtr = typename Base::EdgePtr;
-  using VertexPtr = typename Base::VertexPtr;
-  using EdgeMap = typename Base::EdgeMap;
-  using VertexMap = typename Base::VertexMap;
-
-  PTR_NAMED_TYPEDEFS(VertexMap);
-  PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(DirectBase);
-
-  DirectBase() = default;
-  DirectBase(GRAPH *graph) : Base(graph) {}
-
-  DirectBase(const DirectBase &) = default;
-  DirectBase(DirectBase &&) = default;
-  DirectBase &operator=(const DirectBase &) = default;
-  DirectBase &operator=(DirectBase &&) = default;
-
-  virtual ~DirectBase() {}
-
-  // clang-format off
-  RVAL operator[](const SimpleVertex &v) override { return this->operator[](this->graph_->at(v)); }
-  RVAL operator[](const SimpleEdge &e) override { return this->operator[](this->graph_->at(e)); }
-  RVAL operator[](const VertexIdType &v) override { return this->operator[](this->graph_->at(v)); }
-  RVAL operator[](const EdgeIdType &e) override { return this->operator[](this->graph_->at(e)); }
-  RVAL operator[](const VertexPtr &v) override { return this->computeVertex(v); }
-  RVAL operator[](const EdgePtr &e) override { return this->computeEdge(e); }
-
-  RVAL at(const SimpleVertex &v) const override { return this->at(this->graph_->at(v)); }
-  RVAL at(const SimpleEdge &e) const override { return this->at(this->graph_->at(e)); }
-  RVAL at(const VertexIdType &v) const override { return this->at(this->graph_->at(v)); }
-  RVAL at(const EdgeIdType &e) const override { return this->at(this->graph_->at(e)); }
-  RVAL at(const VertexPtr &v) const override { return this->computeVertex(v); }
-  RVAL at(const EdgePtr &e) const override { return this->computeEdge(e); }
-  // clang-format on
-
- protected:
-  virtual RVAL computeVertex(const VertexPtr &v) const = 0;
-  virtual RVAL computeVertex(const VertexPtr &v) {
-    return const_cast<const DirectBase *>(this)->computeVertex(v);
-  }
-  virtual RVAL computeEdge(const EdgePtr &e) const = 0;
-  virtual RVAL computeEdge(const EdgePtr &e) {
-    return const_cast<const DirectBase *>(this)->computeEdge(e);
-  }
-};
-
-/** \brief Evaluator for a runtime-provided function on edge/vertex data */
-template <class RVAL, class GRAPH>
-class LambdaBase : public DirectBase<RVAL, GRAPH> {
- public:
-  using Base = DirectBase<RVAL, GRAPH>;
-
-  using SimpleEdge = typename Base::SimpleEdge;
-  using SimpleVertex = typename Base::SimpleVertex;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgePtr = typename Base::EdgePtr;
-  using VertexPtr = typename Base::VertexPtr;
-  using EdgeMap = typename Base::EdgeMap;
-  using VertexMap = typename Base::VertexMap;
-
-  using EdgeFunction = std::function<RVAL(const EdgePtr &)>;
-  using VertexFunction = std::function<RVAL(const VertexPtr &)>;
-
-  PTR_NAMED_TYPEDEFS(VertexMap);
-  PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(LambdaBase);
-
-  static inline RVAL edgeTrue(const EdgePtr &) { return true; }
-  static inline RVAL vertexTrue(const VertexPtr &) { return true; }
-
-  LambdaBase() = delete;
-  LambdaBase(const EdgeFunction &edge_function,
-             const VertexFunction &vertex_function, GRAPH *graph = nullptr)
-      : Base(graph),
-        edge_function_(edge_function),
-        vertex_function_(vertex_function) {}
-  LambdaBase(const EdgeFunction &edge_function, GRAPH *graph = nullptr)
-      : Base(graph),
-        edge_function_(edge_function),
-        vertex_function_(vertexTrue) {}
-  LambdaBase(const VertexFunction &vertex_function, GRAPH *graph = nullptr)
-      : Base(graph),
-        edge_function_(edgeTrue),
-        vertex_function_(vertex_function) {}
-
-  LambdaBase(const LambdaBase &) = default;
-  LambdaBase(LambdaBase &&) = default;
-  LambdaBase &operator=(const LambdaBase &) = default;
-  LambdaBase &operator=(LambdaBase &&) = default;
-
-  virtual ~LambdaBase() {}
-
- protected:
-  RVAL computeEdge(const EdgePtr &e) const override {
-    return edge_function_(e);
-  }
-  RVAL computeVertex(const VertexPtr &v) const override {
-    return vertex_function_(v);
-  }
-
-  EdgeFunction edge_function_;
-  VertexFunction vertex_function_;
-  using Base::Base::graph_;
-};
-
-/** \brief Evaluator for a function on edge/vertex data, with caching */
-template <class RVAL, class GRAPH>
-class CachingBase : public virtual DirectBase<RVAL, GRAPH> {
- public:
-  using Base = DirectBase<RVAL, GRAPH>;
-
-  using SimpleEdge = typename Base::SimpleEdge;
-  using SimpleVertex = typename Base::SimpleVertex;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgePtr = typename Base::EdgePtr;
-  using VertexPtr = typename Base::VertexPtr;
-  using EdgeMap = typename Base::EdgeMap;
-  using VertexMap = typename Base::VertexMap;
-
-  PTR_NAMED_TYPEDEFS(VertexMap);
-  PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(CachingBase);
-
-  CachingBase()
-      : DirectBase<RVAL, GRAPH>(),
-        edgeMap_(new EdgeMap()),
-        vertexMap_(new VertexMap) {}
-  CachingBase(const CachingBase &) = default;
-  // NOTE: this does not move-construct any base classes
-  CachingBase(CachingBase &&other)
-      : edgeMap_(std::move(other.edgeMap_)),
-        vertexMap_(std::move(other.vertexMap_)) {}
-  CachingBase &operator=(const CachingBase &) = default;
-  // NOTE: this does not move-assign any base classes
-  CachingBase &operator=(CachingBase &&other) {
-    this->edgeMap_ = std::move(other.edgeMap_);
-    this->vertexMap_ = std::move(other.vertexMap_);
-    return *this;
-  }
-
-  virtual ~CachingBase() {}
-
-  // clang-format off
-  RVAL operator[](const SimpleVertex &v) override {
-    auto rval = this->vertexMap_->insert({v, RVAL()});
-    if (rval.second)
-      rval.first->second = this->computeVertex(this->graph_->at(v));
-    return rval.first->second;
-  }
-  RVAL operator[](const SimpleEdge &e) override {
-    auto rval = this->edgeMap_->insert({e, RVAL()});
-    if (rval.second)
-      rval.first->second = this->computeEdge(this->graph_->at(e));
-    return rval.first->second;
-  }
-  RVAL operator[](const VertexIdType &v) override { return this->operator[](SimpleVertex(v)); }
-  RVAL operator[](const EdgeIdType &e) override { return this->operator[](SimpleEdge(e)); }
-  RVAL operator[](const VertexPtr &v) override { return this->operator[](v->simpleId()); }
-  RVAL operator[](const EdgePtr &e) override { return this->operator[](e->simpleId()); }
-
-  RVAL at(const SimpleVertex &v) const override { return this->vertexMap_->at(v); }
-  RVAL at(const SimpleEdge &e) const override { return this->edgeMap_->at(e); }
-  RVAL at(const VertexIdType &v) const override { return this->vertexMap_->at(SimpleVertex(v)); }
-  RVAL at(const EdgeIdType &e) const override { return this->edgeMap_->at(SimpleEdge(e)); }
-  RVAL at(const VertexPtr &v) const override { return this->vertexMap_->at(v->simpleId()); }
-  RVAL at(const EdgePtr &e) const override { return this->edgeMap_->at(e->simpleId()); }
-  // clang-format on
-
- protected:
-  EdgeMapPtr edgeMap_;
-  VertexMapPtr vertexMap_;
-};
-
-/**
- * \brief Evaluator for a function on edge/vertex data, with a fixed size cache
- */
-template <class RVAL, class GRAPH>
-class WindowedBase : public virtual CachingBase<RVAL, GRAPH> {
- public:
-  using Base = CachingBase<RVAL, GRAPH>;
-
-  using SimpleEdge = typename Base::SimpleEdge;
-  using SimpleVertex = typename Base::SimpleVertex;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgePtr = typename Base::EdgePtr;
-  using VertexPtr = typename Base::VertexPtr;
-  using EdgeMap = typename Base::EdgeMap;
-  using VertexMap = typename Base::VertexMap;
-
-  PTR_NAMED_TYPEDEFS(VertexMap);
-  PTR_NAMED_TYPEDEFS(EdgeMap);
-  PTR_TYPEDEFS(WindowedBase);
-
-  WindowedBase(const size_t &cacheSize = 500)
-      : edgeQueue_(cacheSize, SimpleEdge(-1, -1)),
-        vertexQueue_(cacheSize, SimpleVertex(-1)) {}
-  WindowedBase(const WindowedBase &) = default;
-  // NOTE: this does not move-construct any base classes
-  WindowedBase(WindowedBase &&other)
-      : edgeQueue_(std::move(other.edgeQueue_)),
-        vertexQueue_(std::move(other.vertexQueue_)) {}
-  WindowedBase &operator=(const WindowedBase &) = default;
-  // NOTE: this does not move-assign any base classes
-  WindowedBase &operator=(WindowedBase &&other) {
-    this->edgeQueue_ = std::move(other.edgeQueue_);
-    this->vertexQueue_ = std::move(other.vertexQueue_);
-    return *this;
-  }
-
-  virtual ~WindowedBase() {}
-
-  // clang-format off
-  RVAL operator[](const SimpleVertex &v) override {
-    auto rval = this->vertexMap_->insert({v, RVAL()});
-
-    if (rval.second) {
-      rval.first->second = this->computeVertex(this->graph_->at(v));
-
-      vertexQueue_.push_back(v);
-      (void)this->vertexMap_->erase(vertexQueue_.front());
-      vertexQueue_.pop_front();
-    }
-
-    return rval.first->second;
-  }
-  RVAL operator[](const SimpleEdge &e) override {
-    auto rval = this->edgeMap_->insert({e, RVAL()});
-
-    if (rval.second) {
-      rval.first->second = this->computeEdge(this->graph_->at(e));
-
-      edgeQueue_.push_back(e);
-      (void)this->edgeMap_->erase(edgeQueue_.front());
-      edgeQueue_.pop_front();
-    }
-
-    return rval.first->second;
-  }
-  RVAL operator[](const VertexIdType &v) override { return this->operator[](SimpleVertex(v)); }
-  RVAL operator[](const EdgeIdType &e) override { return this->operator[](SimpleEdge(e)); }
-  RVAL operator[](const VertexPtr &v) override { return this->operator[](v->simpleId()); }
-  RVAL operator[](const EdgePtr &e) override { return this->operator[](e->simpleId()); }
-  // clang-format on
-
- protected:
-  std::deque<SimpleEdge> edgeQueue_;
-  std::deque<SimpleVertex> vertexQueue_;
-};
-
-/** \brief Convenience typedef of all evaluator base */
-template <class RVAL>
-struct Base {
-  //  using Base =  EvalBase<RVAL>;
-  using Const = ConstantBase<RVAL>;
-  using Map = MapBase<RVAL>;
-
-  template <class GRAPH>
-  struct Typed {
-    using Base = TypedBase<RVAL, GRAPH>;
-    using Direct = DirectBase<RVAL, GRAPH>;
-    using Lambda = LambdaBase<RVAL, GRAPH>;
-    using Caching = CachingBase<RVAL, GRAPH>;
-    using Windowed = WindowedBase<RVAL, GRAPH>;
-  };
+ private:
+  EdgeMapPtr edge_map_;
+  VertexMapPtr vertex_map_;
 };
 
 /** \brief Macro to create a new evaluator base type */
-#define NEW_EVALUATOR_TYPE(Name, ScalarType)                \
-  using Name##Eval = EvalBase<ScalarType>;                  \
-  namespace Name {                                          \
-  using ReturnType = ScalarType;                            \
-  using Base = eval::EvalBase<ScalarType>;                  \
-  using Const = eval::ConstantBase<ScalarType>;             \
-  using Map = eval::MapBase<ScalarType>;                    \
-  PTR_TYPEDEFS(Base);                                       \
-                                                            \
-  template <class GRAPH>                                    \
-  struct Typed {                                            \
-    using Base = eval::TypedBase<ScalarType, GRAPH>;        \
-    using Direct = eval::DirectBase<ScalarType, GRAPH>;     \
-    using Lambda = eval::LambdaBase<ScalarType, GRAPH>;     \
-    using Caching = eval::CachingBase<ScalarType, GRAPH>;   \
-    using Windowed = eval::WindowedBase<ScalarType, GRAPH>; \
-  };                                                        \
+#define NEW_EVALUATOR_TYPE(Name, ScalarType)                   \
+  namespace Name {                                             \
+  using ReturnType = ScalarType;                               \
+  using Ptr = std::shared_ptr<eval::BaseEval<ReturnType>>;     \
+  using BaseEval = eval::BaseEval<ScalarType>;                 \
+  using BaseCachedEval = eval::BaseCachedEval<ScalarType>;     \
+  using BaseWindowedEval = eval::BaseWindowedEval<ScalarType>; \
+  using ConstEval = eval::ConstEval<ScalarType>;               \
+  using MapEval = eval::MapEval<ScalarType>;                   \
   }
-
-/**
- * \brief Macros to create explicit template instantiations (prevents
- * recompilation)
- */
-#define EVALUATOR_BASE_DECLARE_EXTERN(ScalarType)       \
-  extern template class eval::EvalBase<ScalarType>;     \
-  extern template class eval::ConstantBase<ScalarType>; \
-  extern template class eval::MapBase<ScalarType>;
-
-#define EVALUATOR_BASE_EXPLICIT_INSTANTIATE(ScalarType) \
-  template class eval::EvalBase<ScalarType>;            \
-  template class eval::ConstantBase<ScalarType>;        \
-  template class eval::MapBase<ScalarType>;
-
-#define EVALUATOR_TYPED_DECLARE_EXTERN(ScalarType, GRAPH)     \
-  extern template class eval::TypedBase<ScalarType, GRAPH>;   \
-  extern template class eval::DirectBase<ScalarType, GRAPH>;  \
-  extern template class eval::LambdaBase<ScalarType, GRAPH>;  \
-  extern template class eval::CachingBase<ScalarType, GRAPH>; \
-  extern template class eval::WindowedBase<ScalarType, GRAPH>;
-
-#define EVALUATOR_TYPED_EXPLICIT_INSTANTIATE(ScalarType, GRAPH) \
-  template class eval::TypedBase<ScalarType, GRAPH>;            \
-  template class eval::DirectBase<ScalarType, GRAPH>;           \
-  template class eval::LambdaBase<ScalarType, GRAPH>;           \
-  template class eval::CachingBase<ScalarType, GRAPH>;          \
-  template class eval::WindowedBase<ScalarType, GRAPH>;
-
-////////////////////////////////////////////////////////////////////////////////
-/// Macros to extend an existing evaluator base type
-////////////////////////////////////////////////////////////////////////////////
-
-#define DEFAULT_COPY(Name)      \
-  Name(const Name &) = default; \
-  Name &operator=(const Name &) = default;
-
-#define DEFAULT_MOVE(Name) \
-  Name(Name &&) = default; \
-  Name &operator=(Name &&) = default;
-
-/**
- * \brief Default move operations for virtual inheritance can cause double-move
- * of data
- */
-#define EXPLICIT_VIRTUAL_MOVE(Name, Left, Right)                          \
-  Name(Name &&other) : Left(std::move(other)), Right(std::move(other)) {} \
-  Name &operator=(Name &&other) {                                         \
-    Left::operator=(std::move(other));                                    \
-    Right::operator=(std::move(other));                                   \
-    return *this;                                                         \
-  }
-
-/**
- * \brief Define a direct evaluator
- * \details Used as: DIRECT_EVAL(Name) { Implementation }
- */
-#define DIRECT_EVAL(Name) \
-  template <class GRAPH>  \
-  class Name##Direct : public virtual Typed<GRAPH>::Direct
-
-/**
- * \brief Define a caching evaluator
- * \details Used as: CACHING_EVAL(Name) { Implementation }
- */
-#define CACHING_EVAL(Name)                                    \
-  template <class GRAPH>                                      \
-  class Name##Caching : public virtual Typed<GRAPH>::Caching, \
-                        public virtual Name##Direct<GRAPH>
-
-/**
- * \brief Define a windowed evaluator
- * \details Used as: WINDOWED_EVAL(Name) { Implementation }
- */
-#define WINDOWED_EVAL(Name)                                     \
-  template <class GRAPH>                                        \
-  class Name##Windowed : public virtual Typed<GRAPH>::Windowed, \
-                         public virtual Name##Caching<GRAPH>
-
-/** \brief Internal typedefs for a direct evaluator */
-#define DIRECT_PREAMBLE(Name)                         \
-  using AbstractBase = typename Typed<GRAPH>::Direct; \
-  PTR_TYPEDEFS(Name##Direct);                         \
-  DEFAULT_COPY(Name##Direct);                         \
-  DEFAULT_MOVE(Name##Direct);
-
-/** \brief Internal typedefs for a caching evaluator */
-#define CACHING_PREAMBLE(Name)                         \
-  using AbstractBase = typename Typed<GRAPH>::Caching; \
-  using DirectBase = Name##Direct<GRAPH>;              \
-  PTR_TYPEDEFS(Name##Caching);                         \
-  DEFAULT_COPY(Name##Caching);                         \
-  EXPLICIT_VIRTUAL_MOVE(Name##Caching, AbstractBase, DirectBase);
-
-/** \brief Internal typedefs for a windowed evaluator */
-#define WINDOWED_PREAMBLE(Name)                         \
-  using AbstractBase = typename Typed<GRAPH>::Windowed; \
-  using DirectBase = Name##Direct<GRAPH>;               \
-  using CachingBase = Name##Caching<GRAPH>;             \
-  PTR_TYPEDEFS(Name##Windowed);                         \
-  DEFAULT_COPY(Name##Windowed);                         \
-  EXPLICIT_VIRTUAL_MOVE(Name##Windowed, AbstractBase, DirectBase);
-
-/**
- * \brief Defines the prototype for a constructor and the corresponding
- * MakeShared function
- * \details Used as:
- * EVAL_CONSTRUCTOR(Name,Type,ProtoArgs,BasicArgs) { Implementation }
- */
-#define EVAL_CONSTRUCTOR(Name, Type, PrototypeArgs, BasicArgs) \
-  static Ptr MakeShared PrototypeArgs {                        \
-    return Ptr(new Name##Type BasicArgs);                      \
-  }                                                            \
-  Name##Type PrototypeArgs
-
-/**
- * \brief Prototype for a generic evaluator destructor
- * \details Used as: EVAL_DESTRUCTOR(Name,Type) { Implementation }
- */
-#define EVAL_DESTRUCTOR(Name, Type) virtual ~Name##Type()
-
-/**
- * \brief Prototype for the overridden edge compute function
- * \details Used as: EVAL_COMPUTE_EDGE { Implementation }
- */
-#define EVAL_COMPUTE_EDGE         \
-  virtual ReturnType computeEdge( \
-      const typename Typed<GRAPH>::Direct::EdgePtr &e)
-
-/**
- * \brief Prototype for the overridden vertex compute function
- * \details Used as: EVAL_COMPUTE_VERTEX { Implementation }
- */
-#define EVAL_COMPUTE_VERTEX         \
-  virtual ReturnType computeVertex( \
-      const typename Typed<GRAPH>::Direct::VertexPtr &v)
-
-/*
- * \brief Convenience typedefs
- */
-#define EVAL_TYPEDEFS(Name)                 \
-  template <class GRAPH>                    \
-  struct Name {                             \
-    using Direct = Name##Direct<GRAPH>;     \
-    using Caching = Name##Caching<GRAPH>;   \
-    using Windowed = Name##Windowed<GRAPH>; \
-  };
-
-/**
- * \brief Macros to extend an existing evaluator base type when things are
- * simple.
- */
-#define EVAL_SIMPLE_DEFINE(Name)                                               \
-  template <class GRAPH>                                                       \
-  class Name##Direct : public virtual Typed<GRAPH>::Direct {                   \
-   public:                                                                     \
-    using Base = typename Typed<GRAPH>::Direct;                                \
-    using Base::graph_;                                                        \
-                                                                               \
-    PTR_TYPEDEFS(Name##Direct);                                                \
-    DEFAULT_COPY(Name##Direct);                                                \
-    DEFAULT_MOVE(Name##Direct);                                                \
-                                                                               \
-    static Ptr MakeShared() { return Ptr(new Name##Direct()); }                \
-                                                                               \
-    Name##Direct() {}                                                          \
-    virtual ~Name##Direct() {}                                                 \
-                                                                               \
-   protected:                                                                  \
-    virtual ReturnType computeEdge(const typename Base::EdgePtr &e) const;     \
-    virtual ReturnType computeVertex(const typename Base::VertexPtr &v) const; \
-  };                                                                           \
-                                                                               \
-  template <class GRAPH>                                                       \
-  class Name##Caching : public virtual Typed<GRAPH>::Caching,                  \
-                        public virtual Name##Direct<GRAPH> {                   \
-   public:                                                                     \
-    PTR_TYPEDEFS(Name##Caching);                                               \
-    DEFAULT_COPY(Name##Caching);                                               \
-                                                                               \
-    static Ptr MakeShared() { return Ptr(new Name##Caching()); }               \
-                                                                               \
-    Name##Caching() {}                                                         \
-    virtual ~Name##Caching() {}                                                \
-    EXPLICIT_VIRTUAL_MOVE(Name##Caching, Typed<GRAPH>::Caching,                \
-                          Name##Direct<GRAPH>);                                \
-  };                                                                           \
-                                                                               \
-  template <class GRAPH>                                                       \
-  class Name##Windowed : public virtual Typed<GRAPH>::Windowed,                \
-                         public virtual Name##Caching<GRAPH> {                 \
-   public:                                                                     \
-    PTR_TYPEDEFS(Name##Windowed);                                              \
-    DEFAULT_COPY(Name##Windowed);                                              \
-                                                                               \
-    static Ptr MakeShared(const size_t &cacheSize) {                           \
-      return Ptr(new Name##Windowed(cacheSize));                               \
-    }                                                                          \
-                                                                               \
-    Name##Windowed(const size_t &cacheSize)                                    \
-        : Typed<GRAPH>::Windowed(cacheSize) {}                                 \
-    virtual ~Name##Windowed() {}                                               \
-    EXPLICIT_VIRTUAL_MOVE(Name##Windowed, Typed<GRAPH>::Windowed,              \
-                          Name##Caching<GRAPH>);                               \
-  };                                                                           \
-                                                                               \
-  template <class GRAPH>                                                       \
-  struct Name {                                                                \
-    using Direct = Name##Direct<GRAPH>;                                        \
-    using Caching = Name##Caching<GRAPH>;                                      \
-    using Windowed = Name##Windowed<GRAPH>;                                    \
-  };
-
-#define EVAL_SIMPLE_RECURSIVE_DEFINE(Name)                                     \
-  template <class GRAPH>                                                       \
-  class Name##Direct : public virtual Typed<GRAPH>::Direct {                   \
-   public:                                                                     \
-    using Base = typename Typed<GRAPH>::Direct;                                \
-    using Base::graph_;                                                        \
-                                                                               \
-    PTR_TYPEDEFS(Name##Direct);                                                \
-    DEFAULT_COPY(Name##Direct);                                                \
-    DEFAULT_MOVE(Name##Direct);                                                \
-                                                                               \
-    static Ptr MakeShared() { return Ptr(new Name##Direct()); }                \
-                                                                               \
-    Name##Direct() {}                                                          \
-    virtual ~Name##Direct() {}                                                 \
-                                                                               \
-   protected:                                                                  \
-    virtual ReturnType computeEdge(const typename Base::EdgePtr &e) const;     \
-    virtual ReturnType computeVertex(const typename Base::VertexPtr &v) const; \
-                                                                               \
-    virtual ReturnType computeEdge(const typename Base::EdgePtr &e);           \
-    virtual ReturnType computeVertex(const typename Base::VertexPtr &v);       \
-  };                                                                           \
-                                                                               \
-  template <class GRAPH>                                                       \
-  class Name##Caching : public virtual Typed<GRAPH>::Caching,                  \
-                        public virtual Name##Direct<GRAPH> {                   \
-   public:                                                                     \
-    PTR_TYPEDEFS(Name##Caching);                                               \
-    DEFAULT_COPY(Name##Caching);                                               \
-                                                                               \
-    static Ptr MakeShared() { return Ptr(new Name##Caching()); }               \
-                                                                               \
-    Name##Caching() {}                                                         \
-    virtual ~Name##Caching() {}                                                \
-    EXPLICIT_VIRTUAL_MOVE(Name##Caching, Typed<GRAPH>::Caching,                \
-                          Name##Direct<GRAPH>);                                \
-  };                                                                           \
-                                                                               \
-  template <class GRAPH>                                                       \
-  class Name##Windowed : public virtual Typed<GRAPH>::Windowed,                \
-                         public virtual Name##Caching<GRAPH> {                 \
-   public:                                                                     \
-    PTR_TYPEDEFS(Name##Windowed);                                              \
-    DEFAULT_COPY(Name##Windowed);                                              \
-                                                                               \
-    static Ptr MakeShared(const size_t &cacheSize) {                           \
-      return Ptr(new Name##Windowed(cacheSize));                               \
-    }                                                                          \
-                                                                               \
-    Name##Windowed(const size_t &cacheSize)                                    \
-        : Typed<GRAPH>::Windowed(cacheSize) {}                                 \
-    virtual ~Name##Windowed() {}                                               \
-    EXPLICIT_VIRTUAL_MOVE(Name##Windowed, Typed<GRAPH>::Windowed,              \
-                          Name##Caching<GRAPH>);                               \
-  };                                                                           \
-                                                                               \
-  template <class GRAPH>                                                       \
-  struct Name {                                                                \
-    using Direct = Name##Direct<GRAPH>;                                        \
-    using Caching = Name##Caching<GRAPH>;                                      \
-    using Windowed = Name##Windowed<GRAPH>;                                    \
-  };
-
-#define EVAL_SIMPLE_COMPUTE_EDGE(Name) \
-  template <class GRAPH>               \
-  ReturnType Name##Direct<GRAPH>::computeEdge(const typename Base::EdgePtr &e)
-
-#define EVAL_SIMPLE_COMPUTE_VERTEX(Name)         \
-  template <class GRAPH>                         \
-  ReturnType Name##Direct<GRAPH>::computeVertex( \
-      const typename Base::VertexPtr &v)
 
 }  // namespace eval
 }  // namespace pose_graph
 }  // namespace vtr
-
-#define EVAL_EXPLICIT_DECLARE(EvalType, GraphType)    \
-  extern template class EvalType##Direct<GraphType>;  \
-  extern template class EvalType##Caching<GraphType>; \
-  extern template class EvalType##Windowed<GraphType>;
-
-#define EVAL_EXPLICIT_INSTANTIATE(EvalType, GraphType) \
-  template class EvalType##Direct<GraphType>;          \
-  template class EvalType##Caching<GraphType>;         \
-  template class EvalType##Windowed<GraphType>;

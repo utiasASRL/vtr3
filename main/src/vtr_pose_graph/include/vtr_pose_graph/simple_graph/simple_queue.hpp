@@ -14,8 +14,6 @@
 
 /**
  * \file simple_queue.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -24,7 +22,7 @@
 #include <queue>
 #include <stack>
 
-#include <vtr_common/utils/macros.hpp>
+#include "vtr_common/utils/macros.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -34,9 +32,9 @@ namespace simple {
 template <class T>
 class QueueBase {
  public:
-  PTR_TYPEDEFS(QueueBase)
+  PTR_TYPEDEFS(QueueBase);
 
-  virtual ~QueueBase() {}
+  virtual ~QueueBase() = default;
 
   virtual const T &top() const = 0;
   virtual void pop() = 0;
@@ -53,18 +51,9 @@ class QueueBase {
 template <class T>
 class SimpleQueue : public QueueBase<T> {
  public:
-  PTR_TYPEDEFS(SimpleQueue)
+  PTR_TYPEDEFS(SimpleQueue);
 
   using BasePtr = typename QueueBase<T>::Ptr;
-
-  SimpleQueue() = default;
-
-  SimpleQueue(const SimpleQueue &) = default;
-  SimpleQueue(SimpleQueue &&) = default;
-  SimpleQueue &operator=(const SimpleQueue &) = default;
-  SimpleQueue &operator=(SimpleQueue &&) = default;
-
-  virtual ~SimpleQueue() {}
 
   const T &top() const override { return queue_.front(); }
   void pop() override { queue_.pop(); }
@@ -74,7 +63,9 @@ class SimpleQueue : public QueueBase<T> {
   void push(const T &elem) override { queue_.push(elem); }
   void push(T &&elem) override { queue_.push(elem); }
 
-  BasePtr clone() const override { return BasePtr(new SimpleQueue(*this)); }
+  BasePtr clone() const override {
+    return std::make_shared<SimpleQueue>(*this);
+  }
 
  private:
   std::queue<T> queue_;
@@ -88,15 +79,6 @@ class SimpleStack : public QueueBase<T> {
 
   using BasePtr = typename QueueBase<T>::Ptr;
 
-  SimpleStack() = default;
-
-  SimpleStack(const SimpleStack &) = default;
-  SimpleStack(SimpleStack &&) = default;
-  SimpleStack &operator=(const SimpleStack &) = default;
-  SimpleStack &operator=(SimpleStack &&) = default;
-
-  virtual ~SimpleStack() {}
-
   const T &top() const override { return queue_.top(); }
   void pop() override { queue_.pop(); }
 
@@ -105,7 +87,9 @@ class SimpleStack : public QueueBase<T> {
   void push(const T &elem) override { queue_.push(elem); }
   void push(T &&elem) override { queue_.push(elem); }
 
-  BasePtr clone() const override { return BasePtr(new SimpleStack(*this)); }
+  BasePtr clone() const override {
+    return std::make_shared<SimpleStack>(*this);
+  }
 
  private:
   std::stack<T> queue_;
@@ -119,14 +103,6 @@ class PriorityQueue : public QueueBase<T> {
 
   using BasePtr = typename QueueBase<T>::Ptr;
 
-  PriorityQueue() = default;
-  PriorityQueue(const PriorityQueue &) = default;
-  PriorityQueue(PriorityQueue &&) = default;
-  PriorityQueue &operator=(const PriorityQueue &) = default;
-  PriorityQueue &operator=(PriorityQueue &&) = default;
-
-  virtual ~PriorityQueue() {}
-
   const T &top() const override { return queue_.top(); }
   void pop() override { queue_.pop(); }
 
@@ -135,7 +111,9 @@ class PriorityQueue : public QueueBase<T> {
   void push(const T &elem) override { queue_.push(elem); }
   void push(T &&elem) override { queue_.push(elem); }
 
-  BasePtr clone() const override { return BasePtr(new PriorityQueue(*this)); }
+  BasePtr clone() const override {
+    return std::make_shared<PriorityQueue>(*this);
+  }
 
  private:
   std::priority_queue<T, std::vector<T>, std::greater<T>> queue_;

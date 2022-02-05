@@ -23,135 +23,95 @@
 namespace vtr {
 namespace pose_graph {
 
-template <class V, class E, class R>
-typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared(
-    const CallbackPtr& callback) {
+template <class V, class E>
+typename Graph<V, E>::Ptr Graph<V, E>::MakeShared(const CallbackPtr& callback) {
   return std::make_shared<Graph>(callback);
 }
 
-template <class V, class E, class R>
-Graph<V, E, R>::Graph(const CallbackPtr& callback)
-    : GraphBase<V, E, R>(), callback_(callback) {}
+template <class V, class E>
+Graph<V, E>::Graph(const CallbackPtr& callback) : callback_(callback) {}
 
-template <class V, class E, class R>
-template <class... Args>
-typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun(Args&&... args) {
-  LockGuard lck(mtx_);
+template <class V, class E>
+BaseIdType Graph<V, E>::addRun() {
+  ChangeGuard change_guard(change_mutex_);
+  std::unique_lock lock(mutex_);
 
-  if (current_run_ == nullptr || current_run_->numberOfVertices() > 0) {
-    RunIdType new_run_id = ++last_run_id_;
-    current_run_ = RunType::MakeShared(new_run_id, std::forward<Args>(args)...);
-    runs_->locked().get().insert({new_run_id, current_run_});
-    callback_->runAdded(current_run_);
+  if ((curr_major_id_ == InvalidBaseId) || (curr_minor_id_ != InvalidBaseId)) {
+    ++curr_major_id_;
+    curr_minor_id_ = InvalidBaseId;
   } else {
-    CLOG(WARNING, "pose_graph") << "Adding a new run while the current run was "
-                                   "empty; returning the existing run";
+    CLOG(WARNING, "pose_graph")
+        << "No vertex added since last run, not incrementing run id";
   }
 
-  return current_run_->id();
+  CLOG(DEBUG, "pose_graph") << "Added run " << curr_major_id_;
+
+  return curr_major_id_;
 }
 
-template <class V, class E, class R>
+template <class V, class E>
 template <class... Args>
-typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex(Args&&... args) {
-  LockGuard lck(mtx_);
+auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
+  ChangeGuard change_guard(change_mutex_);
+  std::unique_lock lock(mutex_);
 
-  VertexPtr vertex = nullptr;
-  {
-    std::unique_lock lock1(simple_graph_mutex_, std::defer_lock);
-    std::unique_lock lock2(vertices_->mutex(), std::defer_lock);
-    std::lock(lock1, lock2);
-    vertex = current_run_->addVertex(std::forward<Args>(args)...);
-    vertices_->unlocked().get().insert({vertex->simpleId(), vertex});
-    graph_.addVertex(vertex->simpleId());
+  if (curr_major_id_ == InvalidBaseId) {
+    CLOG(ERROR, "pose_graph") << "No run added";
+    throw std::runtime_error("No run added");
   }
 
+  VertexId vid(curr_major_id_, ++curr_minor_id_);
+  graph_.addVertex(vid);
+  auto vertex = Vertex::MakeShared(vid, std::forward<Args>(args)...);
+  vertices_.insert({vid, vertex});
+
+  CLOG(DEBUG, "pose_graph") << "Added vertex " << vid;
   callback_->vertexAdded(vertex);
 
   return vertex;
 }
 
-template <class V, class E, class R>
+template <class V, class E>
 template <class... Args>
-typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex(
-    const RunIdType& run_id, Args&&... args) {
-  LockGuard lck(mtx_);
+auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
+                          const EdgeType& type, const bool manual,
+                          const EdgeTransform& T_to_from, Args&&... args)
+    -> EdgePtr {
+  ChangeGuard change_guard(change_mutex_);
+  std::unique_lock lock(mutex_);
 
-  VertexPtr vertex = nullptr;
-  {
-    std::unique_lock graph_lock(simple_graph_mutex_, std::defer_lock);
-    std::unique_lock vertices_lock(vertices_->mutex(), std::defer_lock);
-    std::shared_lock runs_lock(runs_->mutex(), std::defer_lock);
-    std::lock(graph_lock, vertices_lock, runs_lock);
-
-    auto& runs = runs_->unlocked().get();
-    vertex = runs.at(run_id)->addVertex(std::forward<Args>(args)...);
-    vertices_->unlocked().get().insert({vertex->simpleId(), vertex});
-    graph_.addVertex(vertex->simpleId());
+  if ((vertices_.find(from) == vertices_.end()) ||
+      (vertices_.find(to) == vertices_.end())) {
+    CLOG(ERROR, "pose_graph") << "Adding edge between non-existent vertices";
+    throw std::range_error("Adding edge between non-existent vertices");
   }
 
-  callback_->vertexAdded(vertex);
-
-  return vertex;
-}
-
-template <class V, class E, class R>
-template <class... Args>
-typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
-    const VertexIdType& from, const VertexIdType& to, const EdgeEnumType& type,
-    bool manual, Args&&... args) {
-  LockGuard lck(mtx_);
-
-  auto run_id = std::max(from.majorId(), to.majorId());
-  EdgePtr edge = nullptr;
-  {
-    std::unique_lock graph_lock(simple_graph_mutex_, std::defer_lock);
-    std::unique_lock edges_lock(edges_->mutex(), std::defer_lock);
-    std::shared_lock runs_lock(runs_->mutex(), std::defer_lock);
-    std::lock(graph_lock, edges_lock, runs_lock);
-
-    /// \note this function assumes the vertices already present
-    auto& runs = runs_->unlocked().get();
-    edge = runs.at(run_id)->addEdge(from, to, type, manual,
-                                    std::forward<Args>(args)...);
-    runs.at(from.majorId())->at(from)->addEdge(edge->id());
-    runs.at(to.majorId())->at(to)->addEdge(edge->id());
-
-    edges_->unlocked().get().insert({edge->simpleId(), edge});
-    graph_.addEdge(edge->simpleId());
+  if (from.majorId() < to.majorId()) {
+    CLOG(ERROR, "pose_graph")
+        << "Cannot add edge from " << from << " to " << to
+        << " since the major id of the from vertex is smaller than the to "
+           "vertex";
+    throw std::invalid_argument(
+        "Spatial edges may only be added from higher run numbers to lower "
+        "ones");
   }
 
-  callback_->edgeAdded(edge);
-
-  return edge;
-}
-
-template <class V, class E, class R>
-template <class... Args>
-typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
-    const VertexIdType& from, const VertexIdType& to, const EdgeEnumType& type,
-    const TransformType& T_to_from, bool manual, Args&&... args) {
-  LockGuard lck(mtx_);
-
-  auto run_id = std::max(from.majorId(), to.majorId());
-  EdgePtr edge = nullptr;
-  {
-    std::unique_lock graph_lock(simple_graph_mutex_, std::defer_lock);
-    std::unique_lock edges_lock(edges_->mutex(), std::defer_lock);
-    std::shared_lock runs_lock(runs_->mutex(), std::defer_lock);
-    std::lock(graph_lock, edges_lock, runs_lock);
-
-    /// \note this function assumes the vertices already present
-    const auto& runs = runs_->unlocked().get();
-    edge = runs.at(run_id)->addEdge(from, to, type, T_to_from, manual,
-                                    std::forward<Args>(args)...);
-    runs.at(from.majorId())->at(from)->addEdge(edge->id());
-    runs.at(to.majorId())->at(to)->addEdge(edge->id());
-
-    edges_->unlocked().get().insert({edge->simpleId(), edge});
-    graph_.addEdge(edge->simpleId());
+  if (from.majorId() == to.majorId() && from.minorId() > to.minorId()) {
+    CLOG(ERROR, "pose_graph")
+        << "Cannot create edge from " << from << " to " << to
+        << " since the minor id of the from vertex is greater than the to "
+           "vertex when they have the same major id";
+    throw std::invalid_argument(
+        "Temporal edges may only be added from lower id to higher id");
   }
 
+  EdgeId eid(from, to);
+  graph_.addEdge(eid);
+  auto edge = Edge::MakeShared(from, to, type, manual, T_to_from,
+                               std::forward<Args>(args)...);
+  edges_.insert({eid, edge});
+
+  CLOG(DEBUG, "pose_graph") << "Added edge " << eid;
   callback_->edgeAdded(edge);
 
   return edge;

@@ -18,84 +18,70 @@
  */
 #include "vtr_pose_graph/index/edge_base.hpp"
 
+#include "vtr_logging/logging.hpp"
+
 namespace vtr {
 namespace pose_graph {
 
-const int EdgeBase::transform_rows;
-const int EdgeBase::transform_cols;
-const int EdgeBase::transform_vdim;
-
-EdgeBase::Ptr EdgeBase::MakeShared(const VertexIdType& from_id,
-                                   const VertexIdType& to_id,
-                                   const EnumType& type, bool manual) {
-  return Ptr(new EdgeBase(from_id, to_id, type, manual));
+EdgeBase::Ptr EdgeBase::MakeShared(const VertexId& from_id,
+                                   const VertexId& to_id, const EdgeType& type,
+                                   const bool manual,
+                                   const EdgeTransform& T_to_from) {
+  return std::make_shared<EdgeBase>(from_id, to_id, type, manual, T_to_from);
 }
 
-EdgeBase::Ptr EdgeBase::MakeShared(const VertexIdType& from_id,
-                                   const VertexIdType& to_id,
-                                   const EnumType& type,
-                                   const TransformType& T_to_from,
-                                   bool manual) {
-  return Ptr(new EdgeBase(from_id, to_id, type, T_to_from, manual));
-}
-
-EdgeBase::EdgeBase(const VertexIdType& from_id, const VertexIdType& to_id,
-                   const EnumType& type, bool manual)
-    : id_(IdType(from_id, to_id, type)),
+EdgeBase::EdgeBase(const VertexId& from_id, const VertexId& to_id,
+                   const EdgeType& type, const bool manual,
+                   const EdgeTransform& T_to_from)
+    : id_(from_id, to_id),
       from_(from_id),
       to_(to_id),
-      manual_(manual) {}
-
-EdgeBase::EdgeBase(const VertexIdType& from_id, const VertexIdType& to_id,
-                   const EnumType& type, const TransformType& T_to_from,
-                   bool manual)
-    : id_(IdType(from_id, to_id, type)),
-      from_(from_id),
-      to_(to_id),
+      type_(type),
       manual_(manual),
-      T_to_from_(T_to_from) {}
-
-EdgeBase::IdType EdgeBase::id() const { return id_; }
-EdgeBase::SimpleIdType EdgeBase::simpleId() const { return id_; }
-EdgeBase::IdType::Type EdgeBase::type() const { return id_.type(); }
-size_t EdgeBase::idx() const { return id_.idx(); }
-
-EdgeBase::VertexIdType::Pair EdgeBase::incident() const {
-  return VertexIdType::Pair(from_, to_);
+      T_to_from_(T_to_from) {
+  if (from_.majorId() < to_.majorId()) {
+    CLOG(ERROR, "pose_graph")
+        << "Cannot create edge from " << from_ << " to " << to_
+        << " since the major id of the from vertex is smaller than the to "
+           "vertex";
+    throw std::invalid_argument(
+        "Spatial edges may only be added from higher run numbers to lower "
+        "ones");
+  }
+  if (from_.majorId() == to_.majorId() && from_.minorId() > to_.minorId()) {
+    CLOG(ERROR, "pose_graph")
+        << "Cannot create edge from " << from_ << " to " << to_
+        << " since the minor id of the from vertex is greater than the to "
+           "vertex when they have the same major id";
+    throw std::invalid_argument(
+        "Temporal edges may only be added from lower id to higher id");
+  }
 }
 
-EdgeBase::VertexIdType EdgeBase::from() const { return from_; }
+EdgeId EdgeBase::id() const { return id_; }
+VertexId EdgeBase::from() const { return from_; }
+VertexId EdgeBase::to() const { return to_; }
+EdgeType EdgeBase::type() const { return type_; }
+size_t EdgeBase::idx() const { return (size_t)type_; }
+bool EdgeBase::isManual() const { return manual_; }
+bool EdgeBase::isAutonomous() const { return !manual_; }
+bool EdgeBase::isTemporal() const { return type_ == EdgeType::Temporal; }
+bool EdgeBase::isSpatial() const { return type_ == EdgeType::Spatial; }
 
-EdgeBase::VertexIdType EdgeBase::to() const { return to_; }
-
-EdgeBase::TransformType EdgeBase::T() const {
+EdgeTransform EdgeBase::T() const {
   std::shared_lock lock(mutex_);
   return T_to_from_;
 }
 
-bool EdgeBase::isManual() const { return manual_; }
-
-bool EdgeBase::isAutonomous() const { return !manual_; }
-
-bool EdgeBase::isTemporal() const {
-  return id_.type() == IdType::Type::Temporal;
-}
-
-bool EdgeBase::isSpatial() const { return id_.type() == IdType::Type::Spatial; }
-
-bool EdgeBase::isIncident(const VertexIdType& v) const {
-  return (from_ == v) || (to_ == v);
-}
-
-void EdgeBase::setTransform(const TransformType& transform) {
+void EdgeBase::setTransform(const EdgeTransform& T_to_from) {
   std::unique_lock lock(mutex_);
-  T_to_from_ = transform;
+  T_to_from_ = T_to_from;
 }
 
 std::ostream& operator<<(std::ostream& out, const EdgeBase& e) {
-  if (e.type() == EdgeBase::IdType::Type::Spatial)
+  if (e.type() == EdgeType::Spatial)
     return out << "{" << e.from() << "--" << e.to() << "}";
-  else if (e.type() == EdgeBase::IdType::Type::Temporal)
+  else if (e.type() == EdgeType::Temporal)
     return out << "{" << e.from() << "==" << e.to() << "}";
   else
     return out << "{" << e.from() << "??" << e.to() << "}";

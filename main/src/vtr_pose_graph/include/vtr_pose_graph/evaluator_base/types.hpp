@@ -13,32 +13,25 @@
 // limitations under the License.
 
 /**
- * \file common.hpp
- * \brief
- *
+ * \file evaluator_types.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator_base/evaluator_base.hpp>
-#include <vtr_pose_graph/evaluator_base/evaluator_ops.hpp>
+#include "vtr_pose_graph/evaluator_base/evaluator_base.hpp"
+#include "vtr_pose_graph/evaluator_base/evaluator_ops.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace eval {
 
 /** \brief boolean interfaces: evaluator base and operators */
-EVALUATOR_BASE_DECLARE_EXTERN(bool);
-EVALUATOR_BOOLEAN_INTERFACE_HPP(bool, bool);
-EVALUATOR_COMPARISON_INTERFACE_HPP(bool);
+NEW_EVALUATOR_TYPE(mask, bool);
+EVALUATOR_BOOLEAN_INTERFACE(bool, bool);
 
 /** \brief double interfaces: evaluator base and operators */
-EVALUATOR_BASE_DECLARE_EXTERN(double);
-EVALUATOR_SCALAR_INTERFACE_HPP(double, double);
-
-/** \brief generic evaluator used in graph search: Mask and Weight */
-NEW_EVALUATOR_TYPE(Mask, bool);
-NEW_EVALUATOR_TYPE(Weight, double);
+NEW_EVALUATOR_TYPE(weight, double);
+EVALUATOR_SCALAR_INTERFACE(double, double);
 
 }  // namespace eval
 }  // namespace pose_graph

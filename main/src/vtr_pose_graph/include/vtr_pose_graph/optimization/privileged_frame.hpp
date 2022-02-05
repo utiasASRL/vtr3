@@ -21,21 +21,19 @@
 #include <map>
 
 #include "vtr_common/utils/macros.hpp"
+#include "vtr_pose_graph/index/graph.hpp"
 #include "vtr_pose_graph/index/graph_iterator.hpp"
-#include "vtr_pose_graph/serializable/rc_graph.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
 template <class Graph>
 void updatePrivilegedFrame(
-    const typename Graph::Ptr& graph, const typename Graph::VertexIdType& root,
-    std::unordered_map<typename Graph::VertexIdType,
-                       typename Graph::TransformType>& vid2tf_map) {
-  using Transform = typename Graph::TransformType;
+    const typename Graph::Ptr& graph, const VertexId& root,
+    std::unordered_map<VertexId, EdgeTransform>& vid2tf_map) {
   // initial transform defaults to identity
   auto iter = graph->begin(root);
-  vid2tf_map.try_emplace(iter->v()->id(), Transform(true));
+  vid2tf_map.try_emplace(iter->v()->id(), EdgeTransform(true));
   ++iter;
 
   for (; iter != graph->end(); ++iter) {
@@ -57,19 +55,17 @@ class PrivilegedFrame {
  public:
   using VertexPtr = typename Graph::VertexPtr;
   using EdgePtr = typename Graph::EdgePtr;
-  using VertexId = typename Graph::VertexIdType;
-  using Transform = typename Graph::TransformType;
   using Iterator = typename Graph::OrderedIter;
 
   PrivilegedFrame(const Iterator& begin, const Iterator& end,
-                  const Transform& T_root_world = Transform(true),
+                  const EdgeTransform& T_root_world = EdgeTransform(true),
                   const bool lazy = false);
 
   /** \brief Get the global transform of a vertex (computed lazily) */
-  const Transform& operator[](const VertexId& v);
+  const EdgeTransform& operator[](const VertexId& v);
 
   /** \brief Get the global transform of a vertex (v must have been computed) */
-  const Transform& at(const VertexId& v) const { return tf_map_.at(v); }
+  const EdgeTransform& at(const VertexId& v) const { return tf_map_.at(v); }
 
  private:
   /** \brief Force the computation of all transforms now */
@@ -78,13 +74,13 @@ class PrivilegedFrame {
   Iterator iter_;
   Iterator end_;
 
-  std::unordered_map<VertexId, Transform> tf_map_;
+  std::unordered_map<VertexId, EdgeTransform> tf_map_;
 };
 
 template <class Graph>
 PrivilegedFrame<Graph>::PrivilegedFrame(const Iterator& begin,
                                         const Iterator& end,
-                                        const Transform& T_root_world,
+                                        const EdgeTransform& T_root_world,
                                         const bool lazy)
     : iter_(begin), end_(end) {
   if (iter_ == end_) return;
@@ -97,11 +93,11 @@ PrivilegedFrame<Graph>::PrivilegedFrame(const Iterator& begin,
 
 template <class Graph>
 auto PrivilegedFrame<Graph>::operator[](const VertexId& vid)
-    -> const Transform& {
+    -> const EdgeTransform& {
   auto it = tf_map_.find(vid);
   if (it != tf_map_.end()) return it->second;
 
-  Transform T_curr_root;
+  EdgeTransform T_curr_root;
   while (iter_ != end_) {
     const auto curr_vid = iter_->v()->id();
     if (tf_map_.find(curr_vid) != tf_map_.end()) {
@@ -134,7 +130,7 @@ auto PrivilegedFrame<Graph>::operator[](const VertexId& vid)
 
 template <class Graph>
 void PrivilegedFrame<Graph>::computeAll() {
-  Transform T_curr_root;
+  EdgeTransform T_curr_root;
   while (iter_ != end_) {
     const auto curr_vid = iter_->v()->id();
 
@@ -154,9 +150,6 @@ void PrivilegedFrame<Graph>::computeAll() {
     ++iter_;
   }
 }
-
-extern template class PrivilegedFrame<BasicGraph>;
-extern template class PrivilegedFrame<RCGraph>;
 
 }  // namespace pose_graph
 }  // namespace vtr

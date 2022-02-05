@@ -18,17 +18,17 @@
  */
 #pragma once
 
-#include "vtr_common/utils/container_tools.hpp"
 #include "vtr_pose_graph/index/edge_base.hpp"
-#include "vtr_storage/stream/message.hpp"
-
 #include "vtr_pose_graph_msgs/msg/edge.hpp"
+#include "vtr_storage/stream/message.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
 class RCEdge : public EdgeBase {
  public:
+  PTR_TYPEDEFS(RCEdge);
+
   // Helper typedef to find the base class corresponding to edge data
   using Base = EdgeBase;
 
@@ -36,53 +36,29 @@ class RCEdge : public EdgeBase {
   using EdgeMsg = vtr_pose_graph_msgs::msg::Edge;
   using EdgeModeMsg = vtr_pose_graph_msgs::msg::EdgeMode;
   using EdgeTypeMsg = vtr_pose_graph_msgs::msg::EdgeType;
-  using RunFilter = std::unordered_set<BaseIdType>;  // run filter when loading
-
-  /** \brief Typedefs for shared pointers to edges */
-  PTR_TYPEDEFS(RCEdge);
-
-  /**
-   * \brief Interface to downcast base class pointers
-   * \details This allows us to do DerivedPtrType = Type::Cast(BasePtrType)
-   */
-  PTR_DOWNCAST_OPS(RCEdge, EdgeBase);
-
-  /** \brief Typedefs for containers of edges */
-  CONTAINER_TYPEDEFS(RCEdge)
+  using EdgeTransformMsg = vtr_common_msgs::msg::LieGroupTransform;
 
   static Ptr MakeShared(const VertexId& from_id, const VertexId& to_id,
-                        const EnumType& type, bool manual = false) {
-    return Ptr(new RCEdge(from_id, to_id, type, manual));
+                        const EdgeType& type, const bool manual,
+                        const EdgeTransform& T_to_from) {
+    return std::make_shared<RCEdge>(from_id, to_id, type, manual, T_to_from);
   }
-  static Ptr MakeShared(const VertexId& from_id, const VertexId& to_id,
-                        const EnumType& type, const TransformType& T_to_from,
-                        bool manual = false) {
-    return Ptr(new RCEdge(from_id, to_id, type, T_to_from, manual));
-  }
-  static Ptr MakeShared(const EdgeMsg& msg, BaseIdType run_id,
+
+  static Ptr MakeShared(const EdgeMsg& msg,
                         const storage::LockableMessage<EdgeMsg>::Ptr& msg_ptr) {
-    return Ptr(new RCEdge(msg, run_id, msg_ptr));
+    return std::make_shared<RCEdge>(msg, msg_ptr);
   }
 
-  RCEdge(const VertexId& from_id, const VertexId& to_id, const EnumType& type,
-         bool manual = false);
-  RCEdge(const VertexId& from_id, const VertexId& to_id, const EnumType& type,
-         const TransformType& T_to_from, bool manual = false);
-  RCEdge(const EdgeMsg& msg, BaseIdType run_id,
+  RCEdge(const VertexId& from_id, const VertexId& to_id, const EdgeType& type,
+         const bool manual, const EdgeTransform& T_to_from);
+
+  RCEdge(const EdgeMsg& msg,
          const storage::LockableMessage<EdgeMsg>::Ptr& msg_ptr);
 
   virtual ~RCEdge() = default;
 
   /** \brief serializes to a ros message, as an edge */
   storage::LockableMessage<EdgeMsg>::Ptr serialize();
-
-  /** \brief Helper for run filtering while loading */
-  static inline bool MeetsFilter(const EdgeMsg& m, const RunFilter& r) {
-    return (m.to_run_id == -1) || common::utils::contains(r, m.to_run_id);
-  }
-
-  /** \brief String name for file saving */
-  const std::string name() const;
 
  private:
   storage::LockableMessage<EdgeMsg>::Ptr msg_;

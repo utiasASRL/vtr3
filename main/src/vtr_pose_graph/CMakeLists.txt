@@ -6,8 +6,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
+
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_storage REQUIRED)
@@ -20,21 +22,11 @@ include_directories(
     $<INSTALL_INTERFACE:include>
 )
 
-# evaluator base - basic evaluator types (used by simple graph iterator)
-file(GLOB_RECURSE EVALUATOR_BASE_SRC src/evaluator_base/*.cpp)
-add_library(${PROJECT_NAME}_evaluator_base ${EVALUATOR_BASE_SRC})
-ament_target_dependencies(${PROJECT_NAME}_evaluator_base
-  vtr_common
-)
-
 # simple graph - generic graph structure with searching functions
 file(GLOB_RECURSE SIMPLE_GRAPH_SRC src/simple_graph/*.cpp)
 add_library(${PROJECT_NAME}_simple_graph ${SIMPLE_GRAPH_SRC})
 ament_target_dependencies(${PROJECT_NAME}_simple_graph
   vtr_common vtr_logging
-)
-target_link_libraries(${PROJECT_NAME}_simple_graph
-  ${PROJECT_NAME}_evaluator_base
 )
 
 # index - spatio-temporal pose graph structure
@@ -49,7 +41,6 @@ target_link_libraries(${PROJECT_NAME}_index
 
 # serializable
 file(GLOB_RECURSE SERIALIZABLE_SRC
-  src/interface/bubble_interface.cpp
   src/serializable/*.cpp
 )
 add_library(${PROJECT_NAME}_serializable ${SERIALIZABLE_SRC})
@@ -59,44 +50,6 @@ ament_target_dependencies(${PROJECT_NAME}_serializable
 target_link_libraries(${PROJECT_NAME}_serializable
   ${PROJECT_NAME}_index
 )
-
-# evaluator
-file(GLOB_RECURSE EVALUATOR_SRC
-  src/evaluator/*.cpp
-)
-add_library(${PROJECT_NAME}_evaluator ${EVALUATOR_SRC})
-ament_target_dependencies(${PROJECT_NAME}_evaluator
-  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
-)
-target_link_libraries(${PROJECT_NAME}_evaluator
-  ${PROJECT_NAME}_serializable
-)
-
-# path (localization chain)
-file(GLOB_RECURSE PATH_SRC
-  src/path/*.cpp
-)
-add_library(${PROJECT_NAME}_path ${PATH_SRC})
-ament_target_dependencies(${PROJECT_NAME}_path
-  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
-)
-target_link_libraries(${PROJECT_NAME}_path
-  ${PROJECT_NAME}_evaluator
-)
-
-# # relaxation
-# file(
-#   GLOB_RECURSE RELAXATION_SRC
-#   src/relaxation/*.cpp
-# )
-# add_library(${PROJECT_NAME}_relaxation ${RELAXATION_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_relaxation
-#   lgmath steam
-#   vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
-# )
-# target_link_libraries(${PROJECT_NAME}_relaxation
-#   ${PROJECT_NAME}_evaluator
-# )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
@@ -111,13 +64,9 @@ install(
 
 install(
   TARGETS
-    ${PROJECT_NAME}_evaluator_base
     ${PROJECT_NAME}_simple_graph
     ${PROJECT_NAME}_index
     ${PROJECT_NAME}_serializable
-    ${PROJECT_NAME}_evaluator
-    ${PROJECT_NAME}_path
-    # ${PROJECT_NAME}_relaxation
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -131,10 +80,6 @@ if(BUILD_TESTING)
   # id tests
   ament_add_gmock(test_id test/id/test_id.cpp)
   ament_target_dependencies(test_id vtr_logging vtr_common)
-  # target_include_directories(test_id PUBLIC
-  #   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  #   $<INSTALL_INTERFACE:include>
-  # )
 
   # simple graph tests
   ament_add_gtest(test_simple_graph test/simple_graph/test_simple_graph.cpp)
@@ -153,12 +98,8 @@ if(BUILD_TESTING)
   target_link_libraries(test_serialization_vertex ${PROJECT_NAME}_serializable)
   ament_add_gmock(test_serialization_edge test/serializable/test_serialization_edge.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_serialization_edge ${PROJECT_NAME}_serializable)
-  ament_add_gmock(test_serialization_run test/serializable/test_serialization_run.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_serialization_run ${PROJECT_NAME}_serializable)
   ament_add_gmock(test_serialization_graph test/serializable/test_serialization_graph.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_serialization_graph ${PROJECT_NAME}_serializable)
-  ament_add_gmock(test_serialization_graph2 test/serializable/test_serialization_graph2.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_serialization_graph2 ${PROJECT_NAME}_serializable)
 
   # data read write tests
   find_package(std_msgs REQUIRED)
@@ -171,24 +112,19 @@ if(BUILD_TESTING)
 
   # evaluator tests
   ament_add_gtest(test_evaluator_base test/evaluator/test_evaluator_base.cpp)
-  target_link_libraries(test_evaluator_base ${PROJECT_NAME}_evaluator)
+  target_link_libraries(test_evaluator_base ${PROJECT_NAME}_index)
   ament_add_gtest(test_evaluator test/evaluator/test_evaluator.cpp)
-  target_link_libraries(test_evaluator ${PROJECT_NAME}_evaluator)
+  target_link_libraries(test_evaluator ${PROJECT_NAME}_index)
   ament_add_gmock(test_graph_traversal test/evaluator/test_graph_traversal.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_graph_traversal ${PROJECT_NAME}_evaluator)
+  target_link_libraries(test_graph_traversal ${PROJECT_NAME}_index)
   ament_add_gmock(test_subgraph_evaluator test/evaluator/test_subgraph_evaluator.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_subgraph_evaluator ${PROJECT_NAME}_evaluator)
+  target_link_libraries(test_subgraph_evaluator ${PROJECT_NAME}_index)
 
   # path tests
   ament_add_gmock(test_path test/path/test_path.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_path ${PROJECT_NAME}_path)
+  target_link_libraries(test_path ${PROJECT_NAME}_index)
   ament_add_gmock(test_localization_chain test/path/test_localization_chain.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_localization_chain ${PROJECT_NAME}_path)
-
-  # # relaxation tests
-  # ament_add_gtest(test_relaxation test/relaxation/test_relaxation.cpp)
-  # target_link_libraries(test_relaxation ${PROJECT_NAME}_relaxation ${PROJECT_NAME}_path)  # need accumulator
-
+  target_link_libraries(test_localization_chain ${PROJECT_NAME}_index)
 endif()
 
 ament_package()

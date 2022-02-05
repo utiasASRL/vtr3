@@ -20,9 +20,6 @@
 
 #include <shared_mutex>
 
-#include "lgmath.hpp"
-
-#include "vtr_common/utils/macros.hpp"
 #include "vtr_pose_graph/id/id.hpp"
 
 namespace vtr {
@@ -30,115 +27,27 @@ namespace pose_graph {
 
 class VertexBase {
  public:
-  // This is how we allow the graph to add edges to this object, but
-  // prevent users from doing the same outside of the graph context
-  template <class V, class E, class R>
-  friend class Graph;
-  friend class RCGraph;
-
-  // Typedef the Ids here so that it's only hard coded in a single place
-  using IdType = VertexId;
-  using EdgeIdType = EdgeId;
-  using SimpleIdType = uint64_t;
-  using VertexIdSetArray = std::array<IdType::Set, EdgeId::NumTypes()>;
-
   PTR_TYPEDEFS(VertexBase);
   CONTAINER_TYPEDEFS(VertexBase);
 
-  static Ptr MakeShared(const IdType& id);
+  static Ptr MakeShared(const VertexId& id);
 
-  explicit VertexBase(const IdType& id);
-
-  VertexBase(const VertexBase&) = default;
-  VertexBase(VertexBase&&) = default;
-  VertexBase& operator=(const VertexBase&) = default;
-  VertexBase& operator=(VertexBase&&) = default;
+  explicit VertexBase(const VertexId& id);
 
   virtual ~VertexBase() = default;
 
-  /** \brief Get all incident edges */
-  EdgeIdType::Set incident() const;
-
-  /** \brief Get all incident edges, filtered by edge type */
-  EdgeIdType::Set incident(const EdgeIdType::Type& type) const;
-
-  /** \brief Get all temporal edges */
-  EdgeIdType::Set temporalEdges() const;
-
-  /** \brief Get all spatial edges */
-  EdgeIdType::Set spatialEdges() const;
-
-  /** \brief Determine if an edge is incident on this vertex */
-  bool isIncident(const EdgeIdType& e) const;
-
-  /** \brief Get all neighbouring vertices */
-  IdType::Set neighbours() const;
-
-  /** \brief Get all neighbouring vertices, filtered by edge type */
-  IdType::Set neighbours(const EdgeIdType::Type& type) const;
-
-  /** \brief Get all temporal neighbours */
-  IdType::Set temporalNeighbours() const;
-
-  /** \brief Get all spatial neighbours */
-  IdType::Set spatialNeighbours() const;
-
-  /** \brief Determine if a vertex is incident on this vertex */
-  bool isNeighbour(const IdType& v) const;
-
-  /** \brief Determine if a vertex is a spatial or temporal neighbour */
-  bool isNeighbour(const IdType& v, const EdgeIdType::Type& etype) const;
-
-  /** \brief Determine if a vertex is a spatial neighbour of this vertex */
-  bool isSpatialNeighbour(const IdType& v) const;
-
-  /** \brief Determine if a vertex is a temporal neighbour of  this vertex */
-  bool isTemporalNeighbour(const IdType& v) const;
-
   /** \brief Get the vertex id */
-  IdType id() const;
-
-  /** \brief Get the vertex id as a plain type */
-  SimpleIdType simpleId() const;
+  VertexId id() const;
 
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const VertexBase& v);
 
  protected:
-  /**
-   * \brief Add an edge to the incident edge list of this vertex
-   * \details This method is private as the Graph class manages connectivity
-   */
-  void addEdge(const EdgeIdType& e);
-
-  /**
-   * \brief Add an edge to the incident edge list of this vertex
-   * \details This method is private as the Graph class manages connectivity
-   */
-  void addEdge(const IdType& to, const EdgeIdType::Type& etype);
-
-  /**
-   * \brief Remove an edge from the incident edge list of this vertex by Id
-   * \details This method is private as the Graph class manages connectivity
-   * TODO: decide if we want to allow deletion at all
-   */
-  void deleteEdge(const EdgeIdType& e);
-
-  /**
-   * \brief Remove a vertex from the neighbour list of this vertex by Id
-   * \details This method is private as the Graph class manages connectivity
-   * TODO: decide if we want to allow deletion at all
-   */
-  void deleteEdge(const IdType& to, const EdgeIdType::Type& etype);
-
   /** \brief The vertex Id */
-  const IdType id_;
+  const VertexId id_;
 
-  /** \brief protects non-const class members including: neighbours_ */
+  /** \brief protects non-const class members including */
   mutable std::shared_mutex mutex_;
-
-  /** \brief Array of neighbour sets: [temporal<...>, spatial<...>] */
-  VertexIdSetArray neighbours_ = VertexIdSetArray();
 };
 
 }  // namespace pose_graph

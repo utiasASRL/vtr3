@@ -20,11 +20,10 @@
 
 #include "vtr_common/timing/utils.hpp"
 #include "vtr_common/utils/filesystem.hpp"
-#include "vtr_navigation/navigator.hpp"
-/// \todo BUG: looks like this is conflict with other logging libraries (glog?),
-/// has to be included last
 #include "vtr_logging/logging_init.hpp"
+#include "vtr_navigation/navigator.hpp"
 
+namespace fs = std::filesystem;
 using namespace vtr::common;
 using namespace vtr::logging;
 using namespace vtr::navigation;

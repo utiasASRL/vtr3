@@ -14,15 +14,13 @@
 
 /**
  * \file test_graph_traversal.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gmock/gmock.h>
 
-#include <vtr_logging/logging_init.hpp>
-#include <vtr_pose_graph/evaluator/evaluators.hpp>
-#include <vtr_pose_graph/index/graph.hpp>
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
+#include "vtr_pose_graph/index/graph.hpp"
 
 using namespace ::testing;  // NOLINT
 using namespace vtr::logging;
@@ -30,11 +28,10 @@ using namespace vtr::pose_graph;
 
 class GraphStructureTestFixture : public Test {
  public:
-  GraphStructureTestFixture() : graph_{new BasicGraph()} {}
+  GraphStructureTestFixture() {}
   ~GraphStructureTestFixture() override {}
 
- protected:
-  BasicGraph::Ptr graph_;
+  BasicGraph::Ptr graph_ = std::make_shared<BasicGraph>();
 };
 
 TEST_F(GraphStructureTestFixture, graph_traversal_basics) {
@@ -43,27 +40,18 @@ TEST_F(GraphStructureTestFixture, graph_traversal_basics) {
   graph_->addRun();
   graph_->addVertex();
 
-  using TemporalEvaluator = eval::Mask::TemporalDirect<BasicGraphBase>;
-  auto tempeval = std::make_shared<TemporalEvaluator>();
-  using DirectionEvaluator =
-      eval::Mask::DirectionFromVertexDirect<BasicGraphBase>;
-  auto direval = std::make_shared<DirectionEvaluator>(VertexId(0, 0), true);
-  auto evaluator = eval::And(tempeval, direval);
+  using TemporalEval = eval::mask::temporal::Eval<BasicGraph>;
+  using DirectionEval = eval::mask::direction_from_vertex::Eval;
 
-  auto graph = std::dynamic_pointer_cast<BasicGraphBase>(graph_);
+  auto tempeval = std::make_shared<TemporalEval>(*graph_);
+  auto direval = std::make_shared<DirectionEval>(VertexId(0, 0), true);
+  auto eval = eval::And(tempeval, direval);
+  auto subgraph = graph_->getSubgraph(VertexId(0, 0), 3, eval);
 
-  evaluator->setGraph((void *)graph.get());
-  const auto subgraph = graph->getSubgraph(VertexId(0, 0), 3, evaluator);
-
-  using TemporalEvaluator2 = eval::Mask::TemporalDirect<BasicGraphBase>;
-  auto tempeval2 = std::make_shared<TemporalEvaluator2>();
-  using DirectionEvaluator2 =
-      eval::Mask::DirectionFromVertexDirect<BasicGraphBase>;
-  auto direval2 = std::make_shared<DirectionEvaluator2>(VertexId(0, 0), true);
-  auto evaluator2 = eval::And(tempeval2, direval2);
-
-  evaluator2->setGraph((void *)subgraph.get());
-  auto itr = subgraph->beginDfs(VertexId(0, 0), 3, evaluator2);
+  auto tempeval2 = std::make_shared<TemporalEval>(*graph_);
+  auto direval2 = std::make_shared<DirectionEval>(VertexId(0, 0), true);
+  auto eval2 = eval::And(tempeval2, direval2);
+  auto itr = subgraph->beginDfs(VertexId(0, 0), 3, eval2);
   itr++;
 }
 

@@ -14,15 +14,11 @@
 
 /**
  * \file accumulators.hpp
- * \brief Implements binary accumulators that can be used with accumulate,
- * and applied to a graph using ordered iterators.
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph_base.hpp>
+#include "vtr_pose_graph/index/graph_base.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -51,12 +47,7 @@ struct AccumulatorBase {
 
 template <class RVAL, class GRAPH, class ITER = typename GRAPH::OrderedIter>
 struct ComposeTf : public AccumulatorBase<RVAL, GRAPH, ITER> {
-  using Rval = RVAL;
-  using Iterator = ITER;
-  using VertexType = typename GRAPH::VertexType;
-  using VertexIdType = typename VertexType::IdType;
-  using EdgeType = typename GRAPH::EdgeType;
-  Rval operator()(const Rval& val, const Iterator& it) const {
+  RVAL operator()(const RVAL& val, const ITER& it) const {
     // T_root_current = T_root_prev * T_prev_current
     return val * it->T();
   }
@@ -70,12 +61,7 @@ RVAL ComposeTfAccumulator(const ITER& first, const ITER& last,
 
 template <class RVAL, class GRAPH, class ITER = typename GRAPH::OrderedIter>
 struct ComputePathDistance : public AccumulatorBase<RVAL, GRAPH, ITER> {
-  using Rval = RVAL;
-  using Iterator = ITER;
-  using VertexType = typename GRAPH::VertexType;
-  using VertexIdType = typename VertexType::IdType;
-  using EdgeType = typename GRAPH::EdgeType;
-  Rval operator()(const Rval& val, const Iterator& it) const {
+  RVAL operator()(const RVAL& val, const ITER& it) const {
     // Path distance between two vertices is the norm of the translational
     // component of the transformation.
     return val + it->T().r_ab_inb().norm();

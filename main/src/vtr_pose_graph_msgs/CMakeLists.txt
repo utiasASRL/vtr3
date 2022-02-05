@@ -13,6 +13,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
+find_package(vtr_common_msgs REQUIRED)
+
 # ROS messages
 file(
   GLOB_RECURSE MSG_SRC
@@ -21,13 +23,14 @@ file(
 )
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${MSG_SRC}
-  DEPENDENCIES builtin_interfaces std_msgs geometry_msgs
+  DEPENDENCIES builtin_interfaces std_msgs geometry_msgs vtr_common_msgs
 )
 
 ament_export_dependencies(
   rosidl_default_runtime
   std_msgs
   std_srvs
+  vtr_common_msgs
 )
 
 ament_package()

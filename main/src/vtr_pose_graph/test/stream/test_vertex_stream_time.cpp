@@ -14,8 +14,6 @@
 
 /**
  * \file test_vertex_stream_time.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gmock/gmock.h>
@@ -33,6 +31,7 @@ using namespace vtr::logging;
 using namespace vtr::pose_graph;
 using namespace vtr::storage;
 
+namespace fs = std::filesystem;
 using TestMsg = std_msgs::msg::Float64;
 
 TEST(TestSerializationVertex, construct_vertex_directly) {
@@ -60,7 +59,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     auto data = std::make_shared<TestMsg>();
     data->data = distribution(generator);
     auto message = std::make_shared<LockableMessage<TestMsg>>(data, time);
-    LOG(INFO) << "Store " << data->data << " with time stamp " << time;
+    CLOG(INFO, "test") << "Store " << data->data << " with time stamp " << time;
     vertex->insert<TestMsg>(stream_name, "std_msgs/msg/Float64", message);
     data_vec.push_back(*data);
   }
@@ -71,7 +70,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   EXPECT_EQ(time_range.second, 666);
 
   // load all the data back from disk.
-  LOG(INFO) << "Retrieving data (not yet saved to disk)";
+  CLOG(INFO, "test") << "Retrieving data (not yet saved to disk)";
   {
     auto time_range = vertex->timeRange();
     auto data_vec_loaded =
@@ -82,7 +81,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     for (auto message : data_vec_loaded) {
       auto time = message->unlocked().get().getTimestamp();
       auto data = message->unlocked().get().getData();
-      LOG(INFO) << "Time stamp " << time << " has value " << data.data;
+      CLOG(INFO, "test") << "Time stamp " << time << " has value " << data.data;
       EXPECT_EQ(data_vec[i].data, data.data);
       // make some modification to the data
       data.data++;
@@ -106,7 +105,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   vertex = graph->at(vid);
 
   // load all the data back from disk.
-  LOG(INFO) << "Loading data from disk";
+  CLOG(INFO, "test") << "Loading data from disk";
   {
     auto time_range = vertex->timeRange();
     auto data_vec_loaded =
@@ -117,7 +116,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     for (auto message : data_vec_loaded) {
       auto time = message->unlocked().get().getTimestamp();
       auto data = message->unlocked().get().getData();
-      LOG(INFO) << "Time stamp " << time << " has value " << data.data;
+      CLOG(INFO, "test") << "Time stamp " << time << " has value " << data.data;
       EXPECT_EQ(data_vec[i].data, data.data);
       // make some modification to the data
       data.data++;
@@ -144,7 +143,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     for (auto message : data_vec_loaded) {
       auto time = message->unlocked().get().getTimestamp();
       auto data = message->unlocked().get().getData();
-      LOG(INFO) << "Time stamp " << time << " has value " << data.data;
+      CLOG(INFO, "test") << "Time stamp " << time << " has value " << data.data;
       EXPECT_EQ(data_vec[i++].data, data.data);
     }
   }
@@ -159,7 +158,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   vertex = graph->at(vid);
 
   // Now load all the data back from disk.
-  LOG(INFO) << "Loading data from disk again";
+  CLOG(INFO, "test") << "Loading data from disk again";
 
   auto data_vec_loaded = vertex->retrieve<TestMsg>(
       stream_name, "std_msgs/msg/Float64", time_range.first, time_range.second);
@@ -168,7 +167,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   for (auto message : data_vec_loaded) {
     auto time = message->unlocked().get().getTimestamp();
     auto data = message->unlocked().get().getData();
-    LOG(INFO) << "Time stamp " << time << " has value " << data.data;
+    CLOG(INFO, "test") << "Time stamp " << time << " has value " << data.data;
     EXPECT_EQ(data_vec[i++].data, data.data);
   }
 }

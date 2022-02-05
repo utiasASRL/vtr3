@@ -13,111 +13,96 @@
 // limitations under the License.
 
 /**
- * \file common.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \file spatial.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator_base/common.hpp>
-
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
-#include <vtr_pose_graph/serializable/rc_graph_base.hpp>
+#include "vtr_pose_graph/evaluator_base/types.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace eval {
-namespace Mask {
+namespace mask {
+namespace spatial {
+
+namespace detail {
 
 template <class GRAPH>
-class SpatialDirect : public virtual Typed<GRAPH>::Direct {
+ReturnType computeEdge(const GRAPH &graph, const EdgeId &e) {
+  return graph.at(e)->isSpatial();
+}
+
+template <class GRAPH>
+ReturnType computeVertex(const GRAPH &, const VertexId &) {
+  return true;
+}
+
+}  // namespace detail
+
+template <class GRAPH>
+class Eval : public BaseEval {
  public:
-  using Base = typename Typed<GRAPH>::Direct;
-  using Base::graph_;
+  PTR_TYPEDEFS(Eval);
 
-  PTR_TYPEDEFS(SpatialDirect);
-
-  static Ptr MakeShared() { return Ptr(new SpatialDirect()); }
-
-  SpatialDirect() {}
-  virtual ~SpatialDirect() {}
-
-  SpatialDirect(const SpatialDirect &) = default;
-  SpatialDirect &operator=(const SpatialDirect &) = default;
-  SpatialDirect(SpatialDirect &&) = default;
-  SpatialDirect &operator=(SpatialDirect &&) = default;
+  Eval(const GRAPH &graph) : graph_(graph) {}
 
  protected:
-  ReturnType computeEdge(const typename Base::EdgePtr &e) const override {
-    // Compute the norm of the linear component of the edge transform
-    return e->isSpatial();
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
-  ReturnType computeVertex(const typename Base::VertexPtr &) const {
-    // Garbage computation to avoid warnings; vertices do not have a "distance"
-    return true;
+
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
   }
+
+ private:
+  const GRAPH &graph_;
 };
 
 template <class GRAPH>
-class SpatialCaching : public virtual Typed<GRAPH>::Caching,
-                       public virtual SpatialDirect<GRAPH> {
+class CachedEval : public BaseCachedEval {
  public:
-  PTR_TYPEDEFS(SpatialCaching);
+  PTR_TYPEDEFS(CachedEval);
 
-  static Ptr MakeShared() { return Ptr(new SpatialCaching()); }
+  CachedEval(const GRAPH &graph) : graph_(graph) {}
 
-  SpatialCaching() {}
-  virtual ~SpatialCaching() {}
-
-  SpatialCaching(const SpatialCaching &) = default;
-  SpatialCaching &operator=(const SpatialCaching &) = default;
-  SpatialCaching(SpatialCaching &&other)
-      : Typed<GRAPH>::Caching(std::move(other)),
-        SpatialDirect<GRAPH>(std::move(other)) {}
-  SpatialCaching &operator=(SpatialCaching &&other) {
-    Typed<GRAPH>::Caching::operator=(std::move(other));
-    SpatialDirect<GRAPH>::operator=(std::move(other));
-    return *this;
+ protected:
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
+
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
+  }
+
+ private:
+  const GRAPH &graph_;
 };
 
 template <class GRAPH>
-class SpatialWindowed : public virtual Typed<GRAPH>::Windowed,
-                        public virtual SpatialCaching<GRAPH> {
+class WindowedEval : public BaseWindowedEval {
  public:
-  PTR_TYPEDEFS(SpatialWindowed);
+  PTR_TYPEDEFS(WindowedEval);
 
-  static Ptr MakeShared(const size_t &cacheSize) {
-    return Ptr(new SpatialWindowed(cacheSize));
+  WindowedEval(const GRAPH &graph, const size_t &cache_size)
+      : BaseWindowedEval(cache_size), graph_(graph) {}
+
+ protected:
+  ReturnType computeEdge(const EdgeId &e) override {
+    return detail::computeEdge(graph_, e);
   }
 
-  SpatialWindowed(const size_t &cacheSize)
-      : Typed<GRAPH>::Windowed(cacheSize) {}
-  virtual ~SpatialWindowed() {}
-
-  SpatialWindowed(const SpatialWindowed &) = default;
-  SpatialWindowed &operator=(const SpatialWindowed &) = default;
-  SpatialWindowed(SpatialWindowed &&other)
-      : Typed<GRAPH>::Windowed(std::move(other)),
-        SpatialCaching<GRAPH>(std::move(other)) {}
-  SpatialWindowed &operator=(SpatialWindowed &&other) {
-    Typed<GRAPH>::Windowed::operator=(std::move(other));
-    SpatialCaching<GRAPH>::operator=(std::move(other));
-    return *this;
+  ReturnType computeVertex(const VertexId &v) override {
+    return detail::computeVertex(graph_, v);
   }
+
+ private:
+  const GRAPH &graph_;
 };
 
-template <class GRAPH>
-struct Spatial {
-  using Direct = SpatialDirect<GRAPH>;
-  using Caching = SpatialCaching<GRAPH>;
-  using Windowed = SpatialWindowed<GRAPH>;
-};
-
-}  // namespace Mask
-
+}  // namespace spatial
+}  // namespace mask
 }  // namespace eval
 }  // namespace pose_graph
 }  // namespace vtr

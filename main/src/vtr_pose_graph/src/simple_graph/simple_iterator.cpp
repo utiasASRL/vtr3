@@ -14,32 +14,30 @@
 
 /**
  * \file simple_iterator.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_logging/logging.hpp>
-#include <vtr_pose_graph/simple_graph/simple_iterator.hpp>
+#include "vtr_pose_graph/simple_graph/simple_iterator.hpp"
+
+#include "vtr_logging/logging.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace simple {
 
 SimpleGraphIterator SimpleGraphIterator::Dijkstra(
-    const SimpleGraph *graph, SimpleVertex root, double maxDepth,
-    const eval::Mask::Ptr &mask, const eval::Weight::Ptr &weight) {
-  SimpleGraphIterator rval(graph, QueuePtr(new DijkstraQueue()), maxDepth, mask,
-                           weight);
+    const SimpleGraph *graph, VertexId root, double maxDepth,
+    const eval::mask::Ptr &mask, const eval::weight::Ptr &weight) {
+  SimpleGraphIterator rval(graph, std::make_shared<DijkstraQueue>(), maxDepth,
+                           mask, weight);
   rval.initRootInternal_(root);
   return rval;
 }
 
 SimpleGraphIterator SimpleGraphIterator::DFS(const SimpleGraph *graph,
-                                             SimpleVertex root, double maxDepth,
-                                             const eval::Mask::Ptr &mask,
-                                             const eval::Weight::Ptr &weight) {
-  SimpleGraphIterator rval(graph, QueuePtr(new DfsQueue()), maxDepth, mask,
+                                             VertexId root, double maxDepth,
+                                             const eval::mask::Ptr &mask,
+                                             const eval::weight::Ptr &weight) {
+  SimpleGraphIterator rval(graph, std::make_shared<DfsQueue>(), maxDepth, mask,
                            weight);
   rval.initRootInternal_(root);
   rval.checkCosts_ = false;
@@ -47,23 +45,23 @@ SimpleGraphIterator SimpleGraphIterator::DFS(const SimpleGraph *graph,
 }
 
 SimpleGraphIterator SimpleGraphIterator::BFS(const SimpleGraph *graph,
-                                             SimpleVertex root, double maxDepth,
-                                             const eval::Mask::Ptr &mask,
-                                             const eval::Weight::Ptr &weight) {
-  SimpleGraphIterator rval(graph, QueuePtr(new BfsQueue()), maxDepth, mask,
+                                             VertexId root, double maxDepth,
+                                             const eval::mask::Ptr &mask,
+                                             const eval::weight::Ptr &weight) {
+  SimpleGraphIterator rval(graph, std::make_shared<BfsQueue>(), maxDepth, mask,
                            weight);
   rval.initRootInternal_(root);
   return rval;
 }
 
 SimpleGraphIterator SimpleGraphIterator::End(const SimpleGraph *graph) {
-  return SimpleGraphIterator(graph, QueuePtr(new BfsQueue()));
+  return SimpleGraphIterator(graph, std::make_shared<BfsQueue>());
 }
 
 SimpleGraphIterator::SimpleGraphIterator(const SimpleGraph *graph,
                                          QueuePtr searchQueue, double maxDepth,
-                                         const eval::Mask::Ptr &mask,
-                                         const eval::Weight::Ptr &weight)
+                                         const eval::mask::Ptr &mask,
+                                         const eval::weight::Ptr &weight)
     : graph_(graph),
       searchQueue_(searchQueue),
       maxDepth_(maxDepth),
@@ -93,8 +91,8 @@ SimpleGraphIterator &SimpleGraphIterator::operator=(
   return *this;
 }
 
-void SimpleGraphIterator::initRootInternal_(const SimpleVertex &root) {
-  searchQueue_->push({0.0, {root, SimpleVertex(-1)}});
+void SimpleGraphIterator::initRootInternal_(const VertexId &root) {
+  searchQueue_->push({0.0, {root, VertexId::Invalid()}});
   nodeDepths_[root] = 0.0;
 }
 
@@ -130,7 +128,7 @@ SimpleGraphIterator SimpleGraphIterator::operator++(int) {
 
 const NodeParent *SimpleGraphIterator::topIfExists() const {
   if (searchQueue_->empty())
-    return NULL;
+    return nullptr;
   else
     return &searchQueue_->top().second;
 }
@@ -141,17 +139,17 @@ void SimpleGraphIterator::incrementInternal_() {
   // enforced external to this function
   const DepthNodeParent &currDepthNodeParent = searchQueue_->top();
   double currNodeDepth = currDepthNodeParent.first;
-  SimpleVertex currNodeId = currDepthNodeParent.second.child;
+  VertexId currNodeId = currDepthNodeParent.second.child;
   searchQueue_->pop();
 
-  const SimpleGraph::SimpleNode &currNode = graph_->getNode(currNodeId);
+  const SimpleGraph::SimpleNode &currNode = graph_->node_map_.at(currNodeId);
 
   // For each adjacent node
   for (auto adjIter = currNode.getAdjacent().begin();
        adjIter != currNode.getAdjacent().end(); ++adjIter) {
     // Get child id and make a new edge
-    SimpleVertex childId = *adjIter;
-    SimpleEdge currEdge = SimpleGraph::getEdge(currNode.getId(), childId);
+    VertexId childId = *adjIter;
+    EdgeId currEdge(currNode.getId(), childId);
 
     if (!mask_->operator[](currEdge) || !mask_->operator[](childId)) {
       continue;
@@ -166,8 +164,8 @@ void SimpleGraphIterator::incrementInternal_() {
       // Double check that recorded depth is indeed less than or equal to
       // proposed depth
       if (checkCosts_ && (childDepthIter->second > newChildDepth)) {
-        LOG(FATAL) << "[SimpleGraphIterator][incrementInternal_] found a "
-                      "shorter path...";
+        CLOG(ERROR, "pose_graph") << "found a shorter path...";
+        throw std::runtime_error("found a shorter path...");
       }
       continue;
     }
@@ -187,7 +185,7 @@ bool SimpleGraphIterator::checkQueue_() {
   // Extract all the things from the pairs
   const DepthNodeParent &currDepthNodeParent = searchQueue_->top();
   double currNodeDepth = currDepthNodeParent.first;
-  SimpleVertex currNodeId = currDepthNodeParent.second.child;
+  VertexId currNodeId = currDepthNodeParent.second.child;
 
   auto depthPair =
       nodeDepths_.insert(std::make_pair(currNodeId, currNodeDepth));
@@ -195,8 +193,8 @@ bool SimpleGraphIterator::checkQueue_() {
     // Double check that recorded depth is indeed less than or equal to proposed
     // depth
     if (checkCosts_ && (*depthPair.first).second > currNodeDepth) {
-      LOG(FATAL)
-          << "[SimpleGraphIterator][checkQueue_] found a shorter path...";
+      CLOG(ERROR, "pose_graph") << "found a shorter path...";
+      throw std::runtime_error("found a shorter path...");
     }
     return false;
   }

@@ -169,8 +169,8 @@ void Tactic::connectToTrunk(const bool privileged) {
                        << branch_vid << ", privileged: " << std::boolalpha
                        << privileged << ", with T_to_from: "
                        << T_twig_branch.inverse().vec().transpose();
-  graph_->addEdge(twig_vid, branch_vid, pose_graph::Spatial,
-                  T_twig_branch.inverse(), privileged);
+  graph_->addEdge(twig_vid, branch_vid, EdgeType::Spatial, privileged,
+                  T_twig_branch.inverse());
 }
 
 auto Tactic::getPersistentLoc() const -> Localization {
@@ -251,14 +251,13 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // store odometry result
   {
-    const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
-    CLOG(DEBUG, "tactic") << "Saving odometry result to run " << curr_run->id();
+    CLOG(DEBUG, "tactic") << "Saving odometry result";
     using OdoResLM = storage::LockableMessage<OdometryResult>;
     auto odo_result = std::make_shared<OdometryResult>(
         *qdata->stamp, T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
     auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
-    curr_run->write<OdometryResult>("odometry_result",
-                                    "vtr_tactic_msgs/msg/OdometryResult", msg);
+    graph_->write<OdometryResult>("odometry_result",
+                                  "vtr_tactic_msgs/msg/OdometryResult", msg);
   }
 
   // Rviz visualization
@@ -332,14 +331,13 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // store odometry result
   {
-    const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
-    CLOG(DEBUG, "tactic") << "Saving odometry result to run " << curr_run->id();
+    CLOG(DEBUG, "tactic") << "Saving odometry result";
     using OdoResLM = storage::LockableMessage<OdometryResult>;
     auto odo_result = std::make_shared<OdometryResult>(
         *qdata->stamp, T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
     auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
-    curr_run->write<OdometryResult>("odometry_result",
-                                    "vtr_tactic_msgs/msg/OdometryResult", msg);
+    graph_->write<OdometryResult>("odometry_result",
+                                  "vtr_tactic_msgs/msg/OdometryResult", msg);
   }
 
   // Rviz visualization
@@ -406,14 +404,13 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // store odometry result
   {
-    const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
-    CLOG(DEBUG, "tactic") << "Saving odometry result to run " << curr_run->id();
+    CLOG(DEBUG, "tactic") << "Saving odometry result";
     using OdoResLM = storage::LockableMessage<OdometryResult>;
     auto odo_result = std::make_shared<OdometryResult>(
         *qdata->stamp, T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
     auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
-    curr_run->write<OdometryResult>("odometry_result",
-                                    "vtr_tactic_msgs/msg/OdometryResult", msg);
+    graph_->write<OdometryResult>("odometry_result",
+                                  "vtr_tactic_msgs/msg/OdometryResult", msg);
   }
 
   // Rviz visualization
@@ -759,15 +756,13 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
 
   // store localization result
   {
-    const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
-    CLOG(DEBUG, "tactic") << "Saving localization result to run "
-                          << curr_run->id();
+    CLOG(DEBUG, "tactic") << "Saving localization result";
     using LocResLM = storage::LockableMessage<LocalizationResult>;
     auto loc_result = std::make_shared<LocalizationResult>(
         *qdata->stamp, graph_->at(*qdata->map_id)->keyframeTime(),
         *qdata->map_id, *qdata->T_r_m_loc);
     auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
-    curr_run->write<LocalizationResult>(
+    graph_->write<LocalizationResult>(
         "localization_result", "vtr_tactic_msgs/msg/LocalizationResult", msg);
   }
 
@@ -778,16 +773,15 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
                         << T_l_m.inverse().vec().transpose();
 
   // update the pose graph
-  auto edge_id =
-      EdgeId(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial);
+  auto edge_id = EdgeId(*(qdata->live_id), *(qdata->map_id));
   if (graph_->contains(edge_id)) {
     graph_->at(edge_id)->setTransform(T_l_m.inverse());
   } else {
     CLOG(DEBUG, "tactic") << "Adding a spatial edge between "
                           << *(qdata->live_id) << " and " << *(qdata->map_id)
                           << " to the graph.";
-    graph_->addEdge(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial,
-                    T_l_m.inverse(), false);
+    graph_->addEdge(*(qdata->live_id), *(qdata->map_id), EdgeType::Spatial,
+                    false, T_l_m.inverse());
     CLOG(DEBUG, "tactic") << "Done adding the spatial edge between "
                           << *(qdata->live_id) << " and " << *(qdata->map_id)
                           << " to the graph.";
@@ -826,7 +820,7 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_m,
   // Add the new edge
   if (!previous_vertex_id.isValid()) return;
   (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
-                        pose_graph::Temporal, T_r_m, manual);
+                        EdgeType::Temporal, manual, T_r_m);
 }
 
 void Tactic::updatePersistentLoc(const Timestamp& t, const VertexId& v,
