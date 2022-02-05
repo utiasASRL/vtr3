@@ -121,6 +121,7 @@ template <class G>
 class OrderedGraphIterator
     : std::iterator<std::forward_iterator_tag, const NodeParent<G> > {
  public:
+  using GraphType = G;
   using IterType = simple::SimpleGraphIterator;
 
   OrderedGraphIterator(const G *graph, const IterType &internal_iter);

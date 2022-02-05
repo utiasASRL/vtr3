@@ -14,14 +14,11 @@
 
 /**
  * \file path_iterator.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph_iterator.hpp>
+#include "vtr_pose_graph/index/graph_iterator.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -32,7 +29,6 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
                                    const NodeParent<typename P::GraphType> > {
  public:
   using GraphType = typename P::GraphType;
-  using VertexId = typename P::VertexId;
   using Sequence = typename P::Sequence;
   using InternalIterType = typename Sequence::const_iterator;
   using ValueType = NodeParent<GraphType>;
@@ -53,12 +49,6 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
         seq_iter_(path_->sequence_.begin() + seq_id) {
     makeData();
   }
-
-  PathIterator(const PathIterator&) = default;
-  PathIterator(PathIterator&&) = default;
-
-  PathIterator& operator=(const PathIterator&) = default;
-  PathIterator& operator=(PathIterator&&) = default;
 
   // Dereference
   const ValueType& operator*() const { return data_; }

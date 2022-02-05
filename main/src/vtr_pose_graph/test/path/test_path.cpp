@@ -27,21 +27,9 @@ using namespace ::testing;  // NOLINT
 using namespace vtr::logging;
 using namespace vtr::pose_graph;
 
-using IntRandType =
-    decltype(std::bind(std::uniform_int_distribution<int64_t>{0, 1000},
-                       std::mt19937(std::random_device{}())));
-using DoubleRandType =
-    decltype(std::bind(std::uniform_real_distribution<double>{0.f, 100.f},
-                       std::mt19937(std::random_device{}())));
-
 class PathTest : public Test {
  public:
-  PathTest()
-      : graph_(new BasicGraph()),
-        irnd_(std::bind(std::uniform_int_distribution<int64_t>{0, 1000},
-                        std::mt19937(std::random_device{}()))),
-        drnd_(std::bind(std::uniform_real_distribution<double>{0.f, 100.f},
-                        std::mt19937(std::random_device{}()))) {}
+  PathTest() {}
   ~PathTest() override {}
 
   void SetUp() override {
@@ -53,6 +41,7 @@ class PathTest : public Test {
      * R1: 0 --- 1 --- 2 --- ...
      */
 
+    // clang-format off
     // Add a graph with 2 runs and 5 vertices per run.
     for (int major_idx = 0; major_idx < 2; ++major_idx) {
       // Create the robochunk directories
@@ -60,30 +49,25 @@ class PathTest : public Test {
       graph_->addVertex();
       for (int minor_idx = 0; minor_idx < 5 - 1; ++minor_idx) {
         graph_->addVertex();
-        graph_->addEdge(VertexId(major_idx, minor_idx),
-                        VertexId(major_idx, minor_idx + 1), Temporal);
+        graph_->addEdge(VertexId(major_idx, minor_idx), VertexId(major_idx, minor_idx + 1), EdgeType::Temporal, false, EdgeTransform(true));
       }
     }
     // Add spatial edge across runs.
-    graph_->addEdge(VertexId(1, 2), VertexId(0, 1), Spatial);
+    graph_->addEdge(VertexId(1, 2), VertexId(0, 1), EdgeType::Spatial, false, EdgeTransform(true));
 
     // set the edge's transform to something special;
-    auto edge_map = graph_->edges()->unlocked().get();
-    for (auto itr = edge_map.begin(); itr != edge_map.end(); ++itr) {
+    for (auto itr = graph_->beginEdge(); itr != graph_->endEdge(); ++itr) {
       Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-      transform(0, 3) = itr->second->id().majorId2();
-      transform(1, 3) = itr->second->id().minorId2();
-      transform(2, 3) = itr->second->id().type();
-      itr->second->setTransform(lgmath::se3::Transformation(transform));
+      transform(0, 3) = itr->id().majorId2();
+      transform(1, 3) = itr->id().minorId2();
+      transform(2, 3) = itr->id().majorId1();
+      itr->setTransform(EdgeTransform(transform));
     }
   }
 
   void TearDown() override {}
 
- protected:
-  BasicGraph::Ptr graph_;
-  IntRandType irnd_;
-  DoubleRandType drnd_;
+  BasicGraph::Ptr graph_ = std::make_shared<BasicGraph>();
 };
 
 TEST_F(PathTest, PathTest) {
@@ -97,7 +81,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 2ul, 3ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << path->sequence();
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
     EXPECT_TRUE(path->verifySequence());
   }
 
@@ -108,7 +92,7 @@ TEST_F(PathTest, PathTest) {
                     VertexId(1, 3)};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << path->sequence();
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
     EXPECT_TRUE(path->verifySequence());
   }
 
@@ -118,7 +102,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 2ul, 1ul, 0ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << path->sequence();
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
     EXPECT_TRUE(path->verifySequence());
   }
 
@@ -128,7 +112,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 4ul, 1ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << path->sequence();
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
     EXPECT_FALSE(path->verifySequence());
   }
 
@@ -138,7 +122,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 10ul, 1ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << path->sequence();
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
     EXPECT_FALSE(path->verifySequence());
   }
 

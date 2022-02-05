@@ -51,18 +51,6 @@ target_link_libraries(${PROJECT_NAME}_serializable
   ${PROJECT_NAME}_index
 )
 
-# # path (localization chain)
-# file(GLOB_RECURSE PATH_SRC
-#   src/path/*.cpp
-# )
-# add_library(${PROJECT_NAME}_path ${PATH_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_path
-#   vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
-# )
-# target_link_libraries(${PROJECT_NAME}_path
-#   ${PROJECT_NAME}_evaluator
-# )
-
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   lgmath steam
@@ -79,7 +67,6 @@ install(
     ${PROJECT_NAME}_simple_graph
     ${PROJECT_NAME}_index
     ${PROJECT_NAME}_serializable
-#     ${PROJECT_NAME}_path
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -133,11 +120,11 @@ if(BUILD_TESTING)
   ament_add_gmock(test_subgraph_evaluator test/evaluator/test_subgraph_evaluator.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_subgraph_evaluator ${PROJECT_NAME}_index)
 
-  # # path tests
-  # ament_add_gmock(test_path test/path/test_path.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  # target_link_libraries(test_path ${PROJECT_NAME}_path)
-  # ament_add_gmock(test_localization_chain test/path/test_localization_chain.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  # target_link_libraries(test_localization_chain ${PROJECT_NAME}_path)
+  # path tests
+  ament_add_gmock(test_path test/path/test_path.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_path ${PROJECT_NAME}_index)
+  ament_add_gmock(test_localization_chain test/path/test_localization_chain.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_localization_chain ${PROJECT_NAME}_index)
 endif()
 
 ament_package()
