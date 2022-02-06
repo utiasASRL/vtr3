@@ -129,3 +129,5 @@ class OSCFAR : public Detector<PointT> {
 
 }  // namespace radar
 }  // namespace vtr
+
+#include "vtr_radar/detector/detector.inl"

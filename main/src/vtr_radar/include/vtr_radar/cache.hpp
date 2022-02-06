@@ -35,11 +35,13 @@ struct RadarQueryCache : public tactic::QueryCache {
   using Ptr = std::shared_ptr<RadarQueryCache>;
 
   // input
-  tactic::Cache<sensor_msgs::msg::Image> scan_msg;
+  tactic::Cache<sensor_msgs::msg::Image> scan_msg;  // from ROS
+  tactic::Cache<cv::Mat> scan;                      // from cpp
+  tactic::Cache<const tactic::EdgeTransform> T_s_r;
 
   // preprocessing
   tactic::Cache<float> radar_resolution;
-  tactic::Cache<cv::Mat> raw_scan;
+  tactic::Cache<cv::Mat> fft_scan;
   tactic::Cache<std::vector<double>> azimuth_times;
   tactic::Cache<std::vector<double>> azimuth_angles;
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;

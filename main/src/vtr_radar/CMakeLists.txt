@@ -39,7 +39,6 @@ include_directories(PUBLIC
 
 # components
 file(GLOB_RECURSE COMPONENTS_SRC
-  src/detector/*.cpp
   src/utils/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})

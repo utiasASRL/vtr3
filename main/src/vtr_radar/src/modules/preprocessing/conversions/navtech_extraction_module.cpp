@@ -59,17 +59,23 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    pub_ = qdata.node->create_publisher<PointCloudMsg>("raw_point_cloud", 5);
+    scan_pub_ = qdata.node->create_publisher<ImageMsg>("raw_scan", 5);
+    fft_scan_pub_ = qdata.node->create_publisher<ImageMsg>("fft_scan", 5);
+    pointcloud_pub_ = qdata.node->create_publisher<PointCloudMsg>("raw_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
 
   /// Input
-  auto raw_data = cv_bridge::toCvShare(qdata.scan_msg.ptr(), "mono8")->image;
-  raw_data.convertTo(raw_data, CV_32F);
+#if false
+  auto scan = cv_bridge::toCvShare(qdata.scan_msg.ptr(), "mono8")->image;
+  scan.convertTo(scan, CV_32F);
+#else
+  const auto &scan = *qdata.scan;
+#endif
 
   /// Output
-  auto &raw_scan = *qdata.raw_scan.emplace();
+  auto &fft_scan = *qdata.fft_scan.emplace();
   auto &azimuth_times = *qdata.azimuth_times.emplace();
   auto &azimuth_angles = *qdata.azimuth_angles.emplace();
   auto &radar_resolution = *qdata.radar_resolution.emplace();
@@ -78,8 +84,11 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   // Set radar resolution
   radar_resolution = config_->radar_resolution;
 
-  // Load scan, times, azimuths from raw_data
-  load_radar(raw_data, azimuth_times, azimuth_angles, raw_scan);
+  // Load scan, times, azimuths from scan
+  load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
+  CLOG(DEBUG, "radar.navtech_extractor")
+      << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
+      << " cols";
 
   // Extract keypoints and times
   const auto detector = [&] {
@@ -100,24 +109,44 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
           config_->minr, config_->maxr);
 #endif
     else {
-      CLOG(ERROR, "radar.navtech_extraction")
+      CLOG(ERROR, "radar.navtech_extractor")
           << "Unknown detector: " << config_->detector;
       throw std::runtime_error("Unknown detector: " + config_->detector);
     }
   }();
-  detector->run(raw_scan, radar_resolution, azimuth_times, azimuth_angles,
+  detector->run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                 raw_point_cloud);
 
   // Convert to cartesian format
   pol2Cart(raw_point_cloud);
 
+  CLOG(DEBUG, "radar.navtech_extractor")
+      << "Extracted " << raw_point_cloud.size() << " points";
+
   /// Visualize
   if (config_->visualize) {
+    // publish the raw scan image
+    cv_bridge::CvImage scan_image;
+    scan_image.header.frame_id = "radar";
+    // scan_image.header.stamp = qdata.scan_msg->header.stamp;
+    scan_image.encoding = "mono8";
+    scan_image.image = scan;
+    scan_pub_->publish(*scan_image.toImageMsg());
+
+    // publish the fft scan image
+    cv_bridge::CvImage fft_scan_image;
+    fft_scan_image.header.frame_id = "radar";
+    // fft_scan_image.header.stamp = qdata.scan_msg->header.stamp;
+    fft_scan_image.encoding = "mono8";
+    fft_scan.convertTo(fft_scan_image.image, CV_8U);
+    fft_scan_pub_->publish(*fft_scan_image.toImageMsg());
+
+    // publish the converted point cloud
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(raw_point_cloud, *pc2_msg);
     pc2_msg->header.frame_id = "radar";
     // pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
-    pub_->publish(*pc2_msg);
+    pointcloud_pub_->publish(*pc2_msg);
   }
 }
 

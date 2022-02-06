@@ -29,6 +29,7 @@ namespace radar {
 /** \brief Extracts keypoints from Navtech radar scans. */
 class NavtechExtractionModule : public tactic::BaseModule {
  public:
+  using ImageMsg = sensor_msgs::msg::Image;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
@@ -71,7 +72,9 @@ class NavtechExtractionModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr scan_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr fft_scan_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(NavtechExtractionModule);
 };

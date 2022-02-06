@@ -17,6 +17,8 @@
  * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  * \brief Keypoint extraction methods for Navtech radar
  */
+#pragma once
+
 #include "vtr_radar/detector/detector.hpp"
 
 namespace vtr {
@@ -46,10 +48,11 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
 
 #pragma omp parallel for
   for (int i = 0; i < rows; ++i) {
-    std::vector<std::pair<int, double>> intens(N, 0);
+    std::vector<std::pair<int, double>> intens;
+    intens.reserve(N);
     double mean = 0;
     for (int j = mincol; j < maxcol; ++j) {
-      intens[j - mincol] = std::make_pair(j, raw_scan.at<float>(i, j));
+      intens.emplace_back(j, raw_scan.at<float>(i, j));
       mean += raw_scan.at<float>(i, j);
     }
     mean /= N;
