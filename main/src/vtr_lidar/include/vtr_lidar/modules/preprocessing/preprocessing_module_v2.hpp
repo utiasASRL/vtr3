@@ -37,8 +37,7 @@ class PreprocessingModuleV2 : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     int num_threads = 1;
     float crop_range = 100;

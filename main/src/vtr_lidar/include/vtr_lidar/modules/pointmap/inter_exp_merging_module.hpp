@@ -41,8 +41,7 @@ class InterExpMergingModule : public tactic::BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     // dependency
     std::string dynamic_detection = DynamicDetectionModule::static_name;

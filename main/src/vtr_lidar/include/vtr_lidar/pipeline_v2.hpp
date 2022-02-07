@@ -35,8 +35,7 @@ class LidarPipelineV2 : public tactic::BasePipeline {
 
   /** \brief Collection of config parameters */
   struct Config : public BasePipeline::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     std::vector<std::string> preprocessing;
     std::vector<std::string> odometry;
@@ -76,10 +75,6 @@ class LidarPipelineV2 : public tactic::BasePipeline {
       const tactic::QueryCache::Ptr &qdata,
       const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-
- private:
-  void setOdometryPrior(const LidarQueryCache::Ptr &qdata,
-                        const tactic::Graph::Ptr &graph);
 
  private:
   /** \brief Pipeline configuration */

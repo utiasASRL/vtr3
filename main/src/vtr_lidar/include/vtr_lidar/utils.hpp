@@ -27,13 +27,6 @@
 namespace vtr {
 namespace lidar {
 
-// Simple utility function to combine hashtables
-template <typename T, typename... Rest>
-inline void hash_combine(std::size_t& seed, const T& v, const Rest&... rest) {
-  seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-  (hash_combine(seed, rest), ...);
-}
-
 template <class PointT>
 struct NanoFLANNAdapter {
   NanoFLANNAdapter(const pcl::PointCloud<PointT>& points) : points_(points) {}
@@ -108,7 +101,7 @@ inline PixKey operator-(const PixKey A, const PixKey B) {
 
 // Specialization of std:hash function
 namespace std {
-using namespace vtr::radar;
+using namespace vtr::lidar;
 using namespace vtr::common;
 
 template <>
@@ -125,142 +118,6 @@ struct hash<PixKey> {
 namespace vtr {
 namespace lidar {
 
-class Point3D {
- public:
-  // Elements
-  // ********
-  union {
-    struct {
-      float x;
-      float y;
-      float z;
-    };
-    struct {
-      float rho;
-      float theta;
-      float phi;
-    };
-    float data[3];
-  };
-
-  // Methods
-  // *******
-
-  // Constructor
-  Point3D(float x0 = 0, float y0 = 0, float z0 = 0) : x(x0), y(y0), z(z0) {}
-
-  // array type accessor
-  float operator[](int i) const {
-    if (i == 0)
-      return x;
-    else if (i == 1)
-      return y;
-    else
-      return z;
-  }
-
-  // operations
-  template <typename PointT>
-  float dot(const PointT P) const {
-    return x * P.x + y * P.y + z * P.z;
-  }
-
-  float sq_norm() const { return x * x + y * y + z * z; }
-
-  template <typename PointT>
-  Point3D cross(const PointT P) const {
-    return Point3D(y * P.z - z * P.y, z * P.x - x * P.z, x * P.y - y * P.x);
-  }
-
-  Point3D& operator+=(const Point3D& P) {
-    x += P.x;
-    y += P.y;
-    z += P.z;
-    return *this;
-  }
-
-  Point3D& operator-=(const Point3D& P) {
-    x -= P.x;
-    y -= P.y;
-    z -= P.z;
-    return *this;
-  }
-
-  Point3D& operator*=(const float& a) {
-    x *= a;
-    y *= a;
-    z *= a;
-    return *this;
-  }
-};
-
-// Point Operations
-// *****************
-
-inline Point3D operator+(const Point3D A, const Point3D B) {
-  return Point3D(A.x + B.x, A.y + B.y, A.z + B.z);
-}
-
-inline Point3D operator-(const Point3D A, const Point3D B) {
-  return Point3D(A.x - B.x, A.y - B.y, A.z - B.z);
-}
-
-inline Point3D operator*(const Point3D P, const float a) {
-  return Point3D(P.x * a, P.y * a, P.z * a);
-}
-
-inline Point3D operator*(const float a, const Point3D P) {
-  return Point3D(P.x * a, P.y * a, P.z * a);
-}
-
-inline Point3D operator/(const Point3D P, const float a) {
-  return Point3D(P.x / a, P.y / a, P.z / a);
-}
-
-inline Point3D operator/(const float a, const Point3D P) {
-  return Point3D(P.x / a, P.y / a, P.z / a);
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Point3D P) {
-  return os << "[" << P.x << ", " << P.y << ", " << P.z << "]";
-}
-
-inline bool operator==(const Point3D A, const Point3D B) {
-  return A.x == B.x && A.y == B.y && A.z == B.z;
-}
-
-inline Point3D floor(const Point3D P) {
-  return Point3D(std::floor(P.x), std::floor(P.y), std::floor(P.z));
-}
-
-template <class PointT>
-Point3D max_point(const pcl::PointCloud<PointT>& point_cloud) {
-  const auto& points = point_cloud.points;
-  // Initialize limits
-  Point3D maxP(points[0].x, points[0].y, points[0].z);
-  // Loop over all points
-  for (auto p : points) {
-    if (p.x > maxP.x) maxP.x = p.x;
-    if (p.y > maxP.y) maxP.y = p.y;
-    if (p.z > maxP.z) maxP.z = p.z;
-  }
-  return maxP;
-}
-
-template <class PointT>
-Point3D min_point(const pcl::PointCloud<PointT>& point_cloud) {
-  const auto& points = point_cloud.points;
-  // Initialize limits
-  Point3D minP(points[0].x, points[0].y, points[0].z);
-  // Loop over all points
-  for (auto p : points) {
-    if (p.x < minP.x) minP.x = p.x;
-    if (p.y < minP.y) minP.y = p.y;
-    if (p.z < minP.z) minP.z = p.z;
-  }
-  return minP;
-}
-
 template <class PointT>
 void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
   for (auto& p : point_cloud) {
@@ -268,14 +125,6 @@ void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
     p.theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
     p.phi = atan2(p.y, p.x) + M_PI / 2;
   }
-}
-
-template <class PointT>
-inline Point3D cart2pol(const PointT& p) {
-  const float rho = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-  const float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
-  const float phi = atan2(p.y, p.x) + M_PI / 2;
-  return Point3D(rho, theta, phi);
 }
 
 }  // namespace lidar

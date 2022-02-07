@@ -37,8 +37,7 @@ class OdometryMapMergingModuleV2 : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     float map_voxel_size = 0.2;
     float crop_range_front = 50.0;

@@ -57,13 +57,14 @@ OutputCache::Ptr LidarPipelineV2::createOutputCache() const {
 }
 
 void LidarPipelineV2::reset() {
+  point_map_odo_ = nullptr;
+  timestamp_odo_ = nullptr;
+  T_r_pm_odo_ = nullptr;
+  w_pm_r_in_r_odo_ = nullptr;
+  new_scan_odo_.clear();
 #if false
   new_raw_scan_odo_.clear();
 #endif
-  new_scan_odo_.clear();
-  point_map_odo_ = nullptr;
-  T_r_pm_odo_ = nullptr;
-  timestamp_odo_ = nullptr;
   curr_map_loc_ = nullptr;
 }
 

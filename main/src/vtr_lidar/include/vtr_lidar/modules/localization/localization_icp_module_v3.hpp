@@ -38,8 +38,7 @@ class LocalizationICPModuleV3 : public tactic::BaseModule {
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config,
                   public steam::VanillaGaussNewtonSolver::Params {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     /// Success criteria
     float min_matched_ratio = 0.4;

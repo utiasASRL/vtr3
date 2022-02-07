@@ -41,8 +41,8 @@ class ObstacleDetectionModule : public tactic::BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
+
     // points above this height is considered obstacle
     float z_min = 0.5f;
     float z_max = 2.0f;
