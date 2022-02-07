@@ -14,62 +14,15 @@
 
 /**
  * \file utils.hpp
- * \brief lidar pipeline utilities
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
+#include "lgmath.hpp"
+
+#include "vtr_common/utils/hash.hpp"
 #include "vtr_lidar/nanoflann/nanoflann.hpp"
 #include "vtr_lidar/types.hpp"
-
-#include "lgmath.hpp"
-#include "vtr_lidar_msgs/msg/se3_transform.hpp"
-
-namespace vtr {
-
-/// \todo use vtr_common_msgs::msg::LieGroupTransform instead
-namespace common {
-
-inline void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
-                     vtr_lidar_msgs::msg::SE3Transform& T_msg) {
-  // transform
-  T_msg.xi.clear();
-  T_msg.xi.reserve(6);
-  auto vec = T.vec();
-  for (int row = 0; row < 6; ++row) T_msg.xi.push_back(vec(row));
-
-  // covariance
-  T_msg.cov.clear();
-  T_msg.cov.reserve(36);
-  if (!T.covarianceSet()) {
-    T_msg.cov_set = false;
-  } else {
-    auto cov = T.cov();
-    for (int row = 0; row < 6; row++)
-      for (int col = 0; col < 6; col++) T_msg.cov.push_back(cov(row, col));
-    T_msg.cov_set = true;
-  }
-}
-
-inline void fromROSMsg(const vtr_lidar_msgs::msg::SE3Transform& T_msg,
-                       lgmath::se3::TransformationWithCovariance& T) {
-  using TransformT = lgmath::se3::TransformationWithCovariance;
-  using TransformVecT = Eigen::Matrix<double, 6, 1>;
-
-  if (!T_msg.cov_set)
-    T = TransformT(TransformVecT(T_msg.xi.data()));
-  else {
-    Eigen::Matrix<double, 6, 6> cov;
-    for (int row = 0; row < 6; ++row)
-      for (int col = 0; col < 6; ++col)
-        cov(row, col) = T_msg.cov[row * 6 + col];
-    T = TransformT(TransformVecT(T_msg.xi.data()), cov);
-  }
-}
-
-}  // namespace common
-}  // namespace vtr
 
 namespace vtr {
 namespace lidar {
@@ -155,7 +108,8 @@ inline PixKey operator-(const PixKey A, const PixKey B) {
 
 // Specialization of std:hash function
 namespace std {
-using namespace vtr::lidar;
+using namespace vtr::radar;
+using namespace vtr::common;
 
 template <>
 struct hash<PixKey> {
@@ -322,88 +276,6 @@ inline Point3D cart2pol(const PointT& p) {
   const float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
   const float phi = atan2(p.y, p.x) + M_PI / 2;
   return Point3D(rho, theta, phi);
-}
-
-class Point2D {
- public:
-  union {
-    struct {
-      float x;
-      float y;
-    };
-    float data[2];
-  };
-
-  Point2D(float x0 = 0, float y0 = 0) : x(x0), y(y0) {}
-
-  float operator[](int i) const {
-    if (i == 0)
-      return x;
-    else
-      return y;
-  }
-
-  // operations
-  template <typename PointT>
-  float dot(const PointT P) const {
-    return x * P.x + y * P.y;
-  }
-
-  float sq_norm() const { return x * x + y * y; }
-
-  Point2D& operator+=(const Point2D& P) {
-    x += P.x;
-    y += P.y;
-    return *this;
-  }
-
-  Point2D& operator-=(const Point2D& P) {
-    x -= P.x;
-    y -= P.y;
-    return *this;
-  }
-
-  Point2D& operator*=(const float& a) {
-    x *= a;
-    y *= a;
-    return *this;
-  }
-};
-
-inline Point2D operator+(const Point2D A, const Point2D B) {
-  return Point2D(A.x + B.x, A.y + B.y);
-}
-
-inline Point2D operator-(const Point2D A, const Point2D B) {
-  return Point2D(A.x - B.x, A.y - B.y);
-}
-
-inline Point2D operator*(const Point2D P, const float a) {
-  return Point2D(P.x * a, P.y * a);
-}
-
-inline Point2D operator*(const float a, const Point2D P) {
-  return Point2D(P.x * a, P.y * a);
-}
-
-inline Point2D operator/(const Point2D P, const float a) {
-  return Point2D(P.x / a, P.y / a);
-}
-
-inline Point2D operator/(const float a, const Point2D P) {
-  return Point2D(P.x / a, P.y / a);
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Point2D P) {
-  return os << "[" << P.x << ", " << P.y << "]";
-}
-
-inline bool operator==(const Point2D A, const Point2D B) {
-  return A.x == B.x && A.y == B.y;
-}
-
-inline Point2D floor(const Point2D P) {
-  return Point2D(std::floor(P.x), std::floor(P.y));
 }
 
 }  // namespace lidar
