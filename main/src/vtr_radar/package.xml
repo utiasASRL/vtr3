@@ -28,7 +28,6 @@
 
   <depend>vtr_logging</depend>
   <depend>vtr_tactic</depend>
-  <depend>vtr_path_planning</depend>
   <depend>vtr_radar_msgs</depend>
 
   <test_depend>ament_cmake_gmock</test_depend>

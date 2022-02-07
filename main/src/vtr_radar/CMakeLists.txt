@@ -28,7 +28,6 @@ find_package(steam REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
-find_package(vtr_path_planning REQUIRED)
 find_package(vtr_radar_msgs REQUIRED)
 
 ## C++ Libraries
@@ -45,7 +44,7 @@ add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 pcl_conversions perception_pcl pcl_ros OpenCV cv_bridge
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_path_planning vtr_radar_msgs
+  vtr_common vtr_logging vtr_tactic vtr_radar_msgs
   nav_msgs
 )
 
@@ -67,7 +66,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 pcl_conversions perception_pcl pcl_ros OpenCV cv_bridge
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_path_planning vtr_radar_msgs
+  vtr_common vtr_logging vtr_tactic vtr_radar_msgs
   visualization_msgs nav_msgs
 )
 
