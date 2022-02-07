@@ -56,6 +56,10 @@ struct RadarQueryCache : public tactic::QueryCache {
   tactic::Cache<tactic::Timestamp> timestamp_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_pm_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo;
+
+  // localization
+  tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
+  tactic::Cache<const bool> curr_map_loc_changed;
 };
 
 struct RadarOutputCache : public tactic::OutputCache {

@@ -24,3 +24,5 @@
 #include "vtr_radar/modules/odometry/keyframe_test_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_map_merging_module.hpp"
+
+#include "vtr_radar/modules/localization/localization_map_recall_module.hpp"
