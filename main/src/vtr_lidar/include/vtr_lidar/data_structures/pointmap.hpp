@@ -24,6 +24,7 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 
+#include "vtr_common/conversions/ros_lgmath.hpp"
 #include "vtr_lidar/types.hpp"
 #include "vtr_lidar/utils.hpp"
 #include "vtr_logging/logging.hpp"
@@ -92,7 +93,8 @@ class PointScan {
     // load vertex id
     data->vertex_id_ = tactic::VertexId(storable.vertex_id);
     // load transform
-    common::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
+    using namespace vtr::common;
+    conversions::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
     return data;
   }
 
@@ -104,7 +106,8 @@ class PointScan {
     // save vertex id
     storable.vertex_id = this->vertex_id_;
     // save transform
-    common::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
+    using namespace vtr::common;
+    conversions::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
     return storable;
   }
 
@@ -153,7 +156,8 @@ class PointMap : public PointScan<PointT> {
     // load vertex id
     data->vertex_id_ = tactic::VertexId(storable.vertex_id);
     // load transform
-    common::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
+    using namespace vtr::common;
+    conversions::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
     // build voxel map
     data->samples_.clear();
     data->samples_.reserve(data->point_cloud_.size());
@@ -177,7 +181,8 @@ class PointMap : public PointScan<PointT> {
     // save vertex id
     storable.vertex_id = this->vertex_id_;
     // save transform
-    common::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
+    using namespace vtr::common;
+    conversions::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
     // save version
     storable.version = this->version_;
     // save voxel size
@@ -322,7 +327,8 @@ class MultiExpPointMap : public PointMap<PointT> {
     // load vertex id
     data->vertex_id_ = tactic::VertexId(storable.vertex_id);
     // load transform
-    common::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
+    using namespace vtr::common;
+    conversions::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
     // build voxel map
     data->samples_.clear();
     data->samples_.reserve(data->point_cloud_.size());
@@ -350,7 +356,8 @@ class MultiExpPointMap : public PointMap<PointT> {
     // save vertex id
     storable.vertex_id = this->vertex_id_;
     // save transform
-    common::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
+    using namespace vtr::common;
+    conversions::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
     // save voxel size
     storable.dl = this->dl_;
     // save max number of experiences

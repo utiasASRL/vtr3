@@ -11,6 +11,8 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
+find_package(vtr_common_msgs REQUIRED)
+
 # ROS messages
 file(
   GLOB_RECURSE MSG_SRC
@@ -19,7 +21,7 @@ file(
 )
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${MSG_SRC}
-  DEPENDENCIES builtin_interfaces sensor_msgs
+  DEPENDENCIES builtin_interfaces sensor_msgs vtr_common_msgs
 )
 
 ament_export_dependencies(
