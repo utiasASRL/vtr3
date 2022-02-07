@@ -14,8 +14,9 @@
 
 /**
  * \file modules.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include "vtr_radar/modules/preprocessing/conversions/navtech_extraction_module.hpp"
+#include "vtr_radar/modules/preprocessing/preprocessing_module.hpp"

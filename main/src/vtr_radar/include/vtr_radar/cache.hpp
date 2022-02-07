@@ -45,6 +45,7 @@ struct RadarQueryCache : public tactic::QueryCache {
   tactic::Cache<std::vector<double>> azimuth_times;
   tactic::Cache<std::vector<double>> azimuth_angles;
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
 };
 
 struct RadarOutputCache : public tactic::OutputCache {
