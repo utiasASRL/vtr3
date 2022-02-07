@@ -81,7 +81,64 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
                                  const Graph::Ptr &graph,
                                  const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
-  /// \todo implement
+
+  // set the current map for odometry
+  if (point_map_odo_ != nullptr) {
+    qdata->point_map_odo = point_map_odo_;
+    qdata->timestamp_odo = timestamp_odo_;
+    qdata->T_r_pm_odo = T_r_pm_odo_;
+    qdata->w_pm_r_in_r_odo = w_pm_r_in_r_odo_;
+  }
+
+  for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
+
+  // store the current map for odometry to avoid reloading
+  if (qdata->point_map_odo) {
+    point_map_odo_ = qdata->point_map_odo.ptr();
+    timestamp_odo_ = qdata->timestamp_odo.ptr();
+    T_r_pm_odo_ = qdata->T_r_pm_odo.ptr();
+    w_pm_r_in_r_odo_ = qdata->w_pm_r_in_r_odo.ptr();
+  }
+
+  /// Store the scan if decided to store it
+  const auto &T_s_r = *qdata->T_s_r;
+  const auto &T_r_pm = *qdata->T_r_pm_odo;
+  const auto T_s_pm = T_s_r * T_r_pm;
+  bool store_scan = false;
+  if (!(*qdata->odo_success))
+    store_scan = false;
+  else if (new_scan_odo_.empty())
+    store_scan = true;
+  else {
+    const auto &T_pm_sm1 = new_scan_odo_.rbegin()->second->T_vertex_map();
+    // T_<robot>_<live id> * T_<live id>_<sensor-1> * T_<sensor>_<robot>
+    auto T_s_sm1_vec = (T_s_pm * T_pm_sm1).vec();
+    auto dtran = T_s_sm1_vec.head<3>().norm();
+    auto drot = T_s_sm1_vec.tail<3>().norm() * 57.29577;  // 180/pi
+    CLOG(DEBUG, "radar.pipeline")
+        << "Relative motion since first radar scan: tran: " << dtran
+        << ", rot: " << drot << " with map size: " << new_scan_odo_.size();
+    /// \todo parameters
+    if (dtran > 0.3 || drot > 5.0) store_scan = true;
+  }
+  if (store_scan) {
+#if false  /// store raw point cloud
+    // raw scan
+    auto new_raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
+    new_raw_scan_odo->point_map() = *qdata->undistorted_raw_point_cloud;
+    new_raw_scan_odo->T_vertex_map() = T_s_pm.inverse();
+    new_raw_scan_odo_.try_emplace(*qdata->stamp, new_raw_scan_odo);
+#endif
+    // preprocessed scan
+    auto new_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
+    new_scan_odo->point_map() = *qdata->undistorted_point_cloud;
+    new_scan_odo->T_vertex_map() = T_s_pm.inverse();
+    new_scan_odo_.try_emplace(*qdata->stamp, new_scan_odo);
+  }
+
+  if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
+    CLOG(WARNING, "radar.pipeline") << "Odometry failed!";
+  }
 }
 
 void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
@@ -89,7 +146,15 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
-  /// \todo implement
+
+  // set the current map for localization
+  if (curr_map_loc_ != nullptr) qdata->curr_map_loc = curr_map_loc_;
+
+  for (auto module : localization_)
+    module->run(*qdata0, *output0, graph, executor);
+
+  /// store the current map for localization
+  if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
 }
 
 void RadarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
@@ -97,7 +162,58 @@ void RadarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
-  /// \todo implement
+  const auto live_id = *qdata->live_id;
+
+  // update current map vertex id and transform
+  point_map_odo_->T_vertex_map() = *T_r_pm_odo_;
+  point_map_odo_->vertex_id() = live_id;
+
+  /// Prepare to save map and scans
+  auto vertex = graph->at(live_id);
+  using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+
+  // save the point cloud map (including a copy of the point cloud)
+  auto point_map_odo =
+      std::make_shared<PointMap<PointWithInfo>>(*point_map_odo_);
+  auto map_msg = std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map", "vtr_radar_msgs/msg/PointMap", map_msg);
+  auto map_copy_msg =
+      std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map_v" + std::to_string(point_map_odo->version()),
+      "vtr_radar_msgs/msg/PointMap", map_copy_msg);
+
+  // Save the accumulated radar scans (need to correct transform before saving)
+#if false
+  // raw scans
+  for (auto it = new_raw_scan_odo_.begin(); it != new_raw_scan_odo_.end();
+       it++) {
+    // correct transform to the live id - this is essentially:
+    // T_<live id>_<scan> = T_<live id>_<last id> * T_<last id>_<scan>
+    it->second->T_vertex_map() =
+        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
+    it->second->vertex_id() = live_id;
+    // save the point scan
+    auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
+    vertex->insert<PointScan<PointWithInfo>>("raw_point_scan", scan_msg);
+  }
+  new_raw_scan_odo_.clear();
+#endif
+  // down-sampled scans
+  for (auto it = new_scan_odo_.begin(); it != new_scan_odo_.end(); it++) {
+    // correct transform to the live id - this is essentially:
+    // T_<live id>_<scan> = T_<live id>_<last id> * T_<last id>_<scan>
+    it->second->T_vertex_map() =
+        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
+    it->second->vertex_id() = live_id;
+    // save the point scan
+    auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
+    vertex->insert<PointScan<PointWithInfo>>(
+        "point_scan", "vtr_radar_msgs/msg/PointScan", scan_msg);
+  }
+  new_scan_odo_.clear();
 }
 
 }  // namespace radar
