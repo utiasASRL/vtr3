@@ -46,6 +46,16 @@ struct RadarQueryCache : public tactic::QueryCache {
   tactic::Cache<std::vector<double>> azimuth_angles;
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
+
+  // odometry & mapping
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
+#if false  /// store raw point cloud
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
+#endif
+  tactic::Cache<PointMap<PointWithInfo>> point_map_odo;
+  tactic::Cache<tactic::Timestamp> timestamp_odo;
+  tactic::Cache<tactic::EdgeTransform> T_r_pm_odo;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo;
 };
 
 struct RadarOutputCache : public tactic::OutputCache {
