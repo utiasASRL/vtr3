@@ -20,7 +20,6 @@
 
 #include "steam.hpp"
 
-#include "vtr_common/timing/stopwatch.hpp"
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"

@@ -92,12 +92,6 @@ class OdometryICPModuleV3 : public tactic::BaseModule {
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
 
-  void computeTrajectory(
-      LidarQueryCache &qdata, const tactic::Graph::ConstPtr &graph,
-      const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
-      std::map<unsigned int, steam::StateVariableBase::Ptr> &state_vars,
-      const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms);
-
   Config::ConstPtr config_;
 
   /** \brief for visualization only */
