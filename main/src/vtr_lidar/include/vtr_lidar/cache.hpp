@@ -47,14 +47,10 @@ struct LidarQueryCache : public tactic::QueryCache {
 #if false  /// store raw point cloud
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
 #endif
-  tactic::Cache<PointMap<PointWithInfo>> new_map_odo;   // pipeline v1
-  tactic::Cache<PointMap<PointWithInfo>> curr_map_odo;  // pipeline v1
-  tactic::Cache<const float> matched_points_ratio;      // pipeline v1
-  tactic::Cache<const steam::se3::SteamTrajInterface> trajectory;  // v1
-  tactic::Cache<PointMap<PointWithInfo>> point_map_odo;        // pipeline v2
-  tactic::Cache<tactic::Timestamp> timestamp_odo;              // pipeline v2
-  tactic::Cache<tactic::EdgeTransform> T_r_pm_odo;             // pipeline v2
-  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo;  // pipeline v2
+  tactic::Cache<PointMap<PointWithInfo>> point_map_odo;
+  tactic::Cache<tactic::Timestamp> timestamp_odo;
+  tactic::Cache<tactic::EdgeTransform> T_r_pm_odo;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
