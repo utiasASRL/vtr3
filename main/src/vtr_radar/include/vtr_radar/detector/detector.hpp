@@ -71,7 +71,7 @@ class Cen2018 : public Detector<PointT> {
 
  private:
   double zq_ = 3.0;
-  int sigma_ = 17;
+  int sigma_ = 17;  // kernel size = sigma_ * 2 * 3 (+1 to make it odd)
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };
