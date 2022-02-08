@@ -14,8 +14,6 @@
 
 /**
  * \file dynamic_objects.hpp
- * \brief Dynamic object detection functions.
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -116,10 +114,10 @@ void detectDynamicObjects(
     auto& qp = query[i];  // point with dynamic obs to be updated
     // update the scores
     if (qp.total_obs < min_num_obs)
-      qp.icp_score = 1;
+      qp.static_score = 0;
     else
-      qp.icp_score =
-          (qp.dynamic_obs / qp.total_obs) > dynamic_threshold ? 1 : 0;
+      qp.static_score =
+          (qp.dynamic_obs / qp.total_obs) < dynamic_threshold ? 1 : 0;
   }
 }
 

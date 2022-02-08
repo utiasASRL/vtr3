@@ -190,8 +190,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     trajectory->appendPriorCostTerms(trajectory_cost_terms);
   }
 
-  CLOG(DEBUG, "lidar.odometry_icp")
-            << "initial alignment.";
+  CLOG(DEBUG, "lidar.odometry_icp") << "initial alignment.";
 
   // Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);

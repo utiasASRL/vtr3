@@ -28,7 +28,7 @@ namespace vtr {
 namespace lidar {
 
 // clang-format off
-#define PCL_ADD_UNION_FLEXIBLE4D \
+#define PCL_ADD_UNION_FLEXIBLE1 \
   union EIGEN_ALIGN16 { \
     __uint128_t raw_flex1; \
     float data_flex1[4]; \
@@ -46,6 +46,7 @@ namespace lidar {
     struct { \
       float dynamic_obs; \
       float total_obs; \
+      float static_score; \
     }; \
     __uint128_t bits; \
     struct { \
@@ -66,32 +67,35 @@ namespace lidar {
   inline pcl::Array4fMap getPolarArray4fMap () { return (pcl::Array4fMap (data_flex1)); } \
   inline pcl::Array4fMapConst getPolarArray4fMap () const { return (pcl::Array4fMapConst (data_flex1)); }
 
-#define PCL_ADD_FLEXIBLE4D \
-  PCL_ADD_UNION_FLEXIBLE4D \
+#define PCL_ADD_FLEXIBLE1 \
+  PCL_ADD_UNION_FLEXIBLE1 \
   PCL_ADD_EIGEN_MAPS_POLAR4D
+
+#define PCL_ADD_UNION_FLEXIBLE2 \
+  union EIGEN_ALIGN16 { \
+    __uint128_t raw_flex2; \
+    float data_flex2[4]; \
+    struct { \
+      float flex21; \
+      float flex22; \
+      float flex23; \
+      float flex24; \
+    }; \
+    struct { \
+      double time; \
+      float normal_variance; \
+      float normal_score; \
+    }; \
+  };
+
+#define PCL_ADD_FLEXIBLE2 \
+  PCL_ADD_UNION_FLEXIBLE2
 
 struct EIGEN_ALIGN16 _PointWithInfo {
   PCL_ADD_POINT4D;
   PCL_ADD_NORMAL4D;
-  PCL_ADD_FLEXIBLE4D;
-  union EIGEN_ALIGN16
-  {
-    __uint128_t raw_flex2;
-    float data_flex2[4];
-    struct
-    {
-      float flex21;  // acquisition time of the point
-      float flex22;  // acquisition time of the point
-      float flex23;  // a score of the normal with range [0, 1]
-      float flex24;  // a score for ICP registration
-    };
-    struct
-    {
-      double time;  // acquisition time of the point
-      float normal_score;  // a score of the normal with range [0, 1]
-      float icp_score;  // a score for ICP registration
-    };
-  };
+  PCL_ADD_FLEXIBLE1;
+  PCL_ADD_FLEXIBLE2;
   PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -117,7 +121,6 @@ struct PointWithInfo : public _PointWithInfo
   static constexpr size_t cartesian_offset() { return 0; }
   static constexpr size_t normal_offset() { return 4; }
   static constexpr size_t polar_offset() { return 8; }
-  static constexpr size_t score_offset() { return 12; }
   static constexpr size_t flex1_offset() { return 8; }
   static constexpr size_t flex2_offset() { return 12; }
 };
@@ -142,14 +145,14 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
     (float, normal_x, normal_x)
     (float, normal_y, normal_y)
     (float, normal_z, normal_z)
-    // polar coordinates + dynamic scores + multi exp bit vector
+    // polar coordinates + static score + multi exp bit vector
     (float, flex11, flex11)
     (float, flex12, flex12)
     (float, flex13, flex13)
     (float, flex14, flex14)
-    // normal, icp scores, time stamp
+    // time stamp, normal variance, normal score
     (double, time, time)
-    (float, normal_score, normal_score)
-    (float, icp_score, icp_score))
+    (float, normal_variance, normal_variance)
+    (float, normal_score, normal_score))
 
 // clang-format on

@@ -61,6 +61,7 @@ inline VoxKey operator-(const VoxKey A, const VoxKey B) {
 // Specialization of std:hash function
 namespace std {
 using namespace vtr::lidar;
+using namespace vtr::common;
 
 template <>
 struct hash<VoxKey> {
@@ -205,8 +206,7 @@ class PointMap : public PointScan<PointT> {
     // Update the current map
     for (auto& p : point_cloud) {
       // filter based on icp score, optional
-      /// \todo hardcoded 0.5
-      if (filter && p.icp_score > 0.5) continue;
+      if (filter && p.static_score < 0.5) continue;  /// \todo hardcoded 0.5
       // Get the corresponding key
       auto k = getKey(p);
       // Update the point count
@@ -279,8 +279,6 @@ class PointMap : public PointScan<PointT> {
     samples_.emplace(k, this->point_cloud_.size());
     // We add new voxel data
     this->point_cloud_.push_back(p);
-    // Initializes point weights (will be updated in dynamic detection)
-    this->point_cloud_.back().icp_score = 1;
   }
 
   /** \brief Update of voxel centroid */
@@ -293,6 +291,7 @@ class PointMap : public PointScan<PointT> {
     // copy point normal information
     std::copy(std::begin(p.data_n), std::end(p.data_n), std::begin(p_.data_n));
     // copy normal score
+    p_.normal_variance = p.normal_variance;
     p_.normal_score = p.normal_score;
   }
 
@@ -397,7 +396,7 @@ class MultiExpPointMap : public PointMap<PointT> {
       // update points
       for (auto& p : point_map.point_cloud_) {
         /// \todo hard-coded 0.5 for short-term removal
-        if (p.icp_score > 0.5) continue;
+        if (p.static_score < 0.5) continue;
         // Get the corresponding key
         auto k = this->getKey(p);
         // Update the point count
@@ -405,7 +404,7 @@ class MultiExpPointMap : public PointMap<PointT> {
           initSample(k, p);
         else {
           std::string err{"Found grid collision during initial map update."};
-          LOG(ERROR) << err;
+          CLOG(ERROR, "lidar.pointmap") << err;
           throw std::runtime_error{err};
         }
       }
@@ -414,14 +413,10 @@ class MultiExpPointMap : public PointMap<PointT> {
     else {
       // shift the bit vector by 1 for the new experience and update score
       std::for_each(this->point_cloud_.begin(), this->point_cloud_.end(),
-                    [&](PointT& p) {
-                      p.icp_score -= (p.bits >> (max_num_exps_ - 1));
-                      p.bits <<= 1;
-                    });
+                    [&](PointT& p) { p.bits <<= 1; });
       // update points
       for (auto& p : point_map.point_cloud_) {
-        /// \todo hard-coded 0.5 for short-term removal
-        if (p.icp_score > 0.5) continue;
+        if (p.static_score < 0.5) continue;  /// \todo hard-coded 0.5
         // Get the corresponding key
         auto k = this->getKey(p);
         // Update the point count
@@ -429,6 +424,8 @@ class MultiExpPointMap : public PointMap<PointT> {
           initSample(k, p);
         else
           updateSample(this->samples_[k], p);
+        /// \todo point cloud maybe sparse, so probably also need to update its
+        /// spatial neighbors (based on normal agreement)
       }
     }
     // remove points with bit vector zero
@@ -460,25 +457,20 @@ class MultiExpPointMap : public PointMap<PointT> {
     this->point_cloud_.push_back(p);
     // initialize the bit vector
     this->point_cloud_.back().bits = 1;
-    this->point_cloud_.back().icp_score = 1;
   }
 
   /** \brief Update of voxel centroid */
   void updateSample(const size_t idx, const PointT& p) override {
-    // Update normal if we have a clear view of it and closer distance (see
-    // computation of score)
     auto& p_ = this->point_cloud_[idx];
     // copy point normal information
     std::copy(std::begin(p.data_n), std::end(p.data_n), std::begin(p_.data_n));
     // copy time info
     p_.time = p.time;
-    // copy normal score
+    // copy normal variance and score
+    p_.normal_variance = p.normal_variance;
     p_.normal_score = p.normal_score;
     // update bit vector (only if it has not been updated yet)
-    if ((p_.bits & 1) == 0) {
-      p_.bits++;
-      p_.icp_score++;
-    }
+    if ((p_.bits & 1) == 0) p_.bits++;
   }
 
  protected:
