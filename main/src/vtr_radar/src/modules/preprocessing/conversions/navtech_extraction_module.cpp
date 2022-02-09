@@ -91,47 +91,21 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
       << " cols";
 
   // Extract keypoints and times
-//   const auto detector = [&] {
-//     if (config_->detector == "cen")
-//       return std::make_unique<Cen2018<PointWithInfo>>(
-//           config_->zq, config_->sigma, config_->minr, config_->maxr);
-//     else if (config_->detector == "kstrongest")
-//       return std::make_unique<KStrongest<PointWithInfo>>(
-//           config_->kstrong, config_->threshold, config_->minr, config_->maxr);
-// #if false
-//     else if (config_->detector == "cacfar")
-//       return std::make_unique<CACFAR<PointWithInfo>>(
-//           config_->width, config_->guard, config_->threshold, config_->minr,
-//           config_->maxr);
-//     else if (config_->detector == "oscfar")
-//       return std::make_unique<OSCFAR<PointWithInfo>>(
-//           config_->width, config_->guard, config_->kstat, config_->threshold,
-//           config_->minr, config_->maxr);
-// #endif
-//     else {
-//       CLOG(ERROR, "radar.navtech_extractor")
-//           << "Unknown detector: " << config_->detector;
-//       throw std::runtime_error("Unknown detector: " + config_->detector);
-//     }
-//   }();
-
-  if (config_->detector == "cen2018") {
-    Cen2018 detector = Cen2018<PointWithInfo>(config_->zq, config_->sigma, config_->minr, config_->maxr);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+  const auto detector = [&]() -> std::unique_ptr<Detector<PointWithInfo>> {
+    if (config_->detector == "cen2018")
+      return std::make_unique<Cen2018<PointWithInfo>>(
+          config_->zq, config_->sigma, config_->minr, config_->maxr);
+    else if (config_->detector == "kstrongest")
+      return std::make_unique<KStrongest<PointWithInfo>>(
+          config_->kstrong, config_->threshold, config_->minr, config_->maxr);
+    else {
+      CLOG(ERROR, "radar.navtech_extractor")
+          << "Unknown detector: " << config_->detector;
+      throw std::runtime_error("Unknown detector: " + config_->detector);
+    }
+  }();
+  detector->run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                 raw_point_cloud);
-  } else if (config_->detector == "kstrongest") {
-    KStrongest detector = KStrongest<PointWithInfo>(config_->kstrong, config_->threshold, config_->minr, config_->maxr);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                raw_point_cloud);
-  }
-  else {
-    CLOG(ERROR, "radar.navtech_extractor")
-        << "Unknown detector: " << config_->detector;
-    throw std::runtime_error("Unknown detector: " + config_->detector);
-  }
-
-  // detector->run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-  //               raw_point_cloud);
 
   // Convert to cartesian format
   pol2Cart(raw_point_cloud);
@@ -158,10 +132,14 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     fft_scan_pub_->publish(*fft_scan_image.toImageMsg());
 
     // publish the converted point cloud
+    auto point_cloud_tmp = raw_point_cloud;
+    const auto ref_time = point_cloud_tmp.at(0).time;
+    std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
+                  [&](PointWithInfo &point) { point.time -= ref_time; });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
-    pcl::toROSMsg(raw_point_cloud, *pc2_msg);
+    pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
     pc2_msg->header.frame_id = "radar";
-    // pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
+    pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
     pointcloud_pub_->publish(*pc2_msg);
   }
 }
