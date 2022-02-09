@@ -96,8 +96,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
-    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_scan", 5);
-    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_scan", 5);
+    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
+    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_point_cloud", 5);
     publisher_initialized_ = true;
   }
 
