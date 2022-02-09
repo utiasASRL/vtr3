@@ -263,8 +263,8 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
-    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
-                                   *qdata->T_r_m_odo, T_w_m_odo_);
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_m_odo,
+                                   T_w_m_odo_);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -343,8 +343,8 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
-    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
-                                   *qdata->T_r_m_odo, T_w_m_odo_);
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_m_odo,
+                                   T_w_m_odo_);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -416,8 +416,8 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
-    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
-                                   *qdata->T_r_m_odo, T_w_m_odo_);
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_m_odo,
+                                   T_w_m_odo_);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -485,8 +485,8 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
-    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
-                                   *qdata->T_r_m_odo, T_w_m_odo_);
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_m_odo,
+                                   T_w_m_odo_);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -554,8 +554,8 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
-    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
-                                   *qdata->T_r_m_odo, T_w_m_odo_);
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_m_odo,
+                                   T_w_m_odo_);
   }
 
   // Update odometry in localization chain, also update estimated closest

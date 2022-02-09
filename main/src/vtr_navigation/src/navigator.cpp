@@ -244,7 +244,6 @@ void Navigator::lidarCallback(
   query_data->pointcloud_msg = msg;
 
   // fill in the vehicle to sensor transform and frame names
-  query_data->robot_frame.emplace(robot_frame_);
   query_data->T_s_r.emplace(T_lidar_robot_);
 
   // add to the queue and notify the processing thread

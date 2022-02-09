@@ -50,7 +50,6 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 }
 
 void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
-                                             const std::string& robot_frame,
                                              const EdgeTransform& T_r_m_odo,
                                              const EdgeTransform& T_w_m_odo) {
   // publish keyframe
@@ -74,12 +73,8 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   auto msg2 = tf2::eigenToTransform(T2);
   msg2.header.frame_id = "odometry keyframe";
   msg2.header.stamp = rclcpp::Time(stamp);
-  msg2.child_frame_id = robot_frame;
+  msg2.child_frame_id = "robot";
   tf_bc_->sendTransform(msg2);
-  if (robot_frame != "robot") {
-    msg2.child_frame_id = "robot";
-    tf_bc_->sendTransform(msg2);
-  }
 }
 
 void RvizTacticCallback::publishPathRviz(const LocalizationChain& chain) {

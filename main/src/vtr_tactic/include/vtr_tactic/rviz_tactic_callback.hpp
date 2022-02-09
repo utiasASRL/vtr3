@@ -40,7 +40,6 @@ class RvizTacticCallback : virtual public TacticCallbackInterface {
                      const std::string& prefix = "tactic");
 
   void publishOdometryRviz(const Timestamp& stamp,
-                           const std::string& robot_frame,
                            const EdgeTransform& T_r_m_odo,
                            const EdgeTransform& T_w_m_odo) override;
   void publishPathRviz(const LocalizationChain& chain) override;
