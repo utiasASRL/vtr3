@@ -73,7 +73,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
       if (intens[j].first < thres) break;
       PointT p;
       p.rho = float(intens[j].second) * res;
-      p.phi = azimuth;
+      p.phi = -azimuth;
       p.theta = 0;
       p.time = time;
       polar_time.push_back(p);
@@ -82,7 +82,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
     {
       pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
     }
-  } 
+  }
 }
 
 template <class PointT>
@@ -166,7 +166,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
       } else if (num_peak_points > 0) {
         PointT p;
         p.rho = res * peak_points / num_peak_points;
-        p.phi = azimuth;
+        p.phi = -azimuth;
         p.theta = 0;
         p.time = time;
         polar_time.push_back(p);
@@ -179,7 +179,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
       const double time = azimuth_times[rows - 1];
       PointT p;
       p.rho = res * peak_points / num_peak_points;
-      p.phi = azimuth;
+      p.phi = -azimuth;
       p.theta = 0;
       p.time = time;
       polar_time.push_back(p);
@@ -238,7 +238,7 @@ void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
       if (raw_scan.at<float>(i, j) > thres) {
         PointT p;
         p.rho = j * res;
-        p.phi = azimuth;
+        p.phi = -azimuth;
         p.theta = 0;
         p.time = time;
         polar_time.push_back(p);
@@ -248,7 +248,7 @@ void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
     {
       pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
     }
-  } 
+  }
 }
 
 template <class PointT>
@@ -331,7 +331,7 @@ void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
       if (raw_scan.at<float>(i, j) > thres) {
         PointT p;
         p.rho = j * res;
-        p.phi = azimuth;
+        p.phi = -azimuth;
         p.theta = 0;
         p.time = time;
         polar_time.push_back(p);
@@ -341,7 +341,7 @@ void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
     {
       pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
     }
-  } 
+  }
 }
 
 }  // namespace radar
