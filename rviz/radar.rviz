@@ -231,7 +231,7 @@ Visualization Manager:
       Max Intensity: 1.0234375
       Min Color: 0; 0; 0
       Min Intensity: 0.00022029876708984375
-      Name: new map odo
+      Name: curr map odo
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -290,7 +290,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz_default_plugins/Path
       Color: 255; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 1
@@ -313,7 +313,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /vtr/loc_path
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
@@ -430,8 +430,8 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1440
-  X: 662
-  Y: 79
+  X: 2609
+  Y: 138
   fft scan:
     collapsed: false
   raw scan:
