@@ -49,6 +49,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
     int guard = 2;
     int kstat = 20;
     double threshold = 1.0;
+    double threshold2 = 1.1;
     double radar_resolution = 0.0438;
 
     bool visualize = false;

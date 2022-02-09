@@ -44,6 +44,7 @@ auto NavtechExtractionModule::Config::fromROS(
   config->guard = node->declare_parameter<int>(param_prefix + ".guard", config->guard);
   config->kstat = node->declare_parameter<int>(param_prefix + ".kstat", config->kstat);
   config->threshold = node->declare_parameter<double>(param_prefix + ".threshold", config->threshold);
+  config->threshold2 = node->declare_parameter<double>(param_prefix + ".threshold2", config->threshold2);
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -91,21 +92,55 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
       << " cols";
 
   // Extract keypoints and times
-  const auto detector = [&]() -> std::unique_ptr<Detector<PointWithInfo>> {
-    if (config_->detector == "cen2018")
-      return std::make_unique<Cen2018<PointWithInfo>>(
-          config_->zq, config_->sigma, config_->minr, config_->maxr);
-    else if (config_->detector == "kstrongest")
-      return std::make_unique<KStrongest<PointWithInfo>>(
-          config_->kstrong, config_->threshold, config_->minr, config_->maxr);
-    else {
-      CLOG(ERROR, "radar.navtech_extractor")
-          << "Unknown detector: " << config_->detector;
-      throw std::runtime_error("Unknown detector: " + config_->detector);
-    }
-  }();
-  detector->run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+  // const auto detector = [&]() -> std::unique_ptr<Detector<PointWithInfo>> {
+  //   if (config_->detector == "cen2018")
+  //     return std::make_unique<Cen2018<PointWithInfo>>(
+  //         config_->zq, config_->sigma, config_->minr, config_->maxr);
+  //   else if (config_->detector == "kstrongest")
+  //     return std::make_unique<KStrongest<PointWithInfo>>(
+  //         config_->kstrong, config_->threshold, config_->minr, config_->maxr);
+  //   else if (config_->detector == "cacfar")
+  //     return std::make_unique<KStrongest<PointWithInfo>>(
+  //         config_->width, config_->guard, config_->threshold, config_->threshold2,
+  //         config_->minr, config_->maxr);
+  //   else if (config_->detector == "oscfar")
+  //     return std::make_unique<KStrongest<PointWithInfo>>(
+  //         config_->width, config_->guard, config_->kstat,
+  //         config_->threshold, config_->threshold2, config_->minr, config_->maxr);
+  //   else {
+  //     CLOG(ERROR, "radar.navtech_extractor")
+  //         << "Unknown detector: " << config_->detector;
+  //     throw std::runtime_error("Unknown detector: " + config_->detector);
+  //   }
+  // }();
+  // detector->run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+  //               raw_point_cloud);
+
+  if (config_->detector == "cen2018") {
+    Cen2018 detector = Cen2018<PointWithInfo>(config_->zq, config_->sigma, config_->minr, config_->maxr);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+            raw_point_cloud);    
+  } else if (config_->detector == "kstrongest") {
+    KStrongest detector = KStrongest<PointWithInfo>(config_->kstrong, config_->threshold, config_->minr, config_->maxr);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                 raw_point_cloud);
+  } else if (config_->detector == "cacfar") {
+    CACFAR detector = CACFAR<PointWithInfo>(config_->width, config_->guard, config_->threshold, config_->threshold2,
+          config_->minr, config_->maxr);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                raw_point_cloud);
+  } else if (config_->detector == "oscfar") {
+    OSCFAR detector = OSCFAR<PointWithInfo>(config_->width, config_->guard, config_->kstat,
+      config_->threshold, config_->threshold2, config_->minr, config_->maxr);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                raw_point_cloud);
+  } 
+  else {
+    CLOG(ERROR, "radar.navtech_extractor")
+        << "Unknown detector: " << config_->detector;
+    throw std::runtime_error("Unknown detector: " + config_->detector);
+  }
+
 
   // Convert to cartesian format
   pol2Cart(raw_point_cloud);

@@ -24,6 +24,8 @@
 
 #include "vtr_radar/types.hpp"
 
+#include <math.h>
+
 namespace vtr {
 namespace radar {
 
@@ -80,10 +82,12 @@ template <class PointT>
 class CACFAR : public Detector<PointT> {
  public:
   CACFAR() = default;
-  CACFAR(int width, int guard, double threshold, double minr, double maxr)
+  CACFAR(int width, int guard, double threshold, 
+         double threshold2, double minr, double maxr)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
+        threshold2_(threshold2),
         minr_(minr),
         maxr_(maxr) {}
 
@@ -93,9 +97,10 @@ class CACFAR : public Detector<PointT> {
            pcl::PointCloud<PointT> &pointcloud) override;
 
  private:
-  int width_ = 40;
+  int width_ = 41;  // window = width + 2 * guard
   int guard_ = 2;
   double threshold_ = 3.0;
+  double threshold2_ = 1.1;
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };
@@ -104,12 +109,13 @@ template <class PointT>
 class OSCFAR : public Detector<PointT> {
  public:
   OSCFAR() = default;
-  OSCFAR(int width, int guard, int kstat, double threshold, double minr,
-         double maxr)
+  OSCFAR(int width, int guard, int kstat, double threshold,
+         double threshold2, double minr, double maxr)
       : width_(width),
         guard_(guard),
         kstat_(kstat),
         threshold_(threshold),
+        threshold2_(threshold2),
         minr_(minr),
         maxr_(maxr) {}
 
@@ -123,6 +129,7 @@ class OSCFAR : public Detector<PointT> {
   int guard_ = 2;
   int kstat_ = 20;
   double threshold_ = 1.25;
+  double threshold2_ = 1.2;
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };

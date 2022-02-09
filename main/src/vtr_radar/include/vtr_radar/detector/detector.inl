@@ -25,10 +25,15 @@ namespace vtr {
 namespace radar {
 
 namespace {
-bool comp(const std::pair<int, float> &a,
+bool sort_desc_by_first(const std::pair<int, float> &a,
                const std::pair<int, float> &b) {
   return (a.first > b.first);
 }
+bool sort_asc_by_second(const std::pair<int, float> &a,
+               const std::pair<int, float> &b) {
+  return (a.second < b.second);
+}
+
 }  // namespace
 
 template <class PointT>
@@ -60,7 +65,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
         intens.emplace_back(raw_scan.at<float>(i, j), j);
     }
     // sort intensities in descending order
-    std::sort(intens.begin(), intens.end(), comp);
+    std::sort(intens.begin(), intens.end(), sort_desc_by_first);
     const double azimuth = azimuth_angles[i];
     const double time = azimuth_times[i];
     pcl::PointCloud<PointT> polar_time;
@@ -188,15 +193,156 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
 
 template <class PointT>
 void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
-                         const std::vector<double> &azimuth_times,
-                         const std::vector<double> &azimuth_angles,
-                         pcl::PointCloud<PointT> &pointcloud) {}  // TODO
+                             const std::vector<double> &azimuth_times,
+                             const std::vector<double> &azimuth_angles,
+                             pcl::PointCloud<PointT> &pointcloud) {
+  pointcloud.clear();
+  const int rows = raw_scan.rows;
+  const int cols = raw_scan.cols;
+  if (width_ % 2 == 0) width_ += 1;
+  const int w2 = std::floor(width_ / 2);
+  const int window = width_ + guard_ * 2;
+  auto mincol = minr_ / res + w2 + guard_ + 1;
+  if (mincol > cols || mincol < 0) mincol = 0;
+  auto maxcol = maxr_ / res - w2 - guard_;
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
+  const int N = maxcol - mincol;
+
+#pragma omp parallel for
+  for (int i = 0; i < rows; ++i) {
+    const double azimuth = azimuth_angles[i];
+    const double time = azimuth_times[i];
+    pcl::PointCloud<PointT> polar_time;
+    double mean = 0;
+    for (int j = mincol; j < maxcol; ++j) {
+      mean += raw_scan.at<float>(i, j);
+    }
+    mean /= N;
+
+    for (int j = mincol; j < maxcol; ++j) {
+      double stat = 0;  // (statistic) estimate of clutter power
+      double left = 0;
+      double right = 0;
+      // for (int k = -w2 - guard_; k <= w2 + guard_; ++k) {
+      //   if (k < -guard_ || k > guard_)
+      //     stat += raw_scan.at<float>(i, j + k);
+      // }
+      for (int k = -w2 - guard_; k < -guard_; ++k) {
+        left += raw_scan.at<float>(i, j + k);
+      }
+      for (int k = guard_ + 1; k <= w2 + guard_; ++k) {
+        right += raw_scan.at<float>(i, j + k);
+      }
+      stat = std::max(left, right);
+      const float thres = threshold_ * stat / (window / 2) + threshold2_ * mean;
+      if (raw_scan.at<float>(i, j) > thres) {
+        PointT p;
+        p.rho = j * res;
+        p.phi = azimuth;
+        p.theta = 0;
+        p.time = time;
+        polar_time.push_back(p);
+      }
+    }
+#pragma omp critical
+    {
+      pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+    }
+  } 
+}
 
 template <class PointT>
 void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
                          const std::vector<double> &azimuth_times,
                          const std::vector<double> &azimuth_angles,
-                         pcl::PointCloud<PointT> &pointcloud) {}  // TODO
+                         pcl::PointCloud<PointT> &pointcloud) {
+  pointcloud.clear();
+  const int rows = raw_scan.rows;
+  const int cols = raw_scan.cols;
+  if (width_ % 2 == 0) width_ += 1;
+  const int w2 = std::floor(width_ / 2);
+  auto mincol = minr_ / res + w2 + 1;
+  if (mincol > cols || mincol < 0) mincol = 0;
+  auto maxcol = maxr_ / res - w2;
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
+  const int N = maxcol - mincol;
+
+// #pragma omp parallel for
+  for (int i = 0; i < rows; ++i) {
+    const double azimuth = azimuth_angles[i];
+    const double time = azimuth_times[i];
+    pcl::PointCloud<PointT> polar_time;
+    double mean = 0;
+    for (int j = mincol; j < maxcol; ++j) {
+      mean += raw_scan.at<float>(i, j);
+    }
+    mean /= N;
+
+    std::vector<std::pair<int, float>> window;
+    window.reserve(width_ - 1);
+    int j = mincol - 1;
+    for (int k = -w2; k < 0; ++k) {
+      window.emplace_back(j + k, raw_scan.at<float>(i, j + k));
+    }
+    for (int k = 1; k <= w2; ++k) {
+      window.emplace_back(j + k, raw_scan.at<float>(i, j + k));
+    }
+    std::sort(window.begin(), window.end(), sort_asc_by_second);
+
+    for (j = mincol; j < maxcol; ++j) {
+      // remove cell under test and left-most cell
+
+      window.erase(
+        std::remove_if(
+          window.begin(),
+          window.end(),
+          [&](const std::pair<float, int> &p) -> bool {
+            return p.first == j || p.first == j - w2 - 1;
+          }),
+        window.end()
+      );
+
+      // for (size_t k = window.size() - 1; k >= 0; --k) {
+      //   if (window[k].first == j || window[k].first == j - w2 - 1) {
+      //     std::cout << "erase" << std::endl;
+      //     window.erase(window.begin() + k);
+      //   }
+      // }
+      // insert prev CUT and right-most cell
+      auto prevcut = std::make_pair(j - 1, raw_scan.at<float>(i, j - 1));
+      auto it = std::lower_bound(window.begin(),
+          window.end(), prevcut, sort_asc_by_second);
+      window.insert(it, prevcut);
+      auto newentry = std::make_pair(j + w2, raw_scan.at<float>(i, j + w2));
+      it = std::lower_bound(window.begin(),
+          window.end(), newentry, sort_asc_by_second);
+      window.insert(it, newentry);
+
+      // DEBUG: check that the window is indeed sorted:
+      // assert(window.size() == width_ - 1);
+      // for (size_t k = 1; k < window.size(); ++k) {
+      //   if (window[k - 1].second > window[k].second) {
+      //     throw std::runtime_error("window not sorted.");
+      //   }
+      // }
+      // (statistic) estimate of clutter power
+      double stat = window[kstat_].second;
+      const float thres = threshold_ * stat + threshold2_ * mean;
+      if (raw_scan.at<float>(i, j) > thres) {
+        PointT p;
+        p.rho = j * res;
+        p.phi = azimuth;
+        p.theta = 0;
+        p.time = time;
+        polar_time.push_back(p);
+      }
+    }
+// #pragma omp critical
+    {
+      pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+    }
+  } 
+}
 
 }  // namespace radar
 }  // namespace vtr
