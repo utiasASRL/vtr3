@@ -28,7 +28,7 @@ using namespace tactic;
 
 namespace {
 
-void cart2pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
+void velodyneCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
   for (size_t i = 0; i < point_cloud.size(); i++) {
     auto &p = point_cloud[i];
     auto &pm1 = i > 0 ? point_cloud[i - 1] : point_cloud[i];
@@ -93,7 +93,7 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // Velodyne has no polar coordinates, so compute them manually.
-  cart2pol(*point_cloud);
+  velodyneCart2Pol(*point_cloud);
 
   // Output
   qdata.raw_point_cloud = point_cloud;
@@ -101,12 +101,10 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // Visualize
   if (config_->visualize) {
     pcl::PointCloud<PointWithInfo> point_cloud_tmp(*point_cloud);
-    auto &points = point_cloud_tmp.points;
-    std::for_each(points.begin(), points.end(), [&](PointWithInfo &point) {
-      point.time -=
-          std::chrono::duration<double>(std::chrono::nanoseconds(*qdata.stamp))
-              .count();
-    });
+    std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
+                  [&](PointWithInfo &point) {
+                    point.time -= (double(*qdata.stamp / 1000) * 1.0e-6);
+                  });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
     pc2_msg->header.frame_id = "lidar";
