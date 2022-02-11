@@ -34,6 +34,8 @@ auto OdometryMapMergingModule::Config::fromROS(
   config->crop_range_front = node->declare_parameter<float>(param_prefix + ".crop_range_front", config->crop_range_front);
   config->back_over_front_ratio = node->declare_parameter<float>(param_prefix + ".back_over_front_ratio", config->back_over_front_ratio);
 
+  config->point_life_time = node->declare_parameter<float>(param_prefix + ".point_life_time", config->point_life_time);
+
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -76,7 +78,16 @@ void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0);
   Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3);
   points_mat = (C_pm_s * points_mat).colwise() + r_s_pm_in_pm;
-  // Update the point map with the set of new points
+
+  /// Update the point map with the set of new points
+
+  // set life time of the points in this map
+  if (config_->point_life_time >= 0.0) {
+    // reduce life time of points in the map, remove those that have expired
+    point_map_odo.subtractLifeTime();
+    for (auto &point : points) point.life_time = config_->point_life_time;
+  }
+
   // The update function is called only on subsampled points
   point_map_odo.update(points);
 
