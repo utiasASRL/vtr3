@@ -41,7 +41,7 @@ RUN apt update && apt install -q -y wget git
 ## Install Eigen
 RUN apt update && apt install -q -y libeigen3-dev
 
-## Install PROJ (8.0.0)
+## Install PROJ (8.0.0) (this is for graph_map_server in vtr_navigation)
 RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
 RUN mkdir -p ${VTRDEPS}/proj && cd ${VTRDEPS}/proj \
   && git clone https://github.com/OSGeo/PROJ.git . && git checkout 8.0.0 \
@@ -49,32 +49,20 @@ RUN mkdir -p ${VTRDEPS}/proj && cd ${VTRDEPS}/proj \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
-## Install OpenCV (4.5.0)
-RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
-RUN cd ${VTRDEPS} \
-  && git clone https://github.com/opencv/opencv.git \
-  && git clone https://github.com/opencv/opencv_contrib.git \
-  && cd ${VTRDEPS}/opencv && git checkout 4.5.0 \
-  && cd ${VTRDEPS}/opencv_contrib && git checkout 4.5.0 \
-  && mkdir -p ${VTRDEPS}/opencv/build && cd ${VTRDEPS}/opencv/build \
-  && cmake -D CMAKE_BUILD_TYPE=RELEASE \
-  -D CMAKE_INSTALL_PREFIX=/usr/local/opencv_cuda \
-  -D OPENCV_EXTRA_MODULES_PATH=${VTRDEPS}/opencv_contrib/modules \
-  -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
-  -DBUILD_opencv_python2=OFF \
-  -DBUILD_opencv_python3=ON \
-  -DWITH_OPENMP=ON \
-  -DWITH_CUDA=ON \
-  -DOPENCV_ENABLE_NONFREE=ON \
-  -D OPENCV_GENERATE_PKGCONFIG=ON \
-  -DWITH_TBB=ON \
-  -DWITH_GTK=ON \
-  -DWITH_OPENMP=ON \
-  -DWITH_FFMPEG=ON \
-  -DBUILD_opencv_cudacodec=OFF \
-  -D BUILD_EXAMPLES=ON .. \
-  && make -j${NUMPROC} && make install
-ENV LD_LIBRARY_PATH=/usr/local/opencv_cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+## Install Google Ceres (this is for teb local planner, to be removed)
+RUN apt update && apt install -q -y libgoogle-glog-dev libgflags-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev
+RUN mkdir -p ${VTRDEPS}/ceres && cd ${VTRDEPS}/ceres \
+  && git clone https://ceres-solver.googlesource.com/ceres-solver . && git checkout 2.0.0 \
+  && mkdir -p ${VTRDEPS}/ceres/build && cd ${VTRDEPS}/ceres/build \
+  && cmake .. && cmake --build . -j${NUMPROC} --target install
+
+## Install g2o (this is for teb local planner, to be removed)
+# for now use master branch, in case of failure, verified working commit: 4736df5ca8ef258caa47ae0de9b59bc22fb80d1b
+RUN apt update && apt install -q -y libsuitesparse-dev qtdeclarative5-dev qt5-qmake libqglviewer-dev-qt5
+RUN mkdir -p ${VTRDEPS}/g2o && cd ${VTRDEPS}/g2o \
+  && git clone https://github.com/RainerKuemmerle/g2o.git . \
+  && mkdir -p ${VTRDEPS}/g2o/build && cd ${VTRDEPS}/g2o/build \
+  && cmake -DBUILD_WITH_MARCH_NATIVE=ON .. && cmake --build . -j${NUMPROC} --target install
 
 ## Install ROS2
 # UTF-8
@@ -120,6 +108,16 @@ RUN apt update && apt install -q -y \
   ros-galactic-xacro \
   ros-galactic-vision-opencv \
   ros-galactic-perception-pcl ros-galactic-pcl-ros
+
+## These are for teb local planner (to be removed)
+RUN apt update && apt install -q -y \
+  ros-galactic-nav2-costmap-2d \
+  ros-galactic-libg2o \
+  ros-galactic-dwb-critics \
+  ros-galactic-nav2-core \
+  ros-galactic-nav2-msgs \
+  ros-galactic-nav2-util \
+  ros-galactic-nav2-bringup
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
