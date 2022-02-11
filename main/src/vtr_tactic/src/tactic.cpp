@@ -641,8 +641,8 @@ bool Tactic::teachMetricLocLocalization(const QueryCache::Ptr& qdata) {
                         << *(qdata->map_id) << ") (i.e., T_m_r localization): "
                         << (*qdata->T_r_m_loc).inverse().vec().transpose();
   if (!(*qdata->loc_success)) {
-    CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
-                             "and localization chain.";
+    CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "
+                               "and localization chain.";
     return true;
   }
 
