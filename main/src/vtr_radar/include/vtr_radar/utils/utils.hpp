@@ -33,11 +33,11 @@ void load_radar(const cv::Mat &raw_data, std::vector<double> &timestamps,
                 std::vector<double> &azimuths, cv::Mat &fft_data);
 
 template <class PointT>
-void pol2Cart(pcl::PointCloud<PointT> &pointcloud) {
+void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
   for (auto &point : pointcloud) {
     point.x = point.rho * std::cos(point.phi);
     point.y = point.rho * std::sin(point.phi);
-    point.z = point.rho * std::sin(point.theta);
+    point.z = 0.0;
   }
 }
 

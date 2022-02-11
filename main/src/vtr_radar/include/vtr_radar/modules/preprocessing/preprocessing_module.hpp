@@ -41,6 +41,14 @@ class PreprocessingModule : public tactic::BaseModule {
 
     float frame_voxel_size = 0.1;
 
+    float window_size = 3.0;
+    float azimuth_res = 0.016;  // radar azimuth resolution in radians
+    float rho_scale = 1.0;      // scale factor for range measurement rho
+    int num_threads = 1;
+
+    int num_sample_linearity = 500;
+    float min_linearity_score = 0.5;
+
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

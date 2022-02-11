@@ -65,9 +65,11 @@ class OdometryICPModule : public tactic::BaseModule {
     size_t first_num_steps = 3;
     size_t initial_max_iter = 100;
     float initial_max_pairing_dist = 2.0;
+    float initial_max_planar_dist = 0.3;
     // refined stage
     size_t refined_max_iter = 10;  // we use a fixed number of iters for now
     float refined_max_pairing_dist = 2.0;
+    float refined_max_planar_dist = 0.1;
     // error calculation
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T

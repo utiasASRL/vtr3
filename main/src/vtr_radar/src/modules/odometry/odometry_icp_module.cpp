@@ -59,8 +59,10 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
   config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
   config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
+  config->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config->initial_max_planar_dist);
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
+  config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
 
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
@@ -96,8 +98,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
     pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
     raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_point_cloud", 5);
+    // clang-format on
     publisher_initialized_ = true;
   }
 
@@ -141,6 +145,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   float max_pair_d = config_->initial_max_pairing_dist;
+  float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   KDTreeSearchParams search_params;
   // clang-format off
@@ -194,14 +199,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
   const auto map_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// Perform initial alignment (no motion distortion for the first iteration)
   const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
   Eigen::Matrix3f C_pm_s_init = (T_pm_s_init.block<3, 3>(0, 0)).cast<float>();
   Eigen::Vector3f r_s_pm_in_pm_init = (T_pm_s_init.block<3, 1>(0, 3)).cast<float>();
   aligned_mat = (C_pm_s_init * query_mat).colwise() + r_s_pm_in_pm_init;
+  aligned_norms_mat = C_pm_s_init * query_norms_mat;
 
   // ICP results
   EdgeTransform T_r_pm_icp;
@@ -345,12 +354,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
         Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
         aligned_mat.block<3, 1>(0, i) = C_pm_s * query_mat.block<3, 1>(0, i) + r_s_pm_in_pm;
+        aligned_norms_mat.block<3, 1>(0, i) = C_pm_s * query_norms_mat.block<3, 1>(0, i);
       }
     } else {
       const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
       Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
       Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
       aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
+      aligned_norms_mat = C_pm_s * query_norms_mat;
     }
 
     // Update all result matrices
@@ -399,6 +410,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
+        max_planar_d = config_->refined_max_planar_dist;
       }
     }
     timer[5]->stop();
@@ -439,6 +451,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Matrix3f C_s_pm = T_s_pm.block<3, 3>(0, 0).cast<float>();
     Eigen::Vector3f r_pm_s_in_s = T_s_pm.block<3, 1>(0, 3).cast<float>();
     aligned_mat = (C_s_pm * aligned_mat).colwise() + r_pm_s_in_s;
+    aligned_norms_mat = C_s_pm * aligned_norms_mat;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.

@@ -20,6 +20,7 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 
+#include "vtr_radar/features/normal.hpp"
 #include "vtr_radar/filters/grid_subsampling.hpp"
 #include "vtr_radar/utils.hpp"
 
@@ -34,6 +35,14 @@ auto PreprocessingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
   config->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config->frame_voxel_size);
+
+  config->window_size = node->declare_parameter<float>(param_prefix + ".window_size", config->window_size);
+  config->azimuth_res = node->declare_parameter<float>(param_prefix + ".azimuth_res", config->azimuth_res);
+  config->rho_scale = node->declare_parameter<float>(param_prefix + ".rho_scale", config->rho_scale);
+  config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
+
+  config->num_sample_linearity = node->declare_parameter<int>(param_prefix + ".num_sample_linearity", config->num_sample_linearity);
+  config->min_linearity_score = node->declare_parameter<float>(param_prefix + ".min_linearity_score", config->min_linearity_score);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -74,6 +83,38 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "radar.preprocessing")
       << "grid subsampled point cloud size: " << filtered_point_cloud->size();
+
+  /// Compute normals
+
+  // Define the polar neighbors radius in the scaled polar coordinates
+  float radius = config_->window_size * config_->azimuth_res;
+
+  // Extracts normal vectors of sampled points
+  auto norm_scores = extractNormal(point_cloud, filtered_point_cloud, radius,
+                                   config_->rho_scale, config_->num_threads);
+
+  /// Filtering based on normal scores (linearity)
+
+  // Remove points with a low normal score
+  auto sorted_norm_scores = norm_scores;
+  std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
+  float min_score = sorted_norm_scores[std::max(
+      0, (int)sorted_norm_scores.size() - config_->num_sample_linearity)];
+  min_score = std::max(config_->min_linearity_score, min_score);
+  if (min_score >= 0) {
+    std::vector<int> indices;
+    indices.reserve(filtered_point_cloud->size());
+    int i = 0;
+    for (const auto &point : *filtered_point_cloud) {
+      if (point.normal_score >= min_score) indices.emplace_back(i);
+      i++;
+    }
+    *filtered_point_cloud =
+        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+  }
+
+  CLOG(DEBUG, "lidar.preprocessing")
+      << "linearity sampled point size: " << filtered_point_cloud->size();
 
   CLOG(DEBUG, "radar.preprocessing")
       << "final subsampled point size: " << filtered_point_cloud->size();

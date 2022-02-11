@@ -128,7 +128,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   if (config_->detector == "cen2018") {
     Cen2018 detector = Cen2018<PointWithInfo>(config_->zq, config_->sigma, config_->minr, config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-            raw_point_cloud);    
+            raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
     KStrongest detector = KStrongest<PointWithInfo>(config_->kstrong, config_->threshold, config_->minr, config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
@@ -143,7 +143,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
       config_->threshold, config_->threshold2, config_->minr, config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                 raw_point_cloud);
-  } 
+  }
   else {
     CLOG(ERROR, "radar.navtech_extractor")
         << "Unknown detector: " << config_->detector;
@@ -152,7 +152,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
 
   // Convert to cartesian format
-  pol2Cart(raw_point_cloud);
+  pol2Cart2D(raw_point_cloud);
 
   CLOG(DEBUG, "radar.navtech_extractor")
       << "Extracted " << raw_point_cloud.size() << " points";
