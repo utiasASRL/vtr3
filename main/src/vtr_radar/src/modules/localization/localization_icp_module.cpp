@@ -43,8 +43,10 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
   config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
   config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
+  config->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config->initial_max_planar_dist);
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
+  config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
 
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
@@ -79,6 +81,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   float max_pair_d = config_->initial_max_pairing_dist;
+  float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   KDTreeSearchParams search_params;
   // clang-format off
@@ -110,14 +113,18 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
   const auto map_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// Perform initial alignment (no motion distortion for the first iteration)
   const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
   Eigen::Matrix3f C_pm_s_init = (T_pm_s_init.block<3, 3>(0, 0)).cast<float>();
   Eigen::Vector3f r_s_pm_in_pm_init = (T_pm_s_init.block<3, 1>(0, 3)).cast<float>();
   aligned_mat = (C_pm_s_init * query_mat).colwise() + r_s_pm_in_pm_init;
+  aligned_norms_mat = C_pm_s_init * query_norms_mat;
 
   // ICP results
   EdgeTransform T_r_v_icp;
@@ -178,8 +185,16 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     for (size_t i = 0; i < sample_inds.size(); i++) {
-      if (nn_dists[i] < max_pair_d2)
-        filtered_sample_inds.push_back(sample_inds[i]);
+      if (nn_dists[i] < max_pair_d2) {
+        // // Check planar distance (only after a few steps for initial alignment)
+        // auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
+        //             point_map[sample_inds[i].second].getVector3fMap();
+        // float planar_dist = abs(
+        //     diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
+        // if (step < first_steps || planar_dist < max_planar_d) {
+          filtered_sample_inds.push_back(sample_inds[i]);
+        // }
+      }
     }
     timer[2]->stop();
 
@@ -192,7 +207,20 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
-      Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+      Eigen::Matrix3d W = [&] {
+        // point to line
+        // if (point_map[ind.second].normal_score > 0) {
+        //   Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+        //   return Eigen::Matrix3d((nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+        // } else {
+        //   Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        //   W(2, 2) = 1e-5;
+        //   return W;
+        // }
+        /// point to point
+        Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        return W;
+      }();
       auto noise_model = std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
@@ -239,6 +267,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
     Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
     aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
+    aligned_norms_mat = C_pm_s * query_norms_mat;
 
     // Update all result matrices
     // const auto T_pm_s = T_pm_s_eval->evaluate().matrix(); // defined above
@@ -286,6 +315,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
+        max_planar_d = config_->refined_max_planar_dist;
       }
     }
     timer[5]->stop();

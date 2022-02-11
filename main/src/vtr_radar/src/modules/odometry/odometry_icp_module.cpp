@@ -277,8 +277,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     for (size_t i = 0; i < sample_inds.size(); i++) {
-      if (nn_dists[i] < max_pair_d2)
-        filtered_sample_inds.push_back(sample_inds[i]);
+      if (nn_dists[i] < max_pair_d2) {
+      //   // Check planar distance (only after a few steps for initial alignment)
+      //   auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
+      //               point_map[sample_inds[i].second].getVector3fMap();
+      //   float planar_dist = abs(
+      //       diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
+      //   if (step < first_steps || planar_dist < max_planar_d) {
+          filtered_sample_inds.push_back(sample_inds[i]);
+        // }
+      }
     }
     timer[2]->stop();
 
@@ -290,7 +298,21 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
-      Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+      // noise model W = n * n.T (information matrix)
+      Eigen::Matrix3d W = [&] {
+        // point to line
+        // if (point_map[ind.second].normal_score > 0) {
+        //   Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+        //   return Eigen::Matrix3d((nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+        // } else {
+        //   Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        //   W(2, 2) = 1e-5;
+        //   return W;
+        // }
+        /// point to point
+        Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        return W;
+      }();
       auto noise_model = std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point

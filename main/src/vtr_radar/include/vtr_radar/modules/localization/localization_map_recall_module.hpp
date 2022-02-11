@@ -36,8 +36,7 @@ class LocalizationMapRecallModule : public tactic::BaseModule {
 
   /** \brief Config parameters */
   struct Config : public tactic::BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     std::string map_version = "multi_exp_point_map";
     bool visualize = false;

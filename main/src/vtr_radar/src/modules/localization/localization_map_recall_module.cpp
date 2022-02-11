@@ -124,6 +124,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     const auto T_v_m = point_map_data.T_vertex_map().matrix();
     auto point_map = point_map_data.point_map();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    auto map_normal_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
     Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
     Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
