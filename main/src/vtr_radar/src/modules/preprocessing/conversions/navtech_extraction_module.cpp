@@ -29,6 +29,9 @@ namespace radar {
 
 using namespace tactic;
 
+/// boreas navtech radar upgrade time
+static constexpr int64_t upgrade_time = 1632182400000000000;
+
 auto NavtechExtractionModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
@@ -82,14 +85,20 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &radar_resolution = *qdata.radar_resolution.emplace();
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
+  /// \note for now we retrieve radar resolution from load_radar function
+#if false
   // Set radar resolution
   radar_resolution = config_->radar_resolution;
+#else
+  // use the first timestamp to determine the resolution
+  radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
+#endif
 
   // Load scan, times, azimuths from scan
   load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
   CLOG(DEBUG, "radar.navtech_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
-      << " cols";
+      << " cols with resolution " << radar_resolution;
 
   // Extract keypoints and times
   // const auto detector = [&]() -> std::unique_ptr<Detector<PointWithInfo>> {
