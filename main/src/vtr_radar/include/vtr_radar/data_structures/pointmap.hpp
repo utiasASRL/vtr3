@@ -203,9 +203,8 @@ class PointMap : public PointScan<PointT> {
     updateCapacity(point_cloud.size());
     // Update the current map
     for (auto& p : point_cloud) {
-      // filter based on icp score, optional
-      /// \todo hardcoded 0.5
-      if (filter && p.icp_score > 0.5) continue;
+      // filter based on static score, optional
+      if (filter && p.static_score < 0.5) continue;  /// \todo hardcoded 0.5
       // Get the corresponding key
       auto k = getKey(p);
       // Update the point count
@@ -278,8 +277,6 @@ class PointMap : public PointScan<PointT> {
     samples_.emplace(k, this->point_cloud_.size());
     // We add new voxel data
     this->point_cloud_.push_back(p);
-    // Initializes point weights (will be updated in dynamic detection)
-    this->point_cloud_.back().icp_score = 1;
   }
 
   /** \brief Update of voxel centroid */
@@ -292,6 +289,7 @@ class PointMap : public PointScan<PointT> {
     // copy point normal information
     std::copy(std::begin(p.data_n), std::end(p.data_n), std::begin(p_.data_n));
     // copy normal score
+    p_.normal_variance = p.normal_variance;
     p_.normal_score = p.normal_score;
   }
 
