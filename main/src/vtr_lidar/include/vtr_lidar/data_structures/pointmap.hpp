@@ -242,6 +242,28 @@ class PointMap : public PointScan<PointT> {
       //
       indices.emplace_back(i);
     }
+    filter(indices);
+  }
+
+  virtual void subtractLifeTime(const float& life_time = 1.0) {
+    std::vector<int> indices;
+    indices.reserve(this->point_cloud_.size());
+    for (size_t i = 0; i < this->point_cloud_.size(); i++) {
+      auto& point = this->point_cloud_.at(i);
+      point.life_time -= life_time;
+      if (point.life_time > 0.0) indices.emplace_back(i);
+    }
+    filter(indices);
+  }
+
+ protected:
+  VoxKey getKey(const PointT& p) const {
+    VoxKey k((int)std::floor(p.x / dl_), (int)std::floor(p.y / dl_),
+             (int)std::floor(p.z / dl_));
+    return k;
+  }
+
+  void filter(const std::vector<int>& indices) {
     // create a copy of the point cloud and apply filter
     const auto point_cloud = this->point_cloud_;
     pcl::copyPointCloud(point_cloud, indices, this->point_cloud_);
@@ -257,13 +279,6 @@ class PointMap : public PointScan<PointT> {
             "never happen."};
       i++;
     }
-  }
-
- protected:
-  VoxKey getKey(const PointT& p) const {
-    VoxKey k((int)std::floor(p.x / dl_), (int)std::floor(p.y / dl_),
-             (int)std::floor(p.z / dl_));
-    return k;
   }
 
  private:
@@ -283,11 +298,14 @@ class PointMap : public PointScan<PointT> {
 
   /** \brief Update of voxel centroid */
   virtual void updateSample(const size_t idx, const PointT& p) {
-    if (p.normal_score <= this->point_cloud_[idx].normal_score) return;
+    auto& p_ = this->point_cloud_[idx];
+
+    // renew life time
+    p_.life_time = std::max(p_.life_time, p.life_time);
 
     // Update normal if we have a clear view of it and closer distance (see
     // computation of score)
-    auto& p_ = this->point_cloud_[idx];
+    if (p.normal_score <= this->point_cloud_[idx].normal_score) return;
     // copy point normal information
     std::copy(std::begin(p.data_n), std::end(p.data_n), std::begin(p_.data_n));
     // copy normal score

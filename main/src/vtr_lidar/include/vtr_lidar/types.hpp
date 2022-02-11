@@ -47,6 +47,7 @@ namespace lidar {
       float dynamic_obs; \
       float total_obs; \
       float static_score; \
+      float life_time; \
     }; \
     __uint128_t bits; \
     struct { \
