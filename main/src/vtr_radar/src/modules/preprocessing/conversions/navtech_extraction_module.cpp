@@ -177,7 +177,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
     // publish the converted point cloud
     auto point_cloud_tmp = raw_point_cloud;
-    const auto ref_time = point_cloud_tmp.at(0).time;
+    const auto ref_time = (double)(*qdata.stamp / 1000) / 1e6;
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
                   [&](PointWithInfo &point) { point.time -= ref_time; });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
