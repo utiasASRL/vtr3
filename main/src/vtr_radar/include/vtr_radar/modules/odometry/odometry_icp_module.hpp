@@ -58,6 +58,9 @@ class OdometryICPModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 6> smoothing_factor_information =
         Eigen::Matrix<double, 6, 6>::Zero();
 
+    // trajectory smoothing hacks
+    double velocity_damping_factor = 1.0;
+
     /// ICP parameters
     // number of threads for nearest neighbor search
     int num_threads = 4;
