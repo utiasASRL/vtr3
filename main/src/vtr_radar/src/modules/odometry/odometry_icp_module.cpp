@@ -65,6 +65,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
   config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
+  config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
 
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
@@ -309,7 +310,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     /// Point to point optimization
     timer[3]->start();
     // shared loss function
-    auto loss_func = std::make_shared<HuberLossFunc>(1.0);
+    auto loss_func = std::make_shared<HuberLossFunc>(config_->huber_delta);
     // cost terms and noise model
     auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
