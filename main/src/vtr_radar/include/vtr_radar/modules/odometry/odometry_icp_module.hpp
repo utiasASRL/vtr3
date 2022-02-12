@@ -50,13 +50,16 @@ class OdometryICPModule : public tactic::BaseModule {
     bool trajectory_smoothing = false;
     bool use_constant_acc = true;
     double lin_acc_std_dev_x = 1.0;
-    double lin_acc_std_dev_y = 0.01;
-    double lin_acc_std_dev_z = 0.01;
-    double ang_acc_std_dev_x = 0.01;
-    double ang_acc_std_dev_y = 0.01;
-    double ang_acc_std_dev_z = 1.0;
+    double lin_acc_std_dev_y = 0.0001;
+    double lin_acc_std_dev_z = 0.0001;
+    double ang_acc_std_dev_x = 0.0001;
+    double ang_acc_std_dev_y = 0.0001;
+    double ang_acc_std_dev_z = 0.01;
     Eigen::Matrix<double, 6, 6> smoothing_factor_information =
         Eigen::Matrix<double, 6, 6>::Zero();
+
+    // trajectory smoothing hacks
+    double velocity_damping_factor = 1.0;
 
     /// ICP parameters
     // number of threads for nearest neighbor search
@@ -74,6 +77,8 @@ class OdometryICPModule : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
+    // loss function
+    double huber_delta = 1.0;
 
     bool visualize = false;
 

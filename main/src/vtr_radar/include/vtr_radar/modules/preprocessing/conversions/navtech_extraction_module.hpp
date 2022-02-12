@@ -40,16 +40,42 @@ class NavtechExtractionModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     std::string detector = "kstrongest";
-    int kstrong = 10;
     double minr = 2;
     double maxr = 100;
-    double zq = 3;
-    int sigma = 17;
-    int width = 40;
-    int guard = 2;
-    int kstat = 20;
-    double threshold = 1.0;
-    double threshold2 = 1.1;
+
+    // kstrong
+    struct {
+      int kstrong = 10;
+      double threshold = 0.5;
+    } kstrong;
+    // cen2018
+    struct {
+      double zq = 3;
+      int sigma = 17;
+    } cen2018;
+    // cacfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+      double threshold2 = 0.5;
+    } cacfar;
+    // oscfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      int kstat = 20;
+      double threshold = 0.5;
+      double threshold2 = 0.5;
+    } oscfar;
+    // modified_cacfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+      double threshold2 = 0.5;
+    } modified_cacfar;
+
     double radar_resolution = 0.0438;
 
     bool visualize = false;

@@ -38,16 +38,31 @@ auto NavtechExtractionModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->detector = node->declare_parameter<std::string>(param_prefix + ".detector", config->detector);
-  config->kstrong = node->declare_parameter<int>(param_prefix + ".kstrong", config->kstrong);
   config->minr = node->declare_parameter<double>(param_prefix + ".minr", config->minr);
   config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
-  config->zq = node->declare_parameter<double>(param_prefix + ".zq", config->zq);
-  config->sigma = node->declare_parameter<int>(param_prefix + ".sigma", config->sigma);
-  config->width = node->declare_parameter<int>(param_prefix + ".width", config->width);
-  config->guard = node->declare_parameter<int>(param_prefix + ".guard", config->guard);
-  config->kstat = node->declare_parameter<int>(param_prefix + ".kstat", config->kstat);
-  config->threshold = node->declare_parameter<double>(param_prefix + ".threshold", config->threshold);
-  config->threshold2 = node->declare_parameter<double>(param_prefix + ".threshold2", config->threshold2);
+
+  config->kstrong.kstrong = node->declare_parameter<int>(param_prefix + ".kstrong.kstrong", config->kstrong.kstrong);
+  config->kstrong.threshold = node->declare_parameter<double>(param_prefix + ".kstrong.threshold", config->kstrong.threshold);
+
+  config->cen2018.zq = node->declare_parameter<double>(param_prefix + ".cen2018.zq", config->cen2018.zq);
+  config->cen2018.sigma = node->declare_parameter<int>(param_prefix + ".cen2018.sigma", config->cen2018.sigma);
+
+  config->cacfar.width = node->declare_parameter<int>(param_prefix + ".cacfar.width", config->cacfar.width);
+  config->cacfar.guard = node->declare_parameter<int>(param_prefix + ".cacfar.guard", config->cacfar.guard);
+  config->cacfar.threshold = node->declare_parameter<double>(param_prefix + ".cacfar.threshold", config->cacfar.threshold);
+  config->cacfar.threshold2 = node->declare_parameter<double>(param_prefix + ".cacfar.threshold2", config->cacfar.threshold2);
+
+  config->oscfar.width = node->declare_parameter<int>(param_prefix + ".oscfar.width", config->oscfar.width);
+  config->oscfar.guard = node->declare_parameter<int>(param_prefix + ".oscfar.guard", config->oscfar.guard);
+  config->oscfar.kstat = node->declare_parameter<int>(param_prefix + ".oscfar.kstat", config->oscfar.kstat);
+  config->oscfar.threshold = node->declare_parameter<double>(param_prefix + ".oscfar.threshold", config->oscfar.threshold);
+  config->oscfar.threshold2 = node->declare_parameter<double>(param_prefix + ".oscfar.threshold2", config->oscfar.threshold2);
+
+  config->modified_cacfar.width = node->declare_parameter<int>(param_prefix + ".modified_cacfar.width", config->modified_cacfar.width);
+  config->modified_cacfar.guard = node->declare_parameter<int>(param_prefix + ".modified_cacfar.guard", config->modified_cacfar.guard);
+  config->modified_cacfar.threshold = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold", config->modified_cacfar.threshold);
+  config->modified_cacfar.threshold2 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold2", config->modified_cacfar.threshold2);
+
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -101,55 +116,78 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
       << " cols with resolution " << radar_resolution;
 
   // Extract keypoints and times
-  // const auto detector = [&]() -> std::unique_ptr<Detector<PointWithInfo>> {
-  //   if (config_->detector == "cen2018")
-  //     return std::make_unique<Cen2018<PointWithInfo>>(
-  //         config_->zq, config_->sigma, config_->minr, config_->maxr);
-  //   else if (config_->detector == "kstrongest")
-  //     return std::make_unique<KStrongest<PointWithInfo>>(
-  //         config_->kstrong, config_->threshold, config_->minr, config_->maxr);
-  //   else if (config_->detector == "cacfar")
-  //     return std::make_unique<KStrongest<PointWithInfo>>(
-  //         config_->width, config_->guard, config_->threshold, config_->threshold2,
-  //         config_->minr, config_->maxr);
-  //   else if (config_->detector == "oscfar")
-  //     return std::make_unique<KStrongest<PointWithInfo>>(
-  //         config_->width, config_->guard, config_->kstat,
-  //         config_->threshold, config_->threshold2, config_->minr, config_->maxr);
-  //   else {
-  //     CLOG(ERROR, "radar.navtech_extractor")
-  //         << "Unknown detector: " << config_->detector;
-  //     throw std::runtime_error("Unknown detector: " + config_->detector);
-  //   }
-  // }();
-  // detector->run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-  //               raw_point_cloud);
-
+#if false
+  const auto detector = [&]() -> std::unique_ptr<Detector<PointWithInfo>> {
+    if (config_->detector == "cen2018")
+      return std::make_unique<Cen2018<PointWithInfo>>(
+          config_->cen2018.zq, config_->cen2018.sigma, config_->minr,
+          config_->maxr);
+    else if (config_->detector == "kstrongest")
+      return std::make_unique<KStrongest<PointWithInfo>>(
+          config_->kstrong.kstrong, config_->kstrong.threshold, config_->minr,
+          config_->maxr);
+    else if (config_->detector == "cacfar")
+      return std::make_unique<CACFAR<PointWithInfo>>(
+          config_->cacfar.width, config_->cacfar.guard,
+          config_->cacfar.threshold, config_->cacfar.threshold2,
+          config_->cacfar.minr, config_->cacfar.maxr);
+    else if (config_->detector == "oscfar")
+      return std::make_unique<OSCFAR<PointWithInfo>>(
+          config_->oscfar.width, config_->oscfar.guard, config_->oscfar.kstat,
+          config_->oscfar.threshold, config_->oscfar.threshold2,
+          config_->oscfar.minr, config_->oscfar.maxr);
+    else if (config_->detector == "modified_cacfar")
+      return std::make_unique<ModifiedCACFAR<PointWithInfo>>(
+          config_->modified_cacfar.width, config_->modified_cacfar.guard,
+          config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
+          config_->modified_cacfar.minr, config_->modified_cacfar.maxr);
+    else {
+      CLOG(ERROR, "radar.navtech_extractor")
+          << "Unknown detector: " << config_->detector;
+      throw std::runtime_error("Unknown detector: " + config_->detector);
+    }
+  }();
+  detector->run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                raw_point_cloud);
+#else
   if (config_->detector == "cen2018") {
-    Cen2018 detector = Cen2018<PointWithInfo>(config_->zq, config_->sigma, config_->minr, config_->maxr);
+    Cen2018 detector =
+        Cen2018<PointWithInfo>(config_->cen2018.zq, config_->cen2018.sigma,
+                               config_->minr, config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-            raw_point_cloud);
+                 raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
-    KStrongest detector = KStrongest<PointWithInfo>(config_->kstrong, config_->threshold, config_->minr, config_->maxr);
+    KStrongest detector = KStrongest<PointWithInfo>(
+        config_->kstrong.kstrong, config_->kstrong.threshold, config_->minr,
+        config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                raw_point_cloud);
+                 raw_point_cloud);
   } else if (config_->detector == "cacfar") {
-    CACFAR detector = CACFAR<PointWithInfo>(config_->width, config_->guard, config_->threshold, config_->threshold2,
-          config_->minr, config_->maxr);
+    CACFAR detector = CACFAR<PointWithInfo>(
+        config_->cacfar.width, config_->cacfar.guard, config_->cacfar.threshold,
+        config_->cacfar.threshold2, config_->minr, config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                raw_point_cloud);
+                 raw_point_cloud);
   } else if (config_->detector == "oscfar") {
-    OSCFAR detector = OSCFAR<PointWithInfo>(config_->width, config_->guard, config_->kstat,
-      config_->threshold, config_->threshold2, config_->minr, config_->maxr);
+    OSCFAR detector = OSCFAR<PointWithInfo>(
+        config_->oscfar.width, config_->oscfar.guard, config_->oscfar.kstat,
+        config_->oscfar.threshold, config_->oscfar.threshold2, config_->minr,
+        config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                raw_point_cloud);
-  }
-  else {
+                 raw_point_cloud);
+  } else if (config_->detector == "modified_cacfar") {
+    ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
+        config_->modified_cacfar.width, config_->modified_cacfar.guard,
+        config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
+        config_->minr, config_->maxr);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else {
     CLOG(ERROR, "radar.navtech_extractor")
         << "Unknown detector: " << config_->detector;
     throw std::runtime_error("Unknown detector: " + config_->detector);
   }
-
+#endif
 
   // Convert to cartesian format
   pol2Cart2D(raw_point_cloud);
@@ -177,7 +215,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
     // publish the converted point cloud
     auto point_cloud_tmp = raw_point_cloud;
-    const auto ref_time = point_cloud_tmp.at(0).time;
+    const auto ref_time = (double)(*qdata.stamp / 1000) / 1e6;
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
                   [&](PointWithInfo &point) { point.time -= ref_time; });
     auto pc2_msg = std::make_shared<PointCloudMsg>();

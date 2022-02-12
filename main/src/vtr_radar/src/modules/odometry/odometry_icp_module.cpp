@@ -50,6 +50,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config->ang_acc_std_dev_y);
   config->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config->ang_acc_std_dev_z);
 
+  config->velocity_damping_factor = node->declare_parameter<double>(param_prefix + ".velocity_damping_factor", config->velocity_damping_factor);
+
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
@@ -63,6 +65,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
   config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
+  config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
 
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
@@ -152,7 +155,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create and add the T_robot_map variable, here m = vertex frame.
   auto T_r_pm_odo_extp = T_r_pm_odo;
   if (config_->trajectory_smoothing) {
-    Eigen::Matrix<double,6,1> xi_pm_r_in_r_odo(Time(query_stamp - timestamp_odo).seconds() * w_pm_r_in_r_odo);
+    Eigen::Matrix<double,6,1> xi_pm_r_in_r_odo(config_->velocity_damping_factor * Time(query_stamp - timestamp_odo).seconds() * w_pm_r_in_r_odo);
     T_r_pm_odo_extp = tactic::EdgeTransform(xi_pm_r_in_r_odo) * T_r_pm_odo;
   }
   const auto T_r_pm_var = std::make_shared<TransformStateVar>(T_r_pm_odo_extp);
@@ -205,12 +208,26 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-  /// Perform initial alignment (no motion distortion for the first iteration)
-  const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
-  Eigen::Matrix3f C_pm_s_init = (T_pm_s_init.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_s_pm_in_pm_init = (T_pm_s_init.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_pm_s_init * query_mat).colwise() + r_s_pm_in_pm_init;
-  aligned_norms_mat = C_pm_s_init * query_norms_mat;
+  /// Perform initial alignment
+  if (config_->trajectory_smoothing) {
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (unsigned i = 0; i < query_points.size(); i++) {
+      const auto &qry_time = query_points[i].time;
+      const auto T_r_pm_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
+      const auto T_pm_s_intp_eval = inverse(compose(T_s_r_eval, T_r_pm_intp_eval));
+      const auto T_pm_s = T_pm_s_intp_eval->evaluate().matrix();
+      Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
+      Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
+      aligned_mat.block<3, 1>(0, i) = C_pm_s * query_mat.block<3, 1>(0, i) + r_s_pm_in_pm;
+      aligned_norms_mat.block<3, 1>(0, i) = C_pm_s * query_norms_mat.block<3, 1>(0, i);
+    }
+  } else {
+    const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
+    Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
+    aligned_norms_mat = C_pm_s * query_norms_mat;
+  }
 
   // ICP results
   EdgeTransform T_r_pm_icp;
@@ -293,7 +310,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     /// Point to point optimization
     timer[3]->start();
     // shared loss function
-    auto loss_func = std::make_shared<L2LossFunc>();
+    auto loss_func = std::make_shared<HuberLossFunc>(config_->huber_delta);
     // cost terms and noise model
     auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -443,10 +460,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      CLOG(DEBUG, "radar.odometry_icp") << "Total number of steps: " << step << ".";
       // result
       T_r_pm_icp = EdgeTransform(T_r_pm_var->getValue(), solver.queryCovariance(T_r_pm_var->getKey()));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      CLOG(DEBUG, "radar.odometry_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
         CLOG(WARNING, "radar.odometry_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
