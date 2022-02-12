@@ -82,8 +82,8 @@ template <class PointT>
 class CACFAR : public Detector<PointT> {
  public:
   CACFAR() = default;
-  CACFAR(int width, int guard, double threshold, 
-         double threshold2, double minr, double maxr)
+  CACFAR(int width, int guard, double threshold, double threshold2, double minr,
+         double maxr)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
@@ -109,8 +109,8 @@ template <class PointT>
 class OSCFAR : public Detector<PointT> {
  public:
   OSCFAR() = default;
-  OSCFAR(int width, int guard, int kstat, double threshold,
-         double threshold2, double minr, double maxr)
+  OSCFAR(int width, int guard, int kstat, double threshold, double threshold2,
+         double minr, double maxr)
       : width_(width),
         guard_(guard),
         kstat_(kstat),
@@ -130,6 +130,33 @@ class OSCFAR : public Detector<PointT> {
   int kstat_ = 20;
   double threshold_ = 1.25;
   double threshold2_ = 1.2;
+  double minr_ = 2.0;
+  double maxr_ = 100.0;
+};
+
+template <class PointT>
+class ModifiedCACFAR : public Detector<PointT> {
+ public:
+  ModifiedCACFAR() = default;
+  ModifiedCACFAR(int width, int guard, double threshold, double threshold2,
+                 double minr, double maxr)
+      : width_(width),
+        guard_(guard),
+        threshold_(threshold),
+        threshold2_(threshold2),
+        minr_(minr),
+        maxr_(maxr) {}
+
+  void run(const cv::Mat &raw_scan, const float &res,
+           const std::vector<double> &azimuth_times,
+           const std::vector<double> &azimuth_angles,
+           pcl::PointCloud<PointT> &pointcloud) override;
+
+ private:
+  int width_ = 41;  // window = width + 2 * guard
+  int guard_ = 2;
+  double threshold_ = 3.0;
+  double threshold2_ = 1.1;
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };
