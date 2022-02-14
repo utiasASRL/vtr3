@@ -133,7 +133,8 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Output
   const auto &prep = *qdata.preprocessed_point_cloud.emplace();
-  *qdata.prev_prep_pc.emplace() = prep;  // copy old preprocessed_point_cloud to prev_prep_pc
+  auto prev = pcl::PointCloud<PointWithInfo>(prep);
+  qdata.prev_prep_pc = std::make_shared<pcl::PointCloud<PointWithInfo>>(prev);
   qdata.preprocessed_point_cloud = filtered_point_cloud;
 }
 

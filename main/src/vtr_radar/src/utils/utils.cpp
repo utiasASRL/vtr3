@@ -49,9 +49,38 @@ void load_radar(const cv::Mat &raw_data, std::vector<double> &timestamps,
   }
 }
 
+static int get_closest(const double &x, const std::vector<double> &v) {
+  const auto low = std::lower_bound(v.begin(), v.end(), x);
+  int idx = low - v.begin();
+  if (idx == 0) return idx;
+  if (idx >= v.size()) idx = v.size() - 1;
+  double d = std::fabs(x - v[idx]);
+  if (std::fabs(x - v[idx - 1]) < d) return idx - 1;
+  return idx;
+}
+
+static double get_azimuth_index(const std::vector<double> &azimuths,
+  const double azimuth) {
+  double closest = 0;
+  const int M = azimuths.size();
+  closest = get_closest(azimuth, azimuths);
+  if (azimuths[closest] < azimuth) {
+    double delta = 0;
+    if (closest < M - 1)
+        delta = (azimuth - azimuths[closest]) / (azimuths[closest + 1] - azimuths[closest]);
+    closest += delta;
+  } else if (azimuths[closest] > azimuth){
+    double delta = 0;
+    if (closest > 0)
+        delta = (azimuths[closest] - azimuth) / (azimuths[closest] - azimuths[closest - 1]);
+    closest -= delta;
+  }
+  return closest;
+}
+
 void radar_polar_to_cartesian(const std::vector<double> &azimuths, const cv::Mat &fft_data, 
   const float radar_resolution, const float cart_resolution, const int cart_pixel_width, 
-  const bool interpolate_crossover, cv::Mat &cart_img, int output_type = CV_32F) {
+  const bool interpolate_crossover, cv::Mat &cart_img, int output_type) {
   float cart_min_range = (cart_pixel_width / 2) * cart_resolution;
   if (cart_pixel_width % 2 == 0)
     cart_min_range = (cart_pixel_width / 2 - 0.5) * cart_resolution;
@@ -74,7 +103,7 @@ void radar_polar_to_cartesian(const std::vector<double> &azimuths, const cv::Mat
   cv::Mat range = cv::Mat::zeros(cart_pixel_width, cart_pixel_width, CV_32F);
   cv::Mat angle = cv::Mat::zeros(cart_pixel_width, cart_pixel_width, CV_32F);
 
-  double azimuth_step = azimuths[1] - azimuths[0];
+  // double azimuth_step = azimuths[1] - azimuths[0];
   #pragma omp parallel for collapse(2)
   for (int i = 0; i < range.rows; ++i) {
     for (int j = 0; j < range.cols; ++j) {
@@ -87,11 +116,11 @@ void radar_polar_to_cartesian(const std::vector<double> &azimuths, const cv::Mat
       float theta = atan2f(y, x);
       if (theta < 0)
         theta += 2 * M_PI;
-      if (navtech_version == CIR204) {
-        angle.at<float>(i, j) = get_azimuth_index(azimuths, theta);
-      } else {
-        angle.at<float>(i, j) = (theta - azimuths[0]) / azimuth_step;
-      }
+      // if (navtech_version == CIR204) {
+      angle.at<float>(i, j) = get_azimuth_index(azimuths, theta);
+      // } else {
+        // angle.at<float>(i, j) = (theta - azimuths[0]) / azimuth_step;
+      // }
     }
   }
   if (interpolate_crossover) {

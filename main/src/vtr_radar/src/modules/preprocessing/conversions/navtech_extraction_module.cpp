@@ -98,7 +98,6 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &fft_scan = *qdata.fft_scan.emplace();
   auto &cartesian = *qdata.cartesian.emplace();
   auto &cartesian_prev = *qdata.cartesian_prev.emplace();
-  auto &cart_initialized = *qdata.cart_initialized.emplace();
   auto &azimuth_times = *qdata.azimuth_times.emplace();
   auto &azimuth_angles = *qdata.azimuth_angles.emplace();
   auto &radar_resolution = *qdata.radar_resolution.emplace();

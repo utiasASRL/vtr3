@@ -88,10 +88,6 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
   pcl::PointCloud<PointWithInfo> pc2bckp;
   if (!config_->filter_pc)
     pc2bckp = *qdata.prev_prep_pc.emplace();
-  // TODO: create a config variable to choose whether or not
-  // to overwrite / downsample the current pointcloud here
-  // TODO: create a config variable to decide whether or not to
-  // initialize ICP with the motion estimate obtained here
 
   // Input
   auto &pc1 = *qdata.prev_prep_pc.emplace();
@@ -183,8 +179,9 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
       << "final subsampled point size: " << pc2.size();
 
   if (config_->init_icp) {
-    // qdata.T_r_pm_odo.emplace(EdgeTransform(true));
-    // qdata.w_pm_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    *qdata.w_m_r_in_r_odo.emplace() = w_2_1;
+    double delta_t = t0 - t0_prev;
+    *qdata.T_r_pm_odo.emplace() = lgmath::se3::vec2tran(delta_t * w_2_1);
   }
 
   if (config_->visualize) {
