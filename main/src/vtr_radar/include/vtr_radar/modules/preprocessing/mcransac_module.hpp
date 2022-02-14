@@ -13,71 +13,43 @@
 // limitations under the License.
 
 /**
- * \file navtech_extraction_module.hpp
+ * \file mcransac_module.hpp
  * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
- * \brief NavtechExtractionModule class definition
  */
 #pragma once
+
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "vtr_radar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
+#include "vtr_radar/mcransac/mcransac.hpp"
 
 namespace vtr {
 namespace radar {
 
-/** \brief Extracts keypoints from Navtech radar scans. */
-class NavtechExtractionModule : public tactic::BaseModule {
+/** \brief Preprocess raw pointcloud points and compute normals */
+class MCRANSACModule : public tactic::BaseModule {
  public:
-  using ImageMsg = sensor_msgs::msg::Image;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.navtech_extractor";
+  static constexpr auto static_name = "radar.mcransac";
 
   /** \brief Config parameters. */
-  struct Config : public BaseModule::Config {
+  struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    std::string detector = "kstrongest";
-    double minr = 2;
-    double maxr = 100;
+    // RANSAC parameters
+    float tolerance = 0.1225;
+    float inlier_ratio = 0.9;
+    float iterations = 100;
+    float gn_iterations = 10;
+    float epsilon_converge = 0.0001;
+    // ORB descriptor / matching parameters
+    int patch_size = 21;
+    float nndr = 0.8;
 
-    // kstrong
-    struct {
-      int kstrong = 10;
-      double threshold = 0.5;
-    } kstrong;
-    // cen2018
-    struct {
-      double zq = 3;
-      int sigma = 17;
-    } cen2018;
-    // cacfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-    } cacfar;
-    // oscfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      int kstat = 20;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-    } oscfar;
-    // modified_cacfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-    } modified_cacfar;
-
-    double radar_resolution = 0.0438;
-    double cart_resolution = 0.25;
 
     bool visualize = false;
 
@@ -85,7 +57,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  NavtechExtractionModule(
+  MCRANSACModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -100,11 +72,9 @@ class NavtechExtractionModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<ImageMsg>::SharedPtr scan_pub_;
-  rclcpp::Publisher<ImageMsg>::SharedPtr fft_scan_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(NavtechExtractionModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(MCRANSACModule);
 };
 
 }  // namespace radar

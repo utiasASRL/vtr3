@@ -66,6 +66,7 @@ auto NavtechExtractionModule::Config::fromROS(
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
+  config->cart_resolution = node->declare_parameter<bool>(param_prefix + ".cart_resolution", config->cart_resolution);
   // clang-format on
   return config;
 }
@@ -95,9 +96,13 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Output
   auto &fft_scan = *qdata.fft_scan.emplace();
+  auto &cartesian = *qdata.cartesian.emplace();
+  auto &cartesian_prev = *qdata.cartesian_prev.emplace();
+  auto &cart_initialized = *qdata.cart_initialized.emplace();
   auto &azimuth_times = *qdata.azimuth_times.emplace();
   auto &azimuth_angles = *qdata.azimuth_angles.emplace();
   auto &radar_resolution = *qdata.radar_resolution.emplace();
+  auto &cart_resolution = *qdata.radar_resolution.emplace();
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
   /// \note for now we retrieve radar resolution from load_radar function
@@ -109,8 +114,13 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
 #endif
 
+  cart_resolution = config_->cart_resolution;
+
   // Load scan, times, azimuths from scan
+  int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
   load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
+  radar_polar_to_cartesian(azimuth_angles, fft_scan, radar_resolution,
+    cart_resolution, cart_pixel_width, true, cartesian);
   CLOG(DEBUG, "radar.navtech_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;

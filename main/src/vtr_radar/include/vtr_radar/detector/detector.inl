@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file detector.cpp
+ * \file detector.inl
  * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  * \brief Keypoint extraction methods for Navtech radar
  */
