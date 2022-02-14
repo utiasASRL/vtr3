@@ -23,6 +23,35 @@
 namespace vtr {
 namespace radar {
 
+// Converts points in radar frame to 2d keypoint locations in BEV (u,v) wrt TL
+// Filters out points that lie outside the square BEV image.
+void convert_to_bev(pcl::PointCloud<PointWithInfo> &pc,
+                    const float cart_resolution,
+                    const int cart_pixel_width,
+                    const int patch_size,
+                    std::vector<cv::KeyPoint> &kp) {
+  float cart_min_range = (cart_pixel_width / 2) * cart_resolution;
+  if (cart_pixel_width % 2 == 0)
+      cart_min_range = (cart_pixel_width / 2 - 0.5) * cart_resolution;
+  kp.clear();
+  kp.reserve(pc.size());
+  std::vector<int> inliers;
+  inliers.reserve(pc.size());
+  const Eigen::Matrix3d C_bev_radar = T_bev_radar.block<3, 3>(0, 0).cast<double>();
+  const Eigen::Vector3d r_radar_bev_in_bev = T_bev_radar.block<3, 1>(0, 3).cast<double>();
+  for (int i = 0; i < pc.size(); ++i) {
+    const auto p = pc.at(i).getVector3fMap().cast<double>();
+    const double u = (cart_min_range + p(1)) / cart_resolution;
+    const double v = (cart_min_range - p(0)) / cart_resolution;
+    if (0 < u - patch_size && u + patch_size < cart_pixel_width &&
+      0 < v - patch_size && v + patch_size < cart_pixel_width) {
+      kp.emplace_back(cv::KeyPoint(u, v));
+      inliers.push_back(i);
+    }
+  }
+  pc = pcl::PointCloud<PointWithInfo>(pc, inliers);
+}
+
 using namespace tactic;
 
 auto MCRANSACModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
@@ -35,6 +64,10 @@ auto MCRANSACModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->iterations = node->declare_parameter<float>(param_prefix + ".iterations", config->iterations);
   config->gn_iterations = node->declare_parameter<int>(param_prefix + ".gn_iterations", config->gn_iterations);
   config->epsilon_converge = node->declare_parameter<int>(param_prefix + ".epsilon_converge", config->epsilon_converge);
+  config->patch_size = node->declare_parameter<int>(param_prefix + ".patch_size", config->patch_size);
+  config->nndr = node->declare_parameter<int>(param_prefix + ".nndr", config->nndr);
+  config->filter_pc = node->declare_parameter<bool>(param_prefix + ".filter_pc", config->filter_pc);
+  config->init_icp = node->declare_parameter<bool>(param_prefix + ".init_icp", config->init_icp);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -48,32 +81,54 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("filtered_point_cloud", 5);
-    // clang-format on
+    // clang-format onnv
     publisher_initialized_ = true;
   }
 
-  // Get input point cloud
-  auto point_cloud = qdata.preprocessed_point_cloud.ptr();
-  const auto &cartesian = *qdata.cartesian.emplace();
+  pcl::PointCloud<PointWithInfo> pc2bckp;
+  if (!config_->filter_pc)
+    pc2bckp = *qdata.prev_prep_pc.emplace();
+  // TODO: create a config variable to choose whether or not
+  // to overwrite / downsample the current pointcloud here
+  // TODO: create a config variable to decide whether or not to
+  // initialize ICP with the motion estimate obtained here
 
-  if (point_cloud->size() == 0) {
+  // Input
+  auto &pc1 = *qdata.prev_prep_pc.emplace();
+  const auto &cartesian = *qdata.cartesian.emplace();
+  const int cart_pixel_width = cartesian.cols;
+  const auto &cartesian_prev = *qdata.cartesian_prev.emplace();
+  const auto &cart_resolution = *qdata.cart_resolution.emplace();
+  // Output
+  auto &pc2 = *qdata.preprocessed_point_cloud.emplace();
+
+  // this module requires a previous frame to run, skip for frame 0
+  if (cartesian.rows != cartesian_prev.rows || pc1.size() == 0)
+    return;
+
+  if (pc2.size() == 0) {
     std::string err{"Empty point cloud."};
     CLOG(ERROR, "radar.mcransac") << err;
     throw std::runtime_error{err};
   }
 
   CLOG(DEBUG, "radar.mcransac")
-      << "raw point cloud size: " << point_cloud->size();
+      << "raw point cloud size: " << pc2.size();
 
   // Compute (ORB | RSD) descriptors and then match them here.
-  // TODO: need to cache the temporal previous cartesian radar image
   // and pointcloud (post filtering1)
   cv::Ptr<cv::ORB> detector = cv::ORB::create();
   detector->setPatchSize(patch_size);
   detector->setEdgeThreshold(patch_size);
   cv::Mat desc1, desc2;
-  // TODO: convert pointclouds to KeyPoints for OpenCV (shallow copy if possible)
+  // Convert pointclouds to KeyPoints for OpenCV
   std::vector<cv::KeyPoint> kp1, kp2;
+  convert_to_bev(pc1, cart_resolution, cart_pixel_width, config_->patch_size, kp1);
+  convert_to_bev(pc2, cart_resolution, cart_pixel_width, config_->patch_size, kp2);
+
+  CLOG(DEBUG, "radar.mcransac")
+      << "BEV cloud size: " << pc2.size();
+
   detector->compute(cartesian_prev, kp1, desc1);
   detector->compute(cartesian, kp2, desc2);
   // Match keypoint descriptors
@@ -81,70 +136,56 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
   matcher->knnMatch(desc1, desc2, knn_matches, 2);
   // Filter matches using nearest neighbor distance ratio (Lowe, Szeliski)
   std::vector<cv::DMatch> good_matches;
-  for (uint j = 0; j < knn_matches.size(); ++j) {
+  good_matches.reserve(knn_matches.size());
+  for (size_t j = 0; j < knn_matches.size(); ++j) {
       if (!knn_matches[j].size())
           continue;
       if (knn_matches[j][0].distance < nndr * knn_matches[j][1].distance) {
-          good_matches.push_back(knn_matches[j][0]);
+          good_matches.emplace_back(knn_matches[j][0]);
       }
   }
+  std::vector<int> indices1(good_matches.size());
+  std::vector<int> indices2(good_matches.size());
+  for (size_t j = 0; j < good_matches.size(); ++j) {
+    indices1[j] = good_matches[j].queryIdx;
+    indices2[j] = good_matches[j].trainIdx;
+  }
+  // Downsample and re-order points based on matching and NNDR
+  pc1 = pcl::PointCloud<PointWithInfo>(pc1, indices1);
+  pc2 = pcl::PointCloud<PointWithInfo>(pc2, indices2);
 
-  // use the correspondences from matching and remove
-  // matches which fail NNDR test
-  // filter and rearrange pointclouds based on matching
-  // use the filtered, aligned pointclouds in mcransac
+  CLOG(DEBUG, "radar.mcransac")
+      << "matching + NNDR point size: " << pc2.size();
+
   // overwrite processed_point_cloud with the inliers of mcransac
   // initialize ICP with motion computed by mcransac
-  MCRansac mcransac(threshold, inlier_ratio, iterations, max_gn_iterations, epsilon_converge, 2);
+  MCRansac mcransac(config_->tolerance, config_->inlier_ratio,
+    config_->iterations, config_->max_gn_iterations,
+    config_->epsilon_converge, 2);
   Eigen::VectorXd w_2_1;  // T_1_2 = vec2tran(delta_t * w_2_1)
   std::vector<int> best_inliers;
   mcransac.run(pc1, pc2, w_2_1, best_inliers);
 
-  auto filtered_point_cloud =
-      std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
-
-  /// Grid subsampling
-
-  // Get subsampling of the frame in carthesian coordinates
-  gridSubsamplingCentersV2(*filtered_point_cloud, config_->frame_voxel_size);
+  /// Output (overwrite pointcloud with inliers of MC-RANSAC)
+  
+  // initialize ICP variables with MC-RANSAC motion estimate
 
   CLOG(DEBUG, "radar.mcransac")
-      << "grid subsampled point cloud size: " << filtered_point_cloud->size();
+      << "MC-RANSAC inlier point size: " << best_inliers.size();
 
-  /// Compute normals
-
-  // Define the polar neighbors radius in the scaled polar coordinates
-  float radius = config_->window_size * config_->azimuth_res;
-
-  // Extracts normal vectors of sampled points
-  auto norm_scores = extractNormal(point_cloud, filtered_point_cloud, radius,
-                                   config_->rho_scale, config_->num_threads);
-
-  /// Filtering based on normal scores (linearity)
-
-  // Remove points with a low normal score
-  auto sorted_norm_scores = norm_scores;
-  std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
-  float min_score = sorted_norm_scores[std::max(
-      0, (int)sorted_norm_scores.size() - config_->num_sample_linearity)];
-  min_score = std::max(config_->min_linearity_score, min_score);
-  if (min_score >= 0) {
-    std::vector<int> indices;
-    indices.reserve(filtered_point_cloud->size());
-    int i = 0;
-    for (const auto &point : *filtered_point_cloud) {
-      if (point.normal_score >= min_score) indices.emplace_back(i);
-      i++;
-    }
-    *filtered_point_cloud =
-        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+  if (!config_->filter_pc) {
+    pc2 = pc2bckp;
+  } else {
+    pc2 = pcl::PointCloud<PointWithInfo>(pc2, best_inliers);  
   }
 
-  CLOG(DEBUG, "lidar.mcransac")
-      << "linearity sampled point size: " << filtered_point_cloud->size();
-
   CLOG(DEBUG, "radar.mcransac")
-      << "final subsampled point size: " << filtered_point_cloud->size();
+      << "final subsampled point size: " << pc2.size();
+
+  if (config_->init_icp) {
+    // qdata.T_r_pm_odo.emplace(EdgeTransform(true));
+    // qdata.w_pm_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+  }
 
   if (config_->visualize) {
     auto point_cloud_tmp = *filtered_point_cloud;
@@ -157,9 +198,6 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
     pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
     filtered_pub_->publish(*pc2_msg);    
   }
-
-  /// Output
-  qdata.preprocessed_point_cloud = filtered_point_cloud;
 }
 
 }  // namespace radar

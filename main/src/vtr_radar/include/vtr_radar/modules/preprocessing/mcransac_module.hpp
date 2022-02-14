@@ -49,7 +49,9 @@ class MCRANSACModule : public tactic::BaseModule {
     // ORB descriptor / matching parameters
     int patch_size = 21;
     float nndr = 0.8;
-
+    // overwrite, ICP init
+    bool filter_pc = true;
+    bool init_icp = true;
 
     bool visualize = false;
 

@@ -102,8 +102,10 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &azimuth_times = *qdata.azimuth_times.emplace();
   auto &azimuth_angles = *qdata.azimuth_angles.emplace();
   auto &radar_resolution = *qdata.radar_resolution.emplace();
-  auto &cart_resolution = *qdata.radar_resolution.emplace();
+  auto &cart_resolution = *qdata.cart_resolution.emplace();
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
+  auto &t0 = *qdata.t0.emplace();
+  auto &t0_prev = *qdata.t0_prev.emplace();
 
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
@@ -119,6 +121,9 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   // Load scan, times, azimuths from scan
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
   load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
+  t0_prev = t0;
+  t0 = azimuth_times[0];
+  cartesian_prev = cartesian.clone();
   radar_polar_to_cartesian(azimuth_angles, fft_scan, radar_resolution,
     cart_resolution, cart_pixel_width, true, cartesian);
   CLOG(DEBUG, "radar.navtech_extractor")
