@@ -20,6 +20,7 @@
 
 #include "vtr_radar/modules/preprocessing/conversions/navtech_extraction_module.hpp"
 #include "vtr_radar/modules/preprocessing/preprocessing_module.hpp"
+#include "vtr_radar/modules/preprocessing/mcransac_module.hpp"
 
 #include "vtr_radar/modules/odometry/keyframe_test_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"

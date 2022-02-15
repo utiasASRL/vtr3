@@ -46,9 +46,9 @@ template <class PointT>
 class MCRansac {
  public:
   MCRansac() : rng_(rd_()) {}
-  MCRansac(const double &tolerance, const double &inlier_ratio,
-           const int &iterations, const int &max_gn_iterations,
-           const double &epsilon_converge, const int &subset_size)
+  MCRansac(const double tolerance, const double inlier_ratio,
+           const int iterations, const int max_gn_iterations,
+           const double epsilon_converge, const int subset_size)
       : tolerance_(tolerance),
         inlier_ratio_(inlier_ratio),
         iterations_(iterations),

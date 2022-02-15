@@ -29,7 +29,7 @@ namespace vtr {
 namespace radar {
 
 /** \brief Preprocess raw pointcloud points and compute normals */
-class MCRANSACModule : public tactic::BaseModule {
+class McransacModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
@@ -59,7 +59,7 @@ class MCRANSACModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  MCRANSACModule(
+  McransacModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -76,7 +76,7 @@ class MCRANSACModule : public tactic::BaseModule {
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(MCRANSACModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(McransacModule);
 };
 
 }  // namespace radar

@@ -16,12 +16,18 @@
  * \file mcransac_module.cpp
  * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
+#include "opencv2/opencv.hpp"
 #include "vtr_radar/modules/preprocessing/mcransac_module.hpp"
 #include "pcl_conversions/pcl_conversions.h"
 #include "vtr_radar/utils/utils.hpp"
+#include "vtr_radar/features/normal.hpp"
+#include "vtr_radar/filters/grid_subsampling.hpp"
+#include "vtr_radar/utils.hpp"
 
 namespace vtr {
 namespace radar {
+
+using namespace tactic;
 
 // Converts points in radar frame to 2d keypoint locations in BEV (u,v) wrt TL
 // Filters out points that lie outside the square BEV image.
@@ -37,24 +43,20 @@ void convert_to_bev(pcl::PointCloud<PointWithInfo> &pc,
   kp.reserve(pc.size());
   std::vector<int> inliers;
   inliers.reserve(pc.size());
-  const Eigen::Matrix3d C_bev_radar = T_bev_radar.block<3, 3>(0, 0).cast<double>();
-  const Eigen::Vector3d r_radar_bev_in_bev = T_bev_radar.block<3, 1>(0, 3).cast<double>();
-  for (int i = 0; i < pc.size(); ++i) {
+  for (size_t i = 0; i < pc.size(); ++i) {
     const auto p = pc.at(i).getVector3fMap().cast<double>();
     const double u = (cart_min_range + p(1)) / cart_resolution;
     const double v = (cart_min_range - p(0)) / cart_resolution;
     if (0 < u - patch_size && u + patch_size < cart_pixel_width &&
       0 < v - patch_size && v + patch_size < cart_pixel_width) {
-      kp.emplace_back(cv::KeyPoint(u, v));
+      kp.emplace_back(cv::KeyPoint(u, v, patch_size));
       inliers.push_back(i);
     }
   }
   pc = pcl::PointCloud<PointWithInfo>(pc, inliers);
 }
 
-using namespace tactic;
-
-auto MCRANSACModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+auto McransacModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                           const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -73,7 +75,7 @@ auto MCRANSACModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
+void McransacModule::run_(QueryCache &qdata0, OutputCache &,
                                const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
@@ -85,45 +87,48 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  pcl::PointCloud<PointWithInfo> pc2bckp;
-  if (!config_->filter_pc)
-    pc2bckp = *qdata.prev_prep_pc.emplace();
-
   // Input
-  auto &pc1 = *qdata.prev_prep_pc.emplace();
+  const auto pc2orig = qdata.preprocessed_point_cloud.ptr();
+  const auto pc1orig = qdata.prev_prep_pc.ptr();
   const auto &cartesian = *qdata.cartesian.emplace();
   const int cart_pixel_width = cartesian.cols;
   const auto &cartesian_prev = *qdata.cartesian_prev.emplace();
   const auto &cart_resolution = *qdata.cart_resolution.emplace();
-  // Output
-  auto &pc2 = *qdata.preprocessed_point_cloud.emplace();
-
+  const auto &t0 = *qdata.t0.emplace();
+  const auto &t0_prev = *qdata.t0_prev.emplace();
+  
   // this module requires a previous frame to run, skip for frame 0
-  if (cartesian.rows != cartesian_prev.rows || pc1.size() == 0)
+  if (cartesian.rows != cartesian_prev.rows || pc1orig->size() == 0)
     return;
 
-  if (pc2.size() == 0) {
+  if (pc2orig->size() == 0) {
     std::string err{"Empty point cloud."};
     CLOG(ERROR, "radar.mcransac") << err;
     throw std::runtime_error{err};
   }
 
   CLOG(DEBUG, "radar.mcransac")
-      << "raw point cloud size: " << pc2.size();
+      << "initial cloud size: " << pc2orig->size();
+
+  auto pc2ptr =
+      std::make_shared<pcl::PointCloud<PointWithInfo>>(*pc2orig);
+  auto pc1ptr =
+      std::make_shared<pcl::PointCloud<PointWithInfo>>(*pc1orig);
 
   // Compute (ORB | RSD) descriptors and then match them here.
   // and pointcloud (post filtering1)
   cv::Ptr<cv::ORB> detector = cv::ORB::create();
-  detector->setPatchSize(patch_size);
-  detector->setEdgeThreshold(patch_size);
+  detector->setPatchSize(config_->patch_size);
+  detector->setEdgeThreshold(config_->patch_size);
+  cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
   cv::Mat desc1, desc2;
   // Convert pointclouds to KeyPoints for OpenCV
   std::vector<cv::KeyPoint> kp1, kp2;
-  convert_to_bev(pc1, cart_resolution, cart_pixel_width, config_->patch_size, kp1);
-  convert_to_bev(pc2, cart_resolution, cart_pixel_width, config_->patch_size, kp2);
+  convert_to_bev(*pc1ptr, cart_resolution, cart_pixel_width, config_->patch_size, kp1);
+  convert_to_bev(*pc2ptr, cart_resolution, cart_pixel_width, config_->patch_size, kp2);
 
   CLOG(DEBUG, "radar.mcransac")
-      << "BEV cloud size: " << pc2.size();
+      << "BEV cloud size: " << pc2ptr->size();
 
   detector->compute(cartesian_prev, kp1, desc1);
   detector->compute(cartesian, kp2, desc2);
@@ -136,7 +141,7 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
   for (size_t j = 0; j < knn_matches.size(); ++j) {
       if (!knn_matches[j].size())
           continue;
-      if (knn_matches[j][0].distance < nndr * knn_matches[j][1].distance) {
+      if (knn_matches[j][0].distance < config_->nndr * knn_matches[j][1].distance) {
           good_matches.emplace_back(knn_matches[j][0]);
       }
   }
@@ -147,36 +152,32 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
     indices2[j] = good_matches[j].trainIdx;
   }
   // Downsample and re-order points based on matching and NNDR
-  pc1 = pcl::PointCloud<PointWithInfo>(pc1, indices1);
-  pc2 = pcl::PointCloud<PointWithInfo>(pc2, indices2);
+  *pc1ptr = pcl::PointCloud<PointWithInfo>(*pc1ptr, indices1);
+  *pc2ptr = pcl::PointCloud<PointWithInfo>(*pc2ptr, indices2);
 
   CLOG(DEBUG, "radar.mcransac")
-      << "matching + NNDR point size: " << pc2.size();
+      << "matching + NNDR point size: " << pc2ptr->size();
 
   // overwrite processed_point_cloud with the inliers of mcransac
   // initialize ICP with motion computed by mcransac
-  MCRansac mcransac(config_->tolerance, config_->inlier_ratio,
-    config_->iterations, config_->max_gn_iterations,
+  // template <class PointWithInfo>
+  auto mcransac = std::make_unique<MCRansac<PointWithInfo>>(config_->tolerance, config_->inlier_ratio,
+    config_->iterations, config_->gn_iterations,
     config_->epsilon_converge, 2);
   Eigen::VectorXd w_2_1;  // T_1_2 = vec2tran(delta_t * w_2_1)
   std::vector<int> best_inliers;
-  mcransac.run(pc1, pc2, w_2_1, best_inliers);
-
-  /// Output (overwrite pointcloud with inliers of MC-RANSAC)
-  
-  // initialize ICP variables with MC-RANSAC motion estimate
+  mcransac->run(*pc1ptr, *pc2ptr, w_2_1, best_inliers);
 
   CLOG(DEBUG, "radar.mcransac")
       << "MC-RANSAC inlier point size: " << best_inliers.size();
 
-  if (!config_->filter_pc) {
-    pc2 = pc2bckp;
-  } else {
-    pc2 = pcl::PointCloud<PointWithInfo>(pc2, best_inliers);  
+  if (config_->filter_pc) {
+    *pc2ptr = pcl::PointCloud<PointWithInfo>(*pc2ptr, best_inliers);
+    qdata.preprocessed_point_cloud = pc2ptr;
   }
 
   CLOG(DEBUG, "radar.mcransac")
-      << "final subsampled point size: " << pc2.size();
+      << "final subsampled point size: " << pc2ptr->size();
 
   if (config_->init_icp) {
     *qdata.w_m_r_in_r_odo.emplace() = w_2_1;
@@ -185,7 +186,7 @@ void MCRANSACModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   if (config_->visualize) {
-    auto point_cloud_tmp = *filtered_point_cloud;
+    auto point_cloud_tmp = *pc2ptr;
     const auto ref_time = (double)(*qdata.stamp / 1000) / 1e6;
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
                   [&](PointWithInfo &point) { point.time -= ref_time; });
