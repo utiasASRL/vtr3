@@ -180,10 +180,10 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   auto mcransac = std::make_unique<MCRansac<PointWithInfo>>(
       config_->tolerance, config_->inlier_ratio, config_->iterations,
       config_->gn_iterations, config_->epsilon_converge, 2);
-  // T_sensornew_sensorold = vec2tran(dt * w_m_s_in_s)
-  Eigen::VectorXd w_m_s_in_s;
+  // T_sensornew_sensorold = vec2tran(dt * w_pm_s_in_s)
+  Eigen::VectorXd w_pm_s_in_s;
   std::vector<int> best_inliers;
-  mcransac->run(filtered_query_points, filtered_ref_points, w_m_s_in_s,
+  mcransac->run(filtered_query_points, filtered_ref_points, w_pm_s_in_s,
                 best_inliers);
 
   CLOG(DEBUG, "radar.mcransac")
@@ -200,7 +200,7 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   if (config_->init_icp) {
     /// \todo convert velocity vectory to robot frame!!!!! currently only
     /// correct if T_s_r is identity!!!
-    *qdata.w_pm_r_in_r_odo = w_m_s_in_s;
+    *qdata.w_pm_r_in_r_odo = w_pm_s_in_s;
   }
 
   // store this frame's bev image and pointcloud
