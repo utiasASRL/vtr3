@@ -36,9 +36,9 @@ namespace {
 
 // Converts points in radar frame to 2d keypoint locations in BEV (u,v) wrt TL
 // Filters out points that lie outside the square BEV image.
-void convert_to_bev(const float cart_resolution, const int cart_pixel_width,
-                    const int patch_size, pcl::PointCloud<PointWithInfo> &pc,
-                    std::vector<cv::KeyPoint> &kp) {
+void convertToBEV(const float cart_resolution, const int cart_pixel_width,
+                  const int patch_size, pcl::PointCloud<PointWithInfo> &pc,
+                  std::vector<cv::KeyPoint> &kp) {
   float cart_min_range = (cart_pixel_width / 2) * cart_resolution;
   if (cart_pixel_width % 2 == 0)
     cart_min_range = (cart_pixel_width / 2 - 0.5) * cart_resolution;
@@ -68,11 +68,11 @@ auto McransacModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config->tolerance = node->declare_parameter<float>(param_prefix + ".tolerance", config->tolerance);
   config->inlier_ratio = node->declare_parameter<float>(param_prefix + ".inlier_ratio", config->inlier_ratio);
-  config->iterations = node->declare_parameter<float>(param_prefix + ".iterations", config->iterations);
+  config->iterations = node->declare_parameter<int>(param_prefix + ".iterations", config->iterations);
   config->gn_iterations = node->declare_parameter<int>(param_prefix + ".gn_iterations", config->gn_iterations);
-  config->epsilon_converge = node->declare_parameter<int>(param_prefix + ".epsilon_converge", config->epsilon_converge);
+  config->epsilon_converge = node->declare_parameter<double>(param_prefix + ".epsilon_converge", config->epsilon_converge);
   config->patch_size = node->declare_parameter<int>(param_prefix + ".patch_size", config->patch_size);
-  config->nndr = node->declare_parameter<int>(param_prefix + ".nndr", config->nndr);
+  config->nndr = node->declare_parameter<float>(param_prefix + ".nndr", config->nndr);
   config->filter_pc = node->declare_parameter<bool>(param_prefix + ".filter_pc", config->filter_pc);
   config->init_icp = node->declare_parameter<bool>(param_prefix + ".init_icp", config->init_icp);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -127,13 +127,16 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   detector->setEdgeThreshold(config_->patch_size);
   // Convert pointclouds to KeyPoints for OpenCV
   std::vector<cv::KeyPoint> query_keypoints, ref_keypoints;
-  convert_to_bev(cart_resolution, query_cartesian.cols, config_->patch_size,
-                 filtered_query_points, query_keypoints);
-  convert_to_bev(cart_resolution, query_cartesian.cols, config_->patch_size,
-                 filtered_ref_points, ref_keypoints);
+  convertToBEV(cart_resolution, query_cartesian.cols, config_->patch_size,
+               filtered_query_points, query_keypoints);
+  convertToBEV(cart_resolution, query_cartesian.cols, config_->patch_size,
+               filtered_ref_points, ref_keypoints);
   CLOG(DEBUG, "radar.mcransac")
       << "BEV cloud size: " << filtered_query_points.size();
 
+  /// \todo The following code compiles but have not been tested yet.
+  /// remove the if false macro to test them using the odometry test script.
+#if false
   cv::Mat query_descs, ref_descs;
   detector->compute(query_cartesian, query_keypoints, query_descs);
   detector->compute(ref_cartesian, ref_keypoints, ref_descs);
@@ -154,9 +157,8 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
     }
   }
 
-  std::vector<int> query_indices;
+  std::vector<int> query_indices, ref_indices;
   query_indices.reserve(good_matches.size());
-  std::vector<int> ref_indices;
   ref_indices.reserve(good_matches.size());
   for (const auto &match : good_matches) {
     query_indices.emplace_back(match.queryIdx);
@@ -212,6 +214,7 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
     pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
     filtered_pub_->publish(*pc2_msg);
   }
+#endif
 }
 
 }  // namespace radar

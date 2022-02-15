@@ -42,9 +42,9 @@ class McransacModule : public tactic::BaseModule {
     // RANSAC parameters
     float tolerance = 0.1225;
     float inlier_ratio = 0.9;
-    float iterations = 100;
-    float gn_iterations = 10;
-    float epsilon_converge = 0.0001;
+    int iterations = 100;
+    int gn_iterations = 10;
+    double epsilon_converge = 0.0001;
     // ORB descriptor / matching parameters
     int patch_size = 21;
     float nndr = 0.8;
