@@ -63,8 +63,8 @@ Eigen::VectorXd MCRansac<PointT>::get_motion_parameters(
     for (const auto& sample_idx: subset) {
       const double dt = pc2.at(sample_idx).time - pc1.at(sample_idx).time;
       const Eigen::MatrixXd T_1_2 = lgmath::se3::vec2tran(dt * wbar);  // dt * wbar = xi_2_1
-      const auto p1 = pc1.at(sample_idx).template getVector3fMap().template cast<double>();
-      const auto p2 = pc2.at(sample_idx).template getVector3fMap().template cast<double>();
+      const Eigen::Vector4d p1 = {pc1.at(sample_idx).x, pc1.at(sample_idx).y, pc1.at(sample_idx).z, 1};
+      const Eigen::Vector4d p2 = {pc2.at(sample_idx).x, pc2.at(sample_idx).y, pc2.at(sample_idx).z, 1};
       const Eigen::VectorXd gbar = T_1_2 * p2;
       const Eigen::MatrixXd G = dt * lgmath::se3::point2fs(gbar.block<3, 1>(0, 0));  // dt * circledot(gbar)
       const Eigen::VectorXd ebar = p1 - gbar;
@@ -80,8 +80,8 @@ Eigen::VectorXd MCRansac<PointT>::get_motion_parameters(
       const Eigen::VectorXd wbar_temp = wbar + alpha * delta_w;
       for (const auto& sample_idx: subset) {
         const double dt = pc2.at(sample_idx).time - pc1.at(sample_idx).time;
-        const auto p1 = pc1.at(sample_idx).template getVector3fMap().template cast<double>();
-        const auto p2 = pc2.at(sample_idx).template getVector3fMap().template cast<double>();
+        const Eigen::Vector4d p1 = {pc1.at(sample_idx).x, pc1.at(sample_idx).y, pc1.at(sample_idx).z, 1};
+        const Eigen::Vector4d p2 = {pc2.at(sample_idx).x, pc2.at(sample_idx).y, pc2.at(sample_idx).z, 1};
         const Eigen::MatrixXd T_1_2 = lgmath::se3::vec2tran(dt * wbar_temp);  // dt * wbar = xi_2_1
         const Eigen::VectorXd ebar = p1 - T_1_2 * p2;
         e += ebar.squaredNorm();
@@ -158,7 +158,7 @@ std::vector<int> MCRansac<PointT>::get_inliers(
   double delta_diff = (max_delta - min_delta) / (num_transforms_ - 1);
   // only compute a finite number of transforms (much faster)
   std::vector<double> delta_vec;
-  std::vector<Eigen::MatrixXd> T_1_2_vec;
+  std::vector<Eigen::Matrix4d> T_1_2_vec;
   delta_vec.reserve(num_transforms_);
   T_1_2_vec.reserve(num_transforms_);
   for (int i = 0; i < num_transforms_; ++i) {
@@ -169,12 +169,9 @@ std::vector<int> MCRansac<PointT>::get_inliers(
   std::vector<int> inliers;
   for (int i = 0; i < N; ++i) {
     const double dt = pc2[i].time - pc1[i].time;
-    const auto p1 = pc1[i].getVector3fMap();
-    const auto p2 = pc2[i].getVector3fMap();
-    const auto& T_1_2  = T_1_2_vec[mcransac::get_closest(dt, delta_vec)];
-    const Eigen::Matrix3f C_1_2 = T_1_2.block<3, 3>(0, 0).cast<float>();
-    const Eigen::Vector3f r_21_in1 = T_1_2.block<3, 1>(0, 3).cast<float>();
-    const Eigen::VectorXf error = p1 - (C_1_2 * p2 + r_21_in1);
+    const Eigen::Vector4d p1 = {pc1.at(i).x, pc1.at(i).y, pc1.at(i).z, 1};
+    const Eigen::Vector4d p2 = {pc2.at(i).x, pc2.at(i).y, pc2.at(i).z, 1};
+    const Eigen::Vector4d error = p1 - T_1_2_vec[mcransac::get_closest(dt, delta_vec)] * p2;
     if (error.squaredNorm() < tolerance_)
       inliers.emplace_back(i);
   }

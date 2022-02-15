@@ -120,11 +120,8 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
-  /// \todo interpolate crossover causes steam failure in ICP, what does
-  /// interpolate do?
-  cartesian =
-      radar_polar_to_cartesian(fft_scan, azimuth_angles, radar_resolution,
-                               cart_resolution, cart_pixel_width, false);
+  radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian, radar_resolution,
+                           cart_resolution, cart_pixel_width, true);
   CLOG(DEBUG, "radar.navtech_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;

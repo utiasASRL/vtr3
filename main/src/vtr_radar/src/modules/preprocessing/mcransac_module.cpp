@@ -103,7 +103,9 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   // Input
   const auto &query_cartesian = *qdata.cartesian;
   const auto &query_points = *qdata.preprocessed_point_cloud;
-  const auto &T_s_r = *qdata.T_s_r;
+  const auto query_points_backup = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+  const auto &T_s_r_ = *qdata.T_s_r;
+  const Eigen::Matrix4d T_s_r = T_s_r_.matrix().cast<double>();
   const auto &ref_cartesian = *qdata.cartesian_odo;
   const auto &ref_points = *qdata.point_cloud_odo;
   const auto &cart_resolution = *qdata.cart_resolution;
@@ -115,8 +117,9 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   }
 
   CLOG(DEBUG, "radar.mcransac")
-      << "initial cloud size: " << query_points.size();
+      << "initial cloud sizes: " << query_points.size() << " " << ref_points.size();
 
+  // ref == 1, query == 2
   auto filtered_query_points = query_points;
   auto filtered_ref_points = ref_points;
 
@@ -132,11 +135,10 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   convertToBEV(cart_resolution, query_cartesian.cols, config_->patch_size,
                filtered_ref_points, ref_keypoints);
   CLOG(DEBUG, "radar.mcransac")
-      << "BEV cloud size: " << filtered_query_points.size();
+      << "BEV cloud sizes: " << filtered_query_points.size() << " " << filtered_ref_points.size();
 
   /// \todo The following code compiles but have not been tested yet.
   /// remove the if false macro to test them using the odometry test script.
-#if false
   cv::Mat query_descs, ref_descs;
   detector->compute(query_cartesian, query_keypoints, query_descs);
   detector->compute(ref_cartesian, ref_keypoints, ref_descs);
@@ -147,24 +149,40 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   std::vector<std::vector<cv::DMatch>> knn_matches;
   matcher->knnMatch(query_descs, ref_descs, knn_matches, 2);
   // Filter matches using nearest neighbor distance ratio (Lowe, Szeliski)
-  std::vector<cv::DMatch> good_matches;
-  good_matches.reserve(knn_matches.size());
+  // and ensure matches are one-to-one
+  std::vector<cv::DMatch> matches;
+  matches.reserve(knn_matches.size());
   for (size_t j = 0; j < knn_matches.size(); ++j) {
-    if (knn_matches[j].size() < 2) continue;
-    if (knn_matches[j][0].distance <
-        config_->nndr * knn_matches[j][1].distance) {
-      good_matches.emplace_back(knn_matches[j][0]);
+    if (knn_matches[j].size() == 0) continue;
+    if (knn_matches[j].size() >= 2) {
+      if (knn_matches[j][0].distance >
+        config_->nndr * knn_matches[j][1].distance)
+        continue;
+    }
+    auto it = find_if(matches.begin(), matches.end(),
+    [&](const cv::DMatch & val) -> bool {
+      return val.trainIdx == knn_matches[j][0].trainIdx ||
+        val.queryIdx == knn_matches[j][0].queryIdx;
+    });
+    // trainIdx
+    if (it != matches.end()) {
+      auto idx = it - matches.begin();
+      if (knn_matches[j][0].distance < matches[idx].distance)
+        matches[idx] = knn_matches[j][0];
+    } else {
+      matches.emplace_back(knn_matches[j][0]);
     }
   }
 
   std::vector<int> query_indices, ref_indices;
-  query_indices.reserve(good_matches.size());
-  ref_indices.reserve(good_matches.size());
-  for (const auto &match : good_matches) {
-    query_indices.emplace_back(match.queryIdx);
-    ref_indices.emplace_back(match.trainIdx);
+  query_indices.reserve(matches.size());
+  ref_indices.reserve(matches.size());
+  for (size_t j = 0; j < matches.size(); ++j) {
+    query_indices.emplace_back(matches[j].queryIdx);
+    ref_indices.emplace_back(matches[j].trainIdx);
   }
 
+  std::cout << query_indices.size() << " " << ref_indices.size() << std::endl;
   // Downsample and re-order points based on matching and NNDR
   filtered_query_points =
       pcl::PointCloud<PointWithInfo>(filtered_query_points, query_indices);
@@ -188,6 +206,8 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
 
   CLOG(DEBUG, "radar.mcransac")
       << "MC-RANSAC inlier point size: " << best_inliers.size();
+  CLOG(DEBUG, "radar.mcransac")
+      << "MC-RANSAC motion estimate: " << w_pm_s_in_s.transpose();
 
   if (config_->filter_pc) {
     *qdata.preprocessed_point_cloud = pcl::PointCloud<PointWithInfo>(
@@ -198,14 +218,22 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
                                 << qdata.preprocessed_point_cloud->size();
 
   if (config_->init_icp) {
-    /// \todo convert velocity vectory to robot frame!!!!! currently only
-    /// correct if T_s_r is identity!!!
+    // Convert velocity vector from sensor frame to robot frame
+    const auto T_r_s = T_s_r.inverse();
+    const Eigen::Matrix3d C_s_r = T_s_r.block<3, 3>(0, 0).cast<double>();
+    const Eigen::Vector3d r_r_s_in_s = -1 * C_s_r * T_r_s.block<3, 1>(0, 3).cast<double>();
+    const Eigen::Matrix3d C_r_s = T_r_s.block<3, 3>(0, 0).cast<double>();
+    const Eigen::Vector3d vel = w_pm_s_in_s.block<3, 1>(0, 0).cast<double>();
+    const Eigen::Vector3d ang = w_pm_s_in_s.block<3, 1>(3, 0).cast<double>();
+    w_pm_s_in_s.block<3, 1>(0, 0) = C_r_s * vel - C_r_s * lgmath::so3::hat(r_r_s_in_s) * ang;
+    w_pm_s_in_s.block<3, 1>(3, 0) = C_r_s * ang;
     *qdata.w_pm_r_in_r_odo = w_pm_s_in_s;
   }
 
   // store this frame's bev image and pointcloud
   qdata.cartesian_odo = qdata.cartesian.ptr();
-  qdata.point_cloud_odo = qdata.preprocessed_point_cloud.ptr();
+  // qdata.point_cloud_odo = qdata.preprocessed_point_cloud.ptr();
+  qdata.point_cloud_odo = query_points_backup;
 
   if (config_->visualize) {
     auto pc2_msg = std::make_shared<PointCloudMsg>();
@@ -214,7 +242,6 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
     pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
     filtered_pub_->publish(*pc2_msg);
   }
-#endif
 }
 
 }  // namespace radar

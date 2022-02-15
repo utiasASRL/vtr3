@@ -57,7 +57,7 @@ int get_closest(const double &x, const std::vector<double> &v) {
   int idx = low - v.begin();
   if (idx == 0) return idx;
   if (idx >= v.size()) idx = v.size() - 1;
-  double d = std::fabs(x - v[idx]);
+  const double d = std::fabs(x - v[idx]);
   if (std::fabs(x - v[idx - 1]) < d) return idx - 1;
   return idx;
 }
@@ -84,13 +84,15 @@ double get_azimuth_index(const std::vector<double> &azimuths,
 }
 // clang-format on
 
-cv::Mat radar_polar_to_cartesian(cv::Mat &fft_data,
-                                 const std::vector<double> &azimuths,
-                                 const float radar_resolution,
-                                 const float cart_resolution,
-                                 const int cart_pixel_width,
-                                 const bool interpolate_crossover,
-                                 const int output_type) {
+void radar_polar_to_cartesian(const cv::Mat &fft_data,
+                              const std::vector<double> &azimuths,
+                              cv::Mat &cartesian,
+                              const float radar_resolution,
+                              const float cart_resolution,
+                              const int cart_pixel_width,
+                              const bool interpolate_crossover,
+                              const int output_type) {
+  cv::Mat fft = fft_data.clone();
   float cart_min_range = (cart_pixel_width / 2) * cart_resolution;
   if (cart_pixel_width % 2 == 0)
     cart_min_range = (cart_pixel_width / 2 - 0.5) * cart_resolution;
@@ -98,13 +100,13 @@ cv::Mat radar_polar_to_cartesian(cv::Mat &fft_data,
   cv::Mat map_x = cv::Mat::zeros(cart_pixel_width, cart_pixel_width, CV_32F);
   cv::Mat map_y = cv::Mat::zeros(cart_pixel_width, cart_pixel_width, CV_32F);
 
-  // #pragma omp parallel for collapse(2)
+  #pragma omp parallel for collapse(2)
   for (int j = 0; j < map_y.cols; ++j) {
     for (int i = 0; i < map_y.rows; ++i) {
       map_y.at<float>(i, j) = -1 * cart_min_range + j * cart_resolution;
     }
   }
-  // #pragma omp parallel for collapse(2)
+  #pragma omp parallel for collapse(2)
   for (int i = 0; i < map_x.rows; ++i) {
     for (int j = 0; j < map_x.cols; ++j) {
       map_x.at<float>(i, j) = cart_min_range - i * cart_resolution;
@@ -114,7 +116,7 @@ cv::Mat radar_polar_to_cartesian(cv::Mat &fft_data,
   cv::Mat range = cv::Mat::zeros(cart_pixel_width, cart_pixel_width, CV_32F);
   cv::Mat angle = cv::Mat::zeros(cart_pixel_width, cart_pixel_width, CV_32F);
   // double azimuth_step = azimuths[1] - azimuths[0];
-  // #pragma omp parallel for collapse(2)
+  #pragma omp parallel for collapse(2)
   for (int i = 0; i < range.rows; ++i) {
     for (int j = 0; j < range.cols; ++j) {
       float x = map_x.at<float>(i, j);
@@ -133,26 +135,22 @@ cv::Mat radar_polar_to_cartesian(cv::Mat &fft_data,
     }
   }
   if (interpolate_crossover) {
-    cv::Mat a0 = cv::Mat::zeros(1, fft_data.cols, CV_32F);
-    cv::Mat aN_1 = cv::Mat::zeros(1, fft_data.cols, CV_32F);
-    for (int j = 0; j < fft_data.cols; ++j) {
-      a0.at<float>(0, j) = fft_data.at<float>(0, j);
-      aN_1.at<float>(0, j) = fft_data.at<float>(fft_data.rows - 1, j);
+    cv::Mat a0 = cv::Mat::zeros(1, fft.cols, CV_32F);
+    cv::Mat aN_1 = cv::Mat::zeros(1, fft.cols, CV_32F);
+    for (int j = 0; j < fft.cols; ++j) {
+      a0.at<float>(0, j) = fft.at<float>(0, j);
+      aN_1.at<float>(0, j) = fft.at<float>(fft.rows - 1, j);
     }
-    cv::vconcat(aN_1, fft_data, fft_data);
-    cv::vconcat(fft_data, a0, fft_data);
+    cv::vconcat(aN_1, fft, fft);
+    cv::vconcat(fft, a0, fft);
     angle = angle + 1;
   }
 
-  cv::Mat cart_img;
-  cv::remap(fft_data, cart_img, range, angle, cv::INTER_LINEAR,
+  cv::remap(fft, cartesian, range, angle, cv::INTER_LINEAR,
             cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
-  if (output_type == CV_8UC1) {
-    double min, max;
-    cv::minMaxLoc(cart_img, &min, &max);
-    cart_img.convertTo(cart_img, CV_8UC1, 255.0 / max);
+  if (output_type != CV_32F) {
+    cartesian.convertTo(cartesian, output_type, 255.0);
   }
-  return cart_img;
 }
 
 }  // namespace radar

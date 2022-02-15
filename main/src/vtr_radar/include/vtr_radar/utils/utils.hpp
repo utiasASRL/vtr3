@@ -43,15 +43,15 @@ void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
 
 /**
  * \brief Returns the cartesian image of a radar scan
- * \note This function changes fft_data when interpolate_crossover is true.
  */
-cv::Mat radar_polar_to_cartesian(cv::Mat &fft_data,
-                                 const std::vector<double> &azimuths,
-                                 const float radar_resolution,
-                                 const float cart_resolution,
-                                 const int cart_pixel_width,
-                                 const bool interpolate_crossover,
-                                 const int output_type = CV_32F);
+void radar_polar_to_cartesian(const cv::Mat &fft_data,
+                              const std::vector<double> &azimuths,
+                              cv::Mat &cartesian,
+                              const float radar_resolution,
+                              const float cart_resolution,
+                              const int cart_pixel_width,
+                              const bool interpolate_crossover,
+                              const int output_type = CV_8UC1);
 
 }  // namespace radar
 }  // namespace vtr
