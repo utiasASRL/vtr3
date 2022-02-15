@@ -32,7 +32,7 @@ inline int get_closest(const double &x, const std::vector<double> &v) {
   const auto low = std::lower_bound(v.begin(), v.end(), x);
   int idx = low - v.begin();
   if (idx == 0) return idx;
-  if (idx >= v.size()) idx = v.size() - 1;
+  if ((size_t)idx >= v.size()) idx = v.size() - 1;
   double d = std::fabs(x - v[idx]);
   if (std::fabs(x - v[idx - 1]) < d) return idx - 1;
   return idx;
@@ -41,7 +41,7 @@ inline int get_closest(const double &x, const std::vector<double> &v) {
 }  // namespace mcransac
 
 template <class PointT>
-std::set<int> MCRANSAC::random_subset(const int &max_size) {
+std::set<int> MCRansac<PointT>::random_subset(const int &max_size) {
   size_t subset_size = std::min(max_size, subset_size_);
   /// \note this can be very slow unless max_size >> subset_size_;
   std::set<int> subset;
@@ -51,7 +51,7 @@ std::set<int> MCRANSAC::random_subset(const int &max_size) {
 }
 // clang-format off
 template <class PointT>
-Eigen::VectorXd MCRANSAC::get_motion_parameters(
+Eigen::VectorXd MCRansac<PointT>::get_motion_parameters(
     const pcl::PointCloud<PointT> &pc1, const pcl::PointCloud<PointT> &pc2,
     const std::set<int> &subset) {
   Eigen::VectorXd wbar = Eigen::VectorXd::Zero(6, 1);
@@ -63,8 +63,8 @@ Eigen::VectorXd MCRANSAC::get_motion_parameters(
     for (const auto& sample_idx: subset) {
       const double dt = pc2.at(sample_idx).time - pc1.at(sample_idx).time;
       const Eigen::MatrixXd T_1_2 = lgmath::se3::vec2tran(dt * wbar);  // dt * wbar = xi_2_1
-      const auto p1 = pc1.at(sample_idx).getVector3fMap().cast<double>();
-      const auto p2 = pc2.at(sample_idx).getVector3fMap().cast<double>();
+      const auto p1 = pc1.at(sample_idx).template getVector3fMap().template cast<double>();
+      const auto p2 = pc2.at(sample_idx).template getVector3fMap().template cast<double>();
       const Eigen::VectorXd gbar = T_1_2 * p2;
       const Eigen::MatrixXd G = dt * lgmath::se3::point2fs(gbar.block<3, 1>(0, 0));  // dt * circledot(gbar)
       const Eigen::VectorXd ebar = p1 - gbar;
@@ -80,8 +80,8 @@ Eigen::VectorXd MCRANSAC::get_motion_parameters(
       const Eigen::VectorXd wbar_temp = wbar + alpha * delta_w;
       for (const auto& sample_idx: subset) {
         const double dt = pc2.at(sample_idx).time - pc1.at(sample_idx).time;
-        const auto p1 = pc1.at(sample_idx).getVector3fMap().cast<double>();
-        const auto p2 = pc2.at(sample_idx).getVector3fMap().cast<double>();
+        const auto p1 = pc1.at(sample_idx).template getVector3fMap().template cast<double>();
+        const auto p2 = pc2.at(sample_idx).template getVector3fMap().template cast<double>();
         const Eigen::MatrixXd T_1_2 = lgmath::se3::vec2tran(dt * wbar_temp);  // dt * wbar = xi_2_1
         const Eigen::VectorXd ebar = p1 - T_1_2 * p2;
         e += ebar.squaredNorm();
@@ -98,12 +98,14 @@ Eigen::VectorXd MCRANSAC::get_motion_parameters(
       break;
     lastError = minError;
   }
+
+  return wbar;
 }
 
 // pc1, pc2 inlcude x,y,z,t
 // returns inlier ratio of MCRANSAC
 template <class PointT>
-double MCRANSAC<PointT>::run(const pcl::PointCloud<PointT> &pc1,
+double MCRansac<PointT>::run(const pcl::PointCloud<PointT> &pc1,
                              const pcl::PointCloud<PointT> &pc2,
                              Eigen::VectorXd &w_best,
                              std::vector<int> &best_inliers) {
@@ -114,7 +116,7 @@ double MCRANSAC<PointT>::run(const pcl::PointCloud<PointT> &pc1,
 
   // use unordered set to ensure uniqueness of subsets
   std::unordered_set<std::set<int>> unique_subsets;
-  int max_iterations = std::min(iterations_, std::pow(N, subset_size_));
+  int max_iterations = std::min(iterations_, (int)std::pow(N, subset_size_));
   int max_inliers = 0;
   w_best = Eigen::VectorXd::Zero(6, 1);
   for (int i = 0; i < max_iterations; ++i) {
@@ -128,20 +130,20 @@ double MCRANSAC<PointT>::run(const pcl::PointCloud<PointT> &pc1,
     Eigen::VectorXd wbar = get_motion_parameters(pc1, pc2, subset);
     // Check number of inliers (RANSAC)
     const auto num_inliers = get_inliers(pc1, pc2, wbar).size();
-    if (num_inliers > max_inliers) {
-      max_inliers = inliers;
+    if ((int)num_inliers > max_inliers) {
+      max_inliers = num_inliers;
       w_best = wbar;
     }
-    if ((double(inliers) / N) > inlier_ratio)
+    if ((double(num_inliers) / N) > inlier_ratio_)
       break;
   }
   best_inliers = get_inliers(pc1, pc2, w_best);
-  w_best = get_motion_parameters(pc1, pc2, best_inliers);
+  w_best = get_motion_parameters(pc1, pc2, std::set<int>(best_inliers.begin(), best_inliers.end()));
   return double(best_inliers.size()) / N;
 }
 
 template <class PointT>
-std::vector<int> MCRANSAC<PointT>::get_inliers(
+std::vector<int> MCRansac<PointT>::get_inliers(
                                    const pcl::PointCloud<PointT> &pc1,
                                    const pcl::PointCloud<PointT> &pc2,
                                    const Eigen::VectorXd &w_2_1) {
@@ -149,19 +151,19 @@ std::vector<int> MCRANSAC<PointT>::get_inliers(
   double min_delta = std::numeric_limits<double>::max();
   double max_delta = std::numeric_limits<double>::lowest();
   for (int i = 0; i < N; ++i) {
-    const auto dt = pc2[i].t - pc1[i].t;
+    const auto dt = pc2[i].time - pc1[i].time;
     if (dt < min_delta) min_delta = dt;
     if (dt > max_delta) max_delta = dt;
   }
   double delta_diff = (max_delta - min_delta) / (num_transforms_ - 1);
   // only compute a finite number of transforms (much faster)
   std::vector<double> delta_vec;
-  std::vector<Eigen::MatrixXd> transforms_1_2;
+  std::vector<Eigen::MatrixXd> T_1_2_vec;
   delta_vec.reserve(num_transforms_);
-  transforms_1_2.reserve(num_transforms_);
+  T_1_2_vec.reserve(num_transforms_);
   for (int i = 0; i < num_transforms_; ++i) {
     delta_vec.emplace_back(min_delta + i * delta_diff);
-    transforms_1_2.emplace_back(lgmath::se3::vec2tran(delta_vec.back() * w_2_1));
+    T_1_2_vec.emplace_back(lgmath::se3::vec2tran(delta_vec.back() * w_2_1));
   }
 
   std::vector<int> inliers;
@@ -169,7 +171,10 @@ std::vector<int> MCRANSAC<PointT>::get_inliers(
     const double dt = pc2[i].time - pc1[i].time;
     const auto p1 = pc1[i].getVector3fMap();
     const auto p2 = pc2[i].getVector3fMap();
-    Eigen::VectorXd error = p1 - transforms_1_2[mcransac::get_closest(dt, delta_vec)] * p2;
+    const auto& T_1_2  = T_1_2_vec[mcransac::get_closest(dt, delta_vec)];
+    const Eigen::Matrix3f C_1_2 = T_1_2.block<3, 3>(0, 0).cast<float>();
+    const Eigen::Vector3f r_21_in1 = T_1_2.block<3, 1>(0, 3).cast<float>();
+    const Eigen::VectorXf error = p1 - (C_1_2 * p2 + r_21_in1);
     if (error.squaredNorm() < tolerance_)
       inliers.emplace_back(i);
   }

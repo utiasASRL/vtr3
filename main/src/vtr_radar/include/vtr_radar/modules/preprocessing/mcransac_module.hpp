@@ -23,7 +23,6 @@
 #include "vtr_radar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
-#include "vtr_radar/mcransac/mcransac.hpp"
 
 namespace vtr {
 namespace radar {

@@ -83,7 +83,7 @@ class MCRansac {
    */
   Eigen::VectorXd get_motion_parameters(const pcl::PointCloud<PointT> &pc1,
                                         const pcl::PointCloud<PointT> &pc2,
-                                        const std::vector<int> &subset);
+                                        const std::set<int> &subset);
 
   /** \brief Retrieve inliers corresponding to body motion vec wbar. (6 x 1) */
   std::vector<int> get_inliers(const pcl::PointCloud<PointT> &pc1,
@@ -112,3 +112,5 @@ class MCRansac {
 
 }  // namespace radar
 }  // namespace vtr
+
+#include "vtr_radar/mcransac/mcransac.inl"

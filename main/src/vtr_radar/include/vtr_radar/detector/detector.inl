@@ -50,7 +50,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
   if (maxcol > cols || maxcol < 0) maxcol = cols;
   const auto N = maxcol - mincol;
 
-// #pragma omp parallel for
+  // #pragma omp parallel for
   for (int i = 0; i < rows; ++i) {
     std::vector<std::pair<float, int>> intens;
     intens.reserve(N / 2);
@@ -78,7 +78,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
       p.time = time;
       polar_time.push_back(p);
     }
-// #pragma omp critical
+    // #pragma omp critical
     {
       pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
     }
@@ -146,7 +146,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
       sigma_q[i] = 0.034;
   }
   // Extract peak centers from each azimuth
-// #pragma omp parallel for
+  // #pragma omp parallel for
   for (int i = 0; i < rows; ++i) {
     pcl::PointCloud<PointT> polar_time;
     float peak_points = 0;
@@ -184,7 +184,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
       p.time = time;
       polar_time.push_back(p);
     }
-// #pragma omp critical
+    // #pragma omp critical
     {
       pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
     }
@@ -351,7 +351,6 @@ void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
   const int cols = raw_scan.cols;
   if (width_ % 2 == 0) width_ += 1;
   const int w2 = std::floor(width_ / 2);
-  const int window = width_ + guard_ * 2;
   auto mincol = minr_ / res + w2 + guard_ + 1;
   if (mincol > cols || mincol < 0) mincol = 0;
   auto maxcol = maxr_ / res - w2 - guard_;

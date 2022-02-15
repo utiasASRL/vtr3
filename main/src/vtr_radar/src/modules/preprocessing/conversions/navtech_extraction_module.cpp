@@ -64,9 +64,9 @@ auto NavtechExtractionModule::Config::fromROS(
   config->modified_cacfar.threshold2 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold2", config->modified_cacfar.threshold2);
 
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
+  config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
-  config->cart_resolution = node->declare_parameter<bool>(param_prefix + ".cart_resolution", config->cart_resolution);
   // clang-format on
   return config;
 }
@@ -81,6 +81,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     // clang-format off
     scan_pub_ = qdata.node->create_publisher<ImageMsg>("raw_scan", 5);
     fft_scan_pub_ = qdata.node->create_publisher<ImageMsg>("fft_scan", 5);
+    bev_scan_pub_ = qdata.node->create_publisher<ImageMsg>("bev_scan", 5);
     pointcloud_pub_ = qdata.node->create_publisher<PointCloudMsg>("raw_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
@@ -97,14 +98,11 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   /// Output
   auto &fft_scan = *qdata.fft_scan.emplace();
   auto &cartesian = *qdata.cartesian.emplace();
-  auto &cartesian_prev = *qdata.cartesian_prev.emplace();
   auto &azimuth_times = *qdata.azimuth_times.emplace();
   auto &azimuth_angles = *qdata.azimuth_angles.emplace();
   auto &radar_resolution = *qdata.radar_resolution.emplace();
   auto &cart_resolution = *qdata.cart_resolution.emplace();
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
-  auto &t0 = *qdata.t0.emplace();
-  auto &t0_prev = *qdata.t0_prev.emplace();
 
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
@@ -118,13 +116,13 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   cart_resolution = config_->cart_resolution;
 
   // Load scan, times, azimuths from scan
-  int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
   load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
-  t0_prev = t0;
-  t0 = azimuth_times[0];
-  cartesian_prev = cartesian.clone();
-  radar_polar_to_cartesian(azimuth_angles, fft_scan, radar_resolution,
-    cart_resolution, cart_pixel_width, true, cartesian);
+
+  // Convert to cartesian BEV image
+  int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
+  cartesian =
+      radar_polar_to_cartesian(fft_scan, azimuth_angles, radar_resolution,
+                               cart_resolution, cart_pixel_width, true);
   CLOG(DEBUG, "radar.navtech_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;
@@ -226,6 +224,14 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     fft_scan_image.encoding = "mono8";
     fft_scan.convertTo(fft_scan_image.image, CV_8UC1, 255);
     fft_scan_pub_->publish(*fft_scan_image.toImageMsg());
+
+    // publish the cartesian bev image
+    cv_bridge::CvImage bev_scan_image;
+    bev_scan_image.header.frame_id = "radar";
+    // bev_scan_image.header.stamp = qdata.scan_msg->header.stamp;
+    bev_scan_image.encoding = "mono8";
+    cartesian.convertTo(bev_scan_image.image, CV_8UC1, 255);
+    bev_scan_pub_->publish(*bev_scan_image.toImageMsg());
 
     // publish the converted point cloud
     auto point_cloud_tmp = raw_point_cloud;

@@ -128,13 +128,10 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
     pc2_msg->header.frame_id = "radar";
     pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
-    filtered_pub_->publish(*pc2_msg);    
+    filtered_pub_->publish(*pc2_msg);
   }
 
   /// Output
-  const auto &prep = *qdata.preprocessed_point_cloud.emplace();
-  auto prev = pcl::PointCloud<PointWithInfo>(prep);
-  qdata.prev_prep_pc = std::make_shared<pcl::PointCloud<PointWithInfo>>(prev);
   qdata.preprocessed_point_cloud = filtered_point_cloud;
 }
 

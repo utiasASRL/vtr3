@@ -102,6 +102,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
   bool publisher_initialized_ = false;
   rclcpp::Publisher<ImageMsg>::SharedPtr scan_pub_;
   rclcpp::Publisher<ImageMsg>::SharedPtr fft_scan_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr bev_scan_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(NavtechExtractionModule);
