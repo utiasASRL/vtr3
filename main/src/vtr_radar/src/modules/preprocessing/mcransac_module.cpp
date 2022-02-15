@@ -200,7 +200,7 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   if (config_->init_icp) {
     /// \todo convert velocity vectory to robot frame!!!!! currently only
     /// correct if T_s_r is identity!!!
-    *qdata.w_m_r_in_r_odo = w_m_s_in_s;
+    *qdata.w_pm_r_in_r_odo = w_m_s_in_s;
   }
 
   // store this frame's bev image and pointcloud
