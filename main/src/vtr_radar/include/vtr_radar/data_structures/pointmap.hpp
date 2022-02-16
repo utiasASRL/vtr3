@@ -58,14 +58,12 @@ inline VoxKey operator-(const VoxKey A, const VoxKey B) {
 
 // Specialization of std:hash function
 namespace std {
-using namespace vtr::radar;
-using namespace vtr::common;
 
 template <>
-struct hash<VoxKey> {
-  std::size_t operator()(const VoxKey& k) const {
+struct hash<vtr::radar::VoxKey> {
+  std::size_t operator()(const vtr::radar::VoxKey& k) const {
     std::size_t ret = 0;
-    hash_combine(ret, k.x, k.y, k.z);
+    vtr::common::hash_combine(ret, k.x, k.y, k.z);
     return ret;
   }
 };

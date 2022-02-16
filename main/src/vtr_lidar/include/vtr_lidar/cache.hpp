@@ -30,7 +30,7 @@
 namespace vtr {
 namespace lidar {
 
-struct LidarQueryCache : public tactic::QueryCache {
+struct LidarQueryCache : virtual public tactic::QueryCache {
   using Ptr = std::shared_ptr<LidarQueryCache>;
 
   // input
@@ -67,7 +67,7 @@ struct LidarQueryCache : public tactic::QueryCache {
       inter_exp_merging_async;
 };
 
-struct LidarOutputCache : public tactic::OutputCache {
+struct LidarOutputCache : virtual public tactic::OutputCache {
   using Ptr = std::shared_ptr<LidarOutputCache>;
 
   tactic::LockableCache<BaseCostMap> change_detection_costmap;
