@@ -39,6 +39,7 @@ class PreprocessingModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
+    bool voxel_downsample = true;
     float frame_voxel_size = 0.1;
 
     float window_size = 3.0;

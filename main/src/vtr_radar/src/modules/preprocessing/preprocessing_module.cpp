@@ -34,6 +34,7 @@ auto PreprocessingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
+  config->voxel_downsample = node->declare_parameter<bool>(param_prefix + ".voxel_downsample", config->voxel_downsample);
   config->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config->frame_voxel_size);
 
   config->window_size = node->declare_parameter<float>(param_prefix + ".window_size", config->window_size);
@@ -78,11 +79,13 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Grid subsampling
 
-  // Get subsampling of the frame in carthesian coordinates
-  gridSubsamplingCentersV2(*filtered_point_cloud, config_->frame_voxel_size);
+  if (config_->voxel_downsample) {
+    // Get subsampling of the frame in carthesian coordinates
+    gridSubsamplingCentersV2(*filtered_point_cloud, config_->frame_voxel_size);
 
-  CLOG(DEBUG, "radar.preprocessing")
-      << "grid subsampled point cloud size: " << filtered_point_cloud->size();
+    CLOG(DEBUG, "radar.preprocessing")
+        << "grid subsampled point cloud size: " << filtered_point_cloud->size();
+  }
 
   /// Compute normals
 
