@@ -59,6 +59,8 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
   config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
   config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
+
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
 
   return config;
@@ -70,6 +72,15 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &radar_qdata = dynamic_cast<radar::RadarQueryCache &>(qdata0);
   auto &lidar_qdata = dynamic_cast<lidar::LidarQueryCache &>(qdata0);
 
+  /// Create a node for visualization if necessary
+  if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    tmp_scan_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_scan_loc", 5);
+    map_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_map_loc_filtered", 5);
+    // clang-format on
+    publisher_initialized_ = true;
+  }
+
   // Inputs
   const auto &query_stamp = *radar_qdata.stamp;
   const auto &query_points = *radar_qdata.undistorted_point_cloud;
@@ -77,7 +88,82 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_v = *radar_qdata.T_r_m_loc;  // used as prior
   const auto &T_v_pm = lidar_qdata.curr_map_loc->T_vertex_map();
   const auto &map_version = lidar_qdata.curr_map_loc->version();
-  auto &point_map = lidar_qdata.curr_map_loc->point_map();
+  auto &lidar_point_map = lidar_qdata.curr_map_loc->point_map();
+
+  // point TF convert to radar frame
+  std::vector<int> indices;
+  {
+    const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
+    Eigen::Matrix3f C_s_pm = (T_s_pm.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_pm_s_in_s = (T_s_pm.block<3, 1>(0, 3)).cast<float>();
+    for (int i = 0; i < lidar_point_map.size(); ++i) {
+      const auto &point = lidar_point_map.at(i);
+      // point and normal in radar frame
+      Eigen::Vector3f p_in_s = C_s_pm * point.getVector3fMap() + r_pm_s_in_s;
+      Eigen::Vector3f n_in_s = C_s_pm * point.getNormalVector3fMap();
+      // filter by elevation
+      // xy = np.sqrt(np.sum(xyz[:, :2] ** 2, axis=1))
+      // ele = np.arctan2(xyz[:, 2], xy)
+      // mask = np.abs(ele) < thres
+      const auto elev = std::atan2(
+          p_in_s(2), std::sqrt(p_in_s(0) * p_in_s(0) + p_in_s(1) * p_in_s(1)));
+      if (std::abs(elev) > 0.05) continue;
+
+      // filter by normal vector
+      if (std::abs(n_in_s(2)) > 0.5) continue;
+
+      // // filter by z value
+      // if (p_in_s(2) < -0.5 || p_in_s(2) > 0.5) continue;
+
+      indices.emplace_back(i);
+    }
+  }
+  /// \todo need to project to 2D in radar frame!!!!
+  pcl::PointCloud<lidar::PointWithInfo> point_map(lidar_point_map, indices);
+
+  if (config_->visualize) {
+    // clang-format off
+#if false
+    auto query_points_in_v = query_points;
+    auto query_point_mat = query_points_in_v.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
+    Eigen::Matrix4d T_v_s_mat = (T_s_r * T_r_v).inverse().matrix();
+    Eigen::Matrix3f C_v_s = (T_v_s_mat.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_s_v_in_v = (T_v_s_mat.block<3, 1>(0, 3)).cast<float>();
+    query_point_mat = (C_v_s * query_point_mat).colwise() + r_s_v_in_v;
+#endif
+    auto point_map_in_v = point_map;  // makes a copy
+    auto map_point_mat = point_map_in_v.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    Eigen::Matrix4d T_v_pm_mat = T_v_pm.matrix();
+    Eigen::Matrix3f C_v_pm = (T_v_pm_mat.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_pm_v_in_v = (T_v_pm_mat.block<3, 1>(0, 3)).cast<float>();
+    map_point_mat = (C_v_pm * map_point_mat).colwise() + r_pm_v_in_v;
+
+    int check = 0;
+#if false
+    while (check < 10) {
+      CLOG(INFO, "radar_lidar.localization_icp") << "Publish map!!!";
+      {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(query_points_in_v, pc2_msg);
+      pc2_msg.header.frame_id = "localization keyframe (offset)";
+      pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
+      tmp_scan_pub_->publish(pc2_msg);
+      }
+#endif
+      {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_map_in_v, pc2_msg);
+      pc2_msg.header.frame_id = "localization keyframe (offset)";
+      pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
+      map_pub_->publish(pc2_msg);
+      }
+#if false
+      check += 1;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+#endif
+    // clang-format on
+  }
 
   /// Parameters
   int first_steps = config_->first_num_steps;

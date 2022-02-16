@@ -31,6 +31,8 @@ namespace radar_lidar {
 /** \brief ICP for localization. */
 class LocalizationICPModule : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "radar_lidar.localization_icp";
 
@@ -64,6 +66,8 @@ class LocalizationICPModule : public tactic::BaseModule {
     // loss function
     double huber_delta = 1.0;
 
+    bool visualize = false;
+
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
@@ -80,6 +84,11 @@ class LocalizationICPModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) override;
 
   Config::ConstPtr config_;
+
+  /** \brief for visualization only */
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr tmp_scan_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(LocalizationICPModule);
 };
