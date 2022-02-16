@@ -23,6 +23,8 @@
 #include "opencv2/opencv.hpp"
 
 #include "vtr_radar/types.hpp"
+#include "vtr_radar/utils.hpp"
+#include "vtr_radar/utils/utils.hpp"
 
 #include <math.h>
 

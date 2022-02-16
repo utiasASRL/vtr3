@@ -19,6 +19,7 @@
 #include "vtr_radar/modules/preprocessing/mcransac_module.hpp"
 
 #include "opencv2/opencv.hpp"
+#include "cv_bridge/cv_bridge.h"
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_radar/features/normal.hpp"
@@ -29,6 +30,91 @@
 
 namespace vtr {
 namespace radar {
+
+  // Binary Annular Statistics Descriptor (BASD) (Rapp et al., 2016)
+// descriptors are binary and can be associated quickly with
+// hamming distance
+class BASD {
+ public:
+  BASD() = default;
+  BASD(int nbins, int bin_size) : nbins_(nbins), bin_size_(bin_size) {}
+  void compute(const cv::Mat& cartesian,
+               const std::vector<cv::KeyPoint> &keypoints,
+               cv::Mat &descriptors);
+
+ private:
+  int nbins_ = 16;
+  int bin_size_ = 1;
+};
+
+void BASD::compute(const cv::Mat& cartesian,
+                   const std::vector<cv::KeyPoint> &keypoints,
+                   cv::Mat &descriptors) {
+  const int max_range = nbins_ - 1;
+  const float max_range_sq = max_range * max_range;
+  const int dim = std::ceil(nbins_ * (nbins_ + 1) / 8.0);  // dimension of descriptor in bytes
+  const int cols = cartesian.cols;
+  const int rows = cartesian.rows;
+  descriptors = cv::Mat::zeros(keypoints.size(), dim, CV_8UC1);
+  for (size_t kp_idx = 0; kp_idx < keypoints.size(); ++kp_idx) {
+    const auto &kp = keypoints[kp_idx];
+    std::vector<std::vector<float>> bins(nbins_);
+    const int minrow = std::max(int(std::ceil(kp.pt.y - max_range)), 0);
+    const int maxrow = std::min(int(std::floor(kp.pt.y + max_range)), rows);
+    const int mincol = std::max(int(std::ceil(kp.pt.x - max_range)), 0);
+    const int maxcol = std::min(int(std::floor(kp.pt.x + max_range)), cols);
+    for (int i = minrow; i < maxrow; ++i) {
+      for (int j = mincol; j < maxcol; ++j) {
+        float r = pow(i - kp.pt.y, 2) + pow(j - kp.pt.x, 2);
+        if (r > max_range_sq)
+          continue;
+        r = sqrt(r);
+        int bin = std::floor(r / bin_size_);
+        bins[bin].push_back(cartesian.at<float>(i, j));
+      }
+    }
+    // compute statistics for each bin
+    std::vector<float> means(nbins_, 0);
+    std::vector<float> stds(nbins_, 0);
+    for (int i = 0; i < nbins_; ++i) {
+      float mean = 0;
+      if (bins[i].size() == 0)
+        continue;
+      for (size_t j = 0; j < bins[i].size(); ++j) {
+        mean += bins[i][j];
+      }
+      mean /= bins[i].size();
+      means[i] = mean;
+      float std = 0;
+      for (size_t j = 0; j < bins[i].size(); ++j) {
+        std += pow(bins[i][j] - mean, 2);
+      }
+      std /= bins[i].size();
+      std = sqrt(std);
+      stds[i] = std;
+    }
+    // compare statistics between rings to create binary descriptor
+    int k = 0;
+    for (int i = 0; i < nbins_; ++i) {
+      for (int j = 0; j < nbins_; ++j) {
+        if (i == j)
+          continue;
+        if (means[i] > means[j]) {
+          int byte = std::floor(k / 8.0);
+          int bit = k % 8;
+          descriptors.at<uchar>(kp_idx, byte) |= (1 << bit);
+        }
+        k++;
+        if (stds[i] > stds[j]) {
+          int byte = std::floor(k / 8.0);
+          int bit = k % 8;
+          descriptors.at<uchar>(kp_idx, byte) |= (1 << bit);
+        }
+        k++;
+      }
+    }
+  }
+}
 
 using namespace tactic;
 
@@ -71,10 +157,13 @@ auto McransacModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->iterations = node->declare_parameter<int>(param_prefix + ".iterations", config->iterations);
   config->gn_iterations = node->declare_parameter<int>(param_prefix + ".gn_iterations", config->gn_iterations);
   config->epsilon_converge = node->declare_parameter<double>(param_prefix + ".epsilon_converge", config->epsilon_converge);
+  config->descriptor = node->declare_parameter<std::string>(param_prefix + ".descriptor", config->descriptor);
   config->patch_size = node->declare_parameter<int>(param_prefix + ".patch_size", config->patch_size);
   config->nndr = node->declare_parameter<float>(param_prefix + ".nndr", config->nndr);
   config->filter_pc = node->declare_parameter<bool>(param_prefix + ".filter_pc", config->filter_pc);
   config->init_icp = node->declare_parameter<bool>(param_prefix + ".init_icp", config->init_icp);
+  config->nbins = node->declare_parameter<int>(param_prefix + ".nbins", config->nbins);
+  config->bin_size = node->declare_parameter<int>(param_prefix + ".bin_size", config->bin_size);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -88,6 +177,7 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("ransac_filtered_point_cloud", 5);
+    image_pub_ = qdata.node->create_publisher<ImageMsg>("matching", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -123,25 +213,36 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   auto filtered_query_points = query_points;
   auto filtered_ref_points = ref_points;
 
-  // Compute (ORB | RSD) descriptors and then match them here.
-  // and pointcloud (post filtering1)
-  cv::Ptr<cv::ORB> detector = cv::ORB::create();
-  detector->setPatchSize(config_->patch_size);
-  detector->setEdgeThreshold(config_->patch_size);
   // Convert pointclouds to KeyPoints for OpenCV
   std::vector<cv::KeyPoint> query_keypoints, ref_keypoints;
   convertToBEV(cart_resolution, query_cartesian.cols, config_->patch_size,
                filtered_query_points, query_keypoints);
   convertToBEV(cart_resolution, query_cartesian.cols, config_->patch_size,
                filtered_ref_points, ref_keypoints);
+  std::cout << query_keypoints.size() << std::endl;
   CLOG(DEBUG, "radar.mcransac")
       << "BEV cloud sizes: " << filtered_query_points.size() << " " << filtered_ref_points.size();
 
   /// \todo The following code compiles but have not been tested yet.
   /// remove the if false macro to test them using the odometry test script.
   cv::Mat query_descs, ref_descs;
-  detector->compute(query_cartesian, query_keypoints, query_descs);
-  detector->compute(ref_cartesian, ref_keypoints, ref_descs);
+  if (config_->descriptor == "orb") {
+    // Compute (ORB | RSD) descriptors
+    cv::Ptr<cv::ORB> detector = cv::ORB::create();
+    detector->setPatchSize(config_->patch_size);
+    detector->setEdgeThreshold(config_->patch_size);
+    detector->compute(query_cartesian, query_keypoints, query_descs);
+    detector->compute(ref_cartesian, ref_keypoints, ref_descs);
+  } else if (config_->descriptor == "basd") {
+    auto detector = BASD(config_->nbins, config_->bin_size);
+    detector.compute(query_cartesian, query_keypoints, query_descs);
+    detector.compute(ref_cartesian, ref_keypoints, ref_descs);
+  } else {
+    CLOG(ERROR, "radar.mcransac")
+        << "Unknown descriptor: " << config_->descriptor;
+    throw std::runtime_error("Unknown descriptor: " + config_->descriptor);
+  }
+  std::cout << query_keypoints.size() << std::endl;
 
   // Match keypoint descriptors
   cv::Ptr<cv::DescriptorMatcher> matcher =
@@ -151,6 +252,7 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   // Filter matches using nearest neighbor distance ratio (Lowe, Szeliski)
   // and ensure matches are one-to-one
   std::vector<cv::DMatch> matches;
+  std::cout << knn_matches.size() << std::endl;
   matches.reserve(knn_matches.size());
   for (size_t j = 0; j < knn_matches.size(); ++j) {
     if (knn_matches[j].size() == 0) continue;
@@ -201,13 +303,11 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   // T_sensornew_sensorold = vec2tran(dt * w_pm_s_in_s)
   Eigen::VectorXd w_pm_s_in_s;
   std::vector<int> best_inliers;
-  mcransac->run(filtered_query_points, filtered_ref_points, w_pm_s_in_s,
+  mcransac->run(filtered_ref_points, filtered_query_points, w_pm_s_in_s,
                 best_inliers);
 
   CLOG(DEBUG, "radar.mcransac")
       << "MC-RANSAC inlier point size: " << best_inliers.size();
-  CLOG(DEBUG, "radar.mcransac")
-      << "MC-RANSAC motion estimate: " << w_pm_s_in_s.transpose();
 
   if (config_->filter_pc) {
     *qdata.preprocessed_point_cloud = pcl::PointCloud<PointWithInfo>(
@@ -227,20 +327,38 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
     const Eigen::Vector3d ang = w_pm_s_in_s.block<3, 1>(3, 0).cast<double>();
     w_pm_s_in_s.block<3, 1>(0, 0) = C_r_s * vel - C_r_s * lgmath::so3::hat(r_r_s_in_s) * ang;
     w_pm_s_in_s.block<3, 1>(3, 0) = C_r_s * ang;
+    w_pm_s_in_s *= -1;
     *qdata.w_pm_r_in_r_odo = w_pm_s_in_s;
+  }
+
+  CLOG(DEBUG, "radar.mcransac")
+      << "MC-RANSAC motion estimate: " << w_pm_s_in_s.transpose();
+
+  cv::Mat img_matches;
+  if (config_->visualize) {
+    cv::drawMatches(query_cartesian,
+      query_keypoints, ref_cartesian, ref_keypoints, matches, img_matches, cv::Scalar::all(-1),
+      cv::Scalar::all(-1), std::vector<char>(),cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
   }
 
   // store this frame's bev image and pointcloud
   qdata.cartesian_odo = qdata.cartesian.ptr();
-  // qdata.point_cloud_odo = qdata.preprocessed_point_cloud.ptr();
   qdata.point_cloud_odo = query_points_backup;
 
   if (config_->visualize) {
+    // publish filtered pointcloud
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(*qdata.preprocessed_point_cloud, *pc2_msg);
     pc2_msg->header.frame_id = "radar";
     pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
     filtered_pub_->publish(*pc2_msg);
+    // publish matching image
+    cv_bridge::CvImage image_br;
+    image_br.header.frame_id = "radar";
+    image_br.encoding = "bgr8";
+    // img_matches.convertTo(image_br.image, CV_8UC3, 255);
+    image_br.image = img_matches;
+    image_pub_->publish(*image_br.toImageMsg());
   }
 }
 

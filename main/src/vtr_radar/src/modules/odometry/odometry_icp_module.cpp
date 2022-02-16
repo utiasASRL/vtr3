@@ -520,6 +520,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_pm_odo = T_r_pm_var->getValue();
     if (config_->trajectory_smoothing)
       *qdata.w_pm_r_in_r_odo = w_pm_r_in_r_var->getValue();
+    std::cout << "odometry: " << w_pm_r_in_r_var->getValue() << std::endl;
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_m_odo = T_r_pm_icp * point_map_odo.T_vertex_map().inverse();

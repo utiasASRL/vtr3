@@ -291,20 +291,12 @@ void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
 
     for (j = mincol; j < maxcol; ++j) {
       // remove cell under test and left-most cell
-
       window.erase(std::remove_if(window.begin(), window.end(),
                                   [&](const std::pair<float, int> &p) -> bool {
                                     return p.first == j ||
                                            p.first == j - w2 - 1;
                                   }),
                    window.end());
-
-      // for (size_t k = window.size() - 1; k >= 0; --k) {
-      //   if (window[k].first == j || window[k].first == j - w2 - 1) {
-      //     std::cout << "erase" << std::endl;
-      //     window.erase(window.begin() + k);
-      //   }
-      // }
       // insert prev CUT and right-most cell
       auto prevcut = std::make_pair(j - 1, raw_scan.at<float>(i, j - 1));
       auto it = std::lower_bound(window.begin(), window.end(), prevcut,

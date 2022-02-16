@@ -119,14 +119,17 @@ double MCRansac<PointT>::run(const pcl::PointCloud<PointT> &pc1,
   int max_iterations = std::min(iterations_, (int)std::pow(N, subset_size_));
   int max_inliers = 0;
   w_best = Eigen::VectorXd::Zero(6, 1);
-  for (int i = 0; i < max_iterations; ++i) {
+  int i = 0;
+  for (i = 0; i < max_iterations; ++i) {
     // Retrieve a unique subset of point indices
-    const auto subset = [&]{
-      while (true) {
-        const auto ret = unique_subsets.insert(random_subset(N));
-        if (ret.second) return *ret.first;
-      }
-    }();
+    // const auto subset = [&]{
+    //   while (true) {
+    //     const auto ret = unique_subsets.insert(random_subset(N));
+    //     if (ret.second) return *ret.first;
+    //   }
+    // }();
+    const auto subset = random_subset(N);
+
     Eigen::VectorXd wbar = get_motion_parameters(pc1, pc2, subset);
     // Check number of inliers (RANSAC)
     const auto num_inliers = get_inliers(pc1, pc2, wbar).size();
@@ -139,6 +142,7 @@ double MCRansac<PointT>::run(const pcl::PointCloud<PointT> &pc1,
   }
   best_inliers = get_inliers(pc1, pc2, w_best);
   w_best = get_motion_parameters(pc1, pc2, std::set<int>(best_inliers.begin(), best_inliers.end()));
+  std::cout << "mcransac: " << i << std::endl;
   return double(best_inliers.size()) / N;
 }
 

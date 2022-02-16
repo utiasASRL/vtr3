@@ -21,6 +21,7 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "vtr_radar/cache.hpp"
+// #include "vtr_radar/detector/detector.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
@@ -31,6 +32,7 @@ namespace radar {
 class McransacModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  using ImageMsg = sensor_msgs::msg::Image;
 
   /** \brief Static module identifier. */
   static constexpr auto static_name = "radar.mcransac";
@@ -45,9 +47,14 @@ class McransacModule : public tactic::BaseModule {
     int iterations = 100;
     int gn_iterations = 10;
     double epsilon_converge = 0.0001;
+    // Descriptor choice
+    std::string descriptor = "orb";
     // ORB descriptor / matching parameters
     int patch_size = 21;
     float nndr = 0.8;
+    // BASD descriptor parameters
+    int nbins = 16;
+    int bin_size = 1;
     // overwrite, ICP init
     bool filter_pc = true;
     bool init_icp = true;
@@ -74,6 +81,7 @@ class McransacModule : public tactic::BaseModule {
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr image_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(McransacModule);
 };
