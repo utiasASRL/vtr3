@@ -43,10 +43,17 @@ inline int get_closest(const double &x, const std::vector<double> &v) {
 template <class PointT>
 std::set<int> MCRansac<PointT>::random_subset(const int &max_size) {
   size_t subset_size = std::min(max_size, subset_size_);
-  /// \note this can be very slow unless max_size >> subset_size_;
+
   std::set<int> subset;
-  std::uniform_int_distribution<int> uniform_dist(0, max_size - 1);
-  while (subset.size() < subset_size) subset.insert(uniform_dist(rng_));
+  if (subset_size < ((size_t)max_size / 5)) {
+    std::uniform_int_distribution<int> uniform_dist(0, max_size - 1);
+    while (subset.size() < subset_size) subset.insert(uniform_dist(rng_));
+  } else {
+    std::vector<int> indices(max_size);
+    std::iota(std::begin(indices), std::end(indices), 0);
+    std::shuffle(std::begin(indices), std::end(indices), rng_);
+    for (size_t i = 0; i < subset_size; ++i) subset.insert(indices[i]);
+  }
   return subset;
 }
 // clang-format off
@@ -122,11 +129,18 @@ double MCRansac<PointT>::run(const pcl::PointCloud<PointT> &pc1,
   for (int i = 0; i < max_iterations; ++i) {
     // Retrieve a unique subset of point indices
     const auto subset = [&]{
-      while (true) {
+      // We try 10000 times to get a unique subset, if we fail, we just return
+      // an empty set
+      for(int iter=0; iter<10000; ++iter) {
         const auto ret = unique_subsets.insert(random_subset(N));
         if (ret.second) return *ret.first;
       }
+      return std::set<int>();
     }();
+    if (subset.empty()) {
+      CLOG(WARNING, "radar.mcransac") << "Failed to get another unique subset, reached max number of iteration.";
+      break;
+    }
     Eigen::VectorXd wbar = get_motion_parameters(pc1, pc2, subset);
     // Check number of inliers (RANSAC)
     const auto num_inliers = get_inliers(pc1, pc2, wbar).size();
