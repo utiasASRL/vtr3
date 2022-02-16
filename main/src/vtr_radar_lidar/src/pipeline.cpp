@@ -181,11 +181,11 @@ void RadarLidarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
       std::make_shared<radar::PointMap<radar::PointWithInfo>>(*point_map_odo_);
   auto map_msg = std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
   vertex->insert<radar::PointMap<radar::PointWithInfo>>(
-      "point_map", "vtr_radar_msgs/msg/PointMap", map_msg);
+      "radar_point_map", "vtr_radar_msgs/msg/PointMap", map_msg);
   auto map_copy_msg =
       std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
   vertex->insert<radar::PointMap<radar::PointWithInfo>>(
-      "point_map_v" + std::to_string(point_map_odo->version()),
+      "radar_point_map_v" + std::to_string(point_map_odo->version()),
       "vtr_radar_msgs/msg/PointMap", map_copy_msg);
 
   // Save the accumulated radar scans (need to correct transform before saving)
@@ -200,7 +200,7 @@ void RadarLidarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
     it->second->vertex_id() = live_id;
     // save the point scan
     auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
-    vertex->insert<radar::PointScan<radar::PointWithInfo>>("raw_point_scan", scan_msg);
+    vertex->insert<radar::PointScan<radar::PointWithInfo>>("radar_raw_point_scan", scan_msg);
   }
   new_raw_scan_odo_.clear();
 #endif
@@ -214,7 +214,7 @@ void RadarLidarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
     // save the point scan
     auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
     vertex->insert<radar::PointScan<radar::PointWithInfo>>(
-        "point_scan", "vtr_radar_msgs/msg/PointScan", scan_msg);
+        "radar_point_scan", "vtr_radar_msgs/msg/PointScan", scan_msg);
   }
   new_scan_odo_.clear();
 }

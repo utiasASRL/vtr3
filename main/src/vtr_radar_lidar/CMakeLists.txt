@@ -39,7 +39,7 @@ include_directories(PUBLIC
 
 # pipelines and modules
 file(GLOB_RECURSE PIPELINE_SRC
-  # src/modules/*.cpp
+  src/modules/*.cpp
   src/pipeline.cpp
 )
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})

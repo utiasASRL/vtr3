@@ -17,3 +17,5 @@
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
+
+#include "vtr_radar_lidar/modules/localization/localization_icp_module.hpp"
