@@ -70,7 +70,7 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 }
 
 void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
-                                 const Graph::Ptr &graph,
+                                 const Graph::Ptr &,
                                  const TaskExecutor::Ptr &) {
   auto &radar_qdata = dynamic_cast<radar::RadarQueryCache &>(qdata0);
   auto &lidar_qdata = dynamic_cast<lidar::LidarQueryCache &>(qdata0);
@@ -85,11 +85,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // Inputs
-  const auto &query_stamp = *radar_qdata.stamp;
+  // const auto &query_stamp = *radar_qdata.stamp;
   const auto &query_points = *radar_qdata.undistorted_point_cloud;
   const auto &T_s_r = *radar_qdata.T_s_r;
   const auto &T_v_pm = lidar_qdata.curr_map_loc->T_vertex_map();
-  const auto &map_version = lidar_qdata.curr_map_loc->version();
+  // const auto &map_version = lidar_qdata.curr_map_loc->version();
   auto &lidar_point_map = lidar_qdata.curr_map_loc->point_map();
   /// \note this may be used as a prior
   auto T_r_v = *radar_qdata.T_r_m_loc;
@@ -128,7 +128,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
     Eigen::Matrix3f C_s_pm = (T_s_pm.block<3, 3>(0, 0)).cast<float>();
     Eigen::Vector3f r_pm_s_in_s = (T_s_pm.block<3, 1>(0, 3)).cast<float>();
-    for (int i = 0; i < lidar_point_map.size(); ++i) {
+    for (int i = 0; i < (int)lidar_point_map.size(); ++i) {
       const auto &point = lidar_point_map.at(i);
       // point and normal in radar frame
       Eigen::Vector3f p_in_s = C_s_pm * point.getVector3fMap() + r_pm_s_in_s;
