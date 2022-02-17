@@ -219,7 +219,6 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
                filtered_query_points, query_keypoints);
   convertToBEV(cart_resolution, query_cartesian.cols, config_->patch_size,
                filtered_ref_points, ref_keypoints);
-  std::cout << query_keypoints.size() << std::endl;
   CLOG(DEBUG, "radar.mcransac")
       << "BEV cloud sizes: " << filtered_query_points.size() << " " << filtered_ref_points.size();
 
@@ -242,7 +241,6 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
         << "Unknown descriptor: " << config_->descriptor;
     throw std::runtime_error("Unknown descriptor: " + config_->descriptor);
   }
-  std::cout << query_keypoints.size() << std::endl;
 
   // Match keypoint descriptors
   cv::Ptr<cv::DescriptorMatcher> matcher =
@@ -252,7 +250,6 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   // Filter matches using nearest neighbor distance ratio (Lowe, Szeliski)
   // and ensure matches are one-to-one
   std::vector<cv::DMatch> matches;
-  std::cout << knn_matches.size() << std::endl;
   matches.reserve(knn_matches.size());
   for (size_t j = 0; j < knn_matches.size(); ++j) {
     if (knn_matches[j].size() == 0) continue;
@@ -284,7 +281,6 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
     ref_indices.emplace_back(matches[j].trainIdx);
   }
 
-  std::cout << query_indices.size() << " " << ref_indices.size() << std::endl;
   // Downsample and re-order points based on matching and NNDR
   filtered_query_points =
       pcl::PointCloud<PointWithInfo>(filtered_query_points, query_indices);
@@ -319,10 +315,9 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
 
   if (config_->init_icp) {
     // Convert velocity vector from sensor frame to robot frame
-    const auto T_r_s = T_s_r.inverse();
     const Eigen::Matrix3d C_s_r = T_s_r.block<3, 3>(0, 0).cast<double>();
-    const Eigen::Vector3d r_r_s_in_s = -1 * C_s_r * T_r_s.block<3, 1>(0, 3).cast<double>();
-    const Eigen::Matrix3d C_r_s = T_r_s.block<3, 3>(0, 0).cast<double>();
+    const Eigen::Vector3d r_r_s_in_s = T_s_r.block<3, 1>(0, 3).cast<double>();
+    const Eigen::Matrix3d C_r_s = C_s_r.transpose();
     const Eigen::Vector3d vel = w_pm_s_in_s.block<3, 1>(0, 0).cast<double>();
     const Eigen::Vector3d ang = w_pm_s_in_s.block<3, 1>(3, 0).cast<double>();
     w_pm_s_in_s.block<3, 1>(0, 0) = C_r_s * vel - C_r_s * lgmath::so3::hat(r_r_s_in_s) * ang;

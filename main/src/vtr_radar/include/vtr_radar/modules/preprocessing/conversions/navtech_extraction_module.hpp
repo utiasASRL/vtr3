@@ -46,7 +46,8 @@ class NavtechExtractionModule : public tactic::BaseModule {
     // kstrong
     struct {
       int kstrong = 10;
-      double threshold = 0.5;
+      double threshold2 = 0.5;
+      double threshold3 = 0.22;
     } kstrong;
     // cen2018
     struct {
@@ -59,6 +60,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
       int guard = 2;
       double threshold = 0.5;
       double threshold2 = 0.5;
+      double threshold3 = 0.22;
     } cacfar;
     // oscfar
     struct {
@@ -67,6 +69,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
       int kstat = 20;
       double threshold = 0.5;
       double threshold2 = 0.5;
+      double threshold3 = 0.22;
     } oscfar;
     // modified_cacfar
     struct {
@@ -74,10 +77,12 @@ class NavtechExtractionModule : public tactic::BaseModule {
       int guard = 2;
       double threshold = 0.5;
       double threshold2 = 0.5;
+      double threshold3 = 0.22;
     } modified_cacfar;
 
     double radar_resolution = 0.0438;
     double cart_resolution = 0.25;
+    double beta = 0.049;
 
     bool visualize = false;
 

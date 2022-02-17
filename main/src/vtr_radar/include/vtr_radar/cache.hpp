@@ -42,6 +42,7 @@ struct RadarQueryCache : public tactic::QueryCache {
   // preprocessing
   tactic::Cache<float> radar_resolution;
   tactic::Cache<float> cart_resolution;
+  tactic::Cache<float> beta;
   tactic::Cache<cv::Mat> fft_scan;
   tactic::Cache<cv::Mat> cartesian;
   tactic::Cache<std::vector<double>> azimuth_times;

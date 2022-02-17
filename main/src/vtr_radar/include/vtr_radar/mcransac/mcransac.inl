@@ -153,7 +153,6 @@ double MCRansac<PointT>::run(const pcl::PointCloud<PointT> &pc1,
   }
   best_inliers = get_inliers(pc1, pc2, w_best);
   w_best = get_motion_parameters(pc1, pc2, std::set<int>(best_inliers.begin(), best_inliers.end()));
-  std::cout << "mcransac: " << i << std::endl;
   return double(best_inliers.size()) / N;
 }
 

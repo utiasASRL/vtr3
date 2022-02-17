@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
+#include "vtr_radar/utils.hpp"
 
 namespace vtr {
 namespace radar {
@@ -138,9 +139,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
+  const Eigen::Matrix4d T_s_r_ = T_s_r.matrix().cast<double>();
   const auto &timestamp_odo = *qdata.timestamp_odo;
   const auto &T_r_pm_odo = *qdata.T_r_pm_odo;
   const auto &w_pm_r_in_r_odo = *qdata.w_pm_r_in_r_odo;
+  const auto &beta = *qdata.beta;
   auto &point_map_odo = *qdata.point_map_odo;
   auto &point_map = point_map_odo.point_map();
 
@@ -306,6 +309,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       }
     }
     timer[2]->stop();
+    CLOG(DEBUG, "radar.odometry_icp") << "Number of matches: " << filtered_sample_inds.size();
 
     /// Point to point optimization
     timer[3]->start();
@@ -493,6 +497,23 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     aligned_norms_mat = C_s_pm * aligned_norms_mat;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
+    /// Doppler Compensation
+    if (beta != 0) {
+      // Convert velocity vector from w_pm_r_in_r to w_s_pm_in_s
+      const auto T_r_s = T_s_r_.inverse();
+      const Eigen::Matrix3d C_s_r = T_s_r_.block<3, 3>(0, 0).cast<double>();
+      const Eigen::Vector3d r_s_r_in_r = T_r_s.block<3, 1>(0, 3).cast<double>();
+      const Eigen::VectorXd w_pm_r_in_r = w_pm_r_in_r_var->getValue();
+      const Eigen::Vector3d vel = w_pm_r_in_r.block<3, 1>(0, 0).cast<double>();
+      const Eigen::Vector3d ang = w_pm_r_in_r.block<3, 1>(3, 0).cast<double>();
+      // angular velocity in sensor frame does not result in Doppler shift
+      Eigen::VectorXd v_s_pm_in_s = Eigen::VectorXd::Zero(3);
+      v_s_pm_in_s = C_s_r * vel - C_s_r * lgmath::so3::hat(r_s_r_in_r) * ang;
+      v_s_pm_in_s *= -1;
+      std::cout << v_s_pm_in_s.transpose() << std::endl;
+      removeDoppler(*undistorted_point_cloud, v_s_pm_in_s, beta);
+    }
+
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
     qdata.undistorted_point_cloud = undistorted_point_cloud;
 #if false
@@ -520,7 +541,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_pm_odo = T_r_pm_var->getValue();
     if (config_->trajectory_smoothing)
       *qdata.w_pm_r_in_r_odo = w_pm_r_in_r_var->getValue();
-    std::cout << "odometry: " << w_pm_r_in_r_var->getValue() << std::endl;
+    CLOG(DEBUG, "radar.odometry_icp") << "ICP motion estimate: " <<
+      w_pm_r_in_r_var->getValue().transpose();
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_m_odo = T_r_pm_icp * point_map_odo.T_vertex_map().inverse();
