@@ -47,6 +47,10 @@ class LocalizationICPModule : public tactic::BaseModule {
     /// Prior terms
     bool use_pose_prior = false;
 
+    /// Point cloud map projection parameters
+    float elevation_threshold = 0.05;
+    float normal_threshold = 0.5;
+
     /// ICP parameters
     // number of threads for nearest neighbor search
     int num_threads = 8;

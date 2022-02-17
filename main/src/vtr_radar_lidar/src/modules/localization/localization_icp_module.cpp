@@ -34,6 +34,9 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
   config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
 
+  config->elevation_threshold = node->declare_parameter<float>(param_prefix + ".elevation_threshold", config->elevation_threshold);
+  config->normal_threshold = node->declare_parameter<float>(param_prefix + ".normal_threshold", config->normal_threshold);
+
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
@@ -85,12 +88,41 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_stamp = *radar_qdata.stamp;
   const auto &query_points = *radar_qdata.undistorted_point_cloud;
   const auto &T_s_r = *radar_qdata.T_s_r;
-  const auto &T_r_v = *radar_qdata.T_r_m_loc;  // used as prior
   const auto &T_v_pm = lidar_qdata.curr_map_loc->T_vertex_map();
   const auto &map_version = lidar_qdata.curr_map_loc->version();
   auto &lidar_point_map = lidar_qdata.curr_map_loc->point_map();
+  /// \note this may be used as a prior
+  auto T_r_v = *radar_qdata.T_r_m_loc;
 
-  // point TF convert to radar frame
+  // project robot to vertex frame, along z-axis of the vertex fram while
+  // keeping x-axis of robot frame in the same direction
+  {
+    auto T_v_r_mat = T_r_v.inverse().matrix();
+    // origin x and y should be the same
+    // origin z should be zero
+    T_v_r_mat(2, 3) = 0;
+    // x-axis should be in the same direction
+    const auto planar_xaxis_norm = T_v_r_mat.block<2, 1>(0, 0).norm();
+    T_v_r_mat(0, 0) /= planar_xaxis_norm;
+    T_v_r_mat(1, 0) /= planar_xaxis_norm;
+    T_v_r_mat(2, 0) = 0;
+    // z-axis should be (0, 0, 1)
+    T_v_r_mat(0, 2) = 0;
+    T_v_r_mat(1, 2) = 0;
+    T_v_r_mat(2, 2) = 1;
+    // y-axis should be the cross of z-axis and x-axis
+    T_v_r_mat.block<3, 1>(0, 1) =
+        T_v_r_mat.block<3, 1>(0, 2).cross(T_v_r_mat.block<3, 1>(0, 0));
+    // we no longer have a valid covariance
+    EdgeTransform T_v_r(T_v_r_mat, Eigen::Matrix<double, 6, 6>::Identity());
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r: \n"
+    //                                             << T_r_v.inverse().matrix();
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r projected: \n"
+    //                                             << T_v_r.matrix();
+    T_r_v = T_v_r.inverse();
+  }
+
+  // find points that are within the radar scan FOV
   std::vector<int> indices;
   {
     const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
@@ -107,10 +139,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       // mask = np.abs(ele) < thres
       const auto elev = std::atan2(
           p_in_s(2), std::sqrt(p_in_s(0) * p_in_s(0) + p_in_s(1) * p_in_s(1)));
-      if (std::abs(elev) > 0.05) continue;
+      if (std::abs(elev) > config_->elevation_threshold) continue;
 
       // filter by normal vector
-      if (std::abs(n_in_s(2)) > 0.5) continue;
+      if (std::abs(n_in_s(2)) > config_->normal_threshold) continue;
 
       // // filter by z value
       // if (p_in_s(2) < -0.5 || p_in_s(2) > 0.5) continue;
@@ -118,8 +150,40 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       indices.emplace_back(i);
     }
   }
-  /// \todo need to project to 2D in radar frame!!!!
   pcl::PointCloud<lidar::PointWithInfo> point_map(lidar_point_map, indices);
+
+  // project points to 2D
+  {
+    auto aligned_point_map = point_map;
+    // clang-format off
+    auto map_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    auto map_normals_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+    auto aligned_map_mat = aligned_point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    auto aligned_map_normals_mat = aligned_point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+    // clang-format on
+    // convert to sensor frame
+    const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
+    Eigen::Matrix3f C_s_pm = (T_s_pm.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_pm_s_in_s = (T_s_pm.block<3, 1>(0, 3)).cast<float>();
+    aligned_map_mat = (C_s_pm * map_mat).colwise() + r_pm_s_in_s;
+    aligned_map_normals_mat = C_s_pm * map_normals_mat;
+
+    // project to 2D
+    aligned_map_mat.row(2).setZero();
+    aligned_map_normals_mat.row(2).setZero();
+    // \todo double check correctness of this normal projection
+    Eigen::MatrixXf aligned_map_norms_mat =
+        aligned_map_normals_mat.colwise().norm();
+    aligned_map_normals_mat.row(0).array() /= aligned_map_norms_mat.array();
+    aligned_map_normals_mat.row(1).array() /= aligned_map_norms_mat.array();
+
+    // convert back to point map frame
+    const auto T_pm_s = T_s_pm.inverse();
+    Eigen::Matrix3f C_pm_s = (T_pm_s.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_s_pm_in_pm = (T_pm_s.block<3, 1>(0, 3)).cast<float>();
+    map_mat = (C_pm_s * aligned_map_mat).colwise() + r_s_pm_in_pm;
+    map_normals_mat = C_pm_s * aligned_map_normals_mat;
+  }
 
   if (config_->visualize) {
     // clang-format off
