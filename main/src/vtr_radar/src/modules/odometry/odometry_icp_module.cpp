@@ -510,7 +510,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       Eigen::VectorXd v_s_pm_in_s = Eigen::VectorXd::Zero(3);
       v_s_pm_in_s = C_s_r * vel - C_s_r * lgmath::so3::hat(r_s_r_in_r) * ang;
       v_s_pm_in_s *= -1;
-      std::cout << v_s_pm_in_s.transpose() << std::endl;
       removeDoppler(*undistorted_point_cloud, v_s_pm_in_s, beta);
     }
 
