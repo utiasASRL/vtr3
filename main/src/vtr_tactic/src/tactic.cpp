@@ -748,11 +748,6 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to map vertex ("
                         << *(qdata->map_id) << ") (i.e., T_m_r localization): "
                         << (*qdata->T_r_m_loc).inverse().vec().transpose();
-  if (!(*qdata->loc_success)) {
-    CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "
-                               "and localization chain.";
-    return true;
-  }
 
   // store localization result
   {
@@ -764,6 +759,12 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
     auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
     graph_->write<LocalizationResult>(
         "localization_result", "vtr_tactic_msgs/msg/LocalizationResult", msg);
+  }
+
+  if (!(*qdata->loc_success)) {
+    CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "
+                               "and localization chain.";
+    return true;
   }
 
   const auto T_l_m = (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
