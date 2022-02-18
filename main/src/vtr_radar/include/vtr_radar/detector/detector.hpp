@@ -23,6 +23,8 @@
 #include "opencv2/opencv.hpp"
 
 #include "vtr_radar/types.hpp"
+#include "vtr_radar/utils.hpp"
+#include "vtr_radar/utils/utils.hpp"
 
 #include <math.h>
 
@@ -44,8 +46,8 @@ template <class PointT>
 class KStrongest : public Detector<PointT> {
  public:
   KStrongest() = default;
-  KStrongest(int kstrong, double threshold, double minr, double maxr)
-      : kstrong_(kstrong), threshold_(threshold), minr_(minr), maxr_(maxr) {}
+  KStrongest(int kstrong, double threshold2, double threshold3, double minr, double maxr)
+      : kstrong_(kstrong), threshold2_(threshold2), threshold3_(threshold3), minr_(minr), maxr_(maxr) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<double> &azimuth_times,
@@ -54,7 +56,8 @@ class KStrongest : public Detector<PointT> {
 
  private:
   int kstrong_ = 10;
-  double threshold_ = 1.5;
+  double threshold2_ = 1.5;
+  double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };
@@ -82,12 +85,13 @@ template <class PointT>
 class CACFAR : public Detector<PointT> {
  public:
   CACFAR() = default;
-  CACFAR(int width, int guard, double threshold, double threshold2, double minr,
-         double maxr)
+  CACFAR(int width, int guard, double threshold, double threshold2,
+         double threshold3, double minr, double maxr)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
         threshold2_(threshold2),
+        threshold3_(threshold3),
         minr_(minr),
         maxr_(maxr) {}
 
@@ -101,6 +105,7 @@ class CACFAR : public Detector<PointT> {
   int guard_ = 2;
   double threshold_ = 3.0;
   double threshold2_ = 1.1;
+  double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };
@@ -110,12 +115,13 @@ class OSCFAR : public Detector<PointT> {
  public:
   OSCFAR() = default;
   OSCFAR(int width, int guard, int kstat, double threshold, double threshold2,
-         double minr, double maxr)
+         double threshold3, double minr, double maxr)
       : width_(width),
         guard_(guard),
         kstat_(kstat),
         threshold_(threshold),
         threshold2_(threshold2),
+        threshold3_(threshold3),
         minr_(minr),
         maxr_(maxr) {}
 
@@ -130,6 +136,7 @@ class OSCFAR : public Detector<PointT> {
   int kstat_ = 20;
   double threshold_ = 1.25;
   double threshold2_ = 1.2;
+  double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };
@@ -139,11 +146,12 @@ class ModifiedCACFAR : public Detector<PointT> {
  public:
   ModifiedCACFAR() = default;
   ModifiedCACFAR(int width, int guard, double threshold, double threshold2,
-                 double minr, double maxr)
+                 double threshold3, double minr, double maxr)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
         threshold2_(threshold2),
+        threshold3_(threshold3),
         minr_(minr),
         maxr_(maxr) {}
 
@@ -157,6 +165,7 @@ class ModifiedCACFAR : public Detector<PointT> {
   int guard_ = 2;
   double threshold_ = 3.0;
   double threshold2_ = 1.1;
+  double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
 };

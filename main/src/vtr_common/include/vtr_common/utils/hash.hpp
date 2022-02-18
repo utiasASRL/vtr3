@@ -19,6 +19,7 @@
 #pragma once
 
 #include <functional>
+#include <set>
 #include <utility>
 
 namespace vtr {
@@ -35,9 +36,7 @@ inline void hash_combine(std::size_t& seed, const T& v, Rest... rest) {
 }  // namespace vtr
 
 namespace std {
-// Create a hash for std::pair so that it can be used as a key for unordered
-// containers (e.g. std::unordered_map). If this hurts performance so much,
-// consider changing it back to boost::unordered_map.
+// hash for std::pair
 template <class T1, class T2>
 struct hash<pair<T1, T2>> {
   size_t operator()(const pair<T1, T2>& p) const {
@@ -46,4 +45,15 @@ struct hash<pair<T1, T2>> {
     return seed;
   }
 };
+
+// hash for std::set
+template <class T>
+struct hash<set<T>> {
+  size_t operator()(const set<T>& p) const {
+    size_t seed = 0;
+    for (const auto& i : p) vtr::common::hash_combine(seed, i);
+    return seed;
+  }
+};
+
 }  // namespace std

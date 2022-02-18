@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file detector.cpp
+ * \file detector.inl
  * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  * \brief Keypoint extraction methods for Navtech radar
  */
@@ -59,7 +59,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
       mean += raw_scan.at<float>(i, j);
     }
     mean /= N;
-    const double thres = mean * threshold_;
+    const double thres = mean * threshold2_ + threshold3_;
     for (int j = mincol; j < maxcol; ++j) {
       if (raw_scan.at<float>(i, j) >= thres)
         intens.emplace_back(raw_scan.at<float>(i, j), j);
@@ -234,7 +234,7 @@ void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
         right += raw_scan.at<float>(i, j + k);
       }
       stat = std::max(left, right);
-      const float thres = threshold_ * stat / (window / 2) + threshold2_ * mean;
+      const float thres = threshold_ * stat / (window / 2) + threshold2_ * mean + threshold3_;
       if (raw_scan.at<float>(i, j) > thres) {
         PointT p;
         p.rho = j * res;
@@ -289,22 +289,17 @@ void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
     }
     std::sort(window.begin(), window.end(), sort_asc_by_second);
 
+    float peak_points = 0;
+    int num_peak_points = 0;
+
     for (j = mincol; j < maxcol; ++j) {
       // remove cell under test and left-most cell
-
       window.erase(std::remove_if(window.begin(), window.end(),
                                   [&](const std::pair<float, int> &p) -> bool {
                                     return p.first == j ||
                                            p.first == j - w2 - 1;
                                   }),
                    window.end());
-
-      // for (size_t k = window.size() - 1; k >= 0; --k) {
-      //   if (window[k].first == j || window[k].first == j - w2 - 1) {
-      //     std::cout << "erase" << std::endl;
-      //     window.erase(window.begin() + k);
-      //   }
-      // }
       // insert prev CUT and right-most cell
       auto prevcut = std::make_pair(j - 1, raw_scan.at<float>(i, j - 1));
       auto it = std::lower_bound(window.begin(), window.end(), prevcut,
@@ -324,14 +319,19 @@ void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
       // }
       // (statistic) estimate of clutter power
       double stat = window[kstat_].second;
-      const float thres = threshold_ * stat + threshold2_ * mean;
+      const float thres = threshold_ * stat + threshold2_ * mean + threshold3_;
       if (raw_scan.at<float>(i, j) > thres) {
+        peak_points += j;
+        num_peak_points += 1;
+      } else if (num_peak_points > 0) {
         PointT p;
-        p.rho = j * res;
+        p.rho = res * peak_points / num_peak_points;
         p.phi = azimuth;
         p.theta = 0;
         p.time = time;
         polar_time.push_back(p);
+        peak_points = 0;
+        num_peak_points = 0;
       }
     }
     // #pragma omp critical
@@ -351,7 +351,6 @@ void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
   const int cols = raw_scan.cols;
   if (width_ % 2 == 0) width_ += 1;
   const int w2 = std::floor(width_ / 2);
-  const int window = width_ + guard_ * 2;
   auto mincol = minr_ / res + w2 + guard_ + 1;
   if (mincol > cols || mincol < 0) mincol = 0;
   auto maxcol = maxr_ / res - w2 - guard_;
@@ -379,9 +378,9 @@ void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
       for (int k = guard_ + 1; k <= w2 + guard_; ++k)
         right += raw_scan.at<float>(i, j + k);
       // (statistic) estimate of clutter power
-      const double stat = (left + right) / (2 * w2);
-      // const double stat = std::max(left, right) / w2;
-      const float thres = threshold_ * stat + threshold2_ * mean;
+      // const double stat = (left + right) / (2 * w2);
+      const double stat = std::max(left, right) / w2;  // GO-CFAR
+      const float thres = threshold_ * stat + threshold2_ * mean + threshold3_;
       if (raw_scan.at<float>(i, j) > thres) {
         peak_points += j;
         num_peak_points += 1;
