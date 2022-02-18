@@ -101,14 +101,12 @@ inline PixKey operator-(const PixKey A, const PixKey B) {
 
 // Specialization of std:hash function
 namespace std {
-using namespace vtr::lidar;
-using namespace vtr::common;
 
 template <>
-struct hash<PixKey> {
-  std::size_t operator()(const PixKey& k) const {
+struct hash<vtr::lidar::PixKey> {
+  std::size_t operator()(const vtr::lidar::PixKey& k) const {
     std::size_t ret = 0;
-    hash_combine(ret, k.x, k.y);
+    vtr::common::hash_combine(ret, k.x, k.y);
     return ret;
   }
 };

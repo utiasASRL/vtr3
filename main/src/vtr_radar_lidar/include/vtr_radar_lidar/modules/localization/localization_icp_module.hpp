@@ -13,42 +13,62 @@
 // limitations under the License.
 
 /**
- * \file preprocessing_module.hpp
+ * \file localization_icp_module.hpp
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "sensor_msgs/msg/point_cloud2.hpp"
+#include "steam.hpp"
 
-#include "vtr_radar/cache.hpp"
+#include "vtr_radar_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
-namespace radar {
 
-/** \brief Preprocess raw pointcloud points and compute normals */
-class PreprocessingModule : public tactic::BaseModule {
+namespace radar_lidar {
+
+/** \brief ICP for localization. */
+class LocalizationICPModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.preprocessing";
+  static constexpr auto static_name = "radar_lidar.localization_icp";
 
   /** \brief Config parameters. */
-  struct Config : public tactic::BaseModule::Config {
+  struct Config : public tactic::BaseModule::Config,
+                  public steam::VanillaGaussNewtonSolver::Params {
     PTR_TYPEDEFS(Config);
 
-    bool voxel_downsample = true;
-    float frame_voxel_size = 0.1;
+    /// Success criteria
+    float min_matched_ratio = 0.4;
 
-    float window_size = 3.0;
-    float azimuth_res = 0.016;  // radar azimuth resolution in radians
-    float rho_scale = 1.0;      // scale factor for range measurement rho
-    int num_threads = 1;
+    /// Prior terms
+    bool use_pose_prior = false;
 
-    int num_sample_linearity = 500;
-    float min_linearity_score = 0.5;
+    /// Point cloud map projection parameters
+    float elevation_threshold = 0.05;
+    float normal_threshold = 0.5;
+
+    /// ICP parameters
+    // number of threads for nearest neighbor search
+    int num_threads = 8;
+    // initial alignment config
+    size_t first_num_steps = 3;
+    size_t initial_max_iter = 100;
+    float initial_max_pairing_dist = 2.0;
+    float initial_max_planar_dist = 0.3;
+    // refined stage
+    size_t refined_max_iter = 10;  // we use a fixed number of iters for now
+    float refined_max_pairing_dist = 2.0;
+    float refined_max_planar_dist = 0.1;
+    // error calculation
+    float averaging_num_steps = 5;
+    float trans_diff_thresh = 0.01;              // threshold on variation of T
+    float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
+    // loss function
+    double huber_delta = 1.0;
 
     bool visualize = false;
 
@@ -56,7 +76,7 @@ class PreprocessingModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  PreprocessingModule(
+  LocalizationICPModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -71,10 +91,11 @@ class PreprocessingModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr tmp_scan_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(PreprocessingModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(LocalizationICPModule);
 };
 
-}  // namespace radar
+}  // namespace radar_lidar
 }  // namespace vtr
