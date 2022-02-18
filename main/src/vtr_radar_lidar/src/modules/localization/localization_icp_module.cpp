@@ -94,6 +94,29 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// \note this may be used as a prior
   auto T_r_v = *radar_qdata.T_r_m_loc;
 
+  // se3 projection
+#if true
+  {
+    auto T_v_r_vec = T_r_v.inverse().vec();
+    auto T_v_r_cov = T_r_v.inverse().cov();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r_vec: \n" << T_v_r_vec;
+    // basically setting z, pitch, roll to zero
+    T_v_r_vec(2) = 0;
+    T_v_r_vec(3) = 0;
+    T_v_r_vec(4) = 0;
+    // corresponding covariances to zero
+    // for (int i = 0; i < 6; ++i) {
+    //   for (int j = 2; j < 5; ++j) {
+    //     T_v_r_cov(i, j) = 1e-5;
+    //     T_v_r_cov(j, i) = 1e-5;
+    //   }
+    // }
+    EdgeTransform T_v_r(T_v_r_vec, T_v_r_cov);
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r projected: \n"
+                                                << T_v_r;
+    T_r_v = T_v_r.inverse();
+  }
+#else
   // project robot to vertex frame, along z-axis of the vertex fram while
   // keeping x-axis of robot frame in the same direction
   {
@@ -115,13 +138,13 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         T_v_r_mat.block<3, 1>(0, 2).cross(T_v_r_mat.block<3, 1>(0, 0));
     // we no longer have a valid covariance
     EdgeTransform T_v_r(T_v_r_mat, Eigen::Matrix<double, 6, 6>::Identity());
-    // CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r: \n"
-    //                                             << T_r_v.inverse().matrix();
-    // CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r projected: \n"
-    //                                             << T_v_r.matrix();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r: \n"
+                                                << T_r_v.inverse().matrix();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r projected: \n"
+                                                << T_v_r.matrix();
     T_r_v = T_v_r.inverse();
   }
-
+#endif
   // find points that are within the radar scan FOV
   std::vector<int> indices;
   {
@@ -510,7 +533,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(WARNING, "radar_lidar.localization_icp")
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
-    // no update to map to robot transform
+    // update map to robot transform to be the projected one
+    *radar_qdata.T_r_m_loc = T_r_v;
     // set success
     *radar_qdata.loc_success = false;
   }
