@@ -20,7 +20,6 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 
-#include "vtr_lidar/features/icp_score.hpp"
 #include "vtr_lidar/features/normal.hpp"
 #include "vtr_lidar/filters/grid_subsampling.hpp"
 #include "vtr_lidar/utils.hpp"
@@ -71,7 +70,7 @@ auto PreprocessingModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
-  LOG_IF(config->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
+  CLOG_IF(config->num_threads != 1, WARNING, "lidar.preprocessing") << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
   config->num_threads = 1;
 #endif
   config->crop_range = node->declare_parameter<float>(param_prefix + ".crop_range", config->crop_range);
@@ -148,7 +147,7 @@ void PreprocessingModuleV2::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "lidar.preprocessing")
       << "grid subsampled point cloud size: " << filtered_point_cloud->size();
 
-  /// Compute normals and an icp score
+  /// Compute normals using PCA
 
   // Define the polar neighbors radius in the scaled polar coordinates
   float polar_r = config_->polar_r_scale * config_->vertical_angle_res;
@@ -158,10 +157,7 @@ void PreprocessingModuleV2::run_(QueryCache &qdata0, OutputCache &,
       extractNormal(point_cloud, filtered_point_cloud, polar_r,
                     config_->r_scale, config_->h_scale, config_->num_threads);
 
-  // Sets better icp score based on distance and incidence angle
-  smartICPScore(*filtered_point_cloud);
-
-  /// Filtering based on normal scores (planarity)
+  /// Filtering based on normal scores (planarity + linearity)
 
   // Remove points with a low normal score
   auto sorted_norm_scores = norm_scores;

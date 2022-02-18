@@ -13,26 +13,28 @@
 // limitations under the License.
 
 /**
- * \file localization_icp_module_v3.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file localization_icp_module.hpp
+ * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include "steam.hpp"
 
-#include "vtr_lidar/cache.hpp"
+#include "vtr_radar_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
 
-namespace lidar {
+namespace radar_lidar {
 
 /** \brief ICP for localization. */
-class LocalizationICPModuleV3 : public tactic::BaseModule {
+class LocalizationICPModule : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.localization_icp_v3";
+  static constexpr auto static_name = "radar_lidar.localization_icp";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config,
@@ -44,6 +46,10 @@ class LocalizationICPModuleV3 : public tactic::BaseModule {
 
     /// Prior terms
     bool use_pose_prior = false;
+
+    /// Point cloud map projection parameters
+    float elevation_threshold = 0.05;
+    float normal_threshold = 0.5;
 
     /// ICP parameters
     // number of threads for nearest neighbor search
@@ -61,12 +67,16 @@ class LocalizationICPModuleV3 : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
+    // loss function
+    double huber_delta = 1.0;
+
+    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  LocalizationICPModuleV3(
+  LocalizationICPModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -79,8 +89,13 @@ class LocalizationICPModuleV3 : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(LocalizationICPModuleV3);
+  /** \brief for visualization only */
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr tmp_scan_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(LocalizationICPModule);
 };
 
-}  // namespace lidar
+}  // namespace radar_lidar
 }  // namespace vtr

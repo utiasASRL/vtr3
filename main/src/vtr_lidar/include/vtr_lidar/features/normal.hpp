@@ -60,9 +60,11 @@ float computeNormalPCA(const pcl::PointCloud<PointT> &point_cloud,
           ? -Eigen::Vector3f(es.eigenvectors().col(0))
           : Eigen::Vector3f(es.eigenvectors().col(0));
 
+  // Variance is the smallest eigenvalue
+  query.normal_variance = es.eigenvalues()(0);
+
   // Score is 1 - sphericity equivalent to planarity + linearity
-  query.normal_score =
-      1.0f - es.eigenvalues()(0) / (es.eigenvalues()(2) + 1e-9);
+  query.normal_score = 1.f - es.eigenvalues()(0) / (es.eigenvalues()(2) + 1e-9);
 
   return query.normal_score;
 }

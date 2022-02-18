@@ -31,7 +31,7 @@
 namespace vtr {
 namespace radar {
 
-struct RadarQueryCache : public tactic::QueryCache {
+struct RadarQueryCache : virtual public tactic::QueryCache {
   using Ptr = std::shared_ptr<RadarQueryCache>;
 
   // input
@@ -67,7 +67,7 @@ struct RadarQueryCache : public tactic::QueryCache {
   tactic::Cache<const bool> curr_map_loc_changed;
 };
 
-struct RadarOutputCache : public tactic::OutputCache {
+struct RadarOutputCache : virtual public tactic::OutputCache {
   using Ptr = std::shared_ptr<RadarOutputCache>;
 };
 

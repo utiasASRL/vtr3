@@ -13,24 +13,20 @@
 // limitations under the License.
 
 /**
- * \file localization_icp_module_v3.cpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file localization_icp_module.cpp
+ * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/localization/localization_icp_module_v3.hpp"
-
-#include "vtr_lidar_msgs/msg/icp_result.hpp"
+#include "vtr_radar_lidar/modules/localization/localization_icp_module.hpp"
 
 namespace vtr {
-namespace lidar {
+namespace radar_lidar {
 
 using namespace tactic;
 using namespace steam;
 using namespace se3;
 
-using LocalizationICPResult = vtr_lidar_msgs::msg::ICPResult;
-
-auto LocalizationICPModuleV3::Config::fromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
@@ -38,10 +34,13 @@ auto LocalizationICPModuleV3::Config::fromROS(
 
   config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
 
+  config->elevation_threshold = node->declare_parameter<float>(param_prefix + ".elevation_threshold", config->elevation_threshold);
+  config->normal_threshold = node->declare_parameter<float>(param_prefix + ".normal_threshold", config->normal_threshold);
+
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
-  CLOG_IF(config->num_threads != 1, WARNING, "lidar.localization_icp") << "ICP number of threads set to 1 in deterministic mode.";
+  CLOG_IF(config->num_threads != 1, WARNING, "radar_lidar.localization_icp") << "ICP number of threads set to 1 in deterministic mode.";
   config->num_threads = 1;
 #endif
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
@@ -51,6 +50,7 @@ auto LocalizationICPModuleV3::Config::fromROS(
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
   config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
+  config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
 
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
@@ -62,24 +62,195 @@ auto LocalizationICPModuleV3::Config::fromROS(
   config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
   config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
   config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
+
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
 
   return config;
 }
 
-void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
-                                   const Graph::Ptr &graph,
-                                   const TaskExecutor::Ptr &) {
-  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
+                                 const Graph::Ptr &,
+                                 const TaskExecutor::Ptr &) {
+  auto &radar_qdata = dynamic_cast<radar::RadarQueryCache &>(qdata0);
+  auto &lidar_qdata = dynamic_cast<lidar::LidarQueryCache &>(qdata0);
+
+  /// Create a node for visualization if necessary
+  if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    tmp_scan_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_scan_loc", 5);
+    map_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_map_loc_filtered", 5);
+    // clang-format on
+    publisher_initialized_ = true;
+  }
 
   // Inputs
-  const auto &query_stamp = *qdata.stamp;
-  const auto &query_points = *qdata.undistorted_point_cloud;
-  const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_v = *qdata.T_r_m_loc;  // used as prior
-  const auto &T_v_pm = qdata.curr_map_loc->T_vertex_map();
-  const auto &map_version = qdata.curr_map_loc->version();
-  auto &point_map = qdata.curr_map_loc->point_map();
+  // const auto &query_stamp = *radar_qdata.stamp;
+  const auto &query_points = *radar_qdata.undistorted_point_cloud;
+  const auto &T_s_r = *radar_qdata.T_s_r;
+  const auto &T_v_pm = lidar_qdata.curr_map_loc->T_vertex_map();
+  // const auto &map_version = lidar_qdata.curr_map_loc->version();
+  auto &lidar_point_map = lidar_qdata.curr_map_loc->point_map();
+  /// \note this may be used as a prior
+  auto T_r_v = *radar_qdata.T_r_m_loc;
+
+  // se3 projection
+#if true
+  {
+    auto T_v_r_vec = T_r_v.inverse().vec();
+    auto T_v_r_cov = T_r_v.inverse().cov();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r_vec: \n" << T_v_r_vec;
+    // basically setting z, pitch, roll to zero
+    T_v_r_vec(2) = 0;
+    T_v_r_vec(3) = 0;
+    T_v_r_vec(4) = 0;
+    // corresponding covariances to zero
+    // for (int i = 0; i < 6; ++i) {
+    //   for (int j = 2; j < 5; ++j) {
+    //     T_v_r_cov(i, j) = 1e-5;
+    //     T_v_r_cov(j, i) = 1e-5;
+    //   }
+    // }
+    EdgeTransform T_v_r(T_v_r_vec, T_v_r_cov);
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r projected: \n"
+                                                << T_v_r;
+    T_r_v = T_v_r.inverse();
+  }
+#else
+  // project robot to vertex frame, along z-axis of the vertex fram while
+  // keeping x-axis of robot frame in the same direction
+  {
+    auto T_v_r_mat = T_r_v.inverse().matrix();
+    // origin x and y should be the same
+    // origin z should be zero
+    T_v_r_mat(2, 3) = 0;
+    // x-axis should be in the same direction
+    const auto planar_xaxis_norm = T_v_r_mat.block<2, 1>(0, 0).norm();
+    T_v_r_mat(0, 0) /= planar_xaxis_norm;
+    T_v_r_mat(1, 0) /= planar_xaxis_norm;
+    T_v_r_mat(2, 0) = 0;
+    // z-axis should be (0, 0, 1)
+    T_v_r_mat(0, 2) = 0;
+    T_v_r_mat(1, 2) = 0;
+    T_v_r_mat(2, 2) = 1;
+    // y-axis should be the cross of z-axis and x-axis
+    T_v_r_mat.block<3, 1>(0, 1) =
+        T_v_r_mat.block<3, 1>(0, 2).cross(T_v_r_mat.block<3, 1>(0, 0));
+    // we no longer have a valid covariance
+    EdgeTransform T_v_r(T_v_r_mat, Eigen::Matrix<double, 6, 6>::Identity());
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r: \n"
+                                                << T_r_v.inverse().matrix();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r projected: \n"
+                                                << T_v_r.matrix();
+    T_r_v = T_v_r.inverse();
+  }
+#endif
+  // find points that are within the radar scan FOV
+  std::vector<int> indices;
+  {
+    const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
+    Eigen::Matrix3f C_s_pm = (T_s_pm.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_pm_s_in_s = (T_s_pm.block<3, 1>(0, 3)).cast<float>();
+    for (int i = 0; i < (int)lidar_point_map.size(); ++i) {
+      const auto &point = lidar_point_map.at(i);
+      // point and normal in radar frame
+      Eigen::Vector3f p_in_s = C_s_pm * point.getVector3fMap() + r_pm_s_in_s;
+      Eigen::Vector3f n_in_s = C_s_pm * point.getNormalVector3fMap();
+      // filter by elevation
+      // xy = np.sqrt(np.sum(xyz[:, :2] ** 2, axis=1))
+      // ele = np.arctan2(xyz[:, 2], xy)
+      // mask = np.abs(ele) < thres
+      const auto elev = std::atan2(
+          p_in_s(2), std::sqrt(p_in_s(0) * p_in_s(0) + p_in_s(1) * p_in_s(1)));
+      if (std::abs(elev) > config_->elevation_threshold) continue;
+
+      // filter by normal vector
+      if (std::abs(n_in_s(2)) > config_->normal_threshold) continue;
+
+      // // filter by z value
+      // if (p_in_s(2) < -0.5 || p_in_s(2) > 0.5) continue;
+
+      indices.emplace_back(i);
+    }
+  }
+  pcl::PointCloud<lidar::PointWithInfo> point_map(lidar_point_map, indices);
+
+  // project points to 2D
+  {
+    auto aligned_point_map = point_map;
+    // clang-format off
+    auto map_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    auto map_normals_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+    auto aligned_map_mat = aligned_point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    auto aligned_map_normals_mat = aligned_point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+    // clang-format on
+    // convert to sensor frame
+    const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
+    Eigen::Matrix3f C_s_pm = (T_s_pm.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_pm_s_in_s = (T_s_pm.block<3, 1>(0, 3)).cast<float>();
+    aligned_map_mat = (C_s_pm * map_mat).colwise() + r_pm_s_in_s;
+    aligned_map_normals_mat = C_s_pm * map_normals_mat;
+
+    // project to 2D
+    aligned_map_mat.row(2).setZero();
+    aligned_map_normals_mat.row(2).setZero();
+    // \todo double check correctness of this normal projection
+    Eigen::MatrixXf aligned_map_norms_mat =
+        aligned_map_normals_mat.colwise().norm();
+    aligned_map_normals_mat.row(0).array() /= aligned_map_norms_mat.array();
+    aligned_map_normals_mat.row(1).array() /= aligned_map_norms_mat.array();
+
+    // convert back to point map frame
+    const auto T_pm_s = T_s_pm.inverse();
+    Eigen::Matrix3f C_pm_s = (T_pm_s.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_s_pm_in_pm = (T_pm_s.block<3, 1>(0, 3)).cast<float>();
+    map_mat = (C_pm_s * aligned_map_mat).colwise() + r_s_pm_in_pm;
+    map_normals_mat = C_pm_s * aligned_map_normals_mat;
+  }
+
+  if (config_->visualize) {
+    // clang-format off
+#if false
+    auto query_points_in_v = query_points;
+    auto query_point_mat = query_points_in_v.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
+    Eigen::Matrix4d T_v_s_mat = (T_s_r * T_r_v).inverse().matrix();
+    Eigen::Matrix3f C_v_s = (T_v_s_mat.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_s_v_in_v = (T_v_s_mat.block<3, 1>(0, 3)).cast<float>();
+    query_point_mat = (C_v_s * query_point_mat).colwise() + r_s_v_in_v;
+#endif
+    auto point_map_in_v = point_map;  // makes a copy
+    auto map_point_mat = point_map_in_v.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    Eigen::Matrix4d T_v_pm_mat = T_v_pm.matrix();
+    Eigen::Matrix3f C_v_pm = (T_v_pm_mat.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_pm_v_in_v = (T_v_pm_mat.block<3, 1>(0, 3)).cast<float>();
+    map_point_mat = (C_v_pm * map_point_mat).colwise() + r_pm_v_in_v;
+
+    int check = 0;
+#if false
+    while (check < 10) {
+      CLOG(INFO, "radar_lidar.localization_icp") << "Publish map!!!";
+      {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(query_points_in_v, pc2_msg);
+      pc2_msg.header.frame_id = "localization keyframe (offset)";
+      pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
+      tmp_scan_pub_->publish(pc2_msg);
+      }
+#endif
+      {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_map_in_v, pc2_msg);
+      pc2_msg.header.frame_id = "localization keyframe (offset)";
+      pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
+      map_pub_->publish(pc2_msg);
+      }
+#if false
+      check += 1;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+#endif
+    // clang-format on
+  }
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -87,7 +258,7 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   float max_pair_d = config_->initial_max_pairing_dist;
   float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
-  KDTreeSearchParams search_params;
+  lidar::KDTreeSearchParams search_params;
   // clang-format off
   /// Create and add the T_robot_map variable, here m = vertex frame.
   const auto T_r_v_var = std::make_shared<TransformStateVar>(T_r_v);
@@ -108,20 +279,20 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     auto cost = std::make_shared<WeightedLeastSqCostTerm<6, 6>>(error_func, noise_model, loss_func);
     prior_cost_terms->add(cost);
 
-    CLOG(DEBUG, "lidar.localization_icp")
+    CLOG(DEBUG, "radar_lidar.localization_icp")
         << "Adding prior cost term: " << prior_cost_terms->numCostTerms();
   }
 
   // Initialize aligned points for matching (Deep copy of targets)
-  pcl::PointCloud<PointWithInfo> aligned_points(query_points);
+  pcl::PointCloud<radar::PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
-  const auto query_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
-  auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  const auto map_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+  const auto query_mat = query_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
+  auto aligned_mat = aligned_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
 
   /// Perform initial alignment (no motion distortion for the first iteration)
   const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
@@ -158,9 +329,9 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   timer.emplace_back(std::make_unique<Stopwatch>(false));
 
   /// create kd-tree of the map
-  NanoFLANNAdapter<PointWithInfo> adapter(point_map);
-  KDTreeParams tree_params(10 /* max leaf */);
-  auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
+  lidar::NanoFLANNAdapter<lidar::PointWithInfo> adapter(point_map);
+  lidar::KDTreeParams tree_params(10 /* max leaf */);
+  auto kdtree = std::make_unique<lidar::KDTree<lidar::PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   for (int step = 0;; step++) {
@@ -177,7 +348,7 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     std::vector<float> nn_dists(sample_inds.size());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (size_t i = 0; i < sample_inds.size(); i++) {
-      KDTreeResultSet result_set(1);
+      lidar::KDTreeResultSet result_set(1);
       result_set.init(&sample_inds[i].second, &nn_dists[i]);
       kdtree->findNeighbors(
           result_set, aligned_points[sample_inds[i].first].data, search_params);
@@ -190,29 +361,41 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     filtered_sample_inds.reserve(sample_inds.size());
     for (size_t i = 0; i < sample_inds.size(); i++) {
       if (nn_dists[i] < max_pair_d2) {
-        // Check planar distance (only after a few steps for initial alignment)
-        auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
-                    point_map[sample_inds[i].second].getVector3fMap();
-        float planar_dist = abs(
-            diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
-        if (step < first_steps || planar_dist < max_planar_d) {
+        // // Check planar distance (only after a few steps for initial alignment)
+        // auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
+        //             point_map[sample_inds[i].second].getVector3fMap();
+        // float planar_dist = abs(
+        //     diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
+        // if (step < first_steps || planar_dist < max_planar_d) {
           filtered_sample_inds.push_back(sample_inds[i]);
-        }
+        // }
       }
     }
     timer[2]->stop();
 
-    /// Point to plane optimization
+    /// Point to point optimization
     timer[3]->start();
     // shared loss function
-    auto loss_func = std::make_shared<L2LossFunc>();
+    auto loss_func = std::make_shared<HuberLossFunc>(config_->huber_delta);
     // cost terms and noise model
     auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
-      Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-      Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+      Eigen::Matrix3d W = [&] {
+        // point to line
+        // if (point_map[ind.second].normal_score > 0) {
+        //   Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+        //   return Eigen::Matrix3d((nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+        // } else {
+        //   Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        //   W(2, 2) = 1e-5;
+        //   return W;
+        // }
+        /// point to point
+        Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        return W;
+      }();
       auto noise_model = std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
@@ -248,7 +431,7 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     try {
       solver.optimize();
     } catch (const decomp_failure &) {
-      CLOG(WARNING, "lidar.localization_icp")
+      CLOG(WARNING, "radar_lidar.localization_icp")
           << "Steam optimization failed! T_pm_s left unchanged.";
     }
     timer[3]->stop();
@@ -298,7 +481,7 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     if (!refinement_stage && step >= first_steps) {
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
-        CLOG(DEBUG, "lidar.localization_icp") << "Initial alignment takes " << step << " steps.";
+        CLOG(DEBUG, "radar_lidar.localization_icp") << "Initial alignment takes " << step << " steps.";
 
         // enter the second refine stage
         refinement_stage = true;
@@ -317,15 +500,15 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      CLOG(DEBUG, "lidar.localization_icp") << "Total number of steps: " << step << ".";
+      CLOG(DEBUG, "radar_lidar.localization_icp") << "Total number of steps: " << step << ".";
       // result
       T_r_v_icp = EdgeTransform(T_r_v_var->getValue(), solver.queryCovariance(T_r_v_var->getKey()));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "lidar.localization_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
+        CLOG(WARNING, "radar_lidar.localization_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
         if (!refinement_stage) {
-          CLOG(WARNING, "lidar.localization_icp") << "ICP did not enter refinement stage at all.";
+          CLOG(WARNING, "radar_lidar.localization_icp") << "ICP did not enter refinement stage at all.";
         }
         // matched_points_ratio = 0;
       }
@@ -335,62 +518,27 @@ void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 
   /// Dump timing info
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.localization_icp") << clock_str[i] << timer[i]->count();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << clock_str[i] << timer[i]->count();
   }
-
-  /// \todo DEBUGGING: dump the alignment results analysis
-#if false
-  {
-    auto icp_result = std::make_shared<LocalizationICPResult>();
-    icp_result->timestamp = query_stamp;
-    icp_result->map_version = map_version;
-    icp_result->nn_inds.resize(aligned_points.size());
-    icp_result->nn_dists.resize(aligned_points.size());
-    icp_result->nn_planar_dists.resize(aligned_points.size());
-
-    // Find nearest neigbors
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (size_t i = 0; i < aligned_points.size(); i++) {
-      KDTreeResultSet result_set(1);
-      result_set.init(&icp_result->nn_inds[i], &icp_result->nn_dists[i]);
-      kdtree->findNeighbors(result_set, aligned_points[i].data, search_params);
-
-      auto diff = aligned_points[i].getVector3fMap() -
-                  point_map[icp_result->nn_inds[i]].getVector3fMap();
-      float planar_dist = abs(
-          diff.dot(point_map[icp_result->nn_inds[i]].getNormalVector3fMap()));
-      // planar distance update
-      icp_result->nn_planar_dists[i] = planar_dist;
-    }
-
-    // Store result into the current run (not associated with a vertex), slow!
-    const auto curr_run = graph->runs()->sharedLocked().get().rbegin()->second;
-    CLOG(DEBUG, "lidar.localization_icp")
-        << "Saving ICP localization result to run " << curr_run->id();
-    using LocICPResLM = storage::LockableMessage<LocalizationICPResult>;
-    auto msg = std::make_shared<LocICPResLM>(icp_result, query_stamp);
-    curr_run->write<LocalizationICPResult>("localization_icp_result",
-                                           "vtr_lidar_msgs/msg/ICPResult", msg);
-  }
-#endif
 
   /// Outputs
-  CLOG(DEBUG, "lidar.localization_icp")
+  CLOG(DEBUG, "radar_lidar.localization_icp")
       << "Matched points ratio " << matched_points_ratio;
   if (matched_points_ratio > config_->min_matched_ratio) {
     // update map to robot transform
-    *qdata.T_r_m_loc = T_r_v_icp;
+    *radar_qdata.T_r_m_loc = T_r_v_icp;
     // set success
-    *qdata.loc_success = true;
+    *radar_qdata.loc_success = true;
   } else {
-    CLOG(WARNING, "lidar.localization_icp")
+    CLOG(WARNING, "radar_lidar.localization_icp")
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
-    // no update to map to robot transform
+    // update map to robot transform to be the projected one
+    *radar_qdata.T_r_m_loc = T_r_v;
     // set success
-    *qdata.loc_success = false;
+    *radar_qdata.loc_success = false;
   }
 }
 
-}  // namespace lidar
+}  // namespace radar_lidar
 }  // namespace vtr

@@ -13,25 +13,27 @@
 // limitations under the License.
 
 /**
- * \file pipeline_v2.hpp
+ * \file pipeline.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "vtr_lidar/cache.hpp"
 #include "vtr_lidar/modules/modules.hpp"
+#include "vtr_radar/modules/modules.hpp"
+#include "vtr_radar_lidar/cache.hpp"
+#include "vtr_radar_lidar/modules/modules.hpp"
 #include "vtr_tactic/modules/modules.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 
 namespace vtr {
-namespace lidar {
+namespace radar_lidar {
 
-class LidarPipelineV2 : public tactic::BasePipeline {
+class RadarLidarPipeline : public tactic::BasePipeline {
  public:
-  using Ptr = std::shared_ptr<LidarPipelineV2>;
+  using Ptr = std::shared_ptr<RadarLidarPipeline>;
 
   /** \brief Static pipeline identifier. */
-  static constexpr auto static_name = "lidar_v2";
+  static constexpr auto static_name = "radar_lidar";
 
   /** \brief Collection of config parameters */
   struct Config : public BasePipeline::Config {
@@ -45,12 +47,12 @@ class LidarPipelineV2 : public tactic::BasePipeline {
                             const std::string &param_prefix);
   };
 
-  LidarPipelineV2(
+  RadarLidarPipeline(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name);
 
-  virtual ~LidarPipelineV2() {}
+  virtual ~RadarLidarPipeline() {}
 
   tactic::OutputCache::Ptr createOutputCache() const override;
 
@@ -86,25 +88,27 @@ class LidarPipelineV2 : public tactic::BasePipeline {
 
   /// odometry cached data
   /** \brief Current point map for odometry */
-  std::shared_ptr<PointMap<PointWithInfo>> point_map_odo_;
+  std::shared_ptr<radar::PointMap<radar::PointWithInfo>> point_map_odo_;
   /** \brief Current timestamp, pose and velocity */
   std::shared_ptr<tactic::Timestamp> timestamp_odo_;
   std::shared_ptr<tactic::EdgeTransform> T_r_pm_odo_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo_;
   /** \brief lidar scans that will be stored to the next vertex */
-  std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
+  std::map<tactic::Timestamp,
+           std::shared_ptr<radar::PointScan<radar::PointWithInfo>>>
       new_scan_odo_;
 #if false  /// store raw point cloud
-  std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
+  std::map<tactic::Timestamp,
+           std::shared_ptr<radar::PointScan<radar::PointWithInfo>>>
       new_raw_scan_odo_;
 #endif
 
   /// localization cached data
   /** \brief Current map for localization */
-  std::shared_ptr<const PointMap<PointWithInfo>> curr_map_loc_;
+  std::shared_ptr<const lidar::PointMap<lidar::PointWithInfo>> curr_map_loc_;
 
-  VTR_REGISTER_PIPELINE_DEC_TYPE(LidarPipelineV2);
+  VTR_REGISTER_PIPELINE_DEC_TYPE(RadarLidarPipeline);
 };
 
-}  // namespace lidar
+}  // namespace radar_lidar
 }  // namespace vtr

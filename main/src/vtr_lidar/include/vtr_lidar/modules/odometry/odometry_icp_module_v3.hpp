@@ -41,8 +41,7 @@ class OdometryICPModuleV3 : public tactic::BaseModule {
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config,
                   public steam::VanillaGaussNewtonSolver::Params {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     /// Success criteria
     float min_matched_ratio = 0.4;
@@ -92,12 +91,6 @@ class OdometryICPModuleV3 : public tactic::BaseModule {
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
-
-  void computeTrajectory(
-      LidarQueryCache &qdata, const tactic::Graph::ConstPtr &graph,
-      const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
-      std::map<unsigned int, steam::StateVariableBase::Ptr> &state_vars,
-      const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms);
 
   Config::ConstPtr config_;
 

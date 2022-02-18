@@ -13,6 +13,8 @@
   <depend>builtin_interfaces</depend>
   <depend>sensor_msgs</depend>
 
+  <depend>vtr_common_msgs</depend>
+
   <exec_depend>rosidl_default_runtime</exec_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>

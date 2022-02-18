@@ -53,7 +53,7 @@ auto OdometryICPModuleV3::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
-  LOG_IF(config->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
+  CLOG_IF(config->num_threads != 1, WARNING, "lidar.odometry_icp") << "ICP number of threads set to 1 in deterministic mode.";
   config->num_threads = 1;
 #endif
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
@@ -190,8 +190,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     trajectory->appendPriorCostTerms(trajectory_cost_terms);
   }
 
-  CLOG(DEBUG, "lidar.odometry_icp")
-            << "initial alignment.";
+  CLOG(DEBUG, "lidar.odometry_icp") << "initial alignment.";
 
   // Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);

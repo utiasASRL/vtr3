@@ -38,8 +38,7 @@ class HoneycombConversionModuleV2 : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     bool visualize = false;
 
@@ -55,8 +54,8 @@ class HoneycombConversionModuleV2 : public tactic::BaseModule {
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
 
   Config::ConstPtr config_;
 
