@@ -57,6 +57,8 @@ OutputCache::Ptr RadarLidarPipeline::createOutputCache() const {
 }
 
 void RadarLidarPipeline::reset() {
+  cartesian_odo_ = nullptr;
+  point_cloud_odo_ = nullptr;
   point_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
   T_r_pm_odo_ = nullptr;
@@ -84,6 +86,8 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
   // set the current map for odometry
   if (point_map_odo_ != nullptr) {
+    qdata->cartesian_odo = cartesian_odo_;
+    qdata->point_cloud_odo = point_cloud_odo_;
     qdata->point_map_odo = point_map_odo_;
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_pm_odo = T_r_pm_odo_;
@@ -94,6 +98,8 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
   // store the current map for odometry to avoid reloading
   if (qdata->point_map_odo) {
+    cartesian_odo_ = qdata->cartesian_odo.ptr();
+    point_cloud_odo_ = qdata->point_cloud_odo.ptr();
     point_map_odo_ = qdata->point_map_odo.ptr();
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_pm_odo_ = qdata->T_r_pm_odo.ptr();
