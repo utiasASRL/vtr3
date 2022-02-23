@@ -48,7 +48,12 @@ class OdometryICPModuleV3 : public tactic::BaseModule {
 
     // trajectory smoothing
     bool trajectory_smoothing = false;
+
     bool lock_prev_velocity = false;
+    /** \brief Default localization covariance when chain is not localized. */
+    Eigen::Matrix<double, 6, 6> prev_velocity_cov =
+        Eigen::Matrix<double, 6, 6>::Zero();
+
     bool use_constant_acc = true;
     double lin_acc_std_dev_x = 1.0;
     double lin_acc_std_dev_y = 0.01;
