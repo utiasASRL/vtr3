@@ -48,6 +48,7 @@ class OdometryICPModuleV3 : public tactic::BaseModule {
 
     // trajectory smoothing
     bool trajectory_smoothing = false;
+    bool lock_prev_velocity = false;
     bool use_constant_acc = true;
     double lin_acc_std_dev_x = 1.0;
     double lin_acc_std_dev_y = 0.01;

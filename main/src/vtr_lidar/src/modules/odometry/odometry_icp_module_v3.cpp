@@ -42,6 +42,7 @@ auto OdometryICPModuleV3::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // trajectory smoothing
   config->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config->trajectory_smoothing);
+  config->lock_prev_velocity = node->declare_parameter<bool>(param_prefix + ".lock_prev_velocity", config->lock_prev_velocity);
   config->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config->use_constant_acc);
   config->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config->lin_acc_std_dev_x);
   config->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config->lin_acc_std_dev_y);
@@ -177,6 +178,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     prev_T_r_pm_var->setLock(true);
     auto prev_T_r_pm_eval = std::make_shared<TransformStateEvaluator>(prev_T_r_pm_var);
     auto prev_w_pm_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_pm_r_in_r_odo);
+    if (config_->lock_prev_velocity) prev_w_pm_r_in_r_var->setLock(true);
     trajectory->add(prev_time, prev_T_r_pm_eval, prev_w_pm_r_in_r_var);
     // curr frame state (+ velocity)
     Time query_time(static_cast<int64_t>(query_stamp));
