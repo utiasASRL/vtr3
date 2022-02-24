@@ -65,7 +65,7 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 }
 
 void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
-                                 const Graph::Ptr &graph,
+                                 const Graph::Ptr &,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
@@ -227,8 +227,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      PointToPointErrorEval2::Ptr error_func;
-      error_func.reset(new PointToPointErrorEval2(T_m_s_eval, ref_pt, qry_pt));
+      const auto error_func = std::make_shared<PointToPointErrorEval2>(T_m_s_eval, ref_pt, qry_pt);
 
       // create cost term and add to problem
       auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(error_func, noise_model, loss_func);

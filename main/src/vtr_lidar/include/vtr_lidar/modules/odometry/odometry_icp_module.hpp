@@ -51,11 +51,6 @@ class OdometryICPModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 6> smoothing_factor_information =
         Eigen::Matrix<double, 6, 6>::Zero();
 
-    bool lock_prev_velocity = false;
-    bool use_prev_velocity_as_prior = false;
-    Eigen::Matrix<double, 6, 6> prev_velocity_cov =
-        Eigen::Matrix<double, 6, 6>::Zero();
-
     /// ICP parameters
     // number of threads for nearest neighbor search
     int num_threads = 4;

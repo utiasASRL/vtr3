@@ -34,16 +34,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // trajectory smoothing
   config->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config->trajectory_smoothing);
 
-  config->lock_prev_velocity = node->declare_parameter<bool>(param_prefix + ".lock_prev_velocity", config->lock_prev_velocity);
-  config->use_prev_velocity_as_prior = node->declare_parameter<bool>(param_prefix + ".use_prev_velocity_as_prior", config->use_prev_velocity_as_prior);
-  const auto pvc = node->declare_parameter<std::vector<double>>(param_prefix + ".prev_velocity_cov", std::vector<double>());
-  if (pvc.size() != 6) {
-    std::string err{"Previous velocity covariance malformed. Must be 6 elements!"};
-    CLOG(ERROR, "tactic") << err;
-    throw std::invalid_argument{err};
-  }
-  config->prev_velocity_cov.diagonal() << pvc[0], pvc[1], pvc[2], pvc[3], pvc[4], pvc[5];
-
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".qc_diagonal", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
@@ -89,8 +79,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_scan", 5);
-    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_scan", 5);
+    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
+    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -170,11 +160,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     auto prev_T_r_m_eval = std::make_shared<TransformStateEvaluator>(prev_T_r_m_var);
     auto prev_w_m_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_m_r_in_r_odo);
     trajectory->add(prev_time, prev_T_r_m_eval, prev_w_m_r_in_r_var);
-    if (config_->lock_prev_velocity) {
-      prev_w_m_r_in_r_var->setLock(true);
-    } else if (config_->use_prev_velocity_as_prior) {
-      trajectory->addVelocityPrior(prev_time, w_m_r_in_r_odo, config_->prev_velocity_cov);
-    }
     // curr frame state (+ velocity)
     Time query_time(static_cast<int64_t>(query_stamp));
     w_m_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_m_r_in_r_odo);
@@ -304,15 +289,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      PointToPointErrorEval2::Ptr error_func;
-      if (config_->trajectory_smoothing) {
-        const auto &qry_time = query_points[ind.first].time;
-        const auto T_r_m_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_m_s_intp_eval = inverse(compose(T_s_r_eval, T_r_m_intp_eval));
-        error_func.reset(new PointToPointErrorEval2(T_m_s_intp_eval, ref_pt, qry_pt));
-      } else {
-        error_func.reset(new PointToPointErrorEval2(T_m_s_eval, ref_pt, qry_pt));
-      }
+      auto error_func = [&] {
+        if (config_->trajectory_smoothing) {
+          const auto &qry_time = query_points[ind.first].time;
+          const auto T_r_m_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
+          const auto T_m_s_intp_eval = inverse(compose(T_s_r_eval, T_r_m_intp_eval));
+          return std::make_shared<PointToPointErrorEval2>(T_m_s_intp_eval, ref_pt, qry_pt);
+        } else {
+          return std::make_shared<PointToPointErrorEval2>(T_m_s_eval, ref_pt, qry_pt);
+        }
+      }();
 
       // create cost term and add to problem
       auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(error_func, noise_model, loss_func);

@@ -316,15 +316,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      PointToPointErrorEval2::Ptr error_func;
-      if (config_->trajectory_smoothing) {
-        const auto &qry_time = query_points[ind.first].time;
-        const auto T_r_m_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_m_s_intp_eval = inverse(compose(T_s_r_eval, T_r_m_intp_eval));
-        error_func.reset(new PointToPointErrorEval2(T_m_s_intp_eval, ref_pt, qry_pt));
-      } else {
-        error_func.reset(new PointToPointErrorEval2(T_m_s_eval, ref_pt, qry_pt));
-      }
+      auto error_func = [&] {
+        if (config_->trajectory_smoothing) {
+          const auto &qry_time = query_points[ind.first].time;
+          const auto T_r_m_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
+          const auto T_m_s_intp_eval = inverse(compose(T_s_r_eval, T_r_m_intp_eval));
+          return std::make_shared<PointToPointErrorEval2>(T_m_s_intp_eval, ref_pt, qry_pt);
+        } else {
+          return std::make_shared<PointToPointErrorEval2>(T_m_s_eval, ref_pt, qry_pt);
+        }
+      }();
 
       // create cost term and add to problem
       auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(error_func, noise_model, loss_func);
