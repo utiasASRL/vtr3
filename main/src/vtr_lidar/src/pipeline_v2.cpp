@@ -135,10 +135,6 @@ void LidarPipelineV2::runOdometry_(const QueryCache::Ptr &qdata0,
     new_scan_odo->T_vertex_map() = T_s_m.inverse();
     new_scan_odo_.try_emplace(*qdata->stamp, new_scan_odo);
   }
-
-  if (*(qdata->vertex_test_result) == VertexTestResult::FAILURE) {
-    CLOG(WARNING, "lidar.pipeline") << "Odometry failed!";
-  }
 }
 
 void LidarPipelineV2::runLocalization_(const QueryCache::Ptr &qdata0,

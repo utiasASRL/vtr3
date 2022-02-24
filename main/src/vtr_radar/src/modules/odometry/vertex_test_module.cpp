@@ -13,18 +13,18 @@
 // limitations under the License.
 
 /**
- * \file keyframe_test_module.cpp
+ * \file vertex_test_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry/keyframe_test_module_v2.hpp"
+#include "vtr_radar/modules/odometry/vertex_test_module.hpp"
 
 namespace vtr {
-namespace lidar {
+namespace radar {
 
 using namespace tactic;
 
-auto KeyframeTestModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
-                                           const std::string &param_prefix)
+auto VertexTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                       const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
@@ -34,9 +34,9 @@ auto KeyframeTestModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void KeyframeTestModuleV2::run_(QueryCache &qdata0, OutputCache &,
-                                const Graph::Ptr &, const TaskExecutor::Ptr &) {
-  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
+                            const Graph::Ptr &, const TaskExecutor::Ptr &) {
+  auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   // default to
   qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
@@ -52,15 +52,12 @@ void KeyframeTestModuleV2::run_(QueryCache &qdata0, OutputCache &,
   if (first_frame) result = VertexTestResult::CREATE_VERTEX;
 
   // check if we successfully register this frame
-  if (!success) {
-    result = VertexTestResult::FAILURE;
-    return;
-  }
+  if (!success) return;
 
   auto se3vec = T_r_v.vec();
   auto translation_distance = se3vec.head<3>().norm();
   auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
-  CLOG(DEBUG, "lidar.keyframe_test")
+  CLOG(DEBUG, "radar.vertex_test")
       << "Total translation: " << translation_distance
       << ", total rotation: " << rotation_distance;
 
@@ -70,5 +67,5 @@ void KeyframeTestModuleV2::run_(QueryCache &qdata0, OutputCache &,
   }
 }
 
-}  // namespace lidar
+}  // namespace radar
 }  // namespace vtr

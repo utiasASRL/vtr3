@@ -32,7 +32,7 @@ class ComputeCorridorOp {
                     const float &lookahead_distance, const float &width)
       : lookahead_distance_(lookahead_distance), width_(width) {
     auto lock = chain.guard();
-    // compute keyframe lookahead
+    // compute vertex lookahead
     const auto distance = chain.dist(curr_sid);
     const auto T_w_curr = chain.pose(curr_sid);
     for (auto query_sid = curr_sid;

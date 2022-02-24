@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file keyframe_test_module_v2.hpp
+ * \file vertex_test_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -26,10 +26,10 @@ namespace vtr {
 namespace lidar {
 
 /** \brief Preprocesses raw pointcloud points and computes normals. */
-class KeyframeTestModuleV2 : public tactic::BaseModule {
+class VertexTestModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.keyframe_test_v2";
+  static constexpr auto static_name = "lidar.vertex_test";
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
@@ -42,7 +42,7 @@ class KeyframeTestModuleV2 : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  KeyframeTestModuleV2(
+  VertexTestModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -55,7 +55,7 @@ class KeyframeTestModuleV2 : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(KeyframeTestModuleV2);
+  VTR_REGISTER_MODULE_DEC_TYPE(VertexTestModule);
 };
 
 }  // namespace lidar

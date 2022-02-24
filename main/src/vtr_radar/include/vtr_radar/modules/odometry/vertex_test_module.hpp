@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file keyframe_test_module.hpp
+ * \file vertex_test_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -26,10 +26,10 @@ namespace vtr {
 namespace radar {
 
 /** \brief Preprocesses raw pointcloud points and computes normals. */
-class KeyframeTestModule : public tactic::BaseModule {
+class VertexTestModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.keyframe_test";
+  static constexpr auto static_name = "radar.vertex_test";
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
@@ -42,7 +42,7 @@ class KeyframeTestModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  KeyframeTestModule(
+  VertexTestModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -55,7 +55,7 @@ class KeyframeTestModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(KeyframeTestModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(VertexTestModule);
 };
 
 }  // namespace radar
