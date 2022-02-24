@@ -51,8 +51,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config->ang_acc_std_dev_y);
   config->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config->ang_acc_std_dev_z);
 
-  config->velocity_damping_factor = node->declare_parameter<double>(param_prefix + ".velocity_damping_factor", config->velocity_damping_factor);
-
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
@@ -158,7 +156,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create and add the T_robot_map variable, here m = vertex frame.
   auto T_r_m_odo_extp = T_r_m_odo;
   if (config_->trajectory_smoothing) {
-    Eigen::Matrix<double,6,1> xi_m_r_in_r_odo(config_->velocity_damping_factor * Time(query_stamp - timestamp_odo).seconds() * w_m_r_in_r_odo);
+    Eigen::Matrix<double,6,1> xi_m_r_in_r_odo(Time(query_stamp - timestamp_odo).seconds() * w_m_r_in_r_odo);
     T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
   }
   const auto T_r_m_var = std::make_shared<TransformStateVar>(T_r_m_odo_extp);
