@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file odometry_map_merging_module_v2.cpp
+ * \file odometry_map_merging_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry/odometry_map_merging_module_v2.hpp"
+#include "vtr_lidar/modules/odometry/odometry_map_merging_module.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 
@@ -25,7 +25,7 @@ namespace lidar {
 
 using namespace tactic;
 
-auto OdometryMapMergingModuleV2::Config::fromROS(
+auto OdometryMapMergingModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -41,9 +41,9 @@ auto OdometryMapMergingModuleV2::Config::fromROS(
   return config;
 }
 
-void OdometryMapMergingModuleV2::run_(QueryCache &qdata0, OutputCache &,
-                                      const Graph::Ptr &,
-                                      const TaskExecutor::Ptr &) {
+void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
+                                    const Graph::Ptr &,
+                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {

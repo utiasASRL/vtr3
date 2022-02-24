@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file preprocessing_module_v2.cpp
+ * \file preprocessing_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/preprocessing/preprocessing_module_v2.hpp"
+#include "vtr_lidar/modules/preprocessing/preprocessing_module.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 
@@ -63,8 +63,8 @@ std::vector<float> getNumberOfNeighbors(const pcl::PointCloud<PointT> &points,
 
 using namespace tactic;
 
-auto PreprocessingModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
-                                            const std::string &param_prefix)
+auto PreprocessingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                          const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
@@ -95,9 +95,8 @@ auto PreprocessingModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void PreprocessingModuleV2::run_(QueryCache &qdata0, OutputCache &,
-                                 const Graph::Ptr &,
-                                 const TaskExecutor::Ptr &) {
+void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
+                               const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary

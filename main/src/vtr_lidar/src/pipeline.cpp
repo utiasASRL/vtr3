@@ -16,7 +16,7 @@
  * \file pipeline.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/pipeline_v2.hpp"
+#include "vtr_lidar/pipeline.hpp"
 #include "vtr_tactic/modules/factory.hpp"
 
 namespace vtr {
@@ -24,8 +24,8 @@ namespace lidar {
 
 using namespace tactic;
 
-auto LidarPipelineV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
-                                      const std::string &param_prefix)
+auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                    const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
@@ -36,7 +36,7 @@ auto LidarPipelineV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-LidarPipelineV2::LidarPipelineV2(
+LidarPipeline::LidarPipeline(
     const Config::ConstPtr &config,
     const std::shared_ptr<ModuleFactory> &module_factory,
     const std::string &name)
@@ -52,11 +52,11 @@ LidarPipelineV2::LidarPipelineV2(
     localization_.push_back(factory()->get("localization." + module));
 }
 
-OutputCache::Ptr LidarPipelineV2::createOutputCache() const {
+OutputCache::Ptr LidarPipeline::createOutputCache() const {
   return std::make_shared<LidarOutputCache>();
 }
 
-void LidarPipelineV2::reset() {
+void LidarPipeline::reset() {
   point_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
@@ -68,18 +68,18 @@ void LidarPipelineV2::reset() {
   curr_map_loc_ = nullptr;
 }
 
-void LidarPipelineV2::preprocess_(const QueryCache::Ptr &qdata0,
-                                  const OutputCache::Ptr &output0,
-                                  const Graph::Ptr &graph,
-                                  const TaskExecutor::Ptr &executor) {
+void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
+                                const OutputCache::Ptr &output0,
+                                const Graph::Ptr &graph,
+                                const TaskExecutor::Ptr &executor) {
   for (auto module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
 
-void LidarPipelineV2::runOdometry_(const QueryCache::Ptr &qdata0,
-                                   const OutputCache::Ptr &output0,
-                                   const Graph::Ptr &graph,
-                                   const TaskExecutor::Ptr &executor) {
+void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
+                                 const OutputCache::Ptr &output0,
+                                 const Graph::Ptr &graph,
+                                 const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // set the current map for odometry
@@ -137,10 +137,10 @@ void LidarPipelineV2::runOdometry_(const QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipelineV2::runLocalization_(const QueryCache::Ptr &qdata0,
-                                       const OutputCache::Ptr &output0,
-                                       const Graph::Ptr &graph,
-                                       const TaskExecutor::Ptr &executor) {
+void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
+                                     const OutputCache::Ptr &output0,
+                                     const Graph::Ptr &graph,
+                                     const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // set the current map for localization
@@ -153,10 +153,10 @@ void LidarPipelineV2::runLocalization_(const QueryCache::Ptr &qdata0,
   if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
 }
 
-void LidarPipelineV2::onVertexCreation_(const QueryCache::Ptr &qdata0,
-                                        const OutputCache::Ptr &,
-                                        const Graph::Ptr &graph,
-                                        const TaskExecutor::Ptr &) {
+void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
+                                      const OutputCache::Ptr &,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
   const auto vid_odo = *qdata->vid_odo;
 

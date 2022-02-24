@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file pipeline_v2.hpp
+ * \file pipeline.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -26,12 +26,12 @@
 namespace vtr {
 namespace lidar {
 
-class LidarPipelineV2 : public tactic::BasePipeline {
+class LidarPipeline : public tactic::BasePipeline {
  public:
-  PTR_TYPEDEFS(LidarPipelineV2);
+  PTR_TYPEDEFS(LidarPipeline);
 
   /** \brief Static pipeline identifier. */
-  static constexpr auto static_name = "lidar_v2";
+  static constexpr auto static_name = "lidar";
 
   /** \brief Collection of config parameters */
   struct Config : public BasePipeline::Config {
@@ -45,12 +45,12 @@ class LidarPipelineV2 : public tactic::BasePipeline {
                             const std::string &param_prefix);
   };
 
-  LidarPipelineV2(
+  LidarPipeline(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name);
 
-  virtual ~LidarPipelineV2() {}
+  virtual ~LidarPipeline() {}
 
   tactic::OutputCache::Ptr createOutputCache() const override;
 
@@ -103,7 +103,7 @@ class LidarPipelineV2 : public tactic::BasePipeline {
   /** \brief Current map for localization */
   std::shared_ptr<const PointMap<PointWithInfo>> curr_map_loc_;
 
-  VTR_REGISTER_PIPELINE_DEC_TYPE(LidarPipelineV2);
+  VTR_REGISTER_PIPELINE_DEC_TYPE(LidarPipeline);
 };
 
 }  // namespace lidar

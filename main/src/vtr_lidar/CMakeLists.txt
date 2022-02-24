@@ -50,7 +50,6 @@ ament_target_dependencies(${PROJECT_NAME}_components
 file(GLOB_RECURSE PIPELINE_SRC
   src/modules/*.cpp
   src/pipeline.cpp
-  src/pipeline_v2.cpp
 )
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)

@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file localization_icp_module_v3.cpp
+ * \file localization_icp_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/localization/localization_icp_module_v3.hpp"
+#include "vtr_lidar/modules/localization/localization_icp_module.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -25,8 +25,8 @@ using namespace tactic;
 using namespace steam;
 using namespace se3;
 
-auto LocalizationICPModuleV3::Config::fromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
@@ -63,9 +63,9 @@ auto LocalizationICPModuleV3::Config::fromROS(
   return config;
 }
 
-void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
-                                   const Graph::Ptr &,
-                                   const TaskExecutor::Ptr &) {
+void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
+                                 const Graph::Ptr &,
+                                 const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Inputs

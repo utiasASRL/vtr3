@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file preprocessing_module_v2.hpp
+ * \file preprocessing_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -28,12 +28,12 @@ namespace vtr {
 namespace lidar {
 
 /** \brief Preprocess raw pointcloud points and compute normals */
-class PreprocessingModuleV2 : public tactic::BaseModule {
+class PreprocessingModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.preprocessing_v2";
+  static constexpr auto static_name = "lidar.preprocessing";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
@@ -59,7 +59,7 @@ class PreprocessingModuleV2 : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  PreprocessingModuleV2(
+  PreprocessingModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -76,7 +76,7 @@ class PreprocessingModuleV2 : public tactic::BaseModule {
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(PreprocessingModuleV2);
+  VTR_REGISTER_MODULE_DEC_TYPE(PreprocessingModule);
 };
 
 }  // namespace lidar
