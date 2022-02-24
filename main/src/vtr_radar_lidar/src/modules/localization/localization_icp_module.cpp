@@ -88,11 +88,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   // const auto &query_stamp = *radar_qdata.stamp;
   const auto &query_points = *radar_qdata.undistorted_point_cloud;
   const auto &T_s_r = *radar_qdata.T_s_r;
-  const auto &T_v_pm = lidar_qdata.curr_map_loc->T_vertex_map();
+  const auto &T_v_m = lidar_qdata.curr_map_loc->T_vertex_map();
   // const auto &map_version = lidar_qdata.curr_map_loc->version();
   auto &lidar_point_map = lidar_qdata.curr_map_loc->point_map();
   /// \note this may be used as a prior
-  auto T_r_v = *radar_qdata.T_r_m_loc;
+  auto T_r_v = *radar_qdata.T_r_v_loc;
 
   // se3 projection
 #if true
@@ -148,14 +148,14 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   // find points that are within the radar scan FOV
   std::vector<int> indices;
   {
-    const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
-    Eigen::Matrix3f C_s_pm = (T_s_pm.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_pm_s_in_s = (T_s_pm.block<3, 1>(0, 3)).cast<float>();
+    const auto T_s_m = (T_s_r * T_r_v * T_v_m).matrix();
+    Eigen::Matrix3f C_s_m = (T_s_m.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_m_s_in_s = (T_s_m.block<3, 1>(0, 3)).cast<float>();
     for (int i = 0; i < (int)lidar_point_map.size(); ++i) {
       const auto &point = lidar_point_map.at(i);
       // point and normal in radar frame
-      Eigen::Vector3f p_in_s = C_s_pm * point.getVector3fMap() + r_pm_s_in_s;
-      Eigen::Vector3f n_in_s = C_s_pm * point.getNormalVector3fMap();
+      Eigen::Vector3f p_in_s = C_s_m * point.getVector3fMap() + r_m_s_in_s;
+      Eigen::Vector3f n_in_s = C_s_m * point.getNormalVector3fMap();
       // filter by elevation
       // xy = np.sqrt(np.sum(xyz[:, :2] ** 2, axis=1))
       // ele = np.arctan2(xyz[:, 2], xy)
@@ -185,11 +185,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     auto aligned_map_normals_mat = aligned_point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
     // clang-format on
     // convert to sensor frame
-    const auto T_s_pm = (T_s_r * T_r_v * T_v_pm).matrix();
-    Eigen::Matrix3f C_s_pm = (T_s_pm.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_pm_s_in_s = (T_s_pm.block<3, 1>(0, 3)).cast<float>();
-    aligned_map_mat = (C_s_pm * map_mat).colwise() + r_pm_s_in_s;
-    aligned_map_normals_mat = C_s_pm * map_normals_mat;
+    const auto T_s_m = (T_s_r * T_r_v * T_v_m).matrix();
+    Eigen::Matrix3f C_s_m = (T_s_m.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_m_s_in_s = (T_s_m.block<3, 1>(0, 3)).cast<float>();
+    aligned_map_mat = (C_s_m * map_mat).colwise() + r_m_s_in_s;
+    aligned_map_normals_mat = C_s_m * map_normals_mat;
 
     // project to 2D
     aligned_map_mat.row(2).setZero();
@@ -201,11 +201,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     aligned_map_normals_mat.row(1).array() /= aligned_map_norms_mat.array();
 
     // convert back to point map frame
-    const auto T_pm_s = T_s_pm.inverse();
-    Eigen::Matrix3f C_pm_s = (T_pm_s.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_s_pm_in_pm = (T_pm_s.block<3, 1>(0, 3)).cast<float>();
-    map_mat = (C_pm_s * aligned_map_mat).colwise() + r_s_pm_in_pm;
-    map_normals_mat = C_pm_s * aligned_map_normals_mat;
+    const auto T_m_s = T_s_m.inverse();
+    Eigen::Matrix3f C_m_s = (T_m_s.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_s_m_in_m = (T_m_s.block<3, 1>(0, 3)).cast<float>();
+    map_mat = (C_m_s * aligned_map_mat).colwise() + r_s_m_in_m;
+    map_normals_mat = C_m_s * aligned_map_normals_mat;
   }
 
   if (config_->visualize) {
@@ -220,10 +220,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
     auto point_map_in_v = point_map;  // makes a copy
     auto map_point_mat = point_map_in_v.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
-    Eigen::Matrix4d T_v_pm_mat = T_v_pm.matrix();
-    Eigen::Matrix3f C_v_pm = (T_v_pm_mat.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_pm_v_in_v = (T_v_pm_mat.block<3, 1>(0, 3)).cast<float>();
-    map_point_mat = (C_v_pm * map_point_mat).colwise() + r_pm_v_in_v;
+    Eigen::Matrix4d T_v_m_mat = T_v_m.matrix();
+    Eigen::Matrix3f C_v_m = (T_v_m_mat.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_m_v_in_v = (T_v_m_mat.block<3, 1>(0, 3)).cast<float>();
+    map_point_mat = (C_v_m * map_point_mat).colwise() + r_m_v_in_v;
 
     int check = 0;
 #if false
@@ -265,10 +265,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Create evaluators for passing into ICP
   const auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
-  const auto T_v_pm_eval = FixedTransformEvaluator::MakeShared(T_v_pm);
+  const auto T_v_m_eval = FixedTransformEvaluator::MakeShared(T_v_m);
   const auto T_r_v_eval = TransformStateEvaluator::MakeShared(T_r_v_var);
   // compound transform for alignment (sensor to point map transform)
-  const auto T_pm_s_eval = inverse(compose(T_s_r_eval, compose(T_r_v_eval, T_v_pm_eval)));
+  const auto T_m_s_eval = inverse(compose(T_s_r_eval, compose(T_r_v_eval, T_v_m_eval)));
 
   /// use odometry as a prior
   auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
@@ -295,11 +295,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
 
   /// Perform initial alignment (no motion distortion for the first iteration)
-  const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
-  Eigen::Matrix3f C_pm_s_init = (T_pm_s_init.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_s_pm_in_pm_init = (T_pm_s_init.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_pm_s_init * query_mat).colwise() + r_s_pm_in_pm_init;
-  aligned_norms_mat = C_pm_s_init * query_norms_mat;
+  const auto T_m_s_init = T_m_s_eval->evaluate().matrix();
+  Eigen::Matrix3f C_m_s_init = (T_m_s_init.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_s_m_in_m_init = (T_m_s_init.block<3, 1>(0, 3)).cast<float>();
+  aligned_mat = (C_m_s_init * query_mat).colwise() + r_s_m_in_m_init;
+  aligned_norms_mat = C_m_s_init * query_norms_mat;
 
   // ICP results
   EdgeTransform T_r_v_icp;
@@ -330,28 +330,27 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// create kd-tree of the map
   lidar::NanoFLANNAdapter<lidar::PointWithInfo> adapter(point_map);
-  lidar::KDTreeParams tree_params(10 /* max leaf */);
+  lidar::KDTreeParams tree_params(/* max leaf */ 10);
   auto kdtree = std::make_unique<lidar::KDTree<lidar::PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   for (int step = 0;; step++) {
     /// Points Association
-    // Pick random queries (use unordered set to ensure uniqueness)
+    // pick queries (for now just use all of them)
     timer[0]->start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
     sample_inds.resize(query_points.size());
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
     timer[0]->stop();
 
+    // find nearest neigbors and distances
     timer[1]->start();
-    // Find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (size_t i = 0; i < sample_inds.size(); i++) {
       lidar::KDTreeResultSet result_set(1);
       result_set.init(&sample_inds[i].second, &nn_dists[i]);
-      kdtree->findNeighbors(
-          result_set, aligned_points[sample_inds[i].first].data, search_params);
+      kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
     }
     timer[1]->stop();
 
@@ -403,7 +402,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
       PointToPointErrorEval2::Ptr error_func;
-      error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));
+      error_func.reset(new PointToPointErrorEval2(T_m_s_eval, ref_pt, qry_pt));
 
       // create cost term and add to problem
       auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(error_func, noise_model, loss_func);
@@ -416,49 +415,49 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     OptimizationProblem problem;
     problem.addStateVariable(T_r_v_var);
     problem.addCostTerm(cost_terms);
+
     // add prior costs
     if (config_->use_pose_prior) problem.addCostTerm(prior_cost_terms);
 
+    // make solver
     using SolverType = VanillaGaussNewtonSolver;
     SolverType::Params params;
     params.verbose = config_->verbose;
     params.maxIterations = config_->maxIterations;
-
-    // Make solver
     SolverType solver(&problem, params);
 
-    // Optimize
+    // optimize
     try {
       solver.optimize();
     } catch (const decomp_failure &) {
       CLOG(WARNING, "radar_lidar.localization_icp")
-          << "Steam optimization failed! T_pm_s left unchanged.";
+          << "Steam optimization failed! T_m_s left unchanged.";
     }
     timer[3]->stop();
 
-    timer[4]->start();
     /// Alignment
-    const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
-    Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
-    aligned_norms_mat = C_pm_s * query_norms_mat;
+    timer[4]->start();
+    const auto T_m_s = T_m_s_eval->evaluate().matrix();
+    Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
+    aligned_norms_mat = C_m_s * query_norms_mat;
 
-    // Update all result matrices
-    // const auto T_pm_s = T_pm_s_eval->evaluate().matrix(); // defined above
+    // update all result matrices
+    // const auto T_m_s = T_m_s_eval->evaluate().matrix(); // defined above
     if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_pm_s);
+      all_tfs = Eigen::MatrixXd(T_m_s);
     else {
       Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(4) = Eigen::MatrixXd(T_pm_s);
+      temp.bottomRows(4) = Eigen::MatrixXd(T_m_s);
       all_tfs = temp;
     }
     timer[4]->stop();
 
     /// Check convergence
     timer[5]->start();
-    // Update variations
+    // update variations
     if (step > 0) {
       float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
 
@@ -474,7 +473,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       mean_dR += (dR_b - mean_dR) / avg_tot;
     }
 
-    // Refininement incremental
+    // refininement incremental
     if (refinement_stage) refinement_step++;
 
     // Stop condition
@@ -487,6 +486,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         refinement_stage = true;
 
         max_it = step + config_->refined_max_iter;
+
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
@@ -495,7 +495,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[5]->stop();
 
-    // Last step
+    /// Last step
     if ((refinement_stage && step >= max_it - 1) ||
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
@@ -506,11 +506,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "radar_lidar.localization_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
+        CLOG(WARNING, "radar_lidar.localization_icp") << "ICP did not converge to the specified threshold.";
         if (!refinement_stage) {
           CLOG(WARNING, "radar_lidar.localization_icp") << "ICP did not enter refinement stage at all.";
         }
-        // matched_points_ratio = 0;
       }
       break;
     }
@@ -526,15 +525,15 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       << "Matched points ratio " << matched_points_ratio;
   if (matched_points_ratio > config_->min_matched_ratio) {
     // update map to robot transform
-    *radar_qdata.T_r_m_loc = T_r_v_icp;
+    *radar_qdata.T_r_v_loc = T_r_v_icp;
     // set success
     *radar_qdata.loc_success = true;
   } else {
     CLOG(WARNING, "radar_lidar.localization_icp")
         << "Matched points ratio " << matched_points_ratio
-        << " is below the threshold. ICP is considered failed.";
+        << " is below the specified threshold. ICP is considered failed.";
     // update map to robot transform to be the projected one
-    *radar_qdata.T_r_m_loc = T_r_v;
+    *radar_qdata.T_r_v_loc = T_r_v;
     // set success
     *radar_qdata.loc_success = false;
   }
