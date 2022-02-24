@@ -88,13 +88,13 @@ class TemplatePipeline : public BasePipeline {
     ///   repeat).
     ///   - live_id: the current vertex being localized against for odometry, or
     ///   invalid if first frame.
-    ///   - T_r_m_odo: odometry estimation from last input, or identity if this
-    ///   is the first frame or a keyframe has just been created.
+    ///   - T_r_v_odo: odometry estimation from last input, or identity if this
+    ///   is the first frame or a vertex has just been created.
     ///   - odo_success: whether or not odometry estimation is successful
-    ///   - keyframe_test_result: whether or not to create a new keyframe,
+    ///   - vertex_test_result: whether or not to create a new vertex,
     ///   always default to NO.
     /// This method should update the following:
-    ///   - T_r_m_odo, odo_success, keyframe_test_result
+    ///   - T_r_v_odo, odo_success, vertex_test_result
     /// This method should only read from the graph.
     /// Any debug info, extra stuff can be put in qdata.
   }
@@ -103,30 +103,29 @@ class TemplatePipeline : public BasePipeline {
                         const Graph::Ptr &,
                         const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called in the following cases:
-    ///   - first keyframe of a teach that branches from existing path to
+    ///   - first vertex of a teach that branches from existing path to
     ///   localize against the existing path (i.e., trunk)
     ///   - every frame when merging into existing graph to create a loop
     ///   - every frame when doing metric localization (e.g. before path
     ///   following)
-    ///   - every keyframe when repeating a path
+    ///   - every vertex when repeating a path
     /// The following will be in qdata:
     ///   - everything from odometry and onVertexCreation.
     ///   - map_id: the vertex to be localized against by this method.
-    ///   - T_r_m_loc: prior estimate from localization chain based on odometry.
+    ///   - T_r_v_loc: prior estimate from localization chain based on odometry.
     ///   - loc_success: whether or not localization is successful.
     /// This method should update the following:
-    ///   - T_r_m_loc, loc_success
+    ///   - T_r_v_loc, loc_success
     /// This method may read from or write to the graph.
   }
 
   void onVertexCreation_(const QueryCache::Ptr &, const OutputCache::Ptr &,
                          const Graph::Ptr &,
                          const std::shared_ptr<TaskExecutor> &) override {
-    /// This method is called whenever is keyframe is created.
+    /// This method is called whenever a vertex is created.
     /// The following will be in qdata:
     ///   - everything from odometry
-    ///   - live_id: always the vertex corresponding to the keyframe just
-    ///   created
+    ///   - vid_odo: always the vertex corresponding to the just-created vertex.
     /// This method may read from or write to the graph.
   }
 

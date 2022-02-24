@@ -132,7 +132,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "localization keyframe (offset)";
+    pc2_msg.header.frame_id = "loc vertex frame (offset)";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     test_map_pub_->publish(pc2_msg);
   }
@@ -151,7 +151,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "localization keyframe (offset)";
+    pc2_msg.header.frame_id = "loc vertex frame (offset)";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     map_pub_->publish(pc2_msg);
     // clang-format on

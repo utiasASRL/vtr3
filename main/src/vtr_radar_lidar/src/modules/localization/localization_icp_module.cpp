@@ -232,7 +232,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       {
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(query_points_in_v, pc2_msg);
-      pc2_msg.header.frame_id = "localization keyframe (offset)";
+      pc2_msg.header.frame_id = "loc vertex frame (offset)";
       pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
       tmp_scan_pub_->publish(pc2_msg);
       }
@@ -240,7 +240,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       {
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(point_map_in_v, pc2_msg);
-      pc2_msg.header.frame_id = "localization keyframe (offset)";
+      pc2_msg.header.frame_id = "loc vertex frame (offset)";
       pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
       map_pub_->publish(pc2_msg);
       }

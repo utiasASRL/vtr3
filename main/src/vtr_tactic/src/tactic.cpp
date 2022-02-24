@@ -243,7 +243,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
                         << *qdata->vid_odo << " (i.e., T_v_r odometry): "
                         << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // Get relative pose estimate and whether a keyframe should be created
+  // Get relative pose estimate and whether a vertex should be created
   pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to odometry vertex"
@@ -273,7 +273,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_v_r_in_r_odo,
                                        *qdata->T_r_v_odo, false);
 
-  // Update persistent localization (only when the first keyframe has been
+  // Update persistent localization (only when the first vertex has been
   // created so that current vertex id is valid.)
   // localized is always set to true, since we are in teach mode
   if (current_vertex_id_.isValid())
@@ -286,17 +286,17 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
-    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+    CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
 
-    // Compute odometry keyframe in world frame for visualization.
+    // Compute odometry vertex frame in world frame for visualization.
     T_w_v_odo_ = T_w_v_odo_ * (*qdata->T_r_v_odo).inverse();
 
     // Update live id to the just-created vertex id and T_r_v_odo
     qdata->vid_odo = current_vertex_id_;
     qdata->T_r_v_odo = EdgeTransform(true);
 
-    // Call the pipeline to process the keyframe
+    // Call the pipeline to process the vertex
     pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
@@ -324,7 +324,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
                         << *qdata->vid_odo << " (i.e., T_v_r odometry): "
                         << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // Get relative pose estimate and whether a keyframe should be created
+  // Get relative pose estimate and whether a vertex should be created
   pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to odometry vertex"
@@ -354,7 +354,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_v_r_in_r_odo,
                                        *qdata->T_r_v_odo, false);
 
-  // Update persistent localization (only when the first keyframe has been
+  // Update persistent localization (only when the first vertex has been
   // created so that current vertex id is valid.)
   if (current_vertex_id_.isValid())
     updatePersistentLoc(*qdata->stamp, *qdata->vid_odo, *qdata->T_r_v_odo,
@@ -366,7 +366,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
-    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+    CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
 
     // Compute odometry in world frame for visualization.
@@ -376,7 +376,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->vid_odo = current_vertex_id_;
     qdata->T_r_v_odo = EdgeTransform(true);
 
-    // Call the pipeline to process the keyframe
+    // Call the pipeline to process the vertex
     pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
@@ -398,7 +398,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
                         << *qdata->vid_odo << " (i.e., T_v_r odometry): "
                         << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // Get relative pose estimate and whether a keyframe should be created
+  // Get relative pose estimate and whether a vertex should be created
   pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to odometry vertex"
@@ -428,7 +428,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_v_r_in_r_odo,
                                        *qdata->T_r_v_odo, false);
 
-  // Update persistent localization (only when the first keyframe has been
+  // Update persistent localization (only when the first vertex has been
   // created so that current vertex id is valid.)
   // localized is always set to true, since we are in teach mode
   if (current_vertex_id_.isValid())
@@ -441,7 +441,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
-    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+    CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
 
     // Compute odometry in world frame for visualization.
@@ -451,7 +451,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->vid_odo = current_vertex_id_;
     qdata->T_r_v_odo = EdgeTransform(true);
 
-    // Call the pipeline to process the keyframe
+    // Call the pipeline to process the vertex
     pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
@@ -479,7 +479,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
                         << *qdata->vid_odo << " (i.e., T_v_r odometry): "
                         << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // Get relative pose estimate and whether a keyframe should be created
+  // Get relative pose estimate and whether a vertex should be created
   pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to odometry vertex"
@@ -513,14 +513,14 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), false,
                   *(qdata->env_info));
-    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+    CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
 
     // Update live id to the just-created vertex id and T_r_v_odo
     qdata->vid_odo = current_vertex_id_;
     qdata->T_r_v_odo = EdgeTransform(true);  // identity with zero covariance
 
-    // Call the pipeline to process the keyframe
+    // Call the pipeline to process the vertex
     pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
@@ -549,7 +549,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
                         << *qdata->vid_odo << " (i.e., T_v_r odometry): "
                         << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // Get relative pose estimate and whether a keyframe should be created
+  // Get relative pose estimate and whether a vertex should be created
   pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to odometry vertex"
@@ -583,14 +583,14 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), false,
                   *(qdata->env_info));
-    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+    CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
 
     // Update live id to the just-created vertex id and T_r_v_odo
     qdata->vid_odo = current_vertex_id_;
     qdata->T_r_v_odo = EdgeTransform(true);  // identity with zero covariance
 
-    // Call the pipeline to process the keyframe
+    // Call the pipeline to process the vertex
     pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode

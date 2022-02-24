@@ -71,7 +71,7 @@ storage::LockableMessage<RCVertex::VertexMsg>::Ptr RCVertex::serialize() {
     data.vertex_time.nanoseconds_since_epoch = vertex_time_;
     changed = true;
   }
-  ss << ", stream keyframe time set to "
+  ss << ", stream vertex time set to "
      << data.vertex_time.nanoseconds_since_epoch;
 
   lock.unlock();

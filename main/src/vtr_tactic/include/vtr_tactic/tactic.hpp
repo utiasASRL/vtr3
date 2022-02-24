@@ -140,7 +140,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool first_frame_ = true;
 
   /**
-   * \brief Vertex id of the latest keyframe, only used by odometry thread
+   * \brief Current vertex id for odometry, only used by odometry thread
    * \note Only change this when pipeline is locked
    */
   VertexId current_vertex_id_ = VertexId::Invalid();
@@ -183,9 +183,9 @@ class Tactic : public PipelineInterface, public TacticInterface {
   const Callback::Ptr callback_;
 
   /// \note updates to these variables are protected by the tactic mutex.
-  /** \brief Transformation from the latest keyframe to world frame */
+  /** \brief Transformation from the odometry vertex frame to world frame */
   EdgeTransform T_w_v_odo_ = EdgeTransform(true);
-  /** \brief Transformation from the localization keyframe to world frame */
+  /** \brief Transformation from the localization vertex frame to world frame */
   EdgeTransform T_w_v_loc_ = EdgeTransform(true);
 
   friend class TacticCallbackInterface;

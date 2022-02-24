@@ -114,7 +114,7 @@ void OdometryMapMergingModuleV2::run_(QueryCache &qdata0, OutputCache &,
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "odometry keyframe";
+    pc2_msg.header.frame_id = "odo vertex frame";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     map_pub_->publish(pc2_msg);
   }

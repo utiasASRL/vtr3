@@ -52,12 +52,12 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
                                              const EdgeTransform& T_r_v_odo,
                                              const EdgeTransform& T_w_v_odo) {
-  // publish keyframe
+  // publish vertex frame
   Eigen::Affine3d T(T_w_v_odo.matrix());
   auto msg = tf2::eigenToTransform(T);
   msg.header.frame_id = "world";
   msg.header.stamp = rclcpp::Time(stamp);
-  msg.child_frame_id = "odometry keyframe";
+  msg.child_frame_id = "odo vertex frame";
   tf_bc_->sendTransform(msg);
 
   // publish odometry
@@ -71,7 +71,7 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   // publish current frame
   Eigen::Affine3d T2(T_r_v_odo.inverse().matrix());
   auto msg2 = tf2::eigenToTransform(T2);
-  msg2.header.frame_id = "odometry keyframe";
+  msg2.header.frame_id = "odo vertex frame";
   msg2.header.stamp = rclcpp::Time(stamp);
   msg2.child_frame_id = "robot";
   tf_bc_->sendTransform(msg2);
@@ -96,12 +96,12 @@ void RvizTacticCallback::publishLocalizationRviz(
   auto msg = tf2::eigenToTransform(T);
   msg.header.stamp = rclcpp::Time(stamp);
   msg.header.frame_id = "world";
-  msg.child_frame_id = "localization keyframe";
+  msg.child_frame_id = "loc vertex frame";
   tf_bc_->sendTransform(msg);
 
   // apply an offset to separate odometry and localization
   msg.header.frame_id = "world (offset)";
-  msg.child_frame_id = "localization keyframe (offset)";
+  msg.child_frame_id = "loc vertex frame (offset)";
   tf_bc_->sendTransform(msg);
 }
 

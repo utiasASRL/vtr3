@@ -145,10 +145,10 @@ class RCVertex : public VertexBase, public BubbleInterface {
   }
 
  private:
-  /** \brief protects access to keyframe time, time range */
+  /** \brief protects access to vertex time, time range */
   using VertexBase::mutex_;
 
-  /** \brief The keyframe time associated with this vertex. */
+  /** \brief The vertex time associated with this vertex. */
   Timestamp vertex_time_ = storage::NO_TIMESTAMP_VALUE;
 
   /** \brief Time range associated with this vertex for all data. */
