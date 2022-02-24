@@ -21,12 +21,12 @@
 namespace vtr {
 namespace pose_graph {
 
-RCVertex::RCVertex(const VertexId &id, const Timestamp &keyframe_time,
+RCVertex::RCVertex(const VertexId &id, const Timestamp &vertex_time,
                    const Name2AccessorMapPtr &name2accessor_map)
     : VertexBase(id),
       BubbleInterface(name2accessor_map),
-      keyframe_time_(keyframe_time),
-      time_range_({keyframe_time, keyframe_time}) {
+      vertex_time_(vertex_time),
+      time_range_({vertex_time, vertex_time}) {
   const auto data = std::make_shared<VertexMsg>();
   msg_ = std::make_shared<storage::LockableMessage<VertexMsg>>(data);
 }
@@ -36,7 +36,7 @@ RCVertex::RCVertex(const VertexMsg &msg,
                    const storage::LockableMessage<VertexMsg>::Ptr &msg_ptr)
     : VertexBase(msg.id),
       BubbleInterface(name2accessor_map),
-      keyframe_time_(toTimestamp(msg.keyframe_time)),
+      vertex_time_(toTimestamp(msg.vertex_time)),
       time_range_(toTimestampRange(msg.time_range)),
       msg_(msg_ptr) {}
 
@@ -67,12 +67,12 @@ storage::LockableMessage<RCVertex::VertexMsg>::Ptr RCVertex::serialize() {
   ss << ", stream time range set to <" << data.time_range.t1 << ","
      << data.time_range.t2 << ">";
 
-  if (data.keyframe_time.nanoseconds_since_epoch != keyframe_time_) {
-    data.keyframe_time.nanoseconds_since_epoch = keyframe_time_;
+  if (data.vertex_time.nanoseconds_since_epoch != vertex_time_) {
+    data.vertex_time.nanoseconds_since_epoch = vertex_time_;
     changed = true;
   }
   ss << ", stream keyframe time set to "
-     << data.keyframe_time.nanoseconds_since_epoch;
+     << data.vertex_time.nanoseconds_since_epoch;
 
   lock.unlock();
 

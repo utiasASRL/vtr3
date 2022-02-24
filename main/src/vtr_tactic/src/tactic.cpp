@@ -767,7 +767,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
     CLOG(DEBUG, "tactic") << "Saving localization result";
     using LocResLM = storage::LockableMessage<LocalizationResult>;
     auto loc_result = std::make_shared<LocalizationResult>(
-        *qdata->stamp, graph_->at(*qdata->vid_loc)->keyframeTime(),
+        *qdata->stamp, graph_->at(*qdata->vid_loc)->vertexTime(),
         *qdata->vid_loc, *qdata->T_r_v_loc);
     auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
     graph_->write<LocalizationResult>(

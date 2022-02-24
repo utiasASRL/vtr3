@@ -34,11 +34,11 @@ using StringMsg = std_msgs::msg::String;
 
 TEST(TestSerializationVertex, construct_vertex_directly) {
   VertexId id(2, 6);
-  Timestamp keyframe_time(666);
+  Timestamp vertex_time(666);
   const auto name2accessor_map =
       std::make_shared<BubbleInterface::LockableName2AccessorMap>();
 
-  RCVertex vertex(id, keyframe_time, name2accessor_map);
+  RCVertex vertex(id, vertex_time, name2accessor_map);
 
   // get the ROS message for the first time
   {
@@ -51,9 +51,9 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     // check cata
     const auto data = vertex_msg.getData();
     EXPECT_EQ(data.id, id);
-    EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
-    EXPECT_EQ(data.time_range.t1, keyframe_time);
-    EXPECT_EQ(data.time_range.t2, keyframe_time);
+    EXPECT_EQ(data.vertex_time.nanoseconds_since_epoch, vertex_time);
+    EXPECT_EQ(data.time_range.t1, vertex_time);
+    EXPECT_EQ(data.time_range.t2, vertex_time);
 
     // assume that we save the message (setting index)
     vertex_msg.setIndex(1);
@@ -70,23 +70,23 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     // check cata
     const auto data = vertex_msg.getData();
     EXPECT_EQ(data.id, id);
-    EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
-    EXPECT_EQ(data.time_range.t1, keyframe_time);
-    EXPECT_EQ(data.time_range.t2, keyframe_time);
+    EXPECT_EQ(data.vertex_time.nanoseconds_since_epoch, vertex_time);
+    EXPECT_EQ(data.time_range.t1, vertex_time);
+    EXPECT_EQ(data.time_range.t2, vertex_time);
   }
 }
 
 TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
   VertexId id(16, 200);
-  Timestamp keyframe_time(666);
+  Timestamp vertex_time(666);
   const auto name2accessor_map =
       std::make_shared<BubbleInterface::LockableName2AccessorMap>();
 
   const auto data = std::make_shared<RCVertex::VertexMsg>();
   data->id = id;
-  data->keyframe_time.nanoseconds_since_epoch = keyframe_time;
-  data->time_range.t1 = keyframe_time;
-  data->time_range.t2 = keyframe_time;
+  data->vertex_time.nanoseconds_since_epoch = vertex_time;
+  data->time_range.t1 = vertex_time;
+  data->time_range.t2 = vertex_time;
 
   // assume the message is saved
   auto msg = std::make_shared<LockableMessage<RCVertex::VertexMsg>>(
@@ -105,9 +105,9 @@ TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
     // check cata
     const auto data = vertex_msg.getData();
     EXPECT_EQ(data.id, id);
-    EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
-    EXPECT_EQ(data.time_range.t1, keyframe_time);
-    EXPECT_EQ(data.time_range.t2, keyframe_time);
+    EXPECT_EQ(data.vertex_time.nanoseconds_since_epoch, vertex_time);
+    EXPECT_EQ(data.time_range.t1, vertex_time);
+    EXPECT_EQ(data.time_range.t2, vertex_time);
   }
 }
 
