@@ -110,7 +110,7 @@ class TemplatePipeline : public BasePipeline {
     ///   following)
     ///   - every keyframe when repeating a path
     /// The following will be in qdata:
-    ///   - everything from odometry and processKeyframe.
+    ///   - everything from odometry and onVertexCreation.
     ///   - map_id: the vertex to be localized against by this method.
     ///   - T_r_m_loc: prior estimate from localization chain based on odometry.
     ///   - loc_success: whether or not localization is successful.
@@ -119,9 +119,9 @@ class TemplatePipeline : public BasePipeline {
     /// This method may read from or write to the graph.
   }
 
-  void processKeyframe_(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                        const Graph::Ptr &,
-                        const std::shared_ptr<TaskExecutor> &) override {
+  void onVertexCreation_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                         const Graph::Ptr &,
+                         const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called whenever is keyframe is created.
     /// The following will be in qdata:
     ///   - everything from odometry

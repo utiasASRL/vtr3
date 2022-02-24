@@ -71,7 +71,7 @@ class RadarPipeline : public tactic::BasePipeline {
       const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
-  void processKeyframe_(
+  void onVertexCreation_(
       const tactic::QueryCache::Ptr &qdata,
       const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;

@@ -297,7 +297,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->T_r_v_odo = EdgeTransform(true);
 
     // Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);
+    pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
     chain_->setPetiole(current_vertex_id_);
@@ -377,7 +377,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->T_r_v_odo = EdgeTransform(true);
 
     // Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);
+    pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
     chain_->setPetiole(current_vertex_id_);
@@ -452,7 +452,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->T_r_v_odo = EdgeTransform(true);
 
     // Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);
+    pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
     chain_->setPetiole(current_vertex_id_);
@@ -521,7 +521,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->T_r_v_odo = EdgeTransform(true);  // identity with zero covariance
 
     // Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);
+    pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
     chain_->setPetiole(current_vertex_id_);
@@ -591,7 +591,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->T_r_v_odo = EdgeTransform(true);  // identity with zero covariance
 
     // Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);
+    pipeline_->onVertexCreation(qdata, output_, graph_, task_queue_);
 
     // Set the new petiole without updating trunk since we are in branch mode
     chain_->setPetiole(current_vertex_id_);

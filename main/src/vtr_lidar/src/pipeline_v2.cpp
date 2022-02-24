@@ -153,10 +153,10 @@ void LidarPipelineV2::runLocalization_(const QueryCache::Ptr &qdata0,
   if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
 }
 
-void LidarPipelineV2::processKeyframe_(const QueryCache::Ptr &qdata0,
-                                       const OutputCache::Ptr &,
-                                       const Graph::Ptr &graph,
-                                       const TaskExecutor::Ptr &) {
+void LidarPipelineV2::onVertexCreation_(const QueryCache::Ptr &qdata0,
+                                        const OutputCache::Ptr &,
+                                        const Graph::Ptr &graph,
+                                        const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
   const auto vid_odo = *qdata->vid_odo;
 

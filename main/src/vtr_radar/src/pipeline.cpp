@@ -159,10 +159,10 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
 }
 
-void RadarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
-                                     const OutputCache::Ptr &,
-                                     const Graph::Ptr &graph,
-                                     const TaskExecutor::Ptr &) {
+void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
+                                      const OutputCache::Ptr &,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
   const auto vid_odo = *qdata->vid_odo;
 
