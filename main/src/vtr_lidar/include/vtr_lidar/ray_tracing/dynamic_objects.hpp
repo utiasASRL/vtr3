@@ -19,17 +19,56 @@
 #pragma once
 
 #include "vtr_lidar/types.hpp"
-#include "vtr_lidar/utils.hpp"
+
+namespace vtr {
+namespace lidar {
+namespace ray_tracing {
+
+struct PixKey {
+  PixKey(int x0 = 0, int y0 = 0) : x(x0), y(y0) {}
+
+  bool operator==(const PixKey& other) const {
+    return (x == other.x && y == other.y);
+  }
+
+  int x, y;
+};
+
+inline PixKey operator+(const PixKey A, const PixKey B) {
+  return PixKey(A.x + B.x, A.y + B.y);
+}
+
+inline PixKey operator-(const PixKey A, const PixKey B) {
+  return PixKey(A.x - B.x, A.y - B.y);
+}
+
+}  // namespace ray_tracing
+}  // namespace lidar
+}  // namespace vtr
+
+// Specialization of std:hash function
+namespace std {
+
+template <>
+struct hash<vtr::lidar::ray_tracing::PixKey> {
+  std::size_t operator()(const vtr::lidar::ray_tracing::PixKey& k) const {
+    std::size_t ret = 0;
+    vtr::common::hash_combine(ret, k.x, k.y);
+    return ret;
+  }
+};
+
+}  // namespace std
 
 namespace vtr {
 namespace lidar {
 
 template <class PointT>
-inline PixKey getKey(const PointT& p, const float& phi_res,
-                     const float& theta_res) {
+inline ray_tracing::PixKey getKey(const PointT& p, const float& phi_res,
+                                  const float& theta_res) {
   // Position of point in sample map
-  return PixKey((int)std::floor(p.theta / theta_res),
-                (int)std::floor(p.phi / phi_res));
+  return ray_tracing::PixKey((int)std::floor(p.theta / theta_res),
+                             (int)std::floor(p.phi / phi_res));
 }
 
 template <class PointT>
@@ -49,7 +88,7 @@ void detectDynamicObjects(
       1 - (std::max(phi_res, theta_res) / 2) / tan(M_PI / 12);
 
   // Create and fill in the frustum grid
-  std::unordered_map<PixKey, float> frustum_grid;
+  std::unordered_map<ray_tracing::PixKey, float> frustum_grid;
   for (const auto& p : reference) {
     const auto k = getKey(p, phi_res, theta_res);
     if (frustum_grid.count(k) == 0)

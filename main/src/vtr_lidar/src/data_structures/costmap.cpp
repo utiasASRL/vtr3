@@ -56,10 +56,10 @@ void BaseCostMap::getValue(const teb_local_planner::PoseSE2& pose,
   const double dx = xt - (double)xf;
   const double dy = yt - (double)yf;
   //
-  const auto v00 = at(PixKey(xf, yf));
-  const auto v10 = at(PixKey(xc, yf));
-  const auto v01 = at(PixKey(xf, yc));
-  const auto v11 = at(PixKey(xc, yc));
+  const auto v00 = at(costmap::PixKey(xf, yf));
+  const auto v10 = at(costmap::PixKey(xc, yf));
+  const auto v01 = at(costmap::PixKey(xf, yc));
+  const auto v11 = at(costmap::PixKey(xc, yc));
   //
   const auto vt0 = v00 + dx * (v10 - v00);
   const auto vt1 = v01 + dx * (v11 - v01);
@@ -73,7 +73,7 @@ void BaseCostMap::getValue(const teb_local_planner::VertexPose& pose,
   getValue(teb_local_planner::PoseSE2(pose.x(), pose.y(), pose.theta()), value);
 }
 
-bool BaseCostMap::contains(const PixKey& k) const {
+bool BaseCostMap::contains(const costmap::PixKey& k) const {
   const auto shifted_k = k - origin_;
   return (shifted_k.x >= 0 && shifted_k.x < width_ && shifted_k.y >= 0 &&
           shifted_k.y < height_);
@@ -126,7 +126,8 @@ auto DenseCostMap::toPointCloudMsg() const -> PointCloudMsg {
   return pointcloud_msg;
 }
 
-void DenseCostMap::update(const std::unordered_map<PixKey, float>& values) {
+void DenseCostMap::update(
+    const std::unordered_map<costmap::PixKey, float>& values) {
   for (const auto& val : values) {
     const auto shifted_k = val.first - origin_;
     values_(shifted_k.x, shifted_k.y) = val.second;
@@ -139,7 +140,7 @@ auto DenseCostMap::filter(const float& threshold) const -> XY2ValueMap {
   for (int x = 0; x < width_; ++x)
     for (int y = 0; y < height_; ++y) {
       if (values_(x, y) < threshold) continue;
-      const auto key = PixKey(x, y) + origin_;
+      const auto key = costmap::PixKey(x, y) + origin_;
       filtered.emplace(
           std::make_pair((float)(key.x * dl_), (float)(key.y * dl_)),
           values_(x, y));
@@ -147,7 +148,7 @@ auto DenseCostMap::filter(const float& threshold) const -> XY2ValueMap {
   return filtered;
 }
 
-float DenseCostMap::at(const PixKey& k) const {
+float DenseCostMap::at(const costmap::PixKey& k) const {
   if (!contains(k)) return default_value_;
   const auto shifted_k = k - origin_;
   return values_(shifted_k.x, shifted_k.y);
@@ -205,7 +206,7 @@ auto SparseCostMap::toCostMapMsg() const -> CostMapMsg {
   return costmap_msg;
 }
 
-float SparseCostMap::at(const PixKey& k) const {
+float SparseCostMap::at(const costmap::PixKey& k) const {
   if (!values_.count(k)) return default_value_;
   return values_.at(k);
 }

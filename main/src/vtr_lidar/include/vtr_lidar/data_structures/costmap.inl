@@ -24,8 +24,9 @@ namespace vtr {
 namespace lidar {
 
 template <typename PointT>
-PixKey BaseCostMap::getKey(const PointT& p) const {
-  return PixKey((int)std::round(p.x / dl_), (int)std::round(p.y / dl_));
+costmap::PixKey BaseCostMap::getKey(const PointT& p) const {
+  return costmap::PixKey((int)std::round(p.x / dl_),
+                         (int)std::round(p.y / dl_));
 }
 
 template <typename PointT>

@@ -111,43 +111,6 @@ using DynamicKDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
 namespace vtr {
 namespace radar {
 
-struct PixKey {
-  PixKey(int x0 = 0, int y0 = 0) : x(x0), y(y0) {}
-
-  bool operator==(const PixKey& other) const {
-    return (x == other.x && y == other.y);
-  }
-
-  int x, y;
-};
-
-inline PixKey operator+(const PixKey A, const PixKey B) {
-  return PixKey(A.x + B.x, A.y + B.y);
-}
-
-inline PixKey operator-(const PixKey A, const PixKey B) {
-  return PixKey(A.x - B.x, A.y - B.y);
-}
-
-}  // namespace radar
-}  // namespace vtr
-
-// Specialization of std:hash function
-namespace std {
-template <>
-struct hash<vtr::radar::PixKey> {
-  std::size_t operator()(const vtr::radar::PixKey& k) const {
-    std::size_t ret = 0;
-    vtr::common::hash_combine(ret, k.x, k.y);
-    return ret;
-  }
-};
-
-}  // namespace std
-
-namespace vtr {
-namespace radar {
-
 template <class PointT>
 void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
   for (auto& p : point_cloud) {
@@ -162,7 +125,7 @@ void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
 // beta \approx f_transmission / (slope of modulation pattern dfdt)
 template <class PointT>
 void removeDoppler(pcl::PointCloud<PointT>& point_cloud,
-  const Eigen::VectorXd &vbar, const double beta) {
+                   const Eigen::VectorXd& vbar, const double beta) {
   for (auto& p : point_cloud) {
     Eigen::Vector3d abar = {p.x, p.y, p.z};
     abar.normalize();

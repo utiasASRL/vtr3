@@ -26,8 +26,47 @@
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
 #include "vtr_common/utils/hash.hpp"  // for std::pair hash
-#include "vtr_lidar/utils.hpp"
 #include "vtr_tactic/types.hpp"
+
+namespace vtr {
+namespace lidar {
+namespace costmap {
+
+struct PixKey {
+  PixKey(int x0 = 0, int y0 = 0) : x(x0), y(y0) {}
+
+  bool operator==(const PixKey& other) const {
+    return (x == other.x && y == other.y);
+  }
+
+  int x, y;
+};
+
+inline PixKey operator+(const PixKey A, const PixKey B) {
+  return PixKey(A.x + B.x, A.y + B.y);
+}
+
+inline PixKey operator-(const PixKey A, const PixKey B) {
+  return PixKey(A.x - B.x, A.y - B.y);
+}
+
+}  // namespace costmap
+}  // namespace lidar
+}  // namespace vtr
+
+// Specialization of std:hash function
+namespace std {
+
+template <>
+struct hash<vtr::lidar::costmap::PixKey> {
+  std::size_t operator()(const vtr::lidar::costmap::PixKey& k) const {
+    std::size_t ret = 0;
+    vtr::common::hash_combine(ret, k.x, k.y);
+    return ret;
+  }
+};
+
+}  // namespace std
 
 namespace vtr {
 namespace lidar {
@@ -62,11 +101,11 @@ class BaseCostMap : public teb_local_planner::CostMap {
 
  protected:
   template <typename PointT>
-  PixKey getKey(const PointT& p) const;
+  costmap::PixKey getKey(const PointT& p) const;
   template <typename PointT>
   bool contains(const PointT& k) const;
-  bool contains(const PixKey& k) const;
-  virtual float at(const PixKey& k) const = 0;
+  bool contains(const costmap::PixKey& k) const;
+  virtual float at(const costmap::PixKey& k) const = 0;
 
  protected:
   /** \brief cost map resolution */
@@ -78,7 +117,7 @@ class BaseCostMap : public teb_local_planner::CostMap {
   /** \brief number of cells in x (width) and y (height) direction */
   const int width_, height_;
   /** \brief pixel key corresponds to the lower left corner (x: right, y: up) */
-  const PixKey origin_;
+  const costmap::PixKey origin_;
 
   /// Pipeline related
   /** \brief the associated vertex sequence id */
@@ -106,7 +145,7 @@ class DenseCostMap : public BaseCostMap {
   void update(const ComputeValueOp& op);
 
   /** \brief update from a sparse cost map */
-  void update(const std::unordered_map<PixKey, float>& values);
+  void update(const std::unordered_map<costmap::PixKey, float>& values);
 
   XY2ValueMap filter(const float& threshold) const override;
 
@@ -119,7 +158,7 @@ class DenseCostMap : public BaseCostMap {
   PointCloudMsg toPointCloudMsg() const;
 
  protected:
-  float at(const PixKey& k) const override;
+  float at(const costmap::PixKey& k) const override;
 
  private:
   Eigen::MatrixXf values_;
@@ -164,11 +203,11 @@ class SparseCostMap : public BaseCostMap {
   PointCloudMsg toPointCloudMsg() const;
 
  protected:
-  float at(const PixKey& k) const override;
+  float at(const costmap::PixKey& k) const override;
 
  private:
-  std::unordered_map<PixKey, std::vector<float>> raw_values_;
-  std::unordered_map<PixKey, float> values_;
+  std::unordered_map<costmap::PixKey, std::vector<float>> raw_values_;
+  std::unordered_map<costmap::PixKey, float> values_;
 };
 
 }  // namespace lidar
