@@ -57,22 +57,8 @@ class Tactic : public PipelineInterface, public TacticInterface {
     bool odometry_mapping_skippable = false;
     bool localization_skippable = true;
 
-    /** \brief Whether to perform localization only on keyframe data */
-    bool localization_only_keyframe = false;
-    /** \brief Default localization covariance when chain is not localized. */
-    Eigen::Matrix<double, 6, 6> default_loc_cov =
-        Eigen::Matrix<double, 6, 6>::Zero();
-
-    /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
-    bool extrapolate_odometry = false;
-
-    /** \brief Threshold for merging <x, y, theta> */
-    std::vector<double> merge_threshold{0.5, 0.25, 0.2};
-
     /** \brief Visualize odometry and localization via Rviz. */
     bool visualize = false;
-    Eigen::Matrix<double, 3, 1> vis_loc_path_offset =
-        Eigen::Matrix<double, 3, 1>::Zero();
 
     static UniquePtr fromROS(const rclcpp::Node::SharedPtr& node,
                              const std::string& prefix = "tactic");

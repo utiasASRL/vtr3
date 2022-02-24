@@ -37,32 +37,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->odometry_mapping_skippable = node->declare_parameter<bool>(prefix+".odometry_mapping_skippable", true);
   config->localization_skippable = node->declare_parameter<bool>(prefix+".localization_skippable", true);
 
-  config->localization_only_keyframe = node->declare_parameter<bool>(prefix+".localization_only_keyframe", false);
-  const auto dlc = node->declare_parameter<std::vector<double>>(prefix+".default_loc_cov", std::vector<double>{});
-  if (dlc.size() != 6) {
-    std::string err{"Tactic default localization covariance malformed. Must be 6 elements!"};
-    CLOG(ERROR, "tactic") << err;
-    throw std::invalid_argument{err};
-  }
-  config->default_loc_cov.diagonal() << dlc[0], dlc[1], dlc[2], dlc[3], dlc[4], dlc[5];
-
-  config->extrapolate_odometry = node->declare_parameter<bool>(prefix+".extrapolate_odometry", false);
-
-  config->merge_threshold = node->declare_parameter<std::vector<double>>(prefix+".merge_threshold", std::vector<double>{0.5, 0.25, 0.2});
-  if (config->merge_threshold.size() != 3) {
-    std::string err{"Merge threshold malformed. Must be 3 elements!"};
-    CLOG(ERROR, "tactic") << err;
-    throw std::invalid_argument{err};
-  }
-
   config->visualize = node->declare_parameter<bool>(prefix+".visualize", false);
-  const auto vis_loc_path_offset = node->declare_parameter<std::vector<double>>(prefix+".vis_loc_path_offset", std::vector<double>{0, 0, 0});
-  if (vis_loc_path_offset.size() != 3) {
-    std::string err{"Localization path offset malformed. Must be 3 elements!"};
-    CLOG(ERROR, "tactic") << err;
-    throw std::invalid_argument{err};
-  }
-  config->vis_loc_path_offset << vis_loc_path_offset[0], vis_loc_path_offset[1], vis_loc_path_offset[2];
 
   /// setup localization chain
   config->chain_config.min_cusp_distance = node->declare_parameter<double>(prefix+".chain.min_cusp_distance", 1.5);
@@ -744,10 +719,6 @@ bool Tactic::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
-  if (*qdata->vertex_test_result != VertexTestResult::CREATE_VERTEX &&
-      config_->localization_only_keyframe)
-    return true;
-
   // Prior is set in odometry and mapping thread
   CLOG(DEBUG, "tactic")
       << "Prior transformation from robot to localization vertex ("
