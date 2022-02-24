@@ -58,7 +58,7 @@ void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
   // Get input and output data
   // input
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_pm_odo = *qdata.T_r_pm_odo;
+  const auto &T_r_m_odo = *qdata.T_r_m_odo;
   auto &point_map_odo = *qdata.point_map_odo;
   // the following has to be copied because we need to change them
   auto points = *qdata.undistorted_point_cloud;
@@ -71,13 +71,13 @@ void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // Transform points into the map frame
-  auto T_pm_s = (T_s_r * T_r_pm_odo).inverse().matrix().cast<float>();
+  auto T_m_s = (T_s_r * T_r_m_odo).inverse().matrix().cast<float>();
   // clang-format off
   auto points_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   // clang-format on
-  Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0);
-  Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3);
-  points_mat = (C_pm_s * points_mat).colwise() + r_s_pm_in_pm;
+  Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0);
+  Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3);
+  points_mat = (C_m_s * points_mat).colwise() + r_s_m_in_m;
 
   /// Update the point map with the set of new points
 
@@ -92,7 +92,7 @@ void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
   point_map_odo.update(points);
 
   // crop box filter
-  point_map_odo.crop(T_r_pm_odo.matrix().cast<float>(),
+  point_map_odo.crop(T_r_m_odo.matrix().cast<float>(),
                      config_->crop_range_front, config_->back_over_front_ratio);
 
   CLOG(DEBUG, "radar.odometry_map_merging")

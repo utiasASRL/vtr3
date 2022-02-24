@@ -33,8 +33,7 @@ class KeyframeTestModule : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     float max_translation = 10;
     float max_rotation = 30;

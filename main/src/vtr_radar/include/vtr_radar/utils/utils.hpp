@@ -15,7 +15,6 @@
 /**
  * \file utils.hpp
  * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
- * \brief Utility functions for working with radar data
  */
 #pragma once
 
@@ -41,9 +40,8 @@ void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
   }
 }
 
-/**
- * \brief Returns the cartesian image of a radar scan
- */
+/** \brief Returns the cartesian image of a radar scan */
+// clang-format off
 void radar_polar_to_cartesian(const cv::Mat &fft_data,
                               const std::vector<double> &azimuths,
                               cv::Mat &cartesian,
@@ -52,6 +50,6 @@ void radar_polar_to_cartesian(const cv::Mat &fft_data,
                               const int cart_pixel_width,
                               const bool interpolate_crossover,
                               const int output_type = CV_8UC1);
-
+// clang-format on
 }  // namespace radar
 }  // namespace vtr

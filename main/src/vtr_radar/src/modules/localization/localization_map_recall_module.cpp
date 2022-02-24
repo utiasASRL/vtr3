@@ -51,9 +51,9 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Input
-  const auto &map_id = *qdata.map_id;
+  const auto &vid_loc = *qdata.vid_loc;
 
-  if (qdata.curr_map_loc && qdata.curr_map_loc->vertex_id() == map_id) {
+  if (qdata.curr_map_loc && qdata.curr_map_loc->vertex_id() == vid_loc) {
     CLOG(DEBUG, "radar.localization_map_recall")
         << "Map already loaded, simply return. Map size is: "
         << qdata.curr_map_loc->size();
@@ -62,8 +62,8 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     return;
   } else {
     CLOG(INFO, "radar.localization_map_recall")
-        << "Loading map " << config_->map_version << " from vertex " << map_id;
-    auto vertex = graph->at(map_id);
+        << "Loading map " << config_->map_version << " from vertex " << vid_loc;
+    auto vertex = graph->at(vid_loc);
     // load the default multi exp pointmap
     if (config_->map_version == "multi_exp_point_map") {
 #if false
@@ -76,7 +76,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
             locked_multi_exp_map_msg.get().getData());
       } else {
         CLOG(WARNING, "radar.localization_map_recall")
-            << "Multi-experience point map not found for vertex " << map_id
+            << "Multi-experience point map not found for vertex " << vid_loc
             << ", fallback to single experience [point map] stream.";
         const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
             "point_map", "vtr_radar_msgs/msg/PointMap");
@@ -101,7 +101,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
       } else {
         CLOG(WARNING, "radar.localization_map_recall")
             << "Specified point map " << config_->map_version
-            << "not found for vertex " << map_id
+            << "not found for vertex " << vid_loc
             << ", fallback to single experience [point map] stream.";
         const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
             "point_map", "vtr_radar_msgs/msg/PointMap");
@@ -116,7 +116,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
 #if false
   /// DEBUGGING: compare with single experience map to double check transformation
   if (config_->visualize) {
-    auto vertex = graph->at(map_id);
+    auto vertex = graph->at(vid_loc);
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
     auto locked_map_msg = map_msg->sharedLocked();
     auto point_map_data = locked_map_msg.get().getData();

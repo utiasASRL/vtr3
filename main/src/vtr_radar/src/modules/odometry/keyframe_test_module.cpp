@@ -39,25 +39,25 @@ void KeyframeTestModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   // default to
-  qdata.keyframe_test_result = KeyframeTestResult::DO_NOTHING;
+  qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
 
   // input
   const auto &first_frame = *qdata.first_frame;
-  const auto &T_r_m = *qdata.T_r_m_odo;
+  const auto &T_r_v = *qdata.T_r_v_odo;
   const auto &success = *qdata.odo_success;
   // output
-  auto &result = *qdata.keyframe_test_result;
+  auto &result = *qdata.vertex_test_result;
 
   // check first frame
-  if (first_frame) result = KeyframeTestResult::CREATE_VERTEX;
+  if (first_frame) result = VertexTestResult::CREATE_VERTEX;
 
   // check if we successfully register this frame
   if (!success) {
-    result = KeyframeTestResult::FAILURE;
+    result = VertexTestResult::FAILURE;
     return;
   }
 
-  auto se3vec = T_r_m.vec();
+  auto se3vec = T_r_v.vec();
   auto translation_distance = se3vec.head<3>().norm();
   auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
   CLOG(DEBUG, "radar.keyframe_test")
@@ -66,7 +66,7 @@ void KeyframeTestModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (translation_distance >= config_->max_translation ||
       rotation_distance >= config_->max_rotation) {
-    result = KeyframeTestResult::CREATE_VERTEX;
+    result = VertexTestResult::CREATE_VERTEX;
   }
 }
 

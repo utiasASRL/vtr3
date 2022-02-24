@@ -32,7 +32,7 @@ namespace vtr {
 namespace radar {
 
 struct RadarQueryCache : virtual public tactic::QueryCache {
-  using Ptr = std::shared_ptr<RadarQueryCache>;
+  PTR_TYPEDEFS(RadarQueryCache);
 
   // input
   tactic::Cache<sensor_msgs::msg::Image> scan_msg;  // from ROS
@@ -59,8 +59,8 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> point_cloud_odo;
   tactic::Cache<PointMap<PointWithInfo>> point_map_odo;
   tactic::Cache<tactic::Timestamp> timestamp_odo;
-  tactic::Cache<tactic::EdgeTransform> T_r_pm_odo;
-  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo;
+  tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
@@ -68,7 +68,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {
-  using Ptr = std::shared_ptr<RadarOutputCache>;
+  PTR_TYPEDEFS(RadarOutputCache);
 };
 
 }  // namespace radar

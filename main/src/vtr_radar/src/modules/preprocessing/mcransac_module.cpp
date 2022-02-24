@@ -18,8 +18,8 @@
  */
 #include "vtr_radar/modules/preprocessing/mcransac_module.hpp"
 
-#include "opencv2/opencv.hpp"
 #include "cv_bridge/cv_bridge.h"
+#include "opencv2/opencv.hpp"
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_radar/features/normal.hpp"
@@ -31,14 +31,14 @@
 namespace vtr {
 namespace radar {
 
-  // Binary Annular Statistics Descriptor (BASD) (Rapp et al., 2016)
+// Binary Annular Statistics Descriptor (BASD) (Rapp et al., 2016)
 // descriptors are binary and can be associated quickly with
 // hamming distance
 class BASD {
  public:
   BASD() = default;
   BASD(int nbins, int bin_size) : nbins_(nbins), bin_size_(bin_size) {}
-  void compute(const cv::Mat& cartesian,
+  void compute(const cv::Mat &cartesian,
                const std::vector<cv::KeyPoint> &keypoints,
                cv::Mat &descriptors);
 
@@ -47,12 +47,13 @@ class BASD {
   int bin_size_ = 1;
 };
 
-void BASD::compute(const cv::Mat& cartesian,
+void BASD::compute(const cv::Mat &cartesian,
                    const std::vector<cv::KeyPoint> &keypoints,
                    cv::Mat &descriptors) {
   const int max_range = nbins_ - 1;
   const float max_range_sq = max_range * max_range;
-  const int dim = std::ceil(nbins_ * (nbins_ + 1) / 8.0);  // dimension of descriptor in bytes
+  const int dim = std::ceil(nbins_ * (nbins_ + 1) /
+                            8.0);  // dimension of descriptor in bytes
   const int cols = cartesian.cols;
   const int rows = cartesian.rows;
   descriptors = cv::Mat::zeros(keypoints.size(), dim, CV_8UC1);
@@ -66,8 +67,7 @@ void BASD::compute(const cv::Mat& cartesian,
     for (int i = minrow; i < maxrow; ++i) {
       for (int j = mincol; j < maxcol; ++j) {
         float r = pow(i - kp.pt.y, 2) + pow(j - kp.pt.x, 2);
-        if (r > max_range_sq)
-          continue;
+        if (r > max_range_sq) continue;
         r = sqrt(r);
         int bin = std::floor(r / bin_size_);
         bins[bin].push_back(cartesian.at<float>(i, j));
@@ -78,8 +78,7 @@ void BASD::compute(const cv::Mat& cartesian,
     std::vector<float> stds(nbins_, 0);
     for (int i = 0; i < nbins_; ++i) {
       float mean = 0;
-      if (bins[i].size() == 0)
-        continue;
+      if (bins[i].size() == 0) continue;
       for (size_t j = 0; j < bins[i].size(); ++j) {
         mean += bins[i][j];
       }
@@ -97,8 +96,7 @@ void BASD::compute(const cv::Mat& cartesian,
     int k = 0;
     for (int i = 0; i < nbins_; ++i) {
       for (int j = 0; j < nbins_; ++j) {
-        if (i == j)
-          continue;
+        if (i == j) continue;
         if (means[i] > means[j]) {
           int byte = std::floor(k / 8.0);
           int bit = k % 8;
@@ -193,7 +191,8 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   // Input
   const auto &query_cartesian = *qdata.cartesian;
   const auto &query_points = *qdata.preprocessed_point_cloud;
-  const auto query_points_backup = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+  const auto query_points_backup =
+      std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
   const auto &T_s_r_ = *qdata.T_s_r;
   const Eigen::Matrix4d T_s_r = T_s_r_.matrix().cast<double>();
   const auto &ref_cartesian = *qdata.cartesian_odo;
@@ -207,7 +206,8 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   }
 
   CLOG(DEBUG, "radar.mcransac")
-      << "initial cloud sizes: " << query_points.size() << " " << ref_points.size();
+      << "initial cloud sizes: " << query_points.size() << " "
+      << ref_points.size();
 
   // ref == 1, query == 2
   auto filtered_query_points = query_points;
@@ -220,7 +220,8 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   convertToBEV(cart_resolution, query_cartesian.cols, config_->patch_size,
                filtered_ref_points, ref_keypoints);
   CLOG(DEBUG, "radar.mcransac")
-      << "BEV cloud sizes: " << filtered_query_points.size() << " " << filtered_ref_points.size();
+      << "BEV cloud sizes: " << filtered_query_points.size() << " "
+      << filtered_ref_points.size();
 
   /// \todo The following code compiles but have not been tested yet.
   /// remove the if false macro to test them using the odometry test script.
@@ -255,14 +256,14 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
     if (knn_matches[j].size() == 0) continue;
     if (knn_matches[j].size() >= 2) {
       if (knn_matches[j][0].distance >
-        config_->nndr * knn_matches[j][1].distance)
+          config_->nndr * knn_matches[j][1].distance)
         continue;
     }
     auto it = find_if(matches.begin(), matches.end(),
-    [&](const cv::DMatch & val) -> bool {
-      return val.trainIdx == knn_matches[j][0].trainIdx ||
-        val.queryIdx == knn_matches[j][0].queryIdx;
-    });
+                      [&](const cv::DMatch &val) -> bool {
+                        return val.trainIdx == knn_matches[j][0].trainIdx ||
+                               val.queryIdx == knn_matches[j][0].queryIdx;
+                      });
     // trainIdx
     if (it != matches.end()) {
       auto idx = it - matches.begin();
@@ -296,10 +297,10 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
   auto mcransac = std::make_unique<MCRansac<PointWithInfo>>(
       config_->tolerance, config_->inlier_ratio, config_->iterations,
       config_->gn_iterations, config_->epsilon_converge, 2);
-  // T_sensornew_sensorold = vec2tran(dt * w_pm_s_in_s)
-  Eigen::VectorXd w_pm_s_in_s;
+  // T_sensornew_sensorold = vec2tran(dt * w_m_s_in_s)
+  Eigen::VectorXd w_m_s_in_s;
   std::vector<int> best_inliers;
-  mcransac->run(filtered_ref_points, filtered_query_points, w_pm_s_in_s,
+  mcransac->run(filtered_ref_points, filtered_query_points, w_m_s_in_s,
                 best_inliers);
 
   CLOG(DEBUG, "radar.mcransac")
@@ -318,22 +319,24 @@ void McransacModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
     const Eigen::Matrix3d C_s_r = T_s_r.block<3, 3>(0, 0).cast<double>();
     const Eigen::Vector3d r_r_s_in_s = T_s_r.block<3, 1>(0, 3).cast<double>();
     const Eigen::Matrix3d C_r_s = C_s_r.transpose();
-    const Eigen::Vector3d vel = w_pm_s_in_s.block<3, 1>(0, 0).cast<double>();
-    const Eigen::Vector3d ang = w_pm_s_in_s.block<3, 1>(3, 0).cast<double>();
-    w_pm_s_in_s.block<3, 1>(0, 0) = C_r_s * vel - C_r_s * lgmath::so3::hat(r_r_s_in_s) * ang;
-    w_pm_s_in_s.block<3, 1>(3, 0) = C_r_s * ang;
-    w_pm_s_in_s *= -1;
-    *qdata.w_pm_r_in_r_odo = w_pm_s_in_s;
+    const Eigen::Vector3d vel = w_m_s_in_s.block<3, 1>(0, 0).cast<double>();
+    const Eigen::Vector3d ang = w_m_s_in_s.block<3, 1>(3, 0).cast<double>();
+    w_m_s_in_s.block<3, 1>(0, 0) =
+        C_r_s * vel - C_r_s * lgmath::so3::hat(r_r_s_in_s) * ang;
+    w_m_s_in_s.block<3, 1>(3, 0) = C_r_s * ang;
+    w_m_s_in_s *= -1;
+    *qdata.w_m_r_in_r_odo = w_m_s_in_s;
   }
 
   CLOG(DEBUG, "radar.mcransac")
-      << "MC-RANSAC motion estimate: " << w_pm_s_in_s.transpose();
+      << "MC-RANSAC motion estimate: " << w_m_s_in_s.transpose();
 
   cv::Mat img_matches;
   if (config_->visualize) {
-    cv::drawMatches(query_cartesian,
-      query_keypoints, ref_cartesian, ref_keypoints, matches, img_matches, cv::Scalar::all(-1),
-      cv::Scalar::all(-1), std::vector<char>(),cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+    cv::drawMatches(query_cartesian, query_keypoints, ref_cartesian,
+                    ref_keypoints, matches, img_matches, cv::Scalar::all(-1),
+                    cv::Scalar::all(-1), std::vector<char>(),
+                    cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
   }
 
   // store this frame's bev image and pointcloud

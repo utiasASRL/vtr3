@@ -15,7 +15,6 @@
 /**
  * \file navtech_extraction_module.hpp
  * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
- * \brief NavtechExtractionModule class definition
  */
 #pragma once
 
