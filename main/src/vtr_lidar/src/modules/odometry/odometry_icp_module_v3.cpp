@@ -44,7 +44,7 @@ auto OdometryICPModuleV3::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config->trajectory_smoothing);
 
   config->lock_prev_velocity = node->declare_parameter<bool>(param_prefix + ".lock_prev_velocity", config->lock_prev_velocity);
-
+  config->use_prev_velocity_as_prior = node->declare_parameter<bool>(param_prefix + ".use_prev_velocity_as_prior", config->use_prev_velocity_as_prior);
   const auto pvc = node->declare_parameter<std::vector<double>>(param_prefix + ".prev_velocity_cov", std::vector<double>());
   if (pvc.size() != 6) {
     std::string err{"Previous velocity covariance malformed. Must be 6 elements!"};
@@ -191,7 +191,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     trajectory->add(prev_time, prev_T_r_pm_eval, prev_w_pm_r_in_r_var);
     if (config_->lock_prev_velocity) {
       prev_w_pm_r_in_r_var->setLock(true);
-    } else {
+    } else if (config_->use_prev_velocity_as_prior) {
       trajectory->addVelocityPrior(prev_time, w_pm_r_in_r_odo, config_->prev_velocity_cov);
     }
     // curr frame state (+ velocity)
