@@ -539,8 +539,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_m_odo = T_r_m_var->getValue();
     if (config_->trajectory_smoothing)
       *qdata.w_m_r_in_r_odo = w_m_r_in_r_var->getValue();
-    CLOG(DEBUG, "radar.odometry_icp") << "ICP motion estimate: " <<
-      w_m_r_in_r_var->getValue().transpose();
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * point_map_odo.T_vertex_map().inverse();

@@ -109,8 +109,10 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
     pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_scan", 5);
     raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_scan", 5);
+    // clang-format on
     publisher_initialized_ = true;
   }
 
@@ -129,8 +131,8 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     qdata.undistorted_point_cloud = undistorted_point_cloud;
     //
     qdata.timestamp_odo.emplace(*qdata.stamp);
-    qdata.T_r_pm_odo.emplace(EdgeTransform(true));
-    qdata.w_pm_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    qdata.T_r_m_odo.emplace(EdgeTransform(true));
+    qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     //
     *qdata.odo_success = true;
     // clang-format on
@@ -145,8 +147,8 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &timestamp_odo = *qdata.timestamp_odo;
-  const auto &T_r_pm_odo = *qdata.T_r_pm_odo;
-  const auto &w_pm_r_in_r_odo = *qdata.w_pm_r_in_r_odo;
+  const auto &T_r_m_odo = *qdata.T_r_m_odo;
+  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   auto &point_map_odo = *qdata.point_map_odo;
   auto &point_map = point_map_odo.point_map();
 
@@ -159,18 +161,18 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   KDTreeSearchParams search_params;
   // clang-format off
   /// Create and add the T_robot_map variable, here m = vertex frame.
-  auto T_r_pm_odo_extp = T_r_pm_odo;
+  auto T_r_m_odo_extp = T_r_m_odo;
   if (config_->trajectory_smoothing) {
-    Eigen::Matrix<double,6,1> xi_pm_r_in_r_odo(Time(query_stamp - timestamp_odo).seconds() * w_pm_r_in_r_odo);
-    T_r_pm_odo_extp = tactic::EdgeTransform(xi_pm_r_in_r_odo) * T_r_pm_odo;
+    Eigen::Matrix<double,6,1> xi_m_r_in_r_odo(Time(query_stamp - timestamp_odo).seconds() * w_m_r_in_r_odo);
+    T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
   }
-  const auto T_r_pm_var = std::make_shared<TransformStateVar>(T_r_pm_odo_extp);
+  const auto T_r_m_var = std::make_shared<TransformStateVar>(T_r_m_odo_extp);
 
   /// Create evaluators for passing into ICP
   const auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
-  const auto T_r_pm_eval = TransformStateEvaluator::MakeShared(T_r_pm_var);
+  const auto T_r_m_eval = TransformStateEvaluator::MakeShared(T_r_m_var);
   // compound transform for alignment (sensor to point map transform)
-  const auto T_pm_s_eval = inverse(compose(T_s_r_eval, T_r_pm_eval));
+  const auto T_m_s_eval = inverse(compose(T_s_r_eval, T_r_m_eval));
 
   CLOG(DEBUG, "lidar.odometry_icp")
             << "Trajectory smoothing initialization.";
@@ -178,30 +180,30 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   /// trajectory smoothing
   std::shared_ptr<SteamTrajInterface> trajectory = nullptr;
   std::vector<StateVariableBase::Ptr> trajectory_state_vars;
-  std::shared_ptr<VectorSpaceStateVar> w_pm_r_in_r_var = nullptr;
+  std::shared_ptr<VectorSpaceStateVar> w_m_r_in_r_var = nullptr;
   auto trajectory_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
   if (config_->trajectory_smoothing) {
     trajectory = std::make_shared<SteamTrajInterface>(config_->smoothing_factor_information, true);
     // last frame state
     Time prev_time(static_cast<int64_t>(timestamp_odo));
-    auto prev_T_r_pm_var = std::make_shared<TransformStateVar>(T_r_pm_odo);
-    prev_T_r_pm_var->setLock(true);
-    auto prev_T_r_pm_eval = std::make_shared<TransformStateEvaluator>(prev_T_r_pm_var);
-    auto prev_w_pm_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_pm_r_in_r_odo);
-    trajectory->add(prev_time, prev_T_r_pm_eval, prev_w_pm_r_in_r_var);
+    auto prev_T_r_m_var = std::make_shared<TransformStateVar>(T_r_m_odo);
+    prev_T_r_m_var->setLock(true);
+    auto prev_T_r_m_eval = std::make_shared<TransformStateEvaluator>(prev_T_r_m_var);
+    auto prev_w_m_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_m_r_in_r_odo);
+    trajectory->add(prev_time, prev_T_r_m_eval, prev_w_m_r_in_r_var);
     if (config_->lock_prev_velocity) {
-      prev_w_pm_r_in_r_var->setLock(true);
+      prev_w_m_r_in_r_var->setLock(true);
     } else if (config_->use_prev_velocity_as_prior) {
-      trajectory->addVelocityPrior(prev_time, w_pm_r_in_r_odo, config_->prev_velocity_cov);
+      trajectory->addVelocityPrior(prev_time, w_m_r_in_r_odo, config_->prev_velocity_cov);
     }
     // curr frame state (+ velocity)
     Time query_time(static_cast<int64_t>(query_stamp));
-    w_pm_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_pm_r_in_r_odo);
-    trajectory->add(query_time, T_r_pm_eval, w_pm_r_in_r_var);
+    w_m_r_in_r_var = std::make_shared<VectorSpaceStateVar>(w_m_r_in_r_odo);
+    trajectory->add(query_time, T_r_m_eval, w_m_r_in_r_var);
     // add state variables to the collection
-    trajectory_state_vars.emplace_back(prev_T_r_pm_var);
-    trajectory_state_vars.emplace_back(prev_w_pm_r_in_r_var);
-    trajectory_state_vars.emplace_back(w_pm_r_in_r_var);
+    trajectory_state_vars.emplace_back(prev_T_r_m_var);
+    trajectory_state_vars.emplace_back(prev_w_m_r_in_r_var);
+    trajectory_state_vars.emplace_back(w_m_r_in_r_var);
     // add prior cost terms
     trajectory->appendPriorCostTerms(trajectory_cost_terms);
   }
@@ -219,15 +221,17 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-  /// Perform initial alignment (no motion distortion for the first iteration)
-  const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
-  Eigen::Matrix3f C_pm_s_init = (T_pm_s_init.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_s_pm_in_pm_init = (T_pm_s_init.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_pm_s_init * query_mat).colwise() + r_s_pm_in_pm_init;
-  aligned_norms_mat = C_pm_s_init * query_norms_mat;
+  /// Perform initial alignment
+  {
+    const auto T_m_s = T_m_s_eval->evaluate().matrix();
+    Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
+    aligned_norms_mat = C_m_s * query_norms_mat;
+  }
 
   // ICP results
-  EdgeTransform T_r_pm_icp;
+  EdgeTransform T_r_m_icp;
   float matched_points_ratio = 0.0;
 
   // Convergence variables
@@ -267,22 +271,21 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 
   for (int step = 0;; step++) {
     /// Points Association
-    // Pick random queries (use unordered set to ensure uniqueness)
+    // pick queries (for now just use all of them)
     timer[0]->start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
     sample_inds.resize(query_points.size());
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
     timer[0]->stop();
 
+    // find nearest neigbors and distances
     timer[1]->start();
-    // Find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (size_t i = 0; i < sample_inds.size(); i++) {
       KDTreeResultSet result_set(1);
       result_set.init(&sample_inds[i].second, &nn_dists[i]);
-      kdtree->findNeighbors(
-          result_set, aligned_points[sample_inds[i].first].data, search_params);
+      kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
     }
     timer[1]->stop();
 
@@ -303,6 +306,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
       }
     }
     timer[2]->stop();
+    CLOG(DEBUG, "radar.odometry_icp") << "Number of matches: " << filtered_sample_inds.size();
 
     /// Point to plane optimization
     timer[3]->start();
@@ -324,11 +328,11 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
       PointToPointErrorEval2::Ptr error_func;
       if (config_->trajectory_smoothing) {
         const auto &qry_time = query_points[ind.first].time;
-        const auto T_r_pm_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_pm_s_intp_eval = inverse(compose(T_s_r_eval, T_r_pm_intp_eval));
-        error_func.reset(new PointToPointErrorEval2(T_pm_s_intp_eval, ref_pt, qry_pt));
+        const auto T_r_m_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
+        const auto T_m_s_intp_eval = inverse(compose(T_s_r_eval, T_r_m_intp_eval));
+        error_func.reset(new PointToPointErrorEval2(T_m_s_intp_eval, ref_pt, qry_pt));
       } else {
-        error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));
+        error_func.reset(new PointToPointErrorEval2(T_m_s_eval, ref_pt, qry_pt));
       }
 
       // create cost term and add to problem
@@ -340,8 +344,9 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 
     // initialize problem
     OptimizationProblem problem;
-    problem.addStateVariable(T_r_pm_var);
+    problem.addStateVariable(T_r_m_var);
     problem.addCostTerm(cost_terms);
+
     // add prior costs
     if (config_->trajectory_smoothing) {
       for (const auto &var : trajectory_state_vars)
@@ -349,12 +354,11 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(trajectory_cost_terms);
     }
 
+    // make solver
     using SolverType = VanillaGaussNewtonSolver;
     SolverType::Params params;
     params.verbose = config_->verbose;
     params.maxIterations = config_->maxIterations;
-
-    // Make solver
     SolverType solver(&problem, params);
 
     // Optimize
@@ -362,40 +366,40 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
       solver.optimize();
     } catch (const decomp_failure &) {
       CLOG(WARNING, "lidar.odometry_icp")
-          << "Steam optimization failed! T_pm_s left unchanged.";
+          << "Steam optimization failed! T_m_s left unchanged.";
     }
     timer[3]->stop();
 
-    timer[4]->start();
     /// Alignment
+    timer[4]->start();
     if (config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_points.size(); i++) {
         const auto &qry_time = query_points[i].time;
-        const auto T_r_pm_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_pm_s_intp_eval = inverse(compose(T_s_r_eval, T_r_pm_intp_eval));
-        const auto T_pm_s = T_pm_s_intp_eval->evaluate().matrix();
-        Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
-        Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
-        aligned_mat.block<3, 1>(0, i) = C_pm_s * query_mat.block<3, 1>(0, i) + r_s_pm_in_pm;
-        aligned_norms_mat.block<3, 1>(0, i) = C_pm_s * query_norms_mat.block<3, 1>(0, i);
+        const auto T_r_m_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
+        const auto T_m_s_intp_eval = inverse(compose(T_s_r_eval, T_r_m_intp_eval));
+        const auto T_m_s = T_m_s_intp_eval->evaluate().matrix();
+        Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
+        Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
+        aligned_mat.block<3, 1>(0, i) = C_m_s * query_mat.block<3, 1>(0, i) + r_s_m_in_m;
+        aligned_norms_mat.block<3, 1>(0, i) = C_m_s * query_norms_mat.block<3, 1>(0, i);
       }
     } else {
-      const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
-      Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
-      Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
-      aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
-      aligned_norms_mat = C_pm_s * query_norms_mat;
+      const auto T_m_s = T_m_s_eval->evaluate().matrix();
+      Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
+      Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
+      aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
+      aligned_norms_mat = C_m_s * query_norms_mat;
     }
 
     // Update all result matrices
-    const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
+    const auto T_m_s = T_m_s_eval->evaluate().matrix();
     if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_pm_s);
+      all_tfs = Eigen::MatrixXd(T_m_s);
     else {
       Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(4) = Eigen::MatrixXd(T_pm_s);
+      temp.bottomRows(4) = Eigen::MatrixXd(T_m_s);
       all_tfs = temp;
     }
     timer[4]->stop();
@@ -431,6 +435,7 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
         refinement_stage = true;
 
         max_it = step + config_->refined_max_iter;
+
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
@@ -439,23 +444,22 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[5]->stop();
 
+    /// Last step
     timer[6]->start();
-    // Last step
     if ((refinement_stage && step >= max_it - 1) ||
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      CLOG(DEBUG, "lidar.odometry_icp") << "Total number of steps: " << step << ".";
       // result
-      T_r_pm_icp = EdgeTransform(T_r_pm_var->getValue(), solver.queryCovariance(T_r_pm_var->getKey()));
+      T_r_m_icp = EdgeTransform(T_r_m_var->getValue(), solver.queryCovariance(T_r_m_var->getKey()));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      CLOG(DEBUG, "radar.odometry_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "lidar.odometry_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
+        CLOG(WARNING, "lidar.odometry_icp") << "ICP did not converge to the specified threshold";
         if (!refinement_stage) {
           CLOG(WARNING, "lidar.odometry_icp") << "ICP did not enter refinement stage at all.";
         }
-        // matched_points_ratio = 0;
       }
       break;
     }
@@ -471,11 +475,11 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
   /// Outputs
   if (matched_points_ratio > config_->min_matched_ratio) {
     // undistort the preprocessed pointcloud
-    const auto T_s_pm = T_pm_s_eval->evaluate().matrix().inverse();
-    Eigen::Matrix3f C_s_pm = T_s_pm.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_pm_s_in_s = T_s_pm.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_s_pm * aligned_mat).colwise() + r_pm_s_in_s;
-    aligned_norms_mat = C_s_pm * aligned_norms_mat;
+    const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse();
+    Eigen::Matrix3f C_s_m = T_s_m.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_m_s_in_s = T_s_m.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_s_m * aligned_mat).colwise() + r_m_s_in_s;
+    aligned_norms_mat = C_s_m * aligned_norms_mat;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
@@ -489,8 +493,8 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < raw_points.size(); i++) {
         const auto &qry_time = raw_points[i].time;
-        const auto T_rintp_pm_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_s_sintp_eval = inverse(compose(T_s_r_eval, compose(T_rintp_pm_eval, T_pm_s_eval)));
+        const auto T_rintp_m_eval = trajectory->getInterpPoseEval(Time(qry_time));
+        const auto T_s_sintp_eval = inverse(compose(T_s_r_eval, compose(T_rintp_m_eval, T_m_s_eval)));
         const auto T_s_sintp = T_s_sintp_eval->evaluate().matrix();
         Eigen::Matrix3f C_s_sintp = T_s_sintp.block<3, 3>(0, 0).cast<float>();
         Eigen::Vector3f r_sintp_s_in_s = T_s_sintp.block<3, 1>(0, 3).cast<float>();
@@ -502,15 +506,15 @@ void OdometryICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
 #endif
     // store trajectory info
     *qdata.timestamp_odo = query_stamp;
-    *qdata.T_r_pm_odo = T_r_pm_var->getValue();
+    *qdata.T_r_m_odo = T_r_m_var->getValue();
     if (config_->trajectory_smoothing)
-      *qdata.w_pm_r_in_r_odo = w_pm_r_in_r_var->getValue();
+      *qdata.w_m_r_in_r_odo = w_m_r_in_r_var->getValue();
     //
     /// \todo double check validity when no vertex has been created
-    *qdata.T_r_m_odo = T_r_pm_icp * point_map_odo.T_vertex_map().inverse();
-    /// \todo double check that we can indeed treat pm same as m for velocity
+    *qdata.T_r_v_odo = T_r_m_icp * point_map_odo.T_vertex_map().inverse();
+    /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->trajectory_smoothing)
-      *qdata.w_m_r_in_r_odo = w_pm_r_in_r_var->getValue();
+      *qdata.w_v_r_in_r_odo = w_m_r_in_r_var->getValue();
     //
     *qdata.odo_success = true;
   } else {

@@ -59,12 +59,12 @@ void InterExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  if (qdata.live_id->isValid() &&
-      qdata.live_id->minorId() >= (unsigned)config_->depth &&
-      *qdata.keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
+  if (qdata.vid_odo->isValid() &&
+      qdata.vid_odo->minorId() >= (unsigned)config_->depth &&
+      *qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     const auto target_vid =
-        VertexId(qdata.live_id->majorId(),
-                 qdata.live_id->minorId() - (unsigned)config_->depth);
+        VertexId(qdata.vid_odo->majorId(),
+                 qdata.vid_odo->minorId() - (unsigned)config_->depth);
 
     /// \todo the following block needs more testing
     bool has_spatial = false;

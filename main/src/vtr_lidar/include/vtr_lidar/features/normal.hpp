@@ -14,8 +14,6 @@
 
 /**
  * \file normal.hpp
- * \brief normal vector extraction functions
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 

@@ -218,17 +218,17 @@ void TerrainAssessmentModule::run_(QueryCache &qdata0, OutputCache &output0,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
-  const auto &map_id = *qdata.map_id;
+  const auto &vid_loc = *qdata.vid_loc;
   if (qdata.curr_map_loc_changed && (!(*qdata.curr_map_loc_changed))) {
     CLOG(DEBUG, "lidar.terrain_assessment")
-        << "Terrain Assessment for vertex " << map_id << " is already done.";
+        << "Terrain Assessment for vertex " << vid_loc << " is already done.";
     return;
   }
 
   if (config_->run_async)
     executor->dispatch(std::make_shared<Task>(
         shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
-        Task::DepId{}, "Terrain Assessment", map_id));
+        Task::DepId{}, "Terrain Assessment", vid_loc));
   else
     runAsync_(qdata0, output0, graph, executor, Task::Priority(-1),
               Task::DepId());
@@ -255,7 +255,7 @@ void TerrainAssessmentModule::runAsync_(
   }
 
   if (config_->run_online &&
-      output.chain->trunkSequenceId() != *qdata.map_sid) {
+      output.chain->trunkSequenceId() != *qdata.sid_loc) {
     CLOG(INFO, "lidar.terrain_assessment")
         << "Trunk id has changed, skip change detection for this scan";
     return;
@@ -263,8 +263,8 @@ void TerrainAssessmentModule::runAsync_(
 
   // input
   const auto &chain = *output.chain;
-  const auto &loc_vid = *qdata.map_id;
-  const auto &loc_sid = *qdata.map_sid;
+  const auto &loc_vid = *qdata.vid_loc;
+  const auto &loc_sid = *qdata.sid_loc;
   const auto &point_map = *qdata.curr_map_loc;
   const auto &T_lv_pm = point_map.T_vertex_map().matrix();
   auto point_cloud = point_map.point_map();  // copy for changing
@@ -304,7 +304,7 @@ void TerrainAssessmentModule::runAsync_(
     std::unique_lock<std::mutex> lock(mutex_);
     //
     const auto T_w_lv = config_->run_online
-                            ? output.chain->pose(*qdata.map_sid)  // online
+                            ? output.chain->pose(*qdata.sid_loc)  // online
                             : EdgeTransform(true);                // offline
 
     // publish the occupancy grid origin

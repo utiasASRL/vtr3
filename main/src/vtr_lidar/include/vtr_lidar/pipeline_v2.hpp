@@ -28,7 +28,7 @@ namespace lidar {
 
 class LidarPipelineV2 : public tactic::BasePipeline {
  public:
-  using Ptr = std::shared_ptr<LidarPipelineV2>;
+  PTR_TYPEDEFS(LidarPipelineV2);
 
   /** \brief Static pipeline identifier. */
   static constexpr auto static_name = "lidar_v2";
@@ -89,8 +89,8 @@ class LidarPipelineV2 : public tactic::BasePipeline {
   std::shared_ptr<PointMap<PointWithInfo>> point_map_odo_;
   /** \brief Current timestamp, pose and velocity */
   std::shared_ptr<tactic::Timestamp> timestamp_odo_;
-  std::shared_ptr<tactic::EdgeTransform> T_r_pm_odo_;
-  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo_;
+  std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_;
+  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_;
   /** \brief lidar scans that will be stored to the next vertex */
   std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
       new_scan_odo_;

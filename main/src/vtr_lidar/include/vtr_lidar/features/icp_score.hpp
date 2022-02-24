@@ -15,7 +15,6 @@
 /**
  * \file icp_score.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief heuristics for calculating icp weights
  */
 namespace vtr {
 namespace lidar {

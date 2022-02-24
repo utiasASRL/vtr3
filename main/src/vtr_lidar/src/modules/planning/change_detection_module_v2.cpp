@@ -37,7 +37,7 @@ class DetectChangeOp {
         adapter_(points) {
     /// create kd-tree of the point cloud for radius search
     kdtree_ = std::make_unique<KDTree<PointT>>(2, adapter_,
-                                               KDTreeParams(10 /* max leaf */));
+                                               KDTreeParams(/* max leaf */ 10));
     kdtree_->buildIndex();
     // search params setup
     search_params_.sorted = false;
@@ -109,12 +109,12 @@ void ChangeDetectionModuleV2::run_(QueryCache &qdata0, OutputCache &output0,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
-  const auto &map_id = *qdata.map_id;
+  const auto &vid_loc = *qdata.vid_loc;
 
   if (config_->run_async)
     executor->dispatch(std::make_shared<Task>(
         shared_from_this(), qdata0.shared_from_this(), 0, Task::DepIdSet{},
-        Task::DepId{}, "Change Detection", map_id));
+        Task::DepId{}, "Change Detection", vid_loc));
   else
     runAsync_(qdata0, output0, graph, executor, Task::Priority(-1),
               Task::DepId());
@@ -142,7 +142,7 @@ void ChangeDetectionModuleV2::runAsync_(
   }
 
   if (config_->run_online &&
-      output.chain->trunkSequenceId() != *qdata.map_sid) {
+      output.chain->trunkSequenceId() != *qdata.sid_loc) {
     CLOG(INFO, "lidar.change_detection")
         << "Trunk id has changed, skip change detection for this scan";
     return;
@@ -151,9 +151,9 @@ void ChangeDetectionModuleV2::runAsync_(
   // inputs
   const auto &stamp = *qdata.stamp;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &loc_vid = *qdata.map_id;
-  const auto &loc_sid = *qdata.map_sid;
-  const auto &T_r_lv = *qdata.T_r_m_loc;
+  const auto &loc_vid = *qdata.vid_loc;
+  const auto &loc_sid = *qdata.sid_loc;
+  const auto &T_r_lv = *qdata.T_r_v_loc;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &point_map = *qdata.curr_map_loc;
   const auto &point_map_data = point_map.point_map();
@@ -235,7 +235,7 @@ void ChangeDetectionModuleV2::runAsync_(
     std::unique_lock<std::mutex> lock(mutex_);
     //
     const auto T_w_lv = config_->run_online
-                            ? output.chain->pose(*qdata.map_sid)  // online
+                            ? output.chain->pose(*qdata.sid_loc)  // online
                             : T_lv_pm.inverse();                  // offline
 
     if (!config_->run_online) {

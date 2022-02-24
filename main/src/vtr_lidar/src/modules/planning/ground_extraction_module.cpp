@@ -80,17 +80,17 @@ void GroundExtractionModule::run_(QueryCache &qdata0, OutputCache &output0,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
-  const auto &map_id = *qdata.map_id;
+  const auto &vid_loc = *qdata.vid_loc;
   if (qdata.curr_map_loc_changed && (!(*qdata.curr_map_loc_changed))) {
     CLOG(DEBUG, "lidar.ground_extraction")
-        << "Ground extraction for vertex " << map_id << " is already done.";
+        << "Ground extraction for vertex " << vid_loc << " is already done.";
     return;
   }
 
   if (config_->run_async)
     executor->dispatch(std::make_shared<Task>(
         shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
-        Task::DepId{}, "Ground Extraction", map_id));
+        Task::DepId{}, "Ground Extraction", vid_loc));
   else
     runAsync_(qdata0, output0, graph, executor, Task::Priority(-1),
               Task::DepId());
@@ -116,16 +116,16 @@ void GroundExtractionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
     }
   }
 
-  if (output.chain.valid() && qdata.map_sid.valid() &&
-      output.chain->trunkSequenceId() != *qdata.map_sid) {
+  if (output.chain.valid() && qdata.sid_loc.valid() &&
+      output.chain->trunkSequenceId() != *qdata.sid_loc) {
     CLOG(INFO, "lidar.ground_extraction")
         << "Trunk id has changed, skip change detection for this scan";
     return;
   }
 
   // input
-  const auto &loc_vid = *qdata.map_id;
-  const auto &loc_sid = *qdata.map_sid;
+  const auto &loc_vid = *qdata.vid_loc;
+  const auto &loc_sid = *qdata.sid_loc;
   const auto &point_map = *qdata.curr_map_loc;
   const auto &T_lv_pm = point_map.T_vertex_map().matrix();
   auto point_cloud = point_map.point_map();  // copy for changing
@@ -174,8 +174,8 @@ void GroundExtractionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
     //
-    const auto T_w_lv = (output.chain.valid() && qdata.map_sid.valid())
-                            ? output.chain->pose(*qdata.map_sid)
+    const auto T_w_lv = (output.chain.valid() && qdata.sid_loc.valid())
+                            ? output.chain->pose(*qdata.sid_loc)
                             : EdgeTransform(true);  // offline
 
     // publish the occupancy grid origin
@@ -186,7 +186,7 @@ void GroundExtractionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
     msg.child_frame_id = "ground extraction";
     tf_bc_->sendTransform(msg);
 
-    if (!(output.chain.valid() && qdata.map_sid.valid())) {
+    if (!(output.chain.valid() && qdata.sid_loc.valid())) {
       // color the points for visualization
       for (auto &&point : point_cloud) point.flex11 = 0;
       for (const auto &idx : ground_idx) point_cloud[idx].flex11 = 1;

@@ -15,7 +15,6 @@
 /**
  * \file pointmap.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief <Incremental,SingleExp,MultiExp>PointMap class definition
  */
 #pragma once
 
@@ -203,7 +202,7 @@ class PointMap : public PointScan<PointT> {
     updateCapacity(point_cloud.size());
     // Update the current map
     for (auto& p : point_cloud) {
-      // filter based on icp score, optional
+      // filter based on static score, optional
       if (filter && p.static_score < 0.5) continue;  /// \todo hardcoded 0.5
       // Get the corresponding key
       auto k = getKey(p);
