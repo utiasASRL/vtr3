@@ -266,8 +266,8 @@ void TerrainAssessmentModule::runAsync_(
   const auto &loc_vid = *qdata.vid_loc;
   const auto &loc_sid = *qdata.sid_loc;
   const auto &point_map = *qdata.curr_map_loc;
-  const auto &T_lv_pm = point_map.T_vertex_map().matrix();
-  auto point_cloud = point_map.point_map();  // copy for changing
+  const auto &T_lv_pm = point_map.T_vertex_this().matrix();
+  auto point_cloud = point_map.point_cloud();  // copy for changing
 
   CLOG(INFO, "lidar.terrain_assessment")
       << "Terrain Assessment for vertex: " << loc_vid;

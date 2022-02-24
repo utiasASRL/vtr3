@@ -49,16 +49,16 @@ TEST(LIDAR, point_map_update) {
   {
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
-    auto points_pol = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
+    auto points_pol = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
     CLOG(INFO, "test") << "Polar coordinates: " << "<" << points_pol.rows() << "," << points_pol.cols() << ">" << std::endl << points_pol;
     // Get points normal score
-    auto scores = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -84,16 +84,16 @@ TEST(LIDAR, point_map_update) {
   {
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
-    auto points_pol = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
+    auto points_pol = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
     CLOG(INFO, "test") << "Polar coordinates: " << "<" << points_pol.rows() << "," << points_pol.cols() << ">" << std::endl << points_pol;
     // Get points normal score
-    auto scores = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -119,12 +119,12 @@ TEST(LIDAR, point_map_read_write) {
     point_cloud.push_back(p);
   }
   point_map->update(point_cloud);
-  point_map->T_vertex_map() = tactic::EdgeTransform(true);
+  point_map->T_vertex_this() = tactic::EdgeTransform(true);
   point_map->vertex_id() = tactic::VertexId(1, 1);
   point_map->version() = PointMap<PointWithInfo>::DYNAMIC_REMOVED;
 
   CLOG(INFO, "test") << point_map->size();
-  CLOG(INFO, "test") << point_map->T_vertex_map();
+  CLOG(INFO, "test") << point_map->T_vertex_this();
   CLOG(INFO, "test") << point_map->vertex_id();
   CLOG(INFO, "test") << point_map->dl();
   CLOG(INFO, "test") << point_map->version();
@@ -132,16 +132,16 @@ TEST(LIDAR, point_map_read_write) {
   {
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
-    auto points_pol = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
+    auto points_pol = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
     CLOG(INFO, "test") << "Polar coordinates: " << "<" << points_pol.rows() << "," << points_pol.cols() << ">" << std::endl << points_pol;
     // Get points normal score
-    auto scores = point_map->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = point_map->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -151,7 +151,7 @@ TEST(LIDAR, point_map_read_write) {
   auto point_map2 = PointMap<PointWithInfo>::fromStorable(msg);
 
   CLOG(INFO, "test") << point_map2->size();
-  CLOG(INFO, "test") << point_map2->T_vertex_map();
+  CLOG(INFO, "test") << point_map2->T_vertex_this();
   CLOG(INFO, "test") << point_map2->vertex_id();
   CLOG(INFO, "test") << point_map2->dl();
   CLOG(INFO, "test") << point_map2->version();
@@ -159,16 +159,16 @@ TEST(LIDAR, point_map_read_write) {
   {
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = point_map2->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = point_map2->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = point_map2->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = point_map2->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
-    auto points_pol = point_map2->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
+    auto points_pol = point_map2->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::polar_offset());
     CLOG(INFO, "test") << "Polar coordinates: " << "<" << points_pol.rows() << "," << points_pol.cols() << ">" << std::endl << points_pol;
     // Get points normal score
-    auto scores = point_map2->point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = point_map2->point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on

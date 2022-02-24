@@ -119,7 +119,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   auto &point_map_odo = *qdata.point_map_odo;
-  auto &point_map = point_map_odo.point_map();
+  auto &point_map = point_map_odo.point_cloud();
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -476,7 +476,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       *qdata.w_m_r_in_r_odo = w_m_r_in_r_var->getValue();
     //
     /// \todo double check validity when no vertex has been created
-    *qdata.T_r_v_odo = T_r_m_icp * point_map_odo.T_vertex_map().inverse();
+    *qdata.T_r_v_odo = T_r_m_icp * point_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->trajectory_smoothing)
       *qdata.w_v_r_in_r_odo = w_m_r_in_r_var->getValue();

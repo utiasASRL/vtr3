@@ -88,9 +88,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   // const auto &query_stamp = *radar_qdata.stamp;
   const auto &query_points = *radar_qdata.undistorted_point_cloud;
   const auto &T_s_r = *radar_qdata.T_s_r;
-  const auto &T_v_m = lidar_qdata.curr_map_loc->T_vertex_map();
+  const auto &T_v_m = lidar_qdata.curr_map_loc->T_vertex_this();
   // const auto &map_version = lidar_qdata.curr_map_loc->version();
-  auto &lidar_point_map = lidar_qdata.curr_map_loc->point_map();
+  auto &lidar_point_map = lidar_qdata.curr_map_loc->point_cloud();
   /// \note this may be used as a prior
   auto T_r_v = *radar_qdata.T_r_v_loc;
 

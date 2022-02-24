@@ -249,9 +249,9 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     }
     // transform live pointmap points to map pointmap frame
     const auto &T_map_live =
-        (map.T_vertex_map().inverse()) * T_mv_lv * live.T_vertex_map();
+        (map.T_vertex_this().inverse()) * T_mv_lv * live.T_vertex_this();
     const auto T_map_live_mat = T_map_live.matrix();
-    auto &live_point_cloud = live.point_map();
+    auto &live_point_cloud = live.point_cloud();
     // get eigen mapping
     auto points_mat = live_point_cloud.getMatrixXfMap(
         3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -296,7 +296,7 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the old map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(old_map_copy.point_map(), pc2_msg);
+      pcl::toROSMsg(old_map_copy.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       old_map_pub_->publish(pc2_msg);
@@ -304,7 +304,7 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the new map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(multi_exp_map.point_map(), pc2_msg);
+      pcl::toROSMsg(multi_exp_map.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       new_map_pub_->publish(pc2_msg);

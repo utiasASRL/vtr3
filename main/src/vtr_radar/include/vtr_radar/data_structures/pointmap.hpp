@@ -113,14 +113,14 @@ class PointScan {
   /** \brief Size of the map (number of point/voxel in the map) */
   size_t size() const { return point_cloud_.size(); }
 
-  virtual tactic::EdgeTransform& T_vertex_map() { return T_vertex_this_; }
-  const tactic::EdgeTransform& T_vertex_map() const { return T_vertex_this_; }
+  virtual tactic::EdgeTransform& T_vertex_this() { return T_vertex_this_; }
+  const tactic::EdgeTransform& T_vertex_this() const { return T_vertex_this_; }
 
   virtual tactic::VertexId& vertex_id() { return vertex_id_; }
   const tactic::VertexId& vertex_id() const { return vertex_id_; }
 
-  virtual PointCloudType& point_map() { return point_cloud_; }
-  const PointCloudType& point_map() const { return point_cloud_; }
+  virtual PointCloudType& point_cloud() { return point_cloud_; }
+  const PointCloudType& point_cloud() const { return point_cloud_; }
 
  protected:
   PointCloudType point_cloud_;

@@ -130,7 +130,7 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
   auto point_map = locked_map_msg.getData();
   // zero out the part of data we will be overwriting
   // this sets Flexible4D to zero (see types.hpp)
-  point_map.point_map()
+  point_map.point_cloud()
       .getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::flex1_offset())
       .setZero();
 
@@ -176,11 +176,11 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
       auto &locked_scan_msg = locked_scan_msg_ref.get();
       const auto &point_scan = locked_scan_msg.getData();
       //
-      const auto &reference = point_scan.point_map();
-      auto &query = point_map.point_map();
+      const auto &reference = point_scan.point_cloud();
+      auto &query = point_map.point_cloud();
       const auto &T_ref_qry =
-          (T_target_curr * point_scan.T_vertex_map()).inverse() *
-          point_map.T_vertex_map();
+          (T_target_curr * point_scan.T_vertex_this()).inverse() *
+          point_map.T_vertex_this();
 
       //
       detectDynamicObjects(
@@ -203,7 +203,7 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
           std::unique_lock<std::mutex> lock(mutex_);
           {
             PointCloudMsg pc2_msg;
-            pcl::toROSMsg(point_map.point_map(), pc2_msg);
+            pcl::toROSMsg(point_map.point_cloud(), pc2_msg);
             pc2_msg.header.frame_id = "world";
             // pc2_msg.header.stamp = 0;
             map_pub_->publish(pc2_msg);
@@ -230,8 +230,8 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
   using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
   auto point_map_copy = std::make_shared<PointMap<PointWithInfo>>(
       point_map.dl(), point_map.version());
-  point_map_copy->update(point_map.point_map(), true);
-  point_map_copy->T_vertex_map() = point_map.T_vertex_map();
+  point_map_copy->update(point_map.point_cloud(), true);
+  point_map_copy->T_vertex_this() = point_map.T_vertex_this();
   point_map_copy->vertex_id() = point_map.vertex_id();
 
   auto point_map_copy_msg = std::make_shared<PointMapLM>(
@@ -247,7 +247,7 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the old map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(old_map_copy.point_map(), pc2_msg);
+      pcl::toROSMsg(old_map_copy.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       old_map_pub_->publish(pc2_msg);
@@ -256,7 +256,7 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the updated map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(point_map.point_map(), pc2_msg);
+      pcl::toROSMsg(point_map.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       new_map_pub_->publish(pc2_msg);

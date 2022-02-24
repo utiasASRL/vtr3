@@ -126,8 +126,8 @@ void ChangeDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
   const auto &T_r_lv = *qdata.T_r_v_loc;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &point_map = *qdata.curr_map_loc;
-  const auto &point_map_data = point_map.point_map();
-  const auto &T_lv_pm = point_map.T_vertex_map();
+  const auto &point_map_data = point_map.point_cloud();
+  const auto &T_lv_pm = point_map.T_vertex_this();
 
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp;

@@ -116,7 +116,7 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   else if (new_scan_odo_.empty())
     store_scan = true;
   else {
-    const auto &T_m_sm1 = new_scan_odo_.rbegin()->second->T_vertex_map();
+    const auto &T_m_sm1 = new_scan_odo_.rbegin()->second->T_vertex_this();
     // T_<robot>_<vid odo> * T_<vid odo>_<sensor-1> * T_<sensor>_<robot>
     auto T_s_sm1_vec = (T_s_m * T_m_sm1).vec();
     auto dtran = T_s_sm1_vec.head<3>().norm();
@@ -131,15 +131,15 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 #if false  /// store raw point cloud
     // raw scan
     auto new_raw_scan_odo = std::make_shared<radar::PointScan<radar::PointWithInfo>>();
-    new_raw_scan_odo->point_map() = *qdata->undistorted_raw_point_cloud;
-    new_raw_scan_odo->T_vertex_map() = T_s_m.inverse();
+    new_raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
+    new_raw_scan_odo->T_vertex_this() = T_s_m.inverse();
     new_raw_scan_odo_.try_emplace(*qdata->stamp, new_raw_scan_odo);
 #endif
     // preprocessed scan
     auto new_scan_odo =
         std::make_shared<radar::PointScan<radar::PointWithInfo>>();
-    new_scan_odo->point_map() = *qdata->undistorted_point_cloud;
-    new_scan_odo->T_vertex_map() = T_s_m.inverse();
+    new_scan_odo->point_cloud() = *qdata->undistorted_point_cloud;
+    new_scan_odo->T_vertex_this() = T_s_m.inverse();
     new_scan_odo_.try_emplace(*qdata->stamp, new_scan_odo);
   }
 }
@@ -168,7 +168,7 @@ void RadarLidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   const auto vid_odo = *qdata->vid_odo;
 
   // update current map vertex id and transform
-  point_map_odo_->T_vertex_map() = *T_r_m_odo_;
+  point_map_odo_->T_vertex_this() = *T_r_m_odo_;
   point_map_odo_->vertex_id() = vid_odo;
 
   /// Prepare to save map and scans
@@ -197,8 +197,8 @@ void RadarLidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
        it++) {
     // correct transform to the vid odo - this is essentially:
     // T_<vid odo>_<scan> = T_<vid odo>_<last vid odo> * T_<last vid odo>_<scan>
-    it->second->T_vertex_map() =
-        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
+    it->second->T_vertex_this() =
+        point_map_odo_->T_vertex_this() * it->second->T_vertex_this();
     it->second->vertex_id() = vid_odo;
     // save the point scan
     auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
@@ -210,8 +210,8 @@ void RadarLidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   for (auto it = new_scan_odo_.begin(); it != new_scan_odo_.end(); it++) {
     // correct transform to the vid odo - this is essentially:
     // T_<vid odo>_<scan> = T_<vid odo>_<last vid odo> * T_<last vid odo>_<scan>
-    it->second->T_vertex_map() =
-        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
+    it->second->T_vertex_this() =
+        point_map_odo_->T_vertex_this() * it->second->T_vertex_this();
     it->second->vertex_id() = vid_odo;
     // save the point scan
     auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);

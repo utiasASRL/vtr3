@@ -121,8 +121,8 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     auto locked_map_msg = map_msg->sharedLocked();
     auto point_map_data = locked_map_msg.get().getData();
 
-    const auto T_v_m = point_map_data.T_vertex_map().matrix();
-    auto point_map = point_map_data.point_map();  // makes a copy
+    const auto T_v_m = point_map_data.T_vertex_this().matrix();
+    auto point_map = point_map_data.point_cloud();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
     auto map_normal_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
@@ -141,8 +141,8 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = qdata.curr_map_loc->T_vertex_map().matrix();
-    auto point_map = qdata.curr_map_loc->point_map();  // makes a copy
+    const auto T_v_m = qdata.curr_map_loc->T_vertex_this().matrix();
+    auto point_map = qdata.curr_map_loc->point_cloud();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
     Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();

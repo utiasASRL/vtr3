@@ -74,9 +74,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior
-  const auto &T_v_m = qdata.curr_map_loc->T_vertex_map();
+  const auto &T_v_m = qdata.curr_map_loc->T_vertex_this();
   const auto &map_version = qdata.curr_map_loc->version();
-  auto &point_map = qdata.curr_map_loc->point_map();
+  auto &point_map = qdata.curr_map_loc->point_cloud();
 
   /// Parameters
   int first_steps = config_->first_num_steps;

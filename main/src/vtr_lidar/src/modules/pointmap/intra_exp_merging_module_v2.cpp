@@ -133,8 +133,8 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
         "point_map", "vtr_lidar_msgs/msg/PointMap");
 
     auto point_map = map_msg->sharedLocked().get().getData();  // COPY!
-    const auto &T_v_s = (T_target_curr * point_map.T_vertex_map()).matrix();
-    auto &point_cloud = point_map.point_map();
+    const auto &T_v_s = (T_target_curr * point_map.T_vertex_this()).matrix();
+    auto &point_cloud = point_map.point_cloud();
     // eigen mapping
     auto scan_mat = point_cloud.getMatrixXfMap(
         3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -160,7 +160,7 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
                    config_->back_over_front_ratio);
 
   // update transform
-  updated_map.T_vertex_map() = tactic::EdgeTransform(true);
+  updated_map.T_vertex_this() = tactic::EdgeTransform(true);
   updated_map.vertex_id() = target_vid;
   // update version
   updated_map.version() = PointMap<PointWithInfo>::INTRA_EXP_MERGED;
@@ -196,8 +196,8 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
 
     // publish the old map
     {
-      auto point_cloud = old_map_copy.point_map();  // COPY!
-      const auto &T_v_m = old_map_copy.T_vertex_map().matrix();
+      auto point_cloud = old_map_copy.point_cloud();  // COPY!
+      const auto &T_v_m = old_map_copy.T_vertex_this().matrix();
       // eigen mapping
       auto points_mat = point_cloud.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -216,7 +216,7 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the updated map (will already be in vertex frame)
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(updated_map.point_map(), pc2_msg);
+      pcl::toROSMsg(updated_map.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       new_map_pub_->publish(pc2_msg);

@@ -98,14 +98,14 @@ void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
                      config_->crop_range_front, config_->back_over_front_ratio);
 
   CLOG(DEBUG, "radar.odometry_map_merging")
-      << "Updated point map size is: " << point_map_odo.point_map().size();
+      << "Updated point map size is: " << point_map_odo.point_cloud().size();
 
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = point_map_odo.T_vertex_map().matrix();
-    auto point_map = point_map_odo.point_map();  // makes a copy
+    const auto T_v_m = point_map_odo.T_vertex_this().matrix();
+    auto point_map = point_map_odo.point_cloud();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
     Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
