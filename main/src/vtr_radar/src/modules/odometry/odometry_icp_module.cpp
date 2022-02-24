@@ -17,19 +17,9 @@
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
-#include "vtr_radar/utils.hpp"
 
 namespace vtr {
 namespace radar {
-
-namespace {
-bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
-  for (int idx = 0; idx < 6; ++idx)
-    if (diag(idx) <= 0) return false;
-
-  return true;
-}
-}  // namespace
 
 using namespace tactic;
 using namespace steam;
@@ -43,13 +33,14 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // trajectory smoothing
   config->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config->trajectory_smoothing);
-  config->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config->use_constant_acc);
-  config->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config->lin_acc_std_dev_x);
-  config->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config->lin_acc_std_dev_y);
-  config->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config->lin_acc_std_dev_z);
-  config->ang_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_x", config->ang_acc_std_dev_x);
-  config->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config->ang_acc_std_dev_y);
-  config->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config->ang_acc_std_dev_z);
+
+  const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".qc_diagonal", std::vector<double>());
+  if (qcd.size() != 6) {
+    std::string err{"Qc diagonal malformed. Must be 6 elements!"};
+    CLOG(ERROR, "tactic") << err;
+    throw std::invalid_argument{err};
+  }
+  config->smoothing_factor_information.diagonal() << 1.0/qcd[0], 1.0/qcd[1], 1.0/qcd[2], 1.0/qcd[3], 1.0/qcd[4], 1.0/qcd[5];
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -79,18 +70,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
-
-  // Make Qc_inv
-  Eigen::Array<double, 1, 6> Qc_diag;
-  Qc_diag << config->lin_acc_std_dev_x, config->lin_acc_std_dev_y,
-      config->lin_acc_std_dev_z, config->ang_acc_std_dev_x,
-      config->ang_acc_std_dev_y, config->ang_acc_std_dev_z;
-  if (checkDiagonal(Qc_diag) == false && config->trajectory_smoothing) {
-    throw std::runtime_error(
-        "Elements of the smoothing factor must be greater than zero!");
-  }
-  config->smoothing_factor_information.setZero();
-  config->smoothing_factor_information.diagonal() = 1.0 / Qc_diag;
 
   return config;
 }
