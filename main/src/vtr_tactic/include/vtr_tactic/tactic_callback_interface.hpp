@@ -40,11 +40,11 @@ class TacticCallbackInterface {
   virtual void pathUpdated(const VertexId::Vector& /* path */) {}
 
   virtual void publishOdometryRviz(const Timestamp& /* stamp */,
-                                   const EdgeTransform& /* T_r_m_odo */,
-                                   const EdgeTransform& /* T_w_m_odo */) {}
+                                   const EdgeTransform& /* T_r_v_odo */,
+                                   const EdgeTransform& /* T_w_v_odo */) {}
   virtual void publishPathRviz(const LocalizationChain& /* chain */) {}
   virtual void publishLocalizationRviz(const Timestamp& /* stamp */,
-                                       const EdgeTransform& /* T_w_m_loc */) {}
+                                       const EdgeTransform& /* T_w_v_loc */) {}
 };
 
 }  // namespace tactic

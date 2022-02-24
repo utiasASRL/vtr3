@@ -42,7 +42,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   using RobotStateGuard = std::lock_guard<RobotStateMutex>;
 
   struct Config {
-    using UniquePtr = std::unique_ptr<Config>;
+    PTR_TYPEDEFS(Config);
 
     /** \brief Configuration for the localization chain */
     LocalizationChain::Config chain_config;
@@ -103,8 +103,6 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool isLocalized() const override;
   bool passedSeqId(const uint64_t& sid) const override;
   bool routeCompleted() const override;
-  /// \todo
-  bool canCloseLoop() const override { return false; }
 
  private:
   /** \brief Performs the actual preprocessing task */
@@ -131,7 +129,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
  private:
   /// pipeline helper functions and states
-  void addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_m,
+  void addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
                      const bool manual, const EnvInfo& env_info);
 
   /**
@@ -186,9 +184,9 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
   /// \note updates to these variables are protected by the tactic mutex.
   /** \brief Transformation from the latest keyframe to world frame */
-  EdgeTransform T_w_m_odo_ = EdgeTransform(true);
+  EdgeTransform T_w_v_odo_ = EdgeTransform(true);
   /** \brief Transformation from the localization keyframe to world frame */
-  EdgeTransform T_w_m_loc_ = EdgeTransform(true);
+  EdgeTransform T_w_v_loc_ = EdgeTransform(true);
 
   friend class TacticCallbackInterface;
 };

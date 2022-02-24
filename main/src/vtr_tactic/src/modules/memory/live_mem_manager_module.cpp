@@ -34,12 +34,12 @@ auto LiveMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void LiveMemManagerModule::run_(QueryCache &qdata, OutputCache &,
                                 const Graph::Ptr &,
                                 const TaskExecutor::Ptr &executor) {
-  if (qdata.live_id->isValid() &&
-      qdata.live_id->minorId() >= (unsigned)config_->window_size &&
-      *qdata.keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
+  if (qdata.vid_odo->isValid() &&
+      qdata.vid_odo->minorId() >= (unsigned)config_->window_size &&
+      *qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     const auto vid_to_unload =
-        VertexId(qdata.live_id->majorId(),
-                 qdata.live_id->minorId() - (unsigned)config_->window_size);
+        VertexId(qdata.vid_odo->majorId(),
+                 qdata.vid_odo->minorId() - (unsigned)config_->window_size);
     qdata.live_mem_async.emplace(vid_to_unload);
 
     executor->dispatch(std::make_shared<Task>(

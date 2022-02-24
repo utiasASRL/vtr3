@@ -29,8 +29,7 @@ class GraphMemManagerModule : public BaseModule {
   static constexpr auto static_name = "graph_mem_manager";
 
   struct Config : public BaseModule::Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     int vertex_life_span = 10;
     int window_size = 5;
@@ -59,7 +58,7 @@ class GraphMemManagerModule : public BaseModule {
   /** \brief Maps vertex ids to life spans. */
   std::unordered_map<VertexId, int> vid_life_map_;
 
-  VertexId last_map_id_ = VertexId::Invalid();
+  VertexId last_vid_ = VertexId::Invalid();
 
   /** \brief Module configuration. */
   Config::ConstPtr config_;

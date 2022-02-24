@@ -66,7 +66,7 @@ enum class PipelineMode : uint8_t {
 std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
 /** \brief the vertex creation test result */
-enum class KeyframeTestResult : int {
+enum class VertexTestResult : int {
   CREATE_VERTEX = 0,
   CREATE_CANDIDATE = 1,
   FAILURE = 2,

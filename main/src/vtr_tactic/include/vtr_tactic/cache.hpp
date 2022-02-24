@@ -15,7 +15,6 @@
 /**
  * \file cache.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief QueryCache class definition
  */
 #pragma once
 
@@ -119,16 +118,16 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<const bool> first_frame;
 
   // odometry and mapping - initialized in tactic, modified by pipeline
-  Cache<VertexId> live_id;
-  Cache<KeyframeTestResult> keyframe_test_result;
+  Cache<VertexId> vid_odo;
+  Cache<VertexTestResult> vertex_test_result;
   Cache<bool> odo_success;
-  Cache<EdgeTransform> T_r_m_odo;
-  Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;  // body centric velocity
+  Cache<EdgeTransform> T_r_v_odo;
+  Cache<Eigen::Matrix<double, 6, 1>> w_v_r_in_r_odo;  // body centric velocity
 
   // localization
-  Cache<const VertexId> map_id;
-  Cache<const unsigned> map_sid;
-  Cache<EdgeTransform> T_r_m_loc;
+  Cache<const VertexId> vid_loc;
+  Cache<const unsigned> sid_loc;
+  Cache<EdgeTransform> T_r_v_loc;
   Cache<bool> loc_success;
 
   // graph memory management cache args

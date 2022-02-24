@@ -15,7 +15,6 @@
 /**
  * \file factory.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief PipelineFactory & ROSPipelineFactory class definition
  */
 #pragma once
 
@@ -54,8 +53,8 @@ class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
 
   /**
    * \brief makes the requested module matching the type_str trait
-   * \return a base module pointer to the derived class, nullptr if not
-   * found \throw invalid_argument if the derived module couldn't be found
+   * \return a base module pointer to the derived class, nullptr if not found
+   * \throw invalid_argument if the derived module couldn't be found
    */
   virtual BaseModule::Ptr make(
       const std::string& token,

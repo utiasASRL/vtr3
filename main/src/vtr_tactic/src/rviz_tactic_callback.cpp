@@ -50,10 +50,10 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 }
 
 void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
-                                             const EdgeTransform& T_r_m_odo,
-                                             const EdgeTransform& T_w_m_odo) {
+                                             const EdgeTransform& T_r_v_odo,
+                                             const EdgeTransform& T_w_v_odo) {
   // publish keyframe
-  Eigen::Affine3d T(T_w_m_odo.matrix());
+  Eigen::Affine3d T(T_w_v_odo.matrix());
   auto msg = tf2::eigenToTransform(T);
   msg.header.frame_id = "world";
   msg.header.stamp = rclcpp::Time(stamp);
@@ -65,11 +65,11 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   odometry.header.frame_id = "world";
   odometry.header.stamp = rclcpp::Time(stamp);
   odometry.pose.pose =
-      tf2::toMsg(Eigen::Affine3d((T_w_m_odo * T_r_m_odo.inverse()).matrix()));
+      tf2::toMsg(Eigen::Affine3d((T_w_v_odo * T_r_v_odo.inverse()).matrix()));
   odometry_pub_->publish(odometry);
 
   // publish current frame
-  Eigen::Affine3d T2(T_r_m_odo.inverse().matrix());
+  Eigen::Affine3d T2(T_r_v_odo.inverse().matrix());
   auto msg2 = tf2::eigenToTransform(T2);
   msg2.header.frame_id = "odometry keyframe";
   msg2.header.stamp = rclcpp::Time(stamp);
@@ -90,9 +90,9 @@ void RvizTacticCallback::publishPathRviz(const LocalizationChain& chain) {
 }
 
 void RvizTacticCallback::publishLocalizationRviz(
-    const Timestamp& stamp, const EdgeTransform& T_w_m_loc) {
+    const Timestamp& stamp, const EdgeTransform& T_w_v_loc) {
   /// Publish the current frame localized against in world frame
-  Eigen::Affine3d T(T_w_m_loc.matrix());
+  Eigen::Affine3d T(T_w_v_loc.matrix());
   auto msg = tf2::eigenToTransform(T);
   msg.header.stamp = rclcpp::Time(stamp);
   msg.header.frame_id = "world";
