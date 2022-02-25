@@ -44,19 +44,21 @@ class Tactic : public PipelineInterface, public TacticInterface {
   struct Config {
     PTR_TYPEDEFS(Config);
 
-    /** \brief Configuration for the localization chain */
-    LocalizationChain::Config chain_config;
+    bool enable_parallelization = false;
+    bool preprocessing_skippable = false;
+    bool odometry_mapping_skippable = false;
+    bool localization_skippable = false;
 
     /** \brief Number of threads for the async task queue */
     int task_queue_num_threads = 1;
     /** \brief Maximum number of queued tasks in task queue */
     int task_queue_size = -1;
 
-    bool enable_parallelization = false;
-    bool preprocessing_skippable = false;
-    bool odometry_mapping_skippable = false;
-    bool localization_skippable = true;
+    /** \brief Configuration for the localization chain */
+    LocalizationChain::Config chain_config;
 
+    bool save_odometry_result = false;
+    bool save_localization_result = false;
     /** \brief Visualize odometry and localization via Rviz. */
     bool visualize = false;
 

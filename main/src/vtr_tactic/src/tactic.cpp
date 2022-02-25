@@ -27,17 +27,14 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
                              const std::string& prefix) -> UniquePtr {
   auto config = std::make_unique<Config>();
   // clang-format off
-
   /// setup tactic
+  config->enable_parallelization = node->declare_parameter<bool>(prefix+".enable_parallelization", false);
+  config->preprocessing_skippable = node->declare_parameter<bool>(prefix+".preprocessing_skippable", false);
+  config->odometry_mapping_skippable = node->declare_parameter<bool>(prefix+".odometry_mapping_skippable", false);
+  config->localization_skippable = node->declare_parameter<bool>(prefix+".localization_skippable", false);
+
   config->task_queue_num_threads = node->declare_parameter<int>(prefix+".task_queue_num_threads", 1);
   config->task_queue_size = node->declare_parameter<int>(prefix+".task_queue_size", -1);
-
-  config->enable_parallelization = node->declare_parameter<bool>(prefix+".enable_parallelization", false);
-  config->preprocessing_skippable = node->declare_parameter<bool>(prefix+".preprocessing_skippable", true);
-  config->odometry_mapping_skippable = node->declare_parameter<bool>(prefix+".odometry_mapping_skippable", true);
-  config->localization_skippable = node->declare_parameter<bool>(prefix+".localization_skippable", true);
-
-  config->visualize = node->declare_parameter<bool>(prefix+".visualize", false);
 
   /// setup localization chain
   config->chain_config.min_cusp_distance = node->declare_parameter<double>(prefix+".chain.min_cusp_distance", 1.5);
@@ -46,6 +43,9 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.search_back_depth = node->declare_parameter<int>(prefix+".chain.search_back_depth", 10);
   config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
 
+  config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
+  config->save_localization_result = node->declare_parameter<bool>(prefix+".save_localization_result", false);
+  config->visualize = node->declare_parameter<bool>(prefix+".visualize", false);
   // clang-format on
   return config;
 }
@@ -225,8 +225,8 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
       << *qdata->vid_odo << " (i.e., T_v_r odometry): "
       << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // store odometry result
-  {
+  // save odometry result
+  if (config_->save_odometry_result) {
     CLOG(DEBUG, "tactic") << "Saving odometry result";
     using OdoResLM = storage::LockableMessage<OdometryResult>;
     auto odo_result = std::make_shared<OdometryResult>(
@@ -306,8 +306,8 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
       << *qdata->vid_odo << " (i.e., T_v_r odometry): "
       << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // store odometry result
-  {
+  // save odometry result
+  if (config_->save_odometry_result) {
     CLOG(DEBUG, "tactic") << "Saving odometry result";
     using OdoResLM = storage::LockableMessage<OdometryResult>;
     auto odo_result = std::make_shared<OdometryResult>(
@@ -380,8 +380,8 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
       << *qdata->vid_odo << " (i.e., T_v_r odometry): "
       << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
-  // store odometry result
-  {
+  // save odometry result
+  if (config_->save_odometry_result) {
     CLOG(DEBUG, "tactic") << "Saving odometry result";
     using OdoResLM = storage::LockableMessage<OdometryResult>;
     auto odo_result = std::make_shared<OdometryResult>(
@@ -733,8 +733,8 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
       << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "
       << (*qdata->T_r_v_loc).inverse().vec().transpose();
 
-  // store localization result
-  {
+  // save localization result
+  if (config_->save_localization_result) {
     CLOG(DEBUG, "tactic") << "Saving localization result";
     using LocResLM = storage::LockableMessage<LocalizationResult>;
     auto loc_result = std::make_shared<LocalizationResult>(
