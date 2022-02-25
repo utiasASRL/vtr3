@@ -13,19 +13,19 @@
 // limitations under the License.
 
 /**
- * \file grid_subsampling.hpp
+ * \file voxel_downsample.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include "pcl/point_cloud.h"
 
-#include "vtr_radar/utils.hpp"
+#include "vtr_radar/utils/utils.hpp"
 
 namespace vtr {
 namespace radar {
 
-namespace grid_subsampling {
+namespace voxel_downsample {
 
 struct Point3D {
   union {
@@ -108,12 +108,12 @@ struct VoxelCenter {
   }
 };
 
-}  // namespace grid_subsampling
+}  // namespace voxel_downsample
 
 template <class PointT>
-void gridSubsamplingCentersV2(pcl::PointCloud<PointT>& point_cloud,
-                              const float& sample_dl) {
-  using namespace grid_subsampling;
+void voxelDownsample(pcl::PointCloud<PointT>& point_cloud,
+                     const float& sample_dl) {
+  using namespace voxel_downsample;
   // Initialize variables
   // ********************
 

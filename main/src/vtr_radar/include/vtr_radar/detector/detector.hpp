@@ -22,11 +22,8 @@
 
 #include "opencv2/opencv.hpp"
 
-#include "vtr_radar/types.hpp"
-#include "vtr_radar/utils.hpp"
+#include "vtr_radar/data_types/point.hpp"
 #include "vtr_radar/utils/utils.hpp"
-
-#include <math.h>
 
 namespace vtr {
 namespace radar {
@@ -46,8 +43,13 @@ template <class PointT>
 class KStrongest : public Detector<PointT> {
  public:
   KStrongest() = default;
-  KStrongest(int kstrong, double threshold2, double threshold3, double minr, double maxr)
-      : kstrong_(kstrong), threshold2_(threshold2), threshold3_(threshold3), minr_(minr), maxr_(maxr) {}
+  KStrongest(int kstrong, double threshold2, double threshold3, double minr,
+             double maxr)
+      : kstrong_(kstrong),
+        threshold2_(threshold2),
+        threshold3_(threshold3),
+        minr_(minr),
+        maxr_(maxr) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<double> &azimuth_times,

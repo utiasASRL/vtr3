@@ -36,7 +36,7 @@ include_directories(PUBLIC
 
 # components
 file(GLOB_RECURSE COMPONENTS_SRC
-  src/data_structures/*.cpp
+  src/data_types/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
@@ -61,7 +61,9 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
 )
 
 # path planner
-file(GLOB_RECURSE PATH_PLANNING_SRC src/path_planning/*.cpp)
+file(GLOB_RECURSE PATH_PLANNING_SRC
+  src/path_planning/*.cpp
+)
 add_library(${PROJECT_NAME}_path_planning ${PATH_PLANNING_SRC})
 target_link_libraries(${PROJECT_NAME}_path_planning ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_path_planning

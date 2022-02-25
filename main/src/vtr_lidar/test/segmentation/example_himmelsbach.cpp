@@ -20,8 +20,8 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <boost/algorithm/string.hpp>
 
+#include "vtr_lidar/data_types/point.hpp"
 #include "vtr_lidar/segmentation/himmelsbach.hpp"
-#include "vtr_lidar/types.hpp"
 #include "vtr_logging/logging_init.hpp"
 
 // pcl type visualization implementations

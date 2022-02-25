@@ -25,8 +25,8 @@
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
 #include "vtr_logging/logging.hpp"
-#include "vtr_radar/types.hpp"
-#include "vtr_radar/utils.hpp"
+#include "vtr_radar/data_types/point.hpp"
+#include "vtr_radar/utils/utils.hpp"
 #include "vtr_tactic/types.hpp"
 
 #include "vtr_radar_msgs/msg/point_map.hpp"

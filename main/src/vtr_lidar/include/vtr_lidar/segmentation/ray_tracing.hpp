@@ -13,12 +13,12 @@
 // limitations under the License.
 
 /**
- * \file dynamic_objects.hpp
+ * \file ray_tracing.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "vtr_lidar/types.hpp"
+#include "vtr_lidar/data_types/point.hpp"
 
 namespace vtr {
 namespace lidar {

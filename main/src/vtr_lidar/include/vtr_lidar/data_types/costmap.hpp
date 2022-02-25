@@ -213,4 +213,4 @@ class SparseCostMap : public BaseCostMap {
 }  // namespace lidar
 }  // namespace vtr
 
-#include "vtr_lidar/data_structures/costmap.inl"
+#include "vtr_lidar/data_types/costmap.inl"

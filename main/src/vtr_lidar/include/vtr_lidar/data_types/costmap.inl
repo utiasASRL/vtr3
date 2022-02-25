@@ -18,7 +18,7 @@
  */
 #pragma once
 
-#include "vtr_lidar/data_structures/costmap.hpp"
+#include "vtr_lidar/data_types/costmap.hpp"
 
 namespace vtr {
 namespace lidar {

@@ -20,9 +20,9 @@
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include "vtr_lidar/data_structures/costmap.hpp"
-#include "vtr_lidar/data_structures/pointmap.hpp"
-#include "vtr_lidar/types.hpp"
+#include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/data_types/point.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
 

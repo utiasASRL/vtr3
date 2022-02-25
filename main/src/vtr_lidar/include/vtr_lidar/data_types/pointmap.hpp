@@ -24,8 +24,8 @@
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
-#include "vtr_lidar/types.hpp"
-#include "vtr_lidar/utils.hpp"
+#include "vtr_lidar/data_types/point.hpp"
+#include "vtr_lidar/utils/utils.hpp"
 #include "vtr_logging/logging.hpp"
 #include "vtr_tactic/types.hpp"
 

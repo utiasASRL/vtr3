@@ -16,7 +16,7 @@
  * \file costmap.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/data_structures/costmap.hpp"
+#include "vtr_lidar/data_types/costmap.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 

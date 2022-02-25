@@ -21,8 +21,8 @@
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_radar/features/normal.hpp"
-#include "vtr_radar/filters/grid_subsampling.hpp"
-#include "vtr_radar/utils.hpp"
+#include "vtr_radar/filters/voxel_downsample.hpp"
+#include "vtr_radar/utils/utils.hpp"
 
 namespace vtr {
 namespace radar {
@@ -81,7 +81,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (config_->voxel_downsample) {
     // Get subsampling of the frame in carthesian coordinates
-    gridSubsamplingCentersV2(*filtered_point_cloud, config_->frame_voxel_size);
+    voxelDownsample(*filtered_point_cloud, config_->frame_voxel_size);
 
     CLOG(DEBUG, "radar.preprocessing")
         << "grid subsampled point cloud size: " << filtered_point_cloud->size();

@@ -23,8 +23,8 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include "vtr_radar/data_structures/pointmap.hpp"
-#include "vtr_radar/types.hpp"
+#include "vtr_radar/data_types/point.hpp"
+#include "vtr_radar/data_types/pointmap.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
 

@@ -21,8 +21,8 @@
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_lidar/features/normal.hpp"
-#include "vtr_lidar/filters/grid_subsampling.hpp"
-#include "vtr_lidar/utils.hpp"
+#include "vtr_lidar/filters/voxel_downsample.hpp"
+#include "vtr_lidar/utils/utils.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -141,7 +141,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   /// Grid subsampling
 
   // Get subsampling of the frame in carthesian coordinates
-  gridSubsamplingCentersV2(*filtered_point_cloud, config_->frame_voxel_size);
+  voxelDownsample(*filtered_point_cloud, config_->frame_voxel_size);
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "grid subsampled point cloud size: " << filtered_point_cloud->size();

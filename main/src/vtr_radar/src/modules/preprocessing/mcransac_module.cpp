@@ -22,10 +22,7 @@
 #include "opencv2/opencv.hpp"
 #include "pcl_conversions/pcl_conversions.h"
 
-#include "vtr_radar/features/normal.hpp"
-#include "vtr_radar/filters/grid_subsampling.hpp"
 #include "vtr_radar/mcransac/mcransac.hpp"
-#include "vtr_radar/utils.hpp"
 #include "vtr_radar/utils/utils.hpp"
 
 namespace vtr {

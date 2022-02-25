@@ -18,7 +18,7 @@
  */
 #include "vtr_lidar/modules/planning/change_detection_module.hpp"
 
-#include "vtr_lidar/data_structures/costmap.hpp"
+#include "vtr_lidar/data_types/costmap.hpp"
 
 namespace vtr {
 namespace lidar {

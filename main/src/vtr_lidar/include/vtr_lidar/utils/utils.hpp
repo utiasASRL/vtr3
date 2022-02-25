@@ -21,8 +21,8 @@
 #include "lgmath.hpp"
 
 #include "vtr_common/utils/hash.hpp"
-#include "vtr_lidar/nanoflann/nanoflann.hpp"
-#include "vtr_lidar/types.hpp"
+#include "vtr_lidar/data_types/point.hpp"
+#include "vtr_lidar/utils/nanoflann.hpp"
 
 namespace vtr {
 namespace lidar {

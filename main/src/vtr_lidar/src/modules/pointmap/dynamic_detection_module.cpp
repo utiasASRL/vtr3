@@ -21,8 +21,8 @@
 #include "vtr_tactic/modules/factory.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
-#include "vtr_lidar/data_structures/pointmap.hpp"
-#include "vtr_lidar/ray_tracing/dynamic_objects.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
+#include "vtr_lidar/segmentation/ray_tracing.hpp"
 #include "vtr_pose_graph/path/pose_cache.hpp"
 
 namespace vtr {
