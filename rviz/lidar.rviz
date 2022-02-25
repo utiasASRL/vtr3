@@ -4,11 +4,9 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /TF1
         - /TF1/Frames1
         - /raw scan1/Topic1
         - /curr map odo1/Topic1
-        - /loc path1
         - /curr map loc1/Topic1
       Splitter Ratio: 0.658823549747467
     Tree Height: 536
@@ -378,16 +376,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 66.58078002929688
+      Distance: 132.25955200195312
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 20.53339958190918
+        Y: -26.237592697143555
+        Z: -0.02656075730919838
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -396,7 +394,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.738553047180176
+      Yaw: 4.738558292388916
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
