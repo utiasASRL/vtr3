@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file odometry_map_merging_module.cpp
+ * \file odometry_map_maintenance_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry/odometry_map_merging_module.hpp"
+#include "vtr_lidar/modules/odometry/odometry_map_maintenance_module.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 
@@ -25,7 +25,7 @@ namespace lidar {
 
 using namespace tactic;
 
-auto OdometryMapMergingModule::Config::fromROS(
+auto OdometryMapMaintenanceModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -41,9 +41,9 @@ auto OdometryMapMergingModule::Config::fromROS(
   return config;
 }
 
-void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
-                                    const Graph::Ptr &,
-                                    const TaskExecutor::Ptr &) {
+void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
+                                        const Graph::Ptr &,
+                                        const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
@@ -65,7 +65,7 @@ void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Do not update the map if registration failed.
   if (!(*qdata.odo_success)) {
-    CLOG(WARNING, "lidar.odometry_map_merging")
+    CLOG(WARNING, "lidar.odometry_map_maintenance")
         << "Point cloud registration failed - not updating the map.";
     return;
   }
@@ -97,7 +97,7 @@ void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
   point_map_odo.crop(T_r_m_odo.matrix().cast<float>(),
                      config_->crop_range_front, config_->back_over_front_ratio);
 
-  CLOG(DEBUG, "lidar.odometry_map_merging")
+  CLOG(DEBUG, "lidar.odometry_map_maintenance")
       << "Updated point map size is: " << point_map_odo.point_cloud().size();
 
   /// \note this visualization converts point map from its own frame to the
