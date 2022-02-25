@@ -40,6 +40,7 @@ class PreprocessingModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     int num_threads = 1;
+
     float crop_range = 100;
     float vertical_angle_res = 0.00745;
     float polar_r_scale = 1.5;

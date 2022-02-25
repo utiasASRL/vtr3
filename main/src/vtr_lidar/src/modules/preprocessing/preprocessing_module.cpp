@@ -69,6 +69,7 @@ auto PreprocessingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
+
   config->crop_range = node->declare_parameter<float>(param_prefix + ".crop_range", config->crop_range);
   config->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config->vertical_angle_res);
   config->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config->polar_r_scale);

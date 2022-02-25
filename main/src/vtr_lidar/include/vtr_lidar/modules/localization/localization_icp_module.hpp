@@ -39,9 +39,6 @@ class LocalizationICPModule : public tactic::BaseModule {
                   public steam::VanillaGaussNewtonSolver::Params {
     PTR_TYPEDEFS(Config);
 
-    /// Success criteria
-    float min_matched_ratio = 0.4;
-
     /// Prior terms
     bool use_pose_prior = false;
 
@@ -61,6 +58,9 @@ class LocalizationICPModule : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
+
+    /// Success criteria
+    float min_matched_ratio = 0.4;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
