@@ -17,7 +17,7 @@
   <depend>vtr_storage</depend>
   <depend>vtr_pose_graph_msgs</depend>
 
-  <depend>std_msgs</depend>
+  <test_depend>std_msgs</test_depend>
 
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>ament_lint_auto</test_depend>

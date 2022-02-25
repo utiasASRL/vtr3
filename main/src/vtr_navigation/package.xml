@@ -10,13 +10,12 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <depend>PROJ</depend>
+
   <depend>rclcpp</depend>
-  <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
-
-  <depend>PROJ</depend>
 
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>

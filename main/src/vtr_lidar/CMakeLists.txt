@@ -10,23 +10,23 @@ find_package(ament_cmake_python REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-find_package(perception_pcl REQUIRED)
-find_package(pcl_ros REQUIRED)
-find_package(pcl_conversions REQUIRED)
 
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(pcl_ros REQUIRED)
 
-find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 
-find_package(vtr_logging REQUIRED)
-find_package(vtr_tactic REQUIRED)
-find_package(vtr_path_planning REQUIRED)
+find_package(vtr_common REQUIRED)
 find_package(vtr_lidar_msgs REQUIRED)
+find_package(vtr_logging REQUIRED)
+find_package(vtr_path_planning REQUIRED)
+find_package(vtr_tactic REQUIRED)
 
 ## C++ Libraries
 include_directories(PUBLIC
@@ -40,7 +40,7 @@ file(GLOB_RECURSE COMPONENTS_SRC
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
-  Eigen3 pcl_conversions perception_pcl pcl_ros
+  Eigen3 pcl_conversions pcl_ros
   lgmath steam
   vtr_common vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
   nav_msgs
@@ -54,10 +54,10 @@ file(GLOB_RECURSE PIPELINE_SRC
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
-  Eigen3 pcl_conversions perception_pcl pcl_ros
+  Eigen3 pcl_conversions pcl_ros
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs
-  visualization_msgs nav_msgs
+  nav_msgs visualization_msgs
 )
 
 # path planner
@@ -72,10 +72,10 @@ ament_target_dependencies(${PROJECT_NAME}_path_planning
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  Eigen3 pcl_conversions perception_pcl pcl_ros
+  Eigen3 pcl_conversions pcl_ros
   lgmath steam
   vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
-  visualization_msgs nav_msgs
+  nav_msgs visualization_msgs
 )
 
 install(
@@ -118,15 +118,10 @@ if(BUILD_TESTING)
   target_link_libraries(test_multi_exp_point_map ${PROJECT_NAME}_pipeline)
 
   find_package(Boost REQUIRED)
-  find_package(PCL 1.10 REQUIRED)
-  include_directories(${PCL_INCLUDE_DIRS})
-  link_directories(${PCL_LIBRARY_DIRS})
-  add_definitions(${PCL_DEFINITIONS})
-
+  find_package(PCL REQUIRED)
   add_executable(example_himmelsbach test/segmentation/example_himmelsbach.cpp)
   ament_target_dependencies(example_himmelsbach Boost)
-  target_link_libraries(example_himmelsbach ${PROJECT_NAME}_pipeline ${PCL_LIBRARIES})
-
+  target_link_libraries(example_himmelsbach ${PCL_LIBRARIES} ${PROJECT_NAME}_pipeline)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

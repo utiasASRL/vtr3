@@ -12,14 +12,15 @@
   <depend>rclcpp</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
+  <depend>tf2_eigen</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
 
   <depend>steam</depend>
 
-  <depend>vtr_tactic_msgs</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_pose_graph</depend>
+  <depend>vtr_tactic_msgs</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>

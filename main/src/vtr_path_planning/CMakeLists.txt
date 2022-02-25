@@ -9,12 +9,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 find_package(ament_cmake REQUIRED)
 
 find_package(rclcpp REQUIRED)
-
+find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
-
-find_package(geometry_msgs REQUIRED)
 
 find_package(teb_local_planner REQUIRED)
 
