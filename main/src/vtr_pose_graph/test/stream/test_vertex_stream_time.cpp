@@ -44,7 +44,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   // Initialize pose graph
   auto graph = std::make_shared<RCGraph>(working_dir.string(), false);
   graph->addRun();
-  auto vertex = graph->addVertex(666);  // add a vertex with keyframetime = 666;
+  auto vertex = graph->addVertex(666);  // add a vertex with vertex time = 666;
   ASSERT_TRUE(vertex != nullptr);
 
   // Generate random data

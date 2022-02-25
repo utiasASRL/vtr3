@@ -42,37 +42,25 @@ class Tactic : public PipelineInterface, public TacticInterface {
   using RobotStateGuard = std::lock_guard<RobotStateMutex>;
 
   struct Config {
-    using UniquePtr = std::unique_ptr<Config>;
+    PTR_TYPEDEFS(Config);
 
-    /** \brief Configuration for the localization chain */
-    LocalizationChain::Config chain_config;
+    bool enable_parallelization = false;
+    bool preprocessing_skippable = false;
+    bool odometry_mapping_skippable = false;
+    bool localization_skippable = false;
 
     /** \brief Number of threads for the async task queue */
     int task_queue_num_threads = 1;
     /** \brief Maximum number of queued tasks in task queue */
     int task_queue_size = -1;
 
-    bool enable_parallelization = false;
-    bool preprocessing_skippable = false;
-    bool odometry_mapping_skippable = false;
-    bool localization_skippable = true;
+    /** \brief Configuration for the localization chain */
+    LocalizationChain::Config chain_config;
 
-    /** \brief Whether to perform localization only on keyframe data */
-    bool localization_only_keyframe = false;
-    /** \brief Default localization covariance when chain is not localized. */
-    Eigen::Matrix<double, 6, 6> default_loc_cov =
-        Eigen::Matrix<double, 6, 6>::Zero();
-
-    /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
-    bool extrapolate_odometry = false;
-
-    /** \brief Threshold for merging <x, y, theta> */
-    std::vector<double> merge_threshold{0.5, 0.25, 0.2};
-
+    bool save_odometry_result = false;
+    bool save_localization_result = false;
     /** \brief Visualize odometry and localization via Rviz. */
     bool visualize = false;
-    Eigen::Matrix<double, 3, 1> vis_loc_path_offset =
-        Eigen::Matrix<double, 3, 1>::Zero();
 
     static UniquePtr fromROS(const rclcpp::Node::SharedPtr& node,
                              const std::string& prefix = "tactic");
@@ -103,8 +91,6 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool isLocalized() const override;
   bool passedSeqId(const uint64_t& sid) const override;
   bool routeCompleted() const override;
-  /// \todo
-  bool canCloseLoop() const override { return false; }
 
  private:
   /** \brief Performs the actual preprocessing task */
@@ -131,7 +117,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
  private:
   /// pipeline helper functions and states
-  void addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_m,
+  void addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
                      const bool manual, const EnvInfo& env_info);
 
   /**
@@ -142,7 +128,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool first_frame_ = true;
 
   /**
-   * \brief Vertex id of the latest keyframe, only used by odometry thread
+   * \brief Current vertex id for odometry, only used by odometry thread
    * \note Only change this when pipeline is locked
    */
   VertexId current_vertex_id_ = VertexId::Invalid();
@@ -185,10 +171,10 @@ class Tactic : public PipelineInterface, public TacticInterface {
   const Callback::Ptr callback_;
 
   /// \note updates to these variables are protected by the tactic mutex.
-  /** \brief Transformation from the latest keyframe to world frame */
-  EdgeTransform T_w_m_odo_ = EdgeTransform(true);
-  /** \brief Transformation from the localization keyframe to world frame */
-  EdgeTransform T_w_m_loc_ = EdgeTransform(true);
+  /** \brief Transformation from the odometry vertex frame to world frame */
+  EdgeTransform T_w_v_odo_ = EdgeTransform(true);
+  /** \brief Transformation from the localization vertex frame to world frame */
+  EdgeTransform T_w_v_loc_ = EdgeTransform(true);
 
   friend class TacticCallbackInterface;
 };

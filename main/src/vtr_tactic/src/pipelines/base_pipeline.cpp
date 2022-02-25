@@ -74,15 +74,15 @@ void BasePipeline::runLocalization(
                                  << ", which takes " << timer;
 }
 
-void BasePipeline::processKeyframe(
+void BasePipeline::onVertexCreation(
     const QueryCache::Ptr &qdata, const OutputCache::Ptr &output,
     const Graph::Ptr &graph, const std::shared_ptr<TaskExecutor> &executor) {
   CLOG(DEBUG, "tactic.pipeline")
-      << "\033[1;31mStart processing keyframe: " << name() << "\033[0m";
+      << "\033[1;31mStart processing vertex: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
-  processKeyframe_(qdata, output, graph, executor);
-  CLOG(DEBUG, "tactic.pipeline") << "Finished processing keyframe: " << name()
-                                 << ", which takes " << timer;
+  onVertexCreation_(qdata, output, graph, executor);
+  CLOG(DEBUG, "tactic.pipeline")
+      << "Finished processing vertex: " << name() << ", which takes " << timer;
 }
 
 std::shared_ptr<ModuleFactory> BasePipeline::factory() const {

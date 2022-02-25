@@ -51,9 +51,9 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Input
-  const auto &map_id = *qdata.map_id;
+  const auto &vid_loc = *qdata.vid_loc;
 
-  if (qdata.curr_map_loc && qdata.curr_map_loc->vertex_id() == map_id) {
+  if (qdata.curr_map_loc && qdata.curr_map_loc->vertex_id() == vid_loc) {
     CLOG(DEBUG, "lidar.localization_map_recall")
         << "Map already loaded, simply return. Map size is: "
         << qdata.curr_map_loc->size();
@@ -62,8 +62,8 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     return;
   } else {
     CLOG(INFO, "lidar.localization_map_recall")
-        << "Loading map " << config_->map_version << " from vertex " << map_id;
-    auto vertex = graph->at(map_id);
+        << "Loading map " << config_->map_version << " from vertex " << vid_loc;
+    auto vertex = graph->at(vid_loc);
     // load the default multi exp pointmap
     if (config_->map_version == "multi_exp_point_map") {
       const auto multi_exp_map_msg =
@@ -75,7 +75,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
             locked_multi_exp_map_msg.get().getData());
       } else {
         CLOG(WARNING, "lidar.localization_map_recall")
-            << "Multi-experience point map not found for vertex " << map_id
+            << "Multi-experience point map not found for vertex " << vid_loc
             << ", fallback to single experience [point map] stream.";
         const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
             "point_map", "vtr_lidar_msgs/msg/PointMap");
@@ -95,7 +95,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
       } else {
         CLOG(WARNING, "lidar.localization_map_recall")
             << "Specified point map " << config_->map_version
-            << "not found for vertex " << map_id
+            << "not found for vertex " << vid_loc
             << ", fallback to single experience [point map] stream.";
         const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
             "point_map", "vtr_lidar_msgs/msg/PointMap");
@@ -110,17 +110,15 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
 #if false
   /// DEBUGGING: compare with single experience map to double check transformation
   if (config_->visualize) {
-    auto vertex = graph->at(map_id);
+    auto vertex = graph->at(vid_loc);
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
     auto locked_map_msg = map_msg->sharedLocked();
     auto point_map_data = locked_map_msg.get().getData();
 
-    const auto T_v_m = point_map_data.T_vertex_map().matrix();
-    auto point_map = point_map_data.point_map();  // makes a copy
-    auto map_point_mat = point_map.getMatrixXfMap(
-        3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto map_normal_mat = point_map.getMatrixXfMap(
-        3, PointWithInfo::size(), PointWithInfo::normal_offset());
+    const auto T_v_m = point_map_data.T_vertex_this().matrix();
+    auto point_map = point_map_data.point_cloud();  // makes a copy
+    auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    auto map_normal_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
     Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
     Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
@@ -128,7 +126,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "localization keyframe (offset)";
+    pc2_msg.header.frame_id = "loc vertex frame (offset)";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     test_map_pub_->publish(pc2_msg);
   }
@@ -137,8 +135,8 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = qdata.curr_map_loc->T_vertex_map().matrix();
-    auto point_map = qdata.curr_map_loc->point_map();  // makes a copy
+    const auto T_v_m = qdata.curr_map_loc->T_vertex_this().matrix();
+    auto point_map = qdata.curr_map_loc->point_cloud();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
     Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
@@ -147,7 +145,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "localization keyframe (offset)";
+    pc2_msg.header.frame_id = "loc vertex frame (offset)";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     map_pub_->publish(pc2_msg);
     // clang-format on

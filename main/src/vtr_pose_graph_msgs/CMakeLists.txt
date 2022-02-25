@@ -11,7 +11,6 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
 
 find_package(vtr_common_msgs REQUIRED)
 
@@ -29,7 +28,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 ament_export_dependencies(
   rosidl_default_runtime
   std_msgs
-  std_srvs
   vtr_common_msgs
 )
 

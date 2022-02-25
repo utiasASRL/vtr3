@@ -71,9 +71,9 @@ class BasePipeline {
   void runLocalization(const QueryCache::Ptr &qdata,
                        const OutputCache::Ptr &output, const Graph::Ptr &graph,
                        const std::shared_ptr<TaskExecutor> &executor);
-  void processKeyframe(const QueryCache::Ptr &qdata,
-                       const OutputCache::Ptr &output, const Graph::Ptr &graph,
-                       const std::shared_ptr<TaskExecutor> &executor);
+  void onVertexCreation(const QueryCache::Ptr &qdata,
+                        const OutputCache::Ptr &output, const Graph::Ptr &graph,
+                        const std::shared_ptr<TaskExecutor> &executor);
 
   /** \brief Waits until all internal threads of a pipeline finishes. */
   virtual void wait() {}
@@ -92,9 +92,9 @@ class BasePipeline {
   virtual void runLocalization_(const QueryCache::Ptr &,
                                 const OutputCache::Ptr &, const Graph::Ptr &,
                                 const std::shared_ptr<TaskExecutor> &) = 0;
-  virtual void processKeyframe_(const QueryCache::Ptr &,
-                                const OutputCache::Ptr &, const Graph::Ptr &,
-                                const std::shared_ptr<TaskExecutor> &) = 0;
+  virtual void onVertexCreation_(const QueryCache::Ptr &,
+                                 const OutputCache::Ptr &, const Graph::Ptr &,
+                                 const std::shared_ptr<TaskExecutor> &) = 0;
 
  protected:
   std::shared_ptr<ModuleFactory> factory() const;

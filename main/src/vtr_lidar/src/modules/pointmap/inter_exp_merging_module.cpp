@@ -18,7 +18,7 @@
  */
 #include "vtr_lidar/modules/pointmap/inter_exp_merging_module.hpp"
 
-#include "vtr_lidar/data_structures/pointmap.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_tactic/modules/factory.hpp"
 
 namespace vtr {
@@ -59,12 +59,12 @@ void InterExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  if (qdata.live_id->isValid() &&
-      qdata.live_id->minorId() >= (unsigned)config_->depth &&
-      *qdata.keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
+  if (qdata.vid_odo->isValid() &&
+      qdata.vid_odo->minorId() >= (unsigned)config_->depth &&
+      *qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     const auto target_vid =
-        VertexId(qdata.live_id->majorId(),
-                 qdata.live_id->minorId() - (unsigned)config_->depth);
+        VertexId(qdata.vid_odo->majorId(),
+                 qdata.vid_odo->minorId() - (unsigned)config_->depth);
 
     /// \todo the following block needs more testing
     bool has_spatial = false;
@@ -249,9 +249,9 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     }
     // transform live pointmap points to map pointmap frame
     const auto &T_map_live =
-        (map.T_vertex_map().inverse()) * T_mv_lv * live.T_vertex_map();
+        (map.T_vertex_this().inverse()) * T_mv_lv * live.T_vertex_this();
     const auto T_map_live_mat = T_map_live.matrix();
-    auto &live_point_cloud = live.point_map();
+    auto &live_point_cloud = live.point_cloud();
     // get eigen mapping
     auto points_mat = live_point_cloud.getMatrixXfMap(
         3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -296,7 +296,7 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the old map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(old_map_copy.point_map(), pc2_msg);
+      pcl::toROSMsg(old_map_copy.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       old_map_pub_->publish(pc2_msg);
@@ -304,7 +304,7 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the new map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(multi_exp_map.point_map(), pc2_msg);
+      pcl::toROSMsg(multi_exp_map.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       new_map_pub_->publish(pc2_msg);

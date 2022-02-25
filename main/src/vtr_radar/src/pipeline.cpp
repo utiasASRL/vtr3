@@ -61,8 +61,8 @@ void RadarPipeline::reset() {
   point_cloud_odo_ = nullptr;
   point_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
-  T_r_pm_odo_ = nullptr;
-  w_pm_r_in_r_odo_ = nullptr;
+  T_r_m_odo_ = nullptr;
+  w_m_r_in_r_odo_ = nullptr;
   new_scan_odo_.clear();
 #if false
   new_raw_scan_odo_.clear();
@@ -90,8 +90,8 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->point_cloud_odo = point_cloud_odo_;
     qdata->point_map_odo = point_map_odo_;
     qdata->timestamp_odo = timestamp_odo_;
-    qdata->T_r_pm_odo = T_r_pm_odo_;
-    qdata->w_pm_r_in_r_odo = w_pm_r_in_r_odo_;
+    qdata->T_r_m_odo = T_r_m_odo_;
+    qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
   }
 
   for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
@@ -102,23 +102,23 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     point_cloud_odo_ = qdata->point_cloud_odo.ptr();
     point_map_odo_ = qdata->point_map_odo.ptr();
     timestamp_odo_ = qdata->timestamp_odo.ptr();
-    T_r_pm_odo_ = qdata->T_r_pm_odo.ptr();
-    w_pm_r_in_r_odo_ = qdata->w_pm_r_in_r_odo.ptr();
+    T_r_m_odo_ = qdata->T_r_m_odo.ptr();
+    w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
   }
 
   /// Store the scan if decided to store it
   const auto &T_s_r = *qdata->T_s_r;
-  const auto &T_r_pm = *qdata->T_r_pm_odo;
-  const auto T_s_pm = T_s_r * T_r_pm;
+  const auto &T_r_m = *qdata->T_r_m_odo;
+  const auto T_s_m = T_s_r * T_r_m;
   bool store_scan = false;
   if (!(*qdata->odo_success))
     store_scan = false;
   else if (new_scan_odo_.empty())
     store_scan = true;
   else {
-    const auto &T_pm_sm1 = new_scan_odo_.rbegin()->second->T_vertex_map();
-    // T_<robot>_<live id> * T_<live id>_<sensor-1> * T_<sensor>_<robot>
-    auto T_s_sm1_vec = (T_s_pm * T_pm_sm1).vec();
+    const auto &T_m_sm1 = new_scan_odo_.rbegin()->second->T_vertex_this();
+    // T_<robot>_<vid odo> * T_<vid odo>_<sensor-1> * T_<sensor>_<robot>
+    auto T_s_sm1_vec = (T_s_m * T_m_sm1).vec();
     auto dtran = T_s_sm1_vec.head<3>().norm();
     auto drot = T_s_sm1_vec.tail<3>().norm() * 57.29577;  // 180/pi
     CLOG(DEBUG, "radar.pipeline")
@@ -131,19 +131,15 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 #if false  /// store raw point cloud
     // raw scan
     auto new_raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
-    new_raw_scan_odo->point_map() = *qdata->undistorted_raw_point_cloud;
-    new_raw_scan_odo->T_vertex_map() = T_s_pm.inverse();
+    new_raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
+    new_raw_scan_odo->T_vertex_this() = T_s_m.inverse();
     new_raw_scan_odo_.try_emplace(*qdata->stamp, new_raw_scan_odo);
 #endif
     // preprocessed scan
     auto new_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
-    new_scan_odo->point_map() = *qdata->undistorted_point_cloud;
-    new_scan_odo->T_vertex_map() = T_s_pm.inverse();
+    new_scan_odo->point_cloud() = *qdata->undistorted_point_cloud;
+    new_scan_odo->T_vertex_this() = T_s_m.inverse();
     new_scan_odo_.try_emplace(*qdata->stamp, new_scan_odo);
-  }
-
-  if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
-    CLOG(WARNING, "radar.pipeline") << "Odometry failed!";
   }
 }
 
@@ -163,19 +159,19 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
 }
 
-void RadarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
-                                     const OutputCache::Ptr &,
-                                     const Graph::Ptr &graph,
-                                     const TaskExecutor::Ptr &) {
+void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
+                                      const OutputCache::Ptr &,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
-  const auto live_id = *qdata->live_id;
+  const auto vid_odo = *qdata->vid_odo;
 
   // update current map vertex id and transform
-  point_map_odo_->T_vertex_map() = *T_r_pm_odo_;
-  point_map_odo_->vertex_id() = live_id;
+  point_map_odo_->T_vertex_this() = *T_r_m_odo_;
+  point_map_odo_->vertex_id() = vid_odo;
 
   /// Prepare to save map and scans
-  auto vertex = graph->at(live_id);
+  auto vertex = graph->at(vid_odo);
   using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
   using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
 
@@ -196,11 +192,11 @@ void RadarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
   // raw scans
   for (auto it = new_raw_scan_odo_.begin(); it != new_raw_scan_odo_.end();
        it++) {
-    // correct transform to the live id - this is essentially:
-    // T_<live id>_<scan> = T_<live id>_<last id> * T_<last id>_<scan>
-    it->second->T_vertex_map() =
-        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
-    it->second->vertex_id() = live_id;
+    // correct transform to the vid odo - this is essentially:
+    // T_<vid odo>_<scan> = T_<vid odo>_<last vid odo> * T_<last vid odo>_<scan>
+    it->second->T_vertex_this() =
+        point_map_odo_->T_vertex_this() * it->second->T_vertex_this();
+    it->second->vertex_id() = vid_odo;
     // save the point scan
     auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
     vertex->insert<PointScan<PointWithInfo>>("raw_point_scan", scan_msg);
@@ -209,11 +205,11 @@ void RadarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
 #endif
   // down-sampled scans
   for (auto it = new_scan_odo_.begin(); it != new_scan_odo_.end(); it++) {
-    // correct transform to the live id - this is essentially:
-    // T_<live id>_<scan> = T_<live id>_<last id> * T_<last id>_<scan>
-    it->second->T_vertex_map() =
-        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
-    it->second->vertex_id() = live_id;
+    // correct transform to the vid odo - this is essentially:
+    // T_<vid odo>_<scan> = T_<vid odo>_<last vid odo> * T_<last vid odo>_<scan>
+    it->second->T_vertex_this() =
+        point_map_odo_->T_vertex_this() * it->second->T_vertex_this();
+    it->second->vertex_id() = vid_odo;
     // save the point scan
     auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
     vertex->insert<PointScan<PointWithInfo>>(

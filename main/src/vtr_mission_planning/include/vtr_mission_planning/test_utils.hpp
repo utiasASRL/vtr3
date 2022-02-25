@@ -56,10 +56,6 @@ struct TestTactic : public StateMachine::Tactic {
   void finishRun() override { LOG(WARNING) << "Finishing the current run"; }
   void setTrunk(const tactic::VertexId&) override {}
   /// Called when trying to merge into existing path
-  bool canCloseLoop() const override {
-    LOG(WARNING) << "Asking if can close loop, return yes";
-    return true;
-  }
   void connectToTrunk(const bool privileged) override {
     LOG(WARNING) << "Connecting to trunk with privileged " << privileged;
   }

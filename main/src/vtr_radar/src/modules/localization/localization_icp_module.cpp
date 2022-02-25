@@ -30,16 +30,10 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
-
   config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
-#ifdef VTR_DETERMINISTIC
-  CLOG_IF(config->num_threads != 1, WARNING, "radar.localization_icp") << "ICP number of threads set to 1 in deterministic mode.";
-  config->num_threads = 1;
-#endif
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
   config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
   config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
@@ -48,24 +42,24 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
   config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
-
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-
   // steam params
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
   config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
   config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
+
+  config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
 
   return config;
 }
 
 void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
-                                 const Graph::Ptr &graph,
+                                 const Graph::Ptr &,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
@@ -73,10 +67,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_v = *qdata.T_r_m_loc;  // used as prior
-  const auto &T_v_pm = qdata.curr_map_loc->T_vertex_map();
+  const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior
+  const auto &T_v_m = qdata.curr_map_loc->T_vertex_this();
   const auto &map_version = qdata.curr_map_loc->version();
-  auto &point_map = qdata.curr_map_loc->point_map();
+  auto &point_map = qdata.curr_map_loc->point_cloud();
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -91,13 +85,13 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Create evaluators for passing into ICP
   const auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
-  const auto T_v_pm_eval = FixedTransformEvaluator::MakeShared(T_v_pm);
+  const auto T_v_m_eval = FixedTransformEvaluator::MakeShared(T_v_m);
   const auto T_r_v_eval = TransformStateEvaluator::MakeShared(T_r_v_var);
   // compound transform for alignment (sensor to point map transform)
-  const auto T_pm_s_eval = inverse(compose(T_s_r_eval, compose(T_r_v_eval, T_v_pm_eval)));
+  const auto T_m_s_eval = inverse(compose(T_s_r_eval, compose(T_r_v_eval, T_v_m_eval)));
 
   /// use odometry as a prior
-  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
+  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
   if (config_->use_pose_prior) {
     auto loss_func = std::make_shared<L2LossFunc>();
     auto noise_model = std::make_shared<StaticNoiseModel<6>>(T_r_v.cov());
@@ -121,11 +115,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// Perform initial alignment (no motion distortion for the first iteration)
-  const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
-  Eigen::Matrix3f C_pm_s_init = (T_pm_s_init.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_s_pm_in_pm_init = (T_pm_s_init.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_pm_s_init * query_mat).colwise() + r_s_pm_in_pm_init;
-  aligned_norms_mat = C_pm_s_init * query_norms_mat;
+  const auto T_m_s_init = T_m_s_eval->evaluate().matrix();
+  Eigen::Matrix3f C_m_s_init = (T_m_s_init.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_s_m_in_m_init = (T_m_s_init.block<3, 1>(0, 3)).cast<float>();
+  aligned_mat = (C_m_s_init * query_mat).colwise() + r_s_m_in_m_init;
+  aligned_norms_mat = C_m_s_init * query_norms_mat;
 
   // ICP results
   EdgeTransform T_r_v_icp;
@@ -156,28 +150,27 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// create kd-tree of the map
   NanoFLANNAdapter<PointWithInfo> adapter(point_map);
-  KDTreeParams tree_params(10 /* max leaf */);
+  KDTreeParams tree_params(/* max leaf */ 10);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   for (int step = 0;; step++) {
     /// Points Association
-    // Pick random queries (use unordered set to ensure uniqueness)
+    // pick queries (for now just use all of them)
     timer[0]->start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
     sample_inds.resize(query_points.size());
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
     timer[0]->stop();
 
+    // find nearest neigbors and distances
     timer[1]->start();
-    // Find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (size_t i = 0; i < sample_inds.size(); i++) {
       KDTreeResultSet result_set(1);
       result_set.init(&sample_inds[i].second, &nn_dists[i]);
-      kdtree->findNeighbors(
-          result_set, aligned_points[sample_inds[i].first].data, search_params);
+      kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
     }
     timer[1]->stop();
 
@@ -204,7 +197,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     // shared loss function
     auto loss_func = std::make_shared<HuberLossFunc>(config_->huber_delta);
     // cost terms and noise model
-    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
+    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
@@ -228,8 +221,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      PointToPointErrorEval2::Ptr error_func;
-      error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));
+      const auto error_func = std::make_shared<PointToPointErrorEval2>(T_m_s_eval, ref_pt, qry_pt);
 
       // create cost term and add to problem
       auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(error_func, noise_model, loss_func);
@@ -242,49 +234,49 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     OptimizationProblem problem;
     problem.addStateVariable(T_r_v_var);
     problem.addCostTerm(cost_terms);
+
     // add prior costs
     if (config_->use_pose_prior) problem.addCostTerm(prior_cost_terms);
 
+    // make solver
     using SolverType = VanillaGaussNewtonSolver;
     SolverType::Params params;
     params.verbose = config_->verbose;
     params.maxIterations = config_->maxIterations;
-
-    // Make solver
     SolverType solver(&problem, params);
 
-    // Optimize
+    // optimize
     try {
       solver.optimize();
     } catch (const decomp_failure &) {
       CLOG(WARNING, "radar.localization_icp")
-          << "Steam optimization failed! T_pm_s left unchanged.";
+          << "Steam optimization failed! T_m_s left unchanged.";
     }
     timer[3]->stop();
 
-    timer[4]->start();
     /// Alignment
-    const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
-    Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
-    aligned_norms_mat = C_pm_s * query_norms_mat;
+    timer[4]->start();
+    const auto T_m_s = T_m_s_eval->evaluate().matrix();
+    Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
+    aligned_norms_mat = C_m_s * query_norms_mat;
 
-    // Update all result matrices
-    // const auto T_pm_s = T_pm_s_eval->evaluate().matrix(); // defined above
+    // update all result matrices
+    // const auto T_m_s = T_m_s_eval->evaluate().matrix(); // defined above
     if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_pm_s);
+      all_tfs = Eigen::MatrixXd(T_m_s);
     else {
       Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(4) = Eigen::MatrixXd(T_pm_s);
+      temp.bottomRows(4) = Eigen::MatrixXd(T_m_s);
       all_tfs = temp;
     }
     timer[4]->stop();
 
     /// Check convergence
     timer[5]->start();
-    // Update variations
+    // update variations
     if (step > 0) {
       float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
 
@@ -300,7 +292,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       mean_dR += (dR_b - mean_dR) / avg_tot;
     }
 
-    // Refininement incremental
+    // refininement incremental
     if (refinement_stage) refinement_step++;
 
     // Stop condition
@@ -313,6 +305,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         refinement_stage = true;
 
         max_it = step + config_->refined_max_iter;
+
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
@@ -321,7 +314,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[5]->stop();
 
-    // Last step
+    /// Last step
     if ((refinement_stage && step >= max_it - 1) ||
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
@@ -332,11 +325,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "radar.localization_icp") << "ICP did not converge to threshold, matched_points_ratio set to 0.";
+        CLOG(WARNING, "radar.localization_icp") << "ICP did not converge to the specified threshold.";
         if (!refinement_stage) {
           CLOG(WARNING, "radar.localization_icp") << "ICP did not enter refinement stage at all.";
         }
-        // matched_points_ratio = 0;
       }
       break;
     }
@@ -352,13 +344,13 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       << "Matched points ratio " << matched_points_ratio;
   if (matched_points_ratio > config_->min_matched_ratio) {
     // update map to robot transform
-    *qdata.T_r_m_loc = T_r_v_icp;
+    *qdata.T_r_v_loc = T_r_v_icp;
     // set success
     *qdata.loc_success = true;
   } else {
     CLOG(WARNING, "radar.localization_icp")
         << "Matched points ratio " << matched_points_ratio
-        << " is below the threshold. ICP is considered failed.";
+        << " is below the specified threshold. ICP is considered failed.";
     // no update to map to robot transform
     // set success
     *qdata.loc_success = false;

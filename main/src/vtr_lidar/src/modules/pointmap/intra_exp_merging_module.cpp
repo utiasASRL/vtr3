@@ -18,7 +18,7 @@
  */
 #include "vtr_lidar/modules/pointmap/intra_exp_merging_module.hpp"
 
-#include "vtr_lidar/data_structures/pointmap.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_pose_graph/path/pose_cache.hpp"
 
 namespace vtr {
@@ -42,12 +42,12 @@ void IntraExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
                                  const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  if (qdata.live_id->isValid() &&
-      qdata.live_id->minorId() >= (unsigned)config_->depth &&
-      *qdata.keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
+  if (qdata.vid_odo->isValid() &&
+      qdata.vid_odo->minorId() >= (unsigned)config_->depth &&
+      *qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     const auto target_vid =
-        VertexId(qdata.live_id->majorId(),
-                 qdata.live_id->minorId() - (unsigned)config_->depth);
+        VertexId(qdata.vid_odo->majorId(),
+                 qdata.vid_odo->minorId() - (unsigned)config_->depth);
 
     auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
     qdata.intra_exp_merging_async.emplace(target_vid);
@@ -137,8 +137,8 @@ void IntraExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
 
     for (const auto scan_msg : scan_msgs) {
       auto point_scan = scan_msg->sharedLocked().get().getData();  // COPY!
-      const auto &T_v_s = (T_target_curr * point_scan.T_vertex_map()).matrix();
-      auto &point_cloud = point_scan.point_map();
+      const auto &T_v_s = (T_target_curr * point_scan.T_vertex_this()).matrix();
+      auto &point_cloud = point_scan.point_cloud();
       // eigen mapping
       auto scan_mat = point_cloud.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -159,7 +159,7 @@ void IntraExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     throw std::runtime_error{err};
   }
   // update transform
-  updated_map.T_vertex_map() = tactic::EdgeTransform(true);
+  updated_map.T_vertex_this() = tactic::EdgeTransform(true);
   updated_map.vertex_id() = locked_map_msg.getData().vertex_id();
   // update version
   updated_map.version() = PointMap<PointWithInfo>::INTRA_EXP_MERGED;
@@ -182,8 +182,8 @@ void IntraExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
 
     // publish the old map
     {
-      auto point_cloud = old_map_copy.point_map();  // COPY!
-      const auto &T_v_m = old_map_copy.T_vertex_map().matrix();
+      auto point_cloud = old_map_copy.point_cloud();  // COPY!
+      const auto &T_v_m = old_map_copy.T_vertex_this().matrix();
       // eigen mapping
       auto points_mat = point_cloud.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -202,7 +202,7 @@ void IntraExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     // publish the updated map (will already be in vertex frame)
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(updated_map.point_map(), pc2_msg);
+      pcl::toROSMsg(updated_map.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       new_map_pub_->publish(pc2_msg);

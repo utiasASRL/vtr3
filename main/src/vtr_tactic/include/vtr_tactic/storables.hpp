@@ -15,12 +15,10 @@
 /**
  * \file storables.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief Several storable classes for storing odometry and localization results
  */
 #pragma once
 
 #include "vtr_tactic/types.hpp"
-
 #include "vtr_tactic_msgs/msg/localization_result.hpp"
 #include "vtr_tactic_msgs/msg/odometry_result.hpp"
 

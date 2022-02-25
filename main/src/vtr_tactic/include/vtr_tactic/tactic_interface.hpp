@@ -60,8 +60,6 @@ class TacticInterface {
   virtual bool passedSeqId(const uint64_t& sid) const = 0;
   /** \brief Whether current route to repeat is completed */
   virtual bool routeCompleted() const = 0;
-  /** \brief Whether or not can merge into existing graph. */
-  virtual bool canCloseLoop() const = 0;
 };
 
 }  // namespace tactic

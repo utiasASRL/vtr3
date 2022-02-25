@@ -50,14 +50,14 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 }
 
 void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
-                                             const EdgeTransform& T_r_m_odo,
-                                             const EdgeTransform& T_w_m_odo) {
-  // publish keyframe
-  Eigen::Affine3d T(T_w_m_odo.matrix());
+                                             const EdgeTransform& T_r_v_odo,
+                                             const EdgeTransform& T_w_v_odo) {
+  // publish vertex frame
+  Eigen::Affine3d T(T_w_v_odo.matrix());
   auto msg = tf2::eigenToTransform(T);
   msg.header.frame_id = "world";
   msg.header.stamp = rclcpp::Time(stamp);
-  msg.child_frame_id = "odometry keyframe";
+  msg.child_frame_id = "odo vertex frame";
   tf_bc_->sendTransform(msg);
 
   // publish odometry
@@ -65,13 +65,13 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   odometry.header.frame_id = "world";
   odometry.header.stamp = rclcpp::Time(stamp);
   odometry.pose.pose =
-      tf2::toMsg(Eigen::Affine3d((T_w_m_odo * T_r_m_odo.inverse()).matrix()));
+      tf2::toMsg(Eigen::Affine3d((T_w_v_odo * T_r_v_odo.inverse()).matrix()));
   odometry_pub_->publish(odometry);
 
   // publish current frame
-  Eigen::Affine3d T2(T_r_m_odo.inverse().matrix());
+  Eigen::Affine3d T2(T_r_v_odo.inverse().matrix());
   auto msg2 = tf2::eigenToTransform(T2);
-  msg2.header.frame_id = "odometry keyframe";
+  msg2.header.frame_id = "odo vertex frame";
   msg2.header.stamp = rclcpp::Time(stamp);
   msg2.child_frame_id = "robot";
   tf_bc_->sendTransform(msg2);
@@ -90,18 +90,18 @@ void RvizTacticCallback::publishPathRviz(const LocalizationChain& chain) {
 }
 
 void RvizTacticCallback::publishLocalizationRviz(
-    const Timestamp& stamp, const EdgeTransform& T_w_m_loc) {
+    const Timestamp& stamp, const EdgeTransform& T_w_v_loc) {
   /// Publish the current frame localized against in world frame
-  Eigen::Affine3d T(T_w_m_loc.matrix());
+  Eigen::Affine3d T(T_w_v_loc.matrix());
   auto msg = tf2::eigenToTransform(T);
   msg.header.stamp = rclcpp::Time(stamp);
   msg.header.frame_id = "world";
-  msg.child_frame_id = "localization keyframe";
+  msg.child_frame_id = "loc vertex frame";
   tf_bc_->sendTransform(msg);
 
   // apply an offset to separate odometry and localization
   msg.header.frame_id = "world (offset)";
-  msg.child_frame_id = "localization keyframe (offset)";
+  msg.child_frame_id = "loc vertex frame (offset)";
   tf_bc_->sendTransform(msg);
 }
 

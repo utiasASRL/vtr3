@@ -110,8 +110,8 @@ class ChainTest : public Test {
   LocalizationChain<BasicGraph> chain_;
 };
 
-TEST_F(ChainTest, simulate_localization_every_keyframe) {
-  // assume we have advanced multiple keyframes and update trunk
+TEST_F(ChainTest, simulate_localization_every_vertex) {
+  // assume we have advanced multiple vertices and update trunk
   chain_.setPetiole(VertexId(1, 4));
   chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
@@ -126,7 +126,7 @@ TEST_F(ChainTest, simulate_localization_every_keyframe) {
     print(chain_);
   }
 
-  // advanced another keyframe
+  // advanced another vertex
   chain_.setPetiole(VertexId(1, 5));
   chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
@@ -143,7 +143,7 @@ TEST_F(ChainTest, simulate_localization_every_keyframe) {
 }
 
 TEST_F(ChainTest, simulate_localization_every_frame) {
-  // assume we have advanced multiple keyframes and update trunk
+  // assume we have advanced multiple vertices and update trunk
   chain_.setPetiole(VertexId(1, 4));
   chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
@@ -158,7 +158,7 @@ TEST_F(ChainTest, simulate_localization_every_frame) {
     print(chain_);
   }
 
-  // advanced another keyframes
+  // advanced another vertex
   Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
   transform(2, 3) = -3;
   EdgeTransform edge_transform(transform);
@@ -177,7 +177,7 @@ TEST_F(ChainTest, simulate_localization_every_frame) {
 }
 
 TEST_F(ChainTest, simulate_localization_skipped_frames) {
-  // assume we have advanced multiple keyframes and update trunk
+  // assume we have advanced multiple vertices and update trunk
   chain_.setPetiole(VertexId(1, 4));
   chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);
@@ -188,7 +188,7 @@ TEST_F(ChainTest, simulate_localization_skipped_frames) {
   auto map_sid = chain_.trunkSequenceId();
   auto T_petiole_trunk = chain_.T_petiole_trunk();
 
-  // advanced another keyframes
+  // advanced another vertex
   chain_.setPetiole(VertexId(1, 10));
   chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, false);
   print(chain_);

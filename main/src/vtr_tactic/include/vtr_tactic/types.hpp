@@ -66,12 +66,7 @@ enum class PipelineMode : uint8_t {
 std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
 /** \brief the vertex creation test result */
-enum class KeyframeTestResult : int {
-  CREATE_VERTEX = 0,
-  CREATE_CANDIDATE = 1,
-  FAILURE = 2,
-  DO_NOTHING = 3
-};
+enum class VertexTestResult : int { CREATE_VERTEX = 0, DO_NOTHING = 1 };
 
 /** \brief Full metric and topological localization in one package */
 struct Localization {

@@ -21,7 +21,6 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "vtr_radar/cache.hpp"
-// #include "vtr_radar/detector/detector.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 

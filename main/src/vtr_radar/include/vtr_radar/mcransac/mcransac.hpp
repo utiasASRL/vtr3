@@ -23,7 +23,7 @@
 
 #include "lgmath.hpp"
 
-#include "vtr_radar/types.hpp"
+#include "vtr_radar/data_types/point.hpp"
 
 namespace vtr {
 namespace radar {

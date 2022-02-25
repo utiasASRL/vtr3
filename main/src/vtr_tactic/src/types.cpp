@@ -15,7 +15,6 @@
 /**
  * \file types.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief Interface for state machines
  */
 #include "vtr_tactic/types.hpp"
 

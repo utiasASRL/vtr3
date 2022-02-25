@@ -40,11 +40,11 @@ class RvizTacticCallback : virtual public TacticCallbackInterface {
                      const std::string& prefix = "tactic");
 
   void publishOdometryRviz(const Timestamp& stamp,
-                           const EdgeTransform& T_r_m_odo,
-                           const EdgeTransform& T_w_m_odo) override;
+                           const EdgeTransform& T_r_v_odo,
+                           const EdgeTransform& T_w_v_odo) override;
   void publishPathRviz(const LocalizationChain& chain) override;
   void publishLocalizationRviz(const Timestamp& stamp,
-                               const EdgeTransform& T_w_m_loc) override;
+                               const EdgeTransform& T_w_v_loc) override;
 
  private:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;

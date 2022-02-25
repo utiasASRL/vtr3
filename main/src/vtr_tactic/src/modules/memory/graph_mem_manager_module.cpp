@@ -35,15 +35,15 @@ auto GraphMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void GraphMemManagerModule::run_(QueryCache &qdata, OutputCache &,
                                  const Graph::Ptr &,
                                  const TaskExecutor::Ptr &executor) {
-  if (!qdata.map_id->isValid() || !qdata.live_id->isValid()) return;
-  if (*qdata.map_id == last_map_id_) return;
+  if (!qdata.vid_loc->isValid() || !qdata.vid_odo->isValid()) return;
+  if (*qdata.vid_loc == last_vid_) return;
 
   // input to the graph memory manager async task.
-  qdata.graph_mem_async.emplace(*qdata.live_id, *qdata.map_id);
+  qdata.graph_mem_async.emplace(*qdata.vid_odo, *qdata.vid_loc);
 
   executor->dispatch(std::make_shared<Task>(
       shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
-      Task::DepId{}, "Graph Mem Manager", *qdata.live_id));
+      Task::DepId{}, "Graph Mem Manager", *qdata.vid_odo));
 }
 
 void GraphMemManagerModule::runAsync_(QueryCache &qdata, OutputCache &,
@@ -59,8 +59,8 @@ void GraphMemManagerModule::runAsync_(QueryCache &qdata, OutputCache &,
     throw std::runtime_error(err);
   }
 
-  const auto live_id = qdata.graph_mem_async->first;
-  const auto map_id = qdata.graph_mem_async->second;
+  const auto vid_odo = qdata.graph_mem_async->first;
+  const auto vid_loc = qdata.graph_mem_async->second;
 
   auto eval = std::make_shared<PrivilegedEvaluator<Graph>>(*graph);
 
@@ -68,8 +68,8 @@ void GraphMemManagerModule::runAsync_(QueryCache &qdata, OutputCache &,
   vertices.reserve(2 * config_->window_size);
 
   // subgraph is necessary to avoid concurrency issues.
-  const auto subgraph = graph->getSubgraph(map_id, config_->window_size, eval);
-  auto iter = subgraph->beginDfs(map_id, config_->window_size, eval);
+  const auto subgraph = graph->getSubgraph(vid_loc, config_->window_size, eval);
+  auto iter = subgraph->beginDfs(vid_loc, config_->window_size, eval);
   for (; iter != subgraph->end(); ++iter) vertices.push_back(iter->v()->id());
 
   for (auto &&vertex : vertices) {
@@ -77,7 +77,7 @@ void GraphMemManagerModule::runAsync_(QueryCache &qdata, OutputCache &,
     vid_life_map_[vertex] = config_->vertex_life_span;
     for (auto &&vid : graph->neighbors(vertex)) {
       if (graph->at(EdgeId(vid, vertex))->isSpatial() &&
-          (vid.majorId() != live_id.majorId()))
+          (vid.majorId() != vid_odo.majorId()))
         vid_life_map_[vid] = config_->vertex_life_span;
     }
   }

@@ -20,7 +20,7 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 
-#include "vtr_lidar/types.hpp"
+#include "vtr_lidar/data_types/point.hpp"
 #include "vtr_logging/logging_init.hpp"
 
 #include "sensor_msgs/msg/point_cloud2.hpp"

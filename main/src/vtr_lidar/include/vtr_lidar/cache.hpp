@@ -15,15 +15,14 @@
 /**
  * \file cache.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief LidarQueryCache class definition
  */
 #pragma once
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include "vtr_lidar/data_structures/costmap.hpp"
-#include "vtr_lidar/data_structures/pointmap.hpp"
-#include "vtr_lidar/types.hpp"
+#include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/data_types/point.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
 
@@ -31,7 +30,7 @@ namespace vtr {
 namespace lidar {
 
 struct LidarQueryCache : virtual public tactic::QueryCache {
-  using Ptr = std::shared_ptr<LidarQueryCache>;
+  PTR_TYPEDEFS(LidarQueryCache);
 
   // input
   tactic::Cache<const sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros
@@ -49,8 +48,8 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
 #endif
   tactic::Cache<PointMap<PointWithInfo>> point_map_odo;
   tactic::Cache<tactic::Timestamp> timestamp_odo;
-  tactic::Cache<tactic::EdgeTransform> T_r_pm_odo;
-  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_pm_r_in_r_odo;
+  tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
@@ -68,7 +67,7 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
 };
 
 struct LidarOutputCache : virtual public tactic::OutputCache {
-  using Ptr = std::shared_ptr<LidarOutputCache>;
+  PTR_TYPEDEFS(LidarOutputCache);
 
   tactic::LockableCache<BaseCostMap> change_detection_costmap;
   tactic::LockableCache<BaseCostMap> ground_extraction_costmap;

@@ -20,7 +20,7 @@
 
 #include <bitset>
 
-#include "vtr_lidar/data_structures/pointmap.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_logging/logging_init.hpp"
 
 using namespace ::testing;  // NOLINT
@@ -52,10 +52,10 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = tactic::EdgeTransform(true);
+    point_map.T_vertex_this() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
-    for (auto& p : point_map.point_map()) p.static_score = 1;
+    for (auto& p : point_map.point_cloud()) p.static_score = 1;
     multi_exp_map.update(point_map);
 
     EXPECT_EQ(multi_exp_map.size(), (size_t)3);
@@ -63,20 +63,20 @@ TEST(LIDAR, multi_exp_point_map_update) {
 
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
     std::stringstream ss;
     ss << "Bit vector: ";
-    for (auto& p: multi_exp_map.point_map()) {
+    for (auto& p: multi_exp_map.point_cloud()) {
       ss << std::endl << std::bitset<128>(p.bits);
     }
     CLOG(INFO, "test") << ss.str();
     // Get points normal score
-    auto scores = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -97,10 +97,10 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = tactic::EdgeTransform(true);
+    point_map.T_vertex_this() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
-    for (auto& p : point_map.point_map()) p.static_score = 1;
+    for (auto& p : point_map.point_cloud()) p.static_score = 1;
     multi_exp_map.update(point_map);
 
     EXPECT_EQ(multi_exp_map.size(), (size_t)3);
@@ -108,20 +108,20 @@ TEST(LIDAR, multi_exp_point_map_update) {
 
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
     std::stringstream ss;
     ss << "Bit vector: ";
-    for (auto& p: multi_exp_map.point_map()) {
+    for (auto& p: multi_exp_map.point_cloud()) {
       ss <<std::endl << std::bitset<128>(p.bits);
     }
     CLOG(INFO, "test") << ss.str();
     // Get points normal score
-    auto scores = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -142,10 +142,10 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = tactic::EdgeTransform(true);
+    point_map.T_vertex_this() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
-    for (auto& p : point_map.point_map()) p.static_score = 1;
+    for (auto& p : point_map.point_cloud()) p.static_score = 1;
     multi_exp_map.update(point_map);
 
     EXPECT_EQ(multi_exp_map.size(), (size_t)6);
@@ -153,20 +153,20 @@ TEST(LIDAR, multi_exp_point_map_update) {
 
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
     std::stringstream ss;
     ss << "Bit vector: ";
-    for (auto& p: multi_exp_map.point_map()) {
+    for (auto& p: multi_exp_map.point_cloud()) {
       ss <<std::endl << std::bitset<128>(p.bits);
     }
     CLOG(INFO, "test") << ss.str();
     // Get points normal score
-    auto scores = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -187,10 +187,10 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = tactic::EdgeTransform(true);
+    point_map.T_vertex_this() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
-    for (auto& p : point_map.point_map()) p.static_score = 1;
+    for (auto& p : point_map.point_cloud()) p.static_score = 1;
     multi_exp_map.update(point_map);
 
     EXPECT_EQ(multi_exp_map.size(), (size_t)3);
@@ -198,20 +198,20 @@ TEST(LIDAR, multi_exp_point_map_update) {
 
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
     std::stringstream ss;
     ss << "Bit vector: ";
-    for (auto& p: multi_exp_map.point_map()) {
+    for (auto& p: multi_exp_map.point_cloud()) {
       ss <<std::endl << std::bitset<128>(p.bits);
     }
     CLOG(INFO, "test") << ss.str();
     // Get points normal score
-    auto scores = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -234,14 +234,14 @@ TEST(LIDAR, point_map_read_write) {
     point_cloud.push_back(p);
   }
   point_map.update(point_cloud);
-  point_map.T_vertex_map() = tactic::EdgeTransform(true);
+  point_map.T_vertex_this() = tactic::EdgeTransform(true);
   point_map.vertex_id() = tactic::VertexId(1, 1);
   // fake dynamic points removal
-  for (auto& p : point_map.point_map()) p.static_score = 0;
+  for (auto& p : point_map.point_cloud()) p.static_score = 0;
   multi_exp_map.update(point_map);
 
   CLOG(INFO, "test") << multi_exp_map.size();
-  CLOG(INFO, "test") << multi_exp_map.T_vertex_map();
+  CLOG(INFO, "test") << multi_exp_map.T_vertex_this();
   CLOG(INFO, "test") << multi_exp_map.vertex_id();
   CLOG(INFO, "test") << multi_exp_map.dl();
   CLOG(INFO, "test") << multi_exp_map.version();
@@ -250,20 +250,20 @@ TEST(LIDAR, point_map_read_write) {
   {
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
     std::stringstream ss;
     ss << "Bit vector: ";
-    for (auto& p: multi_exp_map.point_map()) {
+    for (auto& p: multi_exp_map.point_cloud()) {
       ss <<std::endl << std::bitset<128>(p.bits);
     }
     CLOG(INFO, "test") << ss.str();
     // Get points normal score
-    auto scores = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on
@@ -272,7 +272,7 @@ TEST(LIDAR, point_map_read_write) {
   auto multi_exp_map2 = MultiExpPointMap<PointWithInfo>::fromStorable(msg);
 
   CLOG(INFO, "test") << multi_exp_map2->size();
-  CLOG(INFO, "test") << multi_exp_map2->T_vertex_map();
+  CLOG(INFO, "test") << multi_exp_map2->T_vertex_this();
   CLOG(INFO, "test") << multi_exp_map2->vertex_id();
   CLOG(INFO, "test") << multi_exp_map2->dl();
   CLOG(INFO, "test") << multi_exp_map2->version();
@@ -281,20 +281,20 @@ TEST(LIDAR, point_map_read_write) {
   {
     // clang-format off
     // Get points cartesian coordinates as eigen map
-    auto points_cart = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
+    auto points_cart = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::cartesian_offset());
     CLOG(INFO, "test") << "Cartesian coordinates: " << "<" << points_cart.rows() << "," << points_cart.cols() << ">" << std::endl << points_cart;
     // Get points normal vector as eigen map
-    auto points_normal = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
+    auto points_normal = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::normal_offset());
     CLOG(INFO, "test") << "Normal vector: " << "<" << points_normal.rows() << "," << points_normal.cols() << ">" << std::endl << points_normal;
     // Get points polar coordinates as eigen map
     std::stringstream ss;
     ss << "Bit vector: ";
-    for (auto& p: multi_exp_map.point_map()) {
+    for (auto& p: multi_exp_map.point_cloud()) {
       ss <<std::endl << std::bitset<128>(p.bits);
     }
     CLOG(INFO, "test") << ss.str();
     // Get points normal score
-    auto scores = multi_exp_map.point_map().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
+    auto scores = multi_exp_map.point_cloud().getMatrixXfMap(/* dim */ 4, /* stride */ PointWithInfo::size(), /* offset */ PointWithInfo::flex2_offset());
     CLOG(INFO, "test") << "Normal variances: " << std::endl << scores.row(2);
     CLOG(INFO, "test") << "Normal scores: " << std::endl << scores.row(3);
     // clang-format on

@@ -9,8 +9,10 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>tf2_ros</depend>
+  <depend>Boost</depend>
+
   <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_ros</depend>
 
   <depend>lgmath</depend>
 

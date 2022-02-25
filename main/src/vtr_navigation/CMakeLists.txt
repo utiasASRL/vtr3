@@ -11,10 +11,9 @@ find_package(ament_cmake_python REQUIRED)
 find_package(PROJ REQUIRED)
 
 find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)  # load frames
 find_package(tf2_ros REQUIRED)
-
-find_package(sensor_msgs REQUIRED)
 
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)

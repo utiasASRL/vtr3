@@ -66,9 +66,9 @@ class RCVertex : public VertexBase, public BubbleInterface {
   // ROS message for serialization
   using VertexMsg = vtr_pose_graph_msgs::msg::Vertex;
 
-  static Ptr MakeShared(const VertexId& id, const Timestamp& keyframe_time,
+  static Ptr MakeShared(const VertexId& id, const Timestamp& vertex_time,
                         const Name2AccessorMapPtr& name2accessor_map) {
-    return std::make_shared<RCVertex>(id, keyframe_time, name2accessor_map);
+    return std::make_shared<RCVertex>(id, vertex_time, name2accessor_map);
   }
 
   static Ptr MakeShared(
@@ -78,7 +78,7 @@ class RCVertex : public VertexBase, public BubbleInterface {
   }
 
   /** \brief Construct a new serializable vertex. */
-  RCVertex(const VertexId& id, const Timestamp& keyframe_time,
+  RCVertex(const VertexId& id, const Timestamp& vertex_time,
            const Name2AccessorMapPtr& name2accessor_map);
 
   /** \brief Load a vertex from disk. */
@@ -91,9 +91,9 @@ class RCVertex : public VertexBase, public BubbleInterface {
   /** \brief Serialize to a ros message */
   storage::LockableMessage<VertexMsg>::Ptr serialize();
 
-  Timestamp keyframeTime() const {
+  Timestamp vertexTime() const {
     std::shared_lock lock(mutex_);
-    return keyframe_time_;
+    return vertex_time_;
   }
 
   TimestampRange timeRange() const {
@@ -106,9 +106,9 @@ class RCVertex : public VertexBase, public BubbleInterface {
   typename storage::LockableMessage<DataType>::Ptr retrieve(
       const std::string& stream_name, const std::string& stream_type) {
     std::shared_lock lock(mutex_);
-    if (keyframe_time_ == storage::NO_TIMESTAMP_VALUE) return nullptr;
+    if (vertex_time_ == storage::NO_TIMESTAMP_VALUE) return nullptr;
     return BubbleInterface::retrieve<DataType>(stream_name, stream_type,
-                                               keyframe_time_);
+                                               vertex_time_);
   }
 
   template <typename DataType>
@@ -145,11 +145,11 @@ class RCVertex : public VertexBase, public BubbleInterface {
   }
 
  private:
-  /** \brief protects access to keyframe time, time range */
+  /** \brief protects access to vertex time, time range */
   using VertexBase::mutex_;
 
-  /** \brief The keyframe time associated with this vertex. */
-  Timestamp keyframe_time_ = storage::NO_TIMESTAMP_VALUE;
+  /** \brief The vertex time associated with this vertex. */
+  Timestamp vertex_time_ = storage::NO_TIMESTAMP_VALUE;
 
   /** \brief Time range associated with this vertex for all data. */
   TimestampRange time_range_{storage::NO_TIMESTAMP_VALUE,
