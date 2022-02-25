@@ -39,10 +39,6 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
-#ifdef VTR_DETERMINISTIC
-  CLOG_IF(config->num_threads != 1, WARNING, "radar_lidar.localization_icp") << "ICP number of threads set to 1 in deterministic mode.";
-  config->num_threads = 1;
-#endif
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
   config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
   config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
@@ -271,7 +267,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto T_m_s_eval = inverse(compose(T_s_r_eval, compose(T_r_v_eval, T_v_m_eval)));
 
   /// use odometry as a prior
-  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
+  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
   if (config_->use_pose_prior) {
     auto loss_func = std::make_shared<L2LossFunc>();
     auto noise_model = std::make_shared<StaticNoiseModel<6>>(T_r_v.cov());
@@ -377,7 +373,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     // shared loss function
     auto loss_func = std::make_shared<HuberLossFunc>(config_->huber_delta);
     // cost terms and noise model
-    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
+    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)

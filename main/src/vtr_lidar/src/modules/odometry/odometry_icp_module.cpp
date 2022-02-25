@@ -44,10 +44,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
-#ifdef VTR_DETERMINISTIC
-  CLOG_IF(config->num_threads != 1, WARNING, "lidar.odometry_icp") << "ICP number of threads set to 1 in deterministic mode.";
-  config->num_threads = 1;
-#endif
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
   config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
   config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
@@ -150,7 +146,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   std::shared_ptr<SteamTrajInterface> trajectory = nullptr;
   std::vector<StateVariableBase::Ptr> trajectory_state_vars;
   std::shared_ptr<VectorSpaceStateVar> w_m_r_in_r_var = nullptr;
-  auto trajectory_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
+  auto trajectory_cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
   if (config_->trajectory_smoothing) {
     trajectory = std::make_shared<SteamTrajInterface>(config_->smoothing_factor_information, true);
     // last frame state
@@ -277,7 +273,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // shared loss function
     auto loss_func = std::make_shared<L2LossFunc>();
     // cost terms and noise model
-    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
+    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
