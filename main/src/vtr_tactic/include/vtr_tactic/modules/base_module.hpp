@@ -60,9 +60,6 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
    */
   const std::string &name() const { return name_; }
 
-  /** \brief Initializes the module with timing. */
-  void initialize(OutputCache &output, const Graph::ConstPtr &graph);
-
   /** \brief Runs the module with timing. */
   void run(QueryCache &qdata, OutputCache &output, const Graph::Ptr &graph,
            const std::shared_ptr<TaskExecutor> &executor);
@@ -72,13 +69,13 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                 const std::shared_ptr<TaskExecutor> &executor,
                 const size_t &priority, const boost::uuids::uuid &dep_id);
 
+  /** \brief Resets the module's internal state. */
+  virtual void reset() {}
+
  protected:
   std::shared_ptr<ModuleFactory> factory() const;
 
  private:
-  /** \brief Initializes the module. */
-  virtual void initialize_(OutputCache &, const Graph::ConstPtr &) {}
-
   /** \brief Runs the module. */
   virtual void run_(QueryCache &, OutputCache &, const Graph::Ptr &,
                     const std::shared_ptr<TaskExecutor> &) = 0;

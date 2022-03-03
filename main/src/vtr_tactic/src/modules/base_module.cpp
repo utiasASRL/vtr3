@@ -35,17 +35,6 @@ BaseModule::~BaseModule() {
       << "\033[0m";
 }
 
-void BaseModule::initialize(OutputCache &output, const Graph::ConstPtr &graph) {
-  CLOG(DEBUG, "tactic.module")
-      << "\033[1;31mInitializing module: " << name() << "\033[0m";
-  common::timing::Stopwatch timer;
-  common::timing::Stopwatch<boost::chrono::thread_clock> thread_timer;
-  initialize_(output, graph);
-  CLOG(DEBUG, "tactic.module")
-      << "Finished initializing module: " << name() << ", which takes "
-      << thread_timer << " / " << timer;
-}
-
 void BaseModule::run(QueryCache &qdata, OutputCache &output,
                      const Graph::Ptr &graph,
                      const std::shared_ptr<TaskExecutor> &executor) {

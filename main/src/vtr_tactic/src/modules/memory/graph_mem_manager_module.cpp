@@ -32,6 +32,12 @@ auto GraphMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
+void GraphMemManagerModule::reset() {
+  std::lock_guard<std::mutex> lock(vid_life_map_mutex_);
+  vid_life_map_.clear();
+  last_vid_ = VertexId::Invalid();
+}
+
 void GraphMemManagerModule::run_(QueryCache &qdata, OutputCache &,
                                  const Graph::Ptr &,
                                  const TaskExecutor::Ptr &executor) {

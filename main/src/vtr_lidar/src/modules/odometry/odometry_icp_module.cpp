@@ -78,7 +78,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  if (!qdata.point_map_odo) {
+  if (!qdata.sliding_map_odo) {
     CLOG(INFO, "lidar.odometry_icp") << "First frame, simply return.";
     // clang-format off
 #if false
@@ -111,8 +111,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &timestamp_odo = *qdata.timestamp_odo;
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-  auto &point_map_odo = *qdata.point_map_odo;
-  auto &point_map = point_map_odo.point_cloud();
+  auto &sliding_map_odo = *qdata.sliding_map_odo;
+  auto &point_map = sliding_map_odo.point_cloud();
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -179,7 +179,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// Perform initial alignment
-  {
+  if (config_->trajectory_smoothing) {
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (unsigned i = 0; i < query_points.size(); i++) {
+      const auto &qry_time = query_points[i].time;
+      const auto T_r_m_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
+      const auto T_m_s_intp_eval = inverse(compose(T_s_r_eval, T_r_m_intp_eval));
+      const auto T_m_s = T_m_s_intp_eval->evaluate().matrix();
+      Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
+      Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
+      aligned_mat.block<3, 1>(0, i) = C_m_s * query_mat.block<3, 1>(0, i) + r_s_m_in_m;
+      aligned_norms_mat.block<3, 1>(0, i) = C_m_s * query_norms_mat.block<3, 1>(0, i);
+    }
+  } else {
     const auto T_m_s = T_m_s_eval->evaluate().matrix();
     Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
     Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
@@ -469,7 +481,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       *qdata.w_m_r_in_r_odo = w_m_r_in_r_var->getValue();
     //
     /// \todo double check validity when no vertex has been created
-    *qdata.T_r_v_odo = T_r_m_icp * point_map_odo.T_vertex_this().inverse();
+    *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->trajectory_smoothing)
       *qdata.w_v_r_in_r_odo = w_m_r_in_r_var->getValue();

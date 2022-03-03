@@ -17,6 +17,8 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/pipeline.hpp"
+
+#include "vtr_lidar/data_types/pointmap_pointer.hpp"
 #include "vtr_tactic/modules/factory.hpp"
 
 namespace vtr {
@@ -29,9 +31,13 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
+  // modules
   config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
   config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
   config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
+  // submap creation thresholds
+  config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
+  config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
   // clang-format on
   return config;
 }
@@ -57,22 +63,26 @@ OutputCache::Ptr LidarPipeline::createOutputCache() const {
 }
 
 void LidarPipeline::reset() {
-  point_map_odo_ = nullptr;
+  // reset modules
+  for (const auto module : preprocessing_) module->reset();
+  for (const auto module : odometry_) module->reset();
+  for (const auto module : localization_) module->reset();
+  // odometry cached data
+  sliding_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
-  new_scan_odo_.clear();
-#if false
-  new_raw_scan_odo_.clear();
-#endif
-  curr_map_loc_ = nullptr;
+  submap_vid_odo_ = tactic::VertexId::Invalid();
+  T_sv_m_odo_ = tactic::EdgeTransform(true);
+  // localization cached data
+  submap_loc_ = nullptr;
 }
 
 void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
-  for (auto module : preprocessing_)
+  for (const auto module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
 
@@ -82,58 +92,23 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
                                  const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
-  // set the current map for odometry
-  if (point_map_odo_ != nullptr) {
-    qdata->point_map_odo = point_map_odo_;
+  /// set the current sliding map for odometry
+  if (sliding_map_odo_ != nullptr) {
+    qdata->sliding_map_odo = sliding_map_odo_;
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
   }
 
-  for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
+  for (const auto module : odometry_)
+    module->run(*qdata0, *output0, graph, executor);
 
-  // store the current map for odometry to avoid reloading
-  if (qdata->point_map_odo) {
-    point_map_odo_ = qdata->point_map_odo.ptr();
+  // store the current sliding map for odometry
+  if (qdata->sliding_map_odo) {
+    sliding_map_odo_ = qdata->sliding_map_odo.ptr();
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
-  }
-
-  /// Store the scan if decided to store it
-  const auto &T_s_r = *qdata->T_s_r;
-  const auto &T_r_m = *qdata->T_r_m_odo;
-  const auto T_s_m = T_s_r * T_r_m;
-  bool store_scan = false;
-  if (!(*qdata->odo_success))
-    store_scan = false;
-  else if (new_scan_odo_.empty())
-    store_scan = true;
-  else {
-    const auto &T_m_sm1 = new_scan_odo_.rbegin()->second->T_vertex_this();
-    // T_<robot>_<vid odo> * T_<vid odo>_<sensor-1> * T_<sensor>_<robot>
-    auto T_s_sm1_vec = (T_s_m * T_m_sm1).vec();
-    auto dtran = T_s_sm1_vec.head<3>().norm();
-    auto drot = T_s_sm1_vec.tail<3>().norm() * 57.29577;  // 180/pi
-    CLOG(DEBUG, "lidar.pipeline")
-        << "Relative motion since first lidar scan: tran: " << dtran
-        << ", rot: " << drot << " with map size: " << new_scan_odo_.size();
-    /// \todo parameters
-    if (dtran > 0.3 || drot > 5.0) store_scan = true;
-  }
-  if (store_scan) {
-#if false  /// store raw point cloud
-    // raw scan
-    auto new_raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
-    new_raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
-    new_raw_scan_odo->T_vertex_this() = T_s_m.inverse();
-    new_raw_scan_odo_.try_emplace(*qdata->stamp, new_raw_scan_odo);
-#endif
-    // preprocessed scan
-    auto new_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
-    new_scan_odo->point_cloud() = *qdata->undistorted_point_cloud;
-    new_scan_odo->T_vertex_this() = T_s_m.inverse();
-    new_scan_odo_.try_emplace(*qdata->stamp, new_scan_odo);
   }
 }
 
@@ -144,13 +119,13 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // set the current map for localization
-  if (curr_map_loc_ != nullptr) qdata->curr_map_loc = curr_map_loc_;
+  if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
 
-  for (auto module : localization_)
+  for (const auto module : localization_)
     module->run(*qdata0, *output0, graph, executor);
 
   /// store the current map for localization
-  if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
+  if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();
 }
 
 void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
@@ -158,58 +133,94 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
                                       const Graph::Ptr &graph,
                                       const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
-  const auto vid_odo = *qdata->vid_odo;
+  auto vertex = graph->at(*qdata->vid_odo);
 
-  // update current map vertex id and transform
-  point_map_odo_->T_vertex_this() = *T_r_m_odo_;
-  point_map_odo_->vertex_id() = vid_odo;
+  /// update current map vertex id and transform
+  sliding_map_odo_->T_vertex_this() = *T_r_m_odo_;
+  sliding_map_odo_->vertex_id() = *qdata->vid_odo;
 
-  /// Prepare to save map and scans
-  auto vertex = graph->at(vid_odo);
-  using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
-  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
-
-  // save the point cloud map (including a copy of the point cloud)
-  auto point_map_odo =
-      std::make_shared<PointMap<PointWithInfo>>(*point_map_odo_);
-  auto map_msg = std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
-  vertex->insert<PointMap<PointWithInfo>>(
-      "point_map", "vtr_lidar_msgs/msg/PointMap", map_msg);
-  auto map_copy_msg =
-      std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
-  vertex->insert<PointMap<PointWithInfo>>(
-      "point_map_v" + std::to_string(point_map_odo->version()),
-      "vtr_lidar_msgs/msg/PointMap", map_copy_msg);
-
-  // Save the accumulated lidar scans (need to correct transform before saving)
-#if false
-  // raw scans
-  for (auto it = new_raw_scan_odo_.begin(); it != new_raw_scan_odo_.end();
-       it++) {
-    // correct transform to the vid odo - this is essentially:
-    // T_<vid odo>_<scan> = T_<vid odo>_<last vid odo> * T_<last vid odo>_<scan>
-    it->second->T_vertex_this() =
-        point_map_odo_->T_vertex_this() * it->second->T_vertex_this();
-    it->second->vertex_id() = vid_odo;
-    // save the point scan
-    auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
-    vertex->insert<PointScan<PointWithInfo>>("raw_point_scan", scan_msg);
-  }
-  new_raw_scan_odo_.clear();
-#endif
-  // down-sampled scans
-  for (auto it = new_scan_odo_.begin(); it != new_scan_odo_.end(); it++) {
-    // correct transform to the vid odo - this is essentially:
-    // T_<vid odo>_<scan> = T_<vid odo>_<last vid odo> * T_<last vid odo>_<scan>
-    it->second->T_vertex_this() =
-        point_map_odo_->T_vertex_this() * it->second->T_vertex_this();
-    it->second->vertex_id() = vid_odo;
-    // save the point scan
-    auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
+  /// store the live frame point cloud
+  // motion compensated point cloud
+  {
+    auto scan_odo = std::make_shared<PointScan<PointWithInfo>>();
+    scan_odo->point_cloud() = *qdata->undistorted_point_cloud;
+    scan_odo->T_vertex_this() = qdata->T_s_r->inverse();
+    scan_odo->vertex_id() = *qdata->vid_odo;
+    //
+    using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+    auto scan_odo_msg = std::make_shared<PointScanLM>(scan_odo, *qdata->stamp);
     vertex->insert<PointScan<PointWithInfo>>(
-        "point_scan", "vtr_lidar_msgs/msg/PointScan", scan_msg);
+        "filtered_point_cloud", "vtr_lidar_msgs/msg/PointScan", scan_odo_msg);
   }
-  new_scan_odo_.clear();
+  // raw point cloud
+#if false
+  {
+    auto raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
+    raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
+    raw_scan_odo->T_vertex_this() = qdata->T_s_r->inverse();
+    raw_scan_odo->vertex_id() = *qdata->vid_odo;
+    //
+    using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+    auto raw_scan_odo_msg =
+        std::make_shared<PointScanLM>(raw_scan_odo, *qdata->stamp);
+    vertex->insert<PointScan<PointWithInfo>>(
+        "raw_point_cloud", "vtr_lidar_msgs/msg/PointScan", raw_scan_odo_msg);
+  }
+#endif
+
+  /// save the sliding map as vertex submap if we have traveled far enough
+  const bool create_submap = [&] {
+    //
+    if (!submap_vid_odo_.isValid()) return true;
+    //
+    const auto T_sv_r = T_sv_m_odo_ * T_r_m_odo_->inverse();
+    auto T_sv_r_vec = T_sv_r.vec();
+    auto dtran = T_sv_r_vec.head<3>().norm();
+    auto drot = T_sv_r_vec.tail<3>().norm() * 57.29577;  // 180/pi
+    if (dtran > config_->submap_translation_threshold ||
+        drot > config_->submap_rotation_threshold) {
+      return true;
+    }
+    //
+    return false;
+  }();
+  if (create_submap) {
+    CLOG(DEBUG, "lidar.pipeline")
+        << "Create a submap for vertex " << *qdata->vid_odo;
+    // copy the current sliding map
+    auto submap_odo =
+        std::make_shared<PointMap<PointWithInfo>>(*sliding_map_odo_);
+    // save the submap
+    using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+    auto submap_msg = std::make_shared<PointMapLM>(submap_odo, *qdata->stamp);
+    vertex->insert<PointMap<PointWithInfo>>(
+        "pointmap", "vtr_lidar_msgs/msg/PointMap", submap_msg);
+    // save a copy
+    auto submap2_msg = std::make_shared<PointMapLM>(submap_odo, *qdata->stamp);
+    vertex->insert<PointMap<PointWithInfo>>(
+        "pointmap_v" + std::to_string(submap_odo->version()),
+        "vtr_lidar_msgs/msg/PointMap", submap2_msg);
+
+    // save the submap vertex id and transform
+    submap_vid_odo_ = *qdata->vid_odo;
+    T_sv_m_odo_ = *T_r_m_odo_;
+  }
+
+  /// save a pointer to the latest submap
+  const auto submap_ptr = std::make_shared<PointMapPointer>();
+  submap_ptr->this_vid = *qdata->vid_odo;
+  submap_ptr->map_vid = submap_vid_odo_;
+  submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
+  //
+  CLOG(DEBUG, "lidar.pipeline")
+      << "Saving submap pointer from this vertex " << *qdata->vid_odo
+      << " to map vertex " << submap_vid_odo_ << " with transform T_v_map_this "
+      << submap_ptr->T_v_this_map.inverse().vec().transpose();
+  using PointMapPointerLM = storage::LockableMessage<PointMapPointer>;
+  auto submap_ptr_msg =
+      std::make_shared<PointMapPointerLM>(submap_ptr, *qdata->stamp);
+  vertex->insert<PointMapPointer>(
+      "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
 }
 
 }  // namespace lidar

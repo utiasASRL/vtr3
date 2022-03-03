@@ -99,7 +99,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("filtered_scan", 5);
+    filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("filtered_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
   }

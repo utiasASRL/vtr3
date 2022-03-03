@@ -47,19 +47,19 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
-    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map", 5);
+    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("submap_odo", 5);
     publisher_initialized_ = true;
   }
 
   // construct output (construct the map if not exist)
-  if (!qdata.point_map_odo)
-    qdata.point_map_odo.emplace(config_->map_voxel_size);
+  if (!qdata.sliding_map_odo)
+    qdata.sliding_map_odo.emplace(config_->map_voxel_size);
 
   // Get input and output data
   // input
   const auto &T_s_r = *qdata.T_s_r;
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
-  auto &point_map_odo = *qdata.point_map_odo;
+  auto &sliding_map_odo = *qdata.sliding_map_odo;
   // the following has to be copied because we need to change them
   auto points = *qdata.undistorted_point_cloud;
 
@@ -86,26 +86,27 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   // set life time of the points in this map
   if (config_->point_life_time >= 0.0) {
     // reduce life time of points in the map, remove those that have expired
-    point_map_odo.subtractLifeTime();
+    sliding_map_odo.subtractLifeTime();
     for (auto &point : points) point.life_time = config_->point_life_time;
   }
 
   // The update function is called only on subsampled points
-  point_map_odo.update(points);
+  sliding_map_odo.update(points);
 
   // crop box filter
-  point_map_odo.crop(T_r_m_odo.matrix().cast<float>(),
-                     config_->crop_range_front, config_->back_over_front_ratio);
+  sliding_map_odo.crop(T_r_m_odo.matrix().cast<float>(),
+                       config_->crop_range_front,
+                       config_->back_over_front_ratio);
 
   CLOG(DEBUG, "lidar.odometry_map_maintenance")
-      << "Updated point map size is: " << point_map_odo.point_cloud().size();
+      << "Updated point map size is: " << sliding_map_odo.point_cloud().size();
 
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = point_map_odo.T_vertex_this().matrix();
-    auto point_map = point_map_odo.point_cloud();  // makes a copy
+    const auto T_v_m = sliding_map_odo.T_vertex_this().matrix();
+    auto point_map = sliding_map_odo.point_cloud();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
     Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();

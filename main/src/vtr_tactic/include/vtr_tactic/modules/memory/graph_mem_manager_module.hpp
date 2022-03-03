@@ -44,6 +44,8 @@ class GraphMemManagerModule : public BaseModule {
       const std::string &name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
 
+  void reset() override;
+
  private:
   void run_(QueryCache &, OutputCache &, const Graph::Ptr &,
             const TaskExecutor::Ptr &) override;

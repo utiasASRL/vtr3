@@ -44,7 +44,7 @@ void HoneycombConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    pub_ = qdata.node->create_publisher<PointCloudMsg>("raw_scan", 5);
+    pub_ = qdata.node->create_publisher<PointCloudMsg>("raw_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
   }

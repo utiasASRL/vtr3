@@ -125,7 +125,7 @@ void ChangeDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
   const auto &loc_sid = *qdata.sid_loc;
   const auto &T_r_lv = *qdata.T_r_v_loc;
   const auto &query_points = *qdata.undistorted_point_cloud;
-  const auto &point_map = *qdata.curr_map_loc;
+  const auto &point_map = *qdata.submap_loc;
   const auto &point_map_data = point_map.point_cloud();
   const auto &T_lv_pm = point_map.T_vertex_this();
 

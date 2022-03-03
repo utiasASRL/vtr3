@@ -81,7 +81,7 @@ void GroundExtractionModule::run_(QueryCache &qdata0, OutputCache &output0,
   // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   const auto &vid_loc = *qdata.vid_loc;
-  if (qdata.curr_map_loc_changed && (!(*qdata.curr_map_loc_changed))) {
+  if (qdata.submap_loc_changed && (!(*qdata.submap_loc_changed))) {
     CLOG(DEBUG, "lidar.ground_extraction")
         << "Ground extraction for vertex " << vid_loc << " is already done.";
     return;
@@ -126,7 +126,7 @@ void GroundExtractionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
   // input
   const auto &loc_vid = *qdata.vid_loc;
   const auto &loc_sid = *qdata.sid_loc;
-  const auto &point_map = *qdata.curr_map_loc;
+  const auto &point_map = *qdata.submap_loc;
   const auto &T_lv_pm = point_map.T_vertex_this().matrix();
   auto point_cloud = point_map.point_cloud();  // copy for changing
 

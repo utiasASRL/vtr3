@@ -46,14 +46,15 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
 #if false  /// store raw point cloud
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
 #endif
-  tactic::Cache<PointMap<PointWithInfo>> point_map_odo;
+  tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
   tactic::Cache<tactic::Timestamp> timestamp_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
 
   // localization
-  tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
-  tactic::Cache<const bool> curr_map_loc_changed;
+  tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
+  tactic::Cache<const bool> submap_loc_changed;
+  tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
 
   // intra exp merging async
   tactic::Cache<const tactic::VertexId> intra_exp_merging_async;
