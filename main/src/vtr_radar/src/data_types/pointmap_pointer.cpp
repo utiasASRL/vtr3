@@ -16,12 +16,12 @@
  * \file pointmap_pointer.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/data_types/pointmap_pointer.hpp"
+#include "vtr_radar/data_types/pointmap_pointer.hpp"
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
 
 namespace vtr {
-namespace lidar {
+namespace radar {
 
 auto PointMapPointer::fromStorable(const PointMapPointerMsg& storable)
     -> PointMapPointer::Ptr {
@@ -50,5 +50,5 @@ auto PointMapPointer::toStorable() const -> PointMapPointerMsg {
   return storable;
 }
 
-}  // namespace lidar
+}  // namespace radar
 }  // namespace vtr

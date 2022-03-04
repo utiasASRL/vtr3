@@ -57,14 +57,15 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
 #endif
   tactic::Cache<const cv::Mat> cartesian_odo;  // cartesian_prev
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> point_cloud_odo;
-  tactic::Cache<PointMap<PointWithInfo>> point_map_odo;
+  tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
   tactic::Cache<tactic::Timestamp> timestamp_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
 
   // localization
-  tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
-  tactic::Cache<const bool> curr_map_loc_changed;
+  tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
+  tactic::Cache<const bool> submap_loc_changed;
+  tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {

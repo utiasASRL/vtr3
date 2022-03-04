@@ -41,9 +41,9 @@ file(GLOB_RECURSE COMPONENTS_SRC
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 pcl_conversions pcl_ros
+  nav_msgs
   lgmath steam
   vtr_common vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
-  nav_msgs
 )
 
 # pipelines and modules
@@ -55,9 +55,9 @@ add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions pcl_ros
+  nav_msgs visualization_msgs
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs
-  nav_msgs visualization_msgs
 )
 
 # path planner
@@ -73,9 +73,9 @@ ament_target_dependencies(${PROJECT_NAME}_path_planning
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 pcl_conversions pcl_ros
+  nav_msgs visualization_msgs
   lgmath steam
   vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
-  nav_msgs visualization_msgs
 )
 
 install(

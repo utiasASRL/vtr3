@@ -20,6 +20,8 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 
+#include "vtr_radar/data_types/pointmap_pointer.hpp"
+
 namespace vtr {
 namespace radar {
 
@@ -44,8 +46,8 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("curr_map_loc", 5);
-    test_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("curr_map_loc_test", 5);
+    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("submap_loc", 5);
+    test_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("submap_loc_test", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -53,96 +55,64 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
   /// Input
   const auto &vid_loc = *qdata.vid_loc;
 
-  if (qdata.curr_map_loc && qdata.curr_map_loc->vertex_id() == vid_loc) {
-    CLOG(DEBUG, "radar.localization_map_recall")
+  /// load the map pointer
+  const auto pointmap_ptr = [&] {
+    const auto vertex = graph->at(vid_loc);
+    const auto msg = vertex->retrieve<PointMapPointer>(
+        "pointmap_ptr", "vtr_radar_msgs/msg/PointMapPointer");
+    auto locked_msg = msg->sharedLocked();
+    return locked_msg.get().getData();
+  }();
+
+  CLOG(INFO, "radar.localization_map_recall")
+      << "Loaded pointmap pointer with this_vid " << pointmap_ptr.this_vid
+      << " and map_vid " << pointmap_ptr.map_vid;
+
+  /// sanity check
+  if (pointmap_ptr.this_vid != vid_loc) {
+    CLOG(ERROR, "radar.localization_map_recall")
+        << "pointmap pointer this_vid mismatch.";
+    throw std::runtime_error("pointmap pointer this_vid mismatch.");
+  }
+
+  /// load the submap if we have switched to a new one
+  if (qdata.submap_loc &&
+      qdata.submap_loc->vertex_id() == pointmap_ptr.map_vid) {
+    CLOG(INFO, "radar.localization_map_recall")
         << "Map already loaded, simply return. Map size is: "
-        << qdata.curr_map_loc->size();
+        << qdata.submap_loc->size();
     // signal that loc map did not change
-    qdata.curr_map_loc_changed.emplace(false);
-    return;
+    qdata.submap_loc_changed.emplace(false);
   } else {
+    auto vertex = graph->at(pointmap_ptr.map_vid);
     CLOG(INFO, "radar.localization_map_recall")
         << "Loading map " << config_->map_version << " from vertex " << vid_loc;
-    auto vertex = graph->at(vid_loc);
-    // load the default multi exp pointmap
-    if (config_->map_version == "multi_exp_point_map") {
-#if false
-      const auto multi_exp_map_msg =
-          vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
-              "multi_exp_point_map", "vtr_radar_msgs/msg/PointMap");
-      if (multi_exp_map_msg != nullptr) {
-        auto locked_multi_exp_map_msg = multi_exp_map_msg->sharedLocked();
-        qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
-            locked_multi_exp_map_msg.get().getData());
-      } else {
-        CLOG(WARNING, "radar.localization_map_recall")
-            << "Multi-experience point map not found for vertex " << vid_loc
-            << ", fallback to single experience [point map] stream.";
-        const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-            "point_map", "vtr_radar_msgs/msg/PointMap");
-        auto locked_map_msg = map_msg->sharedLocked();
-        qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
-            locked_map_msg.get().getData());
-      }
-#else
+    const auto specified_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+        config_->map_version, "vtr_radar_msgs/msg/PointMap");
+    if (specified_map_msg == nullptr) {
       CLOG(ERROR, "radar.localization_map_recall")
-          << "Multi-experience point map not supported yet.";
-      throw std::runtime_error("Multi-experience point map not supported yet.");
-#endif
+          << "Could not find map " << config_->map_version << " at vertex "
+          << vid_loc;
+      throw std::runtime_error("Could not find map " + config_->map_version +
+                               " at vertex " + std::to_string(vid_loc));
     }
-    // load a non-default map
-    else {
-      const auto specified_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-          config_->map_version, "vtr_radar_msgs/msg/PointMap");
-      if (specified_map_msg != nullptr) {
-        auto locked_specified_map_msg = specified_map_msg->sharedLocked();
-        qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
-            locked_specified_map_msg.get().getData());
-      } else {
-        CLOG(WARNING, "radar.localization_map_recall")
-            << "Specified point map " << config_->map_version
-            << "not found for vertex " << vid_loc
-            << ", fallback to single experience [point map] stream.";
-        const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-            "point_map", "vtr_radar_msgs/msg/PointMap");
-        auto locked_map_msg = map_msg->sharedLocked();
-        qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
-            locked_map_msg.get().getData());
-      }
-    }
-    qdata.curr_map_loc_changed.emplace(true);
+    auto locked_specified_map_msg = specified_map_msg->sharedLocked();
+    qdata.submap_loc = std::make_shared<PointMap<PointWithInfo>>(
+        locked_specified_map_msg.get().getData());
+    // signal that loc map did change
+    qdata.submap_loc_changed.emplace(true);
   }
 
-#if false
-  /// DEBUGGING: compare with single experience map to double check transformation
-  if (config_->visualize) {
-    auto vertex = graph->at(vid_loc);
-    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
-    auto locked_map_msg = map_msg->sharedLocked();
-    auto point_map_data = locked_map_msg.get().getData();
+  /// update the submap to vertex transformation
+  qdata.T_v_m_loc.emplace(pointmap_ptr.T_v_this_map *
+                          qdata.submap_loc->T_vertex_this());
 
-    const auto T_v_m = point_map_data.T_vertex_this().matrix();
-    auto point_map = point_map_data.point_cloud();  // makes a copy
-    auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto map_normal_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
-
-    Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-    map_point_mat = (R_tot * map_point_mat).colwise() + T_tot;
-
-    PointCloudMsg pc2_msg;
-    pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "loc vertex frame (offset)";
-    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    test_map_pub_->publish(pc2_msg);
-  }
-#endif
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = qdata.curr_map_loc->T_vertex_this().matrix();
-    auto point_map = qdata.curr_map_loc->point_cloud();  // makes a copy
+    const auto T_v_m = qdata.T_v_m_loc->matrix();
+    auto point_map = qdata.submap_loc->point_cloud();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
     Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();

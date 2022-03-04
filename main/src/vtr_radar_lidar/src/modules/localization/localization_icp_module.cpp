@@ -73,7 +73,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     tmp_scan_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_scan_loc", 5);
-    map_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_map_loc_filtered", 5);
+    map_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("filtered_submap_loc", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -82,9 +82,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   // const auto &query_stamp = *radar_qdata.stamp;
   const auto &query_points = *radar_qdata.undistorted_point_cloud;
   const auto &T_s_r = *radar_qdata.T_s_r;
-  const auto &T_v_m = lidar_qdata.curr_map_loc->T_vertex_this();
-  // const auto &map_version = lidar_qdata.curr_map_loc->version();
-  auto &lidar_point_map = lidar_qdata.curr_map_loc->point_cloud();
+  const auto &T_v_m = *lidar_qdata.T_v_m_loc;
+  // const auto &map_version = lidar_qdata.submap_loc->version();
+  auto &lidar_point_map = lidar_qdata.submap_loc->point_cloud();
   /// \note this may be used as a prior
   auto T_r_v = *radar_qdata.T_r_v_loc;
 

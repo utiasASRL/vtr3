@@ -20,14 +20,14 @@
 
 #include "vtr_tactic/types.hpp"
 
-#include "vtr_lidar_msgs/msg/point_map_pointer.hpp"
+#include "vtr_radar_msgs/msg/point_map_pointer.hpp"
 
 namespace vtr {
-namespace lidar {
+namespace radar {
 
 struct PointMapPointer {
   PTR_TYPEDEFS(PointMapPointer);
-  using PointMapPointerMsg = vtr_lidar_msgs::msg::PointMapPointer;
+  using PointMapPointerMsg = vtr_radar_msgs::msg::PointMapPointer;
 
   /// for vtr storage
   /** \brief construct from a storable message */
@@ -41,5 +41,5 @@ struct PointMapPointer {
   tactic::EdgeTransform T_v_this_map = tactic::EdgeTransform(true);
 };
 
-}  // namespace lidar
+}  // namespace radar
 }  // namespace vtr
