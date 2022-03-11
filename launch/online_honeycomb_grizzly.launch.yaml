@@ -17,8 +17,8 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_v2_default.yaml
-        data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')_main
+        base_params:=honeycomb_grizzly_default.yaml
+        data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
 
@@ -30,7 +30,7 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
       - ros2 run rqt_reconfigure rqt_reconfigure
 
   - window_name: vtr_gui
@@ -55,6 +55,6 @@ windows:
   - window_name: grizzly
     layout: main-horizontal
     shell_command_before:
-      - source ${VTRSRC}/robots/ros2/install/setup.bash
+      - source ${VTRSRC}/robots/install/setup.bash
     panes:
       - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py
