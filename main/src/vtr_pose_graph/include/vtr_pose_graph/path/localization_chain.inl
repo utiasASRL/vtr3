@@ -157,6 +157,11 @@ void LocalizationChain<Graph>::initializeBranchToTwigTransform(
   LockGuard lock(this->mutex_);
   // initialize localization
   T_twig_branch_ = T_twig_branch;
+  // set covariance to a large value since we are not localized yet
+  /// \todo there are cases where the cov is correct, identify them and remove
+  /// the following line
+  T_twig_branch_.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
+  //
   is_localized_ = false;
 }
 
