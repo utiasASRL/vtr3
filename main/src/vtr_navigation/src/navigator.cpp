@@ -93,20 +93,24 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
   auto pipeline = pipeline_factory->get("pipeline");
   auto pipeline_output = pipeline->createOutputCache();
-  pipeline_output->node = node;  // some planners require node for visualization
+  pipeline_output->node = node_;  // some planners need node for visualization
   tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), pipeline,
                                      pipeline_output, graph_, graph_map_server_,
-                                     std::make_shared<TaskQueueServer>(node));
+                                     std::make_shared<TaskQueueServer>(node_));
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
+
   /// path planner
-  auto planner_factory = std::make_shared<ROSPathPlannerFactory>(node);
+  auto planner_factory = std::make_shared<ROSPathPlannerFactory>(node_);
   path_planner_ =
       planner_factory->get("path_planning", pipeline_output,
-                           std::make_shared<CommandPublisher>(node));
+                           std::make_shared<CommandPublisher>(node_));
+
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);
+
   /// mission server
   mission_server_ = std::make_shared<ROSMissionServer>();
+
   /// state machine
   state_machine_ = std::make_shared<StateMachine>(
       tactic_, route_planner_, path_planner_, mission_server_);
@@ -114,7 +118,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   /// robot and sensor transformation, subscription
   // clang-format off
-  callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
   // robot frame
@@ -126,9 +130,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   // static transform
-  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
-  auto msg =
-      tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
+  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
+  auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
   msg.header.frame_id = "robot";
   msg.child_frame_id = "lidar";
   tf_sbc_->sendTransform(msg);
