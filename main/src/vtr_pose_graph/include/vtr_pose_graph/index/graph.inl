@@ -66,6 +66,8 @@ auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
   vertices_.insert({vid, vertex});
 
   CLOG(DEBUG, "pose_graph") << "Added vertex " << vid;
+  lock.unlock();
+
   callback_->vertexAdded(vertex);
 
   return vertex;
@@ -112,6 +114,8 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
   edges_.insert({eid, edge});
 
   CLOG(DEBUG, "pose_graph") << "Added edge " << eid;
+  lock.unlock();
+
   callback_->edgeAdded(edge);
 
   return edge;
