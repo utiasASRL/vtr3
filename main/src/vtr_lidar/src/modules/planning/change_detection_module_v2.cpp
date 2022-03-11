@@ -18,6 +18,8 @@
  */
 #include "vtr_lidar/modules/planning/change_detection_module_v2.hpp"
 
+#include "pcl/features/normal_3d.h"
+
 #include "vtr_lidar/data_types/costmap.hpp"
 
 namespace vtr {
@@ -25,14 +27,42 @@ namespace lidar {
 
 namespace {
 
+template <class PointT>
+void computeCentroidAndNormal(const pcl::PointCloud<PointT> &points,
+                              Eigen::Vector3f &centroid,
+                              Eigen::Vector3f &normal, float &roughness) {
+  // 16-bytes aligned placeholder for the XYZ centroid of a surface patch
+  Eigen::Vector4f centroid_homo;
+  // Placeholder for the 3x3 covariance matrix at each surface patch
+  Eigen::Matrix3f cov;
+
+  // Estimate the XYZ centroid
+  pcl::compute3DCentroid(points, centroid_homo);
+
+  // Compute the 3x3 covariance matrix
+  pcl::computeCovarianceMatrix(points, centroid_homo, cov);
+
+  // Compute pca
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> es;
+  es.compute(cov);
+
+  // dump results
+  centroid = centroid_homo.head<3>();
+  normal = es.eigenvectors().col(0);
+  roughness = std::sqrt(es.eigenvalues()(0));  // standard deviation
+}
+
+#if false
 template <typename PointT>
 class DetectChangeOp {
  public:
   DetectChangeOp(const pcl::PointCloud<PointT> &points,
                  const std::vector<float> &distances,
+                 const std::vector<float> &roughnesses,
                  const float &search_radius)
       : points_(points),
         distances_(distances),
+        roughnesses_(roughnesses),
         sq_search_radius_(search_radius * search_radius),
         adapter_(points) {
     /// create kd-tree of the point cloud for radius search
@@ -51,26 +81,41 @@ class DetectChangeOp {
 
     if (num_neighbors < 1) {
 #if false
-      CLOG(WARNING, "lidar.terrain_assessment")
+      CLOG(WARNING, "lidar.change_detection")
           << "looking at point: <" << x << "," << y << ">, roughness: 0"
           << " (no enough neighbors)";
 #endif
-      // \todo 0.0 should not mean no enough neighbors
-      value = 0.0;
+      value = 10.0;  /// \todo arbitrary high value
       return;
     }
     std::vector<float> distances;
+    std::vector<float> roughnesses;
+    std::vector<float> neg_logprobs;
     distances.reserve(num_neighbors);
-    for (size_t i = 0; i < num_neighbors; ++i)
+    roughnesses.reserve(num_neighbors);
+    neg_logprobs.reserve(num_neighbors);
+    for (size_t i = 0; i < num_neighbors; ++i) {
       distances.emplace_back(distances_[inds_dists[i].first]);
+      roughnesses.emplace_back(std::sqrt(roughnesses_[inds_dists[i].first]));
 
-    value = *std::max_element(distances.begin(), distances.end());
+      const auto &dist = distances_[inds_dists[i].first];
+      const auto &rough = roughnesses_[inds_dists[i].first];
+      // std::pow(dist, 2) / rough / 2 + std::log(std::sqrt(rough))
+      neg_logprobs.emplace_back(std::pow(dist, 2) / (rough + 0.01) / 2.0);
+    }
+    // CLOG(DEBUG, "lidar.change_detection")
+    //     << "\n Distance is " << distances << "\n roughness is " <<
+    //     roughnesses;
+    // use the negative log probability as the cost
+    // value = *std::max_element(neg_logprobs.begin(), neg_logprobs.end());
+    value = neg_logprobs[(size_t)std::floor((float)neg_logprobs.size() / 2)];
   }
 
  private:
   /** \brief reference to the point cloud */
   const pcl::PointCloud<PointT> &points_;
   const std::vector<float> &distances_;
+  const std::vector<float> &roughnesses_;
 
   /** \brief squared search radius */
   const float sq_search_radius_;
@@ -79,7 +124,7 @@ class DetectChangeOp {
   NanoFLANNAdapter<PointT> adapter_;
   std::unique_ptr<KDTree<PointT>> kdtree_;
 };
-
+#endif
 }  // namespace
 
 using namespace tactic;
@@ -151,13 +196,13 @@ void ChangeDetectionModuleV2::runAsync_(
   // inputs
   const auto &stamp = *qdata.stamp;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &loc_vid = *qdata.vid_loc;
-  const auto &loc_sid = *qdata.sid_loc;
-  const auto &T_r_lv = *qdata.T_r_v_loc;
+  const auto &vid_loc = *qdata.vid_loc;
+  const auto &sid_loc = *qdata.sid_loc;
+  const auto &T_r_v_loc = *qdata.T_r_v_loc;
   const auto &query_points = *qdata.undistorted_point_cloud;
-  const auto &point_map = *qdata.submap_loc;
-  const auto &point_map_data = point_map.point_cloud();
-  const auto &T_lv_pm = point_map.T_vertex_this();
+  const auto &submap_loc = *qdata.submap_loc;
+  const auto &map_point_cloud = submap_loc.point_cloud();
+  const auto &T_v_m_loc = *qdata.T_v_m_loc;
 
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp;
@@ -172,37 +217,69 @@ void ChangeDetectionModuleV2::runAsync_(
   auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-  const auto T_pm_s = (T_s_r * T_r_lv * T_lv_pm).inverse().matrix();
-  Eigen::Matrix3f C_pm_s = (T_pm_s.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_s_pm_in_pm = (T_pm_s.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
-  aligned_norms_mat = C_pm_s * query_norms_mat;
+  const auto T_m_s = (T_s_r * T_r_v_loc * T_v_m_loc).inverse().matrix();
+  Eigen::Matrix3f C_m_s = (T_m_s.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_s_m_in_m = (T_m_s.block<3, 1>(0, 3)).cast<float>();
+  aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
+  aligned_norms_mat = C_m_s * query_norms_mat;
   // clang-format on
 
   // create kd-tree of the map
-  NanoFLANNAdapter<PointWithInfo> adapter(point_map_data);
+  NanoFLANNAdapter<PointWithInfo> adapter(map_point_cloud);
   KDTreeSearchParams search_params;
   KDTreeParams tree_params(10 /* max leaf */);
   auto kdtree =
       std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
-  // construct kd-tree of the localization map and compute nearest neighbors
   std::vector<long unsigned> nn_inds(aligned_points.size());
   std::vector<float> nn_dists(aligned_points.size());
+  // compute nearest neighbors
   for (size_t i = 0; i < aligned_points.size(); i++) {
     KDTreeResultSet result_set(1);
     result_set.init(&nn_inds[i], &nn_dists[i]);
     kdtree->findNeighbors(result_set, aligned_points[i].data, search_params);
   }
-
   // compute planar distance
+  const auto sq_search_radius = config_->search_radius * config_->search_radius;
+  std::vector<float> roughnesses(aligned_points.size(), 0.0f);
   for (size_t i = 0; i < aligned_points.size(); i++) {
-    auto diff = aligned_points[i].getVector3fMap() -
-                point_map_data[nn_inds[i]].getVector3fMap();
-    // use planar distance
-    nn_dists[i] =
-        abs(diff.dot(point_map_data[nn_inds[i]].getNormalVector3fMap()));
+    // filter based on point to point distance  /// \todo parameters
+    if (nn_dists[i] > 1.0f) {
+      nn_dists[i] = -1;
+      continue;
+    }
+
+    // radius search of the closest point
+    std::vector<std::pair<size_t, float>> inds_dists;
+    kdtree->radiusSearch(map_point_cloud[nn_inds[i]].data, sq_search_radius,
+                         inds_dists, search_params);
+    std::vector<int> indices(inds_dists.size());
+    for (const auto &ind_dist : inds_dists) indices.push_back(ind_dist.first);
+
+    // filter based on neighbors in map /// \todo parameters
+    if (indices.size() < 10) {
+      nn_dists[i] = -1;
+      continue;
+    }
+
+    // compute the planar distance
+    Eigen::Vector3f centroid, normal;
+    // float roughness;
+    computeCentroidAndNormal(
+        pcl::PointCloud<PointWithInfo>(map_point_cloud, indices), centroid,
+        normal, roughnesses[i]);
+
+    const auto diff = aligned_points[i].getVector3fMap() - centroid;
+    nn_dists[i] = std::abs(diff.dot(normal));
+  }
+
+  for (size_t i = 0; i < aligned_points.size(); i++) {
+    aligned_points[i].normal_variance = 1.0f;
+    if (nn_dists[i] < 0)
+      aligned_points[i].normal_variance = 0.0f;
+    else if (nn_dists[i] > roughnesses[i])
+      aligned_points[i].normal_variance = 0.0f;
   }
 
   // clang-format off
@@ -211,51 +288,53 @@ void ChangeDetectionModuleV2::runAsync_(
   auto aligned_mat2 = aligned_points2.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_norms_mat2 = aligned_points2.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-  const auto T_r_pm = (T_pm_s * T_s_r).inverse().matrix();
-  Eigen::Matrix3f C_r_pm = (T_r_pm.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_pm_r_in_r = (T_r_pm.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat2 = (C_r_pm * aligned_mat).colwise() + r_pm_r_in_r;
-  aligned_norms_mat2 = C_r_pm * aligned_norms_mat;
+  const auto T_r_m = (T_m_s * T_s_r).inverse().matrix();
+  Eigen::Matrix3f C_r_m = (T_r_m.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_m_r_in_r = (T_r_m.block<3, 1>(0, 3)).cast<float>();
+  aligned_mat2 = (C_r_m * aligned_mat).colwise() + r_m_r_in_r;
+  aligned_norms_mat2 = C_r_m * aligned_norms_mat;
   // clang-format on
 
+#if false
   // project to 2d and construct the grid map
   const auto costmap = std::make_shared<DenseCostMap>(
       config_->resolution, config_->size_x, config_->size_y);
   // update cost map based on change detection result
-  DetectChangeOp<PointWithInfo> detect_change_op(aligned_points2, nn_dists,
-                                                 config_->search_radius);
+  DetectChangeOp<PointWithInfo> detect_change_op(
+      aligned_points2, nn_dists, nn_roughnesses, config_->search_radius);
   costmap->update(detect_change_op);
   // add transform to the localization vertex
-  costmap->T_vertex_this() = T_r_lv.inverse();
-  costmap->vertex_id() = loc_vid;
-  costmap->vertex_sid() = loc_sid;
+  costmap->T_vertex_this() = T_r_v_loc.inverse();
+  costmap->vertex_id() = vid_loc;
+  costmap->vertex_sid() = sid_loc;
+#endif
 
   /// publish the transformed pointcloud
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
     //
-    const auto T_w_lv = config_->run_online
-                            ? output.chain->pose(*qdata.sid_loc)  // online
-                            : T_lv_pm.inverse();                  // offline
+    const auto T_w_v_loc = config_->run_online
+                               ? output.chain->pose(*qdata.sid_loc)  // online
+                               : T_v_m_loc.inverse();                // offline
 
     if (!config_->run_online) {
-      // publish the old map
-      PointCloudMsg old_map_msg;
-      pcl::toROSMsg(point_map_data, old_map_msg);
-      old_map_msg.header.frame_id = "world (offset)";
-      // old_map_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      map_pub_->publish(old_map_msg);
-
       // publish the aligned points
       PointCloudMsg scan_msg;
       pcl::toROSMsg(aligned_points, scan_msg);
       scan_msg.header.frame_id = "world";
       // scan_msg.header.stamp = rclcpp::Time(*qdata.stamp);
       scan_pub_->publish(scan_msg);
-    }
 
+      // publish the submap for localization
+      PointCloudMsg submap_msg;
+      pcl::toROSMsg(map_point_cloud, submap_msg);
+      submap_msg.header.frame_id = "world (offset)";
+      // submap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      map_pub_->publish(submap_msg);
+    }
+#if false
     // publish the occupancy grid origin
-    Eigen::Affine3d T((T_w_lv * T_r_lv.inverse()).matrix());
+    Eigen::Affine3d T((T_w_v_loc * T_r_v_loc.inverse()).matrix());
     auto tf_msg = tf2::eigenToTransform(T);
     tf_msg.header.frame_id = "world (offset)";
     // tf_msg.header.stamp = rclcpp::Time(*qdata.stamp);
@@ -273,12 +352,15 @@ void ChangeDetectionModuleV2::runAsync_(
     pointcloud_msg.header.frame_id = "change detection";
     // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     pointcloud_pub_->publish(pointcloud_msg);
+#endif
   }
 
   /// output
+#if false
   auto change_detection_costmap_ref = output.change_detection_costmap.locked();
   auto &change_detection_costmap = change_detection_costmap_ref.get();
   change_detection_costmap = costmap;
+#endif
 
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";
