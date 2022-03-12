@@ -19,6 +19,7 @@
 #include "vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp"
 
 #include "vtr_lidar/data_types/pointmap.hpp"
+#include "vtr_lidar/data_types/pointmap_pointer.hpp"
 #include "vtr_pose_graph/path/pose_cache.hpp"
 
 namespace vtr {
@@ -32,7 +33,7 @@ auto IntraExpMergingModuleV2::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   // merge
-  config->depth = node->declare_parameter<int>(param_prefix + ".depth", config->depth);
+  config->depth = node->declare_parameter<double>(param_prefix + ".depth", config->depth);
   // point map
   config->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
   config->crop_range_front = node->declare_parameter<float>(param_prefix + ".crop_range_front", config->crop_range_front);
@@ -81,21 +82,35 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
     }
   }
 
-  // input
+  /// input
   const auto &target_vid = *qdata.intra_exp_merging_async;
+  const auto target_vertex = graph->at(target_vid);
 
   CLOG(INFO, "lidar.intra_exp_merging")
       << "Intra-Experience Merging for vertex: " << target_vid;
 
-  // check if intra-exp merging is done already
+  /// check if we have a map for this vertex
   {
-    auto vertex = graph->at(target_vid);
-    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-        "point_map", "vtr_lidar_msgs/msg/PointMap");
-    auto locked_map_msg_ref = map_msg->locked();  // lock the msg
+    const auto msg = target_vertex->retrieve<PointMapPointer>(
+        "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
+    auto locked_msg = msg->sharedLocked();
+    const auto &pointmap_ptr = locked_msg.get().getData();
+    //
+    if (pointmap_ptr.map_vid != target_vid) {
+      CLOG(INFO, "lidar.intra_exp_merging")
+          << "This vertex does not have an associated submap, skipped.";
+      return;
+    }
+  }
+
+  /// load the map and check if it is already merged
+  {
+    const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
+        "pointmap", "vtr_lidar_msgs/msg/PointMap");
+    auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
     auto &locked_map_msg = locked_map_msg_ref.get();
 
-    // Check if this map has been updated already
+    // check if this map has been updated already
     const auto curr_map_version = locked_map_msg.getData().version();
     if (curr_map_version >= PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
       CLOG(WARNING, "lidar.intra_exp_merging")
@@ -105,50 +120,66 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
     }
   }
 
-  // Perform the map update
+  /// Perform the map update
 
   // start a new map with the same voxel size
   PointMap<PointWithInfo> updated_map(config_->map_voxel_size);
 
-  // Get the subgraph of interest to work on (thread safe)
+  // get the subgraph of interest to work on (thread safe)
   const auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>(*graph);
-  const auto subgraph =
-      config_->depth ? graph->getSubgraph(target_vid, config_->depth, tempeval)
-                     : graph->getSubgraph(std::vector<VertexId>({target_vid}));
+  const auto disteval = std::make_shared<DistanceEvaluator<GraphBase>>(*graph);
+  const auto subgraph = graph->dijkstraTraverseToDepth(
+      target_vid, config_->depth, disteval, tempeval);
 
   // cache all the transforms so we only calculate them once
   pose_graph::PoseCache<GraphBase> pose_cache(subgraph, target_vid);
 
+  size_t num_map_merged = 0;
   auto itr = subgraph->begin(target_vid);
   for (; itr != subgraph->end(); itr++) {
+    //
     const auto vertex = itr->v();
+
+    // check if this vertex has a map
+    {
+      const auto msg = vertex->retrieve<PointMapPointer>(
+          "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
+      auto locked_msg = msg->sharedLocked();
+      const auto &pointmap_ptr = locked_msg.get().getData();
+      if (pointmap_ptr.map_vid != vertex->id()) continue;
+    }
 
     // get target vertex to current vertex transformation
     auto T_target_curr = pose_cache.T_root_query(vertex->id());
     CLOG(DEBUG, "lidar.intra_exp_merging")
         << "T_target_curr is " << T_target_curr.vec().transpose();
 
-    /// Retrieve point map from this vertex
+    // retrieve point map v0 (initial map) from this vertex
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-        "point_map", "vtr_lidar_msgs/msg/PointMap");
+        "pointmap_v0", "vtr_lidar_msgs/msg/PointMap");
 
-    auto point_map = map_msg->sharedLocked().get().getData();  // COPY!
-    const auto &T_v_s = (T_target_curr * point_map.T_vertex_this()).matrix();
-    auto &point_cloud = point_map.point_cloud();
-    // eigen mapping
-    auto scan_mat = point_cloud.getMatrixXfMap(
-        3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto scan_normal_mat = point_cloud.getMatrixXfMap(
-        3, PointWithInfo::size(), PointWithInfo::normal_offset());
+    auto pointmap = map_msg->sharedLocked().get().getData();
+    const auto &T_v_m = (T_target_curr * pointmap.T_vertex_this()).matrix();
+    auto &point_cloud = pointmap.point_cloud();
+
     // transform to the local frame of this vertex
-    Eigen::Matrix3f C_v_s = (T_v_s.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_s_v_in_v = (T_v_s.block<3, 1>(0, 3)).cast<float>();
-    scan_mat = (C_v_s * scan_mat).colwise() + r_s_v_in_v;
-    scan_normal_mat = C_v_s * scan_normal_mat;
+    auto scan_mat = point_cloud.getMatrixXfMap(
+        4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    auto scan_normal_mat = point_cloud.getMatrixXfMap(
+        4, PointWithInfo::size(), PointWithInfo::normal_offset());
+    scan_mat = T_v_m.cast<float>() * scan_mat;
+    scan_normal_mat = T_v_m.cast<float>() * scan_normal_mat;
+
     // store this scan into the updatd map;
     updated_map.update(point_cloud);
-  }
 
+    //
+    ++num_map_merged;
+  }
+  CLOG(DEBUG, "lidar.intra_exp_merging")
+      << "Number of map merged: " << num_map_merged;
+
+  // sanity check
   if (updated_map.size() == 0) {
     std::string err{"The merged map has size 0."};
     CLOG(ERROR, "lidar.intra_exp_merging") << err;
@@ -165,28 +196,24 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   // update version
   updated_map.version() = PointMap<PointWithInfo>::INTRA_EXP_MERGED;
 
-  /// update the point map of this vertex
-  auto vertex = graph->at(target_vid);
-  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-      "point_map", "vtr_lidar_msgs/msg/PointMap");
-  auto locked_map_msg_ref = map_msg->locked();  // lock the msg
-  auto &locked_map_msg = locked_map_msg_ref.get();
+  // update the point map of this vertex
+  {
+    const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
+        "pointmap", "vtr_lidar_msgs/msg/PointMap");
+    auto locked_map_msg_ref = map_msg->locked();  // lock the msg
+    auto &locked_map_msg = locked_map_msg_ref.get();
+    locked_map_msg.setData(updated_map);
+  }
 
-  // store a copy of the original map for visualization
-  auto old_map_copy = locked_map_msg.getData();
-
-  // update the map
-  locked_map_msg.setData(updated_map);
-
-  // Store a copy of the updated map for debugging
+  // store a copy of the updated map for debugging
   {
     using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
     auto updated_map_copy =
         std::make_shared<PointMap<PointWithInfo>>(updated_map);
     auto updated_map_copy_msg = std::make_shared<PointMapLM>(
-        updated_map_copy, locked_map_msg.getTimestamp());
-    vertex->insert<PointMap<PointWithInfo>>(
-        "point_map_v" + std::to_string(updated_map_copy->version()),
+        updated_map_copy, target_vertex->vertexTime());
+    target_vertex->insert<PointMap<PointWithInfo>>(
+        "pointmap_v" + std::to_string(updated_map_copy->version()),
         "vtr_lidar_msgs/msg/PointMap", updated_map_copy_msg);
   }
 
@@ -196,15 +223,20 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
 
     // publish the old map
     {
-      auto point_cloud = old_map_copy.point_cloud();  // COPY!
-      const auto &T_v_m = old_map_copy.T_vertex_this().matrix();
-      // eigen mapping
-      auto points_mat = point_cloud.getMatrixXfMap(
-          3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      // load old map for reference
+      const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
+          "pointmap_v0", "vtr_lidar_msgs/msg/PointMap");
+      auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
+      auto &locked_map_msg = locked_map_msg_ref.get();
+      auto pointmap = locked_map_msg.getData();
+
+      auto point_cloud = pointmap.point_cloud();  // COPY!
+      const auto &T_v_m = pointmap.T_vertex_this().matrix();
+
       // transform to the local frame of this vertex
-      Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
-      Eigen::Vector3f r_m_v_in_v = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-      points_mat = (C_v_m * points_mat).colwise() + r_m_v_in_v;
+      auto points_mat = point_cloud.getMatrixXfMap(
+          4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      points_mat = T_v_m.cast<float>() * points_mat;
 
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(point_cloud, pc2_msg);
@@ -222,6 +254,7 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
       new_map_pub_->publish(pc2_msg);
     }
   }
+
   CLOG(INFO, "lidar.intra_exp_merging")
       << "Intra-Experience Merging for vertex: " << target_vid << " - DONE!";
 }

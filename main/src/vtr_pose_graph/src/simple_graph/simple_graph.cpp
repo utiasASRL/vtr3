@@ -308,11 +308,8 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
 
   // Check valid depth input
   if (max_depth < 0.0) {
-    CLOG(ERROR, "pose_graph") << "max_depth must be greater than zero, or 0.0 "
-                                 "to indicate infinite depth.";
-    throw std::invalid_argument(
-        "max_depth must be greater than zero, or 0.0 to indicate infinite "
-        "depth.");
+    CLOG(ERROR, "pose_graph") << "max_depth must >=0 with 0 meaning no limit";
+    throw std::invalid_argument("max_depth must >=0 with 0 meaning no limit.");
   }
 
   // Distance to each node (also tracks who has been visited)

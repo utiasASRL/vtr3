@@ -39,7 +39,7 @@ class IntraExpMergingModuleV2 : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // merge
-    int depth = 0;
+    double depth = 1.0;
 
     // point map
     float map_voxel_size = 0.2;

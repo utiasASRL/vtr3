@@ -177,9 +177,7 @@ class SimpleGraph {
     return lhs;
   }
 
-  /**
-   * \brief Use dijkstra's algorithm to traverse up to a depth (weighted edges)
-   */
+  /** \brief Use dijkstra's algorithm to traverse up to a depth */
   SimpleGraph dijkstraTraverseToDepth(
       VertexId root_id, double max_depth,
       const eval::weight::Ptr &weights =
@@ -187,7 +185,7 @@ class SimpleGraph {
       const eval::mask::Ptr &mask =
           std::make_shared<eval::mask::ConstEval>(true, true)) const;
 
-  /** \brief Use dijkstra's algorithm to search for an id (weighted edges) */
+  /** \brief Use dijkstra's algorithm to search for an id */
   SimpleGraph dijkstraSearch(
       VertexId root_id, VertexId search_id,
       const eval::weight::Ptr &weights =

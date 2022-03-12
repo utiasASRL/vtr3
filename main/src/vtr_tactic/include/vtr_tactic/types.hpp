@@ -41,12 +41,13 @@ using EdgeId = pose_graph::EdgeId;
 using Edge = pose_graph::RCEdge;
 using EdgeType = pose_graph::EdgeType;
 using EdgeTransform = pose_graph::EdgeTransform;
-
+using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 template <class GraphT>
 using PrivilegedEvaluator = pose_graph::eval::mask::privileged::Eval<GraphT>;
 template <class GraphT>
 using TemporalEvaluator = pose_graph::eval::mask::temporal::Eval<GraphT>;
-using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
+template <class GraphT>
+using DistanceEvaluator = pose_graph::eval::weight::distance::Eval<GraphT>;
 
 /// mission planning
 using PathType = VertexId::Vector;
