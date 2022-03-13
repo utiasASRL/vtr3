@@ -46,7 +46,7 @@ void computeCentroidAndNormal(const pcl::PointCloud<PointT> &points,
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> es;
   es.compute(cov);
 
-  // dump results
+  // save results
   centroid = centroid_homo.head<3>();
   normal = es.eigenvectors().col(0);
   roughness = std::sqrt(es.eigenvalues()(0));  // standard deviation
@@ -144,6 +144,7 @@ auto ChangeDetectionModuleV2::Config::fromROS(
   config->run_online = node->declare_parameter<bool>(param_prefix + ".run_online", config->run_online);
   config->run_async = node->declare_parameter<bool>(param_prefix + ".run_async", config->run_async);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
+  config->save_module_result = node->declare_parameter<bool>(param_prefix + ".save_module_result", config->save_module_result);
   // clang-format on
   return config;
 }
@@ -166,12 +167,27 @@ void ChangeDetectionModuleV2::run_(QueryCache &qdata0, OutputCache &output0,
 }
 
 void ChangeDetectionModuleV2::runAsync_(
-    QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
+    QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &graph,
     const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
-  // visualization setup
+  if (config_->run_online &&
+      output.chain->trunkSequenceId() != *qdata.sid_loc) {
+    CLOG(INFO, "lidar.change_detection")
+        << "Trunk id has changed, skip change detection for this scan";
+    return;
+  }
+
+  /// save module result setup
+  // centroid -> x, y, z
+  // normal -> normal_x, normal_y, normal_z
+  // query -> flex11, flex12, flex13
+  // roughness -> flex14
+  pcl::PointCloud<PointWithInfo> module_result;
+  if (config_->save_module_result) module_result.reserve(5000);
+
+  /// visualization setup
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (!publisher_initialized_) {
@@ -184,13 +200,6 @@ void ChangeDetectionModuleV2::runAsync_(
       // clang-format on
       publisher_initialized_ = true;
     }
-  }
-
-  if (config_->run_online &&
-      output.chain->trunkSequenceId() != *qdata.sid_loc) {
-    CLOG(INFO, "lidar.change_detection")
-        << "Trunk id has changed, skip change detection for this scan";
-    return;
   }
 
   // inputs
@@ -207,22 +216,22 @@ void ChangeDetectionModuleV2::runAsync_(
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp;
 
-  // clang-format off
   // Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto query_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format off
+  const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format on
 
   // retrieve the pre-processed scan and convert it to the localization frame
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
-  auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format off
+  auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format on
 
   const auto T_m_s = (T_s_r * T_r_v_loc * T_v_m_loc).inverse().matrix();
-  Eigen::Matrix3f C_m_s = (T_m_s.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_s_m_in_m = (T_m_s.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
-  aligned_norms_mat = C_m_s * query_norms_mat;
-  // clang-format on
+  aligned_mat = T_m_s.cast<float>() * query_mat;
+  aligned_norms_mat = T_m_s.cast<float>() * query_norms_mat;
 
   // create kd-tree of the map
   NanoFLANNAdapter<PointWithInfo> adapter(map_point_cloud);
@@ -244,6 +253,16 @@ void ChangeDetectionModuleV2::runAsync_(
   const auto sq_search_radius = config_->search_radius * config_->search_radius;
   std::vector<float> roughnesses(aligned_points.size(), 0.0f);
   for (size_t i = 0; i < aligned_points.size(); i++) {
+    // dump result
+    if (config_->save_module_result) {
+      auto &p = module_result.emplace_back();
+      // set query point location info
+      p.flex11 = aligned_points[i].x;
+      p.flex12 = aligned_points[i].y;
+      p.flex13 = aligned_points[i].z;
+      p.flex14 = -1.0;  // invalid
+    }
+
     // filter based on point to point distance  /// \todo parameters
     if (nn_dists[i] > 1.0f) {
       nn_dists[i] = -1;
@@ -272,6 +291,15 @@ void ChangeDetectionModuleV2::runAsync_(
 
     const auto diff = aligned_points[i].getVector3fMap() - centroid;
     nn_dists[i] = std::abs(diff.dot(normal));
+
+    // save module result
+    if (config_->save_module_result) {
+      auto &p = module_result.back();
+      // set query point location info
+      p.getVector3fMap() = centroid;
+      p.getNormalVector3fMap() = normal;
+      p.flex14 = roughnesses[i];
+    }
   }
 
   for (size_t i = 0; i < aligned_points.size(); i++) {
@@ -282,18 +310,16 @@ void ChangeDetectionModuleV2::runAsync_(
       aligned_points[i].normal_variance = 0.0f;
   }
 
-  // clang-format off
   // retrieve the pre-processed scan and convert it to the robot frame
   pcl::PointCloud<PointWithInfo> aligned_points2(aligned_points);
-  auto aligned_mat2 = aligned_points2.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat2 = aligned_points2.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format off
+  auto aligned_mat2 = aligned_points2.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat2 = aligned_points2.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format on
 
   const auto T_r_m = (T_m_s * T_s_r).inverse().matrix();
-  Eigen::Matrix3f C_r_m = (T_r_m.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_m_r_in_r = (T_r_m.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat2 = (C_r_m * aligned_mat).colwise() + r_m_r_in_r;
-  aligned_norms_mat2 = C_r_m * aligned_norms_mat;
-  // clang-format on
+  aligned_mat2 = T_r_m.cast<float>() * aligned_mat;
+  aligned_norms_mat2 = T_r_m.cast<float>() * aligned_norms_mat;
 
 #if false
   // project to 2d and construct the grid map
@@ -308,6 +334,18 @@ void ChangeDetectionModuleV2::runAsync_(
   costmap->vertex_id() = vid_loc;
   costmap->vertex_sid() = sid_loc;
 #endif
+
+  ///
+  if (config_->save_module_result) {
+    // save result
+    CLOG(INFO, "lidar.change_detection") << "Saving change detection result";
+    const auto ros_msg = std::make_shared<PointCloudMsg>();
+    pcl::toROSMsg(module_result, *ros_msg);
+    using PoincCloudMsgLM = storage::LockableMessage<PointCloudMsg>;
+    auto msg = std::make_shared<PoincCloudMsgLM>(ros_msg, *qdata.stamp);
+    graph->write<PointCloudMsg>("change_detection_result",
+                                "sensor_msgs/msg/PointCloud2", msg);
+  }
 
   /// publish the transformed pointcloud
   if (config_->visualize) {

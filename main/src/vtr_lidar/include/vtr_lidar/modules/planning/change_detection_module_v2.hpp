@@ -51,10 +51,11 @@ class ChangeDetectionModuleV2 : public tactic::BaseModule {
     float size_x = 20.0;
     float size_y = 20.0;
 
-    // general
+    //
     bool run_online = false;
     bool run_async = false;
     bool visualize = false;
+    bool save_module_result = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
