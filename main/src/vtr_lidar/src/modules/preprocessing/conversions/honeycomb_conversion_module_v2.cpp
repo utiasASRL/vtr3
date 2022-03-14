@@ -150,8 +150,9 @@ void HoneycombConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   if (config_->visualize) {
     pcl::PointCloud<PointWithInfo> point_cloud_tmp(*point_cloud);
     auto &points = point_cloud_tmp.points;
-    std::for_each(points.begin(), points.end(),
-                  [&](PointWithInfo &point) { point.time -= center_time; });
+    std::for_each(points.begin(), points.end(), [&](PointWithInfo &point) {
+      point.flex21 = static_cast<float>(point.time - center_time);
+    });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
     pc2_msg->header.frame_id = "lidar";

@@ -152,8 +152,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
     (float, flex13, flex13)
     (float, flex14, flex14)
     // time stamp, normal variance, normal score
-    (double, time, time)
-    (float, normal_variance, normal_variance)
-    (float, normal_score, normal_score))
-
+    (float, flex21, flex21)
+    (float, flex22, flex22)
+    (float, flex23, flex23)
+    (float, flex24, flex24))
 // clang-format on

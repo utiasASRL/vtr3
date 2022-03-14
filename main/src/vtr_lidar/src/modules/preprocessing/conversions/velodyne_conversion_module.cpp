@@ -96,7 +96,8 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
     pcl::PointCloud<PointWithInfo> point_cloud_tmp(*point_cloud);
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
                   [&](PointWithInfo &point) {
-                    point.time -= (double(*qdata.stamp / 1000) * 1.0e-6);
+                    point.flex21 = static_cast<float>(
+                        point.time - double(*qdata.stamp / 1000) * 1.0e-6);
                   });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
