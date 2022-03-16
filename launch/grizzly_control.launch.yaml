@@ -14,7 +14,7 @@ windows:
     layout: main-horizontal
     panes:
       - >
-        source ${VTRSRC}/robots/ros2/install/setup.bash
+        source ${VTRSRC}/robots/install/setup.bash
         && ros2 launch utias_grizzly_description wired-grizzly_xbox_js0.launch
       - >
         source /opt/ros/noetic/setup.bash

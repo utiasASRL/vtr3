@@ -33,7 +33,7 @@ windows:
   # - window_name: gps
   #   layout: main-horizontal
   #   shell_command_before:
-  #     - source ${VTRDEPS}/vtr3_drivers/ros2/install/setup.bash
+  #     - source ${VTRDEPS}/vtr3_drivers/install/setup.bash
   #   panes:
   #     # run GPS position driver (from grizzly GPS to laptop, publishing as ros2 message, receiving gps signal from COM1)
   #     - ros2 run nmea_navsat_driver nmea_serial_driver --ros-args -p port:=/dev/ttyUSB0 -p baud:=57600

@@ -48,14 +48,6 @@ EdgeBase::EdgeBase(const VertexId& from_id, const VertexId& to_id,
         "Spatial edges may only be added from higher run numbers to lower "
         "ones");
   }
-  if (from_.majorId() == to_.majorId() && from_.minorId() > to_.minorId()) {
-    CLOG(ERROR, "pose_graph")
-        << "Cannot create edge from " << from_ << " to " << to_
-        << " since the minor id of the from vertex is greater than the to "
-           "vertex when they have the same major id";
-    throw std::invalid_argument(
-        "Temporal edges may only be added from lower id to higher id");
-  }
 }
 
 EdgeId EdgeBase::id() const { return id_; }

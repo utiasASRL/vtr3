@@ -25,7 +25,6 @@
         # "pose_graph",
         # pipeline specific
         # "lidar.pipeline",
-        # "lidar.velodyne_converter",
         # "lidar.honeycomb_converter",
         # "lidar.preprocessing",
         # "lidar.odometry_icp",
@@ -155,7 +154,7 @@
         qc_diagonal: [1.0, 0.1, 0.1, 0.1, 0.1, 1.0]
 
         # ICP parameters
-        num_threads: 6
+        num_threads: 8
         first_num_steps: 2
         initial_max_iter: 4
         initial_max_pairing_dist: 1.5
@@ -195,7 +194,7 @@
 
         depth: 6.0
 
-        map_voxel_size: 0.2
+        map_voxel_size: 0.1
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
 
@@ -246,7 +245,7 @@
         use_pose_prior: true
 
         # ICP parameters
-        num_threads: 6
+        num_threads: 8
         first_num_steps: 2
         initial_max_iter: 4
         initial_max_pairing_dist: 1.5
@@ -281,6 +280,7 @@
         run_online: true
         run_async: true
         visualize: true
+        save_module_result: false
 
       obstacle_detection:
         type: "lidar.obstacle_detection"

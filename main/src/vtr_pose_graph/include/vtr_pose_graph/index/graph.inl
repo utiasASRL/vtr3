@@ -98,15 +98,6 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
         "ones");
   }
 
-  if (from.majorId() == to.majorId() && from.minorId() > to.minorId()) {
-    CLOG(ERROR, "pose_graph")
-        << "Cannot create edge from " << from << " to " << to
-        << " since the minor id of the from vertex is greater than the to "
-           "vertex when they have the same major id";
-    throw std::invalid_argument(
-        "Temporal edges may only be added from lower id to higher id");
-  }
-
   EdgeId eid(from, to);
   graph_.addEdge(eid);
   auto edge = Edge::MakeShared(from, to, type, manual, T_to_from,
