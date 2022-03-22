@@ -1,7 +1,7 @@
 # Visual Teach &amp; Repeat 3 (VT&amp;R3)
 
 ## Update (2022-02-24)
-For code related to "**Should Radar Replace Lidar in All-Weather Mapping and Localization?**" (Keenan Burnett, Yuchen Wu, David J. Yoon, Angela P. Schoellig, Timothy D. Barfoot), please see the `radar_lidar_dev` branch. Code related to lidar teach and repeat is located under `main/src/vtr_lidar` and code related to radar teach and repeat is located under `main/src/vtr_radar`. We are working on merging this code into the `main` branch.
+For code related to [Should Radar Replace Lidar in All-Weather Mapping and Localization](https://arxiv.org/abs/2203.10174) (Keenan Burnett, Yuchen Wu, David J. Yoon, Angela P. Schoellig, Timothy D. Barfoot, 2022), please see the `radar_lidar_dev` branch. Code related to lidar teach and repeat is located under `main/src/vtr_lidar` and code related to radar teach and repeat is located under `main/src/vtr_radar`. We are working on merging this code into the `main` branch.
 
 ## What is VT&amp;R3?
 
@@ -44,14 +44,14 @@ Please cite the [following paper](https://onlinelibrary.wiley.com/doi/full/10.10
     doi={10.1109/IROS.2016.7759303}
   }
   ```
-  
-- **Lidar, Radar Teach and Repeat**
-  ```bibtex
-    @inproceedings{burnett_radar22,
-    author = {Burnett, Keenan and Wu, Yuchen and Yoon, David J., Schoellig, Angela P. and Barfoot, Timothy D.},
-    title = {Should Radar Replace Lidar in All-Weather Mapping and Localization?},
-    year={2022},
-  }
-  ```
+ - [Lidar, Radar Teach and Repeat](https://arxiv.org/abs/2203.10174)
+    ```bibtex
+      @article{burnett_radar22,
+      author = {Burnett, Keenan and Wu, Yuchen and Yoon, David J., Schoellig, Angela P. and Barfoot, Timothy D.},
+      title = {Should Radar Replace Lidar in All-Weather Mapping and Localization?},
+      journal={arXiv preprint arXiv:2203.10174},
+      year={2022}
+    }
+    ```
 
 ## [License](./LICENSE)
