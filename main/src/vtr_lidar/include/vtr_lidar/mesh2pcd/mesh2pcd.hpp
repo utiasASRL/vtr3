@@ -79,13 +79,17 @@ class Mesh2PcdConverter {
  public:
   struct Config {
     // sensor specs
+    // vertical 0 -> M_PI
     double theta_min = 0.0;
     double theta_max = M_PI;
     double theta_res = 0.1;
-
+    // horizontal -M_PI -> M_PI
     double phi_min = -M_PI;
     double phi_max = M_PI;
     double phi_res = 0.1;
+    // range
+    double range_min = 0.0;
+    double range_max = 200.0;
   };
 
   Mesh2PcdConverter(const std::string& filename, const Config& config);
@@ -104,9 +108,9 @@ class Mesh2PcdConverter {
     int x, y;
   };
   friend class std::hash<Key>;
-  Key getKey(const Eigen::Vector2f& p) const {
-    return Key((int)std::round(p[0] / config_.theta_res),
-               (int)std::round(p[1] / config_.phi_res));
+  Key getKey(const float& theta, const float& phi) const {
+    return Key((int)std::round(theta / config_.theta_res),
+               (int)std::round(phi / config_.phi_res));
   }
 
   struct CandidateRays {
