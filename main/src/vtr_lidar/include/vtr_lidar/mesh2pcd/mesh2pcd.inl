@@ -46,7 +46,7 @@ void Mesh2PcdConverter::addToPcd(pcl::PointCloud<PointT>& pcd,
     vertices_polar.emplace_back(utils::cart2pol(v).tail<2>());
 
   // construct frustum grid from existing points (assuming from a lidar scan)
-  std::unordered_map<Key, std::pair<float, size_t>> key2depthidx;
+  std::unordered_map<Key, std::pair<float, std::vector<size_t>>> key2depthidx;
   for (size_t i = 0; i < pcd.size(); ++i) {
     const auto& pt = pcd.at(i);
     const auto pt_polar = utils::cart2pol(pt.getVector3fMap());
@@ -54,15 +54,13 @@ void Mesh2PcdConverter::addToPcd(pcl::PointCloud<PointT>& pcd,
     const auto& theta = pt_polar(1);
     const auto& phi = pt_polar(2);
     const auto key = getKey(theta, phi);
-    auto res = key2depthidx.try_emplace(key, rho, pcd.size());
+    auto res = key2depthidx.try_emplace(key, rho, std::vector<size_t>{i});
     if (!res.second) {
       auto& depthidx = res.first->second;
       auto& depth = depthidx.first;
-      auto& idx = depthidx.second;
-      if (rho < depth) {
-        depth = rho;
-        idx = i;
-      }
+      auto& idxs = depthidx.second;
+      idxs.emplace_back(i);          // need to record all points in this grid
+      if (rho < depth) depth = rho;  // update depth to closest point
     }
   }
 
@@ -95,20 +93,23 @@ void Mesh2PcdConverter::addToPcd(pcl::PointCloud<PointT>& pcd,
 
         // insert into the grid
         Key k{i, j};  // theta, phi
-        auto res = key2depthidx.try_emplace(k, rho, pcd.size());
+        auto res =
+            key2depthidx.try_emplace(k, rho, std::vector<size_t>{pcd.size()});
         if (res.second /* insertion is successful */) {
           PointT pt;
           pt.getVector3fMap() = q;
-          // pt.getNormalVector3fMap() = n;  /// \todo face the sensor
+          pt.getNormalVector3fMap() = n.dot(q) > 0 ? -n : n;
           pcd.push_back(pt);
         } else {
           auto& depthidx = res.first->second;
           auto& depth = depthidx.first;
-          auto& idx = depthidx.second;
+          auto& idxs = depthidx.second;
           if (rho < depth) {
-            auto& pt = pcd.at(idx);
-            pt.getVector3fMap() = q;
-            // pt.getNormalVector3fMap() = n;
+            for (const auto& idx : idxs) {
+              auto& pt = pcd.at(idx);
+              pt.getVector3fMap() = q;
+              pt.getNormalVector3fMap() = n.dot(q) > 0 ? -n : n;
+            }
             depth = rho;
           }
         }
