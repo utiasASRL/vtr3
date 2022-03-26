@@ -70,6 +70,16 @@ ament_target_dependencies(${PROJECT_NAME}_path_planning
   vtr_logging vtr_path_planning vtr_lidar_msgs
 )
 
+# additional tools for experiments
+file(GLOB_RECURSE TOOLS_SRC
+  src/mesh2pcd/*.cpp
+)
+add_library(${PROJECT_NAME}_tools ${TOOLS_SRC})
+ament_target_dependencies(${PROJECT_NAME}_tools
+  Eigen3 pcl_conversions pcl_ros
+  vtr_common vtr_logging
+)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 pcl_conversions pcl_ros
@@ -88,6 +98,7 @@ install(
     ${PROJECT_NAME}_components
     ${PROJECT_NAME}_pipeline
     ${PROJECT_NAME}_path_planning
+    ${PROJECT_NAME}_tools
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
