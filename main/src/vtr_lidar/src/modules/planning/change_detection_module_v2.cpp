@@ -183,7 +183,8 @@ void ChangeDetectionModuleV2::runAsync_(
   // centroid -> x, y, z
   // normal -> normal_x, normal_y, normal_z
   // query -> flex11, flex12, flex13
-  // roughness -> flex14
+  // roughness -> flex21
+  // distance (point to plane) -> flex22
   pcl::PointCloud<PointWithInfo> module_result;
   if (config_->save_module_result) module_result.reserve(5000);
 
@@ -260,7 +261,10 @@ void ChangeDetectionModuleV2::runAsync_(
       p.flex11 = aligned_points[i].x;
       p.flex12 = aligned_points[i].y;
       p.flex13 = aligned_points[i].z;
-      p.flex14 = -1.0;  // invalid
+      p.flex14 = 1.0;
+      //
+      p.flex21 = -1.0;  // invalid roughness
+      p.flex22 = -1.0;  // invalid distance
     }
 
     // filter based on point to point distance  /// \todo parameters
@@ -298,7 +302,8 @@ void ChangeDetectionModuleV2::runAsync_(
       // set query point location info
       p.getVector3fMap() = centroid;
       p.getNormalVector3fMap() = normal;
-      p.flex14 = roughnesses[i];
+      p.flex21 = roughnesses[i];
+      p.flex22 = nn_dists[i];
     }
   }
 
