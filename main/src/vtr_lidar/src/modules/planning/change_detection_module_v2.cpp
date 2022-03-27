@@ -28,6 +28,23 @@ namespace lidar {
 namespace {
 
 template <class PointT>
+void computeHeightStdDev(const pcl::PointCloud<PointT> &points,
+                         float &std_dev) {
+  const auto sum = std::accumulate(
+      points.begin(), points.end(), 0.0,
+      [](const float sum, const PointT &p) { return sum + p.z; });
+  const auto mean = sum / points.size();
+  const auto sq_sum =
+      std::accumulate(points.begin(), points.end(), 0.0,
+                      [mean](const float sq_sum, const PointT &p) {
+                        return sq_sum + (p.z - mean) * (p.z - mean);
+                      });
+  const auto var = sq_sum / points.size();
+  //
+  std_dev = std::sqrt(var);
+}
+
+template <class PointT>
 void computeCentroidAndNormal(const pcl::PointCloud<PointT> &points,
                               Eigen::Vector3f &centroid,
                               Eigen::Vector3f &normal, float &roughness) {
@@ -183,8 +200,10 @@ void ChangeDetectionModuleV2::runAsync_(
   // centroid -> x, y, z
   // normal -> normal_x, normal_y, normal_z
   // query -> flex11, flex12, flex13
-  // roughness -> flex21
-  // distance (point to plane) -> flex22
+  // distance (point to plane) -> flex21
+  // roughness -> flex22
+  // vertical roughness -> flex23
+  // fake point? -> flex24 (1 yes, 0 no)
   pcl::PointCloud<PointWithInfo> module_result;
   if (config_->save_module_result) module_result.reserve(5000);
 
@@ -253,6 +272,7 @@ void ChangeDetectionModuleV2::runAsync_(
   // compute planar distance
   const auto sq_search_radius = config_->search_radius * config_->search_radius;
   std::vector<float> roughnesses(aligned_points.size(), 0.0f);
+  std::vector<float> vertical_roughnesses(aligned_points.size(), 0.0f);
   for (size_t i = 0; i < aligned_points.size(); i++) {
     // dump result
     if (config_->save_module_result) {
@@ -263,8 +283,10 @@ void ChangeDetectionModuleV2::runAsync_(
       p.flex13 = aligned_points[i].z;
       p.flex14 = 1.0;
       //
-      p.flex21 = -1.0;  // invalid roughness
-      p.flex22 = -1.0;  // invalid distance
+      p.flex21 = -1.0;                      // invalid distance
+      p.flex22 = -1.0;                      // invalid roughness
+      p.flex23 = -1.0;                      // invalid vertical roughness
+      p.flex24 = aligned_points[i].flex24;  // fake point copied directly
     }
 
     // filter based on point to point distance  /// \todo parameters
@@ -288,10 +310,12 @@ void ChangeDetectionModuleV2::runAsync_(
 
     // compute the planar distance
     Eigen::Vector3f centroid, normal;
-    // float roughness;
     computeCentroidAndNormal(
         pcl::PointCloud<PointWithInfo>(map_point_cloud, indices), centroid,
         normal, roughnesses[i]);
+    computeHeightStdDev(
+        pcl::PointCloud<PointWithInfo>(map_point_cloud, indices),
+        vertical_roughnesses[i]);
 
     const auto diff = aligned_points[i].getVector3fMap() - centroid;
     nn_dists[i] = std::abs(diff.dot(normal));
@@ -302,8 +326,9 @@ void ChangeDetectionModuleV2::runAsync_(
       // set query point location info
       p.getVector3fMap() = centroid;
       p.getNormalVector3fMap() = normal;
-      p.flex21 = roughnesses[i];
-      p.flex22 = nn_dists[i];
+      p.flex21 = nn_dists[i];
+      p.flex22 = roughnesses[i];
+      p.flex23 = vertical_roughnesses[i];
     }
   }
 

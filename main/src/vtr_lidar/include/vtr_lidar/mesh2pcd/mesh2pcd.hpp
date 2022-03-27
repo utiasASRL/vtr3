@@ -95,9 +95,9 @@ class Mesh2PcdConverter {
   Mesh2PcdConverter(const std::string& filename, const Config& config);
 
   template <class PointT>
-  void addToPcd(
-      pcl::PointCloud<PointT>& pcd,
-      const Eigen::Matrix4f& T_pcd_obj = Eigen::Matrix4f::Identity()) const;
+  void addToPcd(pcl::PointCloud<PointT>& pcd,
+                const Eigen::Matrix4f& T_pcd_obj = Eigen::Matrix4f::Identity(),
+                const bool& clear = false) const;
 
  private:
   struct Key {

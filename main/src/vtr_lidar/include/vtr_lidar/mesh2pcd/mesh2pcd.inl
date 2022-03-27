@@ -26,7 +26,8 @@ namespace mesh2pcd {
 
 template <class PointT>
 void Mesh2PcdConverter::addToPcd(pcl::PointCloud<PointT>& pcd,
-                                 const Eigen::Matrix4f& T_pcd_obj) const {
+                                 const Eigen::Matrix4f& T_pcd_obj,
+                                 const bool& clear) const {
   // object vertices to pcd frame
   std::vector<Eigen::Vector3f> vertices_org;
   vertices_org.reserve(vertices_.size());
@@ -62,6 +63,8 @@ void Mesh2PcdConverter::addToPcd(pcl::PointCloud<PointT>& pcd,
       idxs.emplace_back(i);          // need to record all points in this grid
       if (rho < depth) depth = rho;  // update depth to closest point
     }
+    // distinguish real and fake points
+    if (clear) pcd.at(i).flex24 = 0.0;
   }
 
   // for each face
@@ -99,6 +102,8 @@ void Mesh2PcdConverter::addToPcd(pcl::PointCloud<PointT>& pcd,
           PointT pt;
           pt.getVector3fMap() = q;
           pt.getNormalVector3fMap() = n.dot(q) > 0 ? -n : n;
+          // distinguish real and fake points
+          pt.flex24 = 1.0;
           pcd.push_back(pt);
         } else {
           auto& depthidx = res.first->second;
@@ -109,6 +114,8 @@ void Mesh2PcdConverter::addToPcd(pcl::PointCloud<PointT>& pcd,
               auto& pt = pcd.at(idx);
               pt.getVector3fMap() = q;
               pt.getNormalVector3fMap() = n.dot(q) > 0 ? -n : n;
+              // distinguish real and fake points
+              pt.flex24 = 1.0;
             }
             depth = rho;
           }
