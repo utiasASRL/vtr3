@@ -43,15 +43,20 @@ class ChangeDetectionModule : public tactic::BaseModule {
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
+    // change detection
+    float detection_range = 10.0;
+    float search_radius = 1.0;
+
     // cost map
     float resolution = 1.0;
     float size_x = 20.0;
     float size_y = 20.0;
 
-    // general
+    //
     bool run_online = false;
     bool run_async = false;
     bool visualize = false;
+    bool save_module_result = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -85,6 +90,7 @@ class ChangeDetectionModule : public tactic::BaseModule {
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(ChangeDetectionModule);
 };

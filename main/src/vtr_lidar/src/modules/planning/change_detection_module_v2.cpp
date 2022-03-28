@@ -28,23 +28,6 @@ namespace lidar {
 namespace {
 
 template <class PointT>
-void computeHeightStdDev(const pcl::PointCloud<PointT> &points,
-                         float &std_dev) {
-  const auto sum = std::accumulate(
-      points.begin(), points.end(), 0.0,
-      [](const float sum, const PointT &p) { return sum + p.z; });
-  const auto mean = sum / points.size();
-  const auto sq_sum =
-      std::accumulate(points.begin(), points.end(), 0.0,
-                      [mean](const float sq_sum, const PointT &p) {
-                        return sq_sum + (p.z - mean) * (p.z - mean);
-                      });
-  const auto var = sq_sum / points.size();
-  //
-  std_dev = std::sqrt(var);
-}
-
-template <class PointT>
 void computeCentroidAndNormal(const pcl::PointCloud<PointT> &points,
                               Eigen::Vector3f &centroid,
                               Eigen::Vector3f &normal, float &roughness) {
@@ -203,7 +186,7 @@ void ChangeDetectionModuleV2::runAsync_(
   // query -> flex11, flex12, flex13
   // distance (point to plane) -> flex21
   // roughness -> flex22
-  // vertical roughness -> flex23
+  // number of observations -> flex23
   // fake point? -> flex24 (1 yes, 0 no)
   pcl::PointCloud<PointWithInfo> module_result;
   if (config_->save_module_result) module_result.reserve(5000);
@@ -272,17 +255,16 @@ void ChangeDetectionModuleV2::runAsync_(
   kdtree->buildIndex();
 
   std::vector<long unsigned> nn_inds(aligned_points.size());
-  std::vector<float> nn_dists(aligned_points.size());
-  // compute nearest neighbors
+  std::vector<float> nn_dists(aligned_points.size(), -1.0f);
+  // compute nearest neighbors and point to point distances
   for (size_t i = 0; i < aligned_points.size(); i++) {
     KDTreeResultSet result_set(1);
     result_set.init(&nn_inds[i], &nn_dists[i]);
     kdtree->findNeighbors(result_set, aligned_points[i].data, search_params);
   }
-  // compute planar distance
+  // compute point to plane distance
   const auto sq_search_radius = config_->search_radius * config_->search_radius;
   std::vector<float> roughnesses(aligned_points.size(), 0.0f);
-  std::vector<float> vertical_roughnesses(aligned_points.size(), 0.0f);
   for (size_t i = 0; i < aligned_points.size(); i++) {
     // dump result
     if (config_->save_module_result) {
@@ -295,37 +277,29 @@ void ChangeDetectionModuleV2::runAsync_(
       //
       p.flex21 = -1.0;                      // invalid distance
       p.flex22 = -1.0;                      // invalid roughness
-      p.flex23 = -1.0;                      // invalid vertical roughness
+      p.flex23 = -1.0;                      // invalid number of observations
       p.flex24 = aligned_points[i].flex24;  // fake point copied directly
     }
 
-    // filter based on point to point distance  /// \todo parameters
-    if (nn_dists[i] > 1.0f) {
-      nn_dists[i] = -1;
-      continue;
-    }
+    // // filter based on point to point distance  /// \todo parameters
+    // if (nn_dists[i] > 1.0f) continue;
 
     // radius search of the closest point
     std::vector<std::pair<size_t, float>> inds_dists;
     kdtree->radiusSearch(map_point_cloud[nn_inds[i]].data, sq_search_radius,
                          inds_dists, search_params);
-    std::vector<int> indices(inds_dists.size());
+    std::vector<int> indices;
+    indices.reserve(inds_dists.size());
     for (const auto &ind_dist : inds_dists) indices.push_back(ind_dist.first);
 
     // filter based on neighbors in map /// \todo parameters
-    if (indices.size() < 10) {
-      nn_dists[i] = -1;
-      continue;
-    }
+    if (indices.size() < 10) continue;
 
     // compute the planar distance
     Eigen::Vector3f centroid, normal;
     computeCentroidAndNormal(
         pcl::PointCloud<PointWithInfo>(map_point_cloud, indices), centroid,
         normal, roughnesses[i]);
-    computeHeightStdDev(
-        pcl::PointCloud<PointWithInfo>(map_point_cloud, indices),
-        vertical_roughnesses[i]);
 
     const auto diff = aligned_points[i].getVector3fMap() - centroid;
     nn_dists[i] = std::abs(diff.dot(normal));
@@ -334,19 +308,19 @@ void ChangeDetectionModuleV2::runAsync_(
     if (config_->save_module_result) {
       auto &p = module_result.back();
       // set query point location info
+      // clang-format off
       p.getVector3fMap() = centroid;
       p.getNormalVector3fMap() = normal;
       p.flex21 = nn_dists[i];
       p.flex22 = roughnesses[i];
-      p.flex23 = vertical_roughnesses[i];
+      p.flex23 = static_cast<float>(indices.size());
+      // clang-format on
     }
   }
 
   for (size_t i = 0; i < aligned_points.size(); i++) {
     aligned_points[i].normal_variance = 1.0f;
-    if (nn_dists[i] < 0)
-      aligned_points[i].normal_variance = 0.0f;
-    else if (nn_dists[i] > roughnesses[i])
+    if (nn_dists[i] < 0.0 || nn_dists[i] > roughnesses[i])
       aligned_points[i].normal_variance = 0.0f;
   }
 
@@ -383,7 +357,7 @@ void ChangeDetectionModuleV2::runAsync_(
     pcl::toROSMsg(module_result, *ros_msg);
     using PoincCloudMsgLM = storage::LockableMessage<PointCloudMsg>;
     auto msg = std::make_shared<PoincCloudMsgLM>(ros_msg, *qdata.stamp);
-    graph->write<PointCloudMsg>("change_detection_result",
+    graph->write<PointCloudMsg>("change_detection_v2_result",
                                 "sensor_msgs/msg/PointCloud2", msg);
   }
 
