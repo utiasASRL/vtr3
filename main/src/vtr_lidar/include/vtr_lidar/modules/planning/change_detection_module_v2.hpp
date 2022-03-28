@@ -44,6 +44,7 @@ class ChangeDetectionModuleV2 : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // change detection
+    float detection_range = 10.0;
     float search_radius = 1.0;
 
     // cost map

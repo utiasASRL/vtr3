@@ -152,6 +152,7 @@ auto ChangeDetectionModuleV2::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   // change detection
+  config->detection_range = node->declare_parameter<float>(param_prefix + "detection_range", config->detection_range);
   config->search_radius = node->declare_parameter<float>(param_prefix + ".search_radius", config->search_radius);
   // cost map
   config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
@@ -228,13 +229,22 @@ void ChangeDetectionModuleV2::runAsync_(
   const auto &vid_loc = *qdata.vid_loc;
   const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
-  const auto &query_points = *qdata.undistorted_point_cloud;
+  const auto &points = *qdata.undistorted_point_cloud;
   const auto &submap_loc = *qdata.submap_loc;
   const auto &map_point_cloud = submap_loc.point_cloud();
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
 
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp;
+
+  // filter out points that are too far away
+  std::vector<int> query_indices;
+  for (size_t i = 0; i < points.size(); ++i) {
+    const auto &pt = points.at(i);
+    if (pt.getVector3fMap().norm() < config_->detection_range)
+      query_indices.emplace_back(i);
+  }
+  pcl::PointCloud<PointWithInfo> query_points(points, query_indices);
 
   // Eigen matrix of original data (only shallow copy of ref clouds)
   // clang-format off
