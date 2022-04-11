@@ -23,7 +23,7 @@ namespace lidar {
 
 using namespace tactic;
 using namespace steam;
-using namespace se3;
+using namespace steam::se3;
 
 auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string &param_prefix)
@@ -80,26 +80,22 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   KDTreeSearchParams search_params;
   // clang-format off
   /// Create and add the T_robot_map variable, here m = vertex frame.
-  const auto T_r_v_var = std::make_shared<TransformStateVar>(T_r_v);
+  const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
 
   /// Create evaluators for passing into ICP
-  const auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
-  const auto T_v_m_eval = FixedTransformEvaluator::MakeShared(T_v_m);
-  const auto T_r_v_eval = TransformStateEvaluator::MakeShared(T_r_v_var);
+  const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r); T_s_r_var->locked() = true;
+  const auto T_v_m_var = SE3StateVar::MakeShared(T_v_m); T_v_m_var->locked() = true;
   // compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_eval, compose(T_r_v_eval, T_v_m_eval)));
+  const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
 
   /// use odometry as a prior
-  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
+  WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
   if (config_->use_pose_prior) {
-    auto loss_func = std::make_shared<L2LossFunc>();
-    auto noise_model = std::make_shared<StaticNoiseModel<6>>(T_r_v.cov());
-    auto error_func = std::make_shared<TransformErrorEval>(T_r_v, T_r_v_eval);
-    auto cost = std::make_shared<WeightedLeastSqCostTerm<6, 6>>(error_func, noise_model, loss_func);
-    prior_cost_terms->add(cost);
-
-    CLOG(DEBUG, "lidar.localization_icp")
-        << "Adding prior cost term: " << prior_cost_terms->numCostTerms();
+    auto loss_func = L2LossFunc::MakeShared();
+    auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
+    auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
+    auto error_func = tran2vec(compose(T_r_v_meas, inverse(T_r_v_var)));
+    prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func);
   }
 
   // Initialize aligned points for matching (Deep copy of targets)
@@ -193,37 +189,36 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     /// Point to plane optimization
     timer[3]->start();
+
+    // initialize problem
+    OptimizationProblem problem(config_->num_threads);
+    problem.addStateVariable(T_r_v_var);
+
+    // add prior costs
+    if (config_->use_pose_prior) problem.addCostTerm(prior_cost_term);
+
     // shared loss function
-    auto loss_func = std::make_shared<L2LossFunc>();
+    auto loss_func = L2LossFunc::MakeShared();
     // cost terms and noise model
-    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>(config_->num_threads);
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
       Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
       Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
-      auto noise_model = std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
+      auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
       // query and reference point
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      const auto error_func = std::make_shared<PointToPointErrorEval2>(T_m_s_eval, ref_pt, qry_pt);
+      const auto error_func = p2p::P2PErrorEvaluator::MakeShared(T_m_s_eval, ref_pt, qry_pt);
 
       // create cost term and add to problem
-      auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(error_func, noise_model, loss_func);
+      auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
 #pragma omp critical(lgicp_add_cost_term)
-      cost_terms->add(cost);
+      problem.addCostTerm(cost);
     }
-
-    // initialize problem
-    OptimizationProblem problem;
-    problem.addStateVariable(T_r_v_var);
-    problem.addCostTerm(cost_terms);
-
-    // add prior costs
-    if (config_->use_pose_prior) problem.addCostTerm(prior_cost_terms);
 
     // make solver
     using SolverType = VanillaGaussNewtonSolver;
@@ -308,7 +303,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
          mean_dR < config_->rot_diff_thresh)) {
       CLOG(DEBUG, "lidar.localization_icp") << "Total number of steps: " << step << ".";
       // result
-      T_r_v_icp = EdgeTransform(T_r_v_var->getValue(), solver.queryCovariance(T_r_v_var->getKey()));
+      T_r_v_icp = EdgeTransform(T_r_v_var->value(), solver.queryCovariance(T_r_v_var->key()));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
