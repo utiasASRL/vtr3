@@ -38,7 +38,7 @@ class PoseGraphRelaxation : public PGOFactorInterface<Graph> {
 
   using ModelGen = NoiseModelGenerator<EdgeTransform, 6>;
 
-  using LossFuncPtr = steam::LossFunctionBase::Ptr;
+  using LossFuncPtr = steam::BaseLossFunc::Ptr;
   using NoiseModelPtr = steam::BaseNoiseModel<6>::Ptr;
   using NoiseModel = steam::StaticNoiseModel<6>;
 
