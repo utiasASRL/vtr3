@@ -47,6 +47,14 @@ class ChangeDetectionModuleV2 : public tactic::BaseModule {
     float detection_range = 10.0;
     float search_radius = 1.0;
 
+    float alpha0 = 1.0;
+    float beta0 = 0.1;
+    float negprob_threshold = 1.0;
+
+    float support_radius = 0.25;
+    float support_variance = 0.1;
+    float support_threshold = 0.0;
+
     // cost map
     float resolution = 1.0;
     float size_x = 20.0;

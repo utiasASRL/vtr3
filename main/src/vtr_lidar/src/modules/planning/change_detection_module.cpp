@@ -40,7 +40,7 @@ void computeMeanAndStdDev(const pcl::PointCloud<PointT> &points, float &mean,
                         return sq_sum + (p.z - mean) * (p.z - mean);
                       });
   const auto var = sq_sum / points.size();
-  std_dev = std::sqrt(var);
+  std_dev = var;
 }
 
 #if false
@@ -259,7 +259,8 @@ void ChangeDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
       p.flex11 = aligned_points[i].x;
       p.flex12 = aligned_points[i].y;
       p.flex13 = aligned_points[i].z;
-      p.flex14 = 1.0;
+      //
+      p.flex14 = -1.0;  // invalid normal agreement
       //
       p.flex21 = -1.0;                      // invalid distance
       p.flex22 = -1.0;                      // invalid roughness
@@ -302,9 +303,9 @@ void ChangeDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
   }
 
   for (size_t i = 0; i < aligned_points.size(); i++) {
-    aligned_points[i].normal_variance = 1.0f;
-    if (nn_dists[i] < 0.0 || nn_dists[i] > roughnesses[i])
-      aligned_points[i].normal_variance = 0.0f;
+    aligned_points[i].flex23 = 0.0f;
+    if (nn_dists[i] < 0.0 || (std::pow(nn_dists[i], 2) > roughnesses[i]))
+      aligned_points[i].flex23 = 1.0f;
   }
 
   // retrieve the pre-processed scan and convert it to the robot frame

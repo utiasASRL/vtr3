@@ -49,7 +49,7 @@ void computeCentroidAndNormal(const pcl::PointCloud<PointT> &points,
   // save results
   centroid = centroid_homo.head<3>();
   normal = es.eigenvectors().col(0);
-  roughness = std::sqrt(es.eigenvalues()(0));  // standard deviation
+  roughness = es.eigenvalues()(0);  // variance
 }
 
 #if false
@@ -137,6 +137,14 @@ auto ChangeDetectionModuleV2::Config::fromROS(
   // change detection
   config->detection_range = node->declare_parameter<float>(param_prefix + "detection_range", config->detection_range);
   config->search_radius = node->declare_parameter<float>(param_prefix + ".search_radius", config->search_radius);
+  // prior on roughness
+  config->alpha0 = node->declare_parameter<float>(param_prefix + ".alpha0", config->alpha0);
+  config->beta0 = node->declare_parameter<float>(param_prefix + ".beta0", config->beta0);
+  config->negprob_threshold = node->declare_parameter<float>(param_prefix + ".negprob_threshold", config->negprob_threshold);
+  // support
+  config->support_radius = node->declare_parameter<float>(param_prefix + ".support_radius", config->support_radius);
+  config->support_variance = node->declare_parameter<float>(param_prefix + ".support_variance", config->support_variance);
+  config->support_threshold = node->declare_parameter<float>(param_prefix + ".support_threshold", config->support_threshold);
   // cost map
   config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
   config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
@@ -184,6 +192,7 @@ void ChangeDetectionModuleV2::runAsync_(
   // centroid -> x, y, z
   // normal -> normal_x, normal_y, normal_z
   // query -> flex11, flex12, flex13
+  // normal agreement -> flex14
   // distance (point to plane) -> flex21
   // roughness -> flex22
   // number of observations -> flex23
@@ -256,6 +265,7 @@ void ChangeDetectionModuleV2::runAsync_(
 
   std::vector<long unsigned> nn_inds(aligned_points.size());
   std::vector<float> nn_dists(aligned_points.size(), -1.0f);
+  std::vector<float> nn_norms(aligned_points.size(), -1.0f);
   // compute nearest neighbors and point to point distances
   for (size_t i = 0; i < aligned_points.size(); i++) {
     KDTreeResultSet result_set(1);
@@ -265,6 +275,7 @@ void ChangeDetectionModuleV2::runAsync_(
   // compute point to plane distance
   const auto sq_search_radius = config_->search_radius * config_->search_radius;
   std::vector<float> roughnesses(aligned_points.size(), 0.0f);
+  std::vector<float> num_measurements(aligned_points.size(), 0.0f);
   for (size_t i = 0; i < aligned_points.size(); i++) {
     // dump result
     if (config_->save_module_result) {
@@ -273,7 +284,8 @@ void ChangeDetectionModuleV2::runAsync_(
       p.flex11 = aligned_points[i].x;
       p.flex12 = aligned_points[i].y;
       p.flex13 = aligned_points[i].z;
-      p.flex14 = 1.0;
+      //
+      p.flex14 = -1.0;  // invalid normal agreement
       //
       p.flex21 = -1.0;                      // invalid distance
       p.flex22 = -1.0;                      // invalid roughness
@@ -295,6 +307,9 @@ void ChangeDetectionModuleV2::runAsync_(
     // filter based on neighbors in map /// \todo parameters
     if (indices.size() < 10) continue;
 
+    //
+    num_measurements[i] = static_cast<float>(indices.size());
+
     // compute the planar distance
     Eigen::Vector3f centroid, normal;
     computeCentroidAndNormal(
@@ -304,6 +319,10 @@ void ChangeDetectionModuleV2::runAsync_(
     const auto diff = aligned_points[i].getVector3fMap() - centroid;
     nn_dists[i] = std::abs(diff.dot(normal));
 
+    // normal agreement
+    nn_norms[i] =
+        std::abs(aligned_points[i].getNormalVector3fMap().dot(normal));
+
     // save module result
     if (config_->save_module_result) {
       auto &p = module_result.back();
@@ -311,6 +330,9 @@ void ChangeDetectionModuleV2::runAsync_(
       // clang-format off
       p.getVector3fMap() = centroid;
       p.getNormalVector3fMap() = normal;
+      //
+      p.flex14 = nn_norms[i];
+      //
       p.flex21 = nn_dists[i];
       p.flex22 = roughnesses[i];
       p.flex23 = static_cast<float>(indices.size());
@@ -319,9 +341,54 @@ void ChangeDetectionModuleV2::runAsync_(
   }
 
   for (size_t i = 0; i < aligned_points.size(); i++) {
-    aligned_points[i].normal_variance = 1.0f;
-    if (nn_dists[i] < 0.0 || nn_dists[i] > roughnesses[i])
-      aligned_points[i].normal_variance = 0.0f;
+    aligned_points[i].flex23 = 0.0f;
+    // clang-format off
+    const float alpha_n = config_->alpha0 + num_measurements[i] / 2.0f;
+    const float beta_n = config_->beta0 + roughnesses[i] * num_measurements[i] / 2.0f;
+    const float roughness = beta_n / alpha_n;
+    // clang-format on
+    const float df = 2 * alpha_n;
+    const float sqdists = nn_dists[i] * nn_dists[i] / roughness;
+    const float cost = -std::log(std::pow(1 + sqdists / df, -(df + 1) / 2));
+    if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold))
+    // if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold) || nn_norms[i] < 0.5) 
+      aligned_points[i].flex23 = 1.0f;
+  }
+
+  // add support region
+  {
+    // create kd-tree of the aligned points
+    NanoFLANNAdapter<PointWithInfo> query_adapter(aligned_points);
+    KDTreeSearchParams search_params;
+    KDTreeParams tree_params(10 /* max leaf */);
+    auto query_kdtree =
+        std::make_unique<KDTree<PointWithInfo>>(3, query_adapter, tree_params);
+    query_kdtree->buildIndex();
+    //
+    std::vector<size_t> toremove;
+    toremove.reserve(100);
+    const float sq_support_radius = std::pow(config_->support_radius, 2);
+    for (size_t i = 0; i < aligned_points.size(); i++) {
+      // ignore non-change points
+      if (aligned_points[i].flex23 == 0.0f) continue;
+
+      //
+      std::vector<std::pair<size_t, float>> inds_dists;
+      inds_dists.reserve(10);
+      query_kdtree->radiusSearch(aligned_points[i].data, sq_support_radius,
+                                 inds_dists, search_params);
+      //
+      float support = 0.0f;
+      for (const auto &ind_dist : inds_dists) {
+        if (ind_dist.first == i) continue;
+        support += aligned_points[ind_dist.first].flex23 *
+                   std::exp(-ind_dist.second / config_->support_variance);
+      }
+      //
+      if (support < config_->support_threshold) toremove.push_back(i);
+    }
+    // change back to non-change points
+    for (const auto &i : toremove) aligned_points[i].flex23 = 0.0f;
   }
 
   // retrieve the pre-processed scan and convert it to the robot frame
