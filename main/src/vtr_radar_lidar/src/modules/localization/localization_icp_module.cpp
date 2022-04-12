@@ -172,51 +172,43 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   {
     auto aligned_point_map = point_map;
     // clang-format off
-    auto map_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
-    auto map_normals_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
-    auto aligned_map_mat = aligned_point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
-    auto aligned_map_normals_mat = aligned_point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
-    // clang-format on
+    auto map_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    auto map_normals_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+    auto aligned_map_mat = aligned_point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    auto aligned_map_normals_mat = aligned_point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+
     // convert to sensor frame
-    const auto T_s_m = (T_s_r * T_r_v * T_v_m).matrix();
-    Eigen::Matrix3f C_s_m = (T_s_m.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_m_s_in_s = (T_s_m.block<3, 1>(0, 3)).cast<float>();
-    aligned_map_mat = (C_s_m * map_mat).colwise() + r_m_s_in_s;
-    aligned_map_normals_mat = C_s_m * map_normals_mat;
+    const auto T_s_m = (T_s_r * T_r_v * T_v_m).matrix().cast<float>();
+    aligned_map_mat = T_s_m * map_mat;
+    aligned_map_normals_mat = T_s_m * map_normals_mat;
 
     // project to 2D
     aligned_map_mat.row(2).setZero();
     aligned_map_normals_mat.row(2).setZero();
     // \todo double check correctness of this normal projection
-    Eigen::MatrixXf aligned_map_norms_mat =
-        aligned_map_normals_mat.colwise().norm();
+    Eigen::MatrixXf aligned_map_norms_mat = aligned_map_normals_mat.colwise().norm();
     aligned_map_normals_mat.row(0).array() /= aligned_map_norms_mat.array();
     aligned_map_normals_mat.row(1).array() /= aligned_map_norms_mat.array();
 
     // convert back to point map frame
     const auto T_m_s = T_s_m.inverse();
-    Eigen::Matrix3f C_m_s = (T_m_s.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_s_m_in_m = (T_m_s.block<3, 1>(0, 3)).cast<float>();
-    map_mat = (C_m_s * aligned_map_mat).colwise() + r_s_m_in_m;
-    map_normals_mat = C_m_s * aligned_map_normals_mat;
+    map_mat = T_m_s * aligned_map_mat;
+    map_normals_mat = T_m_s * aligned_map_normals_mat;
+    // clang-format on
   }
 
   if (config_->visualize) {
     // clang-format off
 #if false
     auto query_points_in_v = query_points;
-    auto query_point_mat = query_points_in_v.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
-    Eigen::Matrix4d T_v_s_mat = (T_s_r * T_r_v).inverse().matrix();
-    Eigen::Matrix3f C_v_s = (T_v_s_mat.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_s_v_in_v = (T_v_s_mat.block<3, 1>(0, 3)).cast<float>();
-    query_point_mat = (C_v_s * query_point_mat).colwise() + r_s_v_in_v;
+    auto query_point_mat = query_points_in_v.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
+    Eigen::Matrix4f T_v_s_mat = (T_s_r * T_r_v).inverse().matrix().cast<float>();
+    query_point_mat = T_v_s_mat * query_point_mat;
 #endif
     auto point_map_in_v = point_map;  // makes a copy
-    auto map_point_mat = point_map_in_v.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
-    Eigen::Matrix4d T_v_m_mat = T_v_m.matrix();
-    Eigen::Matrix3f C_v_m = (T_v_m_mat.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_m_v_in_v = (T_v_m_mat.block<3, 1>(0, 3)).cast<float>();
-    map_point_mat = (C_v_m * map_point_mat).colwise() + r_m_v_in_v;
+    auto map_point_mat = point_map_in_v.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+    Eigen::Matrix4f T_v_m_mat = T_v_m.matrix().cast<float>();
+    map_point_mat = T_v_m_mat * map_point_mat;
 
     int check = 0;
 #if false
@@ -276,19 +268,17 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   pcl::PointCloud<radar::PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(3, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
-  const auto query_mat = query_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
-  auto aligned_mat = aligned_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
+  const auto map_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+  const auto query_mat = query_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
+  auto aligned_mat = aligned_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
 
-  /// Perform initial alignment (no motion distortion for the first iteration)
-  const auto T_m_s_init = T_m_s_eval->evaluate().matrix();
-  Eigen::Matrix3f C_m_s_init = (T_m_s_init.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_s_m_in_m_init = (T_m_s_init.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_m_s_init * query_mat).colwise() + r_s_m_in_m_init;
-  aligned_norms_mat = C_m_s_init * query_norms_mat;
+  /// Perform initial alignment
+  const auto T_m_s_init = T_m_s_eval->evaluate().matrix().cast<float>();
+  aligned_mat = T_m_s_init * query_mat;
+  aligned_norms_mat = T_m_s_init * query_norms_mat;
 
   // ICP results
   EdgeTransform T_r_v_icp;
@@ -297,7 +287,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   // Convergence variables
   float mean_dT = 0;
   float mean_dR = 0;
-  Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
+  Eigen::MatrixXf all_tfs = Eigen::MatrixXf::Zero(4, 4);
   bool refinement_stage = false;
   int refinement_step = 0;
 
@@ -394,8 +384,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
       // query and reference point
-      const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-      const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+      const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+      const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
       const auto error_func = p2p::P2PErrorEvaluator::MakeShared(T_m_s_eval, ref_pt, qry_pt);
 
@@ -424,20 +414,18 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     /// Alignment
     timer[4]->start();
-    const auto T_m_s = T_m_s_eval->evaluate().matrix();
-    Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
-    aligned_norms_mat = C_m_s * query_norms_mat;
+    const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
+    aligned_mat = T_m_s * query_mat;
+    aligned_norms_mat = T_m_s * query_norms_mat;
 
     // update all result matrices
     // const auto T_m_s = T_m_s_eval->evaluate().matrix(); // defined above
     if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_m_s);
+      all_tfs = Eigen::MatrixXf(T_m_s);
     else {
-      Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
+      Eigen::MatrixXf temp(all_tfs.rows() + 4, 4);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(4) = Eigen::MatrixXd(T_m_s);
+      temp.bottomRows(4) = Eigen::MatrixXf(T_m_s);
       all_tfs = temp;
     }
     timer[4]->stop();
@@ -449,9 +437,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
 
       // Get last transformation variations
-      Eigen::Matrix4d T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
-      Eigen::Matrix4d T1 = all_tfs.block<4, 4>(all_tfs.rows() - 8, 0);
-      Eigen::Matrix4d diffT = T2 * T1.inverse();
+      Eigen::Matrix4f T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
+      Eigen::Matrix4f T1 = all_tfs.block<4, 4>(all_tfs.rows() - 8, 0);
+      Eigen::Matrix4d diffT = (T2 * T1.inverse()).cast<double>();
       Eigen::Matrix<double, 6, 1> diffT_vec = lgmath::se3::tran2vec(diffT);
       float dT_b = diffT_vec.block<3, 1>(0, 0).norm();
       float dR_b = diffT_vec.block<3, 1>(3, 0).norm();

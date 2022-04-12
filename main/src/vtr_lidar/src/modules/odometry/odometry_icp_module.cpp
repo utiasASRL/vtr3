@@ -170,12 +170,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
-  const auto query_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
-  auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  const auto map_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+  const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+  auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// Perform initial alignment
   if (config_->trajectory_smoothing) {
@@ -184,18 +184,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto &qry_time = query_points[i].time;
       const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
       const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-      const auto T_m_s = T_m_s_intp_eval->evaluate().matrix();
-      Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
-      Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
-      aligned_mat.block<3, 1>(0, i) = C_m_s * query_mat.block<3, 1>(0, i) + r_s_m_in_m;
-      aligned_norms_mat.block<3, 1>(0, i) = C_m_s * query_norms_mat.block<3, 1>(0, i);
+      const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
+      aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
+      aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
     }
   } else {
-    const auto T_m_s = T_m_s_eval->evaluate().matrix();
-    Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
-    aligned_norms_mat = C_m_s * query_norms_mat;
+    const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
+    aligned_mat = T_m_s * query_mat;
+    aligned_norms_mat = T_m_s * query_norms_mat;
   }
 
   // ICP results
@@ -303,8 +299,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
       // query and reference point
-      const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-      const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+      const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+      const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
       auto error_func = [&] {
         if (config_->trajectory_smoothing) {
@@ -348,18 +344,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto &qry_time = query_points[i].time;
         const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
         const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-        const auto T_m_s = T_m_s_intp_eval->evaluate().matrix();
-        Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
-        Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
-        aligned_mat.block<3, 1>(0, i) = C_m_s * query_mat.block<3, 1>(0, i) + r_s_m_in_m;
-        aligned_norms_mat.block<3, 1>(0, i) = C_m_s * query_norms_mat.block<3, 1>(0, i);
+        const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
+        aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
+        aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
       }
     } else {
-      const auto T_m_s = T_m_s_eval->evaluate().matrix();
-      Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0).cast<float>();
-      Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3).cast<float>();
-      aligned_mat = (C_m_s * query_mat).colwise() + r_s_m_in_m;
-      aligned_norms_mat = C_m_s * query_norms_mat;
+      const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
+      aligned_mat = T_m_s * query_mat;
+      aligned_norms_mat = T_m_s * query_norms_mat;
     }
 
     // Update all result matrices
@@ -445,30 +437,26 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// Outputs
   if (matched_points_ratio > config_->min_matched_ratio) {
     // undistort the preprocessed pointcloud
-    const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse();
-    Eigen::Matrix3f C_s_m = T_s_m.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_m_s_in_s = T_s_m.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_s_m * aligned_mat).colwise() + r_m_s_in_s;
-    aligned_norms_mat = C_s_m * aligned_norms_mat;
+    const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
+    aligned_mat = T_s_m * aligned_mat;
+    aligned_norms_mat = T_s_m * aligned_norms_mat;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
     qdata.undistorted_point_cloud = undistorted_point_cloud;
 #if false
-    // store potentially undistorted raw point cloud
+    // store undistorted raw point cloud
     auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
     if (config_->trajectory_smoothing) {
       auto &raw_points = *undistorted_raw_point_cloud;
-      auto points_mat = raw_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      auto points_mat = raw_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < raw_points.size(); i++) {
         const auto &qry_time = raw_points[i].time;
         const auto T_rintp_m_eval = trajectory->getPoseInterpolator(Time(qry_time));
         const auto T_s_sintp_eval = inverse(compose(T_s_r_eval, compose(T_rintp_m_eval, T_m_s_eval)));
-        const auto T_s_sintp = T_s_sintp_eval->evaluate().matrix();
-        Eigen::Matrix3f C_s_sintp = T_s_sintp.block<3, 3>(0, 0).cast<float>();
-        Eigen::Vector3f r_sintp_s_in_s = T_s_sintp.block<3, 1>(0, 3).cast<float>();
-        points_mat.block<3, 1>(0, i) = C_s_sintp * points_mat.block<3, 1>(0, i) + r_sintp_s_in_s;
+        const auto T_s_sintp = T_s_sintp_eval->evaluate().matrix().cast<float>();
+        points_mat.block<4, 1>(0, i) = T_s_sintp * points_mat.block<4, 1>(0, i);
       }
     }
     cart2pol(*undistorted_raw_point_cloud);
