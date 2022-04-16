@@ -21,11 +21,12 @@
 #include <memory>
 #include <unordered_set>
 
+#include "pcl/features/normal_3d.h"
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
 #include "vtr_lidar/data_types/point.hpp"
-#include "vtr_lidar/utils/utils.hpp"
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
 #include "vtr_logging/logging.hpp"
 #include "vtr_tactic/types.hpp"
 
@@ -211,6 +212,48 @@ class PointMap : public PointScan<PointT> {
         initSample(k, p);
       else
         updateSample(samples_[k], p);
+    }
+  }
+
+  virtual void updateNormal(const PointCloudType& point_cloud) {
+    //
+    NanoFLANNAdapter<PointT> adapter(this->point_cloud_);
+    KDTreeSearchParams search_params;
+    KDTreeParams tree_params(10 /* max leaf */);
+    auto kdtree = std::make_unique<KDTree<PointT>>(3, adapter, tree_params);
+    kdtree->buildIndex();
+    const auto search_radius = dl_ * 3.0;
+    const auto sq_radius = search_radius * search_radius;
+    for (auto& p : point_cloud) {
+      std::vector<float> dists;
+      std::vector<int> indices;
+      NanoFLANNRadiusResultSet<float, int> result(sq_radius, dists, indices);
+      kdtree->radiusSearchCustomCallback(p.data, result, search_params);
+
+      if (indices.size() < 4) continue;
+
+      // get points for computation
+      const pcl::PointCloud<PointT> points(this->point_cloud_, indices);
+
+      // Placeholder for the 3x3 covariance matrix at each surface patch
+      Eigen::Matrix3f covariance_matrix;
+      // 16-bytes aligned placeholder for the XYZ centroid of a surface patch
+      Eigen::Vector4f xyz_centroid;
+      // Estimate the XYZ centroid
+      pcl::compute3DCentroid(points, xyz_centroid);
+      // Compute the 3x3 covariance matrix
+      pcl::computeCovarianceMatrix(points, xyz_centroid, covariance_matrix);
+      // Compute pca
+      Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> es;
+      es.compute(covariance_matrix);
+
+      // normal direction
+      auto& q = this->point_cloud_[samples_.at(getKey(p))];
+      q.getNormalVector3fMap() = Eigen::Vector3f(es.eigenvectors().col(0));
+
+      // normal score
+      q.normal_score =
+          (es.eigenvalues()(1) - es.eigenvalues()(0)) / es.eigenvalues()(2);
     }
   }
 

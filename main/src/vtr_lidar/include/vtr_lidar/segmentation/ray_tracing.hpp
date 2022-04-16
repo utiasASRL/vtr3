@@ -42,6 +42,15 @@ inline PixKey operator-(const PixKey A, const PixKey B) {
   return PixKey(A.x - B.x, A.y - B.y);
 }
 
+template <class PointT>
+void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
+  for (auto& p : point_cloud) {
+    p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = std::atan2(p.y, p.x);
+  }
+}
+
 }  // namespace ray_tracing
 }  // namespace lidar
 }  // namespace vtr
@@ -113,7 +122,7 @@ void detectDynamicObjects(
   Eigen::Vector3f T_tot = (T_ref_qry_mat.block<3, 1>(0, 3)).cast<float>();
   points_mat = (R_tot * points_mat).colwise() + T_tot;
   normal_mat = R_tot * normal_mat;
-  cart2pol(query_tmp);
+  ray_tracing::cart2pol(query_tmp);
 
   //
   for (size_t i = 0; i < query.size(); i++) {

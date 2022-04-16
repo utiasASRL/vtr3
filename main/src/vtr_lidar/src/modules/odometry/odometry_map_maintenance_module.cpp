@@ -73,13 +73,11 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   // Transform points into the map frame
   auto T_m_s = (T_s_r * T_r_m_odo).inverse().matrix().cast<float>();
   // clang-format off
-  auto points_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto normal_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  auto points_mat = points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto normal_mat = points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   // clang-format on
-  Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0);
-  Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3);
-  points_mat = (C_m_s * points_mat).colwise() + r_s_m_in_m;
-  normal_mat = C_m_s * normal_mat;
+  points_mat = T_m_s * points_mat;
+  normal_mat = T_m_s * normal_mat;
 
   /// Update the point map with the set of new points
 
@@ -93,6 +91,9 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   // The update function is called only on subsampled points
   sliding_map_odo.update(points);
 
+  // update normal vector
+  sliding_map_odo.updateNormal(points);
+
   // crop box filter
   sliding_map_odo.crop(T_r_m_odo.matrix().cast<float>(),
                        config_->crop_range_front,
@@ -105,13 +106,10 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = sliding_map_odo.T_vertex_this().matrix();
+    const auto T_v_m = sliding_map_odo.T_vertex_this().matrix().cast<float>();
     auto point_map = sliding_map_odo.point_cloud();  // makes a copy
-    auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-
-    Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_m_v_in_v = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-    map_point_mat = (C_v_m * map_point_mat).colwise() + r_m_v_in_v;
+    auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    map_point_mat = T_v_m * map_point_mat;
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);

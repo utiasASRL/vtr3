@@ -59,6 +59,51 @@ struct NanoFLANNAdapter {
   }
 };
 
+template <typename _DistanceType = float, typename _IndexType = size_t>
+class NanoFLANNRadiusResultSet {
+ public:
+  using DistanceType = _DistanceType;
+  using IndexType = _IndexType;
+
+ public:
+  const DistanceType radius;
+
+  std::vector<DistanceType>& m_dists;
+  std::vector<IndexType>& m_indices;
+
+  inline NanoFLANNRadiusResultSet(DistanceType radius_,
+                                  std::vector<DistanceType>& dists,
+                                  std::vector<IndexType>& indices)
+      : radius(radius_), m_dists(dists), m_indices(indices) {
+    init();
+  }
+
+  inline void init() { clear(); }
+  inline void clear() {
+    m_dists.clear();
+    m_indices.clear();
+  }
+
+  inline size_t size() const { return m_indices.size(); }
+
+  inline bool full() const { return true; }
+
+  /**
+   * Called during search to add an element matching the criteria.
+   * \return true if the search should be continued, false if the results are
+   * sufficient
+   */
+  inline bool addPoint(DistanceType dist, IndexType index) {
+    if (dist < radius) {
+      m_dists.push_back(dist);
+      m_indices.push_back(index);
+    }
+    return true;
+  }
+
+  inline DistanceType worstDist() const { return radius; }
+};
+
 // KDTree type definition
 using KDTreeParams = nanoflann::KDTreeSingleIndexAdaptorParams;
 using KDTreeSearchParams = nanoflann::SearchParams;
@@ -71,21 +116,6 @@ template <class PointT>
 using DynamicKDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
     nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,
     NanoFLANNAdapter<PointT>>;
-
-}  // namespace lidar
-}  // namespace vtr
-
-namespace vtr {
-namespace lidar {
-
-template <class PointT>
-void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
-  for (auto& p : point_cloud) {
-    p.rho = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-    p.theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
-    p.phi = atan2(p.y, p.x) + M_PI / 2;
-  }
-}
 
 }  // namespace lidar
 }  // namespace vtr

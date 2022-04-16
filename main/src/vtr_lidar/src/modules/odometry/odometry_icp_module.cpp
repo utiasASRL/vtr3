@@ -21,6 +21,19 @@
 namespace vtr {
 namespace lidar {
 
+namespace {
+
+template <class PointT>
+void cart2pol(pcl::PointCloud<PointT> &point_cloud) {
+  for (auto &p : point_cloud) {
+    p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = std::atan2(p.y, p.x);
+  }
+}
+
+}  // namespace
+
 using namespace tactic;
 using namespace steam;
 using namespace steam::se3;
@@ -262,7 +275,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         // Check planar distance (only after a few steps for initial alignment)
         auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
                     point_map[sample_inds[i].second].getVector3fMap();
-        float planar_dist = abs(
+        float planar_dist = std::abs(
             diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
         if (step < first_steps || planar_dist < max_planar_d) {
           filtered_sample_inds.push_back(sample_inds[i]);
@@ -294,6 +307,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
+      if (point_map[ind.second].normal_score <= 0.0) continue;
       Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
       Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
       auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);

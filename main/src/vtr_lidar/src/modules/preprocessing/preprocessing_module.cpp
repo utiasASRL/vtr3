@@ -22,7 +22,7 @@
 
 #include "vtr_lidar/features/normal.hpp"
 #include "vtr_lidar/filters/voxel_downsample.hpp"
-#include "vtr_lidar/utils/utils.hpp"
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
 namespace lidar {

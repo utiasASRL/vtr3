@@ -20,8 +20,6 @@
 
 #include "pcl/point_cloud.h"
 
-#include "vtr_lidar/utils/utils.hpp"
-
 namespace vtr {
 namespace lidar {
 
