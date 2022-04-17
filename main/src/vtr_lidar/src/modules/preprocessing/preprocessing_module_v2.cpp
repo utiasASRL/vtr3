@@ -27,20 +27,6 @@
 namespace vtr {
 namespace lidar {
 
-namespace {
-
-template <class PointT>
-void scalePolar(const pcl::PointCloud<PointT> &points, const float &theta_scale,
-                const float &phi_scale,
-                pcl::PointCloud<pcl::PointXYZ> &output) {
-  output.clear();
-  output.reserve(points.size());
-  for (const auto &point : points)
-    output.emplace_back(point.theta * theta_scale, point.phi * phi_scale, 0.0);
-}
-
-}  // namespace
-
 using namespace tactic;
 
 auto PreprocessingModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
@@ -53,12 +39,7 @@ auto PreprocessingModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->crop_range = node->declare_parameter<float>(param_prefix + ".crop_range", config->crop_range);
 
   config->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config->frame_voxel_size);
-#if false
-  config->theta_scale = node->declare_parameter<float>(param_prefix + ".theta_scale", config->theta_scale);
-  config->phi_scale = node->declare_parameter<float>(param_prefix + ".phi_scale", config->phi_scale);
-  config->nn_radius = node->declare_parameter<float>(param_prefix + ".nn_radius", config->nn_radius);
-  config->dist_threshold = node->declare_parameter<float>(param_prefix + ".dist_threshold", config->dist_threshold);
-#endif
+
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -114,64 +95,6 @@ void PreprocessingModuleV2::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "grid subsampled point cloud size: " << filtered_point_cloud->size();
-
-#if false
-  /// Find point on surface
-  {
-    const auto &phi_scale = config_->phi_scale;
-    const auto &theta_scale = config_->theta_scale;
-    // query -> filtered
-    pcl::PointCloud<pcl::PointXYZ> query;
-    query.reserve(filtered_point_cloud->size());
-    for (const auto &p : *filtered_point_cloud)
-      query.emplace_back(p.theta * theta_scale, p.phi * phi_scale, 0.0);
-    // reference -> raw
-    pcl::PointCloud<pcl::PointXYZ> reference;
-    reference.reserve(point_cloud->size());
-    for (const auto &p : *point_cloud)
-      reference.emplace_back(p.theta * theta_scale, p.phi * phi_scale, 0.0);
-
-    // create kd-tree of the map (2d only)
-    NanoFLANNAdapter<pcl::PointXYZ> adapter(reference);
-    KDTreeSearchParams search_params;
-    KDTreeParams tree_params(10 /* max leaf */);
-    auto kdtree =
-        std::make_unique<KDTree<pcl::PointXYZ>>(2, adapter, tree_params);
-    kdtree->buildIndex();
-
-    std::vector<int> indices;
-    indices.reserve(filtered_point_cloud->size());
-    //
-    const auto sq_radius = config_->nn_radius * config_->nn_radius;
-    const auto dist_threshold = config_->dist_threshold;
-    for (size_t i = 0; i < query.size(); i++) {
-      const auto cart = (*filtered_point_cloud)[i].getVector3fMap();
-      //
-      std::vector<std::pair<size_t, float>> inds_dists;
-      kdtree->radiusSearch(query[i].data, sq_radius, inds_dists, search_params);
-      //
-      const auto num_neighbors = inds_dists.size() - 1;  // exclude itself
-      if (num_neighbors < 2) continue;
-      //
-      float sum_dist = 0.0;
-      for (const auto &ind_dist : inds_dists) {
-        const auto &ind = ind_dist.first;
-        sum_dist += (cart - (*point_cloud)[ind].getVector3fMap()).norm();
-      }
-      //
-      if ((sum_dist / num_neighbors) > dist_threshold) continue;
-      //
-      indices.emplace_back(i);
-    }
-    //
-    // *filtered_point_cloud =
-    //     pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
-    for (const auto &ind : indices) filtered_point_cloud->at(ind).flex24 = 10.0;
-  }
-
-  CLOG(DEBUG, "lidar.preprocessing")
-      << "surface filtered point cloud size: " << filtered_point_cloud->size();
-#endif
 
   /// Delay normal computation until adding the point cloud to the map
   for (auto &p : *filtered_point_cloud) p.normal_score = -1.0;
