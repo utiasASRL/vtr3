@@ -34,8 +34,6 @@ auto OdometryMapMaintenanceModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
-  config->crop_range_front = node->declare_parameter<float>(param_prefix + ".crop_range_front", config->crop_range_front);
-  config->back_over_front_ratio = node->declare_parameter<float>(param_prefix + ".back_over_front_ratio", config->back_over_front_ratio);
 
   config->point_life_time = node->declare_parameter<float>(param_prefix + ".point_life_time", config->point_life_time);
 

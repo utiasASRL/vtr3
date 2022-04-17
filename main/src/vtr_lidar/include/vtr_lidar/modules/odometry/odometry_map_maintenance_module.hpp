@@ -40,8 +40,6 @@ class OdometryMapMaintenanceModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     float map_voxel_size = 0.2;
-    float crop_range_front = 50.0;
-    float back_over_front_ratio = 0.5;
 
     float point_life_time = -1.0;  // negative means infinite life time
 
