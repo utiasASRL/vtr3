@@ -18,6 +18,7 @@
  */
 #include <gmock/gmock.h>
 
+#include "vtr_lidar/data_types/point.hpp"
 #include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_logging/logging_init.hpp"
 

@@ -19,6 +19,7 @@
 #include "vtr_lidar/modules/planning/change_detection_module.hpp"
 
 #include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
 namespace lidar {

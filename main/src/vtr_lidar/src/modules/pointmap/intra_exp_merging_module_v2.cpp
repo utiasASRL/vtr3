@@ -187,8 +187,17 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   }
 
   // crop box filter
-  updated_map.crop(Eigen::Matrix4f::Identity(), config_->crop_range_front,
-                   config_->back_over_front_ratio);
+  /// \todo double check correctness
+  auto crop_filter_cb =
+      [&range = config_->crop_range_front,
+       &ratio = config_->back_over_front_ratio](PointWithInfo &query_pt) {
+        const float rho = query_pt.getVector3fMap().norm();
+        const float phi = std::atan2(query_pt.y, query_pt.x);
+        /// \note assuming x is front, y is left, z is up
+        float ratio_w_phi = ratio + (1 - std::abs(phi) / M_PI) * (1 - ratio);
+        return bool(rho <= range * ratio_w_phi);
+      };
+  updated_map.filter(crop_filter_cb);
 
   // update transform
   updated_map.T_vertex_this() = tactic::EdgeTransform(true);

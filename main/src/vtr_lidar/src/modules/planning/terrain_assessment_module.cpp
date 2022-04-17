@@ -20,6 +20,8 @@
 
 #include "pcl/features/normal_3d.h"
 
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
+
 namespace vtr {
 namespace lidar {
 

@@ -18,6 +18,8 @@
  */
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
 
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
+
 namespace vtr {
 namespace lidar {
 

@@ -18,7 +18,10 @@
  */
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module.hpp"
 
+#include "pcl/features/normal_3d.h"
 #include "pcl_conversions/pcl_conversions.h"
+
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -79,25 +82,62 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   points_mat = T_m_s * points_mat;
   normal_mat = T_m_s * normal_mat;
 
-  /// Update the point map with the set of new points
-
-  // set life time of the points in this map
-  if (config_->point_life_time >= 0.0) {
-    // reduce life time of points in the map, remove those that have expired
-    sliding_map_odo.subtractLifeTime();
-    for (auto &point : points) point.life_time = config_->point_life_time;
-  }
-
-  // The update function is called only on subsampled points
-  sliding_map_odo.update(points);
+  // update the map with new points and refresh their life time
+  auto update_cb = [&config = config_](bool, PointWithInfo &curr_pt,
+                                       const PointWithInfo &) {
+    curr_pt.life_time = config->point_life_time;
+  };
+  sliding_map_odo.update(points, update_cb);
 
   // update normal vector
-  sliding_map_odo.updateNormal(points);
+  NanoFLANNAdapter<PointWithInfo> adapter(sliding_map_odo.point_cloud());
+  KDTreeSearchParams search_param;
+  KDTreeParams tree_param(/* max_leaf */ 10);
+  auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_param);
+  kdtree->buildIndex();
+  const auto search_radius = sliding_map_odo.dl() * 3.0;
+  const auto sq_radius = search_radius * search_radius;
+  auto update_normal_cb = [&point_cloud = sliding_map_odo.point_cloud(),
+                           &kdtree, &sq_radius,
+                           &search_param](bool, PointWithInfo &curr_pt,
+                                          const PointWithInfo &) {
+    std::vector<float> dists;
+    std::vector<int> indices;
+    NanoFLANNRadiusResultSet<float, int> result(sq_radius, dists, indices);
+    kdtree->radiusSearchCustomCallback(curr_pt.data, result, search_param);
 
-  // crop box filter
-  sliding_map_odo.crop(T_r_m_odo.matrix().cast<float>(),
-                       config_->crop_range_front,
-                       config_->back_over_front_ratio);
+    if (indices.size() < 4) return;
+
+    // get points for computation
+    const pcl::PointCloud<PointWithInfo> neigobors(point_cloud, indices);
+
+    // Placeholder for the 3x3 covariance matrix at each surface patch
+    Eigen::Matrix3f covariance_matrix;
+    // 16-bytes aligned placeholder for the XYZ centroid of a surface patch
+    Eigen::Vector4f xyz_centroid;
+    // Estimate the XYZ centroid
+    pcl::compute3DCentroid(neigobors, xyz_centroid);
+    // Compute the 3x3 covariance matrix
+    pcl::computeCovarianceMatrix(neigobors, xyz_centroid, covariance_matrix);
+    // Compute pca
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> es;
+    es.compute(covariance_matrix);
+    const auto &eigenvectors = es.eigenvectors();
+    const auto &eigenvalues = es.eigenvalues();
+
+    // normal direction
+    curr_pt.getNormalVector3fMap() = Eigen::Vector3f(eigenvectors.col(0));
+    // normal score
+    curr_pt.normal_score = (eigenvalues(1) - eigenvalues(0)) / eigenvalues(2);
+  };
+  sliding_map_odo.update(points, update_normal_cb);
+
+  // filter based on life time
+  auto filter_life_time_cb = [](PointWithInfo &query_pt) {
+    query_pt.life_time -= 1.0;
+    return bool(query_pt.life_time > 0.0);
+  };
+  sliding_map_odo.filter(filter_life_time_cb);
 
   CLOG(DEBUG, "lidar.odometry_map_maintenance")
       << "Updated point map size is: " << sliding_map_odo.point_cloud().size();

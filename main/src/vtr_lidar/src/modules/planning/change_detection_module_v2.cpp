@@ -21,6 +21,7 @@
 #include "pcl/features/normal_3d.h"
 
 #include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -351,7 +352,8 @@ void ChangeDetectionModuleV2::runAsync_(
     const float sqdists = nn_dists[i] * nn_dists[i] / roughness;
     const float cost = -std::log(std::pow(1 + sqdists / df, -(df + 1) / 2));
     if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold))
-    // if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold) || nn_norms[i] < 0.5) 
+      // if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold) ||
+      // nn_norms[i] < 0.5)
       aligned_points[i].flex23 = 1.0f;
   }
 

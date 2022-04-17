@@ -20,7 +20,8 @@
 
 #include <bitset>
 
-#include "vtr_lidar/data_types/pointmap.hpp"
+#include "vtr_lidar/data_types/multi_exp_pointmap.hpp"
+#include "vtr_lidar/data_types/point.hpp"
 #include "vtr_logging/logging_init.hpp"
 
 using namespace ::testing;  // NOLINT

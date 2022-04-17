@@ -34,21 +34,13 @@ namespace costmap {
 
 struct PixKey {
   PixKey(int x0 = 0, int y0 = 0) : x(x0), y(y0) {}
-
-  bool operator==(const PixKey& other) const {
-    return (x == other.x && y == other.y);
-  }
-
+  // clang-format off
+  bool operator==(const PixKey& other) const { return (x == other.x && y == other.y); }
+  friend PixKey operator+(const PixKey A, const PixKey B) { return PixKey(A.x + B.x, A.y + B.y); }
+  friend PixKey operator-(const PixKey A, const PixKey B) { return PixKey(A.x - B.x, A.y - B.y); }
+  // clang-format on
   int x, y;
 };
-
-inline PixKey operator+(const PixKey A, const PixKey B) {
-  return PixKey(A.x + B.x, A.y + B.y);
-}
-
-inline PixKey operator-(const PixKey A, const PixKey B) {
-  return PixKey(A.x - B.x, A.y - B.y);
-}
 
 }  // namespace costmap
 }  // namespace lidar

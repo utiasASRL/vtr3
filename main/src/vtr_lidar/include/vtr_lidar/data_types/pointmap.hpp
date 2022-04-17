@@ -25,7 +25,6 @@
 
 namespace vtr {
 namespace lidar {
-
 namespace pointmap {
 
 struct VoxKey {
@@ -35,7 +34,6 @@ struct VoxKey {
   friend VoxKey operator+(const VoxKey &A, const VoxKey &B) { return VoxKey(A.x + B.x, A.y + B.y, A.z + B.z); }
   friend VoxKey operator-(const VoxKey &A, const VoxKey &B) { return VoxKey(A.x - B.x, A.y - B.y, A.z - B.z); }
   // clang-format on
-  friend class std::hash<VoxKey>;
   int x, y, z;
 };
 
@@ -86,13 +84,18 @@ class PointMap : public PointScan<PointT> {
   const unsigned& version() const { return version_; }
 
   /** \brief Update map with a set of new points. */
-  void update(const PointCloudType& point_cloud);
+  struct DefaultUpdateCb {
+    void operator()(bool init, PointT& curr_pt, const PointT& new_pt) const {}
+  };
+  template <class Callback = DefaultUpdateCb>
+  void update(const PointCloudType& point_cloud,
+              const Callback& callback = DefaultUpdateCb());
 
-  void updateNormal(const PointCloudType& point_cloud);
-
-  void crop(const Eigen::Matrix4f& T_center_this, float range, float ratio);
-
-  void subtractLifeTime(const float& life_time = 1.0);
+  struct DefaultFilterCb {
+    bool operator()(const PointT& pt) const { return true; }
+  };
+  template <class Callback = DefaultFilterCb>
+  void filter(const Callback& callback = DefaultFilterCb());
 
  protected:
   using VoxKey = pointmap::VoxKey;
@@ -100,15 +103,6 @@ class PointMap : public PointScan<PointT> {
     return VoxKey((int)std::floor(p.x / dl_), (int)std::floor(p.y / dl_),
                   (int)std::floor(p.z / dl_));
   }
-
-  void filter(const std::vector<int>& indices);
-
- private:
-  void updateCapacity(size_t num_pts);
-  /** \brief Initialize a voxel centroid */
-  void initSample(const VoxKey& k, const PointT& p);
-  /** \brief Update of voxel centroid */
-  void updateSample(const size_t idx, const PointT& p);
 
  protected:
   /** \brief Voxel grid size */

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file types.hpp
+ * \file point.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
