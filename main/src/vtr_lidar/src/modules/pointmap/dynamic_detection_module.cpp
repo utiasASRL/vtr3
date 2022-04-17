@@ -230,7 +230,8 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
   using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
   auto point_map_copy = std::make_shared<PointMap<PointWithInfo>>(
       point_map.dl(), point_map.version());
-  point_map_copy->update(point_map.point_cloud(), true);
+  /// \todo may need to filter out all dynamic points
+  point_map_copy->update(point_map.point_cloud());
   point_map_copy->T_vertex_this() = point_map.T_vertex_this();
   point_map_copy->vertex_id() = point_map.vertex_id();
 

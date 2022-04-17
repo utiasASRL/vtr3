@@ -18,6 +18,7 @@
  */
 #include "vtr_lidar/modules/pointmap/inter_exp_merging_module.hpp"
 
+#include "vtr_lidar/data_types/multi_exp_pointmap.hpp"
 #include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_tactic/modules/factory.hpp"
 
