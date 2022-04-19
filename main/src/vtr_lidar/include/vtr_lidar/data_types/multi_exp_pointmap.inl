@@ -175,7 +175,6 @@ void MultiExpPointMap<PointT>::updateSample(const size_t idx, const PointT& p) {
   // copy time info
   p_.time = p.time;
   // copy normal variance and score
-  p_.normal_variance = p.normal_variance;
   p_.normal_score = p.normal_score;
   // update bit vector (only if it has not been updated yet)
   if ((p_.bits & 1) == 0) p_.bits++;

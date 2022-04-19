@@ -52,10 +52,19 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".qc_diagonal", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
-    CLOG(ERROR, "tactic") << err;
+    CLOG(ERROR, "lidar.odometry_icp") << err;
     throw std::invalid_argument{err};
   }
   config->smoothing_factor_information.diagonal() << 1.0/qcd[0], 1.0/qcd[1], 1.0/qcd[2], 1.0/qcd[3], 1.0/qcd[4], 1.0/qcd[5];
+
+  // radial velocity
+  config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
+  if (config->use_radial_velocity && !config->trajectory_smoothing) {
+    std::string err{"Radial velocity requires trajectory smoothing!"};
+    CLOG(ERROR, "lidar.odometry_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->radial_velocity_cov = node->declare_parameter<double>(param_prefix + ".radial_velocity_cov", config->radial_velocity_cov);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -332,8 +341,30 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-#pragma omp critical(lgicp_add_cost_term)
+#pragma omp critical(odo_icp_add_p2p_error_cost)
       problem.addCostTerm(cost);
+    }
+
+    // cost terms and noise model
+    if (config_->use_radial_velocity) {
+      Eigen::Matrix<double, 1, 1> rv_cov = config_->radial_velocity_cov * Eigen::Matrix<double, 1, 1>::Identity();
+      const auto rv_noise_model = StaticNoiseModel<1>::MakeShared(rv_cov);
+  #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (const auto &ind : filtered_sample_inds) {
+        // query and reference point
+        const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+        const auto &qry_rv = query_points[ind.first].radial_velocity;
+        const auto &qry_time = query_points[ind.first].time;
+        const auto w_iv_inv_m_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+        const auto w_is_ins_m_intp_eval = compose_velocity(T_s_r_var, w_iv_inv_m_intp_eval);
+        const auto error_func = p2p::RadialVelErrorEvaluator::MakeShared(w_is_ins_m_intp_eval, qry_pt, qry_rv);
+
+        // create cost term and add to problem
+        auto cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, rv_noise_model, loss_func);
+
+  #pragma omp critical(odo_icp_add_rv_error_cost)
+        problem.addCostTerm(cost);
+      }
     }
 
     // make solver
@@ -528,7 +559,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
   }
   // clang-format on
-}
+}  // namespace lidar
 
 }  // namespace lidar
 }  // namespace vtr

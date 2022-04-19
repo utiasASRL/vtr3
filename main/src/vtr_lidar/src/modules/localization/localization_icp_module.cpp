@@ -216,7 +216,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-#pragma omp critical(lgicp_add_cost_term)
+#pragma omp critical(loc_icp_add_p2p_error_cost)
       problem.addCostTerm(cost);
     }
 

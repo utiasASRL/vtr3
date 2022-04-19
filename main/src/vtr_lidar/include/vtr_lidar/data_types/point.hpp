@@ -84,7 +84,7 @@ namespace lidar {
     }; \
     struct { \
       double time; \
-      float normal_variance; \
+      float radial_velocity; \
       float normal_score; \
     }; \
   };

@@ -51,6 +51,10 @@ class OdometryICPModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 6> smoothing_factor_information =
         Eigen::Matrix<double, 6, 6>::Zero();
 
+    // radial velocity
+    bool use_radial_velocity = false;
+    double radial_velocity_cov = 1.0;
+
     /// ICP parameters
     // number of threads for nearest neighbor search
     int num_threads = 4;
