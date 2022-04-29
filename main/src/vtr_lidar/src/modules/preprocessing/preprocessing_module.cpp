@@ -123,10 +123,9 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   {
     std::vector<int> indices;
     indices.reserve(filtered_point_cloud->size());
-    int i = 0;
-    for (const auto &point : *filtered_point_cloud) {
-      if (point.rho < config_->crop_range) indices.emplace_back(i);
-      i++;
+    for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+      if ((*filtered_point_cloud)[i].rho < config_->crop_range)
+        indices.emplace_back(i);
     }
     *filtered_point_cloud =
         pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
