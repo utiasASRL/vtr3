@@ -96,14 +96,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  if (config_->visualize && !publisher_initialized_) {
-    // clang-format off
-    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
-    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_point_cloud", 5);
-    // clang-format on
-    publisher_initialized_ = true;
-  }
-
   if (!qdata.sliding_map_odo) {
     CLOG(INFO, "lidar.odometry_icp") << "First frame, simply return.";
     // clang-format off
@@ -539,25 +531,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
     // no update to map to robot transform
     *qdata.odo_success = false;
-  }
-
-  if (config_->visualize) {
-#if false  /// publish raw point cloud
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(*qdata.undistorted_raw_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = "lidar";
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      raw_pub_->publish(pc2_msg);
-    }
-#endif
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(*qdata.undistorted_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = "lidar";
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      pub_->publish(pc2_msg);
-    }
   }
   // clang-format on
 }  // namespace lidar

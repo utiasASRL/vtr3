@@ -48,7 +48,10 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
     map_pub_ = qdata.node->create_publisher<PointCloudMsg>("submap_odo", 5);
+    // clang-format on
     publisher_initialized_ = true;
   }
 
@@ -145,15 +148,31 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   if (config_->visualize) {
     // clang-format off
     const auto T_v_m = sliding_map_odo.T_vertex_this().matrix().cast<float>();
-    auto point_map = sliding_map_odo.point_cloud();  // makes a copy
-    auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    map_point_mat = T_v_m * map_point_mat;
+    // publish the map
+    {
+      auto point_map = sliding_map_odo.point_cloud();  // makes a copy
+      auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      map_point_mat = T_v_m * map_point_mat;
 
-    PointCloudMsg pc2_msg;
-    pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "odo vertex frame";
-    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    map_pub_->publish(pc2_msg);
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_map, pc2_msg);
+      pc2_msg.header.frame_id = "odo vertex frame";
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      map_pub_->publish(pc2_msg);
+    }
+    // publish the aligned points
+    {
+      auto scan_in_vf = points;
+      auto points_mat = scan_in_vf.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      points_mat = T_v_m * points_mat;
+
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(scan_in_vf, pc2_msg);
+      pc2_msg.header.frame_id = "odo vertex frame";
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      scan_pub_->publish(pc2_msg);
+    }
+    // clang-format on
   }
 }
 

@@ -91,11 +91,6 @@ class OdometryICPModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  /** \brief for visualization only */
-  bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr raw_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pub_;
-
   VTR_REGISTER_MODULE_DEC_TYPE(OdometryICPModule);
 };
 
