@@ -18,6 +18,8 @@
  */
 #include "vtr_radar_lidar/modules/localization/localization_icp_module.hpp"
 
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
+
 namespace vtr {
 namespace radar_lidar {
 
@@ -88,7 +90,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &lidar_point_map = lidar_qdata.submap_loc->point_cloud();
 
   // se3 projection
-#if true
   {
     auto T_v_r_vec = T_r_v.inverse().vec();
     auto T_v_r_cov = T_r_v.inverse().cov();
@@ -109,35 +110,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
                                                 << T_v_r;
     T_r_v = T_v_r.inverse();
   }
-#else
-  // project robot to vertex frame, along z-axis of the vertex fram while
-  // keeping x-axis of robot frame in the same direction
-  {
-    auto T_v_r_mat = T_r_v.inverse().matrix();
-    // origin x and y should be the same
-    // origin z should be zero
-    T_v_r_mat(2, 3) = 0;
-    // x-axis should be in the same direction
-    const auto planar_xaxis_norm = T_v_r_mat.block<2, 1>(0, 0).norm();
-    T_v_r_mat(0, 0) /= planar_xaxis_norm;
-    T_v_r_mat(1, 0) /= planar_xaxis_norm;
-    T_v_r_mat(2, 0) = 0;
-    // z-axis should be (0, 0, 1)
-    T_v_r_mat(0, 2) = 0;
-    T_v_r_mat(1, 2) = 0;
-    T_v_r_mat(2, 2) = 1;
-    // y-axis should be the cross of z-axis and x-axis
-    T_v_r_mat.block<3, 1>(0, 1) =
-        T_v_r_mat.block<3, 1>(0, 2).cross(T_v_r_mat.block<3, 1>(0, 0));
-    // we no longer have a valid covariance
-    EdgeTransform T_v_r(T_v_r_mat, Eigen::Matrix<double, 6, 6>::Identity());
-    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r: \n"
-                                                << T_r_v.inverse().matrix();
-    CLOG(DEBUG, "radar_lidar.localization_icp") << "T_v_r projected: \n"
-                                                << T_v_r.matrix();
-    T_r_v = T_v_r.inverse();
-  }
-#endif
   // find points that are within the radar scan FOV
   std::vector<int> indices;
   {
@@ -199,41 +171,16 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (config_->visualize) {
     // clang-format off
-#if false
-    auto query_points_in_v = query_points;
-    auto query_point_mat = query_points_in_v.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
-    Eigen::Matrix4f T_v_s_mat = (T_s_r * T_r_v).inverse().matrix().cast<float>();
-    query_point_mat = T_v_s_mat * query_point_mat;
-#endif
     auto point_map_in_v = point_map;  // makes a copy
     auto map_point_mat = point_map_in_v.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
     Eigen::Matrix4f T_v_m_mat = T_v_m.matrix().cast<float>();
     map_point_mat = T_v_m_mat * map_point_mat;
 
-    int check = 0;
-#if false
-    while (check < 10) {
-      CLOG(INFO, "radar_lidar.localization_icp") << "Publish map!!!";
-      {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(query_points_in_v, pc2_msg);
-      pc2_msg.header.frame_id = "loc vertex frame (offset)";
-      pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
-      tmp_scan_pub_->publish(pc2_msg);
-      }
-#endif
-      {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(point_map_in_v, pc2_msg);
-      pc2_msg.header.frame_id = "loc vertex frame (offset)";
-      pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp + check);
-      map_pub_->publish(pc2_msg);
-      }
-#if false
-      check += 1;
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    }
-#endif
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(point_map_in_v, pc2_msg);
+    pc2_msg.header.frame_id = "loc vertex frame (offset)";
+    pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp);
+    map_pub_->publish(pc2_msg);
     // clang-format on
   }
 
@@ -392,7 +339,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-#pragma omp critical(lgicp_add_cost_term)
+#pragma omp critical(loc_icp_add_p2p_error_cost)
       problem.addCostTerm(cost);
     }
 
