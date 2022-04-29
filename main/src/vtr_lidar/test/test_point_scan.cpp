@@ -39,7 +39,7 @@ TEST(LIDAR, point_scan_read_write) {
     p.normal_x = 4 + i; p.normal_y = 5 + i; p.normal_z = 6 + i;
     p.flex11 = 7 + i; p.flex12 = 8 + i; p.flex13 = 9 + i; p.flex14 = 10 + i;
     p.time = 11 + i;
-    p.normal_variance = 12 + i;
+    p.radial_velocity = 12 + i;
     p.normal_score = 13 + i;
 
     point_cloud.push_back(p);
