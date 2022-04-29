@@ -119,6 +119,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
 
+  // const Eigen::Matrix3d C_s_r = T_s_r_.block<3, 3>(0, 0).cast<double>();
+  // const Eigen::Vector3d r_s_r_in_r = T_r_s.block<3, 1>(0, 3).cast<double>();
+  // const Eigen::MatrixXd M_s_r = Eigen::MatrixXd::Zero(3, 6);
+  // // converts w_pm_r_in_r to v_s_pm_in_s
+  // M_s_r.block<3, 3>(0, 0) = C_s_r;
+  // M_s_r.block<3, 3>(0, 3) = -1 * C_s_r * lgmath::so3::hat(r_s_r_in_r);
+
   /// Parameters
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
@@ -196,6 +203,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     aligned_mat = T_m_s * query_mat;
     aligned_norms_mat = T_m_s * query_norms_mat;
   }
+  // if (beta != 0) {
+  //   Eigen::Vector3d prev_v_s_pm_in_s = -1 * M_s_r * prev_w_pm_r_in_r_var;
+  //   for (unsigned i = 0; i < query_points.size(); ++i) {
+  //     Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
+  //     abar.normalize();
+  //     aligned_mat.block<3, 1>(0, i) += abar * beta * abar.transpose() * prev_v_s_pm_in_s;
+  //   }
+  // }
 
   // ICP results
   EdgeTransform T_r_m_icp;
@@ -327,6 +342,42 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           return p2p::P2PErrorEvaluator::MakeShared(T_m_s_eval, ref_pt, qry_pt);
         }
       }();
+/*
+      const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+      const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+
+      PointToPointErrorEval2::Ptr error_func;
+      if (config_->trajectory_smoothing) {
+        const auto &qry_time = query_points[ind.first].time;
+        const auto T_r_pm_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
+        const auto T_pm_s_intp_eval = inverse(compose(T_s_r_eval, T_r_pm_intp_eval));
+        if (beta != 0) {
+          const Vector3d abar = qry_pt.normalized();
+          const double delta_rho = beta * abar.transpose() * M_s_r * w_pm_r_in_r_var; // how to compose?
+          const double phi = atan2(qry_pt(1), qry_pt(0));
+          const Eigen::Matrix4d T_dopp = Eigen::Matrix4d::Identity(); // todo: convert to transform evaluator
+          T_dopp(0, 3) = delta_rho * std::cos(phi);
+          T_dopp(1, 3) = delta_rho * std::sin(phi);
+          auto T_pm_s_eval2 = compose(T_pm_s_intp_eval, T_dopp);
+          error_func.reset(new PointToPointErrorEval2(T_pm_s_eval2, ref_pt, qry_pt));
+        } else {
+          error_func.reset(new PointToPointErrorEval2(T_pm_s_intp_eval, ref_pt, qry_pt));  
+        }
+      } else {
+        if (beta != 0) {
+          const Vector3d abar = qry_pt.normalized();
+          const double delta_rho = beta * abar.transpose() * M_s_r * w_pm_r_in_r_var;
+          const double phi = atan2(qry_pt(1), qry_pt(0));
+          const Eigen::Matrix4d T_dopp = Eigen::Matrix4d::Identity();
+          T_dopp(0, 3) = delta_rho * std::cos(phi);
+          T_dopp(1, 3) = delta_rho * std::sin(phi);
+          auto T_pm_s_eval2 = compose(T_pm_s_eval, T_dopp);
+          error_func.reset(new PointToPointErrorEval2(T_pm_s_eval2, ref_pt, qry_pt));
+        } else {
+          error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));  
+        }
+      }
+      */
 
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
@@ -368,6 +419,17 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       aligned_mat = T_m_s * query_mat;
       aligned_norms_mat = T_m_s * query_norms_mat;
     }
+    // if (beta != 0) {
+    //   for (unsigned i = 0; i < query_points.size(); ++i) {
+    //     const Eigen::VectorXd w_pm_r_in_r = w_pm_r_in_r_var->getValue();
+    //     const Eigen::Vector3f abar = {aligned_mat(0, i), aligned_mat(1, i), 0} /
+    //       (aligned_mat(0, i) * aligned_mat(0, i) + aligned_mat(1, i) * aligned_mat(1, i));
+    //     const double delta_rho = beta * abar.transpose() * M_s_r * w_pm_r_in_r;
+    //     const double phi = atan2(aligned_mat(1, i), aligned_mat(0, i));
+    //     aligned_mat(0, i) += delta_rho * std::cos(phi);
+    //     aligned_mat(1, i) += delta_rho * std::sin(phi);
+    //   }
+    // }
 
     // Update all result matrices
     const auto T_m_s = T_m_s_eval->evaluate().matrix();
