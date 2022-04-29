@@ -162,10 +162,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // last frame state
     Time prev_time(static_cast<int64_t>(timestamp_odo));
     auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-    prev_T_r_m_var->locked() = true;
     auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
     trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-    // curr frame state (+ velocity)
+    // current frame state
     Time query_time(static_cast<int64_t>(query_stamp));
     w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
     trajectory->add(query_time, T_r_m_var, w_m_r_in_r_var);
