@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file types.hpp
+ * \file point.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -84,7 +84,7 @@ namespace radar {
     }; \
     struct { \
       double time; \
-      float normal_variance; \
+      float radial_velocity; \
       float normal_score; \
     }; \
   };
@@ -125,6 +125,7 @@ struct PointWithInfo : public _PointWithInfo
   static constexpr size_t flex1_offset() { return 8; }
   static constexpr size_t flex2_offset() { return 12; }
 };
+
 }  // namespace radar
 }  // namespace vtr
 
@@ -151,8 +152,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
     (float, flex13, flex13)
     (float, flex14, flex14)
     // time stamp, normal variance, normal score
-    (double, time, time)
-    (float, normal_variance, normal_variance)
-    (float, normal_score, normal_score))
-
+    (float, flex21, flex21)
+    (float, flex22, flex22)
+    (float, flex23, flex23)
+    (float, flex24, flex24))
 // clang-format on

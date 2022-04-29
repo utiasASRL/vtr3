@@ -18,10 +18,7 @@
  */
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module.hpp"
 
-#include "pcl/features/normal_3d.h"
 #include "pcl_conversions/pcl_conversions.h"
-
-#include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
 namespace lidar {

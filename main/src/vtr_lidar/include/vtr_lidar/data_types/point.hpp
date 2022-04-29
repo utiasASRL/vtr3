@@ -24,10 +24,10 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+// clang-format off
 namespace vtr {
 namespace lidar {
 
-// clang-format off
 #define PCL_ADD_UNION_FLEXIBLE1 \
   union EIGEN_ALIGN16 { \
     __uint128_t raw_flex1; \

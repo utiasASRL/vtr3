@@ -31,8 +31,6 @@ auto OdometryMapMaintenanceModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
-  config->crop_range_front = node->declare_parameter<float>(param_prefix + ".crop_range_front", config->crop_range_front);
-  config->back_over_front_ratio = node->declare_parameter<float>(param_prefix + ".back_over_front_ratio", config->back_over_front_ratio);
 
   config->point_life_time = node->declare_parameter<float>(param_prefix + ".point_life_time", config->point_life_time);
 
@@ -47,7 +45,10 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
     map_pub_ = qdata.node->create_publisher<PointCloudMsg>("submap_odo", 5);
+    // clang-format on
     publisher_initialized_ = true;
   }
 
@@ -73,30 +74,35 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   // Transform points into the map frame
   auto T_m_s = (T_s_r * T_r_m_odo).inverse().matrix().cast<float>();
   // clang-format off
-  auto points_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto normal_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  auto points_mat = points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto normal_mat = points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   // clang-format on
-  Eigen::Matrix3f C_m_s = T_m_s.block<3, 3>(0, 0);
-  Eigen::Vector3f r_s_m_in_m = T_m_s.block<3, 1>(0, 3);
-  points_mat = (C_m_s * points_mat).colwise() + r_s_m_in_m;
-  normal_mat = C_m_s * normal_mat;
+  points_mat = T_m_s * points_mat;
+  normal_mat = T_m_s * normal_mat;
 
-  /// Update the point map with the set of new points
+  // update the map with new points and refresh their life time and normal
+  auto update_cb = [&config = config_](bool, PointWithInfo &curr_pt,
+                                       const PointWithInfo &new_pt) {
+    curr_pt.life_time = config->point_life_time;
 
-  // set life time of the points in this map
-  if (config_->point_life_time >= 0.0) {
-    // reduce life time of points in the map, remove those that have expired
-    sliding_map_odo.subtractLifeTime();
-    for (auto &point : points) point.life_time = config_->point_life_time;
-  }
+    // Update normal if we have a clear view of it and closer distance (see
+    // computation of score)
+    if (curr_pt.normal_score <= new_pt.normal_score) {
+      // copy point normal information
+      std::copy(std::begin(new_pt.data_n), std::end(new_pt.data_n),
+                std::begin(curr_pt.data_n));
+      // copy normal score
+      curr_pt.normal_score = new_pt.normal_score;
+    }
+  };
+  sliding_map_odo.update(points, update_cb);
 
-  // The update function is called only on subsampled points
-  sliding_map_odo.update(points);
-
-  // crop box filter
-  sliding_map_odo.crop(T_r_m_odo.matrix().cast<float>(),
-                       config_->crop_range_front,
-                       config_->back_over_front_ratio);
+  // filter based on life time
+  auto filter_life_time_cb = [](PointWithInfo &query_pt) {
+    query_pt.life_time -= 1.0;
+    return bool(query_pt.life_time > 0.0);
+  };
+  sliding_map_odo.filter(filter_life_time_cb);
 
   CLOG(DEBUG, "radar.odometry_map_maintenance")
       << "Updated point map size is: " << sliding_map_odo.point_cloud().size();
@@ -105,19 +111,32 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = sliding_map_odo.T_vertex_this().matrix();
-    auto point_map = sliding_map_odo.point_cloud();  // makes a copy
-    auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    const auto T_v_m = sliding_map_odo.T_vertex_this().matrix().cast<float>();
+    // publish the map
+    {
+      auto point_map = sliding_map_odo.point_cloud();  // makes a copy
+      auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      map_point_mat = T_v_m * map_point_mat;
 
-    Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f r_m_v_in_v = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-    map_point_mat = (C_v_m * map_point_mat).colwise() + r_m_v_in_v;
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_map, pc2_msg);
+      pc2_msg.header.frame_id = "odo vertex frame";
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      map_pub_->publish(pc2_msg);
+    }
+    // publish the aligned points
+    {
+      auto scan_in_vf = points;
+      auto points_mat = scan_in_vf.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      points_mat = T_v_m * points_mat;
 
-    PointCloudMsg pc2_msg;
-    pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "odo vertex frame";
-    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    map_pub_->publish(pc2_msg);
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(scan_in_vf, pc2_msg);
+      pc2_msg.header.frame_id = "odo vertex frame";
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      scan_pub_->publish(pc2_msg);
+    }
+    // clang-format on
   }
 }
 

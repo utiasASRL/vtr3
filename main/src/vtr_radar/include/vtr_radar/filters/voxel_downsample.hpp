@@ -20,8 +20,6 @@
 
 #include "pcl/point_cloud.h"
 
-#include "vtr_radar/utils/utils.hpp"
-
 namespace vtr {
 namespace radar {
 
@@ -161,6 +159,7 @@ void voxelDownsample(pcl::PointCloud<PointT>& point_cloud,
     // Increment point index
     i++;
   }
+
   // Convert hmap to index vector
   std::vector<int> indices;
   indices.reserve(samples.size());

@@ -16,14 +16,10 @@
  * \file normal.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-
-#include <cmath>
-
-#include "pcl/features/normal_3d.h"
-#include "pcl/kdtree/kdtree.h"
-#include "pcl/kdtree/kdtree_flann.h"
+#pragma once
 
 #include "vtr_logging/logging.hpp"
+#include "vtr_radar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
 namespace radar {
@@ -68,7 +64,6 @@ float computeNormalPCA(const pcl::PointCloud<PointT> &point_cloud,
                        const std::vector<int> indices, PointT &query) {
   // Safe check
   if (indices.size() < 3) {
-    query.normal_variance = 0.0f;
     query.normal_score = -1.0f;
     return -1.0f;
   }
@@ -91,9 +86,6 @@ float computeNormalPCA(const pcl::PointCloud<PointT> &point_cloud,
                              0);
   query.getNormalVector3fMap() =
       normal_vec.dot(query.getVector3fMap()) > 0 ? -normal_vec : normal_vec;
-
-  // Variance is the smallest eigenvalue
-  query.normal_variance = es.eigenvalues()(0);
 
   // Score is 1 - sphericity equivalent to planarity + linearity
   query.normal_score =
