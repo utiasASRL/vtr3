@@ -7,8 +7,9 @@ Panels:
         - /Global Options1
         - /TF1/Frames1
         - /odo path1/Shape1
+        - /curr map odo1
         - /curr map loc1/Topic1
-      Splitter Ratio: 0.643059492111206
+      Splitter Ratio: 0.6218905448913574
     Tree Height: 744
   - Class: rviz_common/Selection
     Name: Selection
@@ -27,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: undistorted scan
+    SyncSource: filtered scan
 Visualization Manager:
   Class: ""
   Displays:
@@ -63,12 +64,8 @@ Visualization Manager:
         All Enabled: false
         lidar:
           Value: false
-        loc vertex frame:
-          Value: false
-        loc vertex frame (offset):
-          Value: false
         odo vertex frame:
-          Value: true
+          Value: false
         robot:
           Value: true
         world:
@@ -81,7 +78,12 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
+        robot:
+          lidar:
+            {}
         world:
+          odo vertex frame:
+            {}
           world (offset):
             {}
       Update Interval: 0
@@ -93,17 +95,17 @@ Visualization Manager:
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: time
+      Channel Name: flex21
       Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color: 255; 0; 0
+      Color Transformer: FlatColor
       Decay Time: 0
       Enabled: false
       Invert Rainbow: false
       Max Color: 0; 255; 0
-      Max Intensity: 0.09999394416809082
+      Max Intensity: 4.76837158203125e-07
       Min Color: 255; 0; 0
-      Min Intensity: -0.09999704360961914
+      Min Intensity: -0.09866189956665039
       Name: raw scan
       Position Transformer: XYZ
       Selectable: true
@@ -127,17 +129,17 @@ Visualization Manager:
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: time
+      Channel Name: flex24
       Class: rviz_default_plugins/PointCloud2
       Color: 0; 255; 0
-      Color Transformer: FlatColor
+      Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 999999
+      Max Intensity: 1
       Min Color: 0; 0; 0
-      Min Intensity: 999999
+      Min Intensity: 0.9848663806915283
       Name: filtered scan
       Position Transformer: XYZ
       Selectable: true
@@ -153,7 +155,7 @@ Visualization Manager:
         Value: /vtr/filtered_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Angle Tolerance: 0.05000000074505806
       Class: rviz_default_plugins/Odometry
       Covariance:
@@ -171,7 +173,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
+      Enabled: true
       Keep: 5000
       Name: odo path
       Position Tolerance: 0.10000000149011612
@@ -192,7 +194,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /vtr/odometry
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -202,7 +204,7 @@ Visualization Manager:
       Axis: Z
       Channel Name: time
       Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 0
+      Color: 255; 0; 0
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: false
@@ -228,28 +230,28 @@ Visualization Manager:
       Use rainbow: true
       Value: false
     - Alpha: 1
-      Autocompute Intensity Bounds: true
+      Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
         Max Value: 10
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: intensity
+      Channel Name: flex24
       Class: rviz_default_plugins/PointCloud2
       Color: 25; 255; 0
-      Color Transformer: FlatColor
+      Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 1.0234375
+      Max Intensity: 1
       Min Color: 0; 0; 0
-      Min Intensity: 0.00022029876708984375
+      Min Intensity: 0
       Name: curr map odo
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.15000000596046448
+      Size (m): 0.10000000149011612
       Style: Flat Squares
       Topic:
         Depth: 5
@@ -260,7 +262,7 @@ Visualization Manager:
         Value: /vtr/submap_odo
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -588,16 +590,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 16.133712768554688
+      Distance: 465.67474365234375
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.16405759751796722
-        Y: 0.5457395911216736
-        Z: 0.26398515701293945
+        X: 0.14441096782684326
+        Y: 0.8933088779449463
+        Z: -2.9700047969818115
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -606,7 +608,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.112645387649536
+      Yaw: 4.630886554718018
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -654,7 +656,7 @@ Window Geometry:
   Height: 1043
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd000000040000000000000163000003b9fc0200000008fb0000001200530065006c0065006300740069006f006e000000003d000000710000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000003b9000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001a0000003b9fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000003b9000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d0065000000000000000500000002eb00fffffffb0000000800540069006d0065010000000000000450000000000000000000000617000003b900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000040000000000000194000003b9fc0200000008fb0000001200530065006c0065006300740069006f006e000000003d000000710000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000003b9000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001a0000003b9fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000003b9000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d0065000000000000000500000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000005e6000003b900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:

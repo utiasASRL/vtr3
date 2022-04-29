@@ -533,7 +533,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = false;
   }
   // clang-format on
-}  // namespace lidar
+}
 
 }  // namespace lidar
 }  // namespace vtr
