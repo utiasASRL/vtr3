@@ -52,9 +52,9 @@ void load_radar(const cv::Mat &raw_data, std::vector<double> &timestamps,
 // clang-format off
 namespace {
 
-int get_closest(const double &x, const std::vector<double> &v) {
+unsigned get_closest(const double &x, const std::vector<double> &v) {
   const auto low = std::lower_bound(v.begin(), v.end(), x);
-  int idx = low - v.begin();
+  unsigned idx = low - v.begin();
   if (idx == 0) return idx;
   if (idx >= v.size()) idx = v.size() - 1;
   const double d = std::fabs(x - v[idx]);
