@@ -18,10 +18,7 @@
  */
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module.hpp"
 
-#include "pcl/features/normal_3d.h"
 #include "pcl_conversions/pcl_conversions.h"
-
-#include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -48,7 +45,10 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
     map_pub_ = qdata.node->create_publisher<PointCloudMsg>("submap_odo", 5);
+    // clang-format on
     publisher_initialized_ = true;
   }
 
@@ -80,55 +80,22 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   points_mat = T_m_s * points_mat;
   normal_mat = T_m_s * normal_mat;
 
-  // update the map with new points and refresh their life time
+  // update the map with new points and refresh their life time and normal
   auto update_cb = [&config = config_](bool, PointWithInfo &curr_pt,
-                                       const PointWithInfo &) {
+                                       const PointWithInfo &new_pt) {
     curr_pt.life_time = config->point_life_time;
+
+    // Update normal if we have a clear view of it and closer distance (see
+    // computation of score)
+    if (curr_pt.normal_score <= new_pt.normal_score) {
+      // copy point normal information
+      std::copy(std::begin(new_pt.data_n), std::end(new_pt.data_n),
+                std::begin(curr_pt.data_n));
+      // copy normal score
+      curr_pt.normal_score = new_pt.normal_score;
+    }
   };
   sliding_map_odo.update(points, update_cb);
-
-  // update normal vector
-  NanoFLANNAdapter<PointWithInfo> adapter(sliding_map_odo.point_cloud());
-  KDTreeSearchParams search_param;
-  KDTreeParams tree_param(/* max_leaf */ 10);
-  auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_param);
-  kdtree->buildIndex();
-  const auto search_radius = sliding_map_odo.dl() * 3.0;
-  const auto sq_radius = search_radius * search_radius;
-  auto update_normal_cb = [&point_cloud = sliding_map_odo.point_cloud(),
-                           &kdtree, &sq_radius,
-                           &search_param](bool, PointWithInfo &curr_pt,
-                                          const PointWithInfo &) {
-    std::vector<float> dists;
-    std::vector<int> indices;
-    NanoFLANNRadiusResultSet<float, int> result(sq_radius, dists, indices);
-    kdtree->radiusSearchCustomCallback(curr_pt.data, result, search_param);
-
-    if (indices.size() < 4) return;
-
-    // get points for computation
-    const pcl::PointCloud<PointWithInfo> neigobors(point_cloud, indices);
-
-    // Placeholder for the 3x3 covariance matrix at each surface patch
-    Eigen::Matrix3f covariance_matrix;
-    // 16-bytes aligned placeholder for the XYZ centroid of a surface patch
-    Eigen::Vector4f xyz_centroid;
-    // Estimate the XYZ centroid
-    pcl::compute3DCentroid(neigobors, xyz_centroid);
-    // Compute the 3x3 covariance matrix
-    pcl::computeCovarianceMatrix(neigobors, xyz_centroid, covariance_matrix);
-    // Compute pca
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> es;
-    es.compute(covariance_matrix);
-    const auto &eigenvectors = es.eigenvectors();
-    const auto &eigenvalues = es.eigenvalues();
-
-    // normal direction
-    curr_pt.getNormalVector3fMap() = Eigen::Vector3f(eigenvectors.col(0));
-    // normal score
-    curr_pt.normal_score = (eigenvalues(1) - eigenvalues(0)) / eigenvalues(2);
-  };
-  sliding_map_odo.update(points, update_normal_cb);
 
   // filter based on life time
   auto filter_life_time_cb = [](PointWithInfo &query_pt) {
@@ -145,15 +112,31 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   if (config_->visualize) {
     // clang-format off
     const auto T_v_m = sliding_map_odo.T_vertex_this().matrix().cast<float>();
-    auto point_map = sliding_map_odo.point_cloud();  // makes a copy
-    auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    map_point_mat = T_v_m * map_point_mat;
+    // publish the map
+    {
+      auto point_map = sliding_map_odo.point_cloud();  // makes a copy
+      auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      map_point_mat = T_v_m * map_point_mat;
 
-    PointCloudMsg pc2_msg;
-    pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "odo vertex frame";
-    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    map_pub_->publish(pc2_msg);
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_map, pc2_msg);
+      pc2_msg.header.frame_id = "odo vertex frame";
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      map_pub_->publish(pc2_msg);
+    }
+    // publish the aligned points
+    {
+      auto scan_in_vf = points;
+      auto points_mat = scan_in_vf.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      points_mat = T_v_m * points_mat;
+
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(scan_in_vf, pc2_msg);
+      pc2_msg.header.frame_id = "odo vertex frame";
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      scan_pub_->publish(pc2_msg);
+    }
+    // clang-format on
   }
 }
 

@@ -39,6 +39,7 @@ class LocalizationMapRecallModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     std::string map_version = "multi_exp_point_map";
+
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

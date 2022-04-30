@@ -27,6 +27,19 @@
 namespace vtr {
 namespace radar {
 
+namespace {
+
+template <class PointT>
+void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
+  for (auto &point : pointcloud) {
+    point.x = point.rho * std::cos(point.phi);
+    point.y = point.rho * std::sin(point.phi);
+    point.z = 0.0;
+  }
+}
+
+}  // namespace
+
 using namespace tactic;
 
 /// boreas navtech radar upgrade time
@@ -127,8 +140,9 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
-  radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian, radar_resolution,
-                           cart_resolution, cart_pixel_width, true);
+  radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
+                           radar_resolution, cart_resolution, cart_pixel_width,
+                           true);
   CLOG(DEBUG, "radar.navtech_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;
@@ -177,15 +191,15 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                  raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
     KStrongest detector = KStrongest<PointWithInfo>(
-        config_->kstrong.kstrong, config_->kstrong.threshold2, config_->kstrong.threshold3,
-        config_->minr, config_->maxr);
+        config_->kstrong.kstrong, config_->kstrong.threshold2,
+        config_->kstrong.threshold3, config_->minr, config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "cacfar") {
     CACFAR detector = CACFAR<PointWithInfo>(
         config_->cacfar.width, config_->cacfar.guard, config_->cacfar.threshold,
-        config_->cacfar.threshold2, config_->cacfar.threshold3,
-        config_->minr, config_->maxr);
+        config_->cacfar.threshold2, config_->cacfar.threshold3, config_->minr,
+        config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "oscfar") {
@@ -199,8 +213,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
         config_->modified_cacfar.width, config_->modified_cacfar.guard,
         config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
-        config_->modified_cacfar.threshold3,
-        config_->minr, config_->maxr);
+        config_->modified_cacfar.threshold3, config_->minr, config_->maxr);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else {
@@ -244,14 +257,16 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
     // publish the converted point cloud
     auto point_cloud_tmp = raw_point_cloud;
-    const auto ref_time = (double)(*qdata.stamp / 1000) / 1e6;
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
-                  [&](PointWithInfo &point) { point.time -= ref_time; });
-    auto pc2_msg = std::make_shared<PointCloudMsg>();
-    pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
-    pc2_msg->header.frame_id = "radar";
-    pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
-    pointcloud_pub_->publish(*pc2_msg);
+                  [&](PointWithInfo &point) {
+                    point.flex21 = static_cast<float>(
+                        point.time - double(*qdata.stamp / 1000) * 1.0e-6);
+                  });
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(point_cloud_tmp, pc2_msg);
+    pc2_msg.header.frame_id = "radar";
+    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    pointcloud_pub_->publish(pc2_msg);
   }
 }
 

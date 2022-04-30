@@ -48,7 +48,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       // clang-format off
       p.x = p.y = p.z = i;
       p.normal_x = p.normal_y = p.normal_z = i;
-      p.normal_variance = i; p.normal_score = 1;
+      p.radial_velocity = i; p.normal_score = 1;
       // clang-format on
       point_cloud.push_back(p);
     }
@@ -93,7 +93,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       // clang-format off
       p.x = p.y = p.z = i;
       p.normal_x = p.normal_y = p.normal_z = i;
-      p.normal_variance = i; p.normal_score = 1;
+      p.radial_velocity = i; p.normal_score = 1;
       // clang-format on
       point_cloud.push_back(p);
     }
@@ -138,7 +138,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       // clang-format off
       p.x = p.y = p.z = i;
       p.normal_x = p.normal_y = p.normal_z = i;
-      p.normal_variance = i; p.normal_score = 1;
+      p.radial_velocity = i; p.normal_score = 1;
       // clang-format on
       point_cloud.push_back(p);
     }
@@ -183,7 +183,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       // clang-format off
       p.x = p.y = p.z = i;
       p.normal_x = p.normal_y = p.normal_z = i;
-      p.normal_variance = i; p.normal_score = 0;
+      p.radial_velocity = i; p.normal_score = 0;
       // clang-format on
       point_cloud.push_back(p);
     }
@@ -230,7 +230,7 @@ TEST(LIDAR, point_map_read_write) {
     // clang-format off
       p.x = p.y = p.z = i;
       p.normal_x = p.normal_y = p.normal_z = i;
-      p.normal_variance = i; p.normal_score = 1;
+      p.radial_velocity = i; p.normal_score = 1;
     // clang-format on
     point_cloud.push_back(p);
   }

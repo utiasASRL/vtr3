@@ -40,7 +40,7 @@ TEST(LIDAR, point_cloud_access) {
     p.x = 1; p.y = 2; p.z = 3; p.data[3] = 4;
     p.normal_x = 5; p.normal_y = 6; p.normal_z = 7; p.data_n[3] = 8;
     p.flex11 = 9; p.flex12 = 10; p.flex13 = 11; p.flex14 = 12;
-    p.time = 1314; p.normal_variance = 15; p.normal_score = 16;
+    p.time = 1314; p.radial_velocity = 15; p.normal_score = 16;
 
     point_cloud.push_back(p);
   }
@@ -84,7 +84,7 @@ TEST(LIDAR, point_cloud_ros_conversion) {
     p.x = 1; p.y = 2; p.z = 3; p.data[3] = 4;
     p.normal_x = 5; p.normal_y = 6; p.normal_z = 7; p.data_n[3] = 8;
     p.flex11 = 9; p.flex12 = 10; p.flex13 = 11; p.flex14 = 12;
-    p.time = 1314; p.normal_variance = 15; p.normal_score = 16;
+    p.time = 1314; p.radial_velocity = 15; p.normal_score = 16;
 
     point_cloud.push_back(p);
   }

@@ -38,7 +38,7 @@ TEST(LIDAR, point_map_update) {
     // clang-format off
     p.x = 1 + i; p.y = 2 + i; p.z = 3 + i;
     p.normal_x = 4 + i; p.normal_y = 5 + i; p.normal_z = 6 + i;
-    p.normal_variance = i; p.normal_score = i;
+    p.radial_velocity = i; p.normal_score = i;
     // clang-format on
 
     point_cloud.push_back(p);
@@ -73,7 +73,7 @@ TEST(LIDAR, point_map_update) {
     // clang-format off
     p.x = 1 + i; p.y = 2 + i; p.z = 3 + i;
     p.normal_x = 9 + i; p.normal_y = 10 + i; p.normal_z = 11 + i;
-    p.normal_variance = 5 + i; p.normal_score = 5 + i;
+    p.radial_velocity = 5 + i; p.normal_score = 5 + i;
     // clang-format on
 
     point_cloud_2.push_back(p);
@@ -113,7 +113,7 @@ TEST(LIDAR, point_map_read_write) {
     p.normal_x = 4 + i; p.normal_y = 5 + i; p.normal_z = 6 + i;
     p.flex11 = 7 + i; p.flex12 = 8 + i; p.flex13 = 9 + i; p.flex14 = 10 + i;
     p.time = 11 + i;
-    p.normal_variance = 12 + i;
+    p.radial_velocity = 12 + i;
     p.normal_score = 13 + i;
     // clang-format on
 

@@ -18,8 +18,24 @@
  */
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 
+#include "vtr_radar/utils/nanoflann_utils.hpp"
+#include "vtr_radar/utils/utils.hpp"
+
 namespace vtr {
 namespace radar {
+
+namespace {
+
+template <class PointT>
+void cart2pol(pcl::PointCloud<PointT> &point_cloud) {
+  for (auto &p : point_cloud) {
+    p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = std::atan2(p.y, p.x);
+  }
+}
+
+}  // namespace
 
 using namespace tactic;
 using namespace steam;
@@ -37,7 +53,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".qc_diagonal", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
-    CLOG(ERROR, "tactic") << err;
+    CLOG(ERROR, "radar.odometry_icp") << err;
     throw std::invalid_argument{err};
   }
   config->smoothing_factor_information.diagonal() << 1.0/qcd[0], 1.0/qcd[1], 1.0/qcd[2], 1.0/qcd[3], 1.0/qcd[4], 1.0/qcd[5];
@@ -72,14 +88,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
-
-  if (config_->visualize && !publisher_initialized_) {
-    // clang-format off
-    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);
-    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_point_cloud", 5);
-    // clang-format on
-    publisher_initialized_ = true;
-  }
 
   if (!qdata.sliding_map_odo) {
     CLOG(INFO, "radar.odometry_icp") << "First frame, simply return.";
@@ -153,10 +161,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // last frame state
     Time prev_time(static_cast<int64_t>(timestamp_odo));
     auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-    prev_T_r_m_var->locked() = true;
+    prev_T_r_m_var->locked() = true;  /// \todo make this an option, it's not needed in lidar pipeline, but required for radar
     auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
     trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-    // curr frame state (+ velocity)
+    // current frame state
     Time query_time(static_cast<int64_t>(query_stamp));
     w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
     trajectory->add(query_time, T_r_m_var, w_m_r_in_r_var);
@@ -358,7 +366,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-#pragma omp critical(lgicp_add_cost_term)
+#pragma omp critical(odo_icp_add_p2p_error_cost)
       problem.addCostTerm(cost);
     }
 
@@ -550,25 +558,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
     // no update to map to robot transform
     *qdata.odo_success = false;
-  }
-
-  if (config_->visualize) {
-#if false  /// publish raw point cloud
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(*qdata.undistorted_raw_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = "radar";
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      raw_pub_->publish(pc2_msg);
-    }
-#endif
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(*qdata.undistorted_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = "radar";
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      pub_->publish(pc2_msg);
-    }
   }
   // clang-format on
 }

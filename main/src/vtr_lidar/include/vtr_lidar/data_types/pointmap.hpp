@@ -85,14 +85,15 @@ class PointMap : public PointScan<PointT> {
 
   /** \brief Update map with a set of new points. */
   struct DefaultUpdateCb {
-    void operator()(bool init, PointT& curr_pt, const PointT& new_pt) const {}
+    void operator()(bool /* init */, PointT& /* curr_pt */,
+                    const PointT& /* new_pt */) const {}
   };
   template <class Callback = DefaultUpdateCb>
   void update(const PointCloudType& point_cloud,
               const Callback& callback = DefaultUpdateCb());
 
   struct DefaultFilterCb {
-    bool operator()(const PointT& pt) const { return true; }
+    bool operator()(const PointT&) const { return true; }
   };
   template <class Callback = DefaultFilterCb>
   void filter(const Callback& callback = DefaultFilterCb());

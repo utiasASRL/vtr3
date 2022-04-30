@@ -16,8 +16,7 @@
  * \file normal.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-
-#include <cmath>
+#pragma once
 
 #include "pcl/features/normal_3d.h"
 #include "pcl/kdtree/kdtree.h"

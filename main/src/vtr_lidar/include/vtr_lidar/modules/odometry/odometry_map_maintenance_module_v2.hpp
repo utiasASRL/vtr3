@@ -13,62 +13,35 @@
 // limitations under the License.
 
 /**
- * \file localization_icp_module.hpp
- * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \file odometry_map_maintenance_module_v2.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "steam.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include "vtr_radar_lidar/cache.hpp"
+#include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
+namespace lidar {
 
-namespace radar_lidar {
-
-/** \brief ICP for localization. */
-class LocalizationICPModule : public tactic::BaseModule {
+/** \brief */
+class OdometryMapMaintenanceModuleV2 : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar_lidar.localization_icp";
+  static constexpr auto static_name = "lidar.odometry_map_maintenance_v2";
 
   /** \brief Config parameters. */
-  struct Config : public tactic::BaseModule::Config,
-                  public steam::VanillaGaussNewtonSolver::Params {
+  struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    /// Prior terms
-    bool use_pose_prior = false;
+    float map_voxel_size = 0.2;
 
-    /// Point cloud map projection parameters
-    float elevation_threshold = 0.05;
-    float normal_threshold = 0.5;
-
-    /// ICP parameters
-    // number of threads for nearest neighbor search
-    int num_threads = 8;
-    // initial alignment config
-    size_t first_num_steps = 3;
-    size_t initial_max_iter = 100;
-    float initial_max_pairing_dist = 2.0;
-    float initial_max_planar_dist = 0.3;
-    // refined stage
-    size_t refined_max_iter = 10;  // we use a fixed number of iters for now
-    float refined_max_pairing_dist = 2.0;
-    float refined_max_planar_dist = 0.1;
-    // error calculation
-    float averaging_num_steps = 5;
-    float trans_diff_thresh = 0.01;              // threshold on variation of T
-    float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
-    // loss function
-    double huber_delta = 1.0;
-
-    /// Success criteria
-    float min_matched_ratio = 0.4;
+    float point_life_time = -1.0;  // negative means infinite life time
 
     bool visualize = false;
 
@@ -76,7 +49,7 @@ class LocalizationICPModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  LocalizationICPModule(
+  OdometryMapMaintenanceModuleV2(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -91,11 +64,11 @@ class LocalizationICPModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr tmp_scan_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(LocalizationICPModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometryMapMaintenanceModuleV2);
 };
 
-}  // namespace radar_lidar
+}  // namespace lidar
 }  // namespace vtr
