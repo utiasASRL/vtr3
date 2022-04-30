@@ -192,7 +192,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   for (unsigned i = 0; i < query_points.size(); ++i) {
     aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
   }
-  if (beta != 0) {
+  if (config_->trajectory_smoothing && (beta != 0)) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (unsigned i = 0; i < query_points.size(); ++i) {
       const auto &qry_time = query_points[i].time;
@@ -340,7 +340,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      auto error_func = [&]() -> std::shared_ptr<Evaluable<Eigen::Matrix<double, 3, 1>>> {
+      auto error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
         if (config_->trajectory_smoothing) {
           const auto &qry_time = query_points[ind.first].time;
           const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
@@ -348,19 +348,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           if (beta != 0) {
             const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
             const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-            return p2p::P2PErrorWithDopplerCompensationEvaluator::MakeShared(T_m_s_intp_eval,
-              ref_pt, qry_pt, beta, w_m_r_in_r_intp_eval);
+            return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta);
           } else {
-            return p2p::P2PErrorEvaluator::MakeShared(T_m_s_intp_eval, ref_pt, qry_pt);  
+            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
           }
         } else {
-          if (beta != 0) {
-            const auto w_m_s_in_s_eval = compose_velocity(T_s_r_var, w_m_r_in_r_var);
-            return p2p::P2PErrorWithDopplerCompensationEvaluator::MakeShared(T_m_s_eval,
-              ref_pt, qry_pt, beta, w_m_s_in_s_eval);
-          } else {
-            return p2p::P2PErrorEvaluator::MakeShared(T_m_s_eval, ref_pt, qry_pt);  
-          }
+          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
         }
       }();
       // create cost term and add to problem
@@ -392,7 +385,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     for (unsigned i = 0; i < query_points.size(); ++i) {
       aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
     }
-    if (beta != 0) {
+    if (config_->trajectory_smoothing && beta != 0) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_points.size(); ++i) {
         const auto &qry_time = query_points[i].time;
