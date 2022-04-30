@@ -111,20 +111,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const Eigen::Matrix4d T_s_r_ = T_s_r.matrix().cast<double>();
   const auto &timestamp_odo = *qdata.timestamp_odo;
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   const auto &beta = *qdata.beta;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
-
-  // const Eigen::Matrix3d C_s_r = T_s_r_.block<3, 3>(0, 0).cast<double>();
-  // const Eigen::Vector3d r_s_r_in_r = T_r_s.block<3, 1>(0, 3).cast<double>();
-  // const Eigen::MatrixXd M_s_r = Eigen::MatrixXd::Zero(3, 6);
-  // // converts w_pm_r_in_r to v_s_pm_in_s
-  // M_s_r.block<3, 3>(0, 0) = C_s_r;
-  // M_s_r.block<3, 3>(0, 3) = -1 * C_s_r * lgmath::so3::hat(r_s_r_in_r);
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -188,6 +180,23 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// Perform initial alignment
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+  for (unsigned i = 0; i < query_points.size(); ++i) {
+    aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
+  }
+  if (beta != 0) {
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (unsigned i = 0; i < query_points.size(); ++i) {
+      const auto &qry_time = query_points[i].time;
+      const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+      const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+      const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
+      const Eigen::Vector3f v_m_s_in_s = w_m_s_in_s.block<3, 1>(0, 0);
+      Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
+      abar.normalize();
+      aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+    }
+  }
   if (config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (unsigned i = 0; i < query_points.size(); i++) {
@@ -195,23 +204,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
       const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
       const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
-      aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
+      aligned_mat.block<4, 1>(0, i) = T_m_s * aligned_mat.block<4, 1>(0, i);
       aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
     }
   } else {
     const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
-    aligned_mat = T_m_s * query_mat;
+    aligned_mat = T_m_s * aligned_mat;
     aligned_norms_mat = T_m_s * query_norms_mat;
   }
-  // if (beta != 0) {
-  //   Eigen::Vector3d prev_v_s_pm_in_s = -1 * M_s_r * prev_w_pm_r_in_r_var;
-  //   for (unsigned i = 0; i < query_points.size(); ++i) {
-  //     Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
-  //     abar.normalize();
-  //     aligned_mat.block<3, 1>(0, i) += abar * beta * abar.transpose() * prev_v_s_pm_in_s;
-  //   }
-  // }
-
   // ICP results
   EdgeTransform T_r_m_icp;
   float matched_points_ratio = 0.0;
@@ -332,53 +332,29 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      auto error_func = [&] {
+      auto error_func = [&]() -> std::shared_ptr<Evaluable<Eigen::Matrix<double, 3, 1>>> {
         if (config_->trajectory_smoothing) {
           const auto &qry_time = query_points[ind.first].time;
           const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
           const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-          return p2p::P2PErrorEvaluator::MakeShared(T_m_s_intp_eval, ref_pt, qry_pt);
+          if (beta != 0) {
+            const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+            const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+            return p2p::P2PErrorWithDopplerCompensationEvaluator::MakeShared(T_m_s_intp_eval,
+              ref_pt, qry_pt, beta, w_m_r_in_r_intp_eval);
+          } else {
+            return p2p::P2PErrorEvaluator::MakeShared(T_m_s_intp_eval, ref_pt, qry_pt);  
+          }
         } else {
-          return p2p::P2PErrorEvaluator::MakeShared(T_m_s_eval, ref_pt, qry_pt);
+          if (beta != 0) {
+            const auto w_m_s_in_s_eval = compose_velocity(T_s_r_var, w_m_r_in_r_var);
+            return p2p::P2PErrorWithDopplerCompensationEvaluator::MakeShared(T_m_s_eval,
+              ref_pt, qry_pt, beta, w_m_s_in_s_eval);
+          } else {
+            return p2p::P2PErrorEvaluator::MakeShared(T_m_s_eval, ref_pt, qry_pt);  
+          }
         }
       }();
-/*
-      const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-      const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
-
-      PointToPointErrorEval2::Ptr error_func;
-      if (config_->trajectory_smoothing) {
-        const auto &qry_time = query_points[ind.first].time;
-        const auto T_r_pm_intp_eval = trajectory->getInterpPoseEval(Time(qry_time));
-        const auto T_pm_s_intp_eval = inverse(compose(T_s_r_eval, T_r_pm_intp_eval));
-        if (beta != 0) {
-          const Vector3d abar = qry_pt.normalized();
-          const double delta_rho = beta * abar.transpose() * M_s_r * w_pm_r_in_r_var; // how to compose?
-          const double phi = atan2(qry_pt(1), qry_pt(0));
-          const Eigen::Matrix4d T_dopp = Eigen::Matrix4d::Identity(); // todo: convert to transform evaluator
-          T_dopp(0, 3) = delta_rho * std::cos(phi);
-          T_dopp(1, 3) = delta_rho * std::sin(phi);
-          auto T_pm_s_eval2 = compose(T_pm_s_intp_eval, T_dopp);
-          error_func.reset(new PointToPointErrorEval2(T_pm_s_eval2, ref_pt, qry_pt));
-        } else {
-          error_func.reset(new PointToPointErrorEval2(T_pm_s_intp_eval, ref_pt, qry_pt));  
-        }
-      } else {
-        if (beta != 0) {
-          const Vector3d abar = qry_pt.normalized();
-          const double delta_rho = beta * abar.transpose() * M_s_r * w_pm_r_in_r_var;
-          const double phi = atan2(qry_pt(1), qry_pt(0));
-          const Eigen::Matrix4d T_dopp = Eigen::Matrix4d::Identity();
-          T_dopp(0, 3) = delta_rho * std::cos(phi);
-          T_dopp(1, 3) = delta_rho * std::sin(phi);
-          auto T_pm_s_eval2 = compose(T_pm_s_eval, T_dopp);
-          error_func.reset(new PointToPointErrorEval2(T_pm_s_eval2, ref_pt, qry_pt));
-        } else {
-          error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));  
-        }
-      }
-      */
-
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
@@ -404,6 +380,23 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     /// Alignment
     timer[4]->start();
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (unsigned i = 0; i < query_points.size(); ++i) {
+      aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
+    }
+    if (beta != 0) {
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (unsigned i = 0; i < query_points.size(); ++i) {
+        const auto &qry_time = query_points[i].time;
+        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+        const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+        const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
+        const Eigen::Vector3f v_m_s_in_s = w_m_s_in_s.block<3, 1>(0, 0);
+        Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
+        abar.normalize();
+        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+      }
+    }
     if (config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_points.size(); i++) {
@@ -411,25 +404,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
         const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
         const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
-        aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
+        aligned_mat.block<4, 1>(0, i) = T_m_s * aligned_mat.block<4, 1>(0, i);
         aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
       }
     } else {
       const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
-      aligned_mat = T_m_s * query_mat;
+      aligned_mat = T_m_s * aligned_mat;
       aligned_norms_mat = T_m_s * query_norms_mat;
     }
-    // if (beta != 0) {
-    //   for (unsigned i = 0; i < query_points.size(); ++i) {
-    //     const Eigen::VectorXd w_pm_r_in_r = w_pm_r_in_r_var->getValue();
-    //     const Eigen::Vector3f abar = {aligned_mat(0, i), aligned_mat(1, i), 0} /
-    //       (aligned_mat(0, i) * aligned_mat(0, i) + aligned_mat(1, i) * aligned_mat(1, i));
-    //     const double delta_rho = beta * abar.transpose() * M_s_r * w_pm_r_in_r;
-    //     const double phi = atan2(aligned_mat(1, i), aligned_mat(0, i));
-    //     aligned_mat(0, i) += delta_rho * std::cos(phi);
-    //     aligned_mat(1, i) += delta_rho * std::sin(phi);
-    //   }
-    // }
 
     // Update all result matrices
     const auto T_m_s = T_m_s_eval->evaluate().matrix();
@@ -519,22 +501,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     aligned_norms_mat = T_s_m * aligned_norms_mat;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
-    /// Doppler Compensation
-    if (beta != 0) {
-      // Convert velocity vector from w_m_r_in_r to w_m_s_in_s
-      const auto T_r_s = T_s_r_.inverse();
-      const Eigen::Matrix3d C_s_r = T_s_r_.block<3, 3>(0, 0).cast<double>();
-      const Eigen::Vector3d r_s_r_in_r = T_r_s.block<3, 1>(0, 3).cast<double>();
-      const Eigen::VectorXd w_m_r_in_r = w_m_r_in_r_var->value();
-      const Eigen::Vector3d vel = w_m_r_in_r.block<3, 1>(0, 0).cast<double>();
-      const Eigen::Vector3d ang = w_m_r_in_r.block<3, 1>(3, 0).cast<double>();
-      // angular velocity in sensor frame does not result in Doppler shift
-      Eigen::VectorXd v_s_m_in_s = Eigen::VectorXd::Zero(3);
-      v_s_m_in_s = C_s_r * vel - C_s_r * lgmath::so3::hat(r_s_r_in_r) * ang;
-      v_s_m_in_s *= -1;
-      removeDoppler(*undistorted_point_cloud, v_s_m_in_s, beta);
-    }
-
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
     qdata.undistorted_point_cloud = undistorted_point_cloud;
 #if false

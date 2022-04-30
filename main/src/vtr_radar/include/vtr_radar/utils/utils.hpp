@@ -152,7 +152,8 @@ template <class PointT>
 void removeDoppler(pcl::PointCloud<PointT>& point_cloud,
   const Eigen::VectorXd &vbar, const double beta) {
   for (auto& p : point_cloud) {
-    const Eigen::Vector3d abar = {p.x, p.y, p.z} / (p.x * p.x + p.y * p.y + p.z * p.z);
+    Eigen::Vector3d abar = {p.x, p.y, p.z};
+    abar.normalize();
     const double delta_rho = beta * abar.transpose() * vbar;
     p.x += delta_rho * abar(0);
     p.y += delta_rho * abar(1);
