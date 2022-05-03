@@ -65,12 +65,12 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Inputs
-  const auto &query_stamp = *qdata.stamp;
+  // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior
   const auto &T_v_m = *qdata.T_v_m_loc;
-  const auto &map_version = qdata.submap_loc->version();
+  // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
   /// Parameters

@@ -82,7 +82,7 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).z = points(idx, 2);
 
     // pointwise timestamp
-    point_cloud->at(idx).time = points(idx, 5);
+    point_cloud->at(idx).timestamp = static_cast<int64_t>(points(idx, 5) * 1e9);
   }
 
   // Velodyne has no polar coordinates, so compute them manually.
@@ -97,7 +97,7 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
                   [&](PointWithInfo &point) {
                     point.flex21 = static_cast<float>(
-                        point.time - double(*qdata.stamp / 1000) * 1.0e-6);
+                        (point.timestamp - *qdata.stamp) / 1e9);
                   });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);

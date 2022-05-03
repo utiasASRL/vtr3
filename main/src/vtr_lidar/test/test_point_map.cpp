@@ -112,7 +112,7 @@ TEST(LIDAR, point_map_read_write) {
     p.x = 1 + i; p.y = 2 + i; p.z = 3 + i;
     p.normal_x = 4 + i; p.normal_y = 5 + i; p.normal_z = 6 + i;
     p.flex11 = 7 + i; p.flex12 = 8 + i; p.flex13 = 9 + i; p.flex14 = 10 + i;
-    p.time = 11 + i;
+    p.timestamp = 11 + i;
     p.radial_velocity = 12 + i;
     p.normal_score = 13 + i;
     // clang-format on

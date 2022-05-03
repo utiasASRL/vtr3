@@ -73,8 +73,8 @@ void HoneycombConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
       msg->width * msg->height, 1);
 
   // time stamp at the center of the spin
-  const double center_time =
-      msg->header.stamp.sec + (double)msg->header.stamp.nanosec / 1e9;
+  const int64_t center_time =
+      msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
   // iterators
   // clang-format off
@@ -127,20 +127,21 @@ void HoneycombConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
     double point_time;
     if (*iter_beam_side == 0) {
       // from -180 to 180 in 0.2 seconds
-      point_time = center_time + (double)(*iter_phi) / 1800.0;  // 5Hz(180*0.1s)
+      point_time = (double)(*iter_phi) / 1800.0;  // 5Hz(180*0.1s)
     } else if (*iter_beam_side == 1) {
       // from 0 to 180 then -180 to 0 in 0.2 seconds
       if (*iter_phi > 0) {
-        point_time = center_time + ((double)(*iter_phi) - 180.0) / 1800.0;
+        point_time = ((double)(*iter_phi) - 180.0) / 1800.0;
       } else {
-        point_time = center_time + ((double)(*iter_phi) + 180.0) / 1800.0;
+        point_time = ((double)(*iter_phi) + 180.0) / 1800.0;
       }
     } else {
       std::string err{"Unknown beam side."};
       CLOG(ERROR, "lidar.honeycomb_converter") << err;
       throw std::runtime_error{err};
     }
-    point_cloud->at(idx).time = point_time;
+    point_cloud->at(idx).timestamp =
+        center_time + static_cast<int64_t>(point_time * 1e9);
   }
 
   /// Output
@@ -149,10 +150,11 @@ void HoneycombConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   /// Visualize
   if (config_->visualize) {
     pcl::PointCloud<PointWithInfo> point_cloud_tmp(*point_cloud);
-    auto &points = point_cloud_tmp.points;
-    std::for_each(points.begin(), points.end(), [&](PointWithInfo &point) {
-      point.flex21 = static_cast<float>(point.time - center_time);
-    });
+    std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
+                  [&](PointWithInfo &point) {
+                    point.flex21 = static_cast<float>(
+                        (point.timestamp - center_time) / 1e9);
+                  });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
     pc2_msg->header.frame_id = "lidar";

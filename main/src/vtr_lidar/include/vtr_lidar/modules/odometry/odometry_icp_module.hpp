@@ -46,14 +46,17 @@ class OdometryICPModule : public tactic::BaseModule {
     /// Success criteria
     float min_matched_ratio = 0.4;
 
-    // trajectory smoothing
-    bool trajectory_smoothing = false;
-    Eigen::Matrix<double, 6, 6> smoothing_factor_information =
+    // continuous-time estimation
+    bool use_trajectory_estimation = false;
+    int traj_num_extra_states = 0;
+    bool traj_lock_prev_pose = false;
+    bool traj_lock_prev_vel = false;
+    Eigen::Matrix<double, 6, 6> traj_qc_inv =
         Eigen::Matrix<double, 6, 6>::Zero();
 
     // radial velocity
     bool use_radial_velocity = false;
-    double radial_velocity_cov = 1.0;
+    double rv_cov = 1.0;
 
     /// ICP parameters
     // number of threads for nearest neighbor search
