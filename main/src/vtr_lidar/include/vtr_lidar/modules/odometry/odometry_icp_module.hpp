@@ -57,6 +57,7 @@ class OdometryICPModule : public tactic::BaseModule {
     // radial velocity
     bool use_radial_velocity = false;
     double rv_cov = 1.0;
+    double rv_loss_threshold = 1.0;
 
     /// ICP parameters
     // number of threads for nearest neighbor search

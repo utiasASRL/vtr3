@@ -68,6 +68,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->rv_cov = node->declare_parameter<double>(param_prefix + ".rv_cov", config->rv_cov);
+  config->rv_loss_threshold = node->declare_parameter<double>(param_prefix + ".rv_loss_threshold", config->rv_loss_threshold);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -335,8 +336,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
-    // cost terms and noise model
     if (config_->use_radial_velocity) {
+      // shared loss function
+      auto rv_loss_func = GemanMcClureLossFunc::MakeShared(config_->rv_loss_threshold);
+      // cost terms and noise model
       Eigen::Matrix<double, 1, 1> rv_cov = config_->rv_cov * Eigen::Matrix<double, 1, 1>::Identity();
       const auto rv_noise_model = StaticNoiseModel<1>::MakeShared(rv_cov);
   #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -350,7 +353,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto error_func = p2p::RadialVelErrorEvaluator::MakeShared(w_is_ins_m_intp_eval, qry_pt, qry_rv);
 
         // create cost term and add to problem
-        auto cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, rv_noise_model, loss_func);
+        auto cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, rv_noise_model, rv_loss_func);
 
   #pragma omp critical(odo_icp_add_rv_error_cost)
         problem.addCostTerm(cost);
