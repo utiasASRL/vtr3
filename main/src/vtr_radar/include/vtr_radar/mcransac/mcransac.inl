@@ -68,7 +68,7 @@ Eigen::VectorXd MCRansac<PointT>::get_motion_parameters(
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(6, 6);
     Eigen::VectorXd b = Eigen::VectorXd::Zero(6);
     for (const auto& sample_idx: subset) {
-      const double dt = pc2.at(sample_idx).time - pc1.at(sample_idx).time;
+      const double dt = static_cast<double>((pc2.at(sample_idx).timestamp - pc1.at(sample_idx).timestamp) / 1e9);
       const Eigen::MatrixXd T_1_2 = lgmath::se3::vec2tran(dt * wbar);  // dt * wbar = xi_2_1
       const Eigen::Vector4d p1 = {pc1.at(sample_idx).x, pc1.at(sample_idx).y, pc1.at(sample_idx).z, 1};
       const Eigen::Vector4d p2 = {pc2.at(sample_idx).x, pc2.at(sample_idx).y, pc2.at(sample_idx).z, 1};
@@ -86,7 +86,7 @@ Eigen::VectorXd MCRansac<PointT>::get_motion_parameters(
       double e = 0;
       const Eigen::VectorXd wbar_temp = wbar + alpha * delta_w;
       for (const auto& sample_idx: subset) {
-        const double dt = pc2.at(sample_idx).time - pc1.at(sample_idx).time;
+        const double dt = static_cast<double>((pc2.at(sample_idx).timestamp - pc1.at(sample_idx).timestamp) / 1e9);
         const Eigen::Vector4d p1 = {pc1.at(sample_idx).x, pc1.at(sample_idx).y, pc1.at(sample_idx).z, 1};
         const Eigen::Vector4d p2 = {pc2.at(sample_idx).x, pc2.at(sample_idx).y, pc2.at(sample_idx).z, 1};
         const Eigen::MatrixXd T_1_2 = lgmath::se3::vec2tran(dt * wbar_temp);  // dt * wbar = xi_2_1
@@ -165,7 +165,7 @@ std::vector<int> MCRansac<PointT>::get_inliers(
   double min_delta = std::numeric_limits<double>::max();
   double max_delta = std::numeric_limits<double>::lowest();
   for (int i = 0; i < N; ++i) {
-    const auto dt = pc2[i].time - pc1[i].time;
+    const double dt = static_cast<double>((pc2[i].timestamp - pc1[i].timestamp) / 1e9);
     if (dt < min_delta) min_delta = dt;
     if (dt > max_delta) max_delta = dt;
   }
@@ -182,7 +182,7 @@ std::vector<int> MCRansac<PointT>::get_inliers(
 
   std::vector<int> inliers;
   for (int i = 0; i < N; ++i) {
-    const double dt = pc2[i].time - pc1[i].time;
+    const double dt = static_cast<double>((pc2[i].timestamp - pc1[i].timestamp) / 1e9);
     const Eigen::Vector4d p1 = {pc1.at(i).x, pc1.at(i).y, pc1.at(i).z, 1};
     const Eigen::Vector4d p2 = {pc2.at(i).x, pc2.at(i).y, pc2.at(i).z, 1};
     const Eigen::Vector4d error = p1 - T_1_2_vec[mcransac::get_closest(dt, delta_vec)] * p2;

@@ -83,7 +83,7 @@ namespace radar {
       float flex24; \
     }; \
     struct { \
-      double time; \
+      int64_t timestamp; \
       float radial_velocity; \
       float normal_score; \
     }; \

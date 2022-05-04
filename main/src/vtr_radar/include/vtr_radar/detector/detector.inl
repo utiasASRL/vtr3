@@ -75,7 +75,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
       p.rho = float(intens[j].second) * res;
       p.phi = azimuth;
       p.theta = 0;
-      p.time = time;
+      p.timestamp = static_cast<int64_t>(time * 1e9);
       polar_time.push_back(p);
     }
     // #pragma omp critical
@@ -168,7 +168,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
         p.rho = res * peak_points / num_peak_points;
         p.phi = azimuth;
         p.theta = 0;
-        p.time = time;
+        p.timestamp = static_cast<int64_t>(time * 1e9);
         polar_time.push_back(p);
         peak_points = 0;
         num_peak_points = 0;
@@ -181,7 +181,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
       p.rho = res * peak_points / num_peak_points;
       p.phi = azimuth;
       p.theta = 0;
-      p.time = time;
+      p.timestamp = static_cast<int64_t>(time * 1e9);
       polar_time.push_back(p);
     }
     // #pragma omp critical
@@ -234,13 +234,14 @@ void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
         right += raw_scan.at<float>(i, j + k);
       }
       stat = std::max(left, right);
-      const float thres = threshold_ * stat / (window / 2) + threshold2_ * mean + threshold3_;
+      const float thres =
+          threshold_ * stat / (window / 2) + threshold2_ * mean + threshold3_;
       if (raw_scan.at<float>(i, j) > thres) {
         PointT p;
         p.rho = j * res;
         p.phi = azimuth;
         p.theta = 0;
-        p.time = time;
+        p.timestamp = static_cast<int64_t>(time * 1e9);
         polar_time.push_back(p);
       }
     }
@@ -328,7 +329,7 @@ void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
         p.rho = res * peak_points / num_peak_points;
         p.phi = azimuth;
         p.theta = 0;
-        p.time = time;
+        p.timestamp = static_cast<int64_t>(time * 1e9);
         polar_time.push_back(p);
         peak_points = 0;
         num_peak_points = 0;
@@ -389,7 +390,7 @@ void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
         p.rho = res * peak_points / num_peak_points;
         p.phi = azimuth;
         p.theta = 0;
-        p.time = time;
+        p.timestamp = static_cast<int64_t>(time * 1e9);
         polar_time.push_back(p);
         peak_points = 0;
         num_peak_points = 0;
