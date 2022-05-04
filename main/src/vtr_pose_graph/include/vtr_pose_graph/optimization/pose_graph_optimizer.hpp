@@ -31,16 +31,14 @@ class PGOFactorInterface {
   PTR_TYPEDEFS(PGOFactorInterface);
 
   using GraphPtr = typename Graph::Ptr;
-  // clang-format off
   using VertexId2TransformMap = std::unordered_map<VertexId, EdgeTransform>;
-  using StateMap = std::unordered_map<VertexId, steam::se3::TransformStateVar::Ptr>;
-  using CostTermPtr = steam::ParallelizedCostTermCollection::Ptr;
-  // clang-format on
+  using StateMap = std::unordered_map<VertexId, steam::se3::SE3StateVar::Ptr>;
+  using CostTerms = std::vector<steam::BaseCostTerm::ConstPtr>;
 
   virtual ~PGOFactorInterface() = default;
 
   /** \brief Adds state variables and cost terms to the optimization problem */
-  virtual void addCostTerms(const GraphPtr&, StateMap&, const CostTermPtr&) = 0;
+  virtual void addCostTerms(const GraphPtr&, StateMap&, CostTerms&) = 0;
 };
 
 template <class Graph>
@@ -51,12 +49,9 @@ class PoseGraphOptimizer {
   using GraphPtr = typename Graph::Ptr;
   using VertexPtr = typename Graph::VertexPtr;
   using EdgePtr = typename Graph::EdgePtr;
-  // clang-format off
   using VertexId2TransformMap = std::unordered_map<VertexId, EdgeTransform>;
-  using StateMap = std::unordered_map<VertexId, steam::se3::TransformStateVar::Ptr>;
-  using CostTermPtr = steam::ParallelizedCostTermCollection::Ptr;
-  using ProblemPtr = std::shared_ptr<steam::OptimizationProblem>;
-  // clang-format on
+  using StateMap = std::unordered_map<VertexId, steam::se3::SE3StateVar::Ptr>;
+  using CostTerms = std::vector<steam::BaseCostTerm::ConstPtr>;
 
   /**
    * \brief automatically initializes vertices to tree expansion
@@ -75,7 +70,7 @@ class PoseGraphOptimizer {
 
   /** \brief Get a transform by vertex ID */
   const lgmath::se3::Transformation& at(const VertexId& v) const {
-    return state_map_.at(v)->getValue();
+    return state_map_.at(v)->value();
   };
 
  private:
@@ -85,8 +80,7 @@ class PoseGraphOptimizer {
  private:
   GraphPtr graph_;
   StateMap state_map_;
-  CostTermPtr cost_terms_ =
-      std::make_shared<steam::ParallelizedCostTermCollection>();
+  CostTerms cost_terms_;
 };
 
 template <class Graph>
@@ -100,10 +94,9 @@ PoseGraphOptimizer<Graph>::PoseGraphOptimizer(const GraphPtr& graph,
   // initialize states and lock the root
   for (auto iter = graph_->begin(root); iter != graph_->end(); ++iter) {
     const auto vid = iter->v()->id();
-    state_map_[vid] =
-        std::make_shared<steam::se3::TransformStateVar>(vid2tf_map_.at(vid));
+    state_map_[vid] = steam::se3::SE3StateVar::MakeShared(vid2tf_map_.at(vid));
   }
-  state_map_.at(root)->setLock(true);
+  state_map_.at(root)->locked() = true;
 }
 
 template <class Graph>
@@ -118,12 +111,13 @@ void PoseGraphOptimizer<Graph>::optimize(
     const typename Solver::Params& params) {
   steam::OptimizationProblem problem;
   for (auto&& it : state_map_) {
-    if (!it.second->isLocked())
+    if (!it.second->locked())
       problem.addStateVariable(it.second);
     else
       CLOG(INFO, "pose_graph") << "PGO skipping locked pose " << it.first;
   }
-  problem.addCostTerm(cost_terms_);
+
+  for (const auto& cost_term : cost_terms_) problem.addCostTerm(cost_term);
 
   if (problem.getStateVariables().size() == 0 ||
       problem.getNumberOfCostTerms() == 0) {
@@ -139,7 +133,7 @@ void PoseGraphOptimizer<Graph>::optimize(
 
   // update the tf map
   for (auto iter = vid2tf_map_.begin(); iter != vid2tf_map_.end(); ++iter)
-    iter->second = state_map_.at(iter->first)->getValue();
+    iter->second = state_map_.at(iter->first)->value();
 }
 
 }  // namespace pose_graph

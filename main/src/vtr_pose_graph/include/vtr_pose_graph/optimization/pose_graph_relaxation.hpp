@@ -34,7 +34,7 @@ class PoseGraphRelaxation : public PGOFactorInterface<Graph> {
   using GraphPtr = typename Base::GraphPtr;
   using VertexId2TransformMap = typename Base::VertexId2TransformMap;
   using StateMap = typename Base::StateMap;
-  using CostTermPtr = typename Base::CostTermPtr;
+  using CostTerms = typename Base::CostTerms;
 
   using ModelGen = NoiseModelGenerator<EdgeTransform, 6>;
 
@@ -53,21 +53,21 @@ class PoseGraphRelaxation : public PGOFactorInterface<Graph> {
   /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const Matrix6d& cov = Matrix6d::Identity(6, 6),
-      const LossFuncPtr& loss_func = std::make_shared<steam::L2LossFunc>())
+      const LossFuncPtr& loss_func = steam::L2LossFunc::MakeShared())
       : noise_models_({{ModelGen(cov), ModelGen(cov)}}),
         loss_func_(loss_func) {}
 
   /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const Matrix6d& cov_temporal, const Matrix6d& cov_spatial,
-      const LossFuncPtr& loss_func = std::make_shared<steam::L2LossFunc>())
+      const LossFuncPtr& loss_func = steam::L2LossFunc::MakeShared())
       : noise_models_({{ModelGen(cov_temporal), ModelGen(cov_spatial)}}),
         loss_func_(loss_func) {}
 
   /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const NoiseModelPtr& noiseModel,
-      const LossFuncPtr& loss_func = std::make_shared<steam::L2LossFunc>())
+      const LossFuncPtr& loss_func = steam::L2LossFunc::MakeShared())
       : noise_models_({{ModelGen(noiseModel), ModelGen(noiseModel)}}),
         loss_func_(loss_func) {}
 
@@ -75,14 +75,14 @@ class PoseGraphRelaxation : public PGOFactorInterface<Graph> {
   PoseGraphRelaxation(
       const NoiseModelPtr& noiseModelTemporal,
       const NoiseModelPtr& noiseModelSpatial,
-      const LossFuncPtr& loss_func = std::make_shared<steam::L2LossFunc>())
+      const LossFuncPtr& loss_func = steam::L2LossFunc::MakeShared())
       : noise_models_(
             {{ModelGen(noiseModelTemporal), ModelGen(noiseModelSpatial)}}),
         loss_func_(loss_func) {}
 
   /** \brief Build state variables/cost terms and add them to the problem */
   void addCostTerms(const GraphPtr& graph, StateMap& state_map,
-                    const CostTermPtr& cost_terms) override;
+                    CostTerms& cost_terms) override;
 
  private:
   std::array<ModelGen, 2> noise_models_;
@@ -93,21 +93,28 @@ class PoseGraphRelaxation : public PGOFactorInterface<Graph> {
 template <class Graph>
 void PoseGraphRelaxation<Graph>::addCostTerms(const GraphPtr& graph,
                                               StateMap& state_map,
-                                              const CostTermPtr& cost_terms) {
+                                              CostTerms& cost_terms) {
   for (auto jt = graph->beginEdge(), jte = graph->endEdge(); jt != jte; ++jt) {
-    // Don't add cost terms when both things are locked
-    if (state_map.at(jt->to())->isLocked() &&
-        state_map.at(jt->from())->isLocked())
-      continue;
+    using namespace steam::se3;
 
-    // Add an edge constraint between the from and to vertices
-    auto error_func = std::make_shared<steam::TransformErrorEval>(
-        jt->T(), state_map.at(jt->to()), state_map.at(jt->from()));
+    const auto T_20 = state_map.at(jt->to());
+    const auto T_10 = state_map.at(jt->from());
 
-    auto cost = std::make_shared<steam::WeightedLeastSqCostTerm<6, 6>>(
+    // don't add cost terms when both things are locked
+    if (T_20->locked() && T_10->locked()) continue;
+
+    // add measurement (T_to_from)
+    const auto T_21 = SE3StateVar::MakeShared(jt->T());
+    T_21->locked() = true;
+
+    // add an edge constraint between the from and to vertices
+    const auto error_func =
+        tran2vec(compose(compose(T_21, T_10), inverse(T_20)));
+
+    const auto cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(
         error_func, noise_models_[jt->idx()](jt->T()), loss_func_);
 
-    cost_terms->add(cost);
+    cost_terms.emplace_back(cost_term);
   }
 }
 

@@ -75,8 +75,7 @@ class NoiseModelGenerator<lgmath::se3::TransformationWithCovariance, 6>
       const lgmath::se3::TransformationWithCovariance& T) const override {
     if (T.covarianceSet()) {
       auto cov = T.cov();
-      if (cov.norm() > 0)
-        return std::make_shared<steam::StaticNoiseModel<6>>(cov);
+      if (cov.norm() > 0) return steam::StaticNoiseModel<6>::MakeShared(cov);
     }
     return default_model_;
   }
