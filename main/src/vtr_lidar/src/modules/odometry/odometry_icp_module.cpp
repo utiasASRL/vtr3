@@ -150,8 +150,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   T_s_r_var->locked() = true;
 
   /// trajectory smoothing
-  Evaluable<lgmath::se3::Transformation>::Ptr T_r_m_eval = nullptr;
-  Evaluable<Eigen::Matrix<double, 6, 1>>::Ptr w_m_r_in_r_eval = nullptr;
+  Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval = nullptr;
+  Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
   if (config_->use_trajectory_estimation) {
@@ -167,21 +167,27 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     state_vars.emplace_back(prev_T_r_m_var);
     state_vars.emplace_back(prev_w_m_r_in_r_var);
 
-    // current frame state
+    const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
+    const auto first_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+    const auto last_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+    const int64_t num_states = config_->traj_num_extra_states + 2;
+    const int64_t time_diff = (last_time - first_time) / (num_states - 1);
+    for (int i = 0; i < num_states; ++i) {
+      Time knot_time(static_cast<int64_t>(first_time + i * time_diff));
+      //
+      const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo);
+      const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+      const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
+      //
+      const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+      //
+      trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
+      state_vars.emplace_back(T_r_m_var);
+      state_vars.emplace_back(w_m_r_in_r_var);
+    }
     Time query_time(static_cast<int64_t>(query_stamp));
-    //
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time-prev_time).seconds() * w_m_r_in_r_odo);
-    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
-    auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-    //
-    auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-    //
-    trajectory->add(query_time, T_r_m_var, w_m_r_in_r_var);
-    state_vars.emplace_back(T_r_m_var);
-    state_vars.emplace_back(w_m_r_in_r_var);
-    //
-    T_r_m_eval = T_r_m_var;
-    w_m_r_in_r_eval = w_m_r_in_r_var;
+    T_r_m_eval = trajectory->getPoseInterpolator(query_time);
+    w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
   } else {
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
     state_vars.emplace_back(T_r_m_var);
