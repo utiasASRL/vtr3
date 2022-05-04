@@ -145,43 +145,51 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   KDTreeSearchParams search_params;
 
   // clang-format off
-  /// Create and add the T_robot_map variable, here m = local map frame.
-  auto T_r_m_odo_extp = T_r_m_odo;
-  if (config_->use_trajectory_estimation) {
-    Eigen::Matrix<double,6,1> xi_m_r_in_r_odo(Time(query_stamp - timestamp_odo).seconds() * w_m_r_in_r_odo);
-    T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
-  }
-  const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-
   /// Create robot to sensor transform variable, fixed.
   const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
   T_s_r_var->locked() = true;
 
   /// trajectory smoothing
+  Evaluable<lgmath::se3::Transformation>::Ptr T_r_m_eval = nullptr;
+  Evaluable<Eigen::Matrix<double, 6, 1>>::Ptr w_m_r_in_r_eval = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
-  std::vector<StateVarBase::Ptr> trajectory_state_vars;
-  VSpaceStateVar<6>::Ptr w_m_r_in_r_var = nullptr;
+  std::vector<StateVarBase::Ptr> state_vars;
   if (config_->use_trajectory_estimation) {
     trajectory = const_vel::Interface::MakeShared(config_->traj_qc_inv, true);
-    /// \todo the first state should be the start of the scan, and the last state should be the end of the scan.
-    /// \todo allow for adding additional states in between.
-    // last frame state
+
+    /// last frame state
     Time prev_time(static_cast<int64_t>(timestamp_odo));
     auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
     auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+    if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
+    if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
     trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
+    state_vars.emplace_back(prev_T_r_m_var);
+    state_vars.emplace_back(prev_w_m_r_in_r_var);
+
     // current frame state
     Time query_time(static_cast<int64_t>(query_stamp));
-    w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+    //
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time-prev_time).seconds() * w_m_r_in_r_odo);
+    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+    auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
+    //
+    auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+    //
     trajectory->add(query_time, T_r_m_var, w_m_r_in_r_var);
-    // add state variables to the collection
-    trajectory_state_vars.emplace_back(prev_T_r_m_var);
-    trajectory_state_vars.emplace_back(prev_w_m_r_in_r_var);
-    trajectory_state_vars.emplace_back(w_m_r_in_r_var);
+    state_vars.emplace_back(T_r_m_var);
+    state_vars.emplace_back(w_m_r_in_r_var);
+    //
+    T_r_m_eval = T_r_m_var;
+    w_m_r_in_r_eval = w_m_r_in_r_var;
+  } else {
+    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
+    state_vars.emplace_back(T_r_m_var);
+    T_r_m_eval = T_r_m_var;
   }
 
   /// compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_var));
+  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
 
   /// Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
@@ -294,14 +302,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     OptimizationProblem problem(config_->num_threads);
 
     // add variables
-    problem.addStateVariable(T_r_m_var);
+    for (const auto &var : state_vars)
+      problem.addStateVariable(var);
 
-    // add prior costs and vars
-    if (config_->use_trajectory_estimation) {
-      for (const auto &var : trajectory_state_vars)
-        problem.addStateVariable(var);
+    // add prior cost terms
+    if (config_->use_trajectory_estimation)
       trajectory->addPriorCostTerms(problem);
-    }
 
     // shared loss function
     auto loss_func = L2LossFunc::MakeShared();
@@ -452,8 +458,17 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
       // result
-      T_r_m_icp = EdgeTransform(T_r_m_var->value(), solver.queryCovariance(T_r_m_var->key()));
+      if (config_->use_trajectory_estimation) {
+        const Eigen::Matrix<double, 6, 6> T_r_m_cov =
+          trajectory->getCovariance(solver, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+        T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
+      } else {
+        const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
+        T_r_m_icp = EdgeTransform(T_r_m_var->value(), solver.queryCovariance(T_r_m_var->key()));
+      }
+      //
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      //
       CLOG(DEBUG, "radar.odometry_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
@@ -503,15 +518,15 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
     // store trajectory info
     *qdata.timestamp_odo = query_stamp;
-    *qdata.T_r_m_odo = T_r_m_var->value();
+    *qdata.T_r_m_odo = T_r_m_eval->value();
     if (config_->use_trajectory_estimation)
-      *qdata.w_m_r_in_r_odo = w_m_r_in_r_var->value();
+      *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->use_trajectory_estimation)
-      *qdata.w_v_r_in_r_odo = w_m_r_in_r_var->value();
+      *qdata.w_v_r_in_r_odo = w_m_r_in_r_eval->value();
     //
     *qdata.odo_success = true;
   } else {
