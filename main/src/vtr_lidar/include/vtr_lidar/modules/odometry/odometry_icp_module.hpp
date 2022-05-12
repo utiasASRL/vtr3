@@ -59,6 +59,11 @@ class OdometryICPModule : public tactic::BaseModule {
     double rv_cov = 1.0;
     double rv_loss_threshold = 1.0;
 
+    // velocity prior
+    bool use_velocity_prior = false;
+    Eigen::Matrix<double, 6, 6> vp_cov =
+        Eigen::Matrix<double, 6, 6>::Identity();
+
     /// ICP parameters
     // number of threads for nearest neighbor search
     int num_threads = 4;

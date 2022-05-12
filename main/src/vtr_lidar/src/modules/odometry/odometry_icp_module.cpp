@@ -70,6 +70,15 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->rv_cov = node->declare_parameter<double>(param_prefix + ".rv_cov", config->rv_cov);
   config->rv_loss_threshold = node->declare_parameter<double>(param_prefix + ".rv_loss_threshold", config->rv_loss_threshold);
 
+  config->use_velocity_prior = node->declare_parameter<bool>(param_prefix + ".use_velocity_prior", config->use_velocity_prior);
+  const auto vp_cov = node->declare_parameter<std::vector<double>>(param_prefix + ".vp_cov", std::vector<double>());
+  if (vp_cov.size() != 6) {
+    std::string err{"Velocity prior cov diagonal malformed. Must be 6 elements!"};
+    CLOG(ERROR, "lidar.odometry_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->vp_cov.diagonal() << vp_cov[0], vp_cov[1], vp_cov[2], vp_cov[3], vp_cov[4], vp_cov[5];
+
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
@@ -164,6 +173,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
     if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
     trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
+    if (config_->use_velocity_prior) {
+      Eigen::Matrix<double, 6, 1> prior_w_m_r_in_r = Eigen::Matrix<double, 6, 1>::Zero();
+      trajectory->addVelocityPrior(prev_time, prior_w_m_r_in_r, config_->vp_cov);
+    }
     state_vars.emplace_back(prev_T_r_m_var);
     state_vars.emplace_back(prev_w_m_r_in_r_var);
 
@@ -182,6 +195,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
       //
       trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
+      if (config_->use_velocity_prior) {
+        Eigen::Matrix<double, 6, 1> prior_w_m_r_in_r = Eigen::Matrix<double, 6, 1>::Zero();
+        trajectory->addVelocityPrior(knot_time, prior_w_m_r_in_r, config_->vp_cov);
+      }
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
     }
@@ -527,6 +544,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_m_odo = T_r_m_eval->value();
     if (config_->use_trajectory_estimation)
       *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
+#if 1
+    CLOG(WARNING, "lidar.odometry_icp") << "T_m_r is: " << T_r_m_eval->value().inverse().vec().transpose();
+    CLOG(WARNING, "lidar.odometry_icp") << "w_m_r_in_r is: " << w_m_r_in_r_eval->value().transpose();
+#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
