@@ -28,6 +28,25 @@ using namespace tactic;
 
 namespace {
 
+std::vector<int> limitFOV(const pcl::PointCloud<PointWithInfo> &point_cloud,
+                          const float &center, const float &fov) {
+  //
+  const float fov2 = fov / 2.0;
+
+  std::vector<int> indices;
+  indices.reserve(point_cloud.size());
+
+  for (size_t i = 0; i < point_cloud.size(); i++) {
+    const auto &p = point_cloud[i];
+    const auto phi = std::atan2(p.y, p.x);
+    auto diff = std::abs(phi - center);
+    diff = std::min(diff, static_cast<float>(2 * M_PI - diff));
+    if (diff < fov2) indices.emplace_back(i);
+  }
+
+  return indices;
+}
+
 void velodyneCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
   for (size_t i = 0; i < point_cloud.size(); i++) {
     auto &p = point_cloud[i];
@@ -51,6 +70,10 @@ auto VelodyneConversionModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
+  config->use_fov_limit = node->declare_parameter<bool>(param_prefix + ".use_fov_limit", config->use_fov_limit);
+  config->fov_center = node->declare_parameter<float>(param_prefix + ".fov_center", config->fov_center);
+  config->fov = node->declare_parameter<float>(param_prefix + ".fov", config->fov);
+
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -83,6 +106,14 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
 
     // pointwise timestamp
     point_cloud->at(idx).timestamp = static_cast<int64_t>(points(idx, 5) * 1e9);
+  }
+
+  //
+  if (config_->use_fov_limit) {
+    const auto center_rad = config_->fov_center * M_PI / 180;
+    const auto fov_rad = config_->fov * M_PI / 180;
+    auto indices = limitFOV(*point_cloud, center_rad, fov_rad);
+    *point_cloud = pcl::PointCloud<PointWithInfo>(*point_cloud, indices);
   }
 
   // Velodyne has no polar coordinates, so compute them manually.

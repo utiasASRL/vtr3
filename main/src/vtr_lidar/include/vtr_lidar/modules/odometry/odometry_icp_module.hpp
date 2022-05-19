@@ -54,6 +54,9 @@ class OdometryICPModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 6> traj_qc_inv =
         Eigen::Matrix<double, 6, 6>::Zero();
 
+    // point association
+    bool use_point_association = true;
+
     // radial velocity
     bool use_radial_velocity = false;
     double rv_cov = 1.0;

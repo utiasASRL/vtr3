@@ -60,6 +60,9 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   }
   config->traj_qc_inv.diagonal() << 1.0/qcd[0], 1.0/qcd[1], 1.0/qcd[2], 1.0/qcd[3], 1.0/qcd[4], 1.0/qcd[5];
 
+  // point association
+  config->use_point_association = node->declare_parameter<bool>(param_prefix + ".use_point_association", config->use_point_association);
+
   // radial velocity
   config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
   if (config->use_radial_velocity && !config->use_trajectory_estimation) {
@@ -332,37 +335,39 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (config_->use_trajectory_estimation)
       trajectory->addPriorCostTerms(problem);
 
-    // shared loss function
-    auto loss_func = L2LossFunc::MakeShared();
-    // cost terms and noise model
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (const auto &ind : filtered_sample_inds) {
-      // noise model W = n * n.T (information matrix)
-      if (point_map[ind.second].normal_score <= 0.0) continue;
-      Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-      Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
-      auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
+    if (config_->use_point_association) {
+      // shared loss function
+      auto loss_func = L2LossFunc::MakeShared();
+      // cost terms and noise model
+  #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (const auto &ind : filtered_sample_inds) {
+        // noise model W = n * n.T (information matrix)
+        if (point_map[ind.second].normal_score <= 0.0) continue;
+        Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+        Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+        auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
-      // query and reference point
-      const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-      const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+        // query and reference point
+        const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+        const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      auto error_func = [&] {
-        if (config_->use_trajectory_estimation) {
-          const auto &qry_time = query_points[ind.first].timestamp;
-          const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-          const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-          return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
-        } else {
-          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
-        }
-      }();
+        auto error_func = [&] {
+          if (config_->use_trajectory_estimation) {
+            const auto &qry_time = query_points[ind.first].timestamp;
+            const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+            const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
+          } else {
+            return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
+          }
+        }();
 
-      // create cost term and add to problem
-      auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+        // create cost term and add to problem
+        auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-#pragma omp critical(odo_icp_add_p2p_error_cost)
-      problem.addCostTerm(cost);
+  #pragma omp critical(odo_icp_add_p2p_error_cost)
+        problem.addCostTerm(cost);
+      }
     }
 
     if (config_->use_radial_velocity) {
@@ -372,7 +377,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       Eigen::Matrix<double, 1, 1> rv_cov = config_->rv_cov * Eigen::Matrix<double, 1, 1>::Identity();
       const auto rv_noise_model = StaticNoiseModel<1>::MakeShared(rv_cov);
   #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (const auto &ind : filtered_sample_inds) {
+      for (const auto &ind : sample_inds) {
         // query and reference point
         const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
         const auto &qry_rv = query_points[ind.first].radial_velocity;
@@ -482,8 +487,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
          mean_dR < config_->rot_diff_thresh)) {
       // result
       if (config_->use_trajectory_estimation) {
-        const Eigen::Matrix<double, 6, 6> T_r_m_cov =
-          trajectory->getCovariance(solver, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+        Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
+        try {
+          /// \todo remove this if condition once steam allows for cov interp. between locked variables
+          if ((!config_->traj_lock_prev_pose) && (!config_->traj_lock_prev_vel))
+            T_r_m_cov = trajectory->getCovariance(solver, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+        } catch (const std::runtime_error &) {
+          CLOG(WARNING, "lidar.odometry_icp") << "Covariance estimation failed! Covariance left unchanged.";
+        }
         T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate

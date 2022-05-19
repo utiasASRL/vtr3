@@ -176,7 +176,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
       << "planarity sampled point size: " << filtered_point_cloud->size();
 
   /// Filter based on a normal directions
-
+#if false
   norm_scores =
       smartNormalScore(*filtered_point_cloud, config_->min_normal_estimate_dist,
                        config_->max_normal_estimate_angle);
@@ -223,6 +223,10 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   }
   CLOG(DEBUG, "lidar.preprocessing")
       << "cluster point size: " << filtered_point_cloud->size();
+#endif
+
+  /// Delay normal computation until adding the point cloud to the map
+  for (auto &p : *filtered_point_cloud) p.normal_score = -1.0;
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "final subsampled point size: " << filtered_point_cloud->size();
