@@ -36,6 +36,8 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->task_queue_num_threads = node->declare_parameter<int>(prefix+".task_queue_num_threads", 1);
   config->task_queue_size = node->declare_parameter<int>(prefix+".task_queue_size", -1);
 
+  config->route_completion_translation_threshold = node->declare_parameter<double>(prefix+".route_completion_translation_threshold", 0.5);
+
   /// setup localization chain
   config->chain_config.min_cusp_distance = node->declare_parameter<double>(prefix+".chain.min_cusp_distance", 1.5);
   config->chain_config.angle_weight = node->declare_parameter<double>(prefix+".chain.angle_weight", 7.0);
@@ -163,7 +165,8 @@ bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
   if (chain_->trunkSequenceId() < (chain_->sequence().size() - 1)) return false;
   const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
-  if (translation > 0.5) return false;
+  if (translation > config_->route_completion_translation_threshold)
+    return false;
   return true;
 }
 

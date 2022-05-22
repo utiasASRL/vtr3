@@ -22,6 +22,7 @@
 #include "vtr_tactic/task_queue.hpp"
 
 #include "vtr_lidar/data_types/pointmap.hpp"
+#include "vtr_lidar/data_types/pointmap_pointer.hpp"
 #include "vtr_lidar/segmentation/ray_tracing.hpp"
 #include "vtr_pose_graph/path/pose_cache.hpp"
 
@@ -35,8 +36,8 @@ auto DynamicDetectionModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->depth = node->declare_parameter<int>(param_prefix + ".depth", config->depth);
-
+  config->depth = node->declare_parameter<double>(param_prefix + ".depth", config->depth);
+  //
   config->intra_exp_merging = node->declare_parameter<std::string>(param_prefix + ".intra_exp_merging", config->intra_exp_merging);
 
   config->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config->horizontal_resolution);
@@ -44,7 +45,7 @@ auto DynamicDetectionModule::Config::fromROS(
   config->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config->max_num_observations);
   config->min_num_observations = node->declare_parameter<int>(param_prefix + ".min_num_observations", config->min_num_observations);
   config->dynamic_threshold = node->declare_parameter<float>(param_prefix + ".dynamic_threshold", config->dynamic_threshold);
-
+  // general
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -55,15 +56,6 @@ void DynamicDetectionModule::run_(QueryCache &qdata0, OutputCache &,
                                   const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  if (config_->visualize && !publisher_initialized_) {
-    // clang-format off
-    old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_old", 5);
-    new_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_new", 5);
-    scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_tmp", 5);
-    // clang-format on
-    publisher_initialized_ = true;
-  }
-
   if (qdata.vid_odo->isValid() &&
       qdata.vid_odo->minorId() >= (unsigned)config_->depth &&
       *qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
@@ -72,8 +64,9 @@ void DynamicDetectionModule::run_(QueryCache &qdata0, OutputCache &,
                  qdata.vid_odo->minorId() - (unsigned)config_->depth);
 
     qdata.dynamic_detection_async.emplace(target_vid);
-    executor->dispatch(
-        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
+    executor->dispatch(std::make_shared<Task>(
+        shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
+        Task::DepId{}, "Dynamic Obstacle Detection", target_vid));
   }
 }
 
@@ -83,68 +76,119 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
                                        const Task::Priority &priority,
                                        const Task::DepId &dep_id) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+
+  if (config_->visualize) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (!publisher_initialized_) {
+      // clang-format off
+      old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_old", 5);
+      new_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_new", 5);
+      scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_scan", 5);
+      // clang-format on
+      publisher_initialized_ = true;
+    }
+  }
+
+  /// input
   const auto &target_vid = *qdata.dynamic_detection_async;
+  const auto target_vertex = graph->at(target_vid);
 
   CLOG(INFO, "lidar.dynamic_detection")
-      << "Short-Term Dynamics Detection for vertex: " << target_vid;
-  auto vertex = graph->at(target_vid);
-  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-      "point_map", "vtr_lidar_msgs/msg/PointMap");
-  auto locked_map_msg_ref = map_msg->locked();  // lock the msg
-  auto &locked_map_msg = locked_map_msg_ref.get();
+      << "Dynamic Obstacle Detection for vertex: " << target_vid;
 
-  // Check if this map has been updated already
-  const auto curr_map_version = locked_map_msg.getData().version();
-  if (curr_map_version >= PointMap<PointWithInfo>::DYNAMIC_REMOVED) {
-    CLOG(WARNING, "lidar.dynamic_detection")
-        << "Short-Term Dynamics Detection for vertex: " << target_vid
-        << " - ALREADY COMPLETED!";
-    return;
-  }
-  // Check if there's dependency not met
-  else if (curr_map_version < PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
-    auto dep_module = factory()->get(config_->intra_exp_merging);
-    qdata.intra_exp_merging_async.emplace(target_vid);
-    auto dep_task = std::make_shared<Task>(dep_module, qdata.shared_from_this(),
-                                           priority + 1);
-    executor->dispatch(dep_task);
-
-    // launch this task again with the same task and dep id
-    auto task = std::make_shared<Task>(
-        shared_from_this(), qdata.shared_from_this(), priority,
-        std::initializer_list<Task::DepId>{dep_task->dep_id}, dep_id);
-    executor->dispatch(task);
-
-    CLOG(WARNING, "lidar.dynamic_detection")
-        << "Short-Term Dynamics Detection for vertex: " << target_vid
-        << " - REASSIGNED!";
-    return;
+  /// check if we have a map for this vertex
+  {
+    const auto msg = target_vertex->retrieve<PointMapPointer>(
+        "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
+    auto locked_msg = msg->sharedLocked();
+    const auto &pointmap_ptr = locked_msg.get().getData();
+    //
+    if (pointmap_ptr.map_vid != target_vid) {
+      CLOG(INFO, "lidar.intra_exp_merging")
+          << "This vertex does not have an associated submap, skipped.";
+      return;
+    }
   }
 
-  // Store a copy of the original map for visualization
-  auto old_map_copy = locked_map_msg.getData();
+  /// load the map and check if it is already merged
+  {
+    const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
+        "pointmap", "vtr_lidar_msgs/msg/PointMap");
+    auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
+    auto &locked_map_msg = locked_map_msg_ref.get();
 
-  // Perform the map update
+    // check if this map has been updated already
+    const auto curr_map_version = locked_map_msg.getData().version();
+    if (curr_map_version >= PointMap<PointWithInfo>::DYNAMIC_REMOVED) {
+      CLOG(WARNING, "lidar.dynamic_detection")
+          << "Dynamic Obstacle Detection for vertex: " << target_vid
+          << " - ALREADY COMPLETED!";
+      return;
+    }
+    // Check if there's dependency not met
+    else if (curr_map_version < PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
+#if false
+      auto dep_module = factory()->get(config_->intra_exp_merging);
+      qdata.intra_exp_merging_async.emplace(target_vid);
+      auto dep_task = std::make_shared<Task>(
+          dep_module, qdata.shared_from_this(), priority + 1);
+      executor->dispatch(dep_task);
+
+      // launch this task again with the same task and dep id
+      auto task = std::make_shared<Task>(
+          shared_from_this(), qdata.shared_from_this(), priority,
+          std::initializer_list<Task::DepId>{dep_task->dep_id}, dep_id);
+      executor->dispatch(task);
+#endif
+      CLOG(WARNING, "lidar.dynamic_detection")
+          << "Dynamic Obstacle Detection for vertex: " << target_vid
+          << " - REASSIGNED!";
+      return;
+    }
+  }
+
+  /// Perform the map update
 
   // get a copy of the current map for updating
-  auto point_map = locked_map_msg.getData();
-  // zero out the part of data we will be overwriting
-  // this sets Flexible4D to zero (see types.hpp)
-  point_map.point_cloud()
+  const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
+      "pointmap", "vtr_lidar_msgs/msg/PointMap");
+  auto updated_map = map_msg->sharedLocked().get().getData();
+
+  // initialize dynamic observation
+  updated_map.point_cloud()
       .getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::flex1_offset())
       .setZero();
 
-  // Get the subgraph of interest to work on (thread safe)
+#if true  // debugging
+  if (config_->visualize) {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    // publish the old map
+    {
+      auto point_cloud = updated_map.point_cloud();  // COPY!
+
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_cloud, pc2_msg);
+      pc2_msg.header.frame_id = "world";
+      // pc2_msg.header.stamp = 0;
+      old_map_pub_->publish(pc2_msg);
+    }
+  }
+#endif
+
+  // get the subgraph of interest to work on (thread safe)
   const auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>(*graph);
-  const auto subgraph =
-      config_->depth ? graph->getSubgraph(target_vid, config_->depth, tempeval)
-                     : graph->getSubgraph(std::vector<VertexId>({target_vid}));
+  const auto disteval = std::make_shared<DistanceEvaluator<GraphBase>>(*graph);
+  const auto subgraph = graph->dijkstraTraverseToDepth(
+      target_vid, config_->depth, disteval, tempeval);
 
   // cache all the transforms so we only calculate them once
   pose_graph::PoseCache<GraphBase> pose_cache(subgraph, target_vid);
 
+  size_t num_scan_used = 0;
   auto itr = subgraph->begin(target_vid);
   for (; itr != subgraph->end(); itr++) {
+    //
     const auto vertex = itr->v();
 
     // get target vertex to current vertex transformation
@@ -152,120 +196,109 @@ void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "lidar.dynamic_detection")
         << "T_target_curr is " << T_target_curr.vec().transpose();
 
-    /// Retrieve point scans from this vertex
-    const auto time_range = vertex->timeRange();
-#if true
-    const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
-        "point_scan", "vtr_lidar_msgs/msg/PointScan", time_range.first,
-        time_range.second);
-#else  /// store raw point cloud
-    const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
-        "raw_point_scan", time_range.first, time_range.second);
-#endif
+    // retrieve point scan from this vertex
+    const auto scan_msg = vertex->retrieve<PointScan<PointWithInfo>>(
+        "filtered_point_cloud", "vtr_lidar_msgs/msg/PointScan");
 
-    CLOG(DEBUG, "lidar.dynamic_detection")
-        << "Retrieved scan size assocoated with vertex " << vertex->id()
-        << " is: " << scan_msgs.size();
+    /// \note follow the convention to lock point map first then these scans.
+    auto pointscan = scan_msg->sharedLocked().get().getData();
 
-    /// simply return if there's no scan to work on
-    if (scan_msgs.empty()) continue;
+    //
+    const auto &reference = pointscan.point_cloud();
+    auto &query = updated_map.point_cloud();
+    const auto T_ref_qry =
+        (T_target_curr * pointscan.T_vertex_this()).inverse() *
+        updated_map.T_vertex_this();
 
-    for (const auto scan_msg : scan_msgs) {
-      /// \note follow the convention to lock point map first then these scans.
-      auto locked_scan_msg_ref = scan_msg->sharedLocked();  // lock the msg
-      auto &locked_scan_msg = locked_scan_msg_ref.get();
-      const auto &point_scan = locked_scan_msg.getData();
-      //
-      const auto &reference = point_scan.point_cloud();
-      auto &query = point_map.point_cloud();
-      const auto &T_ref_qry =
-          (T_target_curr * point_scan.T_vertex_this()).inverse() *
-          point_map.T_vertex_this();
+    //
+    detectDynamicObjects(
+        reference, query, T_ref_qry, config_->horizontal_resolution,
+        config_->vertical_resolution, config_->max_num_observations,
+        config_->min_num_observations, config_->dynamic_threshold);
 
-      //
-      detectDynamicObjects(
-          reference, query, T_ref_qry, config_->horizontal_resolution,
-          config_->vertical_resolution, config_->max_num_observations,
-          config_->min_num_observations, config_->dynamic_threshold);
-#if false
-      // publish point cloud for comparison
+#if false  // debugging
+    if (config_->visualize) {
+      const auto T_qry_ref = T_ref_qry.inverse().matrix().cast<float>();
+      auto reference_tmp = reference;
+      auto reference_mat = reference_tmp.getMatrixXfMap(
+          4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      reference_mat = T_qry_ref * reference_mat;
+
+      std::unique_lock<std::mutex> lock(mutex_);
       {
-        // clang-format off
-        const auto T_qry_ref = T_ref_qry.inverse();
-        const auto T_qry_ref_mat = T_qry_ref.matrix();
-        auto reference_tmp = reference;  // copy
-        cart2pol(reference_tmp);
-        auto points_mat = reference_tmp.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-        Eigen::Matrix3f R_tot = (T_qry_ref_mat.block<3, 3>(0, 0)).cast<float>();
-        Eigen::Vector3f T_tot = (T_qry_ref_mat.block<3, 1>(0, 3)).cast<float>();
-        points_mat = (R_tot * points_mat).colwise() + T_tot;
-        if (config_->visualize) {
-          std::unique_lock<std::mutex> lock(mutex_);
-          {
-            PointCloudMsg pc2_msg;
-            pcl::toROSMsg(point_map.point_cloud(), pc2_msg);
-            pc2_msg.header.frame_id = "world";
-            // pc2_msg.header.stamp = 0;
-            map_pub_->publish(pc2_msg);
-          }
-          {
-            PointCloudMsg pc2_msg;
-            pcl::toROSMsg(reference_tmp, pc2_msg);
-            pc2_msg.header.frame_id = "world";
-            // pc2_msg.header.stamp = 0;
-            scan_pub_->publish(pc2_msg);
-          }
-        }
-        // clang-format on
+        PointCloudMsg pc2_msg;
+        pcl::toROSMsg(reference_tmp, pc2_msg);
+        pc2_msg.header.frame_id = "world";
+        // pc2_msg.header.stamp = 0;
+        scan_pub_->publish(pc2_msg);
       }
-#endif
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
+#endif
+    //
+    ++num_scan_used;
   }
+  CLOG(DEBUG, "lidar.dynamic_detection")
+      << "Number of scan used: " << num_scan_used;
+
   // update version
-  point_map.version() = PointMap<PointWithInfo>::DYNAMIC_REMOVED;
-  // save the updated point map
-  locked_map_msg.setData(point_map);  // this also copies the data
+  updated_map.version() = PointMap<PointWithInfo>::DYNAMIC_REMOVED;
 
-  // Store a copy of the updated map (with dynamic part removed!!)
-  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
-  auto point_map_copy = std::make_shared<PointMap<PointWithInfo>>(
-      point_map.dl(), point_map.version());
-  /// \todo may need to filter out all dynamic points
-  point_map_copy->update(point_map.point_cloud());
-  point_map_copy->T_vertex_this() = point_map.T_vertex_this();
-  point_map_copy->vertex_id() = point_map.vertex_id();
+  // update the point map of this vertex
+  {
+    const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
+        "pointmap", "vtr_lidar_msgs/msg/PointMap");
+    auto locked_map_msg_ref = map_msg->locked();  // lock the msg
+    auto &locked_map_msg = locked_map_msg_ref.get();
+    locked_map_msg.setData(updated_map);
+  }
 
-  auto point_map_copy_msg = std::make_shared<PointMapLM>(
-      point_map_copy, locked_map_msg.getTimestamp());
-  vertex->insert<PointMap<PointWithInfo>>(
-      "point_map_v" + std::to_string(point_map_copy->version()),
-      "vtr_lidar_msgs/msg/PointMap", point_map_copy_msg);
+  // store a copy of the updated map for debugging
+  {
+    using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+    auto updated_map_copy =
+        std::make_shared<PointMap<PointWithInfo>>(updated_map);
+    auto updated_map_copy_msg = std::make_shared<PointMapLM>(
+        updated_map_copy, target_vertex->vertexTime());
+    target_vertex->insert<PointMap<PointWithInfo>>(
+        "pointmap_v" + std::to_string(updated_map_copy->version()),
+        "vtr_lidar_msgs/msg/PointMap", updated_map_copy_msg);
+  }
 
   /// publish the transformed pointcloud
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
-
+#if false
     // publish the old map
     {
+      // load old map for reference
+      const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
+          "pointmap_v1", "vtr_lidar_msgs/msg/PointMap");
+      auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
+      auto &locked_map_msg = locked_map_msg_ref.get();
+      auto pointmap = locked_map_msg.getData();
+
+      auto point_cloud = pointmap.point_cloud();  // COPY!
+
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(old_map_copy.point_cloud(), pc2_msg);
+      pcl::toROSMsg(point_cloud, pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       old_map_pub_->publish(pc2_msg);
     }
-
+#endif
     // publish the updated map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(point_map.point_cloud(), pc2_msg);
+      pcl::toROSMsg(updated_map.point_cloud(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       new_map_pub_->publish(pc2_msg);
     }
   }
+
   CLOG(INFO, "lidar.dynamic_detection")
-      << "Short-Term Dynamics Detection for vertex: " << target_vid
-      << " - DONE!";
+      << "Dynamic Obstacle Detection for vertex: " << target_vid << " - DONE!";
 }
 
 }  // namespace lidar

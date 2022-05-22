@@ -54,6 +54,9 @@ class Tactic : public PipelineInterface, public TacticInterface {
     /** \brief Maximum number of queued tasks in task queue */
     int task_queue_size = -1;
 
+    /** \brief */
+    double route_completion_translation_threshold = 0.5;
+
     /** \brief Configuration for the localization chain */
     LocalizationChain::Config chain_config;
 

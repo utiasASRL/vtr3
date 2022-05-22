@@ -94,7 +94,7 @@ void detectDynamicObjects(
   const auto outer_ratio = 1 + std::max(phi_res, theta_res) / 2;
   // this takes into account surface orientation
   const auto tighter_inner_ratio =
-      1 - (std::max(phi_res, theta_res) / 2) / tan(M_PI / 12);
+      1 - (std::max(phi_res, theta_res) / 2) / std::tan(M_PI / 12);
 
   // Create and fill in the frustum grid
   std::unordered_map<ray_tracing::PixKey, float> frustum_grid;
@@ -111,17 +111,15 @@ void detectDynamicObjects(
 
   // Perform a transformation in to the frame of the reference point cloud
   auto query_tmp = query;  // copy
-  const auto& T_ref_qry_mat = T_ref_qry.matrix();
+  const auto T_ref_qry_mat = T_ref_qry.matrix().cast<float>();
   // eigen mapping
   auto points_mat =
-      query_tmp.getMatrixXfMap(3, PointT::size(), PointT::cartesian_offset());
+      query_tmp.getMatrixXfMap(4, PointT::size(), PointT::cartesian_offset());
   auto normal_mat =
-      query_tmp.getMatrixXfMap(3, PointT::size(), PointT::normal_offset());
+      query_tmp.getMatrixXfMap(4, PointT::size(), PointT::normal_offset());
   // transform to the local frame of this vertex
-  Eigen::Matrix3f R_tot = (T_ref_qry_mat.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f T_tot = (T_ref_qry_mat.block<3, 1>(0, 3)).cast<float>();
-  points_mat = (R_tot * points_mat).colwise() + T_tot;
-  normal_mat = R_tot * normal_mat;
+  points_mat = T_ref_qry_mat * points_mat;
+  normal_mat = T_ref_qry_mat * normal_mat;
   ray_tracing::cart2pol(query_tmp);
 
   //
@@ -138,13 +136,14 @@ void detectDynamicObjects(
     if (p.rho > (frustum_grid.at(k) * outer_ratio)) continue;
 
     // update this point only when we have a good normal
-    float angle = acos(std::min(
-        abs(p.getVector3fMap().dot(p.getNormalVector3fMap()) / p.rho), 1.0f));
+    float angle = std::acos(std::min(
+        std::abs(p.getVector3fMap().dot(p.getNormalVector3fMap()) / p.rho),
+        1.0f));
     if (angle > 5 * M_PI / 12) continue;
 
 #if true
     qp.total_obs++;
-    if (p.rho < (frustum_grid.at(k) * tighter_inner_ratio)) qp.dynamic_obs++;
+    if (p.rho < (frustum_grid.at(k) * inner_ratio)) qp.dynamic_obs++;
 #else
     if (qp.total_obs < max_num_obs) {
       qp.dynamic_obs += (p.rho < (frustum_grid.at(k) * inner_ratio));

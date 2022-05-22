@@ -45,7 +45,7 @@ class DynamicDetectionModule : public tactic::BaseModule {
     // dependencies
     std::string intra_exp_merging = IntraExpMergingModule::static_name;
 
-    int depth = 0;
+    double depth = 0;
 
     float horizontal_resolution = 0.001;
     float vertical_resolution = 0.001;

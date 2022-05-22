@@ -56,7 +56,6 @@ void IntraExpMergingModuleV2::run_(QueryCache &qdata0, OutputCache &,
         VertexId(qdata.vid_odo->majorId(),
                  qdata.vid_odo->minorId() - (unsigned)config_->depth);
 
-    auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
     qdata.intra_exp_merging_async.emplace(target_vid);
     executor->dispatch(std::make_shared<Task>(
         shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
@@ -187,7 +186,6 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   }
 
   // crop box filter
-  /// \todo double check correctness
   auto crop_filter_cb =
       [&range = config_->crop_range_front,
        &ratio = config_->back_over_front_ratio](PointWithInfo &query_pt) {
