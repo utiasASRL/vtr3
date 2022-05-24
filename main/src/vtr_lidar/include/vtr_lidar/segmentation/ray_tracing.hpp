@@ -121,12 +121,12 @@ void detectDynamicObjects(
   normal_mat = T_ref_qry_mat * normal_mat;
   ray_tracing::cart2pol(query_tmp);
 
-  // // for honeycomb fov specifically
-  // float theta_min = 7 * M_PI / 18;
-  // float theta_max = 15 * M_PI / 18;
-  // float phi_min = M_PI / 2;
-  // float phi_max = M_PI / 2;
-  // float rho_max = 50.0f;
+  // for honeycomb fov specifically
+  float theta_min = 7 * M_PI / 18;
+  float theta_max = 15 * M_PI / 18;
+  float phi_min = -M_PI / 2;
+  float phi_max = M_PI / 2;
+  float rho_max = 50.0f;
 
   //
   for (size_t i = 0; i < query.size(); i++) {
