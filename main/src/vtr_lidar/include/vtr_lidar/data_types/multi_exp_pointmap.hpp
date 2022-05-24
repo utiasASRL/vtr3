@@ -39,22 +39,16 @@ class MultiExpPointMap : public PointMap<PointT> {
 
   MultiExpPointMap(const float& dl, const size_t& max_num_exps);
 
-  const std::deque<tactic::VertexId>& experiences() const { return exps_; }
+  size_t max_num_exps() const { return max_num_exps_; }
 
-  void update(const PointMap<PointT>& point_map);
-
- protected:
-  using VoxKey = typename PointMap<PointT>::VoxKey;
-  /** \brief Initialize a voxel centroid */
-  void initSample(const VoxKey& k, const PointT& p);
-  /** \brief Update of voxel centroid */
-  void updateSample(const size_t idx, const PointT& p);
+  std::deque<uint32_t>& exps() { return exps_; }
+  const std::deque<uint32_t>& exps() const { return exps_; }
 
  private:
   /** \brief Maximum number of experiences */
   size_t max_num_exps_;
   /** \brief Experience Id vector */
-  std::deque<tactic::VertexId> exps_;
+  std::deque<uint32_t> exps_;
 };
 
 }  // namespace lidar

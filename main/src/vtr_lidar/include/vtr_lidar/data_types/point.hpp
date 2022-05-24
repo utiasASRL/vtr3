@@ -87,6 +87,12 @@ namespace lidar {
       float radial_velocity; \
       float normal_score; \
     }; \
+    struct { \
+      float multi_exp_obs; \
+      float unused1; \
+      float unused2; \
+      float unused3; \
+    }; \
   };
 
 #define PCL_ADD_FLEXIBLE2 \

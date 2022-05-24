@@ -51,7 +51,7 @@ void InterExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
                                  const Graph::Ptr &graph,
                                  const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
-
+#if false
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("inter_exp_merging_old", 5);
@@ -90,6 +90,7 @@ void InterExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
           std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
     }
   }
+#endif
 }
 
 void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
@@ -97,6 +98,7 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
                                       const TaskExecutor::Ptr &executor,
                                       const Task::Priority &priority,
                                       const Task::DepId &dep_id) {
+#if false
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   const auto &live_vid = qdata.inter_exp_merging_async->first;
   const auto &map_vid = qdata.inter_exp_merging_async->second;
@@ -313,6 +315,7 @@ void InterExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
   }
   CLOG(INFO, "lidar.dynamic_detection")
       << "Inter-Experience Merging for vertex: " << live_vid << " - DONE!";
+#endif
 }
 }  // namespace lidar
 }  // namespace vtr

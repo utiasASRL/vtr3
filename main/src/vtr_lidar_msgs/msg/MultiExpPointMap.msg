@@ -14,4 +14,4 @@ uint64 vertex_id
 vtr_common_msgs/LieGroupTransform t_vertex_this
 
 #
-uint64[] experiences
+uint32[] experiences

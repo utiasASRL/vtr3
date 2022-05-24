@@ -87,7 +87,6 @@ void detectDynamicObjects(
     const lgmath::se3::TransformationWithCovariance& T_ref_qry,
     const float& phi_res, const float& theta_res, const float& max_num_obs,
     const float& min_num_obs, const float& dynamic_threshold) {
-  (void)max_num_obs;
   // Parameters
   const auto inner_ratio = 1 - std::max(phi_res, theta_res) / 2;
   (void)inner_ratio;
@@ -122,6 +121,13 @@ void detectDynamicObjects(
   normal_mat = T_ref_qry_mat * normal_mat;
   ray_tracing::cart2pol(query_tmp);
 
+  // // for honeycomb fov specifically
+  // float theta_min = 7 * M_PI / 18;
+  // float theta_max = 15 * M_PI / 18;
+  // float phi_min = M_PI / 2;
+  // float phi_max = M_PI / 2;
+  // float rho_max = 50.0f;
+
   //
   for (size_t i = 0; i < query.size(); i++) {
     auto& qp = query[i];           // point with dynamic obs to be updated
@@ -131,9 +137,14 @@ void detectDynamicObjects(
     const auto k = getKey(p, phi_res, theta_res);
 
     if (!frustum_grid.count(k)) continue;
+    // if ((!frustum_grid.count(k)) &&
+    //     (p.phi < phi_min || p.phi > phi_max || p.theta < theta_min ||
+    //      p.theta > theta_max))
+    //   continue;
+    const float rho_ref = frustum_grid.count(k) ? frustum_grid.at(k) : rho_max;
 
     // the current point is occluded in the current observation
-    if (p.rho > (frustum_grid.at(k) * outer_ratio)) continue;
+    if (p.rho > (rho_ref * outer_ratio)) continue;
 
     // update this point only when we have a good normal
     float angle = std::acos(std::min(
@@ -143,13 +154,13 @@ void detectDynamicObjects(
 
 #if true
     qp.total_obs++;
-    if (p.rho < (frustum_grid.at(k) * inner_ratio)) qp.dynamic_obs++;
+    if (p.rho < (rho_ref * inner_ratio)) qp.dynamic_obs++;
 #else
     if (qp.total_obs < max_num_obs) {
-      qp.dynamic_obs += (p.rho < (frustum_grid.at(k) * inner_ratio));
+      qp.dynamic_obs += (p.rho < (rho_ref * inner_ratio));
       qp.total_obs++;
     } else {
-      if (p.rho < (frustum_grid.at(k) * inner_ratio))
+      if (p.rho < (rho_ref * inner_ratio))
         qp.dynamic_obs = std::min(max_num_obs, qp.dynamic_obs + 1);
       else
         qp.dynamic_obs = std::max(0.f, qp.dynamic_obs - 1);
@@ -161,10 +172,11 @@ void detectDynamicObjects(
     auto& qp = query[i];  // point with dynamic obs to be updated
     // update the scores
     if (qp.total_obs < min_num_obs)
-      qp.static_score = 0;
+      qp.static_score = 0.0;
     else
       qp.static_score =
-          (qp.dynamic_obs / qp.total_obs) < dynamic_threshold ? 1 : 0;
+          1.0 -
+          std::min(1.0f, qp.dynamic_obs / std::max(qp.total_obs, max_num_obs));
   }
 }
 

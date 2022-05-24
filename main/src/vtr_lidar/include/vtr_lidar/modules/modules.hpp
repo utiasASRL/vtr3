@@ -36,6 +36,7 @@
 
 #include "vtr_lidar/modules/pointmap/dynamic_detection_module.hpp"
 #include "vtr_lidar/modules/pointmap/inter_exp_merging_module.hpp"
+#include "vtr_lidar/modules/pointmap/inter_exp_merging_module_v2.hpp"
 #include "vtr_lidar/modules/pointmap/intra_exp_merging_module.hpp"
 #include "vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp"
 

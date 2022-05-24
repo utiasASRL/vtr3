@@ -74,7 +74,7 @@ auto MultiExpPointMap<PointT>::toStorable() const -> MultiExpPointMapMsg {
   // save max number of experiences
   storable.max_num_exps = max_num_exps_;
   // save experiences
-  storable.experiences = std::vector<uint64_t>(exps_.begin(), exps_.end());
+  storable.experiences = std::vector<uint32_t>(exps_.begin(), exps_.end());
   return storable;
 }
 
@@ -94,6 +94,7 @@ MultiExpPointMap<PointT>::MultiExpPointMap(const float& dl,
   }
 }
 
+#if false
 template <class PointT>
 void MultiExpPointMap<PointT>::update(const PointMap<PointT>& point_map) {
   if (point_map.version() < PointMap<PointT>::DYNAMIC_REMOVED) {
@@ -179,6 +180,6 @@ void MultiExpPointMap<PointT>::updateSample(const size_t idx, const PointT& p) {
   // update bit vector (only if it has not been updated yet)
   if ((p_.bits & 1) == 0) p_.bits++;
 }
-
+#endif
 }  // namespace lidar
 }  // namespace vtr
