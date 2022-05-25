@@ -209,7 +209,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     T_r_m_eval = trajectory->getPoseInterpolator(query_time);
     w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
   } else {
-    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
+    //
+    Time prev_time(static_cast<int64_t>(timestamp_odo));
+    Time query_time(static_cast<int64_t>(query_stamp));
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
   }
@@ -551,20 +556,28 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
     // store trajectory info
-    *qdata.timestamp_odo = query_stamp;
-    *qdata.T_r_m_odo = T_r_m_eval->value();
     if (config_->use_trajectory_estimation)
       *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
+    else {
+      // finite diff approximation
+      Time prev_time(static_cast<int64_t>(timestamp_odo));
+      Time query_time(static_cast<int64_t>(query_stamp));
+      const auto T_r_m_prev = *qdata.T_r_m_odo;
+      const auto T_r_m_query = T_r_m_eval->value();
+      *qdata.w_m_r_in_r_odo = (T_r_m_query * T_r_m_prev.inverse()).vec() / (query_time - prev_time).seconds();
+    }
+    *qdata.T_r_m_odo = T_r_m_eval->value();
+    *qdata.timestamp_odo = query_stamp;
 #if 1
-    CLOG(WARNING, "lidar.odometry_icp") << "T_m_r is: " << T_r_m_eval->value().inverse().vec().transpose();
-    CLOG(WARNING, "lidar.odometry_icp") << "w_m_r_in_r is: " << w_m_r_in_r_eval->value().transpose();
+    CLOG(WARNING, "lidar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+    CLOG(WARNING, "lidar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
 #endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->use_trajectory_estimation)
-      *qdata.w_v_r_in_r_odo = w_m_r_in_r_eval->value();
+      *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     //
     *qdata.odo_success = true;
   } else {
