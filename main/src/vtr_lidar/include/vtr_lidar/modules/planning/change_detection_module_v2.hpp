@@ -46,11 +46,13 @@ class ChangeDetectionModuleV2 : public tactic::BaseModule {
     // change detection
     float detection_range = 10.0;
     float search_radius = 1.0;
-
-    float alpha0 = 1.0;
-    float beta0 = 0.1;
     float negprob_threshold = 1.0;
 
+    bool use_prior = false;
+    float alpha0 = 1.0;
+    float beta0 = 0.1;
+
+    bool use_support_filtering = false;
     float support_radius = 0.25;
     float support_variance = 0.1;
     float support_threshold = 0.0;
@@ -98,7 +100,7 @@ class ChangeDetectionModuleV2 : public tactic::BaseModule {
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(ChangeDetectionModuleV2);
 };

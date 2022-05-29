@@ -136,13 +136,15 @@ auto ChangeDetectionModuleV2::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   // change detection
-  config->detection_range = node->declare_parameter<float>(param_prefix + "detection_range", config->detection_range);
+  config->detection_range = node->declare_parameter<float>(param_prefix + ".detection_range", config->detection_range);
   config->search_radius = node->declare_parameter<float>(param_prefix + ".search_radius", config->search_radius);
+  config->negprob_threshold = node->declare_parameter<float>(param_prefix + ".negprob_threshold", config->negprob_threshold);
   // prior on roughness
+  config->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config->use_prior);
   config->alpha0 = node->declare_parameter<float>(param_prefix + ".alpha0", config->alpha0);
   config->beta0 = node->declare_parameter<float>(param_prefix + ".beta0", config->beta0);
-  config->negprob_threshold = node->declare_parameter<float>(param_prefix + ".negprob_threshold", config->negprob_threshold);
   // support
+  config->use_support_filtering = node->declare_parameter<bool>(param_prefix + ".use_support_filtering", config->use_support_filtering);
   config->support_radius = node->declare_parameter<float>(param_prefix + ".support_radius", config->support_radius);
   config->support_variance = node->declare_parameter<float>(param_prefix + ".support_variance", config->support_variance);
   config->support_threshold = node->declare_parameter<float>(param_prefix + ".support_threshold", config->support_threshold);
@@ -193,7 +195,6 @@ void ChangeDetectionModuleV2::runAsync_(
   // centroid -> x, y, z
   // normal -> normal_x, normal_y, normal_z
   // query -> flex11, flex12, flex13
-  // normal agreement -> flex14
   // distance (point to plane) -> flex21
   // roughness -> flex22
   // number of observations -> flex23
@@ -210,7 +211,7 @@ void ChangeDetectionModuleV2::runAsync_(
       scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_scan", 5);
       map_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_map", 5);
       costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
-      pointcloud_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_pointcloud", 5);
+      costpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_costpcd", 5);
       // clang-format on
       publisher_initialized_ = true;
     }
@@ -227,8 +228,8 @@ void ChangeDetectionModuleV2::runAsync_(
   const auto &map_point_cloud = submap_loc.point_cloud();
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
 
-  CLOG(INFO, "lidar.change_detection")
-      << "Change detection for lidar scan at stamp: " << stamp;
+  // clang-format off
+  CLOG(INFO, "lidar.change_detection") << "Change detection for lidar scan at stamp: " << stamp;
 
   // filter out points that are too far away
   std::vector<int> query_indices;
@@ -240,17 +241,13 @@ void ChangeDetectionModuleV2::runAsync_(
   pcl::PointCloud<PointWithInfo> query_points(points, query_indices);
 
   // Eigen matrix of original data (only shallow copy of ref clouds)
-  // clang-format off
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-  // clang-format on
 
   // retrieve the pre-processed scan and convert it to the localization frame
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
-  // clang-format off
   auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-  // clang-format on
 
   const auto T_m_s = (T_s_r * T_r_v_loc * T_v_m_loc).inverse().matrix();
   aligned_mat = T_m_s.cast<float>() * query_mat;
@@ -260,13 +257,11 @@ void ChangeDetectionModuleV2::runAsync_(
   NanoFLANNAdapter<PointWithInfo> adapter(map_point_cloud);
   KDTreeSearchParams search_params;
   KDTreeParams tree_params(10 /* max leaf */);
-  auto kdtree =
-      std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
+  auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   std::vector<long unsigned> nn_inds(aligned_points.size());
   std::vector<float> nn_dists(aligned_points.size(), -1.0f);
-  std::vector<float> nn_norms(aligned_points.size(), -1.0f);
   // compute nearest neighbors and point to point distances
   for (size_t i = 0; i < aligned_points.size(); i++) {
     KDTreeResultSet result_set(1);
@@ -286,24 +281,17 @@ void ChangeDetectionModuleV2::runAsync_(
       p.flex12 = aligned_points[i].y;
       p.flex13 = aligned_points[i].z;
       //
-      p.flex14 = -1.0;  // invalid normal agreement
-      //
       p.flex21 = -1.0;                      // invalid distance
       p.flex22 = -1.0;                      // invalid roughness
       p.flex23 = -1.0;                      // invalid number of observations
       p.flex24 = aligned_points[i].flex24;  // fake point copied directly
     }
 
-    // // filter based on point to point distance  /// \todo parameters
-    // if (nn_dists[i] > 1.0f) continue;
-
     // radius search of the closest point
-    std::vector<std::pair<size_t, float>> inds_dists;
-    kdtree->radiusSearch(map_point_cloud[nn_inds[i]].data, sq_search_radius,
-                         inds_dists, search_params);
+    std::vector<float> dists;
     std::vector<int> indices;
-    indices.reserve(inds_dists.size());
-    for (const auto &ind_dist : inds_dists) indices.push_back(ind_dist.first);
+    NanoFLANNRadiusResultSet<float, int> result(sq_search_radius, dists, indices);
+    kdtree->radiusSearchCustomCallback(map_point_cloud[nn_inds[i]].data, result, search_params);
 
     // filter based on neighbors in map /// \todo parameters
     if (indices.size() < 10) continue;
@@ -313,16 +301,10 @@ void ChangeDetectionModuleV2::runAsync_(
 
     // compute the planar distance
     Eigen::Vector3f centroid, normal;
-    computeCentroidAndNormal(
-        pcl::PointCloud<PointWithInfo>(map_point_cloud, indices), centroid,
-        normal, roughnesses[i]);
+    computeCentroidAndNormal(pcl::PointCloud<PointWithInfo>(map_point_cloud, indices), centroid, normal, roughnesses[i]);
 
     const auto diff = aligned_points[i].getVector3fMap() - centroid;
     nn_dists[i] = std::abs(diff.dot(normal));
-
-    // normal agreement
-    nn_norms[i] =
-        std::abs(aligned_points[i].getNormalVector3fMap().dot(normal));
 
     // save module result
     if (config_->save_module_result) {
@@ -331,8 +313,6 @@ void ChangeDetectionModuleV2::runAsync_(
       // clang-format off
       p.getVector3fMap() = centroid;
       p.getNormalVector3fMap() = normal;
-      //
-      p.flex14 = nn_norms[i];
       //
       p.flex21 = nn_dists[i];
       p.flex22 = roughnesses[i];
@@ -343,26 +323,33 @@ void ChangeDetectionModuleV2::runAsync_(
 
   for (size_t i = 0; i < aligned_points.size(); i++) {
     aligned_points[i].flex23 = 0.0f;
-    // clang-format off
-    const float alpha_n = config_->alpha0 + num_measurements[i] / 2.0f;
-    const float beta_n = config_->beta0 + roughnesses[i] * num_measurements[i] / 2.0f;
-    const float roughness = beta_n / alpha_n;
-    // clang-format on
-    const float df = 2 * alpha_n;
-    const float sqdists = nn_dists[i] * nn_dists[i] / roughness;
-    const float cost = -std::log(std::pow(1 + sqdists / df, -(df + 1) / 2));
+    //
+    const auto cost = [&]() -> float {
+      // clang-format off
+      if (config_->use_prior) {
+        const float alpha_n = config_->alpha0 + num_measurements[i] / 2.0f;
+        const float beta_n = config_->beta0 + roughnesses[i] * num_measurements[i] / 2.0f;
+        const float roughness = beta_n / alpha_n;
+        const float df = 2 * alpha_n;
+        const float sqdists = nn_dists[i] * nn_dists[i] / roughness;
+        return -std::log(std::pow(1 + sqdists / df, -(df + 1) / 2));
+      } else {
+        const float roughness = roughnesses[i];
+        return (nn_dists[i] * nn_dists[i]) / (2 * roughness) + std::log(std::sqrt(roughness));
+      }
+      // clang-format on
+    }();
+    //
     if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold))
-      // if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold) ||
-      // nn_norms[i] < 0.5)
       aligned_points[i].flex23 = 1.0f;
   }
 
   // add support region
-  {
+  if (config_->use_support_filtering) {
     // create kd-tree of the aligned points
     NanoFLANNAdapter<PointWithInfo> query_adapter(aligned_points);
     KDTreeSearchParams search_params;
-    KDTreeParams tree_params(10 /* max leaf */);
+    KDTreeParams tree_params(/* max leaf */ 10);
     auto query_kdtree =
         std::make_unique<KDTree<PointWithInfo>>(3, query_adapter, tree_params);
     query_kdtree->buildIndex();
@@ -384,7 +371,7 @@ void ChangeDetectionModuleV2::runAsync_(
       for (const auto &ind_dist : inds_dists) {
         if (ind_dist.first == i) continue;
         support += aligned_points[ind_dist.first].flex23 *
-                   std::exp(-ind_dist.second / config_->support_variance);
+                   std::exp(-ind_dist.second / (2 * config_->support_variance));
       }
       //
       if (support < config_->support_threshold) toremove.push_back(i);
@@ -406,11 +393,9 @@ void ChangeDetectionModuleV2::runAsync_(
 
 #if false
   // project to 2d and construct the grid map
-  const auto costmap = std::make_shared<DenseCostMap>(
-      config_->resolution, config_->size_x, config_->size_y);
+  const auto costmap = std::make_shared<DenseCostMap>(config_->resolution, config_->size_x, config_->size_y);
   // update cost map based on change detection result
-  DetectChangeOp<PointWithInfo> detect_change_op(
-      aligned_points2, nn_dists, nn_roughnesses, config_->search_radius);
+  DetectChangeOp<PointWithInfo> detect_change_op(aligned_points2, nn_dists, nn_roughnesses, config_->search_radius);
   costmap->update(detect_change_op);
   // add transform to the localization vertex
   costmap->T_vertex_this() = T_r_v_loc.inverse();
@@ -449,7 +434,7 @@ void ChangeDetectionModuleV2::runAsync_(
       // publish the submap for localization
       PointCloudMsg submap_msg;
       pcl::toROSMsg(map_point_cloud, submap_msg);
-      submap_msg.header.frame_id = "world (offset)";
+      submap_msg.header.frame_id = "world";
       // submap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
       map_pub_->publish(submap_msg);
     }
@@ -472,7 +457,7 @@ void ChangeDetectionModuleV2::runAsync_(
     auto pointcloud_msg = costmap->toPointCloudMsg();
     pointcloud_msg.header.frame_id = "change detection";
     // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    pointcloud_pub_->publish(pointcloud_msg);
+    costpcd_pub_->publish(pointcloud_msg);
 #endif
   }
 
