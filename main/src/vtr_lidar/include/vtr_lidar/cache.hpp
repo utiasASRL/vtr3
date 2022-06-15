@@ -75,6 +75,7 @@ struct LidarOutputCache : virtual public tactic::OutputCache {
   tactic::LockableCache<BaseCostMap> ground_extraction_costmap;
   tactic::LockableCache<BaseCostMap> obstacle_detection_costmap;
   tactic::LockableCache<BaseCostMap> terrain_assessment_costmap;
+  tactic::LockableCache<BaseCostMap> safe_corridor_costmap;
 };
 
 }  // namespace lidar
