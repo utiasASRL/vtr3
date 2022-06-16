@@ -225,34 +225,6 @@ auto LidarTEBPathPlanner::computeCommand(RobotState& robot_state0) -> Command {
     }
   }
 
-  // get current ground extraction result
-  {
-    auto ground_extraction_costmap_ref =
-        robot_state.ground_extraction_costmap.locked();
-    auto& ground_extraction_costmap = ground_extraction_costmap_ref.get();
-    if (ground_extraction_costmap.valid()) {
-      // update change detection result
-      const auto costmap_sid = ground_extraction_costmap->vertex_sid();
-      const auto costmap_T_vertex_this =
-          ground_extraction_costmap->T_vertex_this();
-      auto& chain = *robot_state.chain;
-      const auto T_start_vertex = chain.pose(costmap_sid);
-      const auto T_start_trunk = chain.pose(curr_sid);
-      const auto T_trunk_vertex = T_start_trunk.inverse() * T_start_vertex;
-      const auto T_trunk_this = T_trunk_vertex * costmap_T_vertex_this;
-      ground_extraction_costmap->T_this_plan() = T_trunk_this.inverse();
-      CLOG(DEBUG, "path_planning.teb")
-          << "ground extraction costmap information: " << std::endl
-          << "T_trunk_vertex: " << T_trunk_vertex.vec().transpose() << std::endl
-          << "T_trunk_this: " << T_trunk_this.vec().transpose();
-      /// it's ok to use the shared ptr here directly, because the costmap won't
-      /// be changed from outside this thread, change detection module from
-      /// pipline will assign a new pointer to output cache when new costmap is
-      /// computed
-      costmaps_.push_back(ground_extraction_costmap.ptr());
-    }
-  }
-
   /// Do not allow config changes during the following optimization step
   std::lock_guard<std::mutex> config_lock(config_->configMutex());
 
