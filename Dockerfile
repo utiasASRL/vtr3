@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
+FROM ubuntu:20.04
 
 CMD ["/bin/bash"]
 
@@ -35,8 +35,10 @@ RUN mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
 ## Switch to root to install dependencies
 USER 0:0
 
+RUN apt update && apt upgrade -q -y
+
 ## Common packages
-RUN apt update && apt install -q -y wget git
+RUN apt update && apt install -q -y cmake git build-essential lsb-release curl gnupg2
 
 ## Install Eigen
 RUN apt update && apt install -q -y libeigen3-dev
