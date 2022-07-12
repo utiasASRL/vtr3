@@ -49,6 +49,13 @@ ament_target_dependencies(${PROJECT_NAME}_teb
   teb_local_planner
 )
 
+file(GLOB_RECURSE SRC src/cbit/*.cpp)
+add_library(${PROJECT_NAME}_cbit ${SRC})
+target_link_libraries(${PROJECT_NAME}_cbit ${PROJECT_NAME}_base)
+ament_target_dependencies(${PROJECT_NAME}_cbit
+  rclcpp tf2 tf2_ros tf2_eigen
+)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros tf2_eigen geometry_msgs
@@ -66,6 +73,7 @@ install(
     ${PROJECT_NAME}_base
     ${PROJECT_NAME}_mpc
     ${PROJECT_NAME}_teb
+    ${PROJECT_NAME}_cbit
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

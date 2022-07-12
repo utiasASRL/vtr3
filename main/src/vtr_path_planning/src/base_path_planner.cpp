@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_path_planning/base_path_planner.hpp"
+#include "vtr_path_planning/cbit/cbit.hpp"
 
 namespace vtr {
 namespace path_planning {
@@ -45,7 +46,10 @@ BasePathPlanner::~BasePathPlanner() { stop(); }
 void BasePathPlanner::initializeRoute() {
   UniqueLock lock(mutex_);
   initializeRoute(*robot_state_);
-  initializeRouteTest(*robot_state_); // Jordy - injected a test entry point for the cbit planner here
+  //CBIT::initializeRouteTest(*robot_state_); // Jordy - injected a test entry point for the cbit planner here
+  //CBIT test_object;
+  //test_object.testFunction();
+  //testFunction();
 }
 
 void BasePathPlanner::setRunning(const bool running) {
@@ -70,7 +74,6 @@ void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
   CLOG(INFO, "path_planning") << "Starting the path planning thread.";
   initializeRoute();
-  initializeRouteTest(*robot_state_); // Jordy - injected a test entry point for the cbit planner here
   while (true) {
     UniqueLock lock(mutex_);
     cv_terminate_or_state_changed_.wait(lock, [this] {

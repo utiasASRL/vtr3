@@ -143,9 +143,13 @@ void TEBPathPlanner::initializeRoute(RobotState& robot_state) {
   */
 }
 
+/*
 void TEBPathPlanner::initializeRouteTest(RobotState& robot_state) {
   /// \todo reset any internal state
+  CLOG(INFO, "path_planning.teb") << "Calling the teb initializeRouteTest again";
 }
+*/
+
 
 auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
@@ -156,7 +160,7 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   }
 
   else {
-    CLOG(INFO, "path_planning.teb") << "Robot is now localized and we can start doing things";
+    CLOG(INFO, "path_planning.teb") << "Robot is now localized and we can start doing things in cbit";
   }
 
   // retrieve info from the localization chain

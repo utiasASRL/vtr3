@@ -100,7 +100,8 @@ class BasePathPlanner : public PathPlannerInterface {
   /** \brief Called when a new route is set */
   virtual void initializeRoute(RobotState& robot_state) = 0;
   /** \brief Used for cbit testing purposes right now */
-  virtual void initializeRouteTest(RobotState& robot_state) = 0;
+  //virtual void initializeRouteTest(RobotState& robot_state) {};
+  //virtual void testFunction() {};
   /** \brief Subclass override this method to compute a control command */
   virtual Command computeCommand(RobotState& robot_state) = 0;
 

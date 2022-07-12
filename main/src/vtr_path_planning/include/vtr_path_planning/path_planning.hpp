@@ -20,3 +20,4 @@
 
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 #include "vtr_path_planning/teb/teb_path_planner.hpp"
+#include "vtr_path_planning/cbit/cbit.hpp"
