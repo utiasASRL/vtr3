@@ -13,12 +13,12 @@ find_package(cudpp REQUIRED)
 find_package(CUDA REQUIRED)
 # go to https://developer.nvidia.com/cuda-gpus, look for the compute capability of your gpu
 # replace the two "75" with the compute capability of your gpu
-SET(CUDA_NVCC_FLAGS -arch=compute_75 -code=sm_75 --std c++11 --default-stream per-thread)
+SET(CUDA_NVCC_FLAGS -arch=compute_86 -code=sm_86 --std c++11 --default-stream per-thread)
 SET(CUDA_VERBOSE_BUILD OFF)
 SET(CUDA_BUILD_TYPE Device)
 SET(CUDA_GENERATED_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/intermediate)
 
-set(OpenCV_DIR /usr/local/opencv_cuda/lib/cmake/opencv4)
+set(OpenCV_DIR /usr/local/opencv4.5.0/lib/cmake/opencv4)
 find_package(OpenCV REQUIRED)
 
 # Libraries

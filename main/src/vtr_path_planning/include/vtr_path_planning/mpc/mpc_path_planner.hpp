@@ -40,6 +40,7 @@ class MPCPathPlanner : public BasePathPlanner {
 
  private:
   void initializeRoute(RobotState& robot_state) override;
+  void initializeRouteTest(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
 
  private:

@@ -60,6 +60,10 @@ void MPCPathPlanner::initializeRoute(RobotState& robot_state) {
   /// \todo reset any internal state
 }
 
+void MPCPathPlanner::initializeRouteTest(RobotState& robot_state) {
+  /// \todo reset any internal state
+}
+
 auto MPCPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto& chain = *robot_state.chain;

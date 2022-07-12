@@ -45,6 +45,7 @@ BasePathPlanner::~BasePathPlanner() { stop(); }
 void BasePathPlanner::initializeRoute() {
   UniqueLock lock(mutex_);
   initializeRoute(*robot_state_);
+  initializeRouteTest(*robot_state_); // Jordy - injected a test entry point for the cbit planner here
 }
 
 void BasePathPlanner::setRunning(const bool running) {
@@ -68,6 +69,8 @@ void BasePathPlanner::stop() {
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
   CLOG(INFO, "path_planning") << "Starting the path planning thread.";
+  initializeRoute();
+  initializeRouteTest(*robot_state_); // Jordy - injected a test entry point for the cbit planner here
   while (true) {
     UniqueLock lock(mutex_);
     cv_terminate_or_state_changed_.wait(lock, [this] {
