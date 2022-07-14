@@ -34,7 +34,10 @@
 #include "nav_msgs/msg/path.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 
+#include "vtr_path_planning/cbit/cbit_config.hpp"
 #include "vtr_path_planning/base_path_planner.hpp"
+#include "vtr_path_planning/cbit/utils.hpp"
+#include "vtr_path_planning/cbit/generate_pq.hpp"
 
 namespace vtr {
 namespace path_planning {
@@ -117,6 +120,7 @@ class CBIT : public BasePathPlanner {
 
  private:
   const Config::ConstPtr config_;
+  CBITConfig cbit_config;
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
 };
 

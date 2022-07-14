@@ -56,6 +56,10 @@ ament_target_dependencies(${PROJECT_NAME}_cbit
   rclcpp tf2 tf2_ros tf2_eigen
 )
 
+file(GLOB_RECURSE SRC src/cbit/generate_pq.cpp)
+
+file(GLOB_RECURSE SRC src/cbit/utils.cpp)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros tf2_eigen geometry_msgs

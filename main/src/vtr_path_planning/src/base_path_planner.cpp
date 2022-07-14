@@ -17,7 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_path_planning/base_path_planner.hpp"
-#include "vtr_path_planning/cbit/cbit.hpp"
+//#include "vtr_path_planning/cbit/cbit.hpp" // Not sure if I need this here anymore
 
 namespace vtr {
 namespace path_planning {
@@ -39,6 +39,7 @@ BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
   //
   thread_count_ = 1;
   process_thread_ = std::thread(&BasePathPlanner::process, this);
+  process_thread_cbit_ = std::thread(&BasePathPlanner::process_cbit, this);
 }
 
 BasePathPlanner::~BasePathPlanner() { stop(); }
@@ -46,10 +47,6 @@ BasePathPlanner::~BasePathPlanner() { stop(); }
 void BasePathPlanner::initializeRoute() {
   UniqueLock lock(mutex_);
   initializeRoute(*robot_state_);
-  //CBIT::initializeRouteTest(*robot_state_); // Jordy - injected a test entry point for the cbit planner here
-  //CBIT test_object;
-  //test_object.testFunction();
-  //testFunction();
 }
 
 void BasePathPlanner::setRunning(const bool running) {
@@ -70,10 +67,17 @@ void BasePathPlanner::stop() {
   if (process_thread_.joinable()) process_thread_.join();
 }
 
+void BasePathPlanner::process_cbit() {
+  el::Helpers::setThreadName("cbit_path_planning");
+  CLOG(INFO, "path_planning") << "Starting the cbit path planning thread.";
+  initializeRoute();
+}
+
+
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
   CLOG(INFO, "path_planning") << "Starting the path planning thread.";
-  initializeRoute();
+  //initializeRoute();
   while (true) {
     UniqueLock lock(mutex_);
     cv_terminate_or_state_changed_.wait(lock, [this] {

@@ -113,6 +113,7 @@ class BasePathPlanner : public PathPlannerInterface {
 
  private:
   void process();
+  void process_cbit();
 
  private:
   const Config::ConstPtr config_;
@@ -141,6 +142,7 @@ class BasePathPlanner : public PathPlannerInterface {
   size_t thread_count_ = 0;
   /** \brief the event processing thread */
   std::thread process_thread_;
+  std::thread process_thread_cbit_;
 
   /// factory handlers (note: local static variable constructed on first use)
  private:
