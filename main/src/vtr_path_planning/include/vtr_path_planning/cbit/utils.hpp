@@ -37,6 +37,7 @@ class Node {
     public:
         double p;
         double q;
+        double z; // experimental
         double g_T = NAN;
         double g_T_weighted = NAN;
         std::shared_ptr<Node> parent; // Shared pointer method (safer) // NOTE: Shared pointers initialize to null
@@ -48,6 +49,14 @@ class Node {
         {
         }
 
+        // Experimental, secondary constuctor for Nodes with a z component
+        // This z component is only going to be used in the output of curve to euclid for both collision checks and for publishing the final 3D path
+        Node(double p_in, double q_in, double z_in) // Node constructor
+        : p{p_in}
+        , q{q_in}
+        , z{z_in}
+        {
+        }
         Node() = default;
         // I think we may need to make another function for setting the parent/child pointer?
 };

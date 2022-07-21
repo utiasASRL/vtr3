@@ -37,7 +37,6 @@ inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
-
   // Originally I thought I could get rid of this, but it is actually very important with how the codebase is setup.
   // The config class above is apart of the Base Planner class, which declares the default control period as 0. So if we dont update it, we have alot of problems
   config->control_period = (unsigned int)node->declare_parameter<int>(prefix + ".control_period", config->control_period);
@@ -48,6 +47,13 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 
   // This is how parameters should be updated from the parameter server. prefix is hardcoded to path_planning in the header, tabs are represented by periods "."
   config->obs_padding = node->declare_parameter<double>(prefix + ".cbit.obs_padding", config->obs_padding);
+  
+  // misc params, need to spend some time to clean this up and add all of them in the right orders
+  config->state_update_freq = node->declare_parameter<double>(prefix + ".cbit.state_update_freq", config->state_update_freq);
+
+  config->alpha = node->declare_parameter<double>(prefix + ".cbit.alpha", config->alpha);
+  
+  config->sliding_window_width = node->declare_parameter<double>(prefix + ".cbit.sliding_window_width", config->sliding_window_width);
 
   // TODO: Add the rest of the config params using example above (make sure to include initialization for each on in the cbit.hpp)
 
@@ -62,6 +68,14 @@ CBIT::CBIT(const Config::ConstPtr& config,
                                const Callback::Ptr& callback)
     : BasePathPlanner(config, robot_state, callback), config_(config) {
   const auto node = robot_state->node.ptr();
+  // Initialize the shared pointer the output of the planner
+  cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
+  // Might want to reserve a good chunk of memory for the vector here too? tbd, I think compute would be fairly marginal for the size of our paths
+  
+  // Create publishers
+  tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+  path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
+  test_pub_ = node->create_publisher<std_msgs::msg::String>("test_string", 10);
 
   // Updating cbit_configs
   // Environment
@@ -98,8 +112,8 @@ CBIT::~CBIT() { stop(); }
 void CBIT::initializeRoute(RobotState& robot_state) {
   /// \todo reset any internal state
   CLOG(INFO, "path_planning.teb") << "Path Planner has been started, here is where we will begin teach path pre-processing and asychronous cbit";
-  CLOG(INFO, "path_planning.teb") << "The obs_padding config param from ROS is: " << config_->obs_padding; // This is how you would reference a param, need to use config_ not config!!!
-  CLOG(INFO, "path_planning.teb") << "The obs_padding config param from ROS is: " << cbit_config.obs_padding; 
+  CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << config_->state_update_freq; // This is how you would reference a param, need to use config_ not config!!!
+  CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << cbit_config.state_update_freq; 
   CLOG(INFO, "path_planning.teb") << "The alpha config param from ROS is: " << cbit_config.alpha; 
 
   auto& chain = *robot_state.chain;
@@ -113,6 +127,9 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   
 
   CLOG(INFO, "path_planning.teb") << "Robot is now localized and we can start doing things";
+
+
+  CLOG(INFO, "path_planning.teb") << "Testing whether I can access the shared path memory pointer or not: " << cbit_path_ptr;
 
 
   //CLOG(INFO, "path_planning.teb") << "The size of the chain is: " << chain.size();
@@ -157,7 +174,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CBITPath global_path(cbit_config, euclid_path_vec);
 
   // Make a pointer to this path
-
+  std::shared_ptr<CBITPath> global_path_ptr = std::make_shared<CBITPath>(global_path);
 
   // Some debug messages
   Node test1(0,2);
@@ -170,6 +187,11 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CLOG(INFO, "path_planning.teb") << "Test X3: " << (global_path.disc_path[3]).x;
   CLOG(INFO, "path_planning.teb") << "End of Path, does this seem reasonable?";
   
+
+  // instantiate the planner
+  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr);
+
+  CLOG(INFO, "path_planning.teb") << "Planner Successfully Created and resolved, end of initializeRoute function";
 
   // Here is an example for getting the teach path frames, use chain.pose(<frame_index>) where 0 is the first frame
   // I think there is a chain.size() function you can use to get the total number of frames in the teach path we are trying to repeat.
@@ -218,6 +240,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     CLOG(INFO, "path_planning.teb") << "Robot is now localized and we are trying to compute a command";
   }
 
+
   // retrieve info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
@@ -225,6 +248,18 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   //CLOG(INFO, "path_planning.teb") << "w_p_r_in_r: " << w_p_r_in_r;
   //CLOG(INFO, "path_planning.teb") << "T_p_r: " << T_p_r;
   //CLOG(INFO, "path_planning.teb") << "T_w_p: " << T_w_p;
+
+
+  // Attempt a test rviz publish
+  std::string test_string = "This is a test message!";
+  // Dont visualize unless we are both localized and an initial solution is found
+  if ((*cbit_path_ptr).size() != 0)
+  {
+    visualize(test_string, stamp, T_w_p, T_p_r);
+    // Testing that we are receiving the most up to date output plans
+    CLOG(INFO, "path_planning.teb") << "The first pose is x: " << (*cbit_path_ptr)[0].x << " y: " << (*cbit_path_ptr)[0].y << " z: " << (*cbit_path_ptr)[0].z;
+  }
+
 
   return Command(); // This returns the stop command when called with no arguments
 }
@@ -241,6 +276,67 @@ auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
   const auto T_w_p = chain.T_start_trunk();
   const auto curr_sid = chain.trunkSequenceId();
   return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid};
+}
+
+
+void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r)
+{
+  // Test string message to make sure publisher is working
+  std_msgs::msg::String string_msg;
+  string_msg.data = text;
+  test_pub_->publish(string_msg);
+
+  /// Publish the current frame for planning
+  {
+    Eigen::Affine3d T(T_w_p.matrix());
+    auto msg = tf2::eigenToTransform(T);
+    msg.header.stamp = rclcpp::Time(stamp);
+    msg.header.frame_id = "world";
+    msg.child_frame_id = "planning frame";
+    tf_bc_->sendTransform(msg);
+  }
+
+  /// Publish the current robot in the planning frame
+  {
+    Eigen::Affine3d T(T_p_r.matrix());
+    auto msg = tf2::eigenToTransform(T);
+    msg.header.frame_id = "planning frame";
+    msg.header.stamp = rclcpp::Time(stamp);
+    msg.child_frame_id = "robot planning";
+    tf_bc_->sendTransform(msg);
+  }
+
+  // Attempting to publish the actual path which we are receiving from the shared pointer in the cbitplanner
+  // The path is stored as a vector of se3 Pose objects from cbit/utils, need to iterate through and construct proper ros2 nav_msgs PoseStamped
+
+  /// Publish the intermediate goals in the planning frame
+  {
+    nav_msgs::msg::Path path;
+    path.header.frame_id = "world";
+    path.header.stamp = rclcpp::Time(stamp);
+    auto& poses = path.poses;
+
+    // iterate through the path
+    CLOG(INFO, "path_planning.teb") << "Trying to publish the path, the size is: " << (*cbit_path_ptr).size();
+    geometry_msgs::msg::Pose test_pose;
+    for (unsigned i = 0; i < (*cbit_path_ptr).size(); ++i) 
+    {
+      auto& pose = poses.emplace_back();
+      // The teb planner used this toMsg function to convert transforms into the correct pose message type, but I dont see why we cant just directly use the geometry message
+      //pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix())); // oh in hindsight I think this is how to grab the transform from a transform with covariance
+      test_pose.position.x = (*cbit_path_ptr)[i].x;
+      test_pose.position.y = (*cbit_path_ptr)[i].y; 
+      test_pose.position.z = (*cbit_path_ptr)[i].z; 
+      test_pose.orientation.x = 0.0;
+      test_pose.orientation.y = 0.0;
+      test_pose.orientation.z = 0.0;
+      test_pose.orientation.w = 1.0;
+      pose.pose = test_pose;
+    }
+
+    path_pub_->publish(path);
+  }
+  return;
 }
 
 

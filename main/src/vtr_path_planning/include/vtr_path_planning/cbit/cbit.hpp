@@ -33,11 +33,13 @@
 
 #include "nav_msgs/msg/path.hpp"
 #include "tf2_ros/transform_broadcaster.h"
+#include "std_msgs/msg/string.hpp"
 
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 #include "vtr_path_planning/base_path_planner.hpp"
 #include "vtr_path_planning/cbit/utils.hpp"
 #include "vtr_path_planning/cbit/generate_pq.hpp"
+#include "vtr_path_planning/cbit/cbit_path_planner.hpp"
 
 namespace vtr {
 namespace path_planning {
@@ -106,6 +108,8 @@ class CBIT : public BasePathPlanner {
   //void initializeRouteTest(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
 
+  void visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r);
+
  protected:
   struct ChainInfo {
     tactic::Timestamp stamp;
@@ -122,6 +126,19 @@ class CBIT : public BasePathPlanner {
   const Config::ConstPtr config_;
   CBITConfig cbit_config;
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
+
+  // Ros2 publishers
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr test_pub_;
+
+
+  // TEST: Initializing a pointer to shared memory, want to see if the virtual functions can access it
+  // TODO: Long term we probably are going to want to format the output as transforms on the planner side and then adjust the class types here accordingly
+  std::vector<Pose> cbit_path;
+  std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
+
+
 };
 
 }  // namespace path_planning

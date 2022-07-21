@@ -45,7 +45,7 @@ BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
 BasePathPlanner::~BasePathPlanner() { stop(); }
 
 void BasePathPlanner::initializeRoute() {
-  UniqueLock lock(mutex_);
+  //UniqueLock lock(mutex_);
   initializeRoute(*robot_state_);
 }
 

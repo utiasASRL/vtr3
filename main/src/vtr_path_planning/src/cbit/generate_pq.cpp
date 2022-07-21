@@ -20,6 +20,8 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     {
         p.push_back(p[i-1] + delta_p_calc(disc_path[i-1], disc_path[i], alpha));
     }
+
+    CLOG(INFO, "path_planning.teb") << "Successfully Built a Path in generate_pq.cpp and Displayed log";
     
 }
 

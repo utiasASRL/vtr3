@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstdio>
 
-//#include "vtr_path_planning/base_path_planner.hpp"
+#include "vtr_logging/logging.hpp"
 #include "vtr_path_planning/cbit/utils.hpp"
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 
