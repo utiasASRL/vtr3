@@ -45,8 +45,8 @@ double h_estimated_admissible(Node node, Node goal)
 
     // instead of using straight line euclidean distance like in normal BIT*,
     // we use a more conservative heuristic which is simply the longitudinal distance to the goal
-    Node projected_node(node.p, 0);
-    double horz_cost = calc_dist(projected_node, goal);
+    //Node projected_node(node.p, 0);
+    double horz_cost = calc_dist(Node(node.p, 0), Node(goal.p, 0));
     return horz_cost;
 }
 
@@ -69,8 +69,8 @@ double g_estimated_admissible(Node node, Node start)
 
     // instead of using straight line euclidean distance like in normal BIT*,
     // we use a more conservative heuristic which is simply the longitudinal distance to the goal
-    Node projected_node(node.p, 0);
-    double horz_cost = calc_dist(start, projected_node);
+    //Node projected_node(node.p, 0);
+    double horz_cost = calc_dist(start, Node(node.p, 0));
     return horz_cost;
 }
 

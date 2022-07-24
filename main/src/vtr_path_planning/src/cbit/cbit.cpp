@@ -55,6 +55,9 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   
   config->sliding_window_width = node->declare_parameter<double>(prefix + ".cbit.sliding_window_width", config->sliding_window_width);
 
+  config->initial_samples = node->declare_parameter<int>(prefix + ".cbit.initial_samples", config->initial_samples);
+
+  config->batch_samples = node->declare_parameter<int>(prefix + ".cbit.batch_samples", config->batch_samples);
   // TODO: Add the rest of the config params using example above (make sure to include initialization for each on in the cbit.hpp)
 
 
@@ -111,10 +114,10 @@ CBIT::~CBIT() { stop(); }
 // Here is where we can do all the teach path pre-processing and then begin the anytime planner asychronously
 void CBIT::initializeRoute(RobotState& robot_state) {
   /// \todo reset any internal state
-  CLOG(INFO, "path_planning.teb") << "Path Planner has been started, here is where we will begin teach path pre-processing and asychronous cbit";
-  CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << config_->state_update_freq; // This is how you would reference a param, need to use config_ not config!!!
-  CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << cbit_config.state_update_freq; 
-  CLOG(INFO, "path_planning.teb") << "The alpha config param from ROS is: " << cbit_config.alpha; 
+  CLOG(INFO, "path_planning.cbit") << "Path Planner has been started, here is where we will begin teach path pre-processing and asychronous cbit";
+  //CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << config_->state_update_freq; // This is how you would reference a param, need to use config_ not config!!!
+  //CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << cbit_config.state_update_freq; 
+  //CLOG(INFO, "path_planning.teb") << "The alpha config param from ROS is: " << cbit_config.alpha; 
 
   auto& chain = *robot_state.chain;
 
@@ -126,10 +129,10 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   }
   
 
-  CLOG(INFO, "path_planning.teb") << "Robot is now localized and we can start doing things";
+  //CLOG(INFO, "path_planning.cbit") << "Robot is now localized and we can start trying to pre-process the map";
 
 
-  CLOG(INFO, "path_planning.teb") << "Testing whether I can access the shared path memory pointer or not: " << cbit_path_ptr;
+  //CLOG(INFO, "path_planning.teb") << "Testing whether I can access the shared path memory pointer or not: " << cbit_path_ptr;
 
 
   //CLOG(INFO, "path_planning.teb") << "The size of the chain is: " << chain.size();
@@ -161,9 +164,11 @@ void CBIT::initializeRoute(RobotState& robot_state) {
     se3_pose = Pose(std::get<0>(se3_vector), std::get<1>(se3_vector), std::get<2>(se3_vector), std::get<3>(se3_vector), std::get<4>(se3_vector), std::get<5>(se3_vector));
     euclid_path_vec.push_back(se3_pose);
     // Debug info to check to see that the path looks realistic
+    /*
     CLOG(INFO, "path_planning.teb") << "My se(3) vector conversion: x: " << std::get<0>(se3_vector) << " y: " 
     << std::get<1>(se3_vector) << " z: " << std::get<2>(se3_vector) << " roll: " << std::get<3>(se3_vector) << " pitch: " 
     << std::get<4>(se3_vector) << " yaw: " << std::get<5>(se3_vector);
+    */
 
     // Was trying to see here if I could use lgmaths built ins for doing this instead of doing my own T2xyzrpy function, but it was not agreeing in all cases
     // and I know that my custom function was giving correct output on the offline VTR3 tutorial dataset, so might ignore using this (its a one time thing anyways)
@@ -176,22 +181,13 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   // Make a pointer to this path
   std::shared_ptr<CBITPath> global_path_ptr = std::make_shared<CBITPath>(global_path);
 
-  // Some debug messages
-  Node test1(0,2);
-  Node test2(0,1);
-  auto test = calc_dist(test1, test2);
-  CLOG(INFO, "path_planning.teb") << "Test Distance:" << test;
-  CLOG(INFO, "path_planning.teb") << "Test X0: " << (global_path.disc_path[0]).x;
-  CLOG(INFO, "path_planning.teb") << "Test X1: " << (global_path.disc_path[1]).x;
-  CLOG(INFO, "path_planning.teb") << "Test X2: " << (global_path.disc_path[2]).x;
-  CLOG(INFO, "path_planning.teb") << "Test X3: " << (global_path.disc_path[3]).x;
-  CLOG(INFO, "path_planning.teb") << "End of Path, does this seem reasonable?";
-  
+  CLOG(INFO, "path_planning.cbit") << "Path has been pre-processed, Attempting to instantiae the Planner";
+
 
   // instantiate the planner
   CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr);
 
-  CLOG(INFO, "path_planning.teb") << "Planner Successfully Created and resolved, end of initializeRoute function";
+  CLOG(INFO, "path_planning.cbit") << "Planner Successfully Created and resolved, end of initializeRoute function";
 
   // Here is an example for getting the teach path frames, use chain.pose(<frame_index>) where 0 is the first frame
   // I think there is a chain.size() function you can use to get the total number of frames in the teach path we are trying to repeat.
@@ -231,14 +227,16 @@ void CBIT::initializeRoute(RobotState& robot_state) {
 auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
-    CLOG(WARNING, "path_planning.teb")
-        << "Robot is not localized, command to stop the robot test teb";
+    CLOG(WARNING, "path_planning.cbit")
+        << "Robot is not localized, command to stop the robot";
     return Command();
   }
 
+  /*
   else {
-    CLOG(INFO, "path_planning.teb") << "Robot is now localized and we are trying to compute a command";
+    CLOG(INFO, "path_planning.cbit") << "Robot is now localized and we are trying to compute a command";
   }
+  */
 
 
   // retrieve info from the localization chain
@@ -257,7 +255,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   {
     visualize(test_string, stamp, T_w_p, T_p_r);
     // Testing that we are receiving the most up to date output plans
-    CLOG(INFO, "path_planning.teb") << "The first pose is x: " << (*cbit_path_ptr)[0].x << " y: " << (*cbit_path_ptr)[0].y << " z: " << (*cbit_path_ptr)[0].z;
+    //CLOG(INFO, "path_planning.cbit") << "The first pose is x: " << (*cbit_path_ptr)[0].x << " y: " << (*cbit_path_ptr)[0].y << " z: " << (*cbit_path_ptr)[0].z;
   }
 
 
@@ -317,7 +315,7 @@ void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tac
     auto& poses = path.poses;
 
     // iterate through the path
-    CLOG(INFO, "path_planning.teb") << "Trying to publish the path, the size is: " << (*cbit_path_ptr).size();
+    //CLOG(INFO, "path_planning.cbit") << "Trying to publish the path, the size is: " << (*cbit_path_ptr).size();
     geometry_msgs::msg::Pose test_pose;
     for (unsigned i = 0; i < (*cbit_path_ptr).size(); ++i) 
     {

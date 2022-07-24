@@ -39,7 +39,7 @@ BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
   //
   thread_count_ = 1;
   process_thread_ = std::thread(&BasePathPlanner::process, this);
-  process_thread_cbit_ = std::thread(&BasePathPlanner::process_cbit, this);
+  process_thread_cbit_ = std::thread(&BasePathPlanner::process_cbit, this); // Setting up an indepedant thread for the cbit planner
 }
 
 BasePathPlanner::~BasePathPlanner() { stop(); }
@@ -69,8 +69,9 @@ void BasePathPlanner::stop() {
 
 void BasePathPlanner::process_cbit() {
   el::Helpers::setThreadName("cbit_path_planning");
-  CLOG(INFO, "path_planning") << "Starting the cbit path planning thread.";
+  CLOG(INFO, "path_planning") << "Starting the cbit path planning thread (check to make sure things updated 2).";
   initializeRoute();
+  CLOG(INFO, "path_planning") << "cbit planning thread successfully terminated";
 }
 
 

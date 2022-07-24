@@ -24,6 +24,6 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source /opt/ros/noetic/setup.bash
-      - source /opt/ros/foxy/setup.bash
+      - source /opt/ros/galactic/setup.bash # Jordy modified from foxy
     panes:
       - ros2 run ros1_bridge dynamic_bridge # for any ros1 messages

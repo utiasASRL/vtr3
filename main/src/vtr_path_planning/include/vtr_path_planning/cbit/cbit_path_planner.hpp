@@ -59,7 +59,7 @@ class CBITPlanner {
     private:
         void InitializePlanningSpace();
         void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state);
-        void UpdateState();
+        std::shared_ptr<Node> UpdateState();
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
         double BestVertexQueueValue();

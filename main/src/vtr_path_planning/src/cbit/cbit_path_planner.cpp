@@ -31,11 +31,11 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   auto& chain = *robot_state.chain;
   do
   {
-    CLOG(WARNING, "path_planning.teb") << "Robot is not localized, Planner not started";
+    CLOG(WARNING, "path_planning.cbit_planner") << "Robot is not localized, Planner is waiting to start";
   } while (chain.isLocalized() == 0);
 
   
-  CLOG(INFO, "path_planning.teb") << "Made it inside the planner, trying to build the planning object";
+  CLOG(INFO, "path_planning.cbit_planner") << "Planner is trying to initialize";
   conf = conf_in;
   global_path = path_in; //TODO: I dont really like this, maybe either used shared pointers or make the arg path_in just be named global path
   p_goal = std::make_shared<Node> (global_path->p[0], 0.0);
@@ -122,10 +122,13 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
   // benchmarking example code
   auto start_time = std::chrono::high_resolution_clock::now();
 
-  // Debug infinite loop for now, TODO: Need to add break conditions
+
+  bool localization_flag = true; // Set the fact we are localized if we make it to this point
+
+  // Debug infinite loop for now, TODO: Need to add break conditions (probably based on robot state)
   while(true)
   {
-
+    
     for (int k = 0; k < conf.iter_max; k++)
     {
       // Check whether a robot state update should be applied
@@ -135,31 +138,56 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         if ((p_goal->parent != nullptr) && (std::chrono::high_resolution_clock::now() >= state_update_time))
         {
           // Update timers
-          CLOG(INFO, "path_planning.teb") << "Attempting to Update Robot State";
+          CLOG(INFO, "path_planning.cbit_planner") << "Attempting to Update Robot State";
           state_update_time = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(control_period_ms);
 
           // get the euclidean robot state in the world frame from vt&r
 
           auto& chain = *robot_state.chain; // I think we actually only ever really use the chain to make sure we are actually localized
+           if (chain.isLocalized() == 0)
+           {
+            // If we ever become unlocalized, I think we just need to break, then set a flag to exit the outter loop
+            bool localization_flag = false;
+            CLOG(ERROR, "path_planning.cbit_planner") << "Localization was Lost, Exiting Inner Planning Loop";
+            break;
+           }
+          
           // Which I guess I probably should be doing (see teb code) as we probably dont want to pass the robot state unless we are
           std::tuple<double, double, double, double, double, double> robot_pose;
 
           const auto chain_info = getChainInfo(robot_state);
           auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
           robot_pose= T2xyzrpy(T_w_p * T_p_r);
-          CLOG(INFO, "path_planning.teb") << "Robot Pose: x: " << std::get<0>(robot_pose) << " y: " 
+          CLOG(INFO, "path_planning.cbit_planner") << "Robot Pose: x: " << std::get<0>(robot_pose) << " y: " 
           << std::get<1>(robot_pose) << " z: " << std::get<2>(robot_pose) << " roll: " << std::get<3>(robot_pose) << " pitch: " 
           << std::get<4>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
-          CLOG(INFO, "path_planning.teb") << "Displaying Current Robot Transform: " << T_p_r;
+          //CLOG(INFO, "path_planning.cbit_planner") << "Displaying Current Robot Transform: " << T_p_r;
 
-          Pose se3_robot_pose = Pose(std::get<0>(robot_pose),std::get<1>(robot_pose),std::get<2>(robot_pose),std::get<3>(robot_pose),std::get<4>(robot_pose),std::get<5>(robot_pose));
+          //Pose se3_robot_pose = Pose(std::get<0>(robot_pose),std::get<1>(robot_pose),std::get<2>(robot_pose),std::get<3>(robot_pose),std::get<4>(robot_pose),std::get<5>(robot_pose));
+
+          // Debugging the path convergence issue
+          Pose se3_robot_pose = Pose(std::get<0>(robot_pose),(std::get<1>(robot_pose)),std::get<2>(robot_pose),std::get<3>(robot_pose),std::get<4>(robot_pose),std::get<5>(robot_pose));
+
 
           new_state = std::make_unique<Pose> (se3_robot_pose);
 
           // Perform a state update to convert the actual robot position to its corresponding pq space:
-          UpdateState();
+          p_goal = UpdateState();
 
-          CLOG(INFO, "path_planning.teb") << "Made it past updatestate";
+          // There is a case where the robot is actually starting behind the world frame of the teach path (or the localization thinks it is at first anyways)
+          // This results in a situation where the updated state p value is 0, and the q value is the euclidean distance from the world frame to the robot state
+          // (Which is a significant overestimate of the q_min). I think easiest way to handle this situation is to basically ignore the state update until p is non-zero
+          // So here what we do is check p, if it is equal to zero still, then set q to be zero as well.
+          if (p_goal->p == 0.0)
+          {
+            CLOG(WARNING, "path_planning.cbit_planner") << "Current Robot State is behind the first vertex, ignoring state update";
+            p_goal->q = 0.0;
+          }
+
+
+          // Debug, check to see what p value we are spitting out
+          //CLOG(INFO, "path_planning.cbit_planner") << "The p,q coordinate of the robots updated state goal is now: p: " << p_goal->p << " q: " << p_goal->q;
+
 
           // Add the new goal (robot state) to the samples so it can be found again
           samples.push_back(p_goal); 
@@ -175,7 +203,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
             }
           }
 
-          CLOG(INFO, "path_planning.teb") << "Robot State Updated Successfully";
+          CLOG(INFO, "path_planning.cbit_planner") << "Robot State Updated Successfully";
 
 
           // TODO: Could insert code here to update the obstacles like I was doing in python if need be for demos and debugging, but this probably isnt really necessary
@@ -189,7 +217,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       int m;
       if (tree.QV.size() == 0 && tree.QE.size() == 0)
       {
-        std::cout << "New Batch:" << std::endl;
+        //std::cout << "New Batch:" << std::endl;
         if (k == 0)
         {
           m = conf.initial_samples;
@@ -205,14 +233,17 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         if (p_goal->parent != nullptr)
         {
           // TODO, need to display results
-          std::cout << "Iteration: " << k << std::endl;
-          std::cout << "Path Cost: " << p_goal->g_T_weighted << std::endl;
+          //std::cout << "Iteration: " << k << std::endl;
+          //std::cout << "Path Cost: " << p_goal->g_T_weighted << std::endl;
 
           // Benchmark current compute time
           auto stop_time = std::chrono::high_resolution_clock::now();
           auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time);
-          std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
+          //std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
 
+
+          // Debug message for online use (wont use std::out long term)
+          CLOG(INFO, "path_planning.cbit_planner") << "New Batch - Iteration: " << k << "   Path Cost: " << p_goal->g_T_weighted << "   Batch Compute Time (ms): " << duration.count();
 
           // Extract the solution
           std::tuple<std::vector<double>, std::vector<double>> curv_path = ExtractPath();
@@ -225,6 +256,8 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           std::vector<Pose> euclid_path = ExtractEuclidPath();
           *cbit_path_ptr = euclid_path;
 
+          // Reset the start time
+          start_time = std::chrono::high_resolution_clock::now();
 
           
         }
@@ -235,7 +268,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         if (p_goal->g_T_weighted < INFINITY)
         {
           // sample box function here
-          std::cout << "Sample Box" << std::endl;
+          //std::cout << "Sample Box" << std::endl;
           std::vector<std::shared_ptr<Node>> new_samples = SampleBox(m); // TODO Sample rejection
           //std::vector<std::shared_ptr<Node>> new_samples = SampleFreeSpace(m); // DEBUG ONLY!!!
           samples.insert(samples.end(), new_samples.begin(), new_samples.end());
@@ -243,7 +276,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         
         else
         {
-          std::cout << "Sample Free Space " << std::endl;
+          //std::cout << "Sample Free Space " << std::endl;
 
           std::vector<std::shared_ptr<Node>> new_samples = SampleFreeSpace(m); // TODO Pre Seeds, Sample Rejection
           samples.insert(samples.end(), new_samples.begin(), new_samples.end());
@@ -401,7 +434,24 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       // TODO: Plotting (if we want)
       
       
+    } // End of main planning for loop
+    
+    //TODO: Add a check here for whether we should be exiting the planner or not at this stage
+
+    if (localization_flag == false)
+    {
+      CLOG(ERROR, "path_planning.cbit_planner") << "Exiting Outter Planning Loop";
+      break;
     }
+    // If we ever reach here, its likely the edge queue became empty, in which case we should re-initialize the planner and try again
+    //InitializePlanningSpace();
+
+    // I think we may also want to add a small time delay just so we arent repeatedly spamming an optimal solution
+    // The majority of the time we should be inside the loop
+    //CLOG(INFO, "path_planning.cbit_planner") << "Made it to sleep";
+    //sleep(0.5);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
   }
 
 }
@@ -619,9 +669,8 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
 // Function for updating the state of the robot, updates the goal and sliding window, and prunes the current tree
 // Note that this stage requires us to convert the state of the robot in euclidean space into a singular curvilinear space pt, which is actually slightly tricky
 // To do without singularities
-void CBITPlanner::UpdateState()
+std::shared_ptr<Node> CBITPlanner::UpdateState()
 {
-  CLOG(INFO, "path_planning.teb") << "Made it inside Update State";
   //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
 
 
@@ -630,22 +679,20 @@ void CBITPlanner::UpdateState()
   //and define a subset of points with a lookahead distance
   std::vector<Node> euclid_subset;
   euclid_subset.reserve((conf.roc_lookahead * conf.roc_lookahead * conf.curv_to_euclid_discretization));
-  CLOG(INFO, "path_planning.teb") << "Made it to the first for loop";
+
   // The length of the subset is determined by the configuration parameter lookahead distance and the desired discretization
   for (double i = (*p_goal).p; i < ((*p_goal).p + conf.roc_lookahead); i += (1.0 / (conf.roc_lookahead * conf.curv_to_euclid_discretization)))
   {
     euclid_subset.push_back(curve_to_euclid(Node(i,0)));
     
   }
-  CLOG(INFO, "path_planning.teb") << "Made it to q_min calc";
 
   // calc q_min
   double q_min = conf.q_max;
   double q;
   Node closest_pt;
   int closest_pt_ind;
-  CLOG(INFO, "path_planning.teb") << "Made it to q_min calc 2";
-  CLOG(INFO, "path_planning.teb") << "the new state is: X: " << new_state->x << " Y: " << new_state->y;
+
   for (int i=0; i<euclid_subset.size(); i++)
   {
     double dx = new_state->x - euclid_subset[i].p;
@@ -662,7 +709,7 @@ void CBITPlanner::UpdateState()
   // Once we have the closest point, we need to try to find the sign (above or below the path)
   // This is a little tricky, but I think what is reasonable is to create a plane with the closest point and its neighbours
   // Then depending on which side the new state point is of the plane, is the sign we use for q_min:
-  CLOG(INFO, "path_planning.teb") << "Made it to node calc";
+
   Node A;
   Node B;
   if (closest_pt_ind == 0)
@@ -690,8 +737,7 @@ void CBITPlanner::UpdateState()
   
   q_min = q_min * q_sign;
   
-  
-  CLOG(INFO, "path_planning.teb") << "Made it to pose err";
+
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
   // We need to use this points p-value as a starting point, then search p, qmin space in either direction discretely and find the point with
   // The lowest pose error (including heading) (Should be able to ignore roll and pitch though)
@@ -713,16 +759,18 @@ void CBITPlanner::UpdateState()
     }
   }
 
-  CLOG(INFO, "path_planning.teb") << "Made it to goal update";
   // Now update the goal and its cost to come:
+  
   std::shared_ptr<Node> new_state_pq_ptr = std::make_shared<Node>(new_state_pq);
   p_goal = new_state_pq_ptr;
   p_goal->g_T = INFINITY;
   p_goal->g_T_weighted = INFINITY;
 
 
-  std::cout << "Successfully Updated State: " << std::endl;
 
+  //std::cout << "Successfully Updated State: " << std::endl;
+
+  return p_goal;
   // TODO: At this point we would pop out the first element of the new_state_arr so next state update we keep moving forward
   
 
@@ -790,7 +838,8 @@ std::shared_ptr<Node> CBITPlanner::BestInVertexQueue()
 {
   if (tree.QV.size() == 0)
   {
-    std::cout << "Vertex Queue is Empty!" << std::endl;
+    //std::cout << "Vertex Queue is Empty!" << std::endl;
+    CLOG(INFO, "path_planning.cbit_planner") << "Vertex Queue is Empty, Something went Wrong!";
     //return; // TODO: Need to fix these returns, I can potentially use all auto types to do something similar to what I did in python
     // But I think longer term I should find a better solution. This case only occurs if a solution cannot be found, which for now can be ignored
   }
@@ -872,7 +921,9 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> CBITPlanner::BestInEdge
 {
   if (tree.QE.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
   {
-    std::cout << "Edge Queue is Empty! Optimal Solution Found" << std::endl;
+    //std::cout << "Edge Queue is Empty! Optimal Solution Found" << std::endl;
+    CLOG(WARNING, "path_planning.cbit_planner") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
+
     return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {NULL, NULL};
 
   }
@@ -979,6 +1030,9 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
       path_x.push_back(euclid_pt.p);
       path_y.push_back(euclid_pt.q);
       path_z.push_back(euclid_pt.z);
+      //For debug
+      //path_z.push_back(0.0);
+
     }
 
   }
@@ -1078,7 +1132,7 @@ Node CBITPlanner::curve_to_euclid(Node node)
   double y_i = pose_c.y + cos(pose_c.yaw)*q_val;
 
   // Experimental, also interpolate the z value
-  double z_i = pose_c.z + cos(pose_c.yaw)*q_val;
+  double z_i = pose_c.z; //+ cos(pose_c.yaw)*q_val; // I think here we just want to set the z to whatever the pose_c.z value
 
   return Node(x_i,y_i,z_i);
 }

@@ -81,7 +81,7 @@ class CBIT : public BasePathPlanner {
     double alpha = 0.5;
     double q_max = 2.5;
     int frame_interval = 50;
-    int iter_max = 150000;
+    int iter_max = 10000000;
     double eta = 1.1;
     double rad_m_exhange = 1.00;
     double initial_exp_rad = 1.00;

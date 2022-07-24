@@ -18,6 +18,8 @@
         # path planner
          "path_planning",
          "path_planning.teb",
+         "path_planning.cbit",
+         "path_planning.cbit_planner",
         # mission planner
         # "mission.server",
         # "mission.state_machine",
@@ -45,7 +47,7 @@
     robot_frame: base_link
     env_info_topic: env_info
     # lidar related
-    lidar_frame: honeycomb
+    lidar_frame: honeycomb 
     lidar_topic: /points
 
     ############ map projection configuration ############
@@ -424,7 +426,7 @@
 
     ############ path planning configuration ############
     path_planning:
-      type: teb.lidar
+      type: cbit #teb.lidar # teb.lidar for working version, cbit for my experimental planner
       control_period: 100 # ms
       teb:
         # vtr specific
@@ -454,7 +456,7 @@
         sliding_window_width: 15.0
         sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.05
-        state_update_freq: 2.0
+        state_update_freq: 1.0
         update_state: true
         rand_seed: 1
         
