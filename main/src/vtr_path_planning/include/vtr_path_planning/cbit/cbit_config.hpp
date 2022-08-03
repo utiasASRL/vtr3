@@ -25,7 +25,7 @@ class CBITConfig {
         // Planner Tuning Params
         int initial_samples = 250;
         int batch_samples = 100;
-        int pre_seed_resolution = 0.5;
+        double pre_seed_resolution = 0.5;
         double alpha = 0.5;
         double q_max = 2.5;
         int frame_interval = 50;
@@ -33,6 +33,7 @@ class CBITConfig {
         double eta = 1.1;
         double rad_m_exhange = 1.00;
         double initial_exp_rad = 1.00;
+        bool extrapolation = true;
 
         // Misc
         bool incremental_plotting = true;

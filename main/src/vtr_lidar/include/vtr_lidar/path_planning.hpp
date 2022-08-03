@@ -19,3 +19,4 @@
 #pragma once
 
 #include "vtr_lidar/path_planning/teb_path_planner.hpp"
+#include "vtr_lidar/path_planning/cbit.hpp" //Jordy: Need this in order for static name to be registered properly in the base planner

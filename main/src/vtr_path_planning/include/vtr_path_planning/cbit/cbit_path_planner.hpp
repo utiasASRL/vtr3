@@ -14,6 +14,7 @@
 #include "vtr_path_planning/cbit/utils.hpp"
 #include "vtr_path_planning/cbit/generate_pq.hpp"
 #include "vtr_path_planning/cbit/cbit_config.hpp"
+#include "vtr_path_planning/cbit/cbit_costmap.hpp"
 #include "vtr_tactic/tactic.hpp"
 
 #pragma once
@@ -29,8 +30,17 @@ class CBITPlanner {
         std::vector<double> path_y;
         double sample_box_height;
         double sample_box_width;
+        double dynamic_window_width;
         Tree tree;
         std::vector<std::shared_ptr<Node>> samples;
+
+        // Repair mode variables
+        bool repair_mode = false; // Flag for whether or not we should resume the planner in repair mode to update the tree following a state update
+        std::shared_ptr<Node> repair_vertex;
+        double repair_g_T_old;
+        double repair_g_T_weighted_old;
+        std::shared_ptr<Node> p_goal_backup;
+
 
         // For storing the most up-to-date euclidean robot pose
         std::unique_ptr<Pose> new_state;
@@ -42,7 +52,10 @@ class CBITPlanner {
         // Temporary obstacles
         std::vector<std::vector<double>>  obs_rectangle;
 
-        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr);
+        // Costmap pointer
+        std::shared_ptr<CBITCostmap> cbit_costmap_ptr;
+
+        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr);
 
     protected:
     struct ChainInfo {
@@ -58,7 +71,7 @@ class CBITPlanner {
 
     private:
         void InitializePlanningSpace();
-        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state);
+        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
         std::shared_ptr<Node> UpdateState();
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
@@ -77,7 +90,10 @@ class CBITPlanner {
         Node curve_to_euclid(Node node);
         Pose lin_interpolate(int p_ind, double p_val);
         bool is_inside_obs(std::vector<std::vector<double>> obs, Node node);
+        bool costmap_col(Node node);
         bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
+        bool col_check_path();
+        void restore_tree(double g_T_update, double g_T_weighted_update);
 
         // Add class for Tree
         // Add dictionary (or some other structure) for the cost to come lookup using NodeID as key

@@ -40,6 +40,8 @@
 #include "vtr_path_planning/cbit/utils.hpp"
 #include "vtr_path_planning/cbit/generate_pq.hpp"
 #include "vtr_path_planning/cbit/cbit_path_planner.hpp"
+#include "vtr_path_planning/cbit/cbit_costmap.hpp"
+
 
 namespace vtr {
 namespace path_planning {
@@ -77,7 +79,7 @@ class CBIT : public BasePathPlanner {
     // Planner Tuning Params
     int initial_samples = 250;
     int batch_samples = 100;
-    int pre_seed_resolution = 0.5;
+    double pre_seed_resolution = 0.5;
     double alpha = 0.5;
     double q_max = 2.5;
     int frame_interval = 50;
@@ -85,6 +87,7 @@ class CBIT : public BasePathPlanner {
     double eta = 1.1;
     double rad_m_exhange = 1.00;
     double initial_exp_rad = 1.00;
+    bool extrapolation = true;
 
     // Misc
     bool incremental_plotting = false;
@@ -104,10 +107,9 @@ class CBIT : public BasePathPlanner {
   ~CBIT() override;
 
  protected:
-  void initializeRoute(RobotState& robot_state) override;
+  void initializeRoute(RobotState& robot_state) override; // Declare this as virtual so that the Lidarcbit can override it if using that static name
   //void initializeRouteTest(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
-
   void visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r);
 
  protected:
@@ -122,7 +124,7 @@ class CBIT : public BasePathPlanner {
   /** \brief Retrieve information for planning from localization chain */
   ChainInfo getChainInfo(RobotState& robot_state);
 
- private:
+ //private: // I think we need to make all of these protected so the derived lidarcbit class can access them
   const Config::ConstPtr config_;
   CBITConfig cbit_config;
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
@@ -137,6 +139,10 @@ class CBIT : public BasePathPlanner {
   // TODO: Long term we probably are going to want to format the output as transforms on the planner side and then adjust the class types here accordingly
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
+
+
+  // Create costmap pointer object
+  std::shared_ptr<CBITCostmap> costmap_ptr = std::make_shared<CBITCostmap> ();
 
 
 };
