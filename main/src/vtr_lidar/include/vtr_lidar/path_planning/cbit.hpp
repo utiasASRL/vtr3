@@ -21,6 +21,7 @@
 #include "vtr_path_planning/cbit/cbit.hpp"
 
 
+
 namespace vtr {
 namespace lidar {
 
@@ -53,6 +54,8 @@ class LidarCBIT : public vtr::path_planning::CBIT {
 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(LidarCBIT);
 
+
+  unsigned int prev_costmap_sid = 0;
 /*
  protected:
   template <typename PointT>

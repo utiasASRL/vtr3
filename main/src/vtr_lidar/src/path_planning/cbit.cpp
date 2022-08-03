@@ -234,7 +234,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     const auto costmap_T_vertex_this =change_detection_costmap->T_vertex_this();
     //auto& chain = *robot_state_test.chain;
     const auto T_start_vertex = chain.pose(costmap_sid);
-    CLOG(INFO, "path_planning.teb") << "The transform from costmap to robot is:" << T_start_vertex;
+    //CLOG(INFO, "path_planning.teb") << "The transform from costmap to robot is:" << T_start_vertex;
     
     // This is the important line, this is what is grabbing the data from the grid, and returning an unordered dicrete grid map which we can use for collision checking
     vtr::lidar::BaseCostMap::XY2ValueMap obs_map = change_detection_costmap->filter(0.01); //todo, there is probably a param here we need to retrieve for this
@@ -258,12 +258,32 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     
 
     // Updating the costmap pointer
+
+    CLOG(INFO, "path_planning.teb") << "Updating Costmap SID to: " <<change_detection_costmap->vertex_sid();
     costmap_ptr->obs_map = obs_map;
     // Store the transform T_c_w (from costmap to world)
-    costmap_ptr->T_c_w = T_start_vertex.inverse(); // Note this probably isnt the right transform to assign, need to do some poking to figure out what is right
+    costmap_ptr->T_c_w = T_start_vertex.inverse(); // note that T_start_vertex is T_w_c if we want to bring keypoints to the world frame
     // Store the grid resoltuion
     costmap_ptr->grid_resolution = change_detection_costmap->dl();
-  
+
+    // Experimental: Storing sequences of costmaps for temporal filtering purposes
+    // For the first x iterations, fill the obstacle vector (right now 5 is a magic num that could be a config param)
+    if (costmap_ptr->obs_map_vect.size() < 5)
+    {
+      costmap_ptr->obs_map_vect.push_back(obs_map);
+      costmap_ptr->T_c_w_vect.push_back(costmap_ptr->T_c_w);
+    }
+    // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
+    else
+    {
+      for (int i = 0; i < (5-1); i++)
+      {
+        costmap_ptr->obs_map_vect[i] = costmap_ptr->obs_map_vect[i + 1];
+        costmap_ptr->T_c_w_vect[i] = costmap_ptr->T_c_w_vect[i + 1];
+      }
+      costmap_ptr->obs_map_vect[4] = obs_map;
+      costmap_ptr->T_c_w_vect[4] = costmap_ptr->T_c_w ;
+    }
 
 
   //CLOG(DEBUG, "path_planning.teb") << "Now that we made the pointers, try to display them: " << costmap_ptr->obs_map_ptr;
