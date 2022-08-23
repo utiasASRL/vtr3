@@ -34,11 +34,8 @@ class CBITPlanner {
         Tree tree;
         std::vector<std::shared_ptr<Node>> samples;
 
-        //debug
-        bool reset_debug_flag = false;
-
-        int control_period_ms;
-        std::chrono::time_point<std::chrono::high_resolution_clock> state_update_time;
+        //int control_period_ms;
+        //std::chrono::time_point<std::chrono::high_resolution_clock> state_update_time;
 
         // Repair mode variables
         bool repair_mode = false; // Flag for whether or not we should resume the planner in repair mode to update the tree following a state update

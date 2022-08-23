@@ -20,6 +20,7 @@
 
 #include "vtr_lidar/cache.hpp"
 
+
 namespace vtr {
 namespace lidar {
 
@@ -210,6 +211,9 @@ void LidarCBIT::initializeRoute(RobotState& robot_state0) {
   CLOG(INFO, "path_planning.cbit") << "Planner Successfully Created and resolved, end of initializeRoute function";
 }
 
+// TODO, experimental MPC implementation. For now I implement it directly inside here
+// But longer term I think the move is to run an inherited mpc function inside of this computecommand function
+// This way, mpc and the base version of the planner can be running whether we use the no obs stereo version or the full lidar version
 auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
   auto& robot_state = dynamic_cast<LidarOutputCache&>(robot_state0);
   auto& chain = *robot_state.chain;
@@ -316,7 +320,356 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     // Testing that we are receiving the most up to date output plans
     //CLOG(INFO, "path_planning.cbit") << "The first pose is x: " << (*cbit_path_ptr)[0].x << " y: " << (*cbit_path_ptr)[0].y << " z: " << (*cbit_path_ptr)[0].z;
   }
-  return Command(); // This returns the stop command when called with no arguments
+
+
+
+
+
+
+  //TODO: EXPERIMENTAL MPC IMPLEMENTATION, MOVE ALL THIS TO ITS OWN FILE
+  // Conduct an MPC cycle
+
+  // PSEUDOCODE
+
+  // HARDCODED INITIALIZATIONS (TODO: Move these to configs)
+  int K = 10;
+  double DT = 0.2;
+  double VF = 1.0;
+
+  // Kinematic projection Matrix for Unicycle Model (note its -1's because our varpi is of a weird frame)
+
+  Eigen::Matrix<double, 6, 2> P_tran;
+  P_tran << -1, 0,
+            0, 0,
+            0, 0,
+            0, 0,
+            0, 0,
+            0, -1;
+
+  //CLOG(DEBUG, "mpc.cbit") << "Double Checking Projection Matrix: P_tran = " << P_tran;
+
+  // Setup shared loss functions and noise models
+  const auto sharedLossFunc = steam::L2LossFunc::MakeShared();
+
+  // Pose Covariance Weights
+  Eigen::Matrix<double, 6, 6> pose_noise_vect;
+  pose_noise_vect << 1, 0, 0, 0, 0, 0,
+                    0, 1, 0, 0, 0, 0,
+                    0, 0, 1, 0, 0, 0,
+                    0, 0, 0, 1, 0, 0,
+                    0, 0, 0, 0, 1, 0,
+                    0, 0, 0, 0, 0, 1;
+
+  const auto sharedPoseNoiseModel =
+      steam::StaticNoiseModel<6>::MakeShared(pose_noise_vect);
+
+  // Disturbance Velocity Covariance
+  Eigen::Matrix<double, 2, 2> vel_noise_vect;
+  vel_noise_vect << 1000, 0,
+                    0, 1000;
+
+  const auto sharedVelNoiseModel =
+      steam::StaticNoiseModel<2>::MakeShared(vel_noise_vect);
+
+  // Kinematics Covariance Weights
+  Eigen::Matrix<double, 6, 6> kin_noise_vect;
+  kin_noise_vect << 0.001, 0, 0, 0, 0, 0,
+                    0, 0.001, 0, 0, 0, 0,
+                    0, 0, 0.001, 0, 0, 0,
+                    0, 0, 0, 0.001, 0, 0,
+                    0, 0, 0, 0, 0.001, 0,
+                    0, 0, 0, 0, 0, 0.001;
+
+  const auto sharedKinNoiseModel =
+      steam::StaticNoiseModel<6>::MakeShared(kin_noise_vect);
+
+
+  // Initialize the Current Robot State in the world frame and current velocity
+  Eigen::Matrix4d T0;
+  T0 << 1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1;
+  lgmath::se3::Transformation T0_1 = lgmath::se3::Transformation(T0);
+  lgmath::se3::Transformation T0_2 = lgmath::se3::Transformation(T_w_p * T_p_r);
+  std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0_2);
+
+  Eigen::Vector2d v0(0.0, 0.0);
+
+  CLOG(DEBUG, "mpc.cbit") << "MPC TESTING:";
+  CLOG(DEBUG, "mpc.cbit") << "The Spoofed Robot State is: " << T0_1;
+  CLOG(DEBUG, "mpc.cbit") << "The Current Robot State Using Direct Robot Values is: : " << T0_2;
+  // Need to also invert the robot state to make it T_vi instead of T_iv
+  lgmath::se3::Transformation T0_2_inv = T0_2.inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Inverted Current Robot State Using Direct Robot Values is: : " << T0_2_inv;
+
+
+
+  // Generate STEAM States for the velocity vector and SE3 state transforms
+  std::vector<lgmath::se3::Transformation> pose_states;
+  std::vector<Eigen::Matrix<double,2,1>> vel_states;
+  
+  // Pushback the initial states (current robot state)
+  pose_states.push_back(T0_2_inv); // Change this to T0_2 when implementing on robot, T0_1 for debug
+  //vel_states.push_back(std::vector<double> {0.0, 0.0}); //I think a single line way t odo this is something like Eigen::Matrix<double, 2, 1>::Zero()
+  vel_states.push_back(v0); 
+ 
+  // Set the remaining states
+  for (int i=0; i<K-1; i++)
+  {
+    pose_states.push_back(lgmath::se3::Transformation());
+    vel_states.push_back(v0);
+  }
+
+  // Create Steam states
+  std::vector<steam::se3::SE3StateVar::Ptr> pose_state_vars;
+  std::vector<steam::vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
+  
+  for (int i = 0; i < K; i++)
+  {
+    pose_state_vars.push_back(steam::se3::SE3StateVar::MakeShared(pose_states[i]));
+    vel_state_vars.push_back(steam::vspace::VSpaceStateVar<2>::MakeShared(vel_states[i])); 
+  }
+
+  // Lock the first (current robot) state from being able to be modified during the optimization
+  pose_state_vars[0]->locked() = true;
+
+
+  // Take in the current euclidean path solution from the cbit planner in the world frame, the current robot state, and determine
+  // which measurements we wish to track to follow the path at the desired target velocity
+  // The current path solution can be retrieved by accessing the cbit_path_ptr variable
+  CLOG(DEBUG, "mpc.cbit") << "Reference Path Points:";
+  std::vector<lgmath::se3::Transformation> measurements;
+  double starting_dist = INFINITY;
+  double new_dist;
+  double dx;
+  double dy;
+  double delta_dist = 0;
+  double index_counter = 0;
+
+  // Find closest point on the path to the current state
+  while (delta_dist >= 0)
+  {
+    CLOG(DEBUG, "mpc.cbit") << "x: " << (*cbit_path_ptr)[index_counter].x << "y: " << (*cbit_path_ptr)[index_counter].y << "z: " << (*cbit_path_ptr)[index_counter].z;
+    dx = (*cbit_path_ptr)[index_counter].x - std::get<0>(robot_pose);
+    dy = (*cbit_path_ptr)[index_counter].y - std::get<1>(robot_pose);
+    new_dist = sqrt((dx * dx) + (dy * dy));
+    delta_dist = starting_dist - new_dist;
+    CLOG(DEBUG, "mpc.cbit") << "Dist to Pt: " << new_dist;
+    CLOG(DEBUG, "mpc.cbit") << "Delta Dist: " << delta_dist;
+    if (delta_dist >= 0)
+    {
+      starting_dist = new_dist;
+      index_counter = index_counter + 1;
+    }
+    else
+    {
+      CLOG(DEBUG, "mpc.cbit") << "Delta Dist Negative, Return i = " << index_counter-1;
+      index_counter = index_counter - 1;
+    }
+  }
+
+  // Keep iterating through the rest of the path, storing points in the path as measurements if they maintain an approximate
+  // forward path velocity of VF (//TODO, may need to also interpolate in some instances if we want to be very particular)
+  for (int i = index_counter; i < (*cbit_path_ptr).size(); i++)
+  //for (int i = index_counter; i < K+index_counter; i++) 
+  {
+    // Pseudocode:
+    // 1. Loop through the entire path starting from the first index 0
+    // 2. First we need to find the point on the path that is closest to the current robot pose
+    //      - I think the easiest way to do this is compute the dist to the index 0 point, then compare to distance for index 1, etc
+    //      - Keep doing this so long as the distance continues to decrease
+    // 3. Then we keep iterating through the path, and select points (or interpolate some) which make forward progress along the path
+    //    While also maintaining the desired forward path velocity given DT and VF. Note that we also need to approximate orientation
+    //    based on the vector formed between successive points
+    // 4. Break early once we have enough measurements for the horizon selected.
+    
+
+    // The first iteration we need to add the closest point to the initial position as a measurement
+    // Subesequent iterations we want to select points on the path to track carefully based on the desired velocity we want to meet.
+    
+    // Reset the measurement distance
+    double delta_dist = 0.0;
+    if (index_counter != i)
+    {
+      // scan the path into the future until we proceed approximately VF*DT meters forward longitudinally long the path
+      // The resulting indice of the path will be the one we use for the next measurement
+      while (delta_dist <= (VF*DT))
+      {
+        
+        double prev_x = (*cbit_path_ptr)[i-1].x;
+        double prev_y = (*cbit_path_ptr)[i-1].y;
+        double next_x = (*cbit_path_ptr)[i].x;
+        double next_y = (*cbit_path_ptr)[i].y;
+        delta_dist = delta_dist + sqrt(((next_x-prev_x) * (next_x-prev_x)) + ((next_y-prev_y) * (next_y-prev_y)));
+        i = i + 1;
+      }
+
+      i = i-1; // TODO maybe cleanup this logic abit, Im not seeing another way to do this at the moment
+      // With the above setup, pretty sure the resulting i will be 1 too far when we break the loop, so we need to decrement it once at the end
+    }
+
+
+
+
+    // Derive a yaw direction for each point based on the vector formed between the current point and subsequent point on the path
+    double yaw = std::atan2(((*cbit_path_ptr)[i+1].y - (*cbit_path_ptr)[i].y), ((*cbit_path_ptr)[i+1].x - (*cbit_path_ptr)[i].x));
+    CLOG(DEBUG, "mpc.cbit") << "The yaw of the path pt is: " << yaw;
+
+    // Generate a reference Transformation matrix (ignores roll/pitch)
+    Eigen::Matrix4d T_ref;
+    T_ref << std::cos(yaw),-1*std::sin(yaw),0,(*cbit_path_ptr)[i].x,
+             std::sin(yaw),   std::cos(yaw),0,(*cbit_path_ptr)[i].y,
+             0,               0,            1,(*cbit_path_ptr)[i].z,
+             0,               0,            0,                    1;
+    T_ref = T_ref.inverse().eval();
+
+    measurements.push_back(lgmath::se3::Transformation(T_ref));
+
+    // Early break condition when the number of measurements we need is satisfied based on the horizon
+    if (measurements.size() == K)
+    {
+      break;
+    }
+    // TODO handle end of path case => will want to repeat the final measurements and turn problem into a point stabilization MPC.
+
+  }
+
+
+
+
+  // Debug hardcoded reference measurements
+  /*
+  std::vector<lgmath::se3::Transformation> measurements;
+  for (int i = 0; i < K; i++)
+  {
+    Eigen::Matrix4d T_ref;
+    T_ref << 1,0,0,i,
+             0,1,0,i,
+             0,0,1,0,
+             0,0,0,1;
+    T_ref = T_ref.inverse().eval();
+    
+    
+    measurements.push_back(lgmath::se3::Transformation(T_ref));
+  }
+  */
+  // End of debug hardcoded reference measurements
+
+
+
+
+
+
+  // Setup the optimization problem
+  steam::OptimizationProblem opt_problem;
+  for (int i=0; i<K; i++)
+  {
+    opt_problem.addStateVariable(pose_state_vars[i]);
+    opt_problem.addStateVariable(vel_state_vars[i]);
+  }
+
+  // Generate the cost terms using combinations of the builtin steam evaluators
+  for (int i = 0; i < K; i++)
+  {
+    // Pose Error
+    const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], measurements[i]);
+    const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
+    opt_problem.addCostTerm(pose_cost_term);
+
+    // Non-Zero Velocity Penalty
+    const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, sharedLossFunc);
+    opt_problem.addCostTerm(vel_cost_term);
+
+    // TODO: Kinematics (Not quite working yet but its close)
+    if (i < (K-1))
+    {
+      const auto lhs = steam::se3::ComposeInverseEvaluator::MakeShared(pose_state_vars[i+1], pose_state_vars[i]);
+      
+      //debug:
+      //const auto vel_proj = steam::vspace::MatrixMultTest::MakeShared(vel_state_vars[i], P_tran); // TODO, I guess this version of steam doesnt have this one, will need to do it myself
+      
+      const auto vel_proj = steam::vspace::MatrixMultEvaluator<2>::MakeShared(vel_state_vars[i], P_tran); // TODO, I guess this version of steam doesnt have this one, will need to do it myself
+      const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
+      const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
+      const auto kin_error_func = steam::se3::LogMapEvaluator::MakeShared(steam::se3::ComposeInverseEvaluator::MakeShared(lhs, rhs));
+      const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, sharedLossFunc);
+      opt_problem.addCostTerm(kin_cost_term);
+    }
+
+
+  }
+
+  // Solve the optimization problem with GuassNewton solver
+  using SolverType = steam::VanillaGaussNewtonSolver;
+  // Initialize parameters (enable verbose mode)
+  SolverType::Params params;
+  params.verbose = true; // Makes the output display
+
+  SolverType solver(&opt_problem, params);
+  solver.optimize();
+
+  CLOG(DEBUG, "mpc.cbit") << "Trying to Display the Optimization Results";
+  CLOG(DEBUG, "mpc.cbit") << "The First State is: " << pose_state_vars[0]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Second State is: " << pose_state_vars[1]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Third State is: " << pose_state_vars[2]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Forth State is: " << pose_state_vars[3]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Fifth State is: " << pose_state_vars[4]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Sixth State is: " << pose_state_vars[5]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Seventh State is: " << pose_state_vars[6]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Eighth State is: " << pose_state_vars[7]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Ninth State is: " << pose_state_vars[8]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The Tenth State is: " << pose_state_vars[9]->value().inverse();
+  CLOG(DEBUG, "mpc.cbit") << "The First Velocity is: " << vel_state_vars[0]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Second Velocity is: " << vel_state_vars[1]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Third Velocity is: " << vel_state_vars[2]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Forth Velocity is: " << vel_state_vars[3]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Fifth Velocity is: " << vel_state_vars[4]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Sixth Velocity is: " << vel_state_vars[5]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Seventh Velocity is: " << vel_state_vars[6]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Eighth Velocity is: " << vel_state_vars[7]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Ninth Velocity is: " << vel_state_vars[8]->value();
+  CLOG(DEBUG, "mpc.cbit") << "The Tenth Velocity is: " << vel_state_vars[9]->value();
+
+
+  CLOG(DEBUG, "mpc.cbit") << "Linear Component to Return is: " << (vel_state_vars[0]->value())[0];
+  CLOG(DEBUG, "mpc.cbit") << "Angular Component to Return is: " << (vel_state_vars[0]->value())[1];
+
+  //const auto test = pose_state_vars[0]->value();
+  //Debug: try to display some of the optimizated states
+
+  // return the computed velocity command for the first time step
+  Command command;
+
+  // Saturate the command if required to some configuration limits
+  // DEBUG: TEMPORARY HARD CODED VELOCITY LIMITS
+  double v_lim = 1.5;
+  double w_lim = 0.5;
+  if (((vel_state_vars[0]->value())[0]) >= v_lim)
+  {
+    command.linear.x = v_lim;
+  }
+  else
+  {
+    command.linear.x = ((vel_state_vars[0]->value())[0]);
+  }
+
+  if (((vel_state_vars[0]->value())[1]) >= w_lim)
+  {
+    command.angular.z = w_lim;
+  }
+  else
+  {
+    command.angular.z = ((vel_state_vars[0]->value())[1]);
+  }
+
+  return command;
+
+  // END OF EXPERIMENTAL MPC CHANGES
+
+  
+
+  //return Command(); // This returns the stop command when called with no arguments
   
 }
 

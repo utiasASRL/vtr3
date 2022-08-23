@@ -42,6 +42,8 @@
 #include "vtr_path_planning/cbit/cbit_path_planner.hpp"
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
 
+#include "steam.hpp"
+
 
 namespace vtr {
 namespace path_planning {

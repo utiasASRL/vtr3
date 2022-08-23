@@ -240,6 +240,10 @@ void CBIT::initializeRoute(RobotState& robot_state) {
 
 // Called at a the control rate in base_planner, eventually we need to do the mpc here using the output of cbit as constraints
 // For now just using it for debug and sending an empty command
+
+// TODO: longer term the mpc will be implemented in the mpc_path_planner.cpp file, which will then become the base class of this file
+         // Actually now that I think of it, maybe it makes more sense for mpc to derive from cbit so it has access to the path variables
+// For now though im going to implement the MPC here directly though
 auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
@@ -276,6 +280,66 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     // Testing that we are receiving the most up to date output plans
     //CLOG(INFO, "path_planning.cbit") << "The first pose is x: " << (*cbit_path_ptr)[0].x << " y: " << (*cbit_path_ptr)[0].y << " z: " << (*cbit_path_ptr)[0].z;
   }
+
+  //TODO, MPC WITHOUT OBSTACLES
+  /*
+
+  // Conduct an MPC cycle
+
+  // PSEUDOCODE
+
+  // HARDCODED INITIALIZATIONS (TODO: Move these to configs)
+  int K = 5;
+  double DT = 0.2;
+  double VF = 1.0;
+
+  // Initialize the Current Robot State in the world frame
+  Eigen::Matrix4d T0;
+  T0 << 1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1;
+  lgmath::se3::Transformation T0_ = lgmath::se3::Transformation(T0);
+
+  CLOG(DEBUG, "mpc.cbit") << "MPC TESTING:";
+  CLOG(DEBUG, "mpc.cbit") << "The Current Robot State is: " << T0_;
+
+  // Generate STEAM States for the velocity vector and SE3 state transforms
+  std::vector<lgmath::se3::Transformation> pose_states;
+  std::vector<std::vector<double>> vel_states;
+  
+  //const Eigen::Matrix4d& T0 = {{1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0,0,1}};
+  //lgmath::se3::Transformation test_state = lgmath::se3::Transformation();
+  for (int i=0; i<K; i++)
+  {
+    pose_states.push_back(lgmath::se3::Transformation());
+    vel_states.push_back(std::vector<double> {0.0, 0.0});
+  }
+
+  // Initialize the first state to the current initial position
+  //Eigen::Matrix4d T0;
+  //T0 << 1,0,0,0,
+  //      0,1,0,0,
+  //      0,0,1,0,
+  //      0,0,0,1;
+  //pose_states[0].C_ba_ = Eigen::Matrix3d({{1,0,0}, {0,1,0}, {0,0,1}});
+
+  // Take in the current euclidean path solution from the cbit planner in the world frame, the current robot state, and determine
+  // which measurements we wish to track to follow the path at the desired target velocity
+
+  // Setup the optimization problem
+
+  // Generate the cost terms using combinations of the builtin steam evaluators
+
+  // Solve the optimization problem with GuassNewton solver
+  
+  // return the computed velocity command for the first time step
+  */
+
+  
+
+
+
 
 
   return Command(); // This returns the stop command when called with no arguments

@@ -75,6 +75,7 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "*.ipp": "cpp",
-        "core": "cpp"
+        "core": "cpp",
+        "*.txx": "cpp"
     }
 }
