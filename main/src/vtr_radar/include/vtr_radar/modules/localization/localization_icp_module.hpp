@@ -35,8 +35,7 @@ class LocalizationICPModule : public tactic::BaseModule {
   static constexpr auto static_name = "radar.localization_icp";
 
   /** \brief Config parameters. */
-  struct Config : public tactic::BaseModule::Config,
-                  public steam::VanillaGaussNewtonSolver::Params {
+  struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
     /// Prior terms
@@ -44,7 +43,7 @@ class LocalizationICPModule : public tactic::BaseModule {
 
     /// ICP parameters
     // number of threads for nearest neighbor search
-    int num_threads = 8;
+    int num_threads = 4;
     // initial alignment config
     size_t first_num_steps = 3;
     size_t initial_max_iter = 100;
@@ -58,7 +57,9 @@ class LocalizationICPModule : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
-    // loss function
+    // steam optimizer
+    bool verbose = false;
+    unsigned int max_iterations = 1;
     double huber_delta = 1.0;
 
     /// Success criteria
@@ -72,7 +73,7 @@ class LocalizationICPModule : public tactic::BaseModule {
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : tactic::BaseModule{module_factory, name}, config_(config) {}
+      : tactic::BaseModule(module_factory, name), config_(config) {}
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
