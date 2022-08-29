@@ -7,8 +7,9 @@
     log_enabled: [
         ## ADD LOGGER IDS HERE
         # navigation
-        "navigation",
+        # "navigation",
         # "navigation.graph_map_server",
+         "navigation.command",
         # tactic
         # "tactic",
         # "tactic.pipeline",
@@ -16,10 +17,12 @@
         # "tactic.module.live_mem_manager",
         # "tactic.module.graph_mem_manager",
         # path planner
-        # "path_planning",
+         "path_planning",
         # "path_planning.teb",
         # "path_planning.cbit",
         # "path_planning.cbit_planner",
+         "mpc.cbit",
+        # "mpc.cbit_debug",
         # mission planner
         # "mission.server",
         # "mission.state_machine",
@@ -316,8 +319,7 @@
         detection_range: 8.0
         search_radius: 0.25
 
-        negprob_threshold: 0.05 # -1.86 without prior, 0.015 with prior # Jordy, on past datasets I was noticing I needed about 0.05+ to get no noise
-
+        negprob_threshold: 0.075 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
         use_prior: true
         alpha0: 3.0 #  6 / 2  (6 pseudo observations)
         beta0: 0.03 #  0.01 * 6 / 2 (6 pseudo observations of variance 0.01)
@@ -427,8 +429,8 @@
 
     ############ path planning configuration ############
     path_planning:
-      type: cbit #cbit #teb.lidar # teb.lidar for working version, cbit for my experimental planner
-      control_period: 100 # ms
+      type: cbit.lidar #cbit #teb.lidar # teb.lidar for working version, cbit for my experimental planner, cbit.lidar for my planner with obs
+      control_period: 111 # ms
       teb:
         # vtr specific
         visualize: true
@@ -454,11 +456,11 @@
         # Environment
         obs_padding: 0.0
         curv_to_euclid_discretization: 20
-        sliding_window_width: 10.0
+        sliding_window_width: 7.5
         sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.05
         state_update_freq: 1.0
-        update_state: true
+        update_state: true # DEBUG, MAKE SURE TO MAKE THIS TRUE
         rand_seed: 1
         
         # Planner Tuning Params
@@ -472,7 +474,7 @@
         eta: 1.1
         rad_m_exhange: 1.00
         initial_exp_rad: 0.75
-        extrapolation: true
+        extrapolation: false
         
         # Misc
         incremental_plotting: false

@@ -261,7 +261,22 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
   // retrieve info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
-  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
+  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
+
+  // keep current time
+  const auto curr_time = now();  // always in nanoseconds
+  const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+
+
+  // extrapolate robot pose if required
+  const auto T_p_r_extp = [&]() {
+    // extrapolate based on current time
+    Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * w_p_r_in_r);
+    CLOG(WARNING, "path_planning.cbit")
+      << "Time difference b/t estimation and planning: " << dt;
+    return T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
+  }();
+
   //CLOG(INFO, "path_planning.teb") << "stamp " << stamp;
   //CLOG(INFO, "path_planning.teb") << "w_p_r_in_r: " << w_p_r_in_r;
   //CLOG(INFO, "path_planning.teb") << "T_p_r: " << T_p_r;
@@ -276,7 +291,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   // Dont visualize unless we are both localized and an initial solution is found
   if ((*cbit_path_ptr).size() != 0)
   {
-    visualize(test_string, stamp, T_w_p, T_p_r);
+    visualize(test_string, stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp);
     // Testing that we are receiving the most up to date output plans
     //CLOG(INFO, "path_planning.cbit") << "The first pose is x: " << (*cbit_path_ptr)[0].x << " y: " << (*cbit_path_ptr)[0].y << " z: " << (*cbit_path_ptr)[0].z;
   }
@@ -355,12 +370,14 @@ auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
   const auto w_p_r_in_r = chain.leaf_velocity();
   const auto T_p_r = chain.T_leaf_trunk().inverse();
   const auto T_w_p = chain.T_start_trunk();
+  const auto T_w_v_odo = chain.T_start_petiole();
+  const auto T_r_v_odo = chain.T_leaf_petiole();
   const auto curr_sid = chain.trunkSequenceId();
-  return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid};
+  return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid};
 }
 
 
-void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r)
+void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc)
 {
   //CLOG(ERROR, "path_planning.cbit") << "TRYING TO VISUALIZE IN CBIT CLASS";
   // Test string message to make sure publisher is working
@@ -385,6 +402,24 @@ void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tac
     msg.header.frame_id = "planning frame";
     msg.header.stamp = rclcpp::Time(stamp);
     msg.child_frame_id = "robot planning";
+    tf_bc_->sendTransform(msg);
+  }
+
+  {
+    Eigen::Affine3d T(T_p_r_extp.matrix());
+    auto msg = tf2::eigenToTransform(T);
+    msg.header.frame_id = "planning frame";
+    msg.header.stamp = rclcpp::Time(stamp);
+    msg.child_frame_id = "robot planning (extrapolated)";
+    tf_bc_->sendTransform(msg);
+  }
+
+  {
+    Eigen::Affine3d T(T_p_r_extp_mpc.matrix());
+    auto msg = tf2::eigenToTransform(T);
+    msg.header.frame_id = "planning frame";
+    msg.header.stamp = rclcpp::Time(stamp);
+    msg.child_frame_id = "robot planning (extrapolated) mpc";
     tf_bc_->sendTransform(msg);
   }
 

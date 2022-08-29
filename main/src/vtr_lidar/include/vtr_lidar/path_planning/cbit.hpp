@@ -56,6 +56,17 @@ class LidarCBIT : public vtr::path_planning::CBIT {
 
 
   unsigned int prev_costmap_sid = 0;
+
+
+  // Store the previous control states //TODO long term move this to MPC module
+  std::vector<steam::se3::SE3StateVar::Ptr> prev_pose_state_vars;
+  std::vector<steam::vspace::VSpaceStateVar<2>::Ptr> prev_vel_state_vars;
+  // Initialize the first element of the prev_vel_state_vars as 0 (not moving initially)
+  Eigen::Matrix<double, 2, 1> applied_vel;
+  std::vector<Eigen::Matrix<double, 2, 1>> vel_history;
+  //applied_vel << 0,
+  //               0;
+  
 /*
  protected:
   template <typename PointT>

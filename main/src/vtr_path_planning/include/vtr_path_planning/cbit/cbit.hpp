@@ -112,7 +112,7 @@ class CBIT : public BasePathPlanner {
   void initializeRoute(RobotState& robot_state) override; // Declare this as virtual so that the Lidarcbit can override it if using that static name
   //void initializeRouteTest(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
-  void visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r);
+  void visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc);
 
  protected:
   struct ChainInfo {
@@ -121,6 +121,8 @@ class CBIT : public BasePathPlanner {
     // planning frame is the current localization frame
     tactic::EdgeTransform T_p_r;  // T_planning_robot
     tactic::EdgeTransform T_w_p;  // T_world_planning
+    tactic::EdgeTransform T_w_v_odo;  // T_planning_robot
+    tactic::EdgeTransform T_r_v_odo;  // T_world_planning
     unsigned curr_sid;
   };
   /** \brief Retrieve information for planning from localization chain */

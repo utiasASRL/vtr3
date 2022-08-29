@@ -79,8 +79,12 @@ Visualization Manager:
         planning frame:
           Value: false
         robot:
-          Value: false
+          Value: true
         robot planning:
+          Value: false
+        robot planning (extrapolated):
+          Value: true
+        robot planning (extrapolated) mpc:
           Value: true
         world:
           Value: true
@@ -90,7 +94,7 @@ Visualization Manager:
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
         world:
           loc vertex frame:
@@ -102,6 +106,10 @@ Visualization Manager:
           planning frame:
             robot planning:
               {}
+            robot planning (extrapolated):
+              {}
+          robot planning (extrapolated) mpc:
+            {}
           world (offset):
             loc vertex frame (offset):
               {}
@@ -1183,25 +1191,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 6.023142337799072
+      Distance: 6.760188102722168
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.6359675526618958
-        Y: -0.36980974674224854
-        Z: 1.2104836702346802
+        X: 0.030679933726787567
+        Y: -0.5660661458969116
+        Z: 0.5153346657752991
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8147979974746704
+      Pitch: 0.9747981429100037
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.1860573291778564
+      Yaw: 4.201056957244873
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453

@@ -89,7 +89,7 @@ void BasePathPlanner::process_cbit() {
 
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
-  CLOG(INFO, "path_planning") << "Starting the path planning thread.";
+  CLOG(INFO, "path_planning") << "Starting the base path planning thread.";
   //initializeRoute();
   while (true) {
     UniqueLock lock(mutex_);
@@ -122,6 +122,7 @@ void BasePathPlanner::process() {
         std::chrono::steady_clock::now() +
         std::chrono::milliseconds(config_->control_period);
     const auto command = computeCommand(*robot_state_);
+    CLOG(INFO, "path_planning") << "Trying to publish the command from mpc:";
     callback_->commandReceived(command);
     if (config_->control_period > 0 &&
         wait_until_time < std::chrono::steady_clock::now()) {
