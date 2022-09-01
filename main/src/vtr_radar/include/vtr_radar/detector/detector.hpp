@@ -34,7 +34,7 @@ class Detector {
   virtual ~Detector() = default;
 
   virtual void run(const cv::Mat &raw_scan, const float &res,
-                   const std::vector<double> &azimuth_times,
+                   const std::vector<int64_t> &azimuth_times,
                    const std::vector<double> &azimuth_angles,
                    pcl::PointCloud<PointT> &pointcloud) = 0;
 };
@@ -52,7 +52,7 @@ class KStrongest : public Detector<PointT> {
         maxr_(maxr) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<double> &azimuth_times,
+           const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
            pcl::PointCloud<PointT> &pointcloud) override;
 
@@ -72,7 +72,7 @@ class Cen2018 : public Detector<PointT> {
       : zq_(zq), sigma_(sigma), minr_(minr), maxr_(maxr) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<double> &azimuth_times,
+           const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
            pcl::PointCloud<PointT> &pointcloud) override;
 
@@ -98,7 +98,7 @@ class CACFAR : public Detector<PointT> {
         maxr_(maxr) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<double> &azimuth_times,
+           const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
            pcl::PointCloud<PointT> &pointcloud) override;
 
@@ -128,7 +128,7 @@ class OSCFAR : public Detector<PointT> {
         maxr_(maxr) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<double> &azimuth_times,
+           const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
            pcl::PointCloud<PointT> &pointcloud) override;
 
@@ -158,7 +158,7 @@ class ModifiedCACFAR : public Detector<PointT> {
         maxr_(maxr) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<double> &azimuth_times,
+           const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
            pcl::PointCloud<PointT> &pointcloud) override;
 

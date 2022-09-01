@@ -114,25 +114,23 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
 
   /// Output
-  auto &fft_scan = *qdata.fft_scan.emplace();
-  auto &cartesian = *qdata.cartesian.emplace();
-  auto &azimuth_times = *qdata.azimuth_times.emplace();
-  auto &azimuth_angles = *qdata.azimuth_angles.emplace();
-  auto &radar_resolution = *qdata.radar_resolution.emplace();
-  auto &cart_resolution = *qdata.cart_resolution.emplace();
   auto &beta = *qdata.beta.emplace();
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
+  /// temp variables
+  cv::Mat fft_scan;
+  cv::Mat cartesian;
+  std::vector<int64_t> azimuth_times;
+  std::vector<double> azimuth_angles;
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
   // Set radar resolution
-  radar_resolution = config_->radar_resolution;
+  float radar_resolution = config_->radar_resolution;
 #else
   // use the first timestamp to determine the resolution
-  radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
+  float radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
 #endif
-
-  cart_resolution = config_->cart_resolution;
+  float cart_resolution = config_->cart_resolution;
   beta = config_->beta;
 
   // Load scan, times, azimuths from scan
@@ -142,7 +140,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,
-                           true);
+                           true, CV_32F);
   CLOG(DEBUG, "radar.navtech_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;
@@ -259,8 +257,9 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     auto point_cloud_tmp = raw_point_cloud;
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
                   [&](PointWithInfo &point) {
-                    point.flex21 = static_cast<float>(
-                        (point.timestamp - *qdata.stamp) / 1e9);
+                    point.flex21 =
+                        static_cast<float>(point.timestamp - *qdata.stamp) /
+                        1e9;
                   });
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_cloud_tmp, pc2_msg);

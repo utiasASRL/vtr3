@@ -177,7 +177,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     T_r_m_eval = trajectory->getPoseInterpolator(query_time);
     w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
   } else {
-    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
+    //
+    Time prev_time(static_cast<int64_t>(timestamp_odo));
+    Time query_time(static_cast<int64_t>(query_stamp));
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
   }
