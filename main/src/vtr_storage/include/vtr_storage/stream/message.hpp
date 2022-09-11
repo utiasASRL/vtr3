@@ -15,84 +15,173 @@
 /**
  * \file message.hpp
  * \brief
- * \details
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <any>
-#include <iostream>
-#include <optional>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
 
 #include <rcutils/time.h>
 
 namespace vtr {
 namespace storage {
 
-using Index = int32_t;
-using TimeStamp = rcutils_time_point_value_t;
+using Index = int;
+using Timestamp = rcutils_time_point_value_t;
 
+// index is 0 before the messages has been stored into database, otherwise >0
+constexpr Index NO_INDEX_VALUE = 0;
 // timestamp value stored in sqlite database if message has no timestamps
-constexpr TimeStamp NO_TIMESTAMP_VALUE = -1;
+constexpr Timestamp NO_TIMESTAMP_VALUE = -1;
 
-class VTRMessage {
-public:
-  VTRMessage() = default;
-  template <class T> VTRMessage(T message) : message_{message} {
-    static_assert(!std::is_same_v<std::any, T>,
-                  "Attempted to initialize a VTRMessage with an std::any!");
+/**
+ * \brief A simple, generic data container that uses std::shared_ptr<void> to
+ * store arbitrary data. No type check is performed when getting/setting data!!
+ */
+class MessageBase {
+ public:
+  MessageBase() = delete;
+  MessageBase(const MessageBase&) = delete;
+  MessageBase(MessageBase&&) = delete;
+  MessageBase& operator=(const MessageBase&) = delete;
+  MessageBase& operator=(MessageBase&& other) = delete;
+
+  explicit MessageBase(const Timestamp& timestamp = NO_TIMESTAMP_VALUE,
+                       const Index& index = NO_INDEX_VALUE)
+      : timestamp_{timestamp},
+        index_{index},
+        saved_{index == NO_INDEX_VALUE ? false : true} {}
+
+  Timestamp getTimestamp() const { return timestamp_; }
+  void setTimestamp(const Timestamp& timestamp) {
+    timestamp_ = timestamp;
+    saved_ = false;
   }
 
-  template <class T> VTRMessage &operator=(const T &message) {
-    message_ = std::make_any<T>(message);
-    return *this;
+  Index getIndex() const { return index_; }
+  void setIndex(const Index& index) {
+    if (index_ != NO_INDEX_VALUE && index_ != index)
+      throw std::runtime_error{
+          "Setting index of a message that already has a different index."};
+    index_ = index;
+    saved_ = true;
   }
 
-  template <class T> void set(T message) {
-    message_ = std::make_any<T>(message);
-  }
+  bool getSaved() const { return saved_; }
+  void setSaved(bool saved = true) { saved_ = saved; }
 
-  template <class T> T get() const {
-    try {
-      return std::any_cast<T>(message_);
-    } catch (const std::bad_any_cast &e) {
-      throw std::runtime_error(
-          "Any cast failed in retrieving data in VTR Storage");
-    }
-  }
-
-  TimeStamp get_timestamp() const {
-    if (!timestamp_.has_value()) {
-      throw std::runtime_error(
-          "Attempted to get uninitialized timestamp of a VTRMessage");
-    } else {
-      return timestamp_.value();
-    }
-  }
-
-  bool has_timestamp() const { return timestamp_.has_value(); }
-
-  void set_timestamp(TimeStamp new_timestamp) { timestamp_ = new_timestamp; }
-
-  Index get_index() const {
-    if (!database_index_.has_value()) {
-      throw std::runtime_error(
-          "Attempted to get uninitialized timestamp of a VTRMessage");
-    } else {
-      return database_index_.value();
-    }
-  }
-
-  bool has_index() const { return database_index_.has_value(); }
-
-  void set_index(Index new_index) { database_index_ = new_index; }
-
-private:
-  std::any message_;
-  std::optional<Index> database_index_;
-  std::optional<TimeStamp> timestamp_;
+ protected:
+  Timestamp timestamp_;
+  Index index_;
+  bool saved_;
 };
 
-} // namespace storage
-} // namespace vtr
+template <typename DataType>
+class Message : public MessageBase {
+ public:
+  explicit Message(const std::shared_ptr<DataType>& data,
+                   const Timestamp& timestamp = NO_TIMESTAMP_VALUE,
+                   const Index& index = NO_INDEX_VALUE)
+      : MessageBase{timestamp, index}, data_{data} {}
+
+  const DataType& getData() const { return *data_; }
+
+  void setData(const DataType& data) {
+    *data_ = data;
+    saved_ = false;
+  }
+
+ private:
+  std::shared_ptr<DataType> data_;
+};
+
+/** A lockable message that requires being locked for access. */
+template <typename DataType>
+class LockableMessage {
+ public:
+  using Ptr = std::shared_ptr<LockableMessage<DataType>>;
+  using MutexType = std::shared_mutex;
+
+  /// A locked thread-safe reference to the value
+  template <typename R>
+  struct LockedRef : public std::reference_wrapper<R> {
+    LockedRef(MutexType& mutex, R& ref)
+        : std::reference_wrapper<R>(ref), lock(mutex, std::defer_lock) {
+      lock.lock();
+    }
+
+   private:
+    std::unique_lock<MutexType> lock;
+  };
+
+  /// A shared locked thread-safe reference to the value
+  template <typename R>
+  struct SharedLockedRef : public std::reference_wrapper<R> {
+    SharedLockedRef(MutexType& mutex, R& ref)
+        : std::reference_wrapper<R>(ref), lock(mutex, std::defer_lock) {
+      lock.lock();
+    }
+
+   private:
+    std::shared_lock<MutexType> lock;
+  };
+
+  /// Constructors
+  template <class... Args>
+  LockableMessage(Args&&... args) : message_(std::forward<Args>(args)...) {}
+
+  /// Disable copy and move
+  LockableMessage(const LockableMessage& other) = delete;
+  LockableMessage(LockableMessage&& other) = delete;
+  LockableMessage& operator=(const LockableMessage& other) = delete;
+  LockableMessage& operator=(LockableMessage&& other) = delete;
+
+  /** \brief Gets a locked const reference to the value. */
+  LockedRef<const Message<DataType>> locked() const {
+    return {mutex_, message_};
+  }
+  /** \brief Gets a locked reference to the value. */
+  LockedRef<Message<DataType>> locked() { return {mutex_, message_}; }
+
+  /** \brief Gets a shared locked const reference to the value. */
+  SharedLockedRef<const Message<DataType>> sharedLocked() const {
+    return {mutex_, message_};
+  }
+  /** \brief Gets a shared locked reference to the value. */
+  SharedLockedRef<Message<DataType>> sharedLocked() {
+    return {mutex_, message_};
+  }
+
+  /** \brief Gets an unlocked const reference to the value. */
+  std::reference_wrapper<const Message<DataType>> unlocked() const {
+    return message_;
+  }
+  std::reference_wrapper<Message<DataType>> unlocked() { return message_; }
+
+  /** \brief Gets a reference to the mutex. */
+  MutexType& mutex() const { return std::ref(mutex_); }
+
+  /** \brief Manually locks the chain. */
+  void lock() const { mutex_.lock(); }
+
+  /** \brief Manually unlocks the chain. */
+  void unlock() const { mutex_.unlock(); }
+
+  /** \brief Manually locks the chain. */
+  void lockShared() const { mutex_.lock_shared(); }
+
+  /** \brief Manually unlocks the chain. */
+  void unlockShared() const { mutex_.unlock_shared(); }
+
+ private:
+  /// The value with controlled access
+  Message<DataType> message_;
+  /// The mutex that controls access to the value
+  mutable MutexType mutex_;
+};
+
+}  // namespace storage
+}  // namespace vtr

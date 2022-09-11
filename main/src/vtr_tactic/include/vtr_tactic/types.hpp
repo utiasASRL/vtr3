@@ -14,51 +14,72 @@
 
 /**
  * \file types.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <memory>
 
-#include <vtr_mission_planning/state_machine_interface.hpp>
-#include <vtr_pose_graph/evaluator/common.hpp>
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-#include <vtr_pose_graph/path/localization_chain.hpp>
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
+#include "vtr_pose_graph/path/localization_chain.hpp"
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
+
+#include "vtr_tactic_msgs/msg/env_info.hpp"
 
 namespace vtr {
 namespace tactic {
 
+/// storage types
+using Timestamp = storage::Timestamp;
+
 /// pose graph structures
 using Graph = pose_graph::RCGraph;
-using GraphBase = pose_graph::RCGraphBase;
-using RunId = pose_graph::RCRun::IdType;
-using RunIdSet = std::set<RunId>;
-using Vertex = pose_graph::RCVertex;
+using GraphBase = Graph::Base;
 using VertexId = pose_graph::VertexId;
+using Vertex = pose_graph::RCVertex;
 using EdgeId = pose_graph::EdgeId;
-using EdgeTransform = pose_graph::RCEdge::TransformType;
-/**
- * \brief Privileged edge mask.
- * \details This is used to create a subgraph on privileged edges.
- */
-using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<Graph>;
-/** \brief Temporal edge mask. */
-using TemporalEvaluator = pose_graph::eval::Mask::SimpleTemporalDirect<Graph>;
-using LocalizationChain = pose_graph::LocalizationChain;
+using Edge = pose_graph::RCEdge;
+using EdgeType = pose_graph::EdgeType;
+using EdgeTransform = pose_graph::EdgeTransform;
+using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
+template <class GraphT>
+using PrivilegedEvaluator = pose_graph::eval::mask::privileged::Eval<GraphT>;
+template <class GraphT>
+using TemporalEvaluator = pose_graph::eval::mask::temporal::Eval<GraphT>;
+template <class GraphT>
+using DistanceEvaluator = pose_graph::eval::weight::distance::Eval<GraphT>;
 
 /// mission planning
-using PipelineMode = mission_planning::PipelineMode;
-using Localization = mission_planning::Localization;
+using PathType = VertexId::Vector;
+
+/// tactic types
+using EnvInfo = vtr_tactic_msgs::msg::EnvInfo;
+
+/** \brief Defines the possible pipeline types to be used by tactics */
+enum class PipelineMode : uint8_t {
+  Idle,             // Idle
+  TeachMetricLoc,   // Teach - Metric localization
+  TeachBranch,      // Teach - branching from existing path
+  TeachMerge,       // Teach - merging into existing path
+  RepeatMetricLoc,  //
+  RepeatFollow,     // Repeat - path following
+};
+std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
 /** \brief the vertex creation test result */
-enum class KeyframeTestResult : int {
-  CREATE_VERTEX = 0,
-  CREATE_CANDIDATE = 1,
-  FAILURE = 2,
-  DO_NOTHING = 3
+enum class VertexTestResult : int { CREATE_VERTEX = 0, DO_NOTHING = 1 };
+
+/** \brief Full metric and topological localization in one package */
+struct Localization {
+  Localization(const VertexId& vertex = VertexId::Invalid(),
+               const EdgeTransform& T_robot_vertex = EdgeTransform(true),
+               bool has_localized = false)
+      : v(vertex), T(T_robot_vertex), localized(has_localized) {}
+  Timestamp stamp = -1;
+  VertexId v;
+  EdgeTransform T;
+  bool localized;
 };
+
 }  // namespace tactic
 }  // namespace vtr

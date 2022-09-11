@@ -14,127 +14,102 @@
 
 /**
  * \file graph.inl
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph.hpp>
+#include "vtr_pose_graph/index/graph.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
-template <class V, class E, class R>
-typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared() {
-  return Ptr(new Graph());
+template <class V, class E>
+typename Graph<V, E>::Ptr Graph<V, E>::MakeShared(const CallbackPtr& callback) {
+  return std::make_shared<Graph>(callback);
 }
 
-template <class V, class E, class R>
-typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared(const IdType& id) {
-  return Ptr(new Graph(id));
-}
+template <class V, class E>
+Graph<V, E>::Graph(const CallbackPtr& callback) : callback_(callback) {}
 
-template <class V, class E, class R>
-Graph<V, E, R>::Graph()
-    : GraphBase<V, E, R>(),
-      currentRun_(nullptr),
-      lastRunIdx_(uint32_t(-1)),
-      callback_(new IgnoreCallbacks<V, E, R>()) {}
+template <class V, class E>
+BaseIdType Graph<V, E>::addRun() {
+  ChangeGuard change_guard(change_mutex_);
+  std::unique_lock lock(mutex_);
 
-template <class V, class E, class R>
-Graph<V, E, R>::Graph(const IdType& id)
-    : GraphBase<V, E, R>(id),
-      currentRun_(nullptr),
-      lastRunIdx_(uint32_t(-1)),
-      callback_(new IgnoreCallbacks<V, E, R>()) {}
-
-template <class V, class E, class R>
-typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
-  LockGuard lck(mtx_);
-
-  if (currentRun_ == nullptr || currentRun_->vertices().size() > 0) {
-    RunIdType newRunId = ++lastRunIdx_;
-    currentRun_ = RunType::MakeShared(newRunId, id_);
-    runs_->insert({newRunId, currentRun_});
-    callback_->runAdded(currentRun_);
+  if ((curr_major_id_ == InvalidBaseId) || (curr_minor_id_ != InvalidBaseId)) {
+    ++curr_major_id_;
+    curr_minor_id_ = InvalidBaseId;
   } else {
-    LOG(WARNING) << "[Graph] Added a new run while the current run was empty; "
-                    "returning the existing run";
+    CLOG(WARNING, "pose_graph")
+        << "No vertex added since last run, not incrementing run id";
   }
 
-  return currentRun_->id();
+  CLOG(DEBUG, "pose_graph") << "Added run " << curr_major_id_;
+
+  return curr_major_id_;
 }
 
-template <class V, class E, class R>
-typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex() {
-  LockGuard lck(mtx_);
+template <class V, class E>
+template <class... Args>
+auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
+  ChangeGuard change_guard(change_mutex_);
+  std::unique_lock lock(mutex_);
 
-  auto vertex = currentRun_->addVertex();
-  vertices_->insert({vertex->simpleId(), vertex});
-  graph_.addVertex(vertex->simpleId());
+  if (curr_major_id_ == InvalidBaseId) {
+    CLOG(ERROR, "pose_graph") << "No run added";
+    throw std::runtime_error("No run added");
+  }
+
+  VertexId vid(curr_major_id_, ++curr_minor_id_);
+  graph_.addVertex(vid);
+  auto vertex = Vertex::MakeShared(vid, std::forward<Args>(args)...);
+  vertices_.insert({vid, vertex});
+
+  CLOG(DEBUG, "pose_graph") << "Added vertex " << vid;
+  lock.unlock();
 
   callback_->vertexAdded(vertex);
 
   return vertex;
 }
 
-template <class V, class E, class R>
-typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex(
-    const RunIdType& runId) {
-  LockGuard lck(mtx_);
+template <class V, class E>
+template <class... Args>
+auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
+                          const EdgeType& type, const bool manual,
+                          const EdgeTransform& T_to_from, Args&&... args)
+    -> EdgePtr {
+  ChangeGuard change_guard(change_mutex_);
+  std::unique_lock lock(mutex_);
 
-  auto vertex = run(runId)->addVertex();
-  vertices_->insert({vertex->simpleId(), vertex});
-  graph_.addVertex(vertex->simpleId());
+  if ((vertices_.find(from) == vertices_.end()) ||
+      (vertices_.find(to) == vertices_.end())) {
+    CLOG(ERROR, "pose_graph") << "Adding edge between non-existent vertices";
+    throw std::range_error("Adding edge between non-existent vertices");
+  }
 
-  callback_->vertexAdded(vertex);
+  if (from.majorId() < to.majorId()) {
+    CLOG(ERROR, "pose_graph")
+        << "Cannot add edge from " << from << " to " << to
+        << " since the major id of the from vertex is smaller than the to "
+           "vertex";
+    throw std::invalid_argument(
+        "Spatial edges may only be added from higher run numbers to lower "
+        "ones");
+  }
 
-  return vertex;
-}
+  EdgeId eid(from, to);
+  graph_.addEdge(eid);
+  auto edge = Edge::MakeShared(from, to, type, manual, T_to_from,
+                               std::forward<Args>(args)...);
+  edges_.insert({eid, edge});
 
-template <class V, class E, class R>
-typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
-    const VertexIdType& from, const VertexIdType& to, const EdgeTypeEnum& type,
-    bool manual) {
-  LockGuard lck(mtx_);
+  CLOG(DEBUG, "pose_graph") << "Added edge " << eid;
+  lock.unlock();
 
-  auto runId = std::max(from.majorId(), to.majorId());
+  callback_->edgeAdded(edge);
 
-  EdgePtr tmp(run(runId)->addEdge(from, to, type, manual));
-  run(from.majorId())->at(from)->addEdge(tmp->id());
-  run(to.majorId())->at(to)->addEdge(tmp->id());
-
-  graph_.addEdge(tmp->simpleId());
-  edges_->insert({tmp->simpleId(), tmp});
-
-  callback_->edgeAdded(tmp);
-
-  return tmp;
-}
-
-template <class V, class E, class R>
-typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
-    const VertexIdType& from, const VertexIdType& to,
-    const TransformType& T_to_from, const EdgeTypeEnum& type, bool manual) {
-  LockGuard lck(mtx_);
-
-  auto runId = std::max(from.majorId(), to.majorId());
-
-  EdgePtr tmp(run(runId)->addEdge(from, to, T_to_from, type, manual));
-  run(from.majorId())->at(from)->addEdge(tmp->id());
-  run(to.majorId())->at(to)->addEdge(tmp->id());
-
-  graph_.addEdge(tmp->simpleId());
-  edges_->insert({tmp->simpleId(), tmp});
-
-  //  tmp->setManual(manual);
-  //  tmp->setTransform(T_to_from);
-
-  callback_->edgeAdded(tmp);
-
-  return tmp;
+  return edge;
 }
 
 }  // namespace pose_graph

@@ -14,17 +14,14 @@
 
 /**
  * \file main.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <filesystem>
 
-#include <vtr_common/timing/time_utils.hpp>
-#include <vtr_common/utils/filesystem.hpp>
-#include <vtr_logging/logging_init.hpp>
-#include <vtr_safety_monitor/safety_monitor/safety_monitor.hpp>
+#include "vtr_common/timing/utils.hpp"
+#include "vtr_common/utils/filesystem.hpp"
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_safety_monitor/safety_monitor/safety_monitor.hpp"
 
 namespace fs = std::filesystem;
 using namespace vtr::common;
@@ -52,7 +49,8 @@ int main(int argc, char **argv) {
   CLOG(INFO, "safety_monitor") << "Safety monitor booting up.";
   SafetyMonitor safety_monitor{node};
 
-  rclcpp::executors::MultiThreadedExecutor executor;
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(),
+                                                    /* num_threads */ 1);
   executor.add_node(node);
   executor.spin();
   rclcpp::shutdown();

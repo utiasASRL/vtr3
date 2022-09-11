@@ -14,74 +14,69 @@
 
 /**
  * \file cache.hpp
- * \brief LidarQueryCache class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
-#include <vtr_lidar/pointmap/pointmap.hpp>
-#include <vtr_lidar/polar_processing/polar_processing.hpp>
-#include <vtr_tactic/cache.hpp>
-#include <vtr_tactic/types.hpp>
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include <sensor_msgs/msg/point_cloud2.hpp>
+#include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/data_types/point.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
+#include "vtr_tactic/cache.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace lidar {
 
-struct LidarQueryCache : public tactic::QueryCache {
-  using Ptr = std::shared_ptr<LidarQueryCache>;
+struct LidarQueryCache : virtual public tactic::QueryCache {
+  PTR_TYPEDEFS(LidarQueryCache);
 
-  LidarQueryCache()
-      : tactic::QueryCache(),
-        lidar_frame("lidar_frame", janitor_.get()),
-        T_s_r("T_s_r", janitor_.get()),
-        pointcloud_msg("pointcloud_msg", janitor_.get()),
-        raw_pointcloud_time("raw_pointcloud_time", janitor_.get()),
-        raw_pointcloud_cart("raw_pointcloud_cart", janitor_.get()),
-        raw_pointcloud_pol("raw_pointcloud_pol", janitor_.get()),
-        preprocessed_pointcloud_time("preprocessed_pointcloud_time",
-                                     janitor_.get()),
-        preprocessed_pointcloud("preprocessed_pointcloud", janitor_.get()),
-        normals("normals", janitor_.get()),
-        undistorted_pointcloud("undistorted_pointcloud", janitor_.get()),
-        undistorted_normals("undistorted_normals", janitor_.get()),
-        icp_scores("icp_scores", janitor_.get()),
-        normal_scores("normal_scores", janitor_.get()),
-        matched_points_ratio("matched_points_ratio", janitor_.get()),
-        current_map_odo("current_map_odo", janitor_.get()),
-        current_map_odo_vid("current_map_odo_vid", janitor_.get()),
-        current_map_odo_T_v_m("current_map_odo_T_v_m", janitor_.get()),
-        current_map_loc("current_map_loc", janitor_.get()),
-        current_map_loc_vid("current_map_loc_vid", janitor_.get()),
-        new_map("new_map", janitor_.get()),
-        new_map_T_v_m("new_map_T_v_m", janitor_.get()) {}
+  // input
+  tactic::Cache<const sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros
+  tactic::Cache<const Eigen::MatrixXd> points;  // alternative input non-ros
+  tactic::Cache<const tactic::EdgeTransform> T_s_r;
 
-  common::cache_ptr<std::string> lidar_frame;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_s_r;
-  common::cache_ptr<sensor_msgs::msg::PointCloud2> pointcloud_msg;
-  common::cache_ptr<std::vector<double>> raw_pointcloud_time;
-  common::cache_ptr<std::vector<PointXYZ>> raw_pointcloud_cart;
-  common::cache_ptr<std::vector<PointXYZ>> raw_pointcloud_pol;
-  common::cache_ptr<std::vector<double>> preprocessed_pointcloud_time;
-  common::cache_ptr<std::vector<PointXYZ>> preprocessed_pointcloud;
-  common::cache_ptr<std::vector<PointXYZ>> normals;
-  common::cache_ptr<std::vector<PointXYZ>> undistorted_pointcloud;
-  common::cache_ptr<std::vector<PointXYZ>> undistorted_normals;
-  common::cache_ptr<std::vector<float>> icp_scores;
-  common::cache_ptr<std::vector<float>> normal_scores;
-  common::cache_ptr<float> matched_points_ratio;
+  // preprocessing
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
 
-  common::cache_ptr<IncrementalPointMap> current_map_odo;
-  common::cache_ptr<tactic::VertexId> current_map_odo_vid;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance>
-      current_map_odo_T_v_m;
-  common::cache_ptr<MultiExpPointMap> current_map_loc;
-  common::cache_ptr<tactic::VertexId> current_map_loc_vid;
-  common::cache_ptr<IncrementalPointMap> new_map;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> new_map_T_v_m;
+  // odometry & mapping
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
+#if false  /// store raw point cloud
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
+#endif
+  tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
+  tactic::Cache<tactic::Timestamp> timestamp_odo;
+  tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
+
+  // localization
+  tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
+  tactic::Cache<const bool> submap_loc_changed;
+  tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
+
+  // intra exp merging async
+  tactic::Cache<const tactic::VertexId> intra_exp_merging_async;
+
+  // dynamic detection async
+  tactic::Cache<const tactic::VertexId> dynamic_detection_async;
+
+  // inter exp merging async (priv, curr, T_priv_curr)
+  tactic::Cache<const std::tuple<tactic::VertexId, tactic::VertexId,
+                                 tactic::EdgeTransform>>
+      inter_exp_merging_async;
 };
+
+struct LidarOutputCache : virtual public tactic::OutputCache {
+  PTR_TYPEDEFS(LidarOutputCache);
+
+  tactic::LockableCache<BaseCostMap> change_detection_costmap;
+  tactic::LockableCache<BaseCostMap> ground_extraction_costmap;
+  tactic::LockableCache<BaseCostMap> obstacle_detection_costmap;
+  tactic::LockableCache<BaseCostMap> terrain_assessment_costmap;
+  tactic::LockableCache<BaseCostMap> safe_corridor_costmap;
+};
+
 }  // namespace lidar
 }  // namespace vtr

@@ -3,22 +3,26 @@
 <package format="3">
   <name>vtr_path_planning</name>
   <version>0.0.0</version>
-  <description>VTR route planning.</description>
+  <description>VTR path planning.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>vtr_pose_graph</depend>
+  <depend>rclcpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_eigen</depend>
+
+  <depend>teb_local_planner</depend>
+
+  <depend>vtr_common</depend>
+  <depend>vtr_logging</depend>
+  <depend>vtr_tactic</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
-  <!-- <test_depend>ament_lint_common</test_depend> -->
-  <!-- <test_depend>ament_cmake_clang_format</test_depend> -->
-  <test_depend>ament_cmake_flake8</test_depend>
-  <test_depend>ament_cmake_lint_cmake</test_depend>
-  <test_depend>ament_cmake_pep257</test_depend>
-  <test_depend>ament_cmake_xmllint</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -14,14 +14,12 @@
 
 /**
  * \file lockable.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <mutex>
+#include <shared_mutex>
 #include <type_traits>
 
 namespace vtr {
@@ -31,32 +29,24 @@ namespace common {
 template <typename T>
 struct Lockable {
  public:
+  using Mutex = std::recursive_mutex;
+  using UniqueLock = std::unique_lock<Mutex>;
+
   /// A locked thread-safe reference to the value
   template <typename R>
   struct LockedRef : public std::reference_wrapper<R> {
-    LockedRef(std::recursive_mutex& mutex, R& ref)
+    LockedRef(Mutex& mutex, R& ref)
         : lock(mutex, std::defer_lock), std::reference_wrapper<R>(ref) {
       lock.lock();
     }
-    LockedRef(LockedRef&& other) = default;
 
    private:
-    std::unique_lock<std::recursive_mutex> lock;
+    UniqueLock lock;
   };
 
   /// Constructors
-  template <bool IDC = std::is_default_constructible<T>::value,
-            typename std::enable_if<IDC, bool>::type = false>
-  Lockable() {}
-  Lockable(T&& val) { val_ = val; }
-  Lockable(const Lockable& other) : val_(other.val_) {}
-  Lockable(Lockable&& other) = default;
-
-  Lockable& operator=(const Lockable& other) {
-    this->val_ = other.val_;
-    return *this;
-  }
-  Lockable& operator=(Lockable&& other) = default;
+  template <class... Args>
+  Lockable(Args&&... args) : val_(std::forward<Args>(args)...) {}
 
   /// Get a locked const reference to the value
   LockedRef<const T> locked() const { return {mutex_, val_}; }
@@ -67,7 +57,75 @@ struct Lockable {
   /// The value with controlled access
   T val_;
   /// The mutex that controls access to the value
-  mutable std::recursive_mutex mutex_;
+  mutable Mutex mutex_;
+};
+
+/// A lockable type that requires being locked for access
+template <typename T>
+struct SharedLockable {
+ public:
+  using Mutex = std::shared_mutex;
+  using UniqueLock = std::unique_lock<Mutex>;
+  using SharedLock = std::shared_lock<Mutex>;
+
+  using Ptr = std::shared_ptr<SharedLockable<T>>;
+
+  /// A uniquely locked thread-safe reference to the value
+  template <typename R>
+  struct LockedRef : public std::reference_wrapper<R> {
+    LockedRef(Mutex& mutex, R& ref)
+        : lock(mutex, std::defer_lock), std::reference_wrapper<R>(ref) {
+      lock.lock();
+    }
+
+   private:
+    UniqueLock lock;
+  };
+
+  /// A shared locked thread-safe reference to the value
+  template <typename R>
+  struct SharedLockedRef : public std::reference_wrapper<R> {
+    SharedLockedRef(Mutex& mutex, R& ref)
+        : lock(mutex, std::defer_lock), std::reference_wrapper<R>(ref) {
+      lock.lock();
+    }
+
+   private:
+    SharedLock lock;
+  };
+
+  /// Constructors
+  template <class... Args>
+  SharedLockable(Args&&... args) : val_(std::forward<Args>(args)...) {}
+
+  /// Disable copy and move
+  SharedLockable(const SharedLockable& other) = delete;
+  SharedLockable(SharedLockable&& other) = delete;
+  SharedLockable& operator=(const SharedLockable& other) = delete;
+  SharedLockable& operator=(SharedLockable&& other) = delete;
+
+  /// Get a locked const reference to the value
+  LockedRef<const T> locked() const { return {mutex_, val_}; }
+  /// Get a locked reference to the value
+  LockedRef<T> locked() { return {mutex_, val_}; }
+
+  /// Get a locked const reference to the value
+  SharedLockedRef<const T> sharedLocked() const { return {mutex_, val_}; }
+  /// Get a locked reference to the value
+  SharedLockedRef<T> sharedLocked() { return {mutex_, val_}; }
+
+  /** \brief Gets an unlocked const reference to the value. */
+  std::reference_wrapper<const T> unlocked() const { return val_; }
+  std::reference_wrapper<T> unlocked() { return val_; }
+
+  /** \brief Gets a reference to the mutex. */
+  Mutex& mutex() const { return std::ref(mutex_); }
+
+ private:
+  /// The value with controlled access
+  T val_;
+  /// The mutex that controls access to the value
+  mutable Mutex mutex_;
 };
 
 }  // namespace common

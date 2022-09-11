@@ -7,55 +7,46 @@ include("vtr_include.cmake")
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 
-find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
-find_package(rclcpp REQUIRED)
+find_package(Boost REQUIRED COMPONENTS chrono timer)
 
-# find_package(date REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+
 find_package(lgmath REQUIRED)
-find_package(vtr_messages REQUIRED)
+
+find_package(vtr_common_msgs REQUIRED)
 
 # Libraries
-# utils
-file(GLOB_RECURSE UTILS_SRC src/utils/*.cpp)
-add_library(${PROJECT_NAME} ${UTILS_SRC})
-target_include_directories(${PROJECT_NAME}
+include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+    $<INSTALL_INTERFACE:include>
+)
+
+# utils
+file(GLOB_RECURSE UTILS_SRC src/utils/*.cpp)
+add_library(${PROJECT_NAME}_utils ${UTILS_SRC})
 # timing
 file(GLOB_RECURSE TIMING_SRC src/timing/*.cpp)
 add_library(${PROJECT_NAME}_timing ${TIMING_SRC})
 ament_target_dependencies(${PROJECT_NAME}_timing
-  # date
-  rclcpp
-  vtr_messages
+  Boost
 )
-target_include_directories(${PROJECT_NAME}_timing
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-# rosutils
-file(GLOB_RECURSE ROSUTILS_SRC src/rosutils/*.cpp)
-add_library(${PROJECT_NAME}_rosutils ${ROSUTILS_SRC})
-ament_target_dependencies(${PROJECT_NAME}_rosutils
-  tf2_ros
-  tf2_geometry_msgs
+# conversions
+file(GLOB_RECURSE CONVERSIONS_SRC src/conversions/*.cpp)
+add_library(${PROJECT_NAME}_conversions ${CONVERSIONS_SRC})
+ament_target_dependencies(${PROJECT_NAME}_conversions
+  tf2_geometry_msgs tf2_ros
   lgmath
+  vtr_common_msgs
 )
-target_include_directories(${PROJECT_NAME}_rosutils
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  tf2_ros
-  tf2_geometry_msgs
-  # date
-  vtr_messages
+  Boost
+  tf2_geometry_msgs tf2_ros
   lgmath
-  rclcpp
+  vtr_common_msgs
 )
 
 install(
@@ -65,9 +56,9 @@ install(
 
 install(
   TARGETS
-    ${PROJECT_NAME}
+    ${PROJECT_NAME}_utils
     ${PROJECT_NAME}_timing
-    ${PROJECT_NAME}_rosutils
+    ${PROJECT_NAME}_conversions
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

@@ -10,21 +10,22 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <depend>PROJ</depend>
+
   <depend>rclcpp</depend>
-  <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
 
-  <depend>PROJ</depend>
-
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
+  <depend>vtr_pose_graph</depend>
   <depend>vtr_tactic</depend>
-  <depend>vtr_lgmath_extensions</depend>
+  <depend>vtr_mission_planning</depend>
+  <depend>vtr_navigation_msgs</depend>
 
   <depend>vtr_lidar</depend>
-  <depend>vtr_vision</depend>
+  <!-- <depend>vtr_vision</depend> -->
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>

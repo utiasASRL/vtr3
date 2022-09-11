@@ -1,2 +1,0 @@
-Image[] cameras
-string name

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>vtr_radar</name>
+  <version>0.0.0</version>
+  <description>VTR RaDAR pipelines and utilities.</description>
+  <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <buildtool_depend>eigen3_cmake_module</buildtool_depend>
+
+  <depend>eigen</depend>
+  <depend>OpenCV</depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
+  <depend>cv_bridge</depend>
+  <depend>pcl_conversions</depend>
+  <depend>pcl_ros</depend>
+
+  <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
+
+  <depend>lgmath</depend>
+  <depend>steam</depend>
+
+  <depend>vtr_common</depend>
+  <depend>vtr_logging</depend>
+  <depend>vtr_tactic</depend>
+  <depend>vtr_radar_msgs</depend>
+
+  <test_depend>ament_cmake_gmock</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

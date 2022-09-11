@@ -14,10 +14,9 @@
 
 /**
  * \file bag_metadata.hpp
- * \brief
- * \details
+ * \brief BagMetadata class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -31,7 +30,7 @@
 namespace vtr {
 namespace storage {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -51,7 +50,7 @@ namespace storage {
 struct TopicInformation
 {
   TopicMetadata topic_metadata;
-  size_t message_count;
+  size_t message_count = 0;
 };
 
 struct BagMetadata
@@ -62,12 +61,12 @@ struct BagMetadata
   std::vector<std::string> relative_file_paths;
   std::chrono::nanoseconds duration;
   std::chrono::time_point<std::chrono::high_resolution_clock> starting_time;
-  uint64_t message_count;
+  uint64_t message_count = 0;
   std::vector<TopicInformation> topics_with_message_count;
   std::string compression_format;
   std::string compression_mode;
 };
 // clang-format on
 
-} // namespace storage
-} // namespace vtr
+}  // namespace storage
+}  // namespace vtr

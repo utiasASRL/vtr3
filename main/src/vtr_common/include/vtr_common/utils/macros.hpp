@@ -14,10 +14,7 @@
 
 /**
  * \file macros.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -96,6 +93,28 @@
   }                                                \
   static inline bool IsType(Base* other) {         \
     return (typeid(*other) == typeid(Type));       \
+  }                                                \
+  static inline bool InChain(const Base& other) {  \
+    try {                                          \
+      (void)dynamic_cast<const Type&>(other);      \
+      return true;                                 \
+    } catch (const std::bad_cast&) {               \
+      return false;                                \
+    }                                              \
+  }                                                \
+  static inline bool InChain(Base& other) {        \
+    try {                                          \
+      (void)dynamic_cast<Type&>(other);            \
+      return true;                                 \
+    } catch (const std::bad_cast&) {               \
+      return false;                                \
+    }                                              \
+  }                                                \
+  static inline bool IsType(const Base& other) {   \
+    return (typeid(other) == typeid(Type));        \
+  }                                                \
+  static inline bool IsType(Base& other) {         \
+    return (typeid(other) == typeid(Type));        \
   }
 
 #define EXTEND_HASH(Type)                                       \

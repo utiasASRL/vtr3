@@ -14,17 +14,14 @@
 
 /**
  * \file deadman_monitor.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <sensor_msgs/msg/joy.hpp>
 #include <std_msgs/msg/string.hpp>
 
-#include <vtr_safety_monitor/safety_monitor/base_monitor.hpp>
+#include "vtr_safety_monitor/safety_monitor/base_monitor.hpp"
 
 using JoyMsg = sensor_msgs::msg::Joy;
 

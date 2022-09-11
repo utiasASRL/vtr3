@@ -1,12 +1,16 @@
 [submodule "steam"]
 	path = main/src/deps/steam
 	url = https://github.com/utiasASRL/steam.git
-	branch = ros2-master
+	branch = master
 [submodule "lgmath"]
 	path = main/src/deps/lgmath
 	url = https://github.com/utiasASRL/lgmath.git
-	branch = ros2-master
-[submodule "vtr3_gui"]
-	path = main/src/vtr_ui/vtr_ui/frontend
-	url = https://github.com/utiasASRL/vtr3_gui.git
-	branch = vtr3
+	branch = master
+[submodule "main/src/deps/teb_costmap_converter"]
+	path = main/src/deps/teb_costmap_converter
+	url = git@github.com:rst-tu-dortmund/costmap_converter.git
+	branch = ros2
+[submodule "main/src/deps/teb_local_planner"]
+	path = main/src/deps/teb_local_planner
+	url = git@github.com:cheneyuwu/teb_local_planner.git
+	branch = ros2-master-rclcpp-node

@@ -14,14 +14,11 @@
 
 /**
  * \file path_iterator.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph_iterator.hpp>
+#include "vtr_pose_graph/index/graph_iterator.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -32,14 +29,13 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
                                    const NodeParent<typename P::GraphType> > {
  public:
   using GraphType = typename P::GraphType;
-  using VertexIdType = typename P::VertexIdType;
-  using SequenceType = typename P::SequenceType;
-  using InternalIterType = typename SequenceType::const_iterator;
+  using Sequence = typename P::Sequence;
+  using InternalIterType = typename Sequence::const_iterator;
   using ValueType = NodeParent<GraphType>;
 
   // Invalid default for construction
   constexpr ValueType InvalidValue() {
-    return ValueType(&path_->graph(), top_);
+    return ValueType(path_->graph_.get(), top_);
   }
 
   PathIterator(const P* path, const InternalIterType& seq_iter)
@@ -50,15 +46,9 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
       : path_(path),
         top_(),
         data_(InvalidValue()),
-        seq_iter_(path_->sequence().begin() + seq_id) {
+        seq_iter_(path_->sequence_.begin() + seq_id) {
     makeData();
   }
-
-  PathIterator(const PathIterator&) = default;
-  PathIterator(PathIterator&&) = default;
-
-  PathIterator& operator=(const PathIterator&) = default;
-  PathIterator& operator=(PathIterator&&) = default;
 
   // Dereference
   const ValueType& operator*() const { return data_; }
@@ -134,7 +124,7 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
 
   // Cast to index (for convenience)
   explicit operator unsigned() const {
-    return seq_iter_ - path_->sequence().begin();
+    return seq_iter_ - path_->sequence_.begin();
   }
 
   // Display
@@ -154,34 +144,33 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
 template <class P>
 auto PathIterator<P>::makeData() -> ValueType& {
   // Check for special cases of start/end, and invalidate ids if necessary
-  bool is_end = seq_iter_ == path_->sequence().end();
-  bool is_begin = seq_iter_ == path_->sequence().begin();
-  VertexIdType child_id = is_end ? VertexIdType::Invalid() : *seq_iter_;
-  VertexIdType parent_id =
-      is_begin ? VertexIdType::Invalid() : *(seq_iter_ - 1);
+  bool is_end = seq_iter_ == path_->sequence_.end();
+  bool is_begin = seq_iter_ == path_->sequence_.begin();
+  VertexId child_id = is_end ? VertexId::Invalid() : *seq_iter_;
+  VertexId parent_id = is_begin ? VertexId::Invalid() : *(seq_iter_ - 1);
 
   // Create the directed-edge value type
   top_ = simple::NodeParent(child_id, parent_id);
-  return data_ = ValueType(&path_->graph(), top_);
+  return data_ = ValueType(path_->graph_.get(), top_);
 }
 
 template <class P>
 std::ostream& operator<<(std::ostream& os, const PathIterator<P>& me) {
   // The end of the path is invalid to display
-  if (me.seq_iter_ == me.path_->sequence().end())
+  if (me.seq_iter_ == me.path_->sequence_.end())
     throw std::runtime_error("[PathIterator][<<] The end iterator is invalid.");
 
   // In the middle, put an arrow / broken arrow
   auto& child_id = me.top_.child;
-  if (me.seq_iter_ != me.path_->sequence().begin())
-    os << (me.path_->graph().contains(child_id, me.top_.parent) ? "-> "
+  if (me.seq_iter_ != me.path_->sequence_.begin())
+    os << (me.path_->graph_->contains(child_id, me.top_.parent) ? "-> "
                                                                 : "!> ");
 
   // Our sequence id
-  os << "[" << (me.seq_iter_ - me.path_->sequence().begin()) << "]";
+  os << "[" << (me.seq_iter_ - me.path_->sequence_.begin()) << "]";
   // The vertex
-  if (me.path_->graph().contains(child_id))
-    os << *me.path_->graph().at(child_id);
+  if (me.path_->graph_->contains(child_id))
+    os << *me.path_->graph_->at(child_id);
   else
     os << "<!" << child_id << ">";
 

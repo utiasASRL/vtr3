@@ -14,10 +14,9 @@
 
 /**
  * \file base_read_interface.hpp
- * \brief
- * \details
+ * \brief BaseReadInterface class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -25,12 +24,11 @@
 #include <string>
 #include <vector>
 
-#include "vtr_storage/serialized_bag_message.hpp"
+#include "vtr_storage/storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/topic_metadata.hpp"
 
 namespace vtr {
 namespace storage {
-namespace storage_interfaces {
 
 /// \note the following code is adapted from rosbag2 foxy
 
@@ -58,32 +56,16 @@ public:
 
   virtual std::shared_ptr<SerializedBagMessage> read_next() = 0;
 
-  virtual std::shared_ptr<SerializedBagMessage>
-  read_at_timestamp(rcutils_time_point_value_t timestamp) = 0;
-
-  virtual std::shared_ptr<SerializedBagMessage>
-  read_at_index(int32_t index) = 0;
-
-  virtual std::shared_ptr<std::vector<std::shared_ptr<SerializedBagMessage>>>
-  read_at_timestamp_range(
-    rcutils_time_point_value_t timestamp_begin,
-    rcutils_time_point_value_t timestamp_end) = 0;
-
-  virtual std::shared_ptr<std::vector<std::shared_ptr<SerializedBagMessage>>>
-  read_at_index_range(int32_t index_begin, int32_t index_end) = 0;
-
-  virtual bool seek_by_index(int32_t index) = 0;
-
-  virtual bool seek_by_timestamp(rcutils_time_point_value_t timestamp) = 0;
-
-  virtual std::shared_ptr<SerializedBagMessage>
-  modified_read_next() = 0;
+  virtual std::shared_ptr<SerializedBagMessage> read_at_timestamp(rcutils_time_point_value_t timestamp) = 0;
+  virtual std::vector<std::shared_ptr<SerializedBagMessage>> read_at_timestamp_range(rcutils_time_point_value_t timestamp_begin, rcutils_time_point_value_t timestamp_end) = 0;
+  virtual std::shared_ptr<SerializedBagMessage> read_at_index(int32_t index) = 0;
+  virtual std::vector<std::shared_ptr<SerializedBagMessage>> read_at_index_range(int32_t index_begin, int32_t index_end) = 0;
+  // virtual bool seek_by_index(int32_t index) = 0;
+  // virtual bool seek_by_timestamp(rcutils_time_point_value_t timestamp) = 0;
 
   virtual std::vector<TopicMetadata> get_all_topics_and_types() = 0;
-
 };
 // clang-format on
 
-}  // namespace storage_interfaces
 }  // namespace storage
 }  // namespace vtr

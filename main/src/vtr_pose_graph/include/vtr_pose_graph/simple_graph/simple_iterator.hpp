@@ -14,17 +14,14 @@
 
 /**
  * \file simple_iterator.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <unordered_map>
 
-#include <vtr_pose_graph/simple_graph/simple_graph.hpp>
-#include <vtr_pose_graph/simple_graph/simple_queue.hpp>
+#include "vtr_pose_graph/simple_graph/simple_graph.hpp"
+#include "vtr_pose_graph/simple_graph/simple_queue.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -32,24 +29,19 @@ namespace simple {
 
 /** \brief Struct that functions as the SimpleGraphIterator "value" */
 struct NodeParent {
-  NodeParent() : child(InvalidSimpleVertex), parent(InvalidSimpleVertex){};
-  NodeParent(const NodeParent &) = default;
-  NodeParent(NodeParent &&) = default;
-
-  NodeParent &operator=(const NodeParent &) = default;
-  NodeParent &operator=(NodeParent &&) = default;
+  NodeParent() = default;
 
   /** \brief Construct from a parent and child */
-  NodeParent(const SimpleVertex &child_, const SimpleVertex &parent_)
-      : child(child_), parent(parent_){};
-  NodeParent(SimpleVertex &&child_, SimpleVertex &&parent_)
-      : child(child_), parent(parent_){};
+  NodeParent(const VertexId &child_, const VertexId &parent_)
+      : child(child_), parent(parent_) {}
+  NodeParent(VertexId &&child_, VertexId &&parent_)
+      : child(child_), parent(parent_) {}
 
   /** \brief Construct an existing parent-child pair (SimpleEdge) */
-  NodeParent(const std::pair<SimpleVertex, SimpleVertex> &np)
-      : child(np.first), parent(np.second){};
-  NodeParent(std::pair<SimpleVertex, SimpleVertex> &&np)
-      : child(np.first), parent(np.second){};
+  NodeParent(const std::pair<VertexId, VertexId> &np)
+      : child(np.first), parent(np.second) {}
+  NodeParent(std::pair<VertexId, VertexId> &&np)
+      : child(np.first), parent(np.second) {}
 
   /** \brief Ordering operation, so that this can be used in a map */
   bool operator<(const NodeParent &other) const {
@@ -57,28 +49,21 @@ struct NodeParent {
            ((this->child == other.child) && (this->parent < other.parent));
   }
 
-  /**
-   * \brief Implicit conversion to SimpleEdge/SimpleVertex for indexing
-   * convenience
-   */
-  operator SimpleVertex() const { return child; }
-
-  operator SimpleEdge() const {
-    return child < parent ? SimpleEdge(child, parent)
-                          : SimpleEdge(parent, child);
+  bool operator==(const NodeParent &other) const {
+    return (this->child == other.child) && (this->parent == other.parent);
   }
 
-  /** \brief Get the SimpleVertex of this graph element */
-  const SimpleVertex &v() const { return child; }
+  /** \brief Implicit conversion to Edge/Vertex Id for indexing convenience */
+  operator VertexId() const { return child; }
+  operator EdgeId() const { return EdgeId(child, parent); }
 
+  /** \brief Get the VertexId of this graph element */
+  VertexId v() const { return child; }
   /** \brief Get the SimpleEdge from the current vertex to its ancestor */
-  SimpleEdge e() const {
-    return child < parent ? SimpleEdge(child, parent)
-                          : SimpleEdge(parent, child);
-  }
+  EdgeId e() const { return EdgeId(child, parent); }
 
-  SimpleVertex child;
-  SimpleVertex parent;
+  VertexId child = VertexId::Invalid();
+  VertexId parent = VertexId::Invalid();
 };
 
 /** \brief A generic iterator interface for simplegraph */
@@ -94,31 +79,38 @@ class SimpleGraphIterator
 
   /** \brief Construct a Dijkstra iterator */
   static SimpleGraphIterator Dijkstra(
-      const SimpleGraph *graph, SimpleVertex root, double maxDepth = 0,
-      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true, true),
-      const eval::Weight::Ptr &weight = eval::Weight::Const::MakeShared(1, 1));
+      const SimpleGraph *graph, VertexId root, double maxDepth = 0,
+      const eval::mask::Ptr &mask =
+          std::make_shared<eval::mask::ConstEval>(true, true),
+      const eval::weight::Ptr &weight =
+          std::make_shared<eval::weight::ConstEval>(1, 1));
 
   /** \brief Construct a Depth First iterator */
   static SimpleGraphIterator DFS(
-      const SimpleGraph *graph, SimpleVertex root, double maxDepth = 0,
-      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true, true),
-      const eval::Weight::Ptr &weight = eval::Weight::Const::MakeShared(1, 1));
+      const SimpleGraph *graph, VertexId root, double maxDepth = 0,
+      const eval::mask::Ptr &mask =
+          std::make_shared<eval::mask::ConstEval>(true, true),
+      const eval::weight::Ptr &weight =
+          std::make_shared<eval::weight::ConstEval>(1, 1));
 
   /** \brief Construct a Breadth First iterator */
   static SimpleGraphIterator BFS(
-      const SimpleGraph *graph, SimpleVertex root, double maxDepth = 0,
-      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true, true),
-      const eval::Weight::Ptr &weight = eval::Weight::Const::MakeShared(1, 1));
+      const SimpleGraph *graph, VertexId root, double maxDepth = 0,
+      const eval::mask::Ptr &mask =
+          std::make_shared<eval::mask::ConstEval>(true, true),
+      const eval::weight::Ptr &weight =
+          std::make_shared<eval::weight::ConstEval>(1, 1));
 
   /** \brief Construct an empty end iterator */
   static SimpleGraphIterator End(const SimpleGraph *graph);
 
   /** \brief Constructor */
-  SimpleGraphIterator(
-      const SimpleGraph *graph, QueuePtr searchQueue, double maxDepth = 0,
-      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true, true),
-      const eval::Weight::Ptr &weight = eval::Weight::Const::MakeShared(1.f,
-                                                                        1.f));
+  SimpleGraphIterator(const SimpleGraph *graph, QueuePtr searchQueue,
+                      double maxDepth = 0,
+                      const eval::mask::Ptr &mask =
+                          std::make_shared<eval::mask::ConstEval>(true, true),
+                      const eval::weight::Ptr &weight =
+                          std::make_shared<eval::weight::ConstEval>(1.f, 1.f));
 
   /**
    * \brief Copy constructor.  Custom implementation to deep copy the queue
@@ -177,7 +169,7 @@ class SimpleGraphIterator
    * \brief Internally initialize the root element
    * \details Adds the root vertex to the search queue and depth map
    */
-  void initRootInternal_(const SimpleVertex &root);
+  void initRootInternal_(const VertexId &root);
 
   /** \brief Underlying SimpleGraph */
   const SimpleGraph *graph_;
@@ -189,13 +181,13 @@ class SimpleGraphIterator
   double maxDepth_;
 
   /** \brief Optional mask to filter out certain sections */
-  eval::Mask::Ptr mask_;
+  eval::mask::Ptr mask_;
 
   /** \brief Optional weight evaluator to tune ordering */
-  eval::Weight::Ptr weight_;
+  eval::weight::Ptr weight_;
 
   /** \brief Vertex weight cache */
-  std::unordered_map<SimpleVertex, double> nodeDepths_;
+  std::unordered_map<VertexId, double> nodeDepths_;
 
   /**
    * \brief Whether or not to check consistency of vertex costs on revisting

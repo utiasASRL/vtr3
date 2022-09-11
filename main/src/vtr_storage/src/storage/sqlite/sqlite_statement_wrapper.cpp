@@ -14,10 +14,9 @@
 
 /**
  * \file sqlite_statement_wrapper.cpp
- * \brief
- * \details
+ * \brief SqliteStatementWrapper class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_storage/storage/sqlite/sqlite_statement_wrapper.hpp"
 
@@ -28,14 +27,14 @@
 #include <utility>
 #include <vector>
 
-#include "vtr_storage/ros_helper.hpp"
+#include "vtr_storage/storage/ros_helper.hpp"
 #include "vtr_storage/storage/sqlite/sqlite_exception.hpp"
 
 namespace vtr {
 namespace storage {
-namespace sqlite_storage {
+namespace sqlite {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -76,7 +75,8 @@ SqliteStatementWrapper::~SqliteStatementWrapper()
   }
 }
 
-std::shared_ptr<SqliteStatementWrapper> SqliteStatementWrapper::execute_and_reset()
+std::shared_ptr<SqliteStatementWrapper> SqliteStatementWrapper::execute_and_reset(
+  bool assert_return_value)
 {
   int return_code = sqlite3_step(statement_);
   if (!is_query_ok(return_code)) {
@@ -86,6 +86,20 @@ std::shared_ptr<SqliteStatementWrapper> SqliteStatementWrapper::execute_and_rese
 
     throw SqliteException{errmsg.str()};
   }
+
+  if (assert_return_value) {
+    bool no_result = return_code == SQLITE_DONE || sqlite3_column_count(statement_) == 0;
+
+    if (no_result || sqlite3_column_type(statement_, 0) == SQLITE_NULL) {
+      // No result or result is null means that no such pragma exists
+      std::stringstream errmsg;
+      errmsg << "Statement returned empty value while result was expected: \'" <<
+        sqlite3_sql(statement_) << "\'";
+
+      throw SqliteException{errmsg.str()};
+    }
+  }
+
   return reset();
 }
 
@@ -203,6 +217,6 @@ void SqliteStatementWrapper::check_and_report_bind_error(int return_code)
 
 // clang-format on
 
-}  // namespace sqlite_storage
+}  // namespace sqlite
 }  // namespace storage
 }  // namespace vtr

@@ -14,12 +14,9 @@
 
 /**
  * \file deadman_monitor.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_safety_monitor/safety_monitor/deadman_monitor.hpp>
+#include "vtr_safety_monitor/safety_monitor/deadman_monitor.hpp"
 
 namespace vtr {
 namespace safety_monitor {
@@ -30,10 +27,7 @@ const int DeadmanMonitor::value_array[] = {1, 0, 1,  0, -1, 0, -1, 0,
                                            1, 0, -1, 0, 1,  0, -1, 0};
 
 DeadmanMonitor::DeadmanMonitor(const std::shared_ptr<rclcpp::Node>& node)
-    : BaseMonitor(node) {
-  // Initialize DEADMAN monitor signal
-  monitor_signals_.emplace_back(node_, "Deadman Monitor", 1);
-
+    : BaseMonitor(node, "Deadman Monitor", 1.0) {
   // Initialize Message Subscriptions
   // clang-format off
   gamepad_subscriber_ = node_->create_subscription<JoyMsg>("/xbox_joy", 10, std::bind(&DeadmanMonitor::gamepadCallback, this, std::placeholders::_1));
@@ -45,13 +39,13 @@ DeadmanMonitor::DeadmanMonitor(const std::shared_ptr<rclcpp::Node>& node)
 }
 
 void DeadmanMonitor::gamepadCallback(const JoyMsg::SharedPtr msg) {
-  monitor_signals_.front().last_update = node_->now();
+  last_update_ = node_->now();
 
   bool pressed = msg->buttons[deadman_button_index_] != 0;
 
-  if (monitor_signals_.front().desired_action == PAUSE) {
+  if (desired_action_ == Action::Pause) {
     if (following_mode_ == FOLLOWING_MODE::AUTO || pressed)
-      monitor_signals_.front().desired_action = CONTINUE;
+      desired_action_ = Action::Continue;
 
     // check the cheat code state
     checkCodeState(msg);
@@ -62,7 +56,7 @@ void DeadmanMonitor::gamepadCallback(const JoyMsg::SharedPtr msg) {
           << "CHEAT CODE ACTIVATED, SWITCHING TO AUTO MODE";
       following_mode_ = FOLLOWING_MODE::AUTO;
     }
-  } else if (monitor_signals_.front().desired_action == CONTINUE) {
+  } else if (desired_action_ == Action::Continue) {
     if (following_mode_ == FOLLOWING_MODE::AUTO) {
       // Check if we need to disable FOLLOWING_MODE::AUTO mode
       for (int button : msg->buttons) {
@@ -80,12 +74,12 @@ void DeadmanMonitor::gamepadCallback(const JoyMsg::SharedPtr msg) {
       // Now that we've checked the cheat code and maybe changed
       // following_mode_...
       if (following_mode_ == FOLLOWING_MODE::MANUAL && !pressed)
-        monitor_signals_.front().desired_action = PAUSE;
+        desired_action_ = Action::Pause;
     } else if (!pressed) {
-      monitor_signals_.front().desired_action = PAUSE;
+      desired_action_ = Action::Pause;
     }
   } else {
-    monitor_signals_.front().desired_action = PAUSE;
+    desired_action_ = Action::Pause;
   }
 }
 

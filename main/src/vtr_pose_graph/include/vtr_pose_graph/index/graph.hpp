@@ -14,148 +14,94 @@
 
 /**
  * \file graph.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <mutex>
-#include <vtr_pose_graph/index/callback_interface.hpp>
-#include <vtr_pose_graph/index/graph_base.hpp>
+#include "vtr_pose_graph/index/callback_interface.hpp"
+#include "vtr_pose_graph/index/graph_base.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
-template <class V, class E, class R>
-class Graph : public virtual GraphBase<V, E, R> {
+template <class V, class E>
+class Graph : public GraphBase<V, E> {
  public:
-  using Base = GraphBase<V, E, R>;
-  using RType = GraphBase<V, E, R>;
+  PTR_TYPEDEFS(Graph);
 
-  using Base::edges_;
-  using Base::graph_;
-  using Base::id_;
-  using Base::run;
-  using Base::runs_;
-  using Base::vertices_;
-  using IdType = typename Base::IdType;
+  using GraphType = Graph<V, E>;
+  using Base = GraphBase<V, E>;
 
-  // We have to manually import the typedefs, as they exist in dependent scope
-  // and the compiler cannot find them by default
-  using RunType = typename Base::RunType;
-  using VertexType = typename Base::VertexType;
-  using EdgeType = typename Base::EdgeType;
-
+  using Vertex = typename Base::Vertex;
   using VertexPtr = typename Base::VertexPtr;
+
+  using Edge = typename Base::Edge;
   using EdgePtr = typename Base::EdgePtr;
-  using RunPtr = typename Base::RunPtr;
 
-  using RunIdType = typename Base::RunIdType;
-  using VertexIdType = typename Base::VertexIdType;
-  using EdgeIdType = typename Base::EdgeIdType;
-  using EdgeTypeEnum = typename Base::EdgeTypeEnum;
-  using SimpleVertexId = typename Base::SimpleVertexId;
-  using SimpleEdgeId = typename Base::SimpleEdgeId;
-
-  using RunMap = typename Base::RunMap;
   using VertexMap = typename Base::VertexMap;
   using EdgeMap = typename Base::EdgeMap;
-  using TransformType = typename EdgeType::TransformType;
-  using CallbackPtr = typename CallbackInterface<V, E, R>::Ptr;
 
-  using UniqueLock = std::unique_lock<std::recursive_mutex>;
-  using LockGuard = std::lock_guard<std::recursive_mutex>;
+  using Callback = GraphCallbackInterface<V, E>;
+  using CallbackPtr = typename Callback::Ptr;
 
-  PTR_TYPEDEFS(Graph)
+  using ChangeMutex = std::recursive_mutex;
+  using ChangeLock = std::unique_lock<ChangeMutex>;
+  using ChangeGuard = std::lock_guard<ChangeMutex>;
 
   /** \brief Pseudo-constructor to make shared pointers */
-  static Ptr MakeShared();
-  static Ptr MakeShared(const IdType& id);
+  static Ptr MakeShared(
+      const CallbackPtr& callback = std::make_shared<Callback>());
 
-  Graph();
-  /** \brief Construct an empty graph with an id */
-  Graph(const IdType& id);
-
-  /// Yuchen: we used to allow copying and moving, but I don't think it is
-  /// needed.
-  Graph(const Graph&) = delete;
-  Graph(Graph&& other) = delete;
-  Graph& operator=(const Graph&) = delete;
-  Graph& operator=(Graph&& other) = delete;
-
-  /** \brief Set the callback handling procedure */
-  void setCallbackMode(const CallbackPtr& callback =
-                           CallbackPtr(new IgnoreCallbacks<V, E, R>())) {
-    callback_ = callback;
-  }
-
-  /** \brief Get a pointer to the callback manager */
-  const CallbackPtr& callbacks() const { return callback_; }
+  Graph(const CallbackPtr& callback = std::make_shared<Callback>());
 
   /** \brief Add a new run an increment the run id */
-  virtual RunIdType addRun();
+  BaseIdType addRun();
 
   /** \brief Return a blank vertex (current run) with the next available Id */
-  virtual VertexPtr addVertex();
-
-  /** \brief Return a blank vertex with the next available Id */
-  virtual VertexPtr addVertex(const RunIdType& runId);
+  template <class... Args>
+  VertexPtr addVertex(Args&&... args);
 
   /** \brief Return a blank edge with the next available Id */
-  virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
-                          const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
-                          bool manual = false);
+  template <class... Args>
+  EdgePtr addEdge(const VertexId& from, const VertexId& to,
+                  const EdgeType& type, const bool manual,
+                  const EdgeTransform& T_to_from, Args&&... args);
 
-  /** \brief Return a blank edge with the next available Id */
-  virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
-                          const TransformType& T_to_from,
-                          const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
-                          bool manual = false);
-
-  /** \brief Acquires a lock object that blocks modifications. */
-  UniqueLock guard() const { return UniqueLock(mtx_); }
-  /** \brief Manually locks the graph, preventing modifications. */
-  void lock() const { mtx_.lock(); }
-  /** \brief Manually unlocks the graph, allowing modifications. */
-  void unlock() const { mtx_.unlock(); }
-  /** \brief Get a reference to the mutex */
-  std::recursive_mutex& mutex() const { return mtx_; }
+  /** \brief Lock to prevent graph change */
+  ChangeLock guard() const { return ChangeLock(change_mutex_); }
 
  protected:
-  /** \brief The current run */
-  RunPtr currentRun_;
+  /** \brief protects access to all members below include callback methods */
+  using Base::mutex_;
+
+  using Base::graph_;
+
+  using Base::vertices_;
+
+  using Base::edges_;
 
   /** \brief The current maximum run index */
-  RunIdType lastRunIdx_;
+  BaseIdType curr_major_id_ = InvalidBaseId;
+  BaseIdType curr_minor_id_ = InvalidBaseId;
 
   /** \brief The current maximum run index */
-  CallbackPtr callback_;
+  const CallbackPtr callback_;
 
-  /** \brief Used to lock changes to the graph during long-running operations */
-  mutable std::recursive_mutex mtx_;
+  /**
+   * \brief Lock by methods that change graph structure, can be used externally
+   * to prevent graph structure changes during multiple calls to graph methods.
+   * \note Call to individual method is already safe with the use of
+   * shared_mutex, this is only for calls to multiple methods sequentially
+   * without potential graph change by another thread, and this is not a shared
+   * mutex.
+   */
+  mutable ChangeMutex change_mutex_;
 };
 
-using BasicGraph = Graph<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
+extern template class Graph<VertexBase, EdgeBase>;
+using BasicGraph = Graph<VertexBase, EdgeBase>;
 
 }  // namespace pose_graph
 }  // namespace vtr
 
-#include <vtr_pose_graph/index/graph.inl>
-
-#if 0
-#if !defined(BASIC_GRAPH_NO_EXTERN) && defined(NDEBUG)
-namespace asrl {
-namespace pose_graph {
-
-extern template class Graph<VertexBase, EdgeBase,
-                            RunBase<VertexBase, EdgeBase>>;
-
-EVAL_TYPED_DECLARE_EXTERN(double, BasicGraph)
-EVAL_TYPED_DECLARE_EXTERN(bool, BasicGraph)
-
-}  // namespace pose_graph
-}  // namespace asrl
-#endif
-#endif
+#include "vtr_pose_graph/index/graph.inl"

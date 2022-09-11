@@ -14,18 +14,16 @@
 
 /**
  * \file main.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "rclcpp/rclcpp.hpp"
 
-#include <vtr_common/timing/time_utils.hpp>
-#include <vtr_common/utils/filesystem.hpp>
-#include <vtr_logging/logging_init.hpp>
-#include <vtr_navigation/navigator.hpp>
+#include "vtr_common/timing/utils.hpp"
+#include "vtr_common/utils/filesystem.hpp"
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_navigation/navigator.hpp"
 
+namespace fs = std::filesystem;
 using namespace vtr::common;
 using namespace vtr::logging;
 using namespace vtr::navigation;
@@ -34,14 +32,14 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
+  /// Setup logging
+  const auto data_dir_str =
+      node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
-  auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
-  if (clear_data_dir) fs::remove_all(data_dir);
 
-  auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
-  auto log_debug = node->declare_parameter<bool>("log_debug", false);
-  auto log_enabled = node->declare_parameter<std::vector<std::string>>(
+  const auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
+  const auto log_debug = node->declare_parameter<bool>("log_debug", false);
+  const auto log_enabled = node->declare_parameter<std::vector<std::string>>(
       "log_enabled", std::vector<std::string>{});
   std::string log_filename;
   if (log_to_file) {
@@ -51,10 +49,21 @@ int main(int argc, char** argv) {
   }
   configureLogging(log_filename, log_debug, log_enabled);
 
-  // Navigator node that runs everything
+  // disable eigen multi-threading
+  Eigen::setNbThreads(1);
+
+  /// Navigator node that launches and runs the whole vtr navigation system
   Navigator navigator{node};
 
-  // Wait for shutdown
-  rclcpp::spin(node);
+  /// Run the node
+  // 3 threads: 1 for sensor input, 1 for mission planning server (user commands
+  // for teach, repeat, etc), 1 for graph map server (graph&tactic callbacks,
+  // graph manipulation commands, etc)
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(),
+                                                    /* num_threads */ 3);
+  executor.add_node(node);
+  executor.spin();
   rclcpp::shutdown();
+
+  return 0;
 }

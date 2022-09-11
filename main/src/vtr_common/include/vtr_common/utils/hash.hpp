@@ -14,14 +14,13 @@
 
 /**
  * \file hash.hpp
- * \brief
- * \details
- *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <functional>
+#include <set>
+#include <utility>
 
 namespace vtr {
 namespace common {
@@ -35,3 +34,26 @@ inline void hash_combine(std::size_t& seed, const T& v, Rest... rest) {
 
 }  // namespace common
 }  // namespace vtr
+
+namespace std {
+// hash for std::pair
+template <class T1, class T2>
+struct hash<pair<T1, T2>> {
+  size_t operator()(const pair<T1, T2>& p) const {
+    size_t seed = 0;
+    vtr::common::hash_combine(seed, p.first, p.second);
+    return seed;
+  }
+};
+
+// hash for std::set
+template <class T>
+struct hash<set<T>> {
+  size_t operator()(const set<T>& p) const {
+    size_t seed = 0;
+    for (const auto& i : p) vtr::common::hash_combine(seed, i);
+    return seed;
+  }
+};
+
+}  // namespace std

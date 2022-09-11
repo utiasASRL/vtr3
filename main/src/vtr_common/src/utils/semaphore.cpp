@@ -14,12 +14,9 @@
 
 /**
  * \file semaphore.cpp
- * \brief
- * \details
- *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_common/utils/semaphore.hpp>
+#include "vtr_common/utils/semaphore.hpp"
 
 namespace vtr {
 namespace common {

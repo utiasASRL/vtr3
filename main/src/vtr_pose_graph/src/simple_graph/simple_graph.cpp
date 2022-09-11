@@ -14,24 +14,23 @@
 
 /**
  * \file simple_graph.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <iostream>
-#include <vtr_pose_graph/simple_graph/kruskal_mst_functions.hpp>
-#include <vtr_pose_graph/simple_graph/simple_graph.hpp>
-#include <vtr_pose_graph/simple_graph/simple_iterator.hpp>
+#include "vtr_pose_graph/simple_graph/simple_graph.hpp"
+
+#include "vtr_logging/logging.hpp"
+#include "vtr_pose_graph/simple_graph/kruskal_mst_functions.hpp"
+#include "vtr_pose_graph/simple_graph/simple_iterator.hpp"
 
 namespace vtr {
 namespace pose_graph {
 namespace simple {
-SimpleGraph::SimpleGraph(const std::list<SimpleEdge>& edges) {
+
+SimpleGraph::SimpleGraph(const EdgeList& edges) {
   for (auto it = edges.begin(); it != edges.end(); ++it) this->addEdge(*it);
 }
 
-SimpleGraph::SimpleGraph(const std::list<SimpleVertex>& vertices, bool cyclic) {
+SimpleGraph::SimpleGraph(const VertexList& vertices, bool cyclic) {
   for (auto it = vertices.begin(); it != vertices.end(); ++it) {
     auto itn = std::next(it);
     if (itn != vertices.end())
@@ -41,120 +40,91 @@ SimpleGraph::SimpleGraph(const std::list<SimpleVertex>& vertices, bool cyclic) {
   }
 }
 
-void SimpleGraph::addVertex(const SimpleVertex& vertex) {
+void SimpleGraph::addVertex(const VertexId& vertex) {
   // Insert, but don't overwrite if this vertex already exists
-  (void)nodeMap_.emplace(SimpleVertex(vertex), SimpleNode(vertex));
+  node_map_.emplace(vertex, SimpleNode(vertex));
 }
 
-void SimpleGraph::addEdge(const SimpleEdge& edge) {
+void SimpleGraph::addEdge(const EdgeId& edge) {
   // Get iterators to id-node pairs, or create them
-  auto node1 =
-      (nodeMap_.emplace(SimpleVertex(edge.first), SimpleNode(edge.first)))
-          .first;
-  auto node2 =
-      (nodeMap_.emplace(SimpleVertex(edge.second), SimpleNode(edge.second)))
-          .first;
+  auto node1 = (node_map_.emplace(edge.id1(), SimpleNode(edge.id1()))).first;
+  auto node2 = (node_map_.emplace(edge.id2(), SimpleNode(edge.id2()))).first;
 
   // Check that edge does not exist
-  const std::list<SimpleVertex>& adj = node1->second.getAdjacent();
-  if (std::find(adj.begin(), adj.end(), edge.second) != adj.end())
+  const std::list<VertexId>& adj = node1->second.getAdjacent();
+  if (std::find(adj.begin(), adj.end(), edge.id2()) != adj.end()) {
+    CLOG(ERROR, "pose_graph") << "Edge " << edge << " already exists";
     throw std::invalid_argument("Tried to add edge that already exists!");
+  }
 
   // Add adjacency
   node1->second.addAdjacent(node2->first);
   node2->second.addAdjacent(node1->first);
 
   // Add new edge
-  edges_.push_back(SimpleGraph::getEdge(edge.first, edge.second));
+  edges_.push_back(edge);
 }
 
-void SimpleGraph::addEdge(SimpleVertex id1, SimpleVertex id2) {
-  this->addEdge(std::make_pair(id1, id2));
+void SimpleGraph::addEdge(const VertexId& id1, const VertexId& id2) {
+  this->addEdge(EdgeId(id1, id2));
 }
 
-SimpleGraph::VertexVec SimpleGraph::getNodeIds() const {
-  VertexVec result;
-  for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end();
-       ++it) {
-    result.push_back(it->second.getId());
-  }
-  return result;
+auto SimpleGraph::begin(VertexId root, double max_depth,
+                        const eval::mask::Ptr& mask) const -> OrderedIter {
+  return beginBfs(root, max_depth, mask);
 }
 
-SimpleGraph::EdgeVec SimpleGraph::getEdges() const {
-  EdgeVec result;
-  for (auto it = edges_.begin(); it != edges_.end(); ++it) {
-    result.push_back(*it);
-  }
-  return result;
-}
-
-SimpleGraph::OrderedIter SimpleGraph::begin(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
-  return beginBfs(root, maxDepth, mask, weight);
-}
-
-SimpleGraph::OrderedIter SimpleGraph::beginBfs(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
+auto SimpleGraph::beginBfs(VertexId root, double max_depth,
+                           const eval::mask::Ptr& mask) const -> OrderedIter {
   // Handle the case of and empty graph separately
-  if (nodeMap_.size() == 0) {
-    return SimpleGraphIterator::End(this);
-  }
+  if (node_map_.size() == 0) return OrderedIter::End(this);
 
   // If we didn't specify a root, pick one arbitrarily
-  if (root == SimpleVertex(-1)) {
-    root = nodeMap_.begin()->first;
-  }
-  return SimpleGraphIterator::BFS(this, root, maxDepth, mask, weight);
+  if (root == VertexId::Invalid()) root = node_map_.begin()->first;
+
+  return OrderedIter::BFS(this, root, max_depth, mask);
 }
 
-SimpleGraph::OrderedIter SimpleGraph::beginDfs(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
+auto SimpleGraph::beginDfs(VertexId root, double max_depth,
+                           const eval::mask::Ptr& mask) const -> OrderedIter {
   // Handle the case of and empty graph separately
-  if (nodeMap_.size() == 0) {
-    return SimpleGraphIterator::End(this);
-  }
+  if (node_map_.size() == 0) return OrderedIter::End(this);
 
   // If we didn't specify a root, pick one arbitrarily
-  if (root == SimpleVertex(-1)) {
-    root = nodeMap_.begin()->first;
-  }
-  return SimpleGraphIterator::DFS(this, root, maxDepth, mask, weight);
+  if (root == VertexId::Invalid()) root = node_map_.begin()->first;
+
+  return OrderedIter::DFS(this, root, max_depth, mask);
 }
 
-SimpleGraph::OrderedIter SimpleGraph::beginDijkstra(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
+auto SimpleGraph::beginDijkstra(VertexId root, double max_depth,
+                                const eval::mask::Ptr& mask,
+                                const eval::weight::Ptr& weight) const
+    -> OrderedIter {
   // Handle the case of and empty graph separately
-  if (nodeMap_.size() == 0) {
-    return SimpleGraphIterator::End(this);
-  }
+  if (node_map_.size() == 0) return OrderedIter::End(this);
 
   // If we didn't specify a root, pick one arbitrarily
-  if (root == SimpleVertex(-1)) {
-    root = nodeMap_.begin()->first;
-  }
-  return SimpleGraphIterator::Dijkstra(this, root, maxDepth, mask, weight);
+  if (root == VertexId::Invalid()) root = node_map_.begin()->first;
+
+  return OrderedIter::Dijkstra(this, root, max_depth, mask, weight);
 }
 
 SimpleGraph::OrderedIter SimpleGraph::end() const {
-  return SimpleGraphIterator::End(this);
+  return OrderedIter::End(this);
 }
 
-std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
-    ComponentList* paths, ComponentList* cycles) const {
-  std::list<SimpleVertex> searchQueue;
-  std::unordered_set<SimpleVertex> junctions;
-  std::unordered_set<SimpleVertex> exploredSet;
+auto SimpleGraph::pathDecomposition(ComponentList& paths,
+                                    ComponentList& cycles) const
+    -> JunctionSet {
+  JunctionSet junctions;
 
-  if (nodeMap_.size() == 0) return junctions;
+  if (node_map_.size() == 0) return junctions;
 
+  std::list<VertexId> searchQueue;
+  std::unordered_set<VertexId> exploredSet;
   // Find a vertex of degree 1 (path termination) or >2 (junction) to start the
   // search at
-  for (auto&& it : nodeMap_) {
+  for (auto&& it : node_map_) {
     if (it.second.getAdjacent().size() != 2) {
       searchQueue.push_back(it.first);
       break;
@@ -165,20 +135,20 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
   // is a single cycle In this case, just break it at some arbitrary point and
   // don't return a junction vertex
   if (searchQueue.empty()) {
-    std::list<SimpleVertex> path;
-    for (auto it = this->beginDfs(nodeMap_.begin()->first); it != this->end();
+    std::list<VertexId> path;
+    for (auto it = this->beginDfs(node_map_.begin()->first); it != this->end();
          ++it) {
       path.push_back(it->v());
     }
 
-    path.push_back(nodeMap_.begin()->first);
-    cycles->push_back(path);
+    path.push_back(node_map_.begin()->first);
+    cycles.push_back(path);
     return junctions;
   }
 
   // Loop through all junction vertices
   while (!searchQueue.empty()) {
-    SimpleVertex root = searchQueue.front();
+    VertexId root = searchQueue.front();
     searchQueue.pop_front();
 
     // Only search a junction once
@@ -187,22 +157,21 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
     junctions.insert(root);
     exploredSet.insert(root);
 
-    for (auto&& it : nodeMap_.at(root).getAdjacent()) {
+    for (auto&& it : node_map_.at(root).getAdjacent()) {
       // Don't double explore paths.  We only need to check this once, as we
       // always explore an entire path in one go
       if (exploredSet.find(it) != exploredSet.end()) continue;
 
-      std::list<SimpleVertex> path = {root};
-      SimpleVertex branch(it);
+      std::list<VertexId> path = {root};
+      VertexId branch(it);
 
       // Expand outward until we hit something that branches/dead-ends
-      while (nodeMap_.at(branch).getAdjacent().size() == 2) {
+      while (node_map_.at(branch).getAdjacent().size() == 2) {
         // The next vertex is the neighbour that isn't in the path yet
-        const std::list<SimpleVertex>& neighbours =
-            nodeMap_.at(branch).getAdjacent();
-        SimpleVertex next(path.back() == neighbours.front()
-                              ? neighbours.back()
-                              : neighbours.front());
+        const std::list<VertexId>& neighbours =
+            node_map_.at(branch).getAdjacent();
+        VertexId next(path.back() == neighbours.front() ? neighbours.back()
+                                                        : neighbours.front());
 
         path.push_back(branch);
         exploredSet.insert(branch);
@@ -210,7 +179,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
       }
 
       path.push_back(branch);
-      if (nodeMap_.at(branch).getAdjacent().size() > 2) {
+      if (node_map_.at(branch).getAdjacent().size() > 2) {
         searchQueue.push_back(branch);
       } else {
         // The case of deg(v) == 1 isn't a junction, but it's still a special
@@ -220,11 +189,9 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
       }
 
       if (branch != root) {
-        paths->push_back(path);
+        paths.push_back(path);
       } else {
-        // TODO: Does this case ever happen?  The case of a graph being a single
-        // loop has already been handled...
-        cycles->push_back(path);
+        cycles.push_back(path);
       }
     }
   }
@@ -233,34 +200,35 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
 }
 
 SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
-                                     const eval::Mask::Ptr& mask) const {
+                                     const eval::mask::Ptr& mask) const {
   // Check for nodes
   if (nodes.size() == 0) {
-    throw std::invalid_argument("[SimpleGraph][getSubgraph] no nodes.");
+    CLOG(ERROR, "pose_graph") << "No nodes specified for subgraph";
+    throw std::invalid_argument("No nodes specified for subgraph");
   }
 
   // Collect edges
-  std::list<SimpleEdge> subgraphEdges;
-  std::unordered_set<SimpleVertex> nodeSet(nodes.begin(), nodes.end());
+  std::list<EdgeId> subgraphEdges;
+  std::unordered_set<VertexId> nodeSet(nodes.begin(), nodes.end());
 
   // For each node in inputs
   for (auto&& it : nodes) {
     if (!mask->operator[](it)) continue;
 
     // Check that node is part of graph
-    auto nodeIter = nodeMap_.find(it);
-    if (nodeIter == nodeMap_.end()) {
-      throw std::invalid_argument(
-          "[SimpleGraph][getSubgraph] an input node did not exist in graph.");
+    auto nodeIter = node_map_.find(it);
+    if (nodeIter == node_map_.end()) {
+      CLOG(ERROR, "pose_graph") << "An input node did not exist in graph.";
+      throw std::invalid_argument("An input node did not exist in graph.");
     }
 
     // Get node and adjacent node references
     const SimpleNode& node = nodeIter->second;
-    const std::list<SimpleVertex>& adj = node.getAdjacent();
+    const std::list<VertexId>& adj = node.getAdjacent();
 
     // For each adjacent node
     for (auto&& adjIter : adj) {
-      if (!mask->operator[](adjIter) || !mask->operator[](getEdge(it, adjIter)))
+      if (!mask->operator[](adjIter) || !mask->operator[](EdgeId(it, adjIter)))
         continue;
 
       // Check if adjacent is in 'nodes'
@@ -268,7 +236,7 @@ SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
 
       // If both nodes were found, add this edge to our subgraph
       if (foundIter != nodeSet.end())
-        subgraphEdges.push_back(SimpleGraph::getEdge(node.getId(), adjIter));
+        subgraphEdges.push_back(EdgeId(node.getId(), adjIter));
     }
   }
 
@@ -282,38 +250,26 @@ SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
   // If there was only one vertex, add it.
   if (nodes.size() == 1) subgraph.addVertex(nodes[0]);
 
-  // Check for disconnection
-  /*
-  SimpleGraph bft = subgraph.breadthFirstTraversal(nodes[0], 0.0);
-  if (subgraph.numberOfNodes() != bft.numberOfNodes()) {
-    std::cout << "disconnected subgraph..." << std::endl;
-    subgraph.print();
-    std::cout << "breadth first traversal from node[0] found..." << std::endl;
-    bft.print();
-    throw std::invalid_argument("[SimpleGraph][getSubgraph] subgraph is
-  disconnected.");
-  }
-  */
-
   return subgraph;
 }
 
-SimpleGraph SimpleGraph::getSubgraph(SimpleVertex rootId,
-                                     const eval::Mask::Ptr& mask) const {
-  return dijkstraTraverseToDepth(rootId, 0.0,
-                                 eval::Weight::Const::MakeShared(0), mask);
+SimpleGraph SimpleGraph::getSubgraph(VertexId root_id,
+                                     const eval::mask::Ptr& mask) const {
+  return dijkstraTraverseToDepth(
+      root_id, 0.0, std::make_shared<eval::weight::ConstEval>(1, 1), mask);
 }
 
-SimpleGraph SimpleGraph::getSubgraph(SimpleVertex rootId, double maxDepth,
-                                     const eval::Mask::Ptr& mask) const {
-  return dijkstraTraverseToDepth(rootId, maxDepth,
-                                 eval::Weight::Const::MakeShared(0), mask);
+SimpleGraph SimpleGraph::getSubgraph(VertexId root_id, double max_depth,
+                                     const eval::mask::Ptr& mask) const {
+  return dijkstraTraverseToDepth(
+      root_id, max_depth, std::make_shared<eval::weight::ConstEval>(1, 1),
+      mask);
 }
 
 SimpleGraph& SimpleGraph::operator+=(const SimpleGraph& other) {
-  for (auto&& it : other.nodeMap_) {
+  for (auto&& it : other.node_map_) {
     // Add a new node, or retreive the existing one from $this
-    auto node = nodeMap_.emplace(it.first, SimpleNode(it.first)).first;
+    auto node = node_map_.emplace(it.first, SimpleNode(it.first)).first;
     auto adj = node->second.getAdjacent();
 
     // For all neighbours of the node in the other graph...
@@ -321,12 +277,12 @@ SimpleGraph& SimpleGraph::operator+=(const SimpleGraph& other) {
       // If $node was not adjacent to $neighbour in $this, and $neighbour is
       // currently in $this...
       if (std::find(adj.begin(), adj.end(), neighbour) == adj.end() &&
-          nodeMap_.find(neighbour) != nodeMap_.end()) {
+          node_map_.find(neighbour) != node_map_.end()) {
         // Update the adjacency list of each node, and push the edge onto the
         // edge list
-        nodeMap_[neighbour].addAdjacent(it.first);
+        node_map_[neighbour].addAdjacent(it.first);
         node->second.addAdjacent(neighbour);
-        edges_.push_back(SimpleGraph::getEdge(it.first, neighbour));
+        edges_.push_back(EdgeId(it.first, neighbour));
       }
       // If the neighbour was found, then the edge existed in both graphs
       // If $neighbour was not in the node map, then it must be in $other, and
@@ -338,27 +294,26 @@ SimpleGraph& SimpleGraph::operator+=(const SimpleGraph& other) {
 }
 
 SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
-    SimpleVertex rootId, double maxDepth, const eval::Weight::Ptr& weights,
-    const eval::Mask::Ptr& mask) const {
+    VertexId root_id, double max_depth, const eval::weight::Ptr& weights,
+    const eval::mask::Ptr& mask) const {
   // Initialized result
-  SimpleGraph bft;
+  SimpleGraph subgraph;
 
   // Check that root exists
-  auto rootIter = nodeMap_.find(rootId);
-  if (rootIter == nodeMap_.end()) {
-    throw std::invalid_argument(
-        "[SimpleGraph][dijkstraTraverseToDepth] root does not exist!");
+  auto rootIter = node_map_.find(root_id);
+  if (rootIter == node_map_.end()) {
+    CLOG(ERROR, "pose_graph") << "Root node did not exist in graph.";
+    throw std::invalid_argument("Root node did not exist in graph.");
   }
 
   // Check valid depth input
-  if (maxDepth < 0.0) {
-    throw std::invalid_argument(
-        "[SimpleGraph][dijkstraTraverseToDepth] maxDepth must be greater "
-        "than zero, or 0.0 to indicate infinite depth.");
+  if (max_depth < 0.0) {
+    CLOG(ERROR, "pose_graph") << "max_depth must >=0 with 0 meaning no limit";
+    throw std::invalid_argument("max_depth must >=0 with 0 meaning no limit.");
   }
 
   // Distance to each node (also tracks who has been visited)
-  std::unordered_map<SimpleVertex, double> nodeDepths;
+  std::unordered_map<VertexId, double> nodeDepths;
 
   // Parent of each node (nodeId/parentId)
   BacktraceMap nodeParents;
@@ -366,10 +321,10 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
   // Init search queue
   // * Note this is stored in <depth, <nodeId,parentId> > so that we can
   //   sort and process minimum depth first
-  using DepthNodeParent =
-      std::pair<double, std::pair<SimpleVertex, SimpleVertex> >;
+  using DepthNodeParent = std::pair<double, std::pair<VertexId, VertexId>>;
   std::list<DepthNodeParent> searchQueue;
-  searchQueue.push_back(std::make_pair(0.0, std::make_pair(rootId, -1)));
+  searchQueue.push_back(
+      std::make_pair(0.0, std::make_pair(root_id, VertexId::Invalid())));
 
   // Until our search queue is empty
   while (!searchQueue.empty()) {
@@ -379,14 +334,16 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
 
     // Get current node depth, id and reference
     double currNodeDepth = currDepthNodeParent.first;
-    SimpleVertex currNodeId = currDepthNodeParent.second.first;
-    SimpleVertex currNodeParentId = currDepthNodeParent.second.second;
-    const SimpleNode& currNode = nodeMap_.at(currNodeId);
+    VertexId currNodeId = currDepthNodeParent.second.first;
+    VertexId currNodeParentId = currDepthNodeParent.second.second;
+    const SimpleNode& currNode = node_map_.at(currNodeId);
 
     // We can add the edge without further checks, as we can't ever reach the
     // same node twice from the same parent
-    if (currNodeParentId != SimpleVertex(-1)) {
-      bft.addEdge(SimpleGraph::getEdge(currNodeId, currNodeParentId));
+    if (currNodeParentId != VertexId::Invalid()) {
+      subgraph.addEdge(EdgeId(currNodeId, currNodeParentId));
+    } else if (mask->operator[](currNodeId)) {
+      subgraph.addVertex(currNodeId);  /// special case for the root vertex
     }
 
     // This shouldn't be necessary, as we don't add masked out vertices to the
@@ -403,8 +360,8 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
       // Double check that recorded depth is indeed less than or equal to
       // proposed depth
       if ((*depthPair.first).second > currNodeDepth) {
-        throw std::runtime_error(
-            "[SimpleGraph][dijkstraTraverseToDepth] found a shorter path...");
+        CLOG(ERROR, "pose_graph") << "found a shorter path...";
+        throw std::runtime_error("found a shorter path...");
       }
       continue;
     }
@@ -417,10 +374,10 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
     for (auto adjIter = currNode.getAdjacent().begin();
          adjIter != currNode.getAdjacent().end(); ++adjIter) {
       // Get child id
-      SimpleVertex childId = *adjIter;
+      VertexId childId = *adjIter;
 
       // Make edge
-      SimpleEdge currEdge = SimpleGraph::getEdge(currNode.getId(), childId);
+      EdgeId currEdge(currNode.getId(), childId);
 
       if (!mask->operator[](currEdge) || !mask->operator[](childId)) continue;
 
@@ -436,14 +393,14 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
         // Double check that recorded depth is indeed less than or equal to
         // proposed depth
         if (childDepthIter->second > newChildDepth) {
-          throw std::runtime_error(
-              "[SimpleGraph][dijkstraTraverseToDepth] found a shorter path...");
+          CLOG(ERROR, "pose_graph") << "found a shorter path...";
+          throw std::runtime_error("found a shorter path...");
         }
         continue;
       }
 
       // If visiting node is less than max depth, add to queue and add to graph
-      if (maxDepth == 0.0 || newChildDepth <= maxDepth) {
+      if (max_depth == 0.0 || newChildDepth <= max_depth) {
         searchQueue.push_back(
             std::make_pair(newChildDepth, std::make_pair(childId, currNodeId)));
       }
@@ -454,40 +411,39 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
     searchQueue.sort();
   }
 
-  return bft;
+  return subgraph;
 }
 
-SimpleGraph SimpleGraph::dijkstraSearch(SimpleVertex rootId,
-                                        SimpleVertex searchId,
-                                        const eval::Weight::Ptr& weights,
-                                        const eval::Mask::Ptr& mask) const {
-  VertexVec searchIds;
-  searchIds.push_back(searchId);
-  return this->dijkstraMultiSearch(rootId, searchIds, weights, mask);
+SimpleGraph SimpleGraph::dijkstraSearch(VertexId root_id, VertexId search_id,
+                                        const eval::weight::Ptr& weights,
+                                        const eval::mask::Ptr& mask) const {
+  VertexVec search_ids;
+  search_ids.push_back(search_id);
+  return this->dijkstraMultiSearch(root_id, search_ids, weights, mask);
 }
 
 SimpleGraph SimpleGraph::dijkstraMultiSearch(
-    SimpleVertex rootId, const VertexVec& searchIds,
-    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
+    VertexId root_id, const VertexVec& search_ids,
+    const eval::weight::Ptr& weights, const eval::mask::Ptr& mask) const {
   // Check that root exists
-  NodeMap::const_iterator rootIter = nodeMap_.find(rootId);
-  if (rootIter == nodeMap_.end()) {
-    throw std::invalid_argument(
-        "[SimpleGraph][dijkstraMultiSearch] root does not exist!");
+  NodeMap::const_iterator rootIter = node_map_.find(root_id);
+  if (rootIter == node_map_.end()) {
+    CLOG(ERROR, "pose_graph") << "Root node did not exist in graph.";
+    throw std::invalid_argument("Root node did not exist in graph.");
   }
 
   // Check valid search input
-  if (searchIds.size() == 0) {
-    throw std::invalid_argument(
-        "[SimpleGraph][dijkstraMultiSearch] searchIds is size zero.");
+  if (search_ids.size() == 0) {
+    CLOG(ERROR, "pose_graph") << "Root node did not exist in graph.";
+    throw std::invalid_argument("search_ids size is zero.");
   }
 
   // Init search size variables
-  unsigned long numSearches = searchIds.size();
+  unsigned long numSearches = search_ids.size();
   unsigned long numFound = 0;
 
   // Distance to each node (also tracks who has been visited)
-  std::unordered_map<SimpleVertex, double> nodeDepths;
+  std::unordered_map<VertexId, double> nodeDepths;
 
   // Parent of each node (nodeId/parentId)
   BacktraceMap nodeParents;
@@ -495,10 +451,10 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
   // Init search queue
   // * Note this is stored in <depth, <nodeId,parentId> > so that we can
   //   sort and process minimum depth first
-  using DepthNodeParent =
-      std::pair<double, std::pair<SimpleVertex, SimpleVertex> >;
+  using DepthNodeParent = std::pair<double, std::pair<VertexId, VertexId>>;
   std::list<DepthNodeParent> searchQueue;
-  searchQueue.push_back(std::make_pair(0.0, std::make_pair(rootId, -1)));
+  searchQueue.push_back(
+      std::make_pair(0.0, std::make_pair(root_id, VertexId::Invalid())));
 
   // Until our search queue is empty
   while (!searchQueue.empty() && numFound < numSearches) {
@@ -508,9 +464,9 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
 
     // Get current node depth, id and reference
     double currNodeDepth = currDepthNodeParent.first;
-    SimpleVertex currNodeId = currDepthNodeParent.second.first;
-    SimpleVertex currNodeParentId = currDepthNodeParent.second.second;
-    const SimpleNode& currNode = nodeMap_.at(currNodeId);
+    VertexId currNodeId = currDepthNodeParent.second.first;
+    VertexId currNodeParentId = currDepthNodeParent.second.second;
+    const SimpleNode& currNode = node_map_.at(currNodeId);
 
     // This shouldn't be necessary, as we don't add masked out vertices to the
     // queue, but check in case
@@ -526,8 +482,8 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
       // Double check that recorded depth is indeed less than or equal to
       // proposed depth
       if ((*depthPair.first).second > currNodeDepth) {
-        throw std::runtime_error(
-            "[SimpleGraph][dijkstraMultiSearch] found a shorter path...");
+        CLOG(ERROR, "pose_graph") << "found a shorter path...";
+        throw std::runtime_error("found a shorter path...");
       }
       continue;
     }
@@ -538,8 +494,8 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
 
     // Check if current node is one we are searching for
     auto foundSearchIter =
-        std::find(searchIds.begin(), searchIds.end(), currNodeId);
-    if (foundSearchIter != searchIds.end()) {
+        std::find(search_ids.begin(), search_ids.end(), currNodeId);
+    if (foundSearchIter != search_ids.end()) {
       // Note we only visit each node once, so we do not need to record which
       // one we found...
       numFound++;
@@ -549,10 +505,10 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
     for (auto adjIter = currNode.getAdjacent().begin();
          adjIter != currNode.getAdjacent().end(); ++adjIter) {
       // Get child id
-      SimpleVertex childId = *adjIter;
+      VertexId childId = *adjIter;
 
       // Make edge
-      SimpleEdge currEdge = SimpleGraph::getEdge(currNodeId, childId);
+      EdgeId currEdge(currNodeId, childId);
 
       if (!mask->operator[](currEdge) || !mask->operator[](childId)) continue;
 
@@ -568,8 +524,8 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
         // Double check that recorded depth is indeed less than or equal to
         // proposed depth
         if (childDepthIter->second > newChildDepth) {
-          throw std::runtime_error(
-              "[SimpleGraph][dijkstraMultiSearch] found a shorter path...");
+          CLOG(ERROR, "pose_graph") << "found a shorter path...";
+          throw std::runtime_error("found a shorter path...");
         }
         continue;
       }
@@ -591,9 +547,9 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
   }
 
   // Get unique list of edges
-  std::list<SimpleEdge> edges;
-  for (unsigned int i = 0; i < searchIds.size(); i++) {
-    SimpleVertex nodeId = searchIds[i];
+  std::list<EdgeId> edges;
+  for (unsigned int i = 0; i < search_ids.size(); i++) {
+    VertexId nodeId = search_ids[i];
     backtraceEdgesToRoot(nodeParents, nodeId, &edges);
   }
   edges.sort();
@@ -602,29 +558,30 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
   return SimpleGraph(edges);
 }
 
-SimpleGraph SimpleGraph::breadthFirstTraversal(SimpleVertex rootId,
-                                               double maxDepth) const {
-  return this->dijkstraTraverseToDepth(rootId, maxDepth);
+SimpleGraph SimpleGraph::breadthFirstTraversal(VertexId root_id,
+                                               double max_depth) const {
+  return this->dijkstraTraverseToDepth(root_id, max_depth);
 }
 
 SimpleGraph SimpleGraph::breadthFirstTraversal(
-    SimpleVertex rootId, double maxDepth, const eval::Mask::Ptr& mask) const {
+    VertexId root_id, double max_depth, const eval::mask::Ptr& mask) const {
   return this->dijkstraTraverseToDepth(
-      rootId, maxDepth, eval::Weight::Const::MakeShared(0), mask);
+      root_id, max_depth, std::make_shared<eval::weight::ConstEval>(1, 1),
+      mask);
 }
 
-SimpleGraph SimpleGraph::breadthFirstSearch(SimpleVertex rootId,
-                                            SimpleVertex searchId) const {
-  return this->dijkstraSearch(rootId, searchId);
+SimpleGraph SimpleGraph::breadthFirstSearch(VertexId root_id,
+                                            VertexId search_id) const {
+  return this->dijkstraSearch(root_id, search_id);
 }
 
 SimpleGraph SimpleGraph::breadthFirstMultiSearch(
-    SimpleVertex rootId, const VertexVec& searchIds) const {
-  return this->dijkstraMultiSearch(rootId, searchIds);
+    VertexId root_id, const VertexVec& search_ids) const {
+  return this->dijkstraMultiSearch(root_id, search_ids);
 }
 
 SimpleGraph SimpleGraph::getMinimalSpanningTree(
-    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
+    const eval::weight::Ptr& weights, const eval::mask::Ptr& mask) const {
   // Get weighted edges
   std::vector<kruskal::WeightedEdge> weightedEdges;
   weightedEdges.reserve(edges_.size());
@@ -637,9 +594,10 @@ SimpleGraph SimpleGraph::getMinimalSpanningTree(
             kruskal::WeightedEdge(*it, weights->operator[](*it)));
       }
     } catch (std::exception& e) {
+      CLOG(ERROR, "pose_graph")
+          << "edge did not exist/could not be computed in weight/mask map";
       throw std::invalid_argument(
-          "[SimpleGraph][getMST] edge did not exist/could not be computed in "
-          "weight/mask map");
+          "edge did not exist/could not be computed in weight/mask map");
     }
   }
 
@@ -651,25 +609,25 @@ SimpleGraph SimpleGraph::getMinimalSpanningTree(
 
   // Allocate memory for creating V subsets
   // Note the algorithm is already linear in the number of edges
-  std::unordered_map<SimpleVertex, kruskal::UnionFindSubset> subsetMap;
-  for (NodeMap::const_iterator nodeIter = nodeMap_.begin();
-       nodeIter != nodeMap_.end(); ++nodeIter) {
+  std::unordered_map<VertexId, kruskal::UnionFindSubset> subsetMap;
+  for (NodeMap::const_iterator nodeIter = node_map_.begin();
+       nodeIter != node_map_.end(); ++nodeIter) {
     if (mask->operator[](nodeIter->first)) {
       subsetMap[nodeIter->second.getId()].parent = nodeIter->second.getId();
-      subsetMap[nodeIter->second.getId()].rank = 0;
+      subsetMap[nodeIter->second.getId()].rank = VertexId(0, 0);
     }
   }
 
   // Number of edges to be taken is equal to  nodes-1
   unsigned int numOfMstEdges = 0;
   int proposedIndex = 0;
-  while (numOfMstEdges < nodeMap_.size() - 1) {
+  while (numOfMstEdges < node_map_.size() - 1) {
     // Iterate through the edges (smallest weight first)
     const kruskal::WeightedEdge& proposedEdge = weightedEdges[proposedIndex++];
 
     // Find the subsets belonging to the adjacent nodes
-    SimpleVertex x = kruskal::find(&subsetMap, proposedEdge.edge.first);
-    SimpleVertex y = kruskal::find(&subsetMap, proposedEdge.edge.second);
+    VertexId x = kruskal::find(&subsetMap, proposedEdge.edge.id1());
+    VertexId y = kruskal::find(&subsetMap, proposedEdge.edge.id2());
 
     // If including this edge does't cause cycle, include it
     // in result and increment the index of result for next edge
@@ -687,37 +645,30 @@ SimpleGraph SimpleGraph::getMinimalSpanningTree(
 }
 
 void SimpleGraph::print() const {
-  std::cout << "Nodes: ";
-  for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end();
+  std::stringstream ss;
+  ss << std::endl;
+  ss << "Nodes: ";
+  for (NodeMap::const_iterator it = node_map_.begin(); it != node_map_.end();
        ++it)
-    std::cout << it->second.getId() << " ";
-  std::cout << std::endl;
+    ss << it->second.getId() << " ";
+  ss << std::endl;
 
-  std::cout << "Edges: ";
+  ss << "Edges: ";
   // Sort for print - cleaner
-  std::list<SimpleEdge> sorted = edges_;
+  std::list<EdgeId> sorted = edges_;
   sorted.sort();
-  for (std::list<SimpleEdge>::const_iterator it = sorted.begin();
+  for (std::list<EdgeId>::const_iterator it = sorted.begin();
        it != sorted.end(); ++it)
-    std::cout << "(" << it->first << "," << it->second << ") ";
-  std::cout << std::endl;
-}
-
-SimpleEdge SimpleGraph::getEdge(SimpleVertex id1, SimpleVertex id2) {
-  if (id1 < id2)
-    return std::make_pair(id1, id2);
-  else if (id2 < id1)
-    return std::make_pair(id2, id1);
-  else
-    throw std::invalid_argument("[SimpleGraph][order] ids were equal");
+    ss << *it << " ";
+  CLOG(INFO, "pose_graph") << ss.str();
 }
 
 void SimpleGraph::backtraceEdgesToRoot(const BacktraceMap& nodeParents,
-                                       SimpleVertex node,
-                                       std::list<SimpleEdge>* edges) {
-  SimpleVertex parent = nodeParents.at(node);
-  if (parent != SimpleVertex(-1)) {
-    edges->push_back(SimpleGraph::getEdge(parent, node));
+                                       VertexId node,
+                                       std::list<EdgeId>* edges) {
+  VertexId parent = nodeParents.at(node);
+  if (parent != VertexId::Invalid()) {
+    edges->push_back(EdgeId(parent, node));
     backtraceEdgesToRoot(nodeParents, parent, edges);
   }
 }

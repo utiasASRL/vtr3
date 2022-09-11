@@ -19,11 +19,11 @@ To create a new pipeline: (TODO: this section is obsolete)
 
 A module is a processing unit that should be created and called from a pipeline.
 
-To create a new module: (TODO: this section is obsolete)
+Suppose that you want to create a new module for the lidar pipeline
 
-- add new header and implementation files in [include](./include/vtr_tactic/modules) and [src](./src/modules).
-- use the [TemplateModule](./include/vtr_tactic/modules/template_module.hpp) as a starting point to create the class of your module and put it inside the corresponding namespace, e.g. lidar, stereo.
-- customize your module to do the work following the instructions in [TemplateModule](./include/vtr_tactic/modules/template_module.hpp).
-- add the header file to [modules.hpp](./include/vtr_tactic/modules/modules.hpp).
-- append the module class to the `type_switch_` container in `ModuleFactory` class in [module_factory.hpp](./include/vtr_tactic/modules/module_factory.hpp).
-- create unit tests for your module.
+- Use the [TemplateModule](./include/vtr_tactic/modules/template_module.hpp) as a starting point to create the class of your module and put it inside the corresponding namespace, i.e. lidar.
+- Copy [TemplateModule](./include/vtr_tactic/modules/template_module.hpp) header into the desired directory and rename it: `vtr_lidar/include/modules/<module name>.hpp`. Also create its implementation file (`<module name>.cpp`) in the respective directory: `vtr_lidar/src/modules/<module name>.cpp`
+- Change function templates in the copied TemplateModule.
+- Add directory of the header file to `vtr_lidar/include/modules/modules.hpp` for convenience.
+- Register the new module in lidar pipline `vtr_lidar/src/pipeline.cpp: LidarPipeline::addModules()`.
+- If possible, create unit-tests for your module. Greatly appreciated.

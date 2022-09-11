@@ -14,18 +14,16 @@
 
 /**
  * \file base_io_interface.cpp
- * \brief
- * \details
+ * \brief BaseIOInterface global variable definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_storage/storage/base_io_interface.hpp"
 
 namespace vtr {
 namespace storage {
-namespace storage_interfaces {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -45,6 +43,5 @@ namespace storage_interfaces {
 const uint64_t MAX_BAGFILE_SIZE_NO_SPLIT = 0;
 // clang-format on
 
-}  // namespace storage_interfaces
 }  // namespace storage
 }  // namespace vtr

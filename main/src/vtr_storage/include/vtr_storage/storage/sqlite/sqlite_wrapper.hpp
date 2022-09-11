@@ -14,10 +14,9 @@
 
 /**
  * \file sqlite_wrapper.hpp
- * \brief
- * \details
+ * \brief SqliteWrapper class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -28,15 +27,15 @@
 #include <vector>
 
 #include "rcutils/types.h"
-#include "vtr_storage/serialized_bag_message.hpp"
+#include "vtr_storage/storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/base_io_interface.hpp"
 #include "vtr_storage/storage/sqlite/sqlite_statement_wrapper.hpp"
 
 namespace vtr {
 namespace storage {
-namespace sqlite_storage {
+namespace sqlite {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -59,7 +58,7 @@ using DBPtr = sqlite3 *;
 class SqliteWrapper
 {
 public:
-  SqliteWrapper(const std::string & uri, storage_interfaces::IOFlag io_flag);
+  SqliteWrapper(const std::string & uri, IOFlag io_flag);
   SqliteWrapper();
   ~SqliteWrapper();
 
@@ -75,6 +74,6 @@ private:
 
 // clang-format on
 
-}  // namespace sqlite_storage
+}  // namespace sqlite
 }  // namespace storage
 }  // namespace vtr

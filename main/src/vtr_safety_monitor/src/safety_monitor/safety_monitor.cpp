@@ -14,10 +14,7 @@
 
 /**
  * \file safety_monitor.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_safety_monitor/safety_monitor/safety_monitor.hpp>
 
@@ -49,8 +46,6 @@ std::unique_ptr<BaseMonitor> SafetyMonitor::createMonitor(
     const std::string &name) {
   if (name == "deadman_monitor")
     return std::make_unique<DeadmanMonitor>(node_);
-  else if (name == "heartbeat_monitor")
-    return std::make_unique<HeartbeatMonitor>(node_);
   else {
     std::string err{"Cannot find the specified monitor: " + name};
     CLOG(DEBUG, "safety_monitor") << err;
@@ -61,10 +56,10 @@ std::unique_ptr<BaseMonitor> SafetyMonitor::createMonitor(
 
 void SafetyMonitor::getSafetyStatus() {
   // Initialize values
-  int desired_action = CONTINUE;
+  Action desired_action = Action::Continue;
   double speed_limit = absolute_max_speed_;
   std::vector<std::string> limiting_signal_monitor_names;
-  std::vector<int> limiting_signal_monitor_actions;
+  std::vector<Action> limiting_signal_monitor_actions;
 
   // Go through all monitors and signals to determine highest priority behavior
   // and speed limit
@@ -76,7 +71,7 @@ void SafetyMonitor::getSafetyStatus() {
   // Log
   // clang-format off
   CLOG(INFO, "safety_monitor") << "=== Safety Status Update ===";
-  CLOG(INFO, "safety_monitor") << "Desired action: " << ACTION_STRINGS[desired_action];
+  CLOG(INFO, "safety_monitor") << "Desired action: " << desired_action;
   CLOG(INFO, "safety_monitor") << "Safety layer speed limit: " << speed_limit;
   CLOG(INFO, "safety_monitor") << "Limiting signal monitor names: " << limiting_signal_monitor_names;
   CLOG(INFO, "safety_monitor") << "Limiting signal monitor actions: " << limiting_signal_monitor_actions;
@@ -92,7 +87,7 @@ void SafetyMonitor::getSafetyStatus() {
 void SafetyMonitor::processCommand(const TwistMsg::SharedPtr msg) {
   std::lock_guard<std::mutex> lock(status_mutex_);
   /// \todo also check speed_limit_
-  if (desired_action_ == CONTINUE) {
+  if (desired_action_ == Action::Continue) {
     command_pub_->publish(*msg);
   }
 }

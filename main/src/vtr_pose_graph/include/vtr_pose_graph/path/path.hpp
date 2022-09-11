@@ -14,158 +14,106 @@
 
 /**
  * \file path.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator/accumulators.hpp>
-#include <vtr_pose_graph/index/graph.hpp>
-#include <vtr_pose_graph/path/path_iterator.hpp>
+#include "vtr_pose_graph/index/graph.hpp"
+#include "vtr_pose_graph/path/accumulators.hpp"
+#include "vtr_pose_graph/path/path_iterator.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
-template <class G, class TF = typename G::EdgeType::TransformType>
+template <class GraphT>
 class Path {
  public:
+  PTR_TYPEDEFS(Path);
   // Graph typedefs
-  using GraphType = G;
-  using GraphPtr = typename G::Ptr;
-  using VertexIdType = typename G::VertexIdType;
-  using SequenceType = typename VertexIdType::Vector;
-  using tf_t = TF;
-
+  using GraphType = GraphT;
+  using Sequence = typename VertexId::Vector;
   // an iterator to this path
   using Iterator = PathIterator<Path>;
+  // thread safety
+  using Mutex = std::recursive_mutex;
+  using UniqueLock = std::unique_lock<Mutex>;
+  using LockGuard = std::lock_guard<Mutex>;
 
-  // shared pointer type definitions for this class
-  PTR_TYPEDEFS(Path)
+  Path(const typename GraphT::Ptr& graph) : graph_(graph) {}
 
-  Path(const GraphPtr& graph) : graph_(graph){};
-  Path(const Path&) = default;
-  Path(Path&&) = default;
+ public:
+  /** \brief Sequence setters */
+  void setSequence(const Sequence& s);
+  void setSequence(Sequence&& s);
 
-  Path& operator=(const Path&) = default;
-  Path& operator=(Path&&) = default;
-
-  // Sequence getters
-  SequenceType& sequence() { return sequence_; }
-  const SequenceType& sequence() const { return sequence_; }
-
-  // Sequence setters
-  void setSequence(SequenceType&& s) {
-    sequence_ = s;
-    initSequence();
-  }
-  void setSequence(const SequenceType& s) {
-    sequence_ = s;
-    initSequence();
-  }
-  void appendSequence(const SequenceType& s) {
-    sequence_.insert(sequence_.end(), s.begin(), s.end());
-  }
-
-  virtual inline Path& reverse() {
-    std::reverse(sequence_.begin(), sequence_.end());
-    initSequence();
-    return *this;
-  }
-
-  inline Path reversed() const {
-    Path rval(*this);
-    rval.reverse();
-    return rval;
-  }
-
-  /// Verification (not verified on set for performance)
+  /** \brief Verification (not verified on set for performance) */
   bool verifySequence();
 
-  /// An iterator to the start of the path (or a specified id along the path)
-  Iterator begin(unsigned seq_id = 0) const {
-    if (seq_id >= sequence_.size()) {
-      return end();
-    }
-    return Iterator(this, seq_id);
-  }
-
-  /// An iterator to the end of the path (beyond the last vertex)
-  Iterator end() const { return Iterator(this, sequence_.end()); }
-
-  bool append(const VertexId& v);
-
-  /// Get a graph reference
-  const G& graph() const { return *graph_; }
-
-  /// Display vertices in the path
-  friend std::ostream& operator<<(std::ostream& os, const Path& me) {
-    for (auto s = me.begin(); s != me.end(); ++s) os << s << " ";
-    return os;
-  }
-
-  /// Put the entire sequence in a single privileged integrated frame
-  void expand() { expand(sequence_.size() - 1); }
-  /// Put the sequence up to this id into a single privileged frame
+  /** \brief Put the entire sequence in a single privileged integrated frame */
+  void expand();
+  /** \brief Put the sequence up to this id into a single privileged frame */
   void expand(unsigned seq_id);
 
-  /// Get the pose at a sequence index
-  const tf_t& pose(unsigned seq_id) const;
-  /// Get the pose at an iterator position
-  inline const tf_t& pose(const Iterator& it) const {
-    return pose(unsigned(it));
-  }
-  // This should not be called with a vertex id, which implicitly casts to
-  // unsigned :(
-  const tf_t& pose(VertexIdType vtx_id) const = delete;
+  /** \brief Get the pose at a sequence index */
+  EdgeTransform pose(unsigned seq_id) const;
+  /** \brief Get the pose at an iterator position */
+  EdgeTransform pose(const Iterator& it) const { return pose(unsigned(it)); }
+  /** \brief Vertex id implicitly converts to unsigned */
+  EdgeTransform pose(VertexId vtx_id) const = delete;
 
-  const VertexIdType& endVertexID() const { return sequence_.back(); }
+  /** \brief Gets the cumu. distance along the path at a sequence index */
+  double dist(unsigned seq_id) const;
+  /** \brief Gets the cumu. distance along the path at an iterator position */
+  double dist(const Iterator& it) const { return dist(unsigned(it)); }
+  /** \brief Vertex id implicitly converts to unsigned */
+  double dist(VertexId vtx_id) const = delete;
 
-  /// Total length of the path
-  inline const double& length() const { return dist(sequence_.size() - 1); }
-  /// Total number of poses in the sequence
-  inline size_t size() const { return sequence_.size(); }
+  /** \brief Returns the current sequence */
+  Sequence sequence() const;
+  /** \brief Total number of poses in the sequence */
+  size_t size() const;
+  /** \brief Total length of the path */
+  double length() const;
 
-  /// Get the cumulative distance along the path at a sequence index
-  const double& dist(unsigned seq_id) const;
-  /// Get the cumulative distance along the path at an iterator position
-  inline const double& dist(const Iterator& it) const {
-    return dist(unsigned(it));
-  }
-  // This should not be called with a vertex id, which implicitly casts to
-  // unsigned :(
-  const double& dist(VertexIdType vtx_id) const = delete;
+  /** \brief Acquires a lock object that blocks modifications. */
+  UniqueLock guard() const { return UniqueLock(mutex_); }
 
  protected:
-  virtual void initSequence() {
-    poses_.clear();
-    poses_.reserve(sequence_.size());
+  virtual void initSequence();
 
-    distances_.clear();
-    distances_.reserve(sequence_.size());
-    /// \todo move this to 'dist' function
-    if (sequence_.size() > 0) distances_.push_back(0.);
-  }
+  /** \brief An iterator to a specified id along the path */
+  Iterator begin(const unsigned& seq_id = 0) const;
+  /** \brief An iterator to the end of the path (beyond the last vertex) */
+  Iterator end() const;
 
-  GraphPtr graph_;
-  SequenceType sequence_;
-  mutable std::vector<tf_t> poses_;
+  typename GraphT::Ptr graph_;
+  Sequence sequence_;
+  mutable std::vector<EdgeTransform> poses_;
   mutable std::vector<double> distances_;
+
+  /** \brief for thread safety, use whenever read from/write to the path */
+  mutable Mutex mutex_;
+
+  friend class PathIterator<Path>;
 };
 
-template <class G, class TF>
-bool Path<G, TF>::append(const VertexId& v) {
-  if (!graph_->contains(v) || !graph_->contains(sequence_.back(), v)) {
-    return false;
-  }
-
-  sequence_.push_back(v);
-  return true;
+template <class GraphT>
+void Path<GraphT>::setSequence(const Sequence& s) {
+  LockGuard lock(mutex_);
+  sequence_ = s;
+  initSequence();
 }
 
-template <class G, class TF>
-bool Path<G, TF>::verifySequence() {
+template <class GraphT>
+void Path<GraphT>::setSequence(Sequence&& s) {
+  LockGuard lock(mutex_);
+  sequence_ = std::move(s);
+  initSequence();
+}
+
+template <class GraphT>
+bool Path<GraphT>::verifySequence() {
+  LockGuard lock(mutex_);
   // An empty sequence is fine
   if (sequence_.empty()) return true;
   // Make sure the first vertex was found OK.
@@ -173,15 +121,25 @@ bool Path<G, TF>::verifySequence() {
   if (!graph_->contains(it->to())) return false;
   for (++it; it != end(); ++it) {
     // Make sure the edge was found OK.
-    if (!graph_->contains(it->to(), it->from())) return false;
+    if (!graph_->contains(EdgeId(it->to(), it->from()))) return false;
   }
   return true;
 }
 
-template <class G, class TF>
-void Path<G, TF>::expand(unsigned seq_id) {
-  if (seq_id >= sequence_.size())
-    throw std::range_error("[Path][expand] id out of range.");
+template <class GraphT>
+void Path<GraphT>::expand() {
+  LockGuard lock(mutex_);
+  expand(sequence_.size() - 1);
+}
+
+template <class GraphT>
+void Path<GraphT>::expand(unsigned seq_id) {
+  LockGuard lock(mutex_);
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][expand] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
   // We've already done up to this point
   if (seq_id < poses_.size()) return;
   // Initialize if it's the first pose
@@ -196,27 +154,81 @@ void Path<G, TF>::expand(unsigned seq_id) {
   }
 }
 
-template <class G, class TF>
-auto Path<G, TF>::pose(unsigned seq_id) const -> const tf_t& {
-  if (seq_id >= sequence_.size())
-    throw std::range_error("[Path][pose] id out of range.");
-  const_cast<Path<G>*>(this)->expand(seq_id);  // Cheating so we can JIT expand
+template <class GraphT>
+EdgeTransform Path<GraphT>::pose(unsigned seq_id) const {
+  LockGuard lock(mutex_);
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][pose] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
+  // cheating so we can JIT expand
+  const_cast<Path<GraphT>*>(this)->expand(seq_id);
   return poses_[seq_id];
 }
 
-template <class G, class TF>
-auto Path<G, TF>::dist(unsigned seq_id) const -> const double& {
-  if (seq_id >= sequence_.size())
-    throw std::range_error("[Path][dist] id out of range.");
+template <class GraphT>
+double Path<GraphT>::dist(unsigned seq_id) const {
+  LockGuard lock(mutex_);
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][dist] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
+  // We've already done up to this point
+  if (seq_id < distances_.size()) return distances_[seq_id];
 
-  if (seq_id >= distances_.size()) {
-    for (auto it = begin(distances_.size()); unsigned(it) <= seq_id; ++it) {
-      const_cast<Path<G>*>(this)->distances_.push_back(
-          distances_.back() + it->T().r_ab_inb().norm());
-    }
+  // expand on demand
+  auto it = begin(distances_.size());
+  if (distances_.empty()) {
+    distances_.emplace_back(0.);
+    ++it;
+  }
+  for (; unsigned(it) <= seq_id; ++it) {
+    const_cast<Path<GraphT>*>(this)->distances_.push_back(
+        distances_.back() + it->T().r_ab_inb().norm());
   }
 
   return distances_[seq_id];
+}
+
+template <class GraphT>
+auto Path<GraphT>::sequence() const -> Sequence {
+  LockGuard lock(mutex_);
+  return sequence_;
+}
+
+template <class GraphT>
+size_t Path<GraphT>::size() const {
+  LockGuard lock(mutex_);
+  return sequence_.size();
+}
+
+template <class GraphT>
+double Path<GraphT>::length() const {
+  LockGuard lock(mutex_);
+  return dist(sequence_.size() - 1);
+}
+
+template <class GraphT>
+void Path<GraphT>::initSequence() {
+  poses_.clear();
+  poses_.reserve(sequence_.size());
+  distances_.clear();
+  distances_.reserve(sequence_.size());
+}
+
+/** \brief An iterator to a specified id along the path */
+template <class GraphT>
+auto Path<GraphT>::begin(const unsigned& seq_id) const -> Iterator {
+  if (seq_id >= sequence_.size()) return end();
+  return Iterator(this, seq_id);
+}
+
+/** \brief An iterator to the end of the path (beyond the last vertex) */
+template <class GraphT>
+auto Path<GraphT>::end() const -> Iterator {
+  return Iterator(this, sequence_.end());
 }
 
 using BasicPathBase = Path<BasicGraphBase>;
