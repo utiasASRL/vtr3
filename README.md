@@ -1,5 +1,8 @@
 # Visual Teach &amp; Repeat 3 (VT&amp;R3)
 
+## Update (2022-02-24)
+For code related to [Are We Ready for Radar to Replace Lidar in All-Weather Mapping and Localization?](https://arxiv.org/abs/2203.10174) (Keenan Burnett, Yuchen Wu, David J. Yoon, Angela P. Schoellig, Timothy D. Barfoot, 2022), please see the `radar_lidar_dev` branch. Code related to lidar teach and repeat is located under `main/src/vtr_lidar` and code related to radar teach and repeat is located under `main/src/vtr_radar`. We are working on merging this code into the `main` branch.
+
 ## What is VT&amp;R3?
 
 VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then accurately repeat any network portion. VT&amp;R3 is designed for easy adaptation to various sensor (camera/LiDAR/RaDAR/GPS) and robot combinations. The current implementation includes a feature-based visual odometry and localization pipeline that estimates the robot's motion from stereo camera images and a point-cloud-based odometry and localization pipeline for LiDAR sensors.
@@ -41,5 +44,14 @@ Please cite the [following paper](https://onlinelibrary.wiley.com/doi/full/10.10
     doi={10.1109/IROS.2016.7759303}
   }
   ```
+ - [Lidar, Radar Teach and Repeat](https://arxiv.org/abs/2203.10174)
+    ```bibtex
+      @article{burnett_radar22,
+      author = {Burnett, Keenan and Wu, Yuchen and Yoon, David J., Schoellig, Angela P. and Barfoot, Timothy D.},
+      title = {Are We Ready for Radar to Replace Lidar in All-Weather Mapping and Localization?},
+      journal={arXiv preprint arXiv:2203.10174},
+      year={2022}
+    }
+    ```
 
 ## [License](./LICENSE)
