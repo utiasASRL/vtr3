@@ -1,17 +1,26 @@
 # Visual Teach &amp; Repeat 3 (VT&amp;R3)
 
-## Update (2022-02-24)
-For code related to [Are We Ready for Radar to Replace Lidar in All-Weather Mapping and Localization?](https://arxiv.org/abs/2203.10174) (Keenan Burnett, Yuchen Wu, David J. Yoon, Angela P. Schoellig, Timothy D. Barfoot, 2022), please see the `radar_lidar_dev` branch. Code related to lidar teach and repeat is located under `main/src/vtr_lidar` and code related to radar teach and repeat is located under `main/src/vtr_radar`. We are working on merging this code into the `main` branch.
+## Note
+
+We are still in the process of cleaning up the codebase and having all features of VT&amp;R3 on the main branch.
+- The [main branch](https://github.com/utiasASRL/vtr3) has support for lidar/radar teach and repeat and a new path tracker (to be merged soon).
+- The [v3.0.0 release](https://github.com/utiasASRL/vtr3/tree/v3.0.0) has support for stereo camera teach and repeat and a old path tracker (deprecated).
 
 ## What is VT&amp;R3?
 
-VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then accurately repeat any network portion. VT&amp;R3 is designed for easy adaptation to various sensor (camera/LiDAR/RaDAR/GPS) and robot combinations. The current implementation includes a feature-based visual odometry and localization pipeline that estimates the robot's motion from stereo camera images and a point-cloud-based odometry and localization pipeline for LiDAR sensors.
+VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then closely repeat any part of network. VT&amp;R3 is designed for easy adaptation to various sensor (camera, lidar, radar, GPS, etc) and robot combinations. So far, we have explored using VT&amp;R3 to perform teach and repeat navigation using a stereo camera, a lidar, or a combination of stereo camera and GPS.
+
+## Reproducing Results of VT&amp;R3 Related Papers
+
+VT&amp;R3 related papers usually focus on demonstrating one specific feature of VT&amp;R3 instead of the whole system and require additional scripts to run experiements and evaluate results. Therefore, from now on, we will create a separate repository for each paper with instructions on how to reproduce the results.
+
+- [Burnett et al., Are We Ready for Radar to Replace Lidar in All-Weather Mapping and Localization?, IROS'22](https://github.com/utiasASRL/radar_topometric_localization)
 
 ## Installation and Getting Started
 
 The following articles will help you get started with VT&amp;R3:
 
-- [Installation Guide](https://github.com/utiasASRL/vtr3/wiki/Installation-Guide)
+- [Installation Guide](https://github.com/utiasASRL/vtr3/wiki/New-Installation-Guide)
 - [Launching VT&amp;R3](https://github.com/utiasASRL/vtr3/wiki/Launching-VTR3)
 - [Setting Up VT&amp;R3 with a New Sensor or Robot](https://github.com/utiasASRL/vtr3/wiki/Setting-Up-VTR3-with-a-New-Sensor-or-Robot)
 - [VT&amp;R3 Sample Datasets](https://github.com/utiasASRL/vtr3/wiki/VTR3-Sample-Datasets)
@@ -31,27 +40,5 @@ Please cite the [following paper](https://onlinelibrary.wiley.com/doi/full/10.10
   doi = {https://doi.org/10.1002/rob.20342}
 }
 ```
-
-### Additional Citations
-
-- [Multi-Experience Localization](https://ieeexplore.ieee.org/abstract/document/7759303)
-  ```bibtex
-  @inproceedings{michael2016mel,
-    author = {Paton, Michael and MacTavish, Kirk and Warren, Michael and Barfoot, Timothy D.},
-    booktitle = {2016 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
-    title = {Bridging the appearance gap: Multi-experience localization for long-term visual teach and repeat},
-    year={2016},
-    doi={10.1109/IROS.2016.7759303}
-  }
-  ```
- - [Lidar, Radar Teach and Repeat](https://arxiv.org/abs/2203.10174)
-    ```bibtex
-      @article{burnett_radar22,
-      author = {Burnett, Keenan and Wu, Yuchen and Yoon, David J., Schoellig, Angela P. and Barfoot, Timothy D.},
-      title = {Are We Ready for Radar to Replace Lidar in All-Weather Mapping and Localization?},
-      journal={arXiv preprint arXiv:2203.10174},
-      year={2022}
-    }
-    ```
 
 ## [License](./LICENSE)

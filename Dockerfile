@@ -3,11 +3,11 @@ FROM ubuntu:20.04
 CMD ["/bin/bash"]
 
 # Args for setting up non-root users, example command to use your own user:
-#   docker build -t <name: vtr3> \
-#     --build-arg USERID=$(id -u) \
-#     --build-arg GROUPID=$(id -g) \
-#     --build-arg USERNAME=$(whoami) \
-#     --build-arg HOMEDIR=${HOME} .
+# docker build -t <name: vtr3> \
+#   --build-arg USERID=$(id -u) \
+#   --build-arg GROUPID=$(id -g) \
+#   --build-arg USERNAME=$(whoami) \
+#   --build-arg HOMEDIR=${HOME} .
 ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
@@ -27,21 +27,21 @@ USER ${USERID}:${GROUPID}
 ENV VTRROOT=${HOMEDIR}/ASRL
 ENV VTRSRC=${VTRROOT}/vtr3 \
   VTRDEPS=${VTRROOT}/deps \
-  VTRVENV=${VTRROOT}/venv \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp
-RUN mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
 
 ## Switch to root to install dependencies
 USER 0:0
 
+## Dependencies
 RUN apt update && apt upgrade -q -y
-
-## Common packages
 RUN apt update && apt install -q -y cmake git build-essential lsb-release curl gnupg2
-
-## Install Eigen
+RUN apt update && apt install -q -y libboost-all-dev libomp-dev
+RUN apt update && apt install -q -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+RUN apt update && apt install -q -y freeglut3-dev
+RUN apt update && apt install -q -y python3 python3-distutils python3-pip
 RUN apt update && apt install -q -y libeigen3-dev
+RUN apt update && apt install -q -y libsqlite3-dev sqlite3
 
 ## Install PROJ (8.0.0) (this is for graph_map_server in vtr_navigation)
 RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
@@ -78,10 +78,15 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
   && apt update && apt install -q -y ros-galactic-desktop
 
+## Install VTR specific ROS2 dependencies
+RUN apt update && apt install -q -y \
+  ros-galactic-xacro \
+  ros-galactic-vision-opencv \
+  ros-galactic-perception-pcl ros-galactic-pcl-ros
+
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
   tmux \
-  doxygen \
   nodejs npm protobuf-compiler \
   libboost-all-dev libomp-dev \
   libpcl-dev \
@@ -89,10 +94,12 @@ RUN apt update && apt install -q -y \
   libdc1394-22 libdc1394-22-dev \
   libbluetooth-dev libcwiid-dev \
   python3-colcon-common-extensions \
-  virtualenv
+  virtualenv \
+  texlive-latex-extra \
+  clang-format
 
-## Create a python virtual environment
-RUN apt install -q -y python3-pip && pip3 install \
+## Install python dependencies
+RUN pip3 install \
   tmuxp \
   pyyaml \
   pyproj \
@@ -105,13 +112,8 @@ RUN apt install -q -y python3-pip && pip3 install \
   python-socketio[client] \
   websocket-client
 
-## Install VTR specific ROS2 dependencies
-RUN apt update && apt install -q -y \
-  ros-galactic-xacro \
-  ros-galactic-vision-opencv \
-  ros-galactic-perception-pcl ros-galactic-pcl-ros
-
-## These are for teb local planner (to be removed)
+## TEB local planner dependencies (to be removed)
+RUN apt update && apt install -q -y libsuitesparse-dev qtdeclarative5-dev qt5-qmake libqglviewer-dev-qt5
 RUN apt update && apt install -q -y \
   ros-galactic-nav2-costmap-2d \
   ros-galactic-libg2o \

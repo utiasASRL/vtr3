@@ -1,4 +1,4 @@
-## Compiler setup - assumed to be GNU
+## Compiler setup
 # Compile as C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,18 +27,7 @@ if (OpenMP_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+
 ## Enable certain pipelines
-# Note: these flags are used to remove sensor specific dependencies when certain
-# pipelines are not used. They determines which pipelines will be available
-# rather than which pipeline to use. Enabled by default; Disable by commenting
-# out.
-# add_definitions(-DVTR_ENABLE_CAMERA)
 add_definitions(-DVTR_ENABLE_LIDAR)
 add_definitions(-DVTR_ENABLE_RADAR)
-
-## GPUSURF enable/disable flag (used by vision pipeline only)
-# Note: currently assume that gpusurf is always available, because we have no
-# other options, so do not disable (i.e. comment out) this flag
-# add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
-# set(OpenCV_DIR /usr/local/opencv_cuda/lib/cmake/opencv4)
-# find_package(OpenCV REQUIRED)
