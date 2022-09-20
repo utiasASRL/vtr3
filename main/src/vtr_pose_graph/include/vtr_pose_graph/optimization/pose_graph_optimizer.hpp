@@ -110,17 +110,19 @@ template <class Solver>
 void PoseGraphOptimizer<Graph>::optimize(
     const typename Solver::Params& params) {
   steam::OptimizationProblem problem;
+
+  int num_state_vars = 0;
   for (auto&& it : state_map_) {
-    if (!it.second->locked())
+    if (!it.second->locked()) {
       problem.addStateVariable(it.second);
-    else
+      ++num_state_vars;
+    } else
       CLOG(INFO, "pose_graph") << "PGO skipping locked pose " << it.first;
   }
 
   for (const auto& cost_term : cost_terms_) problem.addCostTerm(cost_term);
 
-  if (problem.getStateVariables().size() == 0 ||
-      problem.getNumberOfCostTerms() == 0) {
+  if (num_state_vars == 0 || cost_terms_.size() == 0) {
     CLOG(INFO, "pose_graph") << "Attempted relaxation on an empty problem...";
     return;
   } else if (problem.cost() < 1) {
@@ -128,7 +130,7 @@ void PoseGraphOptimizer<Graph>::optimize(
     return;
   }
 
-  Solver solver(&problem, params);
+  Solver solver(problem, params);
   solver.optimize();
 
   // update the tf map
