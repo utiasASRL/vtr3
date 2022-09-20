@@ -24,8 +24,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ## Switch to specified user to create directories
 USER ${USERID}:${GROUPID}
 
-ENV VTRROOT=${HOMEDIR}/ASRL
-ENV VTRSRC=${VTRROOT}/vtr3 \
+ENV VTRROOT=${HOMEDIR}/ASRL/vtr3
+ENV VTRSRC=${VTRROOT}/src \
   VTRDEPS=${VTRROOT}/deps \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp

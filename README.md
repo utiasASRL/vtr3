@@ -21,8 +21,7 @@ VT&amp;R3 related papers usually focus on demonstrating one specific feature of 
 The following articles will help you get started with VT&amp;R3:
 
 - [Installation Guide](https://github.com/utiasASRL/vtr3/wiki/New-Installation-Guide)
-- [Launching VT&amp;R3](https://github.com/utiasASRL/vtr3/wiki/Launching-VTR3)
-- [Setting Up VT&amp;R3 with a New Sensor or Robot](https://github.com/utiasASRL/vtr3/wiki/Setting-Up-VTR3-with-a-New-Sensor-or-Robot)
+- [Launching VT&amp;R3](https://github.com/utiasASRL/vtr3/wiki/New-Launching-VTR3)
 - [VT&amp;R3 Sample Datasets](https://github.com/utiasASRL/vtr3/wiki/VTR3-Sample-Datasets)
 
 More information can be found in the [wiki page](https://github.com/utiasASRL/vtr3/wiki).
