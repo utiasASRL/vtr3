@@ -355,7 +355,6 @@ struct meas_result GenerateReferenceMeas(std::shared_ptr<std::vector<Pose>> cbit
 
     }
 
-    // Experimental
     // If we reach the end of the path without generating enough measurements (approaching end of path), populate the measurements
     // with the final point in the path (point stabilization problem)
     if (measurements.size() < K)
@@ -382,7 +381,6 @@ struct meas_result GenerateReferenceMeas(std::shared_ptr<std::vector<Pose>> cbit
       
       return {measurements, true};
     }
-    // End of experimental
 
     else
     {
