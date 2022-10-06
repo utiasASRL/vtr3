@@ -1,5 +1,23 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * \file cbit_config.hpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ */
+
 // Initialize planner configs:
-// Replace this file with integration into VT&R configs
 
 #pragma once 
 
@@ -38,5 +56,25 @@ class CBITConfig {
         // Misc
         bool incremental_plotting = true;
         bool plotting = true;   
+
+        // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
+        int horizon_steps = 10;
+        double horizon_step_size = 0.5;
+        double forward_vel = 0.75;
+        double max_lin_vel = 1.25;
+        double max_ang_vel = 0.75;
+        // Add unicycle model param
+
+        // Covariance Tuning Weights
+        //Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
+        //Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
+        //Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
+        //Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
+
+        int command_history_length = 100;
+
+        // COSTMAP PARAMS;
+        double costmap_filter_value = 0.01;
+        int costmap_history = 5;
 
 };

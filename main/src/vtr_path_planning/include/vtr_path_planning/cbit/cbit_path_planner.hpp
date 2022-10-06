@@ -1,3 +1,22 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * \file cbit_path_planner.hpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ */
+
 #include <vector>
 #include <memory>
 #include <cstdio>
@@ -76,6 +95,7 @@ class CBITPlanner {
         void InitializePlanningSpace();
         void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
         void ResetPlanner();
+        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
         std::shared_ptr<Node> UpdateState();
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
@@ -84,7 +104,7 @@ class CBITPlanner {
         std::shared_ptr<Node> BestInVertexQueue();
         void ExpandVertex(std::shared_ptr<Node> v);
         std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> BestInEdgeQueue();
-        std::tuple<std::vector<double>, std::vector<double>> ExtractPath();
+        std::tuple<std::vector<double>, std::vector<double>> ExtractPath(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
         std::vector<Pose> ExtractEuclidPath();
         void Prune(double c_best, double c_best_weighted);
         bool edge_in_tree(Node v, Node x);

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file teb_path_planner.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file cbit.hpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -95,6 +95,30 @@ class CBIT : public BasePathPlanner {
     bool incremental_plotting = false;
     bool plotting = true; 
 
+    // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
+    int horizon_steps = 10;
+    double horizon_step_size = 0.5;
+    double forward_vel = 0.75;
+    double max_lin_vel = 1.25;
+    double max_ang_vel = 0.75;
+    
+    // Add unicycle model param
+
+    // Covariance tuning weights
+    Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
+    Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
+    Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
+
+
+    // Misc
+    int command_history_length = 100;
+
+    // COSTMAP PARAMS;
+    double costmap_filter_value = 0.01;
+    int costmap_history = 5;
+
+
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
     // Subscription for parameter change
@@ -112,7 +136,7 @@ class CBIT : public BasePathPlanner {
   void initializeRoute(RobotState& robot_state) override; // Declare this as virtual so that the Lidarcbit can override it if using that static name
   //void initializeRouteTest(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
-  void visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc);
+  void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction);
 
  protected:
   struct ChainInfo {
@@ -135,14 +159,22 @@ class CBIT : public BasePathPlanner {
 
   // Ros2 publishers
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_path_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr robot_path_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr test_pub_;
 
-
-  // TEST: Initializing a pointer to shared memory, want to see if the virtual functions can access it
-  // TODO: Long term we probably are going to want to format the output as transforms on the planner side and then adjust the class types here accordingly
+  // Pointers to the output path
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
+
+  tactic::Timestamp prev_stamp;
+
+  // Store the previously applied velocity and a sliding window history of MPC results
+  Eigen::Matrix<double, 2, 1> applied_vel;
+  std::vector<Eigen::Matrix<double, 2, 1>> vel_history;
+
+  //create vector to store the robots path for visualization purposes
+  std::vector<lgmath::se3::Transformation> robot_poses;
 
 
   // Create costmap pointer object

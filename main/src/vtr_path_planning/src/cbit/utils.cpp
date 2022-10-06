@@ -1,9 +1,28 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * \file utils.cpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ */
+
 // Library holding many useful object classes used by the planner as well as some of the
 // functions for common computations
 
 #include "vtr_path_planning/cbit/utils.hpp"
 
-// Pose Constructor (I ended up using willards advice and initializing these in the header)
+// Pose Constructor (ended up initializing these in the header)
 /*
 Pose::Pose(float x_in, float y_in, float z_in, float roll_in, float pitch_in, float yaw_in)
 {
@@ -112,7 +131,7 @@ double calc_dist(Node start_node, Node end_node)
 }
 
 
-
+// No longer doing collision checks this way, query the obstacle costmap directly
 /*
 bool is_inside_obs(std::vector<std::vector<double>> obs, Node node)
 {
@@ -204,7 +223,7 @@ double exp_radius(double q, double sample_box_height, double sample_box_width, d
     return radius;
 }
 
-// Moving this to cbit.cpp so I dont need to pass the whol giant path vector every time I call
+// Moving this to cbit.cpp so I dont need to pass the whole giant path vector every time I call
 /*
 // Function for converting a p,q coordinate value into a euclidean coordinate using the pre-processed path to follow
 Node curve_to_euclid(Node node, std::vector<)
@@ -290,7 +309,7 @@ std::vector<double> linspace(double start_in, double end_in, int num_in)
 }
 
 
-
+// Moved the following functions to cbit_path_planner.cpp
 /*
 Pose lin_interpolate(int p_ind, double p_val, std::shared_ptr<Path> global_path)
 {

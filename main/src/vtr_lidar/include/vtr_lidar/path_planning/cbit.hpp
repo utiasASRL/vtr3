@@ -13,13 +13,12 @@
 // limitations under the License.
 
 /**
- * \file teb_path_planner.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file cbit.hpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include "vtr_path_planning/cbit/cbit.hpp"
-
 
 
 namespace vtr {
@@ -28,7 +27,6 @@ namespace lidar {
 class LidarCBIT : public vtr::path_planning::CBIT {
  public:
   PTR_TYPEDEFS(LidarCBIT);
-  //using Parent = path_planning::CBIT;
 
   static constexpr auto static_name = "cbit.lidar";
 
@@ -48,7 +46,6 @@ class LidarCBIT : public vtr::path_planning::CBIT {
   void initializeRoute(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
 
-
  private:
   const Config::ConstPtr config_;
 
@@ -56,21 +53,15 @@ class LidarCBIT : public vtr::path_planning::CBIT {
 
 
   unsigned int prev_costmap_sid = 0;
+  tactic::Timestamp prev_stamp;
 
 
-  // Store the previous control states //TODO long term move this to MPC module
-  std::vector<steam::se3::SE3StateVar::Ptr> prev_pose_state_vars;
-  std::vector<steam::vspace::VSpaceStateVar<2>::Ptr> prev_vel_state_vars;
-  // Initialize the first element of the prev_vel_state_vars as 0 (not moving initially)
+  // Store the previously applied velocity and a sliding window history of MPC results
   Eigen::Matrix<double, 2, 1> applied_vel;
   std::vector<Eigen::Matrix<double, 2, 1>> vel_history;
-  //applied_vel << 0,
-  //               0;
-  
-/*
- protected:
-  template <typename PointT>
-*/
+
+  //create vector to store the robots path for visualization purposes
+  std::vector<lgmath::se3::Transformation> robot_poses;
 };
 
 }  // namespace lidar

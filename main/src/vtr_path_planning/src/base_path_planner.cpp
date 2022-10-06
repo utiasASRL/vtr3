@@ -78,12 +78,23 @@ void BasePathPlanner::process_cbit() {
   });
 
   waiting_ = false;
+
+  if (terminate_) {
+      waiting_ = true;
+      cv_waiting_.notify_all();
+      --thread_count_;
+      CLOG(INFO, "path_planning") << "Stopping the CBIT thread.";
+      cv_thread_finish_.notify_all();
+      CLOG(INFO, "path_planning") << "cbit planning thread successfully terminated";
+      return;
+  }
+
   lock.unlock();
 
   // Note we need to run the above first so that the lidarcbit class can be constructed before calling initializeroute (so it can be overrided correctly)
-  CLOG(INFO, "path_planning") << "Starting the cbit path planning thread (check to make sure things updated 2).";
+  CLOG(INFO, "path_planning") << "Starting the CBIT path planning thread.";
   initializeRoute();
-  CLOG(INFO, "path_planning") << "cbit planning thread successfully terminated";
+  CLOG(INFO, "path_planning") << "initializeRoute() has been terminated.";
 }
 
 

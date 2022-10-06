@@ -4,6 +4,8 @@ session_name: vtr_online_honeycomb_grizzly
 environment:
   CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
   # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+  # data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')
+  # data_dir:=${VTRDATA}/online-test-lidar/2022-09-08/2022-09-08
 
 start_directory: ${VTRDATA}
 
@@ -18,7 +20,7 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
-        data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')
+        data_dir:=${VTRDATA}/online-test-lidar/weaving_cones
         start_new_graph:=false
         use_sim_time:=false
 

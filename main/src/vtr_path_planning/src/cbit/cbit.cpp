@@ -16,7 +16,9 @@
  * \file cbit.cpp
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
+
 #include "vtr_path_planning/cbit/cbit.hpp"
+#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.h>
@@ -26,7 +28,6 @@ namespace path_planning {
 
 namespace {
 // Function for converting Transformation matrices into se(2) [x, y, z, roll, pitch, yaw]
-// Note we also might be able to do this with just lgmaths tran2vec operation?
 inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
     const tactic::EdgeTransform& T) {
   const auto Tm = T.matrix();
@@ -37,8 +38,8 @@ inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
-  // Originally I thought I could get rid of this, but it is actually very important with how the codebase is setup.
-  // The config class above is apart of the Base Planner class, which declares the default control period as 0. So if we dont update it, we have alot of problems
+
+  // Base planner configs
   config->control_period = (unsigned int)node->declare_parameter<int>(prefix + ".control_period", config->control_period);
 
   // robot configuration
@@ -46,9 +47,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->robot_radius = node->declare_parameter<double>(prefix + ".teb.robot_radius", config->robot_radius);
 
   // CBIT Configs
-  // This is how parameters should be updated from the parameter server. prefix is hardcoded to path_planning in the header, tabs are represented by periods "."
-  
-  // ENVIRONEMNT:
+  // ENVIRONMENT:
   config->obs_padding = node->declare_parameter<double>(prefix + ".cbit.obs_padding", config->obs_padding);
   config->curv_to_euclid_discretization= node->declare_parameter<int>(prefix + ".cbit.curv_to_euclid_discretization", config->curv_to_euclid_discretization);
   config->sliding_window_width = node->declare_parameter<double>(prefix + ".cbit.sliding_window_width", config->sliding_window_width);
@@ -71,7 +70,35 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->initial_exp_rad = node->declare_parameter<double>(prefix + ".cbit.initial_exp_rad", config->initial_exp_rad);
   config->extrapolation = node->declare_parameter<bool>(prefix + ".cbit.extrapolation", config->extrapolation);
 
-  // Removed alot of the other config stuff here, I think it was specifically for dynamic reconfigure, which atleast for cbit, I dont think should be dynamically reconfigurable for now
+
+  // MPC Configs:
+  // CONTROLLER PARAMS
+  config->horizon_steps = node->declare_parameter<int>(prefix + ".mpc.horizon_steps", config->horizon_steps);
+  config->horizon_step_size = node->declare_parameter<double>(prefix + ".mpc.horizon_step_size", config->horizon_step_size);
+  config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
+  config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
+  config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
+
+  // COST FUNCTION WEIGHTS
+  const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
+  config->pose_error_cov.diagonal() << pose_error_diag[0], pose_error_diag[1], pose_error_diag[2], pose_error_diag[3], pose_error_diag[4], pose_error_diag[5];
+
+  const auto vel_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.vel_error_cov", std::vector<double>());
+  config->vel_error_cov.diagonal() << vel_error_diag[0], vel_error_diag[1];
+
+  const auto acc_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.acc_error_cov", std::vector<double>());
+  config->acc_error_cov.diagonal() << acc_error_diag[0], acc_error_diag[1];
+
+  const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
+  config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
+
+  // MISC
+  config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
+
+  // COSTMAP PARAMS
+  config->costmap_filter_value = node->declare_parameter<double>(prefix + ".costmap.costmap_filter_value", config->costmap_filter_value);
+  config->costmap_history = node->declare_parameter<int>(prefix + ".costmap.costmap_history", config->costmap_history);
+
   return config;
 }
 
@@ -80,16 +107,16 @@ CBIT::CBIT(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const Callback::Ptr& callback)
     : BasePathPlanner(config, robot_state, callback), config_(config) {
-  CLOG(ERROR, "path_planning.cbit") << "Constructing the CBIT Class";
+  CLOG(INFO, "path_planning.cbit") << "Constructing the CBIT Class";
   const auto node = robot_state->node.ptr();
-  // Initialize the shared pointer the output of the planner
+  // Initialize the shared pointer to the output of the planner
   cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
-  // Might want to reserve a good chunk of memory for the vector here too? tbd, I think compute would be fairly marginal for the size of our paths
-  
+
   // Create publishers
   tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+  mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", 10);
+  robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
   path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
-  test_pub_ = node->create_publisher<std_msgs::msg::String>("test_string", 10);
 
   // Updating cbit_configs
   // Environment
@@ -118,6 +145,17 @@ CBIT::CBIT(const Config::ConstPtr& config,
   // Misc
   cbit_config.incremental_plotting = config->incremental_plotting;
   cbit_config.plotting = config->plotting;
+  CLOG(INFO, "path_planning.cbit") << "Successfully Constructed the CBIT Class";
+
+
+  // Initialize the current velocity state and a vector for storing a history of velocity commands applied
+  applied_vel << 0,
+                 0;
+  vel_history.reserve(config_->command_history_length); 
+  for (int i = 0; i < config_->command_history_length; i++) 
+  {
+    vel_history.push_back(applied_vel);
+  }
 }
 
 CBIT::~CBIT() { stop(); }
@@ -126,14 +164,8 @@ CBIT::~CBIT() { stop(); }
 // Here is where we can do all the teach path pre-processing and then begin the anytime planner asychronously
 void CBIT::initializeRoute(RobotState& robot_state) {
 
-  CLOG(ERROR, "path_planning.cbit") << "DEBUG! TRYING TO INITIALIZEROUTE2";
-  //initializeRoute2(robot_state);
-  /// \todo reset any internal state
-  CLOG(ERROR, "path_planning.cbit") << "DEBUG! ENTERED THE WRONG INITIALIZEROUTE";
-  CLOG(INFO, "path_planning.cbit") << "Path Planner has been started, here is where we will begin teach path pre-processing and asychronous cbit";
-  //CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << config_->state_update_freq; // This is how you would reference a param, need to use config_ not config!!!
-  //CLOG(INFO, "path_planning.teb") << "The state_update_freq config param from ROS is: " << cbit_config.state_update_freq; 
-  //CLOG(INFO, "path_planning.teb") << "The alpha config param from ROS is: " << cbit_config.alpha; 
+
+  CLOG(INFO, "path_planning.cbit") << "Attempting to InitializeRoute()";
 
   auto& chain = *robot_state.chain;
 
@@ -141,32 +173,8 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   // We need to loop for awhile until the chain localizes doing nothing on this thread (just takes a second or two)
   while (!chain.isLocalized()) 
   {
-    // Longer term maybe want a timeout counter here or something? The rest of the stack may well handle it though
   }
-  
 
-  //CLOG(INFO, "path_planning.cbit") << "Robot is now localized and we can start trying to pre-process the map";
-
-
-  //CLOG(INFO, "path_planning.teb") << "Testing whether I can access the shared path memory pointer or not: " << cbit_path_ptr;
-
-
-  //CLOG(INFO, "path_planning.teb") << "The size of the chain is: " << chain.size();
-  //CLOG(INFO, "path_planning.teb") << "The first frame is " << chain.pose(0);
-  //CLOG(INFO, "path_planning.teb") << "The second frame is " << chain.pose(1);
-
-  // World frame: (I think the very first frame is identity)
-  /*
-  auto world_frame = chain.pose(0);
-  auto next_frame = chain.pose(1);
-  std::tuple<double, double, double, double, double, double> vector = T2xyrpy(next_frame);
-  CLOG(INFO, "path_planning.teb") << "My se(3) vector conversion: x: " << std::get<0>(vector) << " y: " 
-  << std::get<1>(vector) << " z: " << std::get<2>(vector) << " roll: " << std::get<3>(vector) << " pitch: " 
-  << std::get<4>(vector) << " yaw: " << std::get<5>(vector);
-  */
-
-  //CLOG(INFO, "path_planning.teb") << "lgmath se(3) vector conversion: " << tran2vec(next_frame);
-  
   lgmath::se3::TransformationWithCovariance teach_frame;
   std::tuple<double, double, double, double, double, double> se3_vector;
   Pose se3_pose;
@@ -179,190 +187,207 @@ void CBIT::initializeRoute(RobotState& robot_state) {
     se3_vector = T2xyzrpy(teach_frame);
     se3_pose = Pose(std::get<0>(se3_vector), std::get<1>(se3_vector), std::get<2>(se3_vector), std::get<3>(se3_vector), std::get<4>(se3_vector), std::get<5>(se3_vector));
     euclid_path_vec.push_back(se3_pose);
-    // Debug info to check to see that the path looks realistic
-    /*
-    CLOG(INFO, "path_planning.teb") << "My se(3) vector conversion: x: " << std::get<0>(se3_vector) << " y: " 
-    << std::get<1>(se3_vector) << " z: " << std::get<2>(se3_vector) << " roll: " << std::get<3>(se3_vector) << " pitch: " 
-    << std::get<4>(se3_vector) << " yaw: " << std::get<5>(se3_vector);
-    */
-
-    // Was trying to see here if I could use lgmaths built ins for doing this instead of doing my own T2xyzrpy function, but it was not agreeing in all cases
-    // and I know that my custom function was giving correct output on the offline VTR3 tutorial dataset, so might ignore using this (its a one time thing anyways)
-    //CLOG(INFO, "path_planning.teb") << "lgmath se(3) vector conversion: " << next_frame.vec();
   }
 
+  CLOG(INFO, "path_planning.cbit") << "Trying to create global path";
   // Create the path class object (Path preprocessing)
   CBITPath global_path(cbit_config, euclid_path_vec);
 
   // Make a pointer to this path
   std::shared_ptr<CBITPath> global_path_ptr = std::make_shared<CBITPath>(global_path);
 
-  CLOG(INFO, "path_planning.cbit") << "Path has been pre-processed, Attempting to instantiae the Planner";
+  CLOG(INFO, "path_planning.cbit") << "Teach Path has been pre-processed. Attempting to instantiate the Planner";
 
 
-  // instantiate the planner
+  // Instantiate the planner
   CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr);
 
-  CLOG(INFO, "path_planning.cbit") << "Planner Successfully Created and resolved, end of initializeRoute function";
-
-  // Here is an example for getting the teach path frames, use chain.pose(<frame_index>) where 0 is the first frame
-  // I think there is a chain.size() function you can use to get the total number of frames in the teach path we are trying to repeat.
-  //CLOG(INFO, "path_planning.teb") << "Key Frame 1 " << chain.pose(0);
-  //CLOG(INFO, "path_planning.teb") << "Key Frame 2 " << chain.pose(1);
-
-  /*
-  const auto chain_info = getChainInfo(robot_state);
-  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
-
-
-  CLOG(INFO, "path_planning.teb") << "stamp " << stamp;
-  CLOG(INFO, "path_planning.teb") << "w_p_r_in_r: " << w_p_r_in_r;
-  CLOG(INFO, "path_planning.teb") << "T_p_r: " << T_p_r;
-  CLOG(INFO, "path_planning.teb") << "T_w_p: " << T_w_p;
-
-  CLOG(INFO, "path_planning.teb") << "Successfull Displayed Chain info: ";
-  */
-
-
-
-  // PseudoCode
-
-  // Get the transformation chain, store to a vector of transforms
-
-  // Iterate through the transform chain, convert to Euclidean points w.r.t the world frmae (Frame 1 of current teach path)
-  // Also compute an associated p
-
-  // Preprocess the path (spline, ROC) by piping this vector into the generate_pq path class
-
-  // Create the main CBIT class object with the config initializations and path, which will kick off the asychronous planner
+  CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved, end of initializeRoute() function";
 }
 
-
-// Called at a the control rate in base_planner, eventually we need to do the mpc here using the output of cbit as constraints
-// For now just using it for debug and sending an empty command
-
-// TODO: longer term the mpc will be implemented in the mpc_path_planner.cpp file, which will then become the base class of this file
-         // Actually now that I think of it, maybe it makes more sense for mpc to derive from cbit so it has access to the path variables
-// For now though im going to implement the MPC here directly though
+// Generate twist commands to track the planned local path (obstacle free)
 auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
-    CLOG(WARNING, "path_planning.cbit")
-        << "Robot is not localized, command to stop the robot";
+    CLOG(WARNING, "path_planning.cbit") << "Robot is not localized, commanding the robot to stop";
+    applied_vel << 0.0, 0.0;
+    // Update history:
+    vel_history.erase(vel_history.begin());
+    vel_history.push_back(applied_vel);
     return Command();
   }
-
-  /*
-  else {
-    CLOG(INFO, "path_planning.cbit") << "Robot is now localized and we are trying to compute a command";
-  }
-  */
-
-
-  // retrieve info from the localization chain
+  
+  // retrieve the transorm info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
 
-  // keep current time
+  // Extrapolate the pose of the robot into the future based on the localization delay
+  prev_stamp = stamp;
   const auto curr_time = now();  // always in nanoseconds
   const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 
-
-  // extrapolate robot pose if required
+  // This code is for the old robot pose extrapolation using odometry. I found this to be very unstable and not very useful so it is no longer in use
   const auto T_p_r_extp = [&]() {
     // extrapolate based on current time
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * w_p_r_in_r);
-    CLOG(WARNING, "path_planning.cbit")
+    CLOG(WARNING, "mpc.cbit")
       << "Time difference b/t estimation and planning: " << dt;
     return T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
   }();
 
-  //CLOG(INFO, "path_planning.teb") << "stamp " << stamp;
-  //CLOG(INFO, "path_planning.teb") << "w_p_r_in_r: " << w_p_r_in_r;
-  //CLOG(INFO, "path_planning.teb") << "T_p_r: " << T_p_r;
-  //CLOG(INFO, "path_planning.teb") << "T_w_p: " << T_w_p;
-  //CLOG(INFO, "path_planning.cbit") << "The cbit stamp is:  " << stamp;
-  //CLOG(INFO, "path_planning.cbit") << "The cbit current Time is: " << now();
-  //CLOG(INFO, "path_planning.cbit") << "The cbit current time my way is: " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  std::string test_string = "This is a test message!"; //todo, get rid of this requirement in visualize, was just to help me learn the ros2 messaging
 
 
-  // Attempt a test rviz publish
-  std::string test_string = "This is a test message!";
-  // Dont visualize unless we are both localized and an initial solution is found
+  // START OF MPC CODE
+  // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
   if ((*cbit_path_ptr).size() != 0)
   {
-    visualize(test_string, stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp);
-    // Testing that we are receiving the most up to date output plans
-    //CLOG(INFO, "path_planning.cbit") << "The first pose is x: " << (*cbit_path_ptr)[0].x << " y: " << (*cbit_path_ptr)[0].y << " z: " << (*cbit_path_ptr)[0].z;
+
+    // Initializations from config
+    int K = config_->horizon_steps; // Horizon steps
+    CLOG(ERROR, "mpc.cbit") << "K has been set to: " << K;
+    double DT = config_->horizon_step_size; // Horizon step size
+    double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
+
+    // Pose Covariance Weights
+    Eigen::Matrix<double, 6, 6> pose_noise_vect;
+    pose_noise_vect = config_->pose_error_cov;
+
+    // Disturbance Velocity Covariance
+    Eigen::Matrix<double, 2, 2> vel_noise_vect;
+    vel_noise_vect = config_->vel_error_cov;
+
+    // Acceleration Tuning
+    Eigen::Matrix<double, 2, 2> accel_noise_vect;
+    accel_noise_vect = config_->acc_error_cov;
+
+    // Kinematics Covariance Weights (should be weighted quite heavily (smaller is higher because its covariance))
+    Eigen::Matrix<double, 6, 6> kin_noise_vect;
+    kin_noise_vect = config_->kin_error_cov;
+
+
+
+    // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
+    const auto curr_time = now();  // always in nanoseconds
+    const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+
+
+    CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities" << vel_history;
+    
+    // Check the time past since the last state update was received
+    // Go back through the vel_history to approximately dt seconds in the past
+    // Start applying each of the applied velocities sequentially 
+    double control_period = config_->control_period / 1000.0; // control period is given by user in ms in the config
+    auto T_p_r2 = T_p_r;
+    for (int i=std::floor(dt / control_period); i > 0; i--)
+    {
+      CLOG(DEBUG, "mpc_debug.cbit") << "The iteration Index i is: " << i;
+      w_p_r_in_r(0) = -1* vel_history[vel_history.size()-(i+1)][0];
+      w_p_r_in_r(1) = 0.0;
+      w_p_r_in_r(2) = 0.0;
+      w_p_r_in_r(3) = 0.0;
+      w_p_r_in_r(4) = 0.0;
+      w_p_r_in_r(5) = -1* vel_history[vel_history.size()-(i+1)][1];
+      CLOG(DEBUG, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+
+      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(control_period * w_p_r_in_r);
+      T_p_r2 = T_p_r2 * tactic::EdgeTransform(xi_p_r_in_r).inverse();
+      CLOG(DEBUG, "mpc_debug.cbit") << "Make sure the lie algebra is changing right:" << T_p_r2;
+
+    }
+    // Apply the final partial period velocity
+    w_p_r_in_r(0) = -1* vel_history.back()[0];
+    w_p_r_in_r(1) = 0.0;
+    w_p_r_in_r(2) = 0.0;
+    w_p_r_in_r(3) = 0.0;
+    w_p_r_in_r(4) = 0.0;
+    w_p_r_in_r(5) = -1* vel_history.back()[1];
+    CLOG(DEBUG, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+    Eigen::Matrix<double, 6, 1> xi_p_r_in_r((dt - (std::floor(dt / control_period) * control_period)) * w_p_r_in_r);
+    T_p_r2 = T_p_r2 * tactic::EdgeTransform(xi_p_r_in_r).inverse();
+    CLOG(DEBUG, "mpc_debug.cbit") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
+    const auto T_p_r_extp2 = T_p_r2;
+
+    CLOG(DEBUG, "mpc_debug.cbit") << "New extrapolated pose:"  << T_p_r_extp2;
+
+    // Uncomment if we use the extrapolated robot pose for control (constant velocity model from odometry)
+    //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
+
+    // Uncomment for using the mpc extrapolated robot pose for control
+    lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp2);
+
+    // no extrapolation (comment this out if we are not using extrapolation)
+    //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
+
+    //Convert to x,y,z,roll, pitch, yaw
+    std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
+    CLOG(DEBUG, "mpc_debug.cbit") << "The Current Robot Pose (from planning) is - x: " << std::get<0>(robot_pose) << " y: " << std::get<1>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
+
+    CLOG(DEBUG, "mpc_debug.cbit") << "The Current Robot State Transform is: : " << T0;
+    // Need to also invert the robot state to make it T_vi instead of T_iv as this is how the MPC problem is structured
+    lgmath::se3::Transformation T0_inv = T0.inverse();
+    CLOG(DEBUG, "mpc_debug.cbit") << "The Inverted Current Robot State Using Direct Robot Values is: " << T0_inv;
+    // End of pose extrapolation
+
+
+    // Calculate which T_ref measurements to used based on the current path solution
+    CLOG(INFO, "mpc.cbit") << "Attempting to generate T_ref measurements";
+    auto meas_result = GenerateReferenceMeas(cbit_path_ptr, robot_pose, K,  DT, VF);
+    auto measurements = meas_result.measurements;
+    bool point_stabilization = meas_result.point_stabilization;
+
+
+    // Create and solve the STEAM optimization problem
+    CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
+    auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
+    applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
+    auto mpc_poses = mpc_result.mpc_poses;
+    CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
+
+    CLOG(WARNING, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
+
+ 
+    // If required, saturate the output velocity commands based on the configuration limits
+    CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
+    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
+
+    // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
+    vel_history.erase(vel_history.begin());
+    vel_history.push_back(saturated_vel);
+    
+    // Store the current robot state in the robot state path so it can be visualized
+    robot_poses.push_back(T0);
+
+    // Send the robot poses and mpc prediction to rviz
+    visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses);
+
+    // return the computed velocity command for the first time step
+    Command command;
+    command.linear.x = saturated_vel(0);
+    command.angular.z = saturated_vel(1);
+
+    CLOG(WARNING, "mpc.cbit")
+      << "Final control command: [" << command.linear.x << ", "
+      << command.linear.y << ", " << command.linear.z << ", "
+      << command.angular.x << ", " << command.angular.y << ", "
+      << command.angular.z << "]";
+
+    return command;
   }
-
-  //TODO, MPC WITHOUT OBSTACLES
-  /*
-
-  // Conduct an MPC cycle
-
-  // PSEUDOCODE
-
-  // HARDCODED INITIALIZATIONS (TODO: Move these to configs)
-  int K = 5;
-  double DT = 0.2;
-  double VF = 1.0;
-
-  // Initialize the Current Robot State in the world frame
-  Eigen::Matrix4d T0;
-  T0 << 1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        0,0,0,1;
-  lgmath::se3::Transformation T0_ = lgmath::se3::Transformation(T0);
-
-  CLOG(DEBUG, "mpc.cbit") << "MPC TESTING:";
-  CLOG(DEBUG, "mpc.cbit") << "The Current Robot State is: " << T0_;
-
-  // Generate STEAM States for the velocity vector and SE3 state transforms
-  std::vector<lgmath::se3::Transformation> pose_states;
-  std::vector<std::vector<double>> vel_states;
-  
-  //const Eigen::Matrix4d& T0 = {{1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0,0,1}};
-  //lgmath::se3::Transformation test_state = lgmath::se3::Transformation();
-  for (int i=0; i<K; i++)
+  // Otherwise stop the robot
+  else
   {
-    pose_states.push_back(lgmath::se3::Transformation());
-    vel_states.push_back(std::vector<double> {0.0, 0.0});
+    CLOG(INFO, "mpc.cbit") << "There is not a valid plan yet, returning 0.0 velocity command";
+
+    applied_vel << 0.0, 0.0;
+    vel_history.erase(vel_history.begin());
+    vel_history.push_back(applied_vel);
+    return Command();
   }
-
-  // Initialize the first state to the current initial position
-  //Eigen::Matrix4d T0;
-  //T0 << 1,0,0,0,
-  //      0,1,0,0,
-  //      0,0,1,0,
-  //      0,0,0,1;
-  //pose_states[0].C_ba_ = Eigen::Matrix3d({{1,0,0}, {0,1,0}, {0,0,1}});
-
-  // Take in the current euclidean path solution from the cbit planner in the world frame, the current robot state, and determine
-  // which measurements we wish to track to follow the path at the desired target velocity
-
-  // Setup the optimization problem
-
-  // Generate the cost terms using combinations of the builtin steam evaluators
-
-  // Solve the optimization problem with GuassNewton solver
-  
-  // return the computed velocity command for the first time step
-  */
-
-  
-
-
-
-
-
-  return Command(); // This returns the stop command when called with no arguments
 }
 
 
 // Function for grabbing the robots velocity in planning frame, transform of robot into planning frame, and transform of planning frame to world frame
-// Modified it to only give this info, I think the other things were only really teb relevant for now
 auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
   auto& chain = *robot_state.chain;
   auto lock = chain.guard();
@@ -377,13 +402,9 @@ auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
 }
 
 
-void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc)
+void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction)
 {
   //CLOG(ERROR, "path_planning.cbit") << "TRYING TO VISUALIZE IN CBIT CLASS";
-  // Test string message to make sure publisher is working
-  std_msgs::msg::String string_msg;
-  string_msg.data = text;
-  test_pub_->publish(string_msg);
 
   /// Publish the current frame for planning
   {
@@ -405,6 +426,7 @@ void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tac
     tf_bc_->sendTransform(msg);
   }
 
+  // Publish robot pose extrapolated using odometry
   {
     Eigen::Affine3d T(T_p_r_extp.matrix());
     auto msg = tf2::eigenToTransform(T);
@@ -414,6 +436,7 @@ void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tac
     tf_bc_->sendTransform(msg);
   }
 
+  // Publish MPC extrapolated current robot pose
   {
     Eigen::Affine3d T(T_p_r_extp_mpc.matrix());
     auto msg = tf2::eigenToTransform(T);
@@ -422,6 +445,38 @@ void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tac
     msg.child_frame_id = "robot planning (extrapolated) mpc";
     tf_bc_->sendTransform(msg);
   }
+
+  /// Publishing the MPC horizon prediction
+  {
+    nav_msgs::msg::Path mpc_path;
+    mpc_path.header.frame_id = "world";
+    mpc_path.header.stamp = rclcpp::Time(stamp);
+    auto& poses = mpc_path.poses;
+
+    // intermediate states
+    for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
+      auto& pose = poses.emplace_back();
+      pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
+    }
+    mpc_path_pub_->publish(mpc_path);
+  }
+
+  /// Publishing the history of the robots actual pose
+  {
+    nav_msgs::msg::Path robot_path;
+    robot_path.header.frame_id = "world";
+    robot_path.header.stamp = rclcpp::Time(stamp);
+    auto& poses = robot_path.poses;
+
+    // intermediate states
+    for (unsigned i = 0; i < robot_prediction.size(); ++i) {
+      auto& pose = poses.emplace_back();
+      pose.pose = tf2::toMsg(Eigen::Affine3d(robot_prediction[i].matrix()));
+    }
+    robot_path_pub_->publish(robot_path);
+  }
+  
+
 
   // Attempting to publish the actual path which we are receiving from the shared pointer in the cbitplanner
   // The path is stored as a vector of se3 Pose objects from cbit/utils, need to iterate through and construct proper ros2 nav_msgs PoseStamped
@@ -439,8 +494,7 @@ void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tac
     for (unsigned i = 0; i < (*cbit_path_ptr).size(); ++i) 
     {
       auto& pose = poses.emplace_back();
-      // The teb planner used this toMsg function to convert transforms into the correct pose message type, but I dont see why we cant just directly use the geometry message
-      //pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix())); // oh in hindsight I think this is how to grab the transform from a transform with covariance
+      //pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix())); // Example for how to grab the transform from a transform with covariance data type
       test_pose.position.x = (*cbit_path_ptr)[i].x;
       test_pose.position.y = (*cbit_path_ptr)[i].y; 
       test_pose.position.z = (*cbit_path_ptr)[i].z; 
@@ -455,7 +509,6 @@ void CBIT::visualize(std::string text, const tactic::Timestamp& stamp, const tac
   }
   return;
 }
-
 
 }  // namespace path_planning
 }  // namespace vtr

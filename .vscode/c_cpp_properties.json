@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/opt/ros/galactic/**",
-                "/usr/local/include/eigen3"
+                "/usr/local/include/eigen3",
+                "/usr/include/pcl-1.10"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang-10",

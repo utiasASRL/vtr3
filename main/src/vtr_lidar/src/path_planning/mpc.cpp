@@ -13,11 +13,11 @@
 // limitations under the License.
 
 /**
- * \file mpc_path_planner.cpp
+ * \file mpc.cpp
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
-//#include "vtr_lidar/cache.hpp"
+#include "vtr_lidar/path_planning/mpc.hpp"
+#include "vtr_lidar/cache.hpp"
 
 // This file is used to generate a tracking mpc output velocity command given a discretized path to follow and optimization parameters
 // It is used in cbit.cpp in both the vtr_lidar package (obstacle avoidance) and vtr_path_planning packages (obstacle free) in the computeCommand function
@@ -124,6 +124,7 @@ struct mpc_result SolveMPC(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3
           const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i],v_ref), sharedVelNoiseModel, sharedLossFunc);
           opt_problem.addCostTerm(vel_cost_term);
         }
+
 
         // Experimental acceleration limits
         if (i == 0)
@@ -353,7 +354,8 @@ struct meas_result GenerateReferenceMeas(std::shared_ptr<std::vector<Pose>> cbit
       // TODO handle end of path case => will want to repeat the final measurements and turn problem into a point stabilization MPC.
 
     }
-    
+
+    // Experimental
     // If we reach the end of the path without generating enough measurements (approaching end of path), populate the measurements
     // with the final point in the path (point stabilization problem)
     if (measurements.size() < K)
@@ -380,6 +382,7 @@ struct meas_result GenerateReferenceMeas(std::shared_ptr<std::vector<Pose>> cbit
       
       return {measurements, true};
     }
+    // End of experimental
 
     else
     {
@@ -438,6 +441,7 @@ Eigen::Matrix<double, 2, 1> SaturateVel(Eigen::Matrix<double, 2, 1> applied_vel,
     saturated_vel << command_lin_x, command_ang_z;
     return saturated_vel;
 }
+
 
 
 
