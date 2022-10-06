@@ -1,7 +1,7 @@
 [submodule "steam"]
 	path = main/src/deps/steam
 	url = https://github.com/utiasASRL/steam.git
-	branch = velocity_interp_cov
+	branch = path_tracker_overhaul
 [submodule "lgmath"]
 	path = main/src/deps/lgmath
 	url = https://github.com/utiasASRL/lgmath.git
