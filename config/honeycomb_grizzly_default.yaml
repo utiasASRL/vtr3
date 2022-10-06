@@ -17,12 +17,12 @@
         # "tactic.module.live_mem_manager",
         # "tactic.module.graph_mem_manager",
         # path planner
-        "path_planning",
-        "path_planning.teb",
-        "path_planning.cbit",
-        "path_planning.cbit_planner",
-         "mpc.cbit",
-        # "mpc.cbit_debug",
+        #"path_planning",
+        #"path_planning.teb",
+        #"path_planning.cbit",
+        #"path_planning.cbit_planner",
+        # "mpc.cbit",
+        # "mpc_debug.cbit",
         # mission planner
         # "mission.server",
         # "mission.state_machine",
@@ -429,7 +429,7 @@
 
     ############ path planning configuration ############
     path_planning:
-      type: cbit.lidar #cbit #teb.lidar # teb.lidar for working version, cbit for my experimental planner, cbit.lidar for my planner with obs
+      type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 33 # ms
       teb:
         # vtr specific
@@ -445,9 +445,9 @@
         enable_homotopy_class_planning: true
 
         free_goal_vel: true
-        max_vel_x: 0.6 # was 0.6 Jordy
+        max_vel_x: 0.6 
         max_vel_y: 0.0
-        max_vel_theta: 0.3 # was 0.3 Jordy
+        max_vel_theta: 0.3 
         min_turning_radius: 3.0
         weight_viapoint: 0.5
         weight_costmap: 100.0
