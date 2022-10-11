@@ -159,7 +159,7 @@ struct mpc_result SolveMPC(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3
     using SolverType = steam::VanillaGaussNewtonSolver;
     // Initialize parameters (enable verbose mode)
     SolverType::Params params;
-    params.verbose = true; // Makes the output display for debug
+    params.verbose = false; // Makes the output display for debug
 
     SolverType solver(&opt_problem, params);
     solver.optimize();

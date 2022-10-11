@@ -19,8 +19,8 @@
         # path planner
         #"path_planning",
         #"path_planning.teb",
-        #"path_planning.cbit",
-        #"path_planning.cbit_planner",
+        "path_planning.cbit",
+        "path_planning.cbit_planner",
         # "mpc.cbit",
         # "mpc_debug.cbit",
         # mission planner
@@ -329,8 +329,8 @@
         support_variance: 0.05
         support_threshold: 2.5
 
-        influence_distance: 0.7 # was 0.5 Jordy
-        minimum_distance: 0.55 # was 0.3 Jordy
+        influence_distance: 0.55 # was 0.5 Jordy
+        minimum_distance: 0.35 # was 0.3 Jordy
 
         # cost map
         resolution: 0.25
@@ -494,8 +494,8 @@
         vehicle_model: "unicycle"
         
         # Cost Function Weights
-        pose_error_cov: [0.75, 0.75, 0.75, 1000.0, 1000.0, 1000.0]
-        vel_error_cov: [0.1, 2.0]
+        pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
+        vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
         acc_error_cov: [0.1, 0.75]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         

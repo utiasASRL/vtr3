@@ -431,7 +431,15 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           
           p_goal = p_goal_backup;
           CLOG(ERROR, "path_planning.cbit_planner") << "The p_goal is now set to p:  " << p_goal->p << " q: " << p_goal->q;
-          restore_tree(g_T_update, g_T_weighted_update); 
+          try // experimental debug
+          {
+            restore_tree(g_T_update, g_T_weighted_update); 
+          }
+          catch(...)
+          {
+            CLOG(ERROR, "path_planning.cbit_planner") << "Failed to restore the tree, initiating hard reset."
+          }
+          
 
           // Reset the goal (NOTE IN PYTHON I DO THIS AFTER REPAIR, BUT I THINK WITH MY QUICK AND DIRTY REPAIR I NEED TO SET IT BEFORE)
           //p_goal = p_goal_backup;
