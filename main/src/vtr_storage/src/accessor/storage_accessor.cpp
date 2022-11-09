@@ -213,7 +213,7 @@ void StorageAccessor::remove_topic(const TopicMetadata& topic_with_type) {
 
 void StorageAccessor::set_filter(const StorageFilter& storage_filter) {
   std::lock_guard<std::mutex> storage_lock(storage_mutex_);
-  if (storage_)
+  if (!storage_)
     throw std::runtime_error(
         "Bag is not open. Call open() before setting filter.");
   storage_->set_filter(storage_filter);

@@ -64,9 +64,9 @@ OutputCache::Ptr RadarPipeline::createOutputCache() const {
 
 void RadarPipeline::reset() {
   // reset modules
-  for (const auto module : preprocessing_) module->reset();
-  for (const auto module : odometry_) module->reset();
-  for (const auto module : localization_) module->reset();
+  for (const auto &module : preprocessing_) module->reset();
+  for (const auto &module : odometry_) module->reset();
+  for (const auto &module : localization_) module->reset();
   // odometry cached data
   sliding_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
@@ -82,7 +82,7 @@ void RadarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
-  for (const auto module : preprocessing_)
+  for (const auto &module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
 
@@ -100,7 +100,7 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
   }
 
-  for (const auto module : odometry_)
+  for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
 
   // store the current sliding map for odometry
@@ -121,7 +121,7 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
 
-  for (const auto module : localization_)
+  for (const auto &module : localization_)
     module->run(*qdata0, *output0, graph, executor);
 
   /// store the current map for localization

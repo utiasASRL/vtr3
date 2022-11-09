@@ -213,7 +213,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
   const auto map_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+  // const auto map_normals_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
   const auto query_norms_mat = query_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());

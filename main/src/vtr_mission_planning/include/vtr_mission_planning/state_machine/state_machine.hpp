@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <condition_variable>
+
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning/state_machine/event.hpp"
 #include "vtr_path_planning/path_planner_interface.hpp"
