@@ -14,13 +14,12 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 
-find_package(vtr_common REQUIRED)
-find_package(vtr_logging REQUIRED)
-find_package(vtr_tactic REQUIRED)
-
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 
+find_package(vtr_common REQUIRED)
+find_package(vtr_logging REQUIRED)
+find_package(vtr_tactic REQUIRED)
 
 # C++ Libraries
 include_directories(
@@ -28,7 +27,6 @@ include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-
 
 file(GLOB_RECURSE SRC src/base_path_planner.cpp)
 add_library(${PROJECT_NAME}_base ${SRC})
