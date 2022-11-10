@@ -60,15 +60,16 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
   vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
-# # path planner (TODO)
-# file(GLOB_RECURSE PATH_PLANNING_SRC
-#   src/path_planning/*.cpp
-# )
-# add_library(${PROJECT_NAME}_path_planning ${PATH_PLANNING_SRC})
-# target_link_libraries(${PROJECT_NAME}_path_planning ${PROJECT_NAME}_components)
-# ament_target_dependencies(${PROJECT_NAME}_path_planning
-#   vtr_logging vtr_path_planning vtr_lidar_msgs
-# )
+# path planner
+file(GLOB_RECURSE PATH_PLANNING_SRC
+  src/path_planning/*.cpp
+)
+add_library(${PROJECT_NAME}_path_planning ${PATH_PLANNING_SRC})
+target_link_libraries(${PROJECT_NAME}_path_planning ${PROJECT_NAME}_components)
+ament_target_dependencies(${PROJECT_NAME}_path_planning
+  vtr_logging vtr_path_planning vtr_lidar_msgs
+  lgmath steam
+)
 
 # additional tools for experiments
 file(GLOB_RECURSE TOOLS_SRC

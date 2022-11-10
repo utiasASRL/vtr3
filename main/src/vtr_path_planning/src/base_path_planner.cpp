@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_path_planning/base_path_planner.hpp"
+//#include "vtr_path_planning/cbit/cbit.hpp" // Not sure if I need this here anymore
 
 namespace vtr {
 namespace path_planning {
@@ -36,15 +37,15 @@ BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
                                  const Callback::Ptr& callback)
     : config_(config), robot_state_(robot_state), callback_(callback) {
   //
-  thread_count_ = 1;
+  thread_count_ = 2;
   process_thread_ = std::thread(&BasePathPlanner::process, this);
 }
 
 BasePathPlanner::~BasePathPlanner() { stop(); }
 
-void BasePathPlanner::initializeRoute() {
-  UniqueLock lock(mutex_);
-  initializeRoute(*robot_state_);
+void BasePathPlanner::initializeRoute() { // No longer in use
+  //UniqueLock lock(mutex_);
+  //initializeRoute(*robot_state_);
 }
 
 void BasePathPlanner::setRunning(const bool running) {
@@ -58,7 +59,6 @@ void BasePathPlanner::setRunning(const bool running) {
 
 void BasePathPlanner::stop() {
   UniqueLock lock(mutex_);
-  //
   terminate_ = true;
   cv_terminate_or_state_changed_.notify_all();
   cv_thread_finish_.wait(lock, [this] { return thread_count_ == 0; });
@@ -67,7 +67,7 @@ void BasePathPlanner::stop() {
 
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
-  CLOG(INFO, "path_planning") << "Starting the path planning thread.";
+  CLOG(INFO, "path_planning") << "Starting the base path planning thread.";
   while (true) {
     UniqueLock lock(mutex_);
     cv_terminate_or_state_changed_.wait(lock, [this] {
@@ -83,7 +83,7 @@ void BasePathPlanner::process() {
       waiting_ = true;
       cv_waiting_.notify_all();
       --thread_count_;
-      CLOG(INFO, "path_planning") << "Stopping the path planning thread.";
+      CLOG(INFO, "path_planning") << "Stopping the base path planning thread.";
       cv_thread_finish_.notify_all();
       return;
     }
@@ -91,12 +91,12 @@ void BasePathPlanner::process() {
     /// \note command computation should not require the lock, and this is
     /// required to give other threads a chance to acquire the lock
     lock.unlock();
-
     //
     const auto wait_until_time =
         std::chrono::steady_clock::now() +
         std::chrono::milliseconds(config_->control_period);
     const auto command = computeCommand(*robot_state_);
+    CLOG(INFO, "path_planning") << "Trying to publish the command from mpc:";
     callback_->commandReceived(command);
     if (config_->control_period > 0 &&
         wait_until_time < std::chrono::steady_clock::now()) {

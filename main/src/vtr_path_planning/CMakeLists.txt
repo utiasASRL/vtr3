@@ -18,12 +18,17 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
 
+find_package(lgmath REQUIRED)
+find_package(steam REQUIRED)
+
+
 # C++ Libraries
 include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+
 
 file(GLOB_RECURSE SRC src/base_path_planner.cpp)
 add_library(${PROJECT_NAME}_base ${SRC})
@@ -37,6 +42,15 @@ add_library(${PROJECT_NAME}_mpc ${SRC})
 target_link_libraries(${PROJECT_NAME}_mpc ${PROJECT_NAME}_base)
 ament_target_dependencies(${PROJECT_NAME}_mpc
   rclcpp tf2 tf2_ros tf2_eigen
+  lgmath steam
+)
+
+file(GLOB_RECURSE SRC src/cbit/*.cpp)
+add_library(${PROJECT_NAME}_cbit ${SRC})
+target_link_libraries(${PROJECT_NAME}_cbit ${PROJECT_NAME}_base)
+ament_target_dependencies(${PROJECT_NAME}_cbit
+  rclcpp tf2 tf2_ros tf2_eigen
+  lgmath steam
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
@@ -54,6 +68,7 @@ install(
   TARGETS
     ${PROJECT_NAME}_base
     ${PROJECT_NAME}_mpc
+    ${PROJECT_NAME}_cbit
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

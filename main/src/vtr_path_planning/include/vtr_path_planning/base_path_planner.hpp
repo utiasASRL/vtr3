@@ -99,6 +99,7 @@ class BasePathPlanner : public PathPlannerInterface {
  private:
   /** \brief Called when a new route is set */
   virtual void initializeRoute(RobotState& robot_state) = 0;
+
   /** \brief Subclass override this method to compute a control command */
   virtual Command computeCommand(RobotState& robot_state) = 0;
 
@@ -126,7 +127,7 @@ class BasePathPlanner : public PathPlannerInterface {
   mutable CondVar cv_waiting_;
   mutable CondVar cv_thread_finish_;
 
- private:
+ protected:
   /** \brief Whether the processing thread should be computing command */
   bool running_ = false;
   /** \brief Whether the processing thread is waiting to run */
@@ -137,6 +138,7 @@ class BasePathPlanner : public PathPlannerInterface {
   /** \brief used to wait until all threads finish */
   size_t thread_count_ = 0;
   /** \brief the event processing thread */
+ private:
   std::thread process_thread_;
 
   /// factory handlers (note: local static variable constructed on first use)

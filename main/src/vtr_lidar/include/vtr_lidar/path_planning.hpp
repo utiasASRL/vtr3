@@ -17,3 +17,5 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
+
+#include "vtr_lidar/path_planning/cbit.hpp"
