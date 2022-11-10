@@ -181,7 +181,7 @@
         min_matched_ratio: 0.5
 
         visualize: true
-        
+
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
@@ -314,12 +314,6 @@
         # general
         visualize: true
 
-      memory:
-        type: "graph_mem_manager"
-
-        vertex_life_span: 5
-        window_size: 3
-
       change_detection:
         type: "lidar.change_detection_v2"
         # change detection
@@ -411,7 +405,7 @@
         
     ############ path planning configuration ############
     path_planning:
-      type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 33 # ms
       teb:
         # vtr specific
