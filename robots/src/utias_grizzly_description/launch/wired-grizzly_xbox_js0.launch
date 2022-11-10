@@ -20,7 +20,7 @@
     <param name="axis_angular" value="0"/>
     <param name="scale_linear" value="1.0"/>
     <param name="scale_angular" value="1.0"/>
-    <param name="~/base/linear_max_speed_meters_per_second" value="1"/>
+    <param name="~/base/linear_max_speed_meters_per_second" value="1.5"/>
     <param name="~/base/angular_max_speed_rads_per_second" value="1"/>
     <param name="~/base/linear_to_angular_velocity_ratio_minimum" value="0.0"/>
   </node>

@@ -126,20 +126,53 @@ TEBPathPlanner::~TEBPathPlanner() { stop(); }
 
 void TEBPathPlanner::initializeRoute(RobotState& robot_state) {
   /// \todo reset any internal state
+  CLOG(INFO, "path_planning.teb") << "Path Planner has been started, here is where I will inject my pre-processing code - Jordy2";
+  auto& chain = *robot_state.chain;
+  CLOG(INFO, "path_planning.teb") << "Chain Localized?: " << chain.isLocalized();
+  /*
+  const auto chain_info = getChainInfo(robot_state);
+  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g, T_p_i_vec, curr_sid] =
+      chain_info;
+
+  CLOG(INFO, "path_planning.teb") << "stamp " << stamp;
+  CLOG(INFO, "path_planning.teb") << "w_p_r_in_r: " << w_p_r_in_r;
+  CLOG(INFO, "path_planning.teb") << "T_p_r: " << T_p_r;
+  CLOG(INFO, "path_planning.teb") << "T_w_p: " << T_w_p;
+  CLOG(INFO, "path_planning.teb") << "T_p_g: " << T_p_g;
+  CLOG(INFO, "path_planning.teb") << "T_p_i_vec: " << T_p_i_vec;
+  */
 }
+
+/*
+void TEBPathPlanner::initializeRouteTest(RobotState& robot_state) {
+  /// \todo reset any internal state
+  CLOG(INFO, "path_planning.teb") << "Calling the teb initializeRouteTest again";
+}
+*/
+
 
 auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
     CLOG(WARNING, "path_planning.teb")
-        << "Robot is not localized, command to stop the robot";
+        << "Robot is not localized, command to stop the robot test teb";
     return Command();
+  }
+
+  else {
+    CLOG(INFO, "path_planning.teb") << "Robot is now localized and we can start doing things in cbit";
   }
 
   // retrieve info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g, T_p_i_vec, curr_sid] =
       chain_info;
+  CLOG(INFO, "path_planning.teb") << "stamp " << stamp;
+  CLOG(INFO, "path_planning.teb") << "w_p_r_in_r: " << w_p_r_in_r;
+  CLOG(INFO, "path_planning.teb") << "T_p_r: " << T_p_r;
+  CLOG(INFO, "path_planning.teb") << "T_w_p: " << T_w_p;
+  CLOG(INFO, "path_planning.teb") << "T_p_g: " << T_p_g;
+  CLOG(INFO, "path_planning.teb") << "T_p_i_vec: " << T_p_i_vec;
 
   // get robot pose project onto 2D plane w.r.t. the planning frame
   const auto T_p_r_2d = xyth2T(T2xyth(T_p_r));

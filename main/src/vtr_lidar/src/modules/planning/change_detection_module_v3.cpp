@@ -294,7 +294,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   indices.reserve(aligned_points2.size());
   for (size_t i = 0; i < aligned_points2.size(); ++i) {
     /// \todo change flex24 to flex23
-    if (aligned_points2[i].flex24 > 0.5f) indices.emplace_back(i);
+    if (aligned_points2[i].flex23 > 0.5f) indices.emplace_back(i); //Jordy: modified from flex24 to flex23, I think we need to do this to update the costmap properly
   }
   pcl::PointCloud<PointWithInfo> filtered_points(aligned_points2, indices);
 

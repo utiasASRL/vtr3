@@ -12,3 +12,6 @@ log/
 
 # python caches
 __pycache__/
+
+#vscode config
+.vscode/

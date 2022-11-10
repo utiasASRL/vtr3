@@ -72,6 +72,7 @@ class TEBPathPlanner : public BasePathPlanner {
 
  protected:
   void initializeRoute(RobotState& robot_state) override;
+  //void initializeRouteTest(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
 
  protected:

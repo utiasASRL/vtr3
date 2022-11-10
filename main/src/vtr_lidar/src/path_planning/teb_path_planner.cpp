@@ -93,11 +93,25 @@ auto LidarTEBPathPlanner::computeCommand(RobotState& robot_state0) -> Command {
         << "Robot is not localized, command to stop the robot";
     return Command();
   }
+    else {
+    CLOG(INFO, "path_planning.teb") << "Robot is now localized and we can start doing things";
+  }
 
   // retrieve info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g, T_p_i_vec, curr_sid] =
       chain_info;
+
+  //CLOG(INFO, "path_planning.teb") << "stamp " << stamp;
+  //CLOG(INFO, "path_planning.teb") << "w_p_r_in_r: " << w_p_r_in_r;
+  //CLOG(INFO, "path_planning.teb") << "T_p_r: " << T_p_r;
+  //CLOG(INFO, "path_planning.teb") << "T_w_p: " << T_w_p;
+  //CLOG(INFO, "path_planning.teb") << "T_p_g: " << T_p_g;
+  //CLOG(INFO, "path_planning.teb") << "T_p_i_vec: " << T_p_i_vec;
+  //Testing trying to grab all of the teach key frame transforms
+  //CLOG(INFO, "path_planning.teb") << "Key Frame 1 " << chain.pose(0);
+  //CLOG(INFO, "path_planning.teb") << "Key Frame 2 " << chain.pose(1);
+
 
   // get robot pose project onto 2D plane w.r.t. the planning frame
   const auto T_p_r_2d = xyth2T(T2xyth(T_p_r));
