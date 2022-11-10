@@ -19,7 +19,6 @@
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
-#include "vtr_radar/utils/utils.hpp"
 
 namespace vtr {
 namespace radar {
@@ -53,13 +52,13 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
   config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
   config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
-  const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_inv", std::vector<double>());
+  const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
     CLOG(ERROR, "radar.odometry_icp") << err;
     throw std::invalid_argument{err};
   }
-  config->traj_qc_inv.diagonal() << 1.0/qcd[0], 1.0/qcd[1], 1.0/qcd[2], 1.0/qcd[3], 1.0/qcd[4], 1.0/qcd[5];
+  config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -70,16 +69,12 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
   config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
-  config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  // steam params
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
-  config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
-  config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
-  config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
+  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
@@ -148,7 +143,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
   if (config_->use_trajectory_estimation) {
-    trajectory = const_vel::Interface::MakeShared(config_->traj_qc_inv, true);
+    trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
     /// last frame state
     Time prev_time(static_cast<int64_t>(timestamp_odo));
@@ -182,7 +177,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     T_r_m_eval = trajectory->getPoseInterpolator(query_time);
     w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
   } else {
-    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
+    //
+    Time prev_time(static_cast<int64_t>(timestamp_odo));
+    Time query_time(static_cast<int64_t>(query_stamp));
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
   }
@@ -302,7 +302,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       //   // Check planar distance (only after a few steps for initial alignment)
       //   auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
       //               point_map[sample_inds[i].second].getVector3fMap();
-      //   float planar_dist = abs(
+      //   float planar_dist = std::abs(
       //       diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
       //   if (step < first_steps || planar_dist < max_planar_d) {
           filtered_sample_inds.push_back(sample_inds[i]);
@@ -375,19 +375,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
-    // make solver
-    using SolverType = VanillaGaussNewtonSolver;
-    SolverType::Params params;
-    params.verbose = config_->verbose;
-    params.maxIterations = config_->maxIterations;
-    SolverType solver(&problem, params);
-
     // optimize
-    try {
-      solver.optimize();
-    } catch (const decomp_failure &) {
-      CLOG(WARNING, "radar.odometry_icp") << "Steam optimization failed! T_m_s left unchanged.";
-    }
+    GaussNewtonSolver::Params params;
+    params.verbose = config_->verbose;
+    params.max_iterations = (unsigned int)config_->max_iterations;
+    GaussNewtonSolver solver(problem, params);
+    solver.optimize();
+    Covariance covariance(solver);
     timer[3]->stop();
 
     /// Alignment
@@ -485,12 +479,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
          mean_dR < config_->rot_diff_thresh)) {
       // result
       if (config_->use_trajectory_estimation) {
-        const Eigen::Matrix<double, 6, 6> T_r_m_cov =
-          trajectory->getCovariance(solver, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+        Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
+        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
         T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
-        T_r_m_icp = EdgeTransform(T_r_m_var->value(), solver.queryCovariance(T_r_m_var->key()));
+        T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));
       }
       //
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
@@ -543,16 +537,28 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
     // store trajectory info
-    *qdata.timestamp_odo = query_stamp;
-    *qdata.T_r_m_odo = T_r_m_eval->value();
     if (config_->use_trajectory_estimation)
       *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
+    else {
+      // finite diff approximation
+      Time prev_time(static_cast<int64_t>(timestamp_odo));
+      Time query_time(static_cast<int64_t>(query_stamp));
+      const auto T_r_m_prev = *qdata.T_r_m_odo;
+      const auto T_r_m_query = T_r_m_eval->value();
+      *qdata.w_m_r_in_r_odo = (T_r_m_query * T_r_m_prev.inverse()).vec() / (query_time - prev_time).seconds();
+    }
+    *qdata.T_r_m_odo = T_r_m_eval->value();
+    *qdata.timestamp_odo = query_stamp;
+#if 1
+    CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+    CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->use_trajectory_estimation)
-      *qdata.w_v_r_in_r_odo = w_m_r_in_r_eval->value();
+      *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     //
     *qdata.odo_success = true;
   } else {

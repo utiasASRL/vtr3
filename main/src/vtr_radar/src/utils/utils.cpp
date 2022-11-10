@@ -22,22 +22,22 @@
 namespace vtr {
 namespace radar {
 
-void load_radar(const std::string &path, std::vector<double> &timestamps,
+void load_radar(const std::string &path, std::vector<int64_t> &timestamps,
                 std::vector<double> &azimuths, cv::Mat &fft_data) {
   const cv::Mat raw_data = cv::imread(path, cv::IMREAD_GRAYSCALE);
   load_radar(raw_data, timestamps, azimuths, fft_data);
 }
 
-void load_radar(const cv::Mat &raw_data, std::vector<double> &timestamps,
+void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
                 std::vector<double> &azimuths, cv::Mat &fft_data) {
-  const double time_convert = 1.0e-6;
+  const int64_t time_convert = 1000;
   const double encoder_conversion = 2 * M_PI / 5600;
   const uint N = raw_data.rows;
-  timestamps = std::vector<double>(N, 0);
+  timestamps = std::vector<int64_t>(N, 0);
   azimuths = std::vector<double>(N, 0);
   const uint range_bins = raw_data.cols - 11;
   fft_data = cv::Mat::zeros(N, range_bins, CV_32F);
-// #pragma omp parallel
+  // #pragma omp parallel
   for (uint i = 0; i < N; ++i) {
     const uchar *byteArray = raw_data.ptr<uchar>(i);
     timestamps[i] = *((int64_t *)(byteArray)) * time_convert;
@@ -86,8 +86,7 @@ double get_azimuth_index(const std::vector<double> &azimuths,
 
 void radar_polar_to_cartesian(const cv::Mat &fft_data,
                               const std::vector<double> &azimuths,
-                              cv::Mat &cartesian,
-                              const float radar_resolution,
+                              cv::Mat &cartesian, const float radar_resolution,
                               const float cart_resolution,
                               const int cart_pixel_width,
                               const bool interpolate_crossover,
@@ -146,8 +145,8 @@ void radar_polar_to_cartesian(const cv::Mat &fft_data,
     angle = angle + 1;
   }
 
-  cv::remap(fft, cartesian, range, angle, cv::INTER_LINEAR,
-            cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+  cv::remap(fft, cartesian, range, angle, cv::INTER_LINEAR, cv::BORDER_CONSTANT,
+            cv::Scalar(0, 0, 0));
   if (output_type != CV_32F) {
     cartesian.convertTo(cartesian, output_type, 255.0);
   }

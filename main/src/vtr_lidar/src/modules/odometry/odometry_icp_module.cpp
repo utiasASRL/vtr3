@@ -52,35 +52,13 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
   config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
   config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
-  const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_inv", std::vector<double>());
+  const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
     CLOG(ERROR, "lidar.odometry_icp") << err;
     throw std::invalid_argument{err};
   }
-  config->traj_qc_inv.diagonal() << 1.0/qcd[0], 1.0/qcd[1], 1.0/qcd[2], 1.0/qcd[3], 1.0/qcd[4], 1.0/qcd[5];
-
-  // point association
-  config->use_point_association = node->declare_parameter<bool>(param_prefix + ".use_point_association", config->use_point_association);
-
-  // radial velocity
-  config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
-  if (config->use_radial_velocity && !config->use_trajectory_estimation) {
-    std::string err{"Radial velocity requires trajectory smoothing!"};
-    CLOG(ERROR, "lidar.odometry_icp") << err;
-    throw std::invalid_argument{err};
-  }
-  config->rv_cov = node->declare_parameter<double>(param_prefix + ".rv_cov", config->rv_cov);
-  config->rv_loss_threshold = node->declare_parameter<double>(param_prefix + ".rv_loss_threshold", config->rv_loss_threshold);
-
-  config->use_velocity_prior = node->declare_parameter<bool>(param_prefix + ".use_velocity_prior", config->use_velocity_prior);
-  const auto vp_cov = node->declare_parameter<std::vector<double>>(param_prefix + ".vp_cov", std::vector<double>());
-  if (vp_cov.size() != 6) {
-    std::string err{"Velocity prior cov diagonal malformed. Must be 6 elements!"};
-    CLOG(ERROR, "lidar.odometry_icp") << err;
-    throw std::invalid_argument{err};
-  }
-  config->vp_cov.diagonal() << vp_cov[0], vp_cov[1], vp_cov[2], vp_cov[3], vp_cov[4], vp_cov[5];
+  config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -94,12 +72,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  // steam params
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
-  config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
-  config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
-  config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
+  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
@@ -168,7 +142,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
   if (config_->use_trajectory_estimation) {
-    trajectory = const_vel::Interface::MakeShared(config_->traj_qc_inv, true);
+    trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
     /// last frame state
     Time prev_time(static_cast<int64_t>(timestamp_odo));
@@ -177,10 +151,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
     if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
     trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-    if (config_->use_velocity_prior) {
-      Eigen::Matrix<double, 6, 1> prior_w_m_r_in_r = Eigen::Matrix<double, 6, 1>::Zero();
-      trajectory->addVelocityPrior(prev_time, prior_w_m_r_in_r, config_->vp_cov);
-    }
     state_vars.emplace_back(prev_T_r_m_var);
     state_vars.emplace_back(prev_w_m_r_in_r_var);
 
@@ -202,10 +172,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
       //
       trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
-      if (config_->use_velocity_prior) {
-        Eigen::Matrix<double, 6, 1> prior_w_m_r_in_r = Eigen::Matrix<double, 6, 1>::Zero();
-        trajectory->addVelocityPrior(knot_time, prior_w_m_r_in_r, config_->vp_cov);
-      }
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
     }
@@ -344,78 +310,46 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (config_->use_trajectory_estimation)
       trajectory->addPriorCostTerms(problem);
 
-    if (config_->use_point_association) {
-      // shared loss function
-      auto loss_func = L2LossFunc::MakeShared();
-      // cost terms and noise model
-  #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (const auto &ind : filtered_sample_inds) {
-        // noise model W = n * n.T (information matrix)
-        if (point_map[ind.second].normal_score <= 0.0) continue;
-        Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-        Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
-        auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
+    // shared loss function
+    auto loss_func = L2LossFunc::MakeShared();
+    // cost terms and noise model
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (const auto &ind : filtered_sample_inds) {
+      // noise model W = n * n.T (information matrix)
+      if (point_map[ind.second].normal_score <= 0.0) continue;
+      Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+      Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+      auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
-        // query and reference point
-        const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-        const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+      // query and reference point
+      const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+      const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-        auto error_func = [&] {
-          if (config_->use_trajectory_estimation) {
-            const auto &qry_time = query_points[ind.first].timestamp;
-            const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-            const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
-          } else {
-            return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
-          }
-        }();
+      auto error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
+        if (config_->use_trajectory_estimation) {
+          const auto &qry_time = query_points[ind.first].timestamp;
+          const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+          const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+          return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
+        } else {
+          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
+        }
+      }();
 
-        // create cost term and add to problem
-        auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+      // create cost term and add to problem
+      auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-  #pragma omp critical(odo_icp_add_p2p_error_cost)
-        problem.addCostTerm(cost);
-      }
+#pragma omp critical(odo_icp_add_p2p_error_cost)
+      problem.addCostTerm(cost);
     }
-
-    if (config_->use_radial_velocity) {
-      // shared loss function
-      auto rv_loss_func = GemanMcClureLossFunc::MakeShared(config_->rv_loss_threshold);
-      // cost terms and noise model
-      Eigen::Matrix<double, 1, 1> rv_cov = config_->rv_cov * Eigen::Matrix<double, 1, 1>::Identity();
-      const auto rv_noise_model = StaticNoiseModel<1>::MakeShared(rv_cov);
-  #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (const auto &ind : sample_inds) {
-        // query and reference point
-        const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-        const auto &qry_rv = query_points[ind.first].radial_velocity;
-        const auto &qry_time = query_points[ind.first].timestamp;
-        const auto w_iv_inv_m_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-        const auto w_is_ins_m_intp_eval = compose_velocity(T_s_r_var, w_iv_inv_m_intp_eval);
-        const auto error_func = p2p::RadialVelErrorEvaluator::MakeShared(w_is_ins_m_intp_eval, qry_pt, qry_rv);
-
-        // create cost term and add to problem
-        auto cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, rv_noise_model, rv_loss_func);
-
-  #pragma omp critical(odo_icp_add_rv_error_cost)
-        problem.addCostTerm(cost);
-      }
-    }
-
-    // make solver
-    using SolverType = VanillaGaussNewtonSolver;
-    SolverType::Params params;
-    params.verbose = config_->verbose;
-    params.maxIterations = config_->maxIterations;
-    SolverType solver(&problem, params);
 
     // optimize
-    try {
-      solver.optimize();
-    } catch (const decomp_failure &) {
-      CLOG(WARNING, "lidar.odometry_icp") << "Steam optimization failed! T_m_s left unchanged.";
-    }
+    GaussNewtonSolver::Params params;
+    params.verbose = config_->verbose;
+    params.max_iterations = (unsigned int)config_->max_iterations;
+    GaussNewtonSolver solver(problem, params);
+    solver.optimize();
+    Covariance covariance(solver);
     timer[3]->stop();
 
     /// Alignment
@@ -497,22 +431,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // result
       if (config_->use_trajectory_estimation) {
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        try {
-          /// \todo remove this if condition once steam allows for cov interp. between locked variables
-          if ((!config_->traj_lock_prev_pose) && (!config_->traj_lock_prev_vel))
-            T_r_m_cov = trajectory->getCovariance(solver, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
-        } catch (const std::runtime_error &) {
-          CLOG(WARNING, "lidar.odometry_icp") << "Covariance estimation failed! Covariance left unchanged.";
-        }
+        /// \todo remove this if condition once steam allows for cov interp. between locked variables
+        if ((!config_->traj_lock_prev_pose) && (!config_->traj_lock_prev_vel))
+          T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
         T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
-        T_r_m_icp = EdgeTransform(T_r_m_var->value(), solver.queryCovariance(T_r_m_var->key()));
+        T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));
       }
       //
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
-      CLOG(DEBUG, "radar.odometry_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
+      CLOG(DEBUG, "lidar.odometry_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
         CLOG(WARNING, "lidar.odometry_icp") << "ICP did not converge to the specified threshold";

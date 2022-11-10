@@ -46,12 +46,8 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  // steam params
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
-  config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
-  config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
-  config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
+  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
@@ -115,7 +111,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// create kd-tree of the map
   CLOG(DEBUG, "lidar.localization_icp") << "Start building a kd-tree of the map.";
   NanoFLANNAdapter<PointWithInfo> adapter(point_map);
-  KDTreeParams tree_params(10 /* max leaf */);
+  KDTreeParams tree_params(/* max leaf */ 10);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
@@ -161,7 +157,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     timer[0]->start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
     sample_inds.resize(query_points.size());
-    // pick queries (for now just use all of them)
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
     timer[0]->stop();
 
@@ -230,19 +225,13 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
-    // make solver
-    using SolverType = VanillaGaussNewtonSolver;
-    SolverType::Params params;
-    params.verbose = config_->verbose;
-    params.maxIterations = config_->maxIterations;
-    SolverType solver(&problem, params);
-
     // optimize
-    try {
-      solver.optimize();
-    } catch (const decomp_failure &) {
-      CLOG(WARNING, "lidar.localization_icp") << "Steam optimization failed! T_m_s left unchanged.";
-    }
+    GaussNewtonSolver::Params params;
+    params.verbose = config_->verbose;
+    params.max_iterations = (unsigned int)config_->max_iterations;
+    GaussNewtonSolver solver(problem, params);
+    solver.optimize();
+    Covariance covariance(solver);
     timer[3]->stop();
 
     /// Alignment
@@ -312,10 +301,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
       // result
-      T_r_v_icp = EdgeTransform(T_r_v_var->value(), solver.queryCovariance(T_r_v_var->key()));
+      T_r_v_icp = EdgeTransform(T_r_v_var->value(), covariance.query(T_r_v_var));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
-      CLOG(DEBUG, "radar.localization_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
+      CLOG(DEBUG, "lidar.localization_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
         CLOG(WARNING, "lidar.localization_icp") << "ICP did not converge to the specified threshold.";

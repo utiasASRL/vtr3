@@ -39,20 +39,16 @@ class OdometryICPModule : public tactic::BaseModule {
   static constexpr auto static_name = "radar.odometry_icp";
 
   /** \brief Config parameters. */
-  struct Config : public tactic::BaseModule::Config,
-                  public steam::VanillaGaussNewtonSolver::Params {
+  struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
-
-    /// Success criteria
-    float min_matched_ratio = 0.4;
 
     // continuous-time estimation
     bool use_trajectory_estimation = false;
     int traj_num_extra_states = 0;
     bool traj_lock_prev_pose = false;
     bool traj_lock_prev_vel = false;
-    Eigen::Matrix<double, 6, 6> traj_qc_inv =
-        Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 6, 1> traj_qc_diag =
+        Eigen::Matrix<double, 6, 1>::Ones();
 
     /// ICP parameters
     // number of threads for nearest neighbor search
@@ -70,8 +66,13 @@ class OdometryICPModule : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
-    // loss function
+    // steam optimizer
+    bool verbose = false;
+    unsigned int max_iterations = 1;
     double huber_delta = 1.0;
+
+    /// Success criteria
+    float min_matched_ratio = 0.4;
 
     bool visualize = false;
 

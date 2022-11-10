@@ -40,10 +40,6 @@ class VelodyneConversionModule : public tactic::BaseModule {
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    bool use_fov_limit = false;
-    float fov_center = 0.0;
-    float fov = 2 * M_PI;
-
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

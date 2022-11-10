@@ -123,14 +123,8 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
       << "final subsampled point size: " << filtered_point_cloud->size();
 
   if (config_->visualize) {
-    auto point_cloud_tmp = *filtered_point_cloud;
-    std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
-                  [&](PointWithInfo &point) {
-                    point.flex21 = static_cast<float>(
-                        (point.timestamp - *qdata.stamp) / 1e9);
-                  });
     PointCloudMsg pc2_msg;
-    pcl::toROSMsg(point_cloud_tmp, pc2_msg);
+    pcl::toROSMsg(*filtered_point_cloud, pc2_msg);
     pc2_msg.header.frame_id = "radar";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     filtered_pub_->publish(pc2_msg);

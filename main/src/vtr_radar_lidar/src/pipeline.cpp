@@ -68,8 +68,6 @@ void RadarLidarPipeline::reset() {
   for (const auto module : odometry_) module->reset();
   for (const auto module : localization_) module->reset();
   // odometry cached data
-  cartesian_odo_ = nullptr;
-  point_cloud_odo_ = nullptr;
   sliding_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
@@ -96,8 +94,6 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
   /// set the current sliding map for odometry
   if (sliding_map_odo_ != nullptr) {
-    qdata->cartesian_odo = cartesian_odo_;
-    qdata->point_cloud_odo = point_cloud_odo_;
     qdata->sliding_map_odo = sliding_map_odo_;
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
@@ -109,8 +105,6 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
-    cartesian_odo_ = qdata->cartesian_odo.ptr();
-    point_cloud_odo_ = qdata->point_cloud_odo.ptr();
     sliding_map_odo_ = qdata->sliding_map_odo.ptr();
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();

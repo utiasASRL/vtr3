@@ -112,7 +112,6 @@
           "icp",
           ## "enable the following for online obstacle detection (memory should always be on)"
           "safe_corridor",
-          # "fake_obstacle",
           "change_detection_sync",
           "memory",
         ]
@@ -298,21 +297,6 @@
         # general
         visualize: true
 
-      fake_obstacle:
-        type: "lidar.fake_obstacle"
-
-        path: "/ext0/ASRL/vtr_testing_lidar/3dmodels"
-        objs: ["cone", "human", "box_large"]
-        types: [1, 1, 1]
-        xs: [4.0, 6.0, 2.5]
-        ys: [0.5, -1.0, -1.5]
-        zs: [-1.9, -1.9, -1.9]
-        rolls: [0.0, 0.0, 0.0]
-        pitchs: [0.0, 0.0, 0.0]
-        yaws: [0.0, 0.0, 0.0]
-
-        visualize: true
-
       change_detection_sync:
         type: "lidar.change_detection_v3"
         # change detection
@@ -369,8 +353,14 @@
         # general
         run_online: false
         run_async: true
-        visualize: true
+        visualize: false
         save_module_result: false
+
+      memory:
+        type: "graph_mem_manager"
+
+        vertex_life_span: 5
+        window_size: 3
 
       obstacle_detection:
         type: "lidar.obstacle_detection"
@@ -427,6 +417,7 @@
         run_async: true
         visualize: true
 
+        
     ############ path planning configuration ############
     path_planning:
       type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version

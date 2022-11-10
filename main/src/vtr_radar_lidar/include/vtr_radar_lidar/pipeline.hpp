@@ -90,9 +90,6 @@ class RadarLidarPipeline : public tactic::BasePipeline {
   std::vector<tactic::BaseModule::Ptr> localization_;
 
   /// odometry cached data
-  /** \brief Latest point cloud and BEV image for MCRANSAC */
-  std::shared_ptr<const cv::Mat> cartesian_odo_;
-  std::shared_ptr<const pcl::PointCloud<radar::PointWithInfo>> point_cloud_odo_;
   /** \brief current sliding map for odometry */
   std::shared_ptr<radar::PointMap<radar::PointWithInfo>> sliding_map_odo_;
   /** \brief current timestamp*/

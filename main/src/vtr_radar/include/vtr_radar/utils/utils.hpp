@@ -25,10 +25,10 @@
 namespace vtr {
 namespace radar {
 
-void load_radar(const std::string &path, std::vector<double> &timestamps,
+void load_radar(const std::string &path, std::vector<int64_t> &timestamps,
                 std::vector<double> &azimuths, cv::Mat &fft_data);
 
-void load_radar(const cv::Mat &raw_data, std::vector<double> &timestamps,
+void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
                 std::vector<double> &azimuths, cv::Mat &fft_data);
 
 /** \brief Returns the cartesian image of a radar scan */
@@ -42,24 +42,6 @@ void radar_polar_to_cartesian(const cv::Mat &fft_data,
                               const bool interpolate_crossover,
                               const int output_type = CV_8UC1);
 // clang-format on
-
-// vbar is 3x1 v_s_i_in_s where (s) is sensor, (i) is a static frame
-// like an inertial frame or (pm) frame in this repository
-// beta \approx f_transmission / (slope of modulation pattern dfdt)
-// correct radial distance using Doppler factor
-// relative velocity (> 0: point/sensor moving towards each other)
-template <class PointT>
-void removeDoppler(pcl::PointCloud<PointT>& point_cloud,
-  const Eigen::VectorXd &vbar, const double beta) {
-  for (auto& p : point_cloud) {
-    Eigen::Vector3d abar = {p.x, p.y, p.z};
-    abar.normalize();
-    const double delta_rho = beta * abar.transpose() * vbar;
-    p.x += delta_rho * abar(0);
-    p.y += delta_rho * abar(1);
-    p.z += delta_rho * abar(2);
-  }
-}
 
 }  // namespace radar
 }  // namespace vtr

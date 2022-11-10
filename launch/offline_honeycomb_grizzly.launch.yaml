@@ -1,4 +1,4 @@
-## Offline LiDAR VTR3 (using datasets)
+## Offline Lidar VTR3 (using datasets)
 session_name: vtr_offline_honeycomb_grizzly
 
 environment:
@@ -10,7 +10,7 @@ start_directory: ${VTRTEMP}
 suppress_history: false
 
 windows:
-  - window_name: vtr_system
+  - window_name: vtr_navigation_system
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
@@ -18,19 +18,11 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
-        data_dir:=${VTRTEMP}/playback/lidar/honeycomb
+        data_dir:=${VTRTEMP}/lidar
         start_new_graph:=false
         use_sim_time:=true
 
-      - sudo htop # monitor hardware usage and adjust process priority
-
-  - window_name: vtr_ros_vis
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
-      - ros2 run rqt_reconfigure rqt_reconfigure
+      - htop # monitor hardware usage and adjust process priority
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -42,9 +34,10 @@ windows:
       - ros2 run vtr_gui web_server  --ros-args -r __ns:=/vtr
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
-  - window_name: grizzly
+  - window_name: rviz2
     layout: main-horizontal
     shell_command_before:
-      - source ${VTRSRC}/robots/install/setup.bash
+      - source /opt/ros/galactic/setup.bash
     panes:
-      - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      # - ros2 run rqt_reconfigure rqt_reconfigure
