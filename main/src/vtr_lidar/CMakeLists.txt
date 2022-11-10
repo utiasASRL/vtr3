@@ -98,7 +98,7 @@ install(
   TARGETS
     ${PROJECT_NAME}_components
     ${PROJECT_NAME}_pipeline
-    # ${PROJECT_NAME}_path_planning (TODO)
+    ${PROJECT_NAME}_path_planning
     ${PROJECT_NAME}_tools
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
