@@ -145,7 +145,7 @@ struct mpc_result SolveMPC(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3
         if (i < (K-1))
         {
         const auto lhs = steam::se3::ComposeInverseEvaluator::MakeShared(pose_state_vars[i+1], pose_state_vars[i]);
-        const auto vel_proj = steam::vspace::MatrixMultEvaluator<2>::MakeShared(vel_state_vars[i], P_tran); // TODO, I guess this version of steam doesnt have this one, will need to do it myself
+        const auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran); // TODO, I guess this version of steam doesnt have this one, will need to do it myself
         const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
         const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
         const auto kin_error_func = steam::se3::LogMapEvaluator::MakeShared(steam::se3::ComposeInverseEvaluator::MakeShared(lhs, rhs));
@@ -155,12 +155,12 @@ struct mpc_result SolveMPC(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3
     }
 
     // Solve the optimization problem with GuassNewton solver
-    using SolverType = steam::VanillaGaussNewtonSolver;
+    using SolverType = steam::GaussNewtonSolver;
     // Initialize parameters (enable verbose mode)
     SolverType::Params params;
     params.verbose = false; // Makes the output display for debug
 
-    SolverType solver(&opt_problem, params);
+    SolverType solver(opt_problem, params);
     solver.optimize();
 
     // DEBUG: Display the several of the prediction horizon results
