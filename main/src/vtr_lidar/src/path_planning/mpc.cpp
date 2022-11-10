@@ -359,7 +359,7 @@ struct meas_result GenerateReferenceMeas(std::shared_ptr<std::vector<Pose>> cbit
     // with the final point in the path (point stabilization problem)
     if (measurements.size() < K)
     {
-      CLOG(WARNING, "mpc.cbit") << "Approaching End of Path, Converting MPC to Point Stabilization Problem";
+      CLOG(INFO, "mpc.cbit") << "Approaching End of Path, Converting MPC to Point Stabilization Problem";
       
       // debug logging messages
       /*

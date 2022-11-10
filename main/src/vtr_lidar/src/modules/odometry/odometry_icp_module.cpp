@@ -140,6 +140,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Inputs
   const auto &query_stamp = *qdata.stamp;
+  //CLOG(INFO, "lidar.odometry_icp") << "The pointcloud timestamp is: " << *qdata.stamp; // debug jordy
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &timestamp_odo = *qdata.timestamp_odo;
@@ -188,6 +189,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     const auto last_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
     const int64_t num_states = config_->traj_num_extra_states + 2;
     const int64_t time_diff = (last_time - first_time) / (num_states - 1);
+    //CLOG(INFO, "lidar.odometry_icp") << "The first time is: " << first_time; // debug jordy
+    //CLOG(INFO, "lidar.odometry_icp") << "The last time is: " << last_time; // debug jordy
+    //CLOG(INFO, "lidar.odometry_icp") << "The knot time difference is: " << time_diff; // debug jordy
     for (int i = 0; i < num_states; ++i) {
       Time knot_time(static_cast<int64_t>(first_time + i * time_diff));
       //

@@ -43,7 +43,6 @@ class LidarCBIT : public vtr::path_planning::CBIT {
   ~LidarCBIT() override;
 
  private:
-  void initializeRoute(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
 
  private:

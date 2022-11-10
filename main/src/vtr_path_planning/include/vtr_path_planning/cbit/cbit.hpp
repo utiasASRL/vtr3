@@ -180,6 +180,15 @@ class CBIT : public BasePathPlanner {
   // Create costmap pointer object
   std::shared_ptr<CBITCostmap> costmap_ptr = std::make_shared<CBITCostmap> ();
 
+ private:
+  void process_cbit();
+  std::thread process_thread_cbit_; 
+  void stop_cbit();
+
+ private:
+  /** \brief shared memory that stores the current robot state */
+  RobotState::Ptr robot_state_;
+  
 
 };
 

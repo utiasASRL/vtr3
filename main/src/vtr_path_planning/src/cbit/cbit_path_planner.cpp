@@ -145,8 +145,8 @@ void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& rob
   CLOG(ERROR, "path_planning.cbit_planner") << "Plan could not be improved, Initiating Reset";
   std::this_thread::sleep_for(std::chrono::milliseconds(100)); // short delay to prevent excessive looping
 
-  CLOG(ERROR, "path_planning.cbit_planner") << "P_goal_backup is: p: " << p_goal->p << " q: " << p_goal->q;
-  CLOG(ERROR, "path_planning.cbit_planner") << "P_goal backup is: p: " << p_goal_backup->p << " q: " << p_goal_backup->q;
+  //CLOG(ERROR, "path_planning.cbit_planner") << "P_goal_backup is: p: " << p_goal->p << " q: " << p_goal->q;
+  //CLOG(ERROR, "path_planning.cbit_planner") << "P_goal backup is: p: " << p_goal_backup->p << " q: " << p_goal_backup->q;
 
   // Experimental, try a state update (this seems to work well)
 
@@ -155,18 +155,27 @@ void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& rob
 
   std::tuple<double, double, double, double, double, double> robot_pose;
 
-  const auto chain_info = getChainInfo(robot_state);
-  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
+  try
+  {
+    const auto chain_info = getChainInfo(robot_state);
+    auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
 
-  robot_pose= T2xyzrpy(T_w_p * T_p_r);
-  CLOG(INFO, "path_planning.cbit_planner") << "Robot Pose: x: " << std::get<0>(robot_pose) << " y: " 
-  << std::get<1>(robot_pose) << " z: " << std::get<2>(robot_pose) << " roll: " << std::get<3>(robot_pose) << " pitch: " 
-  << std::get<4>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
+    robot_pose= T2xyzrpy(T_w_p * T_p_r);
+    CLOG(INFO, "path_planning.cbit_planner") << "Robot Pose: x: " << std::get<0>(robot_pose) << " y: " 
+    << std::get<1>(robot_pose) << " z: " << std::get<2>(robot_pose) << " roll: " << std::get<3>(robot_pose) << " pitch: " 
+    << std::get<4>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
 
-  Pose se3_robot_pose = Pose(std::get<0>(robot_pose),(std::get<1>(robot_pose)),std::get<2>(robot_pose),std::get<3>(robot_pose),std::get<4>(robot_pose),std::get<5>(robot_pose));
+    Pose se3_robot_pose = Pose(std::get<0>(robot_pose),(std::get<1>(robot_pose)),std::get<2>(robot_pose),std::get<3>(robot_pose),std::get<4>(robot_pose),std::get<5>(robot_pose));
 
-  new_state = std::make_unique<Pose> (se3_robot_pose);
+    new_state = std::make_unique<Pose> (se3_robot_pose);
 
+  }
+  catch(...)
+  {
+    CLOG(ERROR, "path_planning.cbit_planner") << "Couldnt get robot state, must have reached end of path";
+    return;
+  }
+  
   // Perform a state update to convert the actual robot position to its corresponding pq space:
   p_goal = UpdateState();
 
@@ -313,6 +322,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           << std::get<4>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
         }
 
+
         //End Experimental Pose Interpolation
 
         //CLOG(INFO, "path_planning.cbit_planner") << "Displaying Current Robot Transform: " << T_p_r;
@@ -324,6 +334,14 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
         // Perform a state update to convert the actual robot position to its corresponding pq space:
         p_goal = UpdateState();
+
+        // EXPERIMENTAL TODO: If robot pose nears the goal (p_start), exit the planner with the current solution
+        //CLOG(ERROR, "path_planning") << "Trying the distance to goal is: " << abs(p_goal->p - p_start->p);
+        //if (abs(p_goal->p - p_start->p) <= 2.0)
+        //{
+        //  CLOG(ERROR, "path_planning") << "Trying to exit the CBIT Planner Initialize route";
+        //  return;
+        //}
 
         // If we arent in repair mode, update the backup goal
         
@@ -430,14 +448,14 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           double g_T_weighted_update = p_goal->g_T_weighted - repair_g_T_weighted_old;
           
           p_goal = p_goal_backup;
-          CLOG(ERROR, "path_planning.cbit_planner") << "The p_goal is now set to p:  " << p_goal->p << " q: " << p_goal->q;
+          //CLOG(ERROR, "path_planning.cbit_planner") << "The p_goal is now set to p:  " << p_goal->p << " q: " << p_goal->q;
           try // experimental debug
           {
             restore_tree(g_T_update, g_T_weighted_update); 
           }
           catch(...)
           {
-            CLOG(ERROR, "path_planning.cbit_planner") << "Failed to restore the tree, initiating hard reset."
+            CLOG(ERROR, "path_planning.cbit_planner") << "Failed to restore the tree, initiating hard reset.";
           }
           
 
@@ -450,14 +468,20 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           tree.QE.clear();
           samples.clear();
 
-          CLOG(ERROR, "path_planning.cbit_planner") << "REPAIR MODE COMPLETED SUCCESSFULLY";
-          CLOG(ERROR, "path_planning.cbit_planner") << "The p_goal is now set to p:  " << p_goal->p << " q: " << p_goal->q;
+          CLOG(INFO, "path_planning.cbit_planner") << "REPAIR MODE COMPLETED SUCCESSFULLY";
+          CLOG(INFO, "path_planning.cbit_planner") << "The p_goal is now set to p:  " << p_goal->p << " q: " << p_goal->q;
           continue;
         }
 
         // After restoring the tree, (or finding a solution for a batch) we need to collision check the path to see if we need to go into repair mode
 
         repair_mode = col_check_path();
+
+        // DEBUG, dont leave this! bipasses tree restore and repair mode
+        //if (repair_mode)
+        //{
+        //  HardReset(robot_state, costmap_ptr);
+        //}
 
       }
       //std::cout << "Made it just before prune" << std::endl;
@@ -1486,7 +1510,7 @@ bool CBITPlanner::col_check_path()
     samples.push_back(p_goal);  
     // DEBUG MESSAGE
     //std::cout << "Returning repair mode true (Collision Detected)" << std::endl;
-    CLOG(ERROR, "path_planning.cbit_planner") << "Returning repair mode true (Collision Detected)";
+    CLOG(INFO, "path_planning.cbit_planner") << "Returning repair mode true (Collision Detected)";
     return true;
   }
 

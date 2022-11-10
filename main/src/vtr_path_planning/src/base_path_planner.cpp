@@ -37,16 +37,15 @@ BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
                                  const Callback::Ptr& callback)
     : config_(config), robot_state_(robot_state), callback_(callback) {
   //
-  thread_count_ = 1;
+  thread_count_ = 2;
   process_thread_ = std::thread(&BasePathPlanner::process, this);
-  process_thread_cbit_ = std::thread(&BasePathPlanner::process_cbit, this); // Setting up an indepedant thread for the cbit planner
 }
 
 BasePathPlanner::~BasePathPlanner() { stop(); }
 
-void BasePathPlanner::initializeRoute() {
+void BasePathPlanner::initializeRoute() { // No longer in use
   //UniqueLock lock(mutex_);
-  initializeRoute(*robot_state_);
+  //initializeRoute(*robot_state_);
 }
 
 void BasePathPlanner::setRunning(const bool running) {
@@ -60,48 +59,15 @@ void BasePathPlanner::setRunning(const bool running) {
 
 void BasePathPlanner::stop() {
   UniqueLock lock(mutex_);
-  //
   terminate_ = true;
   cv_terminate_or_state_changed_.notify_all();
   cv_thread_finish_.wait(lock, [this] { return thread_count_ == 0; });
   if (process_thread_.joinable()) process_thread_.join();
 }
 
-void BasePathPlanner::process_cbit() {
-  el::Helpers::setThreadName("cbit_path_planning");
-
-  UniqueLock lock(mutex_);
-  cv_terminate_or_state_changed_.wait(lock, [this] {
-    waiting_ = true;
-    cv_waiting_.notify_all();
-    return terminate_ || running_;
-  });
-
-  waiting_ = false;
-
-  if (terminate_) {
-      waiting_ = true;
-      cv_waiting_.notify_all();
-      --thread_count_;
-      CLOG(INFO, "path_planning") << "Stopping the CBIT thread.";
-      cv_thread_finish_.notify_all();
-      CLOG(INFO, "path_planning") << "cbit planning thread successfully terminated";
-      return;
-  }
-
-  lock.unlock();
-
-  // Note we need to run the above first so that the lidarcbit class can be constructed before calling initializeroute (so it can be overrided correctly)
-  CLOG(INFO, "path_planning") << "Starting the CBIT path planning thread.";
-  initializeRoute();
-  CLOG(INFO, "path_planning") << "initializeRoute() has been terminated.";
-}
-
-
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
   CLOG(INFO, "path_planning") << "Starting the base path planning thread.";
-  //initializeRoute();
   while (true) {
     UniqueLock lock(mutex_);
     cv_terminate_or_state_changed_.wait(lock, [this] {
@@ -117,7 +83,7 @@ void BasePathPlanner::process() {
       waiting_ = true;
       cv_waiting_.notify_all();
       --thread_count_;
-      CLOG(INFO, "path_planning") << "Stopping the path planning thread.";
+      CLOG(INFO, "path_planning") << "Stopping the base path planning thread.";
       cv_thread_finish_.notify_all();
       return;
     }
@@ -125,9 +91,6 @@ void BasePathPlanner::process() {
     /// \note command computation should not require the lock, and this is
     /// required to give other threads a chance to acquire the lock
     lock.unlock();
-    // Note: Need to make sure not to run this thread until after we construct the lidarcbit class, which then allows the virtual functions to override correctly
-    //process_thread_cbit_ = std::thread(&BasePathPlanner::process_cbit, this); // Setting up an indepedant thread for the cbit planner 
-
     //
     const auto wait_until_time =
         std::chrono::steady_clock::now() +

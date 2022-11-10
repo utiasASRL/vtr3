@@ -29,7 +29,7 @@ namespace lidar {
  * \brief A specialized point cloud converter for data from Ouster OS1
  * LiDAR.
  */
-class VelodyneConversionModuleV2 : public tactic::BaseModule {
+class OusterConversionModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 

@@ -108,6 +108,7 @@ CBIT::CBIT(const Config::ConstPtr& config,
                                const Callback::Ptr& callback)
     : BasePathPlanner(config, robot_state, callback), config_(config) {
   CLOG(INFO, "path_planning.cbit") << "Constructing the CBIT Class";
+  robot_state_ = robot_state;
   const auto node = robot_state->node.ptr();
   // Initialize the shared pointer to the output of the planner
   cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
@@ -156,21 +157,57 @@ CBIT::CBIT(const Config::ConstPtr& config,
   {
     vel_history.push_back(applied_vel);
   }
+
+  process_thread_cbit_ = std::thread(&CBIT::process_cbit, this);
 }
 
-CBIT::~CBIT() { stop(); }
+CBIT::~CBIT() { stop_cbit(); }
 
+void CBIT::stop_cbit() {
+  UniqueLock lock(mutex_);
+  terminate_ = true;
+  cv_terminate_or_state_changed_.notify_all();
+  cv_thread_finish_.wait(lock, [this] { return thread_count_ == 0; });
+  if (process_thread_cbit_.joinable()) process_thread_cbit_.join();
+}
+
+void CBIT::process_cbit() {
+  el::Helpers::setThreadName("cbit_path_planning");
+  CLOG(INFO, "path_planning.cbit") << "Starting the CBIT Planning Thread";
+  while (true) {
+    UniqueLock lock(mutex_);
+    cv_terminate_or_state_changed_.wait(lock, [this] {
+      waiting_ = true;
+      cv_waiting_.notify_all();
+      return terminate_ || running_;
+    });
+    waiting_ = false;
+
+    if (terminate_) {
+        waiting_ = true;
+        cv_waiting_.notify_all();
+        --thread_count_;
+        CLOG(INFO, "path_planning.cbit") << "Stopping the CBIT Thread.";
+        cv_thread_finish_.notify_all();
+        return;
+    }
+
+
+    // Planner should not require the thread lock to execute
+    lock.unlock();
+
+    // Note we need to run the above first so that the lidarcbit class can be constructed before calling initializeroute (so it can be overrided correctly)
+    CLOG(INFO, "path_planning.cbit") << "Initializing CBIT Route";
+    initializeRoute(*robot_state_);
+    CLOG(INFO, "path_planning.cbit") << "CBIT Plan Completed";
+  }
+}
 
 // Here is where we can do all the teach path pre-processing and then begin the anytime planner asychronously
 void CBIT::initializeRoute(RobotState& robot_state) {
-
-
-  CLOG(INFO, "path_planning.cbit") << "Attempting to InitializeRoute()";
-
   auto& chain = *robot_state.chain;
 
-  // Initially when the initializeRoute is called in the base planner, the chain has not yet been localized, so we cannot see the frames yet.
-  // We need to loop for awhile until the chain localizes doing nothing on this thread (just takes a second or two)
+  // Wait until the chain becomes localized
   while (!chain.isLocalized()) 
   {
   }
@@ -181,7 +218,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   std::vector<Pose> euclid_path_vec; // Store the se3 frames w.r.t the initial world frame into a path vector
   euclid_path_vec.reserve(chain.size());
   // Loop through all frames in the teach path, convert to euclidean coords w.r.t the first frame and store it in a cbit Path class (vector of se(3) poses)
-  for (size_t i = 0; i < chain.size()-1; i++)
+  for (size_t i = 0; i < chain.size(); i++)
   {
     teach_frame = chain.pose(i);
     se3_vector = T2xyzrpy(teach_frame);
@@ -196,13 +233,14 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   // Make a pointer to this path
   std::shared_ptr<CBITPath> global_path_ptr = std::make_shared<CBITPath>(global_path);
 
-  CLOG(INFO, "path_planning.cbit") << "Teach Path has been pre-processed. Attempting to instantiate the Planner";
+  CLOG(INFO, "path_planning.cbit") << "Teach Path has been pre-processed. Attempting to instantiate the planner";
 
 
   // Instantiate the planner
   CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr);
 
-  CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved, end of initializeRoute() function";
+  CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved";
+  
 }
 
 // Generate twist commands to track the planned local path (obstacle free)
@@ -230,12 +268,10 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   const auto T_p_r_extp = [&]() {
     // extrapolate based on current time
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * w_p_r_in_r);
-    CLOG(WARNING, "mpc.cbit")
+    CLOG(INFO, "mpc.cbit")
       << "Time difference b/t estimation and planning: " << dt;
     return T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
   }();
-
-  std::string test_string = "This is a test message!"; //todo, get rid of this requirement in visualize, was just to help me learn the ros2 messaging
 
 
   // START OF MPC CODE
@@ -245,7 +281,6 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // Initializations from config
     int K = config_->horizon_steps; // Horizon steps
-    CLOG(ERROR, "mpc.cbit") << "K has been set to: " << K;
     double DT = config_->horizon_step_size; // Horizon step size
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
 
@@ -266,13 +301,13 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     kin_noise_vect = config_->kin_error_cov;
 
 
-
+    
     // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
     const auto curr_time = now();  // always in nanoseconds
     const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 
 
-    CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities" << vel_history;
+    CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities:" << vel_history;
     
     // Check the time past since the last state update was received
     // Go back through the vel_history to approximately dt seconds in the past
@@ -309,7 +344,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     const auto T_p_r_extp2 = T_p_r2;
 
     CLOG(DEBUG, "mpc_debug.cbit") << "New extrapolated pose:"  << T_p_r_extp2;
-
+    
     // Uncomment if we use the extrapolated robot pose for control (constant velocity model from odometry)
     //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
 
@@ -318,6 +353,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // no extrapolation (comment this out if we are not using extrapolation)
     //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
+
+    // TODO: Set whether to use mpc extrapolation as a config param (though there is almost never a good reason not to use it)
 
     //Convert to x,y,z,roll, pitch, yaw
     std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
@@ -344,7 +381,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     auto mpc_poses = mpc_result.mpc_poses;
     CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
 
-    CLOG(WARNING, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
+    CLOG(INFO, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
  
     // If required, saturate the output velocity commands based on the configuration limits
@@ -366,7 +403,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     command.linear.x = saturated_vel(0);
     command.angular.z = saturated_vel(1);
 
-    CLOG(WARNING, "mpc.cbit")
+    CLOG(INFO, "mpc.cbit")
       << "Final control command: [" << command.linear.x << ", "
       << command.linear.y << ", " << command.linear.z << ", "
       << command.angular.x << ", " << command.angular.y << ", "
@@ -377,7 +414,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   // Otherwise stop the robot
   else
   {
-    CLOG(INFO, "mpc.cbit") << "There is not a valid plan yet, returning 0.0 velocity command";
+    CLOG(INFO, "mpc.cbit") << "There is not a valid plan yet, returning zero velocity commands";
 
     applied_vel << 0.0, 0.0;
     vel_history.erase(vel_history.begin());
@@ -401,11 +438,9 @@ auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
   return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid};
 }
 
-
+// Visualizing robot pose and the planned paths in rviz
 void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction)
 {
-  //CLOG(ERROR, "path_planning.cbit") << "TRYING TO VISUALIZE IN CBIT CLASS";
-
   /// Publish the current frame for planning
   {
     Eigen::Affine3d T(T_w_p.matrix());
@@ -476,7 +511,6 @@ void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform
     robot_path_pub_->publish(robot_path);
   }
   
-
 
   // Attempting to publish the actual path which we are receiving from the shared pointer in the cbitplanner
   // The path is stored as a vector of se3 Pose objects from cbit/utils, need to iterate through and construct proper ros2 nav_msgs PoseStamped

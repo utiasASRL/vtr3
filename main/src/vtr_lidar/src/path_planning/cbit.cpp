@@ -119,52 +119,6 @@ LidarCBIT::LidarCBIT(const Config::ConstPtr& config,
 
 LidarCBIT::~LidarCBIT() { stop(); }
 
-// Function which kick-starts the asychronous anytime BIT* planner
-void LidarCBIT::initializeRoute(RobotState& robot_state0) {
-
-  auto& robot_state = dynamic_cast<LidarOutputCache&>(robot_state0);
-  auto& chain = *robot_state.chain;
-
-
-  // Initially when the initializeRoute is called in the base planner, the chain has not yet been localized, so we cannot see the frames yet.
-  // We need to loop for awhile until the chain localizes doing nothing on this thread (just takes a second or two)
-  while (!chain.isLocalized()) 
-  {
-  }
-
-
-  // Begin trying to process the route
-  lgmath::se3::TransformationWithCovariance teach_frame;
-  std::tuple<double, double, double, double, double, double> se3_vector;
-  Pose se3_pose;
-  std::vector<Pose> euclid_path_vec; // Store the se3 frames w.r.t the initial world frame into a path vector
-  euclid_path_vec.reserve(chain.size());
-
-  // Loop through all frames in the teach path, convert to euclidean coords w.r.t the first frame and store it in a cbit Path class (vector of se(3) poses)
-  for (size_t i = 0; i < chain.size()-1; i++)
-  {
-    teach_frame = chain.pose(i);
-    se3_vector = T2xyzrpy(teach_frame);
-    se3_pose = Pose(std::get<0>(se3_vector), std::get<1>(se3_vector), std::get<2>(se3_vector), std::get<3>(se3_vector), std::get<4>(se3_vector), std::get<5>(se3_vector));
-    euclid_path_vec.push_back(se3_pose);
-  }
-
-  // Create the global path class object (Path preprocessing)
-  CBITPath global_path(cbit_config, euclid_path_vec);
-
-  // Make a pointer to this path
-  std::shared_ptr<CBITPath> global_path_ptr = std::make_shared<CBITPath>(global_path);
-
-  CLOG(INFO, "path_planning.cbit") << "Teach Path has been pre-processed. Attempting to instantiate the Planner";
-
-
-  // Instantiate the planner
-  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr);
-
-  CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved, end of initializeRoute function";
-}
-
-
 // Given the current plan and obstacles, generate a twist command for the robot using tracking mpc
 auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
   auto& robot_state = dynamic_cast<LidarOutputCache&>(robot_state0);

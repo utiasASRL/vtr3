@@ -90,6 +90,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
 
     // pointwise timestamp
     point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+    CLOG(WARNING, "lidar.odometry_icp") << "point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
   }
 
   // ouster has no polar coordinates, so compute them manually.
