@@ -5,7 +5,7 @@
 We are still in the process of cleaning up the codebase and having all features of VT&amp;R3 on the main branch.
 
 - [Main branch](https://github.com/utiasASRL/vtr3) has support for lidar/radar teach and repeat.
-- [v3.0.0 tag](https://github.com/utiasASRL/vtr3/tree/v3.0.0) has support for stereo camera teach and repeat.
+- [v3.0.0 tag](https://github.com/utiasASRL/vtr3/tree/v3.0.0) has support for stereo camera teach and repeat (to be merged in the future).
 
 ## What is VT&amp;R3?
 
@@ -17,13 +17,13 @@ VT&amp;R3 related papers usually focus on demonstrating one specific feature of 
 
 - [Burnett et al., Are We Ready for Radar to Replace Lidar in All-Weather Mapping and Localization?, IROS'22](https://github.com/utiasASRL/radar_topometric_localization)
 
-## Installation and Getting Started
+## Knowing the Codebase
 
-The following articles will help you get started with VT&amp;R3:
+The following articles will help you get familiar with VT&amp;R3:
 
-- [Installation Guide](https://github.com/utiasASRL/vtr3/wiki/Installation)
-- [Launching VT&amp;R3](https://github.com/utiasASRL/vtr3/wiki/Getting-Started)
-- [VT&amp;R3 Demo Datasets](https://github.com/utiasASRL/vtr3/wiki/VTR3-Sample-Datasets)
+- [Installation](https://github.com/utiasASRL/vtr3/wiki/Installation)
+- [Getting Started](https://github.com/utiasASRL/vtr3/wiki/Getting-Started)
+- [Demo Datasets](https://github.com/utiasASRL/vtr3/wiki/VTR3-Sample-Datasets)
 
 More information can be found in the [wiki page](https://github.com/utiasASRL/vtr3/wiki).
 

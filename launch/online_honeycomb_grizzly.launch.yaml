@@ -22,8 +22,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
 
-      - sudo htop # monitor hardware usage and adjust process priority
-      - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
+      - htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -42,12 +41,3 @@ windows:
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure
-
-  - window_name: system_monitor
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    panes:
-      - ros2 launch vtr_safety_monitor safety_monitor.launch.py params:=default.yaml
-      # - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
-      # - echo 'ros2 topic echo /grizzly_velocity_controller/cmd_vel # monitor velocity commands'
