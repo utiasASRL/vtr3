@@ -183,7 +183,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   float max_pair_d = config_->initial_max_pairing_dist;
-  float max_planar_d = config_->initial_max_planar_dist;
+  // float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   lidar::KDTreeSearchParams search_params;
 
@@ -411,7 +411,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
-        max_planar_d = config_->refined_max_planar_dist;
+        // max_planar_d = config_->refined_max_planar_dist;
       }
     }
     timer[5]->stop();
