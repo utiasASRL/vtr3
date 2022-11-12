@@ -81,7 +81,6 @@ struct TestRoutePlanner : public StateMachine::RoutePlanner {
 struct TestPathPlanner : public StateMachine::PathPlanner {
   PTR_TYPEDEFS(TestPathPlanner);
   // clang-format off
-  void initializeRoute() override {};
   void setRunning(const bool) override {};
   // clang-format on
 };

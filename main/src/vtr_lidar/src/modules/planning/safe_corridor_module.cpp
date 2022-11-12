@@ -127,8 +127,8 @@ SafeCorridorModule::SafeCorridorModule(
     : tactic::BaseModule{module_factory, name}, config_(config) {}
 
 void SafeCorridorModule::run_(QueryCache &qdata0, OutputCache &output0,
-                              const Graph::Ptr &graph,
-                              const TaskExecutor::Ptr &executor) {
+                              const Graph::Ptr & /* graph */,
+                              const TaskExecutor::Ptr & /* executor */) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   auto &output = dynamic_cast<LidarOutputCache &>(output0);
 

@@ -15,8 +15,6 @@
   <depend>tf2_ros</depend>
   <depend>tf2_eigen</depend>
 
-  <depend>teb_local_planner</depend>
-
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_tactic</depend>

@@ -72,9 +72,9 @@ void DynamicDetectionModule::run_(QueryCache &qdata0, OutputCache &,
 
 void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
                                        const Graph::Ptr &graph,
-                                       const TaskExecutor::Ptr &executor,
-                                       const Task::Priority &priority,
-                                       const Task::DepId &dep_id) {
+                                       const TaskExecutor::Ptr & /* executor */,
+                                       const Task::Priority & /* priority */,
+                                       const Task::DepId & /* dep_id */) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize) {

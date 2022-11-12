@@ -7,9 +7,9 @@
     log_enabled: [
         ## ADD LOGGER IDS HERE
         # navigation
-        #"navigation",
-        #"navigation.graph_map_server",
-        #"navigation.command",
+        # "navigation",
+        # "navigation.graph_map_server",
+        # "navigation.command",
         # tactic
         # "tactic",
         # "tactic.pipeline",
@@ -17,15 +17,15 @@
         # "tactic.module.live_mem_manager",
         # "tactic.module.graph_mem_manager",
         # path planner
-        #"path_planning",
-        #"path_planning.teb",
-        #"path_planning.cbit",
-        #"path_planning.cbit_planner",
+        # "path_planning",
+        # "path_planning.teb",
+        # "path_planning.cbit",
+        # "path_planning.cbit_planner",
         # "mpc.cbit",
         # "mpc_debug.cbit",
         # mission planner
-        #"mission.server",
-        #"mission.state_machine",
+        # "mission.server",
+        # "mission.state_machine",
         # pose graph
         # "pose_graph",
         # pipeline specific
@@ -50,7 +50,7 @@
     robot_frame: base_link
     env_info_topic: env_info
     # lidar related
-    lidar_frame: honeycomb 
+    lidar_frame: honeycomb
     lidar_topic: /points
 
     ############ map projection configuration ############
@@ -69,7 +69,7 @@
 
       task_queue_num_threads: 1
       task_queue_size: -1
-      
+
       route_completion_translation_threshold: 2.0
 
       chain:
@@ -402,7 +402,7 @@
         run_async: true
         visualize: true
 
-        
+
     ############ path planning configuration ############
     path_planning:
       type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
@@ -421,9 +421,9 @@
         enable_homotopy_class_planning: true
 
         free_goal_vel: true
-        max_vel_x: 0.6 
+        max_vel_x: 0.6
         max_vel_y: 0.0
-        max_vel_theta: 0.3 
+        max_vel_theta: 0.3
         min_turning_radius: 3.0
         weight_viapoint: 0.5
         weight_costmap: 100.0
@@ -438,7 +438,7 @@
         state_update_freq: 0.5
         update_state: true
         rand_seed: 1
-        
+
         # Planner Tuning Params
         initial_samples: 250
         batch_samples: 100
@@ -451,15 +451,15 @@
         rad_m_exhange: 1.00
         initial_exp_rad: 0.75
         extrapolation: false
-        
+
         # Misc
         incremental_plotting: false
         plotting: true
-        
+
       costmap:
         costmap_filter_value: 0.01
         costmap_history: 15
-        
+
       mpc:
         # Controller Params
         horizon_steps: 40
@@ -468,12 +468,12 @@
         max_lin_vel: 1.25
         max_ang_vel: 0.75
         vehicle_model: "unicycle"
-        
+
         # Cost Function Weights
         pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
         vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
         acc_error_cov: [0.1, 0.75]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        
+
         # Misc
         command_history_length: 100

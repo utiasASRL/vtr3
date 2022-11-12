@@ -57,7 +57,7 @@ class CBIT : public BasePathPlanner {
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BasePathPlanner::Config {
     PTR_TYPEDEFS(Config);
-  
+
     // point, circular, line, two_circles, polygon
     std::string robot_model = "point";
     double robot_radius = 0.5;
@@ -93,7 +93,7 @@ class CBIT : public BasePathPlanner {
 
     // Misc
     bool incremental_plotting = false;
-    bool plotting = true; 
+    bool plotting = true;
 
     // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
     int horizon_steps = 10;
@@ -101,7 +101,7 @@ class CBIT : public BasePathPlanner {
     double forward_vel = 0.75;
     double max_lin_vel = 1.25;
     double max_ang_vel = 0.75;
-    
+
     // Add unicycle model param
 
     // Covariance tuning weights
@@ -133,8 +133,7 @@ class CBIT : public BasePathPlanner {
   ~CBIT() override;
 
  protected:
-  void initializeRoute(RobotState& robot_state) override; // Declare this as virtual so that the Lidarcbit can override it if using that static name
-  //void initializeRouteTest(RobotState& robot_state) override;
+  void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
   void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction);
 
@@ -182,13 +181,13 @@ class CBIT : public BasePathPlanner {
 
  private:
   void process_cbit();
-  std::thread process_thread_cbit_; 
+  std::thread process_thread_cbit_;
   void stop_cbit();
 
  private:
   /** \brief shared memory that stores the current robot state */
   RobotState::Ptr robot_state_;
-  
+
 
 };
 

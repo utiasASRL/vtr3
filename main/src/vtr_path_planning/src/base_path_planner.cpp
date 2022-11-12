@@ -17,7 +17,6 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_path_planning/base_path_planner.hpp"
-//#include "vtr_path_planning/cbit/cbit.hpp" // Not sure if I need this here anymore
 
 namespace vtr {
 namespace path_planning {
@@ -37,16 +36,11 @@ BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
                                  const Callback::Ptr& callback)
     : config_(config), robot_state_(robot_state), callback_(callback) {
   //
-  thread_count_ = 2;
+  thread_count_ = 1;
   process_thread_ = std::thread(&BasePathPlanner::process, this);
 }
 
 BasePathPlanner::~BasePathPlanner() { stop(); }
-
-void BasePathPlanner::initializeRoute() { // No longer in use
-  //UniqueLock lock(mutex_);
-  //initializeRoute(*robot_state_);
-}
 
 void BasePathPlanner::setRunning(const bool running) {
   UniqueLock lock(mutex_);
@@ -96,7 +90,7 @@ void BasePathPlanner::process() {
         std::chrono::steady_clock::now() +
         std::chrono::milliseconds(config_->control_period);
     const auto command = computeCommand(*robot_state_);
-    CLOG(INFO, "path_planning") << "Trying to publish the command from mpc:";
+
     callback_->commandReceived(command);
     if (config_->control_period > 0 &&
         wait_until_time < std::chrono::steady_clock::now()) {

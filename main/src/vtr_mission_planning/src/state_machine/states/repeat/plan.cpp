@@ -74,8 +74,6 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
     auto path =
         route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
     tactic->setPath(path, 0, persistent_loc.T, true);
-    //path_planner->initializeRoute();  /// shared memory access to chain_ //Jordy Note, I dont think we want to ever call this initialization from outside of the base planner
-    CLOG(INFO, "path_planning") << "initializeRoute() would have been called from the weird plan.cpp file";
   }
 
   // Recursively call up the inheritance chain until we get to the least common

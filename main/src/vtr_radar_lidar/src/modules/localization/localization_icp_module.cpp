@@ -183,7 +183,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   float max_pair_d = config_->initial_max_pairing_dist;
-  float max_planar_d = config_->initial_max_planar_dist;
+  // float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   lidar::KDTreeSearchParams search_params;
 
@@ -213,7 +213,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
   const auto map_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
+  // const auto map_normals_mat = point_map.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
   const auto query_norms_mat = query_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
@@ -411,7 +411,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
-        max_planar_d = config_->refined_max_planar_dist;
+        // max_planar_d = config_->refined_max_planar_dist;
       }
     }
     timer[5]->stop();
