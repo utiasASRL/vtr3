@@ -70,6 +70,35 @@ file(GLOB_RECURSE SRC src/cbit/utils.cpp)
 
 file(GLOB_RECURSE SRC src/cbit/cbit_path_planner.cpp)
 
+# START OF JORDY EXPERIMENTAL MATPLOTLIB CHANGES (note also had to make similar changes in vtr_lidar and vtr_navigation cmakelist.txt also for some dumb reason)
+# find python libraries
+find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+find_package(PythonLibs 3.0 REQUIRED)
+include_directories(${PYTHON3_INCLUDE_DIRS} ${NumPy_INCLUDE_DIRS})
+
+# populate matplotlib repository
+include(FetchContent)
+FetchContent_Declare(
+    matplotlib
+    GIT_REPOSITORY https://github.com/lava/matplotlib-cpp.git
+    GIT_TAG        f23347fca25219d1c42cbb91608b5556814bf572
+)
+FetchContent_GetProperties(matplotlib)
+if(NOT matplotlib_POPULATED)
+    FetchContent_Populate(matplotlib)
+endif()
+include_directories(SYSTEM ${matplotlib_SOURCE_DIR})
+
+target_link_libraries(${PROJECT_NAME}_cbit ${PYTHON_LIBRARIES})
+
+
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME}_cbit ${PYTHON_LIBRARIES})
+# EXPERIMENTAL, JORDY ADDITION FOR MATPLOTLIBCPP PLOTTING
+#target_link_libraries($vtr_path_planning ${PYTHON_LIBRARIES} Python3::NumPy)
+# END OF EXPERIMENTAL MATPLOTLIBCPP 
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros tf2_eigen geometry_msgs
