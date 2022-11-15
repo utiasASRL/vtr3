@@ -27,7 +27,6 @@
 #include <random>
 #include <chrono> // For benchmarking
 #include <unistd.h> // For debug sleeps
-#include "matplotlibcpp.h" // experimental plotting
 
 #include "vtr_logging/logging.hpp"
 #include "vtr_path_planning/base_path_planner.hpp"
@@ -35,7 +34,7 @@
 #include "vtr_path_planning/cbit/generate_pq.hpp"
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
-//#include "vtr_path_planning/cbit/matplotlibcpp.h" // experimental plotting util
+#include "vtr_path_planning/cbit/cbit_plotting.hpp"
 #include "vtr_tactic/tactic.hpp"
 
 #pragma once

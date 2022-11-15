@@ -71,6 +71,9 @@ file(GLOB_RECURSE SRC src/cbit/utils.cpp)
 file(GLOB_RECURSE SRC src/cbit/cbit_path_planner.cpp)
 
 # START OF JORDY EXPERIMENTAL MATPLOTLIB CHANGES (note also had to make similar changes in vtr_lidar and vtr_navigation cmakelist.txt also for some dumb reason)
+# Declare the plotting tools
+file(GLOB_RECURSE SRC src/cbit/cbit_plotting.cpp)
+
 # find python libraries
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 find_package(PythonLibs 3.0 REQUIRED)

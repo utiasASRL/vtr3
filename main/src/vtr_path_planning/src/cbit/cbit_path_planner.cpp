@@ -73,6 +73,9 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   p_start = std::make_shared<Node> (global_path->p.back(), 0.0);
 
   dynamic_window_width = conf.sliding_window_width;
+  
+  // DEBUG PLOTTING
+  initialize_plot();
 
   InitializePlanningSpace();
   Planning(robot_state, costmap_ptr);
@@ -335,6 +338,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         // Perform a state update to convert the actual robot position to its corresponding pq space:
         p_goal = UpdateState();
 
+
         // EXPERIMENTAL TODO: If robot pose nears the goal (p_start), exit the planner with the current solution
         //CLOG(ERROR, "path_planning") << "Trying the distance to goal is: " << abs(p_goal->p - p_start->p);
         //if (abs(p_goal->p - p_start->p) <= 2.0)
@@ -437,6 +441,10 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           // Reset the start time
           start_time = std::chrono::high_resolution_clock::now();
           //std::cout << "Made it to end of new batch process code" << std::endl;
+
+          //DEBUG PLOTTING
+          plot_tree(tree, *p_goal, path_x, path_y, samples);
+
         }
 
 
