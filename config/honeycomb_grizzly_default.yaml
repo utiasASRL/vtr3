@@ -441,13 +441,13 @@
         
         # Planner Tuning Params
         initial_samples: 250
-        batch_samples: 100
+        batch_samples: 150
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
-        eta: 1.1
+        eta: 1.0
         rad_m_exhange: 1.00
         initial_exp_rad: 0.75
         extrapolation: false

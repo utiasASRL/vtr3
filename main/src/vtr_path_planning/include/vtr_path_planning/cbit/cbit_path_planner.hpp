@@ -109,7 +109,9 @@ class CBITPlanner {
         std::vector<Pose> ExtractEuclidPath();
         void Prune(double c_best, double c_best_weighted);
         bool edge_in_tree(Node v, Node x);
+        bool edge_in_tree_v2(std::shared_ptr<Node> v, std::shared_ptr<Node> x);
         bool node_in_tree(Node x);
+        bool node_in_tree_v2(std::shared_ptr<Node> x);
         double cost_col(std::vector<std::vector<double>> obs, Node start, Node end);
         double weighted_cost_col(std::vector<std::vector<double>> obs, Node start, Node end);
         Node curve_to_euclid(Node node);
