@@ -75,7 +75,7 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   dynamic_window_width = conf.sliding_window_width;
   
   // DEBUG PLOTTING
-  initialize_plot();
+  //initialize_plot();
 
   InitializePlanningSpace();
   Planning(robot_state, costmap_ptr);
@@ -239,6 +239,12 @@ void CBITPlanner::ResetPlanner()
 // Main planning function
 void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr)
 {
+  // find some better places to initialize these
+  double prev_path_cost = INFINITY; // experimental
+  int compute_time = 0; // exprimental
+  int vertex_rej_prob = 100; // experimental
+  int dyn_batch_samples = conf.batch_samples;
+
   // Grab the amount of time in ms between robot state updates
   int control_period_ms = (1.0 / conf.state_update_freq) * 1000.0;
   auto state_update_time = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(control_period_ms);
@@ -372,21 +378,65 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
 
         // Add the new goal (robot state) to the samples so it can be found again
+        // EXPERIMENTAL - want to try flushing all the samples just before pushing the goal, then resampling locally in a radius around the new goal.
+        // It probably makes sense that the sample density in the radius ring is based on the rgg radius as well
+        //samples.clear();
         samples.push_back(p_goal); 
+        //double r_s;
+        //double theta_s;
+        //double x_s;
+        //double y_s;
+        //for (int i = 0; i < 100; i++)
+        //{
+        //  r_s = 2.0 * sqrt(static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) ; // todo replace magic number 2.0 in this one (not the next)
+        //  theta_s = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 2.0 * 3.1415;
+        //  x_s = r_s * cos(theta_s) + p_goal->p;
+        //  y_s = r_s * sin(theta_s) + p_goal->q;
+        //  Node new_sample(x_s, y_s);
+        //  samples.push_back(std::make_shared<Node> (new_sample));
+        //  CLOG(DEBUG, "path_planning.cbit_planner") << "Sample x: " << x_s << " Sample y: " << y_s;
+        //}
 
         // Find vertices in the tree which are close to the new state, then populate the vertex queue with only these values.
         tree.QV.clear();
         tree.QE.clear();
+
+        // EXPERIMENTAL, only take the closest point in the tree and use this to connect to the new robot state
+        /*
+        //int nearby_sample_counter = 0;
+        double closest_sample_dist = INFINITY;
+        int closest_sample_ind;
+        double sample_dist;
         for (int i = 0; i < tree.V.size(); i++)
         {
-          if (calc_dist(*(tree.V[i]), *p_goal) <= 2.0 ) // TODO: replace magic number with a param, represents radius to search for state update rewires
+          sample_dist = calc_dist(*(tree.V[i]), *p_goal);
+          if ((sample_dist <= closest_sample_dist) && ((tree.V[i])->p > (p_goal->p + (conf.initial_exp_rad/2)))) // TODO: replace magic number with a param, represents radius to search for state update rewires
           {
-            tree.QV.push_back(tree.V[i]);
+            closest_sample_dist = sample_dist; // used when only taking closest point in the tree to consider
+            closest_sample_ind = i; // used when only taking closest point in the tree to consider
+            //tree.QV.push_back(tree.V[i]); // comment out when only taking closest point in the tree to consider
+          }
+        }
+        tree.QV.push_back(tree.V[closest_sample_ind]); // used when only taking closest point in the tree to consider
+        */
+
+       // Alternative: Take all points in a radius of 2.0m around the new robot state (only if they are a ahead though)
+        double sample_dist;
+        for (int i = 0; i < tree.V.size(); i++)
+        {
+          sample_dist = calc_dist(*(tree.V[i]), *p_goal);
+          if ((sample_dist <= 2.0) && ((tree.V[i])->p > (p_goal->p + (conf.initial_exp_rad/2)))) // TODO: replace magic number with a param, represents radius to search for state update rewires
+          {
+            tree.QV.push_back(tree.V[i]); // comment out when only taking closest point in the tree to consider
           }
         }
 
-        CLOG(DEBUG, "path_planning.cbit_planner") << "Robot State Updated Successfully";
-        //CLOG(INFO, "path_planning.cbit_planner") << "QV size: " << tree.QV.size();
+
+
+
+        CLOG(DEBUG, "path_planning.cbit_planner") << "Robot State Updated Successfully, p: " << p_goal->p << " q: " << p_goal->q;
+        //CLOG(DEBUG, "path_planning.cbit_planner") << "Nearest Vertex, p: " << tree.V[closest_sample_ind]->p << " q: " << tree.V[closest_sample_ind]->q;
+        CLOG(DEBUG, "path_planning.cbit_planner") << "QV size: " << tree.QV.size();
 
         // When the planner resumes, this will cause it to immediately try to rewire locally to the new robot state in a short amount of time
 
@@ -422,10 +472,46 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time);
           //std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
 
+          compute_time = static_cast <int>(duration.count());
 
           // Debug message for online use (wont use std::out long term)
           CLOG(INFO, "path_planning.cbit_planner") << "New Batch - Iteration: " << k << "   Path Cost: " << p_goal->g_T_weighted << "   Batch Compute Time (ms): " << duration.count();
           CLOG(INFO, "path_planning.cbit_planner") << "Tree Vertex Size: " << tree.V.size() << " Tree Edge Size: " << tree.E.size() << " Sample Size: " << samples.size();
+
+          // If the solution does not improve, backup the tree to restrict unnecessary growth
+          if (abs(p_goal->g_T_weighted - prev_path_cost) < 1e-6)
+          {
+            CLOG(DEBUG, "path_planning.cbit_planner") << "There Was No Path Improvement, Restoring Tree to Previous Batch To Restrict Growth.";
+            tree.V = tree.V_Old;
+            tree.E = tree.E_Old;
+          }
+          prev_path_cost = p_goal->g_T_weighted;
+
+          // EXPERIMENTAL
+          // if the batch compute time starts to creep up, it means the tree is getting abit to bloated
+          // Its likely that more samples will not really help us much while going around obstacles, so we should reduce the batch size
+          if (compute_time >= 200)
+          {
+            if (dyn_batch_samples >= 10) // cant have negative samples
+            {
+              dyn_batch_samples = dyn_batch_samples - 10;
+              // Also increase the probability of rejecting vertex queue vertices to improve performance
+              vertex_rej_prob = vertex_rej_prob - 10;
+              CLOG(DEBUG, "path_planning.cbit_planner") << "Compute Falling Behind, Reducing Batch Size To " << m << " and Decreasing Vertex Acceptance Probability to " << vertex_rej_prob << "%";
+            }
+          }
+          // Conversely if batch compute time is fast, we can handle more samples (up to a max)
+          else
+          {
+            if (dyn_batch_samples < conf.batch_samples)
+            {
+              vertex_rej_prob = vertex_rej_prob + 2;
+              dyn_batch_samples = dyn_batch_samples + 2;
+            }
+          }
+          m = dyn_batch_samples;
+
+
 
           // Extract the solution
           //std::cout << "Made it just before extractpath" << std::endl;
@@ -444,7 +530,12 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           //std::cout << "Made it to end of new batch process code" << std::endl;
 
           //DEBUG PLOTTING
-          plot_tree(tree, *p_goal, path_x, path_y, samples);
+          //auto plot_start_time = std::chrono::high_resolution_clock::now();
+          //plot_tree(tree, *p_goal, path_x, path_y, samples);
+          //auto plot_stop_time = std::chrono::high_resolution_clock::now();
+          //auto duration_plot = std::chrono::duration_cast<std::chrono::milliseconds>(plot_stop_time - plot_start_time);
+          //CLOG(ERROR, "path_planning.cbit_planner") << "Plot Time: " << duration_plot.count() << "ms";
+          
 
         }
 
@@ -516,22 +607,55 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
       }
 
-      
-      // Backup the old tree: (Not using this anymore)
-      /*
+    
+      // Backup the old tree:
+      tree.V_Old.clear();
+      tree.E_Old.clear();
       for (int i = 0; i < tree.V.size(); i++)
       {
-        tree.V_Old.push_back(std::shared_ptr<Node> (tree.V[i]));
+        tree.V_Old.push_back((tree.V[i]));
       }
-      */
+
+      for (int i = 0; i < tree.E.size(); i++)
+      {
+        tree.E_Old.push_back(tree.E[i]);
+      }
 
 
-      // Initialize the Vertex Queue;
-      //tree.QV = tree.V; // C++ is dumb so this doesnt work with shared pointer vectors, need to do the following instead      
+      // Initialize the Vertex Queue with all nearby vertices in the tree;
+      //tree.QV = tree.V; // C++ is dumb so this doesnt work with shared pointer vectors, need to do the following instead    
+      //bool reject_vertex = false; 
+      std::random_device rd;     // Only used once to initialise (seed) engine
+      std::mt19937 rng(rd());    // Random-number engine used (Mersenne-Twister in this case)
+      std::uniform_int_distribution<int> uni(1,100); // Guaranteed unbiased 
       for (int i = 0; i < tree.V.size(); i++)
       {
-        tree.QV.push_back(std::shared_ptr<Node> (tree.V[i]));
+        // TODO: It may also be worth considering only adding a random subset of the vertex tree to the queue in times when batches are taking a long time
+        //if (compute_time >= 200)
+        //{
+        auto random_integer = uni(rng);
+        random_integer = static_cast <double>(random_integer);
+        //reject_vertex = static_cast <bool>(random_integer);
+        //CLOG(DEBUG, "path_planning.cbit_planner") << "Compute Falling Behind, Vertices, reject vertex: " << reject_vertex;
+        //}
+        //else
+        //{
+        //  reject_vertex = false;
+        //}
+
+        // if we have no 1st batch solution (we are in the first iteration or have just reset), add the whole tree to the queue
+        if (k == 0)
+        {
+          tree.QV.push_back(tree.V[i]);
+        }
+        // Otherwise, only add the portions of the tree within the sliding window to avoid processing preseeded vertices which are already optimal
+        else if (((tree.V[i]->p) <= p_goal->p + dynamic_window_width + conf.sliding_window_freespace_padding) && ((vertex_rej_prob / random_integer) >= 1.0))
+        {
+          tree.QV.push_back(tree.V[i]);
+        }
+
       }
+      CLOG(DEBUG, "path_planning.cbit_planner") << "QV size after batch: " << tree.QV.size();
 
       // TODO: Dynamic Expansion radius selection:
       // Its debatable whether this works well or not, but going to try it
@@ -774,7 +898,7 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
   double c_min = p_start->p - p_goal->p;
   double padding = (c_best - c_min) / 2.0; // Padding to apply to maintain the heuristic ellipse additional width for probabilstic completeness
   double lookahead = dynamic_window_width;
-  double box_tolerance = 0.1; // Need to add a little extra height to the box when using ROC regions
+  double box_tolerance = 0.1; // Need to add a little extra height to the box when using ROC regions TODO make this config param
 
   // Calculate dimensions
   double q_max = *std::max_element(path_y.begin(), path_y.end()) + box_tolerance; // apparently this function can be abit slow, so be aware
@@ -782,7 +906,13 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
   
   q_max = std::max(fabs(q_max), fabs(q_min));
 
-  double p_max = p_goal->p + lookahead - padding;
+  // maintain a minimum sample box height, this prevents sample density from becoming too ridiculous when following the path
+  if (q_max < 0.5) // TODO make this config param
+  {
+    q_max = 0.5;
+  }
+
+  double p_max = p_goal->p + lookahead + padding;
   double p_zero = p_goal->p - padding;
 
   //std::cout << "p_max: " << p_max << std::endl;
@@ -1204,7 +1334,7 @@ void CBITPlanner::ExpandVertex(std::shared_ptr<Node> v)
   // First check to see that v is not in the old tree already, if it is return early
   for (int i = 0; i < tree.V_Old.size(); i++)
   {
-    if ((v->p == tree.V_Old[i]->p) && (v->q == tree.V_Old[i]->q))
+    if (v == tree.V_Old[i]) 
     {
       //CLOG(WARNING, "path_planning.cbit_planner") << "Returning early, expansion vertex is in V_old"; // For debug
       return;

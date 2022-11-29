@@ -91,7 +91,7 @@ void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector
 
 
     // Display and show while continuing script (adds 1ms delay to draw)
-    matplotlibcpp::draw();
+    //matplotlibcpp::draw();
     matplotlibcpp::pause(0.001);
     return;
 }
