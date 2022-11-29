@@ -278,7 +278,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
     // Check whether a robot state update should be applied
     // We only update the state if A: we have first found a valid initial solution, and B: if the current time has elapsed the control period
-    if (conf.update_state == true && repair_mode == false)
+    if (conf.update_state == true)
     {
       if ((p_goal->parent != nullptr) && (std::chrono::high_resolution_clock::now() >= state_update_time))
       {
@@ -345,8 +345,12 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         // Perform a state update to convert the actual robot position to its corresponding pq space:
         p_goal = UpdateState();
 
+        //TODO: It could be useful to convert this p_goal back to euclid and compare with se3_robot_pose to verify the conversion worked properly (error should be very low)
+        // If its not, we probably need to handle it or return an error
+
 
         // EXPERIMENTAL TODO: If robot pose nears the goal (p_start), exit the planner with the current solution
+        // Note, not sure if this is super easy, because I think if the planner exits the vt&r code will immediately relaunch it
         //CLOG(ERROR, "path_planning") << "Trying the distance to goal is: " << abs(p_goal->p - p_start->p);
         //if (abs(p_goal->p - p_start->p) <= 2.0)
         //{
@@ -355,11 +359,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         //}
 
         // If we arent in repair mode, update the backup goal
-        
-        if (repair_mode == false)
-        {
-          p_goal_backup = p_goal;
-        }
+      
         
 
         // There is a case where the robot is actually starting behind the world frame of the teach path (or the localization thinks it is at first anyways)
@@ -462,127 +462,153 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       
       if (p_goal->parent != nullptr)
       {
-        if (repair_mode==false)
+        //std::cout << "Iteration: " << k << std::endl;
+        //std::cout << "Path Cost: " << p_goal->g_T_weighted << std::endl;
+
+        // Benchmark current compute time
+        auto stop_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time);
+        //std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
+
+        compute_time = static_cast <int>(duration.count());
+
+        // Debug message for online use (wont use std::out long term)
+        CLOG(INFO, "path_planning.cbit_planner") << "New Batch - Iteration: " << k << "   Path Cost: " << p_goal->g_T_weighted << "   Batch Compute Time (ms): " << duration.count();
+        CLOG(INFO, "path_planning.cbit_planner") << "Tree Vertex Size: " << tree.V.size() << " Tree Edge Size: " << tree.E.size() << " Sample Size: " << samples.size();
+
+        // If the solution does not improve, backup the tree to restrict unnecessary growth
+        if (abs(p_goal->g_T_weighted - prev_path_cost) < 1e-6)
         {
-          //std::cout << "Iteration: " << k << std::endl;
-          //std::cout << "Path Cost: " << p_goal->g_T_weighted << std::endl;
+          CLOG(DEBUG, "path_planning.cbit_planner") << "There Was No Path Improvement, Restoring Tree to Previous Batch To Restrict Growth.";
+          tree.V = tree.V_Old;
+          tree.E = tree.E_Old;
+        }
+        prev_path_cost = p_goal->g_T_weighted;
 
-          // Benchmark current compute time
-          auto stop_time = std::chrono::high_resolution_clock::now();
-          auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time);
-          //std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
-
-          compute_time = static_cast <int>(duration.count());
-
-          // Debug message for online use (wont use std::out long term)
-          CLOG(INFO, "path_planning.cbit_planner") << "New Batch - Iteration: " << k << "   Path Cost: " << p_goal->g_T_weighted << "   Batch Compute Time (ms): " << duration.count();
-          CLOG(INFO, "path_planning.cbit_planner") << "Tree Vertex Size: " << tree.V.size() << " Tree Edge Size: " << tree.E.size() << " Sample Size: " << samples.size();
-
-          // If the solution does not improve, backup the tree to restrict unnecessary growth
-          if (abs(p_goal->g_T_weighted - prev_path_cost) < 1e-6)
+        // EXPERIMENTAL
+        // if the batch compute time starts to creep up, it means the tree is getting abit to bloated
+        // Its likely that more samples will not really help us much while going around obstacles, so we should reduce the batch size
+        if (compute_time >= 200)
+        {
+          if (vertex_rej_prob > 60) // never want to exceed some minimums
           {
-            CLOG(DEBUG, "path_planning.cbit_planner") << "There Was No Path Improvement, Restoring Tree to Previous Batch To Restrict Growth.";
-            tree.V = tree.V_Old;
-            tree.E = tree.E_Old;
+            dyn_batch_samples = dyn_batch_samples - 10;
+            // Also increase the probability of rejecting vertex queue vertices to improve performance
+            vertex_rej_prob = vertex_rej_prob - 10;
+            CLOG(DEBUG, "path_planning.cbit_planner") << "Compute Falling Behind, Reducing Batch Size To " << dyn_batch_samples << " and Decreasing Vertex Acceptance Probability to " << vertex_rej_prob << "%";
           }
-          prev_path_cost = p_goal->g_T_weighted;
-
-          // EXPERIMENTAL
-          // if the batch compute time starts to creep up, it means the tree is getting abit to bloated
-          // Its likely that more samples will not really help us much while going around obstacles, so we should reduce the batch size
-          if (compute_time >= 200)
+        }
+        // Conversely if batch compute time is fast, we can handle more samples (up to a max)
+        else
+        {
+          if (vertex_rej_prob < 100)
           {
-            if (dyn_batch_samples >= 10) // cant have negative samples
+            vertex_rej_prob = vertex_rej_prob + 2;
+            dyn_batch_samples = dyn_batch_samples + 2;
+            CLOG(DEBUG, "path_planning.cbit_planner") << "Compute Catching Up, Increasing Batch Size To " << dyn_batch_samples << " and Decreasing Vertex Acceptance Probability to " << vertex_rej_prob << "%";
+          }
+        }
+        m = dyn_batch_samples;
+
+        // Extract the solution
+        //std::cout << "Made it just before extractpath" << std::endl;
+        std::tuple<std::vector<double>, std::vector<double>> curv_path = ExtractPath(robot_state, costmap_ptr);
+        path_x = std::get<0>(curv_path); // p coordinates of the current path (I should probably rename, this is misleading its not x and y)
+        path_y = std::get<1>(curv_path); // q coordinates of the current path (I should probably rename, this is misleading its not x and y)
+
+
+        // Store the Euclidean solution in the shared pointer memory (vector of Pose classes) so it can be accessed in the CBIT class
+        //std::cout << "Made it just before extracting euclid path" << std::endl;
+        std::vector<Pose> euclid_path = ExtractEuclidPath();
+        *cbit_path_ptr = euclid_path;
+
+        // Reset the start time
+        start_time = std::chrono::high_resolution_clock::now();
+        //std::cout << "Made it to end of new batch process code" << std::endl;
+
+        //DEBUG PLOTTING
+        //auto plot_start_time = std::chrono::high_resolution_clock::now();
+        //plot_tree(tree, *p_goal, path_x, path_y, samples);
+        //auto plot_stop_time = std::chrono::high_resolution_clock::now();
+        //auto duration_plot = std::chrono::duration_cast<std::chrono::milliseconds>(plot_stop_time - plot_start_time);
+        //CLOG(ERROR, "path_planning.cbit_planner") << "Plot Time: " << duration_plot.count() << "ms";
+        
+
+
+  
+        // First grab the latest obstacles (could potentially take this opportunity to make a more compact approximate obs representation)
+        
+        // Collision Check the batch solution: TODO:, will need to make wormhole modifcations long term
+        std::shared_ptr<Node> col_free_vertex = col_check_path_v2(); // outputs NULL if no collision
+        if (col_free_vertex != nullptr)
+        {
+          // If there is a collision, prune the tree of all vertices to the left of the this vertex
+          CLOG(WARNING, "path_planning.cbit_planner") << "Collision Detected:";
+          CLOG(WARNING, "path_planning.cbit_planner") << "Collision Free Vertex is - p: " << col_free_vertex->p << " q: " << col_free_vertex->q;
+        
+          // Vertex Prune (maintain only vertices to the right of the collision free vertex)
+          std::vector<std::shared_ptr<Node>> pruned_vertex_tree;
+          pruned_vertex_tree.reserve(tree.V.size());
+          for (int i =0; i<tree.V.size(); i++)
+          {
+            if (tree.V[i]->p >= col_free_vertex->p)
             {
-              dyn_batch_samples = dyn_batch_samples - 10;
-              // Also increase the probability of rejecting vertex queue vertices to improve performance
-              vertex_rej_prob = vertex_rej_prob - 10;
-              CLOG(DEBUG, "path_planning.cbit_planner") << "Compute Falling Behind, Reducing Batch Size To " << m << " and Decreasing Vertex Acceptance Probability to " << vertex_rej_prob << "%";
+              pruned_vertex_tree.push_back(tree.V[i]);
             }
           }
-          // Conversely if batch compute time is fast, we can handle more samples (up to a max)
-          else
+          tree.V = pruned_vertex_tree;
+
+          // Edge Prune (meaintain only edges to the right of the collision free vertex)
+          std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  pruned_edge_tree;
+          pruned_edge_tree.reserve(tree.E.size());
+          for (int i = 0; i <tree.E.size(); i++)
           {
-            if (dyn_batch_samples < conf.batch_samples)
+            if (std::get<1>(tree.E[i])->p >= col_free_vertex->p)
             {
-              vertex_rej_prob = vertex_rej_prob + 2;
-              dyn_batch_samples = dyn_batch_samples + 2;
+              pruned_edge_tree.push_back(tree.E[i]);
             }
           }
-          m = dyn_batch_samples;
+  
+          tree.E = pruned_edge_tree;
 
 
+          // Reset the goal, and add it to the samples
+          p_goal->parent = nullptr;
+          p_goal->g_T = INFINITY;
+          p_goal->g_T_weighted = INFINITY;
+          samples.clear(); // first clear samples so they dont accumulate excessively
+          samples.push_back(p_goal);
 
-          // Extract the solution
-          //std::cout << "Made it just before extractpath" << std::endl;
-          std::tuple<std::vector<double>, std::vector<double>> curv_path = ExtractPath(robot_state, costmap_ptr);
-          path_x = std::get<0>(curv_path); // p coordinates of the current path (I should probably rename, this is misleading its not x and y)
-          path_y = std::get<1>(curv_path); // q coordinates of the current path (I should probably rename, this is misleading its not x and y)
+          // This will cause samplefreespace to run this iteration, but if we made it here m will be set to conf.batch_samples (as its reset every iteration)
+          m = conf.initial_samples;  
+          //k=0;
 
+          // Re-initialize sliding window dimensions for plotting and radius expansion calc;
+          sample_box_height = conf.q_max * 2.0;
+          sample_box_width = conf.sliding_window_width + 2 * conf.sliding_window_freespace_padding;
 
-          // Store the Euclidean solution in the shared pointer memory (vector of Pose classes) so it can be accessed in the CBIT class
-          //std::cout << "Made it just before extracting euclid path" << std::endl;
-          std::vector<Pose> euclid_path = ExtractEuclidPath();
-          *cbit_path_ptr = euclid_path;
+          // Disable pre-seeds from being regenerated
+          repair_mode = true;
 
-          // Reset the start time
-          start_time = std::chrono::high_resolution_clock::now();
-          //std::cout << "Made it to end of new batch process code" << std::endl;
-
-          //DEBUG PLOTTING
-          //auto plot_start_time = std::chrono::high_resolution_clock::now();
-          //plot_tree(tree, *p_goal, path_x, path_y, samples);
-          //auto plot_stop_time = std::chrono::high_resolution_clock::now();
-          //auto duration_plot = std::chrono::duration_cast<std::chrono::milliseconds>(plot_stop_time - plot_start_time);
-          //CLOG(ERROR, "path_planning.cbit_planner") << "Plot Time: " << duration_plot.count() << "ms";
-          
+          // Sample free-space wont generate pre-seeds, so we should generate our own in the portion of the tree that was dropped (col_free_vertex.p to p_goal.p)
+          int pre_seeds = abs(col_free_vertex->p - p_goal->p) / 0.25; // Note needed to change p_goal to p_zero. When the sliding window padding is large, pre-seeds wont get generated all the way to the goal
+          double p_step = 0.25;
+          double p_val = p_goal->p;
+          for (int i = 0; i < (pre_seeds-1); i++) 
+          {
+            Node node((p_val+p_step), 0);
+            samples.push_back(std::make_shared<Node> (node));
+            p_val = p_val + p_step;
+          }
 
         }
-
-
-        // Check if we are in repair mode, if we are and we reach this point, it means we will have just successfully rewired
-        // Now we need to try to recover the old tree and update all cost to come values
-        if (repair_mode==true)
+        else
         {
-          double g_T_update = p_goal->g_T - repair_g_T_old;
-          double g_T_weighted_update = p_goal->g_T_weighted - repair_g_T_weighted_old;
-          
-          p_goal = p_goal_backup;
-          //CLOG(ERROR, "path_planning.cbit_planner") << "The p_goal is now set to p:  " << p_goal->p << " q: " << p_goal->q;
-          try // experimental debug
-          {
-            restore_tree(g_T_update, g_T_weighted_update); 
-          }
-          catch(...)
-          {
-            CLOG(ERROR, "path_planning.cbit_planner") << "Failed to restore the tree, initiating hard reset.";
-          }
-          
-
-          // Reset the goal (NOTE IN PYTHON I DO THIS AFTER REPAIR, BUT I THINK WITH MY QUICK AND DIRTY REPAIR I NEED TO SET IT BEFORE)
-          //p_goal = p_goal_backup;
-
+          // Reset the free space flag in sample freespace
+          CLOG(WARNING, "path_planning.cbit_planner") << "No Collision:";
           repair_mode = false;
-
-          tree.QV.clear();
-          tree.QE.clear();
-          samples.clear();
-
-          CLOG(INFO, "path_planning.cbit_planner") << "REPAIR MODE COMPLETED SUCCESSFULLY";
-          CLOG(INFO, "path_planning.cbit_planner") << "The p_goal is now set to p:  " << p_goal->p << " q: " << p_goal->q;
-          continue;
         }
-
-        // After restoring the tree, (or finding a solution for a batch) we need to collision check the path to see if we need to go into repair mode
-
-        repair_mode = col_check_path();
-
-        // DEBUG, dont leave this! bipasses tree restore and repair mode
-        //if (repair_mode)
-        //{
-        //  HardReset(robot_state, costmap_ptr);
-        //}
-
+        
       }
       //std::cout << "Made it just before prune" << std::endl;
       Prune(p_goal->g_T, p_goal->g_T_weighted);
@@ -628,6 +654,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       std::random_device rd;     // Only used once to initialise (seed) engine
       std::mt19937 rng(rd());    // Random-number engine used (Mersenne-Twister in this case)
       std::uniform_int_distribution<int> uni(1,100); // Guaranteed unbiased 
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Vertex Lookahead: "<< p_goal->p + dynamic_window_width + conf.sliding_window_freespace_padding+5;
       for (int i = 0; i < tree.V.size(); i++)
       {
         // TODO: It may also be worth considering only adding a random subset of the vertex tree to the queue in times when batches are taking a long time
@@ -649,7 +676,8 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           tree.QV.push_back(tree.V[i]);
         }
         // Otherwise, only add the portions of the tree within the sliding window to avoid processing preseeded vertices which are already optimal
-        else if (((tree.V[i]->p) <= p_goal->p + dynamic_window_width + conf.sliding_window_freespace_padding) && ((vertex_rej_prob / random_integer) >= 1.0))
+        else if (((tree.V[i]->p) <= p_goal->p + dynamic_window_width + (conf.sliding_window_freespace_padding*2)) && ((vertex_rej_prob / random_integer) >= 1.0))
+        //else if (((vertex_rej_prob / random_integer) >= 1.0)) // for some reason using the lookahead queue doesnt work reliably for collisions, not sure why, need to investigate
         {
           tree.QV.push_back(tree.V[i]);
         }
@@ -930,8 +958,8 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
     Node node(rand_p, rand_q);
 
     // TODO: Before we add the sample to the sample vector, we need to collision check it
-    if (is_inside_obs(obs_rectangle, curve_to_euclid(node))) // legacy version with obstacle vectors
-    //if (costmap_col(curve_to_euclid(node))) // Using costmap for collision check
+    //if (is_inside_obs(obs_rectangle, curve_to_euclid(node))) // legacy version with obstacle vectors
+    if (costmap_col(curve_to_euclid(node))) // Using costmap for collision check
 
     {
       continue;
@@ -971,8 +999,8 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleFreeSpace(int m)
     Node node(rand_p, rand_q);
 
     // Before we add the sample to the sample vector, we need to collision check it
-    if (is_inside_obs(obs_rectangle, curve_to_euclid(node)))
-    //if (costmap_col(curve_to_euclid(node)))
+    //if (is_inside_obs(obs_rectangle, curve_to_euclid(node)))
+    if (costmap_col(curve_to_euclid(node)))
     {
       continue;
     }
@@ -1589,8 +1617,8 @@ bool CBITPlanner::col_check_path()
   {
     Node vertex = *curv_path[i];
     Node euclid_pt = curve_to_euclid(vertex);
-    if (is_inside_obs(obs_rectangle, euclid_pt)) // Legacy collision checking
-    //if (costmap_col(euclid_pt))
+    //if (is_inside_obs(obs_rectangle, euclid_pt)) // Legacy collision checking
+    if (costmap_col(euclid_pt))
     {
       if (collision == false) // Enter this statement only the first time
       {
@@ -1686,6 +1714,37 @@ bool CBITPlanner::col_check_path()
     return false;
   }
 
+}
+
+std::shared_ptr<Node> CBITPlanner::col_check_path_v2()
+{
+
+  // Generate path to collision check
+  std::vector<std::shared_ptr<Node>> curv_path;
+  std::shared_ptr<Node> node_ptr = p_goal;
+  curv_path.push_back(node_ptr);
+
+  while ((node_ptr->parent != nullptr))
+  {
+    node_ptr = node_ptr->parent;
+    curv_path.push_back(node_ptr);
+  }
+
+  // find the first vertex which results in a collision (curv_path is generated from left to right, so we should search in reverse)
+  std::shared_ptr<Node> col_free_vertex = nullptr;
+
+  // TODO, actually we probably only want to consider edges in the lookahead (not way far away down the path) but I might deal with this later
+  for (int i = curv_path.size()-1; i>=0; i--) 
+  {
+    Node vertex = *curv_path[i];
+    Node euclid_pt = curve_to_euclid(vertex);
+    //if (is_inside_obs(obs_rectangle, euclid_pt)) // Legacy collision checking
+    if (costmap_col(euclid_pt))
+    {
+      col_free_vertex = curv_path[i+1]; // take the vertex just before the collision vertex
+    }
+  }
+  return col_free_vertex;
 }
 
 
@@ -2007,8 +2066,8 @@ bool CBITPlanner::discrete_collision(std::vector<std::vector<double>> obs, doubl
         // Convert to euclid TODO:
         //Node euclid_pt = curv_pt; // DEBUG DO NOT LEAVE THIS HERE, NEED TO REPLACE WITH COLLISION CHECK FUNCTION
         Node euclid_pt = curve_to_euclid(curv_pt);
-        if (is_inside_obs(obs, euclid_pt))
-        //if (costmap_col(euclid_pt))
+        //if (is_inside_obs(obs, euclid_pt))
+        if (costmap_col(euclid_pt))
         {
             return true;
         }

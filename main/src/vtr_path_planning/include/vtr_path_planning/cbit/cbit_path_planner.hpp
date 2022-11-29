@@ -120,6 +120,7 @@ class CBITPlanner {
         bool costmap_col(Node node);
         bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
         bool col_check_path();
+        std::shared_ptr<Node> col_check_path_v2();
         void restore_tree(double g_T_update, double g_T_weighted_update);
 
         // Add class for Tree
