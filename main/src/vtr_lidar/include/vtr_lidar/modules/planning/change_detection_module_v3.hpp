@@ -88,9 +88,14 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
+  rclcpp::Publisher<OccupancyGridMsg>::SharedPtr filtered_costmap_pub_ ;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(ChangeDetectionModuleV3);
+
+
+  // Modificatons for Temporal costmap filter
+  std::vector<std::unordered_map<std::pair<float, float>, float>> costmap_history;
 };
 
 }  // namespace lidar

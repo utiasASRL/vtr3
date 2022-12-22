@@ -178,6 +178,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     // Store the transform T_c_w (from costmap to world)
     costmap_ptr->T_c_w = T_start_vertex.inverse(); // note that T_start_vertex is T_w_c if we want to bring keypoints to the world frame
     // Store the grid resoltuion
+    CLOG(DEBUG, "obstacle_detection.cbit") << "The costmap to world transform is: " << T_start_vertex.inverse();
     costmap_ptr->grid_resolution = change_detection_costmap->dl();
 
     // Experimental: Storing sequences of costmaps for temporal filtering purposes
@@ -190,11 +191,12 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
     else
     {
-      for (int i = 0; i < (config_->costmap_history-1); i++)
-      {
-        costmap_ptr->obs_map_vect[i] = costmap_ptr->obs_map_vect[i + 1];
-        costmap_ptr->T_c_w_vect[i] = costmap_ptr->T_c_w_vect[i + 1];
-      }
+      // Legacy code for when I was filtering inside cbit (made a quick and dirty work around temporarily)
+      //for (int i = 0; i < (config_->costmap_history-1); i++)
+      //{
+      //  costmap_ptr->obs_map_vect[i] = costmap_ptr->obs_map_vect[i + 1];
+      //  costmap_ptr->T_c_w_vect[i] = costmap_ptr->T_c_w_vect[i + 1];
+      //}
       costmap_ptr->obs_map_vect[config_->costmap_history-1] = obs_map;
       costmap_ptr->T_c_w_vect[config_->costmap_history-1] = costmap_ptr->T_c_w ;
     }

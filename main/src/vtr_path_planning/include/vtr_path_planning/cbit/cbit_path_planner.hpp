@@ -118,6 +118,7 @@ class CBITPlanner {
         Pose lin_interpolate(int p_ind, double p_val);
         bool is_inside_obs(std::vector<std::vector<double>> obs, Node node);
         bool costmap_col(Node node);
+        bool costmap_col_tight(Node node);
         bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
         bool col_check_path();
         std::shared_ptr<Node> col_check_path_v2();

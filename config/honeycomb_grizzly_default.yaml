@@ -435,13 +435,13 @@
         sliding_window_width: 10.0
         sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.05
-        state_update_freq: 0.5
+        state_update_freq: 1.0
         update_state: true
         rand_seed: 1
         
         # Planner Tuning Params
-        initial_samples: 250
-        batch_samples: 150
+        initial_samples: 350
+        batch_samples: 100
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5

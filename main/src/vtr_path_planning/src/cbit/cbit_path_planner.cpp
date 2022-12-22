@@ -605,7 +605,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         else
         {
           // Reset the free space flag in sample freespace
-          CLOG(WARNING, "path_planning.cbit_planner") << "No Collision:";
+          //CLOG(WARNING, "path_planning.cbit_planner") << "No Collision:";
           repair_mode = false;
         }
         
@@ -676,8 +676,8 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           tree.QV.push_back(tree.V[i]);
         }
         // Otherwise, only add the portions of the tree within the sliding window to avoid processing preseeded vertices which are already optimal
-        else if (((tree.V[i]->p) <= p_goal->p + dynamic_window_width + (conf.sliding_window_freespace_padding*2)) && ((vertex_rej_prob / random_integer) >= 1.0))
-        //else if (((vertex_rej_prob / random_integer) >= 1.0)) // for some reason using the lookahead queue doesnt work reliably for collisions, not sure why, need to investigate
+        //else if (((tree.V[i]->p) <= p_goal->p + dynamic_window_width + (conf.sliding_window_freespace_padding*2)) && ((vertex_rej_prob / random_integer) >= 1.0))
+        else if (((vertex_rej_prob / random_integer) >= 1.0)) // for some reason using the lookahead queue doesnt work reliably for collisions, not sure why, need to investigate
         {
           tree.QV.push_back(tree.V[i]);
         }
@@ -1739,7 +1739,7 @@ std::shared_ptr<Node> CBITPlanner::col_check_path_v2()
     Node vertex = *curv_path[i];
     Node euclid_pt = curve_to_euclid(vertex);
     //if (is_inside_obs(obs_rectangle, euclid_pt)) // Legacy collision checking
-    if (costmap_col(euclid_pt))
+    if (costmap_col_tight(euclid_pt))
     {
       col_free_vertex = curv_path[i+1]; // take the vertex just before the collision vertex
     }
@@ -1957,6 +1957,79 @@ bool CBITPlanner::is_inside_obs(std::vector<std::vector<double>> obs, Node node)
     return false;
 }
 
+// DEBUG: Experimental costmap collision checking
+bool CBITPlanner::costmap_col_tight(Node node)
+{
+
+  // DEBUG: Make a spoofed obstacle to add to the costmap to make sure collision detection works
+  //std::pair<float, float> fake_key(4.0, 0.0);
+  //float fake_value = 1.0;
+  //cbit_costmap_ptr->obs_map.insert(std::make_pair(fake_key,fake_value));
+
+  //CLOG(DEBUG, "path_planning.cbit_planner") << "Original Node: x: " << node.p << " y: " << node.q << " z: " << node.z;
+
+  Eigen::Matrix<double, 4, 1> test_pt({node.p, node.q, node.z, 1});
+
+
+
+  // Experimental, temporal filter (iterate through a sliding window of collision maps)
+  // For the moment what it does is collision check a history of 5 maps, and if any of those maps result in a collision, return collision
+  // Should make fluttery obstacles stay in place for about a second now, but the downside is false positives will also hang around, so may need to deal with this still
+  // Maybe by taking a vote? idk lets see how fast this is first
+  
+  //bool collision_result = false;
+  int vote_counter = 0;
+  for (int i = 0; i < cbit_costmap_ptr->T_c_w_vect.size(); i++)
+  {
+
+    //auto collision_pt = cbit_costmap_ptr->T_c_w * test_pt;
+    auto collision_pt = cbit_costmap_ptr->T_c_w_vect[i] * test_pt;
+
+    //CLOG(DEBUG, "path_planning.cbit_planner") << "Displaying the point in the costmap frame we are trying to collision check: " << collision_pt;
+    //CLOG(DEBUG, "path_planning.cbit_planner") << "X:  " << collision_pt[0];
+    //CLOG(DEBUG, "path_planning.cbit_planner") << "Y:  " << collision_pt[1];
+    //CLOG(DEBUG, "path_planning.cbit_planner") << "Resolution:  " << cbit_costmap_ptr->grid_resolution;
+
+
+    // Round the collision point x and y values down to the nearest grid resolution so that it can be found in the obstacle unordered_map
+    float x_key = floor(collision_pt[0] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
+    float y_key = floor(collision_pt[1] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
+
+
+    //CLOG(DEBUG, "path_planning.cbit_planner") << "X_key:  " << x_key;
+    //CLOG(DEBUG, "path_planning.cbit_planner") << "Y_key:  " << y_key;
+
+    float grid_value;
+
+    // Check to see if the point is in the obstacle map
+    // Note may just make more sense to bring in the returns to this try/catch
+    try {
+    // Block of code to try
+      grid_value = cbit_costmap_ptr->obs_map_vect[i].at(std::pair<float, float> (x_key, y_key));
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Key Value:  " << grid_value;
+    }
+    catch (std::out_of_range) {
+      // Block of code to handle errors
+      grid_value = 0.0;
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Something went wrong in collision check!!!";
+    }
+
+    if (grid_value > 0.0)
+    {
+      //vote_counter = vote_counter + 1; //debug, switching to external filter
+      return true;
+    }
+
+    //debug, switching to external filter
+    //if (vote_counter >= 3)// Magic number for now
+    //{
+    //  return true;
+    //}
+
+  }
+  return false;
+}
+
 
 // DEBUG: Experimental costmap collision checking
 bool CBITPlanner::costmap_col(Node node)
@@ -1996,6 +2069,72 @@ bool CBITPlanner::costmap_col(Node node)
     float x_key = floor(collision_pt[0] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
     float y_key = floor(collision_pt[1] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
 
+    // EXPERIMENTAL
+    // want to explore also collision checking a small region around the actual x,y key too during active collision checking, this will prevent excessive rewiring
+    // It does increase the number of collision checks by a factor of 9 though, so might want to consider other options this was just the quick and dirty top of my head way
+    std::vector<float> x_key_arr;
+    std::vector<float> y_key_arr;
+    x_key_arr.clear();
+    y_key_arr.clear();
+    // just going to hard code for now because im tired and its getting late, dont leave this
+    x_key_arr.push_back(x_key);
+    y_key_arr.push_back(y_key);
+    /*
+    x_key_arr.push_back(x_key + cbit_costmap_ptr->grid_resolution);
+    y_key_arr.push_back(y_key);
+
+    x_key_arr.push_back(x_key - cbit_costmap_ptr->grid_resolution);
+    y_key_arr.push_back(y_key);
+
+    x_key_arr.push_back(x_key);
+    y_key_arr.push_back(y_key + cbit_costmap_ptr->grid_resolution);
+
+    x_key_arr.push_back(x_key);
+    y_key_arr.push_back(y_key - cbit_costmap_ptr->grid_resolution);
+
+    
+    x_key_arr.push_back(x_key + cbit_costmap_ptr->grid_resolution);
+    y_key_arr.push_back(y_key + cbit_costmap_ptr->grid_resolution);
+
+    x_key_arr.push_back(x_key - cbit_costmap_ptr->grid_resolution);
+    y_key_arr.push_back(y_key - cbit_costmap_ptr->grid_resolution);
+
+    x_key_arr.push_back(x_key + cbit_costmap_ptr->grid_resolution);
+    y_key_arr.push_back(y_key - cbit_costmap_ptr->grid_resolution);
+
+    x_key_arr.push_back(x_key - cbit_costmap_ptr->grid_resolution);
+    y_key_arr.push_back(y_key + cbit_costmap_ptr->grid_resolution);
+    */
+
+    // second layer
+    /*
+    x_key_arr.push_back(x_key + cbit_costmap_ptr->grid_resolution*2.0);
+    y_key_arr.push_back(y_key);
+
+    x_key_arr.push_back(x_key - cbit_costmap_ptr->grid_resolution*2.0);
+    y_key_arr.push_back(y_key);
+
+    x_key_arr.push_back(x_key);
+    y_key_arr.push_back(y_key + cbit_costmap_ptr->grid_resolution*2.0);
+
+    x_key_arr.push_back(x_key);
+    y_key_arr.push_back(y_key - cbit_costmap_ptr->grid_resolution*2.0);
+
+    x_key_arr.push_back(x_key + cbit_costmap_ptr->grid_resolution*2.0);
+    y_key_arr.push_back(y_key + cbit_costmap_ptr->grid_resolution*2.0);
+
+    x_key_arr.push_back(x_key - cbit_costmap_ptr->grid_resolution*2.0);
+    y_key_arr.push_back(y_key - cbit_costmap_ptr->grid_resolution*2.0);
+
+    x_key_arr.push_back(x_key + cbit_costmap_ptr->grid_resolution*2.0);
+    y_key_arr.push_back(y_key - cbit_costmap_ptr->grid_resolution*2.0);
+
+    x_key_arr.push_back(x_key - cbit_costmap_ptr->grid_resolution*2.0);
+    y_key_arr.push_back(y_key + cbit_costmap_ptr->grid_resolution*2.0);
+    */
+
+
+
     //CLOG(DEBUG, "path_planning.cbit_planner") << "X_key:  " << x_key;
     //CLOG(DEBUG, "path_planning.cbit_planner") << "Y_key:  " << y_key;
 
@@ -2005,27 +2144,47 @@ bool CBITPlanner::costmap_col(Node node)
     // Note may just make more sense to bring in the returns to this try/catch
     try {
     // Block of code to try
-      //grid_value = cbit_costmap_ptr->obs_map.at(std::pair<float, float> (x_key, y_key));
-      grid_value = cbit_costmap_ptr->obs_map_vect[i].at(std::pair<float, float> (x_key, y_key));
+      //grid_value = cbit_costmap_ptr->obs_map_vect[i].at(std::pair<float, float> (x_key, y_key));
       
       //CLOG(ERROR, "path_planning.cbit_planner") << "Key Value:  " << grid_value;
+
+
+      // conservative buffer region:
+      for (int j=0; j < x_key_arr.size(); j++)
+      {
+
+        // for some reason this commented out bit isnt working and we have to rely on the try catch loop, which I dont understand why, need to do some debugging still
+        //CLOG(ERROR, "path_planning.cbit_planner") << " X_key: " << x_key_arr[j] << " Y key: " << y_key_arr[j];
+        //if ((cbit_costmap_ptr->obs_map_vect[i]).find(std::pair<float, float> (x_key_arr[j], y_key_arr[j])) != (cbit_costmap_ptr->obs_map_vect[i]).end())
+        //{
+        //CLOG(ERROR, "path_planning.cbit_planner") << " Entered Loop ";
+        grid_value = cbit_costmap_ptr->obs_map_vect[i].at(std::pair<float, float> (x_key_arr[j], y_key_arr[j]));
+        if (grid_value > 0.0)
+          {
+            //vote_counter = vote_counter + 1; //debug, switching to external filter
+            //CLOG(ERROR, "path_planning.cbit_planner") << "COLLISION DETECTED";
+            return true;
+          }
+        //}
+      }
     }
     catch (std::out_of_range) {
       // Block of code to handle errors
       grid_value = 0.0;
-      //CLOG(ERROR, "path_planning.cbit_planner") << "NO COLLISION!!!";
+      CLOG(ERROR, "path_planning.cbit_planner") << "Something went wrong in collision check!!!";
     }
 
-    if (grid_value > 0.0)
-    {
-      vote_counter = vote_counter + 1;
-      //return true;
-    }
+    //if (grid_value > 0.0)
+    //{
+      //vote_counter = vote_counter + 1; //debug, switching to external filter
+    //  return true;
+    //}
 
-    if (vote_counter >= 3)// Magic number for now
-    {
-      return true;
-    }
+    //debug, switching to external filter
+    //if (vote_counter >= 3)// Magic number for now
+    //{
+    //  return true;
+    //}
 
   }
   return false;

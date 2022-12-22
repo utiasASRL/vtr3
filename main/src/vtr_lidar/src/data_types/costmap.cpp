@@ -134,6 +134,21 @@ void DenseCostMap::update(
   }
 }
 
+// Modification by Jordy for updating dense maps from unordered maps with pairs of points ()
+void DenseCostMap::update(
+    const std::unordered_map<std::pair<float,float>, float> values) {
+  for (const auto val : values) {
+    const auto shifted_k = costmap::PixKey(val.first.first / dl_, val.first.second / dl_) - origin_;
+    //const auto shifted_k_x = val.first.first;// - origin_.x;
+    //const auto shifted_k_y = val.first.second;// - origin_.y;
+    //CLOG(INFO, "obstacle_detection.cbit") << "shifted_k_x" << shifted_k_x;
+    //CLOG(INFO, "obstacle_detection.cbit") << "shifted_k_y" << shifted_k_y;
+    //CLOG(INFO, "obstacle_detection.cbit") << "origin_x" << origin_.x;
+    //CLOG(INFO, "obstacle_detection.cbit") << "origin_y" << origin_.y;
+    values_(shifted_k.x, shifted_k.y) = val.second;
+  }
+}
+
 auto DenseCostMap::filter(const float& threshold) const -> XY2ValueMap {
   XY2ValueMap filtered;
   filtered.reserve(values_.size());
