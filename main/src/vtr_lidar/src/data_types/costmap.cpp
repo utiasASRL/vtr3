@@ -136,16 +136,35 @@ void DenseCostMap::update(
 
 // Modification by Jordy for updating dense maps from unordered maps with pairs of points ()
 void DenseCostMap::update(
-    const std::unordered_map<std::pair<float,float>, float> values) {
+    const std::unordered_map<std::pair<float,float>, float> values) {    
+    
   for (const auto val : values) {
-    const auto shifted_k = costmap::PixKey(val.first.first / dl_, val.first.second / dl_) - origin_;
+    auto shifted_k = costmap::PixKey(val.first.first / dl_, val.first.second / dl_) - origin_;
+
     //const auto shifted_k_x = val.first.first;// - origin_.x;
     //const auto shifted_k_y = val.first.second;// - origin_.y;
-    //CLOG(INFO, "obstacle_detection.cbit") << "shifted_k_x" << shifted_k_x;
-    //CLOG(INFO, "obstacle_detection.cbit") << "shifted_k_y" << shifted_k_y;
-    //CLOG(INFO, "obstacle_detection.cbit") << "origin_x" << origin_.x;
-    //CLOG(INFO, "obstacle_detection.cbit") << "origin_y" << origin_.y;
+
+
+    // Handling an error where after transformations the shifted key could fall outside the costmap area resulting in an eigen indexing error
+    if (shifted_k.x >= size_x_ / dl_)
+    {
+      shifted_k.x = size_x_ / dl_;
+    }
+    if (shifted_k.x <= -1)
+    {
+      shifted_k.x = 0;
+    }
+    if (shifted_k.y >= size_y_ / dl_)
+    {
+      shifted_k.y = size_y_ / dl_;
+    }
+    if (shifted_k.y <= -1)
+    {
+      shifted_k.y = 0;
+    }
+
     values_(shifted_k.x, shifted_k.y) = val.second;
+
   }
 }
 

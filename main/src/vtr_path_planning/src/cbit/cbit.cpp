@@ -118,6 +118,8 @@ CBIT::CBIT(const Config::ConstPtr& config,
   mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", 10);
   robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
   path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
+  corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
+  corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
 
   // Updating cbit_configs
   // Environment
@@ -229,16 +231,20 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CLOG(INFO, "path_planning.cbit") << "Trying to create global path";
   // Create the path class object (Path preprocessing)
   CBITPath global_path(cbit_config, euclid_path_vec);
-
   // Make a pointer to this path
   std::shared_ptr<CBITPath> global_path_ptr = std::make_shared<CBITPath>(global_path);
+  CLOG(INFO, "path_planning.cbit") << "Teach Path has been pre-processed. Attempting to initialize the dynamic corridor";
 
-  CLOG(INFO, "path_planning.cbit") << "Teach Path has been pre-processed. Attempting to instantiate the planner";
+
+  // Initialize the dynamic corridor
+  CBITCorridor corridor(cbit_config, global_path_ptr);
+  // Make a pointer to the corridor
+  corridor_ptr = std::make_shared<CBITCorridor>(corridor);
+  CLOG(INFO, "path_planning.cbit") << "Corridor generated successfully. Attempting to instantiate the planner";
 
 
   // Instantiate the planner
-  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr);
-
+  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr);
   CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved";
   
 }
@@ -375,11 +381,21 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
 
     // Create and solve the STEAM optimization problem
-    CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
-    auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
-    applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
-    auto mpc_poses = mpc_result.mpc_poses;
-    CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
+    std::vector<lgmath::se3::Transformation> mpc_poses;
+    try
+    {
+      CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
+      auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
+      applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
+      mpc_poses = mpc_result.mpc_poses;
+      CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
+    }
+    catch(...)
+    {
+      CLOG(ERROR, "mpc.cbit") << "STEAM Optimization Failed; Commanding to Stop the Vehicle";
+      applied_vel(0) = 0.0;
+      applied_vel(1) = 0.0;
+    }
 
     CLOG(INFO, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
@@ -393,7 +409,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     vel_history.push_back(saturated_vel);
     
     // Store the current robot state in the robot state path so it can be visualized
-    robot_poses.push_back(T0);
+    robot_poses.push_back(T_w_p * T_p_r);
 
     // Send the robot poses and mpc prediction to rviz
     visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses);
@@ -515,7 +531,6 @@ void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform
   // Attempting to publish the actual path which we are receiving from the shared pointer in the cbitplanner
   // The path is stored as a vector of se3 Pose objects from cbit/utils, need to iterate through and construct proper ros2 nav_msgs PoseStamped
 
-  /// Publish the intermediate goals in the planning frame
   {
     nav_msgs::msg::Path path;
     path.header.frame_id = "world";
@@ -540,6 +555,52 @@ void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform
     }
 
     path_pub_->publish(path);
+  }
+
+
+
+  // Attempting to Publish the left and right dynamic corridor for the current path homotopy class
+  {
+    nav_msgs::msg::Path corridor_left;
+    corridor_left.header.frame_id = "world";
+    corridor_left.header.stamp = rclcpp::Time(stamp);
+    auto& poses_l = corridor_left.poses;
+
+    nav_msgs::msg::Path corridor_right;
+    corridor_right.header.frame_id = "world";
+    corridor_right.header.stamp = rclcpp::Time(stamp);
+    auto& poses_r = corridor_right.poses;
+
+    // iterate through the corridor paths
+    geometry_msgs::msg::Pose test_pose_l;
+    geometry_msgs::msg::Pose test_pose_r;
+    for (unsigned i = 0; i < corridor_ptr->x_left.size(); i++) 
+    {
+      //lhs
+      auto& pose_l = poses_l.emplace_back();
+      test_pose_l.position.x = corridor_ptr->x_left[i];
+      test_pose_l.position.y = corridor_ptr->y_left[i];
+      test_pose_l.position.z = 0.0; // setting this 0.0 for now for flat world assumption, but long term we might want to add a z component
+      test_pose_l.orientation.x = 0.0;
+      test_pose_l.orientation.y = 0.0;
+      test_pose_l.orientation.z = 0.0;
+      test_pose_l.orientation.w = 1.0;
+      pose_l.pose = test_pose_l;
+
+      // rhs
+      auto& pose_r = poses_r.emplace_back();
+      test_pose_r.position.x = corridor_ptr->x_right[i];
+      test_pose_r.position.y = corridor_ptr->y_right[i];
+      test_pose_r.position.z = 0.0; // setting this 0.0 for now for flat world assumption, but long term we might want to add a z component
+      test_pose_r.orientation.x = 0.0;
+      test_pose_r.orientation.y = 0.0;
+      test_pose_r.orientation.z = 0.0;
+      test_pose_r.orientation.w = 1.0;
+      pose_r.pose = test_pose_r;
+    }
+
+    corridor_pub_l_->publish(corridor_left);
+    corridor_pub_r_->publish(corridor_right);
   }
   return;
 }

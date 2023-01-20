@@ -78,7 +78,7 @@ class CBITPlanner {
         // Costmap pointer
         std::shared_ptr<CBITCostmap> cbit_costmap_ptr;
 
-        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr);
+        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr);
 
     protected:
     struct ChainInfo {
@@ -94,9 +94,9 @@ class CBITPlanner {
 
     private:
         void InitializePlanningSpace();
-        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
+        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr);
         void ResetPlanner();
-        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
+        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr);
         std::shared_ptr<Node> UpdateState();
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
@@ -121,11 +121,21 @@ class CBITPlanner {
         bool costmap_col_tight(Node node);
         bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
         bool col_check_path();
-        std::shared_ptr<Node> col_check_path_v2();
+        std::shared_ptr<Node> col_check_path_v2(double max_lookahead_p);
         void restore_tree(double g_T_update, double g_T_weighted_update);
 
         // Add class for Tree
         // Add dictionary (or some other structure) for the cost to come lookup using NodeID as key
 
         // Constructor: Needs to initialize all my objects im using
+
+
+        // Temporary functions for corridor updates, long term want to move these to a different file
+        void update_corridor(std::shared_ptr<CBITCorridor> corridor, std::vector<double> homotopy_p, std::vector<double> homotopy_q, Node robot_state);
+        struct collision_result
+        {
+            bool bool_result;
+            Node col_node;
+        };
+        struct collision_result discrete_collision_v2(double discretization, Node start, Node end);
 };

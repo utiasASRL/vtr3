@@ -43,7 +43,7 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
         p.push_back(p[i-1] + delta_p_calc(disc_path[i-1], disc_path[i], alpha));
     }
 
-    CLOG(INFO, "path_planning.teb") << "Successfully Built a Path in generate_pq.cpp and Displayed log";
+    CLOG(INFO, "path_planning.cbit") << "Successfully Built a Path in generate_pq.cpp and Displayed log";
     
 }
 
@@ -75,5 +75,48 @@ void CBITPath::spline_curvature()
 {
     // TODO
     auto test = 1;
+    
+}
+
+
+// Corridor Path constructor:
+CBITCorridor::CBITCorridor(CBITConfig config, std::shared_ptr<CBITPath> global_path_ptr)
+{
+    q_max = config.q_max;
+    sliding_window_width = config.sliding_window_width + config.sliding_window_freespace_padding;
+    curv_to_euclid_discretization = config.curv_to_euclid_discretization;
+    double length_p = global_path_ptr->p.back();
+    int num_bins = ceil(length_p / config.corridor_resolution);
+    // Initialize vector lengths
+    p_bins.reserve(num_bins);
+    q_left.reserve(num_bins);
+    q_right.reserve(num_bins);
+    x_left.reserve(num_bins);
+    x_right.reserve(num_bins);
+    y_left.reserve(num_bins);
+    y_right.reserve(num_bins);
+
+    // Initialize bins
+    p_bins = linspace(0, length_p, num_bins);
+    for (int i = 0; i < num_bins; i++)
+    {
+        q_left.push_back(config.q_max);
+        q_right.push_back(-1.0 * config.q_max);
+    }
+
+    // I think its wise if here we also initialize the euclidean corridor points as well. This is annoying though because out curv to euclid
+    // is not in utils (yet). TODO I really should move all the collision checking things external and independant from the planner for this reason
+
+    // For now I may instead brute force the euclid generate at the end of each corridor update, I feel like even a 50000 bin loop (2.5km) wouldnt take
+    // more then a few ms (I believe early experiments showed you could do like 4million loop iterations every second or so in c++)
+
+    // debug prints to make sure this happened correctly
+    CLOG(DEBUG, "path_planning.corridor_debug") << "Length of P is: " << length_p;
+    CLOG(DEBUG, "path_planning.corridor_debug") << "Number of Bins is: " << num_bins;
+    CLOG(DEBUG, "path_planning.corridor_debug") << "P_bins are: " << p_bins;
+    CLOG(DEBUG, "path_planning.corridor_debug") << "Q_left is: " << q_left;
+    CLOG(DEBUG, "path_planning.corridor_debug") << "Q_right is: " << q_right;
+    CLOG(DEBUG, "path_planning.corridor_debug") << "Size of p_bins: " << p_bins.size();
+    CLOG(DEBUG, "path_planning.corridor_debug") << "Size of q_left,q_right: " << q_left.size();
     
 }

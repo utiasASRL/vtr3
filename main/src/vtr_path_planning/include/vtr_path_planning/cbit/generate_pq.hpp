@@ -49,3 +49,24 @@ class CBITPath {
         // Actually I think ill just do this in the constructor for now
         //std::vector<double> ProcessPath(std::vector<Pose> disc_path); // Function for assigning p distance values for each euclidean point in pre-processing
 };
+
+// Class for storing the dynamic corridor information
+class CBITCorridor {
+    public:
+        std::vector<double> p_bins;
+        std::vector<double> q_left;
+        std::vector<double> q_right;
+        std::vector<double> x_left;
+        std::vector<double> x_right;
+        std::vector<double> y_left;
+        std::vector<double> y_right;
+        double q_max;
+        double sliding_window_width; 
+        double curv_to_euclid_discretization;
+
+        CBITCorridor(CBITConfig config, std::shared_ptr<CBITPath> global_path_ptr); // Constructor, Feed this the taught path and config
+        CBITCorridor() = default;
+        
+        //void update_corridor(homotopy_p, homotopy_q, robot_state);
+
+};

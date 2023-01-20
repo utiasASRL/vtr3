@@ -162,10 +162,15 @@ class CBIT : public BasePathPlanner {
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_path_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr robot_path_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_l_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_r_;
 
   // Pointers to the output path
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
+
+  // Pointers to the corridor
+  std::shared_ptr<CBITCorridor> corridor_ptr;
 
   tactic::Timestamp prev_stamp;
 

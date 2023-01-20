@@ -112,6 +112,7 @@ auto ChangeDetectionModuleV3::Config::fromROS(
   config->support_variance = node->declare_parameter<float>(param_prefix + ".support_variance", config->support_variance);
   config->support_threshold = node->declare_parameter<float>(param_prefix + ".support_threshold", config->support_threshold);
   // cost map
+  config->costmap_history_size = node->declare_parameter<int>(param_prefix + ".costmap_history_size", config->costmap_history_size);
   config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
   config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
   config->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config->size_y);
@@ -315,7 +316,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   // Jordy Modifications for temporal costmap filtering (UNDER DEVELOPMENT)
   
 
-  /**/
+  
   // declaration of the final costmap which we are outputting
   auto dense_costmap = std::make_shared<DenseCostMap>(config_->resolution, config_->size_x, config_->size_y);
   dense_costmap->T_vertex_this() = tactic::EdgeTransform(true);
@@ -334,7 +335,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   auto& chain = *output.chain;
   auto T_w_c  = chain.pose(sid_loc);
   auto T_c_w  = T_w_c.inverse();
-  CLOG(WARNING, "obstacle_detection.cbit") << "T_w_c: " << T_w_c; // debug
+  //CLOG(WARNING, "obstacle_detection.cbit") << "T_w_c: " << T_w_c; // debug
 
   // Initialize an unordered map to store the sparse world obstacle representations
   std::unordered_map<std::pair<float, float>, float>  sparse_world_map;
@@ -359,6 +360,11 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
 
     float world_key_x = floor(collision_pt[0] / config_->resolution) * config_->resolution;
     float world_key_y = floor(collision_pt[1] / config_->resolution) * config_->resolution;
+
+    // Experimental debug! Im thinking that perhaps here these keys could be outside the legal area
+
+
+
     float world_value = kv.second;
     std::pair<float, float> world_keys(world_key_x, world_key_y);
     sparse_world_map.insert(std::make_pair(world_keys,world_value));
@@ -372,9 +378,9 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     keys.push_back(kv.first);
     vals.push_back(kv.second);  
   } 
-  CLOG(ERROR, "obstacle_detection.cbit") << "The size of each map is" << sparse_obs_map.size();
-  CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Keys: " << keys;
-  CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Values: " << vals;
+  //CLOG(ERROR, "obstacle_detection.cbit") << "The size of each map is" << sparse_obs_map.size();
+  //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Keys: " << keys;
+  //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Values: " << vals;
   
   //CLOG(WARNING, "obstacle_detection.cbit") << "T_c_w " << T_c_w;
   //CLOG(WARNING, "obstacle_detection.cbit") << "T_m_s: " << T_m_s;
@@ -383,23 +389,24 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
 
 
   // if the costmap_history is smaller then some minimum value, just tack it on the end
-  if (costmap_history.size() < 10.0)
+  // TODO need to get rid of these magic numbers
+  if (costmap_history.size() < config_->costmap_history_size)
   {
     costmap_history.push_back(sparse_world_map);
   }
   // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
   else
   {
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < (config_->costmap_history_size-1); i++)
     {
       costmap_history[i] = costmap_history[i + 1];
     }
-    costmap_history[9] = sparse_world_map;
+    costmap_history[(config_->costmap_history_size-1)] = sparse_world_map;
   
 
     //CLOG(WARNING, "obstacle_detection.cbit") << "costmap_history size " <<costmap_history.size();
     // Iterate through the stored costmaps and build a merged world frame obstacle costmap
-    std::unordered_map<std::pair<float, float>, float>  merged_world_map = costmap_history[9];
+    std::unordered_map<std::pair<float, float>, float>  merged_world_map = costmap_history[(config_->costmap_history_size-1)];
     //CLOG(WARNING, "obstacle_detection.cbit") << "merged world map size " <<merged_world_map.size();
     std::unordered_map<std::pair<float, float>, float>  filtered_world_map;
     for (int i = 0; i < (costmap_history.size()-1); i++)
@@ -407,8 +414,6 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
       merged_world_map.merge(costmap_history[i]);
       //CLOG(WARNING, "obstacle_detection.cbit") << "merged world map size " <<merged_world_map.size();
     }
-    CLOG(WARNING, "obstacle_detection.cbit") << "merged world map size " <<merged_world_map.size();
-  
 
   
     // For each key in this merged costmap, check how many of that key exist in the individual costmaps
@@ -423,10 +428,12 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
 
       int key_vote_counter = 0;
       for (int i = 0; i < costmap_history.size(); i++)
+      {
         if ((costmap_history[i]).find(kv.first) != (costmap_history[i]).end())
         {
           key_vote_counter = key_vote_counter + 1;
         }
+      }
       
       // Store the filtered (both temporal and transient) points in a sparse filtered unordered_map
       if (key_vote_counter >= 3)
@@ -434,8 +441,6 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
         filtered_world_map.insert(std::make_pair(kv.first,kv.second));
       }
     }
-    CLOG(WARNING, "obstacle_detection.cbit") << "filtered world map size " <<filtered_world_map.size(); 
-  
   
     // Convert the filtered world map back to the current costmap frame (note, might actually just store the sparse world map, its more useful for me anyways)
     // Probably still want to convert back so we can republish it though
@@ -445,6 +450,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     filtered_keys.reserve(filtered_world_map.size());
     std::vector<float> filtered_vals;
     filtered_vals.reserve(filtered_world_map.size());
+
     for(auto kv : filtered_world_map) 
     {
       float key_x = kv.first.first;
@@ -457,16 +463,22 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
 
       float loc_key_x = floor(collision_pt[0] / config_->resolution) * config_->resolution;
       float loc_key_y = floor(collision_pt[1] / config_->resolution) * config_->resolution;
+
+
+      // debug to check loc_key is in a valid range:
+
+
       float loc_value = kv.second;
       std::pair<float, float> loc_keys(loc_key_x, loc_key_y);
       filtered_loc_map.insert(std::make_pair(loc_keys,loc_value));
     }
-    CLOG(ERROR, "obstacle_detection.cbit") << "The size of the filtered map is" << filtered_loc_map.size();
-    
-    
+ 
     // Build the dense map, publish and save the results so the planner can access it
     //const auto dense_costmap = std::make_shared<DenseCostMap>(config_->resolution, config_->size_x, config_->size_y); // need to delcare this earlier
+
     dense_costmap->update(filtered_loc_map);
+    
+    
     // add transform to the localization vertex
     //dense_costmap->T_vertex_this() = tactic::EdgeTransform(true);
     //dense_costmap->vertex_id() = vid_loc;
@@ -478,12 +490,14 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     //costmap_pub_->publish(costmap_msg);
 
-        // publish the filtered occupancy grid
+    //CLOG(WARNING, "obstacle_detection.cbit") << "Successfully update the dense costmap"; 
+  
+
+    // publish the filtered occupancy grid
     auto filtered_costmap_msg = dense_costmap->toCostMapMsg();
     filtered_costmap_msg.header.frame_id = "loc vertex frame";
     // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     filtered_costmap_pub_->publish(filtered_costmap_msg);
-
 
     // Debug check that the filtered maps look okay
     vtr::lidar::BaseCostMap::XY2ValueMap dense_map = dense_costmap->filter(0.01);
@@ -495,16 +509,15 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
       keys2.push_back(kv.first);
       vals2.push_back(kv.second);  
     } 
-    CLOG(ERROR, "obstacle_detection.cbit") << "The size of the dense map is" << dense_map.size();
-    CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Keys: " << keys2;
-    CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Values: " << vals2;
-    
+    //CLOG(ERROR, "obstacle_detection.cbit") << "The size of the dense map is" << dense_map.size();
+    //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Keys: " << keys2;
+    //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Values: " << vals2;
   }
   
 
 
 
-
+  
   // End of Jordy's temporal filter changes
 
 
@@ -550,6 +563,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
 
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";
+
 }
 
 }  // namespace lidar

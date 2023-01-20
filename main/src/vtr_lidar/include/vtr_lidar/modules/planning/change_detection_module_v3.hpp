@@ -58,6 +58,7 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
     float support_threshold = 0.0;
 
     // cost map
+    int costmap_history_size = 10;
     float resolution = 1.0;
     float size_x = 20.0;
     float size_y = 20.0;

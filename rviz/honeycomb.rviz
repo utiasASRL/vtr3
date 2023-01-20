@@ -11,16 +11,16 @@ Panels:
         - /localization path1
         - /curr map loc1/Topic1
         - /reference path1
+        - /reference path1/Topic1
         - /planned path1/Offset1
         - /planned path (poses)1/Topic1
         - /global path1
         - /global path1/Offset1
         - /planning change detection scan1
         - /planning curr map loc1
-        - /Path1
-        - /Path2
+        - /Corridor Path Left1/Topic1
       Splitter Ratio: 0.4507042169570923
-    Tree Height: 871
+    Tree Height: 865
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -89,7 +89,7 @@ Visualization Manager:
         robot planning (extrapolated):
           Value: false
         robot planning (extrapolated) mpc:
-          Value: true
+          Value: false
         world:
           Value: false
         world (offset):
@@ -101,8 +101,22 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          world (offset):
+          loc vertex frame:
             {}
+          odo vertex frame:
+            robot:
+              lidar:
+                {}
+          planning frame:
+            robot planning:
+              {}
+            robot planning (extrapolated):
+              {}
+            robot planning (extrapolated) mpc:
+              {}
+          world (offset):
+            loc vertex frame (offset):
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -351,7 +365,7 @@ Visualization Manager:
       Head Length: 0.20000000298023224
       Length: 1
       Line Style: Billboards
-      Line Width: 0.05000000074505806
+      Line Width: 0.07999999821186066
       Name: reference path
       Offset:
         X: 0
@@ -1174,7 +1188,7 @@ Visualization Manager:
       Class: rviz_default_plugins/Map
       Color Scheme: costmap
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: obstacle cost map
       Topic:
         Depth: 5
@@ -1190,7 +1204,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/change_detection_costmap_updates
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.699999988079071
       Class: rviz_default_plugins/Map
       Color Scheme: raw
@@ -1211,6 +1225,62 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/filtered_change_detection_costmap_updates
       Use Timestamp: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 170; 0; 255
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.07999999821186066
+      Name: Corridor Path Left
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/corridor_path_left
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 170; 0; 255
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.07999999821186066
+      Name: Corridor Path Right
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/corridor_path_right
       Value: true
   Enabled: true
   Global Options:
@@ -1258,25 +1328,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 18.444183349609375
+      Distance: 19.4349422454834
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.07232196629047394
-        Y: 0.004224673379212618
-        Z: 0.5842546820640564
+        X: 0.722629964351654
+        Y: 0.6375535130500793
+        Z: -0.5986025333404541
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.3647969961166382
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.775712966918945
+      Yaw: 4.070685863494873
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -1484,7 +1554,7 @@ Window Geometry:
   Height: 1016
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd000000040000000000000281000003a2fc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008f00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000003a2000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c00000030ffc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d0000030f000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000024400fffffffb0000000800540069006d00650100000000000004500000000000000000000004f9000003a200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000002810000039efc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000009d00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000007400fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000039e000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c0000003bdfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003b000003bd000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d0065000000000000000500000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000004b10000039e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -1493,6 +1563,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: true
-  Width: 1920
-  X: 2560
+  Width: 1848
+  X: 1992
   Y: 27

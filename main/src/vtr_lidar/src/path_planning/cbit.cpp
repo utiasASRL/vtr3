@@ -262,13 +262,13 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     kin_noise_vect = config_->kin_error_cov;
 
 
-
+    
     // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
     const auto curr_time = now();  // always in nanoseconds
     const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 
 
-    CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities" << vel_history;
+    CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities:" << vel_history;
     
     // Check the time past since the last state update was received
     // Go back through the vel_history to approximately dt seconds in the past
@@ -277,18 +277,18 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     auto T_p_r2 = T_p_r;
     for (int i=std::floor(dt / control_period); i > 0; i--)
     {
-      //CLOG(DEBUG, "mpc_debug.cbit") << "The iteration Index i is: " << i;
+      CLOG(DEBUG, "mpc_debug.cbit") << "The iteration Index i is: " << i;
       w_p_r_in_r(0) = -1* vel_history[vel_history.size()-(i+1)][0];
       w_p_r_in_r(1) = 0.0;
       w_p_r_in_r(2) = 0.0;
       w_p_r_in_r(3) = 0.0;
       w_p_r_in_r(4) = 0.0;
       w_p_r_in_r(5) = -1* vel_history[vel_history.size()-(i+1)][1];
-      //CLOG(DEBUG, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+      CLOG(DEBUG, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
 
       Eigen::Matrix<double, 6, 1> xi_p_r_in_r(control_period * w_p_r_in_r);
       T_p_r2 = T_p_r2 * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-      //CLOG(DEBUG, "mpc_debug.cbit") << "Make sure the lie algebra is changing right:" << T_p_r2;
+      CLOG(DEBUG, "mpc_debug.cbit") << "Make sure the lie algebra is changing right:" << T_p_r2;
 
     }
     // Apply the final partial period velocity
@@ -305,7 +305,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     const auto T_p_r_extp2 = T_p_r2;
 
     CLOG(DEBUG, "mpc_debug.cbit") << "New extrapolated pose:"  << T_p_r_extp2;
-
+    
     // Uncomment if we use the extrapolated robot pose for control (constant velocity model from odometry)
     //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
 
@@ -314,6 +314,8 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
 
     // no extrapolation (comment this out if we are not using extrapolation)
     //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
+
+    // TODO: Set whether to use mpc extrapolation as a config param (though there is almost never a good reason not to use it)
 
     //Convert to x,y,z,roll, pitch, yaw
     std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
@@ -333,13 +335,22 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     bool point_stabilization = meas_result.point_stabilization;
 
 
-
     // Create and solve the STEAM optimization problem
-    CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
-    auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
-    applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
-    auto mpc_poses = mpc_result.mpc_poses;
-    CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
+    std::vector<lgmath::se3::Transformation> mpc_poses;
+    try
+    {
+      CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
+      auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
+      applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
+      mpc_poses = mpc_result.mpc_poses;
+      CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
+    }
+    catch(...)
+    {
+      CLOG(ERROR, "mpc.cbit") << "STEAM Optimization Failed; Commanding to Stop the Vehicle";
+      applied_vel(0) = 0.0;
+      applied_vel(1) = 0.0;
+    }
 
     CLOG(INFO, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
@@ -353,7 +364,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     vel_history.push_back(saturated_vel);
     
     // Store the current robot state in the robot state path so it can be visualized
-    robot_poses.push_back(T0);
+    robot_poses.push_back(T_w_p * T_p_r);
 
     // Send the robot poses and mpc prediction to rviz
     visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses);
@@ -370,13 +381,11 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
       << command.angular.z << "]";
 
     return command;
-
-  } // If localized and an initial solution is found.
-
+  }
   // Otherwise stop the robot
   else
   {
-    CLOG(INFO, "mpc.cbit") << "There is not a valid plan yet, returning 0.0 velocity command";
+    CLOG(INFO, "mpc.cbit") << "There is not a valid plan yet, returning zero velocity commands";
 
     applied_vel << 0.0, 0.0;
     vel_history.erase(vel_history.begin());
@@ -384,6 +393,8 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     return Command();
   }
 }
+
+
 
 }  // namespace lidar
 }  // namespace vtr

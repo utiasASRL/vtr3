@@ -214,7 +214,7 @@ class GraphMap extends React.Component {
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
         <MapContainer
-          center={[43.782, -79.466]}
+          center={[45.8983, -77.2829]} /* Jordy Modification For PETAWAWA center={[45.8983, -77.2829]} => TODO We should make this set dynamically from the yaml config*/
           zoom={18}
           zoomControl={false}
           whenCreated={this.mapCreatedCallback.bind(this)}
