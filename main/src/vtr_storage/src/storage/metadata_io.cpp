@@ -285,7 +285,7 @@ BagMetadata MetadataIo::read_metadata(const std::string & uri)
     }
     return metadata;
   } catch (const YAML::Exception & ex) {
-    throw std::runtime_error(std::string("Exception on parsing info file: ") + ex.what());
+    throw std::runtime_error(std::string("Exception while parsing info file: " + get_metadata_file_name(uri) + " ") + ex.what());
   }
 }
 
