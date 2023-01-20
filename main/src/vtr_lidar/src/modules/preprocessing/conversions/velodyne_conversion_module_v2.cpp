@@ -44,6 +44,14 @@ void velodyneCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
   }
 }
 
+void estimateTime(pcl::PointCloud<PointWithInfo> &point_cloud, int64_t time_offset, double angular_vel) {
+  for (size_t i = 0; i < point_cloud.size(); i++) {
+    auto &p = point_cloud[i];
+
+    p.timestamp = time_offset + static_cast<int64_t>(p.phi / angular_vel * 1e9);
+  }
+}
+
 }  // namespace
 
 auto VelodyneConversionModuleV2::Config::fromROS(
@@ -52,6 +60,9 @@ auto VelodyneConversionModuleV2::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
+  config->estimate_time = node->declare_parameter<bool>(param_prefix + ".estimate_time", config->estimate_time);
+  config->angular_vel = node->declare_parameter<double>(param_prefix + ".angular_vel", config->angular_vel);
+
   // clang-format on
   return config;
 }
@@ -78,22 +89,32 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // iterators
   // clang-format off
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
-  sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
-  // clang-format on
-
   for (size_t idx = 0; iter_x != iter_x.end();
-       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_time) {
+       ++idx, ++iter_x, ++iter_y, ++iter_z) {
     // cartesian coordinates
     point_cloud->at(idx).x = *iter_x;
     point_cloud->at(idx).y = *iter_y;
     point_cloud->at(idx).z = *iter_z;
-
-    // pointwise timestamp
-    point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
   }
+
+ 
+  // clang-format on
+  
 
   // Velodyne has no polar coordinates, so compute them manually.
   velodyneCart2Pol(*point_cloud);
+
+  if (config_->estimate_time){
+    CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings wil be estimated from yaw angle";
+    estimateTime(*point_cloud, *qdata.stamp, config_->angular_vel);
+  } else {
+    sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
+    // pointwise timestamp
+    for (size_t idx = 0; iter_time != iter_time.end();
+       ++idx, ++iter_time) {
+        point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+    }
+  }
 
   // Output
   qdata.raw_point_cloud = point_cloud;
