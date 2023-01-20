@@ -94,5 +94,7 @@ RUN pip3 install \
   python-socketio[client] \
   websocket-client
 
+RUN apt install htop
+
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

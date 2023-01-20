@@ -11,7 +11,7 @@ suppress_history: false
 
 windows:
   - window_name: vtr_navigation_system
-    layout: main-horizontal
+    layout: main-vertical
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
@@ -19,10 +19,10 @@ windows:
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
         data_dir:=${VTRTEMP}/lidar
-        start_new_graph:=false
+        start_new_graph:=true
         use_sim_time:=true
 
-      - htop # monitor hardware usage
+#      - htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -37,7 +37,7 @@ windows:
   - window_name: rviz2
     layout: main-horizontal
     shell_command_before:
-      - source /opt/ros/galactic/setup.bash
+      - source /opt/ros/humble/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure
