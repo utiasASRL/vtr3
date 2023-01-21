@@ -155,11 +155,11 @@ struct mpc_result SolveMPC(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3
 
         // Experimental velocity set-point constraint (instead of non zero velocity penalty)
         // Only add this cost term if we are not in point stabilization mode (end of path)
-        if (point_stabilization == false)
-        {
-          const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i],v_ref), sharedVelNoiseModel, sharedLossFunc);
-          opt_problem.addCostTerm(vel_cost_term);
-        }
+        //if (point_stabilization == false)
+        //{
+        //  const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i],v_ref), sharedVelNoiseModel, sharedLossFunc);
+        //  opt_problem.addCostTerm(vel_cost_term);
+        //}
 
 
         // Experimental acceleration limits

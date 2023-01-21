@@ -163,10 +163,23 @@ bool Tactic::passedSeqId(const uint64_t& sid) const {
 
 bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
-  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 1)) return false;
   const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
-  if (translation > config_->route_completion_translation_threshold)
+  //const auto test = (chain_->pose(chain_->size()-1)).r_ab_inb().norm();
+  //CLOG(ERROR, "tactic") << "My test pose error is: " << test;
+  //if (test < config_->route_completion_translation_threshold) // experimental jordy modification
+  //{
+  //  CLOG(ERROR, "tactic") << "Route Completetion Threshold is: " << translation;
+  //  CLOG(ERROR, "tactic") << "My test pose error is: " << test;
+  //  return true;
+  //}
+  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 1))
+  {
     return false;
+  }
+  if (translation > config_->route_completion_translation_threshold)
+  {
+    return false;
+  }
   return true;
 }
 

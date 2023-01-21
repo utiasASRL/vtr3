@@ -291,6 +291,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           if (chain.isLocalized() == 0)
           {
           // If we ever become unlocalized, I think we just need to break, then set a flag to exit the outter loop
+          // This also triggers after we reach end of path and effectively shuts down the planner
           bool localization_flag = false;
           CLOG(ERROR, "path_planning.cbit_planner") << "Localization was Lost, Exiting Inner Planning Loop";
           break;
@@ -327,9 +328,11 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         else
         {
           robot_pose= T2xyzrpy(T_w_p * T_p_r);
-          //CLOG(INFO, "path_planning.cbit_planner") << "Robot Pose: x: " << std::get<0>(robot_pose) << " y: " 
-          //<< std::get<1>(robot_pose) << " z: " << std::get<2>(robot_pose) << " roll: " << std::get<3>(robot_pose) << " pitch: " 
-          //<< std::get<4>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
+
+          // experimental, finding the direction the robot is facing (planing forward or in reverse)
+          //debug
+          //auto test_pose = T2xyzrpy(T_p_r);
+          //CLOG(ERROR, "path_planning.cbit_planner") << "Robot Pose in planing frame yaw: " << std::get<5>(test_pose);
         }
 
 
@@ -704,11 +707,11 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       // TODO: Dynamic Expansion radius selection:
       // Its debatable whether this works well or not, but going to try it
       
-      if (p_goal->g_T != INFINITY)
-      {
-        conf.initial_exp_rad = exp_radius((tree.V.size() + samples.size()), sample_box_height, sample_box_width, conf.eta);
-        CLOG(DEBUG, "path_planning.cbit_planner") << "New expansion radius is: " << conf.initial_exp_rad;
-      }
+      //if (p_goal->g_T != INFINITY)
+      //{
+      //  conf.initial_exp_rad = exp_radius((tree.V.size() + samples.size()), sample_box_height, sample_box_width, conf.eta);
+      //  CLOG(DEBUG, "path_planning.cbit_planner") << "New expansion radius is: " << conf.initial_exp_rad;
+      //}
       
       
     }
@@ -842,7 +845,14 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
   } // End of main planning for loop
   
 
-
+  // Exiting cleanly:
+  // If we make it here and are no longer localized, we've reached end of path and should clear the bitstar path from memory
+  if (localization_flag == false)
+  {
+    CLOG(ERROR, "path_planning.cbit_planner") << "Reached End of Plan, Exiting cleanly";
+    (*cbit_path_ptr).clear();
+    
+  }
   
 
   // FAULT AND EARLY MAIN LOOP EXIT HANDLING
@@ -1219,7 +1229,10 @@ std::shared_ptr<Node> CBITPlanner::UpdateState()
   int q_sign = sgn((B.p - A.p) * (new_state->y - A.q) - ((B.q - A.q) * (new_state->x - A.p))); 
   
   q_min = q_min * q_sign;
-  //std::cout << "q_min is: " << q_min << std::endl;
+  //std::cout << "q_min is: " << q_min << std::endl; // debug;
+
+  // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
+
 
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
   // We need to use this points p-value as a starting point, then search p, qmin space in either direction discretely and find the point with
