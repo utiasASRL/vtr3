@@ -296,7 +296,7 @@
         detection_range: 8.0
         search_radius: 0.25
 
-        negprob_threshold: 0.2 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
+        negprob_threshold: 0.1 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
         use_prior: true
         alpha0: 3.0 #  6 / 2  (6 pseudo observations)
         beta0: 0.03 #  0.01 * 6 / 2 (6 pseudo observations of variance 0.01)
