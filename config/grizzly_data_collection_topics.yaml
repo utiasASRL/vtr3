@@ -1,5 +1,0 @@
-topics:
-  -
-    topic: /points  # ROS1 topic name
-    type: sensor_msgs/msg/PointCloud2  # ROS2 type name
-    queue_size: 1000  # For the publisher back to ROS1

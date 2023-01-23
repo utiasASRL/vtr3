@@ -56,7 +56,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->state_update_freq = node->declare_parameter<double>(prefix + ".cbit.state_update_freq", config->state_update_freq);
   config->update_state = node->declare_parameter<bool>(prefix + ".cbit.update_state", config->update_state);
   config->rand_seed = node->declare_parameter<int>(prefix + ".cbit.rand_seed", config->rand_seed);
-  
+
   // PLANNER TUNING PARAMS:
   config->initial_samples = node->declare_parameter<int>(prefix + ".cbit.initial_samples", config->initial_samples);
   config->batch_samples = node->declare_parameter<int>(prefix + ".cbit.batch_samples", config->batch_samples);
@@ -131,7 +131,7 @@ CBIT::CBIT(const Config::ConstPtr& config,
   cbit_config.state_update_freq = config->state_update_freq;
   cbit_config.update_state = config->update_state;
   cbit_config.rand_seed = config->rand_seed;
-  
+
   // Planner Tuning Params
   cbit_config.initial_samples = config->initial_samples;
   cbit_config.batch_samples = config->batch_samples;
@@ -144,7 +144,7 @@ CBIT::CBIT(const Config::ConstPtr& config,
   cbit_config.rad_m_exhange = config->rad_m_exhange;
   cbit_config.initial_exp_rad = config->initial_exp_rad;
   cbit_config.extrapolation = config->extrapolation;
-  
+
   // Misc
   cbit_config.incremental_plotting = config->incremental_plotting;
   cbit_config.plotting = config->plotting;
@@ -154,12 +154,13 @@ CBIT::CBIT(const Config::ConstPtr& config,
   // Initialize the current velocity state and a vector for storing a history of velocity commands applied
   applied_vel << 0,
                  0;
-  vel_history.reserve(config_->command_history_length); 
-  for (int i = 0; i < config_->command_history_length; i++) 
+  vel_history.reserve(config_->command_history_length);
+  for (int i = 0; i < config_->command_history_length; i++)
   {
     vel_history.push_back(applied_vel);
   }
 
+  thread_count_ = 2;
   process_thread_cbit_ = std::thread(&CBIT::process_cbit, this);
 }
 
@@ -210,7 +211,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   auto& chain = *robot_state.chain;
 
   // Wait until the chain becomes localized
-  while (!chain.isLocalized()) 
+  while (!chain.isLocalized())
   {
   }
 
@@ -246,7 +247,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   // Instantiate the planner
   CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr);
   CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved";
-  
+
 }
 
 // Generate twist commands to track the planned local path (obstacle free)
@@ -260,7 +261,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     vel_history.push_back(applied_vel);
     return Command();
   }
-  
+
   // retrieve the transorm info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
@@ -307,17 +308,17 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     kin_noise_vect = config_->kin_error_cov;
 
 
-    
+
     // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
     const auto curr_time = now();  // always in nanoseconds
     const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 
 
     CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities:" << vel_history;
-    
+
     // Check the time past since the last state update was received
     // Go back through the vel_history to approximately dt seconds in the past
-    // Start applying each of the applied velocities sequentially 
+    // Start applying each of the applied velocities sequentially
     double control_period = config_->control_period / 1000.0; // control period is given by user in ms in the config
     auto T_p_r2 = T_p_r;
     for (int i=std::floor(dt / control_period); i > 0; i--)
@@ -350,7 +351,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     const auto T_p_r_extp2 = T_p_r2;
 
     CLOG(DEBUG, "mpc_debug.cbit") << "New extrapolated pose:"  << T_p_r_extp2;
-    
+
     // Uncomment if we use the extrapolated robot pose for control (constant velocity model from odometry)
     //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
 
@@ -399,7 +400,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     CLOG(INFO, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
- 
+
     // If required, saturate the output velocity commands based on the configuration limits
     CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
     Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
@@ -407,7 +408,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
     vel_history.erase(vel_history.begin());
     vel_history.push_back(saturated_vel);
-    
+
     // Store the current robot state in the robot state path so it can be visualized
     robot_poses.push_back(T_w_p * T_p_r);
 
@@ -526,7 +527,7 @@ void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform
     }
     robot_path_pub_->publish(robot_path);
   }
-  
+
 
   // Attempting to publish the actual path which we are receiving from the shared pointer in the cbitplanner
   // The path is stored as a vector of se3 Pose objects from cbit/utils, need to iterate through and construct proper ros2 nav_msgs PoseStamped
@@ -540,13 +541,13 @@ void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform
     // iterate through the path
     //CLOG(INFO, "path_planning.cbit") << "Trying to publish the path, the size is: " << (*cbit_path_ptr).size();
     geometry_msgs::msg::Pose test_pose;
-    for (unsigned i = 0; i < (*cbit_path_ptr).size(); ++i) 
+    for (unsigned i = 0; i < (*cbit_path_ptr).size(); ++i)
     {
       auto& pose = poses.emplace_back();
       //pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix())); // Example for how to grab the transform from a transform with covariance data type
       test_pose.position.x = (*cbit_path_ptr)[i].x;
-      test_pose.position.y = (*cbit_path_ptr)[i].y; 
-      test_pose.position.z = (*cbit_path_ptr)[i].z; 
+      test_pose.position.y = (*cbit_path_ptr)[i].y;
+      test_pose.position.z = (*cbit_path_ptr)[i].z;
       test_pose.orientation.x = 0.0;
       test_pose.orientation.y = 0.0;
       test_pose.orientation.z = 0.0;

@@ -58,7 +58,7 @@ auto VelodyneConversionModule::Config::fromROS(
 
 void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
                                     const Graph::Ptr &,
-                                    const TaskExecutor::Ptr &) {
+                                    const TaskExecutor::Ptr &) {                           
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Create a node for visualization if necessary
@@ -76,11 +76,15 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
   auto point_cloud =
       std::make_shared<pcl::PointCloud<PointWithInfo>>(points.rows(), 1);
 
+    
+    CLOG(INFO, "lidar.velodyne_converter") << "Made PCL";
+
   for (size_t idx = 0; idx < (size_t)points.rows(); idx++) {
     // cartesian coordinates
     point_cloud->at(idx).x = points(idx, 0);
     point_cloud->at(idx).y = points(idx, 1);
     point_cloud->at(idx).z = points(idx, 2);
+    CLOG(DEBUG, "lidar.velodyne_converter") << points(idx, 0);
 
     // pointwise timestamp
     point_cloud->at(idx).timestamp =

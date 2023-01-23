@@ -58,7 +58,7 @@ class DetectChangeOp {
  public:
   DetectChangeOp(const pcl::PointCloud<PointT> &points, const float &d0,
                  const float &d1)
-      : adapter_(points), d0_(d0), d1_(d1) {
+      : d0_(d0), d1_(d1), adapter_(points) {
     /// create kd-tree of the point cloud for radius search
     kdtree_ = std::make_unique<KDTree<PointT>>(2, adapter_,
                                                KDTreeParams(/* max leaf */ 10));
@@ -125,8 +125,8 @@ auto ChangeDetectionModuleV3::Config::fromROS(
 }
 
 void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
-                                   const Graph::Ptr &graph,
-                                   const TaskExecutor::Ptr &executor) {
+                                   const Graph::Ptr & /* graph */,
+                                   const TaskExecutor::Ptr & /* executor */) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
@@ -295,8 +295,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   std::vector<int> indices;
   indices.reserve(aligned_points2.size());
   for (size_t i = 0; i < aligned_points2.size(); ++i) {
-    /// \todo change flex24 to flex23
-    if (aligned_points2[i].flex23 > 0.5f) indices.emplace_back(i); //Jordy: modified from flex24 to flex23, I think we need to do this to update the costmap properly
+    if (aligned_points2[i].flex23 > 0.5f) indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> filtered_points(aligned_points2, indices);
 

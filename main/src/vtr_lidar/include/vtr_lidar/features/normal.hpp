@@ -86,8 +86,8 @@ std::vector<float> extractNormal(
     const float &radius, const float &r_scale, const float &h_scale,
     const int parallel_threads) {
   /// distance
-  auto scaled_points = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  auto scaled_queries = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  auto scaled_points = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  auto scaled_queries = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   scaleAndLogRadius(*points, r_scale, h_scale, *scaled_points);
   scaleAndLogRadius(*queries, r_scale, h_scale, *scaled_queries);
 

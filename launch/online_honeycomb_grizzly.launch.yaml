@@ -1,19 +1,16 @@
-## Online LiDAR VTR3
+## Online Lidar VTR3
 session_name: vtr_online_honeycomb_grizzly
 
 environment:
   CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
   # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
-  # data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')
-  # data_dir:=${VTRDATA}/online-test-lidar/2022-09-08/2022-09-08
-  # data_dir:=${VTRDATA}/online-test-lidar/2023-01-18/2023-01-18 # Nice dome path
 
-start_directory: ${VTRDATA}
+start_directory: ${VTRTEMP}
 
 suppress_history: false
 
 windows:
-  - window_name: vtr_system
+  - window_name: vtr_navigation_system
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
@@ -21,20 +18,11 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
-        data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')
+        data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
 
-      - sudo htop # monitor hardware usage and adjust process priority
-      - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
-
-  - window_name: vtr_ros_vis
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
-      - ros2 run rqt_reconfigure rqt_reconfigure
+      - htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -46,18 +34,10 @@ windows:
       - ros2 run vtr_gui web_server  --ros-args -r __ns:=/vtr
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
-  - window_name: system_monitor
+  - window_name: rviz2
     layout: main-horizontal
     shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
+      - source /opt/ros/galactic/setup.bash
     panes:
-      - ros2 launch vtr_safety_monitor safety_monitor.launch.py params:=default.yaml
-      # - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
-      # - echo 'ros2 topic echo /grizzly_velocity_controller/cmd_vel # monitor velocity commands'
-
-  - window_name: grizzly
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/robots/install/setup.bash
-    panes:
-      - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      # - ros2 run rqt_reconfigure rqt_reconfigure

@@ -22,7 +22,6 @@
 
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
-#include "teb_local_planner/costmap.h"
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
 #include "vtr_common/utils/hash.hpp"  // for std::pair hash
@@ -63,7 +62,7 @@ struct hash<vtr::lidar::costmap::PixKey> {
 namespace vtr {
 namespace lidar {
 
-class BaseCostMap : public teb_local_planner::CostMap {
+class BaseCostMap {
  public:
   BaseCostMap(const float& dl, const float& size_x, const float& size_y,
               const float& default_value = 0);
@@ -72,12 +71,6 @@ class BaseCostMap : public teb_local_planner::CostMap {
  public:
   using XY2ValueMap = std::unordered_map<std::pair<float, float>, float>;
   virtual XY2ValueMap filter(const float& threshold) const = 0;
-
- public:
-  void getValue(const teb_local_planner::PoseSE2& pose,
-                float& value) const override;
-  void getValue(const teb_local_planner::VertexPose& pose,
-                float& value) const override;
 
  public:
   float dl() const { return dl_; }

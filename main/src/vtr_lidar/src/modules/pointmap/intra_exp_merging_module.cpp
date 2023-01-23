@@ -135,7 +135,7 @@ void IntraExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
     /// simply return if there's no scan to work on
     if (scan_msgs.empty()) continue;
 
-    for (const auto scan_msg : scan_msgs) {
+    for (const auto &scan_msg : scan_msgs) {
       auto point_scan = scan_msg->sharedLocked().get().getData();  // COPY!
       const auto &T_v_s = (T_target_curr * point_scan.T_vertex_this()).matrix();
       auto &point_cloud = point_scan.point_cloud();

@@ -47,11 +47,10 @@ auto InterExpMergingModuleV2::Config::fromROS(
   return config;
 }
 
-void InterExpMergingModuleV2::run_(QueryCache &qdata0, OutputCache &,
-                                   const Graph::Ptr &,
-                                   const TaskExecutor::Ptr &executor) {
-  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
-}
+void InterExpMergingModuleV2::run_(QueryCache & /* qdata0 */,
+                                   OutputCache & /* output0 */,
+                                   const Graph::Ptr & /* graph */,
+                                   const TaskExecutor::Ptr & /* executor */) {}
 
 void InterExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
                                         const Graph::Ptr &graph,
