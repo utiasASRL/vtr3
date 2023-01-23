@@ -90,6 +90,7 @@ class Tree {
         std::vector<std::shared_ptr<Node>> V_Old;
         std::vector<std::shared_ptr<Node>> V_Repair_Backup;
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  E;
+        std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  E_Old;
         std::vector<std::shared_ptr<Node>> QV; // using shared pointers
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>> QE;
         Tree() = default;

@@ -216,14 +216,15 @@ double exp_radius(double q, double sample_box_height, double sample_box_width, d
     */
 
     double d = 2;
-    double lambda_x = sample_box_height + sample_box_width;
+    double lambda_x = sample_box_height * sample_box_width;
     double zeta = M_PI;
     double radius = 2.0 * eta * (pow((1.0 + (1.0/d)),(1.0/d))) * (pow((lambda_x/zeta),0.5)) * (pow((log(q) / q),(1.0/d)));
-    std::cout << "Expansion Radius: " << radius << std::endl;
+    //std::cout << "Expansion Radius: " << radius << std::endl;
     return radius;
 }
 
 // Moving this to cbit.cpp so I dont need to pass the whole giant path vector every time I call
+// though actually I think long term I may just want to pass the pointer and still do it in utils, I want to clean up what is in cbitplanner
 /*
 // Function for converting a p,q coordinate value into a euclidean coordinate using the pre-processed path to follow
 Node curve_to_euclid(Node node, std::vector<)
