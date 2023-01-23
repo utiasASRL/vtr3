@@ -27,7 +27,8 @@ USER ${USERID}:${GROUPID}
 ENV VTRROOT=${HOMEDIR}/ASRL/vtr3
 ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
-  VTRTEMP=${VTRROOT}/temp
+  VTRTEMP=${VTRROOT}/temp \
+  GRIZZLY=${VTRROOT}/grizzly
 
 ## Switch to root to install dependencies
 USER 0:0

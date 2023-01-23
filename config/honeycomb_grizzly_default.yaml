@@ -89,8 +89,8 @@
         - recall
         - icp
     #    - safe_corridor
-      #  - change_detection_sync
-        - memory
+        - change_detection_sync
+        #- memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
     preprocessing:
@@ -99,10 +99,10 @@
         visualize: true
         estimate_time: true
       filtering:
-        type: lidar.preprocessing
+        type: lidar.preprocessing_v2
         num_threads: 8
-        crop_range: 40.0
-        frame_voxel_size: 0.2
+        crop_range: 20.0
+        frame_voxel_size: 0.1
         vertical_angle_res: 0.0132645
         polar_r_scale: 2.0
         r_scale: 4.0

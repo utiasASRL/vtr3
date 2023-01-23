@@ -186,6 +186,9 @@ struct convert<std::chrono::time_point<std::chrono::high_resolution_clock>>
   {
     Node node;
     node["nanoseconds_since_epoch"] = start_time.time_since_epoch().count();
+    if (start_time.time_since_epoch().count() < 0) {
+      node["nanoseconds_since_epoch"] = 0;
+    }   
     return node;
   }
 
