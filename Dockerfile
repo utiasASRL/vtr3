@@ -67,6 +67,7 @@ RUN apt update && apt install -q -y \
   ros-humble-xacro \
   ros-humble-vision-opencv \
   ros-humble-perception-pcl ros-humble-pcl-ros
+RUN apt install ros-humble-tf2-tools
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \

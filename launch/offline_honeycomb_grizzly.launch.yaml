@@ -20,7 +20,7 @@ windows:
         base_params:=honeycomb_grizzly_default.yaml
         data_dir:=${VTRTEMP}/lidar
         start_new_graph:=false
-        use_sim_time:=false
+        use_sim_time:=true
 
 #      - htop # monitor hardware usage
 

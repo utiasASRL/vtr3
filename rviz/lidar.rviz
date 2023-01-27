@@ -6,15 +6,17 @@ Panels:
       Expanded:
         - /Global Options1
         - /TF1
-        - /TF1/Status1
+        - /TF1/Frames1
+        - /TF1/Tree1
         - /raw scan1
         - /filtered scan1
         - /odometry path1/Shape1
         - /curr map loc1/Topic1
         - /planned path1/Offset1
         - /planned path (poses)1/Topic1
+        - /change detection scan1
+        - /chang detection cost pcd1
         - /global path1/Offset1
-        - /planning fake obs. scan1
         - /PointCloud21
       Splitter Ratio: 0.4507042169570923
     Tree Height: 871
@@ -35,7 +37,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: raw scan
+    SyncSource: ""
 Visualization Manager:
   Class: ""
   Displays:
@@ -69,11 +71,37 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
+        base_link:
+          Value: true
+        chassis_link:
+          Value: true
+        front_axle_link:
+          Value: true
+        front_left_wheel_link:
+          Value: true
+        front_right_wheel_link:
+          Value: true
+        imu_link:
+          Value: true
         lidar:
           Value: false
-        odo vertex frame:
+        navsat_link:
+          Value: true
+        odom:
+          Value: true
+        rear_antenna_link:
+          Value: true
+        rear_left_wheel_link:
+          Value: true
+        rear_right_wheel_link:
+          Value: true
+        rear_sensor_base_link:
+          Value: true
+        rear_sensor_plate_link:
           Value: true
         robot:
+          Value: true
+        sensor_anchor_link:
           Value: true
         velodyne:
           Value: true
@@ -85,14 +113,9 @@ Visualization Manager:
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
         world:
-          odo vertex frame:
-            robot:
-              lidar:
-                velodyne:
-                  {}
           world (offset):
             {}
       Update Interval: 0
@@ -109,7 +132,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 0; 255; 0
       Max Intensity: 0
@@ -130,7 +153,7 @@ Visualization Manager:
         Value: /vtr/raw_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -143,7 +166,7 @@ Visualization Manager:
       Color: 0; 255; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 999999
@@ -164,7 +187,7 @@ Visualization Manager:
         Value: /vtr/filtered_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Angle Tolerance: 0.10000000149011612
       Class: rviz_default_plugins/Odometry
       Covariance:
@@ -452,7 +475,7 @@ Visualization Manager:
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: flex24
+      Channel Name: flex23
       Class: rviz_default_plugins/PointCloud2
       Color: 255; 255; 0
       Color Transformer: Intensity
@@ -460,7 +483,7 @@ Visualization Manager:
       Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 2
+      Max Intensity: 1
       Min Color: 0; 0; 0
       Min Intensity: 0
       Name: change detection scan
@@ -513,6 +536,40 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: false
       Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0.8999999761581421
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: chang detection cost pcd
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.30000001192092896
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/change_detection_diff
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -953,7 +1010,7 @@ Visualization Manager:
       Class: rviz_default_plugins/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: safe corridor cost map
       Topic:
         Depth: 5
@@ -969,7 +1026,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/safe_corridor_costmap_updates
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.699999988079071
       Class: rviz_default_plugins/Map
       Color Scheme: costmap
@@ -1163,7 +1220,7 @@ Visualization Manager:
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 248; 206; 255
     Fixed Frame: world
     Frame Rate: 30
   Name: root
@@ -1208,25 +1265,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 10.982351303100586
+      Distance: 26.967164993286133
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 3.0496435165405273
-        Y: -0.9416981339454651
-        Z: 2.5215511322021484
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3797965943813324
+      Pitch: 0.7153981328010559
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 5.934669494628906
+      Yaw: 0.4403983950614929
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -1445,4 +1502,4 @@ Window Geometry:
     collapsed: false
   Width: 1848
   X: 72
-  Y: 1107
+  Y: 27
