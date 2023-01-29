@@ -153,7 +153,7 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
         "filtered_point_cloud", "vtr_lidar_msgs/msg/PointScan", scan_odo_msg);
   }
   // raw point cloud
-#if false
+#if defined(VTR_ENABLE_LIDAR) && defined(SAVE_FULL_LIDAR)
   {
     auto raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
     raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
