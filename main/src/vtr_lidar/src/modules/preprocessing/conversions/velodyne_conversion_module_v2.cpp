@@ -89,12 +89,14 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // iterators
   // clang-format off
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(*msg, "intensity");
   for (size_t idx = 0; iter_x != iter_x.end();
-       ++idx, ++iter_x, ++iter_y, ++iter_z) {
+       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_intensity) {
     // cartesian coordinates
     point_cloud->at(idx).x = *iter_x;
     point_cloud->at(idx).y = *iter_y;
     point_cloud->at(idx).z = *iter_z;
+    point_cloud->at(idx).flex14 = *iter_intensity;
   }
 
  

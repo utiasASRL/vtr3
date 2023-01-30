@@ -156,7 +156,7 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
 #if defined(VTR_ENABLE_LIDAR) && defined(SAVE_FULL_LIDAR)
   {
     auto raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
-    raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
+    raw_scan_odo->point_cloud() = *qdata->raw_point_cloud;
     raw_scan_odo->T_vertex_this() = qdata->T_s_r->inverse();
     raw_scan_odo->vertex_id() = *qdata->vid_odo;
     //
