@@ -1,4 +1,6 @@
-FROM ubuntu:22.04
+# FROM ubuntu:22.04
+FROM nvidia/cuda:11.3.0-cudnn8-devel-ubuntu20.04
+
 
 CMD ["/bin/bash"]
 
@@ -10,8 +12,8 @@ CMD ["/bin/bash"]
 #   --build-arg HOMEDIR=${HOME} .
 ARG GROUPID=0
 ARG USERID=0
-ARG USERNAME=root
-ARG HOMEDIR=/root
+ARG USERNAME=sherry
+ARG HOMEDIR=/home/sherry
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
@@ -33,6 +35,10 @@ ENV VTRSRC=${VTRROOT}/src \
 USER 0:0
 
 ## Dependencies
+##added by sherry
+RUN apt install g++
+
+#rest
 RUN apt update && apt upgrade -q -y
 RUN apt update && apt install -q -y cmake git build-essential lsb-release curl gnupg2
 RUN apt update && apt install -q -y libboost-all-dev libomp-dev
@@ -59,13 +65,13 @@ ENV LANG=en_US.UTF-8
 # Add ROS2 key and install from Debian packages
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-  && apt update && apt install -q -y ros-humble-desktop
+  && apt update && apt install -q -y ros-galactic-desktop
 
 ## Install VTR specific ROS2 dependencies
 RUN apt update && apt install -q -y \
-  ros-humble-xacro \
-  ros-humble-vision-opencv \
-  ros-humble-perception-pcl ros-humble-pcl-ros
+  ros-galactic-xacro \
+  ros-galactic-vision-opencv \
+  ros-galactic-perception-pcl ros-galactic-pcl-ros
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
@@ -93,6 +99,7 @@ RUN pip3 install \
   python-socketio \
   python-socketio[client] \
   websocket-client
+
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
