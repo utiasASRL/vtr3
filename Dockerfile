@@ -1,5 +1,5 @@
 # FROM ubuntu:22.04
-FROM nvidia/cuda:11.3.0-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
 
 
 CMD ["/bin/bash"]
@@ -35,10 +35,6 @@ ENV VTRSRC=${VTRROOT}/src \
 USER 0:0
 
 ## Dependencies
-##added by sherry
-RUN apt install g++
-
-#rest
 RUN apt update && apt upgrade -q -y
 RUN apt update && apt install -q -y cmake git build-essential lsb-release curl gnupg2
 RUN apt update && apt install -q -y libboost-all-dev libomp-dev
@@ -65,13 +61,13 @@ ENV LANG=en_US.UTF-8
 # Add ROS2 key and install from Debian packages
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-  && apt update && apt install -q -y ros-galactic-desktop
+  && apt update && apt install -q -y ros-humble-desktop
 
 ## Install VTR specific ROS2 dependencies
 RUN apt update && apt install -q -y \
-  ros-galactic-xacro \
-  ros-galactic-vision-opencv \
-  ros-galactic-perception-pcl ros-galactic-pcl-ros
+  ros-humble-xacro \
+  ros-humble-vision-opencv \
+  ros-humble-perception-pcl ros-humble-pcl-ros
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
@@ -101,5 +97,55 @@ RUN pip3 install \
   websocket-client
 
 
+#added by sherry
+
+RUN apt install wget
+RUN apt install nano
+# RUN wget https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-1.13.0%2Bcu117.zip 
+# RUN unzip *.zip
+# RUN ls -l
+## install opencv 4.5.1
+
+RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+# RUN cd ${HOMEDIR}
+
+# RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
+#   && git clone https://github.com/OSGeo/PROJ.git . && git checkout 8.0.0 \
+#   && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
+#   && cmake .. && cmake --build . -j${NUMPROC} --target install
+
+RUN mkdir -p ${HOMEDIR}/opencv && cd ${HOMEDIR}/opencv \
+&& git clone https://github.com/opencv/opencv.git . && git checkout 4.6.0 \
+&& mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
+&& git clone https://github.com/opencv/opencv_contrib.git . && git checkout 4.6.0 
+
+
+RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+# # generate Makefiles (note that install prefix is customized to: /usr/local/opencv_cuda)
+
+RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
+&& cmake -D CMAKE_BUILD_TYPE=RELEASE \
+-D CMAKE_INSTALL_PREFIX=/usr/local/opencv_cuda \
+-D OPENCV_EXTRA_MODULES_PATH=/home/sherry/opencv_contrib/modules \
+-D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.10 \
+-DBUILD_opencv_python2=OFF \
+-DBUILD_opencv_python3=ON \
+-DWITH_OPENMP=ON \
+-DWITH_CUDA=ON \
+-D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.7 \
+-DOPENCV_ENABLE_NONFREE=ON \
+-D OPENCV_GENERATE_PKGCONFIG=ON \
+-DWITH_TBB=ON \
+-DWITH_GTK=ON \
+-DWITH_OPENMP=ON \
+-DWITH_FFMPEG=ON \
+-DBUILD_opencv_cudacodec=OFF \
+-D BUILD_EXAMPLES=ON \
+-D CUDA_ARCH_BIN="7.5" ..  && make -j16 && make install
+
+
+
+
+# RUN cp -r ${HOMEDIR}/ASRL/libtorch /usr/local/.
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
