@@ -228,7 +228,7 @@ class MelMatcherModule : public tactic::BaseModule {
   std::vector<bool> query_matched_;
 
   std::unordered_map<LandmarkId, bool> map_matched_;
-  common::timing::SimpleTimer timer_;
+  // common::timing::SimpleTimer timer_;
   int total_match_count_;
 
   bool use_tight_pixel_thresh_;

@@ -567,7 +567,7 @@ struct LandmarkInfo {
 };
 using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
 
-/** \brief A steam TransformStateVar Wrapper, keeps track of locking */
+/** \brief A steam SE3StateVar Wrapper, keeps track of locking */
 class SteamPose {
  public:
   /** \brief Default constructor */
@@ -579,14 +579,14 @@ class SteamPose {
    * \param lock_flag Whether this pose should be locked or not.
    */
   SteamPose(tactic::EdgeTransform T, bool lock_flag) : lock(lock_flag) {
-    tf_state_var.reset(new steam::se3::TransformStateVar(T));
+    tf_state_var.reset(new steam::se3::SE3StateVar(T));
     tf_state_var->setLock(lock);
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
   }
 
   /** \brief Sets the transformation. */
   void setTransform(const tactic::EdgeTransform &transform) {
-    tf_state_var.reset(new steam::se3::TransformStateVar(transform));
+    tf_state_var.reset(new steam::se3::SE3StateVar(transform));
     tf_state_var->setLock(lock);
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
   }
@@ -603,7 +603,7 @@ class SteamPose {
 
   bool isLocked() { return lock; }
   /** \brief The steam state variable. */
-  steam::se3::TransformStateVar::Ptr tf_state_var;
+  steam::se3::SE3StateVar::Ptr tf_state_var;
   steam::se3::TransformStateEvaluator::Ptr tf_state_eval;
   steam::Time time;
   steam::VectorSpaceStateVar::Ptr velocity;
@@ -621,15 +621,71 @@ using SensorVehicleTransformMap =
 using MigrationMap = std::unordered_map<vision::LandmarkId, int>;
 
 // experience recognition
-using ScoredRids = std::multimap<float, tactic::RunId>;
-using ScoredRid = std::pair<float, tactic::RunId>;
+using ScoredRids = std::multimap<float, pose_graph::BaseIdType>;
+using ScoredRid = std::pair<float, pose_graph::BaseIdType>;
 /** \brief the BoW cosine distance of the query to each run in the map. */
-using ExperienceDifferences = std::map<tactic::RunId, float>;
+using ExperienceDifferences = std::map<pose_graph::BaseIdType, float>;
 /** \brief a BoW cosine distance from the query to the run: <run, distance> */
-using ExperienceDifference = std::pair<tactic::RunId, float>;
+using ExperienceDifference = std::pair<pose_graph::BaseIdType, float>;
+
+
+
+
+
+
 }  // namespace vision
 
 }  // namespace vtr
+
+
+namespace steam{
+namespace se3{
+
+
+class LandmarkStateVar : public StateVariable<Eigen::Vector4d>
+{
+ public:
+
+  /// Convenience typedefs
+  typedef std::shared_ptr<LandmarkStateVar> Ptr;
+  typedef std::shared_ptr<const LandmarkStateVar> ConstPtr;
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  /// \brief Constructor from a global 3D point
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  LandmarkStateVar(const Eigen::Vector3d& v_0);
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  /// \brief Destructor
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  virtual ~LandmarkStateVar() {}
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  /// \brief Update the landmark state from the 3-dimensional perturbation
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  virtual bool update(const Eigen::VectorXd& perturbation);
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  /// \brief Clone method
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  virtual StateVariableBase::Ptr clone() const;
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  /// \brief Set value -- mostly for landmark initialization
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  void set(const Eigen::Vector3d& v);
+
+ private:
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  /// \brief Refresh the homogeneous scaling
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  void refreshHomogeneousScaling();
+
+};
+
+} //namespace se3
+} //namespace steam
 
 // custom specialization of std::hash can be injected in namespace std
 namespace std {

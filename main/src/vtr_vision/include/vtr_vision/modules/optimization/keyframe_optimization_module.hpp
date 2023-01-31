@@ -137,13 +137,13 @@ class KeyframeOptimizationModule : public SteamModule {
   steam::LossFunctionBase::Ptr sharedLossFunc_;
 
   /** \brief the locked map pose. */
-  steam::se3::TransformStateVar::Ptr map_pose_;
+  steam::se3::SE3StateVar::Ptr map_pose_;
 
   /** \brief Transform evaluator for the map pose. */
   steam::se3::TransformEvaluator::Ptr tf_map_;
 
   /** \brief the unlocked query pose. */
-  steam::se3::TransformStateVar::Ptr query_pose_;
+  steam::se3::SE3StateVar::Ptr query_pose_;
 
   /** \brief Transform evaluate for the query pose. */
   steam::se3::TransformEvaluator::Ptr tf_query_;

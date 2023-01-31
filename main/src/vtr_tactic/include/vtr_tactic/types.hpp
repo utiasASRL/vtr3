@@ -36,6 +36,7 @@ using Timestamp = storage::Timestamp;
 using Graph = pose_graph::RCGraph;
 using GraphBase = Graph::Base;
 using VertexId = pose_graph::VertexId;
+using RunIdSet = std::set<pose_graph::BaseIdType>;
 using Vertex = pose_graph::RCVertex;
 using EdgeId = pose_graph::EdgeId;
 using Edge = pose_graph::RCEdge;
