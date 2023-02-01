@@ -150,7 +150,7 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata0,
   qdata->T_r_m_prior.fallback(*qdata->T_r_m_loc);
   qdata->T_r_m.fallback(*qdata->T_r_m_loc);
   qdata->localization_status.fallback();
-  qdata->loc_timer.fallback();
+  qdata->loc_timer.emplace();
 
   for (auto module : localization_) module->run(*qdata0, graph);
 
@@ -295,11 +295,11 @@ EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
     // Query the saved trajectory estimator we have with the candidate frame
     // time
     auto candidate_time =
-        steam::Time(static_cast<int64_t>(kf_stamp.nanoseconds_since_epoch));
+        steam::traj::Time(static_cast<int64_t>(kf_stamp.nanoseconds_since_epoch));
     auto candidate_eval = trajectory_->getInterpPoseEval(candidate_time);
     // Query the saved trajectory estimator we have with the current frame time
     auto query_time =
-        steam::Time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch));
+        steam::traj::Time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch));
     auto curr_eval = trajectory_->getInterpPoseEval(query_time);
 
     // find the transform between the candidate and current in the vehicle frame
@@ -943,7 +943,7 @@ void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
   pose_graph::VertexId map_id = *qdata.map_id;
   status.map_id = map_id;
   status.success = *qdata.success;
-  status.localization_computation_time_ms = (*qdata.loc_timer).elapsedMs();
+  status.localization_computation_time_ms = qdata.loc_timer->count();
 
   if (qdata.T_r_m.is_valid()) {
     status.t_query_map << *qdata.T_r_m;

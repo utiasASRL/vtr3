@@ -71,7 +71,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<MigrationMap> landmark_offset_map;
   tactic::Cache<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
   tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
-  // tactic::Cache<common::timing::SimpleTimer> loc_timer;
+  tactic::Cache<common::timing::Stopwatch> loc_timer;
   // clang-format on
 };
 }  // namespace vision
