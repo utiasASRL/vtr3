@@ -53,6 +53,10 @@
 
 
 namespace steam{
+
+  using VectorSpaceStateVar = StateVar<Eigen::VectorXd>;
+
+
 namespace se3{
 
 
@@ -618,6 +622,8 @@ struct LandmarkInfo {
 };
 using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
 
+
+
 /** \brief A steam SE3StateVar Wrapper, keeps track of locking */
 class SteamPose {
  public:
@@ -631,25 +637,25 @@ class SteamPose {
    */
   SteamPose(tactic::EdgeTransform T, bool lock_flag) : lock(lock_flag) {
     tf_state_var.reset(new steam::se3::SE3StateVar(T));
-    tf_state_var->setLock(lock);
+    tf_state_var->locked() = true;
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
   }
 
   /** \brief Sets the transformation. */
   void setTransform(const tactic::EdgeTransform &transform) {
     tf_state_var.reset(new steam::se3::SE3StateVar(transform));
-    tf_state_var->setLock(lock);
+    tf_state_var->locked() = true;
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
   }
 
   void setVelocity(Eigen::Matrix<double, 6, 1> &vel) {
     velocity.reset(new steam::VectorSpaceStateVar(vel));
-    velocity->setLock(lock);
+    velocity->locked() = true;
   }
   /** \brief Sets the lock */
   void setLock(bool lock_flag) {
     lock = lock_flag;
-    tf_state_var->setLock(lock);
+    tf_state_var->locked() = true;
   }
 
   bool isLocked() { return lock; }
