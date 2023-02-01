@@ -115,9 +115,12 @@ RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev li
 #   && cmake .. && cmake --build . -j${NUMPROC} --target install
 
 RUN mkdir -p ${HOMEDIR}/opencv && cd ${HOMEDIR}/opencv \
-&& git clone https://github.com/opencv/opencv.git . && git checkout 4.6.0 \
-&& mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
-&& git clone https://github.com/opencv/opencv_contrib.git . && git checkout 4.6.0 
+&& git clone https://github.com/opencv/opencv.git . 
+
+RUN cd ${HOMEDIR}/opencv && git checkout 4.6.0
+RUN mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
+&& git clone https://github.com/opencv/opencv_contrib.git . 
+RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.6.0 
 
 
 RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
@@ -126,7 +129,7 @@ RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavco
 RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 && cmake -D CMAKE_BUILD_TYPE=RELEASE \
 -D CMAKE_INSTALL_PREFIX=/usr/local/opencv_cuda \
--D OPENCV_EXTRA_MODULES_PATH=/home/sherry/opencv_contrib/modules \
+-D OPENCV_EXTRA_MODULES_PATH=${HOMEDIR}/opencv_contrib/modules \
 -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.10 \
 -DBUILD_opencv_python2=OFF \
 -DBUILD_opencv_python3=ON \
