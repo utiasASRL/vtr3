@@ -12,8 +12,8 @@ CMD ["/bin/bash"]
 #   --build-arg HOMEDIR=${HOME} .
 ARG GROUPID=0
 ARG USERID=0
-ARG USERNAME=sherry
-ARG HOMEDIR=/home/sherry
+ARG USERNAME=root
+ARG HOMEDIR=/root
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
@@ -150,5 +150,8 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 
 
 # RUN cp -r ${HOMEDIR}/ASRL/libtorch /usr/local/.
+
+RUN apt install htop
+
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
