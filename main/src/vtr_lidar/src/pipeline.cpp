@@ -138,6 +138,8 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   /// update current map vertex id and transform
   sliding_map_odo_->T_vertex_this() = *T_r_m_odo_;
   sliding_map_odo_->vertex_id() = *qdata->vid_odo;
+  CLOG(DEBUG, "lidar.pipeline") << "Saving data to vertex" << vertex;
+
 
   /// store the live frame point cloud
   // motion compensated point cloud
@@ -151,6 +153,8 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     auto scan_odo_msg = std::make_shared<PointScanLM>(scan_odo, *qdata->stamp);
     vertex->insert<PointScan<PointWithInfo>>(
         "filtered_point_cloud", "vtr_lidar_msgs/msg/PointScan", scan_odo_msg);
+    CLOG(DEBUG, "lidar.pipeline") << "Saved filtered pointcloud to vertex" << vertex;
+
   }
   // raw point cloud
 #if defined(VTR_ENABLE_LIDAR) && defined(SAVE_FULL_LIDAR)
@@ -166,6 +170,7 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     vertex->insert<PointScan<PointWithInfo>>(
         "raw_point_cloud", "vtr_lidar_msgs/msg/PointScan", raw_scan_odo_msg);
   }
+  CLOG(DEBUG, "lidar.pipeline") << "Saved raw pointcloud to vertex" << vertex;
 #endif
 
   /// save the sliding map as vertex submap if we have traveled far enough
