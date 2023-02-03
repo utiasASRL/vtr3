@@ -132,7 +132,7 @@ void RCGraph::saveGraphIndex() {
 
   msg_->locked().get().setData(data);
 
-  GraphMsgAccessor accessor{fs::path{file_path_} / "index", "index", "vtr_pose_graph_msgs/msg/Graph"};
+  GraphMsgAccessor accessor{fs::path{file_path_}, "index", "vtr_pose_graph_msgs/msg/Graph"};
   accessor.write(msg_);
 }
 
@@ -143,14 +143,14 @@ void RCGraph::saveVertices() {
     iter->second->unload();
 
   CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
-  VertexMsgAccessor accessor{fs::path{file_path_} / "vertices", "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
+  VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
   for (auto it = vertices_.begin(); it != vertices_.end(); ++it)
     accessor.write(it->second->serialize());
 }
 
 void RCGraph::saveEdges() {
   CLOG(DEBUG, "pose_graph") << "Saving edges to disk";
-  EdgeMsgAccessor accessor{fs::path{file_path_} / "edges", "edges", "vtr_pose_graph_msgs/msg/Edge"};
+  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
   for (auto it = edges_.begin(); it != edges_.end(); ++it)
     accessor.write(it->second->serialize());
 }
