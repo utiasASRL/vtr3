@@ -13,259 +13,128 @@
 // limitations under the License.
 
 /**
- * \file pipeline.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \file template_pipeline.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_common/timing/time_utils.hpp>
-#include <vtr_common/utils/macros.hpp>
-#include <vtr_lgmath_extensions/conversions.hpp>
-#include <vtr_logging/logging.hpp>
-#include <vtr_tactic/pipelines/base_pipeline.hpp>
-#include <vtr_vision/cache.hpp>
-#include <vtr_vision/modules/modules.hpp>
-#include <vtr_vision/types.hpp>
-
-#include <vtr_messages/msg/rig_counts.hpp>
-#include <vtr_messages/msg/rig_landmarks.hpp>
-#include <vtr_messages/msg/rig_observations.hpp>
-#include <vtr_messages/msg/velocity.hpp>
+#include "vtr_tactic/pipelines/base_pipeline.hpp"
 
 namespace vtr {
-namespace vision {
+namespace tactic {
 
-using TimeStampMsg = vtr_messages::msg::TimeStamp;
-
-using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
-using RigObservationsMsg = vtr_messages::msg::RigObservations;
-using RigCountsMsg = vtr_messages::msg::RigCounts;
-
-using ChannelObservationsMsg = vtr_messages::msg::ChannelObservations;
-using ChannelFeaturesMsg = vtr_messages::msg::ChannelFeatures;
-using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
-
-using TransformMsg = vtr_messages::msg::Transform;
-using VelocityMsg = vtr_messages::msg::Velocity;
-using ImageMsg = vtr_messages::msg::Image;
-using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
-
-class StereoPipeline : public tactic::BasePipeline {
+class TemplatePipeline : public BasePipeline {
  public:
-  using Ptr = std::shared_ptr<StereoPipeline>;
+  using Ptr = std::shared_ptr<TemplatePipeline>;
 
   /** \brief Static pipeline identifier. */
-  static constexpr auto static_name = "stereo";
+  static constexpr auto static_name = "template";
 
   /** \brief Collection of config parameters */
-  struct Config {
-    std::vector<std::string> preprocessing;
-    std::vector<std::string> odometry;
-    std::vector<std::string> bundle_adjustment;
-    std::vector<std::string> localization;
+  struct Config : public BasePipeline::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
+    std::string parameter = "default value";
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
+                            const std::string &param_prefix) {
+      /// Get ROS parameters here
+      auto config = std::make_shared<Config>();
+      // clang-format off
+      config->parameter = node->declare_parameter<std::string>(param_prefix + ".parameter", config->parameter);
+      // clang-format on
+      CLOG(INFO, "tactic.pipeline")
+          << "Template pipeline parameter set to: " << config->parameter;
+      return config;
+    }
   };
 
-  StereoPipeline(const std::string &name = static_name) : BasePipeline{name} {
-    addModules();
+  TemplatePipeline(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : BasePipeline{module_factory, name}, config_(config) {}
+
+  virtual ~TemplatePipeline() = default;
+
+  void initialize_(const OutputCache::Ptr &, const Graph::Ptr &) override {
+    /// Perform necessary initialization of the pipeline, e.g., create and
+    /// initialize modules.
+    /// Pose-graph is given but may be an empty graph.
   }
 
-  virtual ~StereoPipeline() {}
+  void preprocess_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                   const Graph::Ptr &,
+                   const std::shared_ptr<TaskExecutor> &) override {
+    /// This method is called on every input data.
+    /// The following will be in qdata:
+    ///   - input data (raw)
+    ///   - stamp: time stamp of this data.
+    ///   - node: a shared pointer to ROS node that can be used to create
+    ///   publishers for visualization
+    /// Any processed data (e.g. features) should be put in qdata.
+    /// This method should not touch the pose graph.
+    /// Any data preprocessing module should not touch the pose graph.
+  }
 
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string &param_prefix) override;
+  void runOdometry_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                    const Graph::Ptr &,
+                    const std::shared_ptr<TaskExecutor> &) override {
+    /// This method is called on every preprocessed input data.
+    /// The following will be in qdata:
+    ///   - everything from preprocessing.
+    ///   - first_frame: the first data received for the current run (teach or
+    ///   repeat).
+    ///   - live_id: the current vertex being localized against for odometry, or
+    ///   invalid if first frame.
+    ///   - T_r_v_odo: odometry estimation from last input, or identity if this
+    ///   is the first frame or a vertex has just been created.
+    ///   - odo_success: whether or not odometry estimation is successful
+    ///   - vertex_test_result: whether or not to create a new vertex,
+    ///   always default to NO.
+    /// This method should update the following:
+    ///   - T_r_v_odo, odo_success, vertex_test_result
+    /// This method should only read from the graph.
+    /// Any debug info, extra stuff can be put in qdata.
+  }
 
-  void initialize(const tactic::Graph::Ptr &graph) override;
+  void runLocalization_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                        const Graph::Ptr &,
+                        const std::shared_ptr<TaskExecutor> &) override {
+    /// This method is called in the following cases:
+    ///   - first vertex of a teach that branches from existing path to
+    ///   localize against the existing path (i.e., trunk)
+    ///   - every frame when merging into existing graph to create a loop
+    ///   - every frame when doing metric localization (e.g. before path
+    ///   following)
+    ///   - every vertex when repeating a path
+    /// The following will be in qdata:
+    ///   - everything from odometry and onVertexCreation.
+    ///   - map_id: the vertex to be localized against by this method.
+    ///   - T_r_v_loc: prior estimate from localization chain based on odometry.
+    ///   - loc_success: whether or not localization is successful.
+    /// This method should update the following:
+    ///   - T_r_v_loc, loc_success
+    /// This method may read from or write to the graph.
+  }
 
-  void preprocess(tactic::QueryCache::Ptr &qdata,
-                  const tactic::Graph::Ptr &graph) override;
-  void visualizePreprocess(tactic::QueryCache::Ptr &qdata,
-                           const tactic::Graph::Ptr &graph) override;
-
-  void runOdometry(tactic::QueryCache::Ptr &qdata,
-                   const tactic::Graph::Ptr &graph) override;
-  void visualizeOdometry(tactic::QueryCache::Ptr &qdata,
-                         const tactic::Graph::Ptr &graph) override;
-
-  void runLocalization(tactic::QueryCache::Ptr &qdata,
-                       const tactic::Graph::Ptr &graph) override;
-  void visualizeLocalization(tactic::QueryCache::Ptr &qdata,
-                             const tactic::Graph::Ptr &graph) override;
-
-  void processKeyframe(tactic::QueryCache::Ptr &qdata,
-                       const tactic::Graph::Ptr &graph,
-                       tactic::VertexId live_id) override;
-
-  void wait() override;
-
- private:
-  void addModules();
-
-  void runBundleAdjustment(CameraQueryCache::Ptr qdata,
-                           const tactic::Graph::Ptr graph,
-                           tactic::VertexId live_id);
-
-  void saveLandmarks(CameraQueryCache &qdata, const tactic::Graph::Ptr &graph,
-                     const tactic::VertexId &live_id);
-
-  void setOdometryPrior(CameraQueryCache::Ptr &qdata,
-                        const tactic::Graph::Ptr &graph);
-
-  tactic::EdgeTransform estimateTransformFromKeyframe(
-      const TimeStampMsg &kf_stamp, const TimeStampMsg &curr_stamp,
-      bool check_expiry);
-
-  /**
-   * \brief Adds all candidate landmarks to the vertex as new landmarks.
-   * \param[in,out] landmarks The new landmarks message to be updated in the
-   * graph.
-   * \param[in,out] observations The observations message to be updated in
-   * the graph.
-   * \param rig_idx The index into the current rig.
-   * \param qdata The query cache data.
-   * \param graph The STPG.
-   * \param persistent_id TODO
-   */
-  void addAllLandmarks(RigLandmarksMsg &landmarks,
-                       RigObservationsMsg &observations, const int &rig_idx,
-                       const CameraQueryCache &qdata,
-                       const tactic::Graph::Ptr &graph,
-                       const GraphPersistentIdMsg &persistent_id);
-
-  /**
-   * \brief Adds all candidate landmarks to the vertex as new landmarks for the
-   * RGB channel only.
-   * \param[in,out] landmarks The new landmarks message to be updated in the
-   * graph.
-   * \param[in,out] observations The observations message to be updated in
-   * the graph. \param rig_idx The index into the current rig. \param qdata
-   * The query cache data. \param graph The STPG. \param persistent_id TODO
-   */
-  void addAllLandmarksRGB(RigLandmarksMsg &landmarks,
-                          RigObservationsMsg &observations, const int &rig_idx,
-                          const CameraQueryCache &qdata,
-                          const tactic::Graph::Ptr &graph,
-                          const GraphPersistentIdMsg &persistent_id);
-
-  /**
-   * \brief Adds Observations for a specific channel
-   * \param[in,out] channel_obs the observations message to be updated in the
-   graph.
-   * \param channel_features The features corresponding to the candidate
-   landmarks
-   * \param persistent_id the vertex ID of the current pose.
-   * \param rig_idx the index into the current rig.
-   * \param channel_idx the index into the current channel.
-   */
-  void addChannelObs(ChannelObservationsMsg &channel_obs,
-                     const vision::ChannelFeatures &channel_features,
-                     const vision::ChannelLandmarks &,
-                     const GraphPersistentIdMsg &persistent_id,
-                     const int &rig_idx, const int &channel_idx);
-
-  /**
-   * \brief Adds observations to previous landmarks and and adds new lanmarks.
-   * \param[in,out] landmarks the new landmarks message to be updated in the
-   graph.
-   * \param[in,out] observations the observations message to be updated in the
-   graph.
-   * \param rig_idx the index into the current rig.
-   * \param qdata the query cache data.
-   * \param persistent_id TODO
-   */
-  void addLandmarksAndObs(RigLandmarksMsg &landmarks,
-                          RigObservationsMsg &observations, const int &rig_idx,
-                          const CameraQueryCache &qdata,
-                          const tactic::Graph::Ptr &,
-                          const GraphPersistentIdMsg &persistent_id);
-
-  /**
-   * \brief Adds Landmarks and Observations for new Feature Tracks.
-   * \param[in,out] new_landmarks the new landmarks message to be updated in the
-   graph.
-   * \param[in,out] new_observations the observations message to be updated in
-   the graph.
-   * \param new_landmark_flags flags every candidate landmark as new or not.
-   * \param landmarks The candidate landmarks
-   * \param features The features corresponding to the candidate landmarks
-   * \param persistent_id the vertex ID of the current pose.
-   * \param rig_idx the index into the current rig.
-   * \param channel_idx the index into the current channel.
-   */
-  void addNewLandmarksAndObs(ChannelLandmarksMsg &new_landmarks,
-                             ChannelObservationsMsg &new_observations,
-                             const std::vector<bool> &new_landmark_flags,
-                             const vision::ChannelLandmarks &landmarks,
-                             const vision::ChannelFeatures &features,
-                             const GraphPersistentIdMsg &persistent_id,
-                             const int &rig_idx, const int &channel_idx);
-
-  /**
-   * \brief Adds Observations to landmarks in other vertices.
-   * \param[in,out] new_obs the observations message to be updated in the graph.
-   * \param matches The matches between the query frame and old landmarks.
-   * \param features The features corresponding to the landmarks
-   * \param map_lm_obs The observations of previous landmarks.
-   * \param new_landmark_flags Flags each candidate landmark as new or not.
-   * \param persistent_id the vertex ID of the current pose.
-   * \param rig_idx the index into the current rig.
-   * \param channel_idx the index into the current channel.
-   */
-  void addObsToOldLandmarks(ChannelObservationsMsg &new_obs,
-                            const vision::SimpleMatches &matches,
-                            const vision::ChannelFeatures &features,
-                            const vision::ChannelObservations &map_lm_obs,
-                            std::vector<bool> &new_landmark_flags,
-                            const GraphPersistentIdMsg &persistent_id,
-                            const int &rig_idx, const int &channel_idx);
-
-  /**
-   * \brief Updates the graph after the modules have run.
-   * In the case of the localizer assembly, this includes updating the landmarks
-   * in the live run to include matches to landmarks in the map.
-   */
-  void saveLocalization(CameraQueryCache &qdata,
-                        const tactic::Graph::Ptr &graph,
-                        const tactic::VertexId &live_id);
-
-  void saveLocResults(CameraQueryCache &qdata, const tactic::Graph::Ptr &graph,
-                      const tactic::VertexId &live_id);
+  void onVertexCreation_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                         const Graph::Ptr &,
+                         const std::shared_ptr<TaskExecutor> &) override {
+    /// This method is called whenever a vertex is created.
+    /// The following will be in qdata:
+    ///   - everything from odometry
+    ///   - vid_odo: always the vertex corresponding to the just-created vertex.
+    /// This method may read from or write to the graph.
+  }
 
  private:
   /** \brief Pipeline configuration */
-  std::shared_ptr<Config> config_ = std::make_shared<Config>();
+  Config::ConstPtr config_;
 
-  /**
-   * \brief A candidate cache in case for odometry failure, where the candidate
-   * cache is used to create a keyframe.
-   */
-  CameraQueryCache::Ptr candidate_qdata_ = nullptr;
-
-  std::mutex bundle_adjustment_mutex_;
-  std::future<void> bundle_adjustment_thread_future_;
-  std::future<void> visualize_localization_thread_future_;
-
-  std::vector<tactic::BaseModule::Ptr> preprocessing_;
-  std::vector<tactic::BaseModule::Ptr> odometry_;
-  std::vector<tactic::BaseModule::Ptr> bundle_adjustment_;
-  std::vector<tactic::BaseModule::Ptr> localization_;
-
-  /**
-   * \brief a pointer to a trjacetory estimate so that the transform can be
-   * estimated at a future time
-   */
-  std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_;
-  /** \brief the time at which the trajectory was estimated */
-  common::timing::time_point trajectory_time_point_;
-
-  /** \brief Mutex to ensure thread safety with OpenCV HighGui calls */
-  std::shared_ptr<std::mutex> vis_mutex_ptr_ = std::make_shared<std::mutex>();
-
-  /** \brief \todo remove this mutex, no longer needed */
-  std::shared_ptr<std::mutex> steam_mutex_ptr_ = std::make_shared<std::mutex>();
+  VTR_REGISTER_PIPELINE_DEC_TYPE(TemplatePipeline);
 };
 
-}  // namespace vision
+}  // namespace tactic
 }  // namespace vtr
