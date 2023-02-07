@@ -24,6 +24,8 @@
 #include "vtr_route_planning/route_planner_interface.hpp"
 #include "vtr_tactic/tactic.hpp"
 
+#include "vtr_common/conversions/tf2_ros_eigen.hpp"
+
 #ifdef VTR_ENABLE_LIDAR
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #endif
