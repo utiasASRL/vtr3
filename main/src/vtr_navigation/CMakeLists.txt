@@ -24,7 +24,7 @@ find_package(vtr_navigation_msgs REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
 find_package(vtr_lidar REQUIRED)
-# find_package(vtr_vision REQUIRED)
+find_package(vtr_vision REQUIRED)
 
 ## C++ Libraries
 include_directories(
@@ -69,7 +69,7 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
   sensor_msgs  # for visualization only
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
   vtr_lidar
-  # vtr_vision
+  vtr_vision
 )
 target_link_libraries(${PROJECT_NAME}_navigator
   ${PROJECT_NAME}_graph_map_server
@@ -88,7 +88,7 @@ ament_export_dependencies(
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
   vtr_navigation_msgs
   vtr_lidar
-  # vtr_vision
+  vtr_vision
   PROJ
 )
 

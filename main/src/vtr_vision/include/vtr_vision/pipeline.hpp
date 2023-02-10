@@ -20,6 +20,8 @@
 
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 #include "vtr_tactic/modules/modules.hpp"
+#include "vtr_vision/cache.hpp"
+
 
 namespace vtr {
 namespace vision {
@@ -52,7 +54,7 @@ class StereoPipeline : public tactic::BasePipeline {
       //
       // : BasePipeline{module_factory, name}, config_(config)# {}
 
-  virtual ~StereoPipeline() = default;
+  virtual ~StereoPipeline();
 
   tactic::OutputCache::Ptr createOutputCache() const override;
 

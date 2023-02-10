@@ -11,8 +11,6 @@ auto StereoPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     -> ConstPtr {
   auto config = std::make_shared<Config>();
                                    
-//                                    {
-//   config_ = std::make_shared<Config>();
   // clang-format off
   config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
 //   config_->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config_->odometry);
@@ -43,15 +41,18 @@ StereoPipeline::StereoPipeline(
 //     localization_.push_back(factory()->get("localization." + module));
 }
 
+StereoPipeline::~StereoPipeline() {}
+
+tactic::OutputCache::Ptr StereoPipeline::createOutputCache() const {
+  return std::make_shared<tactic::OutputCache>();
+}
+
 
 void StereoPipeline::preprocess_(const tactic::QueryCache::Ptr &qdata0, const tactic::OutputCache::Ptr &output0,
                    const tactic::Graph::Ptr &graph,
                    const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
-  qdata->vis_mutex = vis_mutex_ptr_;
-  /// \todo Steam has been made thread safe for VTR, remove this.
-  qdata->steam_mutex = steam_mutex_ptr_;
-  for (auto module : preprocessing_) module->run(*qdata0, graph);
+  for (auto module : preprocessing_) module->run(*qdata0, *output0, graph, executor);
 }
 
 

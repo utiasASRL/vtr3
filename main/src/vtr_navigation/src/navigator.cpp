@@ -26,9 +26,14 @@
 
 #include "vtr_path_planning/path_planning.hpp"
 #include "vtr_route_planning/route_planning.hpp"
+
 #ifdef VTR_ENABLE_LIDAR
 #include "vtr_lidar/path_planning.hpp"
 #include "vtr_lidar/pipeline.hpp"
+#endif
+
+#ifdef VTR_ENABLE_VISION
+#include "vtr_vision/pipeline.hpp"
 #endif
 
 namespace vtr {
@@ -245,6 +250,42 @@ void Navigator::lidarCallback(
 
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
+
+  // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r.emplace(T_lidar_robot_);
+
+  // add to the queue and notify the processing thread
+  queue_.push(query_data);
+  pointcloud_in_queue_ = true;
+  cv_set_or_stop_.notify_one();
+};
+#endif
+
+#ifdef VTR_ENABLE_VISION
+void Navigator::cameraCallback(
+    const sensor_msgs::msg::Image::SharedPtr msg) {
+  LockGuard lock(mutex_);
+  CLOG(DEBUG, "navigation") << "Received an image.";
+
+  if (pointcloud_in_queue_) {
+    CLOG(WARNING, "navigation")
+        << "Skip image message because there is already "
+           "one in queue.";
+    return;
+  }
+
+  // Convert message to query_data format and store into query_data
+  auto query_data = std::make_shared<vision::CameraQueryCache>();
+
+  // some modules require node for visualization
+  query_data->node = node_;
+
+  // set the timestamp
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+  query_data->stamp.emplace(timestamp);
+
+  // add the current environment info
+  query_data->env_info.emplace(env_info_);
 
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r.emplace(T_lidar_robot_);

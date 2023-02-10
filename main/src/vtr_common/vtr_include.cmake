@@ -30,4 +30,5 @@ endif()
 
 ## Enable certain pipelines
 add_definitions(-DVTR_ENABLE_LIDAR)
+add_definitions(-DVTR_ENABLE_VISION)
 # add_definitions(-DVTR_ENABLE_RADAR)
