@@ -15,9 +15,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag vtr3:$(date +%s)
+      run: docker build . --file Dockerfile --tag vtr3
     - name: run container
-      run: docker run --name vtr3 --privileged -v .:/home/asrl/vtr3:rw vtr3:$(date +%s)
+      run: docker run --name vtr3 --privileged -v .:/home/asrl/vtr3:rw vtr3
     - name: colcon build
       run: docker exec -w /home/asrl/vtr3/main vtr3 bash -c "source /opt/ros/noetic/setup.sh && colcon build"
       
