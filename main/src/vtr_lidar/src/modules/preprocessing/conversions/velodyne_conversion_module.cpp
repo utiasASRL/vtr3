@@ -73,7 +73,7 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
   // Stamp loading was added for unknown reason. Current velodyne data (e.g. from Boreas)
   // has timestamps loaded in absolute time, starting from stamp time. Thus, adding stamp
   // to the timestamp in line 89/90 is incorrect. Perhaps there is data where this is not true...
-  //const auto &stamp = *qdata.stamp; 
+  const auto &stamp = *qdata.stamp; 
   const auto &points = *qdata.points;
 
   auto point_cloud =
