@@ -105,7 +105,7 @@ class ConversionExtractionModule : public tactic::BaseModule {
   // void runImpl(tactic::QueryCache &qdata,
   //              const tactic::Graph::ConstPtr &) override;
 
-    void run_(tactic::QueryCache &qdata, tactic::OutputCache &, const tactic::Graph::Ptr &,
+    void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override {
         /// Pure virtual method that must be overriden.
         /// Do the actual work of your module. Load data from and store data to

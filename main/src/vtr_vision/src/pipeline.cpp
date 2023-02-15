@@ -32,9 +32,9 @@ StereoPipeline::StereoPipeline(
     const std::shared_ptr<ModuleFactory> &module_factory,
     const std::string &name)
     : BasePipeline(module_factory, name), config_(config) {
-  // preprocessing
-  for (auto module : config_->preprocessing)
-    preprocessing_.push_back(factory()->get("preprocessing." + module));
+    // preprocessing
+    for (auto module : config_->preprocessing)
+      preprocessing_.push_back(factory()->get("preprocessing." + module));
 //   // odometry
 //   for (auto module : config_->odometry)
 //     odometry_.push_back(factory()->get("odometry." + module));
@@ -51,8 +51,10 @@ void StereoPipeline::preprocess_(const tactic::QueryCache::Ptr &qdata0, const ta
   qdata->vis_mutex = vis_mutex_ptr_;
   /// \todo Steam has been made thread safe for VTR, remove this.
   qdata->steam_mutex = steam_mutex_ptr_;
-  for (auto module : preprocessing_) module->run(*qdata0, graph);
+  // for (auto module : preprocessing_) module->run(*qdata0, *output0, graph, executor);
 }
+
+
 
 
 

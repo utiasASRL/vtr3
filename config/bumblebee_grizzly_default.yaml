@@ -64,11 +64,11 @@
     pipeline:
       type: stereo
 
-      preprocessing:
-      odometry: #["recall", "matcher", "ransac", "steam", "vertex_test"]
-      # localization:
+      preprocessing: ["extraction"]
+      # odometry: [] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      # # localization:
 
-      bundle_adjustment: #["recall", "steam"]
+      # bundle_adjustment: [] #["recall", "steam"]
 
       # preprocessing: ["extraction", "triangulation"]
       # odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]

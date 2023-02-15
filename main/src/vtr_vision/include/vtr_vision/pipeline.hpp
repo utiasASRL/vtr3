@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include "vtr_vision/cache.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 #include "vtr_tactic/modules/modules.hpp"
 
@@ -134,6 +135,11 @@ class StereoPipeline : public tactic::BasePipeline {
 
   std::vector<tactic::BaseModule::Ptr> preprocessing_;
 
+  /** \brief Mutex to ensure thread safety with OpenCV HighGui calls */
+  std::shared_ptr<std::mutex> vis_mutex_ptr_ = std::make_shared<std::mutex>();
+
+  /** \brief \todo remove this mutex, no longer needed */
+  std::shared_ptr<std::mutex> steam_mutex_ptr_ = std::make_shared<std::mutex>();
 
   VTR_REGISTER_PIPELINE_DEC_TYPE(StereoPipeline);
 };
