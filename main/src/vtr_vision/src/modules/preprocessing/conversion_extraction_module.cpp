@@ -159,34 +159,39 @@ void configureLearnedFeatureStereoDetector(const rclcpp::Node::SharedPtr &node,
 
 }  // namespace
 
-void ConversionExtractionModule::fromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
-  // clang-format off
-  config_->conversions = node->declare_parameter<std::vector<std::string>>(param_prefix + ".conversions", config_->conversions);
-  config_->color_constant_weights = node->declare_parameter<std::vector<double>>(param_prefix + ".color_constant.weights", config_->color_constant_weights);
-  config_->color_constant_histogram_equalization = node->declare_parameter<bool>(param_prefix + ".color_constant.histogram_equalization", config_->color_constant_histogram_equalization);
-  config_->visualize_raw_features = node->declare_parameter<bool>(param_prefix + ".visualize_raw_features", config_->visualize_raw_features);
-  config_->feature_type = node->declare_parameter<std::string>(param_prefix + ".extractor.type", config_->feature_type);
-  config_->visualize_disparity = node->declare_parameter<bool>(param_prefix + ".extractor.visualize_disparity", config_->visualize_disparity);
-  config_->use_learned = node->declare_parameter<bool>(param_prefix + ".extractor.use_learned", config_->use_learned);
+auto ConversionExtractionModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) 
+    -> ConstPtr {
 
+  auto config = std::make_shared<Config>();
+
+  // clang-format off
+  config->conversions = node->declare_parameter<std::vector<std::string>>(param_prefix + ".conversions", config->conversions);
+  config->color_constant_weights = node->declare_parameter<std::vector<double>>(param_prefix + ".color_constant.weights", config->color_constant_weights);
+  config->color_constant_histogram_equalization = node->declare_parameter<bool>(param_prefix + ".color_constant.histogram_equalization", config->color_constant_histogram_equalization);
+  config->visualize_raw_features = node->declare_parameter<bool>(param_prefix + ".visualize_raw_features", config->visualize_raw_features);
+  config->feature_type = node->declare_parameter<std::string>(param_prefix + ".extractor.type", config->feature_type);
+  config->visualize_disparity = node->declare_parameter<bool>(param_prefix + ".extractor.visualize_disparity", config->visualize_disparity);
+
+  #ifdef VTR_VISION_LEARNED 
+  config->use_learned = node->declare_parameter<bool>(param_prefix + ".extractor.use_learned", config->use_learned);
+  #endif
   // configure the detector
-  if (config_->feature_type == "OPENCV_ORB") {
-    configureORBDetector(node, config_->opencv_orb_params, param_prefix);
-  } else if (config_->feature_type == "ASRL_GPU_SURF") {
+  if (config->feature_type == "OPENCV_ORB") {
+    configureORBDetector(node, config->opencv_orb_params, param_prefix);
+  } else if (config->feature_type == "ASRL_GPU_SURF") {
 #ifdef VTR_ENABLE_GPUSURF
-    configureSURFDetector(node, config_->gpu_surf_params, param_prefix);
-    configureSURFStereoDetector(node, config_->gpu_surf_stereo_params, param_prefix);
-    config_->gpu_surf_stereo_params.threshold = config_->gpu_surf_params.threshold;
-    config_->gpu_surf_stereo_params.upright_flag = config_->gpu_surf_params.upright_flag;
-    config_->gpu_surf_stereo_params.initialScale = config_->gpu_surf_params.initialScale;
-    config_->gpu_surf_stereo_params.edgeScale = config_->gpu_surf_params.edgeScale;
-    config_->gpu_surf_stereo_params.detector_threads_x = config_->gpu_surf_params.detector_threads_x;
-    config_->gpu_surf_stereo_params.detector_threads_y = config_->gpu_surf_params.detector_threads_y;
-    config_->gpu_surf_stereo_params.regions_horizontal = config_->gpu_surf_params.regions_horizontal;
-    config_->gpu_surf_stereo_params.regions_vertical = config_->gpu_surf_params.regions_vertical;
-    config_->gpu_surf_stereo_params.regions_target = config_->gpu_surf_params.regions_target;
+    configureSURFDetector(node, config->gpu_surf_params, param_prefix);
+    configureSURFStereoDetector(node, config->gpu_surf_stereo_params, param_prefix);
+    config->gpu_surf_stereo_params.threshold = config->gpu_surf_params.threshold;
+    config->gpu_surf_stereo_params.upright_flag = config->gpu_surf_params.upright_flag;
+    config->gpu_surf_stereo_params.initialScale = config->gpu_surf_params.initialScale;
+    config->gpu_surf_stereo_params.edgeScale = config->gpu_surf_params.edgeScale;
+    config->gpu_surf_stereo_params.detector_threads_x = config->gpu_surf_params.detector_threads_x;
+    config->gpu_surf_stereo_params.detector_threads_y = config->gpu_surf_params.detector_threads_y;
+    config->gpu_surf_stereo_params.regions_horizontal = config->gpu_surf_params.regions_horizontal;
+    config->gpu_surf_stereo_params.regions_vertical = config->gpu_surf_params.regions_vertical;
+    config->gpu_surf_stereo_params.regions_target = config->gpu_surf_params.regions_target;
 #else
     throw std::runtime_error(
         "ROSModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");
@@ -196,14 +201,15 @@ void ConversionExtractionModule::fromROS(
         "Couldn't determine feature type when building ConversionExtraction "
         "Module!");
   }
-
-  if (config_->use_learned) {
-    configureLearnedFeatureDetector(node, config_->learned_feature_params, param_prefix);
-    configureLearnedFeatureStereoDetector(node, config_->learned_feature_stereo_params, param_prefix);
+  #IFDEF VTR_VISION_LEARNED 
+  if (config->use_learned) {
+    configureLearnedFeatureDetector(node, config->learned_feature_params, param_prefix);
+    configureLearnedFeatureStereoDetector(node, config->learned_feature_stereo_params, param_prefix);
   }
+  #ENDIF
 
-  // clang-format on
-  createExtractor();
+
+  return config;
 }
 
 void ConversionExtractionModule::createExtractor() {
@@ -225,7 +231,7 @@ void ConversionExtractionModule::createExtractor() {
   } else {
     LOG(ERROR) << "Couldn't determine feature type!";
   }
-
+  #ifdef VTR_VISION_LEARNED 
   if (config_->use_learned) {
     extractor_learned_ =
         vision::FeatureExtractorFactory::createExtractor("LEARNED_FEATURE");
@@ -234,6 +240,7 @@ void ConversionExtractionModule::createExtractor() {
     dextractor_learned->initialize(config_->learned_feature_params);
     dextractor_learned->initialize(config_->learned_feature_stereo_params);
   }
+  #endif
 }
 
 void ConversionExtractionModule::run(QueryCache &qdata0,  OutputCache &,
@@ -270,17 +277,17 @@ void ConversionExtractionModule::run(QueryCache &qdata0,  OutputCache &,
     auto &rig_extra = rig_extra_list->back();
     rig_extra.name = rig.name;
     
-    vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
-        const vision::ChannelImages &, bool) =
-        &vision::BaseFeatureExtractor::extractChannelFeatures;
+    // vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
+    //     const vision::ChannelImages &, bool) =
+    //     &vision::BaseFeatureExtractor::extractChannelFeatures;
 
-    vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit_learned)(
-        const vision::ChannelImages &, const vision::ChannelImages &, bool) =
-        &vision::BaseFeatureExtractor::extractChannelFeaturesDisp;
+    // vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit_learned)(
+    //     const vision::ChannelImages &, const vision::ChannelImages &, bool) =
+    //     &vision::BaseFeatureExtractor::extractChannelFeaturesDisp;
 
-    // vision::ChannelExtra (vision::BaseFeatureExtractor::*doit_extra)(
-    //     const vision::ChannelImages &) =
-    //     &vision::BaseFeatureExtractor::extractChannelFeaturesExtra;
+    // // vision::ChannelExtra (vision::BaseFeatureExtractor::*doit_extra)(
+    // //     const vision::ChannelImages &) =
+    // //     &vision::BaseFeatureExtractor::extractChannelFeaturesExtra;
 
     for (unsigned channel_idx = 0; channel_idx < num_input_channels;
          ++channel_idx) {
@@ -324,6 +331,7 @@ void ConversionExtractionModule::run(QueryCache &qdata0,  OutputCache &,
         
       }  // finish the conversionse
 
+      #ifdef VTR_VISION_LEARNED 
 
       if (config_->use_learned) {
         
@@ -352,24 +360,36 @@ void ConversionExtractionModule::run(QueryCache &qdata0,  OutputCache &,
 
 
       }
+      #endif
 
       // get the futures.
       for (auto &future : feature_futures) {
         rig_features.channels.emplace_back(future.get());
       }
+
+
+      
     }
+  }
+
+  if (config_->visualize){
+    if (config_->visualize_raw_features)  // check if visualization is enabled
+      visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
+
+    if (config_->visualize_disparity)  // check if visualization is enabled
+      visualize::showDisparity(*qdata.vis_mutex, qdata, " disparity");
   }
 }
 
-void ConversionExtractionModule::visualizeImpl(QueryCache &qdata0,
-                                               const Graph::ConstPtr &) {
-  auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-  if (config_->visualize_raw_features)  // check if visualization is enabled
-    visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
+// void ConversionExtractionModule::visualizeImpl(QueryCache &qdata0,
+//                                                const Graph::ConstPtr &) {
+//   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
+//   if (config_->visualize_raw_features)  // check if visualization is enabled
+//     visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
 
-  if (config_->visualize_disparity)  // check if visualization is enabled
-    visualize::showDisparity(*qdata.vis_mutex, qdata, " disparity");
-}
+//   if (config_->visualize_disparity)  // check if visualization is enabled
+//     visualize::showDisparity(*qdata.vis_mutex, qdata, " disparity");
+// }
 
-}  // namespace vision
-}  // namespace vtr
+// }  // namespace vision
+// }  // namespace vtr
