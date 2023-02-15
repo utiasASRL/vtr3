@@ -29,7 +29,6 @@ endif()
 
 
 ## Enable certain pipelines
-add_definitions(-DVTR_ENABLE_CAMERA)
 
 add_definitions(-DVTR_ENABLE_LIDAR)
 
@@ -38,4 +37,5 @@ add_definitions(-DVTR_ENABLE_LIDAR)
 # other options, so do not disable (i.e. comment out) this flag
 add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
 
+add_definitions(-DVTR_ENABLE_VISION)
 # add_definitions(-DVTR_ENABLE_RADAR)

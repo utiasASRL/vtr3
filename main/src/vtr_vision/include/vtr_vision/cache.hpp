@@ -20,63 +20,60 @@
  */
 #pragma once
 
-// #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
 // #include <vtr_vision/types.hpp>
-
-#include <vtr_messages/msg/localization_status.hpp>
 
 namespace vtr {
 namespace vision {
 
 struct CameraQueryCache : public tactic::QueryCache {
-//   using Ptr = std::shared_ptr<CameraQueryCache>;
   PTR_TYPEDEFS(CameraQueryCache);
 
-
-  //input 
+  // clang-format off
+  /// image related stuff
   tactic::Cache<std::string> camera_frame;
-  tactic::Cache<std::mutex> steam_mutex;
-  tactic::Cache<std::mutex> vis_mutex;
-  // // clang-format off
-  // /// image related stuff
-  // common::cache_ptr<std::string> camera_frame;
-  // common::cache_ptr<std::mutex> steam_mutex;
-  // common::cache_ptr<std::mutex> vis_mutex;
-  // common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_sensor_vehicle;
-  // common::cache_ptr<std::vector<std::string>> rig_names;
-  // common::cache_ptr<std::list<vision::RigImages>> rig_images;
-  // common::cache_ptr<std::list<vision::RigCalibration>> rig_calibrations;
-  // common::cache_ptr<std::vector<vision::RigFeatures>> rig_features;
-  // common::cache_ptr<std::vector<vision::RigLandmarks>> candidate_landmarks;
-  // common::cache_ptr<std::vector<vision::RigExtra>> rig_extra;
 
-  // /// extra image related stuff to be cleaned up
-  // common::cache_ptr<bool, true> success;
-  // common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m;
-  // common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_prior;
-  // common::cache_ptr<std::vector<vision::RigMatches>> raw_matches;
-  // common::cache_ptr<std::map<tactic::VertexId, lgmath::se3::TransformationWithCovariance>> T_sensor_vehicle_map;
-  // common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
-  // common::cache_ptr<std::vector<vision::RigMatches>> ransac_matches;
-  // common::cache_ptr<bool, true> steam_failure;
-  // // odometry and mapping (including bungle adjustment)
-  // common::cache_ptr<LandmarkMap> landmark_map;
-  // common::cache_ptr<SteamPoseMap> pose_map;
-  // // localization
-  // common::cache_ptr<tactic::RunIdSet> recommended_experiences;
-  // common::cache_ptr<pose_graph::RCGraphBase::Ptr> localization_map;
-  // common::cache_ptr<Eigen::Matrix4Xd> migrated_points;
-  // common::cache_ptr<Eigen::Matrix3Xd> migrated_points_3d;
-  // common::cache_ptr<Eigen::Matrix<double, 9, Eigen::Dynamic>> migrated_covariance;
-  // common::cache_ptr<std::vector<bool>> migrated_validity;
-  // common::cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
-  // common::cache_ptr<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
-  // common::cache_ptr<MigrationMap> landmark_offset_map;
-  // common::cache_ptr<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
-  // common::cache_ptr<vtr_messages::msg::LocalizationStatus> localization_status;
-  // common::cache_ptr<common::timing::SimpleTimer> loc_timer;
+  //Transformation between sensor and robot
+  tactic::Cache<const tactic::EdgeTransform> T_s_r;
+
+/*
+  tactic::Cache<std::vector<std::string>> rig_names;
+  tactic::Cache<std::list<vision::RigImages>> rig_images;
+  tactic::Cache<std::list<vision::RigCalibration>> rig_calibrations;
+  tactic::Cache<std::vector<vision::RigFeatures>> rig_features;
+  tactic::Cache<std::vector<vision::RigLandmarks>> candidate_landmarks;
+  tactic::Cache<std::vector<vision::RigExtra>> rig_extra;
+
+  /// extra image related stuff to be cleaned up
+  tactic::Cache<bool> success;
+  tactic::Cache<lgmath::se3::TransformationWithCovariance> T_r_m;
+  tactic::Cache<lgmath::se3::TransformationWithCovariance> T_r_m_prior;
+  tactic::Cache<std::vector<vision::RigMatches>> raw_matches;
+  tactic::Cache<std::map<tactic::VertexId, lgmath::se3::TransformationWithCovariance>> T_sensor_vehicle_map;
+  tactic::Cache<std::vector<LandmarkFrame>> map_landmarks;
+  tactic::Cache<std::vector<vision::RigMatches>> ransac_matches;
+  tactic::Cache<bool> steam_failure;
+  */
+
+  /*
+  // odometry and mapping (including bungle adjustment)
+  tactic::Cache<LandmarkMap> landmark_map;
+  tactic::Cache<SteamPoseMap> pose_map;
+  // localization
+  tactic::Cache<tactic::RunIdSet> recommended_experiences;
+  tactic::Cache<pose_graph::RCGraphBase::Ptr> localization_map;
+  tactic::Cache<Eigen::Matrix4Xd> migrated_points;
+  tactic::Cache<Eigen::Matrix3Xd> migrated_points_3d;
+  tactic::Cache<Eigen::Matrix<double, 9, Eigen::Dynamic>> migrated_covariance;
+  tactic::Cache<std::vector<bool>> migrated_validity;
+  tactic::Cache<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
+  tactic::Cache<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
+  tactic::Cache<MigrationMap> landmark_offset_map;
+  tactic::Cache<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
+  tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
+  tactic::Cache<common::timing::SimpleTimer> loc_timer;
+  */
   // clang-format on
 };
 }  // namespace vision
