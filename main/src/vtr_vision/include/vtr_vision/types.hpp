@@ -552,6 +552,7 @@ struct LandmarkObs {
   vtr_messages::msg::Match origin_ref;
 };
 
+#if false
 /**
  * \brief collection of pointers to landmarks and their associated steam
  * containers.
@@ -614,6 +615,7 @@ class SteamPose {
   bool lock;
 };
 using SteamPoseMap = std::map<pose_graph::VertexId, SteamPose>;
+#endif
 
 using SensorVehicleTransformMap =
     std::map<pose_graph::VertexId, lgmath::se3::TransformationWithCovariance>;
@@ -621,12 +623,13 @@ using SensorVehicleTransformMap =
 using MigrationMap = std::unordered_map<vision::LandmarkId, int>;
 
 // experience recognition
-using ScoredRids = std::multimap<float, tactic::RunId>;
-using ScoredRid = std::pair<float, tactic::RunId>;
+using RunId = pose_graph::BaseIdType;
+using ScoredRids = std::multimap<float, RunId>;
+using ScoredRid = std::pair<float, RunId>;
 /** \brief the BoW cosine distance of the query to each run in the map. */
-using ExperienceDifferences = std::map<tactic::RunId, float>;
+using ExperienceDifferences = std::map<RunId, float>;
 /** \brief a BoW cosine distance from the query to the run: <run, distance> */
-using ExperienceDifference = std::pair<tactic::RunId, float>;
+using ExperienceDifference = std::pair<RunId, float>;
 }  // namespace vision
 
 }  // namespace vtr

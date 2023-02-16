@@ -37,7 +37,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   //Transformation between sensor and robot
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
 
-/*
+
   tactic::Cache<std::vector<std::string>> rig_names;
   tactic::Cache<std::list<vision::RigImages>> rig_images;
   tactic::Cache<std::list<vision::RigCalibration>> rig_calibrations;
@@ -54,7 +54,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<std::vector<LandmarkFrame>> map_landmarks;
   tactic::Cache<std::vector<vision::RigMatches>> ransac_matches;
   tactic::Cache<bool> steam_failure;
-  */
+
 
   /*
   // odometry and mapping (including bungle adjustment)

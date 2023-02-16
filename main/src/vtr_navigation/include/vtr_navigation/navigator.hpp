@@ -76,7 +76,8 @@ class Navigator {
   const std::string &camera_frame() const { return camera_frame_;}
   const tactic::EdgeTransform &T_camera_robot() const { return T_camera_robot_; }
   void cameraCallback(const sensor_msgs::msg::Image::SharedPtr msg);
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr camera_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr right_camera_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr left_camera_sub_;
   std::string camera_frame_;
   tactic::EdgeTransform T_camera_robot_;
 #endif

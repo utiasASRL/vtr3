@@ -23,7 +23,7 @@
 
 #include <vtr_vision/features/extractor/orb_configuration.hpp>
 
-#IFDEF VTR_VISION_LEARNED 
+#ifdef VTR_VISION_LEARNED 
 #include <vtr_vision/features/extractor/learned_feature_configuration.hpp>
 #endif
 

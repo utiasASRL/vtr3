@@ -48,9 +48,10 @@ class ConversionExtractionModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "conversion_extraction";
+  PTR_TYPEDEFS(ConversionExtractionModule);
 
   /** \brief Config parameters. */
-  struct Config {
+  struct Config : public tactic::BaseModule::Config{
     PTR_TYPEDEFS(Config);
     std::string feature_type =
         "ASRL_GPU_SURF";  // ["OPENCV_ORB", "ASRL_GPU_SURF"]
@@ -64,9 +65,10 @@ class ConversionExtractionModule : public tactic::BaseModule {
     asrl::GpuSurfConfiguration gpu_surf_params;
     asrl::GpuSurfStereoConfiguration gpu_surf_stereo_params;
 #endif
+#ifdef VTR_VISION_LEARNED
     vision::LearnedFeatureConfiguration learned_feature_params;
     vision::LearnedFeatureStereoConfiguration learned_feature_stereo_params;
-
+#endif
     /** \brief The collection of user requested image conversions. */
     std::vector<std::string> conversions = {"RGB_TO_GRAYSCALE",
                                             "RGB_TO_COLOR_CONSTANT"};

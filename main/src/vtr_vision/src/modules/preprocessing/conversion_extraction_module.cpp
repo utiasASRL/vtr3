@@ -118,6 +118,7 @@ void configureSURFStereoDetector(const rclcpp::Node::SharedPtr &node,
 }
 #endif
 
+#ifdef VTR_VISION_LEARNED
 void configureLearnedFeatureDetector(const rclcpp::Node::SharedPtr &node,
                                      vision::LearnedFeatureConfiguration &config,
                                      const std::string &param_prefix) {
@@ -132,30 +133,32 @@ void configureLearnedFeatureStereoDetector(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config.stereoDisparityMinimum = node->declare_parameter<double>(param_prefix + ".extractor.learned.stereoDisparityMinimum", 0.0);
   config.stereoDisparityMaximum = node->declare_parameter<double>(param_prefix + ".extractor.learned.stereoDisparityMaximum", 100.0);
-  // config.minDisparity = node->declare_parameter<int>(param_prefix + ".extractor.learned.minDisparity", 0);
-  // config.numDisparities = node->declare_parameter<int>(param_prefix + ".extractor.learned.numDisparities", 48);
-  // config.blockSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.blockSize", 5);
-  // config.preFilterCap = node->declare_parameter<int>(param_prefix + ".extractor.learned.preFilterCap", 30);
-  // config.uniquenessRatio = node->declare_parameter<int>(param_prefix + ".extractor.learned.uniquenessRatio", 20);
-  // config.P1 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P1", 200);
-  // config.P2 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P2", 800);
-  // config.speckleWindowSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleWindowSize", 200);
-  // config.speckleRange = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleRange", 1);
-  // config.disp12MaxDiff = node->declare_parameter<int>(param_prefix + ".extractor.learned.disp12MaxDiff", -1);
-  // config.fullDP = node->declare_parameter<bool>(param_prefix + ".extractor.learned.fullDP", false);
-  // config.minDisparity = 0;
-  // config.numDisparities = 48;
-  // config.blockSize = 5;
-  // config.preFilterCap = 30;
-  // config.uniquenessRatio = 20;
-  // config.P1 = 200;
-  // config.P2 = 800;
-  // config.speckleWindowSize = 200;
-  // config.speckleRange = 1;
-  // config.disp12MaxDiff = -1;
-  // config.fullDP = false;
+  config.minDisparity = node->declare_parameter<int>(param_prefix + ".extractor.learned.minDisparity", 0);
+  config.numDisparities = node->declare_parameter<int>(param_prefix + ".extractor.learned.numDisparities", 48);
+  config.blockSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.blockSize", 5);
+  config.preFilterCap = node->declare_parameter<int>(param_prefix + ".extractor.learned.preFilterCap", 30);
+  config.uniquenessRatio = node->declare_parameter<int>(param_prefix + ".extractor.learned.uniquenessRatio", 20);
+  config.P1 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P1", 200);
+  config.P2 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P2", 800);
+  config.speckleWindowSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleWindowSize", 200);
+  config.speckleRange = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleRange", 1);
+  config.disp12MaxDiff = node->declare_parameter<int>(param_prefix + ".extractor.learned.disp12MaxDiff", -1);
+  config.fullDP = node->declare_parameter<bool>(param_prefix + ".extractor.learned.fullDP", false);
+  config.minDisparity = 0;
+  config.numDisparities = 48;
+  config.blockSize = 5;
+  config.preFilterCap = 30;
+  config.uniquenessRatio = 20;
+  config.P1 = 200;
+  config.P2 = 800;
+  config.speckleWindowSize = 200;
+  config.speckleRange = 1;
+  config.disp12MaxDiff = -1;
+  config.fullDP = false;
   // clang-format on
 }
+
+#endif
 
 }  // namespace
 
@@ -201,12 +204,12 @@ auto ConversionExtractionModule::Config::fromROS(
         "Couldn't determine feature type when building ConversionExtraction "
         "Module!");
   }
-  #IFDEF VTR_VISION_LEARNED 
+  #ifdef VTR_VISION_LEARNED 
   if (config->use_learned) {
     configureLearnedFeatureDetector(node, config->learned_feature_params, param_prefix);
     configureLearnedFeatureStereoDetector(node, config->learned_feature_stereo_params, param_prefix);
   }
-  #ENDIF
+  #endif
 
 
   return config;
@@ -243,8 +246,8 @@ void ConversionExtractionModule::createExtractor() {
   #endif
 }
 
-void ConversionExtractionModule::run(QueryCache &qdata0,  OutputCache &,
-                                         const Graph::ConstPtr &,  const TaskExecutor::Ptr &) {
+void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
+                const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // check if the required data is in this cache
@@ -391,5 +394,5 @@ void ConversionExtractionModule::run(QueryCache &qdata0,  OutputCache &,
 //     visualize::showDisparity(*qdata.vis_mutex, qdata, " disparity");
 // }
 
-// }  // namespace vision
-// }  // namespace vtr
+}  // namespace vision
+}  // namespace vtr

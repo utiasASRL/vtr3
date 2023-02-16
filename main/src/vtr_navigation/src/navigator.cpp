@@ -132,6 +132,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   const auto env_info_topic = node_->declare_parameter<std::string>("env_info_topic", "env_info");
   env_info_sub_ = node_->create_subscription<tactic::EnvInfo>(env_info_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::envInfoCallback, this, std::placeholders::_1), sub_opt);
 #ifdef VTR_ENABLE_LIDAR
+{
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   // static transform
@@ -144,6 +145,24 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
   // \note lidar point cloud data frequency is low, and we cannot afford dropping data
   lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+}
+#endif
+#ifdef VTR_ENABLE_VISION
+{
+  camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "camera");
+  T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
+  // static transform
+  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
+  auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_camera_robot_.inverse().matrix()));
+  msg.header.frame_id = "robot";
+  msg.child_frame_id = "camera";
+  tf_sbc_->sendTransform(msg);
+  // camera images subscription
+  const auto right_image_topic = node_->declare_parameter<std::string>("right_image_topic", "/image_right");
+  const auto left_image_topic = node_->declare_parameter<std::string>("left_image_topic", "/image_left");
+  right_camera_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(right_image_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::cameraCallback, this, std::placeholders::_1), sub_opt);
+  left_camera_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(left_image_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::cameraCallback, this, std::placeholders::_1), sub_opt);
+}
 #endif
   // clang-format on
 
