@@ -25,9 +25,9 @@
 #include <vtr_tactic/cache.hpp>
 #include "vtr_tactic/task_queue.hpp"
 
-// #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
+#include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 // #include <vtr_vision/features/extractor/extractor_configs.hpp>
-// #include <vtr_vision/visualize.hpp>
+#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace vision {
@@ -91,6 +91,9 @@ class ConversionExtractionModule : public tactic::BaseModule {
 
     /** \brief Flag for using the extractor for learned features */
     bool use_learned = false;
+
+    /** \brief Flag to determine whether feature matches should be displayed*/
+    bool visualize = false;
   };
 
 

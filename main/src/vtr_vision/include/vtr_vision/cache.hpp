@@ -22,7 +22,7 @@
 
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
-// #include <vtr_vision/types.hpp>
+#include <vtr_vision/types.hpp>
 
 namespace vtr {
 namespace vision {
@@ -57,7 +57,7 @@ struct CameraQueryCache : public tactic::QueryCache {
 
 
   /*
-  // odometry and mapping (including bungle adjustment)
+  // odometry and mapping (including bundle adjustment)
   tactic::Cache<LandmarkMap> landmark_map;
   tactic::Cache<SteamPoseMap> pose_map;
   // localization
@@ -74,6 +74,9 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
   tactic::Cache<common::timing::SimpleTimer> loc_timer;
   */
+
+  tactic::Cache<std::mutex> vis_mutex;
+
   // clang-format on
 };
 }  // namespace vision

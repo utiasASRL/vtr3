@@ -175,6 +175,7 @@ auto ConversionExtractionModule::Config::fromROS(
   config->visualize_raw_features = node->declare_parameter<bool>(param_prefix + ".visualize_raw_features", config->visualize_raw_features);
   config->feature_type = node->declare_parameter<std::string>(param_prefix + ".extractor.type", config->feature_type);
   config->visualize_disparity = node->declare_parameter<bool>(param_prefix + ".extractor.visualize_disparity", config->visualize_disparity);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
 
   #ifdef VTR_VISION_LEARNED 
   config->use_learned = node->declare_parameter<bool>(param_prefix + ".extractor.use_learned", config->use_learned);
@@ -251,15 +252,15 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // check if the required data is in this cache
-  if (!qdata.rig_images.is_valid() || !qdata.rig_calibrations.is_valid())
+  if (!qdata.rig_images.valid() || !qdata.rig_calibrations.valid())
     return;
 
   // Inputs, images
   auto &rigs = *qdata.rig_images;
   // Outputs, frames
-  auto &rig_feature_list = qdata.rig_features.fallback();
+  auto &rig_feature_list = qdata.rig_features.emplace();
   // Extra 
-  auto &rig_extra_list = qdata.rig_extra.fallback();
+  auto &rig_extra_list = qdata.rig_extra.emplace();
   if (extractor_ == nullptr) {
     LOG(ERROR) << " Our extractor is null!";
     return;
@@ -280,9 +281,9 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
     auto &rig_extra = rig_extra_list->back();
     rig_extra.name = rig.name;
     
-    // vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
-    //     const vision::ChannelImages &, bool) =
-    //     &vision::BaseFeatureExtractor::extractChannelFeatures;
+    vision::ChannelFeatures (vision::BaseFeatureExtractor::*extract)(
+        const vision::ChannelImages &, bool) =
+        &vision::BaseFeatureExtractor::extractChannelFeatures;
 
     // vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit_learned)(
     //     const vision::ChannelImages &, const vision::ChannelImages &, bool) =
@@ -328,11 +329,11 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
         }
 
         // extract
-        feature_futures.emplace_back(std::async(std::launch::async, doit,
+        feature_futures.emplace_back(std::async(std::launch::async, extract,
                                                 extractor_.get(),
                                                 rig.channels.back(), true));
         
-      }  // finish the conversionse
+      }  // finish the conversions
 
       #ifdef VTR_VISION_LEARNED 
 
