@@ -17,10 +17,6 @@ auto StereoPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 //   config_->bundle_adjustment = node->declare_parameter<std::vector<std::string>>(param_prefix + ".bundle_adjustment", config_->bundle_adjustment);
 //   config_->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config_->localization);
   // clang-format on
-
-  /// Sets up module config
-//   module_factory_ = std::make_shared<ROSModuleFactory>(node);
-//   addModules();
     return config;
 }
 
@@ -31,8 +27,9 @@ StereoPipeline::StereoPipeline(
     const std::string &name)
     : BasePipeline(module_factory, name), config_(config) {
     // preprocessing
-    for (auto module : config_->preprocessing)
-      preprocessing_.push_back(factory()->get("preprocessing." + module));
+    
+  for (auto module : config_->preprocessing)
+    preprocessing_.push_back(factory()->get("preprocessing." + module));
 //   // odometry
 //   for (auto module : config_->odometry)
 //     odometry_.push_back(factory()->get("odometry." + module));

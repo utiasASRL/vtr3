@@ -74,7 +74,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
   tactic::Cache<common::timing::SimpleTimer> loc_timer;
   */
-
+  // \TODO Initialize this / remove it entirely. 
   tactic::Cache<std::mutex> vis_mutex;
 
   // clang-format on

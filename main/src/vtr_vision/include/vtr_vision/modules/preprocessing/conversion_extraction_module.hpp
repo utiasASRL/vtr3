@@ -26,7 +26,7 @@
 #include "vtr_tactic/task_queue.hpp"
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
-// #include <vtr_vision/features/extractor/extractor_configs.hpp>
+#include <vtr_vision/features/extractor/extractor_configs.hpp>
 #include <vtr_vision/visualize.hpp>
 
 namespace vtr {
@@ -47,7 +47,7 @@ namespace vision {
 class ConversionExtractionModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "conversion_extraction";
+  static constexpr auto static_name = "stereo.conversion_extraction";
   PTR_TYPEDEFS(ConversionExtractionModule);
 
   /** \brief Config parameters. */

@@ -28,8 +28,10 @@
 #include <Eigen/Core>
 #include <Eigen/StdVector>
 
-// #include <torch/script.h> 
-// #include <torch/torch.h>
+#ifdef VTR_VISION_LEARNED
+#include <torch/script.h> 
+#include <torch/torch.h>
+#endif
 
 // opencv definitions
 #include <opencv2/core/core.hpp>

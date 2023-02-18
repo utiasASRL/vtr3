@@ -370,9 +370,6 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
       for (auto &future : feature_futures) {
         rig_features.channels.emplace_back(future.get());
       }
-
-
-      
     }
   }
 

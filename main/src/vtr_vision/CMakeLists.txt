@@ -30,7 +30,6 @@ find_package(vtr_messages REQUIRED)
 find_package(vtr_storage REQUIRED)
 find_package(vtr_tactic REQUIRED)
 
-
 file(GLOB_RECURSE SRC src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC})
 

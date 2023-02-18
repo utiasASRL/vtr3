@@ -20,7 +20,7 @@
 
 #include "vtr_vision/cache.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
-#include "vtr_tactic/modules/modules.hpp"
+#include "vtr_vision/modules/modules.hpp"
 #include "vtr_vision/cache.hpp"
 
 
@@ -29,7 +29,6 @@ namespace vision {
 
 class StereoPipeline : public tactic::BasePipeline {
  public:
-  // using Ptr = std::shared_ptr<StereoPipeline>;
   PTR_TYPEDEFS(StereoPipeline);
 
   /** \brief Static pipeline identifier. */

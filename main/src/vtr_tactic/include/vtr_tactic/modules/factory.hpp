@@ -89,9 +89,12 @@ class ROSModuleFactory : public ModuleFactory {
       const std::string& param_prefix,
       const BaseModule::Config::ConstPtr& config = nullptr) override {
     const auto& type_str = getTypeStr(param_prefix);
-    if (!BaseModule::name2Ctor().count(type_str))
+    if (!BaseModule::name2Ctor().count(type_str)){
+      for( const auto& [key, value] : BaseModule::name2Ctor() )
+        CLOG(ERROR, "tactic.module") << key;
       throw std::invalid_argument(
           "ModuleFactory::make: module type_str not found: " + type_str);
+    }
 
     const auto& config_typed =
         config == nullptr

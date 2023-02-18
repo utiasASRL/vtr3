@@ -3,7 +3,7 @@
     ############ system configuration ############
     # Data logging
     log_to_file: true
-    log_debug: false #true
+    log_debug: true
     log_enabled:
       [
         "navigator",
@@ -17,6 +17,7 @@
         "pose_graph",
         "stereo.pipeline",
         "path_tracker",
+        "tactic.pipeline"
       ]
 
     # control frame from the urdf
@@ -88,7 +89,7 @@
     preprocessing:
       # conversion+extraction module
       extraction:
-        type: conversion_extraction
+        type: stereo.conversion_extraction
 
         # specify which conversions to do between different image formats from:
         # RGB_TO_GRAYSCALE, RGB_TO_COLOR_CONSTANT
