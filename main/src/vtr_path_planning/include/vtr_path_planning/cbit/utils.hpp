@@ -24,6 +24,7 @@
 #include <tuple>
 #include <cmath>
 #include <iostream>
+#include <map>
 
 #pragma once
 
@@ -92,7 +93,9 @@ class Tree {
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  E;
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  E_Old;
         std::vector<std::shared_ptr<Node>> QV; // using shared pointers
+        std::multimap<double, std::shared_ptr<Node>> QV2;
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>> QE;
+        std::multimap<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>> QE2;
         Tree() = default;
 };
 

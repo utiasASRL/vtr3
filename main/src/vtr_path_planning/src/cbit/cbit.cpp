@@ -228,6 +228,31 @@ void CBIT::initializeRoute(RobotState& robot_state) {
     euclid_path_vec.push_back(se3_pose);
   }
 
+
+  // experimental, trying to determine sign for path following direction
+  // Using two consecutive poses on the path, we need to try to determine which direction the repeat is going:
+  const auto chain_info = getChainInfo(robot_state);
+  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
+  auto world_frame_pose = T2xyzrpy(T_w_p * T_p_r);
+  auto test1 = euclid_path_vec[0];
+  auto test2 = euclid_path_vec[1];
+  auto path_yaw = std::atan2((test2.y-test1.y),(test2.x-test1.y));
+  auto pose_graph_yaw = std::get<5>(world_frame_pose);
+  CLOG(INFO, "path_planning.cbit") << "The path_yaw is: " << path_yaw;
+  CLOG(INFO, "path_planning.cbit") << "The pose_graph yaw is: " << pose_graph_yaw;
+  // Logic for determining the forward/reverse sign:
+  double path_direction; //1.0 = forward planning, -1.0 = reverse planning
+  if (abs((abs(path_yaw) - abs(pose_graph_yaw))) > 1.57075)
+  {
+    path_direction = -1.0;
+  }
+  else
+  {
+    path_direction = 1.0;
+  }
+  CLOG(INFO, "path_planning.cbit") << "The path repeat direction is:" << path_direction;
+
+
   CLOG(INFO, "path_planning.cbit") << "Trying to create global path";
   // Create the path class object (Path preprocessing)
   CBITPath global_path(cbit_config, euclid_path_vec);
@@ -244,7 +269,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
 
 
   // Instantiate the planner
-  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr);
+  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, path_direction);
   CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved";
   
 }

@@ -44,7 +44,7 @@ auto CBITPlanner::getChainInfo(vtr::path_planning::BasePathPlanner::RobotState& 
 }
 
 // Class Constructor:
-CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr)
+CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction)
 { 
 
   // Setting random seed
@@ -78,7 +78,7 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   //initialize_plot();
 
   InitializePlanningSpace();
-  Planning(robot_state, costmap_ptr, corridor_ptr);
+  Planning(robot_state, costmap_ptr, corridor_ptr, path_direction);
 
   // DEBUG CODE, ROBOT STATE UPDATE QUERY EXAMPLE
   /*
@@ -114,8 +114,8 @@ void CBITPlanner::InitializePlanningSpace()
   tree.V.reserve(10000);
   tree.V_Old.reserve(10000);
   tree.E.reserve(10000);
-  tree.QV.reserve(10000);
-  tree.QE.reserve(10000);
+  //tree.QV.reserve(10000);
+  //tree.QE.reserve(10000);
 
   // Set initial cost to comes
   p_start->g_T = 0.0;
@@ -142,7 +142,7 @@ void CBITPlanner::InitializePlanningSpace()
 }
 
 // Reset fuction which goes through the entire reset procedure (including calling ResetPlanner and restarting the planner itself)
-void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr)
+void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction)
 {
   // I think we may also want to add a small time delay just so we arent repeatedly spamming an optimal solution
   CLOG(ERROR, "path_planning.cbit_planner") << "Plan could not be improved, Initiating Reset";
@@ -180,7 +180,7 @@ void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& rob
   }
   
   // Perform a state update to convert the actual robot position to its corresponding pq space:
-  p_goal = UpdateState();
+  p_goal = UpdateState(path_direction);
 
 
   p_goal_backup = p_goal;
@@ -205,7 +205,7 @@ void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& rob
   CLOG(INFO, "path_planning.cbit_planner") << "The p,q coordinate of the robots goal is now: p: " << p_goal->p << " q: " << p_goal->q;
   CLOG(INFO, "path_planning.cbit_planner") << "The p,q coordinate of the robots start is now: p: " << p_start->p << " q: " << p_start->q << " g_T: " << p_start->g_T;
 
-  Planning(robot_state, costmap_ptr, corridor_ptr);
+  Planning(robot_state, costmap_ptr, corridor_ptr, path_direction);
 }
 
 // If we ever exit the planner due to a fault, we will do a hard reset, everything but the current robot_state (p_goal) and the inputs will be reinitialized
@@ -213,8 +213,10 @@ void CBITPlanner::ResetPlanner()
 {
   tree.V.clear();
   tree.E.clear();
-  tree.QV.clear();
-  tree.QE.clear();
+  //tree.QV.clear();
+  tree.QV2.clear();
+  //tree.QE.clear();
+  tree.QE2.clear();
   tree.V_Repair_Backup.clear();
   tree.V_Old.clear();
   samples.clear();
@@ -237,7 +239,7 @@ void CBITPlanner::ResetPlanner()
 
 
 // Main planning function
-void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr)
+void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction)
 {
   // find some better places to initialize these
   double prev_path_cost = INFINITY; // experimental
@@ -346,7 +348,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         new_state = std::make_unique<Pose> (se3_robot_pose);
 
         // Perform a state update to convert the actual robot position to its corresponding pq space:
-        p_goal = UpdateState();
+        p_goal = UpdateState(path_direction);
 
         //TODO: It could be useful to convert this p_goal back to euclid and compare with se3_robot_pose to verify the conversion worked properly (error should be very low)
         // If its not, we probably need to handle it or return an error
@@ -401,8 +403,10 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         //}
 
         // Find vertices in the tree which are close to the new state, then populate the vertex queue with only these values.
-        tree.QV.clear();
-        tree.QE.clear();
+        //tree.QV.clear();
+        tree.QV2.clear();
+        //tree.QE.clear();
+        tree.QE2.clear();
 
         // EXPERIMENTAL, only take the closest point in the tree and use this to connect to the new robot state
         /*
@@ -430,7 +434,8 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           sample_dist = calc_dist(*(tree.V[i]), *p_goal);
           if ((sample_dist <= 2.0) && ((tree.V[i])->p > (p_goal->p + (conf.initial_exp_rad/2)))) // TODO: replace magic number with a param, represents radius to search for state update rewires
           {
-            tree.QV.push_back(tree.V[i]); // comment out when only taking closest point in the tree to consider
+            //tree.QV.push_back(tree.V[i]); // comment out when only taking closest point in the tree to consider
+            tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>((tree.V[i]->g_T_weighted + h_estimated_admissible(*tree.V[i], *p_goal)), tree.V[i]));
           }
         }
 
@@ -439,7 +444,8 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
         CLOG(DEBUG, "path_planning.cbit_planner") << "Robot State Updated Successfully, p: " << p_goal->p << " q: " << p_goal->q;
         //CLOG(DEBUG, "path_planning.cbit_planner") << "Nearest Vertex, p: " << tree.V[closest_sample_ind]->p << " q: " << tree.V[closest_sample_ind]->q;
-        CLOG(DEBUG, "path_planning.cbit_planner") << "QV size: " << tree.QV.size();
+        //CLOG(DEBUG, "path_planning.cbit_planner") << "QV size: " << tree.QV.size();
+        CLOG(DEBUG, "path_planning.cbit_planner") << "QV size: " << tree.QV2.size();
 
         // When the planner resumes, this will cause it to immediately try to rewire locally to the new robot state in a short amount of time
 
@@ -448,7 +454,8 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
 
     int m;
-    if (tree.QV.size() == 0 && tree.QE.size() == 0)
+    //if (tree.QV.size() == 0 && tree.QE.size() == 0)
+    if (tree.QV2.size() == 0 && tree.QE2.size() == 0)
     {
       //std::cout << "New Batch:" << std::endl;
       if (k == 0)
@@ -692,17 +699,20 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         // if we have no 1st batch solution (we are in the first iteration or have just reset), add the whole tree to the queue
         if (k == 0)
         {
-          tree.QV.push_back(tree.V[i]);
+          //tree.QV.push_back(tree.V[i]);
+          tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>((tree.V[i]->g_T_weighted + h_estimated_admissible(*tree.V[i], *p_goal)), tree.V[i]));
         }
         // Otherwise, only add the portions of the tree within the sliding window to avoid processing preseeded vertices which are already optimal
         //else if (((tree.V[i]->p) <= p_goal->p + dynamic_window_width + (conf.sliding_window_freespace_padding*2)) && ((vertex_rej_prob / random_integer) >= 1.0))
         else if (((vertex_rej_prob / random_integer) >= 1.0)) // for some reason using the lookahead queue doesnt work reliably for collisions, not sure why, need to investigate
         {
-          tree.QV.push_back(tree.V[i]);
+          //tree.QV.push_back(tree.V[i]);
+          tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>((tree.V[i]->g_T_weighted + h_estimated_admissible(*tree.V[i], *p_goal)), tree.V[i]));
         }
 
       }
-      CLOG(DEBUG, "path_planning.cbit_planner") << "QV size after batch: " << tree.QV.size();
+      //CLOG(DEBUG, "path_planning.cbit_planner") << "QV size after batch: " << tree.QV.size();
+      CLOG(DEBUG, "path_planning.cbit_planner") << "QV size after batch: " << tree.QV2.size();
 
       // TODO: Dynamic Expansion radius selection:
       // Its debatable whether this works well or not, but going to try it
@@ -720,6 +730,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
     // Planning loop starts here
     // I think there is some gains to be had here, we actually iterate through the vertex queue twice finding minima,
     // I think we probably could combine the 2 vertex functions into 1 cutting compute in half (we can test to see if this is a big gain or not)
+
     while (BestVertexQueueValue() < BestEdgeQueueValue())
     {
       //auto test = BestInVertexQueue();
@@ -778,6 +789,13 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
                   upper_edge_index = upper_edge_index - 1;
               }
             }
+
+            // Set cost to comes
+            xm->g_T_weighted = vm->g_T_weighted + weighted_cost;
+            xm->g_T = vm->g_T + actual_cost;
+            xm->parent = vm;
+            // TODO: wormhole handling
+
           }
           
           // Otherwise we can remove xm from the samples, add xm to the tree vertices and queue
@@ -796,20 +814,22 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
                 break; // Once we find the one to delete, it is safe to break, there should only every be one
               }
             }
+            // Set cost to comes
+            xm->g_T_weighted = vm->g_T_weighted + weighted_cost;
+            xm->g_T = vm->g_T + actual_cost;
+            xm->parent = vm;
+            // TODO: wormhole handling
+
             tree.V.push_back(xm);
-            tree.QV.push_back(xm);
+            //tree.QV.push_back(xm);
+            tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>(xm->g_T_weighted + h_estimated_admissible(*xm, *p_goal), xm));
           }
 
-          // Set cost to comes
-          xm->g_T_weighted = vm->g_T_weighted + weighted_cost;
-          xm->g_T = vm->g_T + actual_cost;
-          xm->parent = vm;
-          // TODO: wormhole handling
 
           // Generate edge, create parent chain
           tree.E.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {vm, xm});
         
-
+          /*
           // Filter edge queue as now any other edge with worse cost heuristic can be ignored
           int upper_queue_index = tree.QE.size();
           for (int i = 0; i < upper_queue_index; i++)
@@ -829,14 +849,41 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
               upper_queue_index = upper_queue_index - 1;
             }
           }
+          */
+
+
+          // Variation using multimap edge queue. In this case we kind of need to do the same procedure unfortunately (slow)
+          // Only here we have to use iterators to go through the queue
+          // NOTE THIS NEEDS SOME VERY GOOD DEBUGGING BEFORE TRUSTING THIS CODE, NOT SURE IF ITERATORS BEHAVE THE SAME WAY AS INDEXING WITH DELETION
+          // For iterators, we need to do this process in a while loop because we cannot just decrement the index like before (leads to bad pointer)
+          std::multimap<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>::iterator itr = tree.QE2.begin();
+          while (itr != tree.QE2.end())
+          {
+            auto edge = itr->second;
+            Node v = *std::get<0>(edge);
+            std::shared_ptr<Node> x = std::get<1>(edge);
+
+            if ((x == xm) && (v.g_T_weighted + calc_weighted_dist(v, *xm, conf.alpha) >= xm->g_T_weighted))
+            {
+              // Once again, be very careful with the iteration indices when deleting
+              // Need to decrement both the iterator and the total size
+              itr = tree.QE2.erase(itr); // Erase returns the itr of the value in the map following the previous iterator
+            }
+            else
+            {
+              itr++;
+            }
+          } 
         }
       }
     }
     // If there is no edges in the queue which can improve the current tree, clear the queues which will consequently trigger the end of a batch
     else
     {
-      tree.QV.clear();
-      tree.QE.clear();
+      //tree.QV.clear();
+      tree.QV2.clear();
+      //tree.QE.clear();
+      tree.QE2.clear();
     }
 
     // TODO: Plotting (if we want)
@@ -897,7 +944,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
     new_state = std::make_unique<Pose> (se3_robot_pose);
 
     // Perform a state update to convert the actual robot position to its corresponding pq space:
-    p_goal = UpdateState();
+    p_goal = UpdateState(path_direction);
 
 
     p_goal_backup = p_goal;
@@ -922,7 +969,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
     CLOG(INFO, "path_planning.cbit_planner") << "The p,q coordinate of the robots goal is now: p: " << p_goal->p << " q: " << p_goal->q;
     CLOG(INFO, "path_planning.cbit_planner") << "The p,q coordinate of the robots start is now: p: " << p_start->p << " q: " << p_start->q << " g_T: " << p_start->g_T;
 
-    Planning(robot_state, costmap_ptr);
+    Planning(robot_state, costmap_ptr, path_direction);
     */
 
 
@@ -1041,9 +1088,13 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleFreeSpace(int m)
   // TODO: Generating Pre-seeds
   if (repair_mode == false)
   {
+
     // hardcoded pre-seed interval for now
     //int pre_seeds = abs(p_goal->p - p_start->p) / 0.25;
     int pre_seeds = abs(p_zero - p_start->p) / 0.25; // Note needed to change p_goal to p_zero. When the sliding window padding is large, pre-seeds wont get generated all the way to the goal
+
+    std::cout << "generating pre-seeds - number is:" << pre_seeds << std::endl;
+    std::cout << "The size of the tree is:" << tree.V.size() << std::endl;
 
     // In the python version I do this line thing which is more robust, but for now im going to do this quick and dirty
     double p_step = 0.25;
@@ -1160,7 +1211,7 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
 // Function for updating the state of the robot, updates the goal and sliding window, and prunes the current tree
 // Note that this stage requires us to convert the state of the robot in euclidean space into a singular curvilinear space pt, which is actually slightly tricky
 // To do without singularities
-std::shared_ptr<Node> CBITPlanner::UpdateState()
+std::shared_ptr<Node> CBITPlanner::UpdateState(double path_direction)
 {
   //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
 
@@ -1232,6 +1283,8 @@ std::shared_ptr<Node> CBITPlanner::UpdateState()
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
   // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
+  q_min = q_min * q_sign * path_direction;
+  //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
 
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
@@ -1276,11 +1329,16 @@ std::shared_ptr<Node> CBITPlanner::UpdateState()
 
 double CBITPlanner::BestVertexQueueValue()
 {
-  if (tree.QV.size() == 0)
+  //if (tree.QV.size() == 0)
+  //{
+  //  return INFINITY;
+  //}
+  if (tree.QV2.size() == 0)
   {
     return INFINITY;
   }
   // Iterate through all vertices in the queue, find the minimum cost heurstic
+  /*
   double min_vertex_cost = INFINITY;
   for (int i = 0; i < tree.QV.size(); i++)
   {
@@ -1291,6 +1349,11 @@ double CBITPlanner::BestVertexQueueValue()
       min_vertex_cost = weighted_heuristic;
     }
   }
+  */
+  
+  // New multimap implementation of this:
+  std::multimap<double, std::shared_ptr<Node>>::iterator itr = tree.QV2.begin();
+  double min_vertex_cost = itr -> first;
 
   return min_vertex_cost;
 }
@@ -1299,11 +1362,15 @@ double CBITPlanner::BestVertexQueueValue()
 
 double CBITPlanner::BestEdgeQueueValue()
 {
-  if (tree.QE.size() == 0)
+  //if (tree.QE.size() == 0)
+  //{
+  //  return INFINITY;
+  //}
+  if (tree.QE2.size() == 0)
   {
     return INFINITY;
   }
-
+  /*
   double min_edge_cost = INFINITY;
   for (int i = 0; i < tree.QE.size(); i++)
   {
@@ -1320,8 +1387,12 @@ double CBITPlanner::BestEdgeQueueValue()
     {
       min_edge_cost = weighted_heuristic;
     }
-    
   }
+  */
+
+  // Using multimaps to accomplish the same thing:
+  std::multimap<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>::iterator itr = tree.QE2.begin();
+  double min_edge_cost = itr -> first;
     
   return min_edge_cost;
 }
@@ -1330,16 +1401,19 @@ double CBITPlanner::BestEdgeQueueValue()
 
 std::shared_ptr<Node> CBITPlanner::BestInVertexQueue()
 {
-  if (tree.QV.size() == 0)
-  {
+  //if (tree.QV.size() == 0)
+  //{
     //std::cout << "Vertex Queue is Empty!" << std::endl;
+    //CLOG(INFO, "path_planning.cbit_planner") << "Vertex Queue is Empty, Something went Wrong!";
+  //}
+  if (tree.QV2.size() == 0)
+  {
     CLOG(INFO, "path_planning.cbit_planner") << "Vertex Queue is Empty, Something went Wrong!";
-    //return; // TODO: Need to fix these returns, I can potentially use all auto types to do something similar to what I did in python
-    // But I think longer term I should find a better solution. This case only occurs if a solution cannot be found, which for now can be ignored
   }
 
-  // Loop through the vertex queue, select the vertex node with the lowest cost to come + heuristic dist to goal
 
+  // Loop through the vertex queue, select the vertex node with the lowest cost to come + heuristic dist to goal
+  /*
   double min_vertex_cost = INFINITY;
   std::shared_ptr<Node> best_vertex;
   int best_vertex_ind;
@@ -1358,6 +1432,14 @@ std::shared_ptr<Node> CBITPlanner::BestInVertexQueue()
   auto it = tree.QV.begin() + best_vertex_ind;
   *it = std::move(tree.QV.back());
   tree.QV.pop_back();
+  */
+
+
+  // New multimap implementation of this:
+  std::multimap<double, std::shared_ptr<Node>>::iterator itr = tree.QV2.begin();
+  std::shared_ptr<Node> best_vertex = itr -> second;
+  double min_vertex_cost = itr -> first;
+  tree.QV2.erase(itr);
 
   return best_vertex;
 }
@@ -1381,7 +1463,9 @@ void CBITPlanner::ExpandVertex(std::shared_ptr<Node> v)
       //tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> (v_copy, x_copy));
 
       // direct method
-      tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (samples[i])});
+      //tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (samples[i])});
+      tree.QE2.insert(std::pair<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>((v->g_T_weighted + calc_weighted_dist(*v,*samples[i],conf.alpha) + h_estimated_admissible(*samples[i], *p_goal)), std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (samples[i])}));
+
     }
   }
 
@@ -1414,7 +1498,8 @@ void CBITPlanner::ExpandVertex(std::shared_ptr<Node> v)
         // If all conditions satisfied, add the edge to the queue
         //tree.V[i]->g_T = INFINITY; // huh actually looking at this again, im not sure if I should be doing this (yeah I think was a mistake)
         //tree.V[i]->g_T_weighted = INFINITY; // huh actually looking at this again, im not sure if I should be doing this (yeah I think its a mistake)
-        tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])});
+        //tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])});
+        tree.QE2.insert(std::pair<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>((v->g_T_weighted + calc_weighted_dist(*v,*tree.V[i],conf.alpha) + h_estimated_admissible(*tree.V[i], *p_goal)), std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])}));
 
       }
       /*
@@ -1425,6 +1510,7 @@ void CBITPlanner::ExpandVertex(std::shared_ptr<Node> v)
         //tree.V[i]->g_T = INFINITY; //I think these two lines were a mistake, should not be here
         //tree.V[i]->g_T_weighted = INFINITY; //I think these two lines were a mistake, should not be here
         tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])});
+        //tree.QE2.insert(std::pair<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>((v->g_T_weighted + calc_weighted_dist(*v,*tree.V[i],conf.alpha) + h_estimated_admissible(*tree.V[i], *p_goal)), std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])}));
 
       */
     } 
@@ -1434,22 +1520,18 @@ void CBITPlanner::ExpandVertex(std::shared_ptr<Node> v)
 
 std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> CBITPlanner::BestInEdgeQueue()
 {
-  if (tree.QE.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
+  //if (tree.QE.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
+  //{
+  //  CLOG(DEBUG, "path_planning.cbit_planner") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
+  //  return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {NULL, NULL};
+  //}
+  if (tree.QE2.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
   {
-    //std::cout << "Edge Queue is Empty! Optimal Solution Found" << std::endl;
     CLOG(DEBUG, "path_planning.cbit_planner") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
-    //CLOG(WARNING, "path_planning.cbit_planner") << "Tree Size: " << tree.V.size() << " Vertex Queue Size: " << tree.QV.size() << " Sample Size: " <<samples.size();
-    //CLOG(WARNING, "path_planning.cbit_planner") << "The first Tree element: p: " << tree.V[0]->p << " q: " << tree.V[0]->q << " g_T_weighted: " << tree.V[0]->g_T_weighted;
-    
-    //CLOG(WARNING, "path_planning.cbit_planner") << "Repair mode is: " << repair_mode;
-    //CLOG(WARNING, "path_planning.cbit_planner") << "final sample is p: " << samples[samples.size()-1]->p; // note this can cause indexing errors in some cases
-    
-
     return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {NULL, NULL};
-
   }
 
-
+  /*
   // Loop through edge queue, find the edge with the smallest heuristic cost
   std::shared_ptr<Node> v;
   std::shared_ptr<Node> x;
@@ -1473,6 +1555,14 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> CBITPlanner::BestInEdge
   *it = std::move(tree.QE.back());
   tree.QE.pop_back();
   return {v,x};
+  */
+
+  // Equivalent code using multimaps:
+  std::multimap<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>::iterator itr = tree.QE2.begin();
+  double min_edge_cost = itr -> first;
+  std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> edge_tuple = itr -> second;
+  tree.QE2.erase(itr);
+  return edge_tuple;
 }
 
 
@@ -1718,8 +1808,10 @@ bool CBITPlanner::col_check_path()
     // (Might be a good idea to just make a function for this, it would probably come in handy)
 
     //reset queues
-    tree.QV.clear();
-    tree.QE.clear();
+    //tree.QV.clear();
+    tree.QV2.clear();
+    //tree.QE.clear();
+    tree.QE2.clear();
 
     // Then set a temporary goal to be the repair vertex, and signal the planner to enter repair mode
     p_goal_backup = p_goal;
