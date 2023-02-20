@@ -30,8 +30,6 @@ class PathPlannerInterface {
 
   virtual ~PathPlannerInterface() = default;
 
-  /** \brief Call when a new route is set */
-  virtual void initializeRoute() = 0;
   /** \brief Sets whether control command should be computed */
   virtual void setRunning(const bool) = 0;
 };

@@ -186,6 +186,9 @@ struct convert<std::chrono::time_point<std::chrono::high_resolution_clock>>
   {
     Node node;
     node["nanoseconds_since_epoch"] = start_time.time_since_epoch().count();
+    if (start_time.time_since_epoch().count() < 0) {
+      node["nanoseconds_since_epoch"] = 0;
+    }   
     return node;
   }
 
@@ -285,7 +288,7 @@ BagMetadata MetadataIo::read_metadata(const std::string & uri)
     }
     return metadata;
   } catch (const YAML::Exception & ex) {
-    throw std::runtime_error(std::string("Exception on parsing info file: ") + ex.what());
+    throw std::runtime_error(std::string("Exception while parsing info file: " + get_metadata_file_name(uri) + " ") + ex.what());
   }
 }
 

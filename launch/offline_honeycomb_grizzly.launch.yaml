@@ -4,14 +4,14 @@ session_name: vtr_offline_honeycomb_grizzly
 environment:
   CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
   # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
-  # data_dir:=${VTRTEMP}/playback/lidar/honeycomb storing old command - jordy, replace the data_dir with this
+
 start_directory: ${VTRTEMP}
 
 suppress_history: false
 
 windows:
   - window_name: vtr_navigation_system
-    layout: main-horizontal
+    layout: main-vertical
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
@@ -22,7 +22,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=true
 
-      - htop # monitor hardware usage and adjust process priority
+#      - htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -37,7 +37,7 @@ windows:
   - window_name: rviz2
     layout: main-horizontal
     shell_command_before:
-      - source /opt/ros/galactic/setup.bash
+      - source /opt/ros/humble/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

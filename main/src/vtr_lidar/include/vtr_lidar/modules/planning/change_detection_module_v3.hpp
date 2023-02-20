@@ -19,7 +19,7 @@
 #pragma once
 
 #include "tf2/convert.h"
-#include "tf2_eigen/tf2_eigen.h"
+#include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 
 #include "nav_msgs/msg/occupancy_grid.hpp"
@@ -91,6 +91,7 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr filtered_costmap_pub_ ;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr diffpcd_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(ChangeDetectionModuleV3);
 

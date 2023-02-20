@@ -220,8 +220,8 @@ void ChangeDetectionModuleV2::runAsync_(
   // inputs
   const auto &stamp = *qdata.stamp;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &vid_loc = *qdata.vid_loc;
-  const auto &sid_loc = *qdata.sid_loc;
+  // const auto &vid_loc = *qdata.vid_loc;
+  // const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
   const auto &points = *qdata.undistorted_point_cloud;
   const auto &submap_loc = *qdata.submap_loc;

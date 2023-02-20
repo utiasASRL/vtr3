@@ -91,15 +91,10 @@ class BasePathPlanner : public PathPlannerInterface {
 
   /// for state machine use
  public:
-  /** \brief Call when a new route is set */
-  void initializeRoute() override;
   /** \brief Sets whether control command should be computed */
   void setRunning(const bool running) override;
 
  private:
-  /** \brief Called when a new route is set */
-  virtual void initializeRoute(RobotState& robot_state) = 0;
-
   /** \brief Subclass override this method to compute a control command */
   virtual Command computeCommand(RobotState& robot_state) = 0;
 

@@ -86,14 +86,16 @@ void detectDynamicObjects(
     pcl::PointCloud<PointT>& /* point map */ query,
     const lgmath::se3::TransformationWithCovariance& T_ref_qry,
     const float& phi_res, const float& theta_res, const float& max_num_obs,
-    const float& min_num_obs, const float& dynamic_threshold) {
+    const float& min_num_obs, const float& /* dynamic_threshold */) {
   // Parameters
   const auto inner_ratio = 1 - std::max(phi_res, theta_res) / 2;
   (void)inner_ratio;
   const auto outer_ratio = 1 + std::max(phi_res, theta_res) / 2;
   // this takes into account surface orientation
+#if false
   const auto tighter_inner_ratio =
       1 - (std::max(phi_res, theta_res) / 2) / std::tan(M_PI / 12);
+#endif
 
   // Create and fill in the frustum grid
   std::unordered_map<ray_tracing::PixKey, float> frustum_grid;
@@ -122,10 +124,12 @@ void detectDynamicObjects(
   ray_tracing::cart2pol(query_tmp);
 
   // for honeycomb fov specifically
+#if false
   float theta_min = 7 * M_PI / 18;
   float theta_max = 15 * M_PI / 18;
   float phi_min = -M_PI / 2;
   float phi_max = M_PI / 2;
+#endif
   float rho_max = 50.0f;
 
   //

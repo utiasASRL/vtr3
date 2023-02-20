@@ -84,9 +84,9 @@ FakeObstacleModule::FakeObstacleModule(
   }
 }
 
-void FakeObstacleModule::run_(QueryCache &qdata0, OutputCache &output0,
-                              const Graph::Ptr &graph,
-                              const TaskExecutor::Ptr &executor) {
+void FakeObstacleModule::run_(QueryCache &qdata0, OutputCache & /* output0 */,
+                              const Graph::Ptr & /* graph */,
+                              const TaskExecutor::Ptr & /* executor */) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {

@@ -21,6 +21,8 @@
 #include "pcl/features/normal_3d.h"
 
 #include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/filters/voxel_downsample.hpp"
+
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
@@ -58,7 +60,7 @@ class DetectChangeOp {
  public:
   DetectChangeOp(const pcl::PointCloud<PointT> &points, const float &d0,
                  const float &d1)
-      : adapter_(points), d0_(d0), d1_(d1) {
+      : d0_(d0), d1_(d1), adapter_(points) {
     /// create kd-tree of the point cloud for radius search
     kdtree_ = std::make_unique<KDTree<PointT>>(2, adapter_,
                                                KDTreeParams(/* max leaf */ 10));
@@ -125,8 +127,8 @@ auto ChangeDetectionModuleV3::Config::fromROS(
 }
 
 void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
-                                   const Graph::Ptr &graph,
-                                   const TaskExecutor::Ptr &executor) {
+                                   const Graph::Ptr & /* graph */,
+                                   const TaskExecutor::Ptr & /* executor */) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
@@ -137,6 +139,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
     filtered_costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("filtered_change_detection_costmap", 5);
     costpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_costpcd", 5);
+    diffpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_diff", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -147,7 +150,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   const auto &vid_loc = *qdata.vid_loc;
   const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
-  const auto &points = *qdata.undistorted_point_cloud;
+  const auto &points = *qdata.raw_point_cloud;
   const auto &submap_loc = *qdata.submap_loc;
   const auto &map_point_cloud = submap_loc.point_cloud();
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
@@ -163,6 +166,8 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
       query_indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> query_points(points, query_indices);
+  
+  voxelDownsample(query_points, 0.2);
 
   // Eigen matrix of original data (only shallow copy of ref clouds)
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -236,8 +241,10 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
       // clang-format on
     }();
     //
-    if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold))
+    if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold)){
       aligned_points[i].flex23 = 1.0f;
+      aligned_points[i].flex21 = cost;
+    }
   }
 
   // add support region
@@ -295,8 +302,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   std::vector<int> indices;
   indices.reserve(aligned_points2.size());
   for (size_t i = 0; i < aligned_points2.size(); ++i) {
-    /// \todo change flex24 to flex23
-    if (aligned_points2[i].flex23 > 0.5f) indices.emplace_back(i); //Jordy: modified from flex24 to flex23, I think we need to do this to update the costmap properly
+    if (aligned_points2[i].flex23 > 0.5f) indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> filtered_points(aligned_points2, indices);
 
@@ -390,6 +396,8 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
 
   // if the costmap_history is smaller then some minimum value, just tack it on the end
   // TODO need to get rid of these magic numbers
+  // TODO A linked list would make more sense here
+
   if (costmap_history.size() < config_->costmap_history_size)
   {
     costmap_history.push_back(sparse_world_map);
@@ -397,7 +405,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
   else
   {
-    for (int i = 0; i < (config_->costmap_history_size-1); i++)
+    for (unsigned int i = 0; i < (config_->costmap_history_size-1); i++)
     {
       costmap_history[i] = costmap_history[i + 1];
     }
@@ -409,7 +417,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     std::unordered_map<std::pair<float, float>, float>  merged_world_map = costmap_history[(config_->costmap_history_size-1)];
     //CLOG(WARNING, "obstacle_detection.cbit") << "merged world map size " <<merged_world_map.size();
     std::unordered_map<std::pair<float, float>, float>  filtered_world_map;
-    for (int i = 0; i < (costmap_history.size()-1); i++)
+    for (unsigned int i = 0; i < (costmap_history.size()-1); i++)
     {
       merged_world_map.merge(costmap_history[i]);
       //CLOG(WARNING, "obstacle_detection.cbit") << "merged world map size " <<merged_world_map.size();
@@ -544,6 +552,12 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     pointcloud_msg.header.frame_id = "loc vertex frame";
     // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     costpcd_pub_->publish(pointcloud_msg);
+    
+    PointCloudMsg filter_msg;
+    pcl::toROSMsg(filtered_points, filter_msg);
+    filter_msg.header.frame_id = "loc vertex frame";
+    // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    diffpcd_pub_->publish(filter_msg);
   }
 
   /// output

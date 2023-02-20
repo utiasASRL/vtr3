@@ -154,6 +154,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Filtering based on normal scores (planarity + linearity)
 
+  #if true
   // Remove points with a low normal score
   auto sorted_norm_scores = norm_scores;
   std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
@@ -171,6 +172,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
     *filtered_point_cloud =
         pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
   }
+  #endif
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "planarity sampled point size: " << filtered_point_cloud->size();

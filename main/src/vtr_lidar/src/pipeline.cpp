@@ -64,9 +64,9 @@ OutputCache::Ptr LidarPipeline::createOutputCache() const {
 
 void LidarPipeline::reset() {
   // reset modules
-  for (const auto module : preprocessing_) module->reset();
-  for (const auto module : odometry_) module->reset();
-  for (const auto module : localization_) module->reset();
+  for (const auto &module : preprocessing_) module->reset();
+  for (const auto &module : odometry_) module->reset();
+  for (const auto &module : localization_) module->reset();
   // odometry cached data
   sliding_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
@@ -82,7 +82,7 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
-  for (const auto module : preprocessing_)
+  for (const auto &module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
 
@@ -100,7 +100,7 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
   }
 
-  for (const auto module : odometry_)
+  for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
 
   // store the current sliding map for odometry
@@ -121,7 +121,7 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
 
-  for (const auto module : localization_)
+  for (const auto &module : localization_)
     module->run(*qdata0, *output0, graph, executor);
 
   /// store the current map for localization
@@ -138,6 +138,8 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   /// update current map vertex id and transform
   sliding_map_odo_->T_vertex_this() = *T_r_m_odo_;
   sliding_map_odo_->vertex_id() = *qdata->vid_odo;
+  CLOG(DEBUG, "lidar.pipeline") << "Saving data to vertex" << vertex;
+
 
   /// store the live frame point cloud
   // motion compensated point cloud
@@ -151,12 +153,14 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     auto scan_odo_msg = std::make_shared<PointScanLM>(scan_odo, *qdata->stamp);
     vertex->insert<PointScan<PointWithInfo>>(
         "filtered_point_cloud", "vtr_lidar_msgs/msg/PointScan", scan_odo_msg);
+    CLOG(DEBUG, "lidar.pipeline") << "Saved filtered pointcloud to vertex" << vertex;
+
   }
   // raw point cloud
-#if false
+#if defined(VTR_ENABLE_LIDAR) && defined(SAVE_FULL_LIDAR)
   {
     auto raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
-    raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
+    raw_scan_odo->point_cloud() = *qdata->raw_point_cloud;
     raw_scan_odo->T_vertex_this() = qdata->T_s_r->inverse();
     raw_scan_odo->vertex_id() = *qdata->vid_odo;
     //
@@ -166,6 +170,7 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     vertex->insert<PointScan<PointWithInfo>>(
         "raw_point_cloud", "vtr_lidar_msgs/msg/PointScan", raw_scan_odo_msg);
   }
+  CLOG(DEBUG, "lidar.pipeline") << "Saved raw pointcloud to vertex" << vertex;
 #endif
 
   /// save the sliding map as vertex submap if we have traveled far enough
