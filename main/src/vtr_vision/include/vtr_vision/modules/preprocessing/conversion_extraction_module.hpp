@@ -27,7 +27,7 @@
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 #include <vtr_vision/features/extractor/extractor_configs.hpp>
-#include <vtr_vision/visualize.hpp>
+//#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace vision {

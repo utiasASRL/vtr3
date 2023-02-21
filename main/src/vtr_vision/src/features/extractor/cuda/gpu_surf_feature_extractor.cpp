@@ -300,5 +300,26 @@ ChannelFeatures GSFE::extractStereoFeatures(const cv::Mat &left_img,
   return channel;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+ChannelFeatures GSFE::extractStereoFeaturesDisp(
+    const cv::Mat &left_img, const cv::Mat &disp) {
+    ChannelFeatures features_temp;
+    return features_temp;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+ChannelFeatures GSFE::extractStereoFeaturesDispExtra(
+    const cv::Mat &left_img, const cv::Mat &disp, const cv::Mat &keypoints,
+    const cv::Mat &descriptors, const cv::Mat &scores) {
+    ChannelFeatures features_temp;
+    return features_temp;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+ChannelExtra GSFE::extractFeaturesExtra(const cv::Mat &left_img) {
+    ChannelExtra extra_temp;
+    return extra_temp;
+}
+
 }  // namespace vision
 }  // namespace vtr

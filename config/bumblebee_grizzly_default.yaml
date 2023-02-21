@@ -557,3 +557,75 @@
       default_theta_disturbance_uncertainty: 0.10
       robust_control_sigma: 3.0
       weight_barrier_norm_mpc: 0.3
+    path_planning:
+      type: cbit
+      control_period: 33
+      teb:
+        visualize: true
+        extrapolate: false
+        extrapolation_timeout: 2.0
+        lookahead_distance: 8.5
+        robot_model: circular
+        robot_radius: 0.5
+        map_frame: planning frame
+        enable_homotopy_class_planning: true
+        free_goal_vel: true
+        max_vel_x: 0.6
+        max_vel_y: 0.0
+        max_vel_theta: 0.3
+        min_turning_radius: 3
+        weight_viapoint: 0.5
+        weight_costmap: 100.0
+      cbit:
+        obs_padding: 0.0
+        curv_to_euclid_discretization: 20
+        sliding_window_width: 10.0
+        sliding_window_freespace_padding: 0.5
+        corridor_resolution: 0.05
+        state_update_freq: 0.5
+        update_state: true
+        rand_seed: 1
+        initial_samples: 250
+        batch_samples: 100
+        pre_seed_resolution: 0.5
+        alpha: 0.5
+        q_max: 2.5
+        frame_interval: 50
+        iter_max: 10000000
+        eta: 1.1
+        rad_m_exhange: 1.0
+        initial_exp_rad: 0.75
+        extrapolation: false
+        incremental_plotting: false
+        plotting: true
+      costmap:
+        costmap_filter_value: 0.01
+        costmap_history: 15
+      mpc:
+        horizon_steps: 40
+        horizon_step_size: 0.1
+        forward_vel: 1.0
+        max_lin_vel: 1.25
+        max_ang_vel: 0.75
+        vehicle_model: unicycle
+        pose_error_cov:
+          - 0.5
+          - 0.5
+          - 0.5
+          - 10.0
+          - 10.0
+          - 10.0
+        vel_error_cov:
+          - 0.1
+          - 1.0
+        acc_error_cov:
+          - 0.1
+          - 0.75
+        kin_error_cov:
+          - 0.001
+          - 0.001
+          - 0.001
+          - 0.001
+          - 0.001
+          - 0.001
+        command_history_length: 100

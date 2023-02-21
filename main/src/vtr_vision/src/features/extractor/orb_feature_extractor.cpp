@@ -393,5 +393,32 @@ ChannelFeatures OFE::extractStereoFeatures(const cv::Mat &left_img,
   return features;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Extracts a list of descriptors and keypoints from a set of two
+/// rectified stereo images.
+ChannelFeatures OFE::extractStereoFeaturesDisp(
+    const cv::Mat &left_img, const cv::Mat &disp) {
+    ChannelFeatures features_temp;
+    return features_temp;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Extracts a list of descriptors and keypoints from a set of two
+/// rectified stereo images.
+ChannelFeatures OFE::extractStereoFeaturesDispExtra(
+    const cv::Mat &left_img, const cv::Mat &disp, const cv::Mat &keypoints,
+    const cv::Mat &descriptors, const cv::Mat &scores) {
+    ChannelFeatures features_temp;
+    return features_temp;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Extracts a list of descriptors and keypoints from a set of two
+/// rectified stereo images.
+ChannelExtra OFE::extractFeaturesExtra(const cv::Mat &left_img) {
+    ChannelExtra extra_temp;
+    return extra_temp;
+}
+
 }  // namespace vision
 }  // namespace vtr
