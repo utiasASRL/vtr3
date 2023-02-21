@@ -149,6 +149,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 #endif
 #ifdef VTR_ENABLE_VISION
 {
+  using namespace std::placeholders;
+
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "camera");
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
   // static transform
@@ -160,8 +162,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // camera images subscription
   const auto right_image_topic = node_->declare_parameter<std::string>("right_image_topic", "/image_right");
   const auto left_image_topic = node_->declare_parameter<std::string>("left_image_topic", "/image_left");
-  right_camera_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(right_image_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::cameraCallback, this, std::placeholders::_1), sub_opt);
-  left_camera_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(left_image_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::cameraCallback, this, std::placeholders::_1), sub_opt);
+
+  right_camera_sub_.subscribe(node_, right_image_topic);
+  left_camera_sub_.subscribe(node_, left_image_topic);
+
+  sync_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>>(right_camera_sub_, left_camera_sub_, 3);
+  auto f = std::bind(&Navigator::cameraCallback, this, _1, _2);
+  sync_->registerCallback(&f);
 }
 #endif
   // clang-format on
@@ -282,7 +289,7 @@ void Navigator::lidarCallback(
 
 #ifdef VTR_ENABLE_VISION
 void Navigator::cameraCallback(
-    const sensor_msgs::msg::Image::SharedPtr msg) {
+    const sensor_msgs::msg::Image::SharedPtr msg_r, const sensor_msgs::msg::Image::SharedPtr msg_l) {
   LockGuard lock(mutex_);
   CLOG(DEBUG, "navigation") << "Received an image.";
 
@@ -300,7 +307,7 @@ void Navigator::cameraCallback(
   query_data->node = node_;
 
   // set the timestamp
-  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+  Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
   query_data->stamp.emplace(timestamp);
 
   // add the current environment info

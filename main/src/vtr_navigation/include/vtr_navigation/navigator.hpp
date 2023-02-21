@@ -24,6 +24,11 @@
 #include "vtr_route_planning/route_planner_interface.hpp"
 #include "vtr_tactic/tactic.hpp"
 
+#ifdef VTR_ENABLE_VISION
+#include "message_filters/subscriber.h"
+#include "message_filters/time_synchronizer.h"
+#endif
+
 #include "vtr_common/conversions/tf2_ros_eigen.hpp"
 
 #ifdef VTR_ENABLE_LIDAR
@@ -75,9 +80,10 @@ class Navigator {
 #ifdef VTR_ENABLE_VISION
   const std::string &camera_frame() const { return camera_frame_;}
   const tactic::EdgeTransform &T_camera_robot() const { return T_camera_robot_; }
-  void cameraCallback(const sensor_msgs::msg::Image::SharedPtr msg);
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr right_camera_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr left_camera_sub_;
+  void cameraCallback(const sensor_msgs::msg::Image::SharedPtr msg_r, const sensor_msgs::msg::Image::SharedPtr msg_l);
+  message_filters::Subscriber<sensor_msgs::msg::Image> right_camera_sub_;
+  message_filters::Subscriber<sensor_msgs::msg::Image> left_camera_sub_;
+  std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>> sync_;
   std::string camera_frame_;
   tactic::EdgeTransform T_camera_robot_;
 #endif
