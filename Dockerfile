@@ -44,10 +44,10 @@ RUN apt update && apt install -q -y python3 python3-distutils python3-pip
 RUN apt update && apt install -q -y libeigen3-dev
 RUN apt update && apt install -q -y libsqlite3-dev sqlite3
 
-## Install PROJ (8.0.0) (this is for graph_map_server in vtr_navigation)
+## Install PROJ (8.2.0) (this is for graph_map_server in vtr_navigation)
 RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
 RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
-  && git clone https://github.com/OSGeo/PROJ.git . && git checkout 8.0.0 \
+  && git clone https://github.com/OSGeo/PROJ.git . && git checkout 8.2.0 \
   && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
@@ -152,6 +152,9 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 # RUN cp -r ${HOMEDIR}/ASRL/libtorch /usr/local/.
 
 RUN apt install htop
+
+# Install vim
+RUN apt update && apt install -q -y vim
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
