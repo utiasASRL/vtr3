@@ -1,0 +1,25 @@
+name: VTR Docker CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag vtr3
+    - name: run container
+      run: docker run -td --name vtr3 --privileged -v `pwd`:/home/asrl/vtr3:rw vtr3
+    - name: colcon build
+      run: docker exec -w /home/asrl/vtr3/main vtr3 bash -c "source /opt/ros/humble/setup.sh && colcon build"
+      
