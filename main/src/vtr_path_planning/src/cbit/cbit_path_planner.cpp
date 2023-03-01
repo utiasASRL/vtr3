@@ -1279,7 +1279,7 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(double path_direction)
 
   int q_sign = sgn((B.p - A.p) * (new_state->y - A.q) - ((B.q - A.q) * (new_state->x - A.p))); 
   
-  q_min = q_min * q_sign;
+  //q_min = q_min * q_sign;
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
   // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too

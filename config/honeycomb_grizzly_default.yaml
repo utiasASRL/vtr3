@@ -438,7 +438,7 @@
         sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.05
-        state_update_freq: 1.0
+        state_update_freq: 2.0
         update_state: true
         rand_seed: 1
         
@@ -446,7 +446,7 @@
         initial_samples: 300
         batch_samples: 100
         pre_seed_resolution: 0.5
-        alpha: 0.5
+        alpha: 1.0
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
@@ -467,13 +467,13 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 1.25
-        max_lin_vel: 1.75
+        forward_vel: 1.00
+        max_lin_vel: 1.55
         max_ang_vel: 0.75
         vehicle_model: "unicycle"
         
         # Cost Function Weights
-        pose_error_cov: [0.5, 0.5, 0.5, 10000.0, 10000.0, 10000.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
+        pose_error_cov: [0.1, 0.1, 0.1, 10000.0, 10000.0, 10000.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
         vel_error_cov: [1.0, 10.0] # was [0.1 2.0] # No longer using this cost term
         acc_error_cov: [1.0, 1.0]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]

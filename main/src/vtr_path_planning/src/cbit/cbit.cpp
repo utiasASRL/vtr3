@@ -19,6 +19,7 @@
 
 #include "vtr_path_planning/cbit/cbit.hpp"
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+#include "vtr_path_planning/mpc/mpc_path_planner2.hpp"
 
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.h>

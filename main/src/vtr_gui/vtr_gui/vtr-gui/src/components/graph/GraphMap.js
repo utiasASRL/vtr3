@@ -224,7 +224,7 @@ class GraphMap extends React.Component {
           <TileLayer
             // url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" // load from OSM directly
             url="/tile/{s}/{x}/{y}/{z}" // load from backend (potentially cached)
-            maxZoom={20}
+            maxZoom={22}
           />
           <ZoomControl position="bottomright" />
         </MapContainer>
