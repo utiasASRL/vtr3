@@ -251,9 +251,12 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
+
   // check if the required data is in this cache
-  if (!qdata.rig_images.valid() || !qdata.rig_calibrations.valid())
+  if (!qdata.rig_images.valid() || !qdata.rig_calibrations.valid()){
+    CLOG(WARNING, "preprocessing") << "Warning no images or calibrations available";
     return;
+  }
 
   // Inputs, images
   auto &rigs = *qdata.rig_images;
@@ -369,6 +372,7 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
       // get the futures.
       for (auto &future : feature_futures) {
         rig_features.channels.emplace_back(future.get());
+        CLOG(INFO, "preprocessing") << "Number of keypoints found" << rig_features.channels.at(0).cameras.at(0).keypoints.size();
       }
     }
   }

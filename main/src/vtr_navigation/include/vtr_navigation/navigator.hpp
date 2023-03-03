@@ -26,7 +26,8 @@
 
 #ifdef VTR_ENABLE_VISION
 #include "message_filters/subscriber.h"
-#include "message_filters/time_synchronizer.h"
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 #endif
 
 #include "vtr_common/conversions/tf2_ros_eigen.hpp"
@@ -78,12 +79,17 @@ class Navigator {
 #endif
 
 #ifdef VTR_ENABLE_VISION
+typedef message_filters::sync_policies::ApproximateTime<
+    sensor_msgs::msg::Image, sensor_msgs::msg::Image
+  > ApproximateImageSync;
+
+
   const std::string &camera_frame() const { return camera_frame_;}
   const tactic::EdgeTransform &T_camera_robot() const { return T_camera_robot_; }
   void cameraCallback(const sensor_msgs::msg::Image::SharedPtr msg_r, const sensor_msgs::msg::Image::SharedPtr msg_l);
   message_filters::Subscriber<sensor_msgs::msg::Image> right_camera_sub_;
   message_filters::Subscriber<sensor_msgs::msg::Image> left_camera_sub_;
-  std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>> sync_;
+  std::shared_ptr<message_filters::Synchronizer<ApproximateImageSync>> sync_;
   std::string camera_frame_;
   tactic::EdgeTransform T_camera_robot_;
 #endif

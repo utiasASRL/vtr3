@@ -160,15 +160,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   msg.child_frame_id = "camera";
   tf_sbc_->sendTransform(msg);
   // camera images subscription
-  const auto right_image_topic = node_->declare_parameter<std::string>("right_image_topic", "/image_right");
-  const auto left_image_topic = node_->declare_parameter<std::string>("left_image_topic", "/image_left");
+  const auto right_image_topic = node_->declare_parameter<std::string>("camera_right_topic", "/image_right");
+  const auto left_image_topic = node_->declare_parameter<std::string>("camera_left_topic", "/image_left");
 
   right_camera_sub_.subscribe(node_, right_image_topic);
   left_camera_sub_.subscribe(node_, left_image_topic);
 
-  sync_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>>(right_camera_sub_, left_camera_sub_, 3);
-  auto f = std::bind(&Navigator::cameraCallback, this, _1, _2);
-  sync_->registerCallback(&f);
+  sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImageSync>>(ApproximateImageSync(10), right_camera_sub_, left_camera_sub_);
+  sync_->registerCallback(&Navigator::cameraCallback, this);
 }
 #endif
   // clang-format on
@@ -228,6 +227,11 @@ void Navigator::process() {
     queue_.pop();
 #ifdef VTR_ENABLE_LIDAR
     if (auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
+      pointcloud_in_queue_ = false;
+#endif
+
+#ifdef VTR_ENABLE_VISION
+    if (auto qdata = std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
       pointcloud_in_queue_ = false;
 #endif
 
@@ -315,6 +319,8 @@ void Navigator::cameraCallback(
 
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r.emplace(T_lidar_robot_);
+
+  //query_data->
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);

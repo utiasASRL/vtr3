@@ -16,6 +16,7 @@
         "state_machine",
         "pose_graph",
         "stereo.pipeline",
+        "preprocessing",
         "path_tracker",
         "tactic.pipeline"
       ]
@@ -24,8 +25,9 @@
     robot_frame: base_link
     # camera related
     camera_frame: front_xb3
-    camera_topic: /images
-    camera_calibration_topic: /xb3_calibration
+    camera_left_topic: /zed2/zed_node/left/image_rect_color
+    camera_right_topic: /zed2/zed_node/right/image_rect_color
+    camera_calibration_topic: /zed2/zed_node/left/camera_info
     # lidar related
     lidar_frame: lidar_not_used
     lidar_topic: lidar_not_used
