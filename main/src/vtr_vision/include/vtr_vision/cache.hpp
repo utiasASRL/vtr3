@@ -20,6 +20,9 @@
  */
 #pragma once
 
+#include "sensor_msgs/msg/image.hpp"
+
+
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_vision/types.hpp>
@@ -44,6 +47,9 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<std::vector<vision::RigFeatures>> rig_features;
   tactic::Cache<std::vector<vision::RigLandmarks>> candidate_landmarks;
   tactic::Cache<std::vector<vision::RigExtra>> rig_extra;
+  tactic::Cache<sensor_msgs::msg::Image> left_image;
+  tactic::Cache<sensor_msgs::msg::Image> right_image;
+  
 
   /// extra image related stuff to be cleaned up
   tactic::Cache<bool> success;
