@@ -109,6 +109,7 @@ class CBIT : public BasePathPlanner {
     Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
     Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
     Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 1, 1> lat_error_cov = Eigen::Matrix<double, 1, 1>::Zero();
 
 
     // Misc

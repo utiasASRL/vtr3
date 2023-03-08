@@ -18,8 +18,9 @@
  */
 
 #include "vtr_path_planning/cbit/cbit.hpp"
-#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+//#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 #include "vtr_path_planning/mpc/mpc_path_planner2.hpp"
+
 
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.h>
@@ -93,6 +94,8 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
   config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
 
+  const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
+  config->lat_error_cov.diagonal() << lat_error_diag[0];
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
 
@@ -332,6 +335,10 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     Eigen::Matrix<double, 6, 6> kin_noise_vect;
     kin_noise_vect = config_->kin_error_cov;
 
+    // Lateral Covariance Weights (should be weighted quite heavily (smaller is higher because its covariance))
+    Eigen::Matrix<double, 1, 1> lat_noise_vect;
+    lat_noise_vect = config_->lat_error_cov;
+
 
     
     // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
@@ -401,7 +408,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // Calculate which T_ref measurements to used based on the current path solution
     CLOG(INFO, "mpc.cbit") << "Attempting to generate T_ref measurements";
-    auto meas_result = GenerateReferenceMeas(cbit_path_ptr, robot_pose, K,  DT, VF);
+    auto meas_result = GenerateReferenceMeas2(cbit_path_ptr, robot_pose, K,  DT, VF);
     auto measurements = meas_result.measurements;
     bool point_stabilization = meas_result.point_stabilization;
 
@@ -411,7 +418,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
-      auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
+      auto mpc_result = SolveMPC2(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
       CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
@@ -428,7 +435,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
  
     // If required, saturate the output velocity commands based on the configuration limits
     CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
-    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
+    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel2(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
 
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
     vel_history.erase(vel_history.begin());

@@ -17,7 +17,7 @@
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/path_planning/cbit.hpp"
-#include "vtr_lidar/path_planning/mpc.hpp"
+#include "vtr_lidar/path_planning/mpc_path_planner2.hpp"
 #include "vtr_lidar/cache.hpp"
 
 
@@ -89,6 +89,9 @@ auto LidarCBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::
 
   const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
   config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
+  
+  const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
+  config->lat_error_cov.diagonal() << lat_error_diag[0];
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -330,7 +333,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
 
     // Calculate which T_ref measurements to used based on the current path solution
     CLOG(INFO, "mpc.cbit") << "Attempting to generate T_ref measurements";
-    auto meas_result = GenerateReferenceMeas(cbit_path_ptr, robot_pose, K,  DT, VF);
+    auto meas_result = GenerateReferenceMeas2(cbit_path_ptr, robot_pose, K,  DT, VF);
     auto measurements = meas_result.measurements;
     bool point_stabilization = meas_result.point_stabilization;
 
@@ -340,7 +343,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
-      auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
+      auto mpc_result = SolveMPC2(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
       CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
@@ -357,7 +360,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
  
     // If required, saturate the output velocity commands based on the configuration limits
     CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
-    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
+    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel2(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
 
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
     vel_history.erase(vel_history.begin());
