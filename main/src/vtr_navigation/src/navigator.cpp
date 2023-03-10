@@ -310,6 +310,9 @@ void Navigator::cameraCallback(
   // some modules require node for visualization
   query_data->node = node_;
 
+  query_data->left_image = msg_l;
+  query_data->right_image = msg_r;
+
   // set the timestamp
   Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
   query_data->stamp.emplace(timestamp);
@@ -318,7 +321,7 @@ void Navigator::cameraCallback(
   query_data->env_info.emplace(env_info_);
 
   // fill in the vehicle to sensor transform and frame names
-  query_data->T_s_r.emplace(T_lidar_robot_);
+  query_data->T_s_r.emplace(T_camera_robot_);
 
   //query_data->
 
