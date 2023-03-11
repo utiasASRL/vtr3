@@ -61,6 +61,7 @@ class CalibrationModule : public tactic::BaseModule {
     CameraDistortion distortion;
     CameraIntrinsic intrinsic;
     Transform extrinsic;
+    std::string rig_name = "stereo";
     
   };
 

@@ -226,14 +226,14 @@ void ConversionExtractionModule::createExtractor() {
     dextractor->initialize(config_->gpu_surf_params);
     dextractor->initialize(config_->gpu_surf_stereo_params);
 #else
-    LOG(ERROR) << "GPU SURF isn't enabled!";
+    CLOG(ERROR, static_name) << "GPU SURF isn't enabled!";
 #endif
   } else if (config_->feature_type == "OPENCV_ORB") {
     vision::OrbFeatureExtractor *dextractor =
         dynamic_cast<vision::OrbFeatureExtractor *>(extractor_.get());
     dextractor->initialize(config_->opencv_orb_params);
   } else {
-    LOG(ERROR) << "Couldn't determine feature type!";
+    CLOG(ERROR, static_name) << "Couldn't determine feature type!";
   }
   #ifdef VTR_VISION_LEARNED 
   if (config_->use_learned) {

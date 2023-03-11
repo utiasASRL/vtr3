@@ -42,6 +42,8 @@ struct CameraQueryCache : public tactic::QueryCache {
 
 
   tactic::Cache<std::vector<std::string>> rig_names;
+
+  
   tactic::Cache<std::list<vision::RigImages>> rig_images;
   tactic::Cache<std::list<vision::RigCalibration>> rig_calibrations;
   tactic::Cache<std::vector<vision::RigFeatures>> rig_features;

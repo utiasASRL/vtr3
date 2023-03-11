@@ -42,6 +42,7 @@ auto CalibrationModule::Config::fromROS(
   config->distortion=Eigen::Map<CameraDistortion>(distortion.data());
   config->intrinsic=Eigen::Map<CameraIntrinsic>(intrinsic.data());
   // config->extrinsic=Eigen::Map<Transform>(extrinsic.data());
+  config->rig_name = node->declare_parameter<std::string>(param_prefix + ".rig_name", config->rig_name);
 
   return config;
 }
@@ -49,6 +50,11 @@ auto CalibrationModule::Config::fromROS(
 void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
+  qdata.rig_images.emplace();
+  qdata.rig_calibrations.emplace();
+  qdata.rig_names.emplace();
+  qdata.rig_names->push_back(config_->rig_name);
+  
   RigImages rig_images;
   ChannelImages channel_images;
   RigCalibration rig_calibration;
@@ -62,15 +68,27 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
   rig_calibration.intrinsics=camera_intrinsics;
   // rig_calibration.extrinsics=extrinsics;
 
-  Image left_im =  {};
+  qdata.rig_calibrations->push_back(rig_calibration);
+
+  Image left_im = {};
   left_im.stamp = *qdata.stamp;
   left_im.name = "left";
   left_im.data = cv_bridge::toCvShare(qdata.left_image.ptr(), qdata.left_image->encoding)->image;
-  // {qdata.stamp,                   "left",      cv_bridge::toCvShare(qdata.left_image.ptr(), qdata.left_image->encoding)};
-  // Image right_im = {qdata.stamp, "right", cv_bridge::toCvShare(qdata.right_image.ptr(), qdata.right_image->encoding)};
+
+  Image right_im = {};
+  right_im.stamp = *qdata.stamp;
+  right_im.name = "right";
+  right_im.data = cv_bridge::toCvShare(qdata.right_image.ptr(), qdata.right_image->encoding)->image;
+
   
   // channel_images
+  channel_images.name = qdata.right_image->encoding;
+  channel_images.cameras.push_back(left_im);
+  channel_images.cameras.push_back(right_im);
 
+  rig_images.name = config_->rig_name;
+  rig_images.channels.push_back(channel_images);
+  qdata.rig_images->push_back(rig_images);
 
 
 }

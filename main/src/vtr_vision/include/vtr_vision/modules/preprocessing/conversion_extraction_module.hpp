@@ -101,7 +101,9 @@ class ConversionExtractionModule : public tactic::BaseModule {
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : tactic::BaseModule{module_factory, name}, config_(config) {}
+      : tactic::BaseModule{module_factory, name}, config_(config) {
+        createExtractor();
+      }
 
   // ConversionExtractionModule(const std::string &name = static_name)
   //     : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}

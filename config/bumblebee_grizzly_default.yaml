@@ -90,8 +90,12 @@
 
     preprocessing:
       # conversion+extraction module
-      calibration:
-        type: stereo.calibration
+      adapter:
+        type: stereo.adapter
+        distortion: [0.0, 0.0, 0.0, 0.0, 0.0]
+        intrinsic: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        extrinsic: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        
 
       extraction:
         type: stereo.conversion_extraction

@@ -53,7 +53,7 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
 #ifdef VTR_VISION_LEARNED
     extractor.reset(new vtr::vision::LearnedFeatureExtractor());
 #else 
-    LOG(WARNING) << "LEARNED FEATURES ARE DIABLED";
+    LOG(WARNING) << "LEARNED FEATURES ARE DISABLED";
 #endif
 
   } else {
