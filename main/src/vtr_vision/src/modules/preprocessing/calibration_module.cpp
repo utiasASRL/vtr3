@@ -74,11 +74,13 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
   left_im.stamp = *qdata.stamp;
   left_im.name = "left";
   left_im.data = cv_bridge::toCvShare(qdata.left_image.ptr(), qdata.left_image->encoding)->image;
+  CLOG(INFO, "preprocessing") << "Left image size: " << left_im.data.size();
 
   Image right_im = {};
   right_im.stamp = *qdata.stamp;
   right_im.name = "right";
   right_im.data = cv_bridge::toCvShare(qdata.right_image.ptr(), qdata.right_image->encoding)->image;
+  CLOG(INFO, "preprocessing") << "Right image size: " << right_im.data.size();
 
   
   // channel_images
