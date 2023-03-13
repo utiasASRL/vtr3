@@ -106,16 +106,27 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // Velodyne has no polar coordinates, so compute them manually.
   velodyneCart2Pol(*point_cloud);
 
-  if (config_->estimate_time){
+  try {
+    try{
+      sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
+      // pointwise timestamp
+      for (size_t idx = 0; iter_time != iter_time.end();
+        ++idx, ++iter_time) {
+          point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+      }
+    }
+    catch (...){
+      sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "time");
+      // pointwise timestamp
+      for (size_t idx = 0; iter_time != iter_time.end();
+        ++idx, ++iter_time) {
+          point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+      }
+    }
+  }
+  catch(...){
     CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings wil be estimated from yaw angle";
     estimateTime(*point_cloud, *qdata.stamp, config_->angular_vel);
-  } else {
-    sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
-    // pointwise timestamp
-    for (size_t idx = 0; iter_time != iter_time.end();
-       ++idx, ++iter_time) {
-        point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
-    }
   }
 
   // Output
