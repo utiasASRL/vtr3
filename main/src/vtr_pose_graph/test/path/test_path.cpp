@@ -70,6 +70,62 @@ class PathTest : public Test {
   BasicGraph::Ptr graph_ = std::make_shared<BasicGraph>();
 };
 
+
+class MergedPathTest : public Test {
+ public:
+  MergedPathTest() {}
+  ~MergedPathTest() override {}
+
+  void SetUp() override {
+    /* Create the following graph
+     * R0: 0 --- 1 --- 2 --- 3 -- 0 (only vertices)
+
+     */
+
+    // clang-format off
+    // Add a graph with 2 runs and 5 vertices per run.
+    for (int major_idx = 0; major_idx < 1; ++major_idx) {
+      // Create the robochunk directories
+      graph_->addRun();
+      graph_->addVertex();
+      for (int minor_idx = 0; minor_idx < 4 - 1; ++minor_idx) {
+        graph_->addVertex();
+        graph_->addEdge(VertexId(major_idx, minor_idx), VertexId(major_idx, minor_idx + 1), EdgeType::Temporal, false, EdgeTransform(true));
+      }
+    }
+    // Add merged loop closure edge across runs.
+    graph_->addEdge(VertexId(0, 3), VertexId(0, 0), EdgeType::Temporal, false, EdgeTransform(true));
+
+
+    // set the edge's transform to something special;
+    {
+    Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+    transform(0, 3) = 1;
+    graph_->at(EdgeId(VertexId(0, 0),VertexId(0, 1)))->setTransform(EdgeTransform(transform).inverse());
+    }
+    {
+    Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+    transform(1, 3) = 1;
+    graph_->at(EdgeId(VertexId(0, 1),VertexId(0, 2)))->setTransform(EdgeTransform(transform).inverse());
+    }
+    {
+    Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+    transform(0, 3) = -1;
+    graph_->at(EdgeId(VertexId(0, 2),VertexId(0, 3)))->setTransform(EdgeTransform(transform).inverse());
+    }
+    {
+    Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+    transform(1, 3) = -0.5;
+    graph_->at(EdgeId(VertexId(0, 3),VertexId(0, 0)))->setTransform(EdgeTransform(transform).inverse());
+    }
+  }
+
+  void TearDown() override {}
+
+  BasicGraph::Ptr graph_ = std::make_shared<BasicGraph>();
+};
+
+/*
 TEST_F(PathTest, PathTest) {
   using BasicPath = Path<BasicGraph>;
   using Sequence = BasicPath::Sequence;
@@ -143,10 +199,77 @@ TEST_F(PathTest, PathTest) {
     EXPECT_TRUE(path->pose(1).vec() == path->pose(3).vec());
     EXPECT_TRUE(path->pose(2).vec() == end_vec);
   }
+}*/
+
+TEST_F(MergedPathTest, MergedPathTest) {
+  using BasicPath = Path<BasicGraph>;
+  using Sequence = BasicPath::Sequence;
+  auto path = std::make_shared<BasicPath>(graph_);
+  CLOG(ERROR, "test")<< "Hello?";
+
+  // SECTION("A valid path")
+  {
+    // run 0 ids
+    Sequence seq = {0ul, 1ul, 2ul, 3ul};
+    // copy the sequence into the path
+    path->setSequence(seq);
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
+    EXPECT_TRUE(path->verifySequence());
+  }
+
+  // SECTION("A valid offset path")
+  {
+    // run 0 ids
+    Sequence seq = {1ul, 2ul, 3ul, 0ul};
+    // copy the sequence into the path
+    path->setSequence(seq);
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
+    EXPECT_TRUE(path->verifySequence());
+  }
+
+  // SECTION("A valid offset path")
+  {
+    // run 0 ids
+    Sequence seq = {1ul, 2ul, 3ul, 0ul};
+    // copy the sequence into the path
+    path->setSequence(seq);
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
+    // The pose at the far end of the path
+    Eigen::Matrix<double, 6, 1> end_vec;
+    end_vec.setZero();
+    end_vec(0) = -1.;
+    end_vec(1) = 0.5;
+
+    CLOG(INFO, "test") << "About to evaluate the pose: " << path->pose(3);
+
+    EXPECT_TRUE(path->pose(3).vec() == end_vec);
+  }
+
+  {
+    // run 0 ids
+    Sequence seq = {1ul, 2ul, 3ul, 0ul, 1ul};
+    // copy the sequence into the path
+    path->setSequence(seq);
+    CLOG(INFO, "test") << "About to verify the sequence: " << path->sequence();
+    // The pose at the far end of the path
+    Eigen::Matrix<double, 6, 1> end_vec;
+    end_vec.setZero();
+    end_vec(0) = 0;
+    end_vec(1) = 0.5;
+
+    CLOG(INFO, "test") << "About to evaluate the pose: " << path->pose(3);
+
+    EXPECT_TRUE(path->pose(4).vec() == end_vec);
+  }
+
+
 }
+
 
 int main(int argc, char** argv) {
   configureLogging("", true);
+  CLOG(ERROR, "test")<< "Hello?";
+
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -27,8 +27,8 @@
         # pose graph
       - pose_graph
         # pipeline specific
-      - lidar.pipeline
-      - lidar.velodyne_converter_v2
+      #- lidar.pipeline
+      #- lidar.velodyne_converter_v2
       - lidar.preprocessing
         # "lidar.odometry_icp",
         # "lidar.odometry_map_maintenance",
@@ -90,15 +90,15 @@
         - mapping
         - vertex_test
         - intra_exp_merging
-        - dynamic_detection
+        #- dynamic_detection
         - inter_exp_merging
         - memory
       localization:
         - recall
         - icp
     #    - safe_corridor
-        - change_detection_sync
-        #- memory
+        #- change_detection_sync
+        - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
     preprocessing:

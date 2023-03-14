@@ -62,6 +62,7 @@ auto VelodyneConversionModuleV2::Config::fromROS(
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   config->estimate_time = node->declare_parameter<bool>(param_prefix + ".estimate_time", config->estimate_time);
   config->angular_vel = node->declare_parameter<double>(param_prefix + ".angular_vel", config->angular_vel);
+  config->horizontal_downsample = node->declare_parameter<int>(param_prefix + ".downsample_ratio", config->horizontal_downsample);
 
   // clang-format on
   return config;
@@ -118,8 +119,28 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
     }
   }
 
+
+  auto filtered_point_cloud =
+    std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
+  CLOG(DEBUG, "lidar.velodyne_converter_v2") << "Reducing the point cloud density by " << config_->horizontal_downsample;
+  if (config_->horizontal_downsample > 1) {
+
+  /// Range cropping
+  
+    std::vector<int> indices;
+    indices.reserve(filtered_point_cloud->size());
+    for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+      if (i % config_->horizontal_downsample == 0)
+        indices.emplace_back(i);
+    }
+    *filtered_point_cloud =
+        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+  
+  }
+
+
   // Output
-  qdata.raw_point_cloud = point_cloud;
+  qdata.raw_point_cloud = filtered_point_cloud;
 
   // Visualize
   if (config_->visualize) {

@@ -43,6 +43,7 @@ class VelodyneConversionModuleV2 : public tactic::BaseModule {
     bool visualize = false;
     bool estimate_time = false;
     double angular_vel = 600*M_PI/30;
+    int horizontal_downsample = 1;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
