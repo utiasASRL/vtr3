@@ -30,6 +30,7 @@ StereoPipeline::StereoPipeline(
     
   for (auto module : config_->preprocessing)
     preprocessing_.push_back(factory()->get("preprocessing." + module));
+
 //   // odometry
 //   for (auto module : config_->odometry)
 //     odometry_.push_back(factory()->get("odometry." + module));

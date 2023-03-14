@@ -21,3 +21,4 @@
 
 #include <vtr_vision/modules/preprocessing/conversion_extraction_module.hpp>
 #include <vtr_vision/modules/preprocessing/calibration_module.hpp>
+#include <vtr_vision/modules/preprocessing/image_triangulation_module.hpp>

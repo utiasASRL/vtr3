@@ -67,7 +67,7 @@
     pipeline:
       type: stereo
 
-      preprocessing: ["adapter","extraction"]
+      preprocessing: ["adapter","extraction", "triangulation"]
       # odometry: [] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 

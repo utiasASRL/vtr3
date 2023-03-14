@@ -41,7 +41,7 @@ auto CalibrationModule::Config::fromROS(
   auto extrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".extrinsic");
   config->distortion=Eigen::Map<CameraDistortion>(distortion.data());
   config->intrinsic=Eigen::Map<CameraIntrinsic>(intrinsic.data());
-  // config->extrinsic=Eigen::Map<Transform>(extrinsic.data());
+  config->extrinsic=Eigen::Map<Eigen::Matrix4d>(extrinsic.data());
   config->rig_name = node->declare_parameter<std::string>(param_prefix + ".rig_name", config->rig_name);
 
   return config;
@@ -62,6 +62,12 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
 
   CameraDistortions camera_distortions {config_->distortion};
   CameraIntrinsics camera_intrinsics {config_->intrinsic};
+
+  // Eigen::Matrix4d matrix {config_->extrinsic};
+  Transform extrinsic {config_->extrinsic};
+  Transforms extrinsics {extrinsic};
+  // Transforms extrinsics {Transform(Eigen::Matrix4d(config_->extrinsic))};
+
   // Transforms extrinsics {config_->extrinsic};
 
   rig_calibration.distortions=camera_distortions;
