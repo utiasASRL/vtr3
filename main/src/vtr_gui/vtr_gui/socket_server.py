@@ -21,7 +21,7 @@ import flask_socketio
 from vtr_navigation.vtr_ui_builder import build_remote
 
 # socket io server address and port
-SOCKET_ADDRESS = 'localhost'
+SOCKET_ADDRESS = '0.0.0.0'
 SOCKET_PORT = 5201
 
 logger = logging.getLogger('SocketServer')
@@ -128,42 +128,42 @@ def handle_change_env_info(data):
 def handle_server_state(json):
   logger.info('Broadcasting server state')
   server_state = json['server_state']
-  socketio.emit(u"mission/server_state", server_state, broadcast=True)
+  socketio.emit(u"mission/server_state", server_state)
 
 
 @socketio.on('notification/graph_state')
 def handle_graph_state(json):
   logger.info('Broadcasting graph state')
   graph_state = json['graph_state']
-  socketio.emit(u"graph/state", graph_state, broadcast=True)
+  socketio.emit(u"graph/state", graph_state)
 
 
 @socketio.on('notification/graph_update')
 def handle_graph_update(json):
   logger.info('Broadcasting graph update')
   graph_update = json['graph_update']
-  socketio.emit(u"graph/update", graph_update, broadcast=True)
+  socketio.emit(u"graph/update", graph_update)
 
 
 @socketio.on('notification/robot_state')
 def handle_robot_state(json):
   logger.info('Broadcasting robot state')
   robot_state = json['robot_state']
-  socketio.emit(u"robot/state", robot_state, broadcast=True)
+  socketio.emit(u"robot/state", robot_state)
 
 
 @socketio.on('notification/following_route')
 def handle_following_route(json):
   logger.info('Broadcasting following route')
   following_route = json['following_route']
-  socketio.emit(u"following_route", following_route, broadcast=True)
+  socketio.emit(u"following_route", following_route)
 
 
 @socketio.on('notification/task_queue_update')
 def handle_task_queue_update(json):
   logger.info('Broadcasting task queue update')
   task_queue_update = json['task_queue_update']
-  socketio.emit(u"task_queue/update", task_queue_update, broadcast=True)
+  socketio.emit(u"task_queue/update", task_queue_update)
 
 
 def main():
