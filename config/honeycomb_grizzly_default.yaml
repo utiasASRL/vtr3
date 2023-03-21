@@ -25,6 +25,8 @@
       - mission.state_machine
         # pose graph
       - pose_graph
+      - stereo.preprocessing
+
         # pipeline specific
         # "lidar.pipeline",
         # "lidar.honeycomb_converter",

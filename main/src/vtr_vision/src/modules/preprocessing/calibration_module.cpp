@@ -39,9 +39,9 @@ auto CalibrationModule::Config::fromROS(
   auto distortion = node->declare_parameter<std::vector<double>>(param_prefix + ".distortion");
   auto intrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".intrinsic");
   auto extrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".extrinsic");
+  config->baseline = node->declare_parameter<double>(param_prefix + ".baseline");
   config->distortion=Eigen::Map<CameraDistortion>(distortion.data());
   config->intrinsic=Eigen::Map<CameraIntrinsic>(intrinsic.data());
-  config->extrinsic=Eigen::Map<Eigen::Matrix4d>(extrinsic.data());
   config->rig_name = node->declare_parameter<std::string>(param_prefix + ".rig_name", config->rig_name);
 
   return config;
@@ -60,19 +60,22 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
   RigCalibration rig_calibration;
 
 
-  CameraDistortions camera_distortions {config_->distortion};
-  CameraIntrinsics camera_intrinsics {config_->intrinsic};
+  CameraDistortions camera_distortions {config_->distortion, config_->distortion};
+  CameraIntrinsics camera_intrinsics {config_->intrinsic, config_->intrinsic};
 
   // Eigen::Matrix4d matrix {config_->extrinsic};
-  Transform extrinsic {config_->extrinsic};
-  Transforms extrinsics {extrinsic};
-  // Transforms extrinsics {Transform(Eigen::Matrix4d(config_->extrinsic))};
+  Transform left_extrinsic;
+  Eigen::Matrix3d eye3;
+  Eigen::Vector3d r_ba_ina;
+  r_ba_ina[0] = config_->baseline;
 
-  // Transforms extrinsics {config_->extrinsic};
+  Transform right_extrinsic {eye3, r_ba_ina};
+  Transforms extrinsics {left_extrinsic, right_extrinsic};
+
 
   rig_calibration.distortions=camera_distortions;
   rig_calibration.intrinsics=camera_intrinsics;
-  // rig_calibration.extrinsics=extrinsics;
+  rig_calibration.extrinsics=extrinsics;
 
   qdata.rig_calibrations->push_back(rig_calibration);
 

@@ -60,7 +60,7 @@ class CalibrationModule : public tactic::BaseModule {
 
     CameraDistortion distortion;
     CameraIntrinsic intrinsic;
-    Eigen::Matrix4d extrinsic;
+    float baseline = 0.0;       //m
     std::string rig_name = "stereo";
     
   };

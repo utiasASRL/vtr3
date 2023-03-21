@@ -47,12 +47,18 @@ void ImageTriangulationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCa
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // check if the required data is in this cache
-  if (!qdata.rig_features.valid() || !qdata.rig_calibrations.valid())
+  if (!qdata.rig_features.valid() || !qdata.rig_calibrations.valid()){
+    CLOG(WARNING, "stereo.preprocessing") << "Error the cache does not contain features for triangulation";
     return;
+  }
+
 
   // Inputs, frames, calibration
   const auto &features = *qdata.rig_features;
   const auto &calibrations = *qdata.rig_calibrations;
+
+  CLOG(DEBUG, "stereo.preprocessing") << "Features size: " << features.size();
+
 
   // Outputs, candidate_landmarks
   auto &candidate_landmarks = qdata.candidate_landmarks.emplace();
@@ -65,6 +71,10 @@ void ImageTriangulationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCa
   for (; feature_itr != features.end() && calibration_itr != calibrations.end();
        ++feature_itr, ++calibration_itr) {
     // add an empty set of rig landmarks for this rig
+    CLOG(DEBUG, "stereo.preprocessing") << "Each rig feature loop";
+    CLOG(DEBUG, "stereo.preprocessing") << calibration_itr->extrinsics.size();
+
+
     candidate_landmarks->emplace_back(vtr::vision::RigLandmarks());
     auto &rig_landmarks = candidate_landmarks->back();
     rig_landmarks.name = feature_itr->name;
@@ -79,9 +89,14 @@ void ImageTriangulationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCa
       double f = calibration_itr->intrinsics.front()(0, 0);
       d_min = f * baseline / config_->max_triangulation_depth;
       d_max = f * baseline / config_->min_triangulation_depth;
+    } else {
+      CLOG(WARNING, "stereo.preprocessing") << "Baseline ignored";
     }
 
     for (const auto &channel : feature_itr->channels) {
+      
+      CLOG(DEBUG, "stereo.preprocessing") << "Each channel feature loop";
+
       // add an empty set of channel landmarks to this rig
       rig_landmarks.channels.emplace_back(vtr::vision::ChannelLandmarks());
       auto &landmarks = rig_landmarks.channels.back();
@@ -150,14 +165,6 @@ void ImageTriangulationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCa
   //   visualize::showStereoMatches(*qdata.vis_mutex, qdata, " stereo features");
 }
 
-// void ImageTriangulationModule::visualizeImpl(QueryCache &qdata0,
-//                                              const Graph::ConstPtr &) {
-//   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-//   if (config_->visualize_features)
-//     visualize::showFeatures(*qdata.vis_mutex, qdata, " features");
-//   if (config_->visualize_stereo_features)
-//     visualize::showStereoMatches(*qdata.vis_mutex, qdata, " stereo features");
-// }
 
 }  // namespace vision
 }  // namespace vtr
