@@ -36,12 +36,12 @@ class StereoPipeline : public tactic::BasePipeline {
 
   /** \brief Collection of config parameters */
   struct Config : public BasePipeline::Config {
-    // using Ptr = std::shared_ptr<Config>;
-      PTR_TYPEDEFS(Config);
-    // using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
     std::vector<std::string> preprocessing;
+    std::vector<std::string> odometry;
+    std::vector<std::string> localization;
+    std::vector<std::string> bundle_adjustment;
 
-    // std::string parameter = "default value";
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -135,6 +135,7 @@ class StereoPipeline : public tactic::BasePipeline {
   Config::ConstPtr config_;
 
   std::vector<tactic::BaseModule::Ptr> preprocessing_;
+  std::vector<tactic::BaseModule::Ptr> odometry_;
 
   /** \brief Mutex to ensure thread safety with OpenCV HighGui calls */
   std::shared_ptr<std::mutex> vis_mutex_ptr_ = std::make_shared<std::mutex>();

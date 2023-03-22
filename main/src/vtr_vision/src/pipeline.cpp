@@ -13,11 +13,11 @@ auto StereoPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                    
   // clang-format off
   config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
-//   config_->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config_->odometry);
-//   config_->bundle_adjustment = node->declare_parameter<std::vector<std::string>>(param_prefix + ".bundle_adjustment", config_->bundle_adjustment);
-//   config_->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config_->localization);
+  config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
+  config->bundle_adjustment = node->declare_parameter<std::vector<std::string>>(param_prefix + ".bundle_adjustment", config->bundle_adjustment);
+  config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
   // clang-format on
-    return config;
+  return config;
 }
 
 
@@ -32,8 +32,8 @@ StereoPipeline::StereoPipeline(
     preprocessing_.push_back(factory()->get("preprocessing." + module));
 
 //   // odometry
-//   for (auto module : config_->odometry)
-//     odometry_.push_back(factory()->get("odometry." + module));
+  for (auto module : config_->odometry)
+    odometry_.push_back(factory()->get("odometry." + module));
 //   // localization
 //   for (auto module : config_->localization)
 //     localization_.push_back(factory()->get("localization." + module));

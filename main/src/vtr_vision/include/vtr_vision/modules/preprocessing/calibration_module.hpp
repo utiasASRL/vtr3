@@ -84,9 +84,6 @@ class CalibrationModule : public tactic::BaseModule {
    * grayscale and CC),and feature extraction in parallel for each rig, channel
    * and camera.
    */
-  // void runImpl(tactic::QueryCache &qdata,
-  //              const tactic::Graph::ConstPtr &) override;
-
     void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 

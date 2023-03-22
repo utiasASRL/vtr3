@@ -277,55 +277,48 @@ typedef std::vector<RigFeatures> SuiteFeatures;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Landmark Matches
-struct PersistentId {
-  PersistentId() : stamp(-1), robot(-1) {}
-  PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {}
-  uint64_t stamp;
-  uint32_t robot;
-};
+// struct PersistentId {
+//   PersistentId() : stamp(-1), robot(-1) {}
+//   PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {}
+//   uint64_t stamp;
+//   uint32_t robot;
+// };
+
+using VertexId = pose_graph::VertexId;
+
 
 struct LandmarkId {
-  LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1), persistent() {}
+  LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1) {}
 
-  LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch)
-      : index(-1), channel(ch), camera(-1), rig(ri), persistent(p) {}
+  LandmarkId(const VertexId &p, uint32_t ri, uint32_t ch)
+      : index(-1), channel(ch), camera(-1), rig(ri), vid(p) {}
 
   // THIS ORDER IS DIFFERENT THAN NORMAL, READ CAREFULLY
-  LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch, uint32_t idx,
+  LandmarkId(const VertexId &p, uint32_t ri, uint32_t ch, uint32_t idx,
              uint32_t cm)
-      : index(idx), channel(ch), camera(cm), rig(ri), persistent(p) {}
+      : index(idx), channel(ch), camera(cm), rig(ri), vid(p) {}
   uint32_t index;
   uint32_t channel;
   uint32_t camera;
   uint32_t rig;
-  PersistentId persistent;
+  VertexId vid;
 };
 typedef std::vector<LandmarkId> LandmarkIds;
 
 inline std::ostream &operator<<(std::ostream &os, const LandmarkId &id) {
-  os << "ro" << id.persistent.robot << ",t" << id.persistent.stamp << ",ri"
+  os << ",vid" << id.vid << ",ri"
      << id.rig << ",ch" << id.channel << ",i" << id.index << ",ca" << id.camera;
   return os;
 }
 
-// Equality comparison so it can be used in a sorted map
-inline bool operator==(const vtr::vision::PersistentId &a,
-                       const vtr::vision::PersistentId &b) {
-  return a.stamp == b.stamp && a.robot == b.robot;
-}
 
 // Equality comparison so it can be used in a sorted map
 inline bool operator==(const vtr::vision::LandmarkId &a,
                        const vtr::vision::LandmarkId &b) {
-  return a.persistent == b.persistent && a.rig == b.rig &&
+  return a.vid == b.vid && a.rig == b.rig &&
          a.camera == b.camera && a.channel == b.channel && a.index == b.index;
 }
 
-// Inequality comparison so it can be used in a sorted map.
-inline bool operator!=(const vtr::vision::PersistentId &a,
-                       const vtr::vision::PersistentId &b) {
-  return !(a == b);
-}
 
 // Inequality comparison so it can be used in a sorted map.
 inline bool operator!=(const vtr::vision::LandmarkId &a,
@@ -333,29 +326,12 @@ inline bool operator!=(const vtr::vision::LandmarkId &a,
   return !(a == b);
 }
 
-// Inequality comparison so it can be used in a sorted map.
-inline bool operator<(const vtr::vision::PersistentId &a,
-                      const vtr::vision::PersistentId &b) {
-  if (a.robot < b.robot) return true;
-  if (a.robot > b.robot) return false;
-  if (a.stamp < b.stamp) return true;
-  if (a.stamp > b.stamp) return false;
-  return false;  // equal
-}
-
-// Inequality comparison so it can be used in a sorted map.
-inline bool operator>(const vtr::vision::PersistentId &a,
-                      const vtr::vision::PersistentId &b) {
-  if (a == b) return false;
-  if (a < b) return false;
-  return true;
-}
 
 // Inequality comparison so it can be used in a sorted map.
 inline bool operator<(const vtr::vision::LandmarkId &a,
                       const vtr::vision::LandmarkId &b) {
-  if (a.persistent < b.persistent) return true;
-  if (a.persistent > b.persistent) return false;
+  if (a.vid < b.vid) return true;
+  if (a.vid > b.vid) return false;
   if (a.rig < b.rig) return true;
   if (a.rig > b.rig) return false;
   if (a.camera < b.camera) return true;
@@ -647,7 +623,7 @@ struct hash<vtr::vision::LandmarkId> {
   result_type operator()(argument_type const &lid) const {
     // return std::hash(s.SerializeAsString()); // <- easy but slow
     result_type seed = 0;
-    vtr::common::hash_combine(seed, lid.persistent.stamp, lid.persistent.robot,
+    vtr::common::hash_combine(seed, lid.vid,
                               lid.rig, lid.channel, /*lid.camera,*/ lid.index);
     return seed;
   }  // ()

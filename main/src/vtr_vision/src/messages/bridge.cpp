@@ -674,22 +674,6 @@ void updateLandmarks(vision_msgs::RigLandmarks &landmarks, const vision::RigLand
 }
 #endif
 
-vision::PersistentId copyPersistentId(
-    const vtr_messages::msg::GraphPersistentId &persistent_id) {
-  vision::PersistentId id;
-  id.robot = persistent_id.robot;
-  id.stamp = persistent_id.stamp;
-  return id;
-}
-
-vtr_messages::msg::GraphPersistentId copyPersistentId(
-    const vision::PersistentId &id) {
-  vtr_messages::msg::GraphPersistentId persistent_id;
-  persistent_id.robot = id.robot;
-  persistent_id.stamp = id.stamp;
-  return persistent_id;
-}
-
 vision::LandmarkId copyLandmarkId(const vtr_messages::msg::FeatureId &ros_id) {
   vision::LandmarkId id;
 
@@ -697,7 +681,7 @@ vision::LandmarkId copyLandmarkId(const vtr_messages::msg::FeatureId &ros_id) {
   id.camera = ros_id.camera;
   id.channel = ros_id.channel;
   id.rig = ros_id.rig;
-  id.persistent = copyPersistentId(ros_id.persistent);
+  id.vid = ros_id.vid;
   return id;
 }
 
@@ -707,7 +691,7 @@ vtr_messages::msg::FeatureId copyLandmarkId(const vision::LandmarkId &id) {
   ros_id.camera = id.camera;
   ros_id.channel = id.channel;
   ros_id.rig = id.rig;
-  ros_id.persistent = copyPersistentId(id.persistent);
+  ros_id.vid = id.vid;
   return ros_id;
 }
 
