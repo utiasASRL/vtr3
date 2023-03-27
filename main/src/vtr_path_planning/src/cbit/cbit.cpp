@@ -257,11 +257,11 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CLOG(INFO, "path_planning.cbit") << "The path repeat direction is:" << path_direction;
 
 
-  CLOG(INFO, "path_planning.cbit") << "Trying to create global path";
+  CLOG(ERROR, "path_planning.cbit") << "Trying to create global path";
   // Create the path class object (Path preprocessing)
   CBITPath global_path(cbit_config, euclid_path_vec);
   // Make a pointer to this path
-  std::shared_ptr<CBITPath> global_path_ptr = std::make_shared<CBITPath>(global_path);
+  global_path_ptr = std::make_shared<CBITPath>(global_path);
   CLOG(INFO, "path_planning.cbit") << "Teach Path has been pre-processed. Attempting to initialize the dynamic corridor";
 
 
@@ -413,12 +413,20 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     bool point_stabilization = meas_result.point_stabilization;
 
 
+    // Experimental, corridor MPC reference measurement generation:
+    CLOG(WARNING, "mpc.cbit") << "Attempting to generate T_ref measurements";
+    auto meas_result3 = GenerateReferenceMeas3(global_path_ptr, robot_pose, K,  DT, VF, curr_sid);
+    auto measurements3 = meas_result3.measurements;
+    bool point_stabilization3 = meas_result3.point_stabilization;
+    // END of experimental code
+
+
     // Create and solve the STEAM optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
-      auto mpc_result = SolveMPC2(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
+      auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
       CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
@@ -430,8 +438,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
       applied_vel(1) = 0.0;
     }
 
-    CLOG(INFO, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
-
+    CLOG(ERROR, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
  
     // If required, saturate the output velocity commands based on the configuration limits
     CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";

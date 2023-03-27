@@ -37,6 +37,7 @@ class CBITPath {
         std::vector<Pose> disc_path; // Stores the se3 discrete path as a vector of Euclidean vectors (The original disc path) // TODO, change to se(3) class
         std::vector<double> p; //associated p values for each pose in disc_path
         std::vector<Pose> path; // Stores the se3 splined discrete path as a vector of Euclidean vectors; //TODO, change to se(3) class
+        std::vector<int> sid; // store the sid value of the transform from the teach path
         CBITPath(CBITConfig config, std::vector<Pose> initial_path); // constructor; need to feed this the path 
         CBITPath() = default;
 

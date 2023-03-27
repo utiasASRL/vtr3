@@ -173,6 +173,9 @@ class CBIT : public BasePathPlanner {
   // Pointers to the corridor
   std::shared_ptr<CBITCorridor> corridor_ptr;
 
+  // Pointer to the global path
+  std::shared_ptr<CBITPath> global_path_ptr;
+
   tactic::Timestamp prev_stamp;
 
   // Store the previously applied velocity and a sliding window history of MPC results

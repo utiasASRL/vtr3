@@ -68,13 +68,17 @@ void ScalarLogBarrierEvaluator<DIM>::getRelatedVarKeys(KeySet& keys) const {
 
 template <int DIM>
 auto ScalarLogBarrierEvaluator<DIM>::value() const -> OutType {
-  return log(v_->value());
+  auto v_intermed = v_->value();
+  v_intermed[0] = (v_->value()[0]); // TODO. need to validate this, not 100% sure this is the best/correct way to do this log
+  return v_intermed;
 }
 
 template <int DIM>
 auto ScalarLogBarrierEvaluator<DIM>::forward() const -> typename Node<OutType>::Ptr {
   const auto child = v_->forward();
-  const auto value = log(child->value());
+  auto value = child->value(); 
+  value[0] = log((child->value())[0]); // TODO. need to validate this, not 100% sure this is the best/correct way to do this log
+  //const auto value = log((child->value()[0]));
   const auto node = Node<OutType>::MakeShared(value);
   node->addChild(child);
   return node;
@@ -86,7 +90,7 @@ void ScalarLogBarrierEvaluator<DIM>::backward(const Eigen::MatrixXd& lhs,
                                         Jacobians& jacs) const {
   const auto child = std::static_pointer_cast<Node<InType>>(node->at(0));
   if (v_->active()) {
-    v_->backward(1.0 /(lhs), child, jacs);
+    v_->backward(lhs.inverse(), child, jacs);
   }
 }
 

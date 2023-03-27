@@ -55,7 +55,7 @@ class HomoPointErrorEvaluatorLeft : public Evaluable<Eigen::Matrix<double, 1, 1>
 };
 
 HomoPointErrorEvaluatorLeft::Ptr homo_point_error_left(
-    const Evaluable<HomoPointErrorEvaluatoLeft::InType>::ConstPtr& pt,
+    const Evaluable<HomoPointErrorEvaluatorLeft::InType>::ConstPtr& pt,
     const HomoPointErrorEvaluatorLeft::InType& meas_pt);
 
 
