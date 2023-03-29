@@ -17,6 +17,7 @@
         "pose_graph",
         "stereo.pipeline",
         "stereo.preprocessing",
+        "stereo.recall",
         "preprocessing",
         "path_tracker",
         "tactic.pipeline"
@@ -69,7 +70,7 @@
       type: stereo
 
       preprocessing: ["adapter","extraction", "triangulation"]
-      # odometry: [] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry: ["recall"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 
       # bundle_adjustment: [] #["recall", "steam"]

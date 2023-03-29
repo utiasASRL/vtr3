@@ -134,9 +134,11 @@ void LandmarkRecallModule::recallLandmark(
   if (vertex_landmarks_.find(vid) == vertex_landmarks_.end()) {
     //const auto msg = target_vertex->retrieve<PointMapPointer>(
       //  "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
-    vertex_landmarks_[vid] =
-        landmark_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
+    
+    auto locked_landmark_msg = landmark_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
             rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
+    auto locked_msg = locked_landmark_msg->sharedLocked();
+    vertex_landmarks_[vid] = locked_msg.get().getDataPtr();
   }
 
   auto landmarks = vertex_landmarks_[landmark_vertex->id()];
@@ -235,9 +237,11 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
   auto vertex = graph->at(map_id);
 
   // TODO: Add a try catch, in case the rig is not in the graph...
-  auto observations =
+  auto locked_obs_msgs =
       vertex->retrieve<vtr_messages::msg::RigObservations>(
-          rig_name + "_observations", true);
+          rig_name + "_observations", "vtr_messages/msg/RigObservations");
+  auto locked_msg = locked_obs_msgs->sharedLocked();
+  auto observations = locked_msg.get().getDataPtr();
   if (observations == nullptr) return landmark_frame;
 
   // simply move the observations over.
@@ -301,19 +305,18 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedVehicleTransform(
     T_map_lm = T_map_lm_find->second;
   }
 
+
+  using TemporalEval = pose_graph::eval::mask::temporal::Eval<Graph>;
+  using DirectionEvaluator = pose_graph::eval::mask::direction_from_vertex::Eval;
+
   // only search on temporal (vo) edges
-  TemporalEvaluator::Ptr tempeval(new TemporalEvaluator());
-  tempeval->setGraph((void *)graph.get());
+  TemporalEval::Ptr tempeval = std::make_shared<TemporalEval>(*graph);
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  using DirectionEvaluator =
-      pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>;
   auto direval = std::make_shared<DirectionEvaluator>(start_vid, true);
-  direval->setGraph((void *)graph.get());
   // combine the temporal and backwards mask
-  auto evaluator = pose_graph::eval::And(tempeval, direval);
-  evaluator->setGraph((void *)graph.get());
 
+  auto evaluator = pose_graph::eval::And(tempeval, direval);
   // compound and store transforms until we hit the target landmark_vid
   auto itr = ++graph->begin(start_vid, 0, evaluator);
   for (; itr != graph->end(); ++itr) {
@@ -382,9 +385,13 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
 
   // If not, we should try and extract the T_s_v transform for this vertex.
   auto map_vertex = graph->at(vid);
-  auto rc_transforms =
+
+  auto locked_rc_transforms =
       map_vertex->retrieve<vtr_messages::msg::Transform>(
-          rig_name + "_T_sensor_vehicle");
+          rig_name + "_T_sensor_vehicle", "vtr_messages/msg/Transform");
+  
+  auto locked_msg = locked_rc_transforms->sharedLocked();
+  auto rc_transforms = locked_msg.get().getDataPtr();
 
   Eigen::Matrix<double, 6, 1> tmp;
   auto &mt = rc_transforms->translation;

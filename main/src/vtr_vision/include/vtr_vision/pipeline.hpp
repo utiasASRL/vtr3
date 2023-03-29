@@ -81,8 +81,8 @@ class StereoPipeline : public tactic::BasePipeline {
 
   void runOdometry_(const tactic::QueryCache::Ptr &, const tactic::OutputCache::Ptr &,
                     const tactic::Graph::Ptr &,
-                    const std::shared_ptr<tactic::TaskExecutor> &) override {
-    /// This method is called on every preprocessed input data.
+                    const std::shared_ptr<tactic::TaskExecutor> &) override;
+                        /// This method is called on every preprocessed input data.
     /// The following will be in qdata:
     ///   - everything from preprocessing.
     ///   - first_frame: the first data received for the current run (teach or
@@ -98,7 +98,7 @@ class StereoPipeline : public tactic::BasePipeline {
     ///   - T_r_v_odo, odo_success, vertex_test_result
     /// This method should only read from the graph.
     /// Any debug info, extra stuff can be put in qdata.
-  }
+  
 
   void runLocalization_(const tactic::QueryCache::Ptr &, const tactic::OutputCache::Ptr &,
                         const tactic::Graph::Ptr &,
