@@ -111,6 +111,12 @@ class CBIT : public BasePathPlanner {
     Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
     Eigen::Matrix<double, 1, 1> lat_error_cov = Eigen::Matrix<double, 1, 1>::Zero();
 
+    // MPC weight params:
+    double pose_error_weight = 1.0;
+    double vel_error_weight = 1.0;
+    double acc_error_weight = 1.0;
+    double kin_error_weight = 1.0;
+    double lat_error_weight = 0.01;
 
     // Misc
     int command_history_length = 100;

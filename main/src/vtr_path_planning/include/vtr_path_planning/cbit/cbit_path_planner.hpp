@@ -137,5 +137,5 @@ class CBITPlanner {
             bool bool_result;
             Node col_node;
         };
-        struct collision_result discrete_collision_v2(double discretization, Node start, Node end);
+        struct collision_result discrete_collision_v2(double discretization, Node start, Node end, bool tight = false);
 };

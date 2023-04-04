@@ -81,7 +81,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
   config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
 
-  // COST FUNCTION WEIGHTS
+  // COST FUNCTION COVARIANCE
   const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
   config->pose_error_cov.diagonal() << pose_error_diag[0], pose_error_diag[1], pose_error_diag[2], pose_error_diag[3], pose_error_diag[4], pose_error_diag[5];
 
@@ -96,6 +96,14 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 
   const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
   config->lat_error_cov.diagonal() << lat_error_diag[0];
+
+  // COST FUNCTION WEIGHTS
+  config->pose_error_weight = node->declare_parameter<double>(prefix + ".mpc.pose_error_weight", config->pose_error_weight);
+  config->vel_error_weight = node->declare_parameter<double>(prefix + ".mpc.vel_error_weight", config->vel_error_weight);
+  config->acc_error_weight = node->declare_parameter<double>(prefix + ".mpc.acc_error_weight", config->acc_error_weight);
+  config->kin_error_weight = node->declare_parameter<double>(prefix + ".mpc.kin_error_weight", config->kin_error_weight);
+  config->lat_error_weight = node->declare_parameter<double>(prefix + ".mpc.lat_error_weight", config->lat_error_weight);
+
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
 
@@ -293,7 +301,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   // retrieve the transorm info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
-
+  CLOG(INFO, "path_planning.cbit") << "The T_r_v_odo is: " << T_r_v_odo;
+  CLOG(INFO, "path_planning.cbit") << "The T_p_r is: " << T_p_r;
   // Extrapolate the pose of the robot into the future based on the localization delay
   prev_stamp = stamp;
   const auto curr_time = now();  // always in nanoseconds
@@ -339,6 +348,13 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     Eigen::Matrix<double, 1, 1> lat_noise_vect;
     lat_noise_vect = config_->lat_error_cov;
 
+    // Cost term weights
+    double pose_error_weight = config_->pose_error_weight;
+    double vel_error_weight = config_->vel_error_weight;
+    double acc_error_weight = config_->acc_error_weight;
+    double kin_error_weight = config_->kin_error_weight;
+    double lat_error_weight = config_->lat_error_weight;
+  
 
     
     // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
@@ -388,10 +404,10 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
 
     // Uncomment for using the mpc extrapolated robot pose for control
-    lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp2);
+    //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp2);
 
     // no extrapolation (comment this out if we are not using extrapolation)
-    //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
+    lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
 
     // TODO: Set whether to use mpc extrapolation as a config param (though there is almost never a good reason not to use it)
 
@@ -415,9 +431,11 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // Experimental, corridor MPC reference measurement generation:
     CLOG(WARNING, "mpc.cbit") << "Attempting to generate T_ref measurements";
-    auto meas_result3 = GenerateReferenceMeas3(global_path_ptr, robot_pose, K,  DT, VF, curr_sid);
+    auto meas_result3 = GenerateReferenceMeas3(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid);
     auto measurements3 = meas_result3.measurements;
     bool point_stabilization3 = meas_result3.point_stabilization;
+    std::vector<double> barrier_q_left = meas_result3.barrier_q_left;
+    std::vector<double> barrier_q_right = meas_result3.barrier_q_right;
     // END of experimental code
 
 
@@ -426,7 +444,9 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
-      auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization);
+      auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      //auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization); // Tracking controller version
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
       CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
@@ -443,7 +463,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     // If required, saturate the output velocity commands based on the configuration limits
     CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
     Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel2(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
-
+    CLOG(ERROR, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
     vel_history.erase(vel_history.begin());
     vel_history.push_back(saturated_vel);

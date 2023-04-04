@@ -19,7 +19,7 @@
         # path planner
         #"path_planning",
         #"path_planning.teb",
-        "path_planning.cbit",
+        #"path_planning.cbit",
         #"path_planning.cbit_planner",
         #"mpc.cbit",
         #"mpc_debug.cbit",
@@ -306,7 +306,7 @@
         support_variance: 0.05
         support_threshold: 2.5
 
-        influence_distance: 0.50 # was 0.5 Jordy # Note that the total distancr=e where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        influence_distance: 0.50 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
         minimum_distance: 0.9 # was 0.3 Jordy 
 
         # cost map
@@ -409,7 +409,7 @@
     ############ path planning configuration ############
     path_planning:
       type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
-      control_period: 50 # ms
+      control_period: 100 # ms
       teb:
         # vtr specific
         visualize: true
@@ -465,21 +465,43 @@
         
       mpc:
         # Controller Params
-        horizon_steps: 20
-        horizon_step_size: 0.3
+        horizon_steps: 15
+        horizon_step_size: 0.15
         forward_vel: 1.00
-        max_lin_vel: 1.55
-        max_ang_vel: 0.75
+        max_lin_vel: 1.50
+        max_ang_vel: 1.00
         vehicle_model: "unicycle"
         
+        # Cost Function Covariance Matrices
+        #pose_error_cov: [0.75, 0.75, 0.75, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
+        #vel_error_cov: [1.0, 10.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [1.0, 1.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [100.0]
+
         # Cost Function Weights
-        pose_error_cov: [0.75, 0.75, 0.75, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
-        vel_error_cov: [1.0, 10.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [1.0, 1.0]
-        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        lat_error_cov: [100.0]
+        #pose_error_weight: 1.0
+        #acc_error_weight: 1.0
+        #kin_error_weight: 1.0
+        #lat_error_weight: 0.01
         
-        #backup
+        # Cost Function Covariance Matrices
+        #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
+        pose_error_cov: [50.0, 50.0, 10000.0, 10000.0, 10000.0, 10000.0] 
+        vel_error_cov: [500.0, 50.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [2.0, 2.0]
+        acc_error_cov: [50.0, 50.0]
+        kin_error_cov: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        lat_error_cov: [50.0]
+        
+        # Cost Function Weights
+        pose_error_weight: 2.0
+        vel_error_weight: 1.0
+        acc_error_weight: 1.0
+        kin_error_weight: 10000.0
+        lat_error_weight: 0.02
+        #backup for tracking mpc
         #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
         #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
         #acc_error_cov: [0.1, 0.75]

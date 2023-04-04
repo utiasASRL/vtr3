@@ -29,7 +29,7 @@
 
 
 // Main MPC problem solve function
-struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3::Transformation T0, std::vector<lgmath::se3::Transformation> measurements, std::vector<lgmath::se3::Transformation> measurements_cbit, int K, double DT, double VF, Eigen::Matrix<double, 6, 6> pose_noise_vect, Eigen::Matrix<double, 2, 2> vel_noise_vect, Eigen::Matrix<double, 2, 2> accel_noise_vect, Eigen::Matrix<double, 6, 6> kin_noise_vect, bool point_stabilization)
+struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3::Transformation T0, std::vector<lgmath::se3::Transformation> measurements, std::vector<lgmath::se3::Transformation> measurements_cbit, std::vector<double> barrier_q_left, std::vector<double> barrier_q_right, int K, double DT, double VF, Eigen::Matrix<double, 1, 1> lat_noise_vect, Eigen::Matrix<double, 6, 6> pose_noise_vect, Eigen::Matrix<double, 2, 2> vel_noise_vect, Eigen::Matrix<double, 2, 2> accel_noise_vect, Eigen::Matrix<double, 6, 6> kin_noise_vect, bool point_stabilization, double pose_error_weight, double vel_error_weight, double acc_error_weight, double kin_error_weight, double lat_error_weight)
 {
     
     // Conduct an MPC Iteration given current configurations
@@ -60,25 +60,20 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
 
 
     // Setup shared loss functions and noise models for all cost terms
-    const auto sharedLossFunc = steam::L2LossFunc::MakeShared(); // The default L2 loss function weights all cost terms with a value of 1.0
+    //const auto sharedLossFunc = steam::L2LossFunc::MakeShared(); // The default L2 loss function weights all cost terms with a value of 1.0 (not using this one anymore)
 
-    const auto lateralLossFunc = steam::L2WeightedLossFunc::MakeShared(0.01); // The custom L2WeightedLossFunc allows you to dynamically set the weights of cost terms by providing the value as an argument
+    // The custom L2WeightedLossFunc allows you to dynamically set the weights of cost terms by providing the value as an argument
+    const auto poseLossFunc = steam::L2WeightedLossFunc::MakeShared(pose_error_weight);
+    const auto velLossFunc = steam::L2WeightedLossFunc::MakeShared(vel_error_weight); // todo, add a param for this
+    const auto accelLossFunc = steam::L2WeightedLossFunc::MakeShared(acc_error_weight);
+    const auto kinLossFunc = steam::L2WeightedLossFunc::MakeShared(kin_error_weight);
+    const auto latLossFunc = steam::L2WeightedLossFunc::MakeShared(lat_error_weight); 
 
-    const auto sharedPoseNoiseModel =
-        steam::StaticNoiseModel<6>::MakeShared(pose_noise_vect);
 
-    const auto sharedVelNoiseModel =
-        steam::StaticNoiseModel<2>::MakeShared(vel_noise_vect);
-
-    const auto sharedAccelNoiseModel =
-        steam::StaticNoiseModel<2>::MakeShared(accel_noise_vect);
-
-    const auto sharedKinNoiseModel =
-        steam::StaticNoiseModel<6>::MakeShared(kin_noise_vect);
-
-    // Experimental lat constraint (hardcoded for now)
-    Eigen::Matrix<double, 1, 1> lat_noise_vect;
-    lat_noise_vect << 100.0;
+    const auto sharedPoseNoiseModel = steam::StaticNoiseModel<6>::MakeShared(pose_noise_vect);
+    const auto sharedVelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(vel_noise_vect);
+    const auto sharedAccelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(accel_noise_vect);
+    const auto sharedKinNoiseModel = steam::StaticNoiseModel<6>::MakeShared(kin_noise_vect);
     const auto sharedLatNoiseModel = steam::StaticNoiseModel<1>::MakeShared(lat_noise_vect);
 
 
@@ -96,17 +91,17 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     //vel_states.push_back(std::vector<double> {0.0, 0.0}); //I think a single line way t odo this is something like Eigen::Matrix<double, 2, 1>::Zero()
     vel_states.push_back(v0);
 
-    CLOG(ERROR, "mpc.cbit") << "Verifying that the initial robot state is about the same as the initial reference measurement";
-    CLOG(ERROR, "mpc.cbit") << "T0_inv: " << T0_inv;
-    CLOG(ERROR, "mpc.cbit") << "1st meas: " << measurements_cbit[0];
+    //CLOG(ERROR, "mpc.cbit") << "Verifying that the initial robot state is about the same as the initial reference measurement";
+    //CLOG(ERROR, "mpc.cbit") << "T0_inv: " << T0_inv;
+    //CLOG(ERROR, "mpc.cbit") << "1st meas: " << measurements_cbit[0];
 
 
     // Set the remaining states
-    for (int i=0; i<K-1; i++)
+    for (int i=1; i<K; i++)
     {
         //pose_states.push_back(lgmath::se3::Transformation()); // I wonder if here I should initialize all the states as the initial state
         //pose_states.push_back(T0_inv); // old initialization - set all initial states to that of the current robot state
-        pose_states.push_back(measurements_cbit[i+1]); // New initialization - use the reference measurements from the cbit solution as our initialization - the first one I think is the same as our initial state
+        pose_states.push_back(measurements_cbit[i]); // New initialization - use the reference measurements from the cbit solution as our initialization - the first one I think is the same as our initial state
         vel_states.push_back(v0);
     }
 
@@ -147,7 +142,7 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     {
       // Pose Error
       const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], measurements[i]);
-      const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
+      const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, poseLossFunc);
       opt_problem.addCostTerm(pose_cost_term);
 
       // Non-Zero Velocity Penalty (OLD, not using this way any more, though might change to this when approaching end of path)
@@ -164,8 +159,12 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
         const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
         const auto kin_error_func = steam::se3::LogMapEvaluator::MakeShared(steam::se3::ComposeInverseEvaluator::MakeShared(lhs, rhs));
-        const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, sharedLossFunc);
+        const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, kinLossFunc);
         opt_problem.addCostTerm(kin_cost_term);
+
+        // Non-Zero Velocity Penalty (OLD, not using this way any more, though might change to this when approaching end of path)
+        const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
+        opt_problem.addCostTerm(vel_cost_term);
 
 
         // Experimental velocity set-point constraint (instead of non zero velocity penalty)
@@ -182,14 +181,14 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         if (i == 0)
         {
         // On the first iteration, we need to use an error with the previously applied control command state
-        const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i], previous_vel), sharedAccelNoiseModel, sharedLossFunc);
+        const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i], previous_vel), sharedAccelNoiseModel, accelLossFunc);
         opt_problem.addCostTerm(accel_cost_term);
         } 
         else
         {
         // Subsequent iterations we make an error between consecutive velocities. We penalize large changes in velocity between time steps
         const auto accel_diff = steam::vspace::AdditionEvaluator<2>::MakeShared(vel_state_vars[i], steam::vspace::NegationEvaluator<2>::MakeShared(vel_state_vars[i-1]));
-        const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, sharedLossFunc);
+        const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, accelLossFunc);
         opt_problem.addCostTerm(accel_cost_term);
         }   
       
@@ -215,14 +214,20 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         // DEBUG, for now using a static fixed corridor just to get things working, TODO swap this out with dynamic corridor when stable
         Eigen::Matrix<double, 4, 1> barrier_right;
         barrier_right <<  0,
-                          -2.5,
+                          barrier_q_right[i],
                           0,
                           1;
         Eigen::Matrix<double, 4, 1> barrier_left;
         barrier_left <<   0.0,
-                          2.5,
+                          barrier_q_left[i],
                           0,
                           1;
+
+        //CLOG(WARNING, "mpc.cbit") << "Left Barrier for this meas is: " << barrier_q_left[i];
+        //CLOG(WARNING, "mpc.cbit") << "Right Barrier for tis meas is: " << barrier_q_right[i];
+        //CLOG(ERROR, "mpc.cbit") << "The Initaial Pose is:" << T0;
+        //CLOG(WARNING, "mpc.cbit") << "The cbit measurement for this value is: " << measurements_cbit[i].inverse();
+        //CLOG(ERROR, "mpc.cbit") << "The vtr measurement for this value is: " << measurements[i].inverse();
 
         const auto lat_error_right = steam::stereo::HomoPointErrorEvaluatorRight::MakeShared(error_vec, barrier_right); // TODO, rename this evaluator to something else
         const auto lat_error_left = steam::stereo::HomoPointErrorEvaluatorLeft::MakeShared(error_vec, barrier_left);
@@ -232,36 +237,24 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         const auto lat_barrier_left = steam::vspace::ScalarLogBarrierEvaluator<1>::MakeShared(lat_error_left);
 
         // Generate least square cost terms and add them to the optimization problem
-        const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, lateralLossFunc);
+        const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, latLossFunc);
         opt_problem.addCostTerm(lat_cost_term_right);
-        const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, lateralLossFunc);
+        const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, latLossFunc);
         opt_problem.addCostTerm(lat_cost_term_left);
         //CLOG(WARNING, "debug") << "Running the cbit one";
+
+        
       }
-
-
-
-        // Experimental Hard Lateral Constraints
-        /*
-        CLOG(DEBUG, "debug") << "Attempting to add a lateral cost term";
-        const auto inv_state = steam::se3::InverseEvaluator::MakeShared(pose_state_vars[i]);
-        const auto pose_err = steam::vspace::MatrixMultEvaluator<4,4>::MakeShared(inv_state, measurements[i]); // I think this line is the problem, we cannot really convert the se3 evaluators to vspace evaluators
-        const auto left_mul = steam::vspace::MatrixMultEvaluator<1,4>::MakeShared(pose_err, I_2_tran);
-        const auto right_mul = steam::vspace::MatrixMultEvaluator<4,1>::MakeShared(pose_err, I_4);
-        const auto lat_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(right_mul, sharedLatNoiseModel, sharedLossFunc);
-        opt_problem.addCostTerm(lat_cost_term);
-        CLOG(DEBUG, "debug") << "Successfully added Lat cost term";
-        */
     }
 
     // Solve the optimization problem with GuassNewton solver
     using SolverType = steam::GaussNewtonSolver;
     // Initialize parameters (enable verbose mode)
     SolverType::Params params;
-    params.verbose = true; // Makes the output display for debug when true
-    params.relative_cost_change_threshold = 0.000001;
-    //params.max_iterations = 500;
-    params.absolute_cost_change_threshold = 0.000001;
+    params.verbose = false; // Makes the output display for debug when true
+    params.relative_cost_change_threshold = 1e-6;
+    params.max_iterations = 250;
+    params.absolute_cost_change_threshold = 1e-6;
     SolverType solver(opt_problem, params);
     solver.optimize();
 
@@ -402,7 +395,7 @@ struct meas_result GenerateReferenceMeas2(std::shared_ptr<std::vector<Pose>> cbi
       p_meas_vec.push_back((i * DT * VF) + p_correction);
     }
     //CLOG(DEBUG, "debug") << "p_meas_vec is: " << p_meas_vec;
-
+    
     // todo: Iterate through the p_measurements and interpolate euclidean measurements from the cbit_path and the corresponding cbit_p values
     // Note this could be combined in the previous loop too
     bool point_stabilization = false;
@@ -435,28 +428,92 @@ struct meas_result GenerateReferenceMeas2(std::shared_ptr<std::vector<Pose>> cbi
 }
 
 // For generating VT&R teach path measurements
-struct meas_result GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path_ptr, std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid)
+struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid)
 {
     // note this was some rapid prototype code written quite quickly for a meeting, need to refactor this longer term to make it faster for longer paths
-    CLOG(WARNING, "corridor_mpc_debug.cbit") << "Starting to Pre-process global path";
-    CLOG(WARNING, "corridor_mpc_debug.cbit") << "The current sid is: " << current_sid;
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "Starting to Pre-process global path";
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "The current sid is: " << current_sid;
+
+    // Initialize vectors storing the barrier values:
+    std::vector<double> barrier_q_left;
+    std::vector<double> barrier_q_right;
 
     // load the teach path
     std::vector<Pose> teach_path = global_path_ptr->disc_path;
+    
     //auto teach_p = global_path_ptr->p;
     std::vector<Pose> cbit_path;
-    // Get rid of any of the path before the current sid
 
+    // Get rid of any of the path before the current sid
     // handle case at start of path 
     if (current_sid - 1 < 0)
     {
       current_sid = 1;
     }
+
+    // Store the global p value of the previous sid. This is the point I use as my zero reference for the remaining p's
+    double sid_p = global_path_ptr->p[current_sid-1];
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "The global reference p is: " << sid_p;
+
     // I use sid -1 to be conservative, because I think its possible the robot pose is being localized in the frame ahead of the robot
     for (int i = (current_sid-1); i < teach_path.size(); i++)
     {
       cbit_path.push_back(teach_path[i]);
     }
+
+    //DEBUG:
+    //CLOG(WARNING, "mpc_debug.cbit") << "The robot is at: x: " << std::get<0>(robot_pose) << " y: " << std::get<1>(robot_pose);
+    //CLOG(WARNING, "mpc_debug.cbit") << "Teach Path 0 x: " << teach_path[0].x << " y: " << teach_path[0].y;
+    //CLOG(WARNING, "mpc_debug.cbit") << "Teach Path 1 x: " << teach_path[1].x << " y: " << teach_path[1].y;
+    //CLOG(WARNING, "mpc_debug.cbit") << "Teach Path 2 x: " << teach_path[2].x << " y: " << teach_path[2].y;
+    //CLOG(WARNING, "mpc_debug.cbit") << "Teach Path 3 x: " << teach_path[3].x << " y: " << teach_path[3].y;
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "P[0] is: " << global_path_ptr->p[0];
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "P[1] is: " << global_path_ptr->p[1];
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "P[2] is: " << global_path_ptr->p[2];
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "P[3] is: " << global_path_ptr->p[3];
+
+    double x2;
+    double x1;
+    double y2;
+    double y1;
+    double p_val_ref;
+
+    if (current_sid == 0)
+    {
+      x2 = teach_path[1].x;
+      x1 = teach_path[0].x;
+      y2 = teach_path[1].y;
+      y1 =teach_path[0].x;
+      p_val_ref = global_path_ptr->p[0];
+    }
+    else
+    {
+      x2 = teach_path[current_sid+1].x;
+      x1 = teach_path[current_sid-1].x;
+      y2 = teach_path[current_sid+1].y;
+      y1 = teach_path[current_sid-1].y;
+      p_val_ref = global_path_ptr->p[current_sid-1];
+    }
+    double xp = std::get<0>(robot_pose);
+    double yp = std::get<1>(robot_pose);
+
+    //double dist1 = sqrt(((xp-x1) * (xp-x1)) + ((yp-y1) * (yp-y1)));
+    //double dist2 = sqrt(((xp-x2) * (xp-x2)) + ((yp-y2) * (yp-y2)));
+    double total_dist = sqrt(((x2-x1) * (x2-x1)) + ((y2-y1) * (y2-y1)));
+
+    double t = (((xp-x1)*(x2-x1)) + ((yp-y1)*(y2-y1))) / total_dist;
+    double p_robot = t;
+    //double cos_angle = (dist2*dist2 + total_dist*total_dist - dist1*dist1) / (2.0*dist2*total_dist);
+    //double xp_proj = x2 + (x1 - x2) * cos_angle;
+    //double yp_proj = y2 + (y1 - y2) * cos_angle;
+    //double p_robot = sqrt(((xp_proj-x1) * (xp_proj-x1)) + (yp_proj-y1) * (yp_proj-y1)) + p_val_ref;
+    //CLOG(WARNING, "mpc_debug.cbit") << "Projected Pose is x: " << xp_proj<< " y: " << yp_proj;
+    //CLOG(WARNING, "mpc_debug.cbit") << "The starting robot pose p is: " << p_robot;
+
+    
+
+    //End of Debug
+
 
     // Save a copy of the current path solution to work on
     //auto cbit_path = *cbit_path_ptr;
@@ -516,9 +573,10 @@ struct meas_result GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path_
     for (int i = 0; i < K; i++)
     {
 
-      p_meas_vec.push_back((i * DT * VF) + p_correction);
+      //p_meas_vec.push_back((i * DT * VF) + p_correction);
+      p_meas_vec.push_back((i * DT * VF) + p_robot);
     }
-    //CLOG(DEBUG, "debug") << "p_meas_vec is: " << p_meas_vec;
+    //CLOG(WARNING, "debug") << "p_meas_vec is: " << p_meas_vec;
 
     // todo: Iterate through the p_measurements and interpolate euclidean measurements from the cbit_path and the corresponding cbit_p values
     // Note this could be combined in the previous loop too
@@ -538,15 +596,38 @@ struct meas_result GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path_
         point_stabilization = true; // Enable point stabilization configs
         CLOG(INFO, "mpc.cbit") << "Approaching End of Path, Converting MPC to Point Stabilization Problem";
       }
+
       lgmath::se3::Transformation meas = InterpolateMeas2(p_meas_vec[i], cbit_p, cbit_path);
-      CLOG(WARNING, "corridor_mpc_debug.cbit") << "Adding Measurement: " << meas;
+      //CLOG(WARNING, "corridor_mpc_debug.cbit") << "Adding Measurement: " << meas;
 
 
       // add to measurement vector
       measurements.push_back(meas);
+
+
+
+
+      // Find the corresponding left and right barrier q values to pass to the mpc
+
+      // The corridor_ptr points to the stored barrier values for the entire teach trajectory (0,p_len)
+      // To find the corresponding values, we just need to query the corridor_ptr given the current sid_p + p_meas_vec[i], and return the q values for that bin
+      double p_query = sid_p + p_meas_vec[i];
+      // this isnt the most efficient way of doing this, but it should be fine, we really only need to run this loop 10-20 times and the size is likely less then 1000 each
+      int p_ind = 0;
+      while (corridor_ptr->p_bins[p_ind] <= p_query)
+      {
+        p_ind++;
+      }
+      barrier_q_left.push_back(corridor_ptr->q_left[p_ind-1]);
+      barrier_q_right.push_back(corridor_ptr->q_right[p_ind-1]);
+      //CLOG(WARNING, "debug") << "The left barrier is: " << corridor_ptr->q_left[p_ind-1];
+      //CLOG(WARNING, "debug") << "The right barrier is: " << corridor_ptr->q_right[p_ind-1];
+
+
+
     }
 
-    return {measurements, point_stabilization};
+    return {measurements, point_stabilization, barrier_q_left, barrier_q_right};
 }
 
 

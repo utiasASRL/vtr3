@@ -22,7 +22,7 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
-        data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')
+        data_dir:=${VTRDATA}/online-test-lidar/2023-03-28/2023-03-28
         start_new_graph:=false
         use_sim_time:=false
 

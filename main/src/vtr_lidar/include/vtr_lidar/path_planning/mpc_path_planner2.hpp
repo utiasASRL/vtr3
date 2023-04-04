@@ -34,16 +34,25 @@ struct meas_result
     bool point_stabilization;
 };
 
+struct meas_result2
+{
+    std::vector<lgmath::se3::Transformation> measurements;
+    bool point_stabilization;
+    std::vector<double> barrier_q_left;
+    std::vector<double> barrier_q_right;
+};
+
+
 // Declaring helper functions
 
 // Primary optimization function: Takes in the input configurations and the extrapolated robot pose, outputs a vector for the velocity to apply and the predicted horizon
-struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3::Transformation T0, std::vector<lgmath::se3::Transformation> measurements, std::vector<lgmath::se3::Transformation> measurements_cbit, int K, double DT, double VF, Eigen::Matrix<double, 6, 6> pose_noise_vect, Eigen::Matrix<double, 2, 2> vel_noise_vect, Eigen::Matrix<double, 2, 2> accel_noise_vect, Eigen::Matrix<double, 6, 6> kin_noise_vect, bool point_stabilization);
+struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3::Transformation T0, std::vector<lgmath::se3::Transformation> measurements, std::vector<lgmath::se3::Transformation> measurements_cbit, std::vector<double> barrier_q_left, std::vector<double> barrier_q_right, int K, double DT, double VF, Eigen::Matrix<double, 1, 1> lat_noise_vect, Eigen::Matrix<double, 6, 6> pose_noise_vect, Eigen::Matrix<double, 2, 2> vel_noise_vect, Eigen::Matrix<double, 2, 2> accel_noise_vect, Eigen::Matrix<double, 6, 6> kin_noise_vect, bool point_stabilization, double pose_error_weight, double vel_error_weight, double acc_error_weight, double kin_error_weight, double lat_error_weight);
 
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 struct meas_result GenerateReferenceMeas2(std::shared_ptr<std::vector<Pose>> cbit_path_ptr,  std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF);
 
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
-struct meas_result GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path_ptr,  std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid);
+struct meas_result2 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid);
 
 // Helper function for post-processing and saturating the velocity command
 Eigen::Matrix<double, 2, 1> SaturateVel2(Eigen::Matrix<double, 2, 1> applied_vel, double v_lim, double w_lim);
