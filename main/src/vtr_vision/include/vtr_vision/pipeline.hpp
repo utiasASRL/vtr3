@@ -22,6 +22,7 @@
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 #include "vtr_vision/modules/modules.hpp"
 #include "vtr_vision/cache.hpp"
+#include "steam.hpp"
 
 
 namespace vtr {
@@ -130,12 +131,27 @@ class StereoPipeline : public tactic::BasePipeline {
     /// This method may read from or write to the graph.
   }
 
+//Carryover methods for internal pipeline use
+private:
+void setOdometryPrior(CameraQueryCache::Ptr &, const tactic::Graph::Ptr &); 
+tactic::EdgeTransform estimateTransformFromKeyframe(
+    const tactic::Timestamp &kf_stamp, const tactic::Timestamp &curr_stamp,
+    bool check_expiry);
+
+
  private:
   /** \brief Pipeline configuration */
   Config::ConstPtr config_;
 
   std::vector<tactic::BaseModule::Ptr> preprocessing_;
   std::vector<tactic::BaseModule::Ptr> odometry_;
+
+
+  /**
+   * \brief a pointer to a trjacetory estimate so that the transform can be
+   * estimated at a future time
+   */
+  std::shared_ptr<steam::traj::const_vel::Interface> trajectory_;
 
   /** \brief Mutex to ensure thread safety with OpenCV HighGui calls */
   std::shared_ptr<std::mutex> vis_mutex_ptr_ = std::make_shared<std::mutex>();
