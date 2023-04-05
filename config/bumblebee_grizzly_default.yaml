@@ -18,6 +18,7 @@
         "stereo.pipeline",
         "stereo.preprocessing",
         "stereo.recall",
+        "stereo.matcher",
         "preprocessing",
         "path_tracker",
         "tactic.pipeline"
@@ -70,7 +71,7 @@
       type: stereo
 
       preprocessing: ["adapter","extraction", "triangulation"]
-      odometry: ["recall"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry: ["recall", "matcher"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 
       # bundle_adjustment: [] #["recall", "steam"]

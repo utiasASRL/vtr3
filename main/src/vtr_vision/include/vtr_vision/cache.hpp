@@ -63,6 +63,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<std::vector<vision::RigMatches>> ransac_matches;
   tactic::Cache<bool> steam_failure;
 
+  tactic::Cache<tactic::Timestamp> timestamp_odo;
 
   /*
   // odometry and mapping (including bundle adjustment)

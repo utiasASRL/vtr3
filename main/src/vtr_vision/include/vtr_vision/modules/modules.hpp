@@ -23,3 +23,4 @@
 #include <vtr_vision/modules/preprocessing/calibration_module.hpp>
 #include <vtr_vision/modules/preprocessing/image_triangulation_module.hpp>
 #include <vtr_vision/modules/odometry/landmark_recall_module.hpp>
+#include <vtr_vision/modules/odometry/asrl_stereo_matcher_module.hpp>
