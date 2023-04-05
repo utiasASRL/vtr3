@@ -136,9 +136,5 @@ tactic::EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
   return T_q_m;
 }
 
-
-
-
-
 } //vision
 } //vtr

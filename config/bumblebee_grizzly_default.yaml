@@ -71,7 +71,7 @@
       type: stereo
 
       preprocessing: ["adapter","extraction", "triangulation"]
-      odometry: ["recall", "matcher"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry: ["recall", "matcher", "ransac"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 
       # bundle_adjustment: [] #["recall", "steam"]
