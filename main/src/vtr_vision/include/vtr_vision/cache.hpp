@@ -64,6 +64,11 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<bool> steam_failure;
 
 
+  /// localization
+  tactic::Cache<Eigen::Matrix3Xd> migrated_points_3d;
+
+
+
   /*
   // odometry and mapping (including bundle adjustment)
   tactic::Cache<LandmarkMap> landmark_map;
