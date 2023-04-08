@@ -112,6 +112,8 @@
 
       extraction:
         type: stereo.conversion_extraction
+        visualize: true
+
 
         # specify which conversions to do between different image formats from:
         # RGB_TO_GRAYSCALE, RGB_TO_COLOR_CONSTANT
@@ -123,7 +125,6 @@
 
         extractor:
           type: ASRL_GPU_SURF
-
           channels: ["grayscale", "cc_0.430000"]
 
           surf:
@@ -152,9 +153,7 @@
 
       triangulation:
         type: image_triangulation
-
-        visualize_features: false
-        visualize_stereo_features: false
+        visualize: true
         min_triangulation_depth: 0.01
         max_triangulation_depth: 500.0
 

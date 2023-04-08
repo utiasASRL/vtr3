@@ -27,7 +27,7 @@
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 #include <vtr_vision/features/extractor/extractor_configs.hpp>
-//#include <vtr_vision/visualize.hpp>
+#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace vision {
@@ -84,10 +84,10 @@ class ConversionExtractionModule : public tactic::BaseModule {
     bool color_constant_histogram_equalization = false;
 
     /** \brief Flag for displaying the raw detected features */
-    bool visualize_raw_features = false;
+    bool visualize_raw_features = true;
 
     /** \brief Flag for displaying the disparity */
-    bool visualize_disparity = false;
+    bool visualize_disparity = true;
 
     /** \brief Flag for using the extractor for learned features */
     bool use_learned = false;

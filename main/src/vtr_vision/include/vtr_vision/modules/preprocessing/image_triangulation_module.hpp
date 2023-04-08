@@ -50,8 +50,9 @@ class ImageTriangulationModule : public tactic::BaseModule {
   /** \brief Config parameters */
   struct Config : public tactic::BaseModule::Config{
     PTR_TYPEDEFS(Config);
-    bool visualize_features = false;
-    bool visualize_stereo_features = false;
+    bool visualize_features = true;
+    bool visualize_stereo_features = true;
+    bool visualize = false;
     float min_triangulation_depth = 0.01;
     float max_triangulation_depth = 500.0;
 

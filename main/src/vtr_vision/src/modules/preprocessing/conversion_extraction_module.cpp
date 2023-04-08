@@ -377,13 +377,14 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
     }
   }
 
-  // if (config_->visualize){
-  //   if (config_->visualize_raw_features)  // check if visualization is enabled
-  //     visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
+  if (config_->visualize){
+    CLOG(INFO, "preprocessing") << "Visualize";
+    if (config_->visualize_raw_features)  // check if visualization is enabled
+      visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
 
-  //   if (config_->visualize_disparity)  // check if visualization is enabled
-  //     visualize::showDisparity(*qdata.vis_mutex, qdata, " disparity");
-  // }
+    if (config_->visualize_disparity)  // check if visualization is enabled
+      visualize::showDisparity(*qdata.vis_mutex, qdata, " disparity");
+  }
 }
 
 // void ConversionExtractionModule::visualizeImpl(QueryCache &qdata0,

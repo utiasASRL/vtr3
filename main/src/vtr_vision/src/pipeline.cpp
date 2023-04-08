@@ -50,6 +50,11 @@ void StereoPipeline::preprocess_(const tactic::QueryCache::Ptr &qdata0, const ta
                    const tactic::Graph::Ptr &graph,
                    const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
+  
+  if (!qdata->vis_mutex.valid()) {
+    qdata->vis_mutex.emplace();
+  }
+  
   for (auto module : preprocessing_) module->run(*qdata0, *output0, graph, executor);
 }
 
