@@ -9,11 +9,11 @@
       #- navigation.command
       - navigation.sensor_input
         # tactic
-      - tactic
+      #- tactic
       - tactic.pipeline
-      - tactic.module
-      - tactic.module.live_mem_manager
-      - tactic.module.graph_mem_manager
+      #- tactic.module
+      #- tactic.module.live_mem_manager
+      #- tactic.module.graph_mem_manager
         # path planner
         # "path_planning",
         # "path_planning.teb",
@@ -22,8 +22,8 @@
         # "mpc.cbit",
         # "mpc_debug.cbit",
         # mission planner
-      - mission.server
-      - mission.state_machine
+      #- mission.server
+      #- mission.state_machine
         # pose graph
       - pose_graph
         # pipeline specific

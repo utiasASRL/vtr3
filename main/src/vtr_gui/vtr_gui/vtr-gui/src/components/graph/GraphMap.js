@@ -23,6 +23,8 @@ import "leaflet-rotatedmarker"; // enable marker rotation
 import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
 import { kdTree } from "kd-tree-javascript";
 
+import {fetchWithTimeout} from "../../index"
+
 import ToolsMenu from "../tools/ToolsMenu";
 import GoalManager from "../goal/GoalManager";
 import TaskQueue from "../task_queue/TaskQueue";
@@ -224,7 +226,7 @@ class GraphMap extends React.Component {
           <TileLayer
             // url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" // load from OSM directly
             url="/tile/{s}/{x}/{y}/{z}" // load from backend (potentially cached)
-            maxZoom={20}
+            maxZoom={24}
           />
           <ZoomControl position="bottomright" />
         </MapContainer>
@@ -317,7 +319,7 @@ class GraphMap extends React.Component {
 
   fetchGraphState(center = false) {
     console.info("Fetching the current pose graph state (full).");
-    fetch("/vtr/graph")
+    fetchWithTimeout("/vtr/graph")
       .then((response) => {
         if (response.status !== 200) throw new Error("Failed to fetch pose graph state: " + response.status);
         response.json().then((data) => {
@@ -393,7 +395,7 @@ class GraphMap extends React.Component {
 
   fetchRobotState() {
     console.info("Fetching the current robot state (full).");
-    fetch("/vtr/robot")
+    fetchWithTimeout("/vtr/robot")
       .then((response) => {
         if (response.status !== 200) throw new Error("Failed to fetch robot state: " + response.status);
         response.json().then((data) => {
@@ -449,7 +451,7 @@ class GraphMap extends React.Component {
 
   fetchFollowingRoute() {
     console.info("Fetching the current following route.");
-    fetch("/vtr/following_route")
+    fetchWithTimeout("/vtr/following_route")
       .then((response) => {
         if (response.status !== 200) throw new Error("Failed to fetch following route: " + response.status);
         response.json().then((data) => {
@@ -496,7 +498,7 @@ class GraphMap extends React.Component {
 
   fetchServerState() {
     console.info("Fetching the current server state (full).");
-    fetch("/vtr/server")
+    fetchWithTimeout("/vtr/server")
       .then((response) => {
         if (response.status !== 200) throw new Error("Failed to fetch server state: " + response.status);
         response.json().then((data) => {

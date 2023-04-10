@@ -107,33 +107,44 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // Velodyne has no polar coordinates, so compute them manually.
   velodyneCart2Pol(*point_cloud);
 
-  try {
-    try{
-      sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
-      // pointwise timestamp
-      for (size_t idx = 0; iter_time != iter_time.end();
-        ++idx, ++iter_time) {
-          point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+  if (config_->estimate_time){
+      CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings wil be estimated from yaw angle";
+      estimateTime(*point_cloud, *qdata.stamp, config_->angular_vel);
+  } else {
+    try {
+      try{
+        sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
+        // pointwise timestamp
+        for (size_t idx = 0; iter_time != iter_time.end();
+          ++idx, ++iter_time) {
+            point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+        }
+        CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings from t";
+      }
+      catch (...){
+        sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "time");
+        // pointwise timestamp
+        for (size_t idx = 0; iter_time != iter_time.end();
+          ++idx, ++iter_time) {
+            point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+        }
+        CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings from time";
+
       }
     }
-    catch (...){
-      sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "time");
-      // pointwise timestamp
-      for (size_t idx = 0; iter_time != iter_time.end();
-        ++idx, ++iter_time) {
-          point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
-      }
+    catch(...){
+      CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings wil be estimated from yaw angle";
+      estimateTime(*point_cloud, *qdata.stamp, config_->angular_vel);
     }
   }
-  catch(...){
-    CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings wil be estimated from yaw angle";
-    estimateTime(*point_cloud, *qdata.stamp, config_->angular_vel);
-  }
+
+  
 
 
   auto filtered_point_cloud =
     std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
-  CLOG(DEBUG, "lidar.velodyne_converter_v2") << "Reducing the point cloud density by " << config_->horizontal_downsample;
+  CLOG(DEBUG, "lidar.velodyne_converter_v2") << "Reducing the point cloud density by " << config_->horizontal_downsample
+      << "original size was " << point_cloud->size();
   if (config_->horizontal_downsample > 1) {
 
   /// Range cropping

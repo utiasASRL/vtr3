@@ -173,6 +173,21 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   CLOG(DEBUG, "lidar.pipeline") << "Saved raw pointcloud to vertex" << vertex;
 #endif
 
+  // raw point cloud
+  {
+    auto nn_scan = std::make_shared<PointScan<PointWithInfo>>();
+    nn_scan->point_cloud() = *qdata->nn_point_cloud;
+    nn_scan->T_vertex_this() = qdata->T_s_r->inverse();
+    nn_scan->vertex_id() = *qdata->vid_odo;
+    //
+    using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+    auto nn_scan_odo_msg =
+        std::make_shared<PointScanLM>(nn_scan, *qdata->stamp);
+    vertex->insert<PointScan<PointWithInfo>>(
+        "nn_point_cloud", "vtr_lidar_msgs/msg/PointScan", nn_scan_odo_msg);
+  }
+  CLOG(DEBUG, "lidar.pipeline") << "Saved nn pointcloud to vertex" << vertex;
+
   /// save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {
     //

@@ -10,6 +10,17 @@ import GraphMap from "./components/graph/GraphMap";
 /// socket io constants and instance
 const SOCKET = io(window.location.hostname + ":5201");
 
+export async function fetchWithTimeout(resource, options = {}) {
+  const { timeoutMS = 5000 } = options;
+
+  const response = await fetch(resource, {
+    ...options,
+    signal: AbortSignal.timeout(timeoutMS),
+  });
+
+  return response;
+}
+
 class VTRGUI extends React.Component {
   constructor(props) {
     super(props);
