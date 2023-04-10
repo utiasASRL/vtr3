@@ -8,7 +8,7 @@ environment:
   # data_dir:=${VTRDATA}/online-test-lidar/2022-09-08/2022-09-08
   # data_dir:=${VTRDATA}/online-test-lidar/2023-01-18/2023-01-18 # Nice dome path
   # data_dir:=${VTRDATA}/online-test-lidar/2023-02-20/2023-02-20 # Nice demo path from utias bay
-
+  # data_dir:=${VTRDATA}/online-test-lidar/2023-03-28/2023-03-28
 start_directory: ${VTRDATA}
 
 suppress_history: false
@@ -22,7 +22,7 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
-        data_dir:=${VTRDATA}/online-test-lidar/2023-03-28/2023-03-28
+        data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
 

@@ -145,6 +145,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
   // retrieve the transorm info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
+
   CLOG(INFO, "path_planning.cbit") << "The T_r_v_odo is: " << T_r_v_odo;
   CLOG(INFO, "path_planning.cbit") << "The T_p_r is: " << T_p_r;
 
@@ -390,13 +391,13 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
       applied_vel(1) = 0.0;
     }
 
-    CLOG(ERROR, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
+    //CLOG(ERROR, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
  
     // If required, saturate the output velocity commands based on the configuration limits
-    CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
+    //CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
     Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel2(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
-    CLOG(ERROR, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
+    //CLOG(ERROR, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
     vel_history.erase(vel_history.begin());
     vel_history.push_back(saturated_vel);
@@ -412,6 +413,11 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     command.linear.x = saturated_vel(0);
     command.angular.z = saturated_vel(1);
 
+    // Temporary modification by Jordy to test calibration of hte grizzly controller
+    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
+    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Angular Velocity: " << saturated_vel(1);
+    // End of modifications
+    
     CLOG(INFO, "mpc.cbit")
       << "Final control command: [" << command.linear.x << ", "
       << command.linear.y << ", " << command.linear.z << ", "

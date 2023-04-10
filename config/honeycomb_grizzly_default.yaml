@@ -46,6 +46,7 @@
         # "lidar.ground_extraction",
         # "lidar.obstacle_detection",
         # "lidar.terrain_assessment",
+        "grizzly_controller_tests.cbit"
       ]
 
     # control frame from the urdf
@@ -409,7 +410,7 @@
     ############ path planning configuration ############
     path_planning:
       type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
-      control_period: 100 # ms
+      control_period: 50 # ms
       teb:
         # vtr specific
         visualize: true

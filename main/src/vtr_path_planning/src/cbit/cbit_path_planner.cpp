@@ -2443,7 +2443,7 @@ void CBITPlanner::update_corridor(std::shared_ptr<CBITCorridor> corridor, std::v
       Node euclid_pt = curve_to_euclid(start);
       if (costmap_col_tight(euclid_pt))
       {
-          //CLOG(ERROR, "path_planning.corridor_debug") << "Something has gone wrong, cbit path has a collision, ignoring this p_bin update";
+          CLOG(ERROR, "path_planning.corridor_debug") << "Something has gone wrong, cbit path has a collision, ignoring this p_bin update";
           continue;
       }
 
@@ -2456,6 +2456,7 @@ void CBITPlanner::update_corridor(std::shared_ptr<CBITCorridor> corridor, std::v
       // if there is a collision, set q_left at the location of the current p_bin being processed to the value of q_left/q_right
       if (collision_check_result1.bool_result == true)
       {
+        CLOG(ERROR, "path_planning.corridor_debug") << "collision left";
         //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
         //CLOG(DEBUG, "path_planning.corridor_debug") << "end_left node is p: " << end_left.p << " q: " << end_left.q;
         double q_left = collision_check_result1.col_node.q;
@@ -2483,6 +2484,7 @@ void CBITPlanner::update_corridor(std::shared_ptr<CBITCorridor> corridor, std::v
       
       if (collision_check_result2.bool_result == true)
       {
+        CLOG(ERROR, "path_planning.corridor_debug") << "collision right";
         //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
         //CLOG(DEBUG, "path_planning.corridor_debug") << "end_right node is p: " << end_right.p << " q: " << end_right.q;
         double q_right = collision_check_result2.col_node.q;
@@ -2535,6 +2537,8 @@ void CBITPlanner::update_corridor(std::shared_ptr<CBITCorridor> corridor, std::v
       corridor->x_right.push_back(euclid_right.p);
       corridor->y_right.push_back(euclid_right.q);
     }
+
+
 
     //auto corridor_stop_time = std::chrono::high_resolution_clock::now();
     //auto duration_corridor = std::chrono::duration_cast<std::chrono::milliseconds>(corridor_stop_time - corridor_start_time);
