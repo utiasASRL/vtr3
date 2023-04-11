@@ -238,7 +238,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
   std::shared_ptr<steam::OptimizationProblem> problem;
   try {
     // PROBLEM SPECIFIC
-    if (!verifyInputData(qdata)) return;
     problem = generateOptimizationProblem(qdata, graph);
     if (problem == nullptr) {
       LOG(ERROR) << "Couldn't generate optimization problem!" << std::endl;
@@ -301,16 +300,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
   }
 }
 
-// MonoCalibPtr SteamModule::toMonoSteamCalibration(
-//     const vision::RigCalibration &calibration) {
-//   MonoCalibPtr sharedMonoIntrinsics(
-//       new vtr::steam_extensions::mono::CameraIntrinsics);
-//   sharedMonoIntrinsics->fu = calibration.intrinsics[0](0, 0);
-//   sharedMonoIntrinsics->fv = calibration.intrinsics[0](1, 1);
-//   sharedMonoIntrinsics->cu = calibration.intrinsics[0](0, 2);
-//   sharedMonoIntrinsics->cv = calibration.intrinsics[0](1, 2);
-//   return sharedMonoIntrinsics;
-// }
 
 StereoCalibPtr SteamModule::toStereoSteamCalibration(
     const vision::RigCalibration &calibration) {

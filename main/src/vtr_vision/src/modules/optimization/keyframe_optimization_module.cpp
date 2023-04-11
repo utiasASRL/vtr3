@@ -26,17 +26,18 @@ namespace vision {
 
 using namespace tactic;
 
-void KeyframeOptimizationModule::Config::fromROS(
+KeyframeOptimizationModule::Config::ConstPtr KeyframeOptimizationModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) {
-  auto keyframe_config = std::make_shared<Config>();
+  auto keyframe_config = std::make_shared<KeyframeOptimizationModule::Config>();
   auto casted_config =
       std::static_pointer_cast<SteamModule::Config>(keyframe_config);
-  *casted_config = *SteamModule::configFromROS(node, param_prefix);;  // copy over base config
+  *casted_config = *SteamModule::Config::fromROS(node, param_prefix);  // copy over base config
   // clang-format off
   keyframe_config->pose_prior_enable = node->declare_parameter<bool>(param_prefix + ".pose_prior_enable", keyframe_config->pose_prior_enable);
   keyframe_config->depth_prior_enable = node->declare_parameter<bool>(param_prefix + ".depth_prior_enable", keyframe_config->depth_prior_enable);
   keyframe_config->depth_prior_weight = node->declare_parameter<double>(param_prefix + ".depth_prior_weight", keyframe_config->depth_prior_weight);
   keyframe_config->use_migrated_points = node->declare_parameter<bool>(param_prefix + ".use_migrated_points", keyframe_config->use_migrated_points);
+  
   // clang-format on
 
   return keyframe_config;
@@ -67,8 +68,6 @@ KeyframeOptimizationModule::generateOptimizationProblem(
   // iterate through the inliers of every rig
   for (uint32_t rig_idx = 0; rig_idx < ransac_matches.size();
        ++rig_idx, ++calibration_itr) {
-    // monocular or stereo?
-    bool monocular = calibration_itr->intrinsics.size() == 1 ? true : false;
 
     // get the inliers and calibration for this rig.
     auto &rig_ransac_matches = (*qdata.ransac_matches)[rig_idx];
@@ -76,18 +75,8 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
     // Setup camera intrinsics, TODO: This should eventually be different for
     // each rig.
-    StereoCalibPtr sharedStereoIntrinsics;
-    MonoCalibPtr sharedMonoIntrinsics;
-
-    // setup the calibration
-    if (monocular) {
-      throw std::runtime_error{"Monocular camera code not ported!"};
-#if 0
-      sharedMonoIntrinsics = toMonoSteamCalibration(calibration);
-#endif
-    } else {
-      sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
-    }
+    StereoCalibPtr sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
+    
 
     // Create a transform evaluator for T_q_m, in the camera sensor frame.
     steam::se3::TransformEvaluator::Ptr tf_qs_mv;
@@ -216,38 +205,18 @@ KeyframeOptimizationModule::generateOptimizationProblem(
                   migrated_cov->col(match.first).data());
 
               // set up the noise for the stereo/mono configurations
-              if (monocular) {
-                throw std::runtime_error{"Monocular camera code not ported!"};
-#if 0
-                typedef vtr::steam_extensions::mono::LandmarkNoiseEvaluator
-                    NoiseEval;
-                auto &landmark_noise = *qdata.mono_landmark_noise.fallback();
-                auto noise_eval = boost::make_shared<NoiseEval>(
-                    landVar->getValue(), cov, meas_covariance,
-                    sharedMonoIntrinsics, tf_qs_ms);
-                landmark_noise[match.first] = noise_eval;
-                noise_mono.reset(new steam::DynamicNoiseModelX(noise_eval));
-#endif
-              } else {
-                typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;
-                auto &landmark_noise = *qdata.stereo_landmark_noise.fallback();
-                auto noise_eval = boost::make_shared<NoiseEval>(
-                    landVar->getValue(), cov, meas_covariance,
-                    sharedStereoIntrinsics, tf_qs_ms);
-                landmark_noise[match.first] = noise_eval;
-                noise_stereo.reset(new steam::DynamicNoiseModel<4>(noise_eval));
-              }
+              typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;
+              auto &landmark_noise = *qdata.stereo_landmark_noise.fallback();
+              auto noise_eval = boost::make_shared<NoiseEval>(
+                  landVar->getValue(), cov, meas_covariance,
+                  sharedStereoIntrinsics, tf_qs_ms);
+              landmark_noise[match.first] = noise_eval;
+              noise_stereo.reset(new steam::DynamicNoiseModel<4>(noise_eval));
+              
 
             } else {
-              if (monocular) {
-                throw std::runtime_error{"Monocular camera code not ported!"};
-#if 0
-                noise_mono.reset(new steam::StaticNoiseModelX(meas_covariance));
-#endif
-              } else {
-                noise_stereo.reset(
-                    new steam::StaticNoiseModel<4>(meas_covariance));
-              }
+              noise_stereo.reset(
+                  new steam::StaticNoiseModel<4>(meas_covariance));
             }
 
           } catch (std::invalid_argument &e) {
@@ -263,33 +232,17 @@ KeyframeOptimizationModule::generateOptimizationProblem(
             data(idx * 2 + 1) = query_kps.at(idx).y;
           }
 
-          if (monocular) {
-            throw std::runtime_error{"Monocular camera code not ported!"};
-#if 0
-            // Construct error function for observation to the fixed landmark.
-            vtr::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
-                new vtr::steam_extensions::MonoCameraErrorEval(
-                    data, sharedMonoIntrinsics, tf_qs_ms, landVar));
-            steam::WeightedLeastSqCostTermX::Ptr cost(
-                new steam::WeightedLeastSqCostTermX(errorfunc, noise_mono,
-                                                    sharedLossFunc_));
-
-            if (!std::isnan(cost->cost())) {
-              // add the cost term
-              cost_terms_->add(cost);
-            }
-#endif
-          } else {
-            // Construct error function for observation to the fixed landmark.
-            steam::StereoCameraErrorEval::Ptr errorfunc(
-                new steam::StereoCameraErrorEval(data, sharedStereoIntrinsics,
-                                                 tf_qs_ms, landVar));
-            steam::WeightedLeastSqCostTerm<4, 6>::Ptr cost(
-                new steam::WeightedLeastSqCostTerm<4, 6>(
-                    errorfunc, noise_stereo, sharedLossFunc_));
-            // add the cost term
-            cost_terms_->add(cost);
-          }
+          
+          // Construct error function for observation to the fixed landmark.
+          steam::StereoCameraErrorEval::Ptr errorfunc(
+              new steam::StereoCameraErrorEval(data, sharedStereoIntrinsics,
+                                                tf_qs_ms, landVar));
+          steam::WeightedLeastSqCostTerm<4, 6>::Ptr cost(
+              new steam::WeightedLeastSqCostTerm<4, 6>(
+                  errorfunc, noise_stereo, sharedLossFunc_));
+          // add the cost term
+          cost_terms_->add(cost);
+          
 
           // steam throws?
         } catch (std::exception &e) {
@@ -395,6 +348,8 @@ bool KeyframeOptimizationModule::verifyOutputData(CameraQueryCache &) {
   return true;
 }
 
+
+//This is weird / bad style for creating shared pointers
 void KeyframeOptimizationModule::resetProblem(EdgeTransform &T_q_m) {
   // set up the transforms
   map_pose_.reset(
@@ -579,20 +534,6 @@ void KeyframeOptimizationModule::computeTrajectory(
                                   velocity_prior_cov_);
   }
 
-#if false
-  // Clear the trajectory status message and save off the pre-optimized
-  // velocities.
-  trajectory_status_.Clear();
-  for (auto velocity_itr : velocity_map_) {
-    auto *ba_pose = trajectory_status_.add_pre_optimization_window();
-    auto velocity = velocity_itr.second->getValue();
-    auto *proto_velocity = ba_pose->mutable_velocity();
-    for (auto idx = 0; idx < 6; ++idx) {
-      proto_velocity->add_entries(velocity(idx, 0));
-    }
-    ba_pose->set_id(velocity_itr.first);
-  }
-#endif
 }
 
 void KeyframeOptimizationModule::updateCaches(CameraQueryCache &qdata) {

@@ -46,11 +46,14 @@ namespace vision {
  */
 class KeyframeOptimizationModule : public SteamModule {
  public:
+ PTR_TYPEDEFS(KeyframeOptimizationModule);
   /** \brief Static module identifier. */
   static constexpr auto static_name = "keyframe_optimization";
 
   /** \brief Collection of config parameters */
   struct Config : SteamModule::Config {
+    PTR_TYPEDEFS(Config);
+
     bool depth_prior_enable = true;
     double depth_prior_weight = 100000000.0;
     bool pose_prior_enable = false;
@@ -69,7 +72,7 @@ class KeyframeOptimizationModule : public SteamModule {
   /** \brief Saves the trajectory. */
   void updateGraphImpl(tactic::QueryCache &qdata,
                        const tactic::Graph::Ptr &graph,
-                       tactic::VertexId id) override;
+                       tactic::VertexId id);
 
   /** \brief Given two frames, builds a sensor specific optimization problem. */
   std::shared_ptr<steam::OptimizationProblem> generateOptimizationProblem(
@@ -114,7 +117,7 @@ class KeyframeOptimizationModule : public SteamModule {
    * terms.
    * \param landmark The landmark in question.
    */
-  void addDepthCost(steam::se3::LandmarkStateVar::Ptr landmark);
+  void addDepthCost(steam::stereo::HomoPointStateVar::Ptr landmark);
 
   /**
    * \brief Adds a steam trajectory for the state variables in the problem.
@@ -127,31 +130,31 @@ class KeyframeOptimizationModule : public SteamModule {
   void addPosePrior(CameraQueryCache &qdata);
 
   /** \brief the cost terms associated with landmark observations. */
-  steam::ParallelizedCostTermCollection::Ptr cost_terms_;
+  std::vector<steam::BaseCostTerm> cost_terms_;
 
   /** \brief The cost terms associated with landmark depth. */
-  steam::ParallelizedCostTermCollection::Ptr depth_cost_terms_;
+  std::vector<steam::BaseCostTerm> depth_cost_terms_;
 
   /** \brief The loss function used for the depth cost. */
-  steam::LossFunctionBase::Ptr sharedDepthLossFunc_;
+  steam::BaseLossFunc::Ptr sharedDepthLossFunc_;
 
   /** \brief the loss function assicated with observation cost. */
-  steam::LossFunctionBase::Ptr sharedLossFunc_;
+  steam::BaseLossFunc::Ptr sharedLossFunc_;
 
   /** \brief the locked map pose. */
-  steam::se3::TransformStateVar::Ptr map_pose_;
+  //steam::se3::SE3StateVar::Ptr map_pose_;
 
   /** \brief Transform evaluator for the map pose. */
-  steam::se3::TransformEvaluator::Ptr tf_map_;
+  steam::se3::SE3StateVar::Ptr tf_map_;
 
   /** \brief the unlocked query pose. */
-  steam::se3::TransformStateVar::Ptr query_pose_;
+  //steam::se3::TransformStateVar::Ptr query_pose_;
 
   /** \brief Transform evaluate for the query pose. */
-  steam::se3::TransformEvaluator::Ptr tf_query_;
+  steam::se3::SE3StateVar::Ptr tf_query_;
 
   /** \brief Algorithm Configuration */
-  Config::Ptr keyframe_config_;
+  Config::ConstPtr keyframe_config_;
 
   /** \brief The steam problem. */
   std::shared_ptr<steam::OptimizationProblem> problem_;
@@ -160,7 +163,7 @@ class KeyframeOptimizationModule : public SteamModule {
    * \brief Maps velocity variable pointers to their respective vertices
    * \note a value of -1 is used for the live frame.
    */
-  std::map<tactic::VertexId, steam::VectorSpaceStateVar::Ptr> velocity_map_;
+  std::map<tactic::VertexId, steam::vspace::VSpaceStateVar<6>::Ptr> velocity_map_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(KeyframeOptimizationModule);
 };
