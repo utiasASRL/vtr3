@@ -265,7 +265,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CLOG(INFO, "path_planning.cbit") << "The path repeat direction is:" << path_direction;
 
 
-  CLOG(ERROR, "path_planning.cbit") << "Trying to create global path";
+  CLOG(INFO, "path_planning.cbit") << "Trying to create global path";
   // Create the path class object (Path preprocessing)
   CBITPath global_path(cbit_config, euclid_path_vec);
   // Make a pointer to this path
@@ -445,7 +445,9 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
+      // Solve using corridor mpc
       auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      // Solve using tracking mpc
       //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       //auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization); // Tracking controller version
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
@@ -462,9 +464,10 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     //CLOG(ERROR, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
  
     // If required, saturate the output velocity commands based on the configuration limits
-    //CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
+    CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
     Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel2(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
-    //CLOG(ERROR, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
+    CLOG(INFO, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
+    
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
     vel_history.erase(vel_history.begin());
     vel_history.push_back(saturated_vel);

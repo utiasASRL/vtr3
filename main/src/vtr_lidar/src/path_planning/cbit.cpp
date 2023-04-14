@@ -193,12 +193,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     CLOG(DEBUG, "obstacle_detection.cbit") << "The costmap to world transform is: " << T_start_vertex.inverse();
     costmap_ptr->grid_resolution = change_detection_costmap->dl();
 
-
-    // Note I think all of the code below here was legacy when I was temporally filtering in cbit, now the most recent obs map should contain the history of the costmaps all embedded
-    // So in cbit_planner we only need to query the value of costmap_ptr->T_c_w and costmap_ptr->obs_map
-
-
-    // Experimental: Storing sequences of costmaps for temporal filtering purposes
+    // Storing sequences of costmaps for temporal filtering purposes
     // For the first x iterations, fill the obstacle vector
     if (costmap_ptr->obs_map_vect.size() < config_->costmap_history)
     {
@@ -208,30 +203,9 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
     else
     {
-      // Legacy code for when I was filtering inside cbit (made a quick and dirty work around temporarily)
-      //for (int i = 0; i < (config_->costmap_history-1); i++)
-      //{
-      //  costmap_ptr->obs_map_vect[i] = costmap_ptr->obs_map_vect[i + 1];
-      //  costmap_ptr->T_c_w_vect[i] = costmap_ptr->T_c_w_vect[i + 1];
-      //}
       costmap_ptr->obs_map_vect[config_->costmap_history-1] = obs_map;
       costmap_ptr->T_c_w_vect[config_->costmap_history-1] = costmap_ptr->T_c_w ;
     }
-
-    // //TODO: Experimental global costmap filtering idea
-    // Pseudocode:
-    // 1. Iterate through all the keys in the unordered map, generate a point from the centre of the cell, transform that point to the world frame.
-    // 2. Repeat this for the 3 most recent costmaps
-    // 3. In the global map, we purge it of all obstacle cells that are not within a particular radius of the current robot state (do this in a loop at the start)
-    // 4. each transformed point can be assigned to a cell bin of size "grid_resolution" in the world frame. If all 3 of the recent scans (or whatever level of transient filter we want)
-    //    agree on an obs cell, we create an unordered map key value pair in the global map pointer
-    // 5. This will generate a global obstacle map with transients filtered, but will also remember obstacles it had seen previously but have since come to close
-    // 6. Then we just pass the global map to cbit, which only needs to collision check one cost map and all the filtering is contained here
-
-    // I think this would work well, only issue is if you have a tall dynamic object walking very close to the robot (in the permanence range)
-    // In that case it will add those cells to the map and basically never remove them, but not much we can do about that without better sensor fov/predictions
-
-    
   }
   
   // END OF OBSTACLE PERCEPTION UPDATES
@@ -377,7 +351,9 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
+      // Solve using corridor mpc
       auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      // Old path tracking configs
       //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       //auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization); // Tracking controller version
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
@@ -395,9 +371,10 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
 
  
     // If required, saturate the output velocity commands based on the configuration limits
-    //CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
+    CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
     Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel2(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
-    //CLOG(ERROR, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
+    CLOG(INFO, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
+    
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
     vel_history.erase(vel_history.begin());
     vel_history.push_back(saturated_vel);
@@ -413,7 +390,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     command.linear.x = saturated_vel(0);
     command.angular.z = saturated_vel(1);
 
-    // Temporary modification by Jordy to test calibration of hte grizzly controller
+    // Temporary modification by Jordy to test calibration of the grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Angular Velocity: " << saturated_vel(1);
     // End of modifications
