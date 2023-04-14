@@ -233,8 +233,8 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         const auto lat_error_left = steam::stereo::HomoPointErrorEvaluatorLeft::MakeShared(error_vec, barrier_left);
 
         // For each side of the barrier, compute a scalar inverse barrier term to penalize being close to the bound
-        const auto lat_barrier_right = steam::vspace::ScalarLogBarrierEvaluator<1>::MakeShared(lat_error_right);
-        const auto lat_barrier_left = steam::vspace::ScalarLogBarrierEvaluator<1>::MakeShared(lat_error_left);
+        const auto lat_barrier_right = steam::vspace::ScalarInverseBarrierEvaluator<1>::MakeShared(lat_error_right);
+        const auto lat_barrier_left = steam::vspace::ScalarInverseBarrierEvaluator<1>::MakeShared(lat_error_left);
 
         // Generate least square cost terms and add them to the optimization problem
         const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, latLossFunc);
@@ -248,13 +248,16 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     }
 
     // Solve the optimization problem with GuassNewton solver
-    using SolverType = steam::GaussNewtonSolver;
+    //using SolverType = steam::GaussNewtonSolver;
+    using SolverType = steam::LineSearchGaussNewtonSolver;
     // Initialize parameters (enable verbose mode)
     SolverType::Params params;
     params.verbose = false; // Makes the output display for debug when true
     params.relative_cost_change_threshold = 1e-6;
-    params.max_iterations = 250;
+    params.max_iterations = 200;
     params.absolute_cost_change_threshold = 1e-6;
+    params.backtrack_multiplier = 0.5; // Line Search Params
+    params.max_backtrack_steps = 1000; // Line Search Params
     SolverType solver(opt_problem, params);
     solver.optimize();
 
@@ -456,7 +459,8 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
     //CLOG(WARNING, "corridor_mpc_debug.cbit") << "The global reference p is: " << sid_p;
 
     // I use sid -1 to be conservative, because I think its possible the robot pose is being localized in the frame ahead of the robot
-    for (int i = (current_sid-1); i < teach_path.size(); i++)
+    CLOG(WARNING, "corridor_mpc_debug.cbit") << "The size of the teach_path is: " << teach_path.size();
+    for (int i = (current_sid-1); i <= teach_path.size(); i++)
     {
       cbit_path.push_back(teach_path[i]);
     }
@@ -503,6 +507,12 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
 
     double t = (((xp-x1)*(x2-x1)) + ((yp-y1)*(y2-y1))) / total_dist;
     double p_robot = t;
+
+    // Check if p is negative, (robot starting behind path, if so, make it 0.0:
+    if (p_robot < 0.0)
+    {
+      p_robot = 0.0;
+    }
     //double cos_angle = (dist2*dist2 + total_dist*total_dist - dist1*dist1) / (2.0*dist2*total_dist);
     //double xp_proj = x2 + (x1 - x2) * cos_angle;
     //double yp_proj = y2 + (y1 - y2) * cos_angle;
@@ -565,14 +575,12 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
       }
     }
     //CLOG(DEBUG, "debug") << "cbit_p is: " << cbit_p;
-
     // Determine the p_values we need for our measurement horizon, corrected for the p value of the closest point on the path to the current robot state
     std::vector<double> p_meas_vec;
     std::vector<lgmath::se3::Transformation> measurements;
     p_meas_vec.reserve(K);
     for (int i = 0; i < K; i++)
     {
-
       //p_meas_vec.push_back((i * DT * VF) + p_correction);
       p_meas_vec.push_back((i * DT * VF) + p_robot);
     }
@@ -658,7 +666,7 @@ lgmath::se3::Transformation InterpolateMeas2(double p_val, std::vector<double> c
       // Derive the yaw by creating the vector connecting the pose_upp and pose_lower pts
 
       double yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-
+      //CLOG(ERROR, "mpc.cbit") << "The Yaw Is: " << yaw_int;
 
       // Build the transformation matrix
       Eigen::Matrix4d T_ref;

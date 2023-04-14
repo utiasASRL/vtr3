@@ -307,8 +307,8 @@
         support_variance: 0.05
         support_threshold: 2.5
 
-        influence_distance: 0.50 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.9 # was 0.3 Jordy 
+        influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 0.8 # was 0.3 Jordy 
 
         # cost map
         costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
@@ -410,7 +410,7 @@
     ############ path planning configuration ############
     path_planning:
       type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
-      control_period: 50 # ms
+      control_period: 100 # ms
       teb:
         # vtr specific
         visualize: true
@@ -435,11 +435,11 @@
       cbit:
         # Environment
         obs_padding: 0.0
-        curv_to_euclid_discretization: 20
+        curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
-        corridor_resolution: 0.05
-        state_update_freq: 2.0
+        corridor_resolution: 0.2
+        state_update_freq: 1.0
         update_state: true
         rand_seed: 1
         
@@ -462,14 +462,14 @@
         
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 20 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
+        costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
         
       mpc:
         # Controller Params
         horizon_steps: 15
-        horizon_step_size: 0.15
-        forward_vel: 1.00
-        max_lin_vel: 1.50
+        horizon_step_size: 0.3
+        forward_vel: 1.0
+        max_lin_vel: 1.5
         max_ang_vel: 1.00
         vehicle_model: "unicycle"
         
@@ -487,21 +487,19 @@
         #lat_error_weight: 0.01
         
         # Cost Function Covariance Matrices
-        #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
-        pose_error_cov: [50.0, 50.0, 10000.0, 10000.0, 10000.0, 10000.0] 
-        vel_error_cov: [500.0, 50.0] # was [0.1 2.0] # No longer using this cost term
-        #acc_error_cov: [2.0, 2.0]
-        acc_error_cov: [50.0, 50.0]
-        kin_error_cov: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
-        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        lat_error_cov: [50.0]
+        pose_error_cov: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0] 
+        vel_error_cov: [10.0, 10.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [2.0, 2.0]
+        kin_error_cov: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+        lat_error_cov: [10.0]
         
         # Cost Function Weights
-        pose_error_weight: 2.0
-        vel_error_weight: 1.0
-        acc_error_weight: 1.0
-        kin_error_weight: 10000.0
-        lat_error_weight: 0.02
+        pose_error_weight: 5.0
+        vel_error_weight: 4.0
+        acc_error_weight: 4.0
+        kin_error_weight: 200.0
+        lat_error_weight: 0.5
+
         #backup for tracking mpc
         #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
         #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]

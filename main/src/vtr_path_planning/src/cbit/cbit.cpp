@@ -405,10 +405,10 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
 
     // Uncomment for using the mpc extrapolated robot pose for control
-    //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp2);
+    lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp2);
 
     // no extrapolation (comment this out if we are not using extrapolation)
-    lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
+    //lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
 
     // TODO: Set whether to use mpc extrapolation as a config param (though there is almost never a good reason not to use it)
 

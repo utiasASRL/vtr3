@@ -478,7 +478,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         // Benchmark current compute time
         auto stop_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time);
-        //std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
+        std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
 
         compute_time = static_cast <int>(duration.count());
 
@@ -561,14 +561,22 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           // Vertex Prune (maintain only vertices to the right of the collision free vertex)
           std::vector<std::shared_ptr<Node>> pruned_vertex_tree;
           pruned_vertex_tree.reserve(tree.V.size());
+          int test_counter = 0;
           for (int i =0; i<tree.V.size(); i++)
           {
             if (tree.V[i]->p >= col_free_vertex->p)
             {
               pruned_vertex_tree.push_back(tree.V[i]);
             }
+            if (tree.V[i]->p >= (p_goal->p + 11.0))
+            {
+              test_counter = test_counter + 1;
+            }
           }
           tree.V = pruned_vertex_tree;
+          CLOG(ERROR, "path_planning.cbit_planner") << "The number of vertices in the tree outside of sliding window is:" << test_counter;
+          CLOG(ERROR, "path_planning.cbit_planner") << "The corresponding p threshold was: " << (p_goal->p + 11.0);
+
 
           // Edge Prune (maintain only edges to the right of the collision free vertex)
           std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  pruned_edge_tree;
@@ -632,7 +640,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
           // EXPERIMENTAL: Updating the dynamic corridor (now that we know our path is collision free):
           //auto corridor_start_time = std::chrono::high_resolution_clock::now();
-          update_corridor(corridor_ptr, path_x, path_y, *p_goal);
+          //update_corridor(corridor_ptr, path_x, path_y, *p_goal);
           //auto corridor_stop_time = std::chrono::high_resolution_clock::now();
           //auto duration_corridor = std::chrono::duration_cast<std::chrono::microseconds>(corridor_stop_time - corridor_start_time);
           //CLOG(ERROR, "path_planning.cbit_planner") << "Corridor Update Time: " << duration_corridor.count() << "us";
@@ -1098,7 +1106,7 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleFreeSpace(int m)
     //int pre_seeds = abs(p_goal->p - p_start->p) / 0.25;
     int pre_seeds = abs(p_zero - p_start->p) / 0.25; // Note needed to change p_goal to p_zero. When the sliding window padding is large, pre-seeds wont get generated all the way to the goal
 
-    //std::cout << "generating pre-seeds - number is:" << pre_seeds << std::endl;
+    std::cout << "generating pre-seeds - number is:" << pre_seeds << std::endl;
     //std::cout << "The size of the tree is:" << tree.V.size() << std::endl;
 
     // In the python version I do this line thing which is more robust, but for now im going to do this quick and dirty
@@ -1533,6 +1541,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> CBITPlanner::BestInEdge
   if (tree.QE2.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
   {
     CLOG(DEBUG, "path_planning.cbit_planner") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
+    repair_mode = true;
     return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {NULL, NULL};
   }
 
@@ -2205,7 +2214,7 @@ bool CBITPlanner::costmap_col(Node node)
 bool CBITPlanner::discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end)
 {
     // We dynamically determine the discretization based on the length of the edge
-    discretization = round(calc_dist(start, end) * discretization);
+    discretization = ceil(calc_dist(start, end) * discretization);
 
     // Generate discretized test nodes
     std::vector<double> p_test;
@@ -2253,11 +2262,11 @@ bool CBITPlanner::discrete_collision(std::vector<std::vector<double>> obs, doubl
 // But long term I should move all those over to utils or even a different header and script
 
 // Old code I wrote for this function
-/*
+
 struct CBITPlanner::collision_result CBITPlanner::discrete_collision_v2(double discretization, Node start, Node end, bool tight)
 {
     // We dynamically determine the discretization based on the length of the edge
-    discretization = round(calc_dist(start, end) * discretization);
+    discretization = ceil(calc_dist(start, end) * discretization);
 
     // Generate discretized test nodes
     std::vector<double> p_test;
@@ -2308,13 +2317,15 @@ struct CBITPlanner::collision_result CBITPlanner::discrete_collision_v2(double d
 
     return {false, curv_pt};
 }
-*/
 
-// ChatGPT optimized code for this function thats 10-20x faster lol
+
+
+// ChatGPT optimized code for this function
+/*
 struct CBITPlanner::collision_result CBITPlanner::discrete_collision_v2(double discretization, Node start, Node end, bool tight)
 {
     // We dynamically determine the discretization based on the length of the edge
-    discretization = round(calc_dist(start, end) * discretization);
+    discretization = ceil(calc_dist(start, end) * discretization);
 
     // Generate discretized test nodes
     std::vector<double> p_test;
@@ -2365,6 +2376,7 @@ struct CBITPlanner::collision_result CBITPlanner::discrete_collision_v2(double d
     }
     return {false, curv_pt};
 }
+*/
 
            
 
@@ -2456,7 +2468,6 @@ void CBITPlanner::update_corridor(std::shared_ptr<CBITCorridor> corridor, std::v
       // if there is a collision, set q_left at the location of the current p_bin being processed to the value of q_left/q_right
       if (collision_check_result1.bool_result == true)
       {
-        CLOG(ERROR, "path_planning.corridor_debug") << "collision left";
         //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
         //CLOG(DEBUG, "path_planning.corridor_debug") << "end_left node is p: " << end_left.p << " q: " << end_left.q;
         double q_left = collision_check_result1.col_node.q;
@@ -2484,7 +2495,6 @@ void CBITPlanner::update_corridor(std::shared_ptr<CBITCorridor> corridor, std::v
       
       if (collision_check_result2.bool_result == true)
       {
-        CLOG(ERROR, "path_planning.corridor_debug") << "collision right";
         //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
         //CLOG(DEBUG, "path_planning.corridor_debug") << "end_right node is p: " << end_right.p << " q: " << end_right.q;
         double q_right = collision_check_result2.col_node.q;

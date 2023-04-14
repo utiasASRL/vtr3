@@ -1,4 +1,5 @@
 #include "vtr_path_planning/mpc/custom_steam_evaluators.hpp"
+#include <iostream>
 
 namespace steam {
 namespace stereo {
@@ -29,6 +30,10 @@ auto HomoPointErrorEvaluatorRight::value() const -> OutType {
 auto HomoPointErrorEvaluatorRight::forward() const -> Node<OutType>::Ptr {
   const auto child = pt_->forward();
   const auto value = D_ * (child->value() - meas_pt_);
+  if (value <= 0.0)
+  {
+    std::cout << "PROBLEM: The value was: " << value << std::endl;
+  }
   const auto node = Node<OutType>::MakeShared(value);
   node->addChild(child);
   return node;
