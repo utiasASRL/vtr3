@@ -218,7 +218,7 @@ class SteamModule : public tactic::BaseModule {
    */
   std::shared_ptr<steam::traj::const_vel::Interface> trajectory_;
 
-  Eigen::Matrix<double, 6, 6> smoothing_factor_information_;
+  Eigen::Matrix<double, 6, 1> smoothing_factor_information_;
   Eigen::Matrix<double, 6, 1> velocity_prior_;
   Eigen::Matrix<double, 6, 6> velocity_prior_cov_;
 

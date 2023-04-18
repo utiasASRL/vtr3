@@ -26,6 +26,12 @@ namespace vision {
 using namespace tactic;
 
 namespace {
+bool checkDiagonal(Eigen::Matrix<double, 6, 1> &diag) {
+  for (int idx = 0; idx < 6; ++idx) {
+    if (diag(idx, 0) <= 0) return false;
+  }
+  return true;
+}
 bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
   for (int idx = 0; idx < 6; ++idx) {
     if (diag(idx) <= 0) return false;
@@ -105,7 +111,8 @@ void SteamModule::setConfig() {
   backup_params_.grow_coeff = config_->growCoeff;
   backup_params_.max_shrink_steps = config_->maxShrinkSteps;
 
-  Eigen::Array<double, 1, 6> Qc_diag;
+  // Eigen::Matrix<double, 1, 6> Qc_diag;
+  Eigen::Matrix<double, 6, 1> Qc_diag;
   Qc_diag << config_->lin_acc_std_dev_x, config_->lin_acc_std_dev_y,
       config_->lin_acc_std_dev_z, config_->ang_acc_std_dev_x,
       config_->ang_acc_std_dev_y, config_->ang_acc_std_dev_z;
@@ -114,8 +121,10 @@ void SteamModule::setConfig() {
         "Elements of the smoothing factor must be greater than zero!");
   }
   // Make Qc_inv
-  smoothing_factor_information_.setZero();
-  smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
+  // smoothing_factor_information_.setZero();
+  // smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
+  // smoothing_factor_information_.setZero();
+  smoothing_factor_information_ = Qc_diag;
 
   // Setup velocity prior
   velocity_prior_ << config_->lin_vel_mean_x, config_->lin_vel_mean_y,
@@ -123,6 +132,7 @@ void SteamModule::setConfig() {
       config_->ang_vel_mean_z;
 
   Eigen::Array<double, 1, 6> Qv_diag;
+  // Eigen::Matrix<double, 6, 1> Qv_diag;
   Qv_diag << config_->lin_vel_std_dev_x, config_->lin_vel_std_dev_y,
       config_->lin_vel_std_dev_z, config_->ang_vel_std_dev_x,
       config_->ang_vel_std_dev_y, config_->ang_vel_std_dev_z;
@@ -132,6 +142,8 @@ void SteamModule::setConfig() {
         "Error: elements of the velocity prior noise must be greater than "
         "zero!");
   }
+  // velocity_prior_cov_.setZero();
+  // velocity_prior_cov_ = Qv_diag;
   velocity_prior_cov_.setZero();
   velocity_prior_cov_.diagonal() = 1.0 / Qv_diag;
 }
