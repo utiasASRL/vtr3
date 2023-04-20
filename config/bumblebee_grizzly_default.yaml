@@ -78,7 +78,7 @@
 
       # preprocessing: ["extraction", "triangulation"]
       # odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]
-      # localization:
+      localization: ["recall", "sub_map_extraction"]
       #   [
       #     "recall",
       #     "sub_map_extraction",

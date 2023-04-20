@@ -26,6 +26,7 @@
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_vision/types.hpp>
+#include <vtr_messages/msg/localization_status.hpp>
 
 namespace vtr {
 namespace vision {
@@ -68,6 +69,9 @@ struct CameraQueryCache : public tactic::QueryCache {
 
   /// localization
   tactic::Cache<Eigen::Matrix3Xd> migrated_points_3d;
+  tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
+  tactic::Cache<pose_graph::RCGraph::Base::Ptr> localization_map;
+  tactic::Cache<tactic::RunIdSet> recommended_experiences;
 
 
 

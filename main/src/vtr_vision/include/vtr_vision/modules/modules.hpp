@@ -29,3 +29,4 @@
 #include <vtr_vision/modules/odometry/vertex_creation_test_module.hpp>
 #include <vtr_vision/modules/odometry/simple_vertex_test_module.hpp>
 #include <vtr_vision/modules/optimization/keyframe_optimization_module.hpp>
+#include <vtr_vision/modules/localization/sub_map_extraction_module.hpp>
