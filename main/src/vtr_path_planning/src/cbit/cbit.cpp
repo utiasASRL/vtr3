@@ -480,8 +480,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // return the computed velocity command for the first time step
     Command command;
-    command.linear.x = saturated_vel(0);
-    command.angular.z = saturated_vel(1);
+    command.linear.x = saturated_vel(0) * 1.1; // * 1.1 Added to compensate for bad grizzly internal controller config
+    command.angular.z = saturated_vel(1) * 1.1;;
 
     // Temporary modification by Jordy to test calibration of hte grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);

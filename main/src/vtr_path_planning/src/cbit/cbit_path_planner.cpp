@@ -256,6 +256,10 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
   // benchmarking example code
   auto start_time = std::chrono::high_resolution_clock::now();
 
+  // Variables for rolling average compute time for debug
+  int batches_completed = 0;
+  auto average_batch_time = 0.0;
+
 
   bool localization_flag = true; // Set the fact we are localized if we make it to this point
 
@@ -349,6 +353,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
         // Perform a state update to convert the actual robot position to its corresponding pq space:
         p_goal = UpdateState(path_direction);
+
 
         //TODO: It could be useful to convert this p_goal back to euclid and compare with se3_robot_pose to verify the conversion worked properly (error should be very low)
         // If its not, we probably need to handle it or return an error
@@ -478,7 +483,11 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         // Benchmark current compute time
         auto stop_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time);
-        std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
+        //std::cout << "Batch Compute Time (ms): " << duration.count() << std::endl;
+        batches_completed = batches_completed + 1;
+        average_batch_time = ((batches_completed * average_batch_time) + duration.count()) / (batches_completed + 1);
+        //std::cout << "Average Batch Compute Time (ms): " << average_batch_time << std::endl;
+        
 
         compute_time = static_cast <int>(duration.count());
 
@@ -640,7 +649,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
           // EXPERIMENTAL: Updating the dynamic corridor (now that we know our path is collision free):
           //auto corridor_start_time = std::chrono::high_resolution_clock::now();
-          //update_corridor(corridor_ptr, path_x, path_y, *p_goal);
+          update_corridor(corridor_ptr, path_x, path_y, *p_goal);
           //auto corridor_stop_time = std::chrono::high_resolution_clock::now();
           //auto duration_corridor = std::chrono::duration_cast<std::chrono::microseconds>(corridor_stop_time - corridor_start_time);
           //CLOG(ERROR, "path_planning.cbit_planner") << "Corridor Update Time: " << duration_corridor.count() << "us";
@@ -739,7 +748,11 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       
     }
 
-    
+    auto start_bench_time = std::chrono::high_resolution_clock::now();
+
+
+
+
     // Planning loop starts here
     // I think there is some gains to be had here, we actually iterate through the vertex queue twice finding minima,
     // I think we probably could combine the 2 vertex functions into 1 cutting compute in half (we can test to see if this is a big gain or not)
@@ -749,6 +762,14 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       //auto test = BestInVertexQueue();
       ExpandVertex(BestInVertexQueue());
     }
+
+    auto stop_bench_time = std::chrono::high_resolution_clock::now();
+    auto duration_bench = std::chrono::duration_cast<std::chrono::nanoseconds>(stop_bench_time - start_bench_time);
+    CLOG(DEBUG, "path_planning_compute.cbit") << "Compute 1: " << duration_bench.count();
+    start_bench_time = std::chrono::high_resolution_clock::now();
+
+
+
     
     // Generate prospective nodes
     std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> prospective_edge = BestInEdgeQueue();
@@ -765,6 +786,13 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
     }
     // Remove the edge from the queue (I think best to do this inside BestInEdgeQueue function)
 
+
+
+    stop_bench_time = std::chrono::high_resolution_clock::now();
+    duration_bench = std::chrono::duration_cast<std::chrono::nanoseconds>(stop_bench_time - start_bench_time);
+    CLOG(INFO, "path_planning_compute.cbit") << "Compute 2: " << duration_bench.count();
+    start_bench_time = std::chrono::high_resolution_clock::now();
+
     // TODO: Collision check and update tree/queues
     if (vm->g_T_weighted + calc_weighted_dist(*vm, *xm, conf.alpha) + h_estimated_admissible(*xm, *p_goal) < p_goal->g_T_weighted)
     {
@@ -775,6 +803,11 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
       double actual_cost = cost_col(obs_rectangle, *vm, *xm);
       double weighted_cost = weighted_cost_col(obs_rectangle, *vm, *xm);
+
+      stop_bench_time = std::chrono::high_resolution_clock::now();
+      duration_bench = std::chrono::duration_cast<std::chrono::nanoseconds>(stop_bench_time - start_bench_time);
+      CLOG(INFO, "path_planning_compute.cbit") << "Compute 3: " << duration_bench.count();
+      start_bench_time = std::chrono::high_resolution_clock::now();
 
       if (g_estimated_admissible(*vm, *p_start) + weighted_cost + h_estimated_admissible(*xm, *p_goal) < p_goal->g_T_weighted)
       {
@@ -837,7 +870,10 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
             //tree.QV.push_back(xm);
             tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>(xm->g_T_weighted + h_estimated_admissible(*xm, *p_goal), xm));
           }
-
+          stop_bench_time = std::chrono::high_resolution_clock::now();
+          duration_bench = std::chrono::duration_cast<std::chrono::nanoseconds>(stop_bench_time - start_bench_time);
+          CLOG(INFO, "path_planning_compute.cbit") << "Compute 3.5: " << duration_bench.count();
+          start_bench_time = std::chrono::high_resolution_clock::now();
 
           // Generate edge, create parent chain
           tree.E.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {vm, xm});
@@ -887,8 +923,15 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
               itr++;
             }
           } 
+          stop_bench_time = std::chrono::high_resolution_clock::now();
+          duration_bench = std::chrono::duration_cast<std::chrono::nanoseconds>(stop_bench_time - start_bench_time);
+          CLOG(DEBUG, "path_planning_compute.cbit") << "Compute 3.75: " << duration_bench.count();
+          start_bench_time = std::chrono::high_resolution_clock::now();
         }
       }
+      stop_bench_time = std::chrono::high_resolution_clock::now();
+      duration_bench = std::chrono::duration_cast<std::chrono::nanoseconds>(stop_bench_time - start_bench_time);
+      CLOG(DEBUG, "path_planning_compute.cbit") << "Compute 4: " << duration_bench.count();
     }
     // If there is no edges in the queue which can improve the current tree, clear the queues which will consequently trigger the end of a batch
     else

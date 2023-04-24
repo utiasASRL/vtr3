@@ -21,7 +21,7 @@ Panels:
         - /Path2
         - /Corridor Path Left1/Topic1
       Splitter Ratio: 0.4507042169570923
-    Tree Height: 871
+    Tree Height: 443
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -85,6 +85,10 @@ Visualization Manager:
           Value: true
         front_bumblebee:
           Value: true
+        front_left_wheel_link:
+          Value: true
+        front_right_wheel_link:
+          Value: true
         front_xb3:
           Value: true
         hc:
@@ -116,6 +120,10 @@ Visualization Manager:
         rear_antenna_link:
           Value: true
         rear_bumblebee:
+          Value: true
+        rear_left_wheel_link:
+          Value: true
+        rear_right_wheel_link:
           Value: true
         rear_sensor_base_link:
           Value: true
@@ -1445,16 +1453,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 27.72052001953125
+      Distance: 14.629002571105957
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.3220612406730652
-        Y: 0.23669445514678955
-        Z: 1.451749324798584
+        X: 1.5698918104171753
+        Y: -0.01999158412218094
+        Z: 1.453581690788269
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
