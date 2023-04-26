@@ -218,6 +218,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
   // basic sanity check
   if (!qdata.rig_features.valid() ||
       (qdata.success.valid() && *qdata.success == false)) {
+      CLOG(WARNING, "stereo.optimization") << "No features";
     return;
   }
 

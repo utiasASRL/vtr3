@@ -235,8 +235,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
 
             } else {
-              noise_stereo.reset(
-                  new steam::StaticNoiseModel<4>(meas_covariance));
+              noise_stereo = std::marke_shared<steam::StaticNoiseModel<4>>(meas_covariance);
             }
 
           } catch (std::invalid_argument &e) {
@@ -254,9 +253,8 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
           
           // Construct error function for observation to the fixed landmark.
-          steam::stereo::StereoErrorEvaluator::Ptr errorfunc(
-              new steam::stereo::StereoErrorEvaluator(data, sharedStereoIntrinsics,
-                                                tf_qs_ms, landVar));
+          auto errorfunc = std::make_shared<steam::stereo::StereoErrorEvaluator>
+              (data, sharedStereoIntrinsics, tf_qs_ms, landVar);
           steam::WeightedLeastSqCostTerm<4>::Ptr cost(
               new steam::WeightedLeastSqCostTerm<4>(
                   errorfunc, noise_stereo, sharedLossFunc_));
