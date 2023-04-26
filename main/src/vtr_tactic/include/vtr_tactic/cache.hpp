@@ -82,7 +82,8 @@ class Cache {
     if (valid())
       return *datum_;
     else
-      throw std::runtime_error("cache datum is unset on reference request.");
+      // throw std::runtime_error("cache datum is unset on reference request.");
+      throw std::runtime_error("cache datum is unset on reference request." + std::string(typeid(DataType).name()));
   }
   DataType& operator*() {
     return const_cast<DataType&>(*static_cast<const CacheType&>(*this));

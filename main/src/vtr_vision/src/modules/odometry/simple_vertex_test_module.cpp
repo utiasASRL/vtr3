@@ -56,7 +56,7 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // default to creating candidate
-  *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
+  *qdata.vertex_test_result = VertexTestResult::CREATE_CANDIDATE;
 
   /// \todo yuchen check first frame, is this appropriate? what if we do not
   /// have enough features here?
@@ -97,7 +97,8 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     return;
   }
 
-  if (*qdata.steam_failure == true || *qdata.success == false) {
+  // if (*qdata.steam_failure == true || *qdata.success == false) {
+  if (*qdata.success == false) {
     LOG(ERROR) << "Uh oh, state estimation failed";
     *qdata.success = false;
     return;

@@ -56,26 +56,96 @@ void StereoPipeline::preprocess_(const tactic::QueryCache::Ptr &qdata0, const ta
   }
   
   for (auto module : preprocessing_) module->run(*qdata0, *output0, graph, executor);
+  
 }
 
 void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const tactic::OutputCache::Ptr &output0,
                    const tactic::Graph::Ptr &graph,
                    const std::shared_ptr<tactic::TaskExecutor> &executor) {
-  auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
-  
-  if (!*qdata->first_frame)
-    setOdometryPrior(qdata, graph);
+  // auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
+  auto &qdata = dynamic_cast<CameraQueryCache &>(*qdata0);
 
+  qdata.success.emplace(true);         // odometry success default to true
+
+  // qdata->steam_failure.emplace();  // steam failure default to false
+  // qdata->steam_failure=false;
+  
+
+  // qdata->T_r_m.emplace(*qdata->T_r_v_odo);
+  // qdata->T_r_m_prior.emplace(*qdata->T_r_v_odo);
+
+  qdata.T_r_m.emplace(*qdata.T_r_v_odo);
+  qdata.T_r_m_prior.emplace(*qdata.T_r_v_odo);
+  CLOG(WARNING, "stereo.pipeline") << "T_r_v_odo set";
+
+
+  // qdata->T_r_m.emplace(*qdata->T_r_v_odo);
+  // qdata->T_r_m_prior.emplace(*qdata->T_r_v_odo);
+  CLOG(WARNING, "stereo.pipeline") << *qdata.first_frame ;
+
+  if (!(*qdata.first_frame)){
+    qdata.timestamp_odo.emplace(timestamp_odo_);
+    setOdometryPrior(qdata, graph);
+  }
+  CLOG(WARNING, "stereo.pipeline")
+      << "Finished setting odometry prior, running modules";
   for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
+  timestamp_odo_ = *qdata.stamp;
+
+  // If VO failed, revert T_r_m to the initial prior estimate
+  if (*qdata.success == false) {
+    CLOG(WARNING, "stereo.pipeline")
+        << "VO FAILED, reverting to trajectory estimate.";
+    *qdata.T_r_m = *qdata.T_r_m_prior;
+  }
+
+  // check if we have a non-failed frame
+  if (*(qdata.vertex_test_result) == VertexTestResult::DO_NOTHING) {
+    CLOG(WARNING, "stereo.pipeline")
+        << "VO FAILED, trying to use the candidate query data to make "
+           "a keyframe.";
+    if (candidate_qdata_ != nullptr) {
+      qdata = *candidate_qdata_;
+      *candidate_qdata_->vertex_test_result = VertexTestResult::CREATE_VERTEX;
+      candidate_qdata_ = nullptr;
+    } else {
+      CLOG(ERROR, "stereo.pipeline")
+          << "Does not have a valid candidate query data because last frame is "
+             "also a keyframe.";
+      // clear out the match data in preparation for putting the vertex in the
+      // graph
+      qdata.raw_matches.clear();
+      qdata.ransac_matches.clear();
+      // qdata->trajectory.clear();
+      // trajectory is no longer valid
+      trajectory_.reset();
+      // force a keyframe
+      *(qdata.vertex_test_result) = VertexTestResult::CREATE_VERTEX;
+    }
+  } else {
+    // keep a pointer to the trajectory
+    // trajectory_ = qdata->trajectory.ptr();
+    // trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
+    /// keep this frame as a candidate for creating a keyframe
+    if (*(qdata.vertex_test_result) != VertexTestResult::CREATE_VERTEX)
+      candidate_qdata_ = std::make_shared<CameraQueryCache>(qdata);
+    else
+      candidate_qdata_ = nullptr;
+  }
+
+  // set result
+  qdata.T_r_v_odo = *qdata.T_r_m;
+
+
 }
 
-void StereoPipeline::setOdometryPrior(CameraQueryCache::Ptr &qdata,
+void StereoPipeline::setOdometryPrior(CameraQueryCache &qdata,
                                       const tactic::Graph::Ptr &graph) {
 
-  auto T_r_m_est = estimateTransformFromKeyframe(*qdata->timestamp_odo, *qdata->stamp,
-                                                 qdata->rig_images.valid());
+  auto T_r_m_est = estimateTransformFromKeyframe(*qdata.timestamp_odo, *qdata.stamp,
+                                                 qdata.rig_images.valid());
 
-  *qdata->T_r_m_prior = T_r_m_est;
+  *qdata.T_r_m_prior = T_r_m_est;
 }
 
 tactic::EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
