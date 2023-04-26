@@ -212,7 +212,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
-  *qdata.steam_failure = false;
+  // *qdata.steam_failure = false;
   backup_lm_solver_used_ = false;
 
   // basic sanity check
@@ -254,7 +254,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     problem = generateOptimizationProblem(qdata, graph);
     if (problem == nullptr) {
       LOG(ERROR) << "Couldn't generate optimization problem!" << std::endl;
-      *qdata.steam_failure = true;
+      // *qdata.steam_failure = true;
       return;
     }
 
@@ -269,7 +269,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     } catch (std::logic_error &e) {
       LOG(ERROR) << "Forced Gradient-Descent, running in LM..." << e.what();
       success = forceLM(problem);
-      *qdata.steam_failure = !success;
+      // *qdata.steam_failure = !success;
       *qdata.success = success;
     } catch (steam::unsuccessful_step &e) {
       // did any successful steps occur?
@@ -278,7 +278,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
         CLOG(ERROR, "stereo.optimization")
             << "Steam has failed to optimise the problem. This is an error";
         success = false;
-        *qdata.steam_failure = !success;
+        // *qdata.steam_failure = !success;
         *qdata.success = success;
       } else {
         // yes: just a marginal problem, let's use what we got
@@ -288,7 +288,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     } catch (std::runtime_error &e) {
       CLOG(ERROR, "stereo.optimization") << "Steam has failed with an unusual error: " << e.what();
       success = false;
-      *qdata.steam_failure = !success;
+      // *qdata.steam_failure = !success;
       *qdata.success = success;
     }
 
@@ -296,7 +296,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     if (success) updateCaches(qdata);
 
   } catch (...) {
-    *qdata.steam_failure = true;
+    // *qdata.steam_failure = true;
     LOG(ERROR) << " bailing on steam problem!";
     *qdata.success = false;
   }
@@ -308,7 +308,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     if (ct_sigma > prior_ct_sigma) {
       LOG(WARNING) << "Loc. added uncertainty, bailing.";
       *qdata.success = false;
-      *qdata.steam_failure = true;
+      // *qdata.steam_failure = true;
     }
   }
 }

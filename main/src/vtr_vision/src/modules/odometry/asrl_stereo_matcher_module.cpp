@@ -65,13 +65,15 @@ auto ASRLStereoMatcherModule::Config::fromROS(
 void ASRLStereoMatcherModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-
+  CLOG(DEBUG, "stereo.matcher") << "inside ASRL Stereo Matcher.";
   // if we dont have map and query landarks (i.e. first frame, then return)
   if (qdata.candidate_landmarks.valid() == false ||
       qdata.map_landmarks.valid() == false) {
     CLOG(DEBUG, "stereo.matcher") << "No valid landmarks, likely the first frame.";
     return;
   }
+  CLOG(DEBUG, "stereo.matcher") << "After Accessing candidate landmarks.";
+
   // match features and record how many we found
   auto num_matches = matchFeatures(qdata, graph);
   // what if there were too few?
@@ -80,6 +82,7 @@ void ASRLStereoMatcherModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
     // run again, and use the forced loose pixel thresh
     num_matches = matchFeatures(qdata, graph);
   }
+  CLOG(DEBUG, "stereo.matcher") << "After Running Match Features";
 
   if (config_->visualize_feature_matches &&
       qdata.raw_matches.valid())

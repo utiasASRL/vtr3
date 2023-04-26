@@ -133,7 +133,7 @@ class StereoPipeline : public tactic::BasePipeline {
 
 //Carryover methods for internal pipeline use
 private:
-void setOdometryPrior(CameraQueryCache::Ptr &, const tactic::Graph::Ptr &); 
+void setOdometryPrior(CameraQueryCache &, const tactic::Graph::Ptr &); 
 tactic::EdgeTransform estimateTransformFromKeyframe(
     const tactic::Timestamp &kf_stamp, const tactic::Timestamp &curr_stamp,
     bool check_expiry);
@@ -142,6 +142,8 @@ tactic::EdgeTransform estimateTransformFromKeyframe(
  private:
   /** \brief Pipeline configuration */
   Config::ConstPtr config_;
+
+  CameraQueryCache::Ptr candidate_qdata_ = nullptr;
 
   std::vector<tactic::BaseModule::Ptr> preprocessing_;
   std::vector<tactic::BaseModule::Ptr> odometry_;
@@ -158,6 +160,8 @@ tactic::EdgeTransform estimateTransformFromKeyframe(
 
   /** \brief \todo remove this mutex, no longer needed */
   std::shared_ptr<std::mutex> steam_mutex_ptr_ = std::make_shared<std::mutex>();
+
+  tactic::Timestamp timestamp_odo_;
 
   VTR_REGISTER_PIPELINE_DEC_TYPE(StereoPipeline);
 };
