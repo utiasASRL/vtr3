@@ -117,12 +117,20 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
     return;
   }
 
+  LOG(WARNING) << "Now processing second frame!";
+
   // make sure the offsets are not holding any old info
   map_channel_offsets_.clear();
   query_channel_offsets_.clear();
 
+  LOG(WARNING) << "Generating RANSAC sampler!";
+
   // Set up the ransac implementation
   auto sampler = generateRANSACSampler(qdata);
+
+
+
+  LOG(WARNING) << "Generating Filter Matches!";
 
   // filter the raw matches as necessary
   auto filtered_matches = generateFilteredMatches(qdata);
@@ -133,11 +141,16 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   // the rig matches that will be used for ransac
   auto &rig_matches = filtered_matches[rig_idx];
 
+
+  LOG(WARNING) << "Setting up Vanila RANSAC!";
+
   // \todo (Old) Set up config.
   vision::VanillaRansac<Eigen::Matrix4d> ransac(
       sampler, config_->sigma, config_->threshold, config_->iterations,
       config_->early_stop_ratio, config_->early_stop_min_inliers,
       config_->enable_local_opt, config_->num_threads);
+
+  LOG(WARNING) << "Generate RANSAC model!";
 
   // Problem specific
   auto ransac_model = generateRANSACModel(qdata);

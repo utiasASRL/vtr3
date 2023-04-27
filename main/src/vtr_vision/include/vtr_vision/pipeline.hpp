@@ -22,11 +22,36 @@
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 #include "vtr_vision/modules/modules.hpp"
 #include "vtr_vision/cache.hpp"
+
+#include <vtr_common_msgs/msg/lie_group_transform.hpp>
+#include <vtr_messages/msg/rig_counts.hpp>
+#include <vtr_messages/msg/rig_landmarks.hpp>
+#include <vtr_messages/msg/rig_observations.hpp>
+#include <vtr_messages/msg/velocity.hpp>
+
 #include "steam.hpp"
 
 
 namespace vtr {
 namespace vision {
+
+
+using TimeStampMsg = vtr_messages::msg::TimeStamp;
+
+using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
+using RigObservationsMsg = vtr_messages::msg::RigObservations;
+using RigCountsMsg = vtr_messages::msg::RigCounts;
+
+using ChannelObservationsMsg = vtr_messages::msg::ChannelObservations;
+using ChannelFeaturesMsg = vtr_messages::msg::ChannelFeatures;
+using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
+
+using TransformMsg = vtr_messages::msg::Transform;
+using VelocityMsg = vtr_messages::msg::Velocity;
+using ImageMsg = vtr_messages::msg::Image;
+// using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
+
+
 
 class StereoPipeline : public tactic::BasePipeline {
  public:
@@ -123,14 +148,60 @@ class StereoPipeline : public tactic::BasePipeline {
 
   void onVertexCreation_(const tactic::QueryCache::Ptr &, const tactic::OutputCache::Ptr &,
                          const tactic::Graph::Ptr &,
-                         const std::shared_ptr<tactic::TaskExecutor> &) override {
-    /// This method is called whenever a vertex is created.
-    /// The following will be in qdata:
-    ///   - everything from odometry
-    ///   - vid_odo: always the vertex corresponding to the just-created vertex.
-    /// This method may read from or write to the graph.
-  }
+                         const std::shared_ptr<tactic::TaskExecutor> &);
 
+  void saveLandmarks(CameraQueryCache &qdata, const tactic::Graph::Ptr &graph,
+                         const VertexId &live_id); 
+
+
+  void addAllLandmarks(
+      RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
+      const int &rig_idx, const CameraQueryCache &qdata, const tactic::Graph::Ptr &,
+      const VertexId &persistent_id);
+
+
+  void addChannelObs(
+      ChannelObservationsMsg &channel_obs,
+      const vision::ChannelFeatures &channel_features,
+      const vision::ChannelLandmarks &, const VertexId &persistent_id,
+      const int &rig_idx, const int &channel_idx);
+
+
+  void addLandmarksAndObs(
+      RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
+      const int &rig_idx, const CameraQueryCache &qdata, const tactic::Graph::Ptr &,
+      const VertexId &persistent_id);
+
+
+
+  void addNewLandmarksAndObs(ChannelLandmarksMsg &new_landmarks,
+                             ChannelObservationsMsg &new_observations,
+                             const std::vector<bool> &new_landmark_flags,
+                             const vision::ChannelLandmarks &landmarks,
+                             const vision::ChannelFeatures &features,
+                             const VertexId &persistent_id,
+                             const int &rig_idx, const int &channel_idx);
+
+  /**
+   * \brief Adds Observations to landmarks in other vertices.
+   * \param[in,out] new_obs the observations message to be updated in the graph.
+   * \param matches The matches between the query frame and old landmarks.
+   * \param features The features corresponding to the landmarks
+   * \param map_lm_obs The observations of previous landmarks.
+   * \param new_landmark_flags Flags each candidate landmark as new or not.
+   * \param persistent_id the vertex ID of the current pose.
+   * \param rig_idx the index into the current rig.
+   * \param channel_idx the index into the current channel.
+   */
+  void addObsToOldLandmarks(ChannelObservationsMsg &new_obs,
+                            const vision::SimpleMatches &matches,
+                            const vision::ChannelFeatures &features,
+                            const vision::ChannelObservations &map_lm_obs,
+                            std::vector<bool> &new_landmark_flags,
+                            const VertexId &persistent_id,
+                            const int &rig_idx, const int &channel_idx);
+
+      
 //Carryover methods for internal pipeline use
 private:
 void setOdometryPrior(CameraQueryCache &, const tactic::Graph::Ptr &); 

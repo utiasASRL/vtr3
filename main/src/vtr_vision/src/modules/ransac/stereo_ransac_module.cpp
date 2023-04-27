@@ -19,6 +19,7 @@
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/ransac/stereo_ransac_module.hpp>
+#include "vtr_logging/logging.hpp"
 
 namespace vtr {
 namespace vision {
@@ -191,11 +192,15 @@ void StereoRansacModule::addPointsFromLandmarks(
 std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
     CameraQueryCache &qdata) {
   auto &query_landmarks = *qdata.candidate_landmarks;
-
+  LOG(WARNING) << "accessing query landmarks"; 
   std::vector<bool> mask;
   for (auto &rig : query_landmarks) {
     for (auto &channel : rig.channels) {
+      LOG(WARNING) << "accessing rig channels" << channel.points.cols(); 
       for (uint32_t lm_idx = 0; lm_idx < channel.points.cols(); ++lm_idx) {
+        LOG(WARNING) << "accessing each landmark"<< channel.points.rows() << ' ' << channel.points.cols(); 
+        LOG(WARNING) << "z depth val:" << channel.points(2, lm_idx);
+        LOG(WARNING) << "mask_depth:" << stereo_config_->mask_depth;
         mask.push_back(channel.points(2, lm_idx) < stereo_config_->mask_depth);
       }
     }
@@ -203,6 +208,7 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
 
   auto verifier = std::make_shared<vision::VerifySampleSubsetMask>(
       stereo_config_->mask_depth_inlier_count, mask);  // Need 1 close feature
+  
   return std::make_shared<vision::BasicSampler>(verifier);
 }
 

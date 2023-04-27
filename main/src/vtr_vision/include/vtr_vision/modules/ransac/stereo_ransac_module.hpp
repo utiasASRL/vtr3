@@ -84,7 +84,7 @@ class StereoRansacModule : public RansacModule {
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      :  RansacModule{config,module_factory,name},
+      :  RansacModule{config,module_factory,name}, stereo_config_(config),
         doom_twister(vo_doom_generator()),
         doom_distribution(0, 100) {}
 
@@ -135,7 +135,7 @@ class StereoRansacModule : public RansacModule {
   /** \brief The flattened map points. */
   std::shared_ptr<EigenMatrix3Dynamic> map_points_;
 
-  std::shared_ptr<Config> stereo_config_;
+  std::shared_ptr<const Config> stereo_config_;
 
   std::random_device vo_doom_generator;  // non-deterministic generator
   std::mt19937 doom_twister;  // (rd());  // to seed mersenne twister.
