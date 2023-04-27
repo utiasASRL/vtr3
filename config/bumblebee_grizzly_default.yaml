@@ -73,7 +73,7 @@
       type: stereo
 
       preprocessing: ["adapter","extraction", "triangulation"]
-      odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry: ["recall", "matcher", "vertex_test"]# "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 
       # bundle_adjustment: [] #["recall", "steam"]
@@ -101,10 +101,10 @@
         intrinsic:
         - 388.425
         - 0.0
-        - 253.502
+        - 254.002
         - 0.0
         - 388.425
-        - 196.822
+        - 197.32
         - 0.0
         - 0.0
         - 1.0
