@@ -84,3 +84,21 @@ struct Localization {
 
 }  // namespace tactic
 }  // namespace vtr
+
+
+//Helper to print the nice name of variable types
+#ifndef TYPE_HPP
+#define TYPE_HPP
+
+#include <string>
+#include <typeinfo>
+
+std::string demangle(const char* name);
+
+template <class T>
+std::string type_name(const T& t) {
+
+    return demangle(typeid(t).name());
+}
+
+#endif
