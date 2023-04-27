@@ -34,6 +34,7 @@ auto ASRLStereoMatcherModule::Config::fromROS(
   config->check_octave = node->declare_parameter<bool>(param_prefix + ".check_octave", config->check_octave);
   config->check_response = node->declare_parameter<bool>(param_prefix + ".check_response", config->check_response);
   config->min_response_ratio = node->declare_parameter<double>(param_prefix + ".min_response_ratio", config->min_response_ratio);
+  config->min_matches = (unsigned) node->declare_parameter<int>(param_prefix + ".min_matches", config->min_matches);
   config->matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".matching_pixel_thresh", config->matching_pixel_thresh);
   config->tight_matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".tight_matching_pixel_thresh", config->tight_matching_pixel_thresh);
   config->tight_matching_x_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_x_sigma", config->tight_matching_x_sigma);
@@ -75,24 +76,23 @@ void ASRLStereoMatcherModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
   CLOG(DEBUG, "stereo.matcher") << "After Accessing candidate landmarks.";
 
   // match features and record how many we found
-  auto num_matches = matchFeatures(qdata, graph);
+  auto num_matches = matchFeatures(qdata, graph, false);
   // what if there were too few?
-  if (num_matches < (unsigned)config_->min_matches) {
+  if (num_matches < config_->min_matches) {
     CLOG(WARNING, "stereo.matcher") << "Rematching because we didn't meet minimum matches!";
     // run again, and use the forced loose pixel thresh
-    num_matches = matchFeatures(qdata, graph);
+    num_matches = matchFeatures(qdata, graph, true);
   }
   CLOG(DEBUG, "stereo.matcher") << "After Running Match Features";
 
   if (config_->visualize_feature_matches &&
       qdata.raw_matches.valid())
-      CLOG(WARNING, "stereo.visualize") << "Visualizations ot yet supported";
-    /*visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.raw_matches,
-                           " raw matches", true);*/
+    visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.raw_matches,
+                           " raw matches", true);
 }
 
 unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
-                                                const Graph::ConstPtr &) {
+                                                const Graph::ConstPtr &, bool force_loose_pixel_thresh) {
   // make sure the raw matches are empty (we may have used this function before)
   qdata.raw_matches.clear();
   // output matches
@@ -115,7 +115,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
   // predicted inverse transformation matrix
   Eigen::Matrix<double, 3, 4> Ti;
 
-  use_tight_pixel_thresh_ =
+  bool use_tight_pixel_thresh =
       qdata.T_r_m_prior.valid() &&
       sqrt(qdata.T_r_m_prior->cov()(0, 0)) < config_->tight_matching_x_sigma &&
       sqrt(qdata.T_r_m_prior->cov()(1, 1)) < config_->tight_matching_y_sigma &&
@@ -123,8 +123,8 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
           config_->tight_matching_theta_sigma;
 
   // force the loose pixel thresh
-  if (force_loose_pixel_thresh_) {
-    use_tight_pixel_thresh_ = false;
+  if (force_loose_pixel_thresh) {
+    use_tight_pixel_thresh = false;
   }
 
   // keep a record of how many matches we found
@@ -237,7 +237,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
             // check that all non-descriptor checks are OK before checking the
             // descriptor
             if (checkConditions(kp_map, lm_info_map, kp_query, lm_info_qry,
-                                qry_pt, map_pt)) {
+                                qry_pt, map_pt, use_tight_pixel_thresh)) {
               // finally check the descriptor distance. 0.0 is perfect
               // match, 1.0 is maximally distant
               float match_dist = 1.0;
@@ -296,19 +296,14 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
     }
   }
 
-  if ((int)total_matches < config_->min_matches) {
-    force_loose_pixel_thresh_ = true;
-  } else {
-    force_loose_pixel_thresh_ = false;
-  }
-
   return total_matches;
 }
 
 bool ASRLStereoMatcherModule::checkConditions(
     const vision::Keypoint &kp_map, const vision::FeatureInfo &lm_info_map,
     const vision::Keypoint &kp_query, const vision::FeatureInfo &lm_info_qry,
-    const cv::Point &qry_pt, const cv::Point &map_pt) {
+    const cv::Point &qry_pt, const cv::Point &map_pt,
+    const bool use_tight_pixel_thresh) {
   // check that the octave of the two keypoints are roughly similar
   if (config_->check_laplacian_bit &&
       lm_info_qry.laplacian_bit != lm_info_map.laplacian_bit) {
@@ -335,7 +330,7 @@ bool ASRLStereoMatcherModule::checkConditions(
                            : 1.0;
 
   // scale it by the desired window size
-  float window_size = window_scale * (use_tight_pixel_thresh_
+  float window_size = window_scale * (use_tight_pixel_thresh
                                           ? config_->tight_matching_pixel_thresh
                                           : config_->matching_pixel_thresh);
 

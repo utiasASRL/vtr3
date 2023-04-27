@@ -372,7 +372,9 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
       // get the futures.
       for (auto &future : feature_futures) {
         rig_features.channels.emplace_back(future.get());
-        CLOG(INFO, "preprocessing") << "Number of keypoints found" << rig_features.channels.at(0).cameras.at(0).keypoints.size();
+
+        for (auto &cam : rig_features.channels.back().cameras) 
+          CLOG(INFO, "preprocessing") << "Number of keypoints found" << cam.keypoints.size() << " for cam " << rig_features.channels.back().name;
       }
     }
   }

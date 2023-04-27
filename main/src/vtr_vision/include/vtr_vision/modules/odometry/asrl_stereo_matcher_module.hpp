@@ -24,7 +24,7 @@
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/features/matcher/asrl_feature_matcher.hpp>
 #include <vtr_vision/types.hpp>
-//#include <vtr_vision/visualize.hpp>
+#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace vision {
@@ -111,7 +111,7 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
     bool visualize_feature_matches = false;
 
     /** \brief How many features are found to constitute a success */
-    int min_matches = 0;
+    unsigned int min_matches = 1;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -122,14 +122,12 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
   ASRLStereoMatcherModule( const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : tactic::BaseModule{module_factory, name}, config_(config) {
-    use_tight_pixel_thresh_ = false;
-    force_loose_pixel_thresh_ = false;
-  }
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
   /** \brief Perform the feature matching */
   unsigned matchFeatures(CameraQueryCache &qdata,
-                         const tactic::Graph::ConstPtr &graph);
+                         const tactic::Graph::ConstPtr &graph,
+                         bool force_loose_pixel_thresh);
 
  private:
   /**
@@ -146,13 +144,11 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
    */
   bool checkConditions(const Keypoint &kp_map, const FeatureInfo &lm_info_map,
                        const Keypoint &kp_query, const FeatureInfo &lm_info_qry,
-                       const cv::Point &qry_pt, const cv::Point &map_pt);
+                       const cv::Point &qry_pt, const cv::Point &map_pt,
+                       const bool use_tight_pixel_thresh);
 
   /** \brief Algorithm Configuration */
   Config::ConstPtr config_;
-
-  bool use_tight_pixel_thresh_;
-  bool force_loose_pixel_thresh_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(ASRLStereoMatcherModule);
 };

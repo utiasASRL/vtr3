@@ -235,7 +235,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
 
             } else {
-              noise_stereo = std::marke_shared<steam::StaticNoiseModel<4>>(meas_covariance);
+              noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
             }
 
           } catch (std::invalid_argument &e) {
@@ -415,8 +415,7 @@ void KeyframeOptimizationModule::computeTrajectory(
   velocity_map_.clear();
 
   // reset the trajectory
-  trajectory_.reset(
-      new steam::traj::const_vel::Interface(smoothing_factor_information_));
+  trajectory_ = std::make_shared<traj::const_vel::Interface>(smoothing_factor_information_);
 
   // get the map vertex
   auto map_vertex = graph->at(*qdata.vid_odo);
