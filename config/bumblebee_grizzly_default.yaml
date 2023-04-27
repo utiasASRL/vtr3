@@ -19,7 +19,9 @@
         "stereo.preprocessing",
         "stereo.recall",
         "stereo.matcher",
+        "stereo.odometry",
         "preprocessing",
+        "odometry",
         "path_tracker",
         "tactic.pipeline"
       ]
@@ -28,8 +30,8 @@
     robot_frame: base_link
     # camera related
     camera_frame: front_xb3
-    camera_left_topic: /zed2/zed_node/left/image_rect_color
-    camera_right_topic: /zed2/zed_node/right/image_rect_color
+    camera_left_topic: /xb3/RGB/left_image #/zed2/zed_node/left/image_rect_color
+    camera_right_topic:  /xb3/RGB/right_image #/zed2/zed_node/right/image_rect_color
     camera_calibration_topic: /zed2/zed_node/left/camera_info
     # lidar related
     lidar_frame: lidar_not_used
@@ -97,17 +99,29 @@
         type: stereo.adapter
         distortion: [0.0, 0.0, 0.0, 0.0, 0.0] 
         intrinsic:
-          - 371.88385009765625
-          - 0.0
-          - 433.3143005371094
-          - 0.0
-          - 377.7867736816406
-          - 252.2572021484375
-          - 0.0
-          - 0.0
-          - 1.0
-        baseline: 0.12
-        extrinsic: [1.0, 0.0, 0.0, -0.120, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        - 388.425
+        - 0.0
+        - 253.502
+        - 0.0
+        - 388.425
+        - 196.822
+        - 0.0
+        - 0.0
+        - 1.0
+        
+          #zed2i
+          # - 371.88385009765625
+          # - 0.0
+          # - 433.3143005371094
+          # - 0.0
+          # - 377.7867736816406
+          # - 252.2572021484375
+          # - 0.0
+          # - 0.0
+          # - 1.0
+        baseline: 0.24 #0.12
+        extrinsic: [1.0, 0.0, 0.0, -0.24, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0] 
+        #[1.0, 0.0, 0.0, -0.120, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         
 
       extraction:
