@@ -157,7 +157,7 @@ void ImageTriangulationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCa
               *calibration_itr, keypoints, feat_infos,
               &landmarks.covariances(0, keypoint_idx));
           landmarks.valid.at(keypoint_idx) = true;
-          CLOG(DEBUG, "stereo.preprocessing") << "3D point" << landmarks.points.col(keypoint_idx);
+          //CLOG(DEBUG, "stereo.preprocessing") << "3D point" << landmarks.points.col(keypoint_idx);
         }
       }
     }
