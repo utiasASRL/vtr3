@@ -99,8 +99,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
   auto &matches = *qdata.raw_matches.emplace();
 
   // grab the query landmarks.
-  std::vector<vision::RigLandmarks> &query_landmarks =
-      *qdata.candidate_landmarks;
+  std::vector<vision::RigLandmarks> &query_landmarks = *qdata.candidate_landmarks;
 
   // grab the map landmarks
   std::vector<LandmarkFrame> &map_landmarks = *qdata.map_landmarks;
@@ -119,8 +118,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
       qdata.T_r_m_prior.valid() &&
       sqrt(qdata.T_r_m_prior->cov()(0, 0)) < config_->tight_matching_x_sigma &&
       sqrt(qdata.T_r_m_prior->cov()(1, 1)) < config_->tight_matching_y_sigma &&
-      sqrt(qdata.T_r_m_prior->cov()(5, 5)) <
-          config_->tight_matching_theta_sigma;
+      sqrt(qdata.T_r_m_prior->cov()(5, 5)) < config_->tight_matching_theta_sigma;
 
   // force the loose pixel thresh
   if (force_loose_pixel_thresh) {
@@ -133,6 +131,8 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
   // if we are using an se3 prediction method
   if (config_->prediction_method == PredictionMethod::se3 &&
       qdata.T_r_m_prior.valid()) {
+
+    CLOG(DEBUG, "stereo.matcher") << "Using SE3 prediction";
     // get the candidate transform given by a different function and transform
     // it to the camera frame
     auto T_q_m = (*qdata.T_s_r) * (*qdata.T_r_m_prior) *
@@ -148,8 +148,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
     const vision::RigLandmarks &query_rig_lm = query_landmarks[rig_idx];
     const vision::RigFeatures &query_rig_feat = query_features[rig_idx];
     const vision::RigLandmarks &map_rig_lm = map_landmarks[rig_idx].landmarks;
-    const vision::RigObservations &map_rig_obs =
-        map_landmarks[rig_idx].observations;
+    const vision::RigObservations &map_rig_obs = map_landmarks[rig_idx].observations;
 
     // put a new set of matches on for this rig.
     matches.emplace_back(vision::RigMatches());
@@ -175,6 +174,8 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
       if ((qry_channel_lm.name != "RGB") &&
           (qry_channel_lm.appearance.descriptors.rows > 0) &&
           (map_channel_lm.appearance.descriptors.rows > 0)) {
+
+        CLOG(DEBUG, "stereo.matcher") << "Using channel " << qry_channel_lm.name << " for matching";
         // make a new matcher
         vision::ASRLFeatureMatcher::Config matcher_config;
         vision::ASRLFeatureMatcher matcher(matcher_config);
@@ -224,6 +225,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
             // Grab the corresponding map keypoint
             const vision::Point &map_pt =
                 map_channel_obs.cameras[0].points[map_lm_idx];
+
 
             // Nope! Not a keypoint! Just the appearance info for the descriptor
             // (the point is invalid)
@@ -289,6 +291,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
         rig_matches.channels.emplace_back(channel_matches);
 
       } else {
+        CLOG(WARNING, "stereo.matcher") << "Adding empty matches";
         // Just put empty matches on otherwise.
         rig_matches.channels.emplace_back(vision::ChannelMatches());
         rig_matches.channels.back().name = qry_channel_lm.name;
@@ -296,6 +299,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
     }
   }
 
+  CLOG(DEBUG, "stereo.matcher") << "Total matches: " << total_matches;
   return total_matches;
 }
 

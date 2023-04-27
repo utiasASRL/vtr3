@@ -73,7 +73,7 @@
       type: stereo
 
       preprocessing: ["adapter","extraction", "triangulation"]
-      odometry: ["recall", "matcher", "vertex_test"] #, "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 
       # bundle_adjustment: [] #["recall", "steam"]
@@ -126,7 +126,7 @@
 
       extraction:
         type: stereo.conversion_extraction
-        visualize: false
+        visualize: true
 
 
         # specify which conversions to do between different image formats from:

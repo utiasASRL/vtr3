@@ -22,7 +22,6 @@
 
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
-#include <vtr_vision/modules/odometry/vertex_creation_test_module.hpp>
 
 namespace vtr {
 namespace vision {
@@ -35,7 +34,7 @@ namespace vision {
  * outputs:
  *   qdata.[new_vertex_flag, success]
  */
-class SimpleVertexTestModule : public VertexCreationModule {
+class SimpleVertexTestModule : public tactic::BaseModule {
  public:
   PTR_TYPEDEFS(SimpleVertexTestModule);
 
@@ -43,7 +42,7 @@ class SimpleVertexTestModule : public VertexCreationModule {
   static constexpr auto static_name = "simple_vertex_creation_test";
 
   /** \brief Collection of config parameters */
-  struct Config : VertexCreationModule::Config {
+  struct Config : tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                         const std::string &param_prefix);
@@ -54,44 +53,26 @@ class SimpleVertexTestModule : public VertexCreationModule {
     double rotation_threshold_max = 20.0;
     int match_threshold_min_count = 100;
     int match_threshold_fail_count = 15;
-
-
-    // double distance_threshold_min = 0.2;
-    // double distance_threshold_max = 1.0;
-    // double rotation_threshold_min = 2.0;
-    // double rotation_threshold_max = 20.0;
-    // int match_threshold_min_count = 100;
-    // int match_threshold_fail_count = 15;
-
   };
 
-  // SimpleVertexTestModule(std::string name = static_name)
-  //     : VertexCreationModule{name} {}
   SimpleVertexTestModule(const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : VertexCreationModule{config, module_factory, name} {}
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
-
-  // void configFromROS(const rclcpp::Node::SharedPtr &node,
-  //                    const std::string param_prefix) override;
 
  protected:
   /**
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-  // void runImpl(tactic::QueryCache &qdata,
-  //              const tactic::Graph::ConstPtr &graph) override;
-
     void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
 
  private:
   /** \brief Module configuration. */
-  // std::shared_ptr<Config> simple_config_;
-  Config::ConstPtr simple_config_;
+  Config::ConstPtr config_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(SimpleVertexTestModule);
 

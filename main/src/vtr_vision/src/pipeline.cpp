@@ -81,7 +81,7 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
 
   // qdata->T_r_m.emplace(*qdata->T_r_v_odo);
   // qdata->T_r_m_prior.emplace(*qdata->T_r_v_odo);
-  CLOG(WARNING, "stereo.pipeline") << *qdata.first_frame ;
+  CLOG(WARNING, "stereo.pipeline") << "First frame: " << *qdata.first_frame ;
 
   if (!(*qdata.first_frame)){
     qdata.timestamp_odo.emplace(timestamp_odo_);
@@ -120,7 +120,7 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
       // trajectory is no longer valid
       trajectory_.reset();
       // force a keyframe
-      *(qdata.vertex_test_result) = VertexTestResult::CREATE_VERTEX;
+      //*(qdata.vertex_test_result) = VertexTestResult::CREATE_VERTEX;
     }
   } else {
     // keep a pointer to the trajectory
@@ -135,8 +135,6 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
 
   // set result
   qdata.T_r_v_odo = *qdata.T_r_m;
-
-
 }
 
 void StereoPipeline::setOdometryPrior(CameraQueryCache &qdata,
@@ -218,9 +216,6 @@ void StereoPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
                                       const Graph::Ptr &graph,
                                       const TaskExecutor::Ptr &) {
 
-// void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata0,
-//                                      const Graph::Ptr &graph,
-//                                      VertexId live_id) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   auto live_id = *qdata->vid_odo;
 

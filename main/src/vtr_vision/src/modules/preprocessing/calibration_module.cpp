@@ -65,11 +65,13 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
 
   // Eigen::Matrix4d matrix {config_->extrinsic};
   Transform left_extrinsic;
-  Eigen::Matrix3d eye3;
-  Eigen::Vector3d r_ba_ina;
+  Eigen::Matrix3d eye3 = Eigen::Matrix<double, 3, 3>::Identity();
+  Eigen::Vector3d r_ba_ina = Eigen::Vector3d::Zero();
   r_ba_ina[0] = config_->baseline;
 
   Transform right_extrinsic {eye3, r_ba_ina};
+  CLOG(INFO, "preprocessing") << left_extrinsic;
+  CLOG(INFO, "preprocessing") << right_extrinsic;
   Transforms extrinsics {left_extrinsic, right_extrinsic};
 
 

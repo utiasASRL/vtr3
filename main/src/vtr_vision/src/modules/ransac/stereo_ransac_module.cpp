@@ -198,7 +198,6 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
     for (auto &channel : rig.channels) {
       LOG(WARNING) << "accessing rig channels" << channel.points.cols(); 
       for (uint32_t lm_idx = 0; lm_idx < channel.points.cols(); ++lm_idx) {
-        LOG(WARNING) << "accessing each landmark"<< channel.points.rows() << ' ' << channel.points.cols(); 
         LOG(WARNING) << "z depth val:" << channel.points(2, lm_idx);
         LOG(WARNING) << "mask_depth:" << stereo_config_->mask_depth;
         mask.push_back(channel.points(2, lm_idx) < stereo_config_->mask_depth);
