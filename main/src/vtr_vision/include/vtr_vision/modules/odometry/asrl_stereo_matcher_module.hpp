@@ -24,7 +24,7 @@
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/features/matcher/asrl_feature_matcher.hpp>
 #include <vtr_vision/types.hpp>
-//#include <vtr_vision/visualize.hpp>
+#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace vision {
@@ -111,7 +111,7 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
     bool visualize_feature_matches = false;
 
     /** \brief How many features are found to constitute a success */
-    int min_matches = 0;
+    unsigned int min_matches = 1;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);

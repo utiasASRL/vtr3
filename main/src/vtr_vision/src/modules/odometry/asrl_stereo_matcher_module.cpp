@@ -34,6 +34,7 @@ auto ASRLStereoMatcherModule::Config::fromROS(
   config->check_octave = node->declare_parameter<bool>(param_prefix + ".check_octave", config->check_octave);
   config->check_response = node->declare_parameter<bool>(param_prefix + ".check_response", config->check_response);
   config->min_response_ratio = node->declare_parameter<double>(param_prefix + ".min_response_ratio", config->min_response_ratio);
+  config->min_matches = (unsigned) node->declare_parameter<int>(param_prefix + ".min_matches", config->min_matches);
   config->matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".matching_pixel_thresh", config->matching_pixel_thresh);
   config->tight_matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".tight_matching_pixel_thresh", config->tight_matching_pixel_thresh);
   config->tight_matching_x_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_x_sigma", config->tight_matching_x_sigma);
@@ -77,7 +78,7 @@ void ASRLStereoMatcherModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
   // match features and record how many we found
   auto num_matches = matchFeatures(qdata, graph);
   // what if there were too few?
-  if (num_matches < (unsigned)config_->min_matches) {
+  if (num_matches < config_->min_matches) {
     CLOG(WARNING, "stereo.matcher") << "Rematching because we didn't meet minimum matches!";
     // run again, and use the forced loose pixel thresh
     num_matches = matchFeatures(qdata, graph);
@@ -86,9 +87,8 @@ void ASRLStereoMatcherModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
 
   if (config_->visualize_feature_matches &&
       qdata.raw_matches.valid())
-      CLOG(WARNING, "stereo.visualize") << "Visualizations ot yet supported";
-    /*visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.raw_matches,
-                           " raw matches", true);*/
+    visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.raw_matches,
+                           " raw matches", true);
 }
 
 unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
@@ -296,7 +296,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
     }
   }
 
-  if ((int)total_matches < config_->min_matches) {
+  if (total_matches < config_->min_matches) {
     force_loose_pixel_thresh_ = true;
   } else {
     force_loose_pixel_thresh_ = false;

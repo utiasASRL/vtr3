@@ -120,7 +120,7 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
       // trajectory is no longer valid
       trajectory_.reset();
       // force a keyframe
-      *(qdata.vertex_test_result) = VertexTestResult::CREATE_VERTEX;
+      //*(qdata.vertex_test_result) = VertexTestResult::CREATE_VERTEX;
     }
   } else {
     // keep a pointer to the trajectory
