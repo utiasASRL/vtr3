@@ -149,7 +149,7 @@ void SteamModule::setConfig() {
 }
 
 std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
-    steam::OptimizationProblem problem) {
+    steam::OptimizationProblem &problem) {
 
   // Setup Solver
   std::shared_ptr<steam::SolverBase> solver;

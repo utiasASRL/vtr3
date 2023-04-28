@@ -91,21 +91,21 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
 
     if (config_->use_T_q_m_prior) {
 
-      const auto tf_qs_mv = inverse(compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)], query_pose_));
-      const auto tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
+      // tf_qs_mv = inverse(compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)], query_pose_));
+      // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
-      // tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)],
-      //                                tf_query_);
-      // tf_qs_ms = steam::se3::composeInverse(
-      //     tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_loc)]);
+      tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)],
+                                     tf_query_);
+      tf_qs_ms = steam::se3::compose_rinv(
+          tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_loc)]);
     } else {
 
-      const auto tf_qs_mv = inverse(compose(tf_sensor_vehicle_, query_pose_));
-      const auto tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
+      // tf_qs_mv = inverse(compose(tf_sensor_vehicle_, query_pose_));
+      // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
-      // tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, tf_query_);
-      // tf_qs_ms = steam::se3::composeInverse(
-      //     tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]);
+      tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, tf_query_);
+      tf_qs_ms = steam::se3::compose_rinv(
+          tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]);
     }
 
     // iterate through every channel
@@ -283,7 +283,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
 
   // Add landmark variables
   for (auto &landmark : landmarks_ic) {
-    problem.addStateVariable(landmark);
+    //problem.addStateVariable(landmark);
   }
 
   // Add the trajectory stuff.
@@ -508,6 +508,9 @@ void KeyframeOptimizationModule::computeTrajectory(
       query_pose_->value().vec() / (query_map_dt / 1e9);
   VSpaceStateVar<6>::Ptr map_frame_velocity(
       new VSpaceStateVar<6>(query_velocity));
+
+  //TODO should this be locked?
+
   VSpaceStateVar<6>::Ptr query_frame_velocity(
       new VSpaceStateVar<6>(query_velocity));
 

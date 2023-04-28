@@ -169,7 +169,7 @@ class SteamModule : public tactic::BaseModule {
   /** \brief Module configuration. */
   Config::ConstPtr config_;
 
-  std::shared_ptr<steam::SolverBase> generateSolver(steam::OptimizationProblem problem);
+  std::shared_ptr<steam::SolverBase> generateSolver(steam::OptimizationProblem &problem);
 
   steam::se3::SE3StateVar::Ptr tf_sensor_vehicle_;
   std::map<tactic::VertexId, steam::se3::SE3StateVar::Ptr>
