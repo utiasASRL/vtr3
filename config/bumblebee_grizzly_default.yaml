@@ -19,6 +19,7 @@
         "stereo.preprocessing",
         "stereo.recall",
         "stereo.matcher",
+        "stereo.keyframe_optimization",
         "stereo.odometry",
         "odometry",
         "path_tracker",

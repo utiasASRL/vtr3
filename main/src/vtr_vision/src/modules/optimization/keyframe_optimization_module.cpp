@@ -52,11 +52,12 @@ bool KeyframeOptimizationModule::isLandmarkValid(const Eigen::Vector3d &point) {
   return point(2) > 0.0 && point(2) < keyframe_config_->max_point_depth;
 }
 
-std::shared_ptr<steam::OptimizationProblem>
-KeyframeOptimizationModule::generateOptimizationProblem(
+steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProblem(
     CameraQueryCache &qdata, const std::shared_ptr<const Graph> &graph) {
   // initialize the steam problem.
   resetProblem(*qdata.T_r_m);
+
+  auto problem = OptimizationProblem();
 
   // Initialize the landmark container
   std::vector<steam::stereo::HomoPointStateVar::Ptr> landmarks_ic;
@@ -91,7 +92,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
     if (config_->use_T_q_m_prior) {
 
       const auto tf_qs_mv = inverse(compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)], query_pose_));
-      const auto tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_loc)]));
+      const auto tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
       // tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)],
       //                                tf_query_);
@@ -100,7 +101,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
     } else {
 
       const auto tf_qs_mv = inverse(compose(tf_sensor_vehicle_, query_pose_));
-      const auto tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_loc)]));
+      const auto tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
       // tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, tf_query_);
       // tf_qs_ms = steam::se3::composeInverse(
@@ -259,8 +260,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
               new steam::WeightedLeastSqCostTerm<4>(
                   errorfunc, noise_stereo, sharedLossFunc_));
           // add the cost term
-          // cost_terms_->add(cost);
-          problem_->addCostTerm(cost);
+          //problem.addCostTerm(cost);
 
 
           // steam throws?
@@ -273,33 +273,29 @@ KeyframeOptimizationModule::generateOptimizationProblem(
   }      // end for rig
 
   // Add pose variables
-  problem_->addStateVariable(map_pose_);
-  problem_->addStateVariable(query_pose_);
+  problem.addStateVariable(map_pose_);
+  problem.addStateVariable(query_pose_);
 
   // Add pose prior if requested
-  if (keyframe_config_->pose_prior_enable == true) {
-    addPosePrior(qdata);
+  if (keyframe_config_->pose_prior_enable) {
+    addPosePrior(qdata, problem);
   }
 
   // Add landmark variables
   for (auto &landmark : landmarks_ic) {
-    problem_->addStateVariable(landmark);
+    problem.addStateVariable(landmark);
   }
-
-  // Add cost terms
-  // problem_->addCostTerm(cost);
-  // problem_->addCostTerm(depth_cost_terms_);
 
   // Add the trajectory stuff.
   if (config_->trajectory_smoothing) {
-    computeTrajectory(qdata, graph);
+    computeTrajectory(qdata, graph, problem);
   }
 
   // Go through each rig
-  return problem_;
+  return problem;
 }
 
-void KeyframeOptimizationModule::addPosePrior(CameraQueryCache &qdata) {
+void KeyframeOptimizationModule::addPosePrior(CameraQueryCache &qdata, OptimizationProblem &problem) {
   // TODO: Replace with T_leaf_branch from graph?
   EdgeTransform &pose_prior = *qdata.T_r_m_prior;
 
@@ -323,7 +319,7 @@ void KeyframeOptimizationModule::addPosePrior(CameraQueryCache &qdata) {
       new steam::WeightedLeastSqCostTerm<6>(
           prior_error_func, priorUncertainty, priorLossFunc));
   // cost_terms_->add(prior_cost);
-  problem_->addCostTerm(prior_cost);
+  problem.addCostTerm(prior_cost);
 
 }
 
@@ -391,7 +387,6 @@ void KeyframeOptimizationModule::resetProblem(EdgeTransform &T_q_m) {
   sharedLossFunc_.reset(new steam::DcsLossFunc(2.0));
 
   // Initialize the problem.;
-  problem_.reset(new steam::OptimizationProblem());
 }
 
 void KeyframeOptimizationModule::addDepthCost(
@@ -406,12 +401,12 @@ void KeyframeOptimizationModule::addDepthCost(
   // depth_cost.reset(new steam::WeightedLeastSqCostTerm<1>(
   //     errorfunc_range, rangeNoiseModel, sharedDepthLossFunc_));
   // // depth_cost_terms_->add(depth_cost);
-  // problem_->addCostTerm(depth_cost);
+  // problem->addCostTerm(depth_cost);
 
 }
 
 void KeyframeOptimizationModule::computeTrajectory(
-    CameraQueryCache &qdata, const std::shared_ptr<const Graph> &graph) {
+    CameraQueryCache &qdata, const std::shared_ptr<const Graph> &graph, OptimizationProblem &problem) {
   velocity_map_.clear();
 
   // reset the trajectory
@@ -426,17 +421,14 @@ void KeyframeOptimizationModule::computeTrajectory(
 
   // set up a search for the previous keyframes in the graph
   auto tempeval = std::make_shared<pose_graph::eval::mask::temporal::Eval<Graph>>(*graph);
-  // tempeval->setGraph((void *)graph.get());
 
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
   using DirectionEvaluator = pose_graph::eval::mask::direction_from_vertex::Eval;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.vid_odo, true);
-  // direval->setGraph((void *)graph.get());
 
   // combine the temporal and backwards mask
   auto evaluator = pose_graph::eval::And(tempeval, direval);
-  // evaluator->setGraph((void *)graph.get());
 
   // look back five vertices
   int temporal_depth = 5;
@@ -488,23 +480,12 @@ void KeyframeOptimizationModule::computeTrajectory(
     Eigen::Matrix<double, 6, 1> prev_velocity =
         T_pp1_p.vec() / (next_prev_dt / 1e9);
 
-    // TODO nice to have once the code is thread safe
-    //    auto proto_velocity =
-    //    prev_vertex->retrieveKeyframeData<robochunk::kinematic_msgs::Velocity>("/velocities");
-    //    Eigen::Matrix<double,6,1> velocity;
-    //    prev_velocity(0,0) = proto_velocity->translational().x();
-    //    prev_velocity(1,0) = proto_velocity->translational().y();
-    //    prev_velocity(2,0) = proto_velocity->translational().z();
-    //    prev_velocity(3,0) = proto_velocity->rotational().x();
-    //    prev_velocity(4,0) = proto_velocity->rotational().y();
-    //    prev_velocity(5,0) = proto_velocity->rotational().z();
-    auto prev_frame_velocity =
-        std::make_shared<VSpaceStateVar<6>>(prev_velocity);
+    auto prev_frame_velocity =  std::make_shared<VSpaceStateVar<6>>(prev_velocity);
 
     velocity_map_.insert({prev_vertex->id(), prev_frame_velocity});
 
     // add the velocity to the state variable.
-    problem_->addStateVariable(prev_frame_velocity);
+    problem.addStateVariable(prev_frame_velocity);
 
     // make a steam time from the timstamp
     Time prev_time(
@@ -534,8 +515,8 @@ void KeyframeOptimizationModule::computeTrajectory(
   velocity_map_.insert({VertexId::Invalid(), query_frame_velocity});
 
   // add the velocities to the state variable.
-  problem_->addStateVariable(map_frame_velocity);
-  problem_->addStateVariable(query_frame_velocity);
+  problem.addStateVariable(map_frame_velocity);
+  problem.addStateVariable(query_frame_velocity);
 
   Time map_time(static_cast<int64_t>(map_stamp));
   Time query_time(
@@ -546,7 +527,7 @@ void KeyframeOptimizationModule::computeTrajectory(
   trajectory_->add(query_time, query_pose_, query_frame_velocity);
 
   // Trajectory prior smoothing terms
-  trajectory_->addPriorCostTerms(*problem_);
+  trajectory_->addPriorCostTerms(problem);
   // trajectory_->addPriorCostTerms(depth_cost_terms_);
 
   if (config_->velocity_prior) {
