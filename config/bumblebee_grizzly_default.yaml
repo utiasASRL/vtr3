@@ -232,7 +232,7 @@
       keyframe_optimize:
         type: keyframe_optimization
 
-        solver_type: "VanillaGaussNewton"
+        solver_type: "DoglegGaussNewton"
         loss_function: "DCS"
 
         verbose: true

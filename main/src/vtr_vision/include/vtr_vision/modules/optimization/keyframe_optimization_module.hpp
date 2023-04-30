@@ -69,10 +69,6 @@ class KeyframeOptimizationModule : public SteamModule {
 
 
  protected:
-  /** \brief Saves the trajectory. */
-  void updateGraphImpl(tactic::QueryCache &qdata,
-                       const tactic::Graph::Ptr &graph,
-                       tactic::VertexId id);
 
   /** \brief Given two frames, builds a sensor specific optimization problem. */
   steam::OptimizationProblem generateOptimizationProblem(

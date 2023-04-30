@@ -78,8 +78,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
     auto &rig_ransac_matches = (*qdata.ransac_matches)[rig_idx];
     auto &calibration = *calibration_itr;
 
-    // Setup camera intrinsics, TODO: This should eventually be different for
-    // each rig.
+    // Setup camera intrinsics
     StereoCalibPtr sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
     
 
@@ -95,7 +94,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
       // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
       tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)],
-                                     tf_query_);
+                                     query_pose_);
       tf_qs_ms = steam::se3::compose_rinv(
           tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_loc)]);
     } else {
@@ -103,9 +102,8 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
       // tf_qs_mv = inverse(compose(tf_sensor_vehicle_, query_pose_));
       // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
-      tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, tf_query_);
-      tf_qs_ms = steam::se3::compose_rinv(
-          tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]);
+      tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, query_pose_);
+      tf_qs_ms = steam::se3::compose_rinv(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]);
     }
 
     // iterate through every channel
@@ -195,19 +193,17 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
           }
 
           // create and add the landmark
-          landmarks_ic.push_back(steam::stereo::HomoPointStateVar::Ptr(
-              new steam::stereo::HomoPointStateVar(map_point)));
+          landmarks_ic.push_back(stereo::HomoPointStateVar::MakeShared(map_point));
 
           // // add the depth prior
-          // if (keyframe_config_->depth_prior_enable) {
-          //   addDepthCost(landmarks_ic.back());
-          // }
+          if (keyframe_config_->depth_prior_enable) {
+            addDepthCost(landmarks_ic.back());
+          }
 
           // Get landmark reference
           auto &landVar = landmarks_ic.back();
 
           // lock the landmark
-          // landVar->setLock(true);
           landVar->locked() = true;
 
 
@@ -217,7 +213,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
 
           try {
             // If this is with migrated points, then use the dynamic model.
-            if (keyframe_config_->use_migrated_points == true) {
+            if (keyframe_config_->use_migrated_points) {
               // // TODO: Calculate directly instead of in landmark migration.
               // auto *migrated_cov = &(*qdata.migrated_covariance);
               // const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(
@@ -252,15 +248,21 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
             data(idx * 2 + 1) = query_kps.at(idx).y;
           }
 
-          
+          if (!tf_qs_ms || !landVar) {
+            CLOG(ERROR, "stereo.keyframe_optimization") << tf_qs_ms << " " << landVar;
+            continue;
+          }
+
+          if (!noise_stereo || !sharedLossFunc_) {
+            CLOG(ERROR, "stereo.keyframe_optimization") << noise_stereo << " " << sharedLossFunc_;
+            continue;
+          }
+
           // Construct error function for observation to the fixed landmark.
-          auto errorfunc = std::make_shared<steam::stereo::StereoErrorEvaluator>
-              (data, sharedStereoIntrinsics, tf_qs_ms, landVar);
-          steam::WeightedLeastSqCostTerm<4>::Ptr cost(
-              new steam::WeightedLeastSqCostTerm<4>(
-                  errorfunc, noise_stereo, sharedLossFunc_));
+          auto errorfunc = stereo::StereoErrorEvaluator::MakeShared(data, sharedStereoIntrinsics, tf_qs_ms, landVar);
+          auto cost = WeightedLeastSqCostTerm<4>::MakeShared(errorfunc, noise_stereo, sharedLossFunc_);
           // add the cost term
-          //problem.addCostTerm(cost);
+          problem.addCostTerm(cost);
 
 
           // steam throws?
@@ -283,7 +285,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
 
   // Add landmark variables
   for (auto &landmark : landmarks_ic) {
-    //problem.addStateVariable(landmark);
+    problem.addStateVariable(landmark);
   }
 
   // Add the trajectory stuff.
@@ -302,23 +304,22 @@ void KeyframeOptimizationModule::addPosePrior(CameraQueryCache &qdata, Optimizat
   steam::BaseNoiseModel<6>::Ptr priorUncertainty;
 
   /// @brief the loss function associated with observation cost.
-  steam::BaseLossFunc::Ptr priorLossFunc;
-  priorLossFunc.reset(new steam::L2LossFunc());
+  steam::BaseLossFunc::Ptr priorLossFunc = std::make_shared<L2LossFunc>();
+
   try {
     auto pose_cov = pose_prior.cov();
-    priorUncertainty.reset(new steam::StaticNoiseModel<6>(pose_cov));
+    priorUncertainty = std::make_shared<steam::StaticNoiseModel<6>>(pose_cov);
   } catch (std::invalid_argument &e) {
-    priorUncertainty.reset(new steam::StaticNoiseModel<6>(
-        Eigen::Matrix<double, 6, 6>::Identity()));
+    priorUncertainty = std::make_shared<steam::StaticNoiseModel<6>>(
+        Eigen::Matrix<double, 6, 6>::Identity());
     LOG(ERROR) << "Error on adding pose prior: " << e.what();
   }
-  steam::se3::SE3ErrorEvaluator::Ptr prior_error_func(
-      new steam::se3::SE3ErrorEvaluator(query_pose_, pose_prior));
+  auto prior_error_func = std::make_shared<se3::SE3ErrorEvaluator>(query_pose_, pose_prior);
   // Create cost term and add to problem
   steam::WeightedLeastSqCostTerm<6>::Ptr prior_cost(
       new steam::WeightedLeastSqCostTerm<6>(
           prior_error_func, priorUncertainty, priorLossFunc));
-  // cost_terms_->add(prior_cost);
+
   problem.addCostTerm(prior_cost);
 
 }
@@ -366,27 +367,18 @@ bool KeyframeOptimizationModule::verifyOutputData(CameraQueryCache &) {
 }
 
 
-//This is weird / bad style for creating shared pointers
 void KeyframeOptimizationModule::resetProblem(EdgeTransform &T_q_m) {
   // set up the transforms
-  map_pose_.reset(
-      new steam::se3::SE3StateVar(lgmath::se3::Transformation()));
+  map_pose_ = std::make_shared<se3::SE3StateVar>(lgmath::se3::Transformation());
   map_pose_->locked() = true; // lock the 'origin' pose
-  query_pose_.reset(new steam::se3::SE3StateVar(T_q_m));
+  query_pose_ = std::make_shared<se3::SE3StateVar>(T_q_m);
   // tf_map_.reset(new steam::se3::TransformStateEvaluator(map_pose_));
   // tf_query_.reset(new steam::se3::TransformStateEvaluator(query_pose_));
-
-  // // Initialize the cost term container
-  // cost_terms_.reset(new steam::ParallelizedCostTermCollection());
-
-  // // Initialize the depth cost term container
-  // depth_cost_terms_.reset(new steam::ParallelizedCostTermCollection());
 
   // make the loss functions, TODO: make this configurable.
   sharedDepthLossFunc_.reset(new steam::DcsLossFunc(2.0));
   sharedLossFunc_.reset(new steam::DcsLossFunc(2.0));
 
-  // Initialize the problem.;
 }
 
 void KeyframeOptimizationModule::addDepthCost(
@@ -549,48 +541,35 @@ void KeyframeOptimizationModule::updateCaches(CameraQueryCache &qdata) {
 
   // look up covariance on pose
   if (!config_->disable_solver) {
-    auto gn_solver =
-        std::dynamic_pointer_cast<steam::GaussNewtonSolver>(solver_);
-    if (gn_solver != nullptr) {
-      // if (config_->solver_type == "LevenburgMarquardt" ||
-      //     backup_lm_solver_used_) {
-      //   auto lm_solver =
-      //       std::dynamic_pointer_cast<steam::LevMarqGaussNewtonSolver>(
-      //           gn_solver);
-      //   std::lock_guard<std::mutex> iteration_lock(*qdata.steam_mutex);
-      //   try {
-      //     lm_solver->solveCovariances();
-      //   } catch (std::runtime_error &e) {
-      //     LOG(ERROR) << "KeyframeOptimizationModule: Couldn't solve for "
-      //                   "covariance in LM solver!"
-      //                << std::endl
-      //                << e.what();
-      //   }
-      // }
-      // // now we can safely query the covariance
-      // auto cov = gn_solver->queryCovariance(query_pose_->getKey());
-      // (*qdata.T_r_m).setCovariance(cov);
-    } else {
-      LOG(INFO)
-          << "This solver does not derive from The GaussNewtonSolverBase!";
-    }
+    // auto gn_solver =
+    //     std::dynamic_pointer_cast<steam::GaussNewtonSolver>(solver_);
+    // if (gn_solver != nullptr) {
+    //   if (config_->solver_type == "LevenburgMarquardt" ||
+    //       backup_lm_solver_used_) {
+    //     auto lm_solver =
+    //         std::dynamic_pointer_cast<steam::LevMarqGaussNewtonSolver>(
+    //             gn_solver);
+    //     std::lock_guard<std::mutex> iteration_lock(*qdata.steam_mutex);
+    //     try {
+    //       lm_solver->solveCovariances();
+    //     } catch (std::runtime_error &e) {
+    //       LOG(ERROR) << "KeyframeOptimizationModule: Couldn't solve for "
+    //                     "covariance in LM solver!"
+    //                  << std::endl
+    //                  << e.what();
+    //     }
+    //   }
+    //   // now we can safely query the covariance
+    //   auto cov = gn_solver->queryCovariance(query_pose_->getKey());
+    //   (*qdata.T_r_m).setCovariance(cov);
+    // } else {
+    //   LOG(INFO)
+    //       << "This solver does not derive from The GaussNewtonSolverBase!";
+    // }
 
   } else {
     // default to zero covariance, because we have no other information
     qdata.T_r_m->setZeroCovariance();
-  }
-}
-
-void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata0,
-                                                 const Graph::Ptr &graph,
-                                                 VertexId id) {
-  auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-  if (config_->save_trajectory) {
-    throw std::runtime_error{"Trajectory saving not ported yet."};
-
-  (void)qdata;
-  (void)graph;
-  (void)id;
   }
 }
 
