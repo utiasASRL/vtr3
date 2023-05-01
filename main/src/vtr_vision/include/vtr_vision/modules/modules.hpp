@@ -24,6 +24,7 @@
 #include <vtr_vision/modules/preprocessing/image_triangulation_module.hpp>
 #include <vtr_vision/modules/odometry/landmark_recall_module.hpp>
 #include <vtr_vision/modules/localization/experience_triage_module.hpp>
+#include <vtr_vision/modules/localization/landmark_migration_module.hpp>
 #include <vtr_vision/modules/ransac/ransac_module.hpp>
 #include <vtr_vision/modules/ransac/stereo_ransac_module.hpp>
 #include <vtr_vision/modules/odometry/asrl_stereo_matcher_module.hpp>

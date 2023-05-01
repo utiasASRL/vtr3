@@ -27,6 +27,7 @@
 #include <vtr_messages/msg/rig_counts.hpp>
 #include <vtr_messages/msg/rig_landmarks.hpp>
 #include <vtr_messages/msg/rig_observations.hpp>
+#include <vtr_messages/msg/graph_persistent_id.hpp>
 #include <vtr_messages/msg/velocity.hpp>
 
 #include "steam.hpp"
@@ -49,7 +50,7 @@ using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
 using TransformMsg = vtr_messages::msg::Transform;
 using VelocityMsg = vtr_messages::msg::Velocity;
 using ImageMsg = vtr_messages::msg::Image;
-// using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
+using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
 
 
 

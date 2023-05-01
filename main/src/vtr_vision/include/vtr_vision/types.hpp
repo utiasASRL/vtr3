@@ -287,6 +287,13 @@ typedef std::vector<RigFeatures> SuiteFeatures;
 using VertexId = pose_graph::VertexId;
 using VertexPtr = pose_graph::RCVertex::Ptr;
 
+struct PersistentId {
+  PersistentId() : stamp(-1), robot(-1) {}
+  PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {}
+  uint64_t stamp;
+  uint32_t robot;
+};
+
 
 struct LandmarkId {
   LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1) {}
@@ -303,6 +310,7 @@ struct LandmarkId {
   uint32_t camera;
   uint32_t rig;
   VertexId vid;
+  PersistentId persistent;
 };
 typedef std::vector<LandmarkId> LandmarkIds;
 
@@ -414,6 +422,7 @@ struct RigObservations {
   std::string name;
   std::vector<ChannelObservations> channels;
 };
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Extra data, learned descriptors and scores for each image pixel.
