@@ -285,6 +285,7 @@ typedef std::vector<RigFeatures> SuiteFeatures;
 // };
 
 using VertexId = pose_graph::VertexId;
+using VertexPtr = pose_graph::RCVertex::Ptr;
 
 
 struct LandmarkId {

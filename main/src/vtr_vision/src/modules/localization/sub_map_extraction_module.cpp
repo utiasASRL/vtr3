@@ -84,7 +84,7 @@ void SubMapExtractionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
       (*qdata.localization_map)->numberOfVertices();
 }
 
-pose_graph::RCGraph::Base::Ptr SubMapExtractionModule::extractSubmap(
+tactic::GraphBase::Ptr SubMapExtractionModule::extractSubmap(
     const Graph &graph, const VertexId &root, uint32_t current_run,
     RunIdSet *mask, int temporal_depth, bool spatial_neighbours) {
   // Acquire a lock to avoid modification during graph traversal

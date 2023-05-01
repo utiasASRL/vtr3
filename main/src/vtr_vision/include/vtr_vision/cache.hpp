@@ -70,7 +70,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   /// localization
   tactic::Cache<Eigen::Matrix3Xd> migrated_points_3d;
   tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
-  tactic::Cache<pose_graph::RCGraph::Base::Ptr> localization_map;
+  tactic::Cache<tactic::GraphBase::Ptr> localization_map;
   tactic::Cache<tactic::RunIdSet> recommended_experiences;
 
 
@@ -94,7 +94,6 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
   tactic::Cache<common::timing::SimpleTimer> loc_timer;
   */
-  // \TODO Initialize this / remove it entirely. 
   tactic::Cache<std::mutex> vis_mutex;
 
   // clang-format on

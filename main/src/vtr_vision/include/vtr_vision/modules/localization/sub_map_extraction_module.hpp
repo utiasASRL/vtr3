@@ -91,13 +91,6 @@ class SubMapExtractionModule : public tactic::BaseModule {
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
-  /** \brief Update the graph with the frame data for the live vertex */
-  // void updateGraphImpl(tactic::QueryCache &, const tactic::Graph::Ptr &,
-  //                      tactic::VertexId) override {}
-
-  void updateGraphImpl(tactic::QueryCache &qdata,
-                       const tactic::Graph::Ptr &graph,
-                       tactic::VertexId id);
 
   /**
    * \brief Extract submap with a temporal depth and optional spatial neighbours
@@ -108,7 +101,7 @@ class SubMapExtractionModule : public tactic::BaseModule {
    * \param temporal_depth TODO
    * \param spatial_neighbours TODO
    */
-  static pose_graph::RCGraph::Base::Ptr extractSubmap(
+  static tactic::GraphBase::Ptr extractSubmap(
       const tactic::Graph &graph, const tactic::VertexId &root,
       uint32_t current_run, tactic::RunIdSet *mask, int temporal_depth,
       bool spatial_neighbours);
