@@ -163,8 +163,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   const auto right_image_topic = node_->declare_parameter<std::string>("camera_right_topic", "/image_right");
   const auto left_image_topic = node_->declare_parameter<std::string>("camera_left_topic", "/image_left");
 
-  right_camera_sub_.subscribe(node_, right_image_topic);
-  left_camera_sub_.subscribe(node_, left_image_topic);
+  auto camera_qos = rclcpp::QoS(10);
+  camera_qos.reliable();
+
+  right_camera_sub_.subscribe(node_, right_image_topic, camera_qos.get_rmw_qos_profile());
+  left_camera_sub_.subscribe(node_, left_image_topic, camera_qos.get_rmw_qos_profile());
 
   sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImageSync>>(ApproximateImageSync(10), right_camera_sub_, left_camera_sub_);
   sync_->registerCallback(&Navigator::cameraCallback, this);

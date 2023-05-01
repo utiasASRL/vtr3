@@ -41,7 +41,7 @@ auto CalibrationModule::Config::fromROS(
   auto extrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".extrinsic");
   config->baseline = node->declare_parameter<double>(param_prefix + ".baseline");
   config->distortion=Eigen::Map<CameraDistortion>(distortion.data());
-  config->intrinsic=Eigen::Map<CameraIntrinsic>(intrinsic.data());
+  config->intrinsic=Eigen::Map<CameraIntrinsic>(intrinsic.data()).transpose();
   config->rig_name = node->declare_parameter<std::string>(param_prefix + ".rig_name", config->rig_name);
 
   return config;
@@ -62,14 +62,17 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
 
   CameraDistortions camera_distortions {config_->distortion, config_->distortion};
   CameraIntrinsics camera_intrinsics {config_->intrinsic, config_->intrinsic};
+  CLOG(INFO, "preprocessing") << "Intrinsic\n" << config_->intrinsic;
 
   // Eigen::Matrix4d matrix {config_->extrinsic};
   Transform left_extrinsic;
-  Eigen::Matrix3d eye3;
-  Eigen::Vector3d r_ba_ina;
+  Eigen::Matrix3d eye3 = Eigen::Matrix<double, 3, 3>::Identity();
+  Eigen::Vector3d r_ba_ina = Eigen::Vector3d::Zero();
   r_ba_ina[0] = config_->baseline;
 
   Transform right_extrinsic {eye3, r_ba_ina};
+  CLOG(INFO, "preprocessing") << "Left extrinsic" << left_extrinsic;
+  CLOG(INFO, "preprocessing") << "Right extrinsic" << right_extrinsic;
   Transforms extrinsics {left_extrinsic, right_extrinsic};
 
 

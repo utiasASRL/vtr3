@@ -192,15 +192,14 @@ void StereoRansacModule::addPointsFromLandmarks(
 std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
     CameraQueryCache &qdata) {
   auto &query_landmarks = *qdata.candidate_landmarks;
-  LOG(WARNING) << "accessing query landmarks"; 
+  CLOG(INFO, "stereo.ransac") << "accessing query landmarks"; 
   std::vector<bool> mask;
   for (auto &rig : query_landmarks) {
     for (auto &channel : rig.channels) {
-      LOG(WARNING) << "accessing rig channels" << channel.points.cols(); 
+      CLOG(INFO, "stereo.ransac") << "accessing rig channels" << channel.points.cols(); 
       for (uint32_t lm_idx = 0; lm_idx < channel.points.cols(); ++lm_idx) {
-        LOG(WARNING) << "accessing each landmark"<< channel.points.rows() << ' ' << channel.points.cols(); 
-        LOG(WARNING) << "z depth val:" << channel.points(2, lm_idx);
-        LOG(WARNING) << "mask_depth:" << stereo_config_->mask_depth;
+        CLOG(DEBUG, "stereo.ransac") << "z depth val:" << channel.points(2, lm_idx);
+        CLOG(DEBUG, "stereo.ransac") << "mask_depth:" << stereo_config_->mask_depth;
         mask.push_back(channel.points(2, lm_idx) < stereo_config_->mask_depth);
       }
     }

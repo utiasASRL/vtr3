@@ -169,8 +169,7 @@ class SteamModule : public tactic::BaseModule {
   /** \brief Module configuration. */
   Config::ConstPtr config_;
 
-  std::shared_ptr<steam::SolverBase> generateSolver(
-      std::shared_ptr<steam::OptimizationProblem> &problem);
+  std::shared_ptr<steam::SolverBase> generateSolver(steam::OptimizationProblem &problem);
 
   steam::se3::SE3StateVar::Ptr tf_sensor_vehicle_;
   std::map<tactic::VertexId, steam::se3::SE3StateVar::Ptr>
@@ -179,12 +178,12 @@ class SteamModule : public tactic::BaseModule {
   steam::se3::SE3StateVar::Ptr tf_identity_;
 
   /** \brief Given two frames, builds a sensor specific optimization problem. */
-  virtual std::shared_ptr<steam::OptimizationProblem>
+  virtual steam::OptimizationProblem
   generateOptimizationProblem(CameraQueryCache &qdata,
                               const tactic::Graph::ConstPtr &graph) = 0;
 
   /** \brief Attempts to run the problem with the backup LM solver. */
-  bool forceLM(std::shared_ptr<steam::OptimizationProblem> &problem);
+  bool forceLM(steam::OptimizationProblem &problem);
 
   /** \brief Updates the caches with any optimized variables. */
   virtual void updateCaches(CameraQueryCache &qdata) = 0;

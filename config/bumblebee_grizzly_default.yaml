@@ -19,8 +19,8 @@
         "stereo.preprocessing",
         "stereo.recall",
         "stereo.matcher",
+        "stereo.keyframe_optimization",
         "stereo.odometry",
-        "preprocessing",
         "odometry",
         "path_tracker",
         "tactic.pipeline"
@@ -73,7 +73,7 @@
       type: stereo
 
       preprocessing: ["adapter","extraction", "triangulation"]
-      odometry: ["recall", "matcher", "vertex_test"] #, "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 
       # bundle_adjustment: [] #["recall", "steam"]
@@ -101,10 +101,10 @@
         intrinsic:
         - 388.425
         - 0.0
-        - 253.502
+        - 254.002
         - 0.0
         - 388.425
-        - 196.822
+        - 197.32
         - 0.0
         - 0.0
         - 1.0
@@ -126,7 +126,7 @@
 
       extraction:
         type: stereo.conversion_extraction
-        visualize: false
+        visualize: true
 
 
         # specify which conversions to do between different image formats from:
@@ -235,7 +235,7 @@
         solver_type: "DoglegGaussNewton"
         loss_function: "DCS"
 
-        verbose: false
+        verbose: true
         iterations: 5
         absoluteCostThreshold: 0.0
         absoluteCostChangeThreshold: .0001

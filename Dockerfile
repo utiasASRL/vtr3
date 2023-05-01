@@ -155,6 +155,7 @@ RUN apt install htop
 
 # Install vim
 RUN apt update && apt install -q -y vim
+RUN apt install -q -y libc6-dbg gdb valgrind
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

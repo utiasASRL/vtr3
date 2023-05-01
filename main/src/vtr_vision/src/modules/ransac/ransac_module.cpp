@@ -189,9 +189,9 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
 
       VertexId map_id;
       VertexId live_id;
-      // if (config_->landmark_source == "map")
-      map_id = *qdata.vid_loc;
-      // else if (config_->landmark_source == "live")
+      //if (config_->landmark_source == "map")
+      //map_id = *qdata.vid_loc;
+      //else if (config_->landmark_source == "live")
       live_id = *qdata.vid_odo;
 
 

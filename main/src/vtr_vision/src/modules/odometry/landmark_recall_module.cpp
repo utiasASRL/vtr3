@@ -81,6 +81,7 @@ void LandmarkRecallModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache 
     // Retrieve landmarks for the target frame.
     map_landmarks.emplace_back(recallLandmarks(rig_name, map_id, graph));
   }
+  CLOG(INFO, "stereo.matcher") << "Total number of keypoints from last vertex: " << map_landmarks.at(0).landmarks.channels.at(0).points.cols();
 
   // assign the T_s_v_map to the qdata
   qdata.T_sensor_vehicle_map.clear().emplace(T_s_v_map_);
@@ -242,7 +243,11 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
           rig_name + "_observations", "vtr_messages/msg/RigObservations");
   auto locked_msg = locked_obs_msgs->sharedLocked();
   auto observations = locked_msg.get().getDataPtr();
-  if (observations == nullptr) return landmark_frame;
+  if (observations == nullptr){
+    CLOG(WARNING, "stereo.recall") << "Observations are null";
+    return landmark_frame;
+  }
+    
 
   // simply move the observations over.
   map_obs = messages::copyObservation(*observations.get());

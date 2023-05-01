@@ -78,9 +78,6 @@ class ImageTriangulationModule : public tactic::BaseModule {
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
               const std::shared_ptr<tactic::TaskExecutor> &executor) override;
               
-  /** \brief Visualizes features and stereo features. */
-  // void visualizeImpl(tactic::QueryCache &qdata,
-  //                    const tactic::Graph::ConstPtr &) override;
 
   Config::ConstPtr config_;
   VTR_REGISTER_MODULE_DEC_TYPE(ImageTriangulationModule);

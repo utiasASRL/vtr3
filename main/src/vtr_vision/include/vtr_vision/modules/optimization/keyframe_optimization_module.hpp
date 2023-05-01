@@ -69,13 +69,9 @@ class KeyframeOptimizationModule : public SteamModule {
 
 
  protected:
-  /** \brief Saves the trajectory. */
-  void updateGraphImpl(tactic::QueryCache &qdata,
-                       const tactic::Graph::Ptr &graph,
-                       tactic::VertexId id);
 
   /** \brief Given two frames, builds a sensor specific optimization problem. */
-  std::shared_ptr<steam::OptimizationProblem> generateOptimizationProblem(
+  steam::OptimizationProblem generateOptimizationProblem(
       CameraQueryCache &qdata, const tactic::Graph::ConstPtr &graph) override;
 
   void updateCaches(CameraQueryCache &qdata) override;
@@ -125,9 +121,10 @@ class KeyframeOptimizationModule : public SteamModule {
    * \param graph The pose graph.
    */
   void computeTrajectory(CameraQueryCache &qdata,
-                         const tactic::Graph::ConstPtr &graph);
+                         const tactic::Graph::ConstPtr &graph,
+                         steam::OptimizationProblem &problem);
 
-  void addPosePrior(CameraQueryCache &qdata);
+  void addPosePrior(CameraQueryCache &qdata, steam::OptimizationProblem &problem);
 
   // /** \brief the cost terms associated with landmark observations. */
   // std::vector<steam::BaseCostTerm> cost_terms_;
@@ -157,7 +154,7 @@ class KeyframeOptimizationModule : public SteamModule {
   Config::ConstPtr keyframe_config_;
 
   /** \brief The steam problem. */
-  std::shared_ptr<steam::OptimizationProblem> problem_;
+  //std::shared_ptr<steam::OptimizationProblem> problem_;
 
   /**
    * \brief Maps velocity variable pointers to their respective vertices

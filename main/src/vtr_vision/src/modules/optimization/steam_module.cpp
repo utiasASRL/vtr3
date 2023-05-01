@@ -149,7 +149,8 @@ void SteamModule::setConfig() {
 }
 
 std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
-    std::shared_ptr<steam::OptimizationProblem> &problem) {
+    steam::OptimizationProblem &problem) {
+
   // Setup Solver
   std::shared_ptr<steam::SolverBase> solver;
   if (config_->solver_type == "LevenburgMarquardt") {
@@ -164,7 +165,11 @@ std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
     params.grow_coeff = config_->growCoeff;
     params.max_shrink_steps = config_->maxShrinkSteps;
 
-    solver.reset(new steam::LevMarqGaussNewtonSolver(*problem, params));
+
+
+    solver.reset(new steam::LevMarqGaussNewtonSolver(problem, params));
+        CLOG(DEBUG, "stereo.keyframe_optimization") << "Made LMQ";
+
   } else if (config_->solver_type == "DoglegGaussNewton") {
     steam::DoglegGaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
@@ -178,8 +183,10 @@ std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
     params.shrink_coeff = config_->shrinkCoeff;
     params.grow_coeff = config_->growCoeff;
     params.max_shrink_steps = config_->maxShrinkSteps;
+    CLOG(DEBUG, "stereo.keyframe_optimization") << "Constructing Dogleg";
+    solver = std::make_shared<steam::DoglegGaussNewtonSolver>(problem, params);
+    CLOG(DEBUG, "stereo.keyframe_optimization") << "Made Dogleg";
 
-    solver.reset(new steam::DoglegGaussNewtonSolver(*problem, params));
   } else if (config_->solver_type == "VanillaGaussNewton") {
     steam::GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
@@ -187,18 +194,16 @@ std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
     params.absolute_cost_threshold = config_->absoluteCostThreshold;
     params.absolute_cost_change_threshold = config_->absoluteCostChangeThreshold;
     params.relative_cost_change_threshold = config_->relativeCostChangeThreshold;
-    solver.reset(new steam::GaussNewtonSolver(*problem, params));
+    solver.reset(new steam::GaussNewtonSolver(problem, params));
   } else {
     CLOG(ERROR, "stereo.optimization") << "Unknown solver type: " << config_->solver_type;
   }
   return solver;
 }
 
-bool SteamModule::forceLM(
-    std::shared_ptr<steam::OptimizationProblem> &problem) {
+bool SteamModule::forceLM(steam::OptimizationProblem &problem) {
   try {
-    backup_lm_solver_.reset(
-        new steam::LevMarqGaussNewtonSolver(*problem, backup_params_));
+    backup_lm_solver_.reset(new steam::LevMarqGaussNewtonSolver(problem, backup_params_));
     backup_lm_solver_->optimize();
   } catch (std::runtime_error &re) {
     CLOG(ERROR, "stereo.optimization") << "Back up LM failed, abandon hope....";
@@ -229,16 +234,15 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
   // Construct a transform evaluator that takes points from the vehicle frame
   // into the sensor frame.
   if (qdata.T_s_r.valid()) {
-    tf_sensor_vehicle_ = steam::se3::SE3StateVar::MakeShared(
-        *qdata.T_s_r);
+    tf_sensor_vehicle_ = steam::se3::SE3StateVar::MakeShared(*qdata.T_s_r);
   } else {
-    tf_sensor_vehicle_ = steam::se3::SE3StateVar::MakeShared(
-        lgmath::se3::Transformation());
+    tf_sensor_vehicle_ = steam::se3::SE3StateVar::MakeShared(lgmath::se3::Transformation());
   }
   tf_sensor_vehicle_->locked() = true;
 
   for (auto it = qdata.T_sensor_vehicle_map->begin();
        it != qdata.T_sensor_vehicle_map->end(); ++it) {
+    CLOG(DEBUG, "stereo.keyframe_optimization") << it->second;
     tf_sensor_vehicle_map_[it->first] =
         steam::se3::SE3StateVar::MakeShared(it->second);
     tf_sensor_vehicle_map_[it->first]->locked() = true;
@@ -248,17 +252,17 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
       lgmath::se3::Transformation());
   tf_identity_->locked() = true;
 
-  std::shared_ptr<steam::OptimizationProblem> problem;
+  
   try {
     // PROBLEM SPECIFIC
-    problem = generateOptimizationProblem(qdata, graph);
-    if (problem == nullptr) {
-      LOG(ERROR) << "Couldn't generate optimization problem!" << std::endl;
-      // *qdata.steam_failure = true;
-      return;
-    }
+    steam::OptimizationProblem problem = generateOptimizationProblem(qdata, graph);
+    CLOG(DEBUG, "stereo.keyframe_optimization") << "Generated optimization problem";
+
+    CLOG(DEBUG, "stereo.keyframe_optimization") << "Problem cost terms" << problem.getNumberOfCostTerms();
 
     solver_ = generateSolver(problem);
+    CLOG(DEBUG, "stereo.keyframe_optimization") << "Generated solver";
+
 
     // default to success
     bool success = true;
@@ -296,7 +300,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     if (success) updateCaches(qdata);
 
   } catch (...) {
-    // *qdata.steam_failure = true;
     LOG(ERROR) << " bailing on steam problem!";
     *qdata.success = false;
   }

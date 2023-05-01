@@ -28,13 +28,8 @@ using namespace tactic;
 auto SimpleVertexTestModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
-  // auto config = VertexCreationModule::Config::fromROS(node, param_prefix);
-  // auto simple_config = std::make_shared<Config>();
 
   auto simple_config = std::make_shared<SimpleVertexTestModule::Config>();
-  auto casted_config =
-      std::static_pointer_cast<VertexCreationModule::Config>(simple_config);
-  // *casted_config = *VertexCreationModule::Config::fromROS(node, param_prefix);  // copy over base config
 
   // clang-format off
   simple_config->min_distance = node->declare_parameter<double>(param_prefix + ".min_distance", simple_config->min_distance);
@@ -90,7 +85,7 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     }
   }
 #endif
-  if (inlier_count < simple_config_->match_threshold_fail_count) {
+  if (inlier_count < config_->match_threshold_fail_count) {
     LOG(ERROR) << "Uh oh, " << inlier_count << " is not enough inliers";
     *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
     *qdata.success = false;
@@ -118,18 +113,18 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     double rotation_distance = se3Vec.tail<3>().norm() * 57.29577;
 
     // If we have not moved enough to create a vertex, then just return
-    if (translation_distance < simple_config_->min_distance &&
+    if (translation_distance < config_->min_distance &&
         rotation_distance < .1) {
       return;
     }
 
-    else if (translation_distance > simple_config_->max_creation_distance) {
+    else if (translation_distance > config_->max_creation_distance) {
       LOG(ERROR) << "Uh oh, we have a huge translation " << translation_distance
                  << " m";
       *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
       *qdata.success = false;
       return;
-    } else if (rotation_distance > simple_config_->rotation_threshold_max) {
+    } else if (rotation_distance > config_->rotation_threshold_max) {
       LOG(ERROR) << "Uh oh, we have a huge rotation " << rotation_distance
                  << " deg";
       *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
@@ -138,15 +133,12 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     }
 
     // check if to see if we have met any candidate creation criteria
-    if (translation_distance > simple_config_->min_creation_distance) {
+    if (translation_distance > config_->min_creation_distance) {
       *qdata.vertex_test_result = VertexTestResult::CREATE_VERTEX;
-      return;
-    } else if (rotation_distance > simple_config_->rotation_threshold_min) {
+    } else if (rotation_distance > config_->rotation_threshold_min) {
       *qdata.vertex_test_result = VertexTestResult::CREATE_VERTEX;
-      return;
-    } else if (inlier_count < simple_config_->match_threshold_min_count) {
+    } else if (inlier_count < config_->match_threshold_min_count) {
       *qdata.vertex_test_result = VertexTestResult::CREATE_VERTEX;
-      return;
     }
   } else {
     LOG(ERROR) << "QVO did not estimate T_r_m";
