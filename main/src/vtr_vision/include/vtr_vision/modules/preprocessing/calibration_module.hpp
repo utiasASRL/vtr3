@@ -72,11 +72,6 @@ class CalibrationModule : public tactic::BaseModule {
       const std::string &name = static_name)
       : tactic::BaseModule{module_factory, name}, config_(config) {}
 
-  // ConversionExtractionModule(const std::string &name = static_name)
-  //     : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
-
-  // void configFromROS(const rclcpp::Node::SharedPtr &node,
-  //                    const std::string param_prefix) override;
 
  private:
   /**
