@@ -409,10 +409,17 @@ void ChangeDetectionModuleV2::runAsync_(
     CLOG(INFO, "lidar.change_detection") << "Saving change detection result";
     const auto ros_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(module_result, *ros_msg);
-    using PoincCloudMsgLM = storage::LockableMessage<PointCloudMsg>;
-    auto msg = std::make_shared<PoincCloudMsgLM>(ros_msg, *qdata.stamp);
+    using PointCloudMsgLM = storage::LockableMessage<PointCloudMsg>;
+    auto msg = std::make_shared<PointCloudMsgLM>(ros_msg, *qdata.stamp);
     graph->write<PointCloudMsg>("change_detection_v2_result",
                                 "sensor_msgs/msg/PointCloud2", msg);
+
+    const auto scan_msg = std::make_shared<PointCloudMsg>();
+    pcl::toROSMsg(aligned_points, *scan_msg);
+
+    auto scan_odo_msg = std::make_shared<PointCloudMsgLM>(scan_msg, *qdata.stamp);
+    graph->write<PointCloudMsg>(
+        "changed_pointcloud", "sensor_msgs/msg/PointCloud2", scan_odo_msg);
   }
 
   /// publish the transformed pointcloud
