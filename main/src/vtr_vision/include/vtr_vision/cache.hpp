@@ -73,6 +73,10 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<tactic::GraphBase::Ptr> localization_map;
   tactic::Cache<tactic::RunIdSet> recommended_experiences;
 
+  tactic::Cache<std::vector<bool>> migrated_validity;
+  tactic::Cache<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
+  tactic::Cache<MigrationMap> landmark_offset_map;
+
 
 
 

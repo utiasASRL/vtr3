@@ -225,7 +225,6 @@ void ExperienceTriageModule::updateGraphImpl(tactic::QueryCache &qdata,
   // Make sure the saved status message matches the live id
   if (status_msg_.query_id == live_id) {
     Vertex::Ptr vertex = graph->at(live_id);
-    RunId rid = vertex->id().majorId();
 
     using Exp_LM = storage::LockableMessage<ExpRecogMsg>;
     std::string results_stream = "experience_triage";
