@@ -109,10 +109,10 @@ RUN apt install nano
 RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 # RUN cd ${HOMEDIR}
 
-# RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
-#   && git clone https://github.com/OSGeo/PROJ.git . && git checkout 8.0.0 \
-#   && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
-#   && cmake .. && cmake --build . -j${NUMPROC} --target install
+RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
+  && git clone https://github.com/OSGeo/PROJ.git . && git checkout 8.2.0 \
+  && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
+  && cmake .. && cmake --build . -j${NUMPROC} --target install
 
 RUN mkdir -p ${HOMEDIR}/opencv && cd ${HOMEDIR}/opencv \
 && git clone https://github.com/opencv/opencv.git . 
