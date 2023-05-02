@@ -42,7 +42,7 @@ auto LandmarkMigrationModule::Config::fromROS(
     }
 
 void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
-                const std::shared_ptr<tactic::TaskExecutor> &executor) {
+                const std::shared_ptr<tactic::TaskExecutor> &) {
 
 // void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
 //                                       const Graph::ConstPtr &graph) {
@@ -342,9 +342,9 @@ void LandmarkMigrationModule::loadSensorTransform(
 
     auto locked_tf_msg = map_vertex->retrieve<vtr_messages::msg::Transform>(
             stream_name, "vtr_messages/msg/Transform");
-    auto locked_msg = locked_tf_msg->sharedLocked();
-    auto rc_transforms = locked_msg.get().getDataPtr();
-    if (rc_transforms != nullptr) {
+    if (locked_tf_msg != nullptr) {
+      auto locked_msg = locked_tf_msg->sharedLocked();
+      auto rc_transforms = locked_msg.get().getDataPtr();
       Eigen::Matrix<double, 6, 1> tmp;
       auto mt = rc_transforms->translation;
       auto mr = rc_transforms->orientation;

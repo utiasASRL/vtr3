@@ -106,6 +106,8 @@ void MelMatcherModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &out
 
   // initialize the structure of the output matches.
   auto &query_landmarks = *qdata.map_landmarks;
+
+  if(qdata.raw_matches.valid()) qdata.raw_matches.clear();
   auto &matches = *qdata.raw_matches.emplace();
   initializeMatches(query_landmarks, matches);
 
@@ -183,13 +185,13 @@ void MelMatcherModule::matchVertex(CameraQueryCache &qdata,
 
     auto locked_landmark_msg = vertex->retrieve<vtr_messages::msg::RigLandmarks>(
             rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
-    auto locked_msg = locked_landmark_msg->sharedLocked();
-
-    auto map_rig_landmarks = locked_msg.get().getDataPtr();
-    if (map_rig_landmarks == nullptr) {
+    if (locked_landmark_msg == nullptr) {
       LOG(ERROR) << "landmarks at " << vertex->id() << " could not be loaded";
       return;
     }
+    auto locked_msg = locked_landmark_msg->sharedLocked();
+    auto map_rig_landmarks = locked_msg.get().getDataPtr();
+    
     for (uint32_t channel_idx = 0;
          channel_idx < query_rig_landmarks.channels.size(); ++channel_idx) {
       const auto &map_channel_lm = map_rig_landmarks->channels[channel_idx];

@@ -38,8 +38,8 @@ auto LandmarkRecallModule::Config::fromROS(
   return config;
 }
 
-void LandmarkRecallModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
-                const std::shared_ptr<tactic::TaskExecutor> &executor) {
+void LandmarkRecallModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &, const tactic::Graph::Ptr &graph,
+                const std::shared_ptr<tactic::TaskExecutor> &) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // check if the required data is in the cache
@@ -56,6 +56,8 @@ void LandmarkRecallModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache 
   }
 
   // Set up a new data structure for the map landmarks.
+  if (qdata.map_landmarks.valid()) qdata.map_landmarks.clear();
+
   auto &map_landmarks = *qdata.map_landmarks.emplace();
 
   // store the sensor/vehicle transform
