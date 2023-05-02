@@ -35,8 +35,8 @@ StereoPipeline::StereoPipeline(
   for (auto module : config_->odometry)
     odometry_.push_back(factory()->get("odometry." + module));
 //   // localization
-//   for (auto module : config_->localization)
-//     localization_.push_back(factory()->get("localization." + module));
+  for (auto module : config_->localization)
+    localization_.push_back(factory()->get("localization." + module));
 }
 
 StereoPipeline::~StereoPipeline() {}
@@ -244,7 +244,46 @@ void StereoPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
 // #endif
 }
 
+void StereoPipeline::runLocalization_(const tactic::QueryCache::Ptr &qdata0, const tactic::OutputCache::Ptr &output0,
+                        const tactic::Graph::Ptr &graph,
+                        const std::shared_ptr<tactic::TaskExecutor> &executor) {
+  
+  auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
 
+  // {
+  //   /// Localization waits at least until the current bundle adjustment has
+  //   /// finished.
+  //   std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
+  //   if (bundle_adjustment_thread_future_.valid())
+  //     bundle_adjustment_thread_future_.get();
+  // }
+
+  //What did this do?
+  //qdata->map_id.emplace(*qdata->map_id);
+  
+  //qdata->T_r_m_prior.emplace(*qdata->T_r_v_loc);
+  //qdata->T_r_m.emplace(*qdata->T_r_v_loc);
+  qdata->localization_status.emplace();
+  //qdata->loc_timer.emplace();
+
+  for (auto module : localization_) module->run(*qdata0, *output0, graph, executor);
+
+  auto live_id = *qdata->vid_odo;
+  // for (auto module : localization_)
+  //   module->updateGraph(*qdata0, graph, live_id);
+
+  /// \todo yuchen move the actual graph saving to somewhere appropriate.
+  saveLocalization(*qdata, graph, live_id);
+
+  if (qdata->success) {
+    CLOG(WARNING, "stereo.pipeline") << "Localization pipeline failed.";
+  } else {
+    *qdata->loc_success = true;
+    *qdata->T_r_v_loc = *qdata->T_r_m;
+  }
+  
+    
+}
 
 
 void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
@@ -262,16 +301,12 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
   // auto persistent_id = graph->toPersistent(live_id);
   auto persistent_id = live_id;
 
-  // get the current run id
-  const RunId rid = live_id.majorId();
-
   // now update the live frame
   const auto &features = *qdata.rig_features;
   const auto &images = *qdata.rig_images;
   const auto &stamp = *qdata.stamp;
 
   // Iterate through each rig.
-  auto rig_img_itr = images.begin();
   for (uint32_t rig_idx = 0; rig_idx < features.size(); ++rig_idx) {
     auto &rig_name = features[rig_idx].name;
 
@@ -312,8 +347,6 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     using LM_Msg = storage::LockableMessage<RigLandmarksMsg>;
     auto lm_msg =
         std::make_shared<LM_Msg>(std::make_shared<RigLandmarksMsg>(landmarks), *qdata.stamp);
-    // auto lm_msg = std::make_shared<LM_Msg>();
-    // auto lm_msg = std::make_shared<LM_Msg>();
 
     vertex->insert<RigLandmarksMsg>(lm_str, "vtr_messages/msg/RigLandmarks", lm_msg);
       
@@ -764,6 +797,146 @@ void StereoPipeline::addNewLandmarksAndObs(
       }
     }
   }
+}
+
+
+
+void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
+                                      const Graph::Ptr &graph,
+                                      const VertexId &live_id) {
+  // sanity check
+  if (!qdata.ransac_matches.valid()) {
+    CLOG(ERROR, "stereo.pipeline")
+        << "LocalizerAssembly::" << __func__ << "() ransac matches not present";
+    return;
+  } else if (!qdata.map_landmarks.valid()) {
+    CLOG(ERROR, "stereo.pipeline")
+        << "LocalizerAssembly::" << __func__ << "() map landmarks not present";
+    return;
+  } else if (!qdata.localization_status.valid()) {
+    CLOG(ERROR, "stereo.pipeline") << "LocalizerAssembly::" << __func__
+                                   << "() localization status not present";
+    return;
+  } else if (!qdata.migrated_landmark_ids.valid()) {
+    CLOG(ERROR, "stereo.pipeline") << "LocalizerAssembly::" << __func__
+                                   << "() migrated landmark ID's not present";
+    return;
+  }
+
+  // save the localization results for analysis
+  saveLocResults(qdata, graph, live_id);
+
+  // we need to take all of the landmark matches and store them in the new
+  // landmarks
+  auto &inliers = *qdata.ransac_matches;
+  auto &query_landmarks = *qdata.map_landmarks;
+  auto migrated_landmark_ids = *qdata.migrated_landmark_ids;
+  auto &rig_names = *qdata.rig_names;
+  auto live_vtx = graph->at(live_id);
+
+  // map to keep track of loaded landmarks.
+  std::map<VertexId, std::shared_ptr<RigLandmarksMsg>> landmark_map;
+
+  // Go through each rig.
+  for (uint32_t rig_idx = 0; rig_idx < inliers.size(); ++rig_idx) {
+    std::string &rig_name = rig_names.at(rig_idx);
+    auto &rig_inliers = inliers[rig_idx];
+    vtr_messages::msg::Matches matches_msg;
+
+    // go through each channel.
+    for (uint32_t channel_idx = 0; channel_idx < rig_inliers.channels.size();
+         ++channel_idx) {
+      // Get the inliers and observations
+      auto &channel_inliers = rig_inliers.channels[channel_idx];
+      auto &channel_obs =
+          query_landmarks[rig_idx].observations.channels[channel_idx];
+      // 1. iterate through the channel inliers...
+      for (auto &match : channel_inliers.matches) {
+        // get the observation to the landmark.
+        auto &lm_obs = channel_obs.cameras[0].landmarks[match.second].to[0];
+        VertexId q_lm_vertex = lm_obs.vid;
+        // if we havent loaded these landmarks, then load them.
+        if (landmark_map.find(q_lm_vertex) == landmark_map.end()) {
+          auto vertex = graph->at(q_lm_vertex);
+
+          auto locked_lm_msgs = vertex->retrieve<vtr_messages::msg::RigLandmarks>(
+          rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
+          auto locked_msg = locked_lm_msgs->sharedLocked();
+          landmark_map[q_lm_vertex] = locked_msg.get().getDataPtr();
+        }
+
+        // Get references / pointers to the landmarks.
+        auto &query_landmarks = landmark_map[q_lm_vertex];
+        auto channel_landmarks = query_landmarks->channels[channel_idx];
+        // get the landmark track associated with the map landmark.
+        auto &lm_track =
+            migrated_landmark_ids[match.first];  // todo (Ben): verify this all
+                                                 // works properly
+
+        // match.first = idx into query lm
+        // match.second = list of landmark ids
+        // Get the  landmark track (list of matched landmarks across
+        // experiences) associated with the query landmark.
+        auto query_match = channel_landmarks.matches[lm_obs.index];
+        // If this landmark has not been associated yet, then copy over the
+        // matched landmarks track to the new landmark.
+        if (!lm_track.to_id.empty()) {
+          query_match.to_id = migrated_landmark_ids[match.first].to_id;
+        }
+        // add the map landmark as a to landmark in the matches.
+        auto new_match = migrated_landmark_ids[match.first].from_id;
+        query_match.to_id.push_back(new_match);
+
+        // direct matches used for collaborative landmark tracking (first
+        // pass)
+        vtr_messages::msg::Match direct_match_msg;
+        direct_match_msg.from_id = query_match.from_id;
+        direct_match_msg.to_id.push_back(new_match);
+        matches_msg.matches.push_back(direct_match_msg);
+      }
+    }
+
+
+    // Save the matches to map landmarks
+    std::string landmark_match_str(rig_name + "_landmarks_matches");
+    using LM_Match_Msg = storage::LockableMessage<vtr_messages::msg::Matches>;
+    auto lm_match_msg =
+        std::make_shared<LM_Match_Msg>(std::make_shared<vtr_messages::msg::Matches>(matches_msg), *qdata.stamp);
+    live_vtx->insert<vtr_messages::msg::Matches>(landmark_match_str, "vtr_messages/msg/Matches", lm_match_msg);
+  }
+}
+
+void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
+                                    const Graph::Ptr &graph,
+                                    const VertexId &live_id) {
+  auto &inliers = *qdata.ransac_matches;
+  auto status = *qdata.localization_status;
+  status.keyframe_time = *qdata.stamp;
+  status.query_id = live_id;
+  pose_graph::VertexId map_id = *qdata.vid_loc;
+  status.map_id = map_id;
+  status.success = *qdata.success;
+  //status.localization_computation_time_ms = (*qdata.loc_timer).elapsedMs();
+
+  // if (qdata.T_r_m.valid()) {
+  //   status.t_query_map << *qdata.T_r_m;
+  // }
+
+  for (auto &rig : inliers) {
+    for (auto &channel : rig.channels) {
+      status.inlier_channel_matches.push_back(channel.matches.size());
+    }
+  }
+
+  // get the run id and vertex
+  auto vertex = graph->at(live_id);
+
+  // fill in the status
+  std::string loc_status_str("results_localization");
+  using LM_Loc_Res_Msg = storage::LockableMessage<vtr_messages::msg::LocalizationStatus>;
+  auto lm_loc_msg = std::make_shared<LM_Loc_Res_Msg>(std::make_shared<vtr_messages::msg::LocalizationStatus>(status), *qdata.stamp);
+
+  vertex->insert<vtr_messages::msg::LocalizationStatus>(loc_status_str, "vtr_messages/msg/LocalizationStatus", lm_loc_msg);
 }
 
 

@@ -51,7 +51,6 @@ void SubMapExtractionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
-  qdata.localization_status.emplace();
   // Grab the id we wish to center the map on.
   auto root = *qdata.vid_loc;
 

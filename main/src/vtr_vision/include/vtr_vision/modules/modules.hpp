@@ -32,3 +32,4 @@
 #include <vtr_vision/modules/localization/mel_matcher_module.hpp>
 #include <vtr_vision/modules/localization/experience_triage_module.hpp>
 #include <vtr_vision/modules/localization/landmark_migration_module.hpp>
+#include <vtr_vision/modules/localization/tod_recognition_module.hpp>

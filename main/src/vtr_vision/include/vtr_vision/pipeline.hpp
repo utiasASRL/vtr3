@@ -129,7 +129,7 @@ class StereoPipeline : public tactic::BasePipeline {
 
   void runLocalization_(const tactic::QueryCache::Ptr &, const tactic::OutputCache::Ptr &,
                         const tactic::Graph::Ptr &,
-                        const std::shared_ptr<tactic::TaskExecutor> &) override {
+                        const std::shared_ptr<tactic::TaskExecutor> &) override;
     /// This method is called in the following cases:
     ///   - first vertex of a teach that branches from existing path to
     ///   localize against the existing path (i.e., trunk)
@@ -145,7 +145,7 @@ class StereoPipeline : public tactic::BasePipeline {
     /// This method should update the following:
     ///   - T_r_v_loc, loc_success
     /// This method may read from or write to the graph.
-  }
+  
 
   void onVertexCreation_(const tactic::QueryCache::Ptr &, const tactic::OutputCache::Ptr &,
                          const tactic::Graph::Ptr &,
@@ -202,6 +202,19 @@ class StereoPipeline : public tactic::BasePipeline {
                             const VertexId &persistent_id,
                             const int &rig_idx, const int &channel_idx);
 
+  
+  /**
+   * \brief Updates the graph after the modules have run.
+   * In the case of the localizer assembly, this includes updating the landmarks
+   * in the live run to include matches to landmarks in the map.
+   */
+  void saveLocalization(CameraQueryCache &qdata,
+                        const tactic::Graph::Ptr &graph,
+                        const tactic::VertexId &live_id);
+
+  void saveLocResults(CameraQueryCache &qdata, const tactic::Graph::Ptr &graph,
+                      const tactic::VertexId &live_id);
+
       
 //Carryover methods for internal pipeline use
 private:
@@ -219,6 +232,7 @@ tactic::EdgeTransform estimateTransformFromKeyframe(
 
   std::vector<tactic::BaseModule::Ptr> preprocessing_;
   std::vector<tactic::BaseModule::Ptr> odometry_;
+  std::vector<tactic::BaseModule::Ptr> localization_;
 
 
   /**
