@@ -25,7 +25,7 @@
 #include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_messages/msg/localization_status.hpp>
 #include <vtr_messages/msg/transform.hpp>
-// #include <vtr_pose_graph/evaluator/accumulators.hpp>
+#include <vtr_pose_graph/evaluator/evaluators.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/modules/localization/landmark_migration_module.hpp>
@@ -34,6 +34,12 @@ namespace vtr {
 namespace vision {
 
 using namespace tactic;
+
+auto LandmarkMigrationModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) 
+    -> ConstPtr {
+      return std::make_shared<LandmarkMigrationModule::Config>();
+    }
 
 void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
@@ -125,14 +131,17 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
     }
 
     // get the cached pose, in the coordinate frame of the sensor
-    using namespace pose_graph::eval;
-    typedef pose_graph::eval::mask::Typed<Graph>::Lambda LambdaEval;
-    LambdaEval::VertexFunction veval = [&](const Vertex::Ptr &vp) {
-      return vp->id().majorId() == curr_vid.majorId() ||
-             graph->run(vp->id().majorId())->isManual();
+    using LambdaEval = pose_graph::eval::mask::variable::Eval<tactic::Graph>;
+    auto vEval = [&](const Graph &g, const VertexId &vp) {
+      return vp.majorId() == curr_vid.majorId();
     };
-    pose_graph::eval::mask::Ptr mask = std::make_shared<Mask::Typed<Graph>::Lambda>(
-        veval, const_cast<Graph *>(graph.get()));
+
+    auto eEval = [&](const Graph &g,const EdgeId &ep) {
+      return g.at(ep)->isManual();
+    };
+    
+    LambdaEval::Ptr mask = 
+        std::make_shared<LambdaEval>(*graph, eEval, vEval);
     EdgeTransform T_root_curr;
     try {
       T_root_curr =
@@ -154,16 +163,17 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
 
     // 2. get landmarks
     std::string lm_stream_name = rig_name + "_landmarks";
-    for (const auto &r : graph->runs())
-      r.second->registerVertexStream<vtr_messages::msg::RigLandmarks>(
-          lm_stream_name, true, pose_graph::RegisterMode::Existing);
+    // for (const auto &r : graph->runs())
+    //   r.second->registerVertexStream<vtr_messages::msg::RigLandmarks>(
+    //       lm_stream_name, true, pose_graph::RegisterMode::Existing);
 
     auto curr_vertex = graph->at(curr_vid);
 
-    curr_vertex->load(lm_stream_name);
-    auto landmarks =
-        curr_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-            lm_stream_name);
+    //curr_vertex->load(lm_stream_name);
+    auto locked_landmark_msg = curr_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
+            lm_stream_name, "vtr_messages/msg/RigLandmarks");
+    auto locked_msg = locked_landmark_msg->sharedLocked();
+    auto landmarks = locked_msg.get().getDataPtr();
     if (landmarks == nullptr) {
       std::stringstream err;
       err << "Landmarks at " << curr_vertex->id() << " for " << rig_name
@@ -176,7 +186,7 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
 
     // 3. migrate the landmarks
     // auto persist_id = curr_vertex->persistentId();
-    auto persist_id = *qdata->vid_odo;
+    auto persist_id = curr_vid;
 
     migrate(rig_idx, persist_id, T_root_curr, qdata, landmarks);
     migrate_time += timer.count();
@@ -233,7 +243,7 @@ void LandmarkMigrationModule::initializeMapData(CameraQueryCache &qdata) {
 }
 
 void LandmarkMigrationModule::migrate(
-    const int &rig_idx, const GraphPersistentIdMsg &persist_id,
+    const int &rig_idx, const VertexId &persist_id,
     const EdgeTransform &T_root_curr, CameraQueryCache &qdata,
     std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks) {
   if (landmarks == nullptr) {
@@ -303,9 +313,9 @@ void LandmarkMigrationModule::migrate(
     // Store off the channel offset in the map.
     vision::LandmarkId id;
     // id.persistent = messages::copyPersistentId(persist_id);
-    id.persistent.robot = persist_id.robot;
-    id.persistent.stamp = persist_id.stamp;
-
+    // id.persistent.robot = persist_id.robot;
+    // id.persistent.stamp = persist_id.stamp;
+    id.vid = persist_id;
     id.rig = rig_idx;
     id.channel = channel_idx;
     landmark_offset_map[id] = matrix_offset;
@@ -323,15 +333,17 @@ void LandmarkMigrationModule::loadSensorTransform(
     // extract the T_s_v transform for this vertex
     std::string stream_name = rig_name + "_T_s_r";
 
-    for (const auto &r : graph->runs())
-      r.second->registerVertexStream<vtr_messages::msg::Transform>(
-          stream_name, true, pose_graph::RegisterMode::Existing);
+    // for (const auto &r : graph->runs())
+    //   r.second->registerVertexStream<vtr_messages::msg::Transform>(
+    //       stream_name, true, pose_graph::RegisterMode::Existing);
 
     auto map_vertex = graph->at(vid);
-    map_vertex->load(stream_name);
-    auto rc_transforms =
-        map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
-            stream_name);
+    //map_vertex->load(stream_name);
+
+    auto locked_tf_msg = map_vertex->retrieve<vtr_messages::msg::Transform>(
+            stream_name, "vtr_messages/msg/Transform");
+    auto locked_msg = locked_tf_msg->sharedLocked();
+    auto rc_transforms = locked_msg.get().getDataPtr();
     if (rc_transforms != nullptr) {
       Eigen::Matrix<double, 6, 1> tmp;
       auto mt = rc_transforms->translation;

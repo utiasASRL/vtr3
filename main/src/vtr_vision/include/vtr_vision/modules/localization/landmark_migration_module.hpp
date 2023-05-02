@@ -64,7 +64,6 @@ class LandmarkMigrationModule : public tactic::BaseModule {
       const std::string &name = static_name) 
       : tactic::BaseModule{module_factory, name}, config_(config) {}
   
-  // ~LandmarkMigrationModule() = default;
 
   /**
    * \brief Given a submap and target vertex located in this submap, this
@@ -105,7 +104,7 @@ class LandmarkMigrationModule : public tactic::BaseModule {
    * \param landmarks pointer to the landmarks.
    */
   void migrate(const int &rig_idx,
-               const GraphPersistentIdMsg &persist_id,
+               const VertexId &persist_id,
                const tactic::EdgeTransform &T_root_curr,
                CameraQueryCache &qdata,
                std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks);
