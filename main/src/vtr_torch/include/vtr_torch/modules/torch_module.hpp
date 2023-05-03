@@ -61,7 +61,7 @@ class TorchModule : public tactic::BaseModule {
           // Deserialize the ScriptModule from a file using torch::jit::load().
           network = torch::jit::load(config_->model_filepath);
         } catch (const c10::Error& e) {
-          CLOG(ERROR, "torch") << "error loading the model\n";
+          CLOG(ERROR, "torch") << "error loading the model\n" << "Tried to load " << config_->model_filepath;
         }
 
         //Copy the model weights into the graph folder for saving?

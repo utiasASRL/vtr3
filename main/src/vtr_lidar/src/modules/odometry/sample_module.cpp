@@ -27,7 +27,9 @@ using namespace tactic;
 auto TestNNModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                           const std::string &param_prefix)
     -> ConstPtr {
-  auto config = std::make_shared<Config>();
+  auto config = std::make_shared<TestNNModule::Config>();
+  auto base_config = std::static_pointer_cast<TorchModule::Config>(config);
+  *base_config =  *nn::TorchModule::Config::fromROS(node, param_prefix);
   // clang-format off
   // clang-format on
   return config;
