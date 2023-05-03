@@ -41,6 +41,8 @@ class TorchModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     std::string model_filepath = "";
+    bool use_gpu = false;
+    bool abs_filepath = true;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -64,6 +66,12 @@ class TorchModule : public tactic::BaseModule {
           CLOG(ERROR, "torch") << "error loading the model\n" << "Tried to load " << config_->model_filepath;
         }
 
+        if (config_->use_gpu && torch::cuda::is_available()){
+          device = torch::kCUDA;
+          network.to(device);
+        }
+        CLOG(INFO, "torch") << "Using device " << device << std::endl;
+
         //Copy the model weights into the graph folder for saving?
 
       }
@@ -77,24 +85,18 @@ class TorchModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) = 0;
 
   Config::ConstPtr config_;
+  torch::Device device = torch::kCPU;
+
 
  protected:
   Module network;
 
   template <typename DataType>
-  std::vector<DataType> evaluateModel(std::vector<DataType> inputs){
-    torch::NoGradGuard no_grad;
-    std::vector<torch::jit::IValue> jit_inputs;
-    jit_inputs.reserve(inputs.size());
-
-    for (auto& val : inputs)
-        jit_inputs.push_back(val);
-
-    auto output = network.forward(jit_inputs).toTensor();
-    std::cout << output;
-  }
+  void evaluateModel(std::vector<DataType> inputs, const at::IntArrayRef shape);
 
 };
 
 }  // namespace nn
 }  // namespace vtr
+
+#include "torch_module.inl"

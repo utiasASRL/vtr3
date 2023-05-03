@@ -31,24 +31,14 @@ auto TorchModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
 
   config->model_filepath = node->declare_parameter<std::string>(param_prefix + ".filepath", config->model_filepath);
+  config->use_gpu = node->declare_parameter<bool>(param_prefix + ".use_gpu", config->use_gpu);
+  config->abs_filepath = node->declare_parameter<bool>(param_prefix + ".abs_filepath", config->abs_filepath);
   // clang-format on
   return config;
 }
 
 TorchModule::~TorchModule() {}
 
-// template <typename DataType>
-// std::vector<DataType> TorchModule::evaluateModel(std::vector<DataType> inputs){
-//     torch::NoGradGuard no_grad;
-//     std::vector<torch::jit::IValue> jit_inputs;
-//     jit_inputs.reserve(inputs.size());
-
-//     for (auto& val : inputs)
-//         jit_inputs.push_back(val);
-
-//     auto output = network.forward(jit_inputs).toTensor();
-//     std::cout << output;
-// }
 
 
 }  // namespace nn

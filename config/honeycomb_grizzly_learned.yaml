@@ -3,8 +3,7 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - lidar.terrain_assessment
-      - navigation
+      #- navigation
       - navigation.graph_map_server
       - navigation.command
         # tactic
@@ -13,6 +12,7 @@
       - tactic.module
       - tactic.module.live_mem_manager
       - tactic.module.graph_mem_manager
+      - torch
         # path planner
         # "path_planning",
         # "path_planning.teb",
@@ -117,6 +117,7 @@
     odometry:
       network:
         type: torch.sample
+        use_gpu: true
         filepath: /home/alec/ASRL/vtr3/models/sample_model.pt
       icp:
         type: lidar.odometry_icp

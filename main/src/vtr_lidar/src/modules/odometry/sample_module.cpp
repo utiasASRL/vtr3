@@ -40,8 +40,8 @@ void TestNNModule::run_(QueryCache &qdata0, OutputCache &,
                             const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  std::vector<int> inputs {2, 5};
-  evaluateModel<int>(inputs);
+  std::vector<float> inputs {2, 5};
+  evaluateModel<float>(inputs, {1, 2});
                             
 }
 
