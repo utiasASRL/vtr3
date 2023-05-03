@@ -20,6 +20,7 @@
 
 //#define C10_UTIL_LOGGING_IS_NOT_GOOGLE_GLOG_H_
 #include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_common/utils/filesystem.hpp"
 #include "vtr_tactic/task_queue.hpp"
 #include <torch/torch.h>
 #include <torch/script.h> 
@@ -40,7 +41,7 @@ class TorchModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    std::string model_filepath = "";
+    std::string model_filepath = "default";
     bool use_gpu = false;
     bool abs_filepath = true;
 

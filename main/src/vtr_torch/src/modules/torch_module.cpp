@@ -30,9 +30,17 @@ auto TorchModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
 
-  config->model_filepath = node->declare_parameter<std::string>(param_prefix + ".filepath", config->model_filepath);
   config->use_gpu = node->declare_parameter<bool>(param_prefix + ".use_gpu", config->use_gpu);
   config->abs_filepath = node->declare_parameter<bool>(param_prefix + ".abs_filepath", config->abs_filepath);
+
+  auto model_dir = node->declare_parameter<std::string>("model_dir", "defalut2");
+  model_dir = common::utils::expand_user(common::utils::expand_env(model_dir));
+
+  if (config->abs_filepath){
+    config->model_filepath = node->declare_parameter<std::string>(param_prefix + ".filepath", config->model_filepath);
+  } else {
+    config->model_filepath = model_dir + "/" + node->declare_parameter<std::string>(param_prefix + ".filepath", config->model_filepath);
+  }
   // clang-format on
   return config;
 }

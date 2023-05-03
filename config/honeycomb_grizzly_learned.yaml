@@ -118,7 +118,8 @@
       network:
         type: torch.sample
         use_gpu: true
-        filepath: /home/alec/ASRL/vtr3/models/sample_model.pt
+        abs_filepath: false
+        filepath: sample_model.pt
       icp:
         type: lidar.odometry_icp
         use_trajectory_estimation: true
