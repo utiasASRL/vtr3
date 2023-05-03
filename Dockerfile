@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
 
 CMD ["/bin/bash"]
 
@@ -27,7 +27,8 @@ USER ${USERID}:${GROUPID}
 ENV VTRROOT=${HOMEDIR}/ASRL/vtr3
 ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
-  VTRTEMP=${VTRROOT}/temp
+  VTRTEMP=${VTRROOT}/temp \
+  VTRMODELS=${VTRROOT}/models
 
 ## Switch to root to install dependencies
 USER 0:0
@@ -49,6 +50,7 @@ RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
   && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
 
 ## Install ROS2
 # UTF-8
@@ -98,6 +100,13 @@ RUN apt install htop
 
 # Install vim
 RUN apt update && apt install -q -y vim
+
+##Install LibTorch
+RUN curl https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip --output libtorch.zip
+RUN unzip libtorch.zip -d /opt/torch
+ENV TORCH_LIB=/opt/torch/libtorch
+ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
