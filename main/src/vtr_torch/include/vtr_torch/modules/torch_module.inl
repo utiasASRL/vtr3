@@ -8,7 +8,7 @@ namespace vtr {
 namespace nn {
 
   template <typename DataType>
-  void TorchModule::evaluateModel(std::vector<DataType> inputs, const Shape shape){
+  torch::Tensor TorchModule::evaluateModel(std::vector<DataType> inputs, const Shape shape){
     torch::NoGradGuard no_grad;
     std::vector<torch::jit::IValue> jit_inputs;
 
@@ -16,8 +16,9 @@ namespace nn {
     jit_inputs.push_back(t_input);
 
 
-    auto output = network.forward(jit_inputs);
-    CLOG(DEBUG, "torch") << output;
+    auto output = network(jit_inputs);
+
+    return output.toTensor().cpu();
   }
     
 } // namespace nn 

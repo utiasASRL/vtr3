@@ -93,7 +93,7 @@ class TorchModule : public tactic::BaseModule {
   Module network;
 
   template <typename DataType>
-  void evaluateModel(std::vector<DataType> inputs, const at::IntArrayRef shape);
+  torch::Tensor evaluateModel(std::vector<DataType> inputs, const Shape shape);
 
 };
 

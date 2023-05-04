@@ -47,7 +47,5 @@ auto TorchModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
 TorchModule::~TorchModule() {}
 
-
-
 }  // namespace nn
 }  // namespace vtr
