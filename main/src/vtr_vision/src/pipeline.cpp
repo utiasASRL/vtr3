@@ -64,11 +64,7 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
                    const std::shared_ptr<tactic::TaskExecutor> &executor) {
   // auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   auto &qdata = dynamic_cast<CameraQueryCache &>(*qdata0);
-
-  // \todo Should we assume true ? It is assumed false in tactic line 195
-  qdata.success.emplace(true);         // odometry success default to true
-
-  
+ 
 
   // qdata->T_r_m.emplace(*qdata->T_r_v_odo);
   // qdata->T_r_m_prior.emplace(*qdata->T_r_v_odo);
@@ -92,7 +88,7 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
   timestamp_odo_ = *qdata.stamp;
 
   // If VO failed, revert T_r_m to the initial prior estimate
-  if (*qdata.success == false) {
+  if (*qdata.odo_success == false) {
     CLOG(WARNING, "stereo.pipeline")
         << "VO FAILED, reverting to trajectory estimate.";
     *qdata.T_r_m = *qdata.T_r_m_prior;
@@ -274,7 +270,7 @@ void StereoPipeline::runLocalization_(const tactic::QueryCache::Ptr &qdata0, con
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLocalization(*qdata, graph, live_id);
 
-  if (qdata->success) {
+  if (qdata->loc_success) {
     CLOG(WARNING, "stereo.pipeline") << "Localization pipeline failed.";
   } else {
     *qdata->loc_success = true;
@@ -914,7 +910,7 @@ void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
   status.query_id = live_id;
   pose_graph::VertexId map_id = *qdata.vid_loc;
   status.map_id = map_id;
-  status.success = *qdata.success;
+  status.success = *qdata.loc_success;
   //status.localization_computation_time_ms = (*qdata.loc_timer).elapsedMs();
 
   // if (qdata.T_r_m.valid()) {

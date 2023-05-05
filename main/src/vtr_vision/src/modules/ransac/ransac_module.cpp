@@ -33,6 +33,8 @@ auto RansacModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->enable = node->declare_parameter<bool>(param_prefix + ".enable", config->enable);
+  config->is_odometry = node->declare_parameter<bool>(param_prefix + ".is_odometry", config->is_odometry);
+
   config->iterations = node->declare_parameter<int>(param_prefix + ".iterations", config->iterations);
   config->flavor = node->declare_parameter<std::string>(param_prefix + ".flavor", config->flavor);
   config->sigma = node->declare_parameter<double>(param_prefix + ".sigma", config->sigma);
@@ -117,6 +119,9 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
     return;
   }
 
+  bool &success = (config_->is_odometry)? *qdata.odo_success : *qdata.loc_success;
+
+
   LOG(WARNING) << "Now processing second frame!";
 
   // make sure the offsets are not holding any old info
@@ -161,7 +166,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
     auto &matches = *qdata.ransac_matches.emplace();
     matches.push_back(vision::RigMatches());
     LOG(ERROR) << "Model Has Failed!!!" << std::endl;
-    *qdata.success = false;
+    success = false;
     return;
   }
 
@@ -182,7 +187,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
     // \todo (Old) For now we are only using matches from the grayscale
     // solution. Alter the RANSAC code to accept vectors of matches / points.
     if (ransac.run(flattened_matches, &solution, &inliers) == 0) {
-      *qdata.success = false;
+      success = false;
     } else {
       // Success, set the output (in the vehicle frame)
 
@@ -207,7 +212,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
       *qdata.T_r_m =
           T_s_v_q.inverse() * lgmath::se3::Transformation(solution) * T_s_v_m;
       qdata.T_r_m->setZeroCovariance();
-      *qdata.success = true;
+      success = true;
     }
   }
 
@@ -215,7 +220,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
     LOG(ERROR) << "RansacModule::" << __func__ << "(): " << inliers.size()
                << "/" << flattened_matches.size() << " is not enough inliers! ";
     inliers.clear();
-    *qdata.success = false;
+    success = false;
   }
 
   // Inflate matches

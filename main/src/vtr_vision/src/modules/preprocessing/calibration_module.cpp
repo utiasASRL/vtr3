@@ -38,7 +38,6 @@ auto CalibrationModule::Config::fromROS(
 
   auto distortion = node->declare_parameter<std::vector<double>>(param_prefix + ".distortion");
   auto intrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".intrinsic");
-  auto extrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".extrinsic");
   config->baseline = node->declare_parameter<double>(param_prefix + ".baseline");
   config->distortion=Eigen::Map<CameraDistortion>(distortion.data());
   config->intrinsic=Eigen::Map<CameraIntrinsic>(intrinsic.data()).transpose();
@@ -64,7 +63,6 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
   CameraIntrinsics camera_intrinsics {config_->intrinsic, config_->intrinsic};
   CLOG(INFO, "preprocessing") << "Intrinsic\n" << config_->intrinsic;
 
-  // Eigen::Matrix4d matrix {config_->extrinsic};
   Transform left_extrinsic;
   Eigen::Matrix3d eye3 = Eigen::Matrix<double, 3, 3>::Identity();
   Eigen::Vector3d r_ba_ina = Eigen::Vector3d::Zero();

@@ -59,6 +59,8 @@ class SteamModule : public tactic::BaseModule {
     /** \brief STEAM verbose printing flag. */
     bool verbose = false;
 
+    bool is_odometry = true;
+
     /** \brief Maximum iterations for the STEAM solve. */
     int iterations = 15;
 

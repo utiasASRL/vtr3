@@ -44,6 +44,8 @@ auto SteamModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                 const std::string &param_prefix) -> ConstPtr {
   auto config = std::make_shared<SteamModule::Config>();
   // clang-format off
+  config->is_odometry = node->declare_parameter<bool>(param_prefix + ".is_odometry", config->is_odometry);
+
   config->solver_type = node->declare_parameter<std::string>(param_prefix + ".solver_type", config->solver_type);
   config->loss_function = node->declare_parameter<std::string>(param_prefix + ".loss_function", config->loss_function);
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
@@ -221,7 +223,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
 
   // basic sanity check
   if (!qdata.rig_features.valid() ||
-      (qdata.success.valid() && *qdata.success == false)) {
+      (qdata.odo_success.valid() && *qdata.odo_success == false)) {
       CLOG(WARNING, "stereo.optimization") << "No features";
     return;
   }
@@ -251,7 +253,8 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
       lgmath::se3::Transformation());
   tf_identity_->locked() = true;
 
-  
+  bool &success = (config_->is_odometry)? *qdata.odo_success : *qdata.loc_success;
+
   try {
     // PROBLEM SPECIFIC
     steam::OptimizationProblem problem = generateOptimizationProblem(qdata, graph);
@@ -264,7 +267,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
 
 
     // default to success
-    bool success = true;
 
     // attempt to run the solver
     try {
@@ -272,7 +274,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     } catch (std::logic_error &e) {
       LOG(ERROR) << "Forced Gradient-Descent, running in LM..." << e.what();
       success = forceLM(problem);
-      *qdata.success = success;
     } catch (steam::unsuccessful_step &e) {
       // did any successful steps occur?
       if (solver_->curr_iteration() <= 1) {
@@ -280,7 +281,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
         CLOG(ERROR, "stereo.optimization")
             << "Steam has failed to optimise the problem. This is an error";
         success = false;
-        *qdata.success = success;
       } else {
         // yes: just a marginal problem, let's use what we got
         CLOG(WARNING, "stereo.optimization") << "Steam has failed due to an unsuccessful step. This "
@@ -289,7 +289,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     } catch (std::runtime_error &e) {
       CLOG(ERROR, "stereo.optimization") << "Steam has failed with an unusual error: " << e.what();
       success = false;
-      *qdata.success = success;
     }
 
     success = success && verifyOutputData(qdata);
@@ -297,7 +296,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
 
   } catch (...) {
     LOG(ERROR) << " bailing on steam problem!";
-    *qdata.success = false;
+    success = false;
   }
 
   if (config_->use_T_q_m_prior && qdata.T_r_m_prior.valid() &&
@@ -306,7 +305,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     double ct_sigma = sqrt((*qdata.T_r_m).cov()(1, 1));
     if (ct_sigma > prior_ct_sigma) {
       LOG(WARNING) << "Loc. added uncertainty, bailing.";
-      *qdata.success = false;
+      success = false;
     }
   }
 }

@@ -35,8 +35,6 @@ struct CameraQueryCache : public tactic::QueryCache {
   PTR_TYPEDEFS(CameraQueryCache);
 
   // clang-format off
-  /// image related stuff
-  tactic::Cache<std::string> camera_frame;
 
   //Transformation between sensor and robot
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
@@ -55,7 +53,6 @@ struct CameraQueryCache : public tactic::QueryCache {
   
 
   /// extra image related stuff to be cleaned up
-  tactic::Cache<bool> success;
   tactic::Cache<lgmath::se3::TransformationWithCovariance> T_r_m;
   tactic::Cache<lgmath::se3::TransformationWithCovariance> T_r_m_prior;
   tactic::Cache<std::vector<vision::RigMatches>> raw_matches;

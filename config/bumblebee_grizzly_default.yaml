@@ -49,6 +49,8 @@
       extrapolate_odometry: true # path tracker
       localization_only_keyframe: true # EDIT BY SHERRY
       localization_skippable: true #false # false
+      save_odometry_result: true
+      save_localization_result: true
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       chain:
         min_cusp_distance: 1.5
@@ -120,8 +122,6 @@
           # - 0.0
           # - 1.0
         baseline: 0.24 #0.12
-        extrinsic: [1.0, 0.0, 0.0, -0.24, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0] 
-        #[1.0, 0.0, 0.0, -0.120, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         
 
       extraction:
@@ -228,7 +228,8 @@
         mask_depth: 200.0
         mask_depth_inlier_count: 0
         use_covariance: false
-
+        is_odometry: true
+        
       keyframe_optimize:
         type: keyframe_optimization
 
@@ -299,6 +300,7 @@
         depth_prior_weight: 100000000.0
         pose_prior_enable: false
         use_migrated_points: false
+        is_odometry: true
 
       vertex_test:
         type: simple_vertex_creation_test
@@ -314,7 +316,7 @@
     localization:
       recall:
         type: landmark_recall
-        landmark_source: live
+        landmark_source: map
 
       sub_map_extraction:
         type: sub_map_extraction
@@ -398,6 +400,7 @@
         mask_depth: 1000.0
         mask_depth_inlier_count: 0
         use_covariance: false
+        is_odometry: false
 
       steam:
         type: keyframe_optimization
@@ -430,6 +433,7 @@
         depth_prior_weight: 100000000.0
         pose_prior_enable: true
         use_migrated_points: true
+        is_odometry: false
 
     bundle_adjustment:
       recall:

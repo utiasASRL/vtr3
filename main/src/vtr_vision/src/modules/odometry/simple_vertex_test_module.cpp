@@ -46,8 +46,7 @@ auto SimpleVertexTestModule::Config::fromROS(
 
 void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
-// void SimpleVertexTestModule::runImpl(QueryCache &qdata0,
-//                                      const Graph::ConstPtr &) {
+
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // default to creating candidate
@@ -88,17 +87,17 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
   if (inlier_count < config_->match_threshold_fail_count) {
     LOG(ERROR) << "Uh oh, " << inlier_count << " is not enough inliers";
     *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
-    *qdata.success = false;
+    *qdata.odo_success = false;
     return;
   }
 
-  if (*qdata.success == false) {
+  if (*qdata.odo_success == false) {
     LOG(ERROR) << "Uh oh, state estimation failed";
-    *qdata.success = false;
+    *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
     return;
   }
 
-  if (qdata.T_r_m.valid() == true) {
+  if (qdata.T_r_m.valid()) {
     // Inputs, Query Frame, Map Frame, Inliers, Initial Guess
     const auto &T_query_map = *qdata.T_r_m;
 
@@ -121,13 +120,13 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
       LOG(ERROR) << "Uh oh, we have a huge translation " << translation_distance
                  << " m";
       *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
-      *qdata.success = false;
+      *qdata.odo_success = false;
       return;
     } else if (rotation_distance > config_->rotation_threshold_max) {
       LOG(ERROR) << "Uh oh, we have a huge rotation " << rotation_distance
                  << " deg";
       *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
-      *qdata.success = false;
+      *qdata.odo_success = false;
       return;
     }
 
@@ -142,7 +141,7 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
   } else {
     LOG(ERROR) << "QVO did not estimate T_r_m";
     *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
-    *qdata.success = false;
+    *qdata.odo_success = false;
   }
 
   LOG(DEBUG) << "Simple vertex test result: "

@@ -769,7 +769,7 @@ cv::Scalar getChannelColor(std::string channel_name) {
         }
       }
       tactic::EdgeTransform T_q_m;
-      if (*qdata.success == true) {
+      if (*qdata.odo_success == true) {
         T_q_m = *qdata.T_r_m;
       } else {
         T_q_m = *qdata.T_r_m_prior;

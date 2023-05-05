@@ -326,8 +326,11 @@ void KeyframeOptimizationModule::addPosePrior(CameraQueryCache &qdata, Optimizat
 
 bool KeyframeOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
   // sanity check
-  if ((qdata.success.valid() &&
-       *qdata.success == false) /* || *qdata.map_status == MAP_NEW */) {
+  if ((config_->is_odometry && *qdata.odo_success == false) /* || *qdata.map_status == MAP_NEW */) {
+    return false;
+  }
+
+  if ((!config_->is_odometry) && qdata.loc_success.valid() && *qdata.loc_success == false /* || *qdata.map_status == MAP_NEW */) {
     return false;
   }
 
