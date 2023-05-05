@@ -30,7 +30,7 @@ namespace vision {
  * \brief A module that determines whether a new vertex should be created.
  * \details
  * requires:
- *   qdata.[ransac_matches, steam_failure, T_q_m]
+ *   qdata.[ransac_matches, T_q_m]
  * outputs:
  *   qdata.[new_vertex_flag, success]
  */

@@ -92,7 +92,6 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     return;
   }
 
-  // if (*qdata.steam_failure == true || *qdata.success == false) {
   if (*qdata.success == false) {
     LOG(ERROR) << "Uh oh, state estimation failed";
     *qdata.success = false;

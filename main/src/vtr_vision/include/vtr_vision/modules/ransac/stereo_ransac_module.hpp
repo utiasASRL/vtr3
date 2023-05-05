@@ -44,12 +44,10 @@ namespace vision {
  *          T_sensor_vehicle, live_id, map_landmarks, T_q_m_prior,
  *          T_sensor_vehicle_map, raw_matches]
  * outputs:
- *   qdata.[T_q_m, ransac_matches, success, **steam_failure]
+ *   qdata.[T_q_m, ransac_matches, success]
  *
  * The preliminary transform is stored in T_q_m, and inliers stored in
  * ransac_matches.
- * \todo (yuchen) why is steam_failure relevant in this module? likely for
- * testing only, should be able to remove it
  */
 class StereoRansacModule : public RansacModule {
  public:

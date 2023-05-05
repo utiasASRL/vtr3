@@ -39,7 +39,7 @@ namespace vision {
  *          live_id, map_landmarks, T_sensor_vehicle_map, ransac_matches,
  *          *T_r_m_prior]
  * outputs:
- *   qdata.[trajectory, steam_failure, success, T_r_m]
+ *   qdata.[trajectory, success, T_r_m]
  *
  * qdata.stamp used to compute trajectory
  * produces a trajectory estimate

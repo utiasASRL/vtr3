@@ -65,10 +65,9 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
   // auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   auto &qdata = dynamic_cast<CameraQueryCache &>(*qdata0);
 
+  // \todo Should we assume true ? It is assumed false in tactic line 195
   qdata.success.emplace(true);         // odometry success default to true
 
-  // qdata->steam_failure.emplace();  // steam failure default to false
-  // qdata->steam_failure=false;
   
 
   // qdata->T_r_m.emplace(*qdata->T_r_v_odo);

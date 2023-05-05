@@ -162,7 +162,6 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
     matches.push_back(vision::RigMatches());
     LOG(ERROR) << "Model Has Failed!!!" << std::endl;
     *qdata.success = false;
-    // qdata.steam_failure = true;  /// \todo yuchen why steam_failure relevant?
     return;
   }
 
@@ -224,6 +223,18 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   matches.push_back(vision::RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);
   inflateMatches(inliers, matches[rig_idx]);
+
+
+  // check if visualization is enabled
+  if (config_->visualize_ransac_inliers) {
+    if (config_->use_migrated_points){
+      //visualize::showMelMatches(*qdata.vis_mutex, qdata, graph,
+      //                          "multi-exp-loc");
+    }  else if (qdata.ransac_matches.valid())
+      visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.ransac_matches,
+                             " RANSAC matches");
+  }
+
 }
 
 std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(

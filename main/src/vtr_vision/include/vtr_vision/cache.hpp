@@ -62,7 +62,6 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<std::map<tactic::VertexId, lgmath::se3::TransformationWithCovariance>> T_sensor_vehicle_map;
   tactic::Cache<std::vector<LandmarkFrame>> map_landmarks;
   tactic::Cache<std::vector<vision::RigMatches>> ransac_matches;
-  tactic::Cache<bool> steam_failure;
   tactic::Cache<std::mutex> steam_mutex;
 
   tactic::Cache<tactic::Timestamp> timestamp_odo;
