@@ -34,16 +34,12 @@ namespace vtr {
 namespace vision {
 
 /**
- * \brief A module that converts images from RGB to grayscale or other forms,
- * and extracts features using surf/orb in parallel.
+ * \brief A module that converts images from ROS to RigImages and loads the calibrations
+ * from the config file
  * \details
- * requires: qdata.[rig_images]
- * outputs: qdata.[rig_images, rig_features]
+ * requires: qdata.[left_image, right_image]
+ * outputs: qdata.[rig_images, rig_calibrations, rig_names]
  *
- * This module stores the converted images (gray scaled, color constant) in
- * extra channels of each image of qdata.rig_images.
- * The features corresponding to each channel are stored in qdata.rig_features.
- * Only stereo matched features are stored.
  */
 class CalibrationModule : public tactic::BaseModule {
  public:

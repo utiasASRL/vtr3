@@ -147,6 +147,10 @@ class StereoPipeline : public tactic::BasePipeline {
     /// This method may read from or write to the graph.
   
 
+  // \todo Implement reset for multiple runs!
+  // void reset();
+
+
   void onVertexCreation_(const tactic::QueryCache::Ptr &, const tactic::OutputCache::Ptr &,
                          const tactic::Graph::Ptr &,
                          const std::shared_ptr<tactic::TaskExecutor> &);

@@ -47,7 +47,10 @@ void LandmarkRecallModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache 
 
   // check if the target vertex id is valid
   if (config_->landmark_source == "map") {
-    if (!qdata.vid_loc || !qdata.vid_loc->isValid()) return;
+    if (!qdata.vid_loc || !qdata.vid_loc->isValid()){
+      CLOG(DEBUG, "stereo.recall") << "Invalid map id, has localization failed?";
+      return;
+    } 
   } else if (config_->landmark_source == "live") {
     if (!qdata.vid_odo || !qdata.vid_odo->isValid()) {
       CLOG(DEBUG, "stereo.recall") << "Invalid live id, likely the first frame.";

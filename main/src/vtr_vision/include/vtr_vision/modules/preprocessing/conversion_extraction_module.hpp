@@ -37,7 +37,7 @@ namespace vision {
  * and extracts features using surf/orb in parallel.
  * \details
  * requires: qdata.[rig_images]
- * outputs: qdata.[rig_images, rig_features]
+ * outputs: qdata.[rig_images, rig_features, rig_extra]
  *
  * This module stores the converted images (gray scaled, color constant) in
  * extra channels of each image of qdata.rig_images.

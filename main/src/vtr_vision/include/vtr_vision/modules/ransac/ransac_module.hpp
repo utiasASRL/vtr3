@@ -25,7 +25,7 @@
 #include <vtr_vision/outliers.hpp>
 #include <vtr_vision/outliers/sampler/basic_sampler.hpp>
 #include <vtr_vision/sensors/sensor_model_base.hpp>
-// #include <vtr_vision/visualize.hpp>
+#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace vision {
@@ -55,6 +55,8 @@ class RansacModule : public tactic::BaseModule {
     
 
     bool enable = true;
+
+    bool is_odometry = true;
 
     /** \brief Max iterations for RANSAC. */
     int iterations = 2000;

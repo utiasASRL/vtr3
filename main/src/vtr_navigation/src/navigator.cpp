@@ -235,6 +235,7 @@ void Navigator::process() {
 
 #ifdef VTR_ENABLE_VISION
     if (auto qdata = std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
+      // \todo change to point cloud. Maybe make an int value rather than binary
       pointcloud_in_queue_ = false;
 #endif
 
@@ -326,7 +327,6 @@ void Navigator::cameraCallback(
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r.emplace(T_camera_robot_);
 
-  //query_data->
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);

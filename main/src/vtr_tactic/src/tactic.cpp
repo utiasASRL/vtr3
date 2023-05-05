@@ -84,6 +84,8 @@ void Tactic::addRun(const bool) {
   graph_->addRun();
   // re-initialize the run
   first_frame_ = true;
+
+  // \todo change to VertexId::Invalid():
   current_vertex_id_ = VertexId((uint64_t)-1);
   // re-initialize the localization chain (path will be added later)
   chain_->reset();

@@ -34,7 +34,7 @@ using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
  * frame.
  * \details
  * requires:
- *   qdata.[rig_names, rig_features, rig_calibrations, T_sensor_vehicle
+ *   qdata.[rig_features, rig_calibrations, T_sensor_vehicle
  *          localization_map, T_sensor_vehicle_map, map_id, localization_status
  *          T_r_m_prior]
  * outputs:

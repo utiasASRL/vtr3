@@ -1,5 +1,5 @@
 # nanoseconds since epoch
 int64 timestamp
 
-# localization result
+# odometry result
 vtr_common_msgs/LieGroupTransform t_world_robot
