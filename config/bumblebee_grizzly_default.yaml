@@ -23,7 +23,6 @@
         "stereo.odometry",
         "stereo.vertex_test",
         "odometry",
-        "path_tracker",
         "tactic.pipeline"
       ]
 
@@ -317,7 +316,7 @@
     localization:
       recall:
         type: landmark_recall
-        landmark_source: map
+        landmark_source: live
 
       sub_map_extraction:
         type: sub_map_extraction
@@ -598,7 +597,7 @@
       robust_control_sigma: 3.0
       weight_barrier_norm_mpc: 0.3
     path_planning:
-      type: cbit
+      type: cbit_disable
       control_period: 33
       teb:
         visualize: true

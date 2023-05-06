@@ -250,16 +250,13 @@ void StereoPipeline::runLocalization_(const tactic::QueryCache::Ptr &qdata0, con
   for (auto module : localization_) module->run(*qdata0, *output0, graph, executor);
 
   auto live_id = *qdata->vid_odo;
-  // for (auto module : localization_)
-  //   module->updateGraph(*qdata0, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLocalization(*qdata, graph, live_id);
 
-  if (qdata->loc_success) {
+  if (!qdata->loc_success) {
     CLOG(WARNING, "stereo.pipeline") << "Localization pipeline failed.";
   } else {
-    *qdata->loc_success = true;
     *qdata->T_r_v_loc = *qdata->T_r_m;
   }
   

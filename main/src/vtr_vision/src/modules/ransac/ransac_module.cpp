@@ -106,7 +106,6 @@ void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
   }
 }
 
-// void RansacModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
 void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
 
@@ -115,27 +114,27 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   // if the map is not yet initialized, don't do anything
   if (/* *qdata.map_status == MAP_NEW || */
       qdata.raw_matches.valid() == false) {
-    LOG(DEBUG) << "No valid matches, likely the first frame.";
+    CLOG(INFO, "stereo.ransac") << "No valid matches, likely the first frame.";
     return;
   }
 
   bool &success = (config_->is_odometry)? *qdata.odo_success : *qdata.loc_success;
 
 
-  LOG(WARNING) << "Now processing second frame!";
+  CLOG(DEBUG, "stereo.ransac") << "Now processing second frame!";
 
   // make sure the offsets are not holding any old info
   map_channel_offsets_.clear();
   query_channel_offsets_.clear();
 
-  LOG(WARNING) << "Generating RANSAC sampler!";
+  CLOG(DEBUG, "stereo.ransac") << "Generating RANSAC sampler!";
 
   // Set up the ransac implementation
   auto sampler = generateRANSACSampler(qdata);
 
 
 
-  LOG(WARNING) << "Generating Filter Matches!";
+  CLOG(DEBUG, "stereo.ransac") << "Generating Filter Matches!";
 
   // filter the raw matches as necessary
   auto filtered_matches = generateFilteredMatches(qdata);
@@ -147,7 +146,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   auto &rig_matches = filtered_matches[rig_idx];
 
 
-  LOG(WARNING) << "Setting up Vanila RANSAC!";
+  CLOG(DEBUG, "stereo.ransac") << "Setting up Vanila RANSAC!";
 
   // \todo (Old) Set up config.
   vision::VanillaRansac<Eigen::Matrix4d> ransac(
@@ -155,7 +154,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
       config_->early_stop_ratio, config_->early_stop_min_inliers,
       config_->enable_local_opt, config_->num_threads);
 
-  LOG(WARNING) << "Generate RANSAC model!";
+  CLOG(DEBUG, "stereo.ransac") << "Generate RANSAC model!";
 
   // Problem specific
   auto ransac_model = generateRANSACModel(qdata);
@@ -163,9 +162,9 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   // If a model wasn't successfully generated, clean up and return error
   if (ransac_model == nullptr) {
     vision::SimpleMatches inliers;
-    auto &matches = *qdata.ransac_matches.emplace();
+    auto &matches = *qdata.ransac_matches.clear().emplace();
     matches.push_back(vision::RigMatches());
-    LOG(ERROR) << "Model Has Failed!!!" << std::endl;
+    CLOG(ERROR, "stereo.ransac") << "Model Has Failed!!!" << std::endl;
     success = false;
     return;
   }
@@ -224,7 +223,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   }
 
   // Inflate matches
-  auto &matches = *qdata.ransac_matches.emplace();
+  auto &matches = *qdata.ransac_matches.clear().emplace();
   matches.push_back(vision::RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);
   inflateMatches(inliers, matches[rig_idx]);
@@ -247,19 +246,6 @@ std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
   return *qdata.raw_matches;
 }
 
-// void RansacModule::visualizeImpl(QueryCache &qdata0,
-//                                  const Graph::ConstPtr &graph) {
-//   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-//   // check if visualization is enabled
-//   if (config_->visualize_ransac_inliers) {
-//     if (config_->use_migrated_points)
-//       visualize::showMelMatches(*qdata.vis_mutex, qdata, graph,
-//                                 "multi-exp-loc");
-//     else if (qdata.ransac_matches.is_valid() == true)
-//       visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.ransac_matches,
-//                              " RANSAC matches");
-//   }
-// }
 
 }  // namespace vision
 }  // namespace vtr
