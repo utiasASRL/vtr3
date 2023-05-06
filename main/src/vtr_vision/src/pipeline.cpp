@@ -65,17 +65,10 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
   // auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   auto &qdata = dynamic_cast<CameraQueryCache &>(*qdata0);
  
-
-  // qdata->T_r_m.emplace(*qdata->T_r_v_odo);
-  // qdata->T_r_m_prior.emplace(*qdata->T_r_v_odo);
-
   qdata.T_r_m.emplace(*qdata.T_r_v_odo);
   qdata.T_r_m_prior.emplace(*qdata.T_r_v_odo);
   CLOG(WARNING, "stereo.pipeline") << "T_r_v_odo set";
 
-
-  // qdata->T_r_m.emplace(*qdata->T_r_v_odo);
-  // qdata->T_r_m_prior.emplace(*qdata->T_r_v_odo);
   CLOG(WARNING, "stereo.pipeline") << "First frame: " << *qdata.first_frame ;
 
   if (!(*qdata.first_frame)){
@@ -85,7 +78,6 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
   CLOG(WARNING, "stereo.pipeline")
       << "Finished setting odometry prior, running modules";
   for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
-  timestamp_odo_ = *qdata.stamp;
 
   // If VO failed, revert T_r_m to the initial prior estimate
   if (*qdata.odo_success == false) {
@@ -95,38 +87,34 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
   }
 
   // check if we have a non-failed frame
-  if (*(qdata.vertex_test_result) == VertexTestResult::DO_NOTHING) {
+  if (*qdata.vertex_test_result == VertexTestResult::DO_NOTHING) {
     CLOG(WARNING, "stereo.pipeline")
         << "VO FAILED, trying to use the candidate query data to make "
            "a keyframe.";
     if (candidate_qdata_ != nullptr) {
+      //A valid candidate exists, use it!
       qdata = *candidate_qdata_;
-      *candidate_qdata_->vertex_test_result = VertexTestResult::CREATE_VERTEX;
+      *qdata.vertex_test_result = VertexTestResult::CREATE_VERTEX;
       candidate_qdata_ = nullptr;
     } else {
       CLOG(ERROR, "stereo.pipeline")
-          << "Does not have a valid candidate query data because last frame is "
-             "also a keyframe.";
-      // clear out the match data in preparation for putting the vertex in the
-      // graph
-      qdata.raw_matches.clear();
-      qdata.ransac_matches.clear();
+          << "Does not have a valid candidate query data.";
       // qdata->trajectory.clear();
       // trajectory is no longer valid
       trajectory_.reset();
-      // force a keyframe
-      //*(qdata.vertex_test_result) = VertexTestResult::CREATE_VERTEX;
     }
   } else {
     // keep a pointer to the trajectory
     // trajectory_ = qdata->trajectory.ptr();
     // trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
     /// keep this frame as a candidate for creating a keyframe
-    if (*(qdata.vertex_test_result) != VertexTestResult::CREATE_VERTEX)
+    if (*qdata.vertex_test_result == VertexTestResult::CREATE_CANDIDATE)
       candidate_qdata_ = std::make_shared<CameraQueryCache>(qdata);
-    else
-      candidate_qdata_ = nullptr;
   }
+
+  if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX)
+    timestamp_odo_ = *qdata.stamp;
+
 
   // set result
   qdata.T_r_v_odo = *qdata.T_r_m;
@@ -136,8 +124,10 @@ void StereoPipeline::setOdometryPrior(CameraQueryCache &qdata,
                                       const tactic::Graph::Ptr &graph) {
 
   auto T_r_m_est = estimateTransformFromKeyframe(*qdata.timestamp_odo, *qdata.stamp,
-                                                 qdata.rig_images.valid());
+                                                 true);
 
+  // \todo The trajectory is not set better not to extrapolate for now.
+  //Use the w_ vector instead of the trajectory. Like Lidar.
   *qdata.T_r_m_prior = T_r_m_est;
 }
 
@@ -214,10 +204,6 @@ void StereoPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   auto live_id = *qdata->vid_odo;
 
-  // // currently these modules do nothing
-  // for (auto module : odometry_) module->updateGraph(*qdata0, graph, live_id);
-
-  /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLandmarks(*qdata, graph, live_id);
 
   // if (*qdata->first_frame) return;
@@ -414,7 +400,7 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     velocity.rotational.y = 0.0;
     velocity.rotational.z = 0.0;
     // fill the velocities
-    std::string vel_str = "_velocities";
+    std::string vel_str = rig_name + "_velocities";
     using Vel_Msg = storage::LockableMessage<VelocityMsg>;
     auto vel_msg =
             std::make_shared<Vel_Msg>(std::make_shared<VelocityMsg>(velocity), *qdata.stamp);

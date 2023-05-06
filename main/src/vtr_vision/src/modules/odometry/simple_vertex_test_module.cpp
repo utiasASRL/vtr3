@@ -61,7 +61,7 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
   }
 
   int32_t inlier_count = 0;
-  if (qdata.ransac_matches.valid() == true) {
+  if (qdata.ransac_matches.valid()) {
     auto &matches = *qdata.ransac_matches;
     for (auto &rig : matches) {
       for (auto &channel : rig.channels) {
@@ -112,7 +112,8 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
 
     // If we have not moved enough to create a vertex, then just return
     if (translation_distance < config_->min_distance &&
-        rotation_distance < .1) {
+        rotation_distance < config_->rotation_threshold_min) {
+      *qdata.vertex_test_result = VertexTestResult::CREATE_CANDIDATE;
       return;
     }
 
@@ -144,7 +145,7 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     *qdata.odo_success = false;
   }
 
-  LOG(DEBUG) << "Simple vertex test result: "
+  CLOG(DEBUG, "stereo.vertex_test") << "Simple vertex test result: "
              << static_cast<int>(*qdata.vertex_test_result);
 }
 

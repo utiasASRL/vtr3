@@ -21,6 +21,7 @@
         "stereo.matcher",
         "stereo.keyframe_optimization",
         "stereo.odometry",
+        "stereo.vertex_test",
         "odometry",
         "path_tracker",
         "tactic.pipeline"
