@@ -46,11 +46,13 @@
 
     ############ tactic configuration ############
     tactic:
+      enable_parallelization: true
       extrapolate_odometry: true # path tracker
       localization_only_keyframe: true # EDIT BY SHERRY
       localization_skippable: true #false # false
       save_odometry_result: true
       save_localization_result: true
+      
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       chain:
         min_cusp_distance: 1.5
@@ -597,24 +599,8 @@
       robust_control_sigma: 3.0
       weight_barrier_norm_mpc: 0.3
     path_planning:
-      type: cbit_disable
+      type: cbit
       control_period: 33
-      teb:
-        visualize: true
-        extrapolate: false
-        extrapolation_timeout: 2.0
-        lookahead_distance: 8.5
-        robot_model: circular
-        robot_radius: 0.5
-        map_frame: planning frame
-        enable_homotopy_class_planning: true
-        free_goal_vel: true
-        max_vel_x: 0.6
-        max_vel_y: 0.0
-        max_vel_theta: 0.3
-        min_turning_radius: 3
-        weight_viapoint: 0.5
-        weight_costmap: 100.0
       cbit:
         obs_padding: 0.0
         curv_to_euclid_discretization: 20
