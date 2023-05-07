@@ -110,28 +110,13 @@ class RansacModule : public tactic::BaseModule {
       : tactic::BaseModule{module_factory, name}, config_(config) {}
 
 
-
-
-
-
-//   void configFromROS(const rclcpp::Node::SharedPtr &node,
-//                      const std::string param_prefix) override;
-
  private:
   /**
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-//   void run_(tactic::QueryCache &qdata,
-//                const tactic::Graph::ConstPtr &) override;
-
-    void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
+  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-
-
-//   /** \brief Visualization implementation */
-//   void visualizeImpl(tactic::QueryCache &qdata,
-//                      const tactic::Graph::ConstPtr &) override;
 
   /**
    * \brief Generates a model for the RANSAC method. Subclass must override

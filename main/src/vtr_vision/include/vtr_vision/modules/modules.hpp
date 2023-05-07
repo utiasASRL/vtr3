@@ -33,3 +33,4 @@
 #include <vtr_vision/modules/localization/experience_triage_module.hpp>
 #include <vtr_vision/modules/localization/landmark_migration_module.hpp>
 #include <vtr_vision/modules/localization/tod_recognition_module.hpp>
+#include <vtr_vision/modules/bundle_adjustment/stereo_windowed_recall_module.hpp>

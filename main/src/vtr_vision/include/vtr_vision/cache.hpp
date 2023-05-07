@@ -79,12 +79,12 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<MigrationMap> landmark_offset_map;
 
 
+  tactic::Cache<LandmarkMap> landmark_map;
+  tactic::Cache<SteamPoseMap> pose_map;
 
 
   /*
   // odometry and mapping (including bundle adjustment)
-  tactic::Cache<LandmarkMap> landmark_map;
-  tactic::Cache<SteamPoseMap> pose_map;
   // localization
   tactic::Cache<tactic::RunIdSet> recommended_experiences;
   tactic::Cache<pose_graph::RCGraphBase::Ptr> localization_map;

@@ -532,7 +532,7 @@ struct LandmarkObs {
   vtr_messages::msg::Match origin_ref;
 };
 
-#if false
+
 /**
  * \brief collection of pointers to landmarks and their associated steam
  * containers.
@@ -542,12 +542,13 @@ struct LandmarkInfo {
   std::vector<float> covariance;
   uint8_t descriptor;
   uint32_t num_vo_observations;
-  steam::se3::LandmarkStateVar::Ptr steam_lm;
+  steam::stereo::HomoPointStateVar::Ptr steam_lm;
   std::vector<LandmarkObs> observations;
   bool valid;
 };
 using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
 
+#if False
 /** \brief A steam TransformStateVar Wrapper, keeps track of locking */
 class SteamPose {
  public:
@@ -594,8 +595,9 @@ class SteamPose {
   /** \brief The lock flag. */
   bool lock;
 };
-using SteamPoseMap = std::map<pose_graph::VertexId, SteamPose>;
 #endif
+
+using SteamPoseMap = std::map<pose_graph::VertexId, steam::se3::SE3StateVar>;
 
 using SensorVehicleTransformMap =
     std::map<pose_graph::VertexId, lgmath::se3::TransformationWithCovariance>;

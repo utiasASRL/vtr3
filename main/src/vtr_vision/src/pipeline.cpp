@@ -26,17 +26,22 @@ StereoPipeline::StereoPipeline(
     const std::shared_ptr<ModuleFactory> &module_factory,
     const std::string &name)
     : BasePipeline(module_factory, name), config_(config) {
-    // preprocessing
-    
+  
+  // preprocessing 
   for (auto module : config_->preprocessing)
     preprocessing_.push_back(factory()->get("preprocessing." + module));
 
-//   // odometry
+  // odometry
   for (auto module : config_->odometry)
     odometry_.push_back(factory()->get("odometry." + module));
-//   // localization
+ 
+  // localization
   for (auto module : config_->localization)
     localization_.push_back(factory()->get("localization." + module));
+
+  // bundle adjustment
+  for (auto module : config_->bundle_adjustment)
+    bundle_adjustment_.push_back(factory()->get("bundle_adjustment." + module));
 }
 
 StereoPipeline::~StereoPipeline() {}
@@ -197,32 +202,32 @@ tactic::EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
 
 
 void StereoPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
-                                      const OutputCache::Ptr &,
+                                      const OutputCache::Ptr &output0,
                                       const Graph::Ptr &graph,
-                                      const TaskExecutor::Ptr &) {
+                                      const TaskExecutor::Ptr &executor) {
 
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   auto live_id = *qdata->vid_odo;
 
   saveLandmarks(*qdata, graph, live_id);
 
-  // if (*qdata->first_frame) return;
+  if (*qdata->first_frame) return;
 
-//     // sliding-window bundle adjustment
-// #ifdef VTR_DETERMINISTIC
-//   runBundleAdjustment(qdata, graph, live_id);
-// #else
-//   /// Run pipeline according to the state
-//   CLOG(DEBUG, "stereo.pipeline") << "Launching the bundle adjustment thread.";
-//   std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
-//   if (bundle_adjustment_thread_future_.valid())
-//     bundle_adjustment_thread_future_.get();
-//   bundle_adjustment_thread_future_ =
-//       std::async(std::launch::async, [this, qdata, graph, live_id]() {
-//         el::Helpers::setThreadName("bundle-adjustment-thread");
-//         runBundleAdjustment(qdata, graph, live_id);
-//       });
-// #endif
+  // sliding-window bundle adjustment
+#ifdef VTR_DETERMINISTIC
+  runBundleAdjustment(qdata, output0, graph, executor);
+#else
+  /// Run pipeline according to the state
+  CLOG(DEBUG, "stereo.pipeline") << "Launching the bundle adjustment thread.";
+  std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
+  if (bundle_adjustment_thread_future_.valid())
+    bundle_adjustment_thread_future_.get();
+  bundle_adjustment_thread_future_ =
+      std::async(std::launch::async, [this, qdata, output0, graph, executor]() {
+        el::Helpers::setThreadName("bundle-adjustment-thread");
+        runBundleAdjustment(qdata, output0, graph, executor);
+      });
+#endif
 }
 
 void StereoPipeline::runLocalization_(const tactic::QueryCache::Ptr &qdata0, const tactic::OutputCache::Ptr &output0,
@@ -231,13 +236,13 @@ void StereoPipeline::runLocalization_(const tactic::QueryCache::Ptr &qdata0, con
   
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
 
-  // {
-  //   /// Localization waits at least until the current bundle adjustment has
-  //   /// finished.
-  //   std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
-  //   if (bundle_adjustment_thread_future_.valid())
-  //     bundle_adjustment_thread_future_.get();
-  // }
+  {
+    /// Localization waits at least until the current bundle adjustment has
+    /// finished.
+    std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
+    if (bundle_adjustment_thread_future_.valid())
+      bundle_adjustment_thread_future_.get();
+  }
 
   //What did this do?
   //qdata->map_id.emplace(*qdata->map_id);
@@ -263,6 +268,16 @@ void StereoPipeline::runLocalization_(const tactic::QueryCache::Ptr &qdata0, con
     
 }
 
+void StereoPipeline::runBundleAdjustment(const tactic::QueryCache::Ptr &qdata0, const tactic::OutputCache::Ptr &output0,
+                        const tactic::Graph::Ptr &graph,
+                        const std::shared_ptr<tactic::TaskExecutor> &executor) {
+  CLOG(DEBUG, "stereo.pipeline")
+      << "Start running the bundle adjustment thread.";
+  for (auto module : bundle_adjustment_) module->run(*qdata0, *output0, graph, executor);
+  CLOG(DEBUG, "stereo.pipeline")
+      << "Finish running the bundle adjustment thread.";
+}
+
 
 void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
                                    const Graph::Ptr &graph,
@@ -281,8 +296,6 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
 
   // now update the live frame
   const auto &features = *qdata.rig_features;
-  const auto &images = *qdata.rig_images;
-  const auto &stamp = *qdata.stamp;
 
   // Iterate through each rig.
   for (uint32_t rig_idx = 0; rig_idx < features.size(); ++rig_idx) {
@@ -352,20 +365,6 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
             std::make_shared<Obs_Cnt_Msg>(std::make_shared<RigCountsMsg>(obs_cnt), *qdata.stamp);
     vertex->insert<RigCountsMsg>(obs_cnt_str, "vtr_messages/msg/RigCounts", obs_cnt_msg);
 
-
-
-  //   graph->registerVertexStream<RigLandmarksMsg>(rid, lm_str);
-  //   graph->registerVertexStream<RigCountsMsg>(rid, lm_cnt_str);
-  //   vertex->insert(lm_str, landmarks, stamp);
-  //   vertex->insert(lm_cnt_str, lm_cnt, stamp);
-
-  //   // fill the observations and observation counts
-  //   std::string obs_str = rig_name + "_observations";
-  //   std::string obs_cnt_str = obs_str + "_counts";
-  //   graph->registerVertexStream<RigObservationsMsg>(rid, obs_str);
-  //   graph->registerVertexStream<RigCountsMsg>(rid, obs_cnt_str);
-  //   vertex->insert(obs_str, observations, stamp);
-  //   vertex->insert(obs_cnt_str, obs_cnt, stamp);
 
     // insert the vehicle->sensor transform
     //TODO: change to 

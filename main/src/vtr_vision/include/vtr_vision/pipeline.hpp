@@ -150,6 +150,9 @@ class StereoPipeline : public tactic::BasePipeline {
   // \todo Implement reset for multiple runs!
   // void reset();
 
+  void runBundleAdjustment(const tactic::QueryCache::Ptr &qdata0, const tactic::OutputCache::Ptr &output0,
+                        const tactic::Graph::Ptr &graph,
+                        const std::shared_ptr<tactic::TaskExecutor> &executor);
 
   void onVertexCreation_(const tactic::QueryCache::Ptr &, const tactic::OutputCache::Ptr &,
                          const tactic::Graph::Ptr &,
@@ -237,7 +240,11 @@ tactic::EdgeTransform estimateTransformFromKeyframe(
   std::vector<tactic::BaseModule::Ptr> preprocessing_;
   std::vector<tactic::BaseModule::Ptr> odometry_;
   std::vector<tactic::BaseModule::Ptr> localization_;
+  std::vector<tactic::BaseModule::Ptr> bundle_adjustment_;
 
+
+  std::mutex bundle_adjustment_mutex_;
+  std::future<void> bundle_adjustment_thread_future_;
 
   /**
    * \brief a pointer to a trjacetory estimate so that the transform can be
