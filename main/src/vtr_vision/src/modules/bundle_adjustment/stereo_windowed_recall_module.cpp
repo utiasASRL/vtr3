@@ -40,7 +40,7 @@ auto StereoWindowedRecallModule::Config::fromROS(
 void StereoWindowedRecallModule::run_(QueryCache &qdata0, OutputCache &output, const Graph::Ptr &graph,
                 const std::shared_ptr<TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-
+  CLOG(DEBUG, "stereo.windowed_recall") << "Start running StereoWindowedRecallModule";
   vertex_landmarks_.clear();
   // Inputs: Graph, Window of Vertices
   // Outputs: Map of landmarkIds -> landmarks + observations
