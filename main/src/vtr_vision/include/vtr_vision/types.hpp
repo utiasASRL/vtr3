@@ -548,7 +548,6 @@ struct LandmarkInfo {
 };
 using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
 
-#if False
 /** \brief A steam TransformStateVar Wrapper, keeps track of locking */
 class SteamPose {
  public:
@@ -561,43 +560,40 @@ class SteamPose {
    * \param lock_flag Whether this pose should be locked or not.
    */
   SteamPose(tactic::EdgeTransform T, bool lock_flag) : lock(lock_flag) {
-    tf_state_var.reset(new steam::se3::TransformStateVar(T));
-    tf_state_var->setLock(lock);
-    tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
+    tf_state_var = steam::se3::SE3StateVar::MakeShared(T);
+    tf_state_var->locked() = lock;
   }
 
   /** \brief Sets the transformation. */
   void setTransform(const tactic::EdgeTransform &transform) {
-    tf_state_var.reset(new steam::se3::TransformStateVar(transform));
-    tf_state_var->setLock(lock);
-    tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
+    tf_state_var = steam::se3::SE3StateVar::MakeShared(transform);
+    tf_state_var->locked() = lock;
   }
 
   void setVelocity(Eigen::Matrix<double, 6, 1> &vel) {
-    velocity.reset(new steam::VectorSpaceStateVar(vel));
-    velocity->setLock(lock);
+    velocity = steam::vspace::VSpaceStateVar<6>::MakeShared(vel);
+    velocity->locked() = lock;
   }
+
   /** \brief Sets the lock */
   void setLock(bool lock_flag) {
     lock = lock_flag;
-    tf_state_var->setLock(lock);
+    tf_state_var->locked() = lock;
   }
 
   bool isLocked() { return lock; }
   /** \brief The steam state variable. */
-  steam::se3::TransformStateVar::Ptr tf_state_var;
-  steam::se3::TransformStateEvaluator::Ptr tf_state_eval;
-  steam::Time time;
-  steam::VectorSpaceStateVar::Ptr velocity;
+  steam::se3::SE3StateVar::Ptr tf_state_var;
+  steam::traj::Time time;
+  steam::vspace::VSpaceStateVar<6>::Ptr velocity;
   std::shared_ptr<vtr_messages::msg::Velocity> proto_velocity;
 
  private:
   /** \brief The lock flag. */
   bool lock;
 };
-#endif
 
-using SteamPoseMap = std::map<pose_graph::VertexId, steam::se3::SE3StateVar>;
+using SteamPoseMap = std::map<pose_graph::VertexId, SteamPose>;
 
 using SensorVehicleTransformMap =
     std::map<pose_graph::VertexId, lgmath::se3::TransformationWithCovariance>;

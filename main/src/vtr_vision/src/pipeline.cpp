@@ -396,14 +396,12 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     velocity.rotational.y = 0.0;
     velocity.rotational.z = 0.0;
     // fill the velocities
-    std::string vel_str = rig_name + "_velocities";
+    std::string vel_str = "velocities";
     using Vel_Msg = storage::LockableMessage<VelocityMsg>;
     auto vel_msg =
             std::make_shared<Vel_Msg>(std::make_shared<VelocityMsg>(velocity), *qdata.stamp);
     vertex->insert<VelocityMsg>(vel_str, "vtr_messages/msg/Velocity", vel_msg);
 
-    // graph->registerVertexStream<VelocityMsg>(rid, vel_str);
-    // vertex->insert(vel_str, velocity, stamp);
 
   //   // fill the visualization images
   //   std::string vis_str = rig_name + "_visualization_images";

@@ -333,9 +333,6 @@ void LandmarkMigrationModule::loadSensorTransform(
     // extract the T_s_v transform for this vertex
     std::string stream_name = rig_name + "_T_s_r";
 
-    // for (const auto &r : graph->runs())
-    //   r.second->registerVertexStream<vtr_messages::msg::Transform>(
-    //       stream_name, true, pose_graph::RegisterMode::Existing);
 
     auto map_vertex = graph->at(vid);
     //map_vertex->load(stream_name);

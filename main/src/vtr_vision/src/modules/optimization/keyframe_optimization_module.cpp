@@ -125,29 +125,29 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
           Eigen::MatrixXd meas_covariance;
 
           if (keyframe_config_->use_migrated_points) {
-            // // set the map points from the migrated points
-            // map_points = &(*qdata.migrated_points_3d);
+            // set the map points from the migrated points
+            map_points = &(*qdata.migrated_points_3d);
 
-            // // check the validity
-            // bool map_point_valid = qdata.migrated_validity->at(match.first);
-            // if (!map_point_valid) {
-            //   continue;  // if this landmark isn't valid, skip it
-            // }
+            // check the validity
+            bool map_point_valid = qdata.migrated_validity->at(match.first);
+            if (!map_point_valid) {
+              continue;  // if this landmark isn't valid, skip it
+            }
 
             // // convenience accessor
-            // const auto &channel_obs =
-            //     map_landmarks[rig_idx].observations.channels[channel_idx];
+            const auto &channel_obs =
+                map_landmarks[rig_idx].observations.channels[channel_idx];
 
-            // meas_covariance = Eigen::MatrixXd(channel_obs.cameras.size() * 2,
-            //                                   channel_obs.cameras.size() * 2);
-            // meas_covariance.setZero();
-            // // for each camera in the channel, add the observation
-            // for (uint32_t idx = 0; idx < channel_obs.cameras.size(); idx++) {
-            //   query_kps.push_back(
-            //       channel_obs.cameras[idx].points[match.second]);
-            //   meas_covariance.block(idx * 2, idx * 2, 2, 2) =
-            //       channel_obs.cameras[idx].covariances[match.second];
-            // }
+            meas_covariance = Eigen::MatrixXd(channel_obs.cameras.size() * 2,
+                                              channel_obs.cameras.size() * 2);
+            meas_covariance.setZero();
+            // for each camera in the channel, add the observation
+            for (uint32_t idx = 0; idx < channel_obs.cameras.size(); idx++) {
+              query_kps.push_back(
+                  channel_obs.cameras[idx].points[match.second]);
+              meas_covariance.block(idx * 2, idx * 2, 2, 2) =
+                  channel_obs.cameras[idx].covariances[match.second];
+            }
             throw std::runtime_error("migrated points not implemented");
 
 
@@ -208,16 +208,15 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
 
 
           // set up the mono and stereo noise for each potential type
-          // steam::BaseNoiseModelX::Ptr noise_mono;
           steam::BaseNoiseModel<4>::Ptr noise_stereo;
 
           try {
             // If this is with migrated points, then use the dynamic model.
             if (keyframe_config_->use_migrated_points) {
               // // TODO: Calculate directly instead of in landmark migration.
-              // auto *migrated_cov = &(*qdata.migrated_covariance);
-              // const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(
-              //     migrated_cov->col(match.first).data());
+              auto &migrated_cov = *qdata.migrated_covariance;
+              const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(
+                  migrated_cov.col(match.first).data());
 
               // // set up the noise for the stereo/mono configurations
               // typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;

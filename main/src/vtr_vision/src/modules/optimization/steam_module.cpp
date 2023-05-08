@@ -243,7 +243,6 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
 
   for (auto it = qdata.T_sensor_vehicle_map->begin();
        it != qdata.T_sensor_vehicle_map->end(); ++it) {
-    CLOG(DEBUG, "stereo.keyframe_optimization") << it->second;
     tf_sensor_vehicle_map_[it->first] =
         steam::se3::SE3StateVar::MakeShared(it->second);
     tf_sensor_vehicle_map_[it->first]->locked() = true;

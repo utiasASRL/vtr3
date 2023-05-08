@@ -242,16 +242,16 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
   // grab the observations from the vertex.
   auto vertex = graph->at(map_id);
 
-  // TODO: Add a try catch, in case the rig is not in the graph...
   auto locked_obs_msgs =
       vertex->retrieve<vtr_messages::msg::RigObservations>(
           rig_name + "_observations", "vtr_messages/msg/RigObservations");
-  auto locked_msg = locked_obs_msgs->sharedLocked();
-  auto observations = locked_msg.get().getDataPtr();
-  if (observations == nullptr){
+  if (locked_obs_msgs == nullptr){
     CLOG(WARNING, "stereo.recall") << "Observations are null";
     return landmark_frame;
   }
+  auto locked_msg = locked_obs_msgs->sharedLocked();
+  auto observations = locked_msg.get().getDataPtr();
+  
     
 
   // simply move the observations over.

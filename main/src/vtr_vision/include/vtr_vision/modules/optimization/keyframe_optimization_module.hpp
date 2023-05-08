@@ -141,20 +141,11 @@ class KeyframeOptimizationModule : public SteamModule {
   /** \brief the locked map pose. */
   steam::se3::SE3StateVar::Ptr map_pose_;
 
-  /** \brief Transform evaluator for the map pose. */
-  steam::se3::SE3StateVar::Ptr tf_map_;
-
   // /** \brief the unlocked query pose. */
   steam::se3::SE3StateVar::Ptr query_pose_;
 
-  /** \brief Transform evaluate for the query pose. */
-  steam::se3::SE3StateVar::Ptr tf_query_;
-
   /** \brief Algorithm Configuration */
   Config::ConstPtr keyframe_config_;
-
-  /** \brief The steam problem. */
-  //std::shared_ptr<steam::OptimizationProblem> problem_;
 
   /**
    * \brief Maps velocity variable pointers to their respective vertices

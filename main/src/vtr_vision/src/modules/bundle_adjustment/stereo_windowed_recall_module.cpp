@@ -50,19 +50,9 @@ void StereoWindowedRecallModule::run_(QueryCache &qdata0, OutputCache &output, c
   auto &poses = *qdata.pose_map.clear().emplace();
   auto &transforms = *qdata.T_sensor_vehicle_map.clear().emplace();
   auto &rig_names = *qdata.rig_names;
+  auto vertex = graph->at(*qdata.vid_odo);
 
-  // create a frozen graph for traversal, since the graph may change during
-  // traversal
-  /// \todo runtime of copy scales linearly wrt to the size of the graph, better
-  /// to get the required sub graph first here. Also needs to use the graph lock
-  /// when getting the subgraph since graph may be changed during traversal.
-  /// see map memory manager for an example. go back and change this when this
-  /// module runs too slow.
-  graph->lock();
-  const auto frozen_graph = std::make_shared<GraphBase>(*graph);
-  graph->unlock();
 
-  CLOG(DEBUG, "stereo.windowed_recall") << "Created a frozen graph";
 
   // set up a search for the previous keyframes in the graph
   const auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>(*graph);
@@ -74,8 +64,11 @@ void StereoWindowedRecallModule::run_(QueryCache &qdata0, OutputCache &output, c
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.vid_odo, true);
   // combine the temporal and backwards mask
   auto evaluator = pose_graph::eval::And(tempeval, direval);
-  // grab the latest vertex
-  auto vertex = frozen_graph->at(*qdata.vid_odo);
+
+  const auto frozen_graph = graph->getSubgraph(vertex->id(), config_->window_size, evaluator);
+  CLOG(DEBUG, "stereo.windowed_recall") << "Created a frozen graph";
+
+
   auto search_itr =
       frozen_graph->beginDfs(vertex->id(), config_->window_size - 1, evaluator);
 
@@ -91,8 +84,6 @@ void StereoWindowedRecallModule::run_(QueryCache &qdata0, OutputCache &output, c
     // get current vertex.
     auto current_vertex = search_itr->v();
     // iterate through each rig
-    // TODO: We should probably get the rig name from somewhere else other than
-    // the query features.
     // TODO: Stored in graph perhaps??
     for (auto &rig_name : rig_names)
       loadVertexData(lm_map, poses, transforms, current_vertex, rig_name,
@@ -126,16 +117,18 @@ void StereoWindowedRecallModule::loadVertexData(
   loadSensorTransform(current_vertex->id(), transforms, rig_name, graph);
 
   // grab all of the observations associated with this vertex.
-  auto observations =
-      current_vertex->retrieveKeyframeData<vtr_messages::msg::RigObservations>(
-          rig_name + "_observations");
-  if (observations == nullptr) {
+  auto locked_obs_msgs =
+      current_vertex->retrieve<vtr_messages::msg::RigObservations>(
+          rig_name + "_observations", "vtr_messages/msg/RigObservations");
+  if (locked_obs_msgs == nullptr){
     std::stringstream err;
     err << "Observations at " << current_vertex->id() << " for " << rig_name
         << " could not be loaded!";
     CLOG(ERROR, "stereo.windowed_recall") << err.str();
     throw std::runtime_error{err.str()};
   }
+  auto locked_msg = locked_obs_msgs->sharedLocked();
+  auto observations = locked_msg.get().getDataPtr();
 
   // for each channel
   for (uint32_t channel_idx = 0; channel_idx < observations->channels.size();
@@ -168,7 +161,7 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
     // wrap it in a simple struct so it can be used as a key.
     // TODO: Write wrapper
     vision::LandmarkId id = messages::copyLandmarkId(lm_match);
-    auto vid = graph->fromPersistent(lm_match.persistent);
+    auto vid = VertexId(lm_match.vid);
 
     if (vid.majorId() != current_vertex->id().majorId()) {
       CLOG(ERROR, "stereo.windowed_recall")
@@ -198,21 +191,17 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
       // if we havent loaded up this vertex yet, then do so.
       if (vertex_landmarks_.find(landmark_vertex->id()) ==
           vertex_landmarks_.end()) {
-        graph->run(vid.majorId())
-            ->registerVertexStream<vtr_messages::msg::RigLandmarks>(
-                rig_name + "_landmarks", true,
-                pose_graph::RegisterMode::Existing);
-        vertex_landmarks_[vid] =
-            landmark_vertex
-                ->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-                    rig_name + "_landmarks");
-        if (vertex_landmarks_[vid] == nullptr) {
+        auto locked_landmark_msg = landmark_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
+            rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
+        if (locked_landmark_msg == nullptr) {
           std::stringstream err;
           err << "Couldn't retrieve landmarks from vertex data! Is the "
                  "vertex still unloaded?";
           CLOG(ERROR, "stereo.windowed_recall") << err.str();
           throw std::runtime_error{err.str()};
         }
+        auto locked_msg = locked_landmark_msg->sharedLocked();
+        vertex_landmarks_[vid] = locked_msg.get().getDataPtr();
       }
 
       // Get the pointer to the 3D point of this landmark.
@@ -298,23 +287,23 @@ void StereoWindowedRecallModule::getTimesandVelocities(
   Eigen::Matrix<double, 6, 1> initVelocity;
   initVelocity.setZero();
   auto begin_vertex = graph->at(poses.begin()->first);
-  auto begin_stamp = begin_vertex->keyFrameTime();
+  auto begin_stamp = begin_vertex->vertexTime();
 #endif
   for (auto &pose : poses) {
     // get the time for this vertex.
     auto vertex = graph->at(pose.first);
-    auto stamp = vertex->keyFrameTime();
-    auto proto_velocity =
-        vertex->retrieveKeyframeData<vtr_messages::msg::Velocity>(
-            "_velocities");
+    auto stamp = vertex->vertexTime();
 
-    if (proto_velocity == nullptr) {
+    auto locked_vel_msg = vertex->retrieve<vtr_messages::msg::Velocity>(
+            "velocities", "vtr_messages/msg/Velocity");
+    if (locked_vel_msg == nullptr) {
       std::stringstream err;
-      err << "Couldn't retrieve velocities from vertex data! Is the "
-             "vertex still unloaded?";
+      err << "Couldn't retrieve velocity from vertex data!";
       CLOG(ERROR, "stereo.windowed_recall") << err.str();
       throw std::runtime_error{err.str()};
     }
+    auto locked_msg = locked_vel_msg->sharedLocked();
+    auto proto_velocity = locked_msg.get().getDataPtr();
 
     Eigen::Matrix<double, 6, 1> velocity;
     velocity(0, 0) = proto_velocity->translational.x;
@@ -325,8 +314,7 @@ void StereoWindowedRecallModule::getTimesandVelocities(
     velocity(5, 0) = proto_velocity->rotational.z;
 
     pose.second.proto_velocity = proto_velocity;
-    pose.second.time =
-        steam::traj::Time(static_cast<int64_t>(stamp.nanoseconds_since_epoch));
+    pose.second.time = steam::traj::Time(stamp);
     pose.second.setVelocity(velocity);
   }
 }
@@ -341,17 +329,19 @@ void StereoWindowedRecallModule::loadSensorTransform(
   // if not, we should try and load it
   // extract the T_s_v transform for this vertex
   auto map_vertex = graph->at(vid);
-  auto rc_transforms =
-      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
-          rig_name + "_T_sensor_vehicle");
 
-  // check if we have the data. Some older datasets may not have this saved
-  if (rc_transforms != nullptr) {
+  auto locked_tf_msg = map_vertex->retrieve<vtr_messages::msg::Transform>(
+            rig_name + "_T_sensor_vehicle", "vtr_messages/msg/Transform");
+  if (locked_tf_msg != nullptr) {
+    auto locked_msg = locked_tf_msg->sharedLocked();
+    auto rc_transforms = locked_msg.get().getDataPtr();
     Eigen::Matrix<double, 6, 1> tmp;
     auto mt = rc_transforms->translation;
     auto mr = rc_transforms->orientation;
     tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
     transforms[vid] = lgmath::se3::TransformationWithCovariance(tmp);
+    transforms[vid]
+        .setZeroCovariance();  // todo: add covariance field to message (?)
   }
 }
 
