@@ -21,7 +21,6 @@
 #include "vtr_vision/cache.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 #include "vtr_vision/modules/modules.hpp"
-#include "vtr_vision/cache.hpp"
 
 #include <vtr_common_msgs/msg/lie_group_transform.hpp>
 #include <vtr_messages/msg/rig_counts.hpp>
