@@ -331,7 +331,7 @@ void LandmarkMigrationModule::loadSensorTransform(
   if (transforms.find(vid) == transforms.end()) {
     // if not, we should try and load it
     // extract the T_s_v transform for this vertex
-    std::string stream_name = rig_name + "_T_s_r";
+    std::string stream_name = rig_name + "_T_sensor_vehicle";
 
 
     auto map_vertex = graph->at(vid);
