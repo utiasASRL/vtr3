@@ -148,8 +148,6 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
               meas_covariance.block(idx * 2, idx * 2, 2, 2) =
                   channel_obs.cameras[idx].covariances[match.second];
             }
-            throw std::runtime_error("migrated points not implemented");
-
 
           } else {
             // set the map points from the landmark the migrated points
@@ -219,15 +217,13 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
                   migrated_cov.col(match.first).data());
 
               // // set up the noise for the stereo/mono configurations
-              // typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;
-              // auto &landmark_noise = *qdata.stereo_landmark_noise.fallback();
-              // auto noise_eval = std::make_shared<NoiseEval>(
-              //     landVar->value(), cov, meas_covariance,
-              //     sharedStereoIntrinsics, tf_qs_ms);
-              // landmark_noise[match.first] = noise_eval;
-              // noise_stereo.reset(new steam::DynamicNoiseModel<4>(noise_eval));
+              using NoiseEval = steam::stereo::LandmarkNoiseEvaluator ;
+              auto noise_eval = std::make_shared<const NoiseEval>(
+                  landVar->value(), cov, meas_covariance,
+                  sharedStereoIntrinsics, tf_qs_ms);
+              noise_stereo = steam::DynamicNoiseModel<4>::MakeShared(noise_eval);
               
-              throw std::runtime_error("migrated points not implemented");
+              //throw std::runtime_error("migrated points not implemented");
 
 
             } else {
