@@ -64,7 +64,8 @@ void StereoWindowedRecallModule::run_(QueryCache &qdata0, OutputCache &output, c
   // combine the temporal and backwards mask
   auto evaluator = pose_graph::eval::And(tempeval, direval);
 
-  const auto frozen_graph = graph->getSubgraph(vertex->id(), config_->window_size, evaluator);
+  // const auto frozen_graph = graph->getSubgraph(vertex->id(), config_->window_size, evaluator);
+  const auto frozen_graph = graph->getSubgraph(vertex->id(), vertex->id().minorId(), evaluator);
   CLOG(DEBUG, "stereo.windowed_recall") << "Created a frozen graph";
 
 
@@ -82,6 +83,7 @@ void StereoWindowedRecallModule::run_(QueryCache &qdata0, OutputCache &output, c
        ++search_itr) {
     // get current vertex.
     auto current_vertex = search_itr->v();
+    CLOG(DEBUG, "stereo.windowed_recall") << "\ncurrent vertex is:" << current_vertex->id();
     // iterate through each rig
     // TODO: Stored in graph perhaps??
     for (auto &rig_name : rig_names)
