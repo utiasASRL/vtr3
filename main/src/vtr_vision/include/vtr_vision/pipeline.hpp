@@ -226,6 +226,7 @@ class StereoPipeline : public tactic::BasePipeline {
 //Carryover methods for internal pipeline use
 private:
 void setOdometryPrior(CameraQueryCache &, const tactic::Graph::Ptr &); 
+
 tactic::EdgeTransform estimateTransformFromKeyframe(
     const tactic::Timestamp &kf_stamp, const tactic::Timestamp &curr_stamp,
     bool check_expiry);
@@ -243,20 +244,17 @@ tactic::EdgeTransform estimateTransformFromKeyframe(
   std::vector<tactic::BaseModule::Ptr> bundle_adjustment_;
 
 
-  std::mutex bundle_adjustment_mutex_;
+  std::mutex bundle_adjustment_mutex_ = std::mutex();
   std::future<void> bundle_adjustment_thread_future_;
 
   /**
-   * \brief a pointer to a trjacetory estimate so that the transform can be
-   * estimated at a future time
+   * \brief Save the velocity at each new odometry point to use as a prior
+   * for the pipeline.
    */
-  std::shared_ptr<steam::traj::const_vel::Interface> trajectory_;
+  Eigen::Matrix<double, 6, 1> w_v_r_in_r_odo_;
 
   /** \brief Mutex to ensure thread safety with OpenCV HighGui calls */
   std::shared_ptr<std::mutex> vis_mutex_ptr_ = std::make_shared<std::mutex>();
-
-  /** \brief \todo remove this mutex, no longer needed */
-  std::shared_ptr<std::mutex> steam_mutex_ptr_ = std::make_shared<std::mutex>();
 
   tactic::Timestamp timestamp_odo_;
 

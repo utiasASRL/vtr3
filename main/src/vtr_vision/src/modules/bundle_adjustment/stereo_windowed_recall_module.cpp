@@ -53,7 +53,6 @@ void StereoWindowedRecallModule::run_(QueryCache &qdata0, OutputCache &output, c
   auto vertex = graph->at(*qdata.vid_odo);
 
 
-
   // set up a search for the previous keyframes in the graph
   const auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>(*graph);
 

@@ -23,14 +23,12 @@
 #include <lgmath.hpp>
 #include <steam.hpp>
 
-//#include <vtr_steam_extensions/evaluator/mono_camera_error_eval.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
 
 namespace vtr {
 namespace vision {
 
-//using MonoCalibPtr = vtr::steam_extensions::mono::CameraIntrinsics::Ptr;
 using StereoCalibPtr = steam::stereo::CameraIntrinsics::Ptr;
 
 /** \brief Reject outliers and estimate a preliminary transform */

@@ -42,6 +42,8 @@ StereoPipeline::StereoPipeline(
   // bundle adjustment
   for (auto module : config_->bundle_adjustment)
     bundle_adjustment_.push_back(factory()->get("bundle_adjustment." + module));
+
+  w_v_r_in_r_odo_.setZero();
 }
 
 StereoPipeline::~StereoPipeline() {}
@@ -104,21 +106,17 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
     } else {
       CLOG(ERROR, "stereo.pipeline")
           << "Does not have a valid candidate query data.";
-      // qdata->trajectory.clear();
-      // trajectory is no longer valid
-      trajectory_.reset();
     }
   } else {
-    // keep a pointer to the trajectory
-    // trajectory_ = qdata->trajectory.ptr();
-    // trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
     /// keep this frame as a candidate for creating a keyframe
     if (*qdata.vertex_test_result == VertexTestResult::CREATE_CANDIDATE)
       candidate_qdata_ = std::make_shared<CameraQueryCache>(qdata);
   }
 
-  if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX)
+  if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     timestamp_odo_ = *qdata.stamp;
+    w_v_r_in_r_odo_ = *qdata.w_v_r_in_r_odo;
+  }
 
 
   // set result
@@ -126,12 +124,11 @@ void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const t
 }
 
 void StereoPipeline::setOdometryPrior(CameraQueryCache &qdata,
-                                      const tactic::Graph::Ptr &graph) {
+                                      const tactic::Graph::Ptr &) {
 
   auto T_r_m_est = estimateTransformFromKeyframe(*qdata.timestamp_odo, *qdata.stamp,
                                                  true);
 
-  // \todo The trajectory is not set better not to extrapolate for now.
   //Use the w_ vector instead of the trajectory. Like Lidar.
   *qdata.T_r_m_prior = T_r_m_est;
 }
@@ -140,25 +137,11 @@ tactic::EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
     const tactic::Timestamp &kf_stamp, const tactic::Timestamp &curr_stamp,
     bool check_expiry) {
   tactic::EdgeTransform T_q_m;
-  // The elapsed time since the last keyframe
-  // auto curr_time_point = common::timing::toChrono(curr_stamp);
-  // auto dt_duration = curr_time_point - common::timing::toChrono(kf_stamp);
-  // double dt = std::chrono::duration<double>(dt_duration).count();
 
+  // The elapsed time since the last keyframe
   double dt = (curr_stamp - kf_stamp) / 1e9; //convert to seconds
 
-  // Make sure the trajectory is current
-  if (check_expiry && trajectory_) {
-    //auto traj_dt_duration = curr_time_point - trajectory_time_point_;
-    //double traj_dt = std::chrono::duration<double>(traj_dt_duration).count();
-    if (dt > 1.0 /* tactic->config().extrapolate_timeout */) {
-      CLOG(WARNING, "stereo.pipeline")
-          << "The trajectory expired after " << dt
-          << " s for estimating the transform from keyframe at "
-          << kf_stamp;
-      trajectory_.reset();
-    }
-  }
+  
 
   // we need to update the new T_q_m prediction
   Eigen::Matrix<double, 6, 6> cov =
@@ -166,36 +149,27 @@ tactic::EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
   // scale the rotational uncertainty to be one order of magnitude lower than
   // the translational uncertainty.
   cov.block(3, 3, 3, 3) /= 10;
-  if (trajectory_ != nullptr) {
-    // Query the saved trajectory estimator we have with the candidate frame
-    // time
-    auto candidate_time =
-        steam::traj::Time(static_cast<int64_t>(kf_stamp));
-    auto candidate_eval = trajectory_->getPoseInterpolator(candidate_time);
-    // Query the saved trajectory estimator we have with the current frame time
-    auto query_time =
-        steam::traj::Time(static_cast<int64_t>(curr_stamp));
-    auto curr_eval = trajectory_->getPoseInterpolator(query_time);
 
-    // find the transform between the candidate and current in the vehicle frame
-    T_q_m = candidate_eval->evaluate().inverse() * curr_eval->evaluate();
-    // give it back to the caller, TODO: (old) We need to get the covariance out
-    // of the trajectory.
-
-    // This ugliness of setting the time is because we don't have a reliable and
-    // tested way of predicting the covariance. This is used by the stereo
-    // matcher to decide how tight it should set its pixel search
-    T_q_m.setCovariance(cov);
-
-    CLOG(DEBUG, "stereo.pipeline")
-        << "Estimated T_q_m (based on keyframe) from steam trajectory.";
-  } else {
-    // since we don't have a trajectory, we can't accurately estimate T_q_m
+  // Make sure the trajectory is current
+  if (check_expiry && dt > 1.0) {
+    CLOG(WARNING, "stereo.pipeline")
+        << "The trajectory expired after " << dt
+        << " s for estimating the transform from keyframe at "
+        << kf_stamp;
     T_q_m.setCovariance(4 * cov);
-
-    CLOG(DEBUG, "stereo.pipeline")
-        << "Estimated T_q_m is identity with high covariance.";
+    return T_q_m;
   }
+  
+  // since we don't have a trajectory, we can't accurately estimate T_q_m
+
+  Eigen::Matrix<double,6,1> xi_m_r_in_r_odo(dt * w_v_r_in_r_odo_);
+  T_q_m = tactic::EdgeTransform(xi_m_r_in_r_odo);
+  T_q_m.setCovariance(cov);
+
+
+  CLOG(DEBUG, "stereo.pipeline")
+        << "Estimated T_q_m is " << T_q_m;
+  
   return T_q_m;
 }
 
@@ -296,6 +270,10 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
 
   // now update the live frame
   const auto &features = *qdata.rig_features;
+  
+  const auto &images = *qdata.rig_images;
+  auto rig_img_itr = images.begin();
+
 
   // Iterate through each rig.
   for (uint32_t rig_idx = 0; rig_idx < features.size(); ++rig_idx) {
@@ -403,26 +381,29 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     vertex->insert<VelocityMsg>(vel_str, "vtr_messages/msg/Velocity", vel_msg);
 
 
-  //   // fill the visualization images
-  //   std::string vis_str = rig_name + "_visualization_images";
-  //   graph->registerVertexStream<ImageMsg>(rid, vis_str);
-  //   // find the channel that contains the grayscale versions of the images and
-  //   // use the first image for visualization
-  //   for (auto channel_img_itr = rig_img_itr->channels.begin();
-  //        channel_img_itr != rig_img_itr->channels.end(); channel_img_itr++) {
-  //     if (channel_img_itr->name == "RGB" &&
-  //         !channel_img_itr->cameras.empty()) {
-  //       auto image_msg = messages::copyImages(channel_img_itr->cameras[0]);
-  //       vertex->insert(vis_str, image_msg, stamp);
-  //       break;
-  //     }
-  //   }
-  //   ++rig_img_itr;
+    // fill the visualization images
+    std::string vis_str = rig_name + "_visualization_images";
+    // find the channel that contains the grayscale versions of the images and
+    // use the first image for visualization
+    for (auto channel_img_itr = rig_img_itr->channels.begin();
+         channel_img_itr != rig_img_itr->channels.end(); channel_img_itr++) {
+      if (channel_img_itr->name == "RGB" &&
+          !channel_img_itr->cameras.empty()) {
+        auto image_msg = messages::copyImages(channel_img_itr->cameras[0]);
+
+        using Image_LockMsg = storage::LockableMessage<ImageMsg>;
+        auto locked_image_msg =
+                std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg), *qdata.stamp);
+        vertex->insert<ImageMsg>(vis_str, "vtr_messages/msg/Image", locked_image_msg);
+        break;
+      }
+    }
+    ++rig_img_itr;
   }
-  // CLOG(DEBUG, "stereo.pipeline")
-  //     << "Stored features, landmarks, empty velocity vector and "
-  //        "visualization images into vertex "
-  //     << vertex->id();
+  CLOG(DEBUG, "stereo.pipeline")
+      << "Stored features, landmarks, empty velocity vector and "
+         "visualization images into vertex "
+      << vertex->id();
 }
 
 

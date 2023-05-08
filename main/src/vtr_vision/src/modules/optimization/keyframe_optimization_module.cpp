@@ -537,6 +537,7 @@ void KeyframeOptimizationModule::computeTrajectory(
 void KeyframeOptimizationModule::updateCaches(CameraQueryCache &qdata) {
   // update our estimate for the transform
   *qdata.T_r_m = query_pose_->value();
+  *qdata.w_v_r_in_r_odo = trajectory_->getVelocityInterpolator(*qdata.timestamp_odo)->value();
 
   // give the query cache a copy of the trajectory estimate
   // qdata.trajectory = trajectory_;
