@@ -34,6 +34,7 @@
 #include "vtr_path_planning/cbit/generate_pq.hpp"
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
+#include "vtr_path_planning/cbit/cbit_plotting.hpp"
 #include "vtr_tactic/tactic.hpp"
 
 #pragma once
@@ -77,7 +78,7 @@ class CBITPlanner {
         // Costmap pointer
         std::shared_ptr<CBITCostmap> cbit_costmap_ptr;
 
-        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr);
+        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction);
 
     protected:
     struct ChainInfo {
@@ -93,10 +94,10 @@ class CBITPlanner {
 
     private:
         void InitializePlanningSpace();
-        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
+        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction);
         void ResetPlanner();
-        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
-        std::shared_ptr<Node> UpdateState();
+        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction);
+        std::shared_ptr<Node> UpdateState(double path_direction);
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
         double BestVertexQueueValue();
@@ -108,19 +109,33 @@ class CBITPlanner {
         std::vector<Pose> ExtractEuclidPath();
         void Prune(double c_best, double c_best_weighted);
         bool edge_in_tree(Node v, Node x);
+        bool edge_in_tree_v2(std::shared_ptr<Node> v, std::shared_ptr<Node> x);
         bool node_in_tree(Node x);
+        bool node_in_tree_v2(std::shared_ptr<Node> x);
         double cost_col(std::vector<std::vector<double>> obs, Node start, Node end);
         double weighted_cost_col(std::vector<std::vector<double>> obs, Node start, Node end);
         Node curve_to_euclid(Node node);
         Pose lin_interpolate(int p_ind, double p_val);
         bool is_inside_obs(std::vector<std::vector<double>> obs, Node node);
         bool costmap_col(Node node);
+        bool costmap_col_tight(Node node);
         bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
         bool col_check_path();
+        std::shared_ptr<Node> col_check_path_v2(double max_lookahead_p);
         void restore_tree(double g_T_update, double g_T_weighted_update);
 
         // Add class for Tree
         // Add dictionary (or some other structure) for the cost to come lookup using NodeID as key
 
         // Constructor: Needs to initialize all my objects im using
+
+
+        // Temporary functions for corridor updates, long term want to move these to a different file
+        void update_corridor(std::shared_ptr<CBITCorridor> corridor, std::vector<double> homotopy_p, std::vector<double> homotopy_q, Node robot_state);
+        struct collision_result
+        {
+            bool bool_result;
+            Node col_node;
+        };
+        struct collision_result discrete_collision_v2(double discretization, Node start, Node end, bool tight = false);
 };

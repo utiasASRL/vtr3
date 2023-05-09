@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+	<!-- Included URDF/XACRO Files -->
+  <xacro:include filename="$(find grizzly_description)/urdf/add_frame.urdf.xacro" />
+
+  <!-- Honeycomb -->
+  <!-- Top Mount: translateX="0.06" translateY="0.0" translateZ="1.0" -->
+  <!-- Front Mount: translateX="0.876" translateY="0.0" translateZ="1.0" -->
+  <xacro:grizzly_tf parent="sensor_anchor_link" name="honeycomb"
+    translateX="0.8" translateY="0.0" translateZ="0.1"
+    rotateX="0.0" rotateY="0.0" rotateZ="0.0"/>
+</robot>

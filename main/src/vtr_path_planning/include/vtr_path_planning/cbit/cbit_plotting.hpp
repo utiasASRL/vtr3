@@ -13,10 +13,20 @@
 // limitations under the License.
 
 /**
- * \file path_planning.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file cbit_plotting.hpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
+
+// Contains Matplotlibcpp debug plotting tools for the cbit planner
+// This library is not meant to be included in the main vt&r branch, debug only
+
+#include <memory>
+#include "matplotlibcpp.h" // experimental plotting
+#include "vtr_path_planning/cbit/utils.hpp"
+
 #pragma once
-#include "vtr_path_planning/mpc/mpc_path_planner2.hpp"
-//#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
-#include "vtr_path_planning/cbit/cbit.hpp"
+
+void plot_tree(Tree current_tree, Node robot_pq, std::vector<double> path_p, std::vector<double> path_q, std::vector<std::shared_ptr<Node>> samples);
+void plot_robot(Node robot_pq);
+
+void initialize_plot();

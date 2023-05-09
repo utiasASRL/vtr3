@@ -214,7 +214,8 @@ class GraphMap extends React.Component {
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
         <MapContainer
-          center={[43.782, -79.466]}
+        
+          center={[43.78220, -79.4661]} /* Jordy Modification For PETAWAWA center={[45.8983, -77.2829]} => TODO We should make this set dynamically from the yaml config*/
           zoom={18}
           zoomControl={false}
           whenCreated={this.mapCreatedCallback.bind(this)}
@@ -223,7 +224,7 @@ class GraphMap extends React.Component {
           <TileLayer
             // url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" // load from OSM directly
             url="/tile/{s}/{x}/{y}/{z}" // load from backend (potentially cached)
-            maxZoom={20}
+            maxZoom={22}
           />
           <ZoomControl position="bottomright" />
         </MapContainer>
