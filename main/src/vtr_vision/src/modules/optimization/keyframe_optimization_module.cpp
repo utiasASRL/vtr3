@@ -218,10 +218,10 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
 
               // // set up the noise for the stereo/mono configurations
               using NoiseEval = steam::stereo::LandmarkNoiseEvaluator ;
-              auto noise_eval = std::make_shared<const NoiseEval>(
+              auto noise_eval = std::make_shared<NoiseEval>(
                   landVar->value(), cov, meas_covariance,
                   sharedStereoIntrinsics, tf_qs_ms);
-              noise_stereo = steam::DynamicNoiseModel<4>::MakeShared(noise_eval);
+              noise_stereo = steam::DynamicNoiseModel<4>::MakeShared(noise_eval, steam:: NoiseType::COVARIANCE);
               
               //throw std::runtime_error("migrated points not implemented");
 

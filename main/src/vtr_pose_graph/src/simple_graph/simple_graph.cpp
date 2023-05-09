@@ -437,7 +437,7 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
   // Check that root exists
   NodeMap::const_iterator rootIter = node_map_.find(root_id);
   if (rootIter == node_map_.end()) {
-    CLOG(ERROR, "pose_graph") << "Root node did not exist in graph.";
+    CLOG(ERROR, "pose_graph") << "Root node " << root_id << " did not exist in graph.";
     throw std::invalid_argument("Root node did not exist in graph.");
   }
 
