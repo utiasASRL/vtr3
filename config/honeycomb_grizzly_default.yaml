@@ -3,16 +3,17 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - lidar.terrain_assessment
-      - navigation
-      - navigation.graph_map_server
-      - navigation.command
+      #- lidar.terrain_assessment
+      #- navigation
+      #- navigation.graph_map_server
+      #- navigation.command
         # tactic
-      - tactic
+      #- tactic
       - tactic.pipeline
-      - tactic.module
-      - tactic.module.live_mem_manager
-      - tactic.module.graph_mem_manager
+      - lidar.preprocessing
+      #- tactic.module
+      #- tactic.module.live_mem_manager
+      #- tactic.module.graph_mem_manager
         # path planner
         #"path_planning",
         #"path_planning.teb",
@@ -22,10 +23,10 @@
         #"mpc_debug.cbit",
         #"obstacle_detection.cbit",
         # mission planner
-      - mission.server
-      - mission.state_machine
+      #- mission.server
+      #- mission.state_machine
         # pose graph
-      - pose_graph
+      #- pose_graph
         # pipeline specific
         # "lidar.pipeline",
         # "lidar.honeycomb_converter",
