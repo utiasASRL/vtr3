@@ -649,7 +649,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
           // EXPERIMENTAL: Updating the dynamic corridor (now that we know our path is collision free):
           //auto corridor_start_time = std::chrono::high_resolution_clock::now();
-          update_corridor(corridor_ptr, path_x, path_y, *p_goal);
+          //update_corridor(corridor_ptr, path_x, path_y, *p_goal);
           //auto corridor_stop_time = std::chrono::high_resolution_clock::now();
           //auto duration_corridor = std::chrono::duration_cast<std::chrono::microseconds>(corridor_stop_time - corridor_start_time);
           //CLOG(ERROR, "path_planning.cbit_planner") << "Corridor Update Time: " << duration_corridor.count() << "us";
@@ -1685,6 +1685,14 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
 
   // Experimental
   std::vector<double> path_z;
+  std::vector<double> path_yaw;
+  std::vector<double> path_p;
+  std::vector<double> path_q;
+
+  // experimental, for grabing the yaw value from the teach path
+  std::vector<double> p = global_path->p;
+  std::vector<Pose> disc_path = global_path->disc_path;
+  // End of experimental
 
   std::vector<Node> node_list = {node};
   node_list.reserve(1000); // Maybe dynamically allocate this size based on path length/discretization param
@@ -1731,8 +1739,23 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
       path_x.push_back(euclid_pt.p);
       path_y.push_back(euclid_pt.q);
       path_z.push_back(euclid_pt.z);
+
+      // Experimental yaw estimation from teach path
+      int p_iter = 0;
+      while (p_disc[i] > p[p_iter])
+      {
+          p_iter = p_iter+1;
+      }
+      path_yaw.push_back(disc_path[p_iter-1].yaw);
+      // End Experimental
+
+      
+      
       //For debug
       //path_z.push_back(0.0);
+      // Also adding the p,q to the euclidean path for reference
+      path_p.push_back(p_disc[i]);
+      path_q.push_back(q_disc[i]);
 
     }
 
@@ -1745,7 +1768,10 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
   std::vector<Pose> pose_vector;
   for (int i = 0; i<path_x.size(); i++)
   {
-    pose_vector.push_back(Pose(path_x[i], path_y[i], path_z[i], 0.0, 0.0, 0.0));// Temporarily set pose with x,y coordinate, no orientation
+    Pose next_pose = Pose(path_x[i], path_y[i], path_z[i], 0.0, 0.0, path_yaw[i]);
+    next_pose.p = path_p[i];
+    next_pose.q = path_q[i];
+    pose_vector.push_back(next_pose);// Temporarily set pose with x,y coordinate, no orientation
   }
 
   return pose_vector;

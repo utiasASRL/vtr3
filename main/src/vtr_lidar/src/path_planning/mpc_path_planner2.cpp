@@ -32,6 +32,46 @@
 struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se3::Transformation T0, std::vector<lgmath::se3::Transformation> measurements, std::vector<lgmath::se3::Transformation> measurements_cbit, std::vector<double> barrier_q_left, std::vector<double> barrier_q_right, int K, double DT, double VF, Eigen::Matrix<double, 1, 1> lat_noise_vect, Eigen::Matrix<double, 6, 6> pose_noise_vect, Eigen::Matrix<double, 2, 2> vel_noise_vect, Eigen::Matrix<double, 2, 2> accel_noise_vect, Eigen::Matrix<double, 6, 6> kin_noise_vect, bool point_stabilization, double pose_error_weight, double vel_error_weight, double acc_error_weight, double kin_error_weight, double lat_error_weight)
 {
     
+    // Pre-process the measurements to correct the cbit path yaw values depending on if the robot should be moving in forward or reverse
+    //Eigen::Matrix<double, 4, 4> T_ROT_YAW;
+    //T_ROT_YAW << -1, 0, 0, 0,
+    //            0, -1, 0, 0,
+    //            0, 0, 1, 0,
+    //            0, 0, 0, 1;
+    //lgmath::se3::Transformation T_ROT_YAW2(T_ROT_YAW);
+    //CLOG(ERROR, "mpc_debug.cbit") << "THE PI ROTATION MATRIX IS: " << T_ROT_YAW2;
+
+    //for (int i = 0; i < measurements_cbit.size(); i++)
+    //{
+    //  auto test1 = measurements[i].matrix().block(0, 0, 3, 3);
+    //  auto test2 = measurements_cbit[i].matrix().block<3, 1>(0, 3);
+    //  CLOG(ERROR, "mpc_debug.cbit") << "TEST2 IS: " << test2;
+    //  auto cbit_pose = measurements_cbit[i].matrix().block(0, 0, 3, 3);
+    //  auto teach_pose = measurements[i].matrix().block(0, 0, 3, 3);
+    //  CLOG(ERROR, "mpc_debug.cbit") << "THE CBIT MATRIX IS: " << measurements_cbit[i];
+    //  CLOG(ERROR, "mpc_debug.cbit") << "THE TEACH MATRIX IS: " << measurements[i];
+      //measurements_cbit[i] = measurements[i];
+    //  lgmath::se3::Transformation new_meas_cbit(test1,test2);
+    //  measurements_cbit[i] = new_meas_cbit;
+
+    //  CLOG(ERROR, "mpc_debug.cbit") << "THE ROTATED CBIT MATRIX IS: " << measurements_cbit[i];
+      //auto rel_pose = teach_pose.transpose() * cbit_pose;
+      //CLOG(ERROR, "mpc_debug.cbit") << "THE CBIT ROTATION MATRIX IS: " << cbit_pose;
+      //CLOG(ERROR, "mpc_debug.cbit") << "THE TEACH ROTATION MATRIX IS: " << teach_pose;
+      //CLOG(ERROR, "mpc_debug.cbit") << "THE RELATIVE ROTATION MATRIX IS: " << teach_pose.transpose() * cbit_pose;
+      //double relative_yaw = atan2(rel_pose(1,0),rel_pose(0,0));
+      //CLOG(ERROR, "mpc_debug.cbit") << "THE RELATIVE YAW IS: " << relative_yaw;
+      //if (fabs(relative_yaw) >= 1.57075)
+      //{
+      //  measurements_cbit[i] = measurements_cbit[i] * T_ROT_YAW2;
+      //  CLOG(ERROR, "mpc_debug.cbit") << "CORRECTED THE YAW";
+      //}
+      //CLOG(ERROR, "mpc_debug.cbit") << "THE ROTATED CBIT MATRIX IS: " << measurements_cbit[i];
+    //}
+    // End of pre-pre-processing measurement rotations
+
+
+
     // Conduct an MPC Iteration given current configurations
 
     // Velocity set-points (desired forward velocity and angular velocity), here we set a static forward target velocity, and try to minimize rotations (0rad/sec)
@@ -124,7 +164,7 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
 
     // Setup the optimization problem
     steam::OptimizationProblem opt_problem;
-    for (int i=0; i<K; i++)
+    for (int i=1; i<K; i++) // start at 1 so as to not add the locked state variable
     {
         opt_problem.addStateVariable(pose_state_vars[i]);
     }
@@ -139,9 +179,12 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     for (int i = 0; i < K; i++)
     {
       // Pose Error
-      const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], measurements[i]);
-      const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, poseLossFunc);
-      opt_problem.addCostTerm(pose_cost_term);
+      if (i > 0)
+      {
+        const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], measurements[i]);
+        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, poseLossFunc);
+        opt_problem.addCostTerm(pose_cost_term);
+      }
 
       // Kinematic constraints (softened but penalized heavily)
       if (i < (K-1))
@@ -155,17 +198,19 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         opt_problem.addCostTerm(kin_cost_term);
 
         // Non-Zero Velocity Penalty (penalty of non resting control effort helps with point stabilization)
-        const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
-        opt_problem.addCostTerm(vel_cost_term);
+        //const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
+        //opt_problem.addCostTerm(vel_cost_term);
 
         // Velocity set-point constraint - No longer using this due to complications when repeating a path in reverse
         // Only add this cost term if we are not in point stabilization mode (end of path)
-        //if (point_stabilization == false)
-        //{
-        //  const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i],v_ref), sharedVelNoiseModel, velLossFunc);
-        //  opt_problem.addCostTerm(vel_cost_term);
-        //}
-
+        
+        if (point_stabilization == false)
+        {
+          const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i],v_ref), sharedVelNoiseModel, velLossFunc);
+          opt_problem.addCostTerm(vel_cost_term);
+        }
+        
+        
         // Acceleration Constraints
         if (i == 0)
         {
@@ -180,19 +225,19 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, accelLossFunc);
         opt_problem.addCostTerm(accel_cost_term);
         }   
-      
+        
       }
 
       // Laterial Barrier State Constraints
-      if (i > 0)
+      if (i >= 0)
       {
         // Generate a locked transform evaluator to store the current measurement for state constraints
         // The reason we make it a variable and lock it is so we can use the built in steam evaluators which require evaluable inputs
         measurement_vars.push_back(steam::se3::SE3StateVar::MakeShared(measurements[i]));
-        measurement_vars[i-1]->locked() = true;
+        measurement_vars[i]->locked() = true;
 
         // Take the compose inverse of the locked measurement w.r.t the state transforms
-        const auto compose_inv = steam::se3::ComposeInverseEvaluator::MakeShared(measurement_vars[i-1], pose_state_vars[i]);
+        const auto compose_inv = steam::se3::ComposeInverseEvaluator::MakeShared(measurement_vars[i], pose_state_vars[i]);
 
         // Use the ComposeLandmarkEvaluator to right multiply the 4th column of the identity matrix to create a 4x1 homogenous point vector with lat,lon,alt error components
         const auto error_vec = steam::stereo::ComposeLandmarkEvaluator::MakeShared(compose_inv, I_4_eval);
@@ -239,14 +284,26 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     // Solve the optimization problem with GuassNewton solver
     //using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
     using SolverType = steam::LineSearchGaussNewtonSolver;
+    //using SolverType = steam::DoglegGaussNewtonSolver;
     // Initialize solver parameters
     SolverType::Params params;
-    params.verbose = false; // Makes the output display for debug when true
+    params.verbose = true; // Makes the output display for debug when true
     params.relative_cost_change_threshold = 1e-6;
-    params.max_iterations = 200;
+    params.max_iterations = 100;
     params.absolute_cost_change_threshold = 1e-6;
-    params.backtrack_multiplier = 0.5; // Line Search Specifc Params, will fail to build if using GaussNewtonSolver
-    params.max_backtrack_steps = 1000; // Line Search Specifc Params, will fail to build if using GaussNewtonSolver
+    params.backtrack_multiplier = 0.5; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
+    params.max_backtrack_steps = 200; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
+    //params.ratio_threshold_shrink = 0.1; // Dogleg Specific Params, will fail to build if using GaussNewtonSolver
+    /// Grow trust region if ratio of actual to predicted cost reduction above
+    /// this (range: 0.0-1.0)
+    //params.ratio_threshold_grow = 0.9; // Dogleg Specific Params, will fail to build if using GaussNewtonSolver
+    /// Amount to shrink by (range: <1.0)
+    //params.shrink_coeff = 0.9; // Dogleg Specific Params, will fail to build if using GaussNewtonSolver
+    /// Amount to grow by (range: >1.0)
+    //params.grow_coeff = 1.1; // Dogleg Specific Params, will fail to build if using GaussNewtonSolver
+    /// Maximum number of times to shrink trust region before giving up
+    //params.max_shrink_steps = 200; // Dogleg Specific Params, will fail to build if using GaussNewtonSolver
+
     SolverType solver(opt_problem, params);
 
     // Solve the optimization problem
@@ -377,6 +434,9 @@ struct meas_result GenerateReferenceMeas2(std::shared_ptr<std::vector<Pose>> cbi
     // Determine the p_values we need for our measurement horizon, corrected for the p value of the closest point on the path to the current robot state
     std::vector<double> p_meas_vec;
     std::vector<lgmath::se3::Transformation> measurements;
+    std::vector<double> p_interp_vec;
+    std::vector<double> q_interp_vec;
+
     p_meas_vec.reserve(K);
     for (int i = 0; i < K; i++)
     {
@@ -403,13 +463,20 @@ struct meas_result GenerateReferenceMeas2(std::shared_ptr<std::vector<Pose>> cbi
         point_stabilization = true; // Enable point stabilization configs
         CLOG(INFO, "mpc.cbit") << "Approaching End of Path, Converting MPC to Point Stabilization Problem";
       }
-      lgmath::se3::Transformation meas = InterpolateMeas2(p_meas_vec[i], cbit_p, cbit_path);
+      struct interp_result meas = InterpolateMeas2(p_meas_vec[i], cbit_p, cbit_path);
 
       // add to measurement vector
-      measurements.push_back(meas);
+      measurements.push_back(meas.measurement);
+      p_interp_vec.push_back(meas.p_interp);
+      q_interp_vec.push_back(meas.q_interp);
+
     }
 
-    return {measurements, point_stabilization};
+    //CLOG(WARNING, "mpc.cbit") << "The Approximate Robot State P value is (ref meas): " << p_correction;
+    //CLOG(WARNING, "mpc.cbit") << "The p_interp_vec is: " << p_interp_vec;
+    //CLOG(WARNING, "mpc.cbit") << "The q_interp_vec is: " << q_interp_vec;
+
+    return {measurements, point_stabilization, p_interp_vec, q_interp_vec};
 }
 
 // For generating VT&R teach path measurements used in the corridor mpc
@@ -437,7 +504,7 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
     //CLOG(DEBUG, "mpc_debug.cbit") << "The global reference p is: " << sid_p;
 
     // I use sid -1 to be conservative, because I think its possible the robot pose is being localized in the frame ahead of the robot
-    CLOG(WARNING, "corridor_mpc_debug.cbit") << "The size of the teach_path is: " << teach_path.size();
+    //CLOG(WARNING, "corridor_mpc_debug.cbit") << "The size of the teach_path is: " << teach_path.size();
     for (int i = (current_sid-1); i <= teach_path.size(); i++)
     {
       cbit_path.push_back(teach_path[i]);
@@ -490,6 +557,8 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
     {
       p_robot = 0.0;
     }
+
+    CLOG(WARNING, "mpc_debug.cbit") << "The p value for the robot is: " << p_robot + sid_p;
 
     // PSEUDO CODE:
     // 1. Find the closest point on the cbit path to the current state of the robot
@@ -544,7 +613,6 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
     {
       p_meas_vec.push_back((i * DT * VF) + p_robot);
     }
-    //CLOG(WARNING, "mpc_debug.cbit") << "p_meas_vec is: " << p_meas_vec;
 
     // Iterate through the p_measurements and interpolate euclidean measurements from the cbit_path and the corresponding cbit_p values
     // Note this could probably be combined in the previous loop too
@@ -565,11 +633,11 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
         CLOG(INFO, "mpc.cbit") << "Approaching End of Path, Converting MPC to Point Stabilization Problem";
       }
 
-      lgmath::se3::Transformation meas = InterpolateMeas2(p_meas_vec[i], cbit_p, cbit_path);
+      struct interp_result meas = InterpolateMeas2(p_meas_vec[i], cbit_p, cbit_path);
       //CLOG(WARNING, "corridor_mpc_debug.cbit") << "Adding Measurement: " << meas;
 
       // add to measurement vector
-      measurements.push_back(meas);
+      measurements.push_back(meas.measurement);
 
 
       // Find the corresponding left and right barrier q values to pass to the mpc
@@ -592,11 +660,60 @@ struct meas_result3 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
     return {measurements, point_stabilization, barrier_q_left, barrier_q_right};
 }
 
+// For generating VT&R teach path measurements used in the corridor mpc (new version which directly uses the interpolated p measurements from the cbit path trajectory tracking)
+struct meas_result3 GenerateReferenceMeas4(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid, std::vector<double> p_interp_vec)
+{
+    // Set point stabilization, but just note if we use this function in the cbit.cpp file we need to use the Tracking reference pose point stabilization instead
+    bool point_stabilization = false;
 
+    // Initialize vectors storing the barrier values:
+    std::vector<double> barrier_q_left;
+    std::vector<double> barrier_q_right;
+    
+    // load the teach path
+    std::vector<Pose> teach_path = global_path_ptr->disc_path;
+    std::vector<double> teach_path_p = global_path_ptr->p;
+    
+
+    std::vector<lgmath::se3::Transformation> measurements;
+    
+    //CLOG(ERROR, "mpc_debug.cbit") << "The p_interp_vec is: " << p_interp_vec;
+    //CLOG(ERROR, "mpc_debug.cbit") << "The Global Path p is: " << teach_path_p;
+
+    // Iterate through the interpolated p_measurements and make interpolate euclidean measurements from the teach path
+    for (int i = 0; i < p_interp_vec.size(); i++)
+    {
+
+      struct interp_result meas = InterpolateMeas2(p_interp_vec[i], teach_path_p, teach_path);
+      //CLOG(WARNING, "corridor_mpc_debug.cbit") << "Adding Measurement: " << meas;
+
+      // add to measurement vector
+      measurements.push_back(meas.measurement);
+
+
+      // Find the corresponding left and right barrier q values to pass to the mpc
+
+      // The corridor_ptr points to the stored barrier values for the entire teach trajectory (0,p_len)
+      // To find the corresponding values, we just need to query the corridor_ptr given the current sid_p + p_meas_vec[i], and return the q values for that bin
+      double p_query = p_interp_vec[i];
+      // this isnt the most efficient way of doing this, but it should be fine, we really only need to run this loop 10-20 times and the size is likely less then 1000 each
+      int p_ind = 0;
+      while (corridor_ptr->p_bins[p_ind] <= p_query)
+      {
+        p_ind++;
+      }
+      barrier_q_left.push_back(corridor_ptr->q_left[p_ind-1]);
+      barrier_q_right.push_back(corridor_ptr->q_right[p_ind-1]);
+      //CLOG(WARNING, "mpc_debug.cbit") << "The left barrier is: " << corridor_ptr->q_left[p_ind-1];
+      //CLOG(WARNING, "mpc_debug.cbit") << "The right barrier is: " << corridor_ptr->q_right[p_ind-1];
+    }
+
+    return {measurements, point_stabilization, barrier_q_left, barrier_q_right};
+}
 
 // function takes in the cbit path solution with a vector defining the p axis of the path, and then a desired p_meas
 // Then tries to output a euclidean pose interpolated for the desired p_meas.
-lgmath::se3::Transformation InterpolateMeas2(double p_val, std::vector<double> cbit_p, std::vector<Pose> cbit_path)
+struct interp_result InterpolateMeas2(double p_val, std::vector<double> cbit_p, std::vector<Pose> cbit_path)
 {
   // Find the lower bound of the p values
   for (int i = 0; i < cbit_p.size(); i++)
@@ -612,16 +729,38 @@ lgmath::se3::Transformation InterpolateMeas2(double p_val, std::vector<double> c
       Pose pose_lower = cbit_path[i-1];
       Pose pose_upper = cbit_path[i];
 
-      double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper .x - pose_lower.x);
-      double y_int = pose_lower.y + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper .y - pose_lower.y);
-      double z_int = pose_lower.z + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper .z - pose_lower.z);
+    
+      double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.x - pose_lower.x);
+      double y_int = pose_lower.y + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.y - pose_lower.y);
+      double z_int = pose_lower.z + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.z - pose_lower.z);
 
       // For yaw we need to be abit careful about sign and angle wrap around
       // Derive the yaw by creating the vector connecting the pose_upp and pose_lower pts
       // TODO: There is a problem here for reverse planning, will need to rotate the yaw 180 degrees in that case.
       // For normal forward planning this is fine though
-      double yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-      //CLOG(ERROR, "mpc_debug.cbit") << "The Yaw Is: " << yaw_int;
+
+      // This interpolation if we do have yaw available (when the input path is the teach path as it is for corridor mpc)
+      double yaw_int;
+      //yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
+      if ((pose_lower.yaw == 0.0) && (pose_upper.yaw == 0.0))
+      {
+        // Yaw interpolation when we dont have yaw available explicitly (i.e from cbit path euclid conversion)
+        yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
+        //CLOG(ERROR, "mpc_debug.cbit") << "The Yaw For CBIT PATH is: " << yaw_int;
+      }
+      else
+      {
+        // if this is used on the cbit path, it will just return 0.0 every time (note this will break tracking control if yaw covariance set low)
+        //yaw_int = pose_lower.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.yaw - pose_lower.yaw);
+        yaw_int = pose_lower.yaw;
+        //CLOG(ERROR, "mpc_debug.cbit") << "The Yaw For TEACH PATH is: " << yaw_int;
+      }
+      
+
+      // we also want to interpolate p and q values based on the original p,q from the cbit_path. We use this afterwards for finding appropriate corridor mpc
+      // reference poses on the teach path
+      double p_int = pose_lower.p + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.p - pose_lower.p);
+      double q_int = pose_lower.q + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.q - pose_lower.q);
 
       // Build the transformation matrix
       Eigen::Matrix4d T_ref;
@@ -634,7 +773,8 @@ lgmath::se3::Transformation InterpolateMeas2(double p_val, std::vector<double> c
       lgmath::se3::Transformation meas = lgmath::se3::Transformation(T_ref);
 
       CLOG(DEBUG, "mpc_debug.cbit") << "The measurement Euclidean state is - x: " << x_int << " y: " << y_int << " z: " << z_int << " yaw: " << yaw_int;
-      return meas;
+      CLOG(DEBUG, "mpc_debug.cbit") << "The measurement P,Q value is - p: " << p_int << " q: " << q_int;
+      return {meas, p_int, q_int};
     }
   }
 }

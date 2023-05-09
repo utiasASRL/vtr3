@@ -20,8 +20,10 @@ Panels:
         - /planning curr map loc1
         - /Path2
         - /Corridor Path Left1/Topic1
+        - /PoseArray1
+        - /PoseArray2
       Splitter Ratio: 0.4507042169570923
-    Tree Height: 443
+    Tree Height: 871
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -74,31 +76,31 @@ Visualization Manager:
       Frames:
         All Enabled: false
         base_footprint:
-          Value: true
+          Value: false
         base_footprint_bumper_part:
-          Value: true
+          Value: false
         base_link:
-          Value: true
+          Value: false
         chassis_link:
-          Value: true
+          Value: false
         front_axle_link:
-          Value: true
+          Value: false
         front_bumblebee:
-          Value: true
+          Value: false
         front_left_wheel_link:
-          Value: true
+          Value: false
         front_right_wheel_link:
-          Value: true
+          Value: false
         front_xb3:
-          Value: true
+          Value: false
         hc:
-          Value: true
+          Value: false
         honeycomb:
-          Value: true
+          Value: false
         imu_link:
-          Value: true
+          Value: false
         left_lidar:
-          Value: true
+          Value: false
         lidar:
           Value: false
         loc vertex frame:
@@ -106,33 +108,33 @@ Visualization Manager:
         loc vertex frame (offset):
           Value: false
         m600_base:
-          Value: true
+          Value: false
         microstrain:
-          Value: true
+          Value: false
         navsat_link:
-          Value: true
+          Value: false
         odo vertex frame:
           Value: false
         odom:
-          Value: true
+          Value: false
         planning frame:
           Value: false
         rear_antenna_link:
-          Value: true
+          Value: false
         rear_bumblebee:
-          Value: true
+          Value: false
         rear_left_wheel_link:
-          Value: true
+          Value: false
         rear_right_wheel_link:
-          Value: true
+          Value: false
         rear_sensor_base_link:
-          Value: true
+          Value: false
         rear_sensor_plate_link:
-          Value: true
+          Value: false
         rear_xb3:
-          Value: true
+          Value: false
         right_lidar:
-          Value: true
+          Value: false
         robot:
           Value: true
         robot planning:
@@ -142,9 +144,9 @@ Visualization Manager:
         robot planning (extrapolated) mpc:
           Value: false
         sensor_anchor_link:
-          Value: true
+          Value: false
         velodyne:
-          Value: true
+          Value: false
         world:
           Value: false
         world (offset):
@@ -1407,6 +1409,48 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.009999999776482582
+      Class: rviz_default_plugins/PoseArray
+      Color: 0; 0; 0
+      Enabled: true
+      Head Length: 0.15000000596046448
+      Head Radius: 0.10000000149011612
+      Name: PoseArray
+      Shaft Length: 0.10000000149011612
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow (3D)
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/mpc_ref_pose_array1
+      Value: true
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.009999999776482582
+      Class: rviz_default_plugins/PoseArray
+      Color: 255; 255; 255
+      Enabled: true
+      Head Length: 0.15000000596046448
+      Head Radius: 0.10000000149011612
+      Name: PoseArray
+      Shaft Length: 0.10000000149011612
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow (3D)
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/mpc_ref_pose_array2
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 181; 181; 181
@@ -1453,16 +1497,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 14.629002571105957
+      Distance: 21.608963012695312
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.5698918104171753
-        Y: -0.01999158412218094
-        Z: 1.453581690788269
+        X: 0.46887874603271484
+        Y: -0.032121725380420685
+        Z: -0.3164111375808716
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -1471,7 +1515,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.288867473602295
+      Yaw: 3.1313488483428955
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453

@@ -12,7 +12,7 @@
         #"navigation.command",
         # tactic
         #"tactic",
-        "tactic.pipeline",
+        #"tactic.pipeline",
         # "tactic.module",
         # "tactic.module.live_mem_manager",
         # "tactic.module.graph_mem_manager",
@@ -409,7 +409,7 @@
         
     ############ path planning configuration ############
     path_planning:
-      type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       teb:
         # vtr specific
@@ -467,10 +467,10 @@
       mpc:
         # Controller Params
         horizon_steps: 20
-        horizon_step_size: 0.2
-        forward_vel: 0.85
+        horizon_step_size: 0.3
+        forward_vel: 1.1
         max_lin_vel: 1.5
-        max_ang_vel: 1.25
+        max_ang_vel: 1.5
         vehicle_model: "unicycle"
         
         # Cost Function Covariance Matrices
@@ -486,19 +486,35 @@
         #kin_error_weight: 1.0
         #lat_error_weight: 0.01
         
+
         # Cost Function Covariance Matrices
-        pose_error_cov: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0] 
-        vel_error_cov: [10.0, 10.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [2.0, 2.0]
-        kin_error_cov: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
-        lat_error_cov: [10.0]
+        pose_error_cov: [30.0, 30.0, 300.0, 300.0, 300.0, 6.50]
+        vel_error_cov: [10.0, 100.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [10.0, 10.0]
+        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
+        lat_error_cov: [20.0]
         
         # Cost Function Weights
         pose_error_weight: 5.0
-        vel_error_weight: 2.0
-        acc_error_weight: 1.0
-        kin_error_weight: 200.0
-        lat_error_weight: 0.5
+        vel_error_weight: 5.0
+        acc_error_weight: 5.0
+        kin_error_weight: 1000.0
+        lat_error_weight: 0.01
+
+
+        # Cost Function Covariance Matrices
+        #pose_error_cov: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0] 
+        #vel_error_cov: [10.0, 10.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [2.0, 2.0]
+        #kin_error_cov: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+        #lat_error_cov: [10.0]
+        
+        # Cost Function Weights
+        #pose_error_weight: 5.0
+        #vel_error_weight: 2.0
+        #acc_error_weight: 1.0
+        #kin_error_weight: 200.0
+        #lat_error_weight: 0.5
 
         #backup for tracking mpc
         #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0

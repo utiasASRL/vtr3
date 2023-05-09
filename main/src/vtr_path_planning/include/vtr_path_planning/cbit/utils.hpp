@@ -38,6 +38,8 @@ class Pose {
         double roll;
         double pitch;
         double yaw;
+        double p;
+        double q;
         
         Pose* parent = nullptr; // Use a pointer to a Pose class to keep track of a parent
         Pose(double x_in, double y_in, double z_in, double roll_in, double pitch_in, double yaw_in) // Pose constructor

@@ -34,6 +34,7 @@
 #include "nav_msgs/msg/path.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 #include "std_msgs/msg/string.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
 
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 #include "vtr_path_planning/base_path_planner.hpp"
@@ -143,8 +144,17 @@ class CBIT : public BasePathPlanner {
   void initializeRoute(RobotState& robot_state) override; // Declare this as virtual so that the Lidarcbit can override it if using that static name
   //void initializeRouteTest(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
-  void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction);
-
+  void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction, std::vector<lgmath::se3::Transformation> ref_pose_vec1, std::vector<lgmath::se3::Transformation> ref_pose_vec2);
+  Node curve_to_euclid(Node node);
+  Pose lin_interpolate(int p_ind, double p_val);
+  bool costmap_col_tight(Node node);
+  struct collision_result
+  {
+      bool bool_result;
+      Node col_node;
+  };
+  struct collision_result discrete_collision_v2(double discretization, Node start, Node end);
+  
  protected:
   struct ChainInfo {
     tactic::Timestamp stamp;
@@ -171,6 +181,8 @@ class CBIT : public BasePathPlanner {
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_l_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_r_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub1_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub2_;
 
   // Pointers to the output path
   std::vector<Pose> cbit_path;

@@ -132,6 +132,8 @@ CBIT::CBIT(const Config::ConstPtr& config,
   path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
   corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
   corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
+  ref_pose_pub1_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array1", 10);
+  ref_pose_pub2_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array2", 10);
 
   // Updating cbit_configs
   // Environment
@@ -238,6 +240,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
     se3_vector = T2xyzrpy(teach_frame);
     se3_pose = Pose(std::get<0>(se3_vector), std::get<1>(se3_vector), std::get<2>(se3_vector), std::get<3>(se3_vector), std::get<4>(se3_vector), std::get<5>(se3_vector));
     euclid_path_vec.push_back(se3_pose);
+    //CLOG(ERROR, "path_planning.cbit") << "Global Path Yaw values: " << i << ": " << std::get<5>(se3_vector);
   }
 
 
@@ -248,7 +251,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   auto world_frame_pose = T2xyzrpy(T_w_p * T_p_r);
   auto test1 = euclid_path_vec[0];
   auto test2 = euclid_path_vec[1];
-  auto path_yaw = std::atan2((test2.y-test1.y),(test2.x-test1.y));
+  auto path_yaw = std::atan2((test2.y-test1.y),(test2.x-test1.x));
   auto pose_graph_yaw = std::get<5>(world_frame_pose);
   CLOG(INFO, "path_planning.cbit") << "The path_yaw is: " << path_yaw;
   CLOG(INFO, "path_planning.cbit") << "The pose_graph yaw is: " << pose_graph_yaw;
@@ -439,6 +442,19 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     std::vector<double> barrier_q_right = meas_result3.barrier_q_right;
     // END of experimental code
 
+    std::vector<lgmath::se3::Transformation> ref_pose_vec1;
+    for (int i = 0; i<measurements.size(); i++)
+    {
+      ref_pose_vec1.push_back(measurements[i].inverse());
+    }
+    std::vector<lgmath::se3::Transformation> ref_pose_vec2;
+    for (int i = 0; i<measurements3.size(); i++)
+    {
+      ref_pose_vec2.push_back(measurements3[i].inverse());
+    }
+
+
+
 
     // Create and solve the STEAM optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -476,12 +492,12 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     robot_poses.push_back(T_w_p * T_p_r);
 
     // Send the robot poses and mpc prediction to rviz
-    visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses);
+    visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses, ref_pose_vec1, ref_pose_vec2);
 
     // return the computed velocity command for the first time step
     Command command;
     command.linear.x = saturated_vel(0) * 1.1; // * 1.1 Added to compensate for bad grizzly internal controller config
-    command.angular.z = saturated_vel(1) * 1.1;;
+    command.angular.z = saturated_vel(1);
 
     // Temporary modification by Jordy to test calibration of hte grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
@@ -524,7 +540,7 @@ auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
 }
 
 // Visualizing robot pose and the planned paths in rviz
-void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction)
+void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction, std::vector<lgmath::se3::Transformation> ref_pose_vec1, std::vector<lgmath::se3::Transformation> ref_pose_vec2)
 {
   /// Publish the current frame for planning
   {
@@ -671,7 +687,193 @@ void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform
     corridor_pub_l_->publish(corridor_left);
     corridor_pub_r_->publish(corridor_right);
   }
+
+  // Attempting to Publish the reference poses used in the mpc optimization as a pose array
+  {
+    // create a PoseArray message
+    geometry_msgs::msg::PoseArray pose_array_msg;
+    pose_array_msg.header.frame_id = "world";
+
+    // fill the PoseArray with some sample poses
+    for (int i = 0; i < ref_pose_vec1.size(); i++) {
+        geometry_msgs::msg::Pose pose;
+        auto T1 = ref_pose_vec1[i].matrix();
+        pose.position.x = T1(0,3);
+        pose.position.y = T1(1,3);;
+        pose.position.z = T1(2,3);;
+        pose.orientation.w = 1.0;
+        pose_array_msg.poses.push_back(pose);
+    }
+    ref_pose_pub1_->publish(pose_array_msg);
+  }
+
+    // Attempting to Publish the reference poses used in the mpc optimization as a pose array
+  {
+    // create a PoseArray message
+    geometry_msgs::msg::PoseArray pose_array_msg;
+    pose_array_msg.header.frame_id = "world";
+
+    // fill the PoseArray with some sample poses
+    for (int i = 0; i < ref_pose_vec2.size(); i++) {
+        geometry_msgs::msg::Pose pose;
+        auto T2 = ref_pose_vec2[i].matrix();
+        pose.position.x = T2(0,3);
+        pose.position.y = T2(1,3);;
+        pose.position.z = T2(2,3);;
+        pose.orientation.w = 1.0;
+        pose_array_msg.poses.push_back(pose);
+    }
+    ref_pose_pub2_->publish(pose_array_msg);
+  }
   return;
+}
+
+
+// Function for converting a p,q coordinate value into a euclidean coordinate using the pre-processed path to follow
+Node CBIT::curve_to_euclid(Node node)
+{
+  double p_val = node.p;
+  double q_val = node.q;
+  int p_ind =  bisection(global_path_ptr->p, p_val);
+
+  // Linearly interpolate a Euclidean Pose using the euclidean path and the relative p_val,q_val
+  // TODO: need to use steam or lgmath se(3) classes for these poses, for now just using a vector
+  Pose pose_c = lin_interpolate(p_ind, p_val);
+
+  double x_i = pose_c.x - sin(pose_c.yaw)*q_val;
+  double y_i = pose_c.y + cos(pose_c.yaw)*q_val;
+
+  // Experimental, also interpolate the z value
+  double z_i = pose_c.z; //+ cos(pose_c.yaw)*q_val; // I think here we just want to set the z to whatever the pose_c.z value
+
+  return Node(x_i,y_i,z_i);
+}
+
+Pose CBIT::lin_interpolate(int p_ind, double p_val)
+{
+  double p_max = global_path_ptr->p[(global_path_ptr->p.size() - 1)]; //TODO: Replace this with se(3)
+  double p_lower;
+  double p_upper;
+  if (p_val >= p_max) // if p_val is exactly the max (goal p) then return the final euclid pose
+  {
+    return Pose(global_path_ptr->path[(global_path_ptr->path.size() - 1)]);
+  }
+
+  else
+  {
+    p_upper = global_path_ptr->p[p_ind + 1];
+    p_lower = global_path_ptr->p[p_ind];
+  }
+
+  Pose start_pose = global_path_ptr->path[p_ind];
+  Pose end_pose = global_path_ptr->path[p_ind + 1];
+
+  double x_c = start_pose.x + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.x - start_pose.x);
+  double y_c = start_pose.y + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.y - start_pose.y);
+  double z_c = start_pose.z + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.z - start_pose.z);
+
+  // For angles, we dont really care about roll and pitch, these can be left 0 (atleast for now)
+  // For yaw need to be very careful of angle wrap around problem:
+  double angle_difference = std::fmod((std::fmod((end_pose.yaw - start_pose.yaw),(2.0*M_PI)) + (3.0*M_PI)),(2.0*M_PI)) - M_PI; // CHECK THIS!
+  double yaw_c = start_pose.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * angle_difference;
+
+  return Pose({x_c, y_c, z_c, 0.0, 0.0, yaw_c});
+
+}
+
+
+struct CBIT::collision_result CBIT::discrete_collision_v2(double discretization, Node start, Node end)
+{
+    // We dynamically determine the discretization based on the length of the edge
+    discretization = ceil(calc_dist(start, end) * discretization);
+
+    // Generate discretized test nodes
+    std::vector<double> p_test;
+    std::vector<double> q_test;
+
+    double p_step = fabs(end.p - start.p) / discretization;
+    double q_step = fabs(end.q - start.q) / discretization;
+    
+    p_test.push_back(start.p);
+    q_test.push_back(start.q);
+
+    for (int i = 0; i < discretization-1; i++)
+    {
+        p_test.push_back(p_test[i] + p_step*sgn(end.p-start.p) );
+        q_test.push_back(q_test[i] + q_step*sgn(end.q-start.q) );
+    }
+    p_test.push_back(end.p);
+    q_test.push_back(end.q);
+
+
+
+    // Loop through the test curvilinear points, convert to euclid, collision check obstacles
+    Node curv_pt;
+    for (int i = 0; i < p_test.size(); i++)
+    {
+        curv_pt = Node(p_test[i], q_test[i]);
+
+        // Convert to euclid TODO:
+        //Node euclid_pt = curv_pt; // DEBUG DO NOT LEAVE THIS HERE, NEED TO REPLACE WITH COLLISION CHECK FUNCTION
+        Node euclid_pt = curve_to_euclid(curv_pt);
+
+        if (costmap_col_tight(euclid_pt))
+        {
+          return {true, curv_pt};
+        }
+        
+
+    }
+
+    return {false, curv_pt};
+}
+
+
+// This collision check is only used at the end of each batch and determines whether the path should be rewired using the bare minimum obstacle distance
+// Under normal operation we plan paths around a slightly more conservative buffer around each obstacle (equal to influence dist + min dist)
+bool CBIT::costmap_col_tight(Node node)
+{
+  //CLOG(DEBUG, "path_planning.cbit_planner") << "Original Node: x: " << node.p << " y: " << node.q << " z: " << node.z;
+  Eigen::Matrix<double, 4, 1> test_pt({node.p, node.q, node.z, 1});
+
+  // I am no longer temporally filtering here, instead this takes place in the costmap itself in the change detection module
+  // This means the costmap and transform size should never be more than 1
+  //for (int i = 0; i < cbit_costmap_ptr->T_c_w_vect.size(); i++)
+  //{
+
+
+  auto collision_pt = costmap_ptr->T_c_w * test_pt;
+
+  // Round the collision point x and y values down to the nearest grid resolution so that it can be found in the obstacle unordered_map
+  float x_key = floor(collision_pt[0] / costmap_ptr->grid_resolution) * costmap_ptr->grid_resolution;
+  float y_key = floor(collision_pt[1] / costmap_ptr->grid_resolution) * costmap_ptr->grid_resolution;
+
+  //CLOG(DEBUG, "path_planning.cbit_planner") << "X_key:  " << x_key;
+  //CLOG(DEBUG, "path_planning.cbit_planner") << "Y_key:  " << y_key;
+
+  float grid_value;
+
+  // Check to see if the point is in the obstacle map
+  // We need to use a try/catch in this metod as if the key value pair doesnt exist (it usually wont) we catch an out of range error
+  try 
+  {
+  // Block of code to try
+    grid_value = costmap_ptr->obs_map.at(std::pair<float, float> (x_key, y_key));
+    //CLOG(ERROR, "path_planning.cbit_planner") << "Key Value:  " << grid_value;
+  }
+  catch (std::out_of_range) 
+  {
+    grid_value = 0.0;
+  }
+
+  if (grid_value >= 0.89) // By switching this from > 0.0 to 0.9, we effectively only collision check the path out to the "minimum_distance" obs config param
+  {
+    return true;
+  }
+  //}
+
+  // If we make it here can return false for no collision
+  return false;
 }
 
 }  // namespace path_planning

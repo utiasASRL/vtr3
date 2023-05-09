@@ -50,6 +50,18 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     
 }
 
+// note made this pretty quick and dirty, need to refine with interpolation next
+Pose CBITPath::interp_pose(double p_in)
+{
+    int p_iter = 0;
+    while (p_in > this->p[p_iter])
+    {
+        p_iter = p_iter+1;
+    }
+    Pose interpolated_pose(this->disc_path[p_iter].x, this->disc_path[p_iter].y, this->disc_path[p_iter].z, this->disc_path[p_iter].roll, this->disc_path[p_iter].pitch, this->disc_path[p_iter].yaw);
+    return interpolated_pose;
+}
+
 // Calculating the distance between se(3) poses including a heading contribution
 double CBITPath::delta_p_calc(Pose start_pose, Pose end_pose, double alpha)
 {

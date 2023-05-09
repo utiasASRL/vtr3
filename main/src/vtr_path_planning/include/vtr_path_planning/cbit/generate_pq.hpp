@@ -40,7 +40,7 @@ class CBITPath {
         std::vector<int> sid; // store the sid value of the transform from the teach path
         CBITPath(CBITConfig config, std::vector<Pose> initial_path); // constructor; need to feed this the path 
         CBITPath() = default;
-
+        Pose interp_pose(double p_in); // Function to interpolate a pose from the teach path given a p value
         double delta_p_calc(Pose start_pose, Pose end_pose, double alpha); // Function for computing delta p intervals in p,q space
 
     // Internal function declarations

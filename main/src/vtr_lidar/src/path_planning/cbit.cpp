@@ -18,6 +18,7 @@
  */
 #include "vtr_lidar/path_planning/cbit.hpp"
 #include "vtr_lidar/path_planning/mpc_path_planner2.hpp"
+#include "vtr_path_planning/cbit/utils.hpp"
 #include "vtr_lidar/cache.hpp"
 
 
@@ -131,6 +132,8 @@ LidarCBIT::~LidarCBIT() { stop(); }
 
 // Given the current plan and obstacles, generate a twist command for the robot using tracking mpc
 auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
+  auto command_start_time = std::chrono::high_resolution_clock::now();
+
   auto& robot_state = dynamic_cast<LidarOutputCache&>(robot_state0);
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
@@ -145,7 +148,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
   // retrieve the transorm info from the localization chain
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
-
+  CLOG(WARNING, "mpc.cbit") << "The resulting transform  (from chaininfo) is:" << T_p_r.inverse();
   CLOG(INFO, "path_planning.cbit") << "The T_r_v_odo is: " << T_r_v_odo;
   CLOG(INFO, "path_planning.cbit") << "The T_p_r is: " << T_p_r;
 
@@ -301,10 +304,10 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     w_p_r_in_r(3) = 0.0;
     w_p_r_in_r(4) = 0.0;
     w_p_r_in_r(5) = -1* vel_history.back()[1];
-    CLOG(DEBUG, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+    CLOG(ERROR, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r((dt - (std::floor(dt / control_period) * control_period)) * w_p_r_in_r);
     T_p_r2 = T_p_r2 * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-    CLOG(DEBUG, "mpc_debug.cbit") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
+    CLOG(ERROR, "mpc_debug.cbit") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
     const auto T_p_r_extp2 = T_p_r2;
 
     CLOG(DEBUG, "mpc_debug.cbit") << "New extrapolated pose:"  << T_p_r_extp2;
@@ -337,13 +340,141 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     auto measurements = meas_result.measurements;
     bool point_stabilization = meas_result.point_stabilization;
 
+    std::vector<double> p_interp_vec = meas_result.p_interp_vec;
+    std::vector<double> q_interp_vec = meas_result.q_interp_vec;
+    //CLOG(WARNING, "mpc_debug.cbit") << "The Tracking Measurements are: " << measurements;
+
+    //CLOG(WARNING, "mpc.cbit") << "The p_interp_vec is (in cbit): " << p_interp_vec;
+    //CLOG(WARNING, "mpc.cbit") << "The q_interp_vec is (in cbit): " << q_interp_vec;
+
+
     // Experimental, corridor MPC reference measurement generation:
-    auto meas_result3 = GenerateReferenceMeas3(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid);
-    auto measurements3 = meas_result3.measurements;
-    bool point_stabilization3 = meas_result3.point_stabilization;
-    std::vector<double> barrier_q_left = meas_result3.barrier_q_left;
-    std::vector<double> barrier_q_right = meas_result3.barrier_q_right;
+    //auto meas_result3 = GenerateReferenceMeas3(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid);
+    //auto measurements3 = meas_result3.measurements;
+    //bool point_stabilization3 = meas_result3.point_stabilization;
+    //std::vector<double> barrier_q_left = meas_result3.barrier_q_left;
+    //std::vector<double> barrier_q_right = meas_result3.barrier_q_right;
     // END of experimental code
+
+
+    // Experimental Synchronized Tracking/Teach Reference Poses:
+    auto meas_result4 = GenerateReferenceMeas4(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid, p_interp_vec);
+    auto measurements4 = meas_result4.measurements;
+    bool point_stabilization4 = meas_result4.point_stabilization;
+    std::vector<double> barrier_q_left = meas_result4.barrier_q_left;
+    std::vector<double> barrier_q_right = meas_result4.barrier_q_right;
+    //CLOG(ERROR, "mpc_debug.cbit") << "The New Reference Measurements are: " << measurements4;
+
+
+
+
+
+    // Checking whether we need to correct the yaw on the cbit reference poses based on the teach path reference poses
+    /*
+    Eigen::Matrix<double, 4, 4> T_ROT_YAW;
+    T_ROT_YAW << -1, 0, 0, 0,
+                0, -1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1;
+    lgmath::se3::Transformation T_ROT_YAW2(T_ROT_YAW);
+
+    CLOG(ERROR, "mpc_debug.cbit") << "THE PI ROTATION MATRIX IS: " << T_ROT_YAW;
+    auto cbit_pose = measurements[0].matrix().block(0, 0, 3, 3);
+    auto teach_pose = measurements4[0].matrix().block(0, 0, 3, 3);
+    auto rel_pose = teach_pose.transpose() * cbit_pose;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE CBIT ROTATION MATRIX IS: " << cbit_pose;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE TEACH ROTATION MATRIX IS: " << teach_pose;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE RELATIVE ROTATION MATRIX IS: " << teach_pose.transpose() * cbit_pose;
+    double relative_yaw = atan2(rel_pose(1,0),rel_pose(0,0));
+    CLOG(ERROR, "mpc_debug.cbit") << "THE RELATIVE YAW IS: " << relative_yaw;
+    if (fabs(relative_yaw) >= 1.57075)
+    {
+      measurements[0] = measurements[0].matrix() * T_ROT_YAW2;
+      CLOG(ERROR, "mpc_debug.cbit") << "CORRECTED THE YAW";
+    }
+    CLOG(ERROR, "mpc_debug.cbit") << "THE ROTATED CBIT MATRIX IS: " << measurements[0];
+    */
+
+
+
+
+    // Generate the barrier terms:
+    // To do this, we need to conver the p_interp_vec,q_interp_vec into euclidean, as well as pairs of (p_interp,q_max), (q_interp,-q_max)
+    // Then collision check between them
+    //Node test_node = curve_to_euclid(Node(0.0, 0.0));
+    Node test_node = curve_to_euclid(Node(10.0, 0.6));
+    //CLOG(ERROR, "mpc_debug.cbit") << "The Euclidean Node is x: " << test_node.p << ", y: "<< test_node.q << ", z: " << test_node.z;
+    std::vector<double> barrier_q_left_test;
+    std::vector<double> barrier_q_right_test;
+    for (int i = 0; i<p_interp_vec.size(); i++)
+    {
+      Node start_node = Node(p_interp_vec[i],q_interp_vec[i]);
+      Node left_end_node = Node(p_interp_vec[i], 2.51);
+      Node right_end_node = Node(p_interp_vec[i], -2.51);
+      if (costmap_col_tight(curve_to_euclid(start_node)))
+      {
+          CLOG(ERROR, "path_planning.corridor_debug") << "Something has gone wrong (in cbit lidar corridor update)";
+          continue;
+      }
+
+
+      // collision check left and right using a special version of discrete_collision check
+      // In this version we output both a boolean and the 1st point that comes into collision if there is one
+      auto collision_check_result1 = discrete_collision_v2(10, start_node, left_end_node);
+      auto collision_check_result2 = discrete_collision_v2(10, start_node, right_end_node);
+
+      // if there is a collision, set q_left at the location of the current p_bin being processed to the value of q_left/q_right
+      if (collision_check_result1.bool_result == true)
+      {
+        //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
+        //CLOG(DEBUG, "path_planning.corridor_debug") << "end_left node is p: " << end_left.p << " q: " << end_left.q;
+        barrier_q_left_test.push_back(collision_check_result1.col_node.q);
+      }
+      // else set it back to the maximums
+      else
+      {
+        barrier_q_left_test.push_back(2.5);
+      }
+
+      // Repeat for the other side
+      
+      if (collision_check_result2.bool_result == true)
+      {
+        //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
+        //CLOG(DEBUG, "path_planning.corridor_debug") << "end_right node is p: " << end_right.p << " q: " << end_right.q;
+        barrier_q_right_test.push_back(collision_check_result2.col_node.q);
+      }
+      else
+      {
+        barrier_q_right_test.push_back(-2.5);
+      }
+    }
+    //CLOG(ERROR, "mpc_debug.cbit") << "The left barrier1 is: " << barrier_q_left;
+    //CLOG(ERROR, "mpc_debug.cbit") << "The left barrier2 is: " << barrier_q_left_test;
+    //CLOG(WARNING, "mpc_debug.cbit") << "The right barrier1 is: " << barrier_q_right;
+    //CLOG(WARNING, "mpc_debug.cbit") << "The right barrier2 is: " << barrier_q_right_test;
+
+    // Visualizing the reference measurements in rviz:
+    // Store the sequence of resulting mpc prediction horizon poses for visualization
+    std::vector<lgmath::se3::Transformation> ref_pose_vec1;
+    for (int i = 0; i<measurements.size(); i++)
+    {
+      ref_pose_vec1.push_back(measurements[i].inverse());
+    }
+    // Store the sequence of resulting mpc prediction horizon poses for visualization
+    std::vector<lgmath::se3::Transformation> ref_pose_vec2;
+    for (int i = 0; i<measurements4.size(); i++)
+    {
+      ref_pose_vec2.push_back(measurements4[i].inverse());
+    }
+
+
+
+
+
+
+
+
 
 
     // Create and solve the STEAM optimization problem
@@ -351,10 +482,13 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
+      // Using new sychronized measurements:
+      auto mpc_result = SolveMPC2(applied_vel, T0, measurements4, measurements, barrier_q_left_test, barrier_q_right_test, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+
       // Solve using corridor mpc
-      auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       // Old path tracking configs
-      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       //auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization); // Tracking controller version
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
@@ -383,12 +517,12 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     robot_poses.push_back(T_w_p * T_p_r);
 
     // Send the robot poses and mpc prediction to rviz
-    visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses);
+    visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses, ref_pose_vec1, ref_pose_vec2);
 
     // return the computed velocity command for the first time step
     Command command;
     command.linear.x = saturated_vel(0) * 1.1; // * 1.1 added to compensate for bad grizzly internal controller set points
-    command.angular.z = saturated_vel(1) * 1.1;
+    command.angular.z = saturated_vel(1);
 
     // Temporary modification by Jordy to test calibration of the grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
@@ -400,7 +534,9 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
       << command.linear.y << ", " << command.linear.z << ", "
       << command.angular.x << ", " << command.angular.y << ", "
       << command.angular.z << "]";
-
+    auto command_stop_time = std::chrono::high_resolution_clock::now();
+    auto duration_command = std::chrono::duration_cast<std::chrono::milliseconds>(command_stop_time - command_start_time);
+    CLOG(ERROR, "mpc.cbit") << "ComputeCommand took: " << duration_command.count() << "ms";
     return command;
   }
   // Otherwise stop the robot
