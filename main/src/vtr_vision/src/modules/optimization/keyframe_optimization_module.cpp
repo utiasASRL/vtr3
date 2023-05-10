@@ -20,6 +20,9 @@
  */
 #include <vtr_vision/modules/optimization/keyframe_optimization_module.hpp>
 
+
+
+
 namespace vtr {
 
 namespace vision {
@@ -83,10 +86,8 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
     
 
     // Create a transform evaluator for T_q_m, in the camera sensor frame.
-    // steam::se3::TransformEvaluator::Ptr tf_qs_mv;
     steam::Evaluable<lgmath::se3::Transformation>::ConstPtr tf_qs_mv = nullptr;
     steam::Evaluable<lgmath::se3::Transformation>::ConstPtr tf_qs_ms = nullptr;
-    // steam::se3::TransformEvaluator::Ptr tf_qs_ms;
 
     if (config_->use_T_q_m_prior) {
 
@@ -193,10 +194,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
           // create and add the landmark
           landmarks_ic.push_back(stereo::HomoPointStateVar::MakeShared(map_point));
 
-          // // add the depth prior
-          if (keyframe_config_->depth_prior_enable) {
-            addDepthCost(landmarks_ic.back());
-          }
+          
 
           // Get landmark reference
           auto &landVar = landmarks_ic.back();
@@ -204,8 +202,6 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
           // lock the landmark
           landVar->locked() = true;
 
-
-          // set up the mono and stereo noise for each potential type
           steam::BaseNoiseModel<4>::Ptr noise_stereo;
 
           try {
@@ -221,8 +217,12 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
               auto noise_eval = std::make_shared<NoiseEval>(
                   landVar->value(), cov, meas_covariance,
                   sharedStereoIntrinsics, tf_qs_ms);
-              noise_stereo = steam::DynamicNoiseModel<4>::MakeShared(noise_eval, steam:: NoiseType::COVARIANCE);
-              
+              noise_stereo = steam::DynamicNoiseModel<4>::MakeShared(noise_eval, steam::NoiseType::COVARIANCE);
+              CLOG(DEBUG, "stereo.keyframe_optimization") << "Noise \n" << noise_eval->value() << "\nMeas Noise:\n" << meas_covariance
+                                                          << "\nLand Noise:\n" << cov;
+
+              //noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
+
               //throw std::runtime_error("migrated points not implemented");
 
 
@@ -235,6 +235,11 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
             landmarks_ic.pop_back();
             continue;
           }
+          // // add the depth prior
+          if (keyframe_config_->depth_prior_enable) {
+            addDepthCost(landmarks_ic.back());
+          }
+
 
           // Construct the measurement vector for the current camera
           Eigen::MatrixXd data(query_kps.size() * 2, 1);
@@ -257,6 +262,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
           auto errorfunc = stereo::StereoErrorEvaluator::MakeShared(data, sharedStereoIntrinsics, tf_qs_ms, landVar);
           auto cost = WeightedLeastSqCostTerm<4>::MakeShared(errorfunc, noise_stereo, sharedLossFunc_);
           // add the cost term
+          // CLOG(DEBUG, "stereo.keyframe_optimization") << "Cost " << cost->cost();
           problem.addCostTerm(cost);
 
 
@@ -533,7 +539,9 @@ void KeyframeOptimizationModule::computeTrajectory(
 void KeyframeOptimizationModule::updateCaches(CameraQueryCache &qdata) {
   // update our estimate for the transform
   *qdata.T_r_m = query_pose_->value();
-  *qdata.w_v_r_in_r_odo = trajectory_->getVelocityInterpolator(*qdata.timestamp_odo)->value();
+
+  if (config_->is_odometry)
+    *qdata.w_v_r_in_r_odo = trajectory_->getVelocityInterpolator(*qdata.timestamp_odo)->value();
 
   // give the query cache a copy of the trajectory estimate
   // qdata.trajectory = trajectory_;
