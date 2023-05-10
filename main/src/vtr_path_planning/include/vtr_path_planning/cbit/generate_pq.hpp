@@ -37,9 +37,10 @@ class CBITPath {
         std::vector<Pose> disc_path; // Stores the se3 discrete path as a vector of Euclidean vectors (The original disc path) // TODO, change to se(3) class
         std::vector<double> p; //associated p values for each pose in disc_path
         std::vector<Pose> path; // Stores the se3 splined discrete path as a vector of Euclidean vectors; //TODO, change to se(3) class
+        std::vector<int> sid; // store the sid value of the transform from the teach path
         CBITPath(CBITConfig config, std::vector<Pose> initial_path); // constructor; need to feed this the path 
         CBITPath() = default;
-
+        Pose interp_pose(double p_in); // Function to interpolate a pose from the teach path given a p value
         double delta_p_calc(Pose start_pose, Pose end_pose, double alpha); // Function for computing delta p intervals in p,q space
 
     // Internal function declarations
@@ -48,4 +49,25 @@ class CBITPath {
        
         // Actually I think ill just do this in the constructor for now
         //std::vector<double> ProcessPath(std::vector<Pose> disc_path); // Function for assigning p distance values for each euclidean point in pre-processing
+};
+
+// Class for storing the dynamic corridor information
+class CBITCorridor {
+    public:
+        std::vector<double> p_bins;
+        std::vector<double> q_left;
+        std::vector<double> q_right;
+        std::vector<double> x_left;
+        std::vector<double> x_right;
+        std::vector<double> y_left;
+        std::vector<double> y_right;
+        double q_max;
+        double sliding_window_width; 
+        double curv_to_euclid_discretization;
+
+        CBITCorridor(CBITConfig config, std::shared_ptr<CBITPath> global_path_ptr); // Constructor, Feed this the taught path and config
+        CBITCorridor() = default;
+        
+        //void update_corridor(homotopy_p, homotopy_q, robot_state);
+
 };
