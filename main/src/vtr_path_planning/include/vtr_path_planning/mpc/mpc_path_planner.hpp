@@ -44,3 +44,6 @@ struct meas_result GenerateReferenceMeas(std::shared_ptr<std::vector<Pose>> cbit
 
 // Helper function for post-processing and saturating the velocity command
 Eigen::Matrix<double, 2, 1> SaturateVel(Eigen::Matrix<double, 2, 1> applied_vel, double v_lim, double w_lim);
+
+// Helper function in Generate Reference Meas which interpolates a Transformation measurement gen the cbit_path and the desired measurements p value along the path
+lgmath::se3::Transformation InterpolateMeas(double p_meas, std::vector<double> cbit_p, std::vector<Pose> cbit_path);

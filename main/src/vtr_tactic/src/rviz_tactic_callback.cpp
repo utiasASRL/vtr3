@@ -17,7 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <tf2/convert.h>
-#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <nav_msgs/msg/odometry.hpp>
