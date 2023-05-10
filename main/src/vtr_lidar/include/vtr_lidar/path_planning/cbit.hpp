@@ -19,7 +19,7 @@
 #pragma once
 
 #include "vtr_path_planning/cbit/cbit.hpp"
-
+#include <chrono> // For benchmarking
 
 namespace vtr {
 namespace lidar {

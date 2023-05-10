@@ -87,8 +87,7 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).x = points(idx, 0);
     point_cloud->at(idx).y = points(idx, 1);
     point_cloud->at(idx).z = points(idx, 2);
-    CLOG(DEBUG, "lidar.velodyne_converter") << points(idx, 0);
-
+    
     // pointwise timestamp
     point_cloud->at(idx).timestamp =
         static_cast<int64_t>(points(idx, 5) * 1e9);// + stamp; See comment above where stamp is loaded

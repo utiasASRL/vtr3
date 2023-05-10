@@ -24,6 +24,7 @@
 #include <tuple>
 #include <cmath>
 #include <iostream>
+#include <map>
 
 #pragma once
 
@@ -37,6 +38,8 @@ class Pose {
         double roll;
         double pitch;
         double yaw;
+        double p;
+        double q;
         
         Pose* parent = nullptr; // Use a pointer to a Pose class to keep track of a parent
         Pose(double x_in, double y_in, double z_in, double roll_in, double pitch_in, double yaw_in) // Pose constructor
@@ -92,7 +95,9 @@ class Tree {
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  E;
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  E_Old;
         std::vector<std::shared_ptr<Node>> QV; // using shared pointers
+        std::multimap<double, std::shared_ptr<Node>> QV2;
         std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>> QE;
+        std::multimap<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>> QE2;
         Tree() = default;
 };
 

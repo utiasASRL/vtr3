@@ -28,7 +28,7 @@ void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector
     matplotlibcpp::clf();
 
     // Configure plotting keyword settings
-    std::unordered_map<std::string, std::string> keywords_robot;
+    std::map<std::string, std::string> keywords_robot;
     keywords_robot["color"] = "lime";
 
 
@@ -79,7 +79,7 @@ void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector
     */
 
     // Plot the current robot state
-    matplotlibcpp::named_plot("Robot State", {-1*robot_pq.q}, std::vector<double> {robot_pq.p}, ".g");
+    matplotlibcpp::named_plot("Robot State", std::vector<double> {-1*robot_pq.q}, std::vector<double> {robot_pq.p}, ".g");
     matplotlibcpp::scatter(std::vector<double> {-1*robot_pq.q}, std::vector<double> {robot_pq.p}, 200.0, keywords_robot); // try to change colour, need to implement
 
 
@@ -105,7 +105,7 @@ void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector
 void plot_robot(Node robot_pq)
 {
     // Configure plotting keyword settings
-    std::unordered_map<std::string, std::string> keywords_robot;
+    std::map<std::string, std::string> keywords_robot;
     keywords_robot["color"] = "lime";
 
     // Plot the current robot state

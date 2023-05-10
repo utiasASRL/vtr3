@@ -21,6 +21,7 @@
 // This library is not meant to be included in the main vt&r branch, debug only
 
 #include <memory>
+#include <map>
 #include "matplotlibcpp.h" // experimental plotting
 #include "vtr_path_planning/cbit/utils.hpp"
 
