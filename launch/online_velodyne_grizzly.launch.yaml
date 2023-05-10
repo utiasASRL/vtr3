@@ -37,7 +37,7 @@ windows:
   - window_name: rviz2
     layout: main-horizontal
     shell_command_before:
-      - source /opt/ros/humble/setup.bash
+      - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

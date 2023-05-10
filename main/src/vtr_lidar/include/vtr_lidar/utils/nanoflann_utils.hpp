@@ -56,40 +56,6 @@ struct NanoFLANNAdapter {
   }
 };
 
-template <class PointT>
-struct NanoFLANNSphericalAdapter {
-  NanoFLANNSphericalAdapter(const pcl::PointCloud<PointT>& points, const float angle_weight) : points_(points), angle_weights(angle_weight){  }
-
-  const pcl::PointCloud<PointT>& points_;
-  const float angle_weights;
-
-  // Must return the number of data points
-  inline size_t kdtree_get_point_count() const { return points_.size(); }
-
-  // Returns the dim'th component of the idx'th point in the class:
-  // Since this is inlined and the "dim" argument is typically an immediate
-  // value, the "if/else's" are actually solved at compile time.
-  inline float kdtree_get_pt(const size_t idx, const size_t dim) const {
-    if (dim == 0)
-      return points_[idx].rho;
-    else if (dim == 1)
-      return points_[idx].phi*angle_weights;
-    else
-      return points_[idx].theta*angle_weights;
-  }
-
-  // Optional bounding-box computation: return false to default to a standard
-  // bbox computation loop.
-  //   Return true if the BBOX was already computed by the class and returned in
-  //   "bb" so it can be avoided to redo it again. Look at bb.size() to find out
-  //   the expected dimensionality (e.g. 2 or 3 for point clouds)
-  template <class BBOX>
-  bool kdtree_get_bbox(BBOX& /* bb */) const {
-    return false;
-  }
-};
-
-
 //Store all neighbours within a given radius
 template <typename _DistanceType = float, typename _IndexType = size_t>
 class NanoFLANNRadiusResultSet {
@@ -144,10 +110,6 @@ template <class PointT>
 using KDTree = nanoflann::KDTreeSingleIndexAdaptor<
     nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,
     NanoFLANNAdapter<PointT>>;
-template <class PointT>
-using SphericalKDTree = nanoflann::KDTreeSingleIndexAdaptor<
-    nanoflann::L2_Simple_Adaptor<float, NanoFLANNSphericalAdapter<PointT>>,
-    NanoFLANNSphericalAdapter<PointT>>;
 template <class PointT>
 using DynamicKDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
     nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,

@@ -140,15 +140,14 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
 
   
 
+  //If a lower horizontal resolution is acceptable, then set the horizontal downsample > 1.
+  //A value of 2 will leave 1/2 the points, in general 1/n points will be retained.
 
   auto filtered_point_cloud =
     std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
   CLOG(DEBUG, "lidar.velodyne_converter_v2") << "Reducing the point cloud density by " << config_->horizontal_downsample
       << "original size was " << point_cloud->size();
-  if (config_->horizontal_downsample > 1) {
-
-  /// Range cropping
-  
+  if (config_->horizontal_downsample > 1) {  
     std::vector<int> indices;
     indices.reserve(filtered_point_cloud->size());
     for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {

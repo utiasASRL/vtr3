@@ -150,7 +150,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   const auto &vid_loc = *qdata.vid_loc;
   const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
-  const auto &points = *qdata.raw_point_cloud;
+  const auto &points = *qdata.undistorted_point_cloud;
   const auto &submap_loc = *qdata.submap_loc;
   const auto &map_point_cloud = submap_loc.point_cloud();
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
@@ -314,10 +314,6 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   costmap->T_vertex_this() = tactic::EdgeTransform(true);
   costmap->vertex_id() = vid_loc;
   costmap->vertex_sid() = sid_loc;
-
-
-
-
 
   // Jordy Modifications for temporal costmap filtering (UNDER DEVELOPMENT)
   
