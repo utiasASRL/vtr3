@@ -17,7 +17,7 @@
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_path_planning/mpc/mpc_path_planner2.hpp"
-#include "vtr_path_planning/mpc/custom_steam_evaluators.hpp"
+#include "vtr_path_planning/mpc/lateral_error_evaluators.hpp"
 #include "vtr_path_planning/mpc/custom_loss_functions.hpp"
 #include "vtr_path_planning/mpc/scalar_log_barrier_evaluator.hpp"
 #include "vtr_lidar/cache.hpp"
@@ -261,8 +261,8 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         //CLOG(INFO, "mpc_debug.cbit") << "The vtr measurement for this value is: " << measurements[i].inverse();
 
         // compute the lateral error using a custom Homogenous point error STEAM evaluator
-        const auto lat_error_right = steam::stereo::HomoPointErrorEvaluatorRight::MakeShared(error_vec, barrier_right); // TODO, rename this evaluator to something else
-        const auto lat_error_left = steam::stereo::HomoPointErrorEvaluatorLeft::MakeShared(error_vec, barrier_left);
+        const auto lat_error_right = steam::LateralErrorEvaluatorRight::MakeShared(error_vec, barrier_right); // TODO, rename this evaluator to something else
+        const auto lat_error_left = steam::LateralErrorEvaluatorLeft::MakeShared(error_vec, barrier_left);
 
         // Previously used Log barriers, however due to instability switch to using inverse squared barriers
         //const auto lat_barrier_right = steam::vspace::ScalarLogBarrierEvaluator<1>::MakeShared(lat_error_right);

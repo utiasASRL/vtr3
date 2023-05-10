@@ -329,7 +329,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_v_loc = T_r_v_icp;
     // set success
     *qdata.loc_success = true;
-    CLOG(WARNING, "lidar.localization_icp") << "The resulting transform is:" << T_r_v_icp;
   } else {
     CLOG(WARNING, "lidar.localization_icp")
         << "Matched points ratio " << matched_points_ratio

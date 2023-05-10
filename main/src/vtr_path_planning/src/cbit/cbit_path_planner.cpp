@@ -44,7 +44,7 @@ auto CBITPlanner::getChainInfo(vtr::path_planning::BasePathPlanner::RobotState& 
 }
 
 // Class Constructor:
-CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction)
+CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction)
 { 
 
   // Setting random seed
@@ -142,7 +142,7 @@ void CBITPlanner::InitializePlanningSpace()
 }
 
 // Reset fuction which goes through the entire reset procedure (including calling ResetPlanner and restarting the planner itself)
-void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction)
+void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction)
 {
   // I think we may also want to add a small time delay just so we arent repeatedly spamming an optimal solution
   CLOG(ERROR, "path_planning.cbit_planner") << "Plan could not be improved, Initiating Reset";
@@ -239,7 +239,7 @@ void CBITPlanner::ResetPlanner()
 
 
 // Main planning function
-void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, double path_direction)
+void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction)
 {
   // find some better places to initialize these
   double prev_path_cost = INFINITY; // experimental
@@ -1267,7 +1267,7 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
 // Function for updating the state of the robot, updates the goal and sliding window, and prunes the current tree
 // Note that this stage requires us to convert the state of the robot in euclidean space into a singular curvilinear space pt, which is actually slightly tricky
 // To do without singularities
-std::shared_ptr<Node> CBITPlanner::UpdateState(double path_direction)
+std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
 {
   //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
 
@@ -1339,8 +1339,21 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(double path_direction)
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
   // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
-  q_min = q_min * q_sign * path_direction;
+  q_min = q_min * q_sign;
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
+
+  switch (path_direction) {
+    case PATH_DIRECTION_REVERSE:
+      q_min = -q_min;
+      break;
+    case PATH_DIRECTION_FORWARD:
+      // Do nothing, q_min already has the correct sign
+      break;
+    default:
+      // Handle error case where path_direction is not a valid value
+      break;
+  }
+
 
 
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion

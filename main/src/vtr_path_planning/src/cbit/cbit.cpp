@@ -80,6 +80,9 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
   config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
   config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
+  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".robot_linear_velocity_scale", config->robot_linear_velocity_scale);
+  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+
 
   // COST FUNCTION COVARIANCE
   const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
@@ -257,14 +260,14 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CLOG(INFO, "path_planning.cbit") << "The path_yaw is: " << path_yaw;
   CLOG(INFO, "path_planning.cbit") << "The pose_graph yaw is: " << pose_graph_yaw;
   // Logic for determining the forward/reverse sign:
-  double path_direction; //1.0 = forward planning, -1.0 = reverse planning
+  PathDirection path_direction; //1.0 = forward planning, -1.0 = reverse planning
   if (abs((abs(path_yaw) - abs(pose_graph_yaw))) > 1.57075)
   {
-    path_direction = -1.0;
+    path_direction = PATH_DIRECTION_REVERSE;
   }
   else
   {
-    path_direction = 1.0;
+    path_direction = PATH_DIRECTION_FORWARD;
   }
   CLOG(INFO, "path_planning.cbit") << "The path repeat direction is:" << path_direction;
 
@@ -521,8 +524,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // return the computed velocity command for the first time step
     Command command;
-    command.linear.x = saturated_vel(0) * 1.1; // * 1.1 Added to compensate for bad grizzly internal controller config
-    command.angular.z = saturated_vel(1);
+    command.linear.x = saturated_vel(0) * config_->robot_linear_velocity_scale;
+    command.angular.z = saturated_vel(1) * config_->robot_angular_velocity_scale;
     // Temporary modification by Jordy to test calibration of hte grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Angular Velocity: " << saturated_vel(1);

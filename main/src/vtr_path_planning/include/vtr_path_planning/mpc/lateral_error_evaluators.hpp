@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file custom_steam_evaluators.hpp
+ * \file lateral_error_evaluators.hpp
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 
@@ -22,19 +22,18 @@
 #include "steam/evaluable/state_var.hpp"
 
 namespace steam {
-namespace stereo {
 
-class HomoPointErrorEvaluatorLeft : public Evaluable<Eigen::Matrix<double, 1, 1>> {
+class LateralErrorEvaluatorLeft : public Evaluable<Eigen::Matrix<double, 1, 1>> {
  public:
-  using Ptr = std::shared_ptr<HomoPointErrorEvaluatorLeft>;
-  using ConstPtr = std::shared_ptr<const HomoPointErrorEvaluatorLeft>;
+  using Ptr = std::shared_ptr<LateralErrorEvaluatorLeft>;
+  using ConstPtr = std::shared_ptr<const LateralErrorEvaluatorLeft>;
 
   using InType = Eigen::Vector4d;
   using OutType = Eigen::Matrix<double, 1, 1>;
 
   static Ptr MakeShared(const Evaluable<InType>::ConstPtr& pt,
                         const InType& meas_pt);
-  HomoPointErrorEvaluatorLeft(const Evaluable<InType>::ConstPtr& pt,
+  LateralErrorEvaluatorLeft(const Evaluable<InType>::ConstPtr& pt,
                           const InType& meas_pt);
 
   bool active() const override;
@@ -54,25 +53,25 @@ class HomoPointErrorEvaluatorLeft : public Evaluable<Eigen::Matrix<double, 1, 1>
   Eigen::Matrix<double, 1, 4> D_ = Eigen::Matrix<double, 1, 4>::Zero();
 };
 
-HomoPointErrorEvaluatorLeft::Ptr homo_point_error_left(
-    const Evaluable<HomoPointErrorEvaluatorLeft::InType>::ConstPtr& pt,
-    const HomoPointErrorEvaluatorLeft::InType& meas_pt);
+LateralErrorEvaluatorLeft::Ptr homo_point_error_left(
+    const Evaluable<LateralErrorEvaluatorLeft::InType>::ConstPtr& pt,
+    const LateralErrorEvaluatorLeft::InType& meas_pt);
 
 
 
 
 
-class HomoPointErrorEvaluatorRight : public Evaluable<Eigen::Matrix<double, 1, 1>> {
+class LateralErrorEvaluatorRight : public Evaluable<Eigen::Matrix<double, 1, 1>> {
  public:
-  using Ptr = std::shared_ptr<HomoPointErrorEvaluatorRight>;
-  using ConstPtr = std::shared_ptr<const HomoPointErrorEvaluatorRight>;
+  using Ptr = std::shared_ptr<LateralErrorEvaluatorRight>;
+  using ConstPtr = std::shared_ptr<const LateralErrorEvaluatorRight>;
 
   using InType = Eigen::Vector4d;
   using OutType = Eigen::Matrix<double, 1, 1>;
 
   static Ptr MakeShared(const Evaluable<InType>::ConstPtr& pt,
                         const InType& meas_pt);
-  HomoPointErrorEvaluatorRight(const Evaluable<InType>::ConstPtr& pt,
+  LateralErrorEvaluatorRight(const Evaluable<InType>::ConstPtr& pt,
                           const InType& meas_pt);
 
   bool active() const override;
@@ -92,10 +91,9 @@ class HomoPointErrorEvaluatorRight : public Evaluable<Eigen::Matrix<double, 1, 1
   Eigen::Matrix<double, 1, 4> D_ = Eigen::Matrix<double, 1, 4>::Zero();
 };
 
-HomoPointErrorEvaluatorRight::Ptr homo_point_error_right(
-    const Evaluable<HomoPointErrorEvaluatorRight::InType>::ConstPtr& pt,
-    const HomoPointErrorEvaluatorRight::InType& meas_pt);
+LateralErrorEvaluatorRight::Ptr homo_point_error_right(
+    const Evaluable<LateralErrorEvaluatorRight::InType>::ConstPtr& pt,
+    const LateralErrorEvaluatorRight::InType& meas_pt);
 
 
-}  // namespace stereo
 }  // namespace steam

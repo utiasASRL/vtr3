@@ -77,6 +77,9 @@ auto LidarCBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
   config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
   config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
+  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".robot_linear_velocity_scale", config->robot_linear_velocity_scale);
+  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+
 
   // COST FUNCTION Covariances
   const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
@@ -304,10 +307,10 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     w_p_r_in_r(3) = 0.0;
     w_p_r_in_r(4) = 0.0;
     w_p_r_in_r(5) = -1* vel_history.back()[1];
-    CLOG(ERROR, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+    CLOG(DEBUG, "mpc_debug.cbit") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r((dt - (std::floor(dt / control_period) * control_period)) * w_p_r_in_r);
     T_p_r2 = T_p_r2 * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-    CLOG(ERROR, "mpc_debug.cbit") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
+    CLOG(DEBUG, "mpc_debug.cbit") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
     const auto T_p_r_extp2 = T_p_r2;
 
     CLOG(DEBUG, "mpc_debug.cbit") << "New extrapolated pose:"  << T_p_r_extp2;
@@ -501,7 +504,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
       applied_vel(1) = 0.0;
     }
 
-    CLOG(ERROR, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
+    CLOG(DEBUG, "mpc.cbit") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
  
     // If required, saturate the output velocity commands based on the configuration limits
@@ -521,8 +524,8 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
 
     // return the computed velocity command for the first time step
     Command command;
-    command.linear.x = saturated_vel(0) * 1.1; // * 1.1 added to compensate for bad grizzly internal controller set points
-    command.angular.z = saturated_vel(1);
+    command.linear.x = saturated_vel(0) * config_->robot_linear_velocity_scale;
+    command.angular.z = saturated_vel(1) * config_->robot_angular_velocity_scale;
 
     // Temporary modification by Jordy to test calibration of the grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
@@ -536,7 +539,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
       << command.angular.z << "]";
     auto command_stop_time = std::chrono::high_resolution_clock::now();
     auto duration_command = std::chrono::duration_cast<std::chrono::milliseconds>(command_stop_time - command_start_time);
-    CLOG(ERROR, "mpc.cbit") << "ComputeCommand took: " << duration_command.count() << "ms";
+    CLOG(DEBUG, "mpc.cbit") << "ComputeCommand took: " << duration_command.count() << "ms";
     return command;
   }
   // Otherwise stop the robot
