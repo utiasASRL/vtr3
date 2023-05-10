@@ -38,13 +38,28 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     int vect_size = disc_path.size();
     p.reserve(vect_size);
     p.push_back(0);
+    sid.reserve(vect_size);
+    sid.push_back(0);
     for (int i=1; i<vect_size; i++)
     {
         p.push_back(p[i-1] + delta_p_calc(disc_path[i-1], disc_path[i], alpha));
+        sid.push_back(i);
     }
 
     CLOG(INFO, "path_planning.cbit") << "Successfully Built a Path in generate_pq.cpp and Displayed log";
     
+}
+
+// note made this pretty quick and dirty, need to refine with interpolation next
+Pose CBITPath::interp_pose(double p_in)
+{
+    int p_iter = 0;
+    while (p_in > this->p[p_iter])
+    {
+        p_iter = p_iter+1;
+    }
+    Pose interpolated_pose(this->disc_path[p_iter].x, this->disc_path[p_iter].y, this->disc_path[p_iter].z, this->disc_path[p_iter].roll, this->disc_path[p_iter].pitch, this->disc_path[p_iter].yaw);
+    return interpolated_pose;
 }
 
 // Calculating the distance between se(3) poses including a heading contribution

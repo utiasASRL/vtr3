@@ -98,6 +98,11 @@ RUN pip3 install \
   python-socketio[client] \
   websocket-client
 
+RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
+  && git clone https://github.com/lava/matplotlib-cpp.git . \
+  && mkdir -p ${HOMEDIR}/.matplotcpp/build && cd ${HOMEDIR}/.matplotcpp/build \
+  && cmake .. && cmake --build . -j${NUMPROC} --target install
+
 RUN apt install htop
 RUN apt install ros-humble-velodyne -q -y
 

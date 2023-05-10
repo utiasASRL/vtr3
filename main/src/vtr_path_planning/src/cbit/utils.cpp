@@ -235,6 +235,62 @@ Node curve_to_euclid(Node node, std::vector<)
 }
 */
 
+
+
+/*
+// Function for converting a p,q coordinate value into a euclidean coordinate using the pre-processed path to follow
+Node curve_to_euclid2(Node node, std::shared_ptr<CBITPath> global_path_ptr;)
+{
+  double p_val = node.p;
+  double q_val = node.q;
+  int p_ind =  bisection(global_path->p, p_val);
+
+  // Linearly interpolate a Euclidean Pose using the euclidean path and the relative p_val,q_val
+  // TODO: need to use steam or lgmath se(3) classes for these poses, for now just using a vector
+  Pose pose_c = lin_interpolate(p_ind, p_val);
+
+  double x_i = pose_c.x - sin(pose_c.yaw)*q_val;
+  double y_i = pose_c.y + cos(pose_c.yaw)*q_val;
+
+  // Experimental, also interpolate the z value
+  double z_i = pose_c.z; //+ cos(pose_c.yaw)*q_val; // I think here we just want to set the z to whatever the pose_c.z value
+
+  return Node(x_i,y_i,z_i);
+}
+
+Pose lin_interpolate2(int p_ind, double p_val)
+{
+  double p_max = global_path->p[(global_path->p.size() - 1)]; //TODO: Replace this with se(3)
+  double p_lower;
+  double p_upper;
+  if (p_val >= p_max) // if p_val is exactly the max (goal p) then return the final euclid pose
+  {
+    return Pose(global_path->path[(global_path->path.size() - 1)]);
+  }
+
+  else
+  {
+    p_upper = global_path->p[p_ind + 1];
+    p_lower = global_path->p[p_ind];
+  }
+
+  Pose start_pose = global_path->path[p_ind];
+  Pose end_pose = global_path->path[p_ind + 1];
+
+  double x_c = start_pose.x + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.x - start_pose.x);
+  double y_c = start_pose.y + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.y - start_pose.y);
+  double z_c = start_pose.z + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.z - start_pose.z);
+
+  // For angles, we dont really care about roll and pitch, these can be left 0 (atleast for now)
+  // For yaw need to be very careful of angle wrap around problem:
+  double angle_difference = std::fmod((std::fmod((end_pose.yaw - start_pose.yaw),(2.0*M_PI)) + (3.0*M_PI)),(2.0*M_PI)) - M_PI; // CHECK THIS!
+  double yaw_c = start_pose.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * angle_difference;
+
+  return Pose({x_c, y_c, z_c, 0.0, 0.0, yaw_c});
+
+}
+*/
+
 // Function for quickly finding the index j for the value in a sorted vector which is immediately below the function value.
 // in curve_to_euclid we use this function to efficiently find the index of the euclidean se(3) pose stored in the discrete path which
 // immediately preceders the current p,q point we are trying to convert back to euclidean.

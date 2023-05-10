@@ -40,6 +40,14 @@
 #pragma once
 
 // Note long term, this class should probably be inherited by the base path planner
+
+// enum for path traversal direction:
+enum PathDirection 
+{
+    PATH_DIRECTION_REVERSE = -1,
+    PATH_DIRECTION_FORWARD = 1
+};
+
 class CBITPlanner {
     public:
         CBITConfig conf;
@@ -78,7 +86,7 @@ class CBITPlanner {
         // Costmap pointer
         std::shared_ptr<CBITCostmap> cbit_costmap_ptr;
 
-        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr);
+        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
 
     protected:
     struct ChainInfo {
@@ -94,10 +102,10 @@ class CBITPlanner {
 
     private:
         void InitializePlanningSpace();
-        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr);
+        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
         void ResetPlanner();
-        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr);
-        std::shared_ptr<Node> UpdateState();
+        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
+        std::shared_ptr<Node> UpdateState(PathDirection path_direction);
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
         double BestVertexQueueValue();
@@ -137,5 +145,5 @@ class CBITPlanner {
             bool bool_result;
             Node col_node;
         };
-        struct collision_result discrete_collision_v2(double discretization, Node start, Node end);
+        struct collision_result discrete_collision_v2(double discretization, Node start, Node end, bool tight = false);
 };
