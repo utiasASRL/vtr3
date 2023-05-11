@@ -95,7 +95,7 @@ class CACFAR : public Detector<PointT> {
  public:
   CACFAR() = default;
   CACFAR(int width, int guard, double threshold, double threshold2,
-         double threshold3, double minr, double maxr, double range_offset
+         double threshold3, double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
