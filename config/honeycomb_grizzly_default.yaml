@@ -318,7 +318,7 @@
         sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.2
-        state_update_freq: 1.0
+        state_update_freq: 2.0
         update_state: true
         rand_seed: 1
         
@@ -353,19 +353,20 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 300.0, 300.0, 300.0, 6.50]
-        vel_error_cov: [10.0, 100.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [10.0, 10.0]
+        # Cost Function Covariance Matrices
+        pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 1000.0]
+        vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [30.0, 30.0]
         kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
-        lat_error_cov: [20.0]
+        lat_error_cov: [10.0]
         
         # Cost Function Weights
-        pose_error_weight: 5.0
-        vel_error_weight: 5.0
-        acc_error_weight: 5.0
-        kin_error_weight: 1000.0
+        pose_error_weight: 1.0
+        vel_error_weight: 1.0
+        acc_error_weight: 1.0
+        kin_error_weight: 1.0
         lat_error_weight: 0.01
-
+        
         #backup for tracking mpc
         #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
         #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]

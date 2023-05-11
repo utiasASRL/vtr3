@@ -1270,7 +1270,7 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
 std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
 {
   //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
-
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Robot Pose: x: " << new_state->x << "Robot Pose: y: " << new_state->y  <<"Robot Pose: yaw: " << new_state->yaw;
   //First calc the qmin distance to the euclidean path (borrow code from ROC generation)
   //To prevent us from having to search the entire euclidean path (and avoid crosses/loops) in the path, use the previous pose as a reference (will always be p=0)
   //and define a subset of points with a lookahead distance
@@ -1306,6 +1306,40 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
     }
   }
 
+  // Experimental code to dynamically predict path direction
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Closest Euclid Pt is - x: " << closest_pt.p << " y: " << closest_pt.q;
+  //CLOG(ERROR, "path_planning.cbit_planner") << "The Next Euclid Pt is - x: " << euclid_subset[closest_pt_ind+1].p << " y: " << euclid_subset[closest_pt_ind+1].q;
+  double test_dx = euclid_subset[closest_pt_ind+1].p - closest_pt.p;
+  double test_dy = euclid_subset[closest_pt_ind+1].q - closest_pt.q;
+  double test_yaw = atan2(test_dy,test_dx);
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Predicted Yaw is: " << test_yaw;
+  // Ensure that yaw1 and yaw2 are in the range -pi to pi
+  double yaw1 = fmod(test_yaw + 2*M_PI, 2*M_PI);
+  if (yaw1 < 0) {
+      yaw1 += 2*M_PI;
+  }
+  double yaw2 = fmod(new_state->yaw + 2*M_PI, 2*M_PI);
+  if (yaw2 < 0) {
+      yaw2 += 2*M_PI;
+  }
+
+  // Calculate the angle between the yaws and ensure it is in the range 0 to pi
+  double angle = fmod(fabs(yaw1 - yaw2), 2*M_PI);
+  if (angle > M_PI) {
+      angle = 2*M_PI - angle;
+  }
+
+  // Check if the angle is greater than 90 degrees
+  double path_direction2;
+  if (angle > M_PI/2) {
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
+      path_direction2 = -1.0;
+  } else {
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
+      path_direction2 = 1.0;
+  }
+
+
   // Once we have the closest point, we need to try to find the sign (above or below the path)
   // This is a little tricky, but I think what is reasonable is to create a plane with the closest point and its neighbours
   // Then depending on which side the new state point is of the plane, is the sign we use for q_min:
@@ -1339,9 +1373,10 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
   // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
-  q_min = q_min * q_sign;
+  q_min = q_min * q_sign * path_direction2;
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
+  /*
   switch (path_direction) {
     case PATH_DIRECTION_REVERSE:
       q_min = -q_min;
@@ -1353,7 +1388,7 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
       // Handle error case where path_direction is not a valid value
       break;
   }
-
+  */
 
 
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
