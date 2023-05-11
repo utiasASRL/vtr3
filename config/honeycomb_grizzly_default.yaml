@@ -318,7 +318,7 @@
         sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.2
-        state_update_freq: 1.0
+        state_update_freq: 2.0
         update_state: true
         rand_seed: 1
         
