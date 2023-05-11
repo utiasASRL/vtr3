@@ -1332,10 +1332,10 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
   // Check if the angle is greater than 90 degrees
   double path_direction2;
   if (angle > M_PI/2) {
-      CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
       path_direction2 = -1.0;
   } else {
-      CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
       path_direction2 = 1.0;
   }
 
