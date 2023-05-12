@@ -163,7 +163,7 @@
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 1.0 # was 0.3
+        max_translation: 0.3 # was 0.3
         max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
@@ -344,8 +344,8 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 1.1
-        max_lin_vel: 1.5
+        forward_vel: 1.5
+        max_lin_vel: 2.0
         max_ang_vel: 1.5
         robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
@@ -353,7 +353,7 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 1000.0]
+        pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 10.0]
         vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
         acc_error_cov: [30.0, 30.0]
         kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]

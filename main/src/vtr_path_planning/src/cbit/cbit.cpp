@@ -354,11 +354,13 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     CLOG(ERROR, "mpc_debug.cbit") << "TRYING TO SCHEDULE SPEED:";
     CLOG(ERROR, "mpc_debug.cbit") << "CURRENT SID IS:" << curr_sid;
     double avg_curvature = 0.0;
+    double end_of_path = 0.0;
     for (int i = curr_sid; i < curr_sid + 5; i++) // Lookahead hardcoded for now, todo, make this a distance based correlating value
     {
       // Handle end of path case
       if (i == (global_path_ptr->p.size()-1))
       {
+        end_of_path = 1.0;
         break;
       }
       avg_curvature = avg_curvature + global_path_ptr->disc_path_curvature[i];
@@ -366,15 +368,16 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     }
     avg_curvature = avg_curvature / 5;
     CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE CURVATURE IS:  " << avg_curvature;
-    double xy_curv_weight = 2.0; // hardocded for now, make a param
+    double xy_curv_weight = 5.0; // hardocded for now, make a param
+    double end_of_path_weight = 1.0; // hardocded for now, make a param
 
     if (VF > 0.0)
     {
-      VF = std::max(0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight)));
+      VF = std::max(0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight) + (end_of_path * end_of_path * end_of_path_weight)));
     }
     else
     {
-      VF = std::min(-0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight)));
+      VF = std::min(-0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight) + (end_of_path * end_of_path * end_of_path_weight)));
     }
     CLOG(ERROR, "mpc_debug.cbit") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
     // End of speed scheduler code

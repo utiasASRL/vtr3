@@ -22,7 +22,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
 
-      - htop # monitor hardware usage
+      #- htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
