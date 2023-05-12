@@ -36,7 +36,7 @@ inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto LidarCBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
-  auto base_config = CBIT::Config::fromROS(node, param_prefix);
+  auto base_config = CBIT::Config::fromROS(node, prefix);
 
   auto lidar_config = std::make_shared<Config>();
   auto casted_config =
