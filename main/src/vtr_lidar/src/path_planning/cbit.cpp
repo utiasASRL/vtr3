@@ -45,7 +45,7 @@ auto LidarCBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::
   
   //Future specific Lidar CBIT params can be added here
 
-  return config;
+  return lidar_config;
 }
 
 // Declare class as inherited from the BasePathPlanner
