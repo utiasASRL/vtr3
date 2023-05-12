@@ -80,7 +80,7 @@
       odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
       # # localization:
 
-      #bundle_adjustment: ["recall"] #["recall", "steam"]
+      bundle_adjustment: ["recall", "steam"]
 
       # preprocessing: ["extraction", "triangulation"]
       # odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]

@@ -221,7 +221,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
               CLOG(DEBUG, "stereo.keyframe_optimization") << "Noise \n" << noise_eval->value() << "\nMeas Noise:\n" << meas_covariance
                                                           << "\nLand Noise:\n" << cov;
 
-              //noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
+              noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
 
               //throw std::runtime_error("migrated points not implemented");
 
