@@ -27,7 +27,7 @@
 #include <random>
 #include <chrono> // For benchmarking
 #include <memory>
-
+#include <algorithm>
 
 #include "rclcpp/rclcpp.hpp"
 

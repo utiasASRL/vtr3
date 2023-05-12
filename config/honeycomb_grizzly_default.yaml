@@ -353,7 +353,6 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        # Cost Function Covariance Matrices
         pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 1000.0]
         vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
         acc_error_cov: [30.0, 30.0]

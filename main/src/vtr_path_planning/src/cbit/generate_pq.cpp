@@ -37,7 +37,7 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     // Iterate through all poses in disc_path, assign a p coordinate value to the pose to use for the curvilinear space reference
     int vect_size = disc_path.size();
     p.reserve(vect_size);
-    p.push_back(0);
+    p.push_back(0.0);
     sid.reserve(vect_size);
     sid.push_back(0);
     for (int i=1; i<vect_size; i++)
@@ -45,6 +45,20 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
         p.push_back(p[i-1] + delta_p_calc(disc_path[i-1], disc_path[i], alpha));
         sid.push_back(i);
     }
+
+
+    // 2D spline interpolation using Cubic B-Spline
+    Eigen::Spline<double, 2> spline = spline_path(disc_path);
+
+    // Calculate curvature along the teach path at each vertex
+    for (int i=0; i < p.size(); i++)
+    {
+        disc_path_curvature.push_back(1.0 / radius_of_curvature(p[i]/p.back(), spline)); // the input chord length should be normalized to [0,1] along the length of the path
+    }
+
+    // TODO: Generate Radius of Curvature Wormhole regions 
+
+
 
     CLOG(INFO, "path_planning.cbit") << "Successfully Built a Path in generate_pq.cpp and Displayed log";
     
@@ -86,11 +100,69 @@ double CBITPath::delta_p_calc(Pose start_pose, Pose end_pose, double alpha)
     return sqrt((dx * dx) + (dy * dy) + (dz * dz) + (alpha * abs_angle * abs_angle));
 }
 
-void CBITPath::spline_curvature()
+Eigen::Spline<double, 2> CBITPath::spline_path(std::vector<Pose> input_path)
 {
-    // TODO
-    auto test = 1;
+
+    Eigen::MatrixXd points(2, input_path.size());
+    for (int i = 0; i < input_path.size(); i++) 
+    {
+        points(0, i) = input_path[i].x;
+        points(1, i) = input_path[i].y;
+        //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << disc_path[i].x << " y: " << disc_path[i].y;
+    }
+
+    Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 3);
+    //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
+    // To query the spline, we use spline(test), where test is a normalized distance along the spline from 0 to 1
+    //double test_p = p[1] / p.back();
+    //double pred_x = spline(test_p)[0];
+    //double pred_y = spline(test_p)[1];
+    //CLOG(ERROR, "path_planning.corridor_debug") << "normalized p_test: " << test_p;
+    //CLOG(ERROR, "path_planning.corridor_debug") << "Estimated point at - x: " << pred_x << " y: " << pred_y;
+
+    return spline;
+}
+
+
+
+double CBITPath::radius_of_curvature(double dist, Eigen::Spline<double, 2> spline) 
+{
+    // The spline object cant generate state vector interpolations given an input p distance (chord length) using spline(p)
+    // Note p must be normalized between [0,1] on the total length of the path
+    double pred_x = spline(dist)[0];
+    double pred_y = spline(dist)[1];
+    // derivatives functions returns a matrix of size (spline dimension, min(spline_order, derivative))
+    // Where the rows correspond to each spline dimension and the columns the 0th, 1st, 2nd... derivatives
+    auto curvature = spline.derivatives(dist, 2); // returns a vector of size (spline dimension, min(spline_order, derivative))
+
     
+
+    // Calculating radius of curvature from the derivatives
+    double dx_dt = curvature(0,1);
+    double dy_dt = curvature(1,1);
+
+    double d2x_dt2 = curvature(0,2);
+    double d2y_dt2 = curvature(1,2);
+
+    // If using only the magnitude of radius of curvature:
+    double roc_magnitude = std::pow(std::pow(dx_dt, 2) + std::pow(dy_dt, 2), 1.5) / std::abs(dx_dt * d2y_dt2 - dy_dt * d2x_dt2);
+
+    // Calculating the sign of the radius of curvature, positive means curving left, negative means curving right
+    double cross_prod = dx_dt * d2y_dt2 - dy_dt * d2x_dt2; // compute the z-component of the cross product
+    int sign = (cross_prod > 0) ? 1 : -1; // determine the sign of the radius of curvature
+    double roc_signed = sign * std::pow(std::pow(dx_dt, 2) + std::pow(dy_dt, 2), 1.5) / std::abs(cross_prod);
+
+    double x_pred = curvature(0,0);
+    double y_pred = curvature(1,0);
+    CLOG(INFO, "path_planning.cbit") << "splined x is: " << x_pred;
+    CLOG(INFO, "path_planning.cbit") << "splined y is: " << y_pred;
+    CLOG(INFO, "path_planning.cbit") << "Radius of Curvature Before sign is: " << roc_magnitude;
+    CLOG(INFO, "path_planning.cbit") << "Radius of Curvature is: " << roc_signed;
+    
+    // TODO, return both signed and magnitude ROC's
+    // We use the magnitude ROC's for speed scheduling and the signed ones for generating wormhole regions
+
+    return roc_magnitude;
 }
 
 

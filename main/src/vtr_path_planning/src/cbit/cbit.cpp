@@ -336,6 +336,53 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     double DT = config_->horizon_step_size; // Horizon step size
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
 
+    // Experimental Speed Scheduler: (TODO: in progress - move to separate file longer term)
+    // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
+    // 1. XY curvature (implemneted)
+    // 2. YZ curvature (TODO)
+    // 3. XZ curvature (TODO)
+    // 4. Corridor Width (TODO)
+    // 5. Obstacle Presence (TODO)
+
+    // Pseudocode:
+    // - Estimate the current p value of the vehicle (doesnt need to be super precise so here we can imply opt to use the sid value)
+    // - Avergage the radius of curvature in the upcoming segments of the path
+    // - TODO: generate other scaling factors
+    // - Scale the forward velocity
+
+    // Basic implementation - weights hardcoded for now
+    CLOG(ERROR, "mpc_debug.cbit") << "TRYING TO SCHEDULE SPEED:";
+    CLOG(ERROR, "mpc_debug.cbit") << "CURRENT SID IS:" << curr_sid;
+    double avg_curvature = 0.0;
+    for (int i = curr_sid; i < curr_sid + 5; i++) // Lookahead hardcoded for now, todo, make this a distance based correlating value
+    {
+      // Handle end of path case
+      if (i == (global_path_ptr->p.size()-1))
+      {
+        break;
+      }
+      avg_curvature = avg_curvature + global_path_ptr->disc_path_curvature[i];
+
+    }
+    avg_curvature = avg_curvature / 5;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE CURVATURE IS:  " << avg_curvature;
+    double xy_curv_weight = 2.0; // hardocded for now, make a param
+
+    if (VF > 0.0)
+    {
+      VF = std::max(0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight)));
+    }
+    else
+    {
+      VF = std::min(-0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight)));
+    }
+    CLOG(ERROR, "mpc_debug.cbit") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
+    // End of speed scheduler code
+
+
+
+
+
     // Pose Covariance Weights
     Eigen::Matrix<double, 6, 6> pose_noise_vect;
     pose_noise_vect = config_->pose_error_cov;
