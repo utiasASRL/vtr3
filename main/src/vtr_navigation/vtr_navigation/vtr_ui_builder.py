@@ -28,7 +28,7 @@ class VTRUIProxy(BaseProxy):
 
   _exposed_ = ('get_graph_state', 'get_robot_state', 'get_following_route', 'get_server_state', 'get_task_queue_state',
                'set_pause', 'add_goal', 'cancel_goal', 'annotate_route', 'move_graph', 'move_robot', 'merge',
-               'confirm_merge', 'continue_teach', 'change_env_info')
+               'confirm_merge', 'continue_teach', 'change_env_info', 'get_map_info')
 
   def get_graph_state(self):
     return self._callmethod('get_graph_state')
@@ -74,6 +74,9 @@ class VTRUIProxy(BaseProxy):
 
   def change_env_info(self, env_info):
     return self._callmethod('change_env_info', args=(env_info,))
+  
+  def get_map_info(self):
+    return self._callmethod('get_map_info')
 
 
 def build_master(vtr_ui_class=VTRUI):

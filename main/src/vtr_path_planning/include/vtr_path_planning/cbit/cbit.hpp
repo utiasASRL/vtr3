@@ -75,7 +75,7 @@ class CBIT : public BasePathPlanner {
     int rand_seed = 1;
 
     // ROC
-    double roc_lookahead = 5.0;
+    double roc_lookahead = 1.0;
     int roc_discretization = 40;
     double roc_q_tolerance = 0.001;
 

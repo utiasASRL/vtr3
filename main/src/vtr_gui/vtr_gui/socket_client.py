@@ -90,6 +90,13 @@ def robot_state_from_ros(ros_robot_state):
       'target_localized': ros_robot_state.target_localized,
   }
 
+def map_info_from_ros(ros_map_info):
+  return {
+      'lat': ros_map_info.lat,
+      'lng': ros_map_info.lng,
+      'theta': ros_map_info.theta,
+      'scale': ros_map_info.scale,
+  }
 
 def following_route_from_ros(ros_following_route):
   return {'ids': [id for id in ros_following_route.ids]}
@@ -195,6 +202,10 @@ class SocketVTRUI(VTRUI):
   def get_robot_state(self):
     ros_robot_state = super().get_robot_state()
     return robot_state_from_ros(ros_robot_state)
+  
+  def get_map_info(self):
+    ros_map_info = super().get_map_info()
+    return map_info_from_ros(ros_map_info)
 
   def get_server_state(self):
     ros_server_state = super().get_server_state()

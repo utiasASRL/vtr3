@@ -224,7 +224,8 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         const auto accel_diff = steam::vspace::AdditionEvaluator<2>::MakeShared(vel_state_vars[i], steam::vspace::NegationEvaluator<2>::MakeShared(vel_state_vars[i-1]));
         const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, accelLossFunc);
         opt_problem.addCostTerm(accel_cost_term);
-        }   
+        }  
+        
         
       }
 
@@ -277,6 +278,7 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         opt_problem.addCostTerm(lat_cost_term_right);
         const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, latLossFunc);
         opt_problem.addCostTerm(lat_cost_term_left);
+
       
       }
     }
@@ -288,11 +290,11 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     // Initialize solver parameters
     SolverType::Params params;
     params.verbose = true; // Makes the output display for debug when true
-    params.relative_cost_change_threshold = 1e-6;
+    params.relative_cost_change_threshold = 1e-4;
     params.max_iterations = 100;
-    params.absolute_cost_change_threshold = 1e-6;
+    params.absolute_cost_change_threshold = 1e-4;
     params.backtrack_multiplier = 0.5; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
-    params.max_backtrack_steps = 200; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
+    params.max_backtrack_steps = 400; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
     //params.ratio_threshold_shrink = 0.1; // Dogleg Specific Params, will fail to build if using GaussNewtonSolver
     /// Grow trust region if ratio of actual to predicted cost reduction above
     /// this (range: 0.0-1.0)

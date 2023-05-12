@@ -20,7 +20,7 @@ import React from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet-rotatedmarker"; // enable marker rotation
-import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, ZoomControl, ImageOverlay } from "react-leaflet";
 import { kdTree } from "kd-tree-javascript";
 
 import {fetchWithTimeout} from "../../index"
@@ -39,6 +39,7 @@ import SelectorStartSVG from "../../images/selector-start.svg";
 import MoveGraphTranslationSvg from "../../images/move-graph-translation.svg";
 import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
 import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
+import MyhalPlan from "../../images/myhal-plan.svg"
 
 /// pose graph constants
 const ROUTE_TYPE_COLOR = ["#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#00bcd4", "#2196f3", "#9c27b0"];
@@ -129,8 +130,10 @@ class GraphMap extends React.Component {
       move_graph_change: { lng: 0, lat: 0, theta: 0, scale: 1 },
       // move robot
       move_robot_vertex: { lng: 0, lat: 0, id: -1 },
+      // map center
+      map_center: {lat: 43.78220, lng: -79.4661},
     };
-
+    this.fetchMapCenter()
     /// leaflet map
     this.map = null; // leaflet map instance
 
@@ -210,14 +213,18 @@ class GraphMap extends React.Component {
       merge_ids,
       move_graph_change,
       move_robot_vertex,
+      map_center
     } = this.state;
-
+    const imageBounds = [
+      [43.660511, -79.397019], // Bottom-left coordinates of the image
+      [43.661091, -79.395995], // Top-right coordinates of the image
+    ];
     return (
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
         <MapContainer
-        
-          center={[43.78220, -79.4661]} /* Jordy Modification For PETAWAWA center={[45.8983, -77.2829]} => TODO We should make this set dynamically from the yaml config*/
+          center={[map_center.lat, map_center.lng]}
+          // center={[43.6605, -79.3964]} /* Jordy Modification For PETAWAWA center={[45.8983, -77.2829]} => TODO We should make this set dynamically from the yaml config*/
           zoom={18}
           zoomControl={false}
           whenCreated={this.mapCreatedCallback.bind(this)}
@@ -228,6 +235,8 @@ class GraphMap extends React.Component {
             url="/tile/{s}/{x}/{y}/{z}" // load from backend (potentially cached)
             maxZoom={22}
           />
+          {/* Add the ImageOverlay component to the map */}
+          <ImageOverlay url={MyhalPlan} bounds={imageBounds} />
           <ZoomControl position="bottomright" />
         </MapContainer>
         <ToolsMenu
@@ -264,6 +273,28 @@ class GraphMap extends React.Component {
         <TaskQueue socket={socket} />
       </>
     );
+  }
+
+  fetchMapCenter() {
+    console.info("Fetching the map info...");
+    fetch("/vtr/map_info")
+      .then((response) => {
+        if (response.status !== 200) throw new Error("Failed to fetch map info: " + response.status);
+        response.json().then((data) => {
+          // console.info("Map center state was: ", this.state.map_center)
+          console.info("Received the map info: ", data);
+          const map_center_val = this.state.map_center
+          if (map_center_val != {lat: data.lat, lng: data.lng}){
+            this.setState({map_center: {lat: data.lat, lng: data.lng}});
+            if (this.map){
+              this.map.setView([this.state.map_center.lat, this.state.map_center.lng]) 
+            }
+        }
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   }
 
   /** @brief Leaflet map creationg callback */
