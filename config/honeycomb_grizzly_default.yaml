@@ -58,7 +58,7 @@
       localization_skippable: false
       task_queue_num_threads: 1
       task_queue_size: -1
-      
+
       route_completion_translation_threshold: 0.5
 
       chain:
@@ -241,7 +241,7 @@
         support_threshold: 2.5
 
         influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.8 # was 0.3 Jordy 
+        minimum_distance: 0.8 # was 0.3 Jordy
 
         # cost map
         costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
@@ -296,22 +296,6 @@
     path_planning:
       type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
-      teb:
-        visualize: true
-        extrapolate: false
-        extrapolation_timeout: 2.0
-        lookahead_distance: 8.5
-        robot_model: circular
-        robot_radius: 0.5
-        map_frame: planning frame
-        enable_homotopy_class_planning: true
-        free_goal_vel: true
-        max_vel_x: 0.6
-        max_vel_y: 0.0
-        max_vel_theta: 0.3
-        min_turning_radius: 3
-        weight_viapoint: 0.5
-        weight_costmap: 100.0
       cbit:
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
@@ -321,7 +305,7 @@
         state_update_freq: 2.0
         update_state: true
         rand_seed: 1
-        
+
         # Planner Tuning Params
         initial_samples: 300
         batch_samples: 100
@@ -339,7 +323,7 @@
       costmap:
         costmap_filter_value: 0.01
         costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
-        
+
       mpc:
         # Controller Params
         horizon_steps: 20
@@ -359,19 +343,19 @@
         acc_error_cov: [30.0, 30.0]
         kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
         lat_error_cov: [10.0]
-        
+
         # Cost Function Weights
         pose_error_weight: 1.0
         vel_error_weight: 1.0
         acc_error_weight: 1.0
         kin_error_weight: 1.0
         lat_error_weight: 0.01
-        
+
         #backup for tracking mpc
         #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
         #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
         #acc_error_cov: [0.1, 0.75]
         #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        
+
         # Misc
         command_history_length: 100

@@ -478,7 +478,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     }
  
     // Build the dense map, publish and save the results so the planner can access it
-    //const auto dense_costmap = std::make_shared<DenseCostMap>(config_->resolution, config_->size_x, config_->size_y); // need to delcare this earlier
+    //const auto dense_costmap = std::make_shared<DenseCostMap>(config_->resolution, config_->size_x, config_->size_y); // need to declare this earlier
 
     dense_costmap->update(filtered_loc_map);
     

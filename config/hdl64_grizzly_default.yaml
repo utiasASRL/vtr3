@@ -316,36 +316,20 @@
         visualize: true
     path_planning:
       type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
-      control_period: 50 # ms
-      teb:
-        visualize: true
-        extrapolate: false
-        extrapolation_timeout: 2.0
-        lookahead_distance: 8.5
-        robot_model: circular
-        robot_radius: 0.5
-        map_frame: planning frame
-        enable_homotopy_class_planning: true
-        free_goal_vel: true
-        max_vel_x: 0.6
-        max_vel_y: 0.0
-        max_vel_theta: 0.3
-        min_turning_radius: 3
-        weight_viapoint: 0.5
-        weight_costmap: 100.0
+      control_period: 100 # ms
       cbit:
         obs_padding: 0.0
-        curv_to_euclid_discretization: 20
+        curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
-        corridor_resolution: 0.05
-        state_update_freq: 1.0
+        corridor_resolution: 0.2
+        state_update_freq: 2.0
         update_state: true
         rand_seed: 1
 
         # Planner Tuning Params
         initial_samples: 300
-        batch_samples: 150
+        batch_samples: 100
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5
@@ -360,28 +344,38 @@
       costmap:
         costmap_filter_value: 0.01
         costmap_history: 20 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
-
       mpc:
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 0.75
-        max_lin_vel: 1.25
-        max_ang_vel: 0.75
+        forward_vel: 1.1
+        max_lin_vel: 1.5
+        max_ang_vel: 1.5
+        robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+
         vehicle_model: "unicycle"
 
-        # Cost Function Weights
-        pose_error_cov: [0.5, 0.5, 0.5, 10000.0, 10000.0, 10000.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
-        vel_error_cov: [1.0, 10.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [1.0, 1.0]
-        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        # Cost Function Covariance Matrices
+        # Cost Function Covariance Matrices
+        pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 1000.0]
+        vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [30.0, 30.0]
+        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
+        lat_error_cov: [10.0]
 
-        #backup
+        # Cost Function Weights
+        pose_error_weight: 1.0
+        vel_error_weight: 1.0
+        acc_error_weight: 1.0
+        kin_error_weight: 1.0
+        lat_error_weight: 0.01
+
+        #backup for tracking mpc
         #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
         #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
         #acc_error_cov: [0.1, 0.75]
         #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
 
         # Misc
-
         command_history_length: 100
