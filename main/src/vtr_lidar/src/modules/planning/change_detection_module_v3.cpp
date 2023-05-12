@@ -497,11 +497,14 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     //CLOG(WARNING, "obstacle_detection.cbit") << "Successfully update the dense costmap"; 
   
 
-    // publish the filtered occupancy grid
-    auto filtered_costmap_msg = dense_costmap->toCostMapMsg();
-    filtered_costmap_msg.header.frame_id = "loc vertex frame";
-    // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    filtered_costmap_pub_->publish(filtered_costmap_msg);
+    if (config_->visualize) {
+      // publish the filtered occupancy grid
+      auto filtered_costmap_msg = dense_costmap->toCostMapMsg();
+      filtered_costmap_msg.header.frame_id = "loc vertex frame";
+      // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      filtered_costmap_pub_->publish(filtered_costmap_msg);
+    }
+    
 
     // Debug check that the filtered maps look okay
     vtr::lidar::BaseCostMap::XY2ValueMap dense_map = dense_costmap->filter(0.01);
