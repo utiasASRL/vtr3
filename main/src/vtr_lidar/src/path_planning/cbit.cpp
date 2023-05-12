@@ -36,80 +36,14 @@ inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto LidarCBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
-  auto config = std::make_shared<Config>();
+  auto base_config = CBIT::Config::fromROS(node, param_prefix);
 
-  // Base planner configs
-  config->control_period = (unsigned int)node->declare_parameter<int>(prefix + ".control_period", config->control_period);
-
-  // robot configuration
-  config->robot_model = node->declare_parameter<std::string>(prefix + ".teb.robot_model", config->robot_model);
-  config->robot_radius = node->declare_parameter<double>(prefix + ".teb.robot_radius", config->robot_radius);
-
-  // CBIT Configs
-  // ENVIRONMENT:
-  config->obs_padding = node->declare_parameter<double>(prefix + ".cbit.obs_padding", config->obs_padding);
-  config->curv_to_euclid_discretization= node->declare_parameter<int>(prefix + ".cbit.curv_to_euclid_discretization", config->curv_to_euclid_discretization);
-  config->sliding_window_width = node->declare_parameter<double>(prefix + ".cbit.sliding_window_width", config->sliding_window_width);
-  config->sliding_window_freespace_padding = node->declare_parameter<double>(prefix + ".cbit.sliding_window_freespace_padding", config->sliding_window_freespace_padding);
-  config->corridor_resolution = node->declare_parameter<double>(prefix + ".cbit.corridor_resolution", config->corridor_resolution);
-  config->state_update_freq = node->declare_parameter<double>(prefix + ".cbit.state_update_freq", config->state_update_freq);
-  config->update_state = node->declare_parameter<bool>(prefix + ".cbit.update_state", config->update_state);
-  config->rand_seed = node->declare_parameter<int>(prefix + ".cbit.rand_seed", config->rand_seed);
+  auto lidar_config = std::make_shared<Config>();
+  auto casted_config =
+      std::static_pointer_cast<CBIT::Config>(lidar_config);
+  *casted_config = *base_config;  // copy over base config
   
-  // PLANNER TUNING PARAMS:
-  config->initial_samples = node->declare_parameter<int>(prefix + ".cbit.initial_samples", config->initial_samples);
-  config->batch_samples = node->declare_parameter<int>(prefix + ".cbit.batch_samples", config->batch_samples);
-  config->pre_seed_resolution = node->declare_parameter<double>(prefix + ".cbit.pre_seed_resolution", config->pre_seed_resolution);
-  config->alpha = node->declare_parameter<double>(prefix + ".cbit.alpha", config->alpha);
-  config->q_max = node->declare_parameter<double>(prefix + ".cbit.q_max", config->q_max);
-  config->frame_interval = node->declare_parameter<int>(prefix + ".cbit.frame_interval", config->frame_interval); // going to get rid of this
-  config->iter_max = node->declare_parameter<int>(prefix + ".cbit.iter_max", config->iter_max); // going to get rid of this
-  config->eta = node->declare_parameter<double>(prefix + ".cbit.eta", config->eta);
-  config->rad_m_exhange = node->declare_parameter<double>(prefix + ".rad_m_exhange", config->rad_m_exhange);
-  config->initial_exp_rad = node->declare_parameter<double>(prefix + ".cbit.initial_exp_rad", config->initial_exp_rad);
-  config->extrapolation = node->declare_parameter<bool>(prefix + ".cbit.extrapolation", config->extrapolation);
-
-
-  // MPC Configs:
-  // CONTROLLER PARAMS
-  config->horizon_steps = node->declare_parameter<int>(prefix + ".mpc.horizon_steps", config->horizon_steps);
-  config->horizon_step_size = node->declare_parameter<double>(prefix + ".mpc.horizon_step_size", config->horizon_step_size);
-  config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
-  config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
-  config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
-  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".robot_linear_velocity_scale", config->robot_linear_velocity_scale);
-  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".robot_angular_velocity_scale", config->robot_angular_velocity_scale);
-
-
-  // COST FUNCTION Covariances
-  const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
-  config->pose_error_cov.diagonal() << pose_error_diag[0], pose_error_diag[1], pose_error_diag[2], pose_error_diag[3], pose_error_diag[4], pose_error_diag[5];
-
-  const auto vel_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.vel_error_cov", std::vector<double>());
-  config->vel_error_cov.diagonal() << vel_error_diag[0], vel_error_diag[1];
-
-  const auto acc_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.acc_error_cov", std::vector<double>());
-  config->acc_error_cov.diagonal() << acc_error_diag[0], acc_error_diag[1];
-
-  const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
-  config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
-  
-  const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
-  config->lat_error_cov.diagonal() << lat_error_diag[0];
-
-  // COST FUNCTION WEIGHTS
-  config->pose_error_weight = node->declare_parameter<double>(prefix + ".mpc.pose_error_weight", config->pose_error_weight);
-  config->vel_error_weight = node->declare_parameter<double>(prefix + ".mpc.vel_error_weight", config->vel_error_weight);
-  config->acc_error_weight = node->declare_parameter<double>(prefix + ".mpc.acc_error_weight", config->acc_error_weight);
-  config->kin_error_weight = node->declare_parameter<double>(prefix + ".mpc.kin_error_weight", config->kin_error_weight);
-  config->lat_error_weight = node->declare_parameter<double>(prefix + ".mpc.lat_error_weight", config->lat_error_weight);
-
-  // MISC
-  config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
-
-  // COSTMAP PARAMS
-  config->costmap_filter_value = node->declare_parameter<double>(prefix + ".costmap.costmap_filter_value", config->costmap_filter_value);
-  config->costmap_history = node->declare_parameter<int>(prefix + ".costmap.costmap_history", config->costmap_history);
+  //Future specific Lidar CBIT params can be added here
 
   return config;
 }
