@@ -13,6 +13,7 @@
       - tactic.module.live_mem_manager
       - tactic.module.graph_mem_manager
       - torch
+      - torch.sample
         # path planner
         # "path_planning",
         # "path_planning.teb",
@@ -117,9 +118,9 @@
     odometry:
       network:
         type: torch.sample
-        use_gpu: true
+        use_gpu: false
         abs_filepath: false
-        filepath: sample_model.pt
+        filepath: sample_model_script.pt
       icp:
         type: lidar.odometry_icp
         use_trajectory_estimation: true

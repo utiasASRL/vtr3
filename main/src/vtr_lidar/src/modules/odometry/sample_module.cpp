@@ -41,7 +41,8 @@ void TestNNModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   std::vector<float> inputs {2, 5};
-  evaluateModel<float>(inputs, {1, 2});
+  auto tensor = evaluateModel<float>(inputs, {1, 2});
+  CLOG(INFO, "torch.sample") << tensor;
                             
 }
 
