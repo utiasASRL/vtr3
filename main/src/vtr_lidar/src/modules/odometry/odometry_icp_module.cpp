@@ -351,7 +351,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
     GaussNewtonSolver solver(problem, params);
-    solver.optimize();
+
+    try{
+      solver.optimize();
+    } catch (std::runtime_error& e) {
+      CLOG(WARNING, "lidar.odometry_icp") <<  "Steam failed.\n e.what(): " << e.what();
+      break;
+    }
     Covariance covariance(solver);
     timer[3]->stop();
 
