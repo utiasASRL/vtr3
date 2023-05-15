@@ -45,7 +45,7 @@ ament_target_dependencies(${PROJECT_NAME}_mpc
 
 file(GLOB_RECURSE SRC src/cbit/*.cpp)
 add_library(${PROJECT_NAME}_cbit ${SRC})
-target_link_libraries(${PROJECT_NAME}_cbit ${PROJECT_NAME}_base)
+target_link_libraries(${PROJECT_NAME}_cbit ${PROJECT_NAME}_mpc)
 ament_target_dependencies(${PROJECT_NAME}_cbit
   rclcpp tf2 tf2_ros tf2_eigen
   lgmath steam

@@ -235,8 +235,8 @@ void Navigator::process() {
 
 #ifdef VTR_ENABLE_VISION
     if (auto qdata = std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
-      // \todo change to point cloud. Maybe make an int value rather than binary
-      pointcloud_in_queue_ = false;
+      // \todo Maybe make an int value rather than binary
+      image_in_queue_ = false;
 #endif
 
     // unlock the queue so that new data can be added
@@ -301,7 +301,7 @@ void Navigator::cameraCallback(
   LockGuard lock(mutex_);
   CLOG(DEBUG, "navigation") << "Received an image.";
 
-  if (pointcloud_in_queue_) {
+  if (image_in_queue_) {
     CLOG(WARNING, "navigation")
         << "Skip image message because there is already "
            "one in queue.";
@@ -330,7 +330,7 @@ void Navigator::cameraCallback(
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);
-  pointcloud_in_queue_ = true;
+  image_in_queue_ = true;
   cv_set_or_stop_.notify_one();
 };
 #endif

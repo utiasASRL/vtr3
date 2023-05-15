@@ -17,7 +17,6 @@
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
-//#include "vtr_lidar/cache.hpp"
 
 // This file is used to generate a tracking mpc output velocity command given a discretized path to follow and optimization parameters
 // It is used in cbit.cpp in both the vtr_lidar package (obstacle avoidance) and vtr_path_planning packages (obstacle free) in the computeCommand function
