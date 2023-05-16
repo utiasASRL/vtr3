@@ -28,11 +28,11 @@
       - pose_graph
         # pipeline specific
       #- lidar.pipeline
-      #- lidar.velodyne_converter_v2
+      - lidar.velodyne_converter_v2
       - lidar.preprocessing
-        # "lidar.odometry_icp",
+      - lidar.odometry_icp
         # "lidar.odometry_map_maintenance",
-        # "lidar.vertex_test",
+      - lidar.vertex_test
         # "lidar.localization_map_recall",
         # "lidar.localization_icp",
         # "lidar.intra_exp_merging",
@@ -90,8 +90,8 @@
         - mapping
         - vertex_test
         - intra_exp_merging
-        #- dynamic_detection
-        #- inter_exp_merging
+        - dynamic_detection
+        - inter_exp_merging
         - memory
       localization:
         - recall
@@ -112,7 +112,7 @@
         type: lidar.preprocessing
         num_threads: 8
 
-        crop_range: 20.0
+        crop_range: 40.0
 
         frame_voxel_size: 0.2 # grid subsampling voxel size
 
@@ -150,7 +150,7 @@
           - 1.0
         num_threads: 8
         first_num_steps: 2
-        initial_max_iter: 10
+        initial_max_iter: 8
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
         refined_max_iter: 50
@@ -159,7 +159,7 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.5
+        min_matched_ratio: 0.85
         visualize: true
       mapping:
         type: lidar.odometry_map_maintenance_v2
@@ -171,7 +171,7 @@
       vertex_test:
         type: lidar.vertex_test
         max_translation: 0.5
-        max_rotation: 10.0
+        max_rotation: 5.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
         depth: 6.0
@@ -182,8 +182,8 @@
       dynamic_detection:
         type: lidar.dynamic_detection
         depth: 12.0
-        horizontal_resolution: 0.041 # 0.02042
-        vertical_resolution: 0.026 # 0.01326
+        horizontal_resolution: 0.1728 # 0.02042
+        vertical_resolution: 0.00872664626 # 0.01326
         max_num_observations: 10000
         min_num_observations: 4
         dynamic_threshold: 0.3
@@ -315,7 +315,7 @@
         run_async: true
         visualize: true
     path_planning:
-      type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       cbit:
         obs_padding: 0.0
@@ -343,7 +343,8 @@
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 20 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
+        costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
+
       mpc:
         # Controller Params
         horizon_steps: 20

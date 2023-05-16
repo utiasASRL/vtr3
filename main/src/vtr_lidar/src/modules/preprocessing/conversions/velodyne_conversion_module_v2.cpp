@@ -35,7 +35,7 @@ void velodyneCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
 
     p.rho = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
     p.theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
-    p.phi = atan2(p.y, p.x) + M_PI / 2;
+    p.phi = atan2(p.y, p.x); // + M_PI / 2;
 
     if (i > 0 && (p.phi - pm1.phi) > 1.5 * M_PI)
       p.phi -= 2 * M_PI;
@@ -48,7 +48,7 @@ void estimateTime(pcl::PointCloud<PointWithInfo> &point_cloud, int64_t time_offs
   for (size_t i = 0; i < point_cloud.size(); i++) {
     auto &p = point_cloud[i];
 
-    p.timestamp = time_offset + static_cast<int64_t>(p.phi / angular_vel * 1e9);
+    p.timestamp = time_offset + static_cast<int64_t>((p.phi) / angular_vel * 1e9);
   }
 }
 
@@ -97,7 +97,7 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).x = *iter_x;
     point_cloud->at(idx).y = *iter_y;
     point_cloud->at(idx).z = *iter_z;
-    point_cloud->at(idx).flex14 = *iter_intensity;
+    point_cloud->at(idx).intensity = *iter_intensity;
   }
 
  
@@ -151,7 +151,7 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
     std::vector<int> indices;
     indices.reserve(filtered_point_cloud->size());
     for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
-      if (i % config_->horizontal_downsample == 0)
+      if (i % config_->horizontal_downsample == 0 )//&& (*point_cloud)[i].phi < -M_PI)
         indices.emplace_back(i);
     }
     *filtered_point_cloud =
