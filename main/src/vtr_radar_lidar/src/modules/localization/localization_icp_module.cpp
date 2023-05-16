@@ -150,7 +150,16 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     aligned_map_normals_mat = T_s_m * map_normals_mat;
 
     // project to 2D
-    aligned_map_mat.row(2).setZero();
+    for (uint j = 0; j < aligned_map_mat.cols(); ++j) {
+        const double px = aligned_map_mat(0, j);
+        const double py = aligned_map_mat(1, j);
+        const double pz = aligned_map_mat(2, j);
+        const double rho = std::sqrt(px * px + py * py + pz * pz);
+        const double phi = std::atan2(py, px);
+        aligned_map_mat(0, j) = rho * std::cos(phi);
+        aligned_map_mat(1, j) = rho * std::sin(phi);
+        aligned_map_mat(2, j) = 0.0;
+    }
     aligned_map_normals_mat.row(2).setZero();
     // \todo double check correctness of this normal projection
     Eigen::MatrixXf aligned_map_norms_mat = aligned_map_normals_mat.colwise().norm();
