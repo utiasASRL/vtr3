@@ -108,6 +108,10 @@ typedef message_filters::sync_policies::ApproximateTime<
   bool pointcloud_in_queue_ = false;
 #endif
 
+#ifdef VTR_ENABLE_VISION
+  bool image_in_queue_ = false;
+#endif
+
   /// VTR building blocks
   GraphMapServer::Ptr graph_map_server_;
   tactic::Graph::Ptr graph_;
