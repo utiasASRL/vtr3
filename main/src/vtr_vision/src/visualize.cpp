@@ -671,10 +671,9 @@ cv::Scalar getChannelColor(std::string channel_name) {
   return cv::Scalar(blue, green, red, 125);
 }
 
-/*void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
+void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                     const pose_graph::RCGraph::ConstPtr &graph,
-                    std::string suffix, int idx) {
-  (void)idx;
+                    std::string suffix) {
   // check if the required data is in the cache
   if (!qdata.rig_names.valid() || !qdata.map_landmarks.valid() ||
       !qdata.ransac_matches.valid() ||
@@ -697,26 +696,26 @@ cv::Scalar getChannelColor(std::string channel_name) {
       query_landmarks[0].observations.channels.back().name + "/" +
       query_landmarks[0].observations.channels.back().cameras[0].name + suffix;
 
-  // setup the visualization image stream
-  std::string stream_name = rig_names.at(0) + "_visualization_images";
-  for (const auto &r : graph->runs())
-    r.second->registerVertexStream<vtr_messages::msg::Image>(
-        stream_name, true, pose_graph::RegisterMode::Existing);
 
   // get the map image from the graph.
-  auto map_vertex = graph->at(*qdata.map_id);
-  common::timing::SimpleTimer viz_timer;
-  map_vertex->load(stream_name);
-  auto ros_image =
-      map_vertex->retrieveKeyframeData<vtr_messages::msg::Image>(stream_name);
+  auto map_vertex = graph->at(*qdata.vid_loc);
+
+  // setup the visualization image stream
+  std::string stream_name = rig_names.at(0) + "_visualization_images";
+  auto locked_img_msg = map_vertex->retrieve<vtr_messages::msg::Image>(
+          stream_name, "vtr_messages/msg/Image");
+  if (locked_img_msg == nullptr){
+    CLOG(WARNING, "stereo.visualization") << "Image for MEL is null";
+    return;
+  }
+  auto locked_msg = locked_img_msg->sharedLocked();
+  auto ros_image = locked_msg.get().getDataPtr();
+
   if (ros_image == nullptr) {
     LOG(WARNING)
         << "Could not retrieve visualization image from the graph! NOT "
            "displaying MEL matches.";
     return;
-  }
-  if (viz_timer.elapsedMs() >= 20) {
-    LOG(WARNING) << __func__ << " loading an image took " << viz_timer;
   }
   auto input_image = messages::wrapImage(*ros_image);
   auto display_image = setupDisplayImage(input_image);
@@ -739,7 +738,7 @@ cv::Scalar getChannelColor(std::string channel_name) {
       for (auto &match : channel_matches.matches) {
         // get the run id of the map landmark.
         auto map_lm_id = migrated_landmark_ids[match.first];
-        auto from_vid = graph->fromPersistent(map_lm_id.from_id.persistent);
+        auto from_vid = VertexId(map_lm_id.from_id.vid);
         uint32_t map_run = from_vid.majorId();
         const auto &keypoint = query_camera_obs.points[match.second];
         const auto &point = query_channel_lm.points.col(match.second);
@@ -796,7 +795,7 @@ cv::Scalar getChannelColor(std::string channel_name) {
     std::lock_guard<std::mutex> lock(vis_mtx);
     cv::waitKey(1);
   }
-}*/
+}
 
 }  // namespace visualize
 }  // namespace vision

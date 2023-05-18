@@ -69,7 +69,7 @@ void StereoPipeline::preprocess_(const tactic::QueryCache::Ptr &qdata0, const ta
 void StereoPipeline::runOdometry_(const tactic::QueryCache::Ptr &qdata0, const tactic::OutputCache::Ptr &output0,
                    const tactic::Graph::Ptr &graph,
                    const std::shared_ptr<tactic::TaskExecutor> &executor) {
-  // auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
+
   auto &qdata = dynamic_cast<CameraQueryCache &>(*qdata0);
  
   qdata.T_r_m.emplace(*qdata.T_r_v_odo);
@@ -160,8 +160,6 @@ tactic::EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
     return T_q_m;
   }
   
-  // since we don't have a trajectory, we can't accurately estimate T_q_m
-
   Eigen::Matrix<double,6,1> xi_m_r_in_r_odo(dt * w_v_r_in_r_odo_);
   T_q_m = tactic::EdgeTransform(xi_m_r_in_r_odo);
   T_q_m.setCovariance(cov);

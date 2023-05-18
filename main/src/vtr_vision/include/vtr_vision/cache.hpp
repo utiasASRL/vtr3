@@ -88,16 +88,9 @@ struct CameraQueryCache : public tactic::QueryCache {
   // localization
   tactic::Cache<tactic::RunIdSet> recommended_experiences;
   tactic::Cache<pose_graph::RCGraphBase::Ptr> localization_map;
-  tactic::Cache<Eigen::Matrix4Xd> migrated_points;
-  tactic::Cache<Eigen::Matrix3Xd> migrated_points_3d;
-  tactic::Cache<Eigen::Matrix<double, 9, Eigen::Dynamic>> migrated_covariance;
-  tactic::Cache<std::vector<bool>> migrated_validity;
-  tactic::Cache<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
-  tactic::Cache<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
   tactic::Cache<MigrationMap> landmark_offset_map;
   tactic::Cache<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
   tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
-  tactic::Cache<common::timing::SimpleTimer> loc_timer;
   */
   tactic::Cache<std::mutex> vis_mutex;
 
