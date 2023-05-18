@@ -44,6 +44,7 @@ KeyframeOptimizationModule::Config::ConstPtr KeyframeOptimizationModule::Config:
   keyframe_config->depth_prior_enable = node->declare_parameter<bool>(param_prefix + ".depth_prior_enable", keyframe_config->depth_prior_enable);
   keyframe_config->depth_prior_weight = node->declare_parameter<double>(param_prefix + ".depth_prior_weight", keyframe_config->depth_prior_weight);
   keyframe_config->use_migrated_points = node->declare_parameter<bool>(param_prefix + ".use_migrated_points", keyframe_config->use_migrated_points);
+  keyframe_config->min_inliers = node->declare_parameter<int>(param_prefix + ".min_inliers", keyframe_config->min_inliers);
   
   // clang-format on
 
@@ -212,7 +213,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
               const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(
                   migrated_cov.col(match.first).data());
 
-              // // set up the noise for the stereo/mono configurations
+              // set up the noise for the stereo
               using NoiseEval = steam::stereo::LandmarkNoiseEvaluator ;
               auto noise_eval = std::make_shared<NoiseEval>(
                   landVar->value(), cov, meas_covariance,
@@ -221,7 +222,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
               CLOG(DEBUG, "stereo.keyframe_optimization") << "Noise \n" << noise_eval->value() << "\nMeas Noise:\n" << meas_covariance
                                                           << "\nLand Noise:\n" << cov;
 
-              noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
+              //noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
 
               //throw std::runtime_error("migrated points not implemented");
 
@@ -353,7 +354,7 @@ bool KeyframeOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
   }
 
   // If there are not enough inliers then abort.
-  if (inlier_count < 6 && keyframe_config_->pose_prior_enable == false) {
+  if (inlier_count < keyframe_config_->min_inliers && keyframe_config_->pose_prior_enable == false) {
     LOG(ERROR) << "KeyframeOptimizationModule::verifyInputData(): Insufficient "
                   "number of inliers, Bailing on steam problem!";
     return false;

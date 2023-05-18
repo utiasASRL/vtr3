@@ -297,8 +297,6 @@ void LandmarkMigrationModule::migrate(
       if (validity && lm_idx * 9 < channel_landmarks.covariance.size()) {
         Eigen::Map<const Eigen::Matrix3f> covariance(
             &channel_landmarks.covariance[lm_idx * 9]);
-        // migrated_cov = lgr3::transformCovariance(
-        //     T_root_curr, covariance.cast<double>(), migrated_point);
         migrated_cov = covariance.cast<double>();
       } else {
         // note: this is only happening for vertex <0,0>. potential bug in VO.
@@ -308,9 +306,6 @@ void LandmarkMigrationModule::migrate(
 
     // Store off the channel offset in the map.
     vision::LandmarkId id;
-    // id.persistent = messages::copyPersistentId(persist_id);
-    // id.persistent.robot = persist_id.robot;
-    // id.persistent.stamp = persist_id.stamp;
     id.vid = persist_id;
     id.rig = rig_idx;
     id.channel = channel_idx;
