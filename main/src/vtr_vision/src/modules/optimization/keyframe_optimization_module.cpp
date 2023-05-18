@@ -95,17 +95,15 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
       // tf_qs_mv = inverse(compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)], query_pose_));
       // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
-      tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)],
-                                     query_pose_);
-      tf_qs_ms = steam::se3::compose_rinv(
-          tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_loc)]);
+      tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, query_pose_);
+      tf_qs_ms = steam::se3::compose_rinv(tf_qs_mv, tf_sensor_vehicle_);
     } else {
 
       // tf_qs_mv = inverse(compose(tf_sensor_vehicle_, query_pose_));
       // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
 
       tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, query_pose_);
-      tf_qs_ms = steam::se3::compose_rinv(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]);
+      tf_qs_ms = steam::se3::compose_rinv(tf_qs_mv, tf_sensor_vehicle_);
     }
 
     // iterate through every channel

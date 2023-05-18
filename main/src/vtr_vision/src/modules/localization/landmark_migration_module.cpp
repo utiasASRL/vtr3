@@ -163,9 +163,13 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
 
     // 2. get landmarks
     std::string lm_stream_name = rig_name + "_landmarks";
+    // for (const auto &r : graph->runs())
+    //   r.second->registerVertexStream<vtr_messages::msg::RigLandmarks>(
+    //       lm_stream_name, true, pose_graph::RegisterMode::Existing);
 
     auto curr_vertex = graph->at(curr_vid);
 
+    //curr_vertex->load(lm_stream_name);
     auto locked_landmark_msg = curr_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
             lm_stream_name, "vtr_messages/msg/RigLandmarks");
     auto locked_msg = locked_landmark_msg->sharedLocked();
@@ -181,6 +185,7 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
     timer.reset();
 
     // 3. migrate the landmarks
+    // auto persist_id = curr_vertex->persistentId();
     auto persist_id = curr_vid;
 
     migrate(rig_idx, persist_id, T_root_curr, qdata, landmarks);
@@ -297,7 +302,8 @@ void LandmarkMigrationModule::migrate(
       if (validity && lm_idx * 9 < channel_landmarks.covariance.size()) {
         Eigen::Map<const Eigen::Matrix3f> covariance(
             &channel_landmarks.covariance[lm_idx * 9]);
-        migrated_cov = covariance.cast<double>();
+        migrated_cov = lgr3::transformCovariance(
+            T_root_curr, covariance.cast<double>(), migrated_point);
       } else {
         // note: this is only happening for vertex <0,0>. potential bug in VO.
         migrated_cov = Eigen::Matrix<double, 3, 3>::Identity();
@@ -306,6 +312,9 @@ void LandmarkMigrationModule::migrate(
 
     // Store off the channel offset in the map.
     vision::LandmarkId id;
+    // id.persistent = messages::copyPersistentId(persist_id);
+    // id.persistent.robot = persist_id.robot;
+    // id.persistent.stamp = persist_id.stamp;
     id.vid = persist_id;
     id.rig = rig_idx;
     id.channel = channel_idx;

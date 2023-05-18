@@ -112,8 +112,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // if the map is not yet initialized, don't do anything
-  if (/* *qdata.map_status == MAP_NEW || */
-      qdata.raw_matches.valid() == false) {
+  if (qdata.raw_matches.valid() == false) {
     CLOG(INFO, "stereo.ransac") << "No valid matches, likely the first frame.";
     return;
   }
@@ -131,7 +130,6 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
 
   // Set up the ransac implementation
   auto sampler = generateRANSACSampler(qdata);
-
 
 
   CLOG(DEBUG, "stereo.ransac") << "Generating Filter Matches!";
