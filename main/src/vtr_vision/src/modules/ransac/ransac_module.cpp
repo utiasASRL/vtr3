@@ -25,8 +25,6 @@ namespace vision {
 
 using namespace tactic;
 
-// void RansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-//                                  const std::string param_prefix) {
 auto RansacModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) 
     -> ConstPtr {
@@ -188,12 +186,11 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
     } else {
       // Success, set the output (in the vehicle frame)
 
-      VertexId map_id;
-      VertexId live_id;
-      //if (config_->landmark_source == "map")
-      //map_id = *qdata.vid_loc;
-      //else if (config_->landmark_source == "live")
-      live_id = *qdata.vid_odo;
+
+      VertexId map_id = VertexId::Invalid();
+      if (qdata.vid_loc.valid())
+        map_id = *qdata.vid_loc;
+      VertexId live_id = *qdata.vid_odo;
 
 
       auto T_s_v_q = *qdata.T_s_r;
@@ -230,8 +227,8 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   // check if visualization is enabled
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points){
-      //visualize::showMelMatches(*qdata.vis_mutex, qdata, graph,
-      //                          "multi-exp-loc");
+      visualize::showMelMatches(*qdata.vis_mutex, qdata, graph,
+                               "multi-exp-loc");
     }  else if (qdata.ransac_matches.valid())
       visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.ransac_matches,
                              " RANSAC matches");

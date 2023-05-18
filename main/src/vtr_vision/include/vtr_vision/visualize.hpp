@@ -50,11 +50,11 @@ void showFeatures(std::mutex &vis_mtx, CameraQueryCache &qdata,
                   std::string suffix = "");
 
 /** \brief */
-/*
+
 void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                     const pose_graph::RCGraph::ConstPtr &graph,
-                    std::string suffix = "", int img_idx = 0);
-*/
+                    std::string suffix = "");
+
 /** \brief Adds visual features with depth coloring to the display images. */
 void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                  std::vector<vision::RigMatches> &matches,
