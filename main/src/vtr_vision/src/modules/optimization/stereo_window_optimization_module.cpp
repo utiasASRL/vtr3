@@ -224,7 +224,7 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
         }
 
         // add to the noise models
-        noise_stereo.reset(new steam::StaticNoiseModel<4>(meas_cov));
+        noise_stereo = steam::StaticNoiseModel<4>::MakeShared(meas_cov);
         
 
         // Construct the measurement vector for the current camera
@@ -256,58 +256,6 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
       }
     }
   }
-#if false
-  // we need to add a scaling factor if we are using a monocular scheme
-  double max_d = 0;
-  steam::se3::TransformStateEvaluator::Ptr max_d_tf_state_eval;
-#endif
-  // find the most distant pose from the origin
-  if (monocular) {
-    throw std::runtime_error{"Monocular camera code not ported!"};
-#if false
-    for (auto &pose : poses) {
-      // if there are poses from other runs in the window, we don't need to add
-      // the scale cost
-      if (pose.first.majorId() != qdata.vid_odo->majorId()) {
-        max_d_tf_state_eval = nullptr;
-        max_d = -1.0;
-        break;
-      }
-      auto &steam_pose = pose.second;
-      // get the norm of the translation to find the distance from the origin
-      double d =
-          steam_pose.tf_state_var->value().matrix().col(3).topRows(3).norm();
-      // is this the most distant?
-      if (d > max_d) {
-        max_d = d;
-        max_d_tf_state_eval = steam_pose.tf_state_eval;
-      }
-    }
-
-    // if we have found a pose
-    if (max_d_tf_state_eval != nullptr && max_d > 0) {
-      // make a squared loss term (we don't want this to be marginalised
-      steam::LossFunctionBase::Ptr scaleLossFunc;
-      scaleLossFunc.reset(new steam::L2LossFunc());
-
-      // make the uncertainty for the scale error really small
-      steam::BaseNoiseModelX::Ptr scaleUncertainty;
-      scaleUncertainty.reset(new steam::StaticNoiseModelX(
-          Eigen::Matrix<double, 1, 1>::Identity()));
-
-      // make the scale error evaluator from the original translational norm
-      vtr::steam_extensions::ScaleErrorEval::Ptr scale_error_func(
-          new vtr::steam_extensions::ScaleErrorEval(max_d,
-                                                    max_d_tf_state_eval));
-
-      // Create cost term and add to problem
-      steam::WeightedLeastSqCostTermX::Ptr scale_cost(
-          new steam::WeightedLeastSqCostTermX(scale_error_func,
-                                              scaleUncertainty, scaleLossFunc));
-      cost_terms_->add(scale_cost);
-    }
-#endif
-  }
 
   // add pose variables
   int jj = 0;
@@ -325,7 +273,6 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
     }
   }
 
-  // problem.addCostTerm(cost_terms_);
   // if (window_config_->depth_prior_enable) {
   //   problem.addCostTerm(depth_cost_terms_);
   // }
@@ -333,8 +280,6 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
   // add trajectory stuff
   if (window_config_->trajectory_smoothing == true) {
     // reset the trajectory
-    // trajectory_.reset(new steam::se3::SteamTrajInterface(
-    //     smoothing_factor_information_, true));
     trajectory_ = std::make_shared<traj::const_vel::Interface>(smoothing_factor_information_);
 
     bool prior_added = false;
@@ -363,19 +308,10 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
 
 void StereoWindowOptimizationModule::resetProblem() {
   // make the depth loss function
-  // sharedDepthLossFunc_.reset(new steam::DcsLossFunc(2.0));
+  // sharedDepthLossFunc_ = steam::DcsLossFunc::MkeShared(2.0);
 
   // make the loss function, TODO: make this configurable, move to member var.
-  sharedLossFunc_.reset(new steam::DcsLossFunc(2.0));
-
-  // // setup cost terms
-  // cost_terms_.reset(new steam::ParallelizedCostTermCollection());
-
-  // // setup cost terms for the depth
-  // depth_cost_terms_.reset(new steam::ParallelizedCostTermCollection());
-
-  // set up the steam problem_.
-  // problem_.reset(new steam::OptimizationProblem());
+  sharedLossFunc_ = steam::DcsLossFunc::MakeShared(2.0);
 }
 
 void StereoWindowOptimizationModule::addDepthCost(

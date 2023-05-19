@@ -169,7 +169,7 @@ std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
 
 
 
-    solver.reset(new steam::LevMarqGaussNewtonSolver(problem, params));
+    solver =  std::make_shared<steam::LevMarqGaussNewtonSolver>(problem, params);
         CLOG(DEBUG, "stereo.keyframe_optimization") << "Made LMQ";
 
   } else if (config_->solver_type == "DoglegGaussNewton") {
@@ -196,7 +196,7 @@ std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
     params.absolute_cost_threshold = config_->absoluteCostThreshold;
     params.absolute_cost_change_threshold = config_->absoluteCostChangeThreshold;
     params.relative_cost_change_threshold = config_->relativeCostChangeThreshold;
-    solver.reset(new steam::GaussNewtonSolver(problem, params));
+    solver = std::make_shared<steam::GaussNewtonSolver>(problem, params);
   } else {
     CLOG(ERROR, "stereo.optimization") << "Unknown solver type: " << config_->solver_type;
   }
@@ -205,7 +205,7 @@ std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
 
 bool SteamModule::forceLM(steam::OptimizationProblem &problem) {
   try {
-    backup_lm_solver_.reset(new steam::LevMarqGaussNewtonSolver(problem, backup_params_));
+    backup_lm_solver_ = std::make_shared<steam::LevMarqGaussNewtonSolver>(problem, backup_params_);
     backup_lm_solver_->optimize();
   } catch (std::runtime_error &re) {
     CLOG(ERROR, "stereo.optimization") << "Back up LM failed, abandon hope....";

@@ -91,17 +91,9 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
     steam::Evaluable<lgmath::se3::Transformation>::ConstPtr tf_qs_ms = nullptr;
 
     if (config_->use_T_q_m_prior) {
-
-      // tf_qs_mv = inverse(compose(tf_sensor_vehicle_map_[*(qdata.vid_odo)], query_pose_));
-      // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
-
       tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, query_pose_);
       tf_qs_ms = steam::se3::compose_rinv(tf_qs_mv, tf_sensor_vehicle_);
     } else {
-
-      // tf_qs_mv = inverse(compose(tf_sensor_vehicle_, query_pose_));
-      // tf_qs_ms = inverse(compose(tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.vid_odo)]));
-
       tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, query_pose_);
       tf_qs_ms = steam::se3::compose_rinv(tf_qs_mv, tf_sensor_vehicle_);
     }
@@ -375,12 +367,10 @@ void KeyframeOptimizationModule::resetProblem(EdgeTransform &T_q_m) {
   map_pose_ = std::make_shared<se3::SE3StateVar>(lgmath::se3::Transformation());
   map_pose_->locked() = true; // lock the 'origin' pose
   query_pose_ = std::make_shared<se3::SE3StateVar>(T_q_m);
-  // tf_map_.reset(new steam::se3::TransformStateEvaluator(map_pose_));
-  // tf_query_.reset(new steam::se3::TransformStateEvaluator(query_pose_));
 
   // make the loss functions, TODO: make this configurable.
-  sharedDepthLossFunc_.reset(new steam::DcsLossFunc(2.0));
-  sharedLossFunc_.reset(new steam::DcsLossFunc(2.0));
+  sharedDepthLossFunc_ = steam::DcsLossFunc::MakeShared(2.0);
+  sharedLossFunc_ = steam::DcsLossFunc::MakeShared(2.0);
 
 }
 
@@ -393,8 +383,8 @@ void KeyframeOptimizationModule::addDepthCost(
   // steam::BaseNoiseModel<1>::Ptr rangeNoiseModel(new steam::StaticNoiseModel<1>(
   //     Eigen::Matrix<double, 1, 1>::Identity() * weight));
   // steam::WeightedLeastSqCostTerm<1>::Ptr depth_cost;
-  // depth_cost.reset(new steam::WeightedLeastSqCostTerm<1>(
-  //     errorfunc_range, rangeNoiseModel, sharedDepthLossFunc_));
+  // depth_cost =  steam::WeightedLeastSqCostTerm<1>::MakeShared(
+  //     errorfunc_range, rangeNoiseModel, sharedDepthLossFunc_);
   // // depth_cost_terms_->add(depth_cost);
   // problem->addCostTerm(depth_cost);
 
