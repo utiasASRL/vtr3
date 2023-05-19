@@ -21,6 +21,7 @@ windows:
         data_dir:=${VTRTEMP}/vision
         start_new_graph:=true
         use_sim_time:=true
+        path_planning.type:=stationary
 
 #      - htop # monitor hardware usage
 
