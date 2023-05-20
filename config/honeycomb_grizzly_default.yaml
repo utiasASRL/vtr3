@@ -293,25 +293,11 @@
         run_online: false
         run_async: true
         visualize: true
+    
     path_planning:
       type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
-      teb:
-        visualize: true
-        extrapolate: false
-        extrapolation_timeout: 2.0
-        lookahead_distance: 8.5
-        robot_model: circular
-        robot_radius: 0.5
-        map_frame: planning frame
-        enable_homotopy_class_planning: true
-        free_goal_vel: true
-        max_vel_x: 0.6
-        max_vel_y: 0.0
-        max_vel_theta: 0.3
-        min_turning_radius: 3
-        weight_viapoint: 0.5
-        weight_costmap: 100.0
+
       cbit:
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
