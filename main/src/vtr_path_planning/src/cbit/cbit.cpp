@@ -313,6 +313,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   CLOG(INFO, "path_planning.cbit") << "The T_p_r is: " << T_p_r;
   // Extrapolate the pose of the robot into the future based on the localization delay
   prev_stamp = stamp;
+  CLOG(ERROR, "path_planning.cbit") << "The Stamp is: " << stamp;
   const auto curr_time = now();  // always in nanoseconds
   const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 

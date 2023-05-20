@@ -90,7 +90,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
 
     // pointwise timestamp
     point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
-    CLOG(WARNING, "lidar.odometry_icp") << "point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
+    //CLOG(WARNING, "lidar.odometry_icp") << "point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
   }
 
   // ouster has no polar coordinates, so compute them manually.
@@ -109,7 +109,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
                   });
     auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::toROSMsg(point_cloud_tmp, *pc2_msg);
-    pc2_msg->header.frame_id = "lidar";
+    pc2_msg->header.frame_id = "os_sensor";
     pc2_msg->header.stamp = rclcpp::Time(*qdata.stamp);
     pub_->publish(*pc2_msg);
   }
