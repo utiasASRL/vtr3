@@ -317,7 +317,7 @@
         visualize: true
         
     path_planning:
-      type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
 
       cbit:
@@ -344,7 +344,7 @@
         extrapolation: false
         incremental_plotting: false
         plotting: true
-        
+
       costmap:
         costmap_filter_value: 0.01
         costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
