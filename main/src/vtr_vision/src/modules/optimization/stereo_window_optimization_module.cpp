@@ -19,16 +19,12 @@
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_common/timing/stopwatch.hpp"
-// #include <vtr_steam_extensions/evaluator/range_conditioning_eval.hpp>
-// #include <vtr_steam_extensions/evaluator/scale_error_eval.hpp>
+#include <vtr_vision/steam_extensions/landmark_range_prior.hpp>
 #include <vtr_vision/geometry/geometry_tools.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/modules/optimization/stereo_window_optimization_module.hpp>
 #include <vtr_vision/types.hpp>
 
-#if false
-#include <asrl/messages/TrajectoryStatus.pb.h>
-#endif
 
 namespace vtr {
 namespace vision {
@@ -44,11 +40,6 @@ StereoWindowOptimizationModule::Config::ConstPtr StereoWindowOptimizationModule:
       std::static_pointer_cast<SteamModule::Config>(window_config);
   *casted_config = *SteamModule::Config::fromROS(node, param_prefix);  // copy over base config
 
-  // SteamModule::configFromROS(node, param_prefix);
-  // window_config_ = std::make_shared<Config>();
-  // auto casted_config =
-  //     std::static_pointer_cast<SteamModule::Config>(window_config_);
-  // *casted_config = *config_;  // copy over base config
   // clang-format off
   window_config->depth_prior_enable = node->declare_parameter<bool>(param_prefix + ".depth_prior_enable", window_config->depth_prior_enable);
   window_config->depth_prior_weight = node->declare_parameter<double>(param_prefix + ".depth_prior_weight", window_config->depth_prior_weight);
@@ -70,32 +61,17 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
 
   auto problem = OptimizationProblem();
 
-  // monocular or stereo?
-  bool monocular = calibration_itr->intrinsics.size() == 1 ? true : false;
-
   // get calibration for this rig.
   auto &calibration = *calibration_itr;
 
   // Setup camera intrinsics, TODO: This should eventually be different for each
   // rig.
-  StereoCalibPtr sharedStereoIntrinsics;
-
-  // setup the calibration
-  if (monocular) {
-    throw std::runtime_error{"Monocular camera code not ported!"};
-#if 0
-    MonoCalibPtr sharedMonoIntrinsics;
-    sharedMonoIntrinsics = toMonoSteamCalibration(calibration);
-#endif
-  } else {
-    sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
-  }
+  StereoCalibPtr sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
+  
 
   // Go through all of the landmarks
   for (auto &landmark : lm_map) {
     // 1. get the pose associated with this map
-    // auto vertex = graph->fromPersistent(
-    //     messages::copyPersistentId(landmark.first.persistent));
     auto vertex = landmark.first.vid;
     auto &lm_pose = poses[vertex];
 
@@ -107,20 +83,18 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
     bool map_point_valid = landmark.second.valid;
 
     // If the point and its depth is valid, then add it as a landmark.
-    if (map_point_valid && isLandmarkValid(lm_point) == true &&
+    if (map_point_valid && isLandmarkValid(lm_point) &&
         landmark.second.observations.size() > 1) {
-      landmark.second.steam_lm.reset(
-          new steam::stereo::HomoPointStateVar(lm_point));
+      landmark.second.steam_lm = stereo::HomoPointStateVar::MakeShared(lm_point);
       auto &steam_lm = landmark.second.steam_lm;
 
       // set the lock only if the map is initialized
-      // if(*qdata.map_initialized == true) {
       steam_lm->locked() =  lm_pose.isLocked();
-      //}
+      CLOG(DEBUG, "stereo.bundle_adjustment") << "Landmark locked" << steam_lm->locked();
 
       // add the depth prior
       if (window_config_->depth_prior_enable) {
-        addDepthCost(steam_lm);
+        addDepthCost(problem, steam_lm);
       }
     } else {
       landmark.second.steam_lm.reset();
@@ -134,8 +108,6 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
       try {  // steam throws?
 
         // get the keypoints for this observation.
-        // auto obs_vertex =
-        //     graph->fromPersistent(obs.origin_ref.from_id.persistent);
         auto obs_vertex = obs.origin_ref.from_id.vid;
         auto &obs_pose = poses[obs_vertex];
 
@@ -206,12 +178,11 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
               composed_T_s_v_fixed_ptr->second);
         }
 
-        // set up the mono and stereo noise for each potential type
-        // steam::BaseNoiseModelX::Ptr noise_mono;
+        // set up the stereo noise for each potential type
         steam::BaseNoiseModel<4>::Ptr noise_stereo;
 
         // set up the measurement covariance vector
-        unsigned m_sz = monocular ? 2 : 4;
+        unsigned m_sz = 4;
         Eigen::MatrixXd meas_cov(m_sz, m_sz);
         meas_cov.setZero();
 
@@ -308,25 +279,23 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
 
 void StereoWindowOptimizationModule::resetProblem() {
   // make the depth loss function
-  // sharedDepthLossFunc_ = steam::DcsLossFunc::MkeShared(2.0);
+  sharedDepthLossFunc_ = steam::DcsLossFunc::MakeShared(2.0);
 
   // make the loss function, TODO: make this configurable, move to member var.
   sharedLossFunc_ = steam::DcsLossFunc::MakeShared(2.0);
 }
 
 void StereoWindowOptimizationModule::addDepthCost(
-    steam::stereo::HomoPointStateVar::Ptr landmark) {
-      // #TODO: support this later?
-  // vtr::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
-  //     new vtr::steam_extensions::RangeConditioningEval(landmark));
-  // double depth = landmark->value().hnormalized()[2];
-  // double weight = window_config_->depth_prior_weight / depth;
-  // steam::BaseNoiseModel<1>::Ptr rangeNoiseModel(new steam::StaticNoiseModel<1>(
-  //     Eigen::Matrix<double, 1, 1>::Identity() * weight));
-  // steam::WeightedLeastSqCostTerm<1, 3>::Ptr depth_cost(
-  //     new steam::WeightedLeastSqCostTerm<1, 3>(errorfunc_range, rangeNoiseModel,
-  //                                              sharedDepthLossFunc_));
-  // depth_cost_terms_->add(depth_cost);
+  OptimizationProblem& problem, stereo::HomoPointStateVar::Ptr landmark) {
+  auto range_error_func = stereo::LandmarkRangePrior::MakeShared(landmark);
+
+  double depth = landmark->value().hnormalized()[2];
+  double weight = window_config_->depth_prior_weight / depth;
+  auto rangeNoiseModel = steam::StaticNoiseModel<1>::MakeShared(
+      Eigen::Matrix<double, 1, 1>::Identity() * weight);
+  auto depth_cost = WeightedLeastSqCostTerm<1>::MakeShared(range_error_func, rangeNoiseModel,
+                                               sharedDepthLossFunc_);
+  problem.addCostTerm(depth_cost);
 }
 
 bool StereoWindowOptimizationModule::verifyInputData(CameraQueryCache &qdata) {

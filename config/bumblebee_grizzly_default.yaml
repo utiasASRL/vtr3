@@ -19,7 +19,8 @@
         "stereo.preprocessing",
         "stereo.recall",
         "stereo.matcher",
-        "stereo.keyframe_optimization",
+        #"stereo.keyframe_optimization",
+        "stereo.bundle_adjustment",
         "stereo.odometry",
         "stereo.vertex_test",
         "odometry",
@@ -78,13 +79,8 @@
 
       preprocessing: ["adapter","extraction", "triangulation"]
       odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
-      # # localization:
-
       bundle_adjustment: ["recall", "steam"]
-
-      # preprocessing: ["extraction", "triangulation"]
-      # odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]
-      localization: #["recall", "sub_map_extraction"]
+      localization:
          [
            "recall",
            "sub_map_extraction",
@@ -95,7 +91,6 @@
            "ransac",
            "steam",
          ]
-      # bundle_adjustment: ["recall", "steam"]
 
     preprocessing:
       # conversion+extraction module
@@ -298,8 +293,6 @@
         ang_vel_std_dev_y: 0.5
         ang_vel_std_dev_z: 0.2
 
-        depth_prior_enable: false
-        depth_prior_weight: 100000000.0
         pose_prior_enable: false
         use_migrated_points: false
         is_odometry: true
@@ -431,8 +424,6 @@
         save_trajectory: false
         trajectory_smoothing: false
         velocity_prior: false
-        depth_prior_enable: false
-        depth_prior_weight: 100000000.0
         pose_prior_enable: true
         use_migrated_points: true
         is_odometry: false
@@ -507,7 +498,7 @@
         ang_vel_std_dev_z: 0.003
 
         depth_prior_enable: true
-        depth_prior_weight: 1000000000.0
+        depth_prior_weight: 1000.0
 
     path_planning:
       type: cbit

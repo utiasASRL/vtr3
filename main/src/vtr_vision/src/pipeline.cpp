@@ -263,7 +263,6 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
 
   // get the current vertex
   auto vertex = graph->at(live_id);
-  // auto persistent_id = graph->toPersistent(live_id);
   auto persistent_id = live_id;
 
   // now update the live frame
@@ -293,9 +292,6 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
       // otherwise, only add new landmarks.
       addLandmarksAndObs(landmarks, observations, rig_idx, qdata, graph,
                          persistent_id);
-
-      // addAllLandmarksRGB(landmarks, observations, rig_idx, qdata, graph,
-      //                    persistent_id);
 
     // record the number of observations and landmarks
     for (const auto &channel_lm : landmarks.channels) {
@@ -343,7 +339,7 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
 
 
     // insert the vehicle->sensor transform
-    //TODO: change to 
+    //TODO: change to LG type
     Eigen::Matrix<double, 6, 1> T_s_v_vec = qdata.T_s_r->vec();
     TransformMsg T_s_v;
     T_s_v.translation.x = T_s_v_vec(0);
@@ -360,8 +356,6 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
             std::make_shared<Tsv_Msg>(std::make_shared<TransformMsg>(T_s_v), *qdata.stamp);
     vertex->insert<TransformMsg>(tsv_str, " vtr_messages/msg/Transform", tsv_msg);
 
-    // graph->registerVertexStream<TransformMsg>(rid, tsv_str);
-    // vertex->insert(tsv_str, T_s_v, stamp);
 
     // make an empty velocity vector
     VelocityMsg velocity;

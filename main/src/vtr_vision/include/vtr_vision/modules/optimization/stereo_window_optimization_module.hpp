@@ -98,7 +98,7 @@ class StereoWindowOptimizationModule : public SteamModule {
    * terms.
    * \param landmark The landmark in question.
    */
-  void addDepthCost(steam::stereo::HomoPointStateVar::Ptr landmark);
+  void addDepthCost(steam::OptimizationProblem& problem, steam::stereo::HomoPointStateVar::Ptr landmark);
 
   /**
    * \brief Verifies the input data being used in the optimization problem,

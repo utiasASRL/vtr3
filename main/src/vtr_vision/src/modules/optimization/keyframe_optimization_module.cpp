@@ -41,8 +41,6 @@ KeyframeOptimizationModule::Config::ConstPtr KeyframeOptimizationModule::Config:
   *casted_config = *SteamModule::Config::fromROS(node, param_prefix);  // copy over base config
   // clang-format off
   keyframe_config->pose_prior_enable = node->declare_parameter<bool>(param_prefix + ".pose_prior_enable", keyframe_config->pose_prior_enable);
-  keyframe_config->depth_prior_enable = node->declare_parameter<bool>(param_prefix + ".depth_prior_enable", keyframe_config->depth_prior_enable);
-  keyframe_config->depth_prior_weight = node->declare_parameter<double>(param_prefix + ".depth_prior_weight", keyframe_config->depth_prior_weight);
   keyframe_config->use_migrated_points = node->declare_parameter<bool>(param_prefix + ".use_migrated_points", keyframe_config->use_migrated_points);
   keyframe_config->min_inliers = node->declare_parameter<int>(param_prefix + ".min_inliers", keyframe_config->min_inliers);
   
@@ -506,9 +504,6 @@ void KeyframeOptimizationModule::updateCaches(CameraQueryCache &qdata) {
 
   if (config_->is_odometry)
     *qdata.w_v_r_in_r_odo = trajectory_->getVelocityInterpolator(*qdata.timestamp_odo)->value();
-
-  // give the query cache a copy of the trajectory estimate
-  // qdata.trajectory = trajectory_;
 
   // look up covariance on pose
   if (!config_->disable_solver) {

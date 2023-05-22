@@ -54,8 +54,6 @@ class KeyframeOptimizationModule : public SteamModule {
   struct Config : SteamModule::Config {
     PTR_TYPEDEFS(Config);
 
-    bool depth_prior_enable = true;
-    double depth_prior_weight = 100000000.0;
     bool pose_prior_enable = false;
     bool use_migrated_points = false;
     int min_inliers = 6;
