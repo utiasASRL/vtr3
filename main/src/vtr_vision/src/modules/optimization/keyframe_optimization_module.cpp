@@ -212,11 +212,6 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
               CLOG(DEBUG, "stereo.keyframe_optimization") << "Noise \n" << noise_eval->value() << "\nMeas Noise:\n" << meas_covariance
                                                           << "\nLand Noise:\n" << cov;
 
-              //noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
-
-              //throw std::runtime_error("migrated points not implemented");
-
-
             } else {
               noise_stereo = std::make_shared<steam::StaticNoiseModel<4>>(meas_covariance);
             }
@@ -226,11 +221,6 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
             landmarks_ic.pop_back();
             continue;
           }
-          // // add the depth prior
-          if (keyframe_config_->depth_prior_enable) {
-            addDepthCost(landmarks_ic.back());
-          }
-
 
           // Construct the measurement vector for the current camera
           Eigen::MatrixXd data(query_kps.size() * 2, 1);
@@ -374,21 +364,6 @@ void KeyframeOptimizationModule::resetProblem(EdgeTransform &T_q_m) {
 
 }
 
-void KeyframeOptimizationModule::addDepthCost(
-    steam::stereo::HomoPointStateVar::Ptr landmark) {
-  // vtr::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
-  //     new vtr::steam_extensions::RangeConditioningEval(landmark));
-  // double depth = landmark->value().hnormalized()[2];
-  // double weight = keyframe_config_->depth_prior_weight / depth;
-  // steam::BaseNoiseModel<1>::Ptr rangeNoiseModel(new steam::StaticNoiseModel<1>(
-  //     Eigen::Matrix<double, 1, 1>::Identity() * weight));
-  // steam::WeightedLeastSqCostTerm<1>::Ptr depth_cost;
-  // depth_cost =  steam::WeightedLeastSqCostTerm<1>::MakeShared(
-  //     errorfunc_range, rangeNoiseModel, sharedDepthLossFunc_);
-  // // depth_cost_terms_->add(depth_cost);
-  // problem->addCostTerm(depth_cost);
-
-}
 
 void KeyframeOptimizationModule::computeTrajectory(
     CameraQueryCache &qdata, const std::shared_ptr<const Graph> &graph, OptimizationProblem &problem) {

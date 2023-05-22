@@ -110,13 +110,6 @@ class KeyframeOptimizationModule : public SteamModule {
   void resetProblem(tactic::EdgeTransform &T_q_m);
 
   /**
-   * \brief Adds a depth cost associated with this landmark to the depth cost
-   * terms.
-   * \param landmark The landmark in question.
-   */
-  void addDepthCost(steam::stereo::HomoPointStateVar::Ptr landmark);
-
-  /**
    * \brief Adds a steam trajectory for the state variables in the problem.
    * \param qdata The query data
    * \param graph The pose graph.
@@ -127,11 +120,6 @@ class KeyframeOptimizationModule : public SteamModule {
 
   void addPosePrior(CameraQueryCache &qdata, steam::OptimizationProblem &problem);
 
-  // /** \brief the cost terms associated with landmark observations. */
-  // std::vector<steam::BaseCostTerm> cost_terms_;
-
-  // /** \brief The cost terms associated with landmark depth. */
-  // std::vector<steam::BaseCostTerm> depth_cost_terms_;
 
   /** \brief The loss function used for the depth cost. */
   steam::BaseLossFunc::Ptr sharedDepthLossFunc_;
