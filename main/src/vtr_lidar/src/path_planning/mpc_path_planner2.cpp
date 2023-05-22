@@ -289,7 +289,7 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     //using SolverType = steam::DoglegGaussNewtonSolver;
     // Initialize solver parameters
     SolverType::Params params;
-    params.verbose = true; // Makes the output display for debug when true
+    params.verbose = false; // Makes the output display for debug when true
     params.relative_cost_change_threshold = 1e-4;
     params.max_iterations = 100;
     params.absolute_cost_change_threshold = 1e-4;

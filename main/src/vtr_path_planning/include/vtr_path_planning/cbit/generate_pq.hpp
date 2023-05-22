@@ -37,7 +37,8 @@
 class CBITPath {
     public:
         std::vector<Pose> disc_path; // Stores the se3 discrete path as a vector of Euclidean vectors (The original disc path) // TODO, change to se(3) class
-        std::vector<double> disc_path_curvature; // Stores the associated curvature of the path at each point on the splined version of the disc_path (used by speed scheduler)
+        std::vector<double> disc_path_curvature_xy; // Stores the associated curvature of the path at each point on the splined version of the disc_path (used by speed scheduler)
+        std::vector<double> disc_path_curvature_xz_yz; // Stores the associated curvature of the path at each point on the splined version of the disc_path (used by speed scheduler)
         std::vector<double> p; //associated p values for each pose in disc_path
         std::vector<Pose> path; // Stores the se3 splined discrete path as a vector of Euclidean vectors; //TODO, change to se(3) class
         std::vector<int> sid; // store the sid value of the transform from the teach path
@@ -47,7 +48,9 @@ class CBITPath {
         double delta_p_calc(Pose start_pose, Pose end_pose, double alpha); // Function for computing delta p intervals in p,q space
     // Internal function declarations
     private:
-        Eigen::Spline<double, 2> spline_path(std::vector<Pose> input_path); // Processes the input discrete path into a cubic spline
+        Eigen::Spline<double, 2> spline_path_xy(std::vector<Pose> input_path); // Processes the input discrete path into a cubic spline
+        Eigen::Spline<double, 2> spline_path_xz_yz(std::vector<Pose> input_path); // Processes the input discrete path into a cubic spline
+
         double radius_of_curvature(double dist, Eigen::Spline<double, 2> spline); // Calculates the radius of curvature using the spline at a given distance along the spline
        
         // Actually I think ill just do this in the constructor for now
