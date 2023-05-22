@@ -377,6 +377,98 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
 }
 
 
+/*
+// Measurement generation overhaul, not quite ready to deploy yet
+struct meas_result GenerateTrackingReference(std::shared_ptr<std::vector<Pose>> cbit_path_ptr, std::shared_ptr<CBITPath> global_path_ptr, std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid)
+{
+  // We start by assuming the robot state is located at the start of the cbit path
+
+  // Save a copy of the current path solution to work on
+  auto cbit_path = *cbit_path_ptr;
+
+  // Iterate through the cbit path until we find the point closest to the true robot pose
+  int closest_pose_ind = 0;
+  double min_dist = INFINITY;
+  for (int i = 0; i <cbit_path.size(); i++)
+  {
+    double dist = sqrt((((cbit_path)[i].x - std::get<0>(robot_pose)) * ((cbit_path)[i].x - std::get<0>(robot_pose))) + (((cbit_path)[i].y - std::get<1>(robot_pose)) * ((cbit_path)[i].y - std::get<1>(robot_pose))));
+    if (dist < min_dist)
+    {
+      closest_pose_ind = closest_pose_ind + 1;
+      min_dist = dist;
+    }
+    else 
+    {
+      // If the minimum dist ever increases, stop. This prevents jumps ahead if the euclidean path doubles back or loops on itself further in the window
+      closest_pose_ind = closest_pose_ind - 1;
+      break;
+    }
+  }
+
+  // Now starting from that closest cbit_path point, calculate chord lengths along the cbit_path_subset up to the horizon length
+  std::vector<double> cbit_p;
+  cbit_chord.reserve(K);
+  double p_dist;
+  cbit_chord.push_back(0.0);
+  for (int j = closest_pose_ind; j < (closest_pose_ind + K); j++)
+  {
+    chord_dist = sqrt((((cbit_path)[j].x - (cbit_path)[j+1].x) * ((cbit_path)[j].x - (cbit_path)[j+1].x)) + (((cbit_path)[j].y - (cbit_path)[j+1].y) * ((cbit_path)[j].y - (cbit_path)[j+1].y)));
+    cbit_chord.push_back(chord_dist + cbit_p.end());
+  }
+
+  //
+
+  // Generate chord length vector along the cbit_path solution
+  double p_dist;
+  std::vector<double> cbit_p;
+  std::vector<Pose> cbit_path_subset;
+  cbit_p.reserve(cbit_path.size());
+  cbit_p.push_back(0.0);
+  for (int i = 0; i < cbit_path.size()-2; i += 1)
+  {
+    chord_dist = sqrt((((cbit_path)[i].x - (cbit_path)[i+1].x) * ((cbit_path)[i].x - (cbit_path)[i+1].x)) + (((cbit_path)[i].y - (cbit_path)[i+1].y) * ((cbit_path)[i].y - (cbit_path)[i+1].y)));
+    cbit_p.push_back(chord_dist);
+    cbit_path_subset.push_pack(cbit_path[i]);
+
+    // Conclude if we reach end of path or exceed the window lookahead range:
+    if (lookahead_dist > 12.0)
+      {
+        break;
+      }
+  }
+
+
+
+  // Generate a subset of points on the euclidean cbit path solution over the current vertex window and find the closest point to the current state
+
+  CLOG(ERROR, "path_planning.cbit_planner") << "Current SID is: " << SID;
+  
+  // Find the corresponding global pose p,q value at the current SID (which should be just behind the actual current state)
+  double current_pq_sid_p = global_path_ptr->p[current_sid];
+  CLOG(ERROR, "path_planning.cbit_planner") << "SID P,Q Pose is: " << " p: " << current_pq_sid_p << " q: " << 0.0;
+
+  std::vector<Node> euclid_subset;
+
+  // The length of the subset is determined by the configuration parameter lookahead distance and the desired discretization
+  // Use the SID values to help predict how far we should look ahead look ahead without falling into false minim on crossing paths.
+  double lookahead_range = cbit_path[0].p + 5.0; //default value from config
+  for (int ID = SID; ID < global_path_ptr->p.size(); ID += 1)
+  {
+    if (cbit_path[0].p < global_path_ptr->p[ID])
+    {
+      lookahead_range = global_path_ptr->p[ID];
+    }
+  }
+
+  for (double i = cbit_path[0].p; i < lookahead_range; i += (1.0 / (20.0)))
+  {
+    euclid_subset.push_back(curve_to_euclid(Node(i,0)));
+    
+  }
+}
+
+*/
+
 
 // helper function for computing the optimization reference poses T_ref based on the current path solution
 // This is specifically for the tracking mpc, but is also used to generate the warm start poses for the corridor mpc
@@ -403,6 +495,7 @@ struct meas_result GenerateReferenceMeas2(std::shared_ptr<std::vector<Pose>> cbi
     double dx;
     double dy;
     double p_correction = 0.0;
+    bool min_flag = true;
 
     std::vector<double> cbit_p;
     cbit_p.reserve(cbit_path.size());
@@ -418,11 +511,20 @@ struct meas_result GenerateReferenceMeas2(std::shared_ptr<std::vector<Pose>> cbi
       dx = (cbit_path)[i].x - std::get<0>(robot_pose);
       dy = (cbit_path)[i].y - std::get<1>(robot_pose);
       new_dist = sqrt((dx * dx) + (dy * dy));
-      if (new_dist < min_dist)
+      if ((new_dist < min_dist) && (min_flag == true))
       {
         CLOG(DEBUG, "mpc_debug.cbit") << "Minimum Distance: " << new_dist;
         p_correction = lookahead_dist;
         min_dist = new_dist;
+        //CLOG(ERROR, "mpc_debug.cbit") << "New Minimum Found";
+      }
+      else
+      {
+        //CLOG(ERROR, "mpc_debug.cbit") << "No New Minimum";
+        if (new_dist > min_dist + 0.1)
+        {
+          min_flag = false;
+        }
       }
       
       // Stop once we get about 12m ahead of the robot (magic number for now, but this is just a conservative estimate of any reasonable lookahead window and mpc horizon)
