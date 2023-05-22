@@ -255,8 +255,8 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
                           0,
                           1;
 
-        //CLOG(INFO, "mpc_debug.cbit") << "Left Barrier for this meas is: " << barrier_q_left[i];
-        //CLOG(INFO, "mpc_debug.cbit") << "Right Barrier for tis meas is: " << barrier_q_right[i];
+        CLOG(INFO, "mpc_debug.cbit") << "Left Barrier for this meas is: " << barrier_q_left[i];
+        CLOG(INFO, "mpc_debug.cbit") << "Right Barrier for tis meas is: " << barrier_q_right[i];
         //CLOG(INFO, "mpc_debug.cbit") << "The Initaial Pose is:" << T0;
         //CLOG(INFO, "mpc_debug.cbit") << "The cbit measurement for this value is: " << measurements_cbit[i].inverse();
         //CLOG(INFO, "mpc_debug.cbit") << "The vtr measurement for this value is: " << measurements[i].inverse();
@@ -275,9 +275,9 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
 
         // Generate least square cost terms and add them to the optimization problem
         const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, latLossFunc);
-        //opt_problem.addCostTerm(lat_cost_term_right);
+        opt_problem.addCostTerm(lat_cost_term_right);
         const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, latLossFunc);
-        //opt_problem.addCostTerm(lat_cost_term_left);
+        opt_problem.addCostTerm(lat_cost_term_left);
 
       
       }
@@ -293,8 +293,8 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     params.relative_cost_change_threshold = 1e-4;
     params.max_iterations = 100;
     params.absolute_cost_change_threshold = 1e-4;
-    params.backtrack_multiplier = 0.5; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
-    params.max_backtrack_steps = 400; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
+    params.backtrack_multiplier = 0.8; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
+    params.max_backtrack_steps = 500; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
     //params.ratio_threshold_shrink = 0.1; // Dogleg Specific Params, will fail to build if using GaussNewtonSolver
     /// Grow trust region if ratio of actual to predicted cost reduction above
     /// this (range: 0.0-1.0)
@@ -308,8 +308,35 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
 
     SolverType solver(opt_problem, params);
 
+    double initial_cost = opt_problem.cost();
+    // Check the cost, disregard the result if it is unreasonable (i.e if its higher then the initial cost)
+    //CLOG(ERROR, "mpc_debug.cbit") << "The Solution Cost is:" << initial_cost;
+
+
     // Solve the optimization problem
     solver.optimize();
+
+    double final_cost = opt_problem.cost();
+    // Check the cost, disregard the result if it is unreasonable (i.e if its higher then the initial cost)
+    //CLOG(ERROR, "mpc_debug.cbit") << "The Solution Cost is:" << final_cost;
+
+    if (final_cost > initial_cost)
+    {
+      CLOG(ERROR, "mpc_debug.cbit") << "The final cCost was > initial cost, something went wrong. Commanding the vehicle to stop";
+         // First check if any of the values are nan, if so we return a zero velocity and flag the error
+      Eigen::Matrix<double, 2, 1> bad_cost_vel;
+      
+      bad_cost_vel(0) = 0.0;
+      bad_cost_vel(1) = 0.0;
+
+      // if we do detect nans, return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
+      std::vector<lgmath::se3::Transformation> mpc_poses;
+      for (int i = 0; i<pose_state_vars.size(); i++)
+      {
+        mpc_poses.push_back(T0);
+      }
+      return {bad_cost_vel, mpc_poses};
+    }
 
     // DEBUG: Display the several of the prediction horizon results
     /*

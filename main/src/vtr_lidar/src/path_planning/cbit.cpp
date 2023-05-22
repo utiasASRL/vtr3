@@ -540,7 +540,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
       // Solve using corridor mpc
       //auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       // Old path tracking configs
-      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       //auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization); // Tracking controller version
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
