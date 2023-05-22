@@ -3,14 +3,13 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - lidar.terrain_assessment
         # navigator
       #- navigation
       #- navigation.graph_map_server
       #- navigation.command
     
         # tactic
-      - tactic
+      #- tactic
       - tactic.pipeline
       #- tactic.module
       #- tactic.module.live_mem_manager
@@ -25,8 +24,8 @@
       #- obstacle detection.cbit
         
         # mission planner
-      - mission.server
-      - mission.state_machine
+      #- mission.server
+      #- mission.state_machine
 
         # pose graph
       #- pose_graph
@@ -34,7 +33,7 @@
         # lidar pipeline
       - lidar.pipeline
       - lidar.preprocessing
-      - lidar.ouster_converter
+      #- lidar.ouster_converter
       - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
@@ -362,9 +361,9 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 300.0, 300.0, 300.0, 6.50]
-        vel_error_cov: [10.0, 100.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [10.0, 10.0]
+        pose_error_cov: [30.0, 30.0, 300.0, 300.0, 300.0, 30.0]
+        vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [100.0, 100.0]
         kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
         lat_error_cov: [20.0]
         

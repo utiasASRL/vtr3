@@ -418,7 +418,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
     const auto curr_time = now();  // always in nanoseconds
-    const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+    //const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+    const auto dt = 0.1; // JORDY - for debugging, dont leave this here
 
 
     CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities:" << vel_history;
