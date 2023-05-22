@@ -335,7 +335,9 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     int K = config_->horizon_steps; // Horizon steps
     double DT = config_->horizon_step_size; // Horizon step size
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
+    
 
+    
     // Experimental Speed Scheduler: (TODO: in progress - move to separate file longer term)
     // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
     // 1. XY curvature (implemneted)
@@ -353,9 +355,13 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     // Basic implementation - weights hardcoded for now
     CLOG(ERROR, "mpc_debug.cbit") << "TRYING TO SCHEDULE SPEED:";
     CLOG(ERROR, "mpc_debug.cbit") << "CURRENT SID IS:" << curr_sid;
-    double avg_curvature = 0.0;
+    double VF_EOP;
+    double VF_XY;
+    double VF_XZ_YZ;
+    double avg_curvature_xy = 0.0;
+    double avg_curvature_xz_yz = 0.0;
     double end_of_path = 0.0;
-    for (int i = curr_sid; i < curr_sid + 5; i++) // Lookahead hardcoded for now, todo, make this a distance based correlating value
+    for (int i = curr_sid; i < curr_sid + 10; i++) // Lookahead hardcoded for now, todo, make this a distance based correlating value
     {
       // Handle end of path case
       if (i == (global_path_ptr->p.size()-1))
@@ -363,25 +369,34 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
         end_of_path = 1.0;
         break;
       }
-      avg_curvature = avg_curvature + global_path_ptr->disc_path_curvature[i];
+      avg_curvature_xy = avg_curvature_xy + global_path_ptr->disc_path_curvature_xy[i];
+      avg_curvature_xz_yz = avg_curvature_xz_yz + global_path_ptr->disc_path_curvature_xz_yz[i];
 
     }
-    avg_curvature = avg_curvature / 5;
-    CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE CURVATURE IS:  " << avg_curvature;
+    avg_curvature_xy = avg_curvature_xy / 10;
+    avg_curvature_xz_yz = avg_curvature_xz_yz / 10;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE XY CURVATURE IS:  " << avg_curvature_xy;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE XZ CURVATURE IS:  " << avg_curvature_xz_yz;
+    //CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE YZ CURVATURE IS:  " << avg_curvature_yz;
     double xy_curv_weight = 5.0; // hardocded for now, make a param
+    double xz_yz_curv_weight = 0.5; // hardocded for now, make a param
     double end_of_path_weight = 1.0; // hardocded for now, make a param
 
-    if (VF > 0.0)
-    {
-      VF = std::max(0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight) + (end_of_path * end_of_path * end_of_path_weight)));
-    }
-    else
-    {
-      VF = std::min(-0.5, VF / (1 + (avg_curvature * avg_curvature * xy_curv_weight) + (end_of_path * end_of_path * end_of_path_weight)));
-    }
+    // handle forward/referse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
+
+    VF_EOP = std::max(0.5, VF / (1 + (end_of_path * end_of_path * end_of_path_weight)));
+    VF_XY = std::max(0.5, VF / (1 + (avg_curvature_xy * avg_curvature_xy * xy_curv_weight)));
+    VF_XZ_YZ = std::max(0.5, VF / (1 + (avg_curvature_xz_yz * avg_curvature_xz_yz * xz_yz_curv_weight)));
+    
+    // Take the minimum of all candidate (positive) scheduled speeds
+    VF = std::min({VF_EOP, VF_XY, VF_XZ_YZ});
+    CLOG(ERROR, "mpc_debug.cbit") << "THE VF_EOP SPEED IS:  " << VF_EOP;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE VF_XY SPEED IS:  " << VF_XY;
+    CLOG(ERROR, "mpc_debug.cbit") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
+
+    // Take the minimum of all candidate scheduled speeds
     CLOG(ERROR, "mpc_debug.cbit") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
     // End of speed scheduler code
-
 
 
 

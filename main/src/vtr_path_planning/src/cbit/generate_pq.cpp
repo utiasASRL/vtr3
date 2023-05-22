@@ -42,19 +42,25 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     sid.push_back(0);
     for (int i=1; i<vect_size; i++)
     {
+        //CLOG(ERROR, "path_planning.cbit") << "Disc Path: x: " << disc_path[i-1].x << " y: " << disc_path[i-1].y;
         p.push_back(p[i-1] + delta_p_calc(disc_path[i-1], disc_path[i], alpha));
         sid.push_back(i);
     }
 
+    // Generate XY, XZ Curvature Estimates
 
     // 2D spline interpolation using Cubic B-Spline
-    Eigen::Spline<double, 2> spline = spline_path(disc_path);
+    Eigen::Spline<double, 2> spline_xy = spline_path_xy(disc_path);
+
+    Eigen::Spline<double, 2> spline_xz_yz = spline_path_xz_yz(disc_path);
 
     // Calculate curvature along the teach path at each vertex
     for (int i=0; i < p.size(); i++)
     {
-        disc_path_curvature.push_back(1.0 / radius_of_curvature(p[i]/p.back(), spline)); // the input chord length should be normalized to [0,1] along the length of the path
+        disc_path_curvature_xy.push_back(1.0 / radius_of_curvature(p[i]/p.back(), spline_xy)); // the input chord length should be normalized to [0,1] along the length of the path
+        disc_path_curvature_xz_yz.push_back(1.0 / radius_of_curvature(p[i]/p.back(), spline_xz_yz)); // the input chord length should be normalized to [0,1] along the length of the path
     }
+
 
     // TODO: Generate Radius of Curvature Wormhole regions 
 
@@ -100,7 +106,7 @@ double CBITPath::delta_p_calc(Pose start_pose, Pose end_pose, double alpha)
     return sqrt((dx * dx) + (dy * dy) + (dz * dz) + (alpha * abs_angle * abs_angle));
 }
 
-Eigen::Spline<double, 2> CBITPath::spline_path(std::vector<Pose> input_path)
+Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
 {
 
     Eigen::MatrixXd points(2, input_path.size());
@@ -123,6 +129,28 @@ Eigen::Spline<double, 2> CBITPath::spline_path(std::vector<Pose> input_path)
     return spline;
 }
 
+Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(std::vector<Pose> input_path)
+{
+
+    Eigen::MatrixXd points(2, input_path.size());
+    for (int i = 0; i < input_path.size(); i++) 
+    {
+        points(0, i) = sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y));
+        points(1, i) = input_path[i].z;
+        //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << disc_path[i].x << " y: " << disc_path[i].y;
+    }
+
+    Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 3);
+    //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
+    // To query the spline, we use spline(test), where test is a normalized distance along the spline from 0 to 1
+    //double test_p = p[1] / p.back();
+    //double pred_x = spline(test_p)[0];
+    //double pred_y = spline(test_p)[1];
+    //CLOG(ERROR, "path_planning.corridor_debug") << "normalized p_test: " << test_p;
+    //CLOG(ERROR, "path_planning.corridor_debug") << "Estimated point at - x: " << pred_x << " y: " << pred_y;
+
+    return spline;
+}
 
 
 double CBITPath::radius_of_curvature(double dist, Eigen::Spline<double, 2> spline) 
