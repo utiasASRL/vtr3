@@ -220,7 +220,8 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
   // Extrapolate the pose of the robot into the future based on the localization delay
   prev_stamp = stamp;
   const auto curr_time = now();  // always in nanoseconds
-  const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+  //const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+  const auto dt = 0.1;
 
   // This code is for the old robot pose extrapolation using odometry. I found this to be very unstable and not very useful so it is no longer in use
   const auto T_p_r_extp = [&]() {
@@ -323,7 +324,8 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     
     // Extrapolating robot pose into the future by using the history of applied mpc velocity commands
     const auto curr_time = now();  // always in nanoseconds
-    const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+    //const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+    const auto dt = 0.1;
 
 
     CLOG(INFO, "mpc_debug.cbit") << "History of the Robot Velocities:" << vel_history;

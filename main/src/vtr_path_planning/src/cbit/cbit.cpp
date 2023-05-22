@@ -315,7 +315,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   prev_stamp = stamp;
 
   const auto curr_time = now();  // always in nanoseconds
-  const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+  //const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+  const auto dt = 0.1;
 
   // This code is for the old robot pose extrapolation using odometry. I found this to be very unstable and not very useful so it is no longer in use
   const auto T_p_r_extp = [&]() {

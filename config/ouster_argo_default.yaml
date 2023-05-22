@@ -316,22 +316,21 @@
         visualize: true
         
     path_planning:
-      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
-
       cbit:
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.2
-        state_update_freq: 1.0
+        state_update_freq: 2.0
         update_state: true
         rand_seed: 1
-        
+
         # Planner Tuning Params
-        initial_samples: 300
-        batch_samples: 100
+        initial_samples: 400
+        batch_samples: 200
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5
@@ -343,35 +342,41 @@
         extrapolation: false
         incremental_plotting: false
         plotting: true
-
       costmap:
         costmap_filter_value: 0.01
         costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
-        
+
       mpc:
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 1.1
+        forward_vel: 1.0
         max_lin_vel: 1.5
-        max_ang_vel: 1.0
-        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        max_ang_vel: 1.25
+        robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 300.0, 300.0, 300.0, 30.0]
-        vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        vel_error_cov: [300.0, 300.0] # was [0.1 2.0] # No longer using this cost term
         acc_error_cov: [100.0, 100.0]
-        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
+        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         lat_error_cov: [20.0]
         
+        # Cost Function Covariance Matrices (Tracking Backup)
+        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [10.0, 10.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [10.0]
+        
         # Cost Function Weights
-        pose_error_weight: 5.0
-        vel_error_weight: 5.0
-        acc_error_weight: 5.0
-        kin_error_weight: 1000.0
+        pose_error_weight: 1.0
+        vel_error_weight: 1.0
+        acc_error_weight: 1.0
+        kin_error_weight: 1.0
         lat_error_weight: 0.01
 
         #backup for tracking mpc
@@ -379,6 +384,6 @@
         #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
         #acc_error_cov: [0.1, 0.75]
         #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        
+
         # Misc
         command_history_length: 100
