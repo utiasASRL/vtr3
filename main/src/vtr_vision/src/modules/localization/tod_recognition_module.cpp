@@ -110,7 +110,7 @@ void TodRecognitionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache 
   status_msg.set__computation_time_ms(run_time);
 
   // Status message
-  //LOG_IF(config_->verbose, INFO) << "TOD: " << status_msg;
+  CLOG_IF(config_->verbose, DEBUG, "stereo.tod") << "TOD Recommendations: " << status_msg.recommended_ids;
 }
 
 ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,

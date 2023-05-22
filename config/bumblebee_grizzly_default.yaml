@@ -13,7 +13,7 @@
         "tactic.module.live_mem_manager",
         "tactic.module.graph_mem_manager",
         "mission_planning_server",
-        "state_machine",
+        "mission.state_machine",
         "pose_graph",
         "stereo.pipeline",
         "stereo.preprocessing",
@@ -21,8 +21,10 @@
         "stereo.matcher",
         #"stereo.keyframe_optimization",
         "stereo.bundle_adjustment",
+        "stereo.mel_matcher",
         "stereo.odometry",
-        "stereo.vertex_test",
+        "stereo.tod",
+        #"stereo.vertex_test",
         "odometry",
         "tactic.pipeline"
       ]
@@ -34,9 +36,6 @@
     camera_left_topic: /xb3/RGB/left_image #/zed2/zed_node/left/image_rect_color
     camera_right_topic:  /xb3/RGB/right_image #/zed2/zed_node/right/image_rect_color
     camera_calibration_topic: /zed2/zed_node/left/camera_info
-    # lidar related
-    lidar_frame: lidar_not_used
-    lidar_topic: lidar_not_used
 
     ############ map projection configuration ############
     map_projection:
@@ -78,7 +77,7 @@
       type: stereo
 
       preprocessing: ["adapter","extraction", "triangulation"]
-      odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"] #["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"]
       bundle_adjustment: ["recall", "steam"]
       localization:
          [
@@ -327,7 +326,7 @@
         type: timeofday_recognition
 
         # Whether to print out debug logs
-        verbose: false
+        verbose: true
 
         # The number of experiences to recommend for localization
         num_desired_experiences: 8

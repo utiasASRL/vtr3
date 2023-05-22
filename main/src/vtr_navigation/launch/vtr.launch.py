@@ -24,7 +24,6 @@ def generate_launch_description():
           output='screen',
           #prefix=['xterm -e gdb -ex run --args'],
 
-          # prefix=['xterm -e gdb --args'],
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),

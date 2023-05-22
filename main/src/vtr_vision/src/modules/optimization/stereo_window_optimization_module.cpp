@@ -90,7 +90,6 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
 
       // set the lock only if the map is initialized
       steam_lm->locked() =  lm_pose.isLocked();
-      CLOG(DEBUG, "stereo.bundle_adjustment") << "Landmark locked" << steam_lm->locked();
 
       // add the depth prior
       if (window_config_->depth_prior_enable) {

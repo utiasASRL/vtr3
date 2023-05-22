@@ -864,7 +864,6 @@ void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
   pose_graph::VertexId map_id = *qdata.vid_loc;
   status.map_id = map_id;
   status.success = *qdata.loc_success;
-  //status.localization_computation_time_ms = (*qdata.loc_timer).elapsedMs();
 
   // if (qdata.T_r_m.valid()) {
   //   status.t_query_map << *qdata.T_r_m;

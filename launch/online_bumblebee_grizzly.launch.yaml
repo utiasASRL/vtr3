@@ -18,8 +18,8 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=bumblebee_grizzly_default.yaml
-        data_dir:=${VTRTEMP}/vision
-        start_new_graph:=true
+        data_dir:=${VTRTEMP}/vision/$(date '+%F')/$(date '+%F')
+        start_new_graph:=false
         use_sim_time:=false
 
 #      - htop # monitor hardware usage

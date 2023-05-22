@@ -160,7 +160,7 @@ void ExperienceTriageModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
   // Check if we need to do things...
   // --------------------------------
   pose_graph::RCGraph::Base::Ptr &submap_ptr = *qdata.localization_map;
-  // pose_graph::RCGraphBase::Ptr &submap_ptr = *qdata.localization_map;
+
   if (config_->in_the_loop) {
     // If the mask is empty, we default to using all runs
     if (recommended.empty()) {
