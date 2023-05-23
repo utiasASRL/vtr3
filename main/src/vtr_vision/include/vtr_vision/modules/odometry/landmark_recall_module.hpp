@@ -127,7 +127,7 @@ class LandmarkRecallModule : public tactic::BaseModule {
    */
   void initializeLandmarkMemory(
       ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
-      const vtr_messages::msg::DescriptorType &desc_type);
+      const vtr_vision_msgs::msg::DescriptorType &desc_type);
 
   /**
    * \brief Computes T_map_i (vehicle) for i in [landmark, map-1] and stores it
@@ -186,7 +186,7 @@ class LandmarkRecallModule : public tactic::BaseModule {
    * \brief a map that keeps track of the pointers into the vertex landmark
    * messages.
    */
-  std::map<tactic::VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
+  std::map<tactic::VertexId, std::shared_ptr<vtr_vision_msgs::msg::RigLandmarks>>
       vertex_landmarks_;
 
   /**

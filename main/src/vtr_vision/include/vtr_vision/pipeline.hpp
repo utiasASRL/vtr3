@@ -26,9 +26,9 @@
 
 #include <vtr_common_msgs/msg/lie_group_transform.hpp>
 #include <vtr_common_msgs/msg/velocity.hpp>
-#include <vtr_messages/msg/rig_counts.hpp>
-#include <vtr_messages/msg/rig_landmarks.hpp>
-#include <vtr_messages/msg/rig_observations.hpp>
+#include <vtr_vision_msgs/msg/rig_counts.hpp>
+#include <vtr_vision_msgs/msg/rig_landmarks.hpp>
+#include <vtr_vision_msgs/msg/rig_observations.hpp>
 
 #include "steam.hpp"
 
@@ -37,17 +37,17 @@ namespace vtr {
 namespace vision {
 
 
-using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
-using RigObservationsMsg = vtr_messages::msg::RigObservations;
-using RigCountsMsg = vtr_messages::msg::RigCounts;
+using RigLandmarksMsg = vtr_vision_msgs::msg::RigLandmarks;
+using RigObservationsMsg = vtr_vision_msgs::msg::RigObservations;
+using RigCountsMsg = vtr_vision_msgs::msg::RigCounts;
 
-using ChannelObservationsMsg = vtr_messages::msg::ChannelObservations;
-using ChannelFeaturesMsg = vtr_messages::msg::ChannelFeatures;
-using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
+using ChannelObservationsMsg = vtr_vision_msgs::msg::ChannelObservations;
+using ChannelFeaturesMsg = vtr_vision_msgs::msg::ChannelFeatures;
+using ChannelLandmarksMsg = vtr_vision_msgs::msg::ChannelLandmarks;
 
 using TransformMsg = vtr_common_msgs::msg::LieGroupTransform;
 using VelocityMsg = vtr_common_msgs::msg::Velocity;
-using ImageMsg = vtr_messages::msg::Image;
+using ImageMsg = vtr_vision_msgs::msg::Image;
 
 
 

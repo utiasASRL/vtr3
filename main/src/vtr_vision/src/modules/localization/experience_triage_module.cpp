@@ -20,12 +20,12 @@
  */
 #include <algorithm>
 
-#include <vtr_messages/msg/localization_status.hpp>
+#include <vtr_vision_msgs/msg/localization_status.hpp>
 #include <vtr_vision/modules/localization/experience_triage_module.hpp>
 
 namespace std {
 std::ostream &operator<<(std::ostream &os,
-                         const vtr_messages::msg::ExpRecogStatus &msg) {
+                         const vtr_vision_msgs::msg::ExpRecogStatus &msg) {
   std::ios fmt(nullptr);
   fmt.copyfmt(os);
   os << std::fixed;
@@ -203,7 +203,7 @@ void ExperienceTriageModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
 
   // Basic status info
   Vertex::Ptr query_vertex = graph->at(*qdata.vid_odo);
-  status_msg_ = vtr_messages::msg::ExpRecogStatus();
+  status_msg_ = vtr_vision_msgs::msg::ExpRecogStatus();
   status_msg_.set__in_the_loop(config_->in_the_loop);
   status_msg_.keyframe_time.nanoseconds_since_epoch = query_vertex->vertexTime();
   status_msg_.set__query_id(query_vertex->id());
@@ -230,9 +230,9 @@ void ExperienceTriageModule::updateGraphImpl(tactic::QueryCache &qdata,
     std::string results_stream = "experience_triage";
     auto exp_recog_msg = 
       std::make_shared<Exp_LM>(std::make_shared<ExpRecogMsg>(status_msg_), vertex->vertexTime());
-    vertex->insert<ExpRecogMsg>(results_stream, "vtr_messages/msg/exp_recog_status", exp_recog_msg);
+    vertex->insert<ExpRecogMsg>(results_stream, "vtr_vision_msgs/msg/exp_recog_status", exp_recog_msg);
 
-    // graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(
+    // graph->registerVertexStream<vtr_vision_msgs::msg::ExpRecogStatus>(
     //     rid, results_stream);
     // vertex->insert(results_stream, status_msg_, vertex->keyFrameTime());
   }

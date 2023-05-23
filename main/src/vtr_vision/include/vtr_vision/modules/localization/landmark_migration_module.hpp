@@ -24,7 +24,7 @@
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include "vtr_common/conversions/ros_lgmath.hpp"
-#include <vtr_messages/msg/localization_status.hpp>
+#include <vtr_vision_msgs/msg/localization_status.hpp>
 #include <vtr_common_msgs/msg/lie_group_transform.hpp>
 
 namespace vtr {
@@ -108,7 +108,7 @@ class LandmarkMigrationModule : public tactic::BaseModule {
                const VertexId &persist_id,
                const tactic::EdgeTransform &T_root_curr,
                CameraQueryCache &qdata,
-               std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks);
+               std::shared_ptr<vtr_vision_msgs::msg::RigLandmarks> &landmarks);
 
   /**
    * \brief Loads the sensor transform from robochunk via a vertex ID

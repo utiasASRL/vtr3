@@ -1,4 +1,4 @@
-vtr_messages/TimeStamp stamp
+vtr_vision_msgs/TimeStamp stamp
 int32 height
 int32 width
 string encoding

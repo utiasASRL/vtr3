@@ -119,8 +119,8 @@ void StereoWindowedRecallModule::loadVertexData(
 
   // grab all of the observations associated with this vertex.
   auto locked_obs_msgs =
-      current_vertex->retrieve<vtr_messages::msg::RigObservations>(
-          rig_name + "_observations", "vtr_messages/msg/RigObservations");
+      current_vertex->retrieve<vtr_vision_msgs::msg::RigObservations>(
+          rig_name + "_observations", "vtr_vision_msgs/msg/RigObservations");
   if (locked_obs_msgs == nullptr){
     std::stringstream err;
     err << "Observations at " << current_vertex->id() << " for " << rig_name
@@ -147,7 +147,7 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
     LandmarkMap &lm_map, SteamPoseMap &poses,
     SensorVehicleTransformMap &transforms,
     const pose_graph::RCVertex::Ptr &current_vertex,
-    const vtr_messages::msg::ChannelObservations &channel_obs,
+    const vtr_vision_msgs::msg::ChannelObservations &channel_obs,
     const std::string &rig_name, const GraphBase::ConstPtr &graph) {
   // grab the observations from the first camera.
   const auto &camera_obs = channel_obs.cameras[0];
@@ -192,8 +192,8 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
       // if we havent loaded up this vertex yet, then do so.
       if (vertex_landmarks_.find(landmark_vertex->id()) ==
           vertex_landmarks_.end()) {
-        auto locked_landmark_msg = landmark_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
-            rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
+        auto locked_landmark_msg = landmark_vertex->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
+            rig_name + "_landmarks", "vtr_vision_msgs/msg/RigLandmarks");
         if (locked_landmark_msg == nullptr) {
           std::stringstream err;
           err << "Couldn't retrieve landmarks from vertex data! Is the "

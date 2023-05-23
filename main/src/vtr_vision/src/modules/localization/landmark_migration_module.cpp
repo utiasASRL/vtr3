@@ -159,14 +159,14 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
     // 2. get landmarks
     std::string lm_stream_name = rig_name + "_landmarks";
     // for (const auto &r : graph->runs())
-    //   r.second->registerVertexStream<vtr_messages::msg::RigLandmarks>(
+    //   r.second->registerVertexStream<vtr_vision_msgs::msg::RigLandmarks>(
     //       lm_stream_name, true, pose_graph::RegisterMode::Existing);
 
     auto curr_vertex = graph->at(curr_vid);
 
     //curr_vertex->load(lm_stream_name);
-    auto locked_landmark_msg = curr_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
-            lm_stream_name, "vtr_messages/msg/RigLandmarks");
+    auto locked_landmark_msg = curr_vertex->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
+            lm_stream_name, "vtr_vision_msgs/msg/RigLandmarks");
     auto locked_msg = locked_landmark_msg->sharedLocked();
     auto landmarks = locked_msg.get().getDataPtr();
     if (landmarks == nullptr) {
@@ -240,7 +240,7 @@ void LandmarkMigrationModule::initializeMapData(CameraQueryCache &qdata) {
 void LandmarkMigrationModule::migrate(
     const int &rig_idx, const VertexId &persist_id,
     const EdgeTransform &T_root_curr, CameraQueryCache &qdata,
-    std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks) {
+    std::shared_ptr<vtr_vision_msgs::msg::RigLandmarks> &landmarks) {
   if (landmarks == nullptr) {
     LOG(ERROR) << "Retrieved landmark is not valid";
     return;

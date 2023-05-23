@@ -106,7 +106,7 @@ class StereoWindowedRecallModule : public tactic::BaseModule {
       LandmarkMap &lm_map, SteamPoseMap &poses,
       SensorVehicleTransformMap &transforms,
       const pose_graph::RCVertex::Ptr &current_vertex,
-      const vtr_messages::msg::ChannelObservations &channel_obs,
+      const vtr_vision_msgs::msg::ChannelObservations &channel_obs,
       const std::string &rig_name, const tactic::GraphBase::ConstPtr &graph);
 
   /**
@@ -137,7 +137,7 @@ class StereoWindowedRecallModule : public tactic::BaseModule {
    * \brief a map that keeps track of the pointers into the vertex landmark
    * messages.
    */
-  std::map<tactic::VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
+  std::map<tactic::VertexId, std::shared_ptr<vtr_vision_msgs::msg::RigLandmarks>>
       vertex_landmarks_;
 
   /** \brief Module configuration. */

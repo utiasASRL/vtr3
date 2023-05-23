@@ -21,7 +21,7 @@
 #pragma once
 
 #include <vtr_common/timing/utils.hpp>
-#include <vtr_messages/msg/exp_recog_status.hpp>
+#include <vtr_vision_msgs/msg/exp_recog_status.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
 #include "vtr_tactic/task_queue.hpp"
@@ -89,7 +89,7 @@ TodRecognitionModule(
   void storeRunSelection(tactic::QueryCache &qdata,
                        const tactic::Graph::Ptr &graph,
                        tactic::VertexId vid, 
-                       vtr_messages::msg::ExpRecogStatus status_msg);
+                       vtr_vision_msgs::msg::ExpRecogStatus status_msg);
 
   /** \brief Module configuration. */
   Config::ConstPtr config_;

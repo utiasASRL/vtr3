@@ -47,9 +47,9 @@
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/types.hpp>
 
-#include <vtr_messages/msg/h_vec3.hpp>
-#include <vtr_messages/msg/keypoint.hpp>
-#include <vtr_messages/msg/match.hpp>
+#include <vtr_vision_msgs/msg/h_vec3.hpp>
+#include <vtr_vision_msgs/msg/keypoint.hpp>
+#include <vtr_vision_msgs/msg/match.hpp>
 #include <vtr_common_msgs/msg/velocity.hpp>
 
 namespace vtr {
@@ -526,10 +526,10 @@ using LandmarkFrames = std::vector<LandmarkFrame>;
 
 /** \brief collection of pointers to observations and their origins. */
 struct LandmarkObs {
-  std::vector<vtr_messages::msg::Keypoint> keypoints;
+  std::vector<vtr_vision_msgs::msg::Keypoint> keypoints;
   std::vector<float> precisions;
   std::vector<std::vector<float>> covariances;
-  vtr_messages::msg::Match origin_ref;
+  vtr_vision_msgs::msg::Match origin_ref;
 };
 
 
@@ -538,7 +538,7 @@ struct LandmarkObs {
  * containers.
  */
 struct LandmarkInfo {
-  vtr_messages::msg::HVec3 point;
+  vtr_vision_msgs::msg::HVec3 point;
   std::vector<float> covariance;
   uint8_t descriptor;
   uint32_t num_vo_observations;

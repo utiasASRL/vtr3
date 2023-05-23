@@ -693,7 +693,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
   }
 
   // Update the landmarks in the graph
-  std::map<VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
+  std::map<VertexId, std::shared_ptr<vtr_vision_msgs::msg::RigLandmarks>>
       landmark_msgs;
 
   for (auto &landmark : lm_map) {
@@ -705,8 +705,8 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
       auto v = graph->at(vid);
 
       std::string lm_stream_name = "stereo_landmarks"; //#TODO: make rig_name configurable
-      auto locked_landmark_msg = v->retrieve<vtr_messages::msg::RigLandmarks>(
-              lm_stream_name, "vtr_messages/msg/RigLandmarks");
+      auto locked_landmark_msg = v->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
+              lm_stream_name, "vtr_vision_msgs/msg/RigLandmarks");
       auto locked_msg = locked_landmark_msg->sharedLocked();
       auto v_lms = locked_msg.get().getDataPtr();
       if (v_lms == nullptr) {
@@ -718,7 +718,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
       }
 
 
-      // auto v_lms = v->retrieve<vtr_messages::msg::RigLandmarks>(
+      // auto v_lms = v->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
       //     "front_xb3_landmarks");
       landmark_msgs.emplace(std::make_pair(vid, v_lms));
     }
@@ -793,7 +793,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
     using LM_Msg = storage::LockableMessage<RigLandmarksMsg>;
     auto lm_msg =
         std::make_shared<LM_Msg>(msg.second, v->vertexTime());
-    v->insert<RigLandmarksMsg>(lm_str, "vtr_messages/msg/RigLandmarks", lm_msg);
+    v->insert<RigLandmarksMsg>(lm_str, "vtr_vision_msgs/msg/RigLandmarks", lm_msg);
       
 
 

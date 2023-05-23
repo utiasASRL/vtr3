@@ -1,7 +1,7 @@
 # Stores result / status information for experience recognition at a vertex
 
 # The timestamp of the keyframe
-vtr_messages/TimeStamp keyframe_time
+vtr_vision_msgs/TimeStamp keyframe_time
 
 # The vertex id of the live query vertex
 uint64 query_id
@@ -20,7 +20,7 @@ bool in_the_loop
 
 # A map from experience run id to Bag-of-Words cosine distance,
 # sorted from lowest to highest by run id
-vtr_messages/RunToCosineDistance[] cosine_distances
+vtr_vision_msgs/RunToCosineDistance[] cosine_distances
 
 # Recommended run ids, sorted from lowest to highest (lowest n distance)
 uint32[] recommended_ids

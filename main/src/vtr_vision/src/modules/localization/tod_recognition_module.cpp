@@ -19,7 +19,7 @@
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_common/timing/stopwatch.hpp>
-#include <vtr_messages/msg/run_to_cosine_distance.hpp>
+#include <vtr_vision_msgs/msg/run_to_cosine_distance.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/modules/localization/tod_recognition_module.hpp>
 #include <vtr_vision/utils.hpp>
@@ -56,7 +56,7 @@ void TodRecognitionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache 
   RunIdSet &recommended = *qdata.recommended_experiences;
 
   // Clear any past status message
-  auto status_msg = vtr_messages::msg::ExpRecogStatus();
+  auto status_msg = vtr_vision_msgs::msg::ExpRecogStatus();
 
   // We only do work if there are more runs needed to be recommended
   if ((int)recommended.size() >= config_->num_exp) return;
@@ -93,12 +93,12 @@ void TodRecognitionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache 
   // The query id
   status_msg.set__query_id(live_id);
   // The algorithm
-  status_msg.set__algorithm(vtr_messages::msg::ExpRecogStatus::ALGORITHM_TIME);
+  status_msg.set__algorithm(vtr_vision_msgs::msg::ExpRecogStatus::ALGORITHM_TIME);
   // Whether we're running online
   status_msg.set__in_the_loop(config_->in_the_loop);
   // The bag-of-words cosine distances for each run
   for (const ScoredRid dist_rid : scored_rids) {
-    vtr_messages::msg::RunToCosineDistance dist_msg;
+    vtr_vision_msgs::msg::RunToCosineDistance dist_msg;
     dist_msg.set__run_id(dist_rid.second);
     dist_msg.set__cosine_distance(dist_rid.first);
     status_msg.cosine_distances.push_back(dist_msg);
@@ -167,7 +167,7 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
 void TodRecognitionModule::storeRunSelection(QueryCache &,
                                            const Graph::Ptr &graph,
                                            VertexId vid,
-                                           vtr_messages::msg::ExpRecogStatus status_msg) {
+                                           vtr_vision_msgs::msg::ExpRecogStatus status_msg) {
   const Vertex::Ptr &vertex = graph->at(vid);
 
   // \todo store result in the pose graph.
@@ -177,7 +177,7 @@ void TodRecognitionModule::storeRunSelection(QueryCache &,
   // if (status_msg.query_id == vid) {
   //   RunId rid = vertex->id().majorId();
   //   std::string results_stream = "time_of_day_picker";
-  //   graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(
+  //   graph->registerVertexStream<vtr_vision_msgs::msg::ExpRecogStatus>(
   //       rid, results_stream);
   //   vertex->insert(results_stream, status_msg, vertex->vertexTime());
   // }

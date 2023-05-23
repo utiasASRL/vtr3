@@ -186,7 +186,7 @@ class MelMatcherModule : public tactic::BaseModule {
    * map for the given channel.
    */
   void matchChannel(CameraQueryCache &qdata, const LandmarkId &channel_id,
-                    const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
+                    const vtr_vision_msgs::msg::ChannelLandmarks &map_channel_lm);
 
   /**
    * \brief Finds matches between query and map for a given channel while
@@ -198,7 +198,7 @@ class MelMatcherModule : public tactic::BaseModule {
    */
   void matchChannelGPU(
       CameraQueryCache &qdata, const LandmarkId &channel_id,
-      const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
+      const vtr_vision_msgs::msg::ChannelLandmarks &map_channel_lm);
 
   /**
    * \brief Attempts to find a match between a query landmark and a set of map
@@ -213,7 +213,7 @@ class MelMatcherModule : public tactic::BaseModule {
   int matchQueryKeypoint(
       CameraQueryCache &qdata, const LandmarkId &channel_id,
       const int &q_kp_idx,
-      const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
+      const vtr_vision_msgs::msg::ChannelLandmarks &map_channel_lm);
 
   /**
    * \brief Matches a query and map landmark.
@@ -228,11 +228,11 @@ class MelMatcherModule : public tactic::BaseModule {
    * \return true if the query and map landmarks are a potential match.
    */
   bool potential_match(const cv::KeyPoint &query_lm_info,
-                       const vtr_messages::msg::FeatureInfo &lm_info_map,
+                       const vtr_vision_msgs::msg::FeatureInfo &lm_info_map,
                        const int &map_track_length, const cv::Point &query_kp,
                        const Eigen::Vector2d &map_kp, const double &query_depth,
                        const double &map_depth,
-                       const vtr_messages::msg::Match &lm_track);
+                       const vtr_vision_msgs::msg::Match &lm_track);
 
   /** \brief Algorithm Configuration */
   Config::ConstPtr config_;

@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>vtr_messages</name>
-  <version>0.0.0</version>
-  <description>VTR messages.</description>
+  <name>vtr_vision_msgs</name>
+  <version>0.1.0</version>
+  <description>VTR Vision messages.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
   <license>Apache License 2.0</license>
 

@@ -311,7 +311,7 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     auto lm_msg =
         std::make_shared<LM_Msg>(std::make_shared<RigLandmarksMsg>(landmarks), *qdata.stamp);
 
-    vertex->insert<RigLandmarksMsg>(lm_str, "vtr_messages/msg/RigLandmarks", lm_msg);
+    vertex->insert<RigLandmarksMsg>(lm_str, "vtr_vision_msgs/msg/RigLandmarks", lm_msg);
       
 
 
@@ -319,14 +319,14 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     using LM_Cnt_Msg = storage::LockableMessage<RigCountsMsg>;
     auto lm_cnt_msg =
             std::make_shared<LM_Cnt_Msg>(std::make_shared<RigCountsMsg>(lm_cnt), *qdata.stamp);
-    vertex->insert<RigCountsMsg>(lm_cnt_str, "vtr_messages/msg/RigCounts", lm_cnt_msg);
+    vertex->insert<RigCountsMsg>(lm_cnt_str, "vtr_vision_msgs/msg/RigCounts", lm_cnt_msg);
 
 
     std::string obs_str = rig_name + "_observations";
     using Obs_Msg = storage::LockableMessage<RigObservationsMsg>;
     auto obs_msg =
             std::make_shared<Obs_Msg>(std::make_shared<RigObservationsMsg>(observations), *qdata.stamp);
-    vertex->insert<RigObservationsMsg>(obs_str, "vtr_messages/msg/RigObservations", obs_msg);
+    vertex->insert<RigObservationsMsg>(obs_str, "vtr_vision_msgs/msg/RigObservations", obs_msg);
 
 
 
@@ -335,7 +335,7 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     using Obs_Cnt_Msg = storage::LockableMessage<RigCountsMsg>;
     auto obs_cnt_msg =
             std::make_shared<Obs_Cnt_Msg>(std::make_shared<RigCountsMsg>(obs_cnt), *qdata.stamp);
-    vertex->insert<RigCountsMsg>(obs_cnt_str, "vtr_messages/msg/RigCounts", obs_cnt_msg);
+    vertex->insert<RigCountsMsg>(obs_cnt_str, "vtr_vision_msgs/msg/RigCounts", obs_cnt_msg);
 
 
     // insert the vehicle->sensor transform
@@ -379,7 +379,7 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
         using Image_LockMsg = storage::LockableMessage<ImageMsg>;
         auto locked_image_msg =
                 std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg), *qdata.stamp);
-        vertex->insert<ImageMsg>(vis_str, "vtr_messages/msg/Image", locked_image_msg);
+        vertex->insert<ImageMsg>(vis_str, "vtr_vision_msgs/msg/Image", locked_image_msg);
         break;
       }
     }
@@ -782,7 +782,7 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
   for (uint32_t rig_idx = 0; rig_idx < inliers.size(); ++rig_idx) {
     std::string &rig_name = rig_names.at(rig_idx);
     auto &rig_inliers = inliers[rig_idx];
-    vtr_messages::msg::Matches matches_msg;
+    vtr_vision_msgs::msg::Matches matches_msg;
 
     // go through each channel.
     for (uint32_t channel_idx = 0; channel_idx < rig_inliers.channels.size();
@@ -800,8 +800,8 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
         if (landmark_map.find(q_lm_vertex) == landmark_map.end()) {
           auto vertex = graph->at(q_lm_vertex);
 
-          auto locked_lm_msgs = vertex->retrieve<vtr_messages::msg::RigLandmarks>(
-          rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
+          auto locked_lm_msgs = vertex->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
+          rig_name + "_landmarks", "vtr_vision_msgs/msg/RigLandmarks");
           auto locked_msg = locked_lm_msgs->sharedLocked();
           landmark_map[q_lm_vertex] = locked_msg.get().getDataPtr();
         }
@@ -830,7 +830,7 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
 
         // direct matches used for collaborative landmark tracking (first
         // pass)
-        vtr_messages::msg::Match direct_match_msg;
+        vtr_vision_msgs::msg::Match direct_match_msg;
         direct_match_msg.from_id = query_match.from_id;
         direct_match_msg.to_id.push_back(new_match);
         matches_msg.matches.push_back(direct_match_msg);
@@ -840,10 +840,10 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
 
     // Save the matches to map landmarks
     std::string landmark_match_str(rig_name + "_landmarks_matches");
-    using LM_Match_Msg = storage::LockableMessage<vtr_messages::msg::Matches>;
+    using LM_Match_Msg = storage::LockableMessage<vtr_vision_msgs::msg::Matches>;
     auto lm_match_msg =
-        std::make_shared<LM_Match_Msg>(std::make_shared<vtr_messages::msg::Matches>(matches_msg), *qdata.stamp);
-    live_vtx->insert<vtr_messages::msg::Matches>(landmark_match_str, "vtr_messages/msg/Matches", lm_match_msg);
+        std::make_shared<LM_Match_Msg>(std::make_shared<vtr_vision_msgs::msg::Matches>(matches_msg), *qdata.stamp);
+    live_vtx->insert<vtr_vision_msgs::msg::Matches>(landmark_match_str, "vtr_vision_msgs/msg/Matches", lm_match_msg);
   }
 }
 
@@ -873,10 +873,10 @@ void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
 
   // fill in the status
   std::string loc_status_str("results_localization");
-  using LM_Loc_Res_Msg = storage::LockableMessage<vtr_messages::msg::LocalizationStatus>;
-  auto lm_loc_msg = std::make_shared<LM_Loc_Res_Msg>(std::make_shared<vtr_messages::msg::LocalizationStatus>(status), *qdata.stamp);
+  using LM_Loc_Res_Msg = storage::LockableMessage<vtr_vision_msgs::msg::LocalizationStatus>;
+  auto lm_loc_msg = std::make_shared<LM_Loc_Res_Msg>(std::make_shared<vtr_vision_msgs::msg::LocalizationStatus>(status), *qdata.stamp);
 
-  vertex->insert<vtr_messages::msg::LocalizationStatus>(loc_status_str, "vtr_messages/msg/LocalizationStatus", lm_loc_msg);
+  vertex->insert<vtr_vision_msgs::msg::LocalizationStatus>(loc_status_str, "vtr_vision_msgs/msg/LocalizationStatus", lm_loc_msg);
 }
 
 

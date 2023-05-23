@@ -26,6 +26,8 @@
 
 #include <vtr_logging/logging.hpp>
 #include <vtr_vision/messages/bridge.hpp>
+#include "vtr_common/conversions/ros_lgmath.hpp"
+
 
 namespace vtr {
 namespace messages {
@@ -69,7 +71,7 @@ std::string featureType2Str(const vision::FeatureImpl &impl) {
   }
 }
 
-vision::Features copyFeatures(const vtr_messages::msg::Features &msg_features) {
+vision::Features copyFeatures(const vtr_vision_msgs::msg::Features &msg_features) {
   // name
   vision::Features features;
   features.name = msg_features.name;
@@ -140,7 +142,7 @@ vision::Features copyFeatures(const vtr_messages::msg::Features &msg_features) {
 }
 
 vision::ChannelFeatures copyFeatures(
-    const vtr_messages::msg::ChannelFeatures
+    const vtr_vision_msgs::msg::ChannelFeatures
         &msg_channel) {  ///<[in] the protobuf camera message
   vision::ChannelFeatures channel;
   channel.fully_matched = msg_channel.fully_matched;
@@ -150,7 +152,7 @@ vision::ChannelFeatures copyFeatures(
   return channel;
 }
 
-vision::RigFeatures copyFeatures(const vtr_messages::msg::RigFeatures
+vision::RigFeatures copyFeatures(const vtr_vision_msgs::msg::RigFeatures
                                      &msg_rig) {  ///<[in] the protobuf message
   vision::RigFeatures rig;
   rig.channels.reserve(msg_rig.channels.size());
@@ -159,9 +161,9 @@ vision::RigFeatures copyFeatures(const vtr_messages::msg::RigFeatures
   return rig;
 }
 
-vtr_messages::msg::ChannelFeatures copyFeatures(
+vtr_vision_msgs::msg::ChannelFeatures copyFeatures(
     const vision::ChannelFeatures &channel_features) {
-  vtr_messages::msg::ChannelFeatures ros_msg;
+  vtr_vision_msgs::msg::ChannelFeatures ros_msg;
   ros_msg.name = channel_features.name;
 
   for (auto &camera : channel_features.cameras) {
@@ -173,9 +175,9 @@ vtr_messages::msg::ChannelFeatures copyFeatures(
   return ros_msg;
 }
 
-vtr_messages::msg::RigFeatures copyFeatures(
+vtr_vision_msgs::msg::RigFeatures copyFeatures(
     const vision::RigFeatures &rig_features) {
-  vtr_messages::msg::RigFeatures ros_msg;
+  vtr_vision_msgs::msg::RigFeatures ros_msg;
 
   ros_msg.name = rig_features.name;
   for (auto &channel : rig_features.channels) {
@@ -184,14 +186,14 @@ vtr_messages::msg::RigFeatures copyFeatures(
   return ros_msg;
 }
 
-vtr_messages::msg::Matches copyMatches(
+vtr_vision_msgs::msg::Matches copyMatches(
     const vision::LandmarkMatches &match_list) {
-  vtr_messages::msg::Matches msg_match_list;
+  vtr_vision_msgs::msg::Matches msg_match_list;
   auto &msg_matches = msg_match_list.matches;
   msg_matches.reserve(match_list.size());
 
   for (const vision::LandmarkMatch &match : match_list) {
-    vtr_messages::msg::Match msg_match;  // = *msg_matches.Add();
+    vtr_vision_msgs::msg::Match msg_match;  // = *msg_matches.Add();
     msg_match.from_id = copyLandmarkId(match.from);
     msg_match.to_id.reserve(match.to.size());
     for (const vision::LandmarkId &to : match.to) {
@@ -204,20 +206,20 @@ vtr_messages::msg::Matches copyMatches(
 }
 
 vision::LandmarkMatches copyMatches(
-    const vtr_messages::msg::Matches &msg_match_list) {
+    const vtr_vision_msgs::msg::Matches &msg_match_list) {
   const auto &msg_matches = msg_match_list.matches;
   vision::LandmarkMatches match_list;
   match_list.reserve(msg_matches.size());
 
-  for (const vtr_messages::msg::Match &msg_match : msg_matches) {
+  for (const vtr_vision_msgs::msg::Match &msg_match : msg_matches) {
     match_list.emplace_back();
     vision::LandmarkMatch &match = match_list.back();
     // Check that from_id has been assigned
-    if (msg_match.from_id != vtr_messages::msg::FeatureId()) {
+    if (msg_match.from_id != vtr_vision_msgs::msg::FeatureId()) {
       match.from = copyLandmarkId(msg_match.from_id);
     }
     match.to.reserve(msg_match.to_id.size());
-    for (const vtr_messages::msg::FeatureId &msg_to : msg_match.to_id) {
+    for (const vtr_vision_msgs::msg::FeatureId &msg_to : msg_match.to_id) {
       match.to.push_back(copyLandmarkId(msg_to));
     }
   }
@@ -281,7 +283,7 @@ vision::RigMatches concatenateMatches(const vision::RigMatches &matches1,
 }
 
 Eigen::Matrix<double, 3, Eigen::Dynamic> copyPointCloud(
-    const vtr_messages::msg::ChannelLandmarks &msg_landmarks) {
+    const vtr_vision_msgs::msg::ChannelLandmarks &msg_landmarks) {
   int num_points = msg_landmarks.points.size();
   if (!num_points) return Eigen::Matrix<double, 3, Eigen::Dynamic>();
 
@@ -302,9 +304,9 @@ Eigen::Matrix<double, 3, Eigen::Dynamic> copyPointCloud(
   return points;
 }
 
-cv::Mat wrapDescriptors(const vtr_messages::msg::Features &features) {
+cv::Mat wrapDescriptors(const vtr_vision_msgs::msg::Features &features) {
   // Get the descriptor type
-  if (features.desc_type == vtr_messages::msg::DescriptorType())
+  if (features.desc_type == vtr_vision_msgs::msg::DescriptorType())
     return cv::Mat();
   auto type = features.desc_type;
 
@@ -338,7 +340,7 @@ cv::Mat wrapDescriptors(const vtr_messages::msg::Features &features) {
   return cv::Mat(n, cols, cv_type, (void *)descriptor_string.data());
 }
 
-cv::Mat wrapImage(const vtr_messages::msg::Image &asrl_image) {
+cv::Mat wrapImage(const vtr_vision_msgs::msg::Image &asrl_image) {
   const auto &data = asrl_image.data;
 
   // assert(data != nullptr);
@@ -357,9 +359,9 @@ cv::Mat wrapImage(const vtr_messages::msg::Image &asrl_image) {
   }
 }
 
-vtr_messages::msg::DescriptorType copyDescriptorType(
+vtr_vision_msgs::msg::DescriptorType copyDescriptorType(
     const vision::FeatureType &feat_type) {
-  vtr_messages::msg::DescriptorType ros_desc_type;
+  vtr_vision_msgs::msg::DescriptorType ros_desc_type;
   ros_desc_type.name = featureType2Str(feat_type.impl);
   ros_desc_type.dims = feat_type.dims;
   ros_desc_type.bytes_per_desc = feat_type.bytes_per_desc;
@@ -368,7 +370,7 @@ vtr_messages::msg::DescriptorType copyDescriptorType(
 }
 
 vision::FeatureType copyDescriptorType(
-    const vtr_messages::msg::DescriptorType &desc_type) {
+    const vtr_vision_msgs::msg::DescriptorType &desc_type) {
   vision::FeatureType feature_type;
   feature_type.impl = str2FeatureType(desc_type.name);
   feature_type.dims = desc_type.dims;
@@ -377,9 +379,9 @@ vision::FeatureType copyDescriptorType(
   return feature_type;
 }
 
-vtr_messages::msg::Features copyFeatures(const vision::Features &features) {
+vtr_vision_msgs::msg::Features copyFeatures(const vision::Features &features) {
   // name
-  vtr_messages::msg::Features ros_features;
+  vtr_vision_msgs::msg::Features ros_features;
   ros_features.name = features.name;
 
   // fill in the descriptor type
@@ -390,11 +392,11 @@ vtr_messages::msg::Features copyFeatures(const vision::Features &features) {
     const auto &keypoint = features.keypoints[idx];
     const auto &keypoint_info = features.feat_infos[idx];
 
-    vtr_messages::msg::Keypoint ros_keypoint;
+    vtr_vision_msgs::msg::Keypoint ros_keypoint;
     ros_keypoint.position.x = keypoint.pt.x;
     ros_keypoint.position.y = keypoint.pt.y;
 
-    vtr_messages::msg::FeatureInfo ros_keypoint_info;
+    vtr_vision_msgs::msg::FeatureInfo ros_keypoint_info;
     ros_keypoint_info.laplacian_bit = keypoint_info.laplacian_bit;
     ros_keypoint_info.scale = keypoint.octave;
     ros_keypoint_info.orientation = keypoint.angle;
@@ -419,7 +421,7 @@ vtr_messages::msg::Features copyFeatures(const vision::Features &features) {
   return ros_features;
 }
 
-vision::Image copyImages(const vtr_messages::msg::Image &ros_image) {
+vision::Image copyImages(const vtr_vision_msgs::msg::Image &ros_image) {
   vision::Image image;
 
   image.stamp = ros_image.stamp.nanoseconds_since_epoch;
@@ -430,7 +432,7 @@ vision::Image copyImages(const vtr_messages::msg::Image &ros_image) {
 }
 
 vision::ChannelImages copyImages(
-    const vtr_messages::msg::ChannelImages &ros_channel) {
+    const vtr_vision_msgs::msg::ChannelImages &ros_channel) {
   vision::ChannelImages channel;
   channel.name = ros_channel.name;
 
@@ -444,7 +446,7 @@ vision::ChannelImages copyImages(
   return channel;
 }
 
-vision::RigImages copyImages(const vtr_messages::msg::RigImages &ros_rig) {
+vision::RigImages copyImages(const vtr_vision_msgs::msg::RigImages &ros_rig) {
   vision::RigImages rig;
   rig.name = ros_rig.name;
 
@@ -458,8 +460,8 @@ vision::RigImages copyImages(const vtr_messages::msg::RigImages &ros_rig) {
   return rig;
 }
 
-vtr_messages::msg::Image copyImages(const vision::Image &asrl_image) {
-  vtr_messages::msg::Image image;
+vtr_vision_msgs::msg::Image copyImages(const vision::Image &asrl_image) {
+  vtr_vision_msgs::msg::Image image;
   const auto &cv_image = asrl_image.data;
   image.stamp.nanoseconds_since_epoch = asrl_image.stamp;
   image.name = asrl_image.name;
@@ -481,9 +483,9 @@ vtr_messages::msg::Image copyImages(const vision::Image &asrl_image) {
   return image;
 }
 
-vtr_messages::msg::ChannelImages copyImages(
+vtr_vision_msgs::msg::ChannelImages copyImages(
     const vision::ChannelImages &asrl_channel) {
-  vtr_messages::msg::ChannelImages channel;
+  vtr_vision_msgs::msg::ChannelImages channel;
   channel.name = asrl_channel.name;
   for (auto &asrl_camera : asrl_channel.cameras) {
     channel.cameras.push_back(copyImages(asrl_camera));
@@ -492,8 +494,8 @@ vtr_messages::msg::ChannelImages copyImages(
   return channel;
 }
 
-vtr_messages::msg::RigImages copyImages(const vision::RigImages &asrl_rig) {
-  vtr_messages::msg::RigImages rig;
+vtr_vision_msgs::msg::RigImages copyImages(const vision::RigImages &asrl_rig) {
+  vtr_vision_msgs::msg::RigImages rig;
   rig.name = asrl_rig.name;
   for (auto &asrl_channel : asrl_rig.channels) {
     rig.channels.push_back(copyImages(asrl_channel));
@@ -501,21 +503,8 @@ vtr_messages::msg::RigImages copyImages(const vision::RigImages &asrl_rig) {
   return rig;
 }
 
-vision::Transform copyExtrinsics(
-    const vtr_messages::msg::Transform &ros_extrinsic) {
-  Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-  Eigen::Vector3d axisangle =
-      Eigen::Vector3d(ros_extrinsic.orientation.x, ros_extrinsic.orientation.y,
-                      ros_extrinsic.orientation.z);
-  transform.block(0, 0, 3, 3) = lgmath::so3::vec2rot(axisangle);
-  transform(0, 3) = ros_extrinsic.translation.x;
-  transform(1, 3) = ros_extrinsic.translation.y;
-  transform(2, 3) = ros_extrinsic.translation.z;
-  return lgmath::se3::Transformation(transform);
-}
-
 vision::CameraIntrinsic copyIntrinsics(
-    const vtr_messages::msg::CameraCalibration &ros_intrinsics) {
+    const vtr_vision_msgs::msg::CameraCalibration &ros_intrinsics) {
   vision::CameraIntrinsic intrinsic;
   for (int row = 0; row < 3; ++row) {
     for (int col = 0; col < 3; ++col) {
@@ -526,7 +515,7 @@ vision::CameraIntrinsic copyIntrinsics(
 }
 
 vision::RigCalibration copyCalibration(
-    const vtr_messages::msg::RigCalibration &ros_calibration) {
+    const vtr_vision_msgs::msg::RigCalibration &ros_calibration) {
   vision::RigCalibration calibration;
 
   calibration.rectified = ros_calibration.rectified;
@@ -534,14 +523,16 @@ vision::RigCalibration copyCalibration(
   for (unsigned int idx = 0; idx < num_cameras; ++idx) {
     calibration.intrinsics.push_back(
         copyIntrinsics(ros_calibration.intrinsics[idx]));
-    calibration.extrinsics.push_back(
-        copyExtrinsics(ros_calibration.extrinsics[idx]));
+    
+    lgmath::se3::TransformationWithCovariance tf;
+    common::conversions::fromROSMsg(ros_calibration.extrinsics[idx], tf);
+    calibration.extrinsics.push_back(tf);
   }
   return calibration;
 }
 
 vision::RigCalibration copyCalibration(
-    const vtr_messages::msg::XB3CalibrationResponse &ros_calibration) {
+    const vtr_vision_msgs::msg::XB3CalibrationResponse &ros_calibration) {
   vision::RigCalibration calibration;
 
   // the xb3 calibration is always rectified
@@ -569,16 +560,16 @@ vision::RigCalibration copyCalibration(
   return calibration;
 }
 
-vtr_messages::msg::ChannelLandmarks copyLandmarks(
+vtr_vision_msgs::msg::ChannelLandmarks copyLandmarks(
     const vision::ChannelLandmarks &asrl_landmarks) {
-  vtr_messages::msg::ChannelLandmarks new_landmarks;
+  vtr_vision_msgs::msg::ChannelLandmarks new_landmarks;
   new_landmarks.name = asrl_landmarks.name;
 
   auto lm_info = asrl_landmarks.appearance.feat_infos.cbegin();
   for (auto kp = asrl_landmarks.appearance.keypoints.cbegin();
        kp != asrl_landmarks.appearance.keypoints.end(); ++kp, ++lm_info) {
     // copy over the feature info
-    vtr_messages::msg::FeatureInfo ros_keypoint_info;
+    vtr_vision_msgs::msg::FeatureInfo ros_keypoint_info;
     ros_keypoint_info.laplacian_bit = lm_info->laplacian_bit;
     // precision isn't available in vtr_vision::vision_msgs::ChannelLandmarks
     ros_keypoint_info.scale = kp->octave;
@@ -596,7 +587,7 @@ vtr_messages::msg::ChannelLandmarks copyLandmarks(
 
   for (int idx = 0; idx < asrl_landmarks.points.cols(); ++idx) {
     auto &point = asrl_landmarks.points.col(idx);
-    vtr_messages::msg::HVec3 ros_point;
+    vtr_vision_msgs::msg::HVec3 ros_point;
     ros_point.x = point(0);
     ros_point.y = point(1);
     ros_point.z = point(2);
@@ -652,9 +643,9 @@ void updateLandmarks(vision_msgs::ChannelLandmarks &landmarks, const vision::Cha
 }
 #endif
 
-vtr_messages::msg::RigLandmarks copyLandmarks(
+vtr_vision_msgs::msg::RigLandmarks copyLandmarks(
     const vision::RigLandmarks &asrl_landmarks) {
-  vtr_messages::msg::RigLandmarks landmarks;
+  vtr_vision_msgs::msg::RigLandmarks landmarks;
   landmarks.name = asrl_landmarks.name;
   for (const auto &asrl_channel : asrl_landmarks.channels) {
     landmarks.channels.push_back(copyLandmarks(asrl_channel));
@@ -674,7 +665,7 @@ void updateLandmarks(vision_msgs::RigLandmarks &landmarks, const vision::RigLand
 }
 #endif
 
-vision::LandmarkId copyLandmarkId(const vtr_messages::msg::FeatureId &ros_id) {
+vision::LandmarkId copyLandmarkId(const vtr_vision_msgs::msg::FeatureId &ros_id) {
   vision::LandmarkId id;
 
   id.index = ros_id.idx;
@@ -685,8 +676,8 @@ vision::LandmarkId copyLandmarkId(const vtr_messages::msg::FeatureId &ros_id) {
   return id;
 }
 
-vtr_messages::msg::FeatureId copyLandmarkId(const vision::LandmarkId &id) {
-  vtr_messages::msg::FeatureId ros_id;
+vtr_vision_msgs::msg::FeatureId copyLandmarkId(const vision::LandmarkId &id) {
+  vtr_vision_msgs::msg::FeatureId ros_id;
   ros_id.idx = id.index;
   ros_id.camera = id.camera;
   ros_id.channel = id.channel;
@@ -696,7 +687,7 @@ vtr_messages::msg::FeatureId copyLandmarkId(const vision::LandmarkId &id) {
 }
 
 vision::Observations copyObservation(
-    const vtr_messages::msg::Observations &ros_observation) {
+    const vtr_vision_msgs::msg::Observations &ros_observation) {
   vision::Observations observations;
   observations.name = ros_observation.name;
   for (unsigned int kp_idx = 0; kp_idx < ros_observation.keypoints.size();
@@ -730,7 +721,7 @@ vision::Observations copyObservation(
 }
 
 vision::ChannelObservations copyObservation(
-    const vtr_messages::msg::ChannelObservations &ros_observation) {
+    const vtr_vision_msgs::msg::ChannelObservations &ros_observation) {
   vision::ChannelObservations observations;
   observations.name = ros_observation.name;
   for (const auto &camera : ros_observation.cameras) {
@@ -740,7 +731,7 @@ vision::ChannelObservations copyObservation(
 }
 
 vision::RigObservations copyObservation(
-    const vtr_messages::msg::RigObservations &ros_observation) {
+    const vtr_vision_msgs::msg::RigObservations &ros_observation) {
   vision::RigObservations observations;
   observations.name = ros_observation.name;
   for (const auto &channel : ros_observation.channels) {
@@ -750,7 +741,7 @@ vision::RigObservations copyObservation(
 }
 
 vision::ChannelBowVocabulary copyChannelBowVocabulary(
-    const vtr_messages::msg::ChannelBowVocabulary &ros_channel) {
+    const vtr_vision_msgs::msg::ChannelBowVocabulary &ros_channel) {
   vision::ChannelBowVocabulary channel;
   channel.reserve(ros_channel.words.size());
   for (const auto &cluster : ros_channel.words) {
@@ -759,18 +750,18 @@ vision::ChannelBowVocabulary copyChannelBowVocabulary(
   return channel;
 }
 
-vtr_messages::msg::ChannelBowVocabulary copyChannelBowVocabulary(
+vtr_vision_msgs::msg::ChannelBowVocabulary copyChannelBowVocabulary(
     const vision::ChannelBowVocabulary &channel) {
-  vtr_messages::msg::ChannelBowVocabulary ros_vocab;
+  vtr_vision_msgs::msg::ChannelBowVocabulary ros_vocab;
   for (const auto &word : channel) {
     ros_vocab.words.push_back(copyLandmarkId(word));
   }
   return ros_vocab;
 }
 
-vtr_messages::msg::RigBowVocabulary copyRigBowVocabulary(
+vtr_vision_msgs::msg::RigBowVocabulary copyRigBowVocabulary(
     const vision::RigBowVocabulary &rig) {
-  vtr_messages::msg::RigBowVocabulary ros_rig;
+  vtr_vision_msgs::msg::RigBowVocabulary ros_rig;
   for (const auto &channel : rig) {
     ros_rig.channels.push_back(copyChannelBowVocabulary(channel));
   }
@@ -778,7 +769,7 @@ vtr_messages::msg::RigBowVocabulary copyRigBowVocabulary(
 }
 
 vision::RigBowVocabulary copyRigBowVocabulary(
-    const vtr_messages::msg::RigBowVocabulary &ros_rig) {
+    const vtr_vision_msgs::msg::RigBowVocabulary &ros_rig) {
   vision::RigBowVocabulary rig;
   rig.reserve(ros_rig.channels.size());
   for (const auto &channel : ros_rig.channels) {
@@ -788,23 +779,23 @@ vision::RigBowVocabulary copyRigBowVocabulary(
 }
 
 vision::BowWordCount copyBowWordCount(
-    const vtr_messages::msg::BowWordCount &ros_word_count) {
+    const vtr_vision_msgs::msg::BowWordCount &ros_word_count) {
   vision::BowWordCount word_count;
   word_count.first = copyLandmarkId(ros_word_count.feature);
   word_count.second = ros_word_count.count;
   return word_count;
 }
 
-vtr_messages::msg::BowWordCount copyBowWordCount(
+vtr_vision_msgs::msg::BowWordCount copyBowWordCount(
     const vision::BowWordCount &word_count) {
-  vtr_messages::msg::BowWordCount ros_word_count;
+  vtr_vision_msgs::msg::BowWordCount ros_word_count;
   ros_word_count.feature = copyLandmarkId(word_count.first);
   ros_word_count.count = word_count.second;
   return ros_word_count;
 }
 
 vision::BowDescriptor copyBowDescriptor(
-    const vtr_messages::msg::BowDescriptor &ros_bow) {
+    const vtr_vision_msgs::msg::BowDescriptor &ros_bow) {
   vision::BowDescriptor bow;
   for (const auto &word_count : ros_bow.word_counts) {
     bow.insert(
@@ -814,9 +805,9 @@ vision::BowDescriptor copyBowDescriptor(
   return bow;
 }
 
-vtr_messages::msg::BowDescriptor copyBowDescriptor(
+vtr_vision_msgs::msg::BowDescriptor copyBowDescriptor(
     const vision::BowDescriptor &bow) {
-  vtr_messages::msg::BowDescriptor ros_bow;
+  vtr_vision_msgs::msg::BowDescriptor ros_bow;
   for (const auto &word_count : bow) {
     ros_bow.word_counts.push_back(copyBowWordCount(word_count));
   }

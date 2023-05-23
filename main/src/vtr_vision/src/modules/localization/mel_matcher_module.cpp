@@ -183,8 +183,8 @@ void MelMatcherModule::matchVertex(CameraQueryCache &qdata,
     const std::string &rig_name = rig_names[rig_idx];
 
 
-    auto locked_landmark_msg = vertex->retrieve<vtr_messages::msg::RigLandmarks>(
-            rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
+    auto locked_landmark_msg = vertex->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
+            rig_name + "_landmarks", "vtr_vision_msgs/msg/RigLandmarks");
     if (locked_landmark_msg == nullptr) {
       LOG(ERROR) << "landmarks at " << vertex->id() << " could not be loaded";
       return;
@@ -221,7 +221,7 @@ void MelMatcherModule::matchVertex(CameraQueryCache &qdata,
 
 void MelMatcherModule::matchChannel(
     CameraQueryCache &qdata, const vision::LandmarkId &channel_id,
-    const vtr_messages::msg::ChannelLandmarks &map_channel_lm) {
+    const vtr_vision_msgs::msg::ChannelLandmarks &map_channel_lm) {
   const auto &query_rig_data = (*qdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_obs =
       query_rig_data.observations.channels[channel_id.channel];
@@ -287,7 +287,7 @@ void MelMatcherModule::matchChannel(
             total_match_count_++;
             query_matched_[q_kp_idx] = true;
             // get the track for the best matched landmark
-            const vtr_messages::msg::Match &lm_track =
+            const vtr_vision_msgs::msg::Match &lm_track =
                 map_channel_lm.matches[best_match];
             map_matched_[messages::copyLandmarkId(lm_track.from_id)] = true;
             channel_matches.emplace_back(map_match);
@@ -308,7 +308,7 @@ void MelMatcherModule::matchChannel(
 
 void MelMatcherModule::matchChannelGPU(
     CameraQueryCache &qdata, const vision::LandmarkId &channel_id,
-    const vtr_messages::msg::ChannelLandmarks &map_channel_lm) {
+    const vtr_vision_msgs::msg::ChannelLandmarks &map_channel_lm) {
   const auto &query_rig_data = (*qdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_obs =
       query_rig_data.observations.channels[channel_id.channel];
@@ -538,7 +538,7 @@ void MelMatcherModule::matchChannelGPU(
             total_match_count_++;
             query_matched_[q_kp_idx] = true;
             // get the track for the best matched landmark
-            const vtr_messages::msg::Match &lm_track =
+            const vtr_vision_msgs::msg::Match &lm_track =
                 map_channel_lm.matches[best_match];
             map_matched_[messages::copyLandmarkId(lm_track.from_id)] = true;
             channel_matches.emplace_back(map_match);
@@ -559,7 +559,7 @@ void MelMatcherModule::matchChannelGPU(
 int MelMatcherModule::matchQueryKeypoint(
     CameraQueryCache &qdata, const vision::LandmarkId &channel_id,
     const int &q_kp_idx,
-    const vtr_messages::msg::ChannelLandmarks &map_channel_lm) {
+    const vtr_vision_msgs::msg::ChannelLandmarks &map_channel_lm) {
   // Query Landmark information
   const auto &query_rig_data = (*qdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_lm =
@@ -650,10 +650,10 @@ int MelMatcherModule::matchQueryKeypoint(
 
 inline bool MelMatcherModule::potential_match(
     const cv::KeyPoint &query_lm_info,
-    const vtr_messages::msg::FeatureInfo &lm_info_map,
+    const vtr_vision_msgs::msg::FeatureInfo &lm_info_map,
     const int &map_track_length, const cv::Point &query_kp,
     const Eigen::Vector2d &map_kp, const double &query_depth,
-    const double &map_depth, const vtr_messages::msg::Match &lm_track) {
+    const double &map_depth, const vtr_vision_msgs::msg::Match &lm_track) {
   // 1. check track length
   if (map_track_length < config_->min_track_length) {
     // LOG(INFO) << "Fails track length";

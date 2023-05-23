@@ -94,7 +94,7 @@ void LandmarkRecallModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache 
 
 void LandmarkRecallModule::initializeLandmarkMemory(
     vtr::vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
-    const vtr_messages::msg::DescriptorType &desc_type) {
+    const vtr_vision_msgs::msg::DescriptorType &desc_type) {
   // copy over the descriptor type.
   channel_lm.appearance.feat_type = messages::copyDescriptorType(desc_type);
   step_size_ = channel_lm.appearance.feat_type.bytes_per_desc;
@@ -141,8 +141,8 @@ void LandmarkRecallModule::recallLandmark(
     //const auto msg = target_vertex->retrieve<PointMapPointer>(
       //  "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
     
-    auto locked_landmark_msg = landmark_vertex->retrieve<vtr_messages::msg::RigLandmarks>(
-            rig_name + "_landmarks", "vtr_messages/msg/RigLandmarks");
+    auto locked_landmark_msg = landmark_vertex->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
+            rig_name + "_landmarks", "vtr_vision_msgs/msg/RigLandmarks");
     auto locked_msg = locked_landmark_msg->sharedLocked();
     vertex_landmarks_[vid] = locked_msg.get().getDataPtr();
   }
@@ -243,8 +243,8 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
   auto vertex = graph->at(map_id);
 
   auto locked_obs_msgs =
-      vertex->retrieve<vtr_messages::msg::RigObservations>(
-          rig_name + "_observations", "vtr_messages/msg/RigObservations");
+      vertex->retrieve<vtr_vision_msgs::msg::RigObservations>(
+          rig_name + "_observations", "vtr_vision_msgs/msg/RigObservations");
   if (locked_obs_msgs == nullptr){
     CLOG(WARNING, "stereo.recall") << "Observations are null";
     return landmark_frame;

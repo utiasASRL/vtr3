@@ -20,19 +20,19 @@
  */
 #pragma once
 
-#include <vtr_messages/msg/exp_recog_status.hpp>
+#include <vtr_vision_msgs/msg/exp_recog_status.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
 
 namespace std {
 /// Display the experience recognition status message in a readable way
 std::ostream &operator<<(std::ostream &os,
-                         const vtr_messages::msg::ExpRecogStatus &msg);
+                         const vtr_vision_msgs::msg::ExpRecogStatus &msg);
 }  // namespace std
 
 namespace vtr {
 namespace vision {
-using ExpRecogMsg = vtr_messages::msg::ExpRecogStatus;
+using ExpRecogMsg = vtr_vision_msgs::msg::ExpRecogStatus;
 
 /** \brief Given a subgraph, return the run ids present. */
 tactic::RunIdSet getRunIds(const pose_graph::RCGraph::Base &subgraph);
@@ -119,7 +119,7 @@ class ExperienceTriageModule : public tactic::BaseModule {
 
  private:
   /** \brief The status message to save to the graph */
-  // vtr_messages::msg::ExpRecogStatus status_msg_;
+  // vtr_vision_msgs::msg::ExpRecogStatus status_msg_;
   ExpRecogMsg status_msg_;
 
   /** \brief The module configuration */

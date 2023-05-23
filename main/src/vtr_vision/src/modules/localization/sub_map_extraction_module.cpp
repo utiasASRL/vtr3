@@ -18,7 +18,7 @@
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_messages/msg/localization_status.hpp>
+#include <vtr_vision_msgs/msg/localization_status.hpp>
 #include <vtr_pose_graph/path/accumulators.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>
 #include <vtr_vision/modules/localization/sub_map_extraction_module.hpp>

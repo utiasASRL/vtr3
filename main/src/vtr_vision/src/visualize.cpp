@@ -702,8 +702,8 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
 
   // setup the visualization image stream
   std::string stream_name = rig_names.at(0) + "_visualization_images";
-  auto locked_img_msg = map_vertex->retrieve<vtr_messages::msg::Image>(
-          stream_name, "vtr_messages/msg/Image");
+  auto locked_img_msg = map_vertex->retrieve<vtr_vision_msgs::msg::Image>(
+          stream_name, "vtr_vision_msgs/msg/Image");
   if (locked_img_msg == nullptr){
     CLOG(WARNING, "stereo.visualization") << "Image for MEL is null";
     return;

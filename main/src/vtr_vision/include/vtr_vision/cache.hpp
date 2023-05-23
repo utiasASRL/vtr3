@@ -26,7 +26,7 @@
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_vision/types.hpp>
-#include <vtr_messages/msg/localization_status.hpp>
+#include <vtr_vision_msgs/msg/localization_status.hpp>
 
 namespace vtr {
 namespace vision {
@@ -68,10 +68,10 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<Eigen::Matrix3Xd> migrated_points_3d;
   tactic::Cache<Eigen::Matrix<double, 9, Eigen::Dynamic>> migrated_covariance;
   tactic::Cache<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
-  tactic::Cache<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
+  tactic::Cache<std::vector<vtr_vision_msgs::msg::Match>> migrated_landmark_ids;
 
 
-  tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
+  tactic::Cache<vtr_vision_msgs::msg::LocalizationStatus> localization_status;
   tactic::Cache<tactic::GraphBase::Ptr> localization_map;
   tactic::Cache<tactic::RunIdSet> recommended_experiences;
 
@@ -90,7 +90,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<pose_graph::RCGraphBase::Ptr> localization_map;
   tactic::Cache<MigrationMap> landmark_offset_map;
   tactic::Cache<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
-  tactic::Cache<vtr_messages::msg::LocalizationStatus> localization_status;
+  tactic::Cache<vtr_vision_msgs::msg::LocalizationStatus> localization_status;
   */
   tactic::Cache<std::mutex> vis_mutex;
 

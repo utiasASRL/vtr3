@@ -27,13 +27,13 @@
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/modules/optimization/steam_module.hpp>
-#include <vtr_messages/msg/rig_landmarks.hpp>
+#include <vtr_vision_msgs/msg/rig_landmarks.hpp>
 #include <vtr_common_msgs/msg/velocity.hpp>
 
 namespace vtr {
 namespace vision {
 
-using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
+using RigLandmarksMsg = vtr_vision_msgs::msg::RigLandmarks;
 using VelocityMsg = vtr_common_msgs::msg::Velocity;
 
 /** \brief A module that runs STEAM on multiple graph vertices. */
