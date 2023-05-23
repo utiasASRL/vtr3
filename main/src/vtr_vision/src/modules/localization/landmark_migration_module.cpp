@@ -23,11 +23,8 @@
 #include <iostream>
 
 #include <vtr_common/timing/stopwatch.hpp>
-#include <vtr_messages/msg/localization_status.hpp>
-#include <vtr_messages/msg/transform.hpp>
 #include <vtr_pose_graph/evaluator/evaluators.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>
-#include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/modules/localization/landmark_migration_module.hpp>
 
 namespace vtr {
@@ -44,8 +41,6 @@ auto LandmarkMigrationModule::Config::fromROS(
 void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &) {
 
-// void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
-//                                       const Graph::ConstPtr &graph) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
   // check if the required data is in the cache
   if (!qdata.rig_features.valid()) {
@@ -335,20 +330,14 @@ void LandmarkMigrationModule::loadSensorTransform(
 
 
     auto map_vertex = graph->at(vid);
-    //map_vertex->load(stream_name);
 
-    auto locked_tf_msg = map_vertex->retrieve<vtr_messages::msg::Transform>(
-            stream_name, "vtr_messages/msg/Transform");
+    auto locked_tf_msg = map_vertex->retrieve<vtr_common_msgs::msg::LieGroupTransform>(
+            stream_name, "vtr_common_msgs/msg/LieGroupTransform");
     if (locked_tf_msg != nullptr) {
       auto locked_msg = locked_tf_msg->sharedLocked();
       auto rc_transforms = locked_msg.get().getDataPtr();
-      Eigen::Matrix<double, 6, 1> tmp;
-      auto mt = rc_transforms->translation;
-      auto mr = rc_transforms->orientation;
-      tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
-      transforms[vid] = lgmath::se3::TransformationWithCovariance(tmp);
-      transforms[vid]
-          .setZeroCovariance();  // todo: add covariance field to message (?)
+      common::conversions::fromROSMsg(*rc_transforms, transforms[vid]);
+      transforms[vid].setZeroCovariance();
     }
   }
 }

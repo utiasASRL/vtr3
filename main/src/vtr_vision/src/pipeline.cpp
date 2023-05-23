@@ -339,22 +339,15 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
 
 
     // insert the vehicle->sensor transform
-    //TODO: change to LG type
-    Eigen::Matrix<double, 6, 1> T_s_v_vec = qdata.T_s_r->vec();
     TransformMsg T_s_v;
-    T_s_v.translation.x = T_s_v_vec(0);
-    T_s_v.translation.y = T_s_v_vec(1);
-    T_s_v.translation.z = T_s_v_vec(2);
-    T_s_v.orientation.x = T_s_v_vec(3);
-    T_s_v.orientation.y = T_s_v_vec(4);
-    T_s_v.orientation.z = T_s_v_vec(5);
+    common::conversions::toROSMsg(*qdata.T_s_r, T_s_v);
 
     // fill the vehicle->sensor transform
     std::string tsv_str = rig_name + "_T_sensor_vehicle";
     using Tsv_Msg = storage::LockableMessage<TransformMsg>;
     auto tsv_msg =
             std::make_shared<Tsv_Msg>(std::make_shared<TransformMsg>(T_s_v), *qdata.stamp);
-    vertex->insert<TransformMsg>(tsv_str, " vtr_messages/msg/Transform", tsv_msg);
+    vertex->insert<TransformMsg>(tsv_str, " vtr_common_msgs/msg/LieGroupTransform", tsv_msg);
 
 
     // make an empty velocity vector

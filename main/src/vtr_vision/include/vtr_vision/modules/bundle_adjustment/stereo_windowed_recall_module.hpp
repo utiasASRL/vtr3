@@ -26,6 +26,8 @@
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_common_msgs/msg/velocity.hpp>
 
+#include "vtr_common/conversions/ros_lgmath.hpp"
+
 namespace vtr {
 namespace vision {
 using VelocityMsg = vtr_common_msgs::msg::Velocity;

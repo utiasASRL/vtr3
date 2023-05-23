@@ -23,6 +23,8 @@
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/messages/bridge.hpp>
+#include "vtr_common/conversions/ros_lgmath.hpp"
+
 
 namespace vtr {
 namespace vision {

@@ -331,18 +331,13 @@ void StereoWindowedRecallModule::loadSensorTransform(
   // extract the T_s_v transform for this vertex
   auto map_vertex = graph->at(vid);
 
-  auto locked_tf_msg = map_vertex->retrieve<vtr_messages::msg::Transform>(
-            rig_name + "_T_sensor_vehicle", "vtr_messages/msg/Transform");
+  auto locked_tf_msg = map_vertex->retrieve<vtr_common_msgs::msg::LieGroupTransform>(
+            rig_name + "_T_sensor_vehicle", "vtr_common_msgs/msg/LieGroupTransform");
   if (locked_tf_msg != nullptr) {
     auto locked_msg = locked_tf_msg->sharedLocked();
     auto rc_transforms = locked_msg.get().getDataPtr();
-    Eigen::Matrix<double, 6, 1> tmp;
-    auto mt = rc_transforms->translation;
-    auto mr = rc_transforms->orientation;
-    tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
-    transforms[vid] = lgmath::se3::TransformationWithCovariance(tmp);
-    transforms[vid]
-        .setZeroCovariance();  // todo: add covariance field to message (?)
+    common::conversions::fromROSMsg(*rc_transforms, transforms[vid]);
+    transforms[vid].setZeroCovariance();
   }
 }
 

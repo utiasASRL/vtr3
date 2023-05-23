@@ -22,6 +22,8 @@
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 #include "vtr_vision/modules/modules.hpp"
 
+#include "vtr_common/conversions/ros_lgmath.hpp"
+
 #include <vtr_common_msgs/msg/lie_group_transform.hpp>
 #include <vtr_common_msgs/msg/velocity.hpp>
 #include <vtr_messages/msg/rig_counts.hpp>
@@ -43,7 +45,7 @@ using ChannelObservationsMsg = vtr_messages::msg::ChannelObservations;
 using ChannelFeaturesMsg = vtr_messages::msg::ChannelFeatures;
 using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
 
-using TransformMsg = vtr_messages::msg::Transform;
+using TransformMsg = vtr_common_msgs::msg::LieGroupTransform;
 using VelocityMsg = vtr_common_msgs::msg::Velocity;
 using ImageMsg = vtr_messages::msg::Image;
 

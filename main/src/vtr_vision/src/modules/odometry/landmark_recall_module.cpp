@@ -397,17 +397,14 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
   auto map_vertex = graph->at(vid);
 
   auto locked_rc_transforms =
-      map_vertex->retrieve<vtr_messages::msg::Transform>(
-          rig_name + "_T_sensor_vehicle", "vtr_messages/msg/Transform");
+      map_vertex->retrieve<vtr_common_msgs::msg::LieGroupTransform>(
+          rig_name + "_T_sensor_vehicle", "vtr_common_msgs/msg/LieGroupTransform");
   
   auto locked_msg = locked_rc_transforms->sharedLocked();
   auto rc_transforms = locked_msg.get().getDataPtr();
+  common::conversions::fromROSMsg(*rc_transforms, T_s_v_map_[vid]);
 
-  Eigen::Matrix<double, 6, 1> tmp;
-  auto &mt = rc_transforms->translation;
-  auto &mr = rc_transforms->orientation;
-  tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
-  T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
+  T_s_v_map_[vid].setZeroCovariance();
 }
 
 }  // namespace vision
