@@ -110,8 +110,7 @@ class ConversionExtractionModule : public tactic::BaseModule {
    * \brief Uses multi-threading to perform image conversion (i.e. RGB to
    * grayscale and CC),and feature extraction in parallel for each rig, channel
    * and camera.
-   */      const tactic::Graph::ConstPtr &) override;
-
+   */
     void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
