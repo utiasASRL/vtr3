@@ -8,7 +8,7 @@ uint64 query_id
 uint64 map_id
 
 # Transform that takes points from the map to the query.
-LgTransform t_query_map
+vtr_common_msgs/LieGroupTransform t_query_map
 
 # Localization success flag
 bool success

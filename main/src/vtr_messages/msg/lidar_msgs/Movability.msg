@@ -1,2 +1,0 @@
-int64 dynamic_obs
-int64 total_obs

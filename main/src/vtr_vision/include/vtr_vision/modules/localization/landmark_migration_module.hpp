@@ -23,11 +23,9 @@
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/messages/bridge.hpp>
-#include <vtr_messages/msg/graph_persistent_id.hpp>
 
 namespace vtr {
 namespace vision {
-using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
 
 /**
  * \brief Migrate all landmarks found in the localization_map into a single
@@ -44,7 +42,7 @@ using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
  */
 class LandmarkMigrationModule : public tactic::BaseModule {
  public:
-   PTR_TYPEDEFS(LandmarkMigrationModule);
+  PTR_TYPEDEFS(LandmarkMigrationModule);
 
   /** \brief Static module identifier. */
   static constexpr auto static_name = "landmark_migration";
