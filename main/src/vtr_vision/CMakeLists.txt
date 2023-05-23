@@ -29,6 +29,7 @@ find_package(steam REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
+find_package(vtr_common_msgs REQUIRED)
 find_package(vtr_storage REQUIRED)
 find_package(vtr_tactic REQUIRED)
 
@@ -42,7 +43,7 @@ ament_target_dependencies(${PROJECT_NAME}
   OpenCV
   cv_bridge
   gpusurf lgmath steam
-  vtr_common vtr_logging vtr_messages vtr_storage vtr_tactic
+  vtr_common vtr_logging vtr_messages vtr_storage vtr_tactic vtr_common_msgs
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -53,7 +54,7 @@ target_include_directories(${PROJECT_NAME}
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   cv_bridge gpusurf lgmath steam
-  vtr_common vtr_logging vtr_messages vtr_storage vtr_tactic
+  vtr_common vtr_logging vtr_messages vtr_storage vtr_tactic vtr_common_msgs
   # Torch
 )
 

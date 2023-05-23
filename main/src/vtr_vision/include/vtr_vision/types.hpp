@@ -50,7 +50,7 @@
 #include <vtr_messages/msg/h_vec3.hpp>
 #include <vtr_messages/msg/keypoint.hpp>
 #include <vtr_messages/msg/match.hpp>
-#include <vtr_messages/msg/velocity.hpp>
+#include <vtr_common_msgs/msg/velocity.hpp>
 
 namespace vtr {
 namespace vision {
@@ -586,7 +586,7 @@ class SteamPose {
   steam::se3::SE3StateVar::Ptr tf_state_var;
   steam::traj::Time time;
   steam::vspace::VSpaceStateVar<6>::Ptr velocity;
-  std::shared_ptr<vtr_messages::msg::Velocity> proto_velocity;
+  std::shared_ptr<vtr_common_msgs::msg::Velocity> proto_velocity;
 
  private:
   /** \brief The lock flag. */

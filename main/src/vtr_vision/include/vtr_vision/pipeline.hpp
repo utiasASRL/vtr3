@@ -23,10 +23,10 @@
 #include "vtr_vision/modules/modules.hpp"
 
 #include <vtr_common_msgs/msg/lie_group_transform.hpp>
+#include <vtr_common_msgs/msg/velocity.hpp>
 #include <vtr_messages/msg/rig_counts.hpp>
 #include <vtr_messages/msg/rig_landmarks.hpp>
 #include <vtr_messages/msg/rig_observations.hpp>
-#include <vtr_messages/msg/velocity.hpp>
 
 #include "steam.hpp"
 
@@ -34,8 +34,6 @@
 namespace vtr {
 namespace vision {
 
-
-using TimeStampMsg = vtr_messages::msg::TimeStamp;
 
 using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
 using RigObservationsMsg = vtr_messages::msg::RigObservations;
@@ -46,7 +44,7 @@ using ChannelFeaturesMsg = vtr_messages::msg::ChannelFeatures;
 using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
 
 using TransformMsg = vtr_messages::msg::Transform;
-using VelocityMsg = vtr_messages::msg::Velocity;
+using VelocityMsg = vtr_common_msgs::msg::Velocity;
 using ImageMsg = vtr_messages::msg::Image;
 
 

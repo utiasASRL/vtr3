@@ -657,8 +657,8 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
   for (auto &pose : poses) {
     if (pose.second.isLocked() == false) {
       auto v = graph->at(pose.first);
-      auto locked_vel_msg = v->retrieve<vtr_messages::msg::Velocity>(
-            "velocities", "vtr_messages/msg/Velocity");
+      auto locked_vel_msg = v->retrieve<VelocityMsg>(
+            "velocities", "vtr_common_msgs/msg/Velocity");
       if (locked_vel_msg == nullptr) {
         std::stringstream err;
         err << "Couldn't retrieve velocity from vertex data!";
@@ -676,21 +676,13 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
       v_vel->rotational.y = new_velocity(4, 0);
       v_vel->rotational.z = new_velocity(5, 0);
 
-      // v->replace("_velocities", *v_vel, v->vertexTime());
 
-    // VelocityMsg velocity;
-    // velocity.translational.x = 0.0;
-    // velocity.translational.y = 0.0;
-    // velocity.translational.z = 0.0;
-    // velocity.rotational.x = 0.0;
-    // velocity.rotational.y = 0.0;
-    // velocity.rotational.z = 0.0;
     // fill the velocities
       std::string vel_str = "velocities";
       using Vel_Msg = storage::LockableMessage<VelocityMsg>;
       auto vel_msg =
               std::make_shared<Vel_Msg>(v_vel, v->vertexTime());
-      v->insert<VelocityMsg>(vel_str, "vtr_messages/msg/Velocity", vel_msg);
+      v->insert<VelocityMsg>(vel_str, "vtr_common_msgs/msg/Velocity", vel_msg);
 
 
       if (!found_first_unlocked) {

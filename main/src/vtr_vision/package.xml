@@ -15,6 +15,7 @@
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_messages</depend>
+  <depend>vtr_common_msgs</depend>
   <depend>vtr_storage</depend>
   <depend>vtr_tactic</depend>
 

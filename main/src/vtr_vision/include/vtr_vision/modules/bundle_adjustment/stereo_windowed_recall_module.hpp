@@ -24,9 +24,12 @@
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/types.hpp>
 #include <vtr_vision/messages/bridge.hpp>
+#include <vtr_common_msgs/msg/velocity.hpp>
 
 namespace vtr {
 namespace vision {
+using VelocityMsg = vtr_common_msgs::msg::Velocity;
+
 
 /**
  * \brief A module that retrieves landmarks from multiple graph vertices and

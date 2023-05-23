@@ -295,8 +295,8 @@ void StereoWindowedRecallModule::getTimesandVelocities(
     auto vertex = graph->at(pose.first);
     auto stamp = vertex->vertexTime();
 
-    auto locked_vel_msg = vertex->retrieve<vtr_messages::msg::Velocity>(
-            "velocities", "vtr_messages/msg/Velocity");
+    auto locked_vel_msg = vertex->retrieve<VelocityMsg>(
+            "velocities", "vtr_common_msgs/msg/Velocity");
     if (locked_vel_msg == nullptr) {
       std::stringstream err;
       err << "Couldn't retrieve velocity from vertex data!";
