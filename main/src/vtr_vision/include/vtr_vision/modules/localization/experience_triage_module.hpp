@@ -114,8 +114,6 @@ class ExperienceTriageModule : public tactic::BaseModule {
   void updateGraphImpl(tactic::QueryCache &qdata,
                        const tactic::Graph::Ptr &graph,
                        tactic::VertexId id);
-  // void configFromROS(const rclcpp::Node::SharedPtr &node,
-  //                    const std::string param_prefix) override;
 
  private:
   /** \brief The status message to save to the graph */

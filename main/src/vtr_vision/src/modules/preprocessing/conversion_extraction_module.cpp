@@ -389,15 +389,5 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
   }
 }
 
-// void ConversionExtractionModule::visualizeImpl(QueryCache &qdata0,
-//                                                const Graph::ConstPtr &) {
-//   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-//   if (config_->visualize_raw_features)  // check if visualization is enabled
-//     visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
-
-//   if (config_->visualize_disparity)  // check if visualization is enabled
-//     visualize::showDisparity(*qdata.vis_mutex, qdata, " disparity");
-// }
-
 }  // namespace vision
 }  // namespace vtr

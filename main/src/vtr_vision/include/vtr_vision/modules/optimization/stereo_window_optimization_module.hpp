@@ -57,13 +57,6 @@ class StereoWindowOptimizationModule : public SteamModule {
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name) : SteamModule(config, module_factory, name), window_config_(config) {}
 
-
-  // StereoWindowOptimizationModule(const std::string &name = static_name)
-  //     : SteamModule(name) {}
-
-  // void configFromROS(const rclcpp::Node::SharedPtr &node,
-  //                    const std::string param_prefix) override;
-
  protected:
   /** \brief Update the graph with optimized transforms */
   void updateGraphImpl(tactic::QueryCache &qdata,
@@ -78,14 +71,6 @@ class StereoWindowOptimizationModule : public SteamModule {
   void updateCaches(CameraQueryCache &qdata) override;
 
  private:
-#if false
-  /**
-   * \brief samples and saves the optimized trajectory and stores it in the
-   * latest vertex.
-   */
-  void saveTrajectory(CameraQueryCache &qdata,
-                      const std::shared_ptr<Graph> &graph, VertexId id);
-#endif
   /**
    * \brief Initializes the problem based on an initial condition.
    * The initial guess at the transformation between the query frame and the map
@@ -143,8 +128,6 @@ class StereoWindowOptimizationModule : public SteamModule {
   /** \brief Module configuration. */
   Config::ConstPtr window_config_;
   VTR_REGISTER_MODULE_DEC_TYPE(StereoWindowOptimizationModule);
-
-  // std::shared_ptr<Config> window_config_;
 };
 
 }  // namespace vision

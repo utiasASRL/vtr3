@@ -104,43 +104,16 @@ class ConversionExtractionModule : public tactic::BaseModule {
       : tactic::BaseModule{module_factory, name}, config_(config) {
         createExtractor();
       }
-
-  // ConversionExtractionModule(const std::string &name = static_name)
-  //     : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
-
-  // void configFromROS(const rclcpp::Node::SharedPtr &node,
-  //                    const std::string param_prefix) override;
-
+      
  private:
   /**
    * \brief Uses multi-threading to perform image conversion (i.e. RGB to
    * grayscale and CC),and feature extraction in parallel for each rig, channel
    * and camera.
-   */
-  // void runImpl(tactic::QueryCache &qdata,
-  //              const tactic::Graph::ConstPtr &) override;
+   */      const tactic::Graph::ConstPtr &) override;
 
     void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-
-
-    // void runAsync_(tactic::QueryCache &, tactic::OutputCache &, const tactic::Graph::Ptr &,
-    //               const tactic::TaskExecutor::Ptr &, const tactic::Task::Priority &priority,
-    //               const tactic::Task::DepId &dep_id) override {
-    //   /// Task that runs asynchronously.
-    //   CLOG(INFO, "tactic.module")
-    //       << "Running the async part of template module with priority: "
-    //       << priority << " and dependency id: " << dep_id;
-    // }
-
-    
-
-  // /**
-  //  * \brief Visualizes raw features that were extracted on all images and their
-  //  * conversions.
-  //  */
-  // void visualizeImpl(tactic::QueryCache &qdata,
-  //                    const tactic::Graph::ConstPtr &) override;
 
   void createExtractor();
 

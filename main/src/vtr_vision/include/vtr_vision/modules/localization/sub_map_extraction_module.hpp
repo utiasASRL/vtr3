@@ -62,20 +62,11 @@ class SubMapExtractionModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  // SubMapExtractionModule(std::string name = static_name)
-  //     : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
-
-
   SubMapExtractionModule(const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name) 
       : tactic::BaseModule{module_factory, name}, config_(config) {}
 
-
-  // ~SubMapExtractionModule() = default;
-
-  // void configFromROS(const rclcpp::Node::SharedPtr &node,
-  //                    const std::string param_prefix) override;
 
  private:
   /**
@@ -85,9 +76,6 @@ class SubMapExtractionModule : public tactic::BaseModule {
    * \param qdata The query data.
    * \param graph The Spatio Temporal Pose Graph.
    */
-  // void runImpl(tactic::QueryCache &qdata,
-  //              const tactic::Graph::ConstPtr &graph) override;
-
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 

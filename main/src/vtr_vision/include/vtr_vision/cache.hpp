@@ -42,7 +42,6 @@ struct CameraQueryCache : public tactic::QueryCache {
 
   tactic::Cache<std::vector<std::string>> rig_names;
 
-  
   tactic::Cache<std::list<vision::RigImages>> rig_images;
   tactic::Cache<std::list<vision::RigCalibration>> rig_calibrations;
   tactic::Cache<std::vector<vision::RigFeatures>> rig_features;
@@ -82,16 +81,6 @@ struct CameraQueryCache : public tactic::QueryCache {
   tactic::Cache<LandmarkMap> landmark_map;
   tactic::Cache<SteamPoseMap> pose_map;
 
-
-  /*
-  // odometry and mapping (including bundle adjustment)
-  // localization
-  tactic::Cache<tactic::RunIdSet> recommended_experiences;
-  tactic::Cache<pose_graph::RCGraphBase::Ptr> localization_map;
-  tactic::Cache<MigrationMap> landmark_offset_map;
-  tactic::Cache<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
-  tactic::Cache<vtr_vision_msgs::msg::LocalizationStatus> localization_status;
-  */
   tactic::Cache<std::mutex> vis_mutex;
 
   // clang-format on

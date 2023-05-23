@@ -26,15 +26,9 @@ namespace vision {
 
 using namespace tactic;
 
-// void StereoRansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-//                                        const std::string param_prefix) {
-
 auto StereoRansacModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) 
     -> ConstPtr {
-
-  // RansacModule::configFromROS(node, param_prefix);
-  // stereo_config_ = std::make_shared<Config>();
   auto config = RansacModule::Config::fromROS(node, param_prefix);
 
   auto stereo_config = std::make_shared<Config>();

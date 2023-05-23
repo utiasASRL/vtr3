@@ -565,9 +565,6 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
   if (window_config_->save_trajectory) {
     throw std::runtime_error{
         "trajectory saving untested - windowed optimization"};
-#if false
-    saveTrajectory(qdata, graph);
-#endif
   }
 
   auto &lm_map = *qdata.landmark_map;

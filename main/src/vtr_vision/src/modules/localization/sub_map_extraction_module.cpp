@@ -28,9 +28,6 @@ namespace vision {
 
 using namespace tactic;
 
-// void SubMapExtractionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-//                                            const std::string param_prefix) {
-
 auto SubMapExtractionModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) 
     -> ConstPtr {
@@ -45,8 +42,6 @@ auto SubMapExtractionModule::Config::fromROS(
   return config;
 }
 
-// void SubMapExtractionModule::run_(QueryCache &qdata0,
-//                                      const Graph::ConstPtr &graph) {
 void SubMapExtractionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, const tactic::Graph::Ptr &graph,
                 const std::shared_ptr<tactic::TaskExecutor> &executor) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
@@ -133,10 +128,6 @@ int SubMapExtractionModule::calculateDepth(
   const auto lock = graph->guard();
 
   // Set up the evaluator to only iterate on privileged edges.
-  // PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
-  // evaluator->setGraph((void *)graph.get());
-
-
   auto evaluator = std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph);
 
   EdgeTransform init(true);

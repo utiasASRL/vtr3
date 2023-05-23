@@ -69,15 +69,6 @@ class StereoRansacModule : public RansacModule {
     bool use_covariance = false;
   };
 
-  // /** \brief TODO Construct with settings... */
-  // StereoRansacModule(const Config::ConstPtr &config,
-  //     const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
-  //     const std::string &name = static_name)
-  //     : RansacModule{name},
-  //       doom_twister(vo_doom_generator()),
-  //       doom_distribution(0, 100) {}
-
-
   StereoRansacModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
@@ -85,10 +76,6 @@ class StereoRansacModule : public RansacModule {
       :  RansacModule{config,module_factory,name}, stereo_config_(config),
         doom_twister(vo_doom_generator()),
         doom_distribution(0, 100) {}
-
-
-  // void configFromROS(const rclcpp::Node::SharedPtr &node,
-  //                    const std::string param_prefix) override;
 
  protected:
   /**
@@ -141,11 +128,6 @@ class StereoRansacModule : public RansacModule {
                               // constant value to get repeatable
                               // results.
   std::uniform_real_distribution<double> doom_distribution;
-
-
-
-  // /** \brief Module configuration. */
-  // Config::ConstPtr config_;
 
 
   VTR_REGISTER_MODULE_DEC_TYPE(StereoRansacModule);
