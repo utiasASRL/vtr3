@@ -39,5 +39,5 @@ windows:
     shell_command_before:
       - source /opt/ros/humble/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

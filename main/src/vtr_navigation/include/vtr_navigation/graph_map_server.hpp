@@ -27,6 +27,7 @@
 #include "vtr_tactic/types.hpp"
 
 #include "vtr_navigation_msgs/msg/annotate_route.hpp"
+#include "vtr_navigation_msgs/msg/update_waypoint.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
 #include "vtr_navigation_msgs/msg/graph_update.hpp"
@@ -58,6 +59,7 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
+  using UpdateWaypointMsg = vtr_navigation_msgs::msg::UpdateWaypoint;
 
   using VertexPtr = tactic::Graph::VertexPtr;
   using EdgePtr = tactic::Graph::EdgePtr;
@@ -95,6 +97,7 @@ class GraphMapServer : public tactic::Graph::Callback,
       std::shared_ptr<FollowingRouteSrv::Response> response) const;
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
+  void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
 
  private:
   /// these functions are called with graph mutex locked
@@ -117,6 +120,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   void optimizeGraph(const GraphBasePtr& priv_graph);
   void updateVertexProjection();
   void updateVertexType();
+  void updateVertexName();
   void computeRoutes(const GraphBasePtr& priv_graph);
   /** \brief Update the graph incrementally when no optimization is needed */
   bool updateIncrementally(const EdgePtr& e);
@@ -173,6 +177,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   /** \brief subscription to move graph (rotation, translation, scale) */
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
   rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
+  rclcpp::Subscription<UpdateWaypointMsg>::SharedPtr update_waypoint_sub_;
 };
 
 class RvizGraphMapServer : public GraphMapServer,

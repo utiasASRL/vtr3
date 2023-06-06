@@ -43,6 +43,7 @@ class GoalManager extends React.Component {
       selectTool,
       deselectTool,
       serverState,
+      waypointsMap,
       goals,
       currGoalIdx,
       newGoalType,
@@ -185,6 +186,7 @@ class GoalManager extends React.Component {
           >
             <GoalForm
               socket={socket}
+              waypointsMap={waypointsMap}
               goalWaypoints={newGoalWaypoints}
               goalType={newGoalType}
               setGoalWaypoints={setNewGoalWaypoints}
@@ -215,6 +217,7 @@ class GoalManager extends React.Component {
     console.info("Sending annotate slider change signal with type:", type);
     this.props.socket.emit("command/change_env_info", { terrain_type: type });
   }
+
 }
 
 export default GoalManager;

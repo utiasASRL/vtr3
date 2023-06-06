@@ -4,8 +4,8 @@
     log_debug: true
     log_enabled:
       #- lidar.terrain_assessment
-      #- navigation
-      #- navigation.graph_map_server
+      - navigation
+      - navigation.graph_map_server
       #- navigation.command
         # tactic
       #- tactic

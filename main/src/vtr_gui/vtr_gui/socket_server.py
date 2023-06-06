@@ -100,6 +100,12 @@ def handle_continue_teach(data):
   build_remote().continue_teach(data)
 
 
+@socketio.on('command/update_waypoint')
+def handle_update_waypoint(data):
+  logger.info('Received update waypoint command', data)
+  build_remote().update_waypoint(data)
+
+
 @socketio.on('command/annotate_route')
 def handle_annotate_route(data):
   logger.info('Received annotate route command', data)

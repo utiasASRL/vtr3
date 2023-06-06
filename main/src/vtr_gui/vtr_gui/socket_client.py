@@ -21,7 +21,7 @@ from vtr_navigation.vtr_ui import VTRUI
 from vtr_navigation.vtr_ui_builder import build_master
 
 from vtr_tactic_msgs.msg import EnvInfo
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
 from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 
 # socket io server address and port
@@ -41,6 +41,7 @@ def graph_state_from_ros(ros_graph_state):
           'lat': v.lat,
           'theta': v.theta,
           'type': v.type,
+          'name': v.name
       } for v in ros_graph_state.vertices],
       'fixed_routes': [{
           'ids': [id for id in r.ids],
@@ -64,6 +65,7 @@ def graph_update_from_ros(ros_graph_update):
           'lat': vf.lat,
           'theta': vf.theta,
           'type': vf.type,
+          'name': vf.name
       },
       'vertex_to': {
           'id': vt.id,
@@ -72,6 +74,7 @@ def graph_update_from_ros(ros_graph_update):
           'lat': vt.lat,
           'theta': vt.theta,
           'type': vt.type,
+          'name': vt.name
       },
   }
 
@@ -255,6 +258,16 @@ class SocketVTRUI(VTRUI):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.CONTINUE_TEACH
     return super().continue_teach(ros_command)
+  
+  def update_waypoint(self, data):
+    ros_waypoint_update = UpdateWaypoint()
+    ros_waypoint_update.vertex_id = int(data['vertex_id'])
+    ros_waypoint_update.type = int(data['type'])
+    if int(data['type']) == UpdateWaypoint.ADD:
+      ros_waypoint_update.name = data['name']
+    else:
+      ros_waypoint_update.name = ""
+    return super().update_waypoint(ros_waypoint_update)
 
   def annotate_route(self, data):
     ros_annotate_route = AnnotateRoute()

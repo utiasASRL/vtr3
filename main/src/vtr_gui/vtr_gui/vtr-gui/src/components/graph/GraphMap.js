@@ -20,7 +20,8 @@ import React from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet-rotatedmarker"; // enable marker rotation
-import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
+import { Card, IconButton, TextField } from "@mui/material";
+import { MapContainer, TileLayer, ZoomControl, Marker, Popup } from "react-leaflet";
 import { kdTree } from "kd-tree-javascript";
 
 import ToolsMenu from "../tools/ToolsMenu";
@@ -37,6 +38,9 @@ import SelectorStartSVG from "../../images/selector-start.svg";
 import MoveGraphTranslationSvg from "../../images/move-graph-translation.svg";
 import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
 import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
+
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 /// pose graph constants
 const ROUTE_TYPE_COLOR = ["#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#00bcd4", "#2196f3", "#9c27b0"];
@@ -111,6 +115,8 @@ class GraphMap extends React.Component {
     this.state = {
       /// goal manager
       server_state: "EMPTY",
+      waypoints_map: new Map(),
+      display_waypoints_map: new Map(),
       goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
       curr_goal_idx: -1,
       new_goal_type: "",
@@ -170,9 +176,12 @@ class GraphMap extends React.Component {
     /// following route
     this.following_route_polyline = null;
 
-    /// goal manager
+    /// goal manager TO BE REMOVED
     this.new_goal_markers = [];
     this.running_goal_markers = [];
+
+    // waypoint marker generator
+    this.WaypointMarkers = this.displayWaypointMarkers.bind(this);
   }
 
   componentDidMount() {
@@ -193,10 +202,106 @@ class GraphMap extends React.Component {
     this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
   }
 
+  displayWaypointMarkers() {
+    let disp_wps_map = new Map(this.state.display_waypoints_map);
+    let wps_map = new Map(this.state.waypoints_map);
+    return (
+      <React.Fragment>
+        {Array.from(wps_map.keys()).map((key) =>
+          <Marker 
+            key={wps_map[key]}
+            position={this.id2vertex.get(key)}
+            draggable={false}
+            icon={NEW_GOAL_WAYPOINT_ICON}
+            opacity={WAYPOINT_OPACITY}
+            zIndexOffset={100}
+            pane={"graph"}
+          >
+            <Popup>
+              <Card
+                sx={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  backgroundColor: "rgba(255, 255, 255, 0.6)",
+                }}
+              >
+                <TextField
+                  sx={{ mx: 0.5, display: "flex", justifyContent: "center" }}
+                  style={{width: 120}}
+                  fullWidth={true}
+                  label="Name"
+                  variant="standard"
+                  size="small"
+                  on
+                  onChange={(e) => {
+                    disp_wps_map.set(key, e.target.value);
+                    this.setState({display_waypoints_map: disp_wps_map});
+                  }}
+                  onBlur={(e) => {
+                    if (!(Array.from(wps_map.values()).includes(disp_wps_map.get(key)))) {
+                      if (disp_wps_map.get(key).slice(0, 3) !== "WP-" || disp_wps_map.get(key) === this.genDefaultWaypointName(key)){
+                        if (disp_wps_map.get(key) !== ""){
+                          wps_map.set(key, disp_wps_map.get(key));
+                          this.handleUpdateWaypoint(key, 0, disp_wps_map.get(key)); /*ADD*/
+                        }
+                        else{
+                          alert("Waypoint names cannot be empty - please select another name")
+                        }
+                      }
+                      else{
+                        disp_wps_map.set(key, wps_map.get(key));
+                        alert("Waypoint names starting with 'WP-' are reserved for default generated names to avoid confusion - please select another name")
+                      }
+                    }
+                    else {
+                      disp_wps_map.set(key, wps_map.get(key));
+                      alert("A waypoint already exists with that name - please select a unique name");
+                    }
+                    this.setState({waypoints_map: wps_map, display_waypoints_map: disp_wps_map});
+                  }}
+                  value={disp_wps_map.get(key)}
+                />
+                <IconButton
+                  color="secondary"
+                  size="small"
+                  onClick={() => {
+                    if (this.state.new_goal_type === "repeat") {
+                      this.setState({new_goal_waypoints: [...this.state.new_goal_waypoints, key]});
+                    }
+                    else {
+                      alert("Adding a waypoint to the current goal is only possible while in repeat mode");
+                    }
+                  }}
+                >
+                  <AddIcon />
+                </IconButton>
+                <IconButton
+                  color="secondary"
+                  size="small"
+                  onClick={() => {
+                    wps_map.delete(key);
+                    this.handleUpdateWaypoint(key, 1); /*REMOVE*/
+                    this.setState({waypoints_map: wps_map, new_goal_waypoints: []});
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Card>
+            </Popup>
+          </Marker>
+        )}
+      </React.Fragment>
+    );
+  }
+
   render() {
     const { socket } = this.props;
     const {
       server_state,
+      waypoints_map,
+      display_waypoints_map,
       goals,
       curr_goal_idx,
       new_goal_type,
@@ -214,9 +319,9 @@ class GraphMap extends React.Component {
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
         <MapContainer
-        
           center={[43.78220, -79.4661]} /* Jordy Modification For PETAWAWA center={[45.8983, -77.2829]} => TODO We should make this set dynamically from the yaml config*/
           zoom={18}
+          doubleClickZoom={false}
           zoomControl={false}
           whenCreated={this.mapCreatedCallback.bind(this)}
         >
@@ -227,6 +332,7 @@ class GraphMap extends React.Component {
             maxZoom={22}
           />
           <ZoomControl position="bottomright" />
+          <this.WaypointMarkers />
         </MapContainer>
         <ToolsMenu
           socket={socket}
@@ -248,6 +354,7 @@ class GraphMap extends React.Component {
           selectTool={this.selectTool.bind(this)}
           deselectTool={this.deselectTool.bind(this)}
           serverState={server_state}
+          waypointsMap={waypoints_map}
           goals={goals}
           currGoalIdx={curr_goal_idx}
           newGoalType={new_goal_type}
@@ -278,12 +385,12 @@ class GraphMap extends React.Component {
   }
 
   /**
-   * @brief Returns the closes vertex on graph according to user selected latlng with some tolerance.
+   * @brief Returns the closest vertex on graph according to user selected latlng with some tolerance.
    * Helper function of handleMapClick.
    * @param {Object} latlng User selected lat and lng.
    * @param {number} tol Tolerance in terms of the window.
    */
-  getClosestPoint(latlng, tol = 0.02) {
+  getClosestVertex(latlng, tol = 0.02) {
     //
     let bounds = this.map.getBounds();
     let max_dist = Math.max(bounds.getSouthWest().distanceTo(bounds.getNorthEast()) * tol, 1);
@@ -295,24 +402,43 @@ class GraphMap extends React.Component {
     else return { target: null, distance: max_dist };
   }
 
+  genDefaultWaypointName(id) {
+    let vl = parseInt(id % Math.pow(2, 32));
+    let vh = parseInt((id - vl) / Math.pow(2, 32));
+    return "WP-" + vh.toString() + "-" + vl.toString();
+  }
+
   handleMapClick(e) {
     // Find the closest vertex
-    let best = this.getClosestPoint(e.latlng);
+    let best = this.getClosestVertex(e.latlng);
     if (best.target === null) return;
     this.setState((state) => {
-      if (state.new_goal_type === "repeat") {
-        let waypoint_marker = L.marker(this.id2vertex.get(best.target.id), {
-          draggable: false,
-          icon: NEW_GOAL_WAYPOINT_ICON,
-          opacity: WAYPOINT_OPACITY,
-          zIndexOffset: 100,
-          pane: "graph",
-        });
-        waypoint_marker.addTo(this.map);
-        this.new_goal_markers.push(waypoint_marker);
-        return { new_goal_waypoints: [...state.new_goal_waypoints, best.target.id] };
+      if (!(state.waypoints_map.has(best.target.id))){
+        let disp_wps_map = new Map(state.display_waypoints_map);
+        let wps_map = new Map(state.waypoints_map);
+
+        let new_wp_name = this.genDefaultWaypointName(best.target.id)
+        wps_map.set(best.target.id, new_wp_name);
+        disp_wps_map.set(best.target.id, new_wp_name);
+        this.handleUpdateWaypoint(best.target.id, 0, new_wp_name); /*ADD*/
+
+        return { waypoints_map: wps_map, display_waypoints_map: disp_wps_map };
       }
     });
+    if (this.state.new_goal_type === "repeat") {
+      this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
+    }
+    console.log(this.state.waypoints_map);
+  }
+
+  handleUpdateWaypoint(vertex_id, type, name="") {
+    let update = {
+      vertex_id: vertex_id,
+      type: type,
+      name: name
+    };
+    console.debug("Updating waypoint:", update);
+    this.props.socket.emit("command/update_waypoint", update);
   }
 
   fetchGraphState(center = false) {
@@ -355,6 +481,8 @@ class GraphMap extends React.Component {
   /** @brief Refresh the pose graph completely */
   loadGraphState(graph, center = false) {
     console.info("Loading the current pose graph state (full).");
+    console.log("Got names: ");
+    console.log(graph.vertices)
     // root vid
     this.root_vid = 0; // = graph.root_vid; /// \todo
     // id2vertex and kdtree

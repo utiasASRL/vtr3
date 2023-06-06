@@ -27,7 +27,13 @@ USER ${USERID}:${GROUPID}
 ENV VTRROOT=${HOMEDIR}/ASRL/vtr3
 ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
-  VTRTEMP=${VTRROOT}/temp
+  VTRTEMP=${VTRROOT}/temp \
+
+RUN export VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+
+RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
+RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
+RUN echo "alias build_vtr_ui='build_vtr; build_ui'" >> ~/.bashrc
 
 ## Switch to root to install dependencies
 USER 0:0

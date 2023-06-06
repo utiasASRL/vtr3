@@ -42,7 +42,7 @@ class GoalForm extends React.Component {
   }
 
   render() {
-    const { goalType, goalWaypoints, setGoalWaypoints } = this.props;
+    const { waypointsMap, goalType, goalWaypoints, setGoalWaypoints } = this.props;
     const { goal_form_open, goal_waypoints_str, goal_waypoints_invalid, pause_after, pause_before } = this.state;
     return (
       <>

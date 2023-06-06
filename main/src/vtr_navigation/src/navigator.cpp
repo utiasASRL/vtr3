@@ -85,7 +85,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   /// pose graph
   auto new_graph = node_->declare_parameter<bool>("start_new_graph", false);
-  graph_ = tactic::Graph::MakeShared(data_dir + "/graph", !new_graph,
+  graph_ = tactic::Graph::MakeShared(data_dir + "/graph", new_graph,
                                      graph_map_server_);
   graph_map_server_->start(node_, graph_);
 

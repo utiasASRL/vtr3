@@ -23,7 +23,7 @@ from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
 from vtr_navigation_msgs.srv import FollowingRoute as FollowingRouteSrv
 from vtr_navigation_msgs.srv import TaskQueueState as TaskQueueStateSrv
 from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRoute
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
 from vtr_navigation_msgs.msg import TaskQueueUpdate
 from vtr_tactic_msgs.msg import EnvInfo
@@ -71,6 +71,7 @@ class VTRUI(ROSManager):
     # graph manipulation
     self._move_graph_pub = self.create_publisher(MoveGraph, 'move_graph', 1)
     self._annotate_route_pub = self.create_publisher(AnnotateRoute, 'annotate_route', 1)
+    self._update_waypoint_pub = self.create_publisher(UpdateWaypoint, 'update_waypoint', 1)
 
     # mission command
     self._mission_command_pub = self.create_publisher(MissionCommand, 'mission_command', 1)
@@ -160,6 +161,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def continue_teach(self, msg):
     self._mission_command_pub.publish(msg)
+  
+  @ROSManager.on_ros
+  def update_waypoint(self, msg):
+    self._update_waypoint_pub.publish(msg)
 
   @ROSManager.on_ros
   def annotate_route(self, msg):
