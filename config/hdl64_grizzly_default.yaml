@@ -109,7 +109,7 @@
         downsample_ratio: 2
 
       filtering:
-        type: lidar.preprocessing
+        type: lidar.preprocessing_v2
         num_threads: 8
 
         crop_range: 40.0
@@ -150,7 +150,7 @@
           - 1.0
         num_threads: 8
         first_num_steps: 2
-        initial_max_iter: 8
+        initial_max_iter: 10
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
         refined_max_iter: 50
@@ -171,7 +171,7 @@
       vertex_test:
         type: lidar.vertex_test
         max_translation: 0.5
-        max_rotation: 5.0
+        max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
         depth: 6.0
@@ -182,6 +182,7 @@
       dynamic_detection:
         type: lidar.dynamic_detection
         depth: 12.0
+
         horizontal_resolution: 0.1728 # 0.02042
         vertical_resolution: 0.00872664626 # 0.01326
         max_num_observations: 10000
@@ -283,26 +284,6 @@
         size_y: 20.0
         run_async: true
         visualize: true
-      ground_extraction:
-        type: lidar.ground_extraction
-        z_offset: 0.2
-        alpha: 0.035
-        tolerance: 0.25
-        Tm: 0.3
-        Tm_small: 0.1
-        Tb: 0.5
-        Trmse: 0.1
-        Tdprev: 1.0
-        rmin: 2.0
-        num_bins_small: 30.0
-        bin_size_small: 0.5
-        num_bins_large: 10.0
-        bin_size_large: 1.0
-        resolution: 0.6
-        size_x: 40.0
-        size_y: 20.0
-        run_async: true
-        visualize: true
       terrain_assessment:
         type: lidar.terrain_assessment
         lookahead_distance: 15.0
@@ -315,21 +296,22 @@
         run_async: true
         visualize: true
     path_planning:
-      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
+
       cbit:
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
-        corridor_resolution: 0.2
-        state_update_freq: 2.0
+        corridor_resolution: 0.1
+        state_update_freq: 1.0
         update_state: true
         rand_seed: 1
 
         # Planner Tuning Params
-        initial_samples: 300
-        batch_samples: 100
+        initial_samples: 400
+        batch_samples: 200
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5
@@ -349,21 +331,27 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 1.1
-        max_lin_vel: 1.5
-        max_ang_vel: 1.5
+        forward_vel: 0.75
+        max_lin_vel: 1.25
+        max_ang_vel: 0.75
         robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 1000.0]
-        vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [30.0, 30.0]
-        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
-        lat_error_cov: [10.0]
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        vel_error_cov: [300.0, 300.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [100.0, 100.0]
+        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        lat_error_cov: [20.0]
+
+        # Cost Function Covariance Matrices (Tracking Backup)
+        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [10.0, 10.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [10.0]
 
         # Cost Function Weights
         pose_error_weight: 1.0

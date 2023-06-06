@@ -167,6 +167,10 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   }
   pcl::PointCloud<PointWithInfo> query_points(points, query_indices);
   
+  if (query_points.size() == 0){
+    CLOG(WARNING, "lidar.change_detection") << "No points were valid to detect changes";
+    return;
+  }
   voxelDownsample(query_points, 0.2);
 
   // Eigen matrix of original data (only shallow copy of ref clouds)
