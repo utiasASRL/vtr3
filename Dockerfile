@@ -3,7 +3,7 @@ FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
 CMD ["/bin/bash"]
 
 # Args for setting up non-root users, example command to use your own user:
-# docker build -t <name: vtr3> \
+# docker build -t vtr3torch \
 #   --build-arg USERID=$(id -u) \
 #   --build-arg GROUPID=$(id -g) \
 #   --build-arg USERNAME=$(whoami) \
@@ -107,6 +107,10 @@ RUN unzip libtorch.zip -d /opt/torch
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
+
+#Install PyTorch
+RUN pip3 install torch torchvision
+RUN pip3 install tqdm
 
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
