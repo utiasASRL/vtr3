@@ -128,7 +128,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   float max_pair_d = config_->initial_max_pairing_dist;
-  // float max_planar_d = config_->initial_max_planar_dist;
+  float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   KDTreeSearchParams search_params;
 
@@ -195,7 +195,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
   const auto map_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  // const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -466,7 +466,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
-        // max_planar_d = config_->refined_max_planar_dist;
+        max_planar_d = config_->refined_max_planar_dist;
       }
     }
     timer[5]->stop();
@@ -549,10 +549,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     *qdata.T_r_m_odo = T_r_m_eval->value();
     *qdata.timestamp_odo = query_stamp;
-#if 1
-    CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-    CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-#endif
+//#if 1
+//    CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+//    CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+//#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();

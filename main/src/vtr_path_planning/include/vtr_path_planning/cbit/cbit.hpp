@@ -34,6 +34,7 @@
 #include "nav_msgs/msg/path.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 #include "std_msgs/msg/string.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
 
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 #include "vtr_path_planning/base_path_planner.hpp"
@@ -74,7 +75,7 @@ class CBIT : public BasePathPlanner {
     int rand_seed = 1;
 
     // ROC
-    double roc_lookahead = 5.0;
+    double roc_lookahead = 1.0;
     int roc_discretization = 40;
     double roc_q_tolerance = 0.001;
 
@@ -101,6 +102,8 @@ class CBIT : public BasePathPlanner {
     double forward_vel = 0.75;
     double max_lin_vel = 1.25;
     double max_ang_vel = 0.75;
+    double robot_linear_velocity_scale = 1.0;
+    double robot_angular_velocity_scale = 1.0;
 
     // Add unicycle model param
 
@@ -109,7 +112,14 @@ class CBIT : public BasePathPlanner {
     Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
     Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
     Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 1, 1> lat_error_cov = Eigen::Matrix<double, 1, 1>::Zero();
 
+    // MPC weight params:
+    double pose_error_weight = 1.0;
+    double vel_error_weight = 1.0;
+    double acc_error_weight = 1.0;
+    double kin_error_weight = 1.0;
+    double lat_error_weight = 0.01;
 
     // Misc
     int command_history_length = 100;
@@ -135,8 +145,17 @@ class CBIT : public BasePathPlanner {
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
-  void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction);
-
+  void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction, std::vector<lgmath::se3::Transformation> ref_pose_vec1, std::vector<lgmath::se3::Transformation> ref_pose_vec2);
+  Node curve_to_euclid(Node node);
+  Pose lin_interpolate(int p_ind, double p_val);
+  bool costmap_col_tight(Node node);
+  struct collision_result
+  {
+      bool bool_result;
+      Node col_node;
+  };
+  struct collision_result discrete_collision_v2(double discretization, Node start, Node end);
+  
  protected:
   struct ChainInfo {
     tactic::Timestamp stamp;
@@ -161,10 +180,20 @@ class CBIT : public BasePathPlanner {
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_path_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr robot_path_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_l_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_r_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub1_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub2_;
 
   // Pointers to the output path
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
+
+  // Pointers to the corridor
+  std::shared_ptr<CBITCorridor> corridor_ptr;
+
+  // Pointer to the global path
+  std::shared_ptr<CBITPath> global_path_ptr;
 
   tactic::Timestamp prev_stamp;
 

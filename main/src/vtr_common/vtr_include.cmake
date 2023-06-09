@@ -9,6 +9,9 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # template instantiation help
 # add_compile_options(-frepo)
 
+#Add debug symbols
+add_compile_options(-g -Og)
+
 # built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
 
@@ -31,3 +34,5 @@ endif()
 ## Enable certain pipelines
 add_definitions(-DVTR_ENABLE_LIDAR)
 add_definitions(-DVTR_ENABLE_RADAR)
+#add_definitions(-DSAVE_FULL_LIDAR)
+#add_definitions(-DSAVE_ALL_REPEATS)
