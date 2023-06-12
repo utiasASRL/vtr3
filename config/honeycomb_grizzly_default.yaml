@@ -59,7 +59,7 @@
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.5
+      route_completion_translation_threshold: 0.65
 
       chain:
         min_cusp_distance: 1.5
@@ -337,12 +337,18 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 1000.0]
-        vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [30.0, 30.0]
-        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
-        lat_error_cov: [10.0]
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        vel_error_cov: [300.0, 300.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [100.0, 100.0]
+        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        lat_error_cov: [20.0]
+
+        # Cost Function Covariance Matrices (Tracking Backup)
+        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [10.0, 10.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [10.0]
 
         # Cost Function Weights
         pose_error_weight: 1.0
