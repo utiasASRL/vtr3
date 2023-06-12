@@ -10,7 +10,7 @@
 #include <opencv2/cudastereo.hpp>
 
 
-#ifdef VTR_VISION_LEARNED
+// #ifdef VTR_VISION_LEARNED
 #include <vtr_vision/features/extractor/learned_feature_extractor.hpp>
 
 namespace vtr {
@@ -43,6 +43,11 @@ torch::Tensor getKeypointDisparities(torch::Tensor disparity,
   namespace F = torch::nn::functional;
   auto options = F::GridSampleFuncOptions().mode(
                      torch::kNearest).align_corners(false);
+
+
+  LOG(INFO) << "disparity:" << disparity.sizes();
+  LOG(INFO) << "kp_norm:" << keypoints_norm.sizes();
+  
 
   return F::grid_sample(disparity, keypoints_norm, options).reshape({-1});
 
@@ -106,7 +111,7 @@ void LFE::initialize(const LearnedFeatureConfiguration &config) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void LFE::initialize(LearnedFeatureStereoConfiguration &stereo_config) {
+void LFE::initialize(const LearnedFeatureStereoConfiguration &stereo_config) {
   stereo_config_ = stereo_config; 
 }
 
@@ -695,4 +700,4 @@ ChannelFeatures LFE::extractStereoFeaturesDispExtra(const cv::Mat &left_img,
 
 }  // namespace vision
 }  // namespace vtr
-#endif
+// #endif
