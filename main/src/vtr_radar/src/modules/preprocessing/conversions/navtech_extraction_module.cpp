@@ -53,6 +53,7 @@ auto NavtechExtractionModule::Config::fromROS(
   config->detector = node->declare_parameter<std::string>(param_prefix + ".detector", config->detector);
   config->minr = node->declare_parameter<double>(param_prefix + ".minr", config->minr);
   config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
+  config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
 
   config->kstrong.kstrong = node->declare_parameter<int>(param_prefix + ".kstrong.kstrong", config->kstrong.kstrong);
   config->kstrong.threshold2 = node->declare_parameter<double>(param_prefix + ".kstrong.threshold2", config->kstrong.threshold2);
@@ -182,36 +183,39 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                 raw_point_cloud);
 #else
   if (config_->detector == "cen2018") {
-    Cen2018 detector =
-        Cen2018<PointWithInfo>(config_->cen2018.zq, config_->cen2018.sigma,
-                               config_->minr, config_->maxr);
+    Cen2018 detector = Cen2018<PointWithInfo>(
+        config_->cen2018.zq, config_->cen2018.sigma, config_->minr,
+        config_->maxr, config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
     KStrongest detector = KStrongest<PointWithInfo>(
         config_->kstrong.kstrong, config_->kstrong.threshold2,
-        config_->kstrong.threshold3, config_->minr, config_->maxr);
+        config_->kstrong.threshold3, config_->minr, config_->maxr,
+        config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "cacfar") {
     CACFAR detector = CACFAR<PointWithInfo>(
         config_->cacfar.width, config_->cacfar.guard, config_->cacfar.threshold,
         config_->cacfar.threshold2, config_->cacfar.threshold3, config_->minr,
-        config_->maxr);
+        config_->maxr, config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "oscfar") {
     OSCFAR detector = OSCFAR<PointWithInfo>(
         config_->oscfar.width, config_->oscfar.guard, config_->oscfar.kstat,
         config_->oscfar.threshold, config_->oscfar.threshold2,
-        config_->oscfar.threshold3, config_->minr, config_->maxr);
+        config_->oscfar.threshold3, config_->minr, config_->maxr,
+        config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "modified_cacfar") {
     ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
         config_->modified_cacfar.width, config_->modified_cacfar.guard,
         config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
-        config_->modified_cacfar.threshold3, config_->minr, config_->maxr);
+        config_->modified_cacfar.threshold3, config_->minr, config_->maxr,
+        config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else {
