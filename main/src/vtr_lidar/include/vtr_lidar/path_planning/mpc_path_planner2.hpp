@@ -67,6 +67,10 @@ struct meas_result2 GenerateReferenceMeas3(std::shared_ptr<CBITPath> global_path
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 struct meas_result2 GenerateReferenceMeas4(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid, std::vector<double> p_interp_vec);
 
+// Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
+//struct meas_result GenerateTrackingReference(std::shared_ptr<std::vector<Pose>> cbit_path_ptr, std::shared_ptr<CBITPath> global_path_ptr,  std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid);
+
+
 // Helper function for post-processing and saturating the velocity command
 Eigen::Matrix<double, 2, 1> SaturateVel2(Eigen::Matrix<double, 2, 1> applied_vel, double v_lim, double w_lim);
 
