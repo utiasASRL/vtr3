@@ -47,5 +47,18 @@ auto TorchModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
 TorchModule::~TorchModule() {}
 
+
+torch::Tensor TorchModule::evaluateModel(torch::Tensor input, const Shape shape) {
+  torch::NoGradGuard no_grad;
+  std::vector<torch::jit::IValue> jit_inputs;
+
+  jit_inputs.push_back(input);
+
+
+  auto output = network(jit_inputs);
+
+  return output.toTensor().cpu();
+}
+
 }  // namespace nn
 }  // namespace vtr

@@ -18,6 +18,7 @@ find_package(pcl_ros REQUIRED)
 
 find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -56,7 +57,7 @@ add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions pcl_ros
-  nav_msgs visualization_msgs
+  nav_msgs visualization_msgs sensor_msgs
   lgmath steam vtr_torch
   vtr_logging vtr_tactic vtr_lidar_msgs
 )
