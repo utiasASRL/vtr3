@@ -30,6 +30,8 @@ namespace vtr {
 namespace lidar {
 
 using Image = sensor_msgs::msg::Image;
+using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
 
 /** \brief Load and store Torch Models */
 class RangeChangeNetModule : public nn::TorchModule {
@@ -41,6 +43,8 @@ class RangeChangeNetModule : public nn::TorchModule {
   /** \brief Config parameters. */
   struct Config : public nn::TorchModule::Config {
     PTR_TYPEDEFS(Config);
+
+    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -60,6 +64,10 @@ class RangeChangeNetModule : public nn::TorchModule {
   Config::ConstPtr config_;
 
   rclcpp::Publisher<Image>::SharedPtr mask_pub_;
+  rclcpp::Publisher<Image>::SharedPtr live_range_pub_;
+  rclcpp::Publisher<Image>::SharedPtr map_range_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr diffpcd_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr mappcd_pub_;
   bool pub_init = false;
 
   VTR_REGISTER_MODULE_DEC_TYPE(RangeChangeNetModule);

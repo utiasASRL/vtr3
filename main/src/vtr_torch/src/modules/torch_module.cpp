@@ -33,7 +33,7 @@ auto TorchModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->use_gpu = node->declare_parameter<bool>(param_prefix + ".use_gpu", config->use_gpu);
   config->abs_filepath = node->declare_parameter<bool>(param_prefix + ".abs_filepath", config->abs_filepath);
 
-  auto model_dir = node->declare_parameter<std::string>("model_dir", "defalut2");
+  auto model_dir = node->declare_parameter<std::string>("model_dir", "default");
   model_dir = common::utils::expand_user(common::utils::expand_env(model_dir));
 
   if (config->abs_filepath){
@@ -52,7 +52,7 @@ torch::Tensor TorchModule::evaluateModel(torch::Tensor input, const Shape shape)
   torch::NoGradGuard no_grad;
   std::vector<torch::jit::IValue> jit_inputs;
 
-  jit_inputs.push_back(input);
+  jit_inputs.push_back(input.to(device));
 
 
   auto output = network(jit_inputs);

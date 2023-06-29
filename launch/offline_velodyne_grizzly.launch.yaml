@@ -17,9 +17,10 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=hdl64_grizzly_default.yaml
+        base_params:=hdl64_grizzly_learned.yaml
         data_dir:=${VTRTEMP}/lidar/
-        start_new_graph:=true
+        model_dir:=${VTRMODELS}
+        start_new_graph:=false
         use_sim_time:=true
 
   - window_name: vtr_gui

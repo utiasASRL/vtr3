@@ -92,6 +92,11 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   {
     const auto msg = target_vertex->retrieve<PointMapPointer>(
         "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
+    if (msg == nullptr) {
+      CLOG(WARNING, "lidar.intra_exp_merging")
+          << "This vertex does not have an associated submap pointer, skipped.";
+      return;
+    }
     auto locked_msg = msg->sharedLocked();
     const auto &pointmap_ptr = locked_msg.get().getData();
     //
@@ -106,6 +111,11 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   {
     const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
         "pointmap", "vtr_lidar_msgs/msg/PointMap");
+    if (map_msg == nullptr) {
+      CLOG(WARNING, "lidar.intra_exp_merging")
+          << "This vertex does not have an associated submap pointer, skipped.";
+      return;
+    }
     auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
     auto &locked_map_msg = locked_map_msg_ref.get();
 
@@ -143,6 +153,11 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
     {
       const auto msg = vertex->retrieve<PointMapPointer>(
           "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
+      if (msg == nullptr) {
+        CLOG(WARNING, "lidar.intra_exp_merging")
+            << "This vertex does not have an associated submap pointer, skipped.";
+        continue;
+      }
       auto locked_msg = msg->sharedLocked();
       const auto &pointmap_ptr = locked_msg.get().getData();
       if (pointmap_ptr.map_vid != vertex->id()) continue;
@@ -156,7 +171,11 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
     // retrieve point map v0 (initial map) from this vertex
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
         "pointmap_v0", "vtr_lidar_msgs/msg/PointMap");
-
+    if (map_msg == nullptr) {
+      CLOG(WARNING, "lidar.intra_exp_merging")
+          << "This vertex does not have an associated submap pointer, skipped.";
+      continue;
+    }
     auto pointmap = map_msg->sharedLocked().get().getData();
     const auto &T_v_m = (T_target_curr * pointmap.T_vertex_this()).matrix();
     auto &point_cloud = pointmap.point_cloud();
@@ -207,6 +226,11 @@ void IntraExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   {
     const auto map_msg = target_vertex->retrieve<PointMap<PointWithInfo>>(
         "pointmap", "vtr_lidar_msgs/msg/PointMap");
+    if (map_msg == nullptr) {
+      CLOG(WARNING, "lidar.intra_exp_merging")
+          << "This vertex does not have an associated submap pointer, skipped.";
+      return;
+    }
     auto locked_map_msg_ref = map_msg->locked();  // lock the msg
     auto &locked_map_msg = locked_map_msg_ref.get();
     locked_map_msg.setData(updated_map);
