@@ -35,7 +35,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: Map
 Visualization Manager:
   Class: ""
   Displays:
@@ -69,51 +69,11 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
-        base_footprint:
-          Value: true
-        base_footprint_bumper_part:
-          Value: true
-        base_link:
-          Value: true
-        chassis_link:
-          Value: true
-        front_axle_link:
-          Value: true
-        front_bumblebee:
-          Value: true
-        front_xb3:
-          Value: true
-        honeycomb:
-          Value: true
-        imu_link:
-          Value: true
         lidar:
           Value: false
-        loc vertex frame:
-          Value: true
-        loc vertex frame (offset):
-          Value: true
-        m600_base:
-          Value: true
-        microstrain:
-          Value: true
-        navsat_link:
-          Value: true
         odo vertex frame:
           Value: true
-        odom:
-          Value: true
         planning frame:
-          Value: true
-        rear_antenna_link:
-          Value: true
-        rear_bumblebee:
-          Value: true
-        rear_sensor_base_link:
-          Value: true
-        rear_sensor_plate_link:
-          Value: true
-        rear_xb3:
           Value: true
         robot:
           Value: true
@@ -122,10 +82,6 @@ Visualization Manager:
         robot planning (extrapolated):
           Value: true
         robot planning (extrapolated) mpc:
-          Value: true
-        sensor_anchor_link:
-          Value: true
-        velodyne:
           Value: true
         world:
           Value: true
@@ -138,13 +94,10 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          loc vertex frame:
-            {}
           odo vertex frame:
             robot:
               lidar:
-                velodyne:
-                  {}
+                {}
           planning frame:
             robot planning:
               {}
@@ -153,8 +106,7 @@ Visualization Manager:
             robot planning (extrapolated) mpc:
               {}
           world (offset):
-            loc vertex frame (offset):
-              {}
+            {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -1260,7 +1212,7 @@ Visualization Manager:
       Max Value: 1
       Median window: 5
       Min Value: 0
-      Name: Image
+      Name: Diff Image
       Normalize Range: true
       Topic:
         Depth: 5
@@ -1274,7 +1226,7 @@ Visualization Manager:
       Max Value: 1
       Median window: 5
       Min Value: 0
-      Name: Image
+      Name: Map Range
       Normalize Range: true
       Topic:
         Depth: 5
@@ -1288,7 +1240,7 @@ Visualization Manager:
       Max Value: 1
       Median window: 5
       Min Value: 0
-      Name: Image
+      Name: Live Range
       Normalize Range: true
       Topic:
         Depth: 5
@@ -1304,7 +1256,7 @@ Visualization Manager:
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: flex13
+      Channel Name: flex24
       Class: rviz_default_plugins/PointCloud2
       Color: 255; 255; 255
       Color Transformer: Intensity
@@ -1312,9 +1264,9 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 9.420014381408691
+      Max Intensity: 0.9903810024261475
       Min Color: 0; 0; 0
-      Min Intensity: -4.211626052856445
+      Min Intensity: -1
       Name: Map
       Position Transformer: XYZ
       Selectable: true
@@ -1378,7 +1330,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 34.462005615234375
+      Distance: 48.05464172363281
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -1393,10 +1345,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1403958797454834
+      Pitch: 0.9203958511352539
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.3322339057922363
+      Yaw: 3.1472339630126953
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -1599,14 +1551,18 @@ Visualization Manager:
         Value: Orbit (rviz_default_plugins)
         Yaw: 2.295583963394165
 Window Geometry:
+  Diff Image:
+    collapsed: false
   Displays:
     collapsed: false
   Height: 1016
   Hide Left Dock: false
   Hide Right Dock: true
-  Image:
+  Live Range:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000003de000003a2fc020000000afc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000001af000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d00610067006501000001f00000007a0000002800fffffffb0000000a0049006d00610067006501000002700000009d0000002800fffffffb0000000a0049006d0061006700650100000313000000ca0000002800ffffff00000001000001c0000003a2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003b000003a2000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d0065010000000000000450000000000000000000000354000003a200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Map Range:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd0000000400000000000003de000003a2fc020000000afc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000001af000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000014004c006900760065002000520061006e0067006501000001f00000007a0000002800fffffffb00000014004400690066006600200049006d00610067006501000002700000009d0000002800fffffffb00000012004d00610070002000520061006e006700650100000313000000ca0000002800ffffff00000001000001c0000003a2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003b000003a2000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d0065010000000000000450000000000000000000000354000003a200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:

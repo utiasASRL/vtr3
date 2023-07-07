@@ -45,9 +45,15 @@ class RangeChangeNetModule : public nn::TorchModule {
     PTR_TYPEDEFS(Config);
 
     bool visualize = false;
+    int img_width = 1;
+    int img_height = 1;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
+
+    Shape getImgShape() const {
+      return {img_width, img_height};
+    }
   };
 
   RangeChangeNetModule(

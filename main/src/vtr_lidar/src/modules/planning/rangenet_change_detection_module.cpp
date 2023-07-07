@@ -18,6 +18,7 @@
  */
 #include <vtr_lidar/modules/planning/rangenet_change_detection_module.hpp>
 #include "vtr_lidar/filters/range_image.hpp"
+#include "vtr_common/timing/stopwatch.hpp"
 
 
 namespace vtr {
@@ -53,6 +54,9 @@ auto RangeChangeNetModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
 
+  config->img_width = node->declare_parameter<int>(param_prefix + ".img_width", config->img_width);
+  config->img_height = node->declare_parameter<int>(param_prefix + ".img_height", config->img_height);
+
   // clang-format on
   return config;
 }
@@ -84,9 +88,6 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   auto& sub_map= *qdata.submap_loc;
-  const auto &T_lv_pm = sub_map.T_vertex_this().matrix();
-
-  //Need to convert frame!
   auto map_point_cloud = sub_map.point_cloud();
   auto points_mat = map_point_cloud.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
@@ -104,20 +105,31 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
   image_params.fov_down = -25 * M_PI / 180;
   image_params.crop_range = 8.0;
 
-  Eigen::MatrixXf scan_image = Eigen::MatrixXf::Zero(64, 1024);
-  Eigen::MatrixXf mask_image = Eigen::MatrixXf::Zero(64, 1024);
+  RowMatrixXf scan_image = Eigen::MatrixXf::Zero(64, 1024);
+  RowMatrixXf mask_image = Eigen::MatrixXf::Zero(64, 1024);
   Eigen::MatrixXi scan_idxs = Eigen::MatrixXi::Constant(64, 1024, -1);
-  Eigen::MatrixXf map_image = Eigen::MatrixXf::Zero(64, 1024);
+  RowMatrixXf map_image = Eigen::MatrixXf::Zero(64, 1024);
 
+  common::timing::Stopwatch<boost::chrono::thread_clock> timer;
+  timer.start();
   generate_range_image(nn_point_cloud, scan_image, scan_idxs, image_params);
   generate_range_image(map_point_cloud, map_image, image_params);
+  timer.stop();
+  CLOG(DEBUG, "lidar.range") << "Range image creation takes " << timer;
+
+  using namespace torch::indexing;
 
   auto scan_tensor = torch::from_blob(scan_image.data(), {64, 1024});
   auto map_tensor = torch::from_blob(map_image.data(), {64, 1024});
   auto input = at::unsqueeze(at::stack({scan_tensor, map_tensor}), 0);
 
+  timer.reset();
   auto tensor = evaluateModel(input, {1, 2, 64, 1024});
-  auto mask = at::squeeze(at::argmax(tensor, 1), 0).to(torch::kUInt8);
+  auto mask = at::squeeze(at::argmax(tensor, 1), 0).to(at::kFloat);
+  timer.stop();
+  CLOG(DEBUG, "lidar.range") << "Running inference takes " << timer;
+
+
   torch::from_blob(mask_image.data(), {64, 1024}) = mask;
 
   unproject_range_image(nn_point_cloud, mask_image, scan_idxs);

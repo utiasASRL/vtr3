@@ -25,6 +25,9 @@
 namespace vtr {
 namespace lidar{
 
+using RowMatrixXf = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using RowMatrixXuI8 = Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
 struct RangeImageParams {
   double fov_up;    //In radians
   double fov_down;  //In radians
@@ -33,15 +36,15 @@ struct RangeImageParams {
   double getFOV() { return abs(fov_up - fov_down);}
 };
 
-void generate_range_image(const pcl::PointCloud<PointWithInfo>& point_cloud, Eigen::MatrixXf& range_image, Eigen::MatrixXi& idx_image, RangeImageParams params);
+void generate_range_image(const pcl::PointCloud<PointWithInfo>& point_cloud, RowMatrixXf& range_image, Eigen::MatrixXi& idx_image, RangeImageParams params);
 
-void generate_range_image(const pcl::PointCloud<PointWithInfo>& point_cloud, Eigen::MatrixXf& range_image, RangeImageParams params) {
+void generate_range_image(const pcl::PointCloud<PointWithInfo>& point_cloud, RowMatrixXf& range_image, RangeImageParams params) {
   Eigen::MatrixXi temp_idx = Eigen::MatrixXi::Constant(range_image.rows(), range_image.cols(), -1);
   generate_range_image(point_cloud, range_image, temp_idx, params);
 }
 
 /// \todo Parallelize  
-void generate_range_image(const pcl::PointCloud<PointWithInfo>& point_cloud, Eigen::MatrixXf& range_image, Eigen::MatrixXi& idx_image, RangeImageParams params) {
+void generate_range_image(const pcl::PointCloud<PointWithInfo>& point_cloud, RowMatrixXf& range_image, Eigen::MatrixXi& idx_image, RangeImageParams params) {
 
   for (size_t i = 0; i < point_cloud.size(); ++i) {
     auto& point = point_cloud[i];
@@ -68,7 +71,7 @@ void generate_range_image(const pcl::PointCloud<PointWithInfo>& point_cloud, Eig
 }
 
 //Definitely parallelize, no reverse duplication
-void unproject_range_image(pcl::PointCloud<PointWithInfo>& point_cloud, const Eigen::MatrixXf& data_image, const Eigen::MatrixXi& idx_image) {
+void unproject_range_image(pcl::PointCloud<PointWithInfo>& point_cloud, const RowMatrixXf& data_image, const Eigen::MatrixXi& idx_image) {
 
   for (int i = 0; i < idx_image.rows(); i++){
     //#pragma omp parallel for schedule(dynamic, 10) num_threads(num_threads)
@@ -81,10 +84,8 @@ void unproject_range_image(pcl::PointCloud<PointWithInfo>& point_cloud, const Ei
 
 }
 
-sensor_msgs::msg::Image range_to_image(const Eigen::MatrixXf& data_image) {
+sensor_msgs::msg::Image range_to_image(const RowMatrixXf& data_image) {
   float max_range = data_image.maxCoeff();
-  CLOG(DEBUG, "lidar.range") << "Max: " << data_image.maxCoeff() << " Min: " << data_image.minCoeff();
-
 
   sensor_msgs::msg::Image ros_im;
   ros_im.width = data_image.cols();
@@ -94,9 +95,10 @@ sensor_msgs::msg::Image range_to_image(const Eigen::MatrixXf& data_image) {
   size_t size = data_image.size()*sizeof(uint8_t);
   ros_im.data.resize(size);
 
-
-  Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> scaled_image = (data_image / max_range * 255).cast<uint8_t>();
+  RowMatrixXuI8 scaled_image = (data_image / max_range * 255).cast<uint8_t>();
   memcpy(&ros_im.data[0], scaled_image.data(), size);
+    // Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> scaled_image = (data_image / max_range * 255).cast<uint8_t>();
+    // memcpy(&ros_im.data[0], scaled_image.data(), size);
 
   return ros_im;
 }

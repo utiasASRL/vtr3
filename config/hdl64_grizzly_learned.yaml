@@ -43,7 +43,6 @@
         # "lidar.change_detection",
         # "lidar.ground_extraction",
         # "lidar.obstacle_detection",
-      # "lidar.terrain_assessment",
     robot_frame: base_link
     env_info_topic: env_info
     # lidar related
@@ -99,11 +98,12 @@
         - recall
         - icp
     #    - safe_corridor
-        - range_change
+        #- range_change
         #- change_detection_sync
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
+      save_nn_point_cloud: true
     preprocessing:
       conversion:
         type: lidar.velodyne_converter_v2
@@ -299,8 +299,8 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 0.75
-        max_lin_vel: 1.25
+        forward_vel: 0.5
+        max_lin_vel: 1.0
         max_ang_vel: 0.75
         robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
