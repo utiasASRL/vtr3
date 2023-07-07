@@ -23,7 +23,7 @@
         #"mpc_debug.cbit",
         #"obstacle_detection.cbit",
         # mission planner
-      #- mission.server
+      - mission.server
       #- mission.state_machine
         # pose graph
       #- pose_graph

@@ -139,7 +139,6 @@ void RCGraph::saveGraphIndex() {
 void RCGraph::saveVertices() {
   // save any unsaved data first
   for (auto iter = vertices_.begin(); iter != vertices_.end(); ++iter){
-    CLOG(DEBUG, "navigation.graph_map_server") << "got here " << iter->first.majorId() << "+" << iter->first.minorId();
     iter->second->unload();}
   VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
   for (auto it = vertices_.begin(); it != vertices_.end(); ++it)

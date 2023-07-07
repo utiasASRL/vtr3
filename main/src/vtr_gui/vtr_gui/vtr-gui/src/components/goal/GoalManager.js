@@ -21,6 +21,7 @@ import { Box, Button, Drawer, List, easing } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StorageIcon from "@mui/icons-material/Storage";
+import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 
 import GoalCard from "./GoalCard";
 import GoalCurrent from "./GoalCurrent";
@@ -54,6 +55,7 @@ class GoalManager extends React.Component {
       mergeIds,
     } = this.props;
     const { goal_panel_open } = this.state;
+
     return (
       <>
         {/* Start, Pause and Clear buttons */}
@@ -163,6 +165,19 @@ class GoalManager extends React.Component {
               m: 0.5,
             }}
           >
+            {goals.length > 0 ? (<Button
+              sx={{ width: GOAL_PANEL_WIDTH, m: 1 }}
+              color={"primary"}
+              disableElevation={true}
+              fullWidth={true}
+              size="large"
+              startIcon={<PlayCircleIcon />}
+              variant={"contained"}
+              onClick={this.beginGoals.bind(this)}
+            >
+              BEGIN GOALS
+            </Button>) : null
+            }
             {goals.map((goal, idx) => {
               return (
                 <GoalCard
@@ -189,7 +204,7 @@ class GoalManager extends React.Component {
               waypointsMap={waypointsMap}
               goalWaypoints={newGoalWaypoints}
               goalType={newGoalType}
-              setGoalWaypoints={setNewGoalWaypoints}
+              setNewGoalWaypoints={setNewGoalWaypoints}
               setGoalType={setNewGoalType}
             ></GoalForm>
           </Box>
@@ -207,10 +222,15 @@ class GoalManager extends React.Component {
     console.info("Sending pause signal with pause:", pause);
     this.props.socket.emit("command/set_pause", { pause: pause });
   }
-
+  
   cancelGoal(goal) {
     console.info("Sending cancel goal signal with goal:", goal);
     this.props.socket.emit("command/cancel_goal", goal);
+  }
+
+  beginGoals() {
+    console.info("Sending begin goals signal");
+    this.props.socket.emit("command/begin_goals");
   }
 
   handleAnnotateSliderChangeCommitted(type) {

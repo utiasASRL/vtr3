@@ -236,6 +236,11 @@ class SocketVTRUI(VTRUI):
     ros_command.type = MissionCommand.CANCEL_GOAL
     ros_command.goal_handle.id = [int(id) for id in data['id']]
     return super().cancel_goal(ros_command)
+  
+  def begin_goals(self):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.BEGIN_GOALS
+    return super().begin_goals(ros_command)
 
   def move_robot(self, data):
     ros_command = MissionCommand()

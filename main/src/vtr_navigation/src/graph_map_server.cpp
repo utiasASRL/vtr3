@@ -199,7 +199,9 @@ void GraphMapServer::updateWaypointCallback(
       << "Received update waypoint request: vertex_id:" << msg->vertex_id << ", type:"
       << (int)msg->type << ", name:" << msg->name;
 
+  
   const auto graph = getGraph();
+  {
   const auto waypoint_name_msg =
       graph->at(VertexId(msg->vertex_id))
           ->retrieve<tactic::WaypointName>("waypoint_name",
@@ -216,21 +218,23 @@ void GraphMapServer::updateWaypointCallback(
 
   if (msg->type == UpdateWaypointMsg::ADD){
     waypoint_name.name = msg->name;
+    CLOG(DEBUG, "navigation.graph_map_server")
+    << "Vertex id " << msg->vertex_id << " waypoint name changed to " << waypoint_name.name;
   }
   else if (msg->type == UpdateWaypointMsg::REMOVE){
     waypoint_name.name = "";
+    CLOG(DEBUG, "navigation.graph_map_server")
+    << "Vertex id " << msg->vertex_id << " waypoint removed";
   }
 
   locked_waypoint_name_msg.setData(waypoint_name);
-  waypoint_name_msg->unlock();
+  }
 
   auto graph_lock = graph->guard();  // lock graph then internal lock
   UniqueLock lock(mutex_);
   updateVertexName();
   graph_state_pub_->publish(graph_state_);
 
-  CLOG(DEBUG, "navigation.graph_map_server")
-    << "Vertex id " << msg->vertex_id << " waypoint name changed to " << waypoint_name.name;
 }
 
 void GraphMapServer::vertexAdded(const VertexPtr& v) {

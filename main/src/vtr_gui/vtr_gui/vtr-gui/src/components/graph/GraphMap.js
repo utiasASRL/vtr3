@@ -176,10 +176,6 @@ class GraphMap extends React.Component {
     /// following route
     this.following_route_polyline = null;
 
-    /// goal manager TO BE REMOVED
-    this.new_goal_markers = [];
-    this.running_goal_markers = [];
-
     // waypoint marker generator
     this.WaypointMarkers = this.displayWaypointMarkers.bind(this);
   }
@@ -247,19 +243,22 @@ class GraphMap extends React.Component {
                           this.handleUpdateWaypoint(key, 0, disp_wps_map.get(key)); /*ADD*/
                         }
                         else{
-                          alert("Waypoint names cannot be empty - please select another name")
+                          disp_wps_map.set(key, wps_map.get(key));
+                          alert("Waypoint names cannot be empty - please select another name");
+                          this.setState({display_waypoints_map: disp_wps_map});
                         }
                       }
                       else{
                         disp_wps_map.set(key, wps_map.get(key));
-                        alert("Waypoint names starting with 'WP-' are reserved for default generated names to avoid confusion - please select another name")
+                        alert("Waypoint names starting with 'WP-' are reserved for default generated names to avoid confusion - please select another name");
+                        this.setState({display_waypoints_map: disp_wps_map});
                       }
                     }
                     else {
                       disp_wps_map.set(key, wps_map.get(key));
                       alert("A waypoint already exists with that name - please select a unique name");
+                      this.setState({display_waypoints_map: disp_wps_map});
                     }
-                    this.setState({waypoints_map: wps_map, display_waypoints_map: disp_wps_map});
                   }}
                   value={disp_wps_map.get(key)}
                 />
@@ -268,7 +267,7 @@ class GraphMap extends React.Component {
                   size="small"
                   onClick={() => {
                     if (this.state.new_goal_type === "repeat") {
-                      this.setState({new_goal_waypoints: [...this.state.new_goal_waypoints, key]});
+                      this.setNewGoalWaypoints([...this.state.new_goal_waypoints, key]);
                     }
                     else {
                       alert("Adding a waypoint to the current goal is only possible while in repeat mode");
@@ -283,7 +282,7 @@ class GraphMap extends React.Component {
                   onClick={() => {
                     wps_map.delete(key);
                     this.handleUpdateWaypoint(key, 1); /*REMOVE*/
-                    this.setState({waypoints_map: wps_map, new_goal_waypoints: []});
+                    if (this.state.new_goal_waypoints.includes(key)) this.setNewGoalWaypoints([]);
                   }}
                 >
                   <DeleteIcon />
@@ -343,6 +342,9 @@ class GraphMap extends React.Component {
           onSliderChange={this.handleAnnotateRouteSliderChange.bind(this)}
           annotateRouteType={annotate_route_type}
           annotateRouteIds={annotate_route_ids}
+          // delete waypoints
+          waypointsMap={waypoints_map}
+          handleUpdateWaypoint={this.handleUpdateWaypoint.bind(this)}
           // move graph
           moveGraphChange={move_graph_change}
           // move robot
@@ -361,7 +363,6 @@ class GraphMap extends React.Component {
           setNewGoalType={this.setNewGoalType.bind(this)}
           newGoalWaypoints={new_goal_waypoints}
           setNewGoalWaypoints={this.setNewGoalWaypoints.bind(this)}
-          setRunningGoalWaypoints={this.setRunningGoalWaypoints.bind(this)}
           followingRouteIds={following_route_ids}
           // merge
           mergeIds={merge_ids}
@@ -371,7 +372,7 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** @brief Leaflet map creationg callback */
+  /** @brief Leaflet map creation callback */
   mapCreatedCallback(map) {
     console.debug("Leaflet map created.");
     //
@@ -481,17 +482,22 @@ class GraphMap extends React.Component {
   /** @brief Refresh the pose graph completely */
   loadGraphState(graph, center = false) {
     console.info("Loading the current pose graph state (full).");
-    console.log("Got names: ");
-    console.log(graph.vertices)
     // root vid
     this.root_vid = 0; // = graph.root_vid; /// \todo
     // id2vertex and kdtree
     this.id2vertex = new Map();
+    let wps_map = new Map();
     graph.vertices.forEach((v) => {
       v.valueOf = () => v.id;
       v.distanceTo = L.LatLng.prototype.distanceTo;
       this.id2vertex.set(v.id, v);
+      
+      if (v.name !== ""){
+        wps_map.set(v.id, v.name);
+      }
     });
+    this.setState({waypoints_map: wps_map, display_waypoints_map: wps_map}); 
+
     this.kdtree = new kdTree(graph.vertices, (a, b) => b.distanceTo(a), ["lat", "lng"]);
     // fixed routes
     this.fixed_routes.forEach((route) => {
@@ -651,7 +657,6 @@ class GraphMap extends React.Component {
         break;
       }
     }
-    this.setRunningGoalWaypoints(curr_goal_idx === -1 ? [] : data.goals[curr_goal_idx].waypoints);
     this.setState({ server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx });
   }
 
@@ -709,39 +714,7 @@ class GraphMap extends React.Component {
    */
   setNewGoalWaypoints(ids) {
     console.info("Setting new goal waypoints: ", ids);
-    this.new_goal_markers.forEach((marker) => marker.remove());
-    this.new_goal_markers = ids.map((id) => {
-      let waypoint_marker = L.marker(this.id2vertex.get(id), {
-        draggable: false,
-        icon: NEW_GOAL_WAYPOINT_ICON,
-        opacity: WAYPOINT_OPACITY,
-        zIndexOffset: 100,
-        pane: "graph",
-      });
-      waypoint_marker.addTo(this.map);
-      return waypoint_marker;
-    });
     this.setState({ new_goal_waypoints: ids });
-  }
-
-  /**
-   * @brief Sets the target vertices of the running goal. For repeat only.
-   * @param {array} waypoints Array of vertex ids indicating the repeat path.
-   */
-  setRunningGoalWaypoints(ids) {
-    console.info("Setting running goal waypoints: ", ids);
-    this.running_goal_markers.forEach((marker) => marker.remove());
-    this.running_goal_markers = ids.map((id) => {
-      let waypoint_marker = L.marker(this.id2vertex.get(id), {
-        draggable: false,
-        icon: RUNNING_GOAL_WAYPOINT_ICON,
-        opacity: WAYPOINT_OPACITY,
-        zIndexOffset: 100,
-        pane: "graph",
-      });
-      waypoint_marker.addTo(this.map);
-      return waypoint_marker;
-    });
   }
 
   /**
@@ -757,6 +730,8 @@ class GraphMap extends React.Component {
         switch (tool) {
           case "annotate_route":
             this.finishAnnotateRoute();
+            break;
+          case "delete_waypoints":
             break;
           case "move_graph":
             this.finishMoveGraph();
@@ -775,6 +750,8 @@ class GraphMap extends React.Component {
       switch (tool) {
         case "annotate_route":
           this.startAnnotateRoute();
+          break;
+        case "delete_waypoints":
           break;
         case "move_graph":
           this.startMoveGraph();
@@ -802,6 +779,8 @@ class GraphMap extends React.Component {
       switch (state.current_tool) {
         case "annotate_route":
           this.finishAnnotateRoute();
+          break;
+        case "delete_waypoints":
           break;
         case "move_graph":
           this.finishMoveGraph();

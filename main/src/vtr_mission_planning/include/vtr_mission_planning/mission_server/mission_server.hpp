@@ -108,6 +108,7 @@ class MissionServer : public StateMachineCallback {
   /** \brief Goal and command interfaces */
   void addGoal(const GoalHandle& gh, int idx = std::numeric_limits<int>::max());
   void cancelGoal(const GoalHandle& gh);
+  void beginGoals();
   bool hasGoal(const GoalId& goal_id);
   void processCommand(const Command& command);
 
@@ -264,21 +265,6 @@ void MissionServer<GoalHandle>::addGoal(const GoalHandle& gh, int idx) {
     for (int i = 0; i < idx; ++i) ++iter;
     goal_map_.insert({goal_id, gh});
   }
-
-  // check if this is the only goal
-  if (current_server_state_ == ServerState::Empty) {
-    // consistency check
-    if (goal_queue_.size() != 1) {
-      std::stringstream ss;
-      ss << "Goal queue size is " << goal_queue_.size() << " but should be 1";
-      CLOG(ERROR, "mission.server") << ss.str();
-      throw std::runtime_error(ss.str());
-    }
-    current_goal_id_ = goal_queue_.front();
-    current_goal_state_ = GoalState::Starting;
-    current_server_state_ = ServerState::Processing;
-    cv_stop_or_goal_changed_.notify_all();
-  }
   //
   serverStateChanged();
 }
@@ -303,6 +289,21 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
   if (!reset_sm) return;
   if (const auto state_machine = getStateMachine())
     state_machine->handle(Event::Reset());
+}
+
+template <class GoalHandle>
+void MissionServer<GoalHandle>::beginGoals() {
+  LockGuard lock(mutex_);
+
+  // check if this is the only goal running
+  if (current_server_state_ == ServerState::Empty) {
+    current_goal_id_ = goal_queue_.front();
+    current_goal_state_ = GoalState::Starting;
+    current_server_state_ = ServerState::Processing;
+    cv_stop_or_goal_changed_.notify_all();
+  }
+  //
+  serverStateChanged();
 }
 
 template <class GoalHandle>

@@ -70,6 +70,11 @@ void ROSMissionServer::handleCommand(
       cancelGoal(command->goal_handle);
       return;
     }
+    case MissionCommandMsg::BEGIN_GOALS: {
+      CLOG(INFO, "mission.server") << "Beginning to process goal queue";
+      beginGoals();
+      return;
+    }
     case MissionCommandMsg::LOCALIZE:
       tmp.target = mission_planning::CommandTarget::Localize;
       tmp.vertex = command->vertex;

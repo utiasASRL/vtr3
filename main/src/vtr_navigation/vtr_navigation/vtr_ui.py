@@ -145,6 +145,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def cancel_goal(self, msg):
     self._mission_command_pub.publish(msg)
+  
+  @ROSManager.on_ros
+  def begin_goals(self, msg):
+    self._mission_command_pub.publish(msg)
 
   @ROSManager.on_ros
   def move_robot(self, msg):
