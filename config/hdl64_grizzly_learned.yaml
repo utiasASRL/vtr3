@@ -98,7 +98,7 @@
         - recall
         - icp
     #    - safe_corridor
-        #- range_change
+        - range_change
         #- change_detection_sync
         - memory
       submap_translation_threshold: 1.5

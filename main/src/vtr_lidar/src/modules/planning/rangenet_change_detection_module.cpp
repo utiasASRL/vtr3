@@ -105,10 +105,10 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
   image_params.fov_down = -25 * M_PI / 180;
   image_params.crop_range = 8.0;
 
-  RowMatrixXf scan_image = Eigen::MatrixXf::Zero(64, 1024);
+  RowMatrixXf scan_image = Eigen::MatrixXf::Constant(64, 1024, -1);
   RowMatrixXf mask_image = Eigen::MatrixXf::Zero(64, 1024);
   Eigen::MatrixXi scan_idxs = Eigen::MatrixXi::Constant(64, 1024, -1);
-  RowMatrixXf map_image = Eigen::MatrixXf::Zero(64, 1024);
+  RowMatrixXf map_image = Eigen::MatrixXf::Constant(64, 1024, -1);
 
   common::timing::Stopwatch<boost::chrono::thread_clock> timer;
   timer.start();
