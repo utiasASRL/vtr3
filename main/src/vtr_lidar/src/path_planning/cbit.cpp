@@ -242,7 +242,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     double DT = config_->horizon_step_size; // Horizon step size
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
 
-
+    
     // Experimental Speed Scheduler: (TODO: in progress - move to separate file longer term)
     // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
     // 1. XY curvature (implemneted)
