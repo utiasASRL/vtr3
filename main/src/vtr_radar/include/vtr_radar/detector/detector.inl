@@ -72,7 +72,7 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
     for (int j = 0; j < kstrong_; ++j) {
       if (intens[j].first < thres) break;
       PointT p;
-      p.rho = float(intens[j].second) * res;
+      p.rho = float(intens[j].second) * res + range_offset_;
       p.phi = azimuth;
       p.theta = 0;
       p.timestamp = time;
@@ -165,7 +165,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
         num_peak_points += 1;
       } else if (num_peak_points > 0) {
         PointT p;
-        p.rho = res * peak_points / num_peak_points;
+        p.rho = res * peak_points / num_peak_points + range_offset_;
         p.phi = azimuth;
         p.theta = 0;
         p.timestamp = time;
@@ -178,7 +178,7 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
       const double azimuth = azimuth_angles[rows - 1];
       const int64_t time = azimuth_times[rows - 1];
       PointT p;
-      p.rho = res * peak_points / num_peak_points;
+      p.rho = res * peak_points / num_peak_points + range_offset_;
       p.phi = azimuth;
       p.theta = 0;
       p.timestamp = time;
@@ -238,7 +238,7 @@ void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
           threshold_ * stat / (window / 2) + threshold2_ * mean + threshold3_;
       if (raw_scan.at<float>(i, j) > thres) {
         PointT p;
-        p.rho = j * res;
+        p.rho = j * res + range_offset_;
         p.phi = azimuth;
         p.theta = 0;
         p.timestamp = time;
@@ -326,7 +326,7 @@ void OSCFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
         num_peak_points += 1;
       } else if (num_peak_points > 0) {
         PointT p;
-        p.rho = res * peak_points / num_peak_points;
+        p.rho = res * peak_points / num_peak_points + range_offset_;
         p.phi = azimuth;
         p.theta = 0;
         p.timestamp = time;
@@ -387,7 +387,7 @@ void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
         num_peak_points += 1;
       } else if (num_peak_points > 0) {
         PointT p;
-        p.rho = res * peak_points / num_peak_points;
+        p.rho = res * peak_points / num_peak_points + range_offset_;
         p.phi = azimuth;
         p.theta = 0;
         p.timestamp = time;
