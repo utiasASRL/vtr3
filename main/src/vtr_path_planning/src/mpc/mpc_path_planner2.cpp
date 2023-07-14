@@ -177,14 +177,17 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
     }
 
     // Generate the cost terms using combinations of the built-in steam evaluators
+    double dynamic_pose_error_weight = pose_error_weight;
     for (int i = 0; i < K; i++)
     {
       // Pose Error
       if (i > 0)
       {
         const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], measurements[i]);
-        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, poseLossFunc);
+        auto dynamicposeLossFunc = steam::L2WeightedLossFunc::MakeShared(dynamic_pose_error_weight);
+        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, dynamicposeLossFunc);
         opt_problem.addCostTerm(pose_cost_term);
+        dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
       }
 
       // Kinematic constraints (softened but penalized heavily)
@@ -199,8 +202,8 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         opt_problem.addCostTerm(kin_cost_term);
 
         // Non-Zero Velocity Penalty (penalty of non resting control effort helps with point stabilization)
-        const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
-        opt_problem.addCostTerm(vel_cost_term);
+        //const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
+        //opt_problem.addCostTerm(vel_cost_term);
 
         // Velocity set-point constraint - No longer using this due to complications when repeating a path in reverse
         // Only add this cost term if we are not in point stabilization mode (end of path)
@@ -210,6 +213,13 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
         //  const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i],v_ref), sharedVelNoiseModel, velLossFunc);
         //  opt_problem.addCostTerm(vel_cost_term);
         //}
+
+        // Experimental End of Path Termination Constraint
+        if (point_stabilization == true)
+        {
+          const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
+          opt_problem.addCostTerm(vel_cost_term);
+        }
         
         
         // Acceleration Constraints
