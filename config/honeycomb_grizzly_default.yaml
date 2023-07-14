@@ -21,7 +21,7 @@
         #"path_planning.cbit",
         #"path_planning.cbit_planner",
         #"mpc.cbit",
-        #"mpc_debug.cbit",
+      - mpc_debug.cbit
         #"obstacle_detection.cbit",
         # mission planner
       #- mission.server
@@ -341,8 +341,8 @@
 
         # Cost Function Covariance Matrices
         pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [300.0, 300.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [100.0, 100.0]
+        vel_error_cov: [25.0, 10.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [10.0, 10.0]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         lat_error_cov: [20.0]
         
