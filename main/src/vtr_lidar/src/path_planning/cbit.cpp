@@ -258,8 +258,8 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     // - Scale the forward velocity
 
     // Basic implementation - weights hardcoded for now
-    CLOG(ERROR, "mpc_debug.cbit") << "TRYING TO SCHEDULE SPEED:";
-    CLOG(ERROR, "mpc_debug.cbit") << "CURRENT SID IS:" << curr_sid;
+    CLOG(INFO, "mpc_debug.cbit") << "TRYING TO SCHEDULE SPEED:";
+    CLOG(INFO, "mpc_debug.cbit") << "CURRENT SID IS:" << curr_sid;
     double VF_EOP;
     double VF_XY;
     double VF_XZ_YZ;
@@ -280,8 +280,8 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     }
     avg_curvature_xy = avg_curvature_xy / 10;
     avg_curvature_xz_yz = avg_curvature_xz_yz / 10;
-    CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE XY CURVATURE IS:  " << avg_curvature_xy;
-    CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE XZ CURVATURE IS:  " << avg_curvature_xz_yz;
+    CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XY CURVATURE IS:  " << avg_curvature_xy;
+    CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XZ CURVATURE IS:  " << avg_curvature_xz_yz;
     //CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE YZ CURVATURE IS:  " << avg_curvature_yz;
     double xy_curv_weight = 5.0; // hardocded for now, make a param
     double xz_yz_curv_weight = 0.5; // hardocded for now, make a param
@@ -295,12 +295,12 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     
     // Take the minimum of all candidate (positive) scheduled speeds
     VF = std::min({VF_EOP, VF_XY, VF_XZ_YZ});
-    CLOG(ERROR, "mpc_debug.cbit") << "THE VF_EOP SPEED IS:  " << VF_EOP;
-    CLOG(ERROR, "mpc_debug.cbit") << "THE VF_XY SPEED IS:  " << VF_XY;
-    CLOG(ERROR, "mpc_debug.cbit") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
+    CLOG(INFO, "mpc_debug.cbit") << "THE VF_EOP SPEED IS:  " << VF_EOP;
+    CLOG(INFO, "mpc_debug.cbit") << "THE VF_XY SPEED IS:  " << VF_XY;
+    CLOG(INFO, "mpc_debug.cbit") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
 
     // Take the minimum of all candidate scheduled speeds
-    CLOG(ERROR, "mpc_debug.cbit") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
+    CLOG(INFO, "mpc_debug.cbit") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
     // End of speed scheduler code
 
 

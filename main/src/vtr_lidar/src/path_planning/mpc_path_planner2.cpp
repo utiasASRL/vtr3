@@ -332,7 +332,7 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
 
     if (final_cost > initial_cost)
     {
-      CLOG(ERROR, "mpc_debug.cbit") << "The final cCost was > initial cost, something went wrong. Commanding the vehicle to stop";
+      CLOG(ERROR, "mpc_debug.cbit") << "The final Cost was > initial cost, something went wrong. Commanding the vehicle to stop";
          // First check if any of the values are nan, if so we return a zero velocity and flag the error
       Eigen::Matrix<double, 2, 1> bad_cost_vel;
       
