@@ -53,6 +53,9 @@ std::ostream& operator<<(std::ostream& os, const ServerState& server_state) {
     case ServerState::Paused:
       os << "Paused";
       return os;
+    case ServerState::Crashed:
+      os << "Crashed";
+      return os;
   };
   return os;
 }

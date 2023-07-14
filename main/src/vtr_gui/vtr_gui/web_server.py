@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import io
+import json
 import os
 import os.path as osp
 import logging
@@ -135,6 +136,10 @@ def get_task_queue_state():
   task_queue_state = build_remote().get_task_queue_state()
   return flask.jsonify(task_queue_state)
 
+@app.route('/vtr/map_info')
+def get_map_info():
+  map_info = build_remote().get_map_info()
+  return flask.jsonify(map_info)
 
 def main():
   logger.info("Launching the web server.")

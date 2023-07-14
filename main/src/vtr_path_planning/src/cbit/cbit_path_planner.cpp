@@ -181,6 +181,7 @@ void CBITPlanner::HardReset(vtr::path_planning::BasePathPlanner::RobotState& rob
   
   // Perform a state update to convert the actual robot position to its corresponding pq space:
   p_goal = UpdateState(path_direction);
+  //p_goal = UpdateStateSID(curr_sid, T_p_r);
 
 
   p_goal_backup = p_goal;
@@ -307,6 +308,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
         const auto chain_info = getChainInfo(robot_state);
         auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
+        //CLOG(ERROR, "path_planning.cbit_planner") << "The T_p_r for robot state is: " << T_p_r;
 
         // Experimental Pose extrapolation (I find often this doesnt work well with te direct path tracking method)
         // It can be desireable to delay pruning the path behind where we think the robot is
@@ -352,8 +354,10 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         new_state = std::make_unique<Pose> (se3_robot_pose);
 
         // Perform a state update to convert the actual robot position to its corresponding pq space:
-        p_goal = UpdateState(path_direction);
-
+        //p_goal = UpdateState(path_direction);
+        //CLOG(ERROR, "path_planning.cbit_planner") << "The goal from old method is: " << " p: " << p_goal->p << " q: " << p_goal->q;
+        p_goal = UpdateStateSID(curr_sid, T_p_r);
+        //CLOG(ERROR, "path_planning.cbit_planner") << "The goal from new method is: " << " p: " << p_goal->p << " q: " << p_goal->q;
 
         //TODO: It could be useful to convert this p_goal back to euclid and compare with se3_robot_pose to verify the conversion worked properly (error should be very low)
         // If its not, we probably need to handle it or return an error
@@ -1270,7 +1274,7 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
 std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
 {
   //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
-
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Robot Pose: x: " << new_state->x << "Robot Pose: y: " << new_state->y  <<"Robot Pose: yaw: " << new_state->yaw;
   //First calc the qmin distance to the euclidean path (borrow code from ROC generation)
   //To prevent us from having to search the entire euclidean path (and avoid crosses/loops) in the path, use the previous pose as a reference (will always be p=0)
   //and define a subset of points with a lookahead distance
@@ -1306,6 +1310,40 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
     }
   }
 
+  // Experimental code to dynamically predict path direction
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Closest Euclid Pt is - x: " << closest_pt.p << " y: " << closest_pt.q;
+  //CLOG(ERROR, "path_planning.cbit_planner") << "The Next Euclid Pt is - x: " << euclid_subset[closest_pt_ind+1].p << " y: " << euclid_subset[closest_pt_ind+1].q;
+  double test_dx = euclid_subset[closest_pt_ind+1].p - closest_pt.p;
+  double test_dy = euclid_subset[closest_pt_ind+1].q - closest_pt.q;
+  double test_yaw = atan2(test_dy,test_dx);
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Predicted Yaw is: " << test_yaw;
+  // Ensure that yaw1 and yaw2 are in the range -pi to pi
+  double yaw1 = fmod(test_yaw + 2*M_PI, 2*M_PI);
+  if (yaw1 < 0) {
+      yaw1 += 2*M_PI;
+  }
+  double yaw2 = fmod(new_state->yaw + 2*M_PI, 2*M_PI);
+  if (yaw2 < 0) {
+      yaw2 += 2*M_PI;
+  }
+
+  // Calculate the angle between the yaws and ensure it is in the range 0 to pi
+  double angle = fmod(fabs(yaw1 - yaw2), 2*M_PI);
+  if (angle > M_PI) {
+      angle = 2*M_PI - angle;
+  }
+
+  // Check if the angle is greater than 90 degrees
+  double path_direction2;
+  if (angle > M_PI/2) {
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
+      path_direction2 = -1.0;
+  } else {
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
+      path_direction2 = 1.0;
+  }
+
+
   // Once we have the closest point, we need to try to find the sign (above or below the path)
   // This is a little tricky, but I think what is reasonable is to create a plane with the closest point and its neighbours
   // Then depending on which side the new state point is of the plane, is the sign we use for q_min:
@@ -1339,9 +1377,10 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
   // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
-  q_min = q_min * q_sign;
+  q_min = q_min * q_sign * path_direction2;
   //std::cout << "q_min is: " << q_min << std::endl; // debug;
 
+  /*
   switch (path_direction) {
     case PATH_DIRECTION_REVERSE:
       q_min = -q_min;
@@ -1353,7 +1392,7 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
       // Handle error case where path_direction is not a valid value
       break;
   }
-
+  */
 
 
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
@@ -1393,6 +1432,181 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
 }
 
 
+
+// New Simpler State Update function that instead uses the robots localization frame SID to help find the robot p,q space state
+std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTransform T_p_r)
+{
+  //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Robot Pose: x: " << new_state->x << " Robot Pose: y: " << new_state->y  <<" Robot Pose: yaw: " << new_state->yaw;
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Current SID is: " << SID;
+  
+  // Find the corresponding global pose p,q value at the current SID (which should be just behind the actual current state)
+  double current_pq_sid_p = global_path->p[SID];
+  //CLOG(ERROR, "path_planning.cbit_planner") << "SID P,Q Pose is: " << " p: " << current_pq_sid_p << " q: " << 0.0;
+
+  std::vector<Node> euclid_subset;
+  euclid_subset.reserve((conf.roc_lookahead * conf.roc_lookahead * conf.curv_to_euclid_discretization));
+
+  // The length of the subset is determined by the configuration parameter lookahead distance and the desired discretization
+  // Use the SID values to help predict how far we should look ahead look ahead without falling into false minim on crossing paths.
+  double lookahead_range = (*p_goal).p + conf.roc_lookahead; //default value from config
+  for (int ID = SID; ID < global_path->p.size(); ID += 1)
+  {
+    if ((*p_goal).p < global_path->p[ID])
+    {
+      lookahead_range = global_path->p[ID];
+    }
+  }
+
+  for (double i = (*p_goal).p; i < lookahead_range; i += (1.0 / (conf.roc_lookahead * conf.curv_to_euclid_discretization)))
+  {
+    euclid_subset.push_back(curve_to_euclid(Node(i,0)));
+    
+  }
+  //std::cout << "The final euclid subset point is: x: " << euclid_subset[euclid_subset.size()-1].p << "y: " << euclid_subset[euclid_subset.size()-1].q << std::endl;
+
+  // calc q_min
+  double q_min = conf.q_max;
+  double q;
+  Node closest_pt;
+  int closest_pt_ind;
+
+  for (int i=0; i<euclid_subset.size(); i++)
+  {
+    double dx = new_state->x - euclid_subset[i].p;
+    double dy = new_state->y - euclid_subset[i].q;
+    q = sqrt((dy * dy) + (dx * dx));
+
+    if (q < q_min)
+    {
+      q_min = q;
+      closest_pt = euclid_subset[i];
+      closest_pt_ind = i;
+    }
+  }
+
+  // Experimental code to dynamically predict path direction
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Closest Euclid Pt is - x: " << closest_pt.p << " y: " << closest_pt.q;
+  //CLOG(ERROR, "path_planning.cbit_planner") << "The Next Euclid Pt is - x: " << euclid_subset[closest_pt_ind+1].p << " y: " << euclid_subset[closest_pt_ind+1].q;
+  double test_dx = euclid_subset[closest_pt_ind+1].p - closest_pt.p;
+  double test_dy = euclid_subset[closest_pt_ind+1].q - closest_pt.q;
+  double test_yaw = atan2(test_dy,test_dx);
+  //CLOG(ERROR, "path_planning.cbit_planner") << "Predicted Yaw is: " << test_yaw;
+  // Ensure that yaw1 and yaw2 are in the range -pi to pi
+  double yaw1 = fmod(test_yaw + 2*M_PI, 2*M_PI);
+  if (yaw1 < 0) {
+      yaw1 += 2*M_PI;
+  }
+  double yaw2 = fmod(new_state->yaw + 2*M_PI, 2*M_PI);
+  if (yaw2 < 0) {
+      yaw2 += 2*M_PI;
+  }
+
+  // Calculate the angle between the yaws and ensure it is in the range 0 to pi
+  double angle = fmod(fabs(yaw1 - yaw2), 2*M_PI);
+  if (angle > M_PI) {
+      angle = 2*M_PI - angle;
+  }
+
+  // Check if the angle is greater than 90 degrees
+  double path_direction2;
+  if (angle > M_PI/2) {
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
+      path_direction2 = -1.0;
+  } else {
+      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
+      path_direction2 = 1.0;
+  }
+
+
+  // Once we have the closest point, we need to try to find the sign (above or below the path)
+  // This is a little tricky, but I think what is reasonable is to create a plane with the closest point and its neighbours
+  // Then depending on which side the new state point is of the plane, is the sign we use for q_min:
+
+  Node A;
+  Node B;
+  if (closest_pt_ind == 0)
+  {
+    A = euclid_subset[closest_pt_ind];
+  }
+  else
+  {
+    A = euclid_subset[closest_pt_ind-1];
+  }
+
+  if (closest_pt_ind == euclid_subset.size() - 1)
+  {
+    //A = euclid_subset[closest_pt_ind-1];
+    B = euclid_subset[closest_pt_ind];
+  }
+  else
+  {
+    //A = euclid_subset[closest_pt_ind];
+    B = euclid_subset[closest_pt_ind + 1];
+  }
+
+
+  int q_sign = sgn((B.p - A.p) * (new_state->y - A.q) - ((B.q - A.q) * (new_state->x - A.p))); 
+  
+  //q_min = q_min * q_sign;
+  //std::cout << "q_min is: " << q_min << std::endl; // debug;
+
+  // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
+  q_min = q_min * q_sign * path_direction2;
+  //std::cout << "q_min is: " << q_min << std::endl; // debug;
+
+  /*
+  switch (path_direction) {
+    case PATH_DIRECTION_REVERSE:
+      q_min = -q_min;
+      break;
+    case PATH_DIRECTION_FORWARD:
+      // Do nothing, q_min already has the correct sign
+      break;
+    default:
+      // Handle error case where path_direction is not a valid value
+      break;
+  }
+  */
+
+
+  // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
+  // We need to use this points p-value as a starting point, then search p, qmin space in either direction discretely and find the point with
+  // The lowest pose error (including heading) (Should be able to ignore roll and pitch though)
+  double pose_err = INFINITY;
+  Node test_pt;
+  double test_err;
+  Node new_state_pq;
+
+  for (double p = (*p_goal).p; p < ((*p_goal).p + conf.roc_lookahead); p += (1.0 / (conf.roc_lookahead * conf.curv_to_euclid_discretization)))
+  {
+    test_pt = curve_to_euclid(Node(p,q_min));
+    double dx = test_pt.p - new_state->x;
+    double dy = test_pt.q - new_state->y;
+    test_err = sqrt((dy * dy) + (dx * dx));
+    if (test_err < pose_err)
+    {
+      pose_err = test_err;
+      new_state_pq = Node(p,q_min);
+    }
+  }
+
+  // Now update the goal and its cost to come:
+  
+  std::shared_ptr<Node> new_state_pq_ptr = std::make_shared<Node>(new_state_pq);
+  p_goal = new_state_pq_ptr;
+  p_goal->g_T = INFINITY;
+  p_goal->g_T_weighted = INFINITY;
+
+  //std::cout << "Successfully Updated State: " << std::endl;
+
+  return p_goal;
+  // TODO: At this point we would pop out the first element of the new_state_arr so next state update we keep moving forward
+  
+
+
+
+}
 
 
 

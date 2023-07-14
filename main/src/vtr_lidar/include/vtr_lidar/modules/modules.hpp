@@ -46,4 +46,5 @@
 #include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
 #include "vtr_lidar/modules/planning/safe_corridor_module.hpp"
 #include "vtr_lidar/modules/planning/terrain_assessment_module.hpp"
+#include "vtr_lidar/modules/planning/diff_generator.hpp"
 

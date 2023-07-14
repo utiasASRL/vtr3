@@ -21,7 +21,7 @@ import flask_socketio
 from vtr_navigation.vtr_ui_builder import build_remote
 
 # socket io server address and port
-SOCKET_ADDRESS = 'localhost'
+SOCKET_ADDRESS = '0.0.0.0'
 SOCKET_PORT = 5201
 
 logger = logging.getLogger('SocketServer')
@@ -32,7 +32,7 @@ hd.setFormatter(fm)
 logger.addHandler(hd)
 
 app = flask.Flask(__name__)
-app.config['DEBUG'] = False
+app.config['DEBUG'] = True
 app.secret_key = 'asecretekey'
 
 app.logger.setLevel(logging.ERROR)

@@ -1,11 +1,14 @@
 ## Online Lidar VTR3
-session_name: vtr_online_honeycomb_grizzly
+session_name: vtr_online_velodyne_grizzly
 
 environment:
-  CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
+  RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+  RMW_FASTRTPS_PUBLICATION_MODE: ASYNCHRONOUS
+  #CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
   # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
+
 suppress_history: false
 
 windows:
@@ -16,12 +19,10 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_default.yaml
+        base_params:=hdl64_grizzly_default.yaml
         data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
-
-      #- htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -38,5 +39,5 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/hdl_64.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure
