@@ -106,6 +106,7 @@ class CBITPlanner {
         void ResetPlanner();
         void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
         std::shared_ptr<Node> UpdateState(PathDirection path_direction);
+        std::shared_ptr<Node> UpdateStateSID(int SID, vtr::tactic::EdgeTransform T_p_r);
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
         double BestVertexQueueValue();

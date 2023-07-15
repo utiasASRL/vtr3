@@ -9,18 +9,19 @@
       #- navigation.command
         # tactic
       #- tactic
-      - tactic.pipeline
-      - lidar.preprocessing
+      #- tactic.pipeline
+      #- lidar.preprocessing
       #- tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
+      - mpc.cbit
         # path planner
         #"path_planning",
         #"path_planning.teb",
         #"path_planning.cbit",
         #"path_planning.cbit_planner",
         #"mpc.cbit",
-        #"mpc_debug.cbit",
+      - mpc_debug.cbit
         #"obstacle_detection.cbit",
         # mission planner
       #- mission.server
@@ -59,7 +60,7 @@
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.5
+      route_completion_translation_threshold: 0.65
 
       chain:
         min_cusp_distance: 1.5
@@ -163,7 +164,7 @@
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 1.0 # was 0.3
+        max_translation: 0.3 # was 0.3
         max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
@@ -231,7 +232,7 @@
         detection_range: 8.0
         search_radius: 0.25
 
-        negprob_threshold: 0.25 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
+        negprob_threshold: 0.75 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
         use_prior: true
         alpha0: 3.0
         beta0: 0.03
@@ -244,7 +245,7 @@
         minimum_distance: 0.8 # was 0.3 Jordy
 
         # cost map
-        costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
+        costmap_history_size: 30 # Keep between 3 and 20, used for temporal filtering
         resolution: 0.25
         size_x: 16.0
         size_y: 8.0
@@ -293,6 +294,7 @@
         run_online: false
         run_async: true
         visualize: true
+    
     path_planning:
       type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
@@ -307,8 +309,8 @@
         rand_seed: 1
 
         # Planner Tuning Params
-        initial_samples: 300
-        batch_samples: 100
+        initial_samples: 400
+        batch_samples: 200
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5
@@ -328,22 +330,28 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 1.1
+        forward_vel: 1.0
         max_lin_vel: 1.5
-        max_ang_vel: 1.5
+        max_ang_vel: 1.25
         robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 30.0, 1000.0, 1000.0, 1000.0]
-        vel_error_cov: [100.0, 100.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [30.0, 30.0]
-        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
-        lat_error_cov: [10.0]
-
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        vel_error_cov: [25.0, 10.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [10.0, 10.0]
+        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        lat_error_cov: [20.0]
+        
+        # Cost Function Covariance Matrices (Tracking Backup)
+        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [10.0, 10.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [10.0]
+        
         # Cost Function Weights
         pose_error_weight: 1.0
         vel_error_weight: 1.0

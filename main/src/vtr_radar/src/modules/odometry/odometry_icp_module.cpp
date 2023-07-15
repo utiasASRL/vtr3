@@ -75,6 +75,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
+  config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
@@ -326,7 +327,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       trajectory->addPriorCostTerms(problem);
 
     // shared loss function
-    auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
+    // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
+    auto loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
     // cost terms and noise model
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {

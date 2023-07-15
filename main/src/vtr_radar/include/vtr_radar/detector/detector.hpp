@@ -44,12 +44,13 @@ class KStrongest : public Detector<PointT> {
  public:
   KStrongest() = default;
   KStrongest(int kstrong, double threshold2, double threshold3, double minr,
-             double maxr)
+             double maxr, double range_offset)
       : kstrong_(kstrong),
         threshold2_(threshold2),
         threshold3_(threshold3),
         minr_(minr),
-        maxr_(maxr) {}
+        maxr_(maxr),
+        range_offset_(range_offset) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
@@ -62,14 +63,19 @@ class KStrongest : public Detector<PointT> {
   double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
+  double range_offset_ = -0.31;
 };
 
 template <class PointT>
 class Cen2018 : public Detector<PointT> {
  public:
   Cen2018() = default;
-  Cen2018(double zq, int sigma, double minr, double maxr)
-      : zq_(zq), sigma_(sigma), minr_(minr), maxr_(maxr) {}
+  Cen2018(double zq, int sigma, double minr, double maxr, double range_offset)
+      : zq_(zq),
+        sigma_(sigma),
+        minr_(minr),
+        maxr_(maxr),
+        range_offset_(range_offset) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
@@ -81,6 +87,7 @@ class Cen2018 : public Detector<PointT> {
   int sigma_ = 17;  // kernel size = sigma_ * 2 * 3 (+1 to make it odd)
   double minr_ = 2.0;
   double maxr_ = 100.0;
+  double range_offset_ = -0.31;
 };
 
 template <class PointT>
@@ -88,14 +95,15 @@ class CACFAR : public Detector<PointT> {
  public:
   CACFAR() = default;
   CACFAR(int width, int guard, double threshold, double threshold2,
-         double threshold3, double minr, double maxr)
+         double threshold3, double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
         threshold2_(threshold2),
         threshold3_(threshold3),
         minr_(minr),
-        maxr_(maxr) {}
+        maxr_(maxr),
+        range_offset_(range_offset) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
@@ -110,6 +118,7 @@ class CACFAR : public Detector<PointT> {
   double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
+  double range_offset_ = -0.31;
 };
 
 template <class PointT>
@@ -117,7 +126,7 @@ class OSCFAR : public Detector<PointT> {
  public:
   OSCFAR() = default;
   OSCFAR(int width, int guard, int kstat, double threshold, double threshold2,
-         double threshold3, double minr, double maxr)
+         double threshold3, double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         kstat_(kstat),
@@ -125,7 +134,8 @@ class OSCFAR : public Detector<PointT> {
         threshold2_(threshold2),
         threshold3_(threshold3),
         minr_(minr),
-        maxr_(maxr) {}
+        maxr_(maxr),
+        range_offset_(range_offset) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
@@ -141,6 +151,7 @@ class OSCFAR : public Detector<PointT> {
   double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
+  double range_offset_ = -0.31;
 };
 
 template <class PointT>
@@ -148,14 +159,16 @@ class ModifiedCACFAR : public Detector<PointT> {
  public:
   ModifiedCACFAR() = default;
   ModifiedCACFAR(int width, int guard, double threshold, double threshold2,
-                 double threshold3, double minr, double maxr)
+                 double threshold3, double minr, double maxr,
+                 double range_offset)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
         threshold2_(threshold2),
         threshold3_(threshold3),
         minr_(minr),
-        maxr_(maxr) {}
+        maxr_(maxr),
+        range_offset_(range_offset) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
@@ -170,6 +183,7 @@ class ModifiedCACFAR : public Detector<PointT> {
   double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
+  double range_offset_ = -0.31;
 };
 
 }  // namespace radar
