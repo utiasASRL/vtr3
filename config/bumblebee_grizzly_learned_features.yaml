@@ -1,0 +1,99 @@
+/**:
+  ros__parameters:
+
+    ############ tactic configuration ############
+    tactic:
+      visualize: false
+
+    pipeline:
+      localization:
+        [
+          "recall",
+          "sub_map_extraction",
+          "experience_triage",
+          "migration",
+          "matcher",
+          "ransac",
+          "steam",
+        ]
+    
+    preprocessing:
+      # conversion+extraction module
+      extraction:
+        type: stereo.conversion_extraction
+
+        extractor:
+          type: ASRL_GPU_SURF
+          visualize_disparity: false
+          use_learned: true
+
+          learned:
+            # we're providing the surf settings (don't change this param, use a different file)
+            type: "LEARNED_FEATURE"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_16_crop_w16h15.pt"
+
+            # modelPath: "/home/asrl/libtorch_example/data/feature
+            # _detector_snow_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_32_h15w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
+            
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_395_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_165_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_62_16_h16w16.pt"
+
+            # modelPath: "/home/sherry/ASRL/models/feature_detector_dark_extend_585_16_h16w16.pt"
+            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_easy_checkpoint_10.pt"
+            # modelPath: "/home/sherry/ASRL/models/multiseason_easy_model_best.pt"
+            # modelPath: "/home/sherry/ASRL/models/inthedark_model_best.pt"
+  
+            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark.pt"
+            # modelPath: "/home/sherry/ASRL/models/unsupervised_pretrain_multiseason_inthedark_model_best.pt"
+            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_e20.pt"
+            # modelPath: "/home/sherry/ASRL/models/unsupervised_inthedark_multiseason_e10.pt"
+
+            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_seqslam_model_best.pt"
+            modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_seqslam_vgg16_pretrain.pt"
+
+
+
+
+            stereoDisparityMinimum: 0.1
+            stereoDisparityMaximum: 100.0
+
+    odometry:
+      ransac:
+        type: stereo_ransac
+        visualize_ransac_inliers: true #false
+
+    localization:
+      experience_triage:
+        type: experience_triage
+        only_privileged: true
+
+      matcher:
+        type: mel_matcher
+        min_response_ratio: 0.0 #0.2
+        descriptor_thresh_cpu: 0.7 #0.115
+        descriptor_thresh_gpu: 100.0 #0.55
+        # descriptor_thresh_gpu: 100.0 #0.55 #EDIT: SHERRY
+        match_on_gpu: false
+        visualize: false
+        # match_on_gpu: true #EDIT
+        use_learned: true
+
+      ransac:
+        visualize_ransac_inliers: true
+
+    ############ path tracker configuration ############
+    path_tracker:
+      # target_linear_speed: [0.8, 1.0, 1.2, 1.5]
+      # target_linear_speed: [0.8, 0.9, 1.0, 1.2]
+      target_linear_speed: [0.5, 0.6, 0.7, 0.9]
+
+

@@ -133,28 +133,28 @@ void configureLearnedFeatureStereoDetector(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config.stereoDisparityMinimum = node->declare_parameter<double>(param_prefix + ".extractor.learned.stereoDisparityMinimum", 0.0);
   config.stereoDisparityMaximum = node->declare_parameter<double>(param_prefix + ".extractor.learned.stereoDisparityMaximum", 100.0);
-  config.minDisparity = node->declare_parameter<int>(param_prefix + ".extractor.learned.minDisparity", 0);
-  config.numDisparities = node->declare_parameter<int>(param_prefix + ".extractor.learned.numDisparities", 48);
-  config.blockSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.blockSize", 5);
-  config.preFilterCap = node->declare_parameter<int>(param_prefix + ".extractor.learned.preFilterCap", 30);
-  config.uniquenessRatio = node->declare_parameter<int>(param_prefix + ".extractor.learned.uniquenessRatio", 20);
-  config.P1 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P1", 200);
-  config.P2 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P2", 800);
-  config.speckleWindowSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleWindowSize", 200);
-  config.speckleRange = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleRange", 1);
-  config.disp12MaxDiff = node->declare_parameter<int>(param_prefix + ".extractor.learned.disp12MaxDiff", -1);
-  config.fullDP = node->declare_parameter<bool>(param_prefix + ".extractor.learned.fullDP", false);
-  config.minDisparity = 0;
-  config.numDisparities = 48;
-  config.blockSize = 5;
-  config.preFilterCap = 30;
-  config.uniquenessRatio = 20;
-  config.P1 = 200;
-  config.P2 = 800;
-  config.speckleWindowSize = 200;
-  config.speckleRange = 1;
-  config.disp12MaxDiff = -1;
-  config.fullDP = false;
+  // config.minDisparity = node->declare_parameter<int>(param_prefix + ".extractor.learned.minDisparity", 0);
+  // config.numDisparities = node->declare_parameter<int>(param_prefix + ".extractor.learned.numDisparities", 48);
+  // config.blockSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.blockSize", 5);
+  // config.preFilterCap = node->declare_parameter<int>(param_prefix + ".extractor.learned.preFilterCap", 30);
+  // config.uniquenessRatio = node->declare_parameter<int>(param_prefix + ".extractor.learned.uniquenessRatio", 20);
+  // config.P1 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P1", 200);
+  // config.P2 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P2", 800);
+  // config.speckleWindowSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleWindowSize", 200);
+  // config.speckleRange = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleRange", 1);
+  // config.disp12MaxDiff = node->declare_parameter<int>(param_prefix + ".extractor.learned.disp12MaxDiff", -1);
+  // config.fullDP = node->declare_parameter<bool>(param_prefix + ".extractor.learned.fullDP", false);
+  // config.minDisparity = 0;
+  // config.numDisparities = 48;
+  // config.blockSize = 5;
+  // config.preFilterCap = 30;
+  // config.uniquenessRatio = 20;
+  // config.P1 = 200;
+  // config.P2 = 800;
+  // config.speckleWindowSize = 200;
+  // config.speckleRange = 1;
+  // config.disp12MaxDiff = -1;
+  // config.fullDP = false;
   // clang-format on
 }
 
@@ -288,9 +288,9 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
         const vision::ChannelImages &, bool) =
         &vision::BaseFeatureExtractor::extractChannelFeatures;
 
-    // vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit_learned)(
-    //     const vision::ChannelImages &, const vision::ChannelImages &, bool) =
-    //     &vision::BaseFeatureExtractor::extractChannelFeaturesDisp;
+    vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit_learned)(
+        const vision::ChannelImages &, const vision::ChannelImages &, bool) =
+        &vision::BaseFeatureExtractor::extractChannelFeaturesDisp;
 
     // // vision::ChannelExtra (vision::BaseFeatureExtractor::*doit_extra)(
     // //     const vision::ChannelImages &) =

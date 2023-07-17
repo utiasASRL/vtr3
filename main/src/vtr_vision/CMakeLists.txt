@@ -19,7 +19,7 @@ find_package(ament_cmake REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
 
-# find_package(Torch REQUIRED)
+find_package(Torch REQUIRED)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 find_package(gpusurf REQUIRED) # currently assuming this is required
@@ -36,7 +36,7 @@ find_package(vtr_tactic REQUIRED)
 file(GLOB_RECURSE SRC src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC})
 
-# target_link_libraries(${PROJECT_NAME} ${TORCH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${TORCH_LIBRARIES})
 #set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
 
 ament_target_dependencies(${PROJECT_NAME}
@@ -55,7 +55,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   cv_bridge gpusurf lgmath steam
   vtr_common vtr_logging vtr_vision_msgs vtr_storage vtr_tactic vtr_common_msgs
-  # Torch
+  Torch
 )
 
 #ament_export_include_directories(${TORCH_INCLUDE_DIRS})

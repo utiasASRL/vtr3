@@ -212,7 +212,7 @@ void ExperienceTriageModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
   for (const RunId &rid : recommended)
     status_msg_.recommended_ids.push_back(rid);
 
-  LOG_IF(config_->verbose, INFO) << "ET: " << status_msg_;
+  // LOG_IF(config_->verbose, INFO) << "ET: " << status_msg_;
 }
 
 

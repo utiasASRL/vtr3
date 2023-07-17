@@ -37,11 +37,11 @@ class LearnedFeatureExtractor : public BaseFeatureExtractor {
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Initializes the underlying Learned Feature engine.
-  void initialize(LearnedFeatureConfiguration &config);
+  void initialize(const LearnedFeatureConfiguration &config);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Initializes the underlying stereo Learned Feature engine.
-  void initialize(LearnedFeatureStereoConfiguration &config);
+  void initialize(const LearnedFeatureStereoConfiguration &config);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Extracts a list of descriptors and keypoints from a single image.

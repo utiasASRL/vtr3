@@ -22,6 +22,9 @@
 #include <future>
 #include <list>
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/cudastereo.hpp>
 
 #include <vtr_vision/image_conversions.hpp>
 
@@ -235,6 +238,67 @@ ChannelImages Gray2Undistorted(const ChannelImages &src,
 #endif
   return dst;
 }
+
+Image Disparity(const Image &left, const Image &right) {
+  
+  int minDisparity = 0;
+  int numDisparities = 128;
+  int P1 = 10;
+  int P2 = 120;
+  int uniquenessRatio = 5;
+  int mode = cv::cuda::StereoSGM::MODE_HH4;
+
+  std::unique_lock<std::mutex> lock(__gpu_mutex__);    
+
+  // Upload images to gpu.
+  cv::cuda::GpuMat left_gpu;
+  cv::cuda::GpuMat right_gpu;
+  left_gpu.upload(left.data);
+  right_gpu.upload(right.data);
+  
+  cv::Ptr<cv::cuda::StereoSGM> sgm;
+  sgm = cv::cuda::createStereoSGM(minDisparity, 
+                                  numDisparities, 
+                                  P1,
+                                  P2,
+                                  uniquenessRatio, 
+                                  mode);
+
+  cv::cuda::GpuMat disp_gpu;
+  sgm->compute(left_gpu, right_gpu, disp_gpu);
+
+  cv::Mat disp;
+  disp_gpu.download(disp);
+
+  lock.unlock();
+  
+  Image dst;
+  dst.data = disp;
+  dst.name = left.name;
+  
+  return dst;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts a channel of RGB images into a channel of grayscale images.
+/// @param src The RGB source channel.
+/// @return A grayscale image channel.
+////////////////////////////////////////////////////////////////////////////////
+ChannelImages Disparity(const ChannelImages &src) {
+  // set up the new channel
+  ChannelImages dst;
+  dst.name = "disparity";
+
+  // start the conversion job in parallel for each camera in the channel.
+  Image disp = Disparity(src.cameras[0], src.cameras[1]);
+  
+  dst.cameras.emplace_back(disp);
+  dst.cameras.emplace_back(disp);
+  
+  // return the new channel.
+  return dst;
+}
+
 
 }  // namespace vision
 }  // namespace vtr
