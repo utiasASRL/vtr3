@@ -17,7 +17,7 @@
 
 import React from "react";
 
-import { Box, Button } from "@mui/material";
+import { Box, Button, Tooltip } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import CloseIcon from "@mui/icons-material/Close";
@@ -34,26 +34,30 @@ class DeleteWaypoints extends React.Component {
       <>
         {active ? (
           <Box sx={{ display: "flex", justifyContent: "center" }}>
-            <Button
-              sx={{ m: 0.25 }}
-              color={"secondary"}
-              disableElevation={true}
-              variant={"contained"}
-              size={"small"}
-              onClick={this.handleDeleteAll.bind(this)}
-            >
-              <DeleteForeverIcon />
-            </Button>
-            <Button
-              sx={{ m: 0.25 }}
-              color={"primary"}
-              disableElevation={true}
-              variant={"contained"}
-              size={"small"}
-              onClick={this.handleDeleteUnnamed.bind(this)}
-            >
-              <DeleteIcon />
-            </Button>
+            <Tooltip title="Delete All Waypoints" placement="top">
+              <Button
+                sx={{ m: 0.25 }}
+                color={"secondary"}
+                disableElevation={true}
+                variant={"contained"}
+                size={"small"}
+                onClick={this.handleDeleteAll.bind(this)}
+              >
+                <DeleteForeverIcon />
+              </Button>
+            </Tooltip>
+            <Tooltip title="Delete Unnamed Waypoints" placement="top">
+              <Button
+                sx={{ m: 0.25 }}
+                color={"primary"}
+                disableElevation={true}
+                variant={"contained"}
+                size={"small"}
+                onClick={this.handleDeleteUnnamed.bind(this)}
+              >
+                <DeleteIcon />
+              </Button>
+            </Tooltip>
             <Button
               sx={{ m: 0.25 }}
               color={"primary"}

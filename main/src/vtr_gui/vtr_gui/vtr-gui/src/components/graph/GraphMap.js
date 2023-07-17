@@ -238,7 +238,7 @@ class GraphMap extends React.Component {
                   onBlur={(e) => {
                     if (!(Array.from(wps_map.values()).includes(disp_wps_map.get(key)))) {
                       if (disp_wps_map.get(key).slice(0, 3) !== "WP-" || disp_wps_map.get(key) === this.genDefaultWaypointName(key)){
-                        if (disp_wps_map.get(key) !== ""){
+                        if (disp_wps_map.get(key).replace(/ /g, "") !== ""){
                           wps_map.set(key, disp_wps_map.get(key));
                           this.handleUpdateWaypoint(key, 0, disp_wps_map.get(key)); /*ADD*/
                         }
@@ -727,7 +727,7 @@ class GraphMap extends React.Component {
       console.info("Selecting tool: ", tool);
       // deselect the current tool first
       if (state.current_tool !== null) {
-        switch (tool) {
+        switch (state.current_tool) {
           case "annotate_route":
             this.finishAnnotateRoute();
             break;
