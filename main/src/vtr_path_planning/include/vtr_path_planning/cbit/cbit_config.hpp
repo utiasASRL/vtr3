@@ -36,7 +36,7 @@ class CBITConfig {
         int rand_seed = 1;
 
         // ROC
-        double roc_lookahead = 5.0;
+        double roc_lookahead = 2.0;
         int roc_discretization = 40;
         double roc_q_tolerance = 0.001;
 
@@ -63,6 +63,9 @@ class CBITConfig {
         double forward_vel = 0.75;
         double max_lin_vel = 1.25;
         double max_ang_vel = 0.75;
+        double robot_linear_velocity_scale = 1.0;
+        double robot_angular_velocity_scale = 1.0;
+
         // Add unicycle model param
 
         // Covariance Tuning Weights

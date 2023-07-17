@@ -76,7 +76,10 @@ auto PreprocessingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config->r_scale);
   config->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config->h_scale);
   config->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config->frame_voxel_size);
+  config->nn_voxel_size = node->declare_parameter<float>(param_prefix + ".nn_voxel_size", config->nn_voxel_size);
 
+
+  config->filter_by_normal_score = node->declare_parameter<bool>(param_prefix + ".filter_normal", config->filter_by_normal_score);
   config->num_sample1 = node->declare_parameter<int>(param_prefix + ".num_sample1", config->num_sample1);
   config->min_norm_score1 = node->declare_parameter<float>(param_prefix + ".min_norm_score1", config->min_norm_score1);
 
@@ -118,6 +121,8 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   auto filtered_point_cloud =
       std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
+  auto nn_downsampled_cloud = 
+      std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
 
   /// Range cropping
   {
@@ -138,6 +143,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Get subsampling of the frame in carthesian coordinates
   voxelDownsample(*filtered_point_cloud, config_->frame_voxel_size);
+  voxelDownsample(*nn_downsampled_cloud, config_->nn_voxel_size);
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "grid subsampled point cloud size: " << filtered_point_cloud->size();
@@ -154,23 +160,38 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Filtering based on normal scores (planarity + linearity)
 
-  // Remove points with a low normal score
-  auto sorted_norm_scores = norm_scores;
-  std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
-  float min_score = sorted_norm_scores[std::max(
-      0, (int)sorted_norm_scores.size() - config_->num_sample1)];
-  min_score = std::max(config_->min_norm_score1, min_score);
-  if (min_score >= 0) {
+  if (config_->filter_by_normal_score){
+    // Remove points with a low normal score
+    auto sorted_norm_scores = norm_scores;
+    std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
+    float min_score = sorted_norm_scores[std::max(
+        0, (int)sorted_norm_scores.size() - config_->num_sample1)];
+    min_score = std::max(config_->min_norm_score1, min_score);
+    if (min_score >= 0) {
+      std::vector<int> indices;
+      indices.reserve(filtered_point_cloud->size());
+      int i = 0;
+      for (const auto &point : *filtered_point_cloud) {
+        if (point.normal_score >= min_score) indices.emplace_back(i);
+        i++;
+      }
+      *filtered_point_cloud =
+          pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+    }
+  } else {
     std::vector<int> indices;
     indices.reserve(filtered_point_cloud->size());
     int i = 0;
     for (const auto &point : *filtered_point_cloud) {
-      if (point.normal_score >= min_score) indices.emplace_back(i);
+      if (i < config_->num_sample1) indices.emplace_back(i);
       i++;
     }
     *filtered_point_cloud =
-        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+          pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+
   }
+  
+  
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "planarity sampled point size: " << filtered_point_cloud->size();
@@ -241,6 +262,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Output
   qdata.preprocessed_point_cloud = filtered_point_cloud;
+  qdata.nn_point_cloud = nn_downsampled_cloud;
 }
 
 }  // namespace lidar

@@ -178,6 +178,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     //
     Time prev_time(static_cast<int64_t>(timestamp_odo));
     Time query_time(static_cast<int64_t>(query_stamp));
+
+    if (prev_time == query_time) {
+      CLOG(WARNING, "lidar.odometry") << "Skipping point cloud with duplicate stamp";
+      *qdata.odo_success = false;
+      return;
+    }
+
     const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
     const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
@@ -344,7 +351,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
     GaussNewtonSolver solver(problem, params);
-    solver.optimize();
+
+    try{
+      solver.optimize();
+    } catch (std::runtime_error& e) {
+      CLOG(WARNING, "lidar.odometry_icp") <<  "Steam failed.\n e.what(): " << e.what();
+      break;
+    }
     Covariance covariance(solver);
     timer[3]->stop();
 
@@ -498,13 +511,20 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     *qdata.T_r_m_odo = T_r_m_eval->value();
     *qdata.timestamp_odo = query_stamp;
-#if 1
-    CLOG(WARNING, "lidar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-    CLOG(WARNING, "lidar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-#endif
+//#if 1
+//    CLOG(WARNING, "lidar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+//    CLOG(WARNING, "lidar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+//#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
+
+    // Temporary modification by Jordy to test calibration of hte grizzly controller
+    //CLOG(DEBUG, "grizzly_controller_tests.cbit") << "The Odometry Velocity is: " << *qdata.w_m_r_in_r_odo * -1;
+    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Linear Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(0);
+    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Angular Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(5);
+    // End of Jordy's Modifications
+
     /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->use_trajectory_estimation)
       *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;

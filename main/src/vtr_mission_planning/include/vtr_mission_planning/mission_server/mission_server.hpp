@@ -36,7 +36,8 @@ enum class ServerState : int8_t {
   Empty = -1,      // No goals exist
   Processing = 0,  // We are working on 1 or more goals
   PendingPause,    // We are working on a goal, but will pause when done
-  Paused           // Execution is paused, and will resume with more goals
+  Paused,          // Execution is paused, and will resume with more goals
+  Crashed          // Main process has died notify GUI
 };
 std::ostream& operator<<(std::ostream& os, const ServerState& server_state);
 
@@ -199,6 +200,10 @@ void MissionServer<GoalHandle>::stop() {
   cv_thread_finish_.wait(lock, [&] { return thread_count_ == 0; });
   if (goal_starting_thread_.joinable()) goal_starting_thread_.join();
   if (goal_finishing_thread_.joinable()) goal_finishing_thread_.join();
+
+  current_server_state_ = mission_planning::ServerState::Crashed;
+  CLOG(DEBUG, "mission.server") << "Setting state to crashed for closing";
+
   //
   serverStateChanged();
   lock.unlock();

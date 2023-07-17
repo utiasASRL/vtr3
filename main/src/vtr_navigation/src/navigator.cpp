@@ -172,6 +172,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImageSync>>(ApproximateImageSync(10), right_camera_sub_, left_camera_sub_);
   sync_->registerCallback(&Navigator::cameraCallback, this);
 }
+  auto lidar_qos = rclcpp::QoS(10);
+  lidar_qos.reliable();
+  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  //lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
 #endif
   // clang-format on
 
@@ -260,7 +264,11 @@ void Navigator::envInfoCallback(const tactic::EnvInfo::SharedPtr msg) {
 void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   LockGuard lock(mutex_);
-  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud.";
+
+  // set the timestamp
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
 
   if (pointcloud_in_queue_) {
     CLOG(WARNING, "navigation")
@@ -275,8 +283,6 @@ void Navigator::lidarCallback(
   // some modules require node for visualization
   query_data->node = node_;
 
-  // set the timestamp
-  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.emplace(timestamp);
 
   // add the current environment info

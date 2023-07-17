@@ -9,6 +9,9 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # template instantiation help
 # add_compile_options(-frepo)
 
+#Add debug symbols
+#add_compile_options(-g -Og)
+
 # built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
 
@@ -41,4 +44,6 @@ endif()
 add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
 set(VTR_ENABLE_VISION true)
 add_definitions(-DVTR_ENABLE_VISION)
-# add_definitions(-DVTR_ENABLE_RADAR)
+
+
+# add_definitions(-DVTR_ENABLE_RADAR)\

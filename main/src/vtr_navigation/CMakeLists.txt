@@ -19,6 +19,7 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(vtr_tactic REQUIRED)
+find_package(vtr_path_planning REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_navigation_msgs REQUIRED)
 
@@ -129,6 +130,7 @@ target_include_directories(${PROJECT_NAME}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+
 
 install(
   DIRECTORY include/

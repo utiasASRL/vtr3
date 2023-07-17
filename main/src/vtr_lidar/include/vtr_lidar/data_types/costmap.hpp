@@ -132,6 +132,10 @@ class DenseCostMap : public BaseCostMap {
   /** \brief update from a sparse cost map */
   void update(const std::unordered_map<costmap::PixKey, float>& values);
 
+  // Modification by Jordy, DEBUG
+  /** \brief update from a standard unordered_map */
+  void update(const std::unordered_map<std::pair<float,float>, float> values);
+
   XY2ValueMap filter(const float& threshold) const override;
 
   /** \brief Returns content of this class as a OccupancyGrid message. */

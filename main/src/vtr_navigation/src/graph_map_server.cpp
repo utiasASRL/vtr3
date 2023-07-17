@@ -80,7 +80,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   following_route_pub_ = node->create_publisher<FollowingRoute>("following_route", 10);
   following_route_srv_ = node->create_service<FollowingRouteSrv>("following_route_srv", std::bind(&GraphMapServer::followingRouteSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
-  // graph manipulation
+   // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
   annotate_route_sub_ = node->create_subscription<AnnotateRouteMsg>("annotate_route", rclcpp::QoS(10), std::bind(&GraphMapServer::annotateRouteCallback, this, std::placeholders::_1), sub_opt);
@@ -100,6 +100,9 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
     map_info.set = true;
     graph->setMapInfo(map_info);
   }
+  //map info
+  map_info_srv_ = node->create_service<MapInfoSrv>("map_info_srv", std::bind(&GraphMapServer::mapInfoSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
+
   if (graph->numberOfVertices() == 0) return;
 
   auto graph_lock = graph->guard();  // lock graph then internal lock
@@ -125,6 +128,16 @@ void GraphMapServer::robotStateSrvCallback(
   CLOG(DEBUG, "navigation.graph_map_server") << "Received robot state request";
   SharedLock lock(mutex_);
   response->robot_state = robot_state_;
+}
+
+void GraphMapServer::mapInfoSrvCallback(
+    const std::shared_ptr<MapInfoSrv::Request>,
+    std::shared_ptr<MapInfoSrv::Response> response) const {
+  CLOG(DEBUG, "navigation.graph_map_server") << "Received map info request";
+  SharedLock lock(mutex_);
+  const auto graph = getGraph();
+  auto map_info = graph->getMapInfo();
+  response->map_info = map_info;
 }
 
 void GraphMapServer::followingRouteSrvCallback(
