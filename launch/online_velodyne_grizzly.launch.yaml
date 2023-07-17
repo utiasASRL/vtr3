@@ -40,6 +40,6 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      #- ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      #- ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/hdl_64.rviz
       - ros2 launch foxglove_bridge foxglove_bridge_launch.xml
       # - ros2 run rqt_reconfigure rqt_reconfigure

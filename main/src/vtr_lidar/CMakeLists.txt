@@ -39,6 +39,7 @@ include_directories(PUBLIC
 # components
 file(GLOB_RECURSE COMPONENTS_SRC
   src/data_types/*.cpp
+  src/filters/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components

@@ -8,18 +8,16 @@ Panels:
         - /TF1
         - /TF1/Frames1
         - /TF1/Tree1
-        - /raw scan1
         - /filtered scan1
         - /odometry path1/Shape1
         - /curr map loc1/Topic1
         - /planned path1/Offset1
         - /planned path (poses)1/Topic1
-        - /change detection scan1
-        - /chang detection cost pcd1
         - /global path1/Offset1
+        - /obstacle cost map1
         - /PointCloud21
       Splitter Ratio: 0.4507042169570923
-    Tree Height: 871
+    Tree Height: 865
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -37,7 +35,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Map
+    SyncSource: ""
 Visualization Manager:
   Class: ""
   Displays:
@@ -71,33 +69,29 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
+        base_footprint:
+          Value: true
+        base_footprint_bumper_part:
+          Value: true
         base_link:
           Value: true
-        chassis_link:
+        front_bumblebee:
           Value: true
-        front_axle_link:
+        front_xb3:
           Value: true
-        front_left_wheel_link:
-          Value: true
-        front_right_wheel_link:
+        honeycomb:
           Value: true
         imu_link:
           Value: true
         lidar:
           Value: false
-        navsat_link:
+        m600_base:
           Value: true
-        odom:
+        microstrain:
           Value: true
-        rear_antenna_link:
+        rear_bumblebee:
           Value: true
-        rear_left_wheel_link:
-          Value: true
-        rear_right_wheel_link:
-          Value: true
-        rear_sensor_base_link:
-          Value: true
-        rear_sensor_plate_link:
+        rear_xb3:
           Value: true
         robot:
           Value: true
@@ -116,17 +110,6 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          odo vertex frame:
-            robot:
-              lidar:
-                {}
-          planning frame:
-            robot planning:
-              {}
-            robot planning (extrapolated):
-              {}
-            robot planning (extrapolated) mpc:
-              {}
           world (offset):
             {}
       Update Interval: 0
@@ -143,7 +126,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 0; 255; 0
       Max Intensity: 0
@@ -164,7 +147,7 @@ Visualization Manager:
         Value: /vtr/raw_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -177,7 +160,7 @@ Visualization Manager:
       Color: 0; 255; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 999999
@@ -198,7 +181,7 @@ Visualization Manager:
         Value: /vtr/filtered_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz_default_plugins/Odometry
       Covariance:
@@ -559,7 +542,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 0.8999999761581421
@@ -580,7 +563,7 @@ Visualization Manager:
         Value: /vtr/change_detection_diff
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -1497,14 +1480,12 @@ Visualization Manager:
         Value: Orbit (rviz_default_plugins)
         Yaw: 2.295583963394165
 Window Geometry:
-  Diff Image:
-    collapsed: false
   Displays:
     collapsed: false
   Height: 1016
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd000000040000000000000281000003a2fc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000003a2000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c0000003a2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003b000003a2000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d00650100000000000004500000000000000000000002eb000003a200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000002810000039efc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000009d00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000007400fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000039e000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c00000039efc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003d0000039e000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d0065000000000000000500000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000002eb0000039e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
