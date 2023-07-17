@@ -224,7 +224,11 @@ void Navigator::envInfoCallback(const tactic::EnvInfo::SharedPtr msg) {
 void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   LockGuard lock(mutex_);
-  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud.";
+
+  // set the timestamp
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
 
   if (pointcloud_in_queue_) {
     CLOG(WARNING, "navigation")
@@ -239,8 +243,6 @@ void Navigator::lidarCallback(
   // some modules require node for visualization
   query_data->node = node_;
 
-  // set the timestamp
-  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.emplace(timestamp);
 
   // add the current environment info

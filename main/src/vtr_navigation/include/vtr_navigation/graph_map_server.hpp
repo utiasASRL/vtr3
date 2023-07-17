@@ -36,6 +36,8 @@
 #include "vtr_navigation_msgs/srv/following_route.hpp"
 #include "vtr_navigation_msgs/srv/graph_state.hpp"
 #include "vtr_navigation_msgs/srv/robot_state.hpp"
+#include "vtr_pose_graph_msgs/msg/map_info.hpp"
+#include "vtr_pose_graph_msgs/srv/map_info.hpp"
 
 namespace vtr {
 namespace navigation {
@@ -56,6 +58,9 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   using FollowingRoute = vtr_navigation_msgs::msg::GraphRoute;
   using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
+
+  using MapInfo = vtr_pose_graph_msgs::msg::MapInfo;
+  using MapInfoSrv = vtr_pose_graph_msgs::srv::MapInfo;
 
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
@@ -95,6 +100,9 @@ class GraphMapServer : public tactic::Graph::Callback,
   void followingRouteSrvCallback(
       const std::shared_ptr<FollowingRouteSrv::Request>,
       std::shared_ptr<FollowingRouteSrv::Response> response) const;
+  void mapInfoSrvCallback(
+      const std::shared_ptr<MapInfoSrv::Request>,
+      std::shared_ptr<MapInfoSrv::Response> response) const;
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
   void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
@@ -169,6 +177,9 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
   rclcpp::Service<RobotStateSrv>::SharedPtr robot_state_srv_;
+
+  /** \brief Service to request the initialized map info */
+  rclcpp::Service<MapInfoSrv>::SharedPtr map_info_srv_;
 
   /** \brief Publishes current route being followed */
   rclcpp::Publisher<FollowingRoute>::SharedPtr following_route_pub_;

@@ -45,6 +45,7 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &first_frame = *qdata.first_frame;
   const auto &T_r_v = *qdata.T_r_v_odo;
   const auto &success = *qdata.odo_success;
+  const auto &pipeline_mode = *qdata.pipeline_mode;
   // output
   auto &result = *qdata.vertex_test_result;
 
@@ -53,6 +54,14 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
 
   // check if we successfully register this frame
   if (!success) return;
+
+  #ifdef SAVE_ALL_REPEATS
+  if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow){
+    result = VertexTestResult::CREATE_VERTEX;
+    return;
+  }
+
+  #endif
 
   auto se3vec = T_r_v.vec();
   auto translation_distance = se3vec.head<3>().norm();

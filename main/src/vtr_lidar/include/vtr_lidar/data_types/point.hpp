@@ -42,6 +42,7 @@ namespace lidar {
       float rho; \
       float theta; \
       float phi; \
+      float intensity; \
     }; \
     struct { \
       float dynamic_obs; \

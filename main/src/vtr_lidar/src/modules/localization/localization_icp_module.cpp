@@ -59,6 +59,12 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
+  //Check that
+  if(!*qdata.odo_success) {
+    CLOG(WARNING, "lidar.localization_icp") << "Odometry failed, skip localization";
+    return;
+  }
+
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
@@ -86,7 +92,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// use odometry as a prior
   WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
-  if (config_->use_pose_prior) {
+  if (config_->use_pose_prior && *qdata.odo_success) {
     auto loss_func = L2LossFunc::MakeShared();
     auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
     auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
@@ -230,7 +236,12 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
     GaussNewtonSolver solver(problem, params);
-    solver.optimize();
+    try{
+      solver.optimize();
+    } catch (std::runtime_error& e) {
+      CLOG(WARNING, "lidar.localization_icp") <<  "Steam failed.\n e.what(): " << e.what();
+      break;
+    }
     Covariance covariance(solver);
     timer[3]->stop();
 
