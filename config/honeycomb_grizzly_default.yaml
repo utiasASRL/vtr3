@@ -4,13 +4,8 @@
     log_debug: true
     log_enabled:
       #- lidar.terrain_assessment
-<<<<<<< HEAD
-      # - navigation
-      # - navigation.graph_map_server
-=======
       - navigation
       #- navigation.graph_map_server
->>>>>>> origin/main
       #- navigation.command
         # tactic
       #- tactic
@@ -29,7 +24,7 @@
       - mpc_debug.cbit
         #"obstacle_detection.cbit",
         # mission planner
-      # - mission.server
+      #- mission.server
       #- mission.state_machine
         # pose graph
       #- pose_graph
