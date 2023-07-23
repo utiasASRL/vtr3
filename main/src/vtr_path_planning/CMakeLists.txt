@@ -35,7 +35,7 @@ include_directories(
     ${NumPy_INCLUDE_DIRS}
 )
 
-file(GLOB_RECURSE SRC src/base_path_planner.cpp)
+file(GLOB_RECURSE SRC src/base_path_planner.cpp src/stationary_planner.cpp)
 add_library(${PROJECT_NAME}_base ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_base
   geometry_msgs
