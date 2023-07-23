@@ -21,6 +21,7 @@ windows:
         data_dir:=${VTRTEMP}/lidar
         start_new_graph:=false
         use_sim_time:=true
+        path_planning.type:=stationary
 
 #      - htop # monitor hardware usage
 
