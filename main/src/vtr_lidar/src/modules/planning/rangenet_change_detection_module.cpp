@@ -185,29 +185,34 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   }
 
 
+
   costmap->update(values);
+
+  const auto filtered_costmap = std::make_shared<DenseCostMap>(
+      config_->resolution, config_->size_x, config_->size_y);
+  filtered_costmap->update(costmap->filter(0.75));
   // add transform to the localization vertex
-  costmap->T_vertex_this() = T_r_v_loc;
-  costmap->vertex_id() = vid_loc;
-  costmap->vertex_sid() = sid_loc;
+  filtered_costmap->T_vertex_this() = T_r_v_loc;
+  filtered_costmap->vertex_id() = vid_loc;
+  filtered_costmap->vertex_sid() = sid_loc;
 
   auto change_detection_costmap_ref = output.change_detection_costmap.locked();
   auto &change_detection_costmap = change_detection_costmap_ref.get();
-  change_detection_costmap = costmap;
+  change_detection_costmap = filtered_costmap;
   
   /// publish the transformed pointcloud
   if (config_->visualize) {
     CLOG(DEBUG, "lidar.range") << "Getting to vis took " << timer;
 
     PointCloudMsg filter_msg;
-    pcl::toROSMsg(nn_point_cloud, filter_msg);
+    pcl::toROSMsg(obstacle_points, filter_msg);
     filter_msg.header.frame_id = "odo vertex frame";
     filter_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     diffpcd_pub_->publish(filter_msg);
 
         // publish the occupancy grid
-    auto costmap_msg = costmap->toCostMapMsg();
-    costmap_msg.header.frame_id = "planning_frame";
+    auto costmap_msg = filtered_costmap->toCostMapMsg();
+    costmap_msg.header.frame_id = "odo vertex frame";
     costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     CLOG(DEBUG, "lidar.range") << "Publishing costmap";
     costmap_pub_->publish(costmap_msg);
