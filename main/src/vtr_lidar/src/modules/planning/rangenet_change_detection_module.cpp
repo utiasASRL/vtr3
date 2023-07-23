@@ -20,6 +20,7 @@
 #include "vtr_common/timing/stopwatch.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 #include "vtr_lidar/data_types/costmap.hpp"
+#include <cmath>
 
 
 
@@ -43,42 +44,10 @@ namespace {
     }
   }
 
-  template <typename PointT>
-  class DetectChangeOp {
-  public:
-    DetectChangeOp(const pcl::PointCloud<PointT> &points, const float &d0,
-                  const float &d1)
-        : d0_(d0), d1_(d1), adapter_(points) {
-      /// create kd-tree of the point cloud for radius search
-      kdtree_ = std::make_unique<KDTree<PointT>>(2, adapter_,
-                                                KDTreeParams(/* max leaf */ 10));
-      kdtree_->buildIndex();
-      // search params setup
-      search_params_.sorted = false;
-    }
 
-    void operator()(const Eigen::Vector2f &q, float &v) const {
-      size_t ind;
-      float dist;
-      KDTreeResultSet result_set(1);
-      result_set.init(&ind, &dist);
-      kdtree_->findNeighbors(result_set, q.data(), search_params_);
-
-      // update the value of v
-      dist = std::sqrt(dist);  // convert to distance
-      v = std::max(1 - (dist - d1_) / d0_, 0.0f);
-      v = std::min(v, 0.9f);  // 1 is bad for visualization
-    }
-
-  private:
-    const float d0_;
-    const float d1_;
-
-    KDTreeSearchParams search_params_;
-    NanoFLANNAdapter<PointT> adapter_;
-    std::unique_ptr<KDTree<PointT>> kdtree_;
-  };
-
+  costmap::PixKey pointToKey(PointWithInfo &p) {
+    return {std::lround(p.x), std::lround(p.y)};
+  }
 }
 
 using namespace tactic;
@@ -139,7 +108,6 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
     live_range_pub_ = qdata.node->create_publisher<Image>("live_range_image", 5);
     map_range_pub_ = qdata.node->create_publisher<Image>("map_range_image", 5);
     diffpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("detection_cloud", 5);
-    mappcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("transformed_map", 5);
     costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
   }
 
@@ -189,7 +157,7 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   auto mask = at::squeeze(at::argmax(tensor, 1), 0).to(at::kFloat);
   timer.stop();
   CLOG(DEBUG, "lidar.range") << "Running inference takes " << timer;
-
+  timer.reset();
 
   torch::from_blob(mask_image.data(), {64, 1024}) = mask;
 
@@ -206,13 +174,20 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
     if (nn_point_cloud[i].flex24 > 1.5) indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> obstacle_points(nn_point_cloud, indices);
+  std::unordered_map<costmap::PixKey, float> values;
+  for (size_t i = 0; i < obstacle_points.size(); ++i) {
+    const auto pix_coord = pointToKey(obstacle_points[i]);
+    if (values.find(pix_coord) != values.end()) {
+      values[pix_coord] += 0.05;
+    } else { 
+      values[pix_coord] = 0.05;
+    }
+  }
 
-  // update cost map based on change detection result
-  DetectChangeOp<PointWithInfo> detect_change_op(
-      obstacle_points, config_->influence_distance, config_->minimum_distance);
-  costmap->update(detect_change_op);
+
+  costmap->update(values);
   // add transform to the localization vertex
-  costmap->T_vertex_this() = tactic::EdgeTransform(true);
+  costmap->T_vertex_this() = T_r_v_loc;
   costmap->vertex_id() = vid_loc;
   costmap->vertex_sid() = sid_loc;
 
@@ -222,22 +197,18 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   
   /// publish the transformed pointcloud
   if (config_->visualize) {
-    PointCloudMsg filter_msg;
-    pcl::toROSMsg(obstacle_points, filter_msg);
-    filter_msg.header.frame_id = "odo vertex frame";
-    // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    diffpcd_pub_->publish(filter_msg);
+    CLOG(DEBUG, "lidar.range") << "Getting to vis took " << timer;
 
-    PointCloudMsg map_msg;
-    pcl::toROSMsg(map_point_cloud, map_msg);
-    map_msg.header.frame_id = "odo vertex frame";
-    // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    mappcd_pub_->publish(map_msg);
+    PointCloudMsg filter_msg;
+    pcl::toROSMsg(nn_point_cloud, filter_msg);
+    filter_msg.header.frame_id = "odo vertex frame";
+    filter_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    diffpcd_pub_->publish(filter_msg);
 
         // publish the occupancy grid
     auto costmap_msg = costmap->toCostMapMsg();
-    costmap_msg.header.frame_id = "loc vertex frame";
-    // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    costmap_msg.header.frame_id = "planning_frame";
+    costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     CLOG(DEBUG, "lidar.range") << "Publishing costmap";
     costmap_pub_->publish(costmap_msg);
 
