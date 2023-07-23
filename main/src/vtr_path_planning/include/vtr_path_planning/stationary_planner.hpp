@@ -26,6 +26,7 @@ namespace path_planning {
 class StationaryPlanner : public BasePathPlanner {
  public:
   PTR_TYPEDEFS(StationaryPlanner);
+  using Command = geometry_msgs::msg::Twist;
 
   static constexpr auto static_name = "stationary";
 
@@ -43,7 +44,8 @@ class StationaryPlanner : public BasePathPlanner {
 
  protected:
   Command computeCommand(RobotState& robot_state) override;
-
+  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(StationaryPlanner);
+  Config::ConstPtr config_;
 
 
 };
