@@ -89,9 +89,14 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).z = *iter_z;
 
     // pointwise timestamp
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Timestamp is: " << *iter_time;
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Message Header Stamp (sec)" << (msg->header).stamp.sec;
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Message Header Stamp (nanosec)" << (msg->header).stamp.nanosec;
+
+
     point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
-    CLOG(WARNING, "lidar.ouster_converter") << "First point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
-    CLOG(WARNING, "lidar.ouster_converter") << "Second point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time);
+    //CLOG(DEBUG, "lidar.ouster_converter") << "First point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Second point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time);
   }
 
   // ouster has no polar coordinates, so compute them manually.

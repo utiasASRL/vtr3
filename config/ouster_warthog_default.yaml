@@ -22,6 +22,7 @@
       #- mpc.cbit
       #- mpc_debug
       #- obstacle detection.cbit
+      - grizzly_controller_tests.cbit
         
         # mission planner
       #- mission.server
@@ -33,7 +34,7 @@
         # lidar pipeline
       - lidar.pipeline
       - lidar.preprocessing
-      #- lidar.ouster_converter
+      - lidar.ouster_converter
       - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
@@ -108,7 +109,7 @@
         num_threads: 8
         crop_range: 40.0
 
-        frame_voxel_size: 0.2 # grid subsampling voxel size
+        frame_voxel_size: 0.3 # grid subsampling voxel size
 
         vertical_angle_res: 0.0061365 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
@@ -158,7 +159,7 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.1
+        map_voxel_size: 0.3
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -173,7 +174,7 @@
         type: lidar.intra_exp_merging_v2
         depth: 6.0
 
-        map_voxel_size: 0.2
+        map_voxel_size: 0.3
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -191,7 +192,7 @@
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
-        map_voxel_size: 0.2
+        map_voxel_size: 0.3
         max_num_experiences: 128
         distance_threshold: 0.6
         planar_threshold: 0.2
@@ -333,18 +334,18 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 1.0
-        max_lin_vel: 1.5
-        max_ang_vel: 1.25
-        robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        forward_vel: 0.75
+        max_lin_vel: 1.25
+        max_ang_vel: 2.0
+        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
         pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [25.0, 10.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [10.0, 10.0]
+        vel_error_cov: [25.0, 25.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [10.0, 50.0]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         lat_error_cov: [20.0]
         
