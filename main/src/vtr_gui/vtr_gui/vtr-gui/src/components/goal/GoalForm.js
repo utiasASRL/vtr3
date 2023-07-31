@@ -118,7 +118,7 @@ class GoalForm extends React.Component {
                     error={goal_waypoints_invalid}
                     onChange={(e) => {
                       this.setState({ goal_waypoints_str: e.target.value });
-                      this.parseGoalWaypoints(e)
+                      this.parseGoalWaypoints(e);
                     }}
                     value={goal_waypoints_str}
                   />

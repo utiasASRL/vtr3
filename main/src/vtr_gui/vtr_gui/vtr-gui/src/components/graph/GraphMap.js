@@ -393,7 +393,7 @@ class GraphMap extends React.Component {
           // console.info("Map center state was: ", this.state.map_center)
           console.info("Received the map info: ", data);
           const map_center_val = this.state.map_center
-          if (map_center_val != {lat: data.lat, lng: data.lng}){
+          if (map_center_val !== {lat: data.lat, lng: data.lng}){
             this.setState({map_center: {lat: data.lat, lng: data.lng}});
             if (this.map){
               this.map.setView([this.state.map_center.lat, this.state.map_center.lng]) 
