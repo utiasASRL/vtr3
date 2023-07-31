@@ -56,8 +56,6 @@ class GoalManager extends React.Component {
     } = this.props;
     const { goal_panel_open } = this.state;
 
-<<<<<<< HEAD
-=======
     let stateBox;
 
     switch (serverState) {
@@ -101,7 +99,6 @@ class GoalManager extends React.Component {
     }
 
 
->>>>>>> origin/main
     return (
       <>
         {/* Start, Pause and Clear buttons */}
