@@ -36,6 +36,7 @@ using Timestamp = storage::Timestamp;
 using Graph = pose_graph::RCGraph;
 using GraphBase = Graph::Base;
 using VertexId = pose_graph::VertexId;
+using RunIdSet = std::set<pose_graph::BaseIdType>;
 using Vertex = pose_graph::RCVertex;
 using EdgeId = pose_graph::EdgeId;
 using Edge = pose_graph::RCEdge;
@@ -67,7 +68,7 @@ enum class PipelineMode : uint8_t {
 std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
 /** \brief the vertex creation test result */
-enum class VertexTestResult : int { CREATE_VERTEX = 0, DO_NOTHING = 1 };
+enum class VertexTestResult : int { CREATE_VERTEX = 0, DO_NOTHING = 1, CREATE_CANDIDATE = 2};
 
 /** \brief Full metric and topological localization in one package */
 struct Localization {
@@ -83,3 +84,21 @@ struct Localization {
 
 }  // namespace tactic
 }  // namespace vtr
+
+
+//Helper to print the nice name of variable types
+#ifndef TYPE_HPP
+#define TYPE_HPP
+
+#include <string>
+#include <typeinfo>
+
+std::string demangle(const char* name);
+
+template <class T>
+std::string type_name(const T& t) {
+
+    return demangle(typeid(t).name());
+}
+
+#endif
