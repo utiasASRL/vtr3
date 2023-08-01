@@ -74,29 +74,23 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
-        base_footprint:
-          Value: true
-        base_footprint_bumper_part:
-          Value: true
         base_link:
           Value: true
         chassis_link:
           Value: true
-        front_axle_link:
-          Value: true
-        front_bumblebee:
+        diff_link:
           Value: true
         front_left_wheel_link:
           Value: true
         front_right_wheel_link:
           Value: true
-        front_xb3:
-          Value: true
-        hc:
-          Value: true
-        honeycomb:
-          Value: true
         imu_link:
+          Value: true
+        left_diff_unit_headlight_link:
+          Value: true
+        left_diff_unit_link:
+          Value: true
+        left_diff_unit_taillight_link:
           Value: true
         lidar:
           Value: false
@@ -104,31 +98,33 @@ Visualization Manager:
           Value: false
         loc vertex frame (offset):
           Value: false
-        m600_base:
-          Value: true
-        microstrain:
-          Value: true
-        navsat_link:
+        novatel:
           Value: true
         odo vertex frame:
           Value: false
         odom:
           Value: true
+        os_imu:
+          Value: true
+        os_lidar:
+          Value: true
+        os_sensor:
+          Value: true
+        os_sensor_base_link:
+          Value: true
+        os_sensor_baseplate:
+          Value: true
         planning frame:
           Value: false
-        rear_antenna_link:
-          Value: true
-        rear_bumblebee:
-          Value: true
         rear_left_wheel_link:
           Value: true
         rear_right_wheel_link:
           Value: true
-        rear_sensor_base_link:
+        right_diff_unit_headlight_link:
           Value: true
-        rear_sensor_plate_link:
+        right_diff_unit_link:
           Value: true
-        rear_xb3:
+        right_diff_unit_taillight_link:
           Value: true
         robot:
           Value: true
@@ -138,9 +134,11 @@ Visualization Manager:
           Value: false
         robot planning (extrapolated) mpc:
           Value: false
-        sensor_anchor_link:
+        sensor_tower:
           Value: true
-        velodyne:
+        stereo_camera:
+          Value: true
+        top_chassis_link:
           Value: true
         world:
           Value: false
@@ -153,8 +151,6 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          hc:
-            {}
           loc vertex frame:
             {}
           odo vertex frame:
@@ -1492,16 +1488,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 14.386004447937012
+      Distance: 41.55506134033203
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -2.6177289485931396
-        Y: -0.18078717589378357
-        Z: 0.22488124668598175
+        X: 12.343294143676758
+        Y: -3.8882362842559814
+        Z: 0.2389792650938034
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -1510,7 +1506,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.25809907913208
+      Yaw: 3.441279411315918
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
