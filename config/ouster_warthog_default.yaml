@@ -23,6 +23,7 @@
       #- mpc_debug
       #- obstacle detection.cbit
       - grizzly_controller_tests.cbit
+      - ouster
         
         # mission planner
       #- mission.server
@@ -37,7 +38,7 @@
       - lidar.ouster_converter
       - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
-      #- lidar.vertex_test
+      - lidar.vertex_test
       #- lidar.localization_map_recall
       - lidar.localization_icp
       #- lidar.intra_exp_merging
@@ -50,7 +51,7 @@
     robot_frame: base_link
     env_info_topic: env_info
     lidar_frame: os_sensor
-    lidar_topic: /points
+    lidar_topic: /ouster/points
     graph_map:
       origin_lat: 43.7822
       origin_lng: -79.4661
@@ -103,7 +104,11 @@
     preprocessing:
       conversion:
         type: lidar.ouster_converter
-        visualize: true
+        visualize: false
+        filter_warthog: true
+        filter_z_min: -0.2
+        filter_z_max: 0.35
+        filter_radius: 0.8
       filtering:
         type: lidar.preprocessing
         num_threads: 8
@@ -334,11 +339,11 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 0.75
+        forward_vel: 0.9
         max_lin_vel: 1.25
-        max_ang_vel: 2.0
+        max_ang_vel: 5.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 3.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
