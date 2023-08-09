@@ -4,7 +4,7 @@
     log_debug: true
     log_enabled:
         # navigator
-      #- navigation
+      - navigation
       #- navigation.graph_map_server
       #- navigation.command
     
@@ -19,8 +19,8 @@
       #- path_planning
       #- path_planning.cbit
       #- path_planning.cbit_planner
-      #- mpc.cbit
-      #- mpc_debug
+      - mpc.cbit
+      - mpc_debug
       #- obstacle detection.cbit
       - grizzly_controller_tests.cbit
       - ouster
@@ -34,16 +34,16 @@
 
         # lidar pipeline
       - lidar.pipeline
-      - lidar.preprocessing
-      - lidar.ouster_converter
+      #- lidar.preprocessing
+      #- lidar.ouster_converter
       - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       - lidar.vertex_test
       #- lidar.localization_map_recall
       - lidar.localization_icp
-      #- lidar.intra_exp_merging
+      - lidar.intra_exp_merging
       #- lidar.dynamic_detection
-      #- lidar.inter_exp_merging
+      - lidar.inter_exp_merging
       #- lidar.ground_extraction
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
@@ -159,7 +159,7 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.5
+        min_matched_ratio: 0.85
         visualize: true
       mapping:
         type: lidar.odometry_map_maintenance_v2
@@ -226,7 +226,7 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.65
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0
@@ -339,11 +339,11 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 0.9
+        forward_vel: 0.6
         max_lin_vel: 1.25
-        max_ang_vel: 5.0
+        max_ang_vel: 2.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 3.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
