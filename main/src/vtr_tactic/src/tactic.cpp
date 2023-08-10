@@ -808,9 +808,15 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
 
   // Store environment info into the vertex
   using EnvInfoLM = storage::LockableMessage<EnvInfo>;
-  const auto data = std::make_shared<EnvInfo>(env_info);
-  const auto msg = std::make_shared<EnvInfoLM>(data, stamp);
-  vertex->insert<EnvInfo>("env_info", "vtr_tactic_msgs/msg/EnvInfo", msg);
+  const auto env_info_data = std::make_shared<EnvInfo>(env_info);
+  const auto env_info_msg = std::make_shared<EnvInfoLM>(env_info_data, stamp);
+  vertex->insert<EnvInfo>("env_info", "vtr_tactic_msgs/msg/EnvInfo", env_info_msg);
+
+  // Store waypoint name info into the vertex
+  using WaypointNameLM = storage::LockableMessage<WaypointName>;
+  const auto waypoint_name_data = std::make_shared<WaypointName>();
+  const auto waypoint_name_msg = std::make_shared<WaypointNameLM>(waypoint_name_data, stamp);
+  vertex->insert<WaypointName>("waypoint_name", "vtr_tactic_msgs/msg/WaypointNames", waypoint_name_msg);
 
   // Add the new edge
   if (!previous_vertex_id.isValid()) return;

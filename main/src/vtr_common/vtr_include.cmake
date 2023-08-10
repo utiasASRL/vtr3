@@ -18,6 +18,7 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # address sanitizer
 # add_compile_options(-fsanitize=address)
 # set(CMAKE_CXX_STANDARD_LIBRARIES -lasan)
+# add_compile_options(-g -Og)
 
 
 ## Common packages setup
