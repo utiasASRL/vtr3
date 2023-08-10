@@ -52,6 +52,7 @@
     env_info_topic: env_info
     lidar_frame: os_sensor
     lidar_topic: /ouster/points
+    queue_size: 1
     graph_map:
       origin_lat: 43.7822
       origin_lng: -79.4661
