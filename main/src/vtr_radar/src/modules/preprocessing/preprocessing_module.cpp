@@ -80,7 +80,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   /// Grid subsampling
 
   if (config_->voxel_downsample) {
-    // Get subsampling of the frame in carthesian coordinates
+    // Get subsampling of the frame in cartesian coordinates
     voxelDownsample(*filtered_point_cloud, config_->frame_voxel_size);
 
     CLOG(DEBUG, "radar.preprocessing")
