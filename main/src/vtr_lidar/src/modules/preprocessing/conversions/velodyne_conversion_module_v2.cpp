@@ -104,12 +104,35 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // clang-format on
   
 
-  // Velodyne has no polar coordinates, so compute them manually.
-  velodyneCart2Pol(*point_cloud);
+
+
+  
+
+  //If a lower horizontal resolution is acceptable, then set the horizontal downsample > 1.
+  //A value of 2 will leave 1/2 the points, in general 1/n points will be retained.
+
+  auto filtered_point_cloud =
+    std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
+  CLOG(DEBUG, "lidar.velodyne_converter_v2") << "Reducing the point cloud density by " << config_->horizontal_downsample
+      << "original size was " << point_cloud->size();
+  if (config_->horizontal_downsample > 1) {  
+    std::vector<int> indices;
+    indices.reserve(filtered_point_cloud->size());
+    for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+      if (i % config_->horizontal_downsample == 0 )//&& (*point_cloud)[i].phi < -M_PI)
+        indices.emplace_back(i);
+    }
+    *filtered_point_cloud =
+        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+  
+  }
+
+    // Velodyne has no polar coordinates, so compute them manually.
+  velodyneCart2Pol(*filtered_point_cloud);
 
   if (config_->estimate_time){
       CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings wil be estimated from yaw angle";
-      estimateTime(*point_cloud, *qdata.stamp, config_->angular_vel);
+      estimateTime(*filtered_point_cloud, *qdata.stamp, config_->angular_vel);
   } else {
     try {
       try{
@@ -136,27 +159,6 @@ void VelodyneConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
       CLOG(INFO, "lidar.velodyne_converter_v2") << "Timings wil be estimated from yaw angle";
       estimateTime(*point_cloud, *qdata.stamp, config_->angular_vel);
     }
-  }
-
-  
-
-  //If a lower horizontal resolution is acceptable, then set the horizontal downsample > 1.
-  //A value of 2 will leave 1/2 the points, in general 1/n points will be retained.
-
-  auto filtered_point_cloud =
-    std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
-  CLOG(DEBUG, "lidar.velodyne_converter_v2") << "Reducing the point cloud density by " << config_->horizontal_downsample
-      << "original size was " << point_cloud->size();
-  if (config_->horizontal_downsample > 1) {  
-    std::vector<int> indices;
-    indices.reserve(filtered_point_cloud->size());
-    for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
-      if (i % config_->horizontal_downsample == 0 )//&& (*point_cloud)[i].phi < -M_PI)
-        indices.emplace_back(i);
-    }
-    *filtered_point_cloud =
-        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
-  
   }
 
 

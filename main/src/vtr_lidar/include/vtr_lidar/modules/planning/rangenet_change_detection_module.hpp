@@ -92,6 +92,8 @@ class RangeChangeNetModule : public nn::TorchModule {
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
 
+  costmap::PixKey pointToKey(PointWithInfo &p);
+
   Config::ConstPtr config_;
 
   rclcpp::Publisher<Image>::SharedPtr mask_pub_;

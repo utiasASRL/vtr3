@@ -44,10 +44,6 @@ namespace {
     }
   }
 
-
-  costmap::PixKey pointToKey(PointWithInfo &p) {
-    return {std::lround(p.x), std::lround(p.y)};
-  }
 }
 
 using namespace tactic;
@@ -139,7 +135,7 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   Eigen::MatrixXi scan_idxs = Eigen::MatrixXi::Constant(64, 1024, -1);
   RowMatrixXf map_image = Eigen::MatrixXf::Constant(64, 1024, -1);
 
-  common::timing::Stopwatch<boost::chrono::thread_clock> timer;
+  common::timing::Stopwatch timer;
   timer.start();
   generate_range_image(nn_point_cloud, scan_image, scan_idxs, image_params);
   generate_range_image(map_point_cloud, map_image, image_params);
@@ -178,9 +174,9 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   for (size_t i = 0; i < obstacle_points.size(); ++i) {
     const auto pix_coord = pointToKey(obstacle_points[i]);
     if (values.find(pix_coord) != values.end()) {
-      values[pix_coord] += 0.05;
+      values[pix_coord] += 0.2;
     } else { 
-      values[pix_coord] = 0.05;
+      values[pix_coord] = 0.2;
     }
   }
 
@@ -190,9 +186,9 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
 
   const auto filtered_costmap = std::make_shared<DenseCostMap>(
       config_->resolution, config_->size_x, config_->size_y);
-  filtered_costmap->update(costmap->filter(0.75));
+  filtered_costmap->update(costmap->filter(1.0));
   // add transform to the localization vertex
-  filtered_costmap->T_vertex_this() = T_r_v_loc;
+  filtered_costmap->T_vertex_this() = T_r_v_loc.inverse();
   filtered_costmap->vertex_id() = vid_loc;
   filtered_costmap->vertex_sid() = sid_loc;
 
@@ -225,6 +221,10 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   }
                             
 }
+
+costmap::PixKey RangeChangeNetModule::pointToKey(PointWithInfo &p) {
+    return {std::lround(p.x / config_->resolution), std::lround(p.y / config_->resolution)};
+  }
 
 }  // namespace nn
 }  // namespace vtr

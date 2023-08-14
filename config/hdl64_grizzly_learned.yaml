@@ -14,12 +14,11 @@
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
         # path planner
-        # "path_planning",
-        # "path_planning.teb",
-        # "path_planning.cbit",
+      - path_planning
+      - path_planning.cbit
         # "path_planning.cbit_planner",
       - mpc.cbit
-        # "mpc_debug.cbit",
+      - mpc_debug.cbit
         # mission planner
       #- mission.server
       #- mission.state_machine
@@ -116,7 +115,7 @@
 
         crop_range: 15.0
 
-        frame_voxel_size: 0.2 # grid subsampling voxel size
+        frame_voxel_size: 0.25 # grid subsampling voxel size
 
         #velodyne lidar has 1/3 degree upper block and 1/2 degree lower block
         vertical_angle_res: 0.00699 # vertical angle resolution in radians (0.4deg),
@@ -185,8 +184,8 @@
         type: lidar.dynamic_detection
         depth: 12.0
 
-        horizontal_resolution: 0.1728 # 0.02042
-        vertical_resolution: 0.00872664626 # 0.01326
+        horizontal_resolution: 0.00301 # 0.02042
+        vertical_resolution: 0.00699 # 0.01326
         max_num_observations: 10000
         min_num_observations: 4
         dynamic_threshold: 0.3
@@ -236,11 +235,14 @@
         type: torch.range_change
         use_gpu: true
         abs_filepath: false
-        filepath: exported_model_ground_8m.pt
+        filepath: exported_model_temporal_ground_8m.pt
         visualize: true
 
         influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
         minimum_distance: 0.8 # was 0.3 Jordy
+        resolution: 0.25
+        size_x: 16.0
+        size_y: 16.0
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
@@ -266,7 +268,7 @@
         run_async: true
         visualize: true
     path_planning:
-      type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: stationary # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
 
       cbit:
