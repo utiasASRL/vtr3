@@ -120,7 +120,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
     indices.reserve(filtered_point_cloud->size());
     for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
       auto& p = (*filtered_point_cloud)[i];
-      if (p.x*p.x + p.y*p.y > config_->filter_radius_sq && (p.z > config_->filter_z_max || p.z < config_->filter_z_min))
+      if (p.x*p.x + p.y*p.y > config_->filter_radius_sq || (p.z > config_->filter_z_max || p.z < config_->filter_z_min))
         indices.emplace_back(i);
     }
     *filtered_point_cloud =
