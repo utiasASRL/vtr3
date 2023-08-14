@@ -21,6 +21,7 @@ windows:
         data_dir:=${VTRTEMP}/lidar/
         start_new_graph:=true
         use_sim_time:=true
+        path_planning.type:=stationary
 
   - window_name: vtr_gui
     layout: main-horizontal

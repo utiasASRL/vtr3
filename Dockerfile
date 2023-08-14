@@ -30,7 +30,11 @@ ENV VTRROOT=${HOMEDIR}/ASRL/vtr3
 ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp \
-  GRIZZLY=${VTRROOT}/grizzly
+  GRIZZLY=${VTRROOT}/grizzly \
+  VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+
+RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
+RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
 
 ## Switch to root to install dependencies
 USER 0:0
@@ -44,6 +48,7 @@ RUN apt update && apt install -q -y freeglut3-dev
 RUN apt update && apt install -q -y python3 python3-distutils python3-pip
 RUN apt update && apt install -q -y libeigen3-dev
 RUN apt update && apt install -q -y libsqlite3-dev sqlite3
+RUN apt install -q -y libc6-dbg gdb valgrind
 
 ## Install PROJ (8.2.0) (this is for graph_map_server in vtr_navigation)
 RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
@@ -159,7 +164,6 @@ RUN apt install ros-humble-velodyne -q -y
 
 # Install vim
 RUN apt update && apt install -q -y vim
-RUN apt install -q -y libc6-dbg gdb valgrind
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

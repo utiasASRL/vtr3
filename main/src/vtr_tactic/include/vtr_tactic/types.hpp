@@ -25,6 +25,7 @@
 #include "vtr_pose_graph/serializable/rc_graph.hpp"
 
 #include "vtr_tactic_msgs/msg/env_info.hpp"
+#include "vtr_tactic_msgs/msg/waypoint_name.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -55,6 +56,7 @@ using PathType = VertexId::Vector;
 
 /// tactic types
 using EnvInfo = vtr_tactic_msgs::msg::EnvInfo;
+using WaypointName = vtr_tactic_msgs::msg::WaypointName;
 
 /** \brief Defines the possible pipeline types to be used by tactics */
 enum class PipelineMode : uint8_t {

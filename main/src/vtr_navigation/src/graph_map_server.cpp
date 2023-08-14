@@ -85,6 +85,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   sub_opt.callback_group = callback_group_;
   annotate_route_sub_ = node->create_subscription<AnnotateRouteMsg>("annotate_route", rclcpp::QoS(10), std::bind(&GraphMapServer::annotateRouteCallback, this, std::placeholders::_1), sub_opt);
   move_graph_sub_ = node->create_subscription<MoveGraphMsg>("move_graph", rclcpp::QoS(10), std::bind(&GraphMapServer::moveGraphCallback, this, std::placeholders::_1), sub_opt);
+  update_waypoint_sub_ = node->create_subscription<UpdateWaypointMsg>("update_waypoint", rclcpp::QoS(10), std::bind(&GraphMapServer::updateWaypointCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
 
   // initialize graph mapinfo if working on a new map
@@ -111,6 +112,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   optimizeGraph(priv_graph);
   updateVertexProjection();
   updateVertexType();
+  updateVertexName();
   computeRoutes(priv_graph);
 }
 
@@ -204,6 +206,50 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   graph_state_pub_->publish(graph_state_);
 }
 
+void GraphMapServer::updateWaypointCallback(
+    const UpdateWaypointMsg::ConstSharedPtr msg) {
+  CLOG(DEBUG, "navigation.graph_map_server")
+      << "Received update waypoint request: vertex_id:" << msg->vertex_id << ", type:"
+      << (int)msg->type << ", name:" << msg->name;
+
+  
+  const auto graph = getGraph();
+  {
+  const auto waypoint_name_msg =
+      graph->at(VertexId(msg->vertex_id))
+          ->retrieve<tactic::WaypointName>("waypoint_name",
+                                           "vtr_tactic_msgs/msg/WaypointName");
+  
+  if (waypoint_name_msg == nullptr) {
+    CLOG(ERROR, "navigation.graph_map_server")
+        << "Failed to retrieve waypoint_name for vertex " << msg->vertex_id;
+    throw std::runtime_error{"Failed to retrieve waypoint_name for vertex"};
+  }
+  auto locked_waypoint_name_msg_ref = waypoint_name_msg->locked();  // lock the msg
+  auto& locked_waypoint_name_msg = locked_waypoint_name_msg_ref.get();
+  auto waypoint_name = locked_waypoint_name_msg.getData();
+
+  if (msg->type == UpdateWaypointMsg::ADD){
+    waypoint_name.name = msg->name;
+    CLOG(DEBUG, "navigation.graph_map_server")
+    << "Vertex id " << msg->vertex_id << " waypoint name changed to " << waypoint_name.name;
+  }
+  else if (msg->type == UpdateWaypointMsg::REMOVE){
+    waypoint_name.name = "";
+    CLOG(DEBUG, "navigation.graph_map_server")
+    << "Vertex id " << msg->vertex_id << " waypoint removed";
+  }
+
+  locked_waypoint_name_msg.setData(waypoint_name);
+  }
+
+  auto graph_lock = graph->guard();  // lock graph then internal lock
+  UniqueLock lock(mutex_);
+  updateVertexName();
+  graph_state_pub_->publish(graph_state_);
+
+}
+
 void GraphMapServer::vertexAdded(const VertexPtr& v) {
   if (getGraph()->numberOfVertices() > 1) return;
   /// The first vertex is added
@@ -236,6 +282,7 @@ void GraphMapServer::edgeAdded(const EdgePtr& e) {
   optimizeGraph(priv_graph);
   updateVertexProjection();
   updateVertexType();
+  updateVertexName();
   computeRoutes(priv_graph);
   //
   graph_state_pub_->publish(graph_state_);
@@ -250,6 +297,7 @@ void GraphMapServer::endRun() {
   optimizeGraph(priv_graph);
   updateVertexProjection();
   updateVertexType();
+  updateVertexName();
   computeRoutes(priv_graph);
   //
   graph_state_pub_->publish(graph_state_);
@@ -460,6 +508,18 @@ void GraphMapServer::updateVertexType() {
             ->retrieve<tactic::EnvInfo>("env_info",
                                         "vtr_tactic_msgs/msg/EnvInfo");
     vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
+  }
+}
+
+void GraphMapServer::updateVertexName() {
+  const auto graph = getGraph();
+  auto& vertices = graph_state_.vertices;
+  for (auto&& vertex : vertices) {
+    const auto waypoint_name_msg =
+        graph->at(VertexId(vertex.id))
+            ->retrieve<tactic::WaypointName>("waypoint_name",
+                                        "vtr_tactic_msgs/msg/WaypointName");
+    vertex.name = waypoint_name_msg->sharedLocked().get().getData().name;
   }
 }
 

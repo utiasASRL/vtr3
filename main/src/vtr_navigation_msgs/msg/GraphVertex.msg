@@ -6,3 +6,4 @@ float64 lat
 float64 theta
 
 int8 type -1
+string name ""

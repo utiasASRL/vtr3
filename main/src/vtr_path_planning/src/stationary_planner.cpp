@@ -16,18 +16,18 @@
  * \file stationary_planner.hpp
  * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
-#pragma once
-
 #include <vtr_path_planning/stationary_planner.hpp>
 
+namespace vtr {
+namespace path_planning {
 
-StationaryPlanner::Config::ConstPtr StationaryPlanner::Config::fromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) {
+auto StationaryPlanner::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix) -> Ptr {
 
   auto config = std::make_shared<StationaryPlanner::Config>();
   auto casted_config =
-      std::static_pointer_cast<BasePlanner::Config>(config);
-  *casted_config = *BasePlanner::Config::fromROS(node, param_prefix);  // copy over base config
+      std::static_pointer_cast<BasePathPlanner::Config>(config);
+  *casted_config = *BasePathPlanner::Config::fromROS(node, param_prefix);  // copy over base config
 
   return config;
 }
@@ -40,6 +40,9 @@ StationaryPlanner::StationaryPlanner(const Config::ConstPtr& config,
 
 StationaryPlanner::~StationaryPlanner() { stop(); }
 
-Command StationaryPlanner::computeCommand(RobotState&) { 
+StationaryPlanner::Command StationaryPlanner::computeCommand(RobotState&) { 
     return Command();
 }
+
+} //path_planning
+} //vtr
