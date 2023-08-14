@@ -110,9 +110,8 @@ RUN pip3 install \
 
 RUN apt install wget
 RUN apt install nano
-# RUN wget https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-1.13.0%2Bcu117.zip 
-# RUN unzip *.zip
-# RUN ls -l
+
+
 ## install opencv 4.5.1
 
 RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
@@ -153,14 +152,22 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 
 ENV LD_LIBRARY_PATH=/usr/local/opencv_cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
-# RUN cp -r ${HOMEDIR}/ASRL/libtorch /usr/local/.
 RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   && git clone https://github.com/lava/matplotlib-cpp.git . \
   && mkdir -p ${HOMEDIR}/.matplotcpp/build && cd ${HOMEDIR}/.matplotcpp/build \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
+  
+  
+##Install LibTorch
+RUN curl https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip --output libtorch.zip
+RUN unzip libtorch.zip -d /opt/torch
+ENV TORCH_LIB=/opt/torch/libtorch
+ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
+
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
 RUN apt install htop
-RUN apt install ros-humble-velodyne -q -y
 
 # Install vim
 RUN apt update && apt install -q -y vim
