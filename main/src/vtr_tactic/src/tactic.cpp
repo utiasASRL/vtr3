@@ -634,6 +634,7 @@ bool Tactic::teachMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "
                                "and localization chain.";
+    chain_->lostLocalization();
     return true;
   }
 
@@ -673,6 +674,7 @@ bool Tactic::teachMergeLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
+    chain_->lostLocalization();
     return true;
   }
 
@@ -710,6 +712,8 @@ bool Tactic::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
+    chain_->lostLocalization();
+
     return true;
   }
 

@@ -144,6 +144,12 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     publisher_initialized_ = true;
   }
 
+  if (!qdata.undistorted_point_cloud.valid()) {
+    CLOG(WARNING, "lidar.change_detection_v3") << "Point clouds are not aligned. Skipping Change Detection.";
+    return;
+  }
+
+
   // inputs
   const auto &stamp = *qdata.stamp;
   const auto &T_s_r = *qdata.T_s_r;
