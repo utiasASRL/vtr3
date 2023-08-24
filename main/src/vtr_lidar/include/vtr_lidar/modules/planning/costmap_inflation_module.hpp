@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2023, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,31 +33,25 @@
 namespace vtr {
 namespace lidar {
 
-class ChangeDetectionModuleV3 : public tactic::BaseModule {
+class CostmapInflationModule : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(ChangeDetectionModuleV3);
+  PTR_TYPEDEFS(CostmapInflationModule);
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
   using OccupancyGridMsg = nav_msgs::msg::OccupancyGrid;
 
-  static constexpr auto static_name = "lidar.change_detection_v3";
+  static constexpr auto static_name = "lidar.costmap_inflation";
 
   /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    // change detection
-    float detection_range = 10.0;
-    float search_radius = 1.0;
-    float negprob_threshold = 1.0;
-
-    bool use_prior = false;
-    float alpha0 = 1.0;
-    float beta0 = 0.1;
-
-    bool use_support_filtering = false;
-    float support_radius = 0.25;
-    float support_variance = 0.1;
-    float support_threshold = 0.0;
+    // cost map
+    unsigned int costmap_history_size = 10;
+    float resolution = 1.0;
+    float size_x = 20.0;
+    float size_y = 20.0;
+    float influence_distance = 1.0;
+    float minimum_distance = 0.5;
 
     //
     bool visualize = false;
@@ -66,7 +60,7 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  ChangeDetectionModuleV3(
+  CostmapInflationModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -81,11 +75,14 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr diffpcd_pub_;
+  rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(ChangeDetectionModuleV3);
+  VTR_REGISTER_MODULE_DEC_TYPE(CostmapInflationModule);
 
+
+  // Modificatons for Temporal costmap filter
+  std::list<std::pair<unsigned, pcl::PointCloud<PointWithInfo>>> detected_history;
 };
 
 }  // namespace lidar

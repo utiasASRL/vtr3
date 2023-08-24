@@ -55,42 +55,6 @@ void computeCentroidAndNormal(const pcl::PointCloud<PointT> &points,
   roughness = es.eigenvalues()(0);  // variance
 }
 
-template <typename PointT>
-class DetectChangeOp {
- public:
-  DetectChangeOp(const pcl::PointCloud<PointT> &points, const float &d0,
-                 const float &d1)
-      : d0_(d0), d1_(d1), adapter_(points) {
-    /// create kd-tree of the point cloud for radius search
-    kdtree_ = std::make_unique<KDTree<PointT>>(2, adapter_,
-                                               KDTreeParams(/* max leaf */ 10));
-    kdtree_->buildIndex();
-    // search params setup
-    search_params_.sorted = false;
-  }
-
-  void operator()(const Eigen::Vector2f &q, float &v) const {
-    size_t ind;
-    float dist;
-    KDTreeResultSet result_set(1);
-    result_set.init(&ind, &dist);
-    kdtree_->findNeighbors(result_set, q.data(), search_params_);
-
-    // update the value of v
-    dist = std::sqrt(dist);  // convert to distance
-    v = std::max(1 - (dist - d1_) / d0_, 0.0f);
-    v = std::min(v, 0.9f);  // 1 is bad for visualization
-  }
-
- private:
-  const float d0_;
-  const float d1_;
-
-  KDTreeSearchParams search_params_;
-  NanoFLANNAdapter<PointT> adapter_;
-  std::unique_ptr<KDTree<PointT>> kdtree_;
-};
-
 }  // namespace
 
 using namespace tactic;
@@ -113,14 +77,7 @@ auto ChangeDetectionModuleV3::Config::fromROS(
   config->support_radius = node->declare_parameter<float>(param_prefix + ".support_radius", config->support_radius);
   config->support_variance = node->declare_parameter<float>(param_prefix + ".support_variance", config->support_variance);
   config->support_threshold = node->declare_parameter<float>(param_prefix + ".support_threshold", config->support_threshold);
-  // cost map
-  int hist_size = node->declare_parameter<int>(param_prefix + ".costmap_history_size", config->costmap_history_size);
-  config->costmap_history_size = (unsigned) hist_size;
-  config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
-  config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
-  config->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config->size_y);
-  config->influence_distance = node->declare_parameter<float>(param_prefix + ".influence_distance", config->influence_distance);
-  config->minimum_distance = node->declare_parameter<float>(param_prefix + ".minimum_distance", config->minimum_distance);
+
   // general
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -137,8 +94,6 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_scan", 5);
-    costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
-    costpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_costpcd", 5);
     diffpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_diff", 5);
     // clang-format on
     publisher_initialized_ = true;
@@ -305,9 +260,6 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   aligned_mat2 = T_v_m_loc.matrix().cast<float>() * aligned_mat;
   aligned_norms_mat2 = T_v_m_loc.matrix().cast<float>() * aligned_norms_mat;
 
-  // project to 2d and construct the grid map
-  const auto costmap = std::make_shared<DenseCostMap>(
-      config_->resolution, config_->size_x, config_->size_y);
 
   // filter out non-obstacle points
   std::vector<int> indices;
@@ -316,46 +268,8 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     if (aligned_points2[i].flex23 > 0.5f) indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> filtered_points(aligned_points2, indices);
-
-  auto concat_pc = pcl::PointCloud<PointWithInfo>();
-
-  detected_history.push_front(std::make_pair(sid_loc, filtered_points));
-
-  if (detected_history.size() > config_->costmap_history_size)
-    detected_history.pop_back();
-
-  for (auto &pair : detected_history) {
-    auto &p_loc_sid = pair.first;
-    auto &point_cloud = pair.second;
-    const auto &T_v_loc_v_detect = chain.T_trunk_target(p_loc_sid);
-
-    auto point_cloud_copy = pcl::PointCloud<PointWithInfo>(point_cloud);
-
-    auto aligned_point_cloud = point_cloud.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto aligned_norms = point_cloud.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-
-
-    auto aligned_point_cloud_copy = point_cloud_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto aligned_norms_copy = point_cloud_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-
-
-    aligned_point_cloud_copy = T_v_loc_v_detect.matrix().cast<float>() * aligned_point_cloud;
-    aligned_norms_copy = T_v_loc_v_detect.matrix().cast<float>() * aligned_norms;
-
-    concat_pc += point_cloud_copy;
-
-    CLOG(DEBUG, "lidar.change_detection") << "Point cloud of size " << point_cloud.size() << " is connected to vid: " << p_loc_sid;
-
-  }
-
-  // update cost map based on change detection result
-  DetectChangeOp<PointWithInfo> detect_change_op(
-      concat_pc, config_->influence_distance, config_->minimum_distance);
-  costmap->update(detect_change_op);
-  // add transform to the localization vertex
-  costmap->T_vertex_this() = tactic::EdgeTransform(true);
-  costmap->vertex_id() = vid_loc;
-  costmap->vertex_sid() = sid_loc;
+  /// output
+  qdata.changed_points.emplace(filtered_points);
 
 
   /// publish the transformed pointcloud
@@ -367,29 +281,12 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     // scan_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     scan_pub_->publish(scan_msg);
 
-    // publish the occupancy grid
-    auto costmap_msg = costmap->toCostMapMsg();
-    costmap_msg.header.frame_id = "loc vertex frame";
-    // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    costmap_pub_->publish(costmap_msg);
-
-    // publish the point cloud
-    auto pointcloud_msg = costmap->toPointCloudMsg();
-    pointcloud_msg.header.frame_id = "loc vertex frame";
-    // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    costpcd_pub_->publish(pointcloud_msg);
-    
     PointCloudMsg filter_msg;
     pcl::toROSMsg(filtered_points, filter_msg);
     filter_msg.header.frame_id = "loc vertex frame";
     // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     diffpcd_pub_->publish(filter_msg);
   }
-
-  /// output
-  auto change_detection_costmap_ref = output.change_detection_costmap.locked();
-  auto &change_detection_costmap = change_detection_costmap_ref.get();
-  change_detection_costmap = costmap;
 
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";

@@ -57,6 +57,9 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const bool> submap_loc_changed;
   tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
 
+  //change detection
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> changed_points;
+
   // intra exp merging async
   tactic::Cache<const tactic::VertexId> intra_exp_merging_async;
 

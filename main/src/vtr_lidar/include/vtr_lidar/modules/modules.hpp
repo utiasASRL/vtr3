@@ -49,4 +49,5 @@
 #include "vtr_lidar/modules/planning/terrain_assessment_module.hpp"
 #include "vtr_lidar/modules/planning/diff_generator.hpp"
 #include "vtr_lidar/modules/planning/rangenet_change_detection_module.hpp"
+#include "vtr_lidar/modules/planning/costmap_inflation_module.hpp"
 
