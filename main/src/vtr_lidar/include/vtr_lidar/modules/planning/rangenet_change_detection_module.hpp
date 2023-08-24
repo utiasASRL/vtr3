@@ -58,13 +58,6 @@ class RangeChangeNetModule : public nn::TorchModule {
     float fov_down = 0;
     float range_crop = 0;
 
-    unsigned int costmap_history_size = 10;
-    float resolution = 1.0;
-    float size_x = 20.0;
-    float size_y = 20.0;
-    float influence_distance = 1.0;
-    float minimum_distance = 0.5;
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
 
@@ -100,11 +93,7 @@ class RangeChangeNetModule : public nn::TorchModule {
   rclcpp::Publisher<Image>::SharedPtr live_range_pub_;
   rclcpp::Publisher<Image>::SharedPtr map_range_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr diffpcd_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr mappcd_pub_;
-  rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
   bool pub_init = false;
-
-  std::list<std::unordered_map<std::pair<float, float>, float>> costmap_history;
 
 
   VTR_REGISTER_MODULE_DEC_TYPE(RangeChangeNetModule);

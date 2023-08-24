@@ -77,12 +77,13 @@ class CostmapInflationModule : public tactic::BaseModule {
   bool publisher_initialized_ = false;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr concat_pc_pub_;
+
+
+  std::list<std::pair<unsigned, pcl::PointCloud<PointWithInfo>>> detected_history;
+
 
   VTR_REGISTER_MODULE_DEC_TYPE(CostmapInflationModule);
-
-
-  // Modificatons for Temporal costmap filter
-  std::list<std::pair<unsigned, pcl::PointCloud<PointWithInfo>>> detected_history;
 };
 
 }  // namespace lidar

@@ -101,6 +101,7 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
     // clang-format off
     costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
     costpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_costpcd", 5);
+    concat_pc_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_concat", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -181,7 +182,12 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
     pointcloud_msg.header.frame_id = "loc vertex frame";
     // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     costpcd_pub_->publish(pointcloud_msg);
-    
+
+    PointCloudMsg concat_msg;
+    pcl::toROSMsg(concat_pc, concat_msg);
+    concat_msg.header.frame_id = "loc vertex frame";
+    concat_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    concat_pc_pub_->publish(concat_msg);
   }
 
   /// output

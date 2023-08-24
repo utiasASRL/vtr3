@@ -21,7 +21,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
         model_dir:=${VTRROOT}/models
-        planner:="cbit.lidar"
+        planner:="stationary"
 
       #- htop # monitor hardware usage
 

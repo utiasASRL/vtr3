@@ -65,15 +65,6 @@ auto RangeChangeNetModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->fov_down = node->declare_parameter<float>(param_prefix + ".fov_down", config->fov_down);
   config->range_crop = node->declare_parameter<float>(param_prefix + ".range_crop", config->range_crop);
 
-  // cost map
-  config->costmap_history_size = (unsigned) node->declare_parameter<int>(param_prefix + ".costmap_history_size", config->costmap_history_size);
-  config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
-  config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
-  config->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config->size_y);
-  config->influence_distance = node->declare_parameter<float>(param_prefix + ".influence_distance", config->influence_distance);
-  config->minimum_distance = node->declare_parameter<float>(param_prefix + ".minimum_distance", config->minimum_distance);
-  
-  
   // clang-format on
   return config;
 }
@@ -104,7 +95,6 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
     live_range_pub_ = qdata.node->create_publisher<Image>("live_range_image", 5);
     map_range_pub_ = qdata.node->create_publisher<Image>("map_range_image", 5);
     diffpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("detection_cloud", 5);
-    costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
   }
 
   auto& sub_map= *qdata.submap_loc;
@@ -128,7 +118,7 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   RangeImageParams image_params;
   image_params.fov_up = 20 * M_PI / 180;
   image_params.fov_down = -5 * M_PI / 180;
-  image_params.crop_range = 8.0;
+  image_params.crop_range = 10.0;
 
   RowMatrixXf scan_image = Eigen::MatrixXf::Constant(64, 1024, -1);
   RowMatrixXf mask_image = Eigen::MatrixXf::Zero(64, 1024);
@@ -159,9 +149,9 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
 
   unproject_range_image(nn_point_cloud, mask_image, scan_idxs);
 
-  // project to 2d and construct the grid map
-  const auto costmap = std::make_shared<DenseCostMap>(
-      config_->resolution, config_->size_x, config_->size_y);
+  // // project to 2d and construct the grid map
+  // const auto costmap = std::make_shared<DenseCostMap>(
+  //     config_->resolution, config_->size_x, config_->size_y);
 
   // filter out non-obstacle points
   std::vector<int> indices;
@@ -170,31 +160,38 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
     if (nn_point_cloud[i].flex24 > 1.5) indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> obstacle_points(nn_point_cloud, indices);
-  std::unordered_map<costmap::PixKey, float> values;
-  for (size_t i = 0; i < obstacle_points.size(); ++i) {
-    const auto pix_coord = pointToKey(obstacle_points[i]);
-    if (values.find(pix_coord) != values.end()) {
-      values[pix_coord] += 0.2;
-    } else { 
-      values[pix_coord] = 0.2;
-    }
-  }
+  auto obstacle_points_mat = obstacle_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  obstacle_points_mat = T_r_v_loc.inverse().matrix().cast<float>() * obstacle_points_mat;
+
+  qdata.changed_points.emplace(obstacle_points);
+
+  // obstacle_history_.push_front(std::make_pair(vid_loc, obstacle_points));
+
+  // std::unordered_map<costmap::PixKey, float> values;
+  // for (size_t i = 0; i < obstacle_points.size(); ++i) {
+  //   const auto pix_coord = pointToKey(obstacle_points[i]);
+  //   if (values.find(pix_coord) != values.end()) {
+  //     values[pix_coord] += 0.2;
+  //   } else { 
+  //     values[pix_coord] = 0.2;
+  //   }
+  // }
 
 
 
-  costmap->update(values);
+  // costmap->update(values);
 
-  const auto filtered_costmap = std::make_shared<DenseCostMap>(
-      config_->resolution, config_->size_x, config_->size_y);
-  filtered_costmap->update(costmap->filter(1.0));
-  // add transform to the localization vertex
-  filtered_costmap->T_vertex_this() = T_r_v_loc.inverse();
-  filtered_costmap->vertex_id() = vid_loc;
-  filtered_costmap->vertex_sid() = sid_loc;
+  // const auto filtered_costmap = std::make_shared<DenseCostMap>(
+  //     config_->resolution, config_->size_x, config_->size_y);
+  // filtered_costmap->update(costmap->filter(1.0));
+  // // add transform to the localization vertex
+  // filtered_costmap->T_vertex_this() = T_r_v_loc.inverse();
+  // filtered_costmap->vertex_id() = vid_loc;
+  // filtered_costmap->vertex_sid() = sid_loc;
 
-  auto change_detection_costmap_ref = output.change_detection_costmap.locked();
-  auto &change_detection_costmap = change_detection_costmap_ref.get();
-  change_detection_costmap = filtered_costmap;
+  // auto change_detection_costmap_ref = output.change_detection_costmap.locked();
+  // auto &change_detection_costmap = change_detection_costmap_ref.get();
+  // change_detection_costmap = filtered_costmap;
   
   /// publish the transformed pointcloud
   if (config_->visualize) {
@@ -202,17 +199,9 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
 
     PointCloudMsg filter_msg;
     pcl::toROSMsg(obstacle_points, filter_msg);
-    filter_msg.header.frame_id = "odo vertex frame";
+    filter_msg.header.frame_id = "loc vertex frame";
     filter_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     diffpcd_pub_->publish(filter_msg);
-
-        // publish the occupancy grid
-    auto costmap_msg = filtered_costmap->toCostMapMsg();
-    costmap_msg.header.frame_id = "odo vertex frame";
-    costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    CLOG(DEBUG, "lidar.range") << "Publishing costmap";
-    costmap_pub_->publish(costmap_msg);
-
 
     mask_pub_->publish(range_to_image(mask_image));
     live_range_pub_->publish(range_to_image(scan_image));
@@ -222,9 +211,9 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
                             
 }
 
-costmap::PixKey RangeChangeNetModule::pointToKey(PointWithInfo &p) {
-    return {std::lround(p.x / config_->resolution), std::lround(p.y / config_->resolution)};
-  }
+// costmap::PixKey RangeChangeNetModule::pointToKey(PointWithInfo &p) {
+//     return {std::lround(p.x / config_->resolution), std::lround(p.y / config_->resolution)};
+//   }
 
 }  // namespace nn
 }  // namespace vtr
