@@ -18,7 +18,7 @@
         # path planner
         #"path_planning",
         #"path_planning.teb",
-        #"path_planning.cbit",
+      - path_planning.cbit
         #"path_planning.cbit_planner",
         #"mpc.cbit",
       - mpc_debug.cbit
@@ -296,7 +296,7 @@
         visualize: true
     
     path_planning:
-      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit.lidar # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       cbit:
         obs_padding: 0.0

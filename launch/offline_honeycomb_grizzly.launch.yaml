@@ -17,12 +17,12 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_learned.yaml
+        base_params:=honeycomb_grizzly_default.yaml
         data_dir:=${VTRTEMP}/lidar
         model_dir:=${VTRMODELS}
-        start_new_graph:=true
+        start_new_graph:=false
         use_sim_time:=true
-        path_planning.type:=stationary
+        path_planning.type:="cbit.lidar"
 
 #      - htop # monitor hardware usage
 
@@ -41,5 +41,5 @@ windows:
     shell_command_before:
       - source /opt/ros/humble/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

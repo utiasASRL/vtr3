@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <list>
+
 #include "tf2/convert.h"
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.h"
@@ -58,7 +60,7 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
     float support_threshold = 0.0;
 
     // cost map
-    int costmap_history_size = 10;
+    unsigned int costmap_history_size = 10;
     float resolution = 1.0;
     float size_x = 20.0;
     float size_y = 20.0;
@@ -89,7 +91,6 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
   rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
-  rclcpp::Publisher<OccupancyGridMsg>::SharedPtr filtered_costmap_pub_ ;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr diffpcd_pub_;
 
@@ -97,7 +98,7 @@ class ChangeDetectionModuleV3 : public tactic::BaseModule {
 
 
   // Modificatons for Temporal costmap filter
-  std::vector<std::unordered_map<std::pair<float, float>, float>> costmap_history;
+  std::list<std::pair<unsigned, pcl::PointCloud<PointWithInfo>>> detected_history;
 };
 
 }  // namespace lidar
