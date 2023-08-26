@@ -57,6 +57,9 @@ class RangeChangeNetModule : public nn::TorchModule {
     float fov_up = 0;
     float fov_down = 0;
     float range_crop = 0;
+    int neighbourhood = 1;
+
+    float radius_filter = 0.1;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);

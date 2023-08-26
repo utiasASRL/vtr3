@@ -64,6 +64,7 @@ auto RangeChangeNetModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->fov_up = node->declare_parameter<float>(param_prefix + ".fov_up", config->fov_up);
   config->fov_down = node->declare_parameter<float>(param_prefix + ".fov_down", config->fov_down);
   config->range_crop = node->declare_parameter<float>(param_prefix + ".range_crop", config->range_crop);
+  config->neighbourhood = node->declare_parameter<int>(param_prefix + ".neighbourhood", config->neighbourhood);
 
   // clang-format on
   return config;
@@ -149,10 +150,6 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
 
   unproject_range_image(nn_point_cloud, mask_image, scan_idxs);
 
-  // // project to 2d and construct the grid map
-  // const auto costmap = std::make_shared<DenseCostMap>(
-  //     config_->resolution, config_->size_x, config_->size_y);
-
   // filter out non-obstacle points
   std::vector<int> indices;
   indices.reserve(nn_point_cloud.size());
@@ -163,9 +160,30 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   auto obstacle_points_mat = obstacle_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   obstacle_points_mat = T_r_v_loc.inverse().matrix().cast<float>() * obstacle_points_mat;
 
-  qdata.changed_points.emplace(obstacle_points);
+  NanoFLANNAdapter<PointWithInfo> adapter(obstacle_points);
+  KDTreeSearchParams search_params;
+  KDTreeParams tree_params(10);
+  auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
+  kdtree->buildIndex();
 
-  // obstacle_history_.push_front(std::make_pair(vid_loc, obstacle_points));
+  std::vector<int> radii_indices;
+  radii_indices.reserve(obstacle_points.size());
+
+  const auto sq_search_radius = config_->radius_filter * config_->radius_filter;
+  for (size_t i = 0; i < obstacle_points.size(); i++) {
+    // radius search of the closest point
+    std::vector<float> dists;
+    std::vector<int> indices;
+    NanoFLANNRadiusResultSet<float, int> result(sq_search_radius, dists, indices);
+    kdtree->radiusSearchCustomCallback(obstacle_points[i].data, result, search_params);
+
+    // filter based on neighbors in map
+    if (indices.size() > config_->neighbourhood)
+      radii_indices.push_back(i);
+  }
+
+  pcl::PointCloud<PointWithInfo> radius_filtered_points(obstacle_points, radii_indices);
+  qdata.changed_points.emplace(radius_filtered_points);
 
   // std::unordered_map<costmap::PixKey, float> values;
   // for (size_t i = 0; i < obstacle_points.size(); ++i) {

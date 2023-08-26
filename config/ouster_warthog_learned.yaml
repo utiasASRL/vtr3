@@ -246,16 +246,15 @@
         use_gpu: true
         abs_filepath: false
         filepath: exported_model_flat_10m.pt
-        resolution: 0.25
-        size_x: 16.0
-        size_y: 16.0
+        radius_filter: 0.25
+        neighbourhood: 5
         visualize: true
       costmap_inflation:
         type: lidar.costmap_inflation
-        influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.8 # was 0.3 Jordy
+        influence_distance: 0.8 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 0.6 # was 0.3 Jordy
         resolution: 0.25
-        costmap_history_size: 20
+        costmap_history_size: 15
         size_x: 16.0
         size_y: 16.0
         visualize: true
