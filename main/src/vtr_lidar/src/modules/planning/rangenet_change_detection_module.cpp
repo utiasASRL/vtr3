@@ -83,7 +83,7 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
-
+  
 
 
   if(!qdata.submap_loc.valid()) {
@@ -185,31 +185,6 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   pcl::PointCloud<PointWithInfo> radius_filtered_points(obstacle_points, radii_indices);
   qdata.changed_points.emplace(radius_filtered_points);
 
-  // std::unordered_map<costmap::PixKey, float> values;
-  // for (size_t i = 0; i < obstacle_points.size(); ++i) {
-  //   const auto pix_coord = pointToKey(obstacle_points[i]);
-  //   if (values.find(pix_coord) != values.end()) {
-  //     values[pix_coord] += 0.2;
-  //   } else { 
-  //     values[pix_coord] = 0.2;
-  //   }
-  // }
-
-
-
-  // costmap->update(values);
-
-  // const auto filtered_costmap = std::make_shared<DenseCostMap>(
-  //     config_->resolution, config_->size_x, config_->size_y);
-  // filtered_costmap->update(costmap->filter(1.0));
-  // // add transform to the localization vertex
-  // filtered_costmap->T_vertex_this() = T_r_v_loc.inverse();
-  // filtered_costmap->vertex_id() = vid_loc;
-  // filtered_costmap->vertex_sid() = sid_loc;
-
-  // auto change_detection_costmap_ref = output.change_detection_costmap.locked();
-  // auto &change_detection_costmap = change_detection_costmap_ref.get();
-  // change_detection_costmap = filtered_costmap;
   
   /// publish the transformed pointcloud
   if (config_->visualize) {

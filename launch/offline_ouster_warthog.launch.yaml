@@ -17,11 +17,11 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=ouster_warthog_learned.yaml
-        data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
+        data_dir:=${VTRTEMP}/lidar
         start_new_graph:=false
         use_sim_time:=false
         model_dir:=${VTRROOT}/models
-        planner:="stationary"
+        planner:=stationary
 
       #- htop # monitor hardware usage
 

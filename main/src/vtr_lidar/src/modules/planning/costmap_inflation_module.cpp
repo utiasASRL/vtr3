@@ -77,8 +77,6 @@ auto CostmapInflationModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   // cost map
-  int hist_size = node->declare_parameter<int>(param_prefix + ".costmap_history_size", config->costmap_history_size);
-  config->costmap_history_size = (unsigned) hist_size;
   config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
   config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
   config->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config->size_y);
@@ -91,7 +89,7 @@ auto CostmapInflationModule::Config::fromROS(
 }
 
 void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
-                                   const Graph::Ptr & /* graph */,
+                                   const Graph::Ptr &graph,
                                    const TaskExecutor::Ptr & /* executor */) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   auto &output = dynamic_cast<LidarOutputCache &>(output0);
@@ -101,7 +99,6 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
     // clang-format off
     costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
     costpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_costpcd", 5);
-    concat_pc_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_concat", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -111,52 +108,21 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
     return;
   }
 
-
   // inputs
   const auto &stamp = *qdata.stamp;
   const auto &vid_loc = *qdata.vid_loc;
   const auto &sid_loc = *qdata.sid_loc;
-  const auto &changed_points = *qdata.changed_points;
-  const auto &chain = *output.chain;
 
   // clang-format off
   CLOG(INFO, "lidar.obstacle_inflation") << "Inflating obstacles at stamp: " << stamp;
 
 
-  auto concat_pc = pcl::PointCloud<PointWithInfo>();
+  auto concat_pc = assemble_pointcloud(qdata0, output0, graph);
 
   // project to 2d and construct the grid map
   const auto costmap = std::make_shared<DenseCostMap>(
       config_->resolution, config_->size_x, config_->size_y);
 
-  detected_history.push_front(std::make_pair(sid_loc, changed_points));
-
-  if (detected_history.size() > config_->costmap_history_size)
-    detected_history.pop_back();
-
-  for (auto &pair : detected_history) {
-    auto &p_loc_sid = pair.first;
-    auto &point_cloud = pair.second;
-    const auto &T_v_loc_v_detect = chain.T_trunk_target(p_loc_sid);
-
-    auto point_cloud_copy = pcl::PointCloud<PointWithInfo>(point_cloud);
-
-    auto aligned_point_cloud = point_cloud.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto aligned_norms = point_cloud.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-
-
-    auto aligned_point_cloud_copy = point_cloud_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto aligned_norms_copy = point_cloud_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-
-
-    aligned_point_cloud_copy = T_v_loc_v_detect.matrix().cast<float>() * aligned_point_cloud;
-    aligned_norms_copy = T_v_loc_v_detect.matrix().cast<float>() * aligned_norms;
-
-    concat_pc += point_cloud_copy;
-
-    CLOG(DEBUG, "lidar.obstacle_inflation") << "Point cloud of size " << point_cloud.size() << " is connected to sid: " << p_loc_sid;
-
-  }
 
   // update cost map based on change detection result
   DetectChangeOp<PointWithInfo> detect_change_op(
@@ -182,12 +148,6 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
     pointcloud_msg.header.frame_id = "loc vertex frame";
     // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     costpcd_pub_->publish(pointcloud_msg);
-
-    PointCloudMsg concat_msg;
-    pcl::toROSMsg(concat_pc, concat_msg);
-    concat_msg.header.frame_id = "loc vertex frame";
-    concat_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    concat_pc_pub_->publish(concat_msg);
   }
 
   /// output
@@ -198,6 +158,13 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
   CLOG(INFO, "lidar.obstacle_inflation")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";
 
+}
+
+
+pcl::PointCloud<PointWithInfo> CostmapInflationModule::assemble_pointcloud(tactic::QueryCache &qdata0, 
+              tactic::OutputCache &, const tactic::Graph::Ptr &) {
+  const auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  return *qdata.changed_points;
 }
 
 }  // namespace lidar

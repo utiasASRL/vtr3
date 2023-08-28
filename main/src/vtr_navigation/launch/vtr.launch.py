@@ -26,6 +26,8 @@ def generate_launch_description():
           output='screen',
           #prefix=['xterm -e gdb -ex run --args'],
           parameters=[
+              PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
+
               {
                   "data_dir": LaunchConfiguration("data_dir"),
                   "model_dir": LaunchConfiguration("model_dir"),
@@ -33,7 +35,6 @@ def generate_launch_description():
                   "use_sim_time": LaunchConfiguration("use_sim_time"),
                   "path_planning.type": LaunchConfiguration("planner"),
               },
-              PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
               PathJoinSubstitution((config_dir, LaunchConfiguration("override_params"))),
           ],
       ),

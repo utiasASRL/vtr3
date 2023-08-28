@@ -106,7 +106,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
     //CLOG(DEBUG, "lidar.ouster_converter") << "Message Header Stamp (nanosec)" << (msg->header).stamp.nanosec;
 
 
-    point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+    point_cloud->at(idx).timestamp = *qdata.stamp;
     //CLOG(DEBUG, "lidar.ouster_converter") << "First point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
     //CLOG(DEBUG, "lidar.ouster_converter") << "Second point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time);
   }

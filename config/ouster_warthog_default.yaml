@@ -227,7 +227,7 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.65
+        min_matched_ratio: 0.45
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0
@@ -340,7 +340,7 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 0.6
+        forward_vel: 0.75
         max_lin_vel: 1.25
         max_ang_vel: 2.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration

@@ -46,6 +46,7 @@
       - lidar.inter_exp_merging
       - lidar.range
       - lidar.costamp_inflation
+      - lidar.obstacle_inflation
       #- lidar.ground_extraction
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
@@ -250,11 +251,13 @@
         neighbourhood: 5
         visualize: true
       costmap_inflation:
-        type: lidar.costmap_inflation
+        type: lidar.costmap_blindspot
         influence_distance: 0.8 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
         minimum_distance: 0.6 # was 0.3 Jordy
         resolution: 0.25
         costmap_history_size: 15
+        blind_spot_radius: 2.5
+        lifetime: 1.5
         size_x: 16.0
         size_y: 16.0
         visualize: true
@@ -336,20 +339,20 @@
 
       mpc:
         # Controller Params
-        horizon_steps: 20
+        horizon_steps: 30
         horizon_step_size: 0.3
         forward_vel: 0.6
         max_lin_vel: 1.25
-        max_ang_vel: 2.0
+        max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 2.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [25.0, 25.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [10.0, 50.0]
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 50.0]
+        vel_error_cov: [25.0, 5.0]
+        acc_error_cov: [10.0, 5.0]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         lat_error_cov: [20.0]
         

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file change_detection_module_v3.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file queued_inflation_module.hpp
+ * \author Alec Krawciw, Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -27,62 +27,54 @@
 #include "nav_msgs/msg/occupancy_grid.hpp"
 
 #include "vtr_lidar/cache.hpp"
-#include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/task_queue.hpp"
+#include "vtr_lidar/modules/planning/costmap_inflation_module.hpp"
 
 namespace vtr {
 namespace lidar {
 
-class CostmapInflationModule : public tactic::BaseModule {
+class QueuedCostmapModule : public CostmapInflationModule {
  public:
-  PTR_TYPEDEFS(CostmapInflationModule);
+  PTR_TYPEDEFS(QueuedCostmapModule);
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
   using OccupancyGridMsg = nav_msgs::msg::OccupancyGrid;
+  using VtrPointCloud = pcl::PointCloud<PointWithInfo>;
 
-  static constexpr auto static_name = "lidar.costmap_inflation";
+  static constexpr auto static_name = "lidar.costmap_queue";
 
   /** \brief Collection of config parameters */
-  struct Config : public BaseModule::Config {
+  struct Config : public CostmapInflationModule::Config {
     PTR_TYPEDEFS(Config);
 
     // cost map
-    float resolution = 1.0;
-    float size_x = 20.0;
-    float size_y = 20.0;
-    float influence_distance = 1.0;
-    float minimum_distance = 0.5;
-
-    //
-    bool visualize = false;
+    unsigned int costmap_history_size = 10;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  CostmapInflationModule(
+  QueuedCostmapModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : tactic::BaseModule{module_factory, name}, config_(config) {}
+      : CostmapInflationModule{config, module_factory, name}, config_(config) {}
 
- protected:
-  virtual pcl::PointCloud<PointWithInfo> assemble_pointcloud(tactic::QueryCache &qdata, 
-              tactic::OutputCache &output, const tactic::Graph::Ptr &graph);
+
 
  private:
-  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
-            const tactic::Graph::Ptr &graph,
-            const tactic::TaskExecutor::Ptr &executor) override;
+  VtrPointCloud assemble_pointcloud(tactic::QueryCache &qdata, 
+              tactic::OutputCache &output, const tactic::Graph::Ptr &graph) override;
 
   Config::ConstPtr config_;
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr concat_pc_pub_;
 
 
-  VTR_REGISTER_MODULE_DEC_TYPE(CostmapInflationModule);
+  std::list<std::pair<unsigned, VtrPointCloud>> detected_history;
+
+
+  VTR_REGISTER_MODULE_DEC_TYPE(QueuedCostmapModule);
 };
 
 }  // namespace lidar
