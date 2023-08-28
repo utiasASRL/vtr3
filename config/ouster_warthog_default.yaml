@@ -306,7 +306,7 @@
         visualize: true
     
     path_planning:
-      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit.lidar # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       cbit:
         obs_padding: 0.0
@@ -344,7 +344,7 @@
         max_lin_vel: 1.25
         max_ang_vel: 2.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 2.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
