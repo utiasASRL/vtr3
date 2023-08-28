@@ -108,14 +108,26 @@ double CBITPath::delta_p_calc(Pose start_pose, Pose end_pose, double alpha)
 
 Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
 {
+    std::vector<Eigen::Vector2d> valid_points;
 
-    Eigen::MatrixXd points(2, input_path.size());
     for (int i = 0; i < input_path.size(); i++) 
     {
-        points(0, i) = input_path[i].x;
-        points(1, i) = input_path[i].y;
-        //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << disc_path[i].x << " y: " << disc_path[i].y;
+        if (i % 5 == 0)
+        {
+            valid_points.push_back(Eigen::Vector2d(input_path[i].x, input_path[i].y));
+            //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << input_path[i].x << " y: " << input_path[i].y;
+        }
     }
+
+    Eigen::MatrixXd points(2, valid_points.size());
+
+    for (int i = 0; i < valid_points.size(); i++) 
+    {
+        points(0, i) = valid_points[i](0);
+        points(1, i) = valid_points[i](1);
+    }
+
+    //CLOG(ERROR, "path_planning.corridor_debug") << "TEST" << points;
 
     Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 3);
     //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
@@ -131,14 +143,26 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
 
 Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(std::vector<Pose> input_path)
 {
+    std::vector<Eigen::Vector2d> valid_points;
 
-    Eigen::MatrixXd points(2, input_path.size());
     for (int i = 0; i < input_path.size(); i++) 
     {
-        points(0, i) = sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y));
-        points(1, i) = input_path[i].z;
-        //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << disc_path[i].x << " y: " << disc_path[i].y;
+        if (i % 5 == 0)
+        {
+            valid_points.push_back(Eigen::Vector2d(sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y)), input_path[i].z));
+            //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << input_path[i].x << " y: " << input_path[i].y;
+        }
     }
+
+    Eigen::MatrixXd points(2, valid_points.size());
+
+    for (int i = 0; i < valid_points.size(); i++) 
+    {
+        points(0, i) = valid_points[i](0);
+        points(1, i) = valid_points[i](1);
+    }
+
+    //CLOG(ERROR, "path_planning.corridor_debug") << "TEST" << points;
 
     Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 3);
     //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
@@ -182,8 +206,8 @@ double CBITPath::radius_of_curvature(double dist, Eigen::Spline<double, 2> splin
 
     double x_pred = curvature(0,0);
     double y_pred = curvature(1,0);
-    CLOG(INFO, "path_planning.cbit") << "splined x is: " << x_pred;
-    CLOG(INFO, "path_planning.cbit") << "splined y is: " << y_pred;
+    CLOG(INFO, "path_planning.cbit") << "splined x is: " << pred_x;
+    CLOG(INFO, "path_planning.cbit") << "splined y is: " << pred_y;
     CLOG(INFO, "path_planning.cbit") << "Radius of Curvature Before sign is: " << roc_magnitude;
     CLOG(INFO, "path_planning.cbit") << "Radius of Curvature is: " << roc_signed;
     

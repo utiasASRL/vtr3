@@ -285,9 +285,9 @@ struct mpc_result SolveMPC2(Eigen::Matrix<double, 2, 1> previous_vel, lgmath::se
 
         // Generate least square cost terms and add them to the optimization problem
         const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, latLossFunc);
-        opt_problem.addCostTerm(lat_cost_term_right);
+        //opt_problem.addCostTerm(lat_cost_term_right);
         const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, latLossFunc);
-        opt_problem.addCostTerm(lat_cost_term_left);
+        //opt_problem.addCostTerm(lat_cost_term_left);
 
       
       }
