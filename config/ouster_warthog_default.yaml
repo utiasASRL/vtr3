@@ -23,7 +23,7 @@
       - mpc_debug
       #- obstacle detection.cbit
       - grizzly_controller_tests.cbit
-      - ouster
+      #- ouster
         
         # mission planner
       #- mission.server
@@ -242,7 +242,7 @@
         detection_range: 8.0
         search_radius: 0.25
 
-        negprob_threshold: 0.15 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
+        negprob_threshold: 0.015 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
         use_prior: true
         alpha0: 3.0
         beta0: 0.03
@@ -251,8 +251,8 @@
         support_variance: 0.05
         support_threshold: 2.5
 
-        influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.8 # was 0.3 Jordy
+        influence_distance: 0.6 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 0.9 # was 0.3 Jordy
 
         # cost map
         costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
@@ -306,7 +306,7 @@
         visualize: true
     
     path_planning:
-      type: cbit.lidar # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       cbit:
         obs_padding: 0.0
@@ -322,7 +322,7 @@
         initial_samples: 400
         batch_samples: 200
         pre_seed_resolution: 0.5
-        alpha: 0.5
+        alpha: 0.25
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
@@ -344,14 +344,14 @@
         max_lin_vel: 1.25
         max_ang_vel: 2.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 2.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.8 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
         pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [25.0, 25.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [10.0, 50.0]
+        vel_error_cov: [100.0, 200.0] # was [0.1 2.0] # No longer using this cost term
+        acc_error_cov: [100.0, 200.0]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         lat_error_cov: [20.0]
         
