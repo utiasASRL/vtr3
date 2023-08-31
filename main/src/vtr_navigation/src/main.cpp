@@ -32,8 +32,8 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  // Setup logging
-  const auto data_dir_str = 
+  /// Setup logging
+  const auto data_dir_str =
       node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
 

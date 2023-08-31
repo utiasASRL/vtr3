@@ -509,7 +509,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // Temporary modification by Jordy to test calibration of hte grizzly controller
     //CLOG(DEBUG, "grizzly_controller_tests.cbit") << "The Odometry Velocity is: " << *qdata.w_m_r_in_r_odo * -1;
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Linear Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(0);
-    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Angular Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(5);    
+    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Angular Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(5);
     // End of Jordy's Modifications
 
     /// \todo double check that we can indeed treat m same as v for velocity

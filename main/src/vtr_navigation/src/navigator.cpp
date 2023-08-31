@@ -224,7 +224,7 @@ void Navigator::envInfoCallback(const tactic::EnvInfo::SharedPtr msg) {
 void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   LockGuard lock(mutex_);
-  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud";
+  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
     CLOG(WARNING, "navigation")
