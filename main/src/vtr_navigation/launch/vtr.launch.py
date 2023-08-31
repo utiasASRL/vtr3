@@ -8,10 +8,6 @@ from launch.conditions import LaunchConfigurationEquals, LaunchConfigurationNotE
 from launch_ros.actions import Node
 
 
-def test(ar):
-  print([ar])
-  return 1
-
 def generate_launch_description():
     # config directory
     config_dir = osp.join(os.getenv('VTRSRC'), 'config')

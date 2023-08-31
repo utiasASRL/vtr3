@@ -19,7 +19,6 @@
 #pragma once
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
-#include "nav_msgs/msg/odometry.hpp"
 
 #include "steam.hpp"
 
@@ -92,7 +91,6 @@ class OdometryICPModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) override;
 
   Config::ConstPtr config_;
-  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_test_publisher_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(OdometryICPModule);
 };

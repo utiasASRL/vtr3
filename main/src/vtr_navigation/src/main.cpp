@@ -17,7 +17,6 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "rclcpp/rclcpp.hpp"
-#include "yaml-cpp/yaml.h"
 
 #include "vtr_common/timing/utils.hpp"
 #include "vtr_common/utils/filesystem.hpp"
@@ -34,7 +33,8 @@ int main(int argc, char** argv) {
   auto node = rclcpp::Node::make_shared("navigator");
 
   // Setup logging
-  auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
+  const auto data_dir_str = 
+      node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
 
   const auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
