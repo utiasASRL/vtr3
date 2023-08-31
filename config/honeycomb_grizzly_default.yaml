@@ -26,7 +26,7 @@
       # - mission.server
       #- mission.state_machine
         # pose graph
-      - pose_graph
+      # - pose_graph
         # pipeline specific
         # "lidar.pipeline",
         # "lidar.honeycomb_converter",

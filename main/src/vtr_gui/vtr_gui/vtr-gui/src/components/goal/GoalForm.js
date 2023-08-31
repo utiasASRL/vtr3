@@ -116,8 +116,10 @@ class GoalForm extends React.Component {
                     variant="standard"
                     size="small"
                     error={goal_waypoints_invalid}
-                    onChange={(e) => this.setState({ goal_waypoints_str: e.target.value })}
-                    onKeyPress={this.parseGoalWaypoints.bind(this)}
+                    onChange={(e) => {
+                      this.setState({ goal_waypoints_str: e.target.value });
+                      this.parseGoalWaypoints(e.target.value);
+                    }}
                     value={goal_waypoints_str}
                   />
                   <IconButton
@@ -220,30 +222,24 @@ class GoalForm extends React.Component {
   }
 
   /** @brief Selects repeat waypoints. */
-  parseGoalWaypoints(e) {
-    if (e.key === "Enter") {
-      let input = e.target.value;
-      let names_str = input.replace(/ /g, "").split(",");
-      let ids = [];
-      for (let name of names_str) {
-        if (Array.from(this.props.waypointsMap.values()).includes(name)){
-          ids.push(
-            Array.from(this.props.waypointsMap.keys()).find(
-              (key) => this.props.waypointsMap.get(key) === name
-            )
-          );
-        }
-        else {
-          this.setState({ goal_waypoints_invalid: true });
-          return;
-        }
+  parseGoalWaypoints(input) {
+    let names_str = input.replace(/ /g, "").split(",");
+    let ids = [];
+    for (let name of names_str) {
+      if (Array.from(this.props.waypointsMap.values()).includes(name)){
+        ids.push(
+          Array.from(this.props.waypointsMap.keys()).find(
+            (key) => this.props.waypointsMap.get(key) === name
+          )
+        );
       }
-      this.props.setNewGoalWaypoints(ids);
-      this.setState({ goal_waypoints_invalid: false });
-      e.preventDefault();
-    } else {
-      this.setState({ goal_waypoints_invalid: true });
+      else {
+        this.setState({ goal_waypoints_invalid: true });
+        return;
+      }
     }
+    this.props.setNewGoalWaypoints(ids);
+    this.setState({ goal_waypoints_invalid: false });
   }
 
   /** @brief Parses repeat waypoints and generate a user readable string. */
@@ -255,6 +251,7 @@ class GoalForm extends React.Component {
     s = s.slice(0, s.length - 2);
     this.setState({
       goal_waypoints_str: s,
+      goal_waypoints_invalid: false,
     });
   }
 
