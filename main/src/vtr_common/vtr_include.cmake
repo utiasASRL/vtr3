@@ -9,13 +9,16 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # template instantiation help
 # add_compile_options(-frepo)
 
+#Add debug symbols
+#add_compile_options(-g -Og)
+
 # built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
 
 # address sanitizer
 # add_compile_options(-fsanitize=address)
 # set(CMAKE_CXX_STANDARD_LIBRARIES -lasan)
-add_compile_options(-g -Og)
+# add_compile_options(-g -Og)
 
 
 ## Common packages setup
@@ -32,3 +35,4 @@ endif()
 ## Enable certain pipelines
 add_definitions(-DVTR_ENABLE_LIDAR)
 add_definitions(-DVTR_ENABLE_RADAR)
+#add_definitions(-DSAVE_ALL_REPEATS)

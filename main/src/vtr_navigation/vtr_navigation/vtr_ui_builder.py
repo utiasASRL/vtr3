@@ -80,6 +80,9 @@ class VTRUIProxy(BaseProxy):
 
   def change_env_info(self, env_info):
     return self._callmethod('change_env_info', args=(env_info,))
+  
+  def get_map_info(self):
+    return self._callmethod('get_map_info')
 
 
 def build_master(vtr_ui_class=VTRUI):

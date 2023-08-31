@@ -136,6 +136,9 @@ void ROSMissionServer::serverStateChanged() {
     case mission_planning::ServerState::Processing:
       server_state_msg_.server_state = ServerStateMsg::PROCESSING;
       break;
+    case mission_planning::ServerState::Crashed:
+      server_state_msg_.server_state = ServerStateMsg::CRASHED;
+
   }
   //
   if (server_state_pub_) server_state_pub_->publish(server_state_msg_);

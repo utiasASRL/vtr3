@@ -12,6 +12,17 @@ import StartMenu from "./components/setup/StartMenu";
 const SOCKET = io(window.location.hostname + ":5201");
 const SETUP_SOCKET = io(window.location.hostname + ":5202");
 
+export async function fetchWithTimeout(resource, options = {}) {
+  const { timeoutMS = 5000 } = options;
+
+  const response = await fetch(resource, {
+    ...options,
+    signal: AbortSignal.timeout(timeoutMS),
+  });
+
+  return response;
+}
+
 class VTRGUI extends React.Component {
   constructor(props) {
     super(props);

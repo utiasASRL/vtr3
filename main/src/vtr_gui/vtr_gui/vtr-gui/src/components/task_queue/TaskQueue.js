@@ -22,6 +22,8 @@ import { Table, TableBody, TableContainer, TableCell, TableHead, TableRow } from
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StorageIcon from "@mui/icons-material/Storage";
+import {fetchWithTimeout} from "../../index"
+
 
 //
 const TASK_PANEL_WIDTH = 300;
@@ -143,7 +145,7 @@ class TaskQueue extends React.Component {
 
   fetchTaskQueueState() {
     console.info("Fetching the current task queue state (full).");
-    fetch("/vtr/task_queue")
+    fetchWithTimeout("/vtr/task_queue")
       .then((response) => {
         if (response.status !== 200) throw new Error("Failed to fetch task queue state: " + response.status);
         response.json().then((data) => {

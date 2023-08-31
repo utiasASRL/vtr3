@@ -335,6 +335,71 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     int K = config_->horizon_steps; // Horizon steps
     double DT = config_->horizon_step_size; // Horizon step size
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
+    
+
+    
+    // Experimental Speed Scheduler: (TODO: in progress - move to separate file longer term)
+    // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
+    // 1. XY curvature (implemneted)
+    // 2. YZ curvature (TODO)
+    // 3. XZ curvature (TODO)
+    // 4. Corridor Width (TODO)
+    // 5. Obstacle Presence (TODO)
+
+    // Pseudocode:
+    // - Estimate the current p value of the vehicle (doesnt need to be super precise so here we can imply opt to use the sid value)
+    // - Avergage the radius of curvature in the upcoming segments of the path
+    // - TODO: generate other scaling factors
+    // - Scale the forward velocity
+
+    // Basic implementation - weights hardcoded for now
+    CLOG(INFO, "mpc_debug.cbit") << "TRYING TO SCHEDULE SPEED:";
+    CLOG(INFO, "mpc_debug.cbit") << "CURRENT SID IS:" << curr_sid;
+    double VF_EOP;
+    double VF_XY;
+    double VF_XZ_YZ;
+    double avg_curvature_xy = 0.0;
+    double avg_curvature_xz_yz = 0.0;
+    double end_of_path = 0.0;
+    for (int i = curr_sid; i < curr_sid + 10; i++) // Lookahead hardcoded for now, todo, make this a distance based correlating value
+    {
+      // Handle end of path case
+      if (i == (global_path_ptr->p.size()-1))
+      {
+        end_of_path = 1.0;
+        break;
+      }
+      avg_curvature_xy = avg_curvature_xy + global_path_ptr->disc_path_curvature_xy[i];
+      avg_curvature_xz_yz = avg_curvature_xz_yz + global_path_ptr->disc_path_curvature_xz_yz[i];
+
+    }
+    avg_curvature_xy = avg_curvature_xy / 10;
+    avg_curvature_xz_yz = avg_curvature_xz_yz / 10;
+    CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XY CURVATURE IS:  " << avg_curvature_xy;
+    CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XZ CURVATURE IS:  " << avg_curvature_xz_yz;
+    //CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE YZ CURVATURE IS:  " << avg_curvature_yz;
+    double xy_curv_weight = 5.0; // hardocded for now, make a param
+    double xz_yz_curv_weight = 0.5; // hardocded for now, make a param
+    double end_of_path_weight = 1.0; // hardocded for now, make a param
+
+    // handle forward/referse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
+
+    VF_EOP = std::max(0.5, VF / (1 + (end_of_path * end_of_path * end_of_path_weight)));
+    VF_XY = std::max(0.5, VF / (1 + (avg_curvature_xy * avg_curvature_xy * xy_curv_weight)));
+    VF_XZ_YZ = std::max(0.5, VF / (1 + (avg_curvature_xz_yz * avg_curvature_xz_yz * xz_yz_curv_weight)));
+    
+    // Take the minimum of all candidate (positive) scheduled speeds
+    VF = std::min({VF_EOP, VF_XY, VF_XZ_YZ});
+    CLOG(INFO, "mpc_debug.cbit") << "THE VF_EOP SPEED IS:  " << VF_EOP;
+    CLOG(INFO, "mpc_debug.cbit") << "THE VF_XY SPEED IS:  " << VF_XY;
+    CLOG(INFO, "mpc_debug.cbit") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
+
+    // Take the minimum of all candidate scheduled speeds
+    CLOG(INFO, "mpc_debug.cbit") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
+    // End of speed scheduler code
+
+
+
 
     // Pose Covariance Weights
     Eigen::Matrix<double, 6, 6> pose_noise_vect;

@@ -33,7 +33,7 @@ hd.setFormatter(fm)
 logger.addHandler(hd)
 
 app = flask.Flask(__name__)
-app.config['DEBUG'] = False
+app.config['DEBUG'] = True
 app.secret_key = 'asecretekey'
 
 app.logger.setLevel(logging.ERROR)

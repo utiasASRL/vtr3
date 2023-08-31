@@ -26,6 +26,7 @@ from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRo
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
 from vtr_navigation_msgs.msg import TaskQueueUpdate
+from vtr_pose_graph_msgs.srv import MapInfo as MapInfoSrv
 from vtr_tactic_msgs.msg import EnvInfo
 
 from vtr_navigation.ros_manager import ROSManager
@@ -90,6 +91,11 @@ class VTRUI(ROSManager):
     # env info
     self._change_env_info_pub = self.create_publisher(EnvInfo, 'env_info', 1)
 
+    # map center
+    self._map_info_cli = self.create_client(MapInfoSrv, "map_info_srv")
+    while not self._map_info_cli.wait_for_service(timeout_sec=1.0):
+      vtr_ui_logger.info("Waiting for map_info_srv service...")
+
   @ROSManager.on_ros
   def get_graph_state(self):
     return self._graph_state_cli.call(GraphStateSrv.Request()).graph_state
@@ -109,6 +115,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def robot_state_callback(self, robot_state):
     self.notify("robot_state", robot_state=robot_state)
+
+  @ROSManager.on_ros
+  def get_map_info(self):
+    return self._map_info_cli.call(MapInfoSrv.Request()).map_info
 
   @ROSManager.on_ros
   def get_following_route(self):

@@ -55,9 +55,23 @@ void OdometryMapMaintenanceModuleV2::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+
   // construct output (construct the map if not exist)
   if (!qdata.sliding_map_odo)
     qdata.sliding_map_odo.emplace(config_->map_voxel_size);
+
+  // Do not update the map if registration failed.
+  if (!(*qdata.odo_success)) {
+    CLOG(WARNING, "lidar.odometry_map_maintenance")
+        << "Point cloud registration failed - not updating the map.";
+    return;
+  }
+
+  // if (*qdata.pipeline_mode == tactic::PipelineMode::RepeatFollow){
+  //   CLOG(WARNING, "lidar.odometry_map_maintenance")
+  //       << "Skipped updating map, repeating";
+  //   return;
+  // }
 
   // Get input and output data
   // input
@@ -67,12 +81,6 @@ void OdometryMapMaintenanceModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // the following has to be copied because we need to change them
   auto points = *qdata.undistorted_point_cloud;
 
-  // Do not update the map if registration failed.
-  if (!(*qdata.odo_success)) {
-    CLOG(WARNING, "lidar.odometry_map_maintenance")
-        << "Point cloud registration failed - not updating the map.";
-    return;
-  }
 
   // Transform points into the map frame
   auto T_m_s = (T_s_r * T_r_m_odo).inverse().matrix().cast<float>();

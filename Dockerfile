@@ -28,12 +28,11 @@ ENV VTRROOT=${HOMEDIR}/ASRL/vtr3
 ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp \
-
-ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+  GRIZZLY=${VTRROOT}/grizzly \
+  VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
-RUN echo "alias build_vtr_ui='build_vtr; build_ui'" >> ~/.bashrc
 
 ## Switch to root to install dependencies
 USER 0:0
@@ -72,7 +71,10 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o
 RUN apt update && apt install -q -y \
   ros-humble-xacro \
   ros-humble-vision-opencv \
-  ros-humble-perception-pcl ros-humble-pcl-ros
+  ros-humble-perception-pcl ros-humble-pcl-ros \
+  ros-humble-rmw-cyclonedds-cpp
+
+RUN apt install ros-humble-tf2-tools
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
@@ -107,6 +109,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 
 RUN apt install htop
+RUN apt install ros-humble-velodyne -q -y
 
 # Install vim
 RUN apt update && apt install -q -y vim

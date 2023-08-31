@@ -27,7 +27,7 @@
 #include <random>
 #include <chrono> // For benchmarking
 #include <memory>
-
+#include <algorithm>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -75,7 +75,7 @@ class CBIT : public BasePathPlanner {
     int rand_seed = 1;
 
     // ROC
-    double roc_lookahead = 5.0;
+    double roc_lookahead = 2.0;
     int roc_discretization = 40;
     double roc_q_tolerance = 0.001;
 

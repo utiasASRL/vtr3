@@ -118,7 +118,11 @@ class GoalForm extends React.Component {
                     error={goal_waypoints_invalid}
                     onChange={(e) => {
                       this.setState({ goal_waypoints_str: e.target.value });
+<<<<<<< HEAD
                       this.parseGoalWaypoints(e.target.value);
+=======
+                      this.parseGoalWaypoints(e);
+>>>>>>> main
                     }}
                     value={goal_waypoints_str}
                   />
@@ -222,10 +226,25 @@ class GoalForm extends React.Component {
   }
 
   /** @brief Selects repeat waypoints. */
+<<<<<<< HEAD
   parseGoalWaypoints(input) {
     let names_str = input.replace(/ /g, "").split(",");
     let ids = [];
     for (let name of names_str) {
+=======
+  parseGoalWaypoints(e) {
+    let input = e.target.value;
+    let names_lst = input.split(", ");
+    let ids = [];
+
+    if (input == "") {
+      this.props.setNewGoalWaypoints([]);
+      this.setState({ goal_waypoints_invalid: false });
+      return;
+    }
+
+    for (let name of names_lst) {
+>>>>>>> main
       if (Array.from(this.props.waypointsMap.values()).includes(name)){
         ids.push(
           Array.from(this.props.waypointsMap.keys()).find(
@@ -238,6 +257,10 @@ class GoalForm extends React.Component {
         return;
       }
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
     this.props.setNewGoalWaypoints(ids);
     this.setState({ goal_waypoints_invalid: false });
   }

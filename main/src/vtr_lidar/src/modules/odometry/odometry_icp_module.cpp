@@ -178,6 +178,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     //
     Time prev_time(static_cast<int64_t>(timestamp_odo));
     Time query_time(static_cast<int64_t>(query_stamp));
+
+    if (prev_time == query_time) {
+      CLOG(WARNING, "lidar.odometry") << "Skipping point cloud with duplicate stamp";
+      *qdata.odo_success = false;
+      return;
+    }
+
     const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
     const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
@@ -344,7 +351,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
     GaussNewtonSolver solver(problem, params);
-    solver.optimize();
+
+    try{
+      solver.optimize();
+    } catch (std::runtime_error& e) {
+      CLOG(WARNING, "lidar.odometry_icp") <<  "Steam failed.\n e.what(): " << e.what();
+      break;
+    }
     Covariance covariance(solver);
     timer[3]->stop();
 

@@ -21,6 +21,8 @@
 #include "pcl/features/normal_3d.h"
 
 #include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/filters/voxel_downsample.hpp"
+
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
@@ -137,6 +139,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("change_detection_costmap", 5);
     filtered_costmap_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("filtered_change_detection_costmap", 5);
     costpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_costpcd", 5);
+    diffpcd_pub_ = qdata.node->create_publisher<PointCloudMsg>("change_detection_diff", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -163,6 +166,12 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
       query_indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> query_points(points, query_indices);
+  
+  if (query_points.size() == 0){
+    CLOG(WARNING, "lidar.change_detection") << "No points were valid to detect changes";
+    return;
+  }
+  voxelDownsample(query_points, 0.2);
 
   // Eigen matrix of original data (only shallow copy of ref clouds)
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -236,8 +245,10 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
       // clang-format on
     }();
     //
-    if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold))
+    if (nn_dists[i] < 0.0 || (cost > config_->negprob_threshold)){
       aligned_points[i].flex23 = 1.0f;
+      aligned_points[i].flex21 = cost;
+    }
   }
 
   // add support region
@@ -307,10 +318,6 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   costmap->T_vertex_this() = tactic::EdgeTransform(true);
   costmap->vertex_id() = vid_loc;
   costmap->vertex_sid() = sid_loc;
-
-
-
-
 
   // Jordy Modifications for temporal costmap filtering (UNDER DEVELOPMENT)
   
@@ -389,6 +396,8 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
 
   // if the costmap_history is smaller then some minimum value, just tack it on the end
   // TODO need to get rid of these magic numbers
+  // TODO A linked list would make more sense here
+
   if (costmap_history.size() < config_->costmap_history_size)
   {
     costmap_history.push_back(sparse_world_map);
@@ -396,7 +405,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
   else
   {
-    for (int i = 0; i < (config_->costmap_history_size-1); i++)
+    for (unsigned int i = 0; i < (config_->costmap_history_size-1); i++)
     {
       costmap_history[i] = costmap_history[i + 1];
     }
@@ -408,7 +417,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     std::unordered_map<std::pair<float, float>, float>  merged_world_map = costmap_history[(config_->costmap_history_size-1)];
     //CLOG(WARNING, "obstacle_detection.cbit") << "merged world map size " <<merged_world_map.size();
     std::unordered_map<std::pair<float, float>, float>  filtered_world_map;
-    for (int i = 0; i < (costmap_history.size()-1); i++)
+    for (unsigned int i = 0; i < (costmap_history.size()-1); i++)
     {
       merged_world_map.merge(costmap_history[i]);
       //CLOG(WARNING, "obstacle_detection.cbit") << "merged world map size " <<merged_world_map.size();
@@ -473,7 +482,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     }
  
     // Build the dense map, publish and save the results so the planner can access it
-    //const auto dense_costmap = std::make_shared<DenseCostMap>(config_->resolution, config_->size_x, config_->size_y); // need to delcare this earlier
+    //const auto dense_costmap = std::make_shared<DenseCostMap>(config_->resolution, config_->size_x, config_->size_y); // need to declare this earlier
 
     dense_costmap->update(filtered_loc_map);
     
@@ -492,11 +501,14 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     //CLOG(WARNING, "obstacle_detection.cbit") << "Successfully update the dense costmap"; 
   
 
-    // publish the filtered occupancy grid
-    auto filtered_costmap_msg = dense_costmap->toCostMapMsg();
-    filtered_costmap_msg.header.frame_id = "loc vertex frame";
-    // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    filtered_costmap_pub_->publish(filtered_costmap_msg);
+    if (config_->visualize) {
+      // publish the filtered occupancy grid
+      auto filtered_costmap_msg = dense_costmap->toCostMapMsg();
+      filtered_costmap_msg.header.frame_id = "loc vertex frame";
+      // costmap_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      filtered_costmap_pub_->publish(filtered_costmap_msg);
+    }
+    
 
     // Debug check that the filtered maps look okay
     vtr::lidar::BaseCostMap::XY2ValueMap dense_map = dense_costmap->filter(0.01);
@@ -543,6 +555,12 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     pointcloud_msg.header.frame_id = "loc vertex frame";
     // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     costpcd_pub_->publish(pointcloud_msg);
+    
+    PointCloudMsg filter_msg;
+    pcl::toROSMsg(filtered_points, filter_msg);
+    filter_msg.header.frame_id = "loc vertex frame";
+    // pointcloud_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    diffpcd_pub_->publish(filter_msg);
   }
 
   /// output

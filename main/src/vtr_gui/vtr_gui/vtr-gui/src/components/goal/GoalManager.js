@@ -56,6 +56,49 @@ class GoalManager extends React.Component {
     } = this.props;
     const { goal_panel_open } = this.state;
 
+    let stateBox;
+
+    switch (serverState) {
+      case "PAUSED":
+      case "PENDING_PAUSE":
+      stateBox = (<Button
+        color={"primary"}
+        disableElevation={true}
+        fullWidth={true}
+        size={"large"}
+        variant={"contained"}
+        onClick={this.setPause.bind(this, false)}
+      >
+        SYSTEM PAUSED
+      </Button>);
+      break;
+    case "CRASHED":
+      stateBox =(<Button
+        color={"warning"}
+        disableElevation={true}
+        variant={"contained"}
+        fullWidth={true}
+        size={"large"}
+      >
+        SYSTEM CRASHED
+      </Button>);
+      break;
+    case "RUNNING":
+    default:
+      stateBox =(<Button
+          color={"warning"}
+          disableElevation={true}
+          variant={"contained"}
+          fullWidth={true}
+          size={"large"}
+          onClick={this.setPause.bind(this, true)}
+        >
+          SYSTEM RUNNING
+        </Button>);
+        break;
+    }
+
+
     return (
       <>
         {/* Start, Pause and Clear buttons */}
@@ -72,31 +115,7 @@ class GoalManager extends React.Component {
             justifyContent: "center",
           }}
         >
-          {serverState === "PAUSED" || serverState === "PENDING_PAUSE" ? (
-            <Button
-              color={"primary"}
-              disableElevation={true}
-              fullWidth={true}
-              size={"large"}
-              variant={"contained"}
-              onClick={this.setPause.bind(this, false)}
-            >
-              SYSTEM PAUSED
-            </Button>
-          ) : (
-            <>
-              <Button
-                color={"warning"}
-                disableElevation={true}
-                variant={"contained"}
-                fullWidth={true}
-                size={"large"}
-                onClick={this.setPause.bind(this, true)}
-              >
-                SYSTEM RUNNING
-              </Button>
-            </>
-          )}
+        {stateBox}
         </Box>
         {/* current environment info */}
         {currentTool === null && (
