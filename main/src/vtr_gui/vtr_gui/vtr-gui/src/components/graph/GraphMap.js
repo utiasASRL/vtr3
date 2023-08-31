@@ -230,7 +230,6 @@ class GraphMap extends React.Component {
                   label="Name"
                   variant="standard"
                   size="small"
-                  on
                   onChange={(e) => {
                     disp_wps_map.set(key, e.target.value);
                     this.setState({display_waypoints_map: disp_wps_map});

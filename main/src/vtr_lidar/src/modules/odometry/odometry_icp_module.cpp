@@ -510,6 +510,25 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     //CLOG(DEBUG, "grizzly_controller_tests.cbit") << "The Odometry Velocity is: " << *qdata.w_m_r_in_r_odo * -1;
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Linear Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(0);
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Angular Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(5);
+
+    auto odom_test_publisher_ = qdata.node->create_publisher<nav_msgs::msg::Odometry>("odom_test", 10);
+
+    auto current_odom = nav_msgs::msg::Odometry();
+    current_odom.header.stamp = qdata.node->now();
+
+    auto twist = geometry_msgs::msg::Twist();
+    twist.linear = geometry_msgs::msg::Vector3();
+    twist.linear.x = (*qdata.w_m_r_in_r_odo * -1)(0);
+    twist.linear.y = 0.0;
+    twist.linear.z = 0.0;
+    twist.angular = geometry_msgs::msg::Vector3();
+    twist.angular.x = 0.0;
+    twist.angular.y = 0.0;
+    twist.angular.z = (*qdata.w_m_r_in_r_odo * -1)(5);
+    current_odom.twist.twist = twist;
+    
+    odom_test_publisher_->publish(current_odom);
+    
     // End of Jordy's Modifications
 
     /// \todo double check that we can indeed treat m same as v for velocity

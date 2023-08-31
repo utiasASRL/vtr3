@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "rclcpp/rclcpp.hpp"
+#include "yaml-cpp/yaml.h"
 
 #include "vtr_common/timing/utils.hpp"
 #include "vtr_common/utils/filesystem.hpp"
@@ -32,9 +33,26 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  /// Setup logging
-  const auto data_dir_str =
-      node->declare_parameter<std::string>("data_dir", "/tmp");
+  // // Read setup file
+  // node->declare_parameter<std::string>("data_dir", "/tmp");
+  // if (node->get_parameter("data_dir").get_value<std::string>() == ""){
+  //   std::string data_dir_str;
+  //   try {
+  //     YAML::Node setup_params = YAML::LoadFile(std::getenv("VTRTEMP") + std::string("/setup_params.yaml"));
+  //     data_dir_str = setup_params["data_dir"].as<std::string>();
+  //   }
+  //   catch (const YAML::Exception& e) {
+  //     CLOG(INFO, "navigation") << "Reading YAML setup file failed, using default params: " << e.what();
+  //     data_dir_str = "/tmp";
+  //   }
+
+  //   rclcpp::ParameterValue data_dir_value(data_dir_str);
+  //   node->set_parameter(rclcpp::Parameter("data_dir", data_dir_value));
+  // }
+
+  // /// Setup logging
+  // auto data_dir_str = node->get_parameter("data_dir").get_value<std::string>();
+  auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
 
   const auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
