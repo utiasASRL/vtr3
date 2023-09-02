@@ -38,6 +38,8 @@ auto RadarLidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
+  
+  config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
   // clang-format on
   return config;
 }
@@ -155,11 +157,11 @@ void RadarLidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
         scan_odo_msg);
   }
   // raw point cloud
-#if false
+  if (config_->save_raw_point_cloud)
   {
     auto raw_scan_odo =
         std::make_shared<radar::PointScan<radar::PointWithInfo>>();
-    raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
+    raw_scan_odo->point_cloud() = *qdata->raw_point_cloud;
     raw_scan_odo->T_vertex_this() = qdata->T_s_r->inverse();
     raw_scan_odo->vertex_id() = *qdata->vid_odo;
     //
@@ -170,8 +172,8 @@ void RadarLidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     vertex->insert<radar::PointScan<radar::PointWithInfo>>(
         "radar_raw_point_cloud", "vtr_radar_msgs/msg/PointScan",
         raw_scan_odo_msg);
+    CLOG(DEBUG, "radar.pipeline") << "Saved raw pointcloud to vertex" << vertex;
   }
-#endif
 
   /// save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {

@@ -20,6 +20,7 @@ import flask_socketio
 
 from vtr_navigation.vtr_ui_builder import build_remote
 
+
 # socket io server address and port
 SOCKET_ADDRESS = '0.0.0.0'
 SOCKET_PORT = 5201
@@ -66,7 +67,7 @@ def on_disconnect():
 
 @socketio.on('command/set_pause')
 def handle_set_pause(data):
-  logger.info('Received add goal command', data)
+  logger.info('Received set pause command', data)
   build_remote().set_pause(data)
 
 
@@ -80,6 +81,12 @@ def handle_add_goal(data):
 def handle_cancel_goal(data):
   logger.info('Received cancel goal command', data)
   build_remote().cancel_goal(data)
+
+
+@socketio.on('command/begin_goals')
+def handle_begin_goals():
+  logger.info('Received begin goals command')
+  build_remote().begin_goals()
 
 
 @socketio.on('command/merge')
@@ -98,6 +105,12 @@ def handle_confirm_merge(data):
 def handle_continue_teach(data):
   logger.info('Received continue teach command', data)
   build_remote().continue_teach(data)
+
+
+@socketio.on('command/update_waypoint')
+def handle_update_waypoint(data):
+  logger.info('Received update waypoint command', data)
+  build_remote().update_waypoint(data)
 
 
 @socketio.on('command/annotate_route')
