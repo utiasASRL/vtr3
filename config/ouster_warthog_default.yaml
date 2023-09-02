@@ -340,8 +340,8 @@
         # Controller Params
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 1.75
-        max_lin_vel: 2.05
+        forward_vel: 0.75
+        max_lin_vel: 1.25
         max_ang_vel: 2.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 2.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
