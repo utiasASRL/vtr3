@@ -20,6 +20,7 @@ import React from "react";
 import { Box } from "@mui/material";
 
 import AnnotateRoute from "./AnnotateRoute";
+import DeleteWaypoints from "./DeleteWaypoints";
 import MoveGraph from "./MoveGraph";
 import MoveRobot from "./MoveRobot";
 
@@ -60,6 +61,14 @@ class ToolsMenu extends React.Component {
           onSliderChange={this.props.onSliderChange}
           annotateRouteType={this.props.annotateRouteType}
           annotateRouteIds={this.props.annotateRouteIds}
+        />
+        <DeleteWaypoints
+          socket={socket}
+          active={currentTool === "delete_waypoints" ? true : false}
+          onSelect={() => selectTool("delete_waypoints")}
+          onCancel={deselectTool}
+          waypointsMap={this.props.waypointsMap}
+          handleUpdateWaypoint={this.props.handleUpdateWaypoint}
         />
       </Box>
     );

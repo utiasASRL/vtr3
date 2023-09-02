@@ -38,11 +38,12 @@ class GoalForm extends React.Component {
 
   componentDidUpdate(prevProps) {
     // Update goal_waypoints_str if goalWaypoints is changed by either this or GraphMap.
-    if (prevProps.goalWaypoints !== this.props.goalWaypoints) this.convertGoalWaypoints(this.props.goalWaypoints);
+    if (prevProps.goalWaypoints !== this.props.goalWaypoints || prevProps.waypointsMap !== this.props.waypointsMap) 
+    this.updateGoalWaypointsStr(this.props.goalWaypoints);
   }
 
   render() {
-    const { goalType, goalWaypoints, setGoalWaypoints } = this.props;
+    const { waypointsMap, goalType, goalWaypoints, setNewGoalWaypoints } = this.props;
     const { goal_form_open, goal_waypoints_str, goal_waypoints_invalid, pause_after, pause_before } = this.state;
     return (
       <>
@@ -115,8 +116,10 @@ class GoalForm extends React.Component {
                     variant="standard"
                     size="small"
                     error={goal_waypoints_invalid}
-                    onChange={(e) => this.setState({ goal_waypoints_str: e.target.value })}
-                    onKeyPress={this.parseGoalWaypoints.bind(this)}
+                    onChange={(e) => {
+                      this.setState({ goal_waypoints_str: e.target.value });
+                      this.parseGoalWaypoints(e.target.value);
+                    }}
                     value={goal_waypoints_str}
                   />
                   <IconButton
@@ -125,13 +128,13 @@ class GoalForm extends React.Component {
                     onClick={() => {
                       if (goalWaypoints.length > 0) {
                         let new_goal_waypoints = goalWaypoints.slice(0, goalWaypoints.length - 1);
-                        setGoalWaypoints(new_goal_waypoints.map((p) => p.id));
+                        setNewGoalWaypoints(new_goal_waypoints);
                       }
                     }}
                   >
                     <ArrowBackIcon />
                   </IconButton>
-                  <IconButton color="secondary" size="small" onClick={() => setGoalWaypoints([])}>
+                  <IconButton color="secondary" size="small" onClick={() => setNewGoalWaypoints([])}>
                     <ClearIcon />
                   </IconButton>
                 </Box>
@@ -147,7 +150,7 @@ class GoalForm extends React.Component {
                 size="small"
                 startIcon={<CheckIcon />}
                 variant={"contained"}
-                onClick={this.submitGoal.bind(this)}
+                onClick={this.addGoal.bind(this)}
               >
                 Confirm
               </Button>
@@ -186,7 +189,7 @@ class GoalForm extends React.Component {
   toggleGoalForm(enable) {
     // clear existing goal
     this.props.setGoalType("");
-    this.props.setGoalWaypoints([]);
+    this.props.setNewGoalWaypoints([]);
     this.setState({
       goal_form_open: enable ? true : false,
       goal_waypoints_invalid: false,
@@ -202,7 +205,7 @@ class GoalForm extends React.Component {
    */
   selectGoalType(type) {
     this.props.setGoalType(type);
-    this.props.setGoalWaypoints([]);
+    this.props.setNewGoalWaypoints([]);
     this.setState({ goal_waypoints_invalid: false, goal_waypoints_str: "", pause_after: "", pause_before: "" });
   }
 
@@ -219,57 +222,56 @@ class GoalForm extends React.Component {
   }
 
   /** @brief Selects repeat waypoints. */
-  parseGoalWaypoints(e) {
-    if (e.key === "Enter") {
-      let input = e.target.value;
-      let ids_str = input.replace(/ /g, "").split(",");
-      let ids = [];
-      for (let id of ids_str) {
-        let idpair = id.split("-");
-        for (let i of idpair) if (isNaN(i)) continue;
-
-        if (idpair.length === 1) ids.push(parseInt(idpair[0]));
-        else if (idpair.length === 2) ids.push(parseInt(idpair[0]) * Math.pow(2, 32) + parseInt(idpair[1]));
+  parseGoalWaypoints(input) {
+    let names_str = input.replace(/ /g, "").split(",");
+    let ids = [];
+    for (let name of names_str) {
+      if (Array.from(this.props.waypointsMap.values()).includes(name)){
+        ids.push(
+          Array.from(this.props.waypointsMap.keys()).find(
+            (key) => this.props.waypointsMap.get(key) === name
+          )
+        );
       }
-      this.props.setGoalWaypoints(ids);
-      this.setState({ goal_waypoints_invalid: false });
-      e.preventDefault();
-    } else {
-      this.setState({ goal_waypoints_invalid: true });
+      else {
+        this.setState({ goal_waypoints_invalid: true });
+        return;
+      }
     }
+    this.props.setNewGoalWaypoints(ids);
+    this.setState({ goal_waypoints_invalid: false });
   }
 
   /** @brief Parses repeat waypoints and generate a user readable string. */
-  convertGoalWaypoints(goal_waypoints) {
+  updateGoalWaypointsStr(goal_waypoints) {
     let s = "";
     goal_waypoints.forEach((id) => {
-      let vl = parseInt(id % Math.pow(2, 32));
-      let vh = parseInt((id - vl) / Math.pow(2, 32));
-      s += vh.toString() + "-" + vl.toString() + ", ";
+      if (this.props.waypointsMap.has(id)) s += this.props.waypointsMap.get(id) + ", ";
     });
     s = s.slice(0, s.length - 2);
     this.setState({
       goal_waypoints_str: s,
+      goal_waypoints_invalid: false,
     });
   }
 
   /** @brief Calls GoalManager to submit the goal */
-  submitGoal() {
+  addGoal() {
     this.setState(
       (state, props) => {
         let goal = {
           type: props.goalType,
           pause_before: Number(state.pause_before),
           pause_after: Number(state.pause_after),
-          waypoints: props.goalWaypoints,
+          waypoints: props.goalWaypoints
         };
-        console.debug("Submit new goal:", goal);
+        console.debug("Create new goal:", goal);
         props.socket.emit("command/add_goal", goal);
         return { goal_waypoints_invalid: false, goal_waypoints_str: "", pause_after: "", pause_before: "" };
       },
       () => {
         this.props.setGoalType("");
-        this.props.setGoalWaypoints([]);
+        this.props.setNewGoalWaypoints([]);
       }
     );
   }

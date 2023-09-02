@@ -20,6 +20,7 @@ add_compile_options(-g)
 # address sanitizer
 # add_compile_options(-fsanitize=address)
 # set(CMAKE_CXX_STANDARD_LIBRARIES -lasan)
+# add_compile_options(-g -Og)
 
 
 ## Common packages setup
@@ -36,5 +37,4 @@ endif()
 ## Enable certain pipelines
 add_definitions(-DVTR_ENABLE_LIDAR)
 add_definitions(-DVTR_ENABLE_RADAR)
-#add_definitions(-DSAVE_FULL_LIDAR)
 #add_definitions(-DSAVE_ALL_REPEATS)

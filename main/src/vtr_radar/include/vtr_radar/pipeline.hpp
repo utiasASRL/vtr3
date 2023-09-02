@@ -44,6 +44,8 @@ class RadarPipeline : public tactic::BasePipeline {
     double submap_translation_threshold = 0.0;  // in meters
     double submap_rotation_threshold = 0.0;     // in degrees
 
+    bool save_raw_point_cloud = false;
+
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };

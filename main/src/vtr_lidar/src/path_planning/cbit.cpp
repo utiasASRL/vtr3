@@ -77,8 +77,8 @@ auto LidarCBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
   config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
   config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
-  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".robot_linear_velocity_scale", config->robot_linear_velocity_scale);
-  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
+  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
 
 
   // COST FUNCTION Covariances
@@ -283,7 +283,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XY CURVATURE IS:  " << avg_curvature_xy;
     CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XZ CURVATURE IS:  " << avg_curvature_xz_yz;
     //CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE YZ CURVATURE IS:  " << avg_curvature_yz;
-    double xy_curv_weight = 5.0; // hardocded for now, make a param
+    double xy_curv_weight = 2.5; // hardocded for now, make a param
     double xz_yz_curv_weight = 0.5; // hardocded for now, make a param
     double end_of_path_weight = 1.0; // hardocded for now, make a param
 
@@ -591,6 +591,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     command.linear.x = saturated_vel(0) * config_->robot_linear_velocity_scale;
     command.angular.z = saturated_vel(1) * config_->robot_angular_velocity_scale;
 
+    CLOG(ERROR, "grizzly_controller_tests.cbit") << "Robot Twist Angular Scale: " << config_->robot_angular_velocity_scale;
     // Temporary modification by Jordy to test calibration of the grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Angular Velocity: " << saturated_vel(1);

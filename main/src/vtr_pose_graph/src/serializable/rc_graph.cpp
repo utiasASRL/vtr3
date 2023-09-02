@@ -138,11 +138,9 @@ void RCGraph::saveGraphIndex() {
 
 void RCGraph::saveVertices() {
   // save any unsaved data first
-  CLOG(DEBUG, "pose_graph") << "Saving any unsaved data in cache";
+  CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
   for (auto iter = vertices_.begin(); iter != vertices_.end(); ++iter)
     iter->second->unload();
-
-  CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
   VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
   for (auto it = vertices_.begin(); it != vertices_.end(); ++it)
     accessor.write(it->second->serialize());
