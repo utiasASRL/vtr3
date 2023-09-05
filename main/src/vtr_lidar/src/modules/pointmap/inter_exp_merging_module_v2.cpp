@@ -82,6 +82,13 @@ void InterExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   {
     const auto msg = curr_vertex->retrieve<PointMapPointer>(
         "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
+
+    if (msg == nullptr) { 
+      CLOG(WARNING, "lidar.inter_exp_merging")
+          << "Pointmap pointer, skipped.";
+      return;
+    }
+
     auto locked_msg = msg->sharedLocked();
     const auto &pointmap_ptr = locked_msg.get().getData();
     //
@@ -95,6 +102,11 @@ void InterExpMergingModuleV2::runAsync_(QueryCache &qdata0, OutputCache &,
   /// retrieve the map for the curr vertex
   const auto curr_map_msg = curr_vertex->retrieve<PointMap<PointWithInfo>>(
       "pointmap", "vtr_lidar_msgs/msg/PointMap");
+  if (curr_map_msg == nullptr) { 
+      CLOG(WARNING, "lidar.inter_exp_merging")
+          << "Pointmap pointer, skipped.";
+      return;
+    }
   auto pointmap = curr_map_msg->sharedLocked().get().getData();
   auto &pointcloud = pointmap.point_cloud();
 

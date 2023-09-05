@@ -88,6 +88,11 @@ class LocalizationChain : public Path<Graph> {
     return is_localized_;
   }
 
+  void lostLocalization() {
+    LockGuard lock(this->mutex_);
+    is_localized_ = false;
+  }
+
   unsigned trunkSequenceId() const {
     LockGuard lock(this->mutex_);
     return trunk_sid_;
@@ -237,6 +242,8 @@ class LocalizationChain : public Path<Graph> {
 
   /** \brief configuration */
   const Config config_;
+
+
 };
 
 }  // namespace pose_graph

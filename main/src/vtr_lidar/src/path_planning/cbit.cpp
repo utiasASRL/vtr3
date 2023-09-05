@@ -77,8 +77,8 @@ auto LidarCBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
   config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
   config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
-  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".robot_linear_velocity_scale", config->robot_linear_velocity_scale);
-  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
+  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
 
 
   // COST FUNCTION Covariances
@@ -283,7 +283,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XY CURVATURE IS:  " << avg_curvature_xy;
     CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XZ CURVATURE IS:  " << avg_curvature_xz_yz;
     //CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE YZ CURVATURE IS:  " << avg_curvature_yz;
-    double xy_curv_weight = 5.0; // hardocded for now, make a param
+    double xy_curv_weight = 2.5; // hardocded for now, make a param
     double xz_yz_curv_weight = 0.5; // hardocded for now, make a param
     double end_of_path_weight = 1.0; // hardocded for now, make a param
 
@@ -469,7 +469,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     // To do this, we need to conver the p_interp_vec,q_interp_vec into euclidean, as well as pairs of (p_interp,q_max), (q_interp,-q_max)
     // Then collision check between them
     //Node test_node = curve_to_euclid(Node(0.0, 0.0));
-    Node test_node = curve_to_euclid(Node(10.0, 0.6));
+    //Node test_node = curve_to_euclid(Node(10.0, 0.6));
     //CLOG(ERROR, "mpc_debug.cbit") << "The Euclidean Node is x: " << test_node.p << ", y: "<< test_node.q << ", z: " << test_node.z;
     std::vector<double> barrier_q_left_test;
     std::vector<double> barrier_q_right_test;
@@ -550,12 +550,12 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
       // Using new sychronized measurements:
-      auto mpc_result = SolveMPC2(applied_vel, T0, measurements4, measurements, barrier_q_left_test, barrier_q_right_test, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements4, measurements, barrier_q_left_test, barrier_q_right_test, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
 
       // Solve using corridor mpc
       //auto mpc_result = SolveMPC2(applied_vel, T0, measurements3, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       // Old path tracking configs
-      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       //auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization); // Tracking controller version
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
@@ -591,6 +591,7 @@ auto LidarCBIT::computeCommand(RobotState& robot_state0) -> Command {
     command.linear.x = saturated_vel(0) * config_->robot_linear_velocity_scale;
     command.angular.z = saturated_vel(1) * config_->robot_angular_velocity_scale;
 
+    CLOG(ERROR, "grizzly_controller_tests.cbit") << "Robot Twist Angular Scale: " << config_->robot_angular_velocity_scale;
     // Temporary modification by Jordy to test calibration of the grizzly controller
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Angular Velocity: " << saturated_vel(1);
