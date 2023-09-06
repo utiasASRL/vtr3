@@ -117,6 +117,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   return config;
 }
 
+
 // Declare class as inherited from the BasePathPlanner
 CBIT::CBIT(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
@@ -312,7 +313,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   CLOG(INFO, "path_planning.cbit") << "The T_r_v_odo is: " << T_r_v_odo;
   CLOG(INFO, "path_planning.cbit") << "The T_p_r is: " << T_p_r;
   // Extrapolate the pose of the robot into the future based on the localization delay
-  prev_stamp = stamp;
+  //prev_stamp = stamp;
   const auto curr_time = now();  // always in nanoseconds
   const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 
@@ -324,6 +325,43 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
       << "Time difference b/t estimation and planning: " << dt;
     return T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
   }();
+
+
+  //START OF OBSTACLE PERCEPTION UPDATES
+  if (prev_stamp != stamp)
+  {
+    auto obs_map = robot_state.obs_map;
+    const auto costmap_sid = robot_state.costmap_sid;
+    const auto T_start_vertex = chain.pose(costmap_sid);
+    costmap_ptr->grid_resolution = robot_state.grid_resolution;
+
+    CLOG(DEBUG, "obstacle_detection.cbit") << "the size of the map is: " << obs_map.size();
+
+
+    // Updating the costmap pointer
+    CLOG(DEBUG, "obstacle_detection.cbit") << "Updating Costmap SID to: " << costmap_sid;
+    costmap_ptr->obs_map = obs_map;
+    // Store the transform T_c_w (from costmap to world)
+    costmap_ptr->T_c_w = T_start_vertex.inverse(); // note that T_start_vertex is T_w_c if we want to bring keypoints to the world frame
+    // Store the grid resoltuion
+    CLOG(DEBUG, "obstacle_detection.cbit") << "The costmap to world transform is: " << T_start_vertex.inverse();
+
+    // Storing sequences of costmaps for temporal filtering purposes
+    // For the first x iterations, fill the obstacle vector
+    if (costmap_ptr->obs_map_vect.size() < config_->costmap_history)
+    {
+      costmap_ptr->obs_map_vect.push_back(obs_map);
+      costmap_ptr->T_c_w_vect.push_back(costmap_ptr->T_c_w);
+    }
+    // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
+    else
+    {
+      costmap_ptr->obs_map_vect[config_->costmap_history-1] = obs_map;
+      costmap_ptr->T_c_w_vect[config_->costmap_history-1] = costmap_ptr->T_c_w ;
+    }
+  }
+  prev_stamp = stamp;
+  // END OF OBSTACLE PERCEPTION UPDATES
 
 
   // START OF MPC CODE

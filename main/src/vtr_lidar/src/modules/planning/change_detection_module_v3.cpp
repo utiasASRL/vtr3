@@ -529,12 +529,16 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     //CLOG(ERROR, "obstacle_detection.cbit") << "The size of the dense map is" << dense_map.size();
     //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Keys: " << keys2;
     //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Values: " << vals2;
+
+    // Update the output cache
+    output.costmap_sid = dense_costmap->vertex_sid();
+    CLOG(ERROR, "obstacle_detection.cbit") << "costmap_sid" << dense_costmap->vertex_sid(); 
+    output.obs_map =  dense_costmap->filter(0.01); //was config_->costmap_filter_value
+    output.grid_resolution = config_->resolution;
+  
   }
   
 
-
-
-  
   // End of Jordy's temporal filter changes
 
 

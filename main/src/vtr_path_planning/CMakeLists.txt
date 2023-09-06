@@ -59,7 +59,7 @@ include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})
 
 file(GLOB_RECURSE SRC src/cbit/*.cpp)
 add_library(${PROJECT_NAME}_cbit ${SRC})
-target_link_libraries(${PROJECT_NAME}_cbit ${PROJECT_NAME}_base)
+target_link_libraries(${PROJECT_NAME}_cbit ${PROJECT_NAME}_base ${PROJECT_NAME}_mpc)
 target_link_libraries(${PROJECT_NAME}_cbit ${PYTHON_LIBRARIES})
 
 ament_target_dependencies(${PROJECT_NAME}_cbit
