@@ -532,51 +532,65 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     // End of pose extrapolation
 
 
-    // Calculate which T_ref measurements to used based on the current path solution
-    CLOG(INFO, "mpc.cbit") << "Attempting to generate T_ref measurements";
+    // Calculate which T_ref poses to used based on the current path solution
+    CLOG(INFO, "mpc.cbit") << "Attempting to generate T_ref poses";
     auto ref_tracking_result = GenerateTrackingReference(cbit_path_ptr, robot_pose, K,  DT, VF);
-    auto measurements = ref_tracking_result.measurements;
-    bool point_stabilization = ref_tracking_result.point_stabilization;
+    auto tracking_poses = ref_tracking_result.poses;
+    //bool point_stabilization = ref_tracking_result.point_stabilization; // No need to do both tracking and homotopy point stabilization
 
     std::vector<double> p_interp_vec = ref_tracking_result.p_interp_vec;
     std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
 
     // Experimental Synchronized Tracking/Teach Reference Poses:
     auto ref_homotopy_result = GenerateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid, p_interp_vec);
-    auto measurements4 = ref_homotopy_result.measurements;
-    bool point_stabilization4 = ref_homotopy_result.point_stabilization;
+    auto homotopy_poses = ref_homotopy_result.poses;
+    bool point_stabilization = ref_homotopy_result.point_stabilization;
     std::vector<double> barrier_q_left = ref_homotopy_result.barrier_q_left;
     std::vector<double> barrier_q_right = ref_homotopy_result.barrier_q_right;
-    //CLOG(ERROR, "mpc_debug.cbit") << "The New Reference Measurements are: " << measurements4;
-
-
 
 
     std::vector<lgmath::se3::Transformation> ref_pose_vec1;
-    for (int i = 0; i<measurements.size(); i++)
+    for (int i = 0; i<tracking_poses.size(); i++)
     {
-      ref_pose_vec1.push_back(measurements[i].inverse());
+      ref_pose_vec1.push_back(tracking_poses[i].inverse());
     }
     std::vector<lgmath::se3::Transformation> ref_pose_vec2;
-    for (int i = 0; i<measurements4.size(); i++)
+    for (int i = 0; i<homotopy_poses.size(); i++)
     {
-      ref_pose_vec2.push_back(measurements4[i].inverse());
+      ref_pose_vec2.push_back(homotopy_poses[i].inverse());
     }
 
-
-
+    // Generate the mpc configuration structure:
+    MPCConfig mpc_config;
+    mpc_config.previous_vel = applied_vel;
+    mpc_config.T0 = T0;
+    mpc_config.tracking_reference_poses = tracking_poses;
+    mpc_config.homotopy_reference_poses = tracking_poses; // change this one for homotopy guided
+    mpc_config.barrier_q_left = barrier_q_left;
+    mpc_config.barrier_q_right = barrier_q_right;
+    mpc_config.K = K;
+    mpc_config.DT = DT;
+    mpc_config.VF = VF;
+    mpc_config.lat_noise_vect = lat_noise_vect;
+    mpc_config.pose_noise_vect = pose_noise_vect;
+    mpc_config.vel_noise_vect = vel_noise_vect;
+    mpc_config.accel_noise_vect = accel_noise_vect;
+    mpc_config.kin_noise_vect = kin_noise_vect;
+    mpc_config.point_stabilization = point_stabilization;
+    mpc_config.pose_error_weight = pose_error_weight;
+    mpc_config.vel_error_weight = vel_error_weight;
+    mpc_config.acc_error_weight = acc_error_weight;
+    mpc_config.kin_error_weight = kin_error_weight;
+    mpc_config.lat_error_weight = lat_error_weight;
 
     // Create and solve the STEAM optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
     try
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
-      // Solve using corridor mpc
-      //auto mpc_result = SolveMPC(applied_vel, T0, measurements4, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
-      // Solve using tracking mpc
-      auto   mpc_result = SolveMPC(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
-      applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
-      mpc_poses = mpc_result.mpc_poses;
+      auto MPCResult = SolveMPC(mpc_config);
+      applied_vel = MPCResult.applied_vel; // note dont re-declare applied vel here
+      mpc_poses = MPCResult.mpc_poses;
       CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
     }
     catch(...)
