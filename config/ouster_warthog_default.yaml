@@ -309,6 +309,7 @@
       type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       cbit:
+        obstacle_avoidance: false
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
@@ -338,6 +339,8 @@
 
       mpc:
         # Controller Params
+        mpc_verbosity: false
+        homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.3
         forward_vel: 1.0

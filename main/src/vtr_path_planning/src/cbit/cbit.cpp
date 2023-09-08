@@ -20,7 +20,6 @@
 #include "vtr_path_planning/cbit/cbit.hpp"
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 
-
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.h>
 
@@ -29,8 +28,8 @@ namespace path_planning {
 
 namespace {
 // Function for converting Transformation matrices into se(2) [x, y, z, roll, pitch, yaw]
-inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
-    const tactic::EdgeTransform& T) {
+inline std::tuple<double, double, double, double, double, double> T2xyzrpy(const tactic::EdgeTransform& T) 
+{
   const auto Tm = T.matrix();
   return std::make_tuple(Tm(0, 3), Tm(1, 3), Tm(2,3), std::atan2(Tm(2, 1), Tm(2, 2)), std::atan2(-1*Tm(2, 0), sqrt(pow(Tm(2, 1),2) + pow(Tm(2, 2),2))), std::atan2(Tm(1, 0), Tm(0, 0)));
 }
@@ -42,10 +41,6 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 
   // Base planner configs
   config->control_period = (unsigned int)node->declare_parameter<int>(prefix + ".control_period", config->control_period);
-
-  // robot configuration
-  config->robot_model = node->declare_parameter<std::string>(prefix + ".teb.robot_model", config->robot_model);
-  config->robot_radius = node->declare_parameter<double>(prefix + ".teb.robot_radius", config->robot_radius);
 
   // CBIT Configs
   // ENVIRONMENT:
@@ -74,6 +69,9 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 
   // MPC Configs:
   // CONTROLLER PARAMS
+  config->obstacle_avoidance = node->declare_parameter<bool>(prefix + ".cbit.obstacle_avoidance", config->obstacle_avoidance);
+  config->mpc_verbosity = node->declare_parameter<bool>(prefix + ".mpc.mpc_verbosity", config->mpc_verbosity);
+  config->homotopy_guided_mpc = node->declare_parameter<bool>(prefix + ".mpc.homotopy_guided_mpc", config->homotopy_guided_mpc);
   config->horizon_steps = node->declare_parameter<int>(prefix + ".mpc.horizon_steps", config->horizon_steps);
   config->horizon_step_size = node->declare_parameter<double>(prefix + ".mpc.horizon_step_size", config->horizon_step_size);
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
@@ -86,16 +84,12 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   // COST FUNCTION COVARIANCE
   const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
   config->pose_error_cov.diagonal() << pose_error_diag[0], pose_error_diag[1], pose_error_diag[2], pose_error_diag[3], pose_error_diag[4], pose_error_diag[5];
-
   const auto vel_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.vel_error_cov", std::vector<double>());
   config->vel_error_cov.diagonal() << vel_error_diag[0], vel_error_diag[1];
-
   const auto acc_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.acc_error_cov", std::vector<double>());
   config->acc_error_cov.diagonal() << acc_error_diag[0], acc_error_diag[1];
-
   const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
   config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
-
   const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
   config->lat_error_cov.diagonal() << lat_error_diag[0];
 
@@ -117,6 +111,11 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 }
 
 
+
+
+
+
+
 // Declare class as inherited from the BasePathPlanner
 CBIT::CBIT(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
@@ -128,15 +127,9 @@ CBIT::CBIT(const Config::ConstPtr& config,
   // Initialize the shared pointer to the output of the planner
   cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
 
-  // Create publishers
-  tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
-  mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", 10);
-  robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
-  path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
-  corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
-  corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
-  ref_pose_pub1_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array1", 10);
-  ref_pose_pub2_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array2", 10);
+  // create visualizer and its corresponding pointer:
+  VisualizationUtils visualization_utils(node);
+  visualization_ptr = std::make_shared<VisualizationUtils>(visualization_utils);
 
   // Updating cbit_configs
   // Environment
@@ -181,6 +174,11 @@ CBIT::CBIT(const Config::ConstPtr& config,
   process_thread_cbit_ = std::thread(&CBIT::process_cbit, this);
 }
 
+
+
+
+
+
 CBIT::~CBIT() { stop_cbit(); }
 
 void CBIT::stop_cbit() {
@@ -223,7 +221,7 @@ void CBIT::process_cbit() {
   }
 }
 
-// Here is where we can do all the teach path pre-processing and then begin the anytime planner asychronously
+// Here is where we do all the teach path pre-processing and then begin the anytime planner asychronously
 void CBIT::initializeRoute(RobotState& robot_state) {
   auto& chain = *robot_state.chain;
 
@@ -244,21 +242,18 @@ void CBIT::initializeRoute(RobotState& robot_state) {
     se3_vector = T2xyzrpy(teach_frame);
     se3_pose = Pose(std::get<0>(se3_vector), std::get<1>(se3_vector), std::get<2>(se3_vector), std::get<3>(se3_vector), std::get<4>(se3_vector), std::get<5>(se3_vector));
     euclid_path_vec.push_back(se3_pose);
-    //CLOG(ERROR, "path_planning.cbit") << "Global Path Yaw values: " << i << ": " << std::get<5>(se3_vector);
   }
 
 
-  // experimental, trying to determine sign for path following direction
-  // Using two consecutive poses on the path, we need to try to determine which direction the repeat is going:
+  // Using two consecutive poses on the path, we need to try to determine which direction the repeat is going before we generate the pq space:
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
   auto world_frame_pose = T2xyzrpy(T_w_p * T_p_r);
-  auto test1 = euclid_path_vec[0];
-  auto test2 = euclid_path_vec[1];
-  auto path_yaw = std::atan2((test2.y-test1.y),(test2.x-test1.x));
+  auto first_pose = euclid_path_vec[0];
+  auto second_pose = euclid_path_vec[1];
+  auto path_yaw = std::atan2((second_pose.y-first_pose.y),(second_pose.x-first_pose.x));
   auto pose_graph_yaw = std::get<5>(world_frame_pose);
-  CLOG(INFO, "path_planning.cbit") << "The path_yaw is: " << path_yaw;
-  CLOG(INFO, "path_planning.cbit") << "The pose_graph yaw is: " << pose_graph_yaw;
+
   // Logic for determining the forward/reverse sign:
   PathDirection path_direction; //1.0 = forward planning, -1.0 = reverse planning
   if (abs((abs(path_yaw) - abs(pose_graph_yaw))) > 1.57075)
@@ -269,9 +264,8 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   {
     path_direction = PATH_DIRECTION_FORWARD;
   }
+
   CLOG(INFO, "path_planning.cbit") << "The path repeat direction is:" << path_direction;
-
-
   CLOG(INFO, "path_planning.cbit") << "Trying to create global path";
   // Create the path class object (Path preprocessing)
   CBITPath global_path(cbit_config, euclid_path_vec);
@@ -286,14 +280,16 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   corridor_ptr = std::make_shared<CBITCorridor>(corridor);
   CLOG(INFO, "path_planning.cbit") << "Corridor generated successfully. Attempting to instantiate the planner";
 
-
   // Instantiate the planner
   CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, path_direction);
   CLOG(INFO, "path_planning.cbit") << "Planner successfully created and resolved";
-
 }
 
-// Generate twist commands to track the planned local path (obstacle free)
+
+
+
+
+// Generate twist commands to track the planned local path (function is called at the control rate)
 auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
@@ -305,14 +301,14 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     return Command();
   }
 
-  // retrieve the transorm info from the localization chain
+  // retrieve the transorm info from the localization chain for the current robot state
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
 
-  CLOG(INFO, "path_planning.cbit") << "The T_r_v_odo is: " << T_r_v_odo;
-  CLOG(INFO, "path_planning.cbit") << "The T_p_r is: " << T_p_r;
+  //CLOG(INFO, "path_planning.cbit") << "The T_r_v_odo is: " << T_r_v_odo;
+  //CLOG(INFO, "path_planning.cbit") << "The T_p_r is: " << T_p_r;
+
   // Extrapolate the pose of the robot into the future based on the localization delay
-  //prev_stamp = stamp;
   const auto curr_time = now();  // always in nanoseconds
   const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 
@@ -327,7 +323,9 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
 
   //START OF OBSTACLE PERCEPTION UPDATES
-  if (prev_stamp != stamp)
+  // TODO, add a parameter check to see if we are ignoring obstacles or not
+  bool obstacle_avoidance = config_->obstacle_avoidance;
+  if ((prev_stamp != stamp) && (obstacle_avoidance == true))
   {
     auto obs_map = robot_state.obs_map;
     const auto costmap_sid = robot_state.costmap_sid;
@@ -369,6 +367,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   {
 
     // Initializations from config
+    bool mpc_verbosity = config_->mpc_verbosity;
+    bool homotopy_guided_mpc = config_->homotopy_guided_mpc;
     int K = config_->horizon_steps; // Horizon steps
     double DT = config_->horizon_step_size; // Horizon step size
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
@@ -436,7 +436,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     // End of speed scheduler code
 
 
-
+    // Grab the current MPC configurations
 
     // Pose Covariance Weights
     Eigen::Matrix<double, 6, 6> pose_noise_vect;
@@ -537,27 +537,24 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     auto ref_tracking_result = GenerateTrackingReference(cbit_path_ptr, robot_pose, K,  DT, VF);
     auto tracking_poses = ref_tracking_result.poses;
     //bool point_stabilization = ref_tracking_result.point_stabilization; // No need to do both tracking and homotopy point stabilization
-
     std::vector<double> p_interp_vec = ref_tracking_result.p_interp_vec;
     std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
 
-    // Experimental Synchronized Tracking/Teach Reference Poses:
+    // Synchronized Tracking/Teach Reference Poses:
     auto ref_homotopy_result = GenerateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid, p_interp_vec);
     auto homotopy_poses = ref_homotopy_result.poses;
     bool point_stabilization = ref_homotopy_result.point_stabilization;
     std::vector<double> barrier_q_left = ref_homotopy_result.barrier_q_left;
     std::vector<double> barrier_q_right = ref_homotopy_result.barrier_q_right;
-
-
-    std::vector<lgmath::se3::Transformation> ref_pose_vec1;
+    std::vector<lgmath::se3::Transformation> tracking_pose_vec;
     for (int i = 0; i<tracking_poses.size(); i++)
     {
-      ref_pose_vec1.push_back(tracking_poses[i].inverse());
+      tracking_pose_vec.push_back(tracking_poses[i].inverse());
     }
-    std::vector<lgmath::se3::Transformation> ref_pose_vec2;
+    std::vector<lgmath::se3::Transformation> homotopy_pose_vec;
     for (int i = 0; i<homotopy_poses.size(); i++)
     {
-      ref_pose_vec2.push_back(homotopy_poses[i].inverse());
+      homotopy_pose_vec.push_back(homotopy_poses[i].inverse());
     }
 
     // Generate the mpc configuration structure:
@@ -565,7 +562,14 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     mpc_config.previous_vel = applied_vel;
     mpc_config.T0 = T0;
     mpc_config.tracking_reference_poses = tracking_poses;
-    mpc_config.homotopy_reference_poses = tracking_poses; // change this one for homotopy guided
+    if (homotopy_guided_mpc == true)
+    {
+      mpc_config.homotopy_reference_poses = homotopy_poses;
+    }
+    else
+    {
+      mpc_config.homotopy_reference_poses = tracking_poses; // if not using homotopy guided mpc, set the homotopy reference poses to be the tracking poses
+    }
     mpc_config.barrier_q_left = barrier_q_left;
     mpc_config.barrier_q_right = barrier_q_right;
     mpc_config.K = K;
@@ -582,6 +586,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     mpc_config.acc_error_weight = acc_error_weight;
     mpc_config.kin_error_weight = kin_error_weight;
     mpc_config.lat_error_weight = lat_error_weight;
+    mpc_config.verbosity = mpc_verbosity;
+    mpc_config.homotopy_mode = homotopy_guided_mpc;
 
     // Create and solve the STEAM optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -615,8 +621,8 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     // Store the current robot state in the robot state path so it can be visualized
     robot_poses.push_back(T_w_p * T_p_r);
 
-    // Send the robot poses and mpc prediction to rviz
-    visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses, ref_pose_vec1, ref_pose_vec2);
+    // visualize the outputs
+    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_p_r_extp2, mpc_poses, robot_poses, tracking_pose_vec, homotopy_pose_vec, cbit_path_ptr, corridor_ptr);
 
     // return the computed velocity command for the first time step
     Command command;
@@ -664,342 +670,6 @@ auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
   return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid};
 }
 
-// Visualizing robot pose and the planned paths in rviz
-void CBIT::visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p, const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction, std::vector<lgmath::se3::Transformation> ref_pose_vec1, std::vector<lgmath::se3::Transformation> ref_pose_vec2)
-{
-  /// Publish the current frame for planning
-  {
-    Eigen::Affine3d T(T_w_p.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.header.frame_id = "world";
-    msg.child_frame_id = "planning frame";
-    tf_bc_->sendTransform(msg);
-  }
-
-  /// Publish the current robot in the planning frame
-  {
-    Eigen::Affine3d T(T_p_r.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "planning frame";
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.child_frame_id = "robot planning";
-    tf_bc_->sendTransform(msg);
-  }
-
-  // Publish robot pose extrapolated using odometry
-  {
-    Eigen::Affine3d T(T_p_r_extp.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "planning frame";
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.child_frame_id = "robot planning (extrapolated)";
-    tf_bc_->sendTransform(msg);
-  }
-
-  // Publish MPC extrapolated current robot pose
-  {
-    Eigen::Affine3d T(T_p_r_extp_mpc.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "planning frame";
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.child_frame_id = "robot planning (extrapolated) mpc";
-    tf_bc_->sendTransform(msg);
-  }
-
-  /// Publishing the MPC horizon prediction
-  {
-    nav_msgs::msg::Path mpc_path;
-    mpc_path.header.frame_id = "world";
-    mpc_path.header.stamp = rclcpp::Time(stamp);
-    auto& poses = mpc_path.poses;
-
-    // intermediate states
-    for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
-      auto& pose = poses.emplace_back();
-      pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
-    }
-    mpc_path_pub_->publish(mpc_path);
-  }
-
-  /// Publishing the history of the robots actual pose
-  {
-    nav_msgs::msg::Path robot_path;
-    robot_path.header.frame_id = "world";
-    robot_path.header.stamp = rclcpp::Time(stamp);
-    auto& poses = robot_path.poses;
-
-    // intermediate states
-    for (unsigned i = 0; i < robot_prediction.size(); ++i) {
-      auto& pose = poses.emplace_back();
-      pose.pose = tf2::toMsg(Eigen::Affine3d(robot_prediction[i].matrix()));
-    }
-    robot_path_pub_->publish(robot_path);
-  }
-
-
-  // Attempting to publish the actual path which we are receiving from the shared pointer in the cbitplanner
-  // The path is stored as a vector of se3 Pose objects from cbit/utils, need to iterate through and construct proper ros2 nav_msgs PoseStamped
-
-  {
-    nav_msgs::msg::Path path;
-    path.header.frame_id = "world";
-    path.header.stamp = rclcpp::Time(stamp);
-    auto& poses = path.poses;
-
-    // iterate through the path
-    //CLOG(INFO, "path_planning.cbit") << "Trying to publish the path, the size is: " << (*cbit_path_ptr).size();
-    geometry_msgs::msg::Pose test_pose;
-    for (unsigned i = 0; i < (*cbit_path_ptr).size(); ++i)
-    {
-      auto& pose = poses.emplace_back();
-      //pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix())); // Example for how to grab the transform from a transform with covariance data type
-      test_pose.position.x = (*cbit_path_ptr)[i].x;
-      test_pose.position.y = (*cbit_path_ptr)[i].y;
-      test_pose.position.z = (*cbit_path_ptr)[i].z;
-      test_pose.orientation.x = 0.0;
-      test_pose.orientation.y = 0.0;
-      test_pose.orientation.z = 0.0;
-      test_pose.orientation.w = 1.0;
-      pose.pose = test_pose;
-    }
-
-    path_pub_->publish(path);
-  }
-
-
-
-  // Attempting to Publish the left and right dynamic corridor for the current path homotopy class
-  {
-    nav_msgs::msg::Path corridor_left;
-    corridor_left.header.frame_id = "world";
-    corridor_left.header.stamp = rclcpp::Time(stamp);
-    auto& poses_l = corridor_left.poses;
-
-    nav_msgs::msg::Path corridor_right;
-    corridor_right.header.frame_id = "world";
-    corridor_right.header.stamp = rclcpp::Time(stamp);
-    auto& poses_r = corridor_right.poses;
-
-    // iterate through the corridor paths
-    geometry_msgs::msg::Pose test_pose_l;
-    geometry_msgs::msg::Pose test_pose_r;
-    for (unsigned i = 0; i < corridor_ptr->x_left.size(); i++) 
-    {
-      //lhs
-      auto& pose_l = poses_l.emplace_back();
-      test_pose_l.position.x = corridor_ptr->x_left[i];
-      test_pose_l.position.y = corridor_ptr->y_left[i];
-      test_pose_l.position.z = 0.0; // setting this 0.0 for now for flat world assumption, but long term we might want to add a z component
-      test_pose_l.orientation.x = 0.0;
-      test_pose_l.orientation.y = 0.0;
-      test_pose_l.orientation.z = 0.0;
-      test_pose_l.orientation.w = 1.0;
-      pose_l.pose = test_pose_l;
-
-      // rhs
-      auto& pose_r = poses_r.emplace_back();
-      test_pose_r.position.x = corridor_ptr->x_right[i];
-      test_pose_r.position.y = corridor_ptr->y_right[i];
-      test_pose_r.position.z = 0.0; // setting this 0.0 for now for flat world assumption, but long term we might want to add a z component
-      test_pose_r.orientation.x = 0.0;
-      test_pose_r.orientation.y = 0.0;
-      test_pose_r.orientation.z = 0.0;
-      test_pose_r.orientation.w = 1.0;
-      pose_r.pose = test_pose_r;
-    }
-
-    corridor_pub_l_->publish(corridor_left);
-    corridor_pub_r_->publish(corridor_right);
-  }
-
-  // Attempting to Publish the reference poses used in the mpc optimization as a pose array
-  {
-    // create a PoseArray message
-    geometry_msgs::msg::PoseArray pose_array_msg;
-    pose_array_msg.header.frame_id = "world";
-
-    // fill the PoseArray with some sample poses
-    for (int i = 0; i < ref_pose_vec1.size(); i++) {
-        geometry_msgs::msg::Pose pose;
-        auto T1 = ref_pose_vec1[i].matrix();
-        pose.position.x = T1(0,3);
-        pose.position.y = T1(1,3);;
-        pose.position.z = T1(2,3);;
-        pose.orientation.w = 1.0;
-        pose_array_msg.poses.push_back(pose);
-    }
-    ref_pose_pub1_->publish(pose_array_msg);
-  }
-
-    // Attempting to Publish the reference poses used in the mpc optimization as a pose array
-  {
-    // create a PoseArray message
-    geometry_msgs::msg::PoseArray pose_array_msg;
-    pose_array_msg.header.frame_id = "world";
-
-    // fill the PoseArray with some sample poses
-    for (int i = 0; i < ref_pose_vec2.size(); i++) {
-        geometry_msgs::msg::Pose pose;
-        auto T2 = ref_pose_vec2[i].matrix();
-        pose.position.x = T2(0,3);
-        pose.position.y = T2(1,3);;
-        pose.position.z = T2(2,3);;
-        pose.orientation.w = 1.0;
-        pose_array_msg.poses.push_back(pose);
-    }
-    ref_pose_pub2_->publish(pose_array_msg);
-  }
-  return;
-}
-
-
-// Function for converting a p,q coordinate value into a euclidean coordinate using the pre-processed path to follow
-Node CBIT::curve_to_euclid(Node node)
-{
-  double p_val = node.p;
-  double q_val = node.q;
-  int p_ind =  bisection(global_path_ptr->p, p_val);
-
-  // Linearly interpolate a Euclidean Pose using the euclidean path and the relative p_val,q_val
-  // TODO: need to use steam or lgmath se(3) classes for these poses, for now just using a vector
-  Pose pose_c = lin_interpolate(p_ind, p_val);
-
-  double x_i = pose_c.x - sin(pose_c.yaw)*q_val;
-  double y_i = pose_c.y + cos(pose_c.yaw)*q_val;
-
-  // Experimental, also interpolate the z value
-  double z_i = pose_c.z; //+ cos(pose_c.yaw)*q_val; // I think here we just want to set the z to whatever the pose_c.z value
-
-  return Node(x_i,y_i,z_i);
-}
-
-Pose CBIT::lin_interpolate(int p_ind, double p_val)
-{
-  double p_max = global_path_ptr->p[(global_path_ptr->p.size() - 1)]; //TODO: Replace this with se(3)
-  double p_lower;
-  double p_upper;
-  if (p_val >= p_max) // if p_val is exactly the max (goal p) then return the final euclid pose
-  {
-    return Pose(global_path_ptr->path[(global_path_ptr->path.size() - 1)]);
-  }
-
-  else
-  {
-    p_upper = global_path_ptr->p[p_ind + 1];
-    p_lower = global_path_ptr->p[p_ind];
-  }
-
-  Pose start_pose = global_path_ptr->path[p_ind];
-  Pose end_pose = global_path_ptr->path[p_ind + 1];
-
-  double x_c = start_pose.x + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.x - start_pose.x);
-  double y_c = start_pose.y + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.y - start_pose.y);
-  double z_c = start_pose.z + ((p_val - p_lower) / (p_upper - p_lower)) * (end_pose.z - start_pose.z);
-
-  // For angles, we dont really care about roll and pitch, these can be left 0 (atleast for now)
-  // For yaw need to be very careful of angle wrap around problem:
-  double angle_difference = std::fmod((std::fmod((end_pose.yaw - start_pose.yaw),(2.0*M_PI)) + (3.0*M_PI)),(2.0*M_PI)) - M_PI; // CHECK THIS!
-  double yaw_c = start_pose.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * angle_difference;
-
-  return Pose({x_c, y_c, z_c, 0.0, 0.0, yaw_c});
-
-}
-
-
-struct CBIT::collision_result CBIT::discrete_collision_v2(double discretization, Node start, Node end)
-{
-    // We dynamically determine the discretization based on the length of the edge
-    discretization = ceil(calc_dist(start, end) * discretization);
-
-    // Generate discretized test nodes
-    std::vector<double> p_test;
-    std::vector<double> q_test;
-
-    double p_step = fabs(end.p - start.p) / discretization;
-    double q_step = fabs(end.q - start.q) / discretization;
-    
-    p_test.push_back(start.p);
-    q_test.push_back(start.q);
-
-    for (int i = 0; i < discretization-1; i++)
-    {
-        p_test.push_back(p_test[i] + p_step*sgn(end.p-start.p) );
-        q_test.push_back(q_test[i] + q_step*sgn(end.q-start.q) );
-    }
-    p_test.push_back(end.p);
-    q_test.push_back(end.q);
-
-
-
-    // Loop through the test curvilinear points, convert to euclid, collision check obstacles
-    Node curv_pt;
-    for (int i = 0; i < p_test.size(); i++)
-    {
-        curv_pt = Node(p_test[i], q_test[i]);
-
-        // Convert to euclid TODO:
-        //Node euclid_pt = curv_pt; // DEBUG DO NOT LEAVE THIS HERE, NEED TO REPLACE WITH COLLISION CHECK FUNCTION
-        Node euclid_pt = curve_to_euclid(curv_pt);
-
-        if (costmap_col_tight(euclid_pt))
-        {
-          return {true, curv_pt};
-        }
-        
-
-    }
-
-    return {false, curv_pt};
-}
-
-
-// This collision check is only used at the end of each batch and determines whether the path should be rewired using the bare minimum obstacle distance
-// Under normal operation we plan paths around a slightly more conservative buffer around each obstacle (equal to influence dist + min dist)
-bool CBIT::costmap_col_tight(Node node)
-{
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Original Node: x: " << node.p << " y: " << node.q << " z: " << node.z;
-  Eigen::Matrix<double, 4, 1> test_pt({node.p, node.q, node.z, 1});
-
-  // I am no longer temporally filtering here, instead this takes place in the costmap itself in the change detection module
-  // This means the costmap and transform size should never be more than 1
-  //for (int i = 0; i < cbit_costmap_ptr->T_c_w_vect.size(); i++)
-  //{
-
-
-  auto collision_pt = costmap_ptr->T_c_w * test_pt;
-
-  // Round the collision point x and y values down to the nearest grid resolution so that it can be found in the obstacle unordered_map
-  float x_key = floor(collision_pt[0] / costmap_ptr->grid_resolution) * costmap_ptr->grid_resolution;
-  float y_key = floor(collision_pt[1] / costmap_ptr->grid_resolution) * costmap_ptr->grid_resolution;
-
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "X_key:  " << x_key;
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Y_key:  " << y_key;
-
-  float grid_value;
-
-  // Check to see if the point is in the obstacle map
-  // We need to use a try/catch in this metod as if the key value pair doesnt exist (it usually wont) we catch an out of range error
-  try 
-  {
-  // Block of code to try
-    grid_value = costmap_ptr->obs_map.at(std::pair<float, float> (x_key, y_key));
-    //CLOG(ERROR, "path_planning.cbit_planner") << "Key Value:  " << grid_value;
-  }
-  catch (std::out_of_range) 
-  {
-    grid_value = 0.0;
-  }
-
-  if (grid_value >= 0.89) // By switching this from > 0.0 to 0.9, we effectively only collision check the path out to the "minimum_distance" obs config param
-  {
-    return true;
-  }
-  //}
-
-  // If we make it here can return false for no collision
-  return false;
-}
 
 }  // namespace path_planning
 }  // namespace vtr

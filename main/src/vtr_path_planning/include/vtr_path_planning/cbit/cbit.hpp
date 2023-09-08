@@ -42,6 +42,7 @@
 #include "vtr_path_planning/cbit/generate_pq.hpp"
 #include "vtr_path_planning/cbit/cbit_path_planner.hpp"
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
+#include "vtr_path_planning/cbit/visualization_utils.hpp"
 
 #include "steam.hpp"
 
@@ -97,6 +98,9 @@ class CBIT : public BasePathPlanner {
     bool plotting = true;
 
     // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
+    bool obstacle_avoidance = false;
+    bool mpc_verbosity = false;
+    bool homotopy_guided_mpc = false;
     int horizon_steps = 10;
     double horizon_step_size = 0.5;
     double forward_vel = 0.75;
@@ -145,16 +149,7 @@ class CBIT : public BasePathPlanner {
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
-  void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction, std::vector<lgmath::se3::Transformation> ref_pose_vec1, std::vector<lgmath::se3::Transformation> ref_pose_vec2);
-  Node curve_to_euclid(Node node);
-  Pose lin_interpolate(int p_ind, double p_val);
-  bool costmap_col_tight(Node node);
-  struct collision_result
-  {
-      bool bool_result;
-      Node col_node;
-  };
-  struct collision_result discrete_collision_v2(double discretization, Node start, Node end);
+
   
  protected:
   struct ChainInfo {
@@ -175,16 +170,6 @@ class CBIT : public BasePathPlanner {
   CBITConfig cbit_config;
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
 
-  // Ros2 publishers
-  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_path_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr robot_path_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_l_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_r_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub1_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub2_;
-
   // Pointers to the output path
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
@@ -194,6 +179,9 @@ class CBIT : public BasePathPlanner {
 
   // Pointer to the global path
   std::shared_ptr<CBITPath> global_path_ptr;
+
+  // Pointer to visualizer
+  std::shared_ptr<VisualizationUtils> visualization_ptr;
 
   unsigned int prev_costmap_sid = 0;
   tactic::Timestamp prev_stamp;

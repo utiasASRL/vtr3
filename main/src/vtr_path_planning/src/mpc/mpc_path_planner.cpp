@@ -30,8 +30,8 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     // Access configuration parameters from the config structure
     Eigen::Matrix<double, 2, 1> previous_vel = config.previous_vel;
     lgmath::se3::Transformation T0 = config.T0;
-    std::vector<lgmath::se3::Transformation> tracking_reference_poses = config.tracking_reference_poses;
     std::vector<lgmath::se3::Transformation> homotopy_reference_poses = config.homotopy_reference_poses;
+    std::vector<lgmath::se3::Transformation> tracking_reference_poses = config.tracking_reference_poses;
     std::vector<double> barrier_q_left = config.barrier_q_left;
     std::vector<double> barrier_q_right = config.barrier_q_right;
     int K = config.K;
@@ -48,6 +48,8 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     double acc_error_weight = config.acc_error_weight;
     double kin_error_weight = config.kin_error_weight;
     double lat_error_weight = config.lat_error_weight;
+    bool verbosity = config.verbosity;
+    bool homotopy_mode = config.homotopy_mode;
 
     // Conduct an MPC Iteration given current configurations
 
@@ -106,7 +108,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     // Set the remaining states using a warm start from the cbit solution
     for (int i=1; i<K; i++)
     {
-        pose_states.push_back(homotopy_reference_poses[i]); // New initialization - use the reference measurements from the cbit solution as our initialization - the first one is the same as our initial state
+        pose_states.push_back(tracking_reference_poses[i]); // New initialization - use the reference measurements from the cbit solution as our initialization - the first one is the same as our initial state
         vel_states.push_back(v0);
     }
 
@@ -151,7 +153,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       // Pose Error
       if (i > 0)
       {
-        const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], tracking_reference_poses[i]);
+        const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], homotopy_reference_poses[i]);
         auto dynamicposeLossFunc = steam::L2WeightedLossFunc::MakeShared(dynamic_pose_error_weight);
         const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, dynamicposeLossFunc);
         opt_problem.addCostTerm(pose_cost_term);
@@ -211,7 +213,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       {
         // Generate a locked transform evaluator to store the current measurement for state constraints
         // The reason we make it a variable and lock it is so we can use the built in steam evaluators which require evaluable inputs
-        measurement_vars.push_back(steam::se3::SE3StateVar::MakeShared(tracking_reference_poses[i]));
+        measurement_vars.push_back(steam::se3::SE3StateVar::MakeShared(homotopy_reference_poses[i]));
         measurement_vars[i]->locked() = true;
 
         // Take the compose inverse of the locked measurement w.r.t the state transforms
@@ -252,6 +254,13 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         //opt_problem.addCostTerm(lat_cost_term_right);
         const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, latLossFunc);
         //opt_problem.addCostTerm(lat_cost_term_left);
+
+        // If using homotopy class based control, apply barrier constraints. Else ignore them (more stable but potentially more aggressive)
+        if (homotopy_mode == true)
+        {
+          opt_problem.addCostTerm(lat_cost_term_right);
+          opt_problem.addCostTerm(lat_cost_term_left);
+        }
       }
     }
 
@@ -261,7 +270,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
     // Initialize solver parameters
     SolverType::Params params;
-    params.verbose = true; // Makes the output display for debug when true
+    params.verbose = verbosity; // Makes the output display for debug when true
     params.relative_cost_change_threshold = 1e-4;
     params.max_iterations = 100;
     params.absolute_cost_change_threshold = 1e-4;
@@ -519,7 +528,7 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
 
     // Determine the p_values we need for our measurement horizon, corrected for the p value of the closest point on the path to the current robot state
     std::vector<double> p_meas_vec;
-    std::vector<lgmath::se3::Transformation> tracking_reference_poses;
+    std::vector<lgmath::se3::Transformation> homotopy_reference_poses;
     std::vector<double> p_interp_vec;
     std::vector<double> q_interp_vec;
 
@@ -548,12 +557,12 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
       struct InterpResult interp_pose = InterpolatePose(p_meas_vec[i], cbit_p, cbit_path);
 
       // add to measurement vector
-      tracking_reference_poses.push_back(interp_pose.pose);
+      homotopy_reference_poses.push_back(interp_pose.pose);
       p_interp_vec.push_back(interp_pose.p_interp);
       q_interp_vec.push_back(interp_pose.q_interp);
 
     }
-    return {tracking_reference_poses, point_stabilization, p_interp_vec, q_interp_vec};
+    return {homotopy_reference_poses, point_stabilization, p_interp_vec, q_interp_vec};
 }
 
 
@@ -572,7 +581,7 @@ struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> gl
     std::vector<double> teach_path_p = global_path_ptr->p;
     
 
-    std::vector<lgmath::se3::Transformation> homotopy_reference_poses;
+    std::vector<lgmath::se3::Transformation> tracking_reference_poses;
 
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (int i = 0; i < p_interp_vec.size(); i++)
@@ -581,7 +590,7 @@ struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> gl
       struct InterpResult interp_pose = InterpolatePose(p_interp_vec[i], teach_path_p, teach_path);
 
       // add to measurement vector
-      homotopy_reference_poses.push_back(interp_pose.pose);
+      tracking_reference_poses.push_back(interp_pose.pose);
 
 
       // Find the corresponding left and right barrier q values to pass to the mpc
@@ -599,7 +608,7 @@ struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> gl
       barrier_q_right.push_back(corridor_ptr->q_right[p_ind-1]);
     }
 
-    return {homotopy_reference_poses, point_stabilization, barrier_q_left, barrier_q_right};
+    return {tracking_reference_poses, point_stabilization, barrier_q_left, barrier_q_right};
 }
 
 // function takes in the cbit path solution with a vector defining the p axis of the path, and then a desired p_meas

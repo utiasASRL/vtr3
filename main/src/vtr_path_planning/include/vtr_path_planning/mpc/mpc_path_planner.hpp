@@ -44,6 +44,8 @@ struct MPCConfig
     double acc_error_weight;
     double kin_error_weight;
     double lat_error_weight;
+    bool verbosity;
+    bool homotopy_mode;
 };
 
 struct MPCResult
