@@ -18,8 +18,7 @@
  */
 
 #include "vtr_path_planning/cbit/cbit.hpp"
-//#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
-#include "vtr_path_planning/mpc/mpc_path_planner2.hpp"
+#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 
 
 #include <tf2/convert.h>
@@ -532,41 +531,22 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     CLOG(DEBUG, "mpc_debug.cbit") << "The Inverted Current Robot State Using Direct Robot Values is: " << T0_inv;
     // End of pose extrapolation
 
-    /*
-    // Calculate which T_ref measurements to used based on the current path solution
-    CLOG(INFO, "mpc.cbit") << "Attempting to generate T_ref measurements";
-    auto meas_result = GenerateReferenceMeas2(cbit_path_ptr, robot_pose, K,  DT, VF);
-    auto measurements = meas_result.measurements;
-    bool point_stabilization = meas_result.point_stabilization;
-
-
-    // Experimental, corridor MPC reference measurement generation:
-    CLOG(WARNING, "mpc.cbit") << "Attempting to generate T_ref measurements";
-    auto meas_result3 = GenerateReferenceMeas3(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid);
-    auto measurements3 = meas_result3.measurements;
-    bool point_stabilization3 = meas_result3.point_stabilization;
-    std::vector<double> barrier_q_left = meas_result3.barrier_q_left;
-    std::vector<double> barrier_q_right = meas_result3.barrier_q_right;
-    // END of experimental code
-    */
-
-
 
     // Calculate which T_ref measurements to used based on the current path solution
     CLOG(INFO, "mpc.cbit") << "Attempting to generate T_ref measurements";
-    auto meas_result = GenerateReferenceMeas2(cbit_path_ptr, robot_pose, K,  DT, VF);
-    auto measurements = meas_result.measurements;
-    bool point_stabilization = meas_result.point_stabilization;
+    auto ref_tracking_result = GenerateTrackingReference(cbit_path_ptr, robot_pose, K,  DT, VF);
+    auto measurements = ref_tracking_result.measurements;
+    bool point_stabilization = ref_tracking_result.point_stabilization;
 
-    std::vector<double> p_interp_vec = meas_result.p_interp_vec;
-    std::vector<double> q_interp_vec = meas_result.q_interp_vec;
+    std::vector<double> p_interp_vec = ref_tracking_result.p_interp_vec;
+    std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
 
     // Experimental Synchronized Tracking/Teach Reference Poses:
-    auto meas_result4 = GenerateReferenceMeas4(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid, p_interp_vec);
-    auto measurements4 = meas_result4.measurements;
-    bool point_stabilization4 = meas_result4.point_stabilization;
-    std::vector<double> barrier_q_left = meas_result4.barrier_q_left;
-    std::vector<double> barrier_q_right = meas_result4.barrier_q_right;
+    auto ref_homotopy_result = GenerateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid, p_interp_vec);
+    auto measurements4 = ref_homotopy_result.measurements;
+    bool point_stabilization4 = ref_homotopy_result.point_stabilization;
+    std::vector<double> barrier_q_left = ref_homotopy_result.barrier_q_left;
+    std::vector<double> barrier_q_right = ref_homotopy_result.barrier_q_right;
     //CLOG(ERROR, "mpc_debug.cbit") << "The New Reference Measurements are: " << measurements4;
 
 
@@ -592,10 +572,9 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     {
       CLOG(INFO, "mpc.cbit") << "Attempting to solve the MPC problem";
       // Solve using corridor mpc
-      auto mpc_result = SolveMPC2(applied_vel, T0, measurements4, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
+      //auto mpc_result = SolveMPC(applied_vel, T0, measurements4, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       // Solve using tracking mpc
-      //auto mpc_result = SolveMPC2(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization3, pose_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
-      //auto mpc_result = SolveMPC(applied_vel, T0, measurements, K, DT, VF, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization); // Tracking controller version
+      auto   mpc_result = SolveMPC(applied_vel, T0, measurements, measurements, barrier_q_left, barrier_q_right, K, DT, VF, lat_noise_vect, pose_noise_vect, vel_noise_vect, accel_noise_vect, kin_noise_vect, point_stabilization, pose_error_weight, vel_error_weight, acc_error_weight, kin_error_weight, lat_error_weight);
       applied_vel = mpc_result.applied_vel; // note dont re-declare applied vel here
       mpc_poses = mpc_result.mpc_poses;
       CLOG(INFO, "mpc.cbit") << "Successfully solved MPC problem";
@@ -612,7 +591,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // If required, saturate the output velocity commands based on the configuration limits
     CLOG(INFO, "mpc.cbit") << "Saturating the velocity command if required";
-    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel2(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
+    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
     CLOG(INFO, "mpc.cbit") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
     
     // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
