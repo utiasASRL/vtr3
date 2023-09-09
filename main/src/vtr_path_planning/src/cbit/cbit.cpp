@@ -312,7 +312,11 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   // retrieve the transorm info from the localization chain for the current robot state
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
-
+  if (curr_sid == (chain.size()-2))
+  {
+    CLOG(WARNING, "cbit.control") << "Reaching End of Path, Disabling MPC";
+    return Command();
+  }
 
   // Retrieve the latest obstacle costmap
   bool obstacle_avoidance = config_->obstacle_avoidance;
@@ -323,7 +327,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     const auto T_start_vertex = chain.pose(costmap_sid);
     costmap_ptr->grid_resolution = robot_state.grid_resolution;
 
-    CLOG(DEBUG, "cbit.obstacle_filtering") << "the size of the map is: " << obs_map.size();
+    CLOG(DEBUG, "cbit.obstacle_filtering") << "The size of the map is: " << obs_map.size();
 
     // Updating the costmap pointer
     CLOG(DEBUG, "cbit.obstacle_filtering") << "Updating Costmap SID to: " << costmap_sid;
@@ -399,53 +403,48 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
 
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
-    const auto curr_time = now();  // always in nanoseconds
-    const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
-
-    // Check the time past since the last state update was received
-    // Go back through the vel_history to approximately dt seconds in the past
-    // Start applying each of the applied velocities sequentially
-    double control_period = config_->control_period / 1000.0; // control period is given by user in ms in the config
-    for (int i=std::floor(dt / control_period); i > 0; i--)
+    auto T_p_r_extp = T_p_r;
+    auto T_p_r_prop = T_p_r;
+    if (extrapolate_robot_pose == true)
     {
-      w_p_r_in_r(0) = -1* vel_history[vel_history.size()-(i+1)][0];
+      const auto curr_time = now();  // always in nanoseconds
+      const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+
+      // Check the time past since the last state update was received
+      // Go back through the vel_history to approximately dt seconds in the past
+      // Start applying each of the applied velocities sequentially
+      double control_period = config_->control_period / 1000.0; // control period is given by user in ms in the config
+      for (int i=std::floor(dt / control_period); i > 0; i--)
+      {
+        w_p_r_in_r(0) = -1* vel_history[vel_history.size()-(i+1)][0];
+        w_p_r_in_r(1) = 0.0;
+        w_p_r_in_r(2) = 0.0;
+        w_p_r_in_r(3) = 0.0;
+        w_p_r_in_r(4) = 0.0;
+        w_p_r_in_r(5) = -1* vel_history[vel_history.size()-(i+1)][1];
+        CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+
+        Eigen::Matrix<double, 6, 1> xi_p_r_in_r(control_period * w_p_r_in_r);
+        T_p_r_prop = T_p_r_prop * tactic::EdgeTransform(xi_p_r_in_r).inverse();
+
+      }
+      // Apply the final partial period velocity
+      w_p_r_in_r(0) = -1* vel_history.back()[0];
       w_p_r_in_r(1) = 0.0;
       w_p_r_in_r(2) = 0.0;
       w_p_r_in_r(3) = 0.0;
       w_p_r_in_r(4) = 0.0;
-      w_p_r_in_r(5) = -1* vel_history[vel_history.size()-(i+1)][1];
+      w_p_r_in_r(5) = -1* vel_history.back()[1];
       CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+      Eigen::Matrix<double, 6, 1> xi_p_r_in_r((dt - (std::floor(dt / control_period) * control_period)) * w_p_r_in_r);
+      T_p_r_prop = T_p_r_prop * tactic::EdgeTransform(xi_p_r_in_r).inverse();
+      CLOG(DEBUG, "cbit.debug") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
+      T_p_r_extp = T_p_r_prop;
 
-      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(control_period * w_p_r_in_r);
-      T_p_r = T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-
+      CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
     }
-    // Apply the final partial period velocity
-    w_p_r_in_r(0) = -1* vel_history.back()[0];
-    w_p_r_in_r(1) = 0.0;
-    w_p_r_in_r(2) = 0.0;
-    w_p_r_in_r(3) = 0.0;
-    w_p_r_in_r(4) = 0.0;
-    w_p_r_in_r(5) = -1* vel_history.back()[1];
-    CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
-    Eigen::Matrix<double, 6, 1> xi_p_r_in_r((dt - (std::floor(dt / control_period) * control_period)) * w_p_r_in_r);
-    T_p_r = T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-    CLOG(DEBUG, "cbit.debug") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
-    const auto T_p_r_extp = T_p_r;
 
-    CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
-
-    lgmath::se3::Transformation T0;
-    if (extrapolate_robot_pose == true)
-    {
-      // Use MPC derived extrapolation
-      T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
-    }
-    else
-    {
-      // No Extrapolation
-      T0 = lgmath::se3::Transformation(T_w_p * T_p_r);
-    }
+    lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
 
     //Convert to x,y,z,roll, pitch, yaw
     std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
@@ -535,6 +534,9 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     CLOG(INFO, "cbit.control") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
+    // Apply robot motor controller calibration scaling factors if applicable
+    applied_vel(0) = applied_vel(0) * config_->robot_linear_velocity_scale;
+    applied_vel(1) = applied_vel(1) * config_->robot_angular_velocity_scale;
 
     // If required, saturate the output velocity commands based on the configuration limits
     CLOG(INFO, "cbit.control") << "Saturating the velocity command if required";
@@ -553,14 +555,13 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // return the computed velocity command for the first time step
     Command command;
-    command.linear.x = saturated_vel(0) * config_->robot_linear_velocity_scale;
-    command.angular.z = saturated_vel(1) * config_->robot_angular_velocity_scale;
-    // Temporary modification by Jordy to test calibration of hte grizzly controller
-
-
+    command.linear.x = saturated_vel(0);
+    command.angular.z = saturated_vel(1);
+    
+    // Flagged log messages to test calibration of the grizzly controller (or any future robot)
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
     CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Angular Velocity: " << saturated_vel(1);
-    // End of modification
+
     
     CLOG(INFO, "cbit.control")
       << "Final control command: [" << command.linear.x << ", "

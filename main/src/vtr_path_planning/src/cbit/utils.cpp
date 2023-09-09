@@ -22,34 +22,11 @@
 
 #include "vtr_path_planning/cbit/utils.hpp"
 
-// Pose Constructor (ended up initializing these in the header)
-/*
-Pose::Pose(float x_in, float y_in, float z_in, float roll_in, float pitch_in, float yaw_in)
-{
-    x = x_in;
-    y = y_in;
-    z = z_in;
-    roll = roll_in;
-    pitch = pitch_in;
-    yaw = yaw_in;
-}
-*/
-
-// P,Q Node Constructor
-/*
-Node::Node(float p_in, float q_in)
-{
-    p = p_in;
-    q = q_in;
-}
-*/
-
 // Misc functions:
 
 // Weighted cost to go heuristic
 double h_estimated(Node node, Node goal, double alpha)
 {
-    // TODO: Need to wormhole proof this function still
 
     // instead of using straight line euclidean distance like in normal BIT*,
     // we use a more conservative heuristic which is simply the longitudinal distance to the goal
@@ -60,11 +37,8 @@ double h_estimated(Node node, Node goal, double alpha)
 
 double h_estimated_admissible(Node node, Node goal)
 {
-    // TODO: Need to wormhole proof this function still
-
     // instead of using straight line euclidean distance like in normal BIT*,
     // we use a more conservative heuristic which is simply the longitudinal distance to the goal
-    //Node projected_node(node.p, 0);
     double horz_cost = calc_dist(Node(node.p, 0), Node(goal.p, 0));
     return horz_cost;
 }
@@ -72,23 +46,16 @@ double h_estimated_admissible(Node node, Node goal)
 // weighted cost to come heuristic
 double g_estimated(Node node, Node start, double alpha)
 {
-    // TODO: Need to wormhole proof this function still
-
     // instead of using straight line euclidean distance like in normal BIT*,
     // we use a more conservative heuristic which is simply the longitudinal distance to the goal
-    //Node projected_node(node.p, 0);
-    //double horz_cost = calc_dist(start, projected_node);
     return calc_weighted_dist(start, node, alpha);
 }
 
 // Admissible cost to come heuristic
 double g_estimated_admissible(Node node, Node start)
 {
-    // TODO: Need to wormhole proof this function still
-
     // instead of using straight line euclidean distance like in normal BIT*,
     // we use a more conservative heuristic which is simply the longitudinal distance to the goal
-    //Node projected_node(node.p, 0);
     double horz_cost = calc_dist(start, Node(node.p, 0));
     return horz_cost;
 }
@@ -115,10 +82,6 @@ double calc_weighted_dist(Node start_node, Node end_node, double alpha)
     {
         dist_weight = (1.0 + (alpha / 3.0) * (((end_node.q * end_node.q * end_node.q) - (start_node.q * start_node.q * start_node.q)) / (end_node.q - start_node.q)));
     }
-    if (dist_weight * calc_dist(start_node,end_node) < 0.0 )
-    {
-        std::cout <<"Something wrong here" <<std::endl;
-    }
     return dist_weight * calc_dist(start_node,end_node);
 }
 
@@ -132,8 +95,6 @@ double calc_dist(Node start_node, Node end_node)
 
 
 // Function for calculating the expansion radius based on the sample density
-// TODO: This needs to be updated for my sliding window radius
-// - I may code it with sliding radius in mind for now, but will probably need some changes when I get there.
 double exp_radius(double q, double sample_box_height, double sample_box_width, double eta)
 {   /*
     # New radius expansion calc for sliding window sampling region
@@ -150,7 +111,6 @@ double exp_radius(double q, double sample_box_height, double sample_box_width, d
     double lambda_x = sample_box_height * sample_box_width;
     double zeta = M_PI;
     double radius = 2.0 * eta * (pow((1.0 + (1.0/d)),(1.0/d))) * (pow((lambda_x/zeta),0.5)) * (pow((log(q) / q),(1.0/d)));
-    //std::cout << "Expansion Radius: " << radius << std::endl;
     return radius;
 }
 

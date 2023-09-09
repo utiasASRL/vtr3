@@ -99,9 +99,9 @@ class CBIT : public BasePathPlanner {
     bool plotting = true;
 
     // Speed Scheduler
-    double planar_curv_weight = 2.50; // hardocded for now, make a param
-    double profile_curv_weight = 0.5; // hardocded for now, make a param
-    double eop_weight = 1.0; // hardocded for now, make a param
+    double planar_curv_weight = 2.50;
+    double profile_curv_weight = 0.5; 
+    double eop_weight = 1.0; 
 
     // MPC Configs
     bool obstacle_avoidance = false;

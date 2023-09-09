@@ -58,9 +58,9 @@ class CBITConfig {
         bool plotting = true;   
 
         // Speed Scheduler
-        double planar_curv_weight = 2.50; // hardocded for now, make a param
-        double profile_curv_weight = 0.5; // hardocded for now, make a param
-        double eop_weight = 1.0; // hardocded for now, make a param
+        double planar_curv_weight = 2.50;
+        double profile_curv_weight = 0.5;
+        double eop_weight = 1.0; 
 
         // MPC Configs 
         int horizon_steps = 10;
@@ -70,8 +70,6 @@ class CBITConfig {
         double max_ang_vel = 0.75;
         double robot_linear_velocity_scale = 1.0;
         double robot_angular_velocity_scale = 1.0;
-
-        // Add unicycle model param
 
         // Covariance Tuning Weights
         //Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();

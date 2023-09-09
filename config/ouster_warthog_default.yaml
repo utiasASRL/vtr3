@@ -327,7 +327,7 @@
         iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
-        initial_exp_rad: 0.75
+        initial_exp_rad: 1.25
         extrapolation: false
         incremental_plotting: false
         plotting: true

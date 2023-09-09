@@ -30,8 +30,6 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     // Process the path
     disc_path = initial_path;
 
-    // TODO: Cubic spline the discrete path to make it have smooth derivatives
-    // TEMP DEBUG, set the path equal to discrete path (no interpolations yet)
     path = disc_path;
 
     // Iterate through all poses in disc_path, assign a p coordinate value to the pose to use for the curvilinear space reference
@@ -62,15 +60,11 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     }
 
 
-    // TODO: Generate Radius of Curvature Wormhole regions 
-
-
-
     CLOG(INFO, "path_planning.cbit") << "Successfully Built a Path in generate_pq.cpp and Displayed log";
     
 }
 
-// note made this pretty quick and dirty, need to refine with interpolation next
+
 Pose CBITPath::interp_pose(double p_in)
 {
     int p_iter = 0;
@@ -81,6 +75,7 @@ Pose CBITPath::interp_pose(double p_in)
     Pose interpolated_pose(this->disc_path[p_iter].x, this->disc_path[p_iter].y, this->disc_path[p_iter].z, this->disc_path[p_iter].roll, this->disc_path[p_iter].pitch, this->disc_path[p_iter].yaw);
     return interpolated_pose;
 }
+
 
 // Calculating the distance between se(3) poses including a heading contribution
 double CBITPath::delta_p_calc(Pose start_pose, Pose end_pose, double alpha)
@@ -115,7 +110,6 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
         if (i % 5 == 0)
         {
             valid_points.push_back(Eigen::Vector2d(input_path[i].x, input_path[i].y));
-            //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << input_path[i].x << " y: " << input_path[i].y;
         }
     }
 
@@ -127,16 +121,12 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
         points(1, i) = valid_points[i](1);
     }
 
-    //CLOG(ERROR, "path_planning.corridor_debug") << "TEST" << points;
 
     Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 2);
-    //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
     // To query the spline, we use spline(test), where test is a normalized distance along the spline from 0 to 1
     //double test_p = p[1] / p.back();
     //double pred_x = spline(test_p)[0];
     //double pred_y = spline(test_p)[1];
-    //CLOG(ERROR, "path_planning.corridor_debug") << "normalized p_test: " << test_p;
-    //CLOG(ERROR, "path_planning.corridor_debug") << "Estimated point at - x: " << pred_x << " y: " << pred_y;
 
     return spline;
 }
@@ -150,7 +140,6 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(std::vector<Pose> input_pat
         if (i % 5 == 0)
         {
             valid_points.push_back(Eigen::Vector2d(sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y)), input_path[i].z));
-            //CLOG(ERROR, "path_planning.corridor_debug") << "Original point at - x: " << input_path[i].x << " y: " << input_path[i].y;
         }
     }
 
@@ -162,16 +151,11 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(std::vector<Pose> input_pat
         points(1, i) = valid_points[i](1);
     }
 
-    //CLOG(ERROR, "path_planning.corridor_debug") << "TEST" << points;
-
     Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 2);
-    //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
     // To query the spline, we use spline(test), where test is a normalized distance along the spline from 0 to 1
     //double test_p = p[1] / p.back();
     //double pred_x = spline(test_p)[0];
     //double pred_y = spline(test_p)[1];
-    //CLOG(ERROR, "path_planning.corridor_debug") << "normalized p_test: " << test_p;
-    //CLOG(ERROR, "path_planning.corridor_debug") << "Estimated point at - x: " << pred_x << " y: " << pred_y;
 
     return spline;
 }
@@ -206,10 +190,6 @@ double CBITPath::radius_of_curvature(double dist, Eigen::Spline<double, 2> splin
 
     double x_pred = curvature(0,0);
     double y_pred = curvature(1,0);
-    CLOG(INFO, "path_planning.cbit") << "splined x is: " << pred_x;
-    CLOG(INFO, "path_planning.cbit") << "splined y is: " << pred_y;
-    CLOG(INFO, "path_planning.cbit") << "Radius of Curvature Before sign is: " << roc_magnitude;
-    CLOG(INFO, "path_planning.cbit") << "Radius of Curvature is: " << roc_signed;
     
     // TODO, return both signed and magnitude ROC's
     // We use the magnitude ROC's for speed scheduling and the signed ones for generating wormhole regions
@@ -243,19 +223,4 @@ CBITCorridor::CBITCorridor(CBITConfig config, std::shared_ptr<CBITPath> global_p
         q_right.push_back(-1.0 * config.q_max);
     }
 
-    // I think its wise if here we also initialize the euclidean corridor points as well. This is annoying though because out curv to euclid
-    // is not in utils (yet). TODO I really should move all the collision checking things external and independant from the planner for this reason
-
-    // For now I may instead brute force the euclid generate at the end of each corridor update, I feel like even a 50000 bin loop (2.5km) wouldnt take
-    // more then a few ms (I believe early experiments showed you could do like 4million loop iterations every second or so in c++)
-
-    // debug prints to make sure this happened correctly
-    CLOG(DEBUG, "path_planning.corridor_debug") << "Length of P is: " << length_p;
-    CLOG(DEBUG, "path_planning.corridor_debug") << "Number of Bins is: " << num_bins;
-    CLOG(DEBUG, "path_planning.corridor_debug") << "P_bins are: " << p_bins;
-    CLOG(DEBUG, "path_planning.corridor_debug") << "Q_left is: " << q_left;
-    CLOG(DEBUG, "path_planning.corridor_debug") << "Q_right is: " << q_right;
-    CLOG(DEBUG, "path_planning.corridor_debug") << "Size of p_bins: " << p_bins.size();
-    CLOG(DEBUG, "path_planning.corridor_debug") << "Size of q_left,q_right: " << q_left.size();
-    
 }

@@ -104,7 +104,6 @@ class CBITPlanner {
         void InitializePlanningSpace();
         void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
         void ResetPlanner();
-        void HardReset(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
         std::shared_ptr<Node> UpdateState(PathDirection path_direction);
         std::shared_ptr<Node> UpdateStateSID(int SID, vtr::tactic::EdgeTransform T_p_r);
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
@@ -133,13 +132,6 @@ class CBITPlanner {
         std::shared_ptr<Node> col_check_path_v2(double max_lookahead_p);
         void restore_tree(double g_T_update, double g_T_weighted_update);
 
-        // Add class for Tree
-        // Add dictionary (or some other structure) for the cost to come lookup using NodeID as key
-
-        // Constructor: Needs to initialize all my objects im using
-
-
-        // Temporary functions for corridor updates, long term want to move these to a different file
         void update_corridor(std::shared_ptr<CBITCorridor> corridor, std::vector<double> homotopy_p, std::vector<double> homotopy_q, Node robot_state);
         struct collision_result
         {

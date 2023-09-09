@@ -27,7 +27,6 @@ VisualizationUtils::VisualizationUtils() {
 }
 
 VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
-    CLOG(ERROR, "path_planning.cbit") << "Trying to Make this shit";
     tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
     mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", 10);
     robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
@@ -36,7 +35,6 @@ VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
     ref_pose_pub_tracking_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_tracking", 10);
     ref_pose_pub_homotopy_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_homotopy", 10);
-    CLOG(ERROR, "path_planning.cbit") << "successfully made this shit";
 }
 
 void VisualizationUtils::visualize(
