@@ -1,3 +1,22 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * \file visualization_utils.cpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ */
+
 #include "vtr_path_planning/cbit/visualization_utils.hpp"
 
 namespace vtr {
@@ -24,7 +43,6 @@ void VisualizationUtils::visualize(
     const tactic::Timestamp& stamp,
     const tactic::EdgeTransform& T_w_p,
     const tactic::EdgeTransform& T_p_r,
-    const tactic::EdgeTransform& T_p_r_extp,
     const tactic::EdgeTransform& T_p_r_extp_mpc,
     const std::vector<lgmath::se3::Transformation>& mpc_prediction,
     const std::vector<lgmath::se3::Transformation>& robot_prediction,
@@ -50,16 +68,6 @@ void VisualizationUtils::visualize(
         msg.header.frame_id = "planning frame";
         msg.header.stamp = rclcpp::Time(stamp);
         msg.child_frame_id = "robot planning";
-        tf_bc_->sendTransform(msg);
-    }
-
-    // Publish robot pose extrapolated using odometry
-    {
-        Eigen::Affine3d T(T_p_r_extp.matrix());
-        auto msg = tf2::eigenToTransform(T);
-        msg.header.frame_id = "planning frame";
-        msg.header.stamp = rclcpp::Time(stamp);
-        msg.child_frame_id = "robot planning (extrapolated)";
         tf_bc_->sendTransform(msg);
     }
 

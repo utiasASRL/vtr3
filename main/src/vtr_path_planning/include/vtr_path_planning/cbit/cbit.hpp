@@ -105,6 +105,7 @@ class CBIT : public BasePathPlanner {
 
     // MPC Configs
     bool obstacle_avoidance = false;
+    bool extrapolate_robot_pose = true;
     bool mpc_verbosity = false;
     bool homotopy_guided_mpc = false;
     int horizon_steps = 10;
