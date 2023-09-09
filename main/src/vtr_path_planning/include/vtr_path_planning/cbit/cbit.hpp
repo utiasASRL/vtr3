@@ -181,6 +181,9 @@ class CBIT : public BasePathPlanner {
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
 
+  // Pointers to the flag for there being a valid solution or not
+  std::shared_ptr<bool> valid_solution_ptr;
+
   // Pointers to the corridor
   std::shared_ptr<CBITCorridor> corridor_ptr;
 

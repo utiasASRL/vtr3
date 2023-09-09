@@ -44,7 +44,7 @@ auto CBITPlanner::getChainInfo(vtr::path_planning::BasePathPlanner::RobotState& 
 }
 
 // Class Constructor:
-CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction)
+CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, PathDirection path_direction)
 { 
   // Setting random seed
   srand((unsigned int)time(NULL));
@@ -52,6 +52,7 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   // Access the pointer to memory where the final result will be stored:
   cbit_path_ptr = path_ptr;
   cbit_costmap_ptr = costmap_ptr;
+  valid_solution_ptr = solution_ptr;
 
   // Before beginning the planning phase, we need to wait for the robot to localize, and then update the goal state
   auto& chain = *robot_state.chain;
@@ -231,17 +232,11 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           sample_dist = calc_dist(*(tree.V[i]), *p_goal);
           if ((sample_dist <= 2.0) && ((tree.V[i])->p > (p_goal->p + (conf.initial_exp_rad/2)))) // TODO: replace magic number with a param, represents radius to search for state update rewires
           {
-            //tree.QV.push_back(tree.V[i]); // comment out when only taking closest point in the tree to consider
             tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>((tree.V[i]->g_T_weighted + h_estimated_admissible(*tree.V[i], *p_goal)), tree.V[i]));
           }
         }
 
-
-
-
         CLOG(INFO, "cbit_planner.path_planning") << "Robot State Updated Successfully, p: " << p_goal->p << " q: " << p_goal->q;
-        //CLOG(DEBUG, "path_planning.cbit_planner") << "Nearest Vertex, p: " << tree.V[closest_sample_ind]->p << " q: " << tree.V[closest_sample_ind]->q;
-        //CLOG(DEBUG, "path_planning.cbit_planner") << "QV size: " << tree.QV.size();
         CLOG(INFO, "cbit_planner.path_planning") << "QV size: " << tree.QV2.size();
 
         // When the planner resumes, this will cause it to immediately try to rewire locally to the new robot state in a short amount of time
@@ -263,9 +258,11 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       }
 
       // Only run this code if we have reached the end of a batch and have a new solution
-      // (displays results)
       if (p_goal->parent != nullptr)
       {
+        // Set that we have a valid solution
+        *valid_solution_ptr = true;
+
         // Benchmark current compute time
         auto stop_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time);
@@ -403,12 +400,16 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         else
         {
           // Reset the free space flag in sample freespace
-          //CLOG(WARNING, "path_planning.cbit_planner") << "No Collision:";
           repair_mode = false;
         }
         
         *cbit_path_ptr = euclid_path; // Update the pointer to point to the latest euclidean path update
         
+      }
+      else
+      {
+        *valid_solution_ptr = false;
+        CLOG(WARNING, "cbit_planner.path_planning") << "There is currently no valid solution to the planning problem - Trying again";
       }
       Prune(p_goal->g_T, p_goal->g_T_weighted);
 
@@ -417,7 +418,6 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       {
         std::vector<std::shared_ptr<Node>> new_samples = SampleBox(m);
         samples.insert(samples.end(), new_samples.begin(), new_samples.end());
-
       }
       
       else
@@ -486,8 +486,6 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
     CLOG(DEBUG, "cbit_planner.compute_metrics") << "Compute 1: " << duration_bench.count();
     start_bench_time = std::chrono::high_resolution_clock::now();
 
-
-
     
     // Generate prospective nodes
     std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> prospective_edge = BestInEdgeQueue();
@@ -503,7 +501,6 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       continue;
     }
     // Remove the edge from the queue (I think best to do this inside BestInEdgeQueue function)
-
 
     stop_bench_time = std::chrono::high_resolution_clock::now();
     duration_bench = std::chrono::duration_cast<std::chrono::nanoseconds>(stop_bench_time - start_bench_time);
@@ -621,14 +618,12 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
  
   } // End of main planning for loop
   
-
   // Exiting cleanly:
   // If we make it here and are no longer localized, we've reached end of path and should clear the bitstar path from memory
   if (localization_flag == false)
   {
-    CLOG(ERROR, "path_planning.cbit_planner") << "Reached End of Plan, Exiting cleanly";
+    CLOG(ERROR, "cbit_planner.path_planning") << "Reached End of Plan, Exiting cleanly";
     (*cbit_path_ptr).clear();
-    
   }
 } // End of main planning function
 
@@ -636,8 +631,6 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
 std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
 {
-
-  //TODO
   // Create a vector to store the pointers to the new samples we are going to generate.
   std::vector<std::shared_ptr<Node>> new_samples;
 
@@ -657,7 +650,7 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
   q_max = std::max(fabs(q_max), fabs(q_min));
 
   // maintain a minimum sample box height, this prevents sample density from becoming too ridiculous when following the path
-  if (q_max < 0.5) // TODO make this config param
+  if (q_max < 0.5)
   {
     q_max = 0.5;
   }
@@ -665,8 +658,6 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
   double p_max = p_goal->p + lookahead + padding;
   double p_zero = p_goal->p - padding;
 
-  //std::cout << "p_max: " << p_max << std::endl;
-  //std::cout << "p_zero: " << p_zero << std::endl;
   // Set the sliding window box height so it can be used for radius expansion purposes
   sample_box_height = q_max * 2;
 
@@ -679,10 +670,8 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
     double rand_q = (-1.0*q_max) + (rand() / (RAND_MAX / (q_max- (-1.0*q_max))));
     Node node(rand_p, rand_q);
 
-    // TODO: Before we add the sample to the sample vector, we need to collision check it
-    //if (is_inside_obs(obs_rectangle, curve_to_euclid(node))) // legacy version with obstacle vectors
+    // Before we add the sample to the sample vector, we need to collision check it
     if (costmap_col(curve_to_euclid(node))) // Using costmap for collision check
-
     {
       continue;
     }
@@ -692,10 +681,6 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleBox(int m)
       ind++;
     }
   }
-
-  // TODO: Generating Pre-seeds (Although I think actually in the current version I dont add additional pre-seeds in the sliding window)
-  // I think practically I shouldnt have to and it would slow things down alot.
-
   return new_samples;
 }
 
@@ -707,9 +692,6 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleFreeSpace(int m)
   
   double p_max = p_goal->p + dynamic_window_width + conf.sliding_window_freespace_padding;
   double p_zero = p_goal->p - conf.sliding_window_freespace_padding;
-
-  //std::cout << "p_max: " << p_max << std::endl;
-  //std::cout << "p_zero: " << p_zero << std::endl;
   double q_max = conf.q_max;
 
   int ind = 0;
@@ -720,8 +702,6 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleFreeSpace(int m)
     double rand_q = (-1.0*q_max) + (rand() / (RAND_MAX / (q_max- (-1.0*q_max))));
     Node node(rand_p, rand_q);
 
-    // Before we add the sample to the sample vector, we need to collision check it
-    //if (is_inside_obs(obs_rectangle, curve_to_euclid(node)))
     if (costmap_col(curve_to_euclid(node)))
     {
       continue;
@@ -733,45 +713,24 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleFreeSpace(int m)
     }
   }
 
-  // TODO: Generating Pre-seeds
+  // Generating Pre-seeds
   if (repair_mode == false)
   {
 
-    // hardcoded pre-seed interval for now
-    //int pre_seeds = abs(p_goal->p - p_start->p) / 0.25;
+    // hardcoded pre-seed interval of 25cm for now (really no reason for it to be much smaller or bigger than this)
     int pre_seeds = abs(p_zero - p_start->p) / 0.25; // Note needed to change p_goal to p_zero. When the sliding window padding is large, pre-seeds wont get generated all the way to the goal
-
-    std::cout << "generating pre-seeds - number is:" << pre_seeds << std::endl;
-    //std::cout << "The size of the tree is:" << tree.V.size() << std::endl;
 
     // In the python version I do this line thing which is more robust, but for now im going to do this quick and dirty
     double p_step = 0.25;
-    double p_val = p_zero; // needed to modify the starting i to be p_zero
+    double p_val = p_zero; 
     for (int i = 0; i < (pre_seeds-1); i++) 
     {
       Node node((p_val+p_step), 0);
-
-      // Before we add the sample to the sample vector, we need to collision check it in euclidean
-      //if (is_inside_obs(obs_rectangle, curve_to_euclid(node)) == false)
-      //if (costmap_col(curve_to_euclid(node)) == false)
-      //{
-      new_samples.push_back(std::make_shared<Node> (node)); // previously i was collision checking pre-seeds, but actually I think maybe I shouldnt
-      //}
+      new_samples.push_back(std::make_shared<Node> (node));
 
       p_val = p_val + p_step;
     }
   }
-
-
-  // Cheat samples for simple rectangle experiment
-  // NOTE BE VERY CAREFUL, I THINK PUTTING THESE IN SAMPLE BOX INSTEAD OF SAMPLE FREE SPACE CAUSES PROBLEMS DO TO REPOPULATING THE SAME SAMPLE EVERY BATCH
-  //Node cheat1 = {8.6,1.1};
-  //Node cheat2 = {7.4, 1.05};
-  //Node cheat3 = {8.6,1.1};
-  //Node cheat4 = {7.4, 1.05};
-  //new_samples.push_back(std::make_shared<Node> (cheat1));
-  //new_samples.push_back(std::make_shared<Node> (cheat2));
-
   return new_samples;
 
 }
@@ -817,8 +776,6 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
   }
 
   // We also check the tree and add samples for unconnected vertices back to the sample set
-  //We also do a prune of the vertex tree by heuristic
-  //&& (samples[i]->g_T != INFINITY)) 
   std::vector<std::shared_ptr<Node>> vertex_pruned;
   int vertices_size = tree.V.size(); 
   for (int i = 0; i < vertices_size; i++)
@@ -837,10 +794,8 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
   samples = samples_pruned;
   tree.V = vertex_pruned;
 
-  // TODO: Wormhole accomodations  
 
   // Similar Prune of the Edges
-  // TODO:Wormhole accomodations
   std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  edge_pruned;
   for (int i = 0; i <tree.E.size(); i++)
   {
@@ -849,174 +804,8 @@ void CBITPlanner::Prune(double c_best, double c_best_weighted)
     {
       edge_pruned.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> (tree.E[i]));
     }
-
   }
   tree.E = edge_pruned;
-  
-
-}
-
-// Function for updating the state of the robot, updates the goal and sliding window, and prunes the current tree
-// Note that this stage requires us to convert the state of the robot in euclidean space into a singular curvilinear space pt, which is actually slightly tricky
-// To do without singularities
-std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
-{
-  //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
-  //CLOG(ERROR, "path_planning.cbit_planner") << "Robot Pose: x: " << new_state->x << "Robot Pose: y: " << new_state->y  <<"Robot Pose: yaw: " << new_state->yaw;
-  //First calc the qmin distance to the euclidean path (borrow code from ROC generation)
-  //To prevent us from having to search the entire euclidean path (and avoid crosses/loops) in the path, use the previous pose as a reference (will always be p=0)
-  //and define a subset of points with a lookahead distance
-  std::vector<Node> euclid_subset;
-  euclid_subset.reserve((conf.roc_lookahead * conf.roc_lookahead * conf.curv_to_euclid_discretization));
-
-  // The length of the subset is determined by the configuration parameter lookahead distance and the desired discretization
-
-  for (double i = (*p_goal).p; i < ((*p_goal).p + conf.roc_lookahead); i += (1.0 / (conf.roc_lookahead * conf.curv_to_euclid_discretization)))
-  {
-    euclid_subset.push_back(curve_to_euclid(Node(i,0)));
-    
-  }
-  //std::cout << "The final euclid subset point is: x: " << euclid_subset[euclid_subset.size()-1].p << "y: " << euclid_subset[euclid_subset.size()-1].q << std::endl;
-
-  // calc q_min
-  double q_min = conf.q_max;
-  double q;
-  Node closest_pt;
-  int closest_pt_ind;
-
-  for (int i=0; i<euclid_subset.size(); i++)
-  {
-    double dx = new_state->x - euclid_subset[i].p;
-    double dy = new_state->y - euclid_subset[i].q;
-    q = sqrt((dy * dy) + (dx * dx));
-
-    if (q < q_min)
-    {
-      q_min = q;
-      closest_pt = euclid_subset[i];
-      closest_pt_ind = i;
-    }
-  }
-
-  // Experimental code to dynamically predict path direction
-  //CLOG(ERROR, "path_planning.cbit_planner") << "Closest Euclid Pt is - x: " << closest_pt.p << " y: " << closest_pt.q;
-  //CLOG(ERROR, "path_planning.cbit_planner") << "The Next Euclid Pt is - x: " << euclid_subset[closest_pt_ind+1].p << " y: " << euclid_subset[closest_pt_ind+1].q;
-  double test_dx = euclid_subset[closest_pt_ind+1].p - closest_pt.p;
-  double test_dy = euclid_subset[closest_pt_ind+1].q - closest_pt.q;
-  double test_yaw = atan2(test_dy,test_dx);
-  //CLOG(ERROR, "path_planning.cbit_planner") << "Predicted Yaw is: " << test_yaw;
-  // Ensure that yaw1 and yaw2 are in the range -pi to pi
-  double yaw1 = fmod(test_yaw + 2*M_PI, 2*M_PI);
-  if (yaw1 < 0) {
-      yaw1 += 2*M_PI;
-  }
-  double yaw2 = fmod(new_state->yaw + 2*M_PI, 2*M_PI);
-  if (yaw2 < 0) {
-      yaw2 += 2*M_PI;
-  }
-
-  // Calculate the angle between the yaws and ensure it is in the range 0 to pi
-  double angle = fmod(fabs(yaw1 - yaw2), 2*M_PI);
-  if (angle > M_PI) {
-      angle = 2*M_PI - angle;
-  }
-
-  // Check if the angle is greater than 90 degrees
-  double path_direction2;
-  if (angle > M_PI/2) {
-      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
-      path_direction2 = -1.0;
-  } else {
-      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
-      path_direction2 = 1.0;
-  }
-
-
-  // Once we have the closest point, we need to try to find the sign (above or below the path)
-  // This is a little tricky, but I think what is reasonable is to create a plane with the closest point and its neighbours
-  // Then depending on which side the new state point is of the plane, is the sign we use for q_min:
-
-  Node A;
-  Node B;
-  if (closest_pt_ind == 0)
-  {
-    A = euclid_subset[closest_pt_ind];
-  }
-  else
-  {
-    A = euclid_subset[closest_pt_ind-1];
-  }
-
-  if (closest_pt_ind == euclid_subset.size() - 1)
-  {
-    //A = euclid_subset[closest_pt_ind-1];
-    B = euclid_subset[closest_pt_ind];
-  }
-  else
-  {
-    //A = euclid_subset[closest_pt_ind];
-    B = euclid_subset[closest_pt_ind + 1];
-  }
-
-
-  int q_sign = sgn((B.p - A.p) * (new_state->y - A.q) - ((B.q - A.q) * (new_state->x - A.p))); 
-  
-  //q_min = q_min * q_sign;
-  //std::cout << "q_min is: " << q_min << std::endl; // debug;
-
-  // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
-  q_min = q_min * q_sign * path_direction2;
-  //std::cout << "q_min is: " << q_min << std::endl; // debug;
-
-  /*
-  switch (path_direction) {
-    case PATH_DIRECTION_REVERSE:
-      q_min = -q_min;
-      break;
-    case PATH_DIRECTION_FORWARD:
-      // Do nothing, q_min already has the correct sign
-      break;
-    default:
-      // Handle error case where path_direction is not a valid value
-      break;
-  }
-  */
-
-
-  // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
-  // We need to use this points p-value as a starting point, then search p, qmin space in either direction discretely and find the point with
-  // The lowest pose error (including heading) (Should be able to ignore roll and pitch though)
-  double pose_err = INFINITY;
-  Node test_pt;
-  double test_err;
-  Node new_state_pq;
-
-  for (double p = (*p_goal).p; p < ((*p_goal).p + conf.roc_lookahead); p += (1.0 / (conf.roc_lookahead * conf.curv_to_euclid_discretization)))
-  {
-    test_pt = curve_to_euclid(Node(p,q_min));
-    double dx = test_pt.p - new_state->x;
-    double dy = test_pt.q - new_state->y;
-    test_err = sqrt((dy * dy) + (dx * dx));
-    if (test_err < pose_err)
-    {
-      pose_err = test_err;
-      new_state_pq = Node(p,q_min);
-    }
-  }
-
-  // Now update the goal and its cost to come:
-  
-  std::shared_ptr<Node> new_state_pq_ptr = std::make_shared<Node>(new_state_pq);
-  p_goal = new_state_pq_ptr;
-  p_goal->g_T = INFINITY;
-  p_goal->g_T_weighted = INFINITY;
-
-  //std::cout << "Successfully Updated State: " << std::endl;
-
-  return p_goal;
-  // TODO: At this point we would pop out the first element of the new_state_arr so next state update we keep moving forward
-  
-
 }
 
 
@@ -1024,13 +813,8 @@ std::shared_ptr<Node> CBITPlanner::UpdateState(PathDirection path_direction)
 // New Simpler State Update function that instead uses the robots localization frame SID to help find the robot p,q space state
 std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTransform T_p_r)
 {
-  //std::cout << "The new state is x: " << new_state->x << " y: " << new_state->y  << std::endl;
-  //CLOG(ERROR, "path_planning.cbit_planner") << "Robot Pose: x: " << new_state->x << " Robot Pose: y: " << new_state->y  <<" Robot Pose: yaw: " << new_state->yaw;
-  //CLOG(ERROR, "path_planning.cbit_planner") << "Current SID is: " << SID;
-  
   // Find the corresponding global pose p,q value at the current SID (which should be just behind the actual current state)
   double current_pq_sid_p = global_path->p[SID];
-  //CLOG(ERROR, "path_planning.cbit_planner") << "SID P,Q Pose is: " << " p: " << current_pq_sid_p << " q: " << 0.0;
 
   std::vector<Node> euclid_subset;
   euclid_subset.reserve((conf.roc_lookahead * conf.roc_lookahead * conf.curv_to_euclid_discretization));
@@ -1051,7 +835,6 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
     euclid_subset.push_back(curve_to_euclid(Node(i,0)));
     
   }
-  //std::cout << "The final euclid subset point is: x: " << euclid_subset[euclid_subset.size()-1].p << "y: " << euclid_subset[euclid_subset.size()-1].q << std::endl;
 
   // calc q_min
   double q_min = conf.q_max;
@@ -1072,14 +855,10 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
       closest_pt_ind = i;
     }
   }
-
-  // Experimental code to dynamically predict path direction
-  //CLOG(ERROR, "path_planning.cbit_planner") << "Closest Euclid Pt is - x: " << closest_pt.p << " y: " << closest_pt.q;
-  //CLOG(ERROR, "path_planning.cbit_planner") << "The Next Euclid Pt is - x: " << euclid_subset[closest_pt_ind+1].p << " y: " << euclid_subset[closest_pt_ind+1].q;
   double test_dx = euclid_subset[closest_pt_ind+1].p - closest_pt.p;
   double test_dy = euclid_subset[closest_pt_ind+1].q - closest_pt.q;
   double test_yaw = atan2(test_dy,test_dx);
-  //CLOG(ERROR, "path_planning.cbit_planner") << "Predicted Yaw is: " << test_yaw;
+
   // Ensure that yaw1 and yaw2 are in the range -pi to pi
   double yaw1 = fmod(test_yaw + 2*M_PI, 2*M_PI);
   if (yaw1 < 0) {
@@ -1097,15 +876,14 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
   }
 
   // Check if the angle is greater than 90 degrees
-  double path_direction2;
+  double local_path_direction;
   if (angle > M_PI/2) {
       //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
-      path_direction2 = -1.0;
+      local_path_direction = -1.0;
   } else {
       //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
-      path_direction2 = 1.0;
+      local_path_direction = 1.0;
   }
-
 
   // Once we have the closest point, we need to try to find the sign (above or below the path)
   // This is a little tricky, but I think what is reasonable is to create a plane with the closest point and its neighbours
@@ -1124,39 +902,18 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
 
   if (closest_pt_ind == euclid_subset.size() - 1)
   {
-    //A = euclid_subset[closest_pt_ind-1];
     B = euclid_subset[closest_pt_ind];
   }
   else
   {
-    //A = euclid_subset[closest_pt_ind];
     B = euclid_subset[closest_pt_ind + 1];
   }
 
 
   int q_sign = sgn((B.p - A.p) * (new_state->y - A.q) - ((B.q - A.q) * (new_state->x - A.p))); 
   
-  //q_min = q_min * q_sign;
-  //std::cout << "q_min is: " << q_min << std::endl; // debug;
-
   // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
-  q_min = q_min * q_sign * path_direction2;
-  //std::cout << "q_min is: " << q_min << std::endl; // debug;
-
-  /*
-  switch (path_direction) {
-    case PATH_DIRECTION_REVERSE:
-      q_min = -q_min;
-      break;
-    case PATH_DIRECTION_FORWARD:
-      // Do nothing, q_min already has the correct sign
-      break;
-    default:
-      // Handle error case where path_direction is not a valid value
-      break;
-  }
-  */
-
+  q_min = q_min * q_sign * local_path_direction;
 
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
   // We need to use this points p-value as a starting point, then search p, qmin space in either direction discretely and find the point with
@@ -1186,46 +943,21 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
   p_goal->g_T = INFINITY;
   p_goal->g_T_weighted = INFINITY;
 
-  //std::cout << "Successfully Updated State: " << std::endl;
-
   return p_goal;
-  // TODO: At this point we would pop out the first element of the new_state_arr so next state update we keep moving forward
-  
-
-
-
 }
 
 
 
 double CBITPlanner::BestVertexQueueValue()
 {
-  //if (tree.QV.size() == 0)
-  //{
-  //  return INFINITY;
-  //}
   if (tree.QV2.size() == 0)
   {
     return INFINITY;
   }
-  // Iterate through all vertices in the queue, find the minimum cost heurstic
-  /*
-  double min_vertex_cost = INFINITY;
-  for (int i = 0; i < tree.QV.size(); i++)
-  {
-    double weighted_heuristic = tree.QV[i]->g_T_weighted + h_estimated_admissible(*tree.QV[i], *p_goal);
-    // TODO: Add in the h_estimated heuristic
-    if (weighted_heuristic < min_vertex_cost)
-    {
-      min_vertex_cost = weighted_heuristic;
-    }
-  }
-  */
   
   // New multimap implementation of this:
   std::multimap<double, std::shared_ptr<Node>>::iterator itr = tree.QV2.begin();
   double min_vertex_cost = itr -> first;
-
   return min_vertex_cost;
 }
 
@@ -1233,33 +965,10 @@ double CBITPlanner::BestVertexQueueValue()
 
 double CBITPlanner::BestEdgeQueueValue()
 {
-  //if (tree.QE.size() == 0)
-  //{
-  //  return INFINITY;
-  //}
   if (tree.QE2.size() == 0)
   {
     return INFINITY;
   }
-  /*
-  double min_edge_cost = INFINITY;
-  for (int i = 0; i < tree.QE.size(); i++)
-  {
-    // TODO: Add in the h_estimated heuristic
-    // The edge queue is stored as a vector of tuples, the first of which represents the starting vertex, and the second is the vertex
-    // which defines the end point of the connecting edge
-    std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> vertex_tuple = tree.QE[i];
-    Node v = *std::get<0>(vertex_tuple);
-    Node x = *std::get<1>(vertex_tuple);
-
-    double weighted_heuristic = v.g_T_weighted + calc_weighted_dist(v, x, conf.alpha) + h_estimated_admissible(x, *p_goal);
-    
-    if (weighted_heuristic < min_edge_cost)
-    {
-      min_edge_cost = weighted_heuristic;
-    }
-  }
-  */
 
   // Using multimaps to accomplish the same thing:
   std::multimap<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>::iterator itr = tree.QE2.begin();
@@ -1272,41 +981,10 @@ double CBITPlanner::BestEdgeQueueValue()
 
 std::shared_ptr<Node> CBITPlanner::BestInVertexQueue()
 {
-  //if (tree.QV.size() == 0)
-  //{
-    //std::cout << "Vertex Queue is Empty!" << std::endl;
-    //CLOG(INFO, "path_planning.cbit_planner") << "Vertex Queue is Empty, Something went Wrong!";
-  //}
   if (tree.QV2.size() == 0)
   {
-    CLOG(ERROR, "path_planning.cbit_planner") << "Vertex Queue is Empty, Something went Wrong!";
-    CLOG(ERROR, "path_planning.cbit_planner") << "Maybe we should flag to stop the mpc?";
+    CLOG(DEBUG, "path_planning.cbit_planner") << "Vertex Queue is Empty, Something went Wrong!";
   }
-
-
-  // Loop through the vertex queue, select the vertex node with the lowest cost to come + heuristic dist to goal
-  /*
-  double min_vertex_cost = INFINITY;
-  std::shared_ptr<Node> best_vertex;
-  int best_vertex_ind;
-  for (int i = 0; i < tree.QV.size(); i++)
-  {
-    double weighted_heuristic = tree.QV[i]->g_T_weighted + h_estimated_admissible(*tree.QV[i], *p_goal);
-    // TODO: Add in the h_estimated heuristic
-    if (weighted_heuristic < min_vertex_cost)
-    {
-      min_vertex_cost = weighted_heuristic;
-      best_vertex = tree.QV[i];
-      best_vertex_ind = i;
-    }
-  }   
-  // Once we process the vertex and have it ready to return, remove it from the vector
-  auto it = tree.QV.begin() + best_vertex_ind;
-  *it = std::move(tree.QV.back());
-  tree.QV.pop_back();
-  */
-
-
   // New multimap implementation of this:
   std::multimap<double, std::shared_ptr<Node>>::iterator itr = tree.QV2.begin();
   std::shared_ptr<Node> best_vertex = itr -> second;
@@ -1329,62 +1007,23 @@ void CBITPlanner::ExpandVertex(std::shared_ptr<Node> v)
       samples[i]->g_T = INFINITY;
       samples[i]->g_T_weighted = INFINITY;
 
-      // copying method
-      //std::shared_ptr<Node> v_copy = v; 
-      //std::shared_ptr<Node> x_copy = samples[i]; 
-      //tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> (v_copy, x_copy));
-
       // direct method
-      //tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (samples[i])});
       tree.QE2.insert(std::pair<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>((v->g_T_weighted + calc_weighted_dist(*v,*samples[i],conf.alpha) + h_estimated_admissible(*samples[i], *p_goal)), std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (samples[i])}));
 
     }
-  }
-
-  // I found the below code, while does follow the original algorithm, tends not to hurt compute performance
-  // yet allows the pre-seeded samples to much much better in subsequent iterations
-  // Removing this lets the tree use old verticies to find better paths more often (but subequently means you check more)
-  /* 
-  // First check to see that v is not in the old tree already, if it is return early
-  for (int i = 0; i < tree.V_Old.size(); i++)
-  {
-    if (v == tree.V_Old[i]) 
-    {
-      //CLOG(WARNING, "path_planning.cbit_planner") << "Returning early, expansion vertex is in V_old"; // For debug
-      return;
-    }
-  }
-  */
-  
+  }  
 
   // find nearby vertices and filter by heuristic potential
   for (int i = 0; i < tree.V.size(); i++)
   {
-    //auto test1 = calc_dist(*tree.V[i], *v);
-    //auto test2 = (g_estimated(*v, *p_start, conf.alpha) + calc_weighted_dist(*v, *tree.V[i], conf.alpha) + h_estimated(*tree.V[i], *p_goal, conf.alpha));
-    //auto test3 = (v->g_T_weighted + calc_weighted_dist(*v, *tree.V[i], conf.alpha));
     if ((calc_dist(*tree.V[i], *v) <= conf.initial_exp_rad) && ((g_estimated_admissible(*v, *p_start) + calc_weighted_dist(*v, *tree.V[i], conf.alpha) + h_estimated_admissible(*tree.V[i], *p_goal)) < p_goal->g_T_weighted) && ((v->g_T_weighted + calc_weighted_dist(*v, *tree.V[i], conf.alpha)) < tree.V[i]->g_T_weighted))
     {
       if (edge_in_tree_v2(v, tree.V[i]) == false)
       {
         // If all conditions satisfied, add the edge to the queue
-        //tree.V[i]->g_T = INFINITY; // huh actually looking at this again, im not sure if I should be doing this (yeah I think was a mistake)
-        //tree.V[i]->g_T_weighted = INFINITY; // huh actually looking at this again, im not sure if I should be doing this (yeah I think its a mistake)
-        //tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])});
         tree.QE2.insert(std::pair<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>((v->g_T_weighted + calc_weighted_dist(*v,*tree.V[i],conf.alpha) + h_estimated_admissible(*tree.V[i], *p_goal)), std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])}));
 
       }
-      /*
-      // Also check whether the edge is in the tree or not
-      if (edge_in_tree(*v, *tree.V[i]) == false)
-      {
-        // If all conditions satisfied, add the edge to the queue
-        //tree.V[i]->g_T = INFINITY; //I think these two lines were a mistake, should not be here
-        //tree.V[i]->g_T_weighted = INFINITY; //I think these two lines were a mistake, should not be here
-        tree.QE.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])});
-        //tree.QE2.insert(std::pair<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>((v->g_T_weighted + calc_weighted_dist(*v,*tree.V[i],conf.alpha) + h_estimated_admissible(*tree.V[i], *p_goal)), std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {(v), (tree.V[i])}));
-
-      */
     } 
   }
 }
@@ -1392,43 +1031,12 @@ void CBITPlanner::ExpandVertex(std::shared_ptr<Node> v)
 
 std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> CBITPlanner::BestInEdgeQueue()
 {
-  //if (tree.QE.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
-  //{
-  //  CLOG(DEBUG, "path_planning.cbit_planner") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
-  //  return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {NULL, NULL};
-  //}
   if (tree.QE2.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
   {
     CLOG(DEBUG, "path_planning.cbit_planner") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
     repair_mode = true;
     return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {NULL, NULL};
   }
-
-  /*
-  // Loop through edge queue, find the edge with the smallest heuristic cost
-  std::shared_ptr<Node> v;
-  std::shared_ptr<Node> x;
-  double min_cost = INFINITY;
-  double cost;
-  int best_edge_ind;
-  for (int i = 0; i < tree.QE.size(); i++)
-  {
-    cost = std::get<0>(tree.QE[i])->g_T_weighted + calc_weighted_dist(*std::get<0>(tree.QE[i]), *std::get<1>(tree.QE[i]), conf.alpha) + h_estimated_admissible(*std::get<1>(tree.QE[i]), *p_goal);
-    if (cost < min_cost)
-    {
-      min_cost = cost;
-      best_edge_ind = i;
-      v = std::get<0>(tree.QE[i]);
-      x = std::get<1>(tree.QE[i]);
-    }    
-  }
-
-  // Once we process the vertex and have it ready to return, remove it from the edge queue (This is apparently a fast way of doing so)
-  auto it = tree.QE.begin() + best_edge_ind;
-  *it = std::move(tree.QE.back());
-  tree.QE.pop_back();
-  return {v,x};
-  */
 
   // Equivalent code using multimaps:
   std::multimap<double, std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>::iterator itr = tree.QE2.begin();
@@ -1441,10 +1049,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> CBITPlanner::BestInEdge
 
 std::tuple<std::vector<double>, std::vector<double>> CBITPlanner::ExtractPath(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr)
 {
-  // DEBUG, remove these lines longer term
   int inf_loop_counter = 0;
   bool debug_display = false;
-  // end of debug lines
 
   Node node = *p_goal;
   
@@ -1453,7 +1059,6 @@ std::tuple<std::vector<double>, std::vector<double>> CBITPlanner::ExtractPath(vt
 
   while(node.parent != nullptr)
   {
-    // Start of debug lines
     inf_loop_counter = inf_loop_counter + 1;
     if (inf_loop_counter >= 5000)
     {
@@ -1462,25 +1067,7 @@ std::tuple<std::vector<double>, std::vector<double>> CBITPlanner::ExtractPath(vt
     if (debug_display == true)
     {
       CLOG(DEBUG, "path_planning.cbit_planner") << "Something Went Wrong - Infinite Loop Detected, Initiating Hard Reset:";
-      //std::this_thread::sleep_for(std::chrono::milliseconds(2000)); //temp, remove this
-      //HardReset(robot_state, costmap_ptr);
-      
-      
-      
-      
-      /*
-      CLOG(ERROR, "path_planning.cbit_planner") << "Node p:" << node.p << " q: " << node.q;
-      CLOG(ERROR, "path_planning.cbit_planner") << "Node Parent p:" << (*node.parent).p << " q: " << (*node.parent).q;
-      CLOG(ERROR, "path_planning.cbit_planner") << "p_goal p:" << p_goal->p << " q: " << p_goal->q;
-      CLOG(ERROR, "path_planning.cbit_planner") << "Attempting to display the tree";
-      for (int i = 0; i < tree.V.size(); i++)
-      {
-        CLOG(ERROR, "path_planning.cbit_planner") << "Tree Node " << i << " with p:" << (tree.V[i])->p << " q: " << (tree.V[i])->q;
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
-      */
     }
-    // end of debug lines
     node = *node.parent;
     path_p.push_back(node.p);
     path_q.push_back(node.q);
@@ -1499,19 +1086,17 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
   std::vector<double> path_x;
   std::vector<double> path_y;
 
-  // Experimental
   std::vector<double> path_z;
   std::vector<double> path_yaw;
   std::vector<double> path_p;
   std::vector<double> path_q;
 
-  // experimental, for grabing the yaw value from the teach path
   std::vector<double> p = global_path->p;
   std::vector<Pose> disc_path = global_path->disc_path;
-  // End of experimental
+
 
   std::vector<Node> node_list = {node};
-  node_list.reserve(1000); // Maybe dynamically allocate this size based on path length/discretization param
+  node_list.reserve(1000);
   double discretization = conf.curv_to_euclid_discretization;
 
 
@@ -1527,8 +1112,6 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
     Node end = node_list[i+1];
     std::vector<double> p_disc;
     std::vector<double> q_disc;
-
-    // TODO, wormhole modification goes here
 
     if (start.p == end.p) // handle edge case for vertical lines
     {
@@ -1556,31 +1139,20 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
       path_y.push_back(euclid_pt.q);
       path_z.push_back(euclid_pt.z);
 
-      // Experimental yaw estimation from teach path
+      // Yaw estimation from teach path
       int p_iter = 0;
       while (p_disc[i] > p[p_iter])
       {
           p_iter = p_iter+1;
       }
       path_yaw.push_back(disc_path[p_iter-1].yaw);
-      // End Experimental
-
-      
-      
-      //For debug
-      //path_z.push_back(0.0);
-      // Also adding the p,q to the euclidean path for reference
       path_p.push_back(p_disc[i]);
       path_q.push_back(q_disc[i]);
-
     }
-
   }
   
 
-  // DEBUG Temporarily reshaping the output into the form we need (vector of poses)
-  // TODO: Longer term I need to rework this whole function to output the poses directly in the loops so we dont have to redundently loop again
-  // Also need to implement a new curve_to_euclid_se3 function which converts to 3D Poses instead of nodes which we will only use here
+  // Temporarily reshaping the output into the form we need (vector of poses)
   std::vector<Pose> pose_vector;
   for (int i = 0; i<path_x.size(); i++)
   {
@@ -1589,152 +1161,10 @@ std::vector<Pose>  CBITPlanner::ExtractEuclidPath()
     next_pose.q = path_q[i];
     pose_vector.push_back(next_pose);// Temporarily set pose with x,y coordinate, no orientation
   }
-
   return pose_vector;
 }
 
 
-
-bool CBITPlanner::col_check_path()
-{
-  // Note this doesnt work, we need to implement a new method which actually stores the path in a vector of Node pointers so all the parents/g-T's get transffered
-  //std::tuple<std::vector<double>, std::vector<double>> curv_path = ExtractPath();
-  //std::vector<double> path_p = std::get<0>(curv_path);
-  //std::vector<double> path_q = std::get<1>(curv_path);
-
-  // Generate path to collision check
-  std::vector<std::shared_ptr<Node>> curv_path;
-  std::shared_ptr<Node> node_ptr = p_goal;
-  curv_path.push_back(node_ptr);
-
-  while ((node_ptr->parent != nullptr))
-  {
-    node_ptr = node_ptr->parent;
-    curv_path.push_back(node_ptr);
-  }
-
-  // Get the current path for collision checking
-
-
-
-  bool collision = false;
-  int vertex_counter = 0;
-  int vertex_lookahead = 0; // This is a param used to define how far ahead from the other side of a moved obstacle we should plan to. May just leave at 0
-                        // But could consider making this a tuning param TODO.
-
-  Node collision_free_vertex;
-
-  // Iterate backwards through the path from end of the path to the robot state.
-  // The first time we see a collision, we take the vertex previous to the collision point and set this as our collision free node
-  // We continue collision checking, there may be several connected vertices in a row which are now inside an obstacle
-  // Eventually we will reach the other side of the obstacle (left side) and there will be another collision free node, this is denoted as the repair vertex.
-  // The tree from the end of the path to the collision free vertex can be left alone
-
-  // In repair mode, we aim to fill in the gap between the collision free vertex and the repair node on the other side of the obstacle (left side)
-  // Once we successfully repair it, we update the cost to comes and try to restore as much of the tree as we can.
-  for (int i = curv_path.size()-1; i>=0; i--)
-  {
-    Node vertex = *curv_path[i];
-    Node euclid_pt = curve_to_euclid(vertex);
-    //if (is_inside_obs(obs_rectangle, euclid_pt)) // Legacy collision checking
-    if (costmap_col(euclid_pt))
-    {
-      if (collision == false) // Enter this statement only the first time
-      {
-        int vertex_ind = i;
-        collision_free_vertex = *(curv_path[i+1]);
-        collision = true;
-      }
-    }
-  
-
-    else
-    {
-      if (collision == true)
-      {
-        if (vertex_counter == vertex_lookahead)
-        {
-          repair_vertex = std::make_shared<Node> (vertex);
-          dynamic_window_width = collision_free_vertex.p - repair_vertex->p;
-
-          // Store the old cost to come to get ot this repair vertex
-          repair_g_T_old = repair_vertex->g_T;
-          repair_g_T_weighted_old = repair_vertex->g_T_weighted;
-          break;
-        }
-
-        vertex_counter = vertex_counter + 1;
-      
-      }
-    }
-  }
-
-  // If we have found a collision, we need to reset the vertex tree
-  if (collision == true)
-  {
-    // Store a repair backup of all the vertices we temporarily pruned for the repair
-    std::vector<std::shared_ptr<Node>> pruned_vertex_tree;
-    pruned_vertex_tree.reserve(tree.V.size());
-    for (int i =0; i<tree.V.size(); i++)
-    {
-      if ((tree.V[i]->g_T_weighted > collision_free_vertex.g_T_weighted) && (tree.V[i]->g_T_weighted < 1.0e5)) // Second condition is for wormholes to be implemented TODO
-      {
-        tree.V_Repair_Backup.push_back(tree.V[i]);
-      }
-
-      if (tree.V[i]->g_T_weighted < collision_free_vertex.g_T_weighted) // TODO, add wormhole condition here
-      {
-        pruned_vertex_tree.push_back(std::shared_ptr<Node> (tree.V[i]));
-      }
-    }
-
-    tree.V = pruned_vertex_tree;
-
-    // Do something similar for edges (note in the offline cpp version, I guess I need to kind of reset the plots here too because they only incrementally plot?)
-    std::vector<std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>>>  pruned_edge_tree;
-    pruned_edge_tree.reserve(tree.E.size());
-    for (int i = 0; i <tree.E.size(); i++)
-    {
-      if (std::get<1>(tree.E[i])->g_T_weighted <= collision_free_vertex.g_T_weighted) // Need to add wormhole or condition to this still
-      {
-        pruned_edge_tree.push_back(tree.E[i]);
-      }
-    }
-    
-    tree.E = pruned_edge_tree;
-
-    // TODO: potentially check if plotting is enabled, and if so, clear the current plot and basically reset and replot all the current samples, vertices, edges
-    // (Might be a good idea to just make a function for this, it would probably come in handy)
-
-    //reset queues
-    //tree.QV.clear();
-    tree.QV2.clear();
-    //tree.QE.clear();
-    tree.QE2.clear();
-
-    // Then set a temporary goal to be the repair vertex, and signal the planner to enter repair mode
-    p_goal_backup = p_goal;
-    
-    p_goal = repair_vertex;
-    p_goal->g_T = INFINITY;
-    p_goal->g_T_weighted = INFINITY;
-    samples.push_back(p_goal);  
-    // DEBUG MESSAGE
-    //std::cout << "Returning repair mode true (Collision Detected)" << std::endl;
-    CLOG(INFO, "path_planning.cbit_planner") << "Returning repair mode true (Collision Detected)";
-    return true;
-  }
-
-  else // no collsion found, restore the dynamic window and return repair mode is false indicated we do not need to repair
-  {
-    dynamic_window_width = conf.sliding_window_width;
-    // DEBUG MESSAGE
-    //std::cout << "Returning repair mode false (No Collision)" << std::endl;
-    //CLOG(ERROR, "path_planning.cbit_planner") << "Returning repair mode false (No Collision)" ;
-    return false;
-  }
-
-}
 
 std::shared_ptr<Node> CBITPlanner::col_check_path_v2(double max_lookahead_p)
 {
@@ -1753,8 +1183,7 @@ std::shared_ptr<Node> CBITPlanner::col_check_path_v2(double max_lookahead_p)
   // find the first vertex which results in a collision (curv_path is generated from left to right, so we should search in reverse)
   std::shared_ptr<Node> col_free_vertex = nullptr;
 
-  // TODO, actually we probably only want to consider edges in the lookahead (not way far away down the path) but I might deal with this later
-  for (int i = curv_path.size()-1; i>=0; i--) // I decided to have it -3 instead of -1, this prevents us from collision checking the end of path, but I think I want that for now and it lets me in
+  for (int i = curv_path.size()-1; i>=0; i--)
   {
     Node vertex = *curv_path[i];
     // If the vertex in the path is outside of our sliding window then skip it
@@ -1764,84 +1193,23 @@ std::shared_ptr<Node> CBITPlanner::col_check_path_v2(double max_lookahead_p)
       continue;
     }
     Node euclid_pt = curve_to_euclid(vertex);
-    //if (is_inside_obs(obs_rectangle, euclid_pt)) // Legacy collision checking
+
     if (costmap_col_tight(euclid_pt))
     {
-      //col_free_vertex = curv_path[i+1]; // take the vertex just before the collision vertex
       if (i+4 < curv_path.size()-1)
       {
-        col_free_vertex = curv_path[i+4]; // im actually finding that this vertex may be a little too close to the obstacles. Better to take one slightly further ahead if we can
+        col_free_vertex = curv_path[i+4]; // im actually finding that the next vertex may be a little too close to the obstacles. Better to take one slightly further ahead if we can
       }
       else
       {
         col_free_vertex = curv_path[i+1]; 
       }
     }
-
   }
   return col_free_vertex;
 }
 
 
-
-void CBITPlanner::restore_tree(double g_T_update, double g_T_weighted_update)
-{
-  //PSEUDOCODE:
-  // Loop through all the vertices stored in the repair backup tree
-
-  // Follow each vertex back up the parent chain, branches which have the repair_vertex at some point in the chain can be restored, the others cannot
-
-  // While doing this, keep track of all the vertices and edges which we are going to combine in the tree.V and tree.E vectors
-
-  // Experimental: (Consider replacing the below code with the above pseudocode implementation)
-  // Quick and dirty version, only restore the primary trunk (which I think honestly might be faster longer term)
-  std::shared_ptr<Node> node_ptr = p_goal;
-  while (!((node_ptr->parent->p == repair_vertex->p) && (node_ptr->parent->q == repair_vertex->q))) // break when we reach the repair vertex
-  {
-    // Adjust costs
-    node_ptr->g_T = node_ptr->g_T + g_T_update;
-    node_ptr->g_T_weighted = node_ptr->g_T_weighted + g_T_weighted_update;
-
-    // Add the vertex to the tree
-    tree.V.push_back(node_ptr);
-
-    // Add the vertex to parent edge to the tree
-    tree.E.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {node_ptr, node_ptr->parent});
-
-    // continue up the chain
-    node_ptr = node_ptr->parent;
-
-
-    // consider adding if statement for replotting these edges that we restored if incremental plot is on
-  }
-
-  // For the last iteration, we also need to change the parent of the final vertex to be the repair vertex instead of the previous edge (which shouldnt exist)
-  node_ptr->parent = repair_vertex;
-  tree.E.push_back(std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {node_ptr, node_ptr->parent});
-}
-
-
-
-
-// Function which takes in a beginning vertex v, and an end vertex x, and checks whether its in the tree or not already
-bool CBITPlanner::edge_in_tree(Node v, Node x)
-{
-  for (int i = 0; i < tree.E.size(); i++ )
-  {
-      
-    if ((std::get<0>(tree.E[i])->p == v.p && std::get<0>(tree.E[i])->q == v.q) && (std::get<1>(tree.E[i])->p == x.p && std::get<1>(tree.E[i])->q == x.q))
-    {
-        return true;
-    }
-    /*
-    if (std::get<1>(tree.E[i])->p == x.p && std::get<1>(tree.E[i])->q == x.q)
-    {
-        return true;
-    }
-    */
-  }
-  return false;
-}
 // Function which takes in a beginning vertex v, and an end vertex x, and checks whether its in the tree or not already
 // This version uses address matching (safer)
 bool CBITPlanner::edge_in_tree_v2(std::shared_ptr<Node> v, std::shared_ptr<Node> x)
@@ -1859,23 +1227,6 @@ bool CBITPlanner::edge_in_tree_v2(std::shared_ptr<Node> v, std::shared_ptr<Node>
 }
 
 
-
-
-
-// Function for checking whether a node lives in the Vertex tree
-bool CBITPlanner::node_in_tree(Node x)
-{
-  for (int i = 0; i < tree.V.size(); i++ )
-  {
-      
-    if (tree.V[i]->p == x.p && tree.V[i]->q == x.q)
-    {
-        return true;
-    }
-  }
-  return false;
-  
-}
 
 // Function for checking whether a node lives in the Vertex tree, updated to use address matching (safer)
 bool CBITPlanner::node_in_tree_v2(std::shared_ptr<Node>  x)
@@ -1914,7 +1265,7 @@ double CBITPlanner::weighted_cost_col(std::vector<std::vector<double>> obs, Node
   return calc_weighted_dist(start, end, conf.alpha);
 }
 
-// Probably remove these, putting in utils
+
 
 // Function for converting a p,q coordinate value into a euclidean coordinate using the pre-processed path to follow
 Node CBITPlanner::curve_to_euclid(Node node)
@@ -1969,52 +1320,18 @@ Pose CBITPlanner::lin_interpolate(int p_ind, double p_val)
 }
 
 
-// TODO: Overhaul this function to work with the costmaps
-bool CBITPlanner::is_inside_obs(std::vector<std::vector<double>> obs, Node node)
-{
-    for (int i = 0; i < obs.size(); i++)
-    {
-      
-
-      double x = obs[i][0];
-      double y = obs[i][1];
-      double w = obs[i][2];
-      double h = obs[i][3];
-      //bool test1 = (0 <= (node.p - x) <= w);
-      //bool test2 = ((0 <= (node.p -x)) && ((node.p -x) <= w) && (0 <= (node.p -x)) && ((node.p -x) <= h));
-      //bool test3 = ((0 <= (node.p -x)) && ((node.p -x) <= w));
-      //bool test4 = ((0 <= (node.p -x)) && ((node.p -x) <= h));
-      if ((0 <= (node.p - x)) && ((node.p - x) <= w) && (0 <= (node.q - y)) && ((node.q - y) <= h))
-      {
-          return true;
-      }
-    }
-    return false;
-}
-
-
 
 // This collision check is only used at the end of each batch and determines whether the path should be rewired using the bare minimum obstacle distance
 // Under normal operation we plan paths around a slightly more conservative buffer around each obstacle (equal to influence dist + min dist)
 bool CBITPlanner::costmap_col_tight(Node node)
 {
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Original Node: x: " << node.p << " y: " << node.q << " z: " << node.z;
   Eigen::Matrix<double, 4, 1> test_pt({node.p, node.q, node.z, 1});
-
-  // I am no longer temporally filtering here, instead this takes place in the costmap itself in the change detection module
-  // This means the costmap and transform size should never be more than 1
-  //for (int i = 0; i < cbit_costmap_ptr->T_c_w_vect.size(); i++)
-  //{
-
 
   auto collision_pt = cbit_costmap_ptr->T_c_w * test_pt;
 
   // Round the collision point x and y values down to the nearest grid resolution so that it can be found in the obstacle unordered_map
   float x_key = floor(collision_pt[0] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
   float y_key = floor(collision_pt[1] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
-
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "X_key:  " << x_key;
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Y_key:  " << y_key;
 
   float grid_value;
 
@@ -2024,18 +1341,16 @@ bool CBITPlanner::costmap_col_tight(Node node)
   {
   // Block of code to try
     grid_value = cbit_costmap_ptr->obs_map.at(std::pair<float, float> (x_key, y_key));
-    //CLOG(ERROR, "path_planning.cbit_planner") << "Key Value:  " << grid_value;
   }
   catch (std::out_of_range) 
   {
     grid_value = 0.0;
   }
 
-  if (grid_value >= 0.89) // By switching this from > 0.0 to 0.9, we effectively only collision check the path out to the "minimum_distance" obs config param
+  if (grid_value >= 0.99) // By switching this from > 0.0 to 0.99, we effectively only collision check the path out to the "minimum_distance" obs config param
   {
     return true;
   }
-  //}
 
   // If we make it here can return false for no collision
   return false;
@@ -2046,27 +1361,12 @@ bool CBITPlanner::costmap_col_tight(Node node)
 // More conservative costmap checking out to a distance of "influence_distance" + "minimum_distance" away
 bool CBITPlanner::costmap_col(Node node)
 {
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Original Node: x: " << node.p << " y: " << node.q << " z: " << node.z;
   Eigen::Matrix<double, 4, 1> test_pt({node.p, node.q, node.z, 1});
-  // I am no longer temporally filtering here, instead this takes place in the costmap itself in the change detection module
-  // This means the costmap and transform size should never be more than 1
-  //for (int i = 0; i < cbit_costmap_ptr->T_c_w_vect.size(); i++)
-  //{
-
-  //auto collision_pt = cbit_costmap_ptr->T_c_w * test_pt;
   auto collision_pt = cbit_costmap_ptr->T_c_w * test_pt;
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Displaying the point in the costmap frame we are trying to collision check: " << collision_pt;
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "X:  " << collision_pt[0];
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Y:  " << collision_pt[1];
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Resolution:  " << cbit_costmap_ptr->grid_resolution;
-
 
   // Round the collision point x and y values down to the nearest grid resolution so that it can be found in the obstacle unordered_map
   float x_key = floor(collision_pt[0] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
   float y_key = floor(collision_pt[1] / cbit_costmap_ptr->grid_resolution) * cbit_costmap_ptr->grid_resolution;
-
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "X_key:  " << x_key;
-  //CLOG(DEBUG, "path_planning.cbit_planner") << "Y_key:  " << y_key;
 
   float grid_value;
 
@@ -2075,7 +1375,6 @@ bool CBITPlanner::costmap_col(Node node)
   try 
   {
       grid_value = cbit_costmap_ptr->obs_map.at(std::pair<float, float> (x_key, y_key));
-      //CLOG(DEBUG, "debug") << " The Grid value for this cell is: " << grid_value;
   }
   
   catch (std::out_of_range) 
@@ -2089,13 +1388,12 @@ bool CBITPlanner::costmap_col(Node node)
       return true;
     }
 
-  //}
   // If we make it here, return false for no collision
   return false;
 }
 
 
-// note with new collision checker from global costmap I dont think we use this obs anymore?
+
 bool CBITPlanner::discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end)
 {
     // We dynamically determine the discretization based on the length of the edge
@@ -2119,17 +1417,11 @@ bool CBITPlanner::discrete_collision(std::vector<std::vector<double>> obs, doubl
     p_test.push_back(end.p);
     q_test.push_back(end.q);
 
-
-
     // Loop through the test curvilinear points, convert to euclid, collision check obstacles
     for (int i = 0; i < p_test.size(); i++)
     {
         Node curv_pt = Node(p_test[i], q_test[i]);
-
-        // Convert to euclid TODO:
-        //Node euclid_pt = curv_pt; // DEBUG DO NOT LEAVE THIS HERE, NEED TO REPLACE WITH COLLISION CHECK FUNCTION
         Node euclid_pt = curve_to_euclid(curv_pt);
-        //if (is_inside_obs(obs, euclid_pt))
         if (costmap_col_tight(euclid_pt))
         {
             return true;
@@ -2138,309 +1430,3 @@ bool CBITPlanner::discrete_collision(std::vector<std::vector<double>> obs, doubl
 
     return false;
 }
-
-
-
-// Corridor Update functions
-// DEBUG: Long term when I restructure things I want these to be inside the generate_pq.cpp file
-// The only thing keeping me from doing this right away is that all the curvilinear conversions and collision checkers are here
-// But long term I should move all those over to utils or even a different header and script
-
-// Old code I wrote for this function
-
-struct CBITPlanner::collision_result CBITPlanner::discrete_collision_v2(double discretization, Node start, Node end, bool tight)
-{
-    // We dynamically determine the discretization based on the length of the edge
-    discretization = ceil(calc_dist(start, end) * discretization);
-
-    // Generate discretized test nodes
-    std::vector<double> p_test;
-    std::vector<double> q_test;
-
-    double p_step = fabs(end.p - start.p) / discretization;
-    double q_step = fabs(end.q - start.q) / discretization;
-    
-    p_test.push_back(start.p);
-    q_test.push_back(start.q);
-
-    for (int i = 0; i < discretization-1; i++)
-    {
-        p_test.push_back(p_test[i] + p_step*sgn(end.p-start.p) );
-        q_test.push_back(q_test[i] + q_step*sgn(end.q-start.q) );
-    }
-    p_test.push_back(end.p);
-    q_test.push_back(end.q);
-
-
-
-    // Loop through the test curvilinear points, convert to euclid, collision check obstacles
-    Node curv_pt;
-    for (int i = 0; i < p_test.size(); i++)
-    {
-        curv_pt = Node(p_test[i], q_test[i]);
-
-        // Convert to euclid TODO:
-        //Node euclid_pt = curv_pt; // DEBUG DO NOT LEAVE THIS HERE, NEED TO REPLACE WITH COLLISION CHECK FUNCTION
-        Node euclid_pt = curve_to_euclid(curv_pt);
-        //if (is_inside_obs(obs, euclid_pt))
-        if (tight == false)
-        {
-          if (costmap_col(euclid_pt))
-          {
-            return {true, curv_pt};
-          }
-        }
-        else
-        {
-          if (costmap_col_tight(euclid_pt))
-          {
-            return {true, curv_pt};
-          }
-        }
-
-    }
-
-    return {false, curv_pt};
-}
-
-
-
-// ChatGPT optimized code for this function
-/*
-struct CBITPlanner::collision_result CBITPlanner::discrete_collision_v2(double discretization, Node start, Node end, bool tight)
-{
-    // We dynamically determine the discretization based on the length of the edge
-    discretization = ceil(calc_dist(start, end) * discretization);
-
-    // Generate discretized test nodes
-    std::vector<double> p_test;
-    std::vector<double> q_test;
-
-    double p_diff = end.p - start.p;
-    double q_diff = end.q - start.q;
-    double p_sign = sgn(p_diff);
-    double q_sign = sgn(q_diff);
-    double p_step = p_sign * fabs(p_diff) / discretization;
-    double q_step = q_sign * fabs(q_diff) / discretization;
-
-    p_test.push_back(start.p);
-    q_test.push_back(start.q);
-
-    for (auto it = p_test.begin(), jt = q_test.begin(); it != p_test.end() - 1; ++it, ++jt)
-    {
-        *std::next(it) = *it + p_step * p_sign;
-        *std::next(jt) = *jt + q_step * q_sign;
-    }
-    p_test.push_back(end.p);
-    q_test.push_back(end.q);
-
-    // Loop through the test curvilinear points, convert to euclid, collision check obstacles
-    Node curv_pt;
-    for (auto it = p_test.begin(), jt = q_test.begin(); it != p_test.end(); ++it, ++jt)
-    {
-        curv_pt = Node(*it, *jt);
-
-        // Convert to euclid TODO:
-        //Node euclid_pt = curv_pt; // DEBUG DO NOT LEAVE THIS HERE, NEED TO REPLACE WITH COLLISION CHECK FUNCTION
-        Node euclid_pt = curve_to_euclid(curv_pt);
-        //if (is_inside_obs(obs, euclid_pt))
-        if (tight == false)
-        {
-            if (costmap_col(euclid_pt))
-            {
-                return {true, curv_pt};
-            }
-        }
-        else
-        {
-            if (costmap_col_tight(euclid_pt))
-            {
-                return {true, curv_pt};
-            }
-        }
-    }
-    return {false, curv_pt};
-}
-*/
-
-           
-
-// dont love how this function is coded, could be done much more efficiently with some more effort I think
-void CBITPlanner::update_corridor(std::shared_ptr<CBITCorridor> corridor, std::vector<double> homotopy_p, std::vector<double> homotopy_q, Node robot_state)
-{
-    //auto corridor_start_time = std::chrono::high_resolution_clock::now();
-    // Reset q_left and q_right (I did this on the python side, but I dont know why exactly, in theory I should be able to just
-    // update it incrementally in a sliding window? I must have had a reason for it but ill leave it out for now).
-    // Ah the reason i did this was because I was not handling the no collision case (in which we reset q_left to q_right for that bin to the max)
-    // Resetting at the beginning prevents needing to do this, but I think I prefer the way im doing it here.
-
-    // Take a subset of the p_bins based on the current robot state and our dynamic window
-    std::vector<double> p_bins_subset;
-    
-    // Note there is probably a much better way to do this which is faster exploiting that the vector is sorted, but for now just doing this for convenience
-    for (int i = 0; i < corridor->p_bins.size(); i++)
-    {
-      double p_bin = corridor->p_bins[i];
-      if ((p_bin >= robot_state.p) && (p_bin <= robot_state.p + corridor->sliding_window_width))
-      {
-        p_bins_subset.push_back(p_bin);
-      }
-      // Exit early if the p values become larger then the window 
-      if (p_bin > robot_state.p + corridor->sliding_window_width)
-      {
-        break;
-      }
-    }
-
-
-    // Iterate through each of the subset of p_bins
-    double p_upper;
-    double p_lower;
-    double q_upper;
-    double q_lower;
-    for (int i = 0; i < p_bins_subset.size(); i++)
-    {
-      
-      int ind_counter = 0;
-
-      // iterate through the current path solution (in p,q space)
-      for (int j = 0; j < homotopy_p.size(); j++)
-      {
-        // If the point on the path is just larger then the p_bin_subset, take that point and the previous one, interpolate a q_bin value at the place
-        if (homotopy_p[j] >= p_bins_subset[i])
-        {
-          p_upper = homotopy_p[ind_counter];
-          p_lower = homotopy_p[ind_counter - 1];
-          q_upper = homotopy_q[ind_counter];
-          q_lower = homotopy_q[ind_counter - 1];
-          break;
-        }
-        ind_counter = ind_counter + 1;
-      }
-
-      double q_bin = q_lower + ((p_bins_subset[i] - p_lower) / (p_upper - p_lower)) * (q_upper - q_lower);
-      //CLOG(DEBUG, "path_planning.corridor_debug") << "q_bin is: " << q_bin;
-      Node start = Node(p_bins_subset[i], q_bin); // starting point for collision check
-      Node end_left = Node(p_bins_subset[i], corridor->q_max + 0.01); // end point for 1st collision check + a small buffer
-      Node end_right = Node(p_bins_subset[i], (-1.0 * corridor->q_max - 0.01)); // end point for 2nd collision check + a small buffer
-      //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
-      //CLOG(DEBUG, "path_planning.corridor_debug") << "end_left node is p: " << end_left.p << " q: " << end_left.q;
-
-      // Note long term we need to handle special case when the start point is in a wormhole region, but for now should be fine
-      //Node euclid_start = CBITPlanner::curve_to_euclid(start);
-
-      // debug, testing to see how often the bit* point is in a collision by the time we get here (in theory this should never happen but I think it is)
-      //auto test_check = discrete_collision_v2(corridor->curv_to_euclid_discretization, start, start);
-      //if (test_check.bool_result == true)
-      //{
-      //  CLOG(ERROR, "path_planning.corridor_debug") << "Something has gone wrong, cbit path has a collision, ignoring this p_bin update";
-      //  continue;
-      //}
-      
-      Node euclid_pt = curve_to_euclid(start);
-      if (costmap_col_tight(euclid_pt))
-      {
-          CLOG(ERROR, "path_planning.corridor_debug") << "Something has gone wrong, cbit path has a collision, ignoring this p_bin update";
-          continue;
-      }
-
-
-      // collision check left and right using a special version of discrete_collision check
-      // In this version we output both a boolean and the 1st point that comes into collision if there is one
-      auto collision_check_result1 = discrete_collision_v2(corridor->curv_to_euclid_discretization, start, end_left, true);
-      auto collision_check_result2 = discrete_collision_v2(corridor->curv_to_euclid_discretization, start, end_right, true);
-
-      // if there is a collision, set q_left at the location of the current p_bin being processed to the value of q_left/q_right
-      if (collision_check_result1.bool_result == true)
-      {
-        //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
-        //CLOG(DEBUG, "path_planning.corridor_debug") << "end_left node is p: " << end_left.p << " q: " << end_left.q;
-        double q_left = collision_check_result1.col_node.q;
-        auto it = find(corridor->p_bins.begin(), corridor->p_bins.end(), p_bins_subset[i]);
-        if (it != corridor->p_bins.end())
-        {
-          int index = it - corridor->p_bins.begin();
-          corridor->q_left[index] = q_left;
-          CLOG(DEBUG, "path_planning.corridor_debug") << "Q_left is: " << q_left;
-        }
-      }
-      // else set it back to the maximums
-      else
-      {
-        double q_left = corridor->q_max;
-        auto it = find(corridor->p_bins.begin(), corridor->p_bins.end(), p_bins_subset[i]);
-        if (it != corridor->p_bins.end())
-        {
-          int index = it - corridor->p_bins.begin();
-          corridor->q_left[index] = q_left;
-        }
-      }
-
-      // Repeat for the other side
-      
-      if (collision_check_result2.bool_result == true)
-      {
-        //CLOG(DEBUG, "path_planning.corridor_debug") << "start node is p: " << start.p << " q: " << start.q;
-        //CLOG(DEBUG, "path_planning.corridor_debug") << "end_right node is p: " << end_right.p << " q: " << end_right.q;
-        double q_right = collision_check_result2.col_node.q;
-        auto it = find(corridor->p_bins.begin(), corridor->p_bins.end(), p_bins_subset[i]);
-        if (it != corridor->p_bins.end())
-        {
-          int index = it - corridor->p_bins.begin();
-          corridor->q_right[index] = q_right;
-          CLOG(DEBUG, "path_planning.corridor_debug") << "Q_right is: " << q_right;
-        }
-      }
-      else
-      {
-        double q_right = -1.0 * corridor->q_max;
-        auto it = find(corridor->p_bins.begin(), corridor->p_bins.end(), p_bins_subset[i]);
-        if (it != corridor->p_bins.end())
-        {
-          int index = it - corridor->p_bins.begin();
-          corridor->q_right[index] = q_right;
-        }
-      }
-      
-    }
-
-
-    // Updating the full euclidean corridor vectors by iterating through all bins.
-
-    // TODO: Make whether we do this a configurable parameter, I realised that I dont actually need this from the control perspective at all
-    // Its purely for visualization purposes and it will waste some compute (not much though so im not too concerned for everyday use)
-
-    // Note for convenience I can do this in a separate loop, but really we could also be doing this incrementally the same way we update
-    // q_left/q_right. This requires a proper initialization of the euclid corridor in generate_pq.cpp, which is certainly possible
-    // But not currently because the curve_to_euclid is not in the utils package. When I change that we can do this. Until then, brute force it is.
-
-    // Benchmarking the compute time for this operation since its likely much less efficient then it could be with the incremental approach
-    // Need to first clear out the old corridor, otherwise it just keeps stacking
-    corridor->x_left.clear();
-    corridor->y_left.clear();
-    corridor->x_right.clear();
-    corridor->y_right.clear();
-    //auto corridor_start_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < corridor->p_bins.size(); i++)
-    {
-      Node euclid_left = curve_to_euclid(Node(corridor->p_bins[i],corridor->q_left[i]));
-      Node euclid_right = curve_to_euclid(Node(corridor->p_bins[i],corridor->q_right[i]));
-
-      //CLOG(ERROR, "path_planning.corridor_debug") << "Euclid Left is x: " << euclid_left.p << " y: " << euclid_right.p;
-      corridor->x_left.push_back(euclid_left.p);
-      corridor->y_left.push_back(euclid_left.q);
-      corridor->x_right.push_back(euclid_right.p);
-      corridor->y_right.push_back(euclid_right.q);
-    }
-
-
-
-    //auto corridor_stop_time = std::chrono::high_resolution_clock::now();
-    //auto duration_corridor = std::chrono::duration_cast<std::chrono::milliseconds>(corridor_stop_time - corridor_start_time);
-    //CLOG(ERROR, "path_planning.corridor_debug") << "Corridor Update Time: " << duration_corridor.count() << "ms";
-    
-}
-
-
-
-

@@ -62,9 +62,6 @@ class CBITPlanner {
         Tree tree;
         std::vector<std::shared_ptr<Node>> samples;
 
-        //int control_period_ms;
-        //std::chrono::time_point<std::chrono::high_resolution_clock> state_update_time;
-
         // Repair mode variables
         bool repair_mode = false; // Flag for whether or not we should resume the planner in repair mode to update the tree following a state update
         std::shared_ptr<Node> repair_vertex;
@@ -78,15 +75,17 @@ class CBITPlanner {
 
         // For storing the Output Path
         std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
-        
 
+        // Flag that tells the cbit.cpp planning interface to stop the mpc if there is no current cbit solution
+        std::shared_ptr<bool> valid_solution_ptr;
+        
         // Temporary obstacles
         std::vector<std::vector<double>>  obs_rectangle;
 
         // Costmap pointer
         std::shared_ptr<CBITCostmap> cbit_costmap_ptr;
 
-        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
+        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, PathDirection path_direction);
 
     protected:
     struct ChainInfo {
@@ -104,7 +103,6 @@ class CBITPlanner {
         void InitializePlanningSpace();
         void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
         void ResetPlanner();
-        std::shared_ptr<Node> UpdateState(PathDirection path_direction);
         std::shared_ptr<Node> UpdateStateSID(int SID, vtr::tactic::EdgeTransform T_p_r);
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
@@ -116,27 +114,14 @@ class CBITPlanner {
         std::tuple<std::vector<double>, std::vector<double>> ExtractPath(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr);
         std::vector<Pose> ExtractEuclidPath();
         void Prune(double c_best, double c_best_weighted);
-        bool edge_in_tree(Node v, Node x);
         bool edge_in_tree_v2(std::shared_ptr<Node> v, std::shared_ptr<Node> x);
-        bool node_in_tree(Node x);
         bool node_in_tree_v2(std::shared_ptr<Node> x);
         double cost_col(std::vector<std::vector<double>> obs, Node start, Node end);
         double weighted_cost_col(std::vector<std::vector<double>> obs, Node start, Node end);
         Node curve_to_euclid(Node node);
         Pose lin_interpolate(int p_ind, double p_val);
-        bool is_inside_obs(std::vector<std::vector<double>> obs, Node node);
         bool costmap_col(Node node);
         bool costmap_col_tight(Node node);
         bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
-        bool col_check_path();
         std::shared_ptr<Node> col_check_path_v2(double max_lookahead_p);
-        void restore_tree(double g_T_update, double g_T_weighted_update);
-
-        void update_corridor(std::shared_ptr<CBITCorridor> corridor, std::vector<double> homotopy_p, std::vector<double> homotopy_q, Node robot_state);
-        struct collision_result
-        {
-            bool bool_result;
-            Node col_node;
-        };
-        struct collision_result discrete_collision_v2(double discretization, Node start, Node end, bool tight = false);
 };

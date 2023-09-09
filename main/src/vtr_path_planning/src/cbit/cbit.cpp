@@ -131,6 +131,7 @@ CBIT::CBIT(const Config::ConstPtr& config,
   const auto node = robot_state->node.ptr();
   // Initialize the shared pointer to the output of the planner
   cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
+  valid_solution_ptr = std::make_shared<bool> (false);
 
   // Create visualizer and its corresponding pointer:
   VisualizationUtils visualization_utils(node);
@@ -289,7 +290,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CLOG(INFO, "cbit.path_planning") << "Corridor generated successfully. Attempting to instantiate the planner";
 
   // Instantiate the planner
-  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, path_direction);
+  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, valid_solution_ptr, path_direction);
   CLOG(INFO, "cbit.path_planning") << "Planner successfully created and resolved";
 }
 
@@ -314,7 +315,14 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
   if (curr_sid == (chain.size()-2))
   {
-    CLOG(WARNING, "cbit.control") << "Reaching End of Path, Disabling MPC";
+    CLOG(INFO, "cbit.control") << "Reaching End of Path, Disabling MPC";
+    return Command();
+  }
+
+  // Make sure there is a valid solution, else stop the robot
+  if (*valid_solution_ptr == false)
+  {
+    CLOG(INFO, "cbit.control") << "There is Currently No Valid Solution, Disabling MPC";
     return Command();
   }
 
