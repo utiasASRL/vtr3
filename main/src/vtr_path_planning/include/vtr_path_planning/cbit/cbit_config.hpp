@@ -57,7 +57,12 @@ class CBITConfig {
         bool incremental_plotting = true;
         bool plotting = true;   
 
-        // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
+        // Speed Scheduler
+        double planar_curv_weight = 2.50; // hardocded for now, make a param
+        double profile_curv_weight = 0.5; // hardocded for now, make a param
+        double eop_weight = 1.0; // hardocded for now, make a param
+
+        // MPC Configs 
         int horizon_steps = 10;
         double horizon_step_size = 0.5;
         double forward_vel = 0.75;

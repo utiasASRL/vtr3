@@ -326,6 +326,11 @@
       costmap:
         costmap_filter_value: 0.01
         costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
+      
+      speed_scheduler:
+        planar_curv_weight: 2.50
+        profile_curv_weight: 0.5 
+        eop_weight: 1.0
 
       mpc:
         # Controller Params

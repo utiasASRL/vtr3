@@ -129,7 +129,7 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
 
     //CLOG(ERROR, "path_planning.corridor_debug") << "TEST" << points;
 
-    Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 3);
+    Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 2);
     //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
     // To query the spline, we use spline(test), where test is a normalized distance along the spline from 0 to 1
     //double test_p = p[1] / p.back();
@@ -164,7 +164,7 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(std::vector<Pose> input_pat
 
     //CLOG(ERROR, "path_planning.corridor_debug") << "TEST" << points;
 
-    Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 3);
+    Eigen::Spline<double, 2> spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points, 2);
     //CLOG(ERROR, "path_planning.corridor_debug") << "Computed Spline";
     // To query the spline, we use spline(test), where test is a normalized distance along the spline from 0 to 1
     //double test_p = p[1] / p.back();

@@ -43,6 +43,7 @@
 #include "vtr_path_planning/cbit/cbit_path_planner.hpp"
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
 #include "vtr_path_planning/cbit/visualization_utils.hpp"
+#include "vtr_path_planning/mpc/speed_scheduler.hpp"
 
 #include "steam.hpp"
 
@@ -97,7 +98,12 @@ class CBIT : public BasePathPlanner {
     bool incremental_plotting = false;
     bool plotting = true;
 
-    // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
+    // Speed Scheduler
+    double planar_curv_weight = 2.50; // hardocded for now, make a param
+    double profile_curv_weight = 0.5; // hardocded for now, make a param
+    double eop_weight = 1.0; // hardocded for now, make a param
+
+    // MPC Configs
     bool obstacle_avoidance = false;
     bool mpc_verbosity = false;
     bool homotopy_guided_mpc = false;

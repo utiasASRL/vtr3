@@ -44,6 +44,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 
   // CBIT Configs
   // ENVIRONMENT:
+  config->obstacle_avoidance = node->declare_parameter<bool>(prefix + ".cbit.obstacle_avoidance", config->obstacle_avoidance);
   config->obs_padding = node->declare_parameter<double>(prefix + ".cbit.obs_padding", config->obs_padding);
   config->curv_to_euclid_discretization= node->declare_parameter<int>(prefix + ".cbit.curv_to_euclid_discretization", config->curv_to_euclid_discretization);
   config->sliding_window_width = node->declare_parameter<double>(prefix + ".cbit.sliding_window_width", config->sliding_window_width);
@@ -68,8 +69,12 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 
 
   // MPC Configs:
+  // SPEED SCHEDULER PARAMETERS
+  config->planar_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.planar_curv_weight", config->planar_curv_weight);
+  config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
+  config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
+
   // CONTROLLER PARAMS
-  config->obstacle_avoidance = node->declare_parameter<bool>(prefix + ".cbit.obstacle_avoidance", config->obstacle_avoidance);
   config->mpc_verbosity = node->declare_parameter<bool>(prefix + ".mpc.mpc_verbosity", config->mpc_verbosity);
   config->homotopy_guided_mpc = node->declare_parameter<bool>(prefix + ".mpc.homotopy_guided_mpc", config->homotopy_guided_mpc);
   config->horizon_steps = node->declare_parameter<int>(prefix + ".mpc.horizon_steps", config->horizon_steps);
@@ -80,8 +85,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
 
-
-  // COST FUNCTION COVARIANCE
+  // MPC COST FUNCTION COVARIANCE
   const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
   config->pose_error_cov.diagonal() << pose_error_diag[0], pose_error_diag[1], pose_error_diag[2], pose_error_diag[3], pose_error_diag[4], pose_error_diag[5];
   const auto vel_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.vel_error_cov", std::vector<double>());
@@ -93,7 +97,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
   config->lat_error_cov.diagonal() << lat_error_diag[0];
 
-  // COST FUNCTION WEIGHTS
+  // MPC COST FUNCTION WEIGHTS
   config->pose_error_weight = node->declare_parameter<double>(prefix + ".mpc.pose_error_weight", config->pose_error_weight);
   config->vel_error_weight = node->declare_parameter<double>(prefix + ".mpc.vel_error_weight", config->vel_error_weight);
   config->acc_error_weight = node->declare_parameter<double>(prefix + ".mpc.acc_error_weight", config->acc_error_weight);
@@ -323,7 +327,6 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
 
   //START OF OBSTACLE PERCEPTION UPDATES
-  // TODO, add a parameter check to see if we are ignoring obstacles or not
   bool obstacle_avoidance = config_->obstacle_avoidance;
   if ((prev_stamp != stamp) && (obstacle_avoidance == true))
   {
@@ -373,71 +376,10 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     double DT = config_->horizon_step_size; // Horizon step size
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
     
-
-    
-    // Experimental Speed Scheduler: (TODO: in progress - move to separate file longer term)
-    // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
-    // 1. XY curvature (implemneted)
-    // 2. YZ curvature (TODO)
-    // 3. XZ curvature (TODO)
-    // 4. Corridor Width (TODO)
-    // 5. Obstacle Presence (TODO)
-
-    // Pseudocode:
-    // - Estimate the current p value of the vehicle (doesnt need to be super precise so here we can imply opt to use the sid value)
-    // - Avergage the radius of curvature in the upcoming segments of the path
-    // - TODO: generate other scaling factors
-    // - Scale the forward velocity
-
-    // Basic implementation - weights hardcoded for now
-    CLOG(INFO, "mpc_debug.cbit") << "TRYING TO SCHEDULE SPEED:";
-    CLOG(INFO, "mpc_debug.cbit") << "CURRENT SID IS:" << curr_sid;
-    double VF_EOP;
-    double VF_XY;
-    double VF_XZ_YZ;
-    double avg_curvature_xy = 0.0;
-    double avg_curvature_xz_yz = 0.0;
-    double end_of_path = 0.0;
-    for (int i = curr_sid; i < curr_sid + 10; i++) // Lookahead hardcoded for now, todo, make this a distance based correlating value
-    {
-      // Handle end of path case
-      if (i == (global_path_ptr->p.size()-1))
-      {
-        end_of_path = 1.0;
-        break;
-      }
-      avg_curvature_xy = avg_curvature_xy + global_path_ptr->disc_path_curvature_xy[i];
-      avg_curvature_xz_yz = avg_curvature_xz_yz + global_path_ptr->disc_path_curvature_xz_yz[i];
-
-    }
-    avg_curvature_xy = avg_curvature_xy / 10;
-    avg_curvature_xz_yz = avg_curvature_xz_yz / 10;
-    CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XY CURVATURE IS:  " << avg_curvature_xy;
-    CLOG(INFO, "mpc_debug.cbit") << "THE AVERAGE XZ CURVATURE IS:  " << avg_curvature_xz_yz;
-    //CLOG(ERROR, "mpc_debug.cbit") << "THE AVERAGE YZ CURVATURE IS:  " << avg_curvature_yz;
-    double xy_curv_weight = 2.50; // hardocded for now, make a param
-    double xz_yz_curv_weight = 0.5; // hardocded for now, make a param
-    double end_of_path_weight = 1.0; // hardocded for now, make a param
-
-    // handle forward/referse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
-
-    VF_EOP = std::max(0.5, VF / (1 + (end_of_path * end_of_path * end_of_path_weight)));
-    VF_XY = std::max(0.5, VF / (1 + (avg_curvature_xy * avg_curvature_xy * xy_curv_weight)));
-    VF_XZ_YZ = std::max(0.5, VF / (1 + (avg_curvature_xz_yz * avg_curvature_xz_yz * xz_yz_curv_weight)));
-    
-    // Take the minimum of all candidate (positive) scheduled speeds
-    VF = std::min({VF_EOP, VF_XY, VF_XZ_YZ});
-    CLOG(INFO, "mpc_debug.cbit") << "THE VF_EOP SPEED IS:  " << VF_EOP;
-    CLOG(INFO, "mpc_debug.cbit") << "THE VF_XY SPEED IS:  " << VF_XY;
-    CLOG(INFO, "mpc_debug.cbit") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
-
-    // Take the minimum of all candidate scheduled speeds
-    CLOG(INFO, "mpc_debug.cbit") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
-    // End of speed scheduler code
-
+    // Scheduler speed based on path curvatures + other factors
+    VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, VF, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, config_->horizon_step_size);
 
     // Grab the current MPC configurations
-
     // Pose Covariance Weights
     Eigen::Matrix<double, 6, 6> pose_noise_vect;
     pose_noise_vect = config_->pose_error_cov;
