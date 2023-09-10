@@ -160,7 +160,8 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
     // We only update the state if A: we have first found a valid initial solution, and B: if the current time has elapsed the control period
     if (conf.update_state == true)
     {
-      if ((p_goal->parent != nullptr) && (std::chrono::high_resolution_clock::now() >= state_update_time))
+      //if ((p_goal->parent != nullptr) && (std::chrono::high_resolution_clock::now() >= state_update_time))
+      if (std::chrono::high_resolution_clock::now() >= state_update_time) // Removed condition on valid solution, I think this helps overall
       {
         // Update timers
         CLOG(INFO, "cbit_planner.path_planning") << "Attempting to Update Robot State";
@@ -327,7 +328,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         //plot_tree(tree, *p_goal, path_x, path_y, samples);
         //auto plot_stop_time = std::chrono::high_resolution_clock::now();
         //auto duration_plot = std::chrono::duration_cast<std::chrono::milliseconds>(plot_stop_time - plot_start_time);
-        //CLOG(ERROR, "path_planning.cbit_planner") << "Plot Time: " << duration_plot.count() << "ms";
+        //CLOG(ERROR, "cbit_planner.path_planning") << "Plot Time: " << duration_plot.count() << "ms";
         
         // Collision Check the batch solution:
         std::shared_ptr<Node> col_free_vertex = col_check_path_v2((p_goal->p + conf.sliding_window_width + conf.sliding_window_freespace_padding)); // outputs NULL if no collision
@@ -335,7 +336,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         {
           // If there is a collision, prune the tree of all vertices to the left of the this vertex
           CLOG(WARNING, "cbit_planner.path_planning") << "Collision Detected:";
-          //CLOG(WARNING, "path_planning.cbit_planner") << "Collision Free Vertex is - p: " << col_free_vertex->p << " q: " << col_free_vertex->q;
+          //CLOG(WARNING, "cbit_planner.path_planning") << "Collision Free Vertex is - p: " << col_free_vertex->p << " q: " << col_free_vertex->q;
 
           // Vertex Prune (maintain only vertices to the right of the collision free vertex)
           std::vector<std::shared_ptr<Node>> pruned_vertex_tree;
@@ -833,7 +834,6 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
   for (double i = (*p_goal).p; i < lookahead_range; i += (1.0 / (conf.roc_lookahead * conf.curv_to_euclid_discretization)))
   {
     euclid_subset.push_back(curve_to_euclid(Node(i,0)));
-    
   }
 
   // calc q_min
@@ -855,6 +855,12 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
       closest_pt_ind = i;
     }
   }
+  // Handle weird seg fault case
+  if ((closest_pt_ind) > (euclid_subset.size()-2))
+  {
+    closest_pt_ind = euclid_subset.size()-2;
+  }
+
   double test_dx = euclid_subset[closest_pt_ind+1].p - closest_pt.p;
   double test_dy = euclid_subset[closest_pt_ind+1].q - closest_pt.q;
   double test_yaw = atan2(test_dy,test_dx);
@@ -878,10 +884,8 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
   // Check if the angle is greater than 90 degrees
   double local_path_direction;
   if (angle > M_PI/2) {
-      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is -1.0 (Reverse)";
       local_path_direction = -1.0;
   } else {
-      //CLOG(ERROR, "path_planning.cbit_planner") << "Path direction is +1.0 (Forward)";
       local_path_direction = 1.0;
   }
 
@@ -983,7 +987,7 @@ std::shared_ptr<Node> CBITPlanner::BestInVertexQueue()
 {
   if (tree.QV2.size() == 0)
   {
-    CLOG(DEBUG, "path_planning.cbit_planner") << "Vertex Queue is Empty, Something went Wrong!";
+    CLOG(DEBUG, "cbit_planner.path_planning") << "Vertex Queue is Empty, Something went Wrong!";
   }
   // New multimap implementation of this:
   std::multimap<double, std::shared_ptr<Node>>::iterator itr = tree.QV2.begin();
@@ -1033,7 +1037,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> CBITPlanner::BestInEdge
 {
   if (tree.QE2.size() == 0) // need to handle a case where the return path is 100% optimal in which case things get stuck and need ot be flagged to break
   {
-    CLOG(DEBUG, "path_planning.cbit_planner") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
+    CLOG(DEBUG, "cbit_planner.path_planning") << "Edge Queue is Empty, Solution Could Not be Improved This Batch";
     repair_mode = true;
     return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> {NULL, NULL};
   }
@@ -1066,7 +1070,7 @@ std::tuple<std::vector<double>, std::vector<double>> CBITPlanner::ExtractPath(vt
     }
     if (debug_display == true)
     {
-      CLOG(DEBUG, "path_planning.cbit_planner") << "Something Went Wrong - Infinite Loop Detected, Initiating Hard Reset:";
+      CLOG(DEBUG, "cbit_planner.path_planning") << "Something Went Wrong - Infinite Loop Detected, Initiating Hard Reset:";
     }
     node = *node.parent;
     path_p.push_back(node.p);

@@ -366,7 +366,6 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       mpc_poses.push_back(pose_state_vars[i]->value().inverse());
     }
 
-    
     // Return the resulting structure
     return {applied_vel, mpc_poses};
     }
@@ -624,10 +623,26 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
     }
     else
     {
-      double p_lower = cbit_p[i-1];
-      double p_upper = cbit_p[i];
-      Pose pose_lower = cbit_path[i-1];
-      Pose pose_upper = cbit_path[i];
+      double p_lower;
+      double p_upper;
+      Pose pose_lower;
+      Pose pose_upper;
+      // Handle potential for seg faults when p_val is before the cbit_p first value
+      if (i == 0)
+      {
+        // means we need to back extrapolate
+        p_lower = cbit_p[i];
+        p_upper = cbit_p[i+1];
+        pose_lower = cbit_path[i];
+        pose_upper = cbit_path[i+1];
+      }
+      else
+      {
+        p_lower = cbit_p[i-1];
+        p_upper = cbit_p[i];
+        pose_lower = cbit_path[i-1];
+        pose_upper = cbit_path[i];
+      }
 
     
       double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.x - pose_lower.x);
