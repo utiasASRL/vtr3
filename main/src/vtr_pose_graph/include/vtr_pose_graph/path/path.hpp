@@ -78,6 +78,9 @@ class Path {
   /** \brief Acquires a lock object that blocks modifications. */
   UniqueLock guard() const { return UniqueLock(mutex_); }
 
+  /** \brief Gets the cumu. distance along the path at a sequence index */
+  int query_terrain_type(unsigned seq_id) const;
+
  protected:
   virtual void initSequence();
 
@@ -190,6 +193,14 @@ double Path<GraphT>::dist(unsigned seq_id) const {
   }
 
   return distances_[seq_id];
+}
+
+template <class GraphT>
+int Path<GraphT>::query_terrain_type(unsigned seq_id) const {
+  CLOG(ERROR, "cbit.path_planning") << "Trying to Get the terrain type for vertex: " << seq_id;
+  int terrain_type = graph_->at(VertexId(0,seq_id))->GetTerrainType();
+  CLOG(ERROR, "cbit.path_planning") << "The terrain type is: " << terrain_type;
+  return terrain_type;
 }
 
 template <class GraphT>

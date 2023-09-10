@@ -233,6 +233,9 @@ void CBIT::process_cbit() {
 // Here is where we do all the teach path pre-processing and then begin the anytime planner asychronously
 void CBIT::initializeRoute(RobotState& robot_state) {
   auto& chain = *robot_state.chain;
+  CLOG(ERROR, "cbit.path_planning") << "CBIT.cpp Trying to Query Graph VIA Chain";
+  CLOG(ERROR, "cbit.path_planning") << chain.query_terrain_type(0);
+  CLOG(ERROR, "cbit.path_planning") << "Did it successfully";
 
   // Wait until the chain becomes localized
   while (!chain.isLocalized())
