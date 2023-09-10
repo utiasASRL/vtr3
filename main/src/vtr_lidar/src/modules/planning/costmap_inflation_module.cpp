@@ -133,6 +133,12 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
   costmap->vertex_id() = vid_loc;
   costmap->vertex_sid() = sid_loc;
 
+  // Update the output cache
+  output.costmap_sid = costmap->vertex_sid(); 
+  output.obs_map = costmap->filter(0.01); //was config_->costmap_filter_value
+  output.grid_resolution = config_->resolution;
+  
+
 
   /// publish the transformed pointcloud
   if (config_->visualize) {
