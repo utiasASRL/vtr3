@@ -29,6 +29,7 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
 find_package(vtr_radar REQUIRED)
 find_package(vtr_lidar REQUIRED)
+find_package(vtr_torch REQUIRED)
 
 ## C++ Libraries
 include_directories(PUBLIC
@@ -46,7 +47,7 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_radar vtr_lidar
+  vtr_common vtr_logging vtr_tactic vtr_radar vtr_lidar vtr_torch
   nav_msgs visualization_msgs
 )
 

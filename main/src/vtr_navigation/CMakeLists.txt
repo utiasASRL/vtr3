@@ -22,6 +22,7 @@ find_package(vtr_tactic REQUIRED)
 find_package(vtr_path_planning REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_navigation_msgs REQUIRED)
+find_package(vtr_torch REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
 find_package(vtr_lidar REQUIRED)
@@ -68,8 +69,8 @@ add_library(${PROJECT_NAME}_navigator ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
-  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_path_planning
-  vtr_lidar
+  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch vtr_path_planning
+  vtr_lidar 
   # vtr_vision
 )
 target_link_libraries(${PROJECT_NAME}_navigator
@@ -86,9 +87,9 @@ target_include_directories(${PROJECT_NAME}_navigator
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros
-  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch
   vtr_navigation_msgs vtr_path_planning
-  vtr_lidar
+  vtr_lidar 
   # vtr_vision
   PROJ
 )

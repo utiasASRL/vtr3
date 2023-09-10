@@ -18,9 +18,10 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=hdl64_grizzly_default.yaml
+        base_params:=hdl64_grizzly_learned.yaml
         data_dir:=${VTRTEMP}/lidar/
-        start_new_graph:=true
+        model_dir:=${VTRMODELS}
+        start_new_graph:=false
         use_sim_time:=true
         path_planning.type:=stationary
 
@@ -39,5 +40,7 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/hdl64.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/hdl_64.rviz
+      - ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+
       # - ros2 run rqt_reconfigure rqt_reconfigure

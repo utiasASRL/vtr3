@@ -8,10 +8,8 @@ Panels:
         - /TF1
         - /TF1/Frames1
         - /odometry path1/Shape1
-        - /localization path1
         - /localization path1/Topic1
         - /curr map loc1/Topic1
-        - /reference path1
         - /reference path1/Topic1
         - /planned path1/Offset1
         - /planned path (poses)1/Topic1
@@ -21,6 +19,8 @@ Panels:
         - /Corridor Path Left1/Topic1
         - /PoseArray1
         - /PoseArray2
+        - /PointCloud21
+        - /PointCloud21/Status1
       Splitter Ratio: 0.4507042169570923
     Tree Height: 871
   - Class: rviz_common/Selection
@@ -40,7 +40,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Visualization Manager:
   Class: ""
   Displays:
@@ -95,13 +95,13 @@ Visualization Manager:
         lidar:
           Value: false
         loc vertex frame:
-          Value: false
+          Value: true
         loc vertex frame (offset):
-          Value: false
+          Value: true
         novatel:
           Value: true
         odo vertex frame:
-          Value: false
+          Value: true
         odom:
           Value: true
         os_imu:
@@ -114,8 +114,6 @@ Visualization Manager:
           Value: true
         os_sensor_baseplate:
           Value: true
-        planning frame:
-          Value: false
         rear_left_wheel_link:
           Value: true
         rear_right_wheel_link:
@@ -128,12 +126,6 @@ Visualization Manager:
           Value: true
         robot:
           Value: true
-        robot planning:
-          Value: false
-        robot planning (extrapolated):
-          Value: false
-        robot planning (extrapolated) mpc:
-          Value: false
         sensor_tower:
           Value: true
         stereo_camera:
@@ -157,13 +149,6 @@ Visualization Manager:
             robot:
               lidar:
                 {}
-          planning frame:
-            robot planning:
-              {}
-            robot planning (extrapolated):
-              {}
-            robot planning (extrapolated) mpc:
-              {}
           world (offset):
             loc vertex frame (offset):
               {}
@@ -483,74 +468,6 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/teb_poses
       Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: false
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: flex24
-      Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 0
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 2
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: change detection input
-      Position Transformer: XYZ
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.10000000149011612
-      Style: Flat Squares
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /vtr/change_detection_fake_pcd
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
-    - Alpha: 1
-      Autocompute Intensity Bounds: false
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: flex24
-      Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 0
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 2
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: change detection scan
-      Position Transformer: XYZ
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.10000000149011612
-      Style: Boxes
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /vtr/change_detection_scan
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
     - Alpha: 0.20000000298023224
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
@@ -684,40 +601,6 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /annotation_map
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
-    - Alpha: 1
-      Autocompute Intensity Bounds: false
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: flex24
-      Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 2
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: temp
-      Position Transformer: XYZ
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.10000000149011612
-      Style: Flat Squares
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /vtr/fake_pcd
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
@@ -1110,40 +993,6 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
-    - Alpha: 1
-      Autocompute Intensity Bounds: false
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: flex24
-      Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 0
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 2
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: planning fake obs. scan
-      Position Transformer: XYZ
-      Selectable: true
-      Size (Pixels): 2.5
-      Size (m): 0.07999999821186066
-      Style: Points
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /vtr/fake_obstacle_scan
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
     - Alpha: 0.800000011920929
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
@@ -1442,6 +1291,40 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/mpc_ref_pose_array2
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/change_detection_concat
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 189; 189; 189
@@ -1488,7 +1371,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 41.55506134033203
+      Distance: 54.51273727416992
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -1503,10 +1386,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.8647971153259277
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.441279411315918
+      Yaw: 4.0012898445129395
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -1724,5 +1607,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 72
+  X: 78
   Y: 27

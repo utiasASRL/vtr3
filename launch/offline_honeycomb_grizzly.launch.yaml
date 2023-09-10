@@ -20,9 +20,10 @@ windows:
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
         data_dir:=${VTRTEMP}/lidar
+        model_dir:=${VTRMODELS}
         start_new_graph:=true
         use_sim_time:=true
-        path_planning.type:=stationary
+        path_planning.type:="cbit.lidar"
 
 #      - htop # monitor hardware usage
 

@@ -18,6 +18,7 @@ find_package(pcl_ros REQUIRED)
 
 find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -26,6 +27,7 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_lidar_msgs REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
+find_package(vtr_torch REQUIRED)
 
 ## C++ Libraries
 include_directories(PUBLIC
@@ -36,6 +38,7 @@ include_directories(PUBLIC
 # components
 file(GLOB_RECURSE COMPONENTS_SRC
   src/data_types/*.cpp
+  src/filters/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
@@ -54,8 +57,8 @@ add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions pcl_ros
-  nav_msgs visualization_msgs
-  lgmath steam
+  nav_msgs visualization_msgs sensor_msgs
+  lgmath steam vtr_torch
   vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
@@ -74,7 +77,7 @@ ament_export_dependencies(
   Eigen3 pcl_conversions pcl_ros
   nav_msgs visualization_msgs
   lgmath steam
-  vtr_logging vtr_tactic vtr_lidar_msgs
+  vtr_logging vtr_tactic vtr_lidar_msgs vtr_torch
 )
 
 install(
