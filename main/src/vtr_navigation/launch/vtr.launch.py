@@ -19,7 +19,7 @@ def generate_launch_description():
         "namespace": 'vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
-        #prefix=['xterm -e gdb -ex run --args'],
+        #"prefix": 'xterm -e gdb -ex run --args',
     }
 
     return LaunchDescription([
@@ -33,8 +33,6 @@ def generate_launch_description():
         Node(**commonNodeArgs,
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
-                PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
-
               {
                     "data_dir": LaunchConfiguration("data_dir"),
                     "model_dir": LaunchConfiguration("model_dir"),
@@ -48,7 +46,8 @@ def generate_launch_description():
         ),
         Node(**commonNodeArgs,
             parameters=[
-                  PathJoinSubstitution((temp_dir, "setup_params.yaml")),
+                PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
+                PathJoinSubstitution((temp_dir, "setup_params.yaml")),
                 {
                     "model_dir": LaunchConfiguration("model_dir"),
                     "start_new_graph": LaunchConfiguration("start_new_graph"),

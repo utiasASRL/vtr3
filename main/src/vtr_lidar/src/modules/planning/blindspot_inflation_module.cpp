@@ -76,6 +76,7 @@ BlindspotCostmapModule::VtrPointCloud BlindspotCostmapModule::assemble_pointclou
   const auto &stamp = *qdata.stamp;
   const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
+  const auto &T_s_r = *qdata.T_s_r;
   const auto &changed_points = *qdata.changed_points;
   const auto &chain = *output.chain;
 
@@ -92,6 +93,8 @@ BlindspotCostmapModule::VtrPointCloud BlindspotCostmapModule::assemble_pointclou
 
   const auto &T_w_v_loc = chain.pose(sid_loc);
   const auto T_r_w = T_r_v_loc*(T_w_v_loc.inverse());
+  const auto T_s_w = T_s_r*T_r_w;
+  const auto T_v_loc_s = T_w_v_loc.inverse()*T_s_w.inverse();
 
   auto aligned_point_cloud = concat_pc.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   aligned_point_cloud = T_w_v_loc.matrix().cast<float>() * aligned_point_cloud;
@@ -101,20 +104,23 @@ BlindspotCostmapModule::VtrPointCloud BlindspotCostmapModule::assemble_pointclou
 
 
   auto aligned_concat_cloud = concat_pc.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  aligned_concat_cloud = T_r_w.matrix().cast<float>() * aligned_concat_cloud;
+  aligned_concat_cloud = T_s_w.matrix().cast<float>() * aligned_concat_cloud;
 
   std::vector<int> indices;
   indices.reserve(concat_pc.size());
   const float r_sq_thresh = config_->blind_spot_radius * config_->blind_spot_radius;
+  const double elev_thres = 25*M_PI/180;
   for (size_t i = 0; i < concat_pc.size(); ++i) {
     auto &p = concat_pc[i];
-    auto r_sq = p.x*p.x + p.y*p.y;
-    if (r_sq < r_sq_thresh) indices.emplace_back(i);
+    auto r = sqrt(p.x*p.x + p.y*p.y);
+
+    auto elevation = atan2(p.z, r);
+    if (abs(elevation) > elev_thres) indices.emplace_back(i);
     else if (abs(stamp - p.timestamp) < config_->lifetime*1e9) indices.emplace_back(i);
   }
   pcl::PointCloud<PointWithInfo> obstacle_points(concat_pc, indices);
   auto aligned_obstacle_cloud = obstacle_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  aligned_obstacle_cloud = T_r_v_loc.inverse().matrix().cast<float>() * aligned_obstacle_cloud;
+  aligned_obstacle_cloud = T_v_loc_s.matrix().cast<float>() * aligned_obstacle_cloud;
   
   // pcl::PointCloud<PointWithInfo> reduced_world(concat_pc, indices);
   all_points_ = pcl::PointCloud<PointWithInfo>(all_points_, indices);

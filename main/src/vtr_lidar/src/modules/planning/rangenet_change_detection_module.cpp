@@ -65,24 +65,23 @@ auto RangeChangeNetModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->fov_down = node->declare_parameter<float>(param_prefix + ".fov_down", config->fov_down);
   config->range_crop = node->declare_parameter<float>(param_prefix + ".range_crop", config->range_crop);
   config->neighbourhood = node->declare_parameter<int>(param_prefix + ".neighbourhood", config->neighbourhood);
+  config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
 
   // clang-format on
   return config;
 }
 
 
-void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
-                            const Graph::Ptr &, const TaskExecutor::Ptr &) {
+void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
+                            const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
-  auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
 
   auto nn_point_cloud = *qdata.nn_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;  
-  const auto &vid_loc = *qdata.vid_loc;
-  const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
+  const auto &sid_loc = *qdata.sid_loc;
   
 
 
@@ -149,6 +148,7 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
   torch::from_blob(mask_image.data(), {64, 1024}) = mask;
 
   unproject_range_image(nn_point_cloud, mask_image, scan_idxs);
+  unproject_range_image(*qdata.nn_point_cloud, mask_image, scan_idxs);
 
   // filter out non-obstacle points
   std::vector<int> indices;
@@ -184,6 +184,24 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &output0,
 
   pcl::PointCloud<PointWithInfo> radius_filtered_points(obstacle_points, radii_indices);
   qdata.changed_points.emplace(radius_filtered_points);
+
+
+  // if (config_->save_nn_point_cloud) {
+  //   auto vertex = graph->at(*qdata.vid_odo);
+
+  //   auto nn_scan = std::make_shared<PointScan<PointWithInfo>>();
+  //   nn_scan->point_cloud() = nn_point_cloud;
+  //   nn_scan->T_vertex_this() = qdata.T_s_r->inverse();
+  //   nn_scan->vertex_id() = *qdata.vid_odo;
+  //   //
+  //   using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+  //   auto nn_scan_odo_msg =
+  //       std::make_shared<PointScanLM>(nn_scan, *qdata.stamp);
+  //   vertex->insert<PointScan<PointWithInfo>>(
+  //       "nn_point_cloud", "vtr_lidar_msgs/msg/PointScan", nn_scan_odo_msg);
+
+  //   CLOG(DEBUG, "lidar.pipeline") << "Saved nn pointcloud to vertex" << vertex;
+  // }
 
   
   /// publish the transformed pointcloud

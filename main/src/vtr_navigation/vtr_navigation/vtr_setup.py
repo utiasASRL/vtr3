@@ -21,7 +21,7 @@ SETUP_DIR = os.getenv('VTRTEMP')
 DEFAULT_DIR = os.getenv('VTRTEMP')
 
 def confirm_setup(data):
-    if not osp.isdir(data["data_dir"]):
+    if not data["data_dir"].startswith(DEFAULT_DIR+os.sep):
         return False
 
     os.chdir(SETUP_DIR)
