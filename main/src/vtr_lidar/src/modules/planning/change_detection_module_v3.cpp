@@ -531,10 +531,14 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Values: " << vals2;
 
     // Update the output cache
-    output.costmap_sid = dense_costmap->vertex_sid(); 
-    output.obs_map =  dense_costmap->filter(0.01); //was config_->costmap_filter_value
-    output.grid_resolution = config_->resolution;
-  
+    // Define a mutex to protect access to output.obs_map
+    {
+        // Lock the mutex before modifying output.obs_map
+        std::lock_guard<std::mutex> lock(output.obsMapMutex);
+        output.costmap_sid = costmap->vertex_sid(); 
+        output.obs_map = costmap->filter(0.01); // Modify output.obs_map safely
+        output.grid_resolution = config_->resolution;
+    } 
   }
   
 

@@ -78,6 +78,9 @@ class CBITPlanner {
 
         // Flag that tells the cbit.cpp planning interface to stop the mpc if there is no current cbit solution
         std::shared_ptr<bool> valid_solution_ptr;
+
+        // Pointer to the dynamic corridor width from planner GUI
+        std::shared_ptr<double> q_max_ptr;
         
         // Temporary obstacles
         std::vector<std::vector<double>>  obs_rectangle;
@@ -85,7 +88,7 @@ class CBITPlanner {
         // Costmap pointer
         std::shared_ptr<CBITCostmap> cbit_costmap_ptr;
 
-        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, PathDirection path_direction);
+        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, std::shared_ptr<double>width_ptr, PathDirection path_direction);
 
     protected:
     struct ChainInfo {

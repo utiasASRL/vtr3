@@ -149,6 +149,7 @@ struct OutputCache : std::enable_shared_from_this<OutputCache> {
   Cache<LocalizationChain> chain;
 
   // Obstacle Costmap:
+  std::mutex obsMapMutex;
   using XY2ValueMap = std::unordered_map<std::pair<float, float>, float>;
   XY2ValueMap obs_map;
   unsigned costmap_sid;

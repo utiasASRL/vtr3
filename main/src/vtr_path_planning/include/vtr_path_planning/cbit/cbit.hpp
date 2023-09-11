@@ -184,6 +184,9 @@ class CBIT : public BasePathPlanner {
   // Pointers to the flag for there being a valid solution or not
   std::shared_ptr<bool> valid_solution_ptr;
 
+  // Pointer that sets the maximum lateral deviation the planner is allowed to use in planning
+  std::shared_ptr<double> q_max_ptr;
+
   // Pointers to the corridor
   std::shared_ptr<CBITCorridor> corridor_ptr;
 
