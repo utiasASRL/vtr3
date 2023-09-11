@@ -509,7 +509,8 @@ void GraphMapServer::updateVertexType() {
                                         "vtr_tactic_msgs/msg/EnvInfo");
     vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
     graph->at(VertexId(vertex.id))->SetTerrainType(vertex.type);
-    CLOG(WARNING, "navigation.graph_map_server") << "Updating Graph Vertex Type:";
+    int vertex_type = vertex.type;
+    CLOG(DEBUG, "navigation.graph_map_server") << "Updating Graph Vertex Type: " << vertex_type;
   }
 }
 

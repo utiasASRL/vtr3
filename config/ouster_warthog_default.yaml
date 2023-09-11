@@ -347,7 +347,7 @@
         horizon_step_size: 0.3
         forward_vel: 0.75
         max_lin_vel: 1.25
-        max_ang_vel: 2.0
+        max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.8 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 

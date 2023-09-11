@@ -10,13 +10,13 @@
     
         # tactic
       #- tactic
-      - tactic.pipeline
+      #- tactic.pipeline
       #- tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
         
         # planner manager
-      #- cbit.control
+      - cbit.control
       #- cbit.debug
       #- cbit.path_planning
       #- cbit.obstacle_filtering
@@ -27,7 +27,9 @@
       #- mpc.debug
       #- mpc.solver
         
-      - ouster
+        # path planner
+      #- cbit_planner.path_planning
+      #- ouster
         
         # mission planner
       #- mission.server
@@ -37,20 +39,20 @@
       #- pose_graph
 
         # lidar pipeline
-      - lidar.pipeline
+      #- lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
-      - lidar.odometry_icp
+      #- lidar.odometry_icp
       #- lidar.odometry_map_maintenance
-      - lidar.vertex_test
+      #- lidar.vertex_test
       #- lidar.localization_map_recall
-      - lidar.localization_icp
-      - lidar.intra_exp_merging
+      #- lidar.localization_icp
+      #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
-      - lidar.inter_exp_merging
-      - lidar.range
-      - lidar.costamp_inflation
-      - lidar.obstacle_inflation
+      #- lidar.inter_exp_merging
+      #- lidar.range
+      #- lidar.costamp_inflation
+      #- lidar.obstacle_inflation
       #- lidar.ground_extraction
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
@@ -74,7 +76,7 @@
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.5
+      route_completion_translation_threshold: 0.3
 
       chain:
         min_cusp_distance: 1.5
@@ -317,11 +319,11 @@
       type: cbit
       control_period: 100 # ms
       cbit:
-        obstacle_avoidance: false
+        obstacle_avoidance: true
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
-        sliding_window_freespace_padding: 0.5
+        sliding_window_freespace_padding: 2.0
         corridor_resolution: 0.2
         state_update_freq: 2.0
         update_state: true
@@ -337,7 +339,7 @@
         iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
-        initial_exp_rad: 1.25
+        initial_exp_rad: 1.00
         extrapolation: false
         incremental_plotting: false
         plotting: true
@@ -356,33 +358,40 @@
         mpc_verbosity: false
         homotopy_guided_mpc: false
         horizon_steps: 20
-        horizon_step_size: 0.3
+        horizon_step_size: 0.5
         forward_vel: 0.75
         max_lin_vel: 1.25
-        max_ang_vel: 2.0
+        max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.8 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [100.0, 200.0]
-        acc_error_cov: [100.0, 200.0]
-        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        lat_error_cov: [20.0]
+        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
+        vel_error_cov: [20.0, 30.0]
+        acc_error_cov: [20.0, 20.0]
+        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+        lat_error_cov: [2.0]
         
         # Cost Function Covariance Matrices (Tracking Backup)
-        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
-        #acc_error_cov: [10.0, 10.0]
+        #pose_error_cov: [1.0, 1.0, 10.0, 10.0, 10.0, 2.0]
+        #vel_error_cov: [3.0, 3.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [0.3, 0.3]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [1.0]
+        
+        #backup for tracking mpc
+        #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
+        #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
+        #acc_error_cov: [0.1, 0.75]
         #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         #lat_error_cov: [10.0]
-        
+
         # Cost Function Weights
         pose_error_weight: 1.0
-        vel_error_weight: 1.0
-        acc_error_weight: 1.0
+        vel_error_weight: 1.5
+        acc_error_weight: 1.5
         kin_error_weight: 1.0
         lat_error_weight: 0.01
 
