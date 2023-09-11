@@ -29,7 +29,7 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models \
-  GRIZZLY=${VTRROOT}/grizzly
+  GRIZZLY=${VTRROOT}/grizzly \
   WARTHOG=${VTRROOT}/warthog \
   VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
 
