@@ -44,7 +44,7 @@ auto CBITPlanner::getChainInfo(vtr::path_planning::BasePathPlanner::RobotState& 
 }
 
 // Class Constructor:
-CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, PathDirection path_direction)
+CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool> solution_ptr, std::shared_ptr<double> width_ptr, PathDirection path_direction)
 { 
   // Setting random seed
   srand((unsigned int)time(NULL));
@@ -53,6 +53,7 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   cbit_path_ptr = path_ptr;
   cbit_costmap_ptr = costmap_ptr;
   valid_solution_ptr = solution_ptr;
+  q_max_ptr = width_ptr;
 
   // Before beginning the planning phase, we need to wait for the robot to localize, and then update the goal state
   auto& chain = *robot_state.chain;
@@ -109,7 +110,7 @@ void CBITPlanner::InitializePlanningSpace()
   obs_rectangle = {}; 
 
   // Initialize sliding window dimensions for plotting and radius expansion calc;
-  sample_box_height = conf.q_max * 2.0;
+  sample_box_height = (*q_max_ptr) * 2.0;
   sample_box_width = conf.sliding_window_width + 2 * conf.sliding_window_freespace_padding;
 }
 
@@ -204,6 +205,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
 
         // Add the new goal (robot state) to the samples so it can be found again
         samples.push_back(p_goal); 
+        
         // Generate some additional samples in a 2m local ring around the robot state
         double r_s;
         double theta_s;
@@ -230,8 +232,10 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         double sample_dist;
         for (int i = 0; i < tree.V.size(); i++)
         {
+          //tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>((tree.V[i]->g_T_weighted + h_estimated_admissible(*tree.V[i], *p_goal)), tree.V[i]));
           sample_dist = calc_dist(*(tree.V[i]), *p_goal);
-          if ((sample_dist <= 2.0) && ((tree.V[i])->p > (p_goal->p + (conf.initial_exp_rad/2)))) // TODO: replace magic number with a param, represents radius to search for state update rewires
+          //if ((sample_dist <= 5.0) && ((tree.V[i])->p > (p_goal->p + (conf.initial_exp_rad/2)))) // TODO: replace magic number with a param, represents radius to search for state update rewires
+          if (sample_dist <= 5.0) // TODO: replace magic number with a param, represents radius to search for state update rewires
           {
             tree.QV2.insert(std::pair<double, std::shared_ptr<Node>>((tree.V[i]->g_T_weighted + h_estimated_admissible(*tree.V[i], *p_goal)), tree.V[i]));
           }
@@ -336,21 +340,16 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
         {
           // If there is a collision, prune the tree of all vertices to the left of the this vertex
           CLOG(WARNING, "cbit_planner.path_planning") << "Collision Detected:";
-          //CLOG(WARNING, "cbit_planner.path_planning") << "Collision Free Vertex is - p: " << col_free_vertex->p << " q: " << col_free_vertex->q;
+          CLOG(WARNING, "cbit_planner.path_planning") << "Collision Free Vertex is - p: " << col_free_vertex->p << " q: " << col_free_vertex->q;
 
           // Vertex Prune (maintain only vertices to the right of the collision free vertex)
           std::vector<std::shared_ptr<Node>> pruned_vertex_tree;
           pruned_vertex_tree.reserve(tree.V.size());
-          int test_counter = 0;
           for (int i =0; i<tree.V.size(); i++)
           {
             if (tree.V[i]->p >= col_free_vertex->p)
             {
               pruned_vertex_tree.push_back(tree.V[i]);
-            }
-            if (tree.V[i]->p >= (p_goal->p + 11.0))
-            {
-              test_counter = test_counter + 1;
             }
           }
           tree.V = pruned_vertex_tree;
@@ -380,7 +379,7 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
           m = conf.initial_samples;  
 
           // Re-initialize sliding window dimensions for plotting and radius expansion calc;
-          sample_box_height = conf.q_max * 2.0;
+          sample_box_height = (*q_max_ptr) * 2.0;
           sample_box_width = conf.sliding_window_width + 2 * conf.sliding_window_freespace_padding;
 
           // Disable pre-seeds from being regenerated
@@ -419,12 +418,14 @@ void CBITPlanner::Planning(vtr::path_planning::BasePathPlanner::RobotState& robo
       {
         std::vector<std::shared_ptr<Node>> new_samples = SampleBox(m);
         samples.insert(samples.end(), new_samples.begin(), new_samples.end());
+        CLOG(INFO, "cbit_planner.path_planning") << "Sampling Box";
       }
       
       else
       {
         std::vector<std::shared_ptr<Node>> new_samples = SampleFreeSpace(m);
         samples.insert(samples.end(), new_samples.begin(), new_samples.end());
+        CLOG(INFO, "cbit_planner.path_planning") << "Sample Free Space";
       }
 
     
@@ -693,7 +694,7 @@ std::vector<std::shared_ptr<Node>> CBITPlanner::SampleFreeSpace(int m)
   
   double p_max = p_goal->p + dynamic_window_width + conf.sliding_window_freespace_padding;
   double p_zero = p_goal->p - conf.sliding_window_freespace_padding;
-  double q_max = conf.q_max;
+  double q_max = (*q_max_ptr);
 
   int ind = 0;
   while (ind < m)
@@ -837,7 +838,7 @@ std::shared_ptr<Node> CBITPlanner::UpdateStateSID(int SID, vtr::tactic::EdgeTran
   }
 
   // calc q_min
-  double q_min = conf.q_max;
+  double q_min = (*q_max_ptr);
   double q;
   Node closest_pt;
   int closest_pt_ind;
