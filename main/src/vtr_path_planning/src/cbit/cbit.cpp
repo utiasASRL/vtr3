@@ -132,6 +132,7 @@ CBIT::CBIT(const Config::ConstPtr& config,
   // Initialize the shared pointer to the output of the planner
   cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
   valid_solution_ptr = std::make_shared<bool> (false);
+  q_max_ptr = std::make_shared<double> (config->q_max);
 
   // Create visualizer and its corresponding pointer:
   VisualizationUtils visualization_utils(node);
@@ -233,9 +234,6 @@ void CBIT::process_cbit() {
 // Here is where we do all the teach path pre-processing and then begin the anytime planner asychronously
 void CBIT::initializeRoute(RobotState& robot_state) {
   auto& chain = *robot_state.chain;
-  CLOG(ERROR, "cbit.path_planning") << "CBIT.cpp Trying to Query Graph VIA Chain";
-  CLOG(ERROR, "cbit.path_planning") << chain.query_terrain_type(0);
-  CLOG(ERROR, "cbit.path_planning") << "Did it successfully";
 
   // Wait until the chain becomes localized
   while (!chain.isLocalized())
@@ -293,7 +291,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   CLOG(INFO, "cbit.path_planning") << "Corridor generated successfully. Attempting to instantiate the planner";
 
   // Instantiate the planner
-  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, valid_solution_ptr, path_direction);
+  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, valid_solution_ptr, q_max_ptr, path_direction);
   CLOG(INFO, "cbit.path_planning") << "Planner successfully created and resolved";
 }
 
@@ -322,22 +320,36 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     return Command();
   }
 
-  // Make sure there is a valid solution, else stop the robot
-  if (*valid_solution_ptr == false)
+
+  // Handling Dynamic Corridor Widths:
+  // Retrieve the terrain type (corresponds to maximum planning width)
+  if (curr_sid <= chain.size()-2)
   {
-    CLOG(INFO, "cbit.control") << "There is Currently No Valid Solution, Disabling MPC";
-    return Command();
+    CLOG(DEBUG, "cbit.control") << "Trying to query the graph vertex type for SID: " << curr_sid;
+    int vertex_type = chain.query_terrain_type(curr_sid);
+    CLOG(DEBUG, "cbit.control") << "GUI Vertex Type is: " << (vertex_type + 1); // we may want to look ahead a few frames instead
+    
+    // Type 1 in GUI is default and returns the value 0. This should correspond to 2.5m maximum lateral deviation.
+    // Each subsequent type maps to Type # - 1, i.e. Type 2 path = 1, Type 3 = 2, and so on.
+
+    // Calculate q_max width for planner
+    *q_max_ptr = 2.5 - (0.5 * vertex_type);
+    // Note: Minimum should never go to exactly zero or this could cause issues in the planner (0.01 is fine)
+    // TODO: Update the type values in the GUI to reflect this change
   }
 
   // Retrieve the latest obstacle costmap
   bool obstacle_avoidance = config_->obstacle_avoidance;
   if ((prev_stamp != stamp) && (obstacle_avoidance == true))
   {
+    
+    std::lock_guard<std::mutex> lock(robot_state.obsMapMutex);
+    // Read or use output.obs_map safely
     auto obs_map = robot_state.obs_map;
     const auto costmap_sid = robot_state.costmap_sid;
     const auto T_start_vertex = chain.pose(costmap_sid);
     costmap_ptr->grid_resolution = robot_state.grid_resolution;
-
+  
     CLOG(DEBUG, "cbit.obstacle_filtering") << "The size of the map is: " << obs_map.size();
 
     // Updating the costmap pointer
@@ -365,6 +377,12 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   prev_stamp = stamp;
   // END OF OBSTACLE PERCEPTION UPDATES
 
+  // Make sure there is a valid solution, else stop the robot
+  if (*valid_solution_ptr == false)
+  {
+    CLOG(INFO, "cbit.control") << "There is Currently No Valid Solution, Disabling MPC";
+    return Command();
+  }
 
   // START OF MPC CODE
   // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
