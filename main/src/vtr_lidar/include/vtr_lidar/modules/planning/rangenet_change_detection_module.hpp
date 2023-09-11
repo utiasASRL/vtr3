@@ -60,6 +60,7 @@ class RangeChangeNetModule : public nn::TorchModule {
     int neighbourhood = 1;
 
     float radius_filter = 0.1;
+    bool save_nn_point_cloud = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
