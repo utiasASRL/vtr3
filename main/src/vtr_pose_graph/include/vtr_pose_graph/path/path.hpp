@@ -197,7 +197,7 @@ double Path<GraphT>::dist(unsigned seq_id) const {
 
 template <class GraphT>
 int Path<GraphT>::query_terrain_type(unsigned seq_id) const {
-  int terrain_type = graph_->at(VertexId(0,seq_id))->GetTerrainType();
+  int terrain_type = graph_->at(sequence_.at(seq_id))->GetTerrainType();
   return terrain_type;
 }
 
