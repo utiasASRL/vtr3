@@ -101,7 +101,8 @@ class CBIT : public BasePathPlanner {
     // Speed Scheduler
     double planar_curv_weight = 2.50;
     double profile_curv_weight = 0.5; 
-    double eop_weight = 1.0; 
+    double eop_weight = 1.0;
+    double min_vel = 0.5;  
 
     // MPC Configs
     bool obstacle_avoidance = false;
