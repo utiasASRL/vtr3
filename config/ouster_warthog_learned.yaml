@@ -16,7 +16,7 @@
       #- tactic.module.graph_mem_manager
         
         # planner manager
-      #- cbit.control
+      - cbit.control
       #- cbit.debug
       #- cbit.path_planning
       #- cbit.obstacle_filtering
@@ -25,7 +25,7 @@
         # mpc
       #- mpc.speed_scheduler
       #- mpc.debug
-      #- mpc.solver
+      - mpc.solver
         
       - ouster
         
@@ -251,7 +251,7 @@
         type: torch.range_change
         use_gpu: true
         abs_filepath: false
-        filepath: exported_model_forest_m30_10m.pt
+        filepath: exported_model_flat_m30_10m.pt
         radius_filter: 0.25
         neighbourhood: 5
         save_nn_point_cloud: true
@@ -316,7 +316,7 @@
       type: cbit
       control_period: 100 # ms
       cbit:
-        obstacle_avoidance: false
+        obstacle_avoidance: true
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0

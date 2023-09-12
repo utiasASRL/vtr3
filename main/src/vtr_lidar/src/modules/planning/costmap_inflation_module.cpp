@@ -55,7 +55,7 @@ class DetectChangeOp {
     // update the value of v
     dist = std::sqrt(dist);  // convert to distance
     v = std::max(1 - (dist - d1_) / d0_, 0.0f);
-    v = std::min(v, 0.9f);  // 1 is bad for visualization
+    v = std::min(v, 1.0f);  // 1 is bad for visualization
   }
 
  private:
