@@ -70,6 +70,7 @@ class OdometryICPModule : public tactic::BaseModule {
     bool verbose = false;
     unsigned int max_iterations = 1;
     double huber_delta = 1.0;
+    double cauchy_k = 0.5;
 
     /// Success criteria
     float min_matched_ratio = 0.4;

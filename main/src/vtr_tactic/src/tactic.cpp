@@ -163,10 +163,16 @@ bool Tactic::passedSeqId(const uint64_t& sid) const {
 
 bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
-  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 1)) return false;
   const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
-  if (translation > config_->route_completion_translation_threshold)
+
+  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
     return false;
+  }
+
+  if (translation > config_->route_completion_translation_threshold) {
+    return false;
+  }
+  
   return true;
 }
 
@@ -628,6 +634,7 @@ bool Tactic::teachMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "
                                "and localization chain.";
+    chain_->lostLocalization();
     return true;
   }
 
@@ -667,6 +674,7 @@ bool Tactic::teachMergeLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
+    chain_->lostLocalization();
     return true;
   }
 
@@ -704,6 +712,8 @@ bool Tactic::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
+    chain_->lostLocalization();
+
     return true;
   }
 
@@ -802,9 +812,15 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
 
   // Store environment info into the vertex
   using EnvInfoLM = storage::LockableMessage<EnvInfo>;
-  const auto data = std::make_shared<EnvInfo>(env_info);
-  const auto msg = std::make_shared<EnvInfoLM>(data, stamp);
-  vertex->insert<EnvInfo>("env_info", "vtr_tactic_msgs/msg/EnvInfo", msg);
+  const auto env_info_data = std::make_shared<EnvInfo>(env_info);
+  const auto env_info_msg = std::make_shared<EnvInfoLM>(env_info_data, stamp);
+  vertex->insert<EnvInfo>("env_info", "vtr_tactic_msgs/msg/EnvInfo", env_info_msg);
+
+  // Store waypoint name info into the vertex
+  using WaypointNameLM = storage::LockableMessage<WaypointName>;
+  const auto waypoint_name_data = std::make_shared<WaypointName>();
+  const auto waypoint_name_msg = std::make_shared<WaypointNameLM>(waypoint_name_data, stamp);
+  vertex->insert<WaypointName>("waypoint_name", "vtr_tactic_msgs/msg/WaypointNames", waypoint_name_msg);
 
   // Add the new edge
   if (!previous_vertex_id.isValid()) return;

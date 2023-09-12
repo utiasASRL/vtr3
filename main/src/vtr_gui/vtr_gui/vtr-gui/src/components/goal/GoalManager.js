@@ -21,6 +21,7 @@ import { Box, Button, Drawer, List, easing } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StorageIcon from "@mui/icons-material/Storage";
+import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 
 import GoalCard from "./GoalCard";
 import GoalCurrent from "./GoalCurrent";
@@ -43,6 +44,7 @@ class GoalManager extends React.Component {
       selectTool,
       deselectTool,
       serverState,
+      waypointsMap,
       goals,
       currGoalIdx,
       newGoalType,
@@ -53,6 +55,50 @@ class GoalManager extends React.Component {
       mergeIds,
     } = this.props;
     const { goal_panel_open } = this.state;
+
+    let stateBox;
+
+    switch (serverState) {
+      case "PAUSED":
+      case "PENDING_PAUSE":
+      stateBox = (<Button
+        color={"primary"}
+        disableElevation={true}
+        fullWidth={true}
+        size={"large"}
+        variant={"contained"}
+        onClick={this.setPause.bind(this, false)}
+      >
+        SYSTEM PAUSED
+      </Button>);
+      break;
+    case "CRASHED":
+      stateBox =(<Button
+        color={"warning"}
+        disableElevation={true}
+        variant={"contained"}
+        fullWidth={true}
+        size={"large"}
+      >
+        SYSTEM CRASHED
+      </Button>);
+      break;
+    case "RUNNING":
+    default:
+      stateBox =(<Button
+          color={"warning"}
+          disableElevation={true}
+          variant={"contained"}
+          fullWidth={true}
+          size={"large"}
+          onClick={this.setPause.bind(this, true)}
+        >
+          SYSTEM RUNNING
+        </Button>);
+        break;
+    }
+
+
     return (
       <>
         {/* Start, Pause and Clear buttons */}
@@ -69,31 +115,7 @@ class GoalManager extends React.Component {
             justifyContent: "center",
           }}
         >
-          {serverState === "PAUSED" || serverState === "PENDING_PAUSE" ? (
-            <Button
-              color={"primary"}
-              disableElevation={true}
-              fullWidth={true}
-              size={"large"}
-              variant={"contained"}
-              onClick={this.setPause.bind(this, false)}
-            >
-              SYSTEM PAUSED
-            </Button>
-          ) : (
-            <>
-              <Button
-                color={"warning"}
-                disableElevation={true}
-                variant={"contained"}
-                fullWidth={true}
-                size={"large"}
-                onClick={this.setPause.bind(this, true)}
-              >
-                SYSTEM RUNNING
-              </Button>
-            </>
-          )}
+        {stateBox}
         </Box>
         {/* current environment info */}
         {currentTool === null && (
@@ -162,6 +184,19 @@ class GoalManager extends React.Component {
               m: 0.5,
             }}
           >
+            {goals.length > 0 ? (<Button
+              sx={{ width: GOAL_PANEL_WIDTH, m: 1 }}
+              color={"primary"}
+              disableElevation={true}
+              fullWidth={true}
+              size="large"
+              startIcon={<PlayCircleIcon />}
+              variant={"contained"}
+              onClick={this.beginGoals.bind(this)}
+            >
+              BEGIN GOALS
+            </Button>) : null
+            }
             {goals.map((goal, idx) => {
               return (
                 <GoalCard
@@ -185,9 +220,10 @@ class GoalManager extends React.Component {
           >
             <GoalForm
               socket={socket}
+              waypointsMap={waypointsMap}
               goalWaypoints={newGoalWaypoints}
               goalType={newGoalType}
-              setGoalWaypoints={setNewGoalWaypoints}
+              setNewGoalWaypoints={setNewGoalWaypoints}
               setGoalType={setNewGoalType}
             ></GoalForm>
           </Box>
@@ -202,19 +238,25 @@ class GoalManager extends React.Component {
   }
 
   setPause(pause) {
-    console.info("Sending pause signal with pause:", pause);
+    console.debug("Sending pause signal with pause:", pause);
     this.props.socket.emit("command/set_pause", { pause: pause });
   }
-
+  
   cancelGoal(goal) {
-    console.info("Sending cancel goal signal with goal:", goal);
+    console.debug("Sending cancel goal signal with goal:", goal);
     this.props.socket.emit("command/cancel_goal", goal);
   }
 
+  beginGoals() {
+    console.debug("Sending begin goals signal");
+    this.props.socket.emit("command/begin_goals");
+  }
+
   handleAnnotateSliderChangeCommitted(type) {
-    console.info("Sending annotate slider change signal with type:", type);
+    console.debug("Sending annotate slider change signal with type:", type);
     this.props.socket.emit("command/change_env_info", { terrain_type: type });
   }
+
 }
 
 export default GoalManager;

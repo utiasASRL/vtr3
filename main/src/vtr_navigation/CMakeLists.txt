@@ -19,6 +19,7 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(vtr_tactic REQUIRED)
+find_package(vtr_path_planning REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_navigation_msgs REQUIRED)
 find_package(vtr_torch REQUIRED)
@@ -68,8 +69,8 @@ add_library(${PROJECT_NAME}_navigator ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
-  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch
-  vtr_lidar 
+  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_path_planning 
+  vtr_lidar vtr_torch
   # vtr_vision
 )
 target_link_libraries(${PROJECT_NAME}_navigator
@@ -87,8 +88,8 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch
-  vtr_navigation_msgs
-  vtr_lidar 
+  vtr_navigation_msgs vtr_path_planning
+  vtr_lidar
   # vtr_vision
   PROJ
 )
@@ -103,6 +104,7 @@ target_include_directories(${PROJECT_NAME}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+
 
 install(
   DIRECTORY include/

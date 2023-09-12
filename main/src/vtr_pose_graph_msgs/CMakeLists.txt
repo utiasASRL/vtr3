@@ -20,8 +20,13 @@ file(
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
   msg/*.msg
 )
+file(
+  GLOB_RECURSE SRV_SRC
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+  srv/*.srv
+)
 rosidl_generate_interfaces(${PROJECT_NAME}
-  ${MSG_SRC}
+  ${MSG_SRC} ${SRV_SRC}
   DEPENDENCIES builtin_interfaces std_msgs geometry_msgs vtr_common_msgs
 )
 

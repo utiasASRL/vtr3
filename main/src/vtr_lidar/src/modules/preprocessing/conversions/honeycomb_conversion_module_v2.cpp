@@ -65,7 +65,7 @@ void HoneycombConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   /// following data:
   ///   beam side 0: from -180 to 180 in 0.2 seconds
   ///   beam side 1: from 0 to 180 then -180 to 0 in 0.2 seconds
-  /// From the Hondycomb documentation, the message time stamp is given at the
+  /// From the Honeycomb documentation, the message time stamp is given at the
   /// center of spin, where beam side 0 is 0 degree and beam side 1 is +-180
   /// degree.
 

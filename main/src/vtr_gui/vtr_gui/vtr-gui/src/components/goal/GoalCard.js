@@ -67,7 +67,7 @@ class GoalCard extends React.Component {
             </Typography>
             <Button
               sx={{ width: 100, m: 1 }}
-              color={"primary"}
+              color={"secondary"}
               disableElevation={true}
               fullWidth={true}
               size="small"
@@ -75,7 +75,7 @@ class GoalCard extends React.Component {
               variant={"contained"}
               onClick={() => cancelGoal(goal)}
             >
-              Cancel
+              CANCEL
             </Button>
           </Box>
           {expand && goal.type === "repeat" && (

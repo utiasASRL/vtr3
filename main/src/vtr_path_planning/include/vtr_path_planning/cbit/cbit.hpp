@@ -27,13 +27,14 @@
 #include <random>
 #include <chrono> // For benchmarking
 #include <memory>
-
+#include <algorithm>
 
 #include "rclcpp/rclcpp.hpp"
 
 #include "nav_msgs/msg/path.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 #include "std_msgs/msg/string.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
 
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 #include "vtr_path_planning/base_path_planner.hpp"
@@ -41,6 +42,8 @@
 #include "vtr_path_planning/cbit/generate_pq.hpp"
 #include "vtr_path_planning/cbit/cbit_path_planner.hpp"
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
+#include "vtr_path_planning/cbit/visualization_utils.hpp"
+#include "vtr_path_planning/mpc/speed_scheduler.hpp"
 
 #include "steam.hpp"
 
@@ -74,7 +77,7 @@ class CBIT : public BasePathPlanner {
     int rand_seed = 1;
 
     // ROC
-    double roc_lookahead = 5.0;
+    double roc_lookahead = 2.0;
     int roc_discretization = 40;
     double roc_q_tolerance = 0.001;
 
@@ -95,12 +98,24 @@ class CBIT : public BasePathPlanner {
     bool incremental_plotting = false;
     bool plotting = true;
 
-    // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
+    // Speed Scheduler
+    double planar_curv_weight = 2.50;
+    double profile_curv_weight = 0.5; 
+    double eop_weight = 1.0;
+    double min_vel = 0.5;  
+
+    // MPC Configs
+    bool obstacle_avoidance = false;
+    bool extrapolate_robot_pose = true;
+    bool mpc_verbosity = false;
+    bool homotopy_guided_mpc = false;
     int horizon_steps = 10;
     double horizon_step_size = 0.5;
     double forward_vel = 0.75;
     double max_lin_vel = 1.25;
     double max_ang_vel = 0.75;
+    double robot_linear_velocity_scale = 1.0;
+    double robot_angular_velocity_scale = 1.0;
 
     // Add unicycle model param
 
@@ -109,7 +124,14 @@ class CBIT : public BasePathPlanner {
     Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
     Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
     Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 1, 1> lat_error_cov = Eigen::Matrix<double, 1, 1>::Zero();
 
+    // MPC weight params:
+    double pose_error_weight = 1.0;
+    double vel_error_weight = 1.0;
+    double acc_error_weight = 1.0;
+    double kin_error_weight = 1.0;
+    double lat_error_weight = 0.01;
 
     // Misc
     int command_history_length = 100;
@@ -135,8 +157,8 @@ class CBIT : public BasePathPlanner {
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
-  void visualize(const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp, const tactic::EdgeTransform& T_p_r_extp_mpc, std::vector<lgmath::se3::Transformation> mpc_prediction, std::vector<lgmath::se3::Transformation> robot_prediction);
 
+  
  protected:
   struct ChainInfo {
     tactic::Timestamp stamp;
@@ -156,16 +178,26 @@ class CBIT : public BasePathPlanner {
   CBITConfig cbit_config;
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
 
-  // Ros2 publishers
-  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_path_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr robot_path_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
-
   // Pointers to the output path
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
 
+  // Pointers to the flag for there being a valid solution or not
+  std::shared_ptr<bool> valid_solution_ptr;
+
+  // Pointer that sets the maximum lateral deviation the planner is allowed to use in planning
+  std::shared_ptr<double> q_max_ptr;
+
+  // Pointers to the corridor
+  std::shared_ptr<CBITCorridor> corridor_ptr;
+
+  // Pointer to the global path
+  std::shared_ptr<CBITPath> global_path_ptr;
+
+  // Pointer to visualizer
+  std::shared_ptr<VisualizationUtils> visualization_ptr;
+
+  unsigned int prev_costmap_sid = 0;
   tactic::Timestamp prev_stamp;
 
   // Store the previously applied velocity and a sliding window history of MPC results

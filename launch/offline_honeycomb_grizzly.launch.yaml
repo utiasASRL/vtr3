@@ -14,6 +14,7 @@ windows:
     layout: main-vertical
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
+#     - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
@@ -22,6 +23,7 @@ windows:
         model_dir:=${VTRMODELS}
         start_new_graph:=true
         use_sim_time:=true
+        path_planning.type:=stationary
 
 #      - htop # monitor hardware usage
 
@@ -40,5 +42,5 @@ windows:
     shell_command_before:
       - source /opt/ros/humble/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

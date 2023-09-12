@@ -38,6 +38,9 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
+  
+  config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
+  config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
   // clang-format on
   return config;
 }
@@ -138,6 +141,8 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   /// update current map vertex id and transform
   sliding_map_odo_->T_vertex_this() = *T_r_m_odo_;
   sliding_map_odo_->vertex_id() = *qdata->vid_odo;
+  CLOG(DEBUG, "lidar.pipeline") << "Saving data to vertex" << vertex;
+
 
   /// store the live frame point cloud
   // motion compensated point cloud
@@ -151,12 +156,14 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     auto scan_odo_msg = std::make_shared<PointScanLM>(scan_odo, *qdata->stamp);
     vertex->insert<PointScan<PointWithInfo>>(
         "filtered_point_cloud", "vtr_lidar_msgs/msg/PointScan", scan_odo_msg);
+    CLOG(DEBUG, "lidar.pipeline") << "Saved filtered pointcloud to vertex" << vertex;
+
   }
   // raw point cloud
-#if false
+  if (config_->save_raw_point_cloud)
   {
     auto raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
-    raw_scan_odo->point_cloud() = *qdata->undistorted_raw_point_cloud;
+    raw_scan_odo->point_cloud() = *qdata->raw_point_cloud;
     raw_scan_odo->T_vertex_this() = qdata->T_s_r->inverse();
     raw_scan_odo->vertex_id() = *qdata->vid_odo;
     //
@@ -165,8 +172,24 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
         std::make_shared<PointScanLM>(raw_scan_odo, *qdata->stamp);
     vertex->insert<PointScan<PointWithInfo>>(
         "raw_point_cloud", "vtr_lidar_msgs/msg/PointScan", raw_scan_odo_msg);
+    CLOG(DEBUG, "lidar.pipeline") << "Saved raw pointcloud to vertex" << vertex;
   }
-#endif
+
+  // raw point cloud
+  if (config_->save_nn_point_cloud) {
+    auto nn_scan = std::make_shared<PointScan<PointWithInfo>>();
+    nn_scan->point_cloud() = *qdata->nn_point_cloud;
+    nn_scan->T_vertex_this() = qdata->T_s_r->inverse();
+    nn_scan->vertex_id() = *qdata->vid_odo;
+    //
+    using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+    auto nn_scan_odo_msg =
+        std::make_shared<PointScanLM>(nn_scan, *qdata->stamp);
+    vertex->insert<PointScan<PointWithInfo>>(
+        "nn_point_cloud", "vtr_lidar_msgs/msg/PointScan", nn_scan_odo_msg);
+
+    CLOG(DEBUG, "lidar.pipeline") << "Saved nn pointcloud to vertex" << vertex;
+  }
 
   /// save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {

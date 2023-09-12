@@ -29,6 +29,12 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models
+  GRIZZLY=${VTRROOT}/grizzly \
+  WARTHOG=${VTRROOT}/warthog \
+  VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+
+RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
+RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
 
 ## Switch to root to install dependencies
 USER 0:0
@@ -42,6 +48,7 @@ RUN apt update && apt install -q -y freeglut3-dev
 RUN apt update && apt install -q -y python3 python3-distutils python3-pip
 RUN apt update && apt install -q -y libeigen3-dev
 RUN apt update && apt install -q -y libsqlite3-dev sqlite3
+RUN apt install -q -y libc6-dbg gdb valgrind
 
 ## Install PROJ (8.2.0) (this is for graph_map_server in vtr_navigation)
 RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
@@ -67,7 +74,10 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o
 RUN apt update && apt install -q -y \
   ros-humble-xacro \
   ros-humble-vision-opencv \
-  ros-humble-perception-pcl ros-humble-pcl-ros
+  ros-humble-perception-pcl ros-humble-pcl-ros \
+  ros-humble-rmw-cyclonedds-cpp
+
+RUN apt install ros-humble-tf2-tools
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
@@ -96,7 +106,13 @@ RUN pip3 install \
   python-socketio[client] \
   websocket-client
 
+RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
+  && git clone https://github.com/lava/matplotlib-cpp.git . \
+  && mkdir -p ${HOMEDIR}/.matplotcpp/build && cd ${HOMEDIR}/.matplotcpp/build \
+  && cmake .. && cmake --build . -j${NUMPROC} --target install
+
 RUN apt install htop
+RUN apt install ros-humble-velodyne -q -y
 
 # Install vim
 RUN apt update && apt install -q -y vim

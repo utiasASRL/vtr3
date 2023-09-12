@@ -27,7 +27,6 @@
 #include "vtr_path_planning/path_planning.hpp"
 #include "vtr_route_planning/route_planning.hpp"
 #ifdef VTR_ENABLE_LIDAR
-#include "vtr_lidar/path_planning.hpp"
 #include "vtr_lidar/pipeline.hpp"
 #endif
 
@@ -126,6 +125,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // environment info
   const auto env_info_topic = node_->declare_parameter<std::string>("env_info_topic", "env_info");
   env_info_sub_ = node_->create_subscription<tactic::EnvInfo>(env_info_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::envInfoCallback, this, std::placeholders::_1), sub_opt);
+
+  max_queue_size_ = node->declare_parameter<int>("queue_size", max_queue_size_);
+
 #ifdef VTR_ENABLE_LIDAR
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
@@ -138,7 +140,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
   // \note lidar point cloud data frequency is low, and we cannot afford dropping data
-  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  auto lidar_qos = rclcpp::QoS(max_queue_size_);
+  lidar_qos.reliable();
+  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  //lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
 #endif
   // clang-format on
 
@@ -177,12 +182,6 @@ void Navigator::process() {
   while (true) {
     UniqueLock lock(mutex_);
 
-    /// print a warning if our queue is getting too big
-    if (queue_.size() > 5) {
-      CLOG_EVERY_N(10, WARNING, "navigation.sensor_input")
-          << " Input queue size is " << queue_.size();
-    }
-
     cv_set_or_stop_.wait(lock, [this] { return stop_ || (!queue_.empty()); });
     if (stop_) {
       --thread_count_;
@@ -196,8 +195,7 @@ void Navigator::process() {
     auto qdata0 = queue_.front();
     queue_.pop();
 #ifdef VTR_ENABLE_LIDAR
-    if (auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
-      pointcloud_in_queue_ = false;
+    auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0);
 #endif
 
     // unlock the queue so that new data can be added
@@ -220,24 +218,29 @@ void Navigator::envInfoCallback(const tactic::EnvInfo::SharedPtr msg) {
 #ifdef VTR_ENABLE_LIDAR
 void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-  LockGuard lock(mutex_);
-  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud.";
 
-  if (pointcloud_in_queue_) {
-    CLOG(WARNING, "navigation")
-        << "Skip pointcloud message because there is already "
-           "one in queue.";
-    return;
-  }
+  // set the timestamp
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<lidar::LidarQueryCache>();
 
+  LockGuard lock(mutex_);
+
+
+  /// Discard old frames if our queue is too big
+  if (queue_.size() > max_queue_size_) {
+    CLOG(WARNING, "navigation")
+        << "Dropping old pointcloud message because the queue is full.";
+    queue_.pop();
+  }
+
+
   // some modules require node for visualization
   query_data->node = node_;
 
-  // set the timestamp
-  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.emplace(timestamp);
 
   // add the current environment info
@@ -251,7 +254,6 @@ void Navigator::lidarCallback(
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);
-  pointcloud_in_queue_ = true;
   cv_set_or_stop_.notify_one();
 };
 #endif

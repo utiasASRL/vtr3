@@ -23,9 +23,10 @@ from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
 from vtr_navigation_msgs.srv import FollowingRoute as FollowingRouteSrv
 from vtr_navigation_msgs.srv import TaskQueueState as TaskQueueStateSrv
 from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRoute
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
 from vtr_navigation_msgs.msg import TaskQueueUpdate
+from vtr_pose_graph_msgs.srv import MapInfo as MapInfoSrv
 from vtr_tactic_msgs.msg import EnvInfo
 
 from vtr_navigation.ros_manager import ROSManager
@@ -71,6 +72,7 @@ class VTRUI(ROSManager):
     # graph manipulation
     self._move_graph_pub = self.create_publisher(MoveGraph, 'move_graph', 1)
     self._annotate_route_pub = self.create_publisher(AnnotateRoute, 'annotate_route', 1)
+    self._update_waypoint_pub = self.create_publisher(UpdateWaypoint, 'update_waypoint', 1)
 
     # mission command
     self._mission_command_pub = self.create_publisher(MissionCommand, 'mission_command', 1)
@@ -88,6 +90,11 @@ class VTRUI(ROSManager):
 
     # env info
     self._change_env_info_pub = self.create_publisher(EnvInfo, 'env_info', 1)
+
+    # map center
+    self._map_info_cli = self.create_client(MapInfoSrv, "map_info_srv")
+    while not self._map_info_cli.wait_for_service(timeout_sec=1.0):
+      vtr_ui_logger.info("Waiting for map_info_srv service...")
 
   @ROSManager.on_ros
   def get_graph_state(self):
@@ -108,6 +115,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def robot_state_callback(self, robot_state):
     self.notify("robot_state", robot_state=robot_state)
+
+  @ROSManager.on_ros
+  def get_map_info(self):
+    return self._map_info_cli.call(MapInfoSrv.Request()).map_info
 
   @ROSManager.on_ros
   def get_following_route(self):
@@ -144,6 +155,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def cancel_goal(self, msg):
     self._mission_command_pub.publish(msg)
+  
+  @ROSManager.on_ros
+  def begin_goals(self, msg):
+    self._mission_command_pub.publish(msg)
 
   @ROSManager.on_ros
   def move_robot(self, msg):
@@ -160,6 +175,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def continue_teach(self, msg):
     self._mission_command_pub.publish(msg)
+  
+  @ROSManager.on_ros
+  def update_waypoint(self, msg):
+    self._update_waypoint_pub.publish(msg)
 
   @ROSManager.on_ros
   def annotate_route(self, msg):

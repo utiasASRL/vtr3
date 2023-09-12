@@ -21,7 +21,7 @@ from vtr_navigation.vtr_ui import VTRUI
 from vtr_navigation.vtr_ui_builder import build_master
 
 from vtr_tactic_msgs.msg import EnvInfo
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
 from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 
 # socket io server address and port
@@ -29,7 +29,7 @@ from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 SOCKET_ADDRESS = 'localhost'
 SOCKET_PORT = 5201
 
-vtr_ui_logger = logging.getLogger('vtr_ui')  # setted up in vtr_ui.py
+vtr_ui_logger = logging.getLogger('vtr_ui')  # set up in vtr_ui.py
 
 
 def graph_state_from_ros(ros_graph_state):
@@ -41,6 +41,7 @@ def graph_state_from_ros(ros_graph_state):
           'lat': v.lat,
           'theta': v.theta,
           'type': v.type,
+          'name': v.name
       } for v in ros_graph_state.vertices],
       'fixed_routes': [{
           'ids': [id for id in r.ids],
@@ -64,6 +65,7 @@ def graph_update_from_ros(ros_graph_update):
           'lat': vf.lat,
           'theta': vf.theta,
           'type': vf.type,
+          'name': vf.name
       },
       'vertex_to': {
           'id': vt.id,
@@ -72,6 +74,7 @@ def graph_update_from_ros(ros_graph_update):
           'lat': vt.lat,
           'theta': vt.theta,
           'type': vt.type,
+          'name': vt.name
       },
   }
 
@@ -90,6 +93,13 @@ def robot_state_from_ros(ros_robot_state):
       'target_localized': ros_robot_state.target_localized,
   }
 
+def map_info_from_ros(ros_map_info):
+  return {
+      'lat': ros_map_info.lat,
+      'lng': ros_map_info.lng,
+      'theta': ros_map_info.theta,
+      'scale': ros_map_info.scale,
+  }
 
 def following_route_from_ros(ros_following_route):
   return {'ids': [id for id in ros_following_route.ids]}
@@ -195,6 +205,10 @@ class SocketVTRUI(VTRUI):
   def get_robot_state(self):
     ros_robot_state = super().get_robot_state()
     return robot_state_from_ros(ros_robot_state)
+  
+  def get_map_info(self):
+    ros_map_info = super().get_map_info()
+    return map_info_from_ros(ros_map_info)
 
   def get_server_state(self):
     ros_server_state = super().get_server_state()
@@ -233,6 +247,11 @@ class SocketVTRUI(VTRUI):
     ros_command.type = MissionCommand.CANCEL_GOAL
     ros_command.goal_handle.id = [int(id) for id in data['id']]
     return super().cancel_goal(ros_command)
+  
+  def begin_goals(self):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.BEGIN_GOALS
+    return super().begin_goals(ros_command)
 
   def move_robot(self, data):
     ros_command = MissionCommand()
@@ -255,6 +274,16 @@ class SocketVTRUI(VTRUI):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.CONTINUE_TEACH
     return super().continue_teach(ros_command)
+  
+  def update_waypoint(self, data):
+    ros_waypoint_update = UpdateWaypoint()
+    ros_waypoint_update.vertex_id = int(data['vertex_id'])
+    ros_waypoint_update.type = int(data['type'])
+    if int(data['type']) == UpdateWaypoint.ADD:
+      ros_waypoint_update.name = data['name']
+    else:
+      ros_waypoint_update.name = ""
+    return super().update_waypoint(ros_waypoint_update)
 
   def annotate_route(self, data):
     ros_annotate_route = AnnotateRoute()

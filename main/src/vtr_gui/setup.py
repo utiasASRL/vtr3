@@ -19,6 +19,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'setup_server = vtr_gui.setup_server:main',
             'web_server = vtr_gui.web_server:main',
             'socket_server = vtr_gui.socket_server:main',
             'socket_client = vtr_gui.socket_client:main',

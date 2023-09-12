@@ -6,7 +6,6 @@ environment:
   # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
-
 suppress_history: false
 
 windows:
@@ -14,15 +13,15 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=honeycomb_grizzly_default.yaml
-        data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
 
-      - htop # monitor hardware usage
+      #- htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -37,7 +36,7 @@ windows:
   - window_name: rviz2
     layout: main-horizontal
     shell_command_before:
-      - source /opt/ros/galactic/setup.bash
+      - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

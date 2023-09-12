@@ -27,6 +27,7 @@
 #include "vtr_tactic/types.hpp"
 
 #include "vtr_navigation_msgs/msg/annotate_route.hpp"
+#include "vtr_navigation_msgs/msg/update_waypoint.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
 #include "vtr_navigation_msgs/msg/graph_update.hpp"
@@ -35,6 +36,8 @@
 #include "vtr_navigation_msgs/srv/following_route.hpp"
 #include "vtr_navigation_msgs/srv/graph_state.hpp"
 #include "vtr_navigation_msgs/srv/robot_state.hpp"
+#include "vtr_pose_graph_msgs/msg/map_info.hpp"
+#include "vtr_pose_graph_msgs/srv/map_info.hpp"
 
 namespace vtr {
 namespace navigation {
@@ -56,8 +59,12 @@ class GraphMapServer : public tactic::Graph::Callback,
   using FollowingRoute = vtr_navigation_msgs::msg::GraphRoute;
   using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
 
+  using MapInfo = vtr_pose_graph_msgs::msg::MapInfo;
+  using MapInfoSrv = vtr_pose_graph_msgs::srv::MapInfo;
+
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
+  using UpdateWaypointMsg = vtr_navigation_msgs::msg::UpdateWaypoint;
 
   using VertexPtr = tactic::Graph::VertexPtr;
   using EdgePtr = tactic::Graph::EdgePtr;
@@ -93,8 +100,12 @@ class GraphMapServer : public tactic::Graph::Callback,
   void followingRouteSrvCallback(
       const std::shared_ptr<FollowingRouteSrv::Request>,
       std::shared_ptr<FollowingRouteSrv::Response> response) const;
+  void mapInfoSrvCallback(
+      const std::shared_ptr<MapInfoSrv::Request>,
+      std::shared_ptr<MapInfoSrv::Response> response) const;
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
+  void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
 
  private:
   /// these functions are called with graph mutex locked
@@ -117,6 +128,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   void optimizeGraph(const GraphBasePtr& priv_graph);
   void updateVertexProjection();
   void updateVertexType();
+  void updateVertexName();
   void computeRoutes(const GraphBasePtr& priv_graph);
   /** \brief Update the graph incrementally when no optimization is needed */
   bool updateIncrementally(const EdgePtr& e);
@@ -166,6 +178,9 @@ class GraphMapServer : public tactic::Graph::Callback,
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
   rclcpp::Service<RobotStateSrv>::SharedPtr robot_state_srv_;
 
+  /** \brief Service to request the initialized map info */
+  rclcpp::Service<MapInfoSrv>::SharedPtr map_info_srv_;
+
   /** \brief Publishes current route being followed */
   rclcpp::Publisher<FollowingRoute>::SharedPtr following_route_pub_;
   rclcpp::Service<FollowingRouteSrv>::SharedPtr following_route_srv_;
@@ -173,6 +188,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   /** \brief subscription to move graph (rotation, translation, scale) */
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
   rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
+  rclcpp::Subscription<UpdateWaypointMsg>::SharedPtr update_waypoint_sub_;
 };
 
 class RvizGraphMapServer : public GraphMapServer,

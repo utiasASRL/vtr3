@@ -52,6 +52,7 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
+  config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
@@ -150,7 +151,16 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     aligned_map_normals_mat = T_s_m * map_normals_mat;
 
     // project to 2D
-    aligned_map_mat.row(2).setZero();
+    for (uint j = 0; j < aligned_map_mat.cols(); ++j) {
+        const double px = aligned_map_mat(0, j);
+        const double py = aligned_map_mat(1, j);
+        const double pz = aligned_map_mat(2, j);
+        const double rho = std::sqrt(px * px + py * py + pz * pz);
+        const double phi = std::atan2(py, px);
+        aligned_map_mat(0, j) = rho * std::cos(phi);
+        aligned_map_mat(1, j) = rho * std::sin(phi);
+        aligned_map_mat(2, j) = 0.0;
+    }
     aligned_map_normals_mat.row(2).setZero();
     // \todo double check correctness of this normal projection
     Eigen::MatrixXf aligned_map_norms_mat = aligned_map_normals_mat.colwise().norm();
@@ -313,7 +323,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (config_->use_pose_prior) problem.addCostTerm(prior_cost_term);
 
     // shared loss function
-    auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
+    // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
+    auto loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
     // cost terms and noise model
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {

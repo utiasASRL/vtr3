@@ -80,6 +80,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
     } modified_cacfar;
 
     double radar_resolution = 0.0438;
+    double range_offset = -0.31;
     double cart_resolution = 0.25;
     double beta = 0.049;
 

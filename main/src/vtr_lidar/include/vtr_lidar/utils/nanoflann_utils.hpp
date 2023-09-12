@@ -56,6 +56,7 @@ struct NanoFLANNAdapter {
   }
 };
 
+//Store all neighbours within a given radius
 template <typename _DistanceType = float, typename _IndexType = size_t>
 class NanoFLANNRadiusResultSet {
  public:

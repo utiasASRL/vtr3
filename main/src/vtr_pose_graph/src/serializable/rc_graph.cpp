@@ -60,7 +60,7 @@ auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
 }
 
 void RCGraph::loadGraphIndex() {
-  GraphMsgAccessor accessor{fs::path{file_path_} / "index"};
+  GraphMsgAccessor accessor{fs::path{file_path_}, "index", "vtr_pose_graph_msgs/msg/Graph"};
   msg_ = accessor.readAtIndex(1);
   if (!msg_) {
     std::string err{"Graph index message does not exist."};
@@ -83,7 +83,7 @@ void RCGraph::loadGraphIndex() {
 void RCGraph::loadVertices() {
   CLOG(DEBUG, "pose_graph") << "Loading vertices from disk";
 
-  VertexMsgAccessor accessor{fs::path{file_path_} / "vertices"};
+  VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
   for (int index = 1;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
@@ -98,7 +98,7 @@ void RCGraph::loadVertices() {
 void RCGraph::loadEdges() {
   CLOG(DEBUG, "pose_graph") << "Loading edges from disk";
 
-  EdgeMsgAccessor accessor{fs::path{file_path_} / "edges"};
+  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
   for (int index = 1;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
@@ -138,11 +138,9 @@ void RCGraph::saveGraphIndex() {
 
 void RCGraph::saveVertices() {
   // save any unsaved data first
-  CLOG(DEBUG, "pose_graph") << "Saving any unsaved data in cache";
+  CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
   for (auto iter = vertices_.begin(); iter != vertices_.end(); ++iter)
     iter->second->unload();
-
-  CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
   VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
   for (auto it = vertices_.begin(); it != vertices_.end(); ++it)
     accessor.write(it->second->serialize());

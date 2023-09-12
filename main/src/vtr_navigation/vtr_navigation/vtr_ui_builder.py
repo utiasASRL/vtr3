@@ -27,8 +27,8 @@ class VTRUIProxy(BaseProxy):
   """Multiprocessing.Manager proxy for a VTRUI object."""
 
   _exposed_ = ('get_graph_state', 'get_robot_state', 'get_following_route', 'get_server_state', 'get_task_queue_state',
-               'set_pause', 'add_goal', 'cancel_goal', 'annotate_route', 'move_graph', 'move_robot', 'merge',
-               'confirm_merge', 'continue_teach', 'change_env_info')
+               'set_pause', 'add_goal', 'cancel_goal', 'begin_goals', 'update_waypoint', 'annotate_route', 'move_graph', 'move_robot', 
+               'merge', 'confirm_merge', 'continue_teach', 'change_env_info')
 
   def get_graph_state(self):
     return self._callmethod('get_graph_state')
@@ -54,6 +54,9 @@ class VTRUIProxy(BaseProxy):
   def cancel_goal(self, command):
     return self._callmethod('cancel_goal', args=(command,))
 
+  def begin_goals(self):
+    return self._callmethod('begin_goals')
+
   def merge(self, command):
     return self._callmethod('merge', args=(command,))
 
@@ -65,6 +68,9 @@ class VTRUIProxy(BaseProxy):
 
   def move_robot(self, command):
     return self._callmethod('move_robot', args=(command,))
+  
+  def update_waypoint(self, update):
+    return self._callmethod('update_waypoint', args=(update,))
 
   def annotate_route(self, annotation):
     return self._callmethod('annotate_route', args=(annotation,))
@@ -74,6 +80,9 @@ class VTRUIProxy(BaseProxy):
 
   def change_env_info(self, env_info):
     return self._callmethod('change_env_info', args=(env_info,))
+  
+  def get_map_info(self):
+    return self._callmethod('get_map_info')
 
 
 def build_master(vtr_ui_class=VTRUI):
