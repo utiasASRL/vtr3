@@ -197,9 +197,7 @@ double Path<GraphT>::dist(unsigned seq_id) const {
 
 template <class GraphT>
 int Path<GraphT>::query_terrain_type(unsigned seq_id) const {
-  CLOG(ERROR, "cbit.path_planning") << "Trying to Get the terrain type for vertex: " << seq_id;
   int terrain_type = graph_->at(VertexId(0,seq_id))->GetTerrainType();
-  CLOG(ERROR, "cbit.path_planning") << "The terrain type is: " << terrain_type;
   return terrain_type;
 }
 

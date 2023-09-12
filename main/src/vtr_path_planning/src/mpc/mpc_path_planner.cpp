@@ -99,7 +99,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
     // Invert the extrapolated robot state and use this as the state initialization
     lgmath::se3::Transformation T0_inv = T0.inverse();
-    Eigen::Vector2d v0(0.0, 0.0);
+    Eigen::Vector2d v0(VF, 0.0);
 
     // Push back the initial states (current robot state)
     pose_states.push_back(T0_inv);
@@ -157,7 +157,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         auto dynamicposeLossFunc = steam::L2WeightedLossFunc::MakeShared(dynamic_pose_error_weight);
         const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, dynamicposeLossFunc);
         opt_problem.addCostTerm(pose_cost_term);
-        dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
+        //dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
       }
 
       // Kinematic constraints (softened but penalized heavily)
@@ -172,8 +172,8 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         opt_problem.addCostTerm(kin_cost_term);
 
         // Non-Zero Velocity Penalty (penalty of non resting control effort helps with point stabilization)
-        //const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
-        //opt_problem.addCostTerm(vel_cost_term);
+        const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
+        opt_problem.addCostTerm(vel_cost_term);
 
         // Velocity set-point constraint - No longer using this due to complications when repeating a path in reverse
         // Only add this cost term if we are not in point stabilization mode (end of path)
@@ -265,8 +265,8 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     }
 
     // Solve the optimization problem with GuassNewton solver
-    //using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
-    using SolverType = steam::LineSearchGaussNewtonSolver;
+    using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
+    //using SolverType = steam::LineSearchGaussNewtonSolver;
 
     // Initialize solver parameters
     SolverType::Params params;
@@ -274,8 +274,8 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     params.relative_cost_change_threshold = 1e-4;
     params.max_iterations = 100;
     params.absolute_cost_change_threshold = 1e-4;
-    params.backtrack_multiplier = 0.5; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
-    params.max_backtrack_steps = 400; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
+    //params.backtrack_multiplier = 0.95; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
+    //params.max_backtrack_steps = 1000; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
 
     SolverType solver(opt_problem, params);
 

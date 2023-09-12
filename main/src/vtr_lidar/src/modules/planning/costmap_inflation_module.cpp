@@ -133,13 +133,6 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
   costmap->vertex_id() = vid_loc;
   costmap->vertex_sid() = sid_loc;
 
-  // Update the output cache
-  output.costmap_sid = costmap->vertex_sid(); 
-  output.obs_map = costmap->filter(0.01); //was config_->costmap_filter_value
-  output.grid_resolution = config_->resolution;
-  
-
-
   /// publish the transformed pointcloud
   if (config_->visualize) {
 
@@ -164,6 +157,15 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
   CLOG(INFO, "lidar.obstacle_inflation")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";
 
+  // Update the output cache
+  // Define a mutex to protect access to output.obs_map
+  {
+      // Lock the mutex before modifying output.obs_map
+      std::lock_guard<std::mutex> lock(output.obsMapMutex);
+      output.costmap_sid = costmap->vertex_sid(); 
+      output.obs_map = costmap->filter(0.01); // Modify output.obs_map safely
+      output.grid_resolution = config_->resolution;
+  }  
 }
 
 

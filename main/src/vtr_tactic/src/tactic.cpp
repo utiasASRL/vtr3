@@ -165,7 +165,7 @@ bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
   const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
 
-  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 1)) {
+  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
     return false;
   }
 
