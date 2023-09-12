@@ -22,7 +22,7 @@
 #include <iostream>
 
 
-double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, int curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, double horizon_step_size)
+double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, int curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, double horizon_step_size, double min_vel)
 {
 
     // Experimental Speed Scheduler:
@@ -30,8 +30,6 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     // 1. Planar Curvature
     // 2. Profile Curvature
     // 3. End of Path
-    // 4. Corridor Width (TODO)
-    // 5. Obstacle Presence (TODO)
 
     // Pseudocode:
     // - Estimate the current p value of the vehicle (doesnt need to be super precise so here we can imply opt to use the sid value)

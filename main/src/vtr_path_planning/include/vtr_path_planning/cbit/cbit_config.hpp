@@ -60,7 +60,8 @@ class CBITConfig {
         // Speed Scheduler
         double planar_curv_weight = 2.50;
         double profile_curv_weight = 0.5;
-        double eop_weight = 1.0; 
+        double eop_weight = 1.0;
+        double min_vel = 0.5; 
 
         // MPC Configs 
         int horizon_steps = 10;
@@ -70,12 +71,6 @@ class CBITConfig {
         double max_ang_vel = 0.75;
         double robot_linear_velocity_scale = 1.0;
         double robot_angular_velocity_scale = 1.0;
-
-        // Covariance Tuning Weights
-        //Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
-        //Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-        //Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-        //Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
 
         int command_history_length = 100;
 

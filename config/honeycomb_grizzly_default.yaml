@@ -93,6 +93,7 @@
         - icp
         - safe_corridor
         - change_detection_sync
+        - costmap_inflation
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
@@ -240,7 +241,8 @@
         support_radius: 0.25
         support_variance: 0.05
         support_threshold: 2.5
-
+      costmap_inflation:
+        type: lidar.costmap_inflation
         influence_distance: 0.5 # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
         minimum_distance: 0.8
 
@@ -299,11 +301,11 @@
       type: cbit
       control_period: 100 # ms
       cbit:
-        obstacle_avoidance: true
+        obstacle_avoidance: false
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
-        sliding_window_freespace_padding: 2.0
+        sliding_window_freespace_padding: 0.5
         corridor_resolution: 0.2
         state_update_freq: 2.0
         update_state: true
@@ -313,24 +315,25 @@
         initial_samples: 400
         batch_samples: 200
         pre_seed_resolution: 0.5
-        alpha: 0.25
+        alpha: 0.5
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
-        initial_exp_rad: 1.00
+        initial_exp_rad: 1.25
         extrapolation: false
         incremental_plotting: false
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 15 
-
+        costmap_history: 30
+      
       speed_scheduler:
         planar_curv_weight: 2.50
         profile_curv_weight: 0.5 
         eop_weight: 1.0
+        min_vel: 0.5
 
       mpc:
         # Controller Params
@@ -338,26 +341,33 @@
         mpc_verbosity: false
         homotopy_guided_mpc: false
         horizon_steps: 20
-        horizon_step_size: 0.5
-        forward_vel: 0.75
-        max_lin_vel: 1.25
-        max_ang_vel: 1.0
-        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.8 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        horizon_step_size: 0.3
+        forward_vel: 1.0
+        max_lin_vel: 1.5
+        max_ang_vel: 1.25
+        robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
-        vel_error_cov: [20.0, 30.0]
-        acc_error_cov: [20.0, 20.0]
-        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-        lat_error_cov: [2.0]
-
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        vel_error_cov: [25.0, 10.0]
+        acc_error_cov: [10.0, 10.0]
+        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        lat_error_cov: [20.0]
+        
+        # Cost Function Covariance Matrices (Tracking Backup)
+        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [10.0, 10.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [10.0]
+        
         # Cost Function Weights
         pose_error_weight: 1.0
-        vel_error_weight: 1.5
-        acc_error_weight: 1.5
+        vel_error_weight: 1.0
+        acc_error_weight: 1.0
         kin_error_weight: 1.0
         lat_error_weight: 0.01
 

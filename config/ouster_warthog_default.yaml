@@ -337,6 +337,7 @@
         planar_curv_weight: 2.50
         profile_curv_weight: 0.5 
         eop_weight: 1.0
+        min_vel: 0.5
 
       mpc:
         # Controller Params

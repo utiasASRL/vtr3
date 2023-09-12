@@ -314,79 +314,72 @@
         run_online: false
         run_async: true
         visualize: true
+
     path_planning:
       type: cbit
       control_period: 100 # ms
-      teb:
-        visualize: true
-        extrapolate: false
-        extrapolation_timeout: 2.0
-        lookahead_distance: 8.5
-        robot_model: circular
-        robot_radius: 0.5
-        map_frame: planning frame
-        enable_homotopy_class_planning: true
-        free_goal_vel: true
-        max_vel_x: 0.6
-        max_vel_y: 0.0
-        max_vel_theta: 0.3
-        min_turning_radius: 3
-        weight_viapoint: 0.5
-        weight_costmap: 100.0
       cbit:
-        obstacle_avoidance: false
+        obstacle_avoidance: true
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
-        sliding_window_freespace_padding: 0.5
+        sliding_window_freespace_padding: 2.0
         corridor_resolution: 0.2
-        state_update_freq: 1.0
+        state_update_freq: 2.0
         update_state: true
         rand_seed: 1
-        
+
         # Planner Tuning Params
-        initial_samples: 300
-        batch_samples: 100
+        initial_samples: 400
+        batch_samples: 200
         pre_seed_resolution: 0.5
-        alpha: 0.5
+        alpha: 0.25
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
-        initial_exp_rad: 0.75
+        initial_exp_rad: 1.00
         extrapolation: false
         incremental_plotting: false
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 30 
-        
+        costmap_history: 15 
+
+      speed_scheduler:
+        planar_curv_weight: 2.50
+        profile_curv_weight: 0.5 
+        eop_weight: 1.0
+        min_vel: 0.5
+
       mpc:
         # Controller Params
         extrapolate_robot_pose: true
         mpc_verbosity: false
         homotopy_guided_mpc: false
         horizon_steps: 20
-        horizon_step_size: 0.1 #was 0.3
-        forward_vel: 1.0
+        horizon_step_size: 0.5
+        forward_vel: 0.75
         max_lin_vel: 1.25
-        max_ang_vel: 1.5
+        max_ang_vel: 1.0
+        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.8 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+
         vehicle_model: "unicycle"
-      
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 300.0, 300.0, 300.0, 6.50]
-        vel_error_cov: [10.0, 100.0]
-        acc_error_cov: [10.0, 10.0]
-        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
-        lat_error_cov: [20.0]
-        
+        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
+        vel_error_cov: [20.0, 30.0]
+        acc_error_cov: [20.0, 20.0]
+        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+        lat_error_cov: [2.0]
+
         # Cost Function Weights
-        pose_error_weight: 5.0
-        vel_error_weight: 5.0
-        acc_error_weight: 5.0
-        kin_error_weight: 1000.0
+        pose_error_weight: 1.0
+        vel_error_weight: 1.5
+        acc_error_weight: 1.5
+        kin_error_weight: 1.0
         lat_error_weight: 0.01
 
         # Misc
