@@ -29,5 +29,4 @@
 
 void plot_tree(Tree current_tree, Node robot_pq, std::vector<double> path_p, std::vector<double> path_q, std::vector<std::shared_ptr<Node>> samples);
 void plot_robot(Node robot_pq);
-
 void initialize_plot();

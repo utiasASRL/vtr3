@@ -504,10 +504,13 @@ void GraphMapServer::updateVertexType() {
   auto& vertices = graph_state_.vertices;
   for (auto&& vertex : vertices) {
     const auto env_info_msg =
-        graph->at(VertexId(vertex.id))
+        graph->at(vertex.id)
             ->retrieve<tactic::EnvInfo>("env_info",
                                         "vtr_tactic_msgs/msg/EnvInfo");
     vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
+    graph->at(vertex.id)->SetTerrainType(vertex.type);
+    int vertex_type = vertex.type;
+    CLOG(DEBUG, "navigation.graph_map_server") << "Updating Graph Vertex Type: " << vertex_type;
   }
 }
 

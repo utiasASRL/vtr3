@@ -24,6 +24,8 @@
 
 #include "vtr_tactic/types.hpp"
 
+#include "vtr_common/utils/hash.hpp" // For pair hash function in obstacle map
+
 namespace vtr {
 namespace tactic {
 
@@ -134,6 +136,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   // graph memory management cache args
   Cache<const VertexId> live_mem_async;
   Cache<const std::pair<VertexId, VertexId>> graph_mem_async;
+
 };
 
 /** \brief Shared memory to the path tracker. */
@@ -144,6 +147,13 @@ struct OutputCache : std::enable_shared_from_this<OutputCache> {
 
   Cache<rclcpp::Node> node;
   Cache<LocalizationChain> chain;
+
+  // Obstacle Costmap:
+  std::mutex obsMapMutex;
+  using XY2ValueMap = std::unordered_map<std::pair<float, float>, float>;
+  XY2ValueMap obs_map;
+  unsigned costmap_sid;
+  float grid_resolution = 0.25;
 };
 
 }  // namespace tactic

@@ -25,7 +25,6 @@ find_package(steam REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_lidar_msgs REQUIRED)
 find_package(vtr_logging REQUIRED)
-find_package(vtr_path_planning REQUIRED)
 find_package(vtr_tactic REQUIRED)
 
 ## C++ Libraries
@@ -43,7 +42,7 @@ ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 pcl_conversions pcl_ros
   nav_msgs
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
+  vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
 # pipelines and modules
@@ -58,17 +57,6 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
   nav_msgs visualization_msgs
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs
-)
-
-# path planner
-file(GLOB_RECURSE PATH_PLANNING_SRC
-  src/path_planning/*.cpp
-)
-add_library(${PROJECT_NAME}_path_planning ${PATH_PLANNING_SRC})
-target_link_libraries(${PROJECT_NAME}_path_planning ${PROJECT_NAME}_components)
-ament_target_dependencies(${PROJECT_NAME}_path_planning
-  vtr_logging vtr_path_planning vtr_lidar_msgs
-  lgmath steam vtr_path_planning
 )
 
 # additional tools for experiments
@@ -86,7 +74,7 @@ ament_export_dependencies(
   Eigen3 pcl_conversions pcl_ros
   nav_msgs visualization_msgs
   lgmath steam
-  vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
+  vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
 install(
@@ -98,7 +86,6 @@ install(
   TARGETS
     ${PROJECT_NAME}_components
     ${PROJECT_NAME}_pipeline
-    ${PROJECT_NAME}_path_planning
     ${PROJECT_NAME}_tools
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib

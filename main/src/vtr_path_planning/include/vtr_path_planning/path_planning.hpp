@@ -14,10 +14,9 @@
 
 /**
  * \file path_planning.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
-#include "vtr_path_planning/mpc/mpc_path_planner2.hpp"
-//#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 #include "vtr_path_planning/cbit/cbit.hpp"
 #include "vtr_path_planning/stationary_planner.hpp"

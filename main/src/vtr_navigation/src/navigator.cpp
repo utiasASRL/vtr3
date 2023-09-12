@@ -27,7 +27,6 @@
 #include "vtr_path_planning/path_planning.hpp"
 #include "vtr_route_planning/route_planning.hpp"
 #ifdef VTR_ENABLE_LIDAR
-#include "vtr_lidar/path_planning.hpp"
 #include "vtr_lidar/pipeline.hpp"
 #endif
 

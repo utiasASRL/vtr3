@@ -1,3 +1,22 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * \file lateral_error_evaluator.cpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ */
+
 #include "vtr_path_planning/mpc/lateral_error_evaluators.hpp"
 #include <iostream>
 
@@ -29,10 +48,11 @@ auto LateralErrorEvaluatorRight::value() const -> OutType {
 auto LateralErrorEvaluatorRight::forward() const -> Node<OutType>::Ptr {
   const auto child = pt_->forward();
   const auto value = D_ * (child->value() - meas_pt_);
-  if (value <= 0.0)
-  {
-    std::cout << "PROBLEM: The value was: " << value << std::endl;
-  }
+  // Debug check for Barrier Constraint
+  //if (value <= 0.0)
+  //{
+  //  std::cout << "WARNING: MPC Crossed Lateral Barrier Constraints!" << value << std::endl;
+  //}
   const auto node = Node<OutType>::MakeShared(value);
   node->addChild(child);
   return node;

@@ -79,7 +79,7 @@ class DetectChangeOp {
     // update the value of v
     dist = std::sqrt(dist);  // convert to distance
     v = std::max(1 - (dist - d1_) / d0_, 0.0f);
-    v = std::min(v, 0.9f);  // 1 is bad for visualization
+    v = std::min(v, 1.0f);  // 1 is bad for visualization
   }
 
  private:
@@ -529,12 +529,19 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     //CLOG(ERROR, "obstacle_detection.cbit") << "The size of the dense map is" << dense_map.size();
     //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Keys: " << keys2;
     //CLOG(ERROR, "obstacle_detection.cbit") << "Displaying all Values: " << vals2;
+
+    // Update the output cache
+    // Define a mutex to protect access to output.obs_map
+    {
+        // Lock the mutex before modifying output.obs_map
+        std::lock_guard<std::mutex> lock(output.obsMapMutex);
+        output.costmap_sid = costmap->vertex_sid(); 
+        output.obs_map = costmap->filter(0.01); // Modify output.obs_map safely
+        output.grid_resolution = config_->resolution;
+    } 
   }
   
 
-
-
-  
   // End of Jordy's temporal filter changes
 
 

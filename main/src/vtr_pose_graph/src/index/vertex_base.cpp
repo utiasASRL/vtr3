@@ -29,6 +29,13 @@ VertexBase::VertexBase(const VertexId& id) : id_(id) {}
 
 VertexId VertexBase::id() const { return id_; }
 
+int VertexBase::GetTerrainType() const { return terrain_type_; }
+
+void VertexBase::SetTerrainType(const int terrain_type) { 
+  terrain_type_ = terrain_type;
+  return;
+}
+
 std::ostream& operator<<(std::ostream& out, const VertexBase& v) {
   return out << v.id();
 }
