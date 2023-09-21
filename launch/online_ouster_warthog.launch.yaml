@@ -20,7 +20,6 @@ windows:
         base_params:=ouster_warthog_default.yaml
         start_new_graph:=false
         use_sim_time:=false
-        model_dir:=${VTRROOT}/models
         planner:="cbit"
         
   #     data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
