@@ -19,23 +19,26 @@ def generate_launch_description():
         "namespace": 'vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
-        #prefix=['xterm -e gdb -ex run --args'],
+        #"prefix": 'xterm -e gdb -ex run --args',
     }
 
     return LaunchDescription([
         DeclareLaunchArgument('data_dir', default_value='', description='directory to store graph, if blank use setup UI'),
+        DeclareLaunchArgument('model_dir', description='model directory (folder for PyTorch .pt models)'),
         DeclareLaunchArgument('start_new_graph', default_value='false', description='whether to start a new pose graph'),
         DeclareLaunchArgument('use_sim_time', default_value='false', description='use simulated time for playback'),
+        DeclareLaunchArgument('planner', default_value='cbit', description='use no planner. Publish zero'),
         DeclareLaunchArgument('base_params', description='base parameter file (sensor, robot specific)'),
         DeclareLaunchArgument('override_params', default_value='', description='scenario specific parameter overrides'),
         Node(**commonNodeArgs,
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
-                {
+              {
                     "data_dir": LaunchConfiguration("data_dir"),
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
-                },
+                    "path_planning.type": LaunchConfiguration("planner"),
+              },
                 PathJoinSubstitution((config_dir, LaunchConfiguration("override_params")))
             ],
             condition=LaunchConfigurationNotEquals('data_dir', '')
@@ -47,6 +50,8 @@ def generate_launch_description():
                 {
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
+                    "path_planning.type": LaunchConfiguration("planner"),
+
                 },
                 PathJoinSubstitution((config_dir, LaunchConfiguration("override_params")))
             ],

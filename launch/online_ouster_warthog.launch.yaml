@@ -1,5 +1,5 @@
 ## Online Lidar VTR3
-session_name: vtr_online_ouster_grizzly
+session_name: vtr_online_ouster_warthog
 
 environment:
   CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
@@ -13,13 +13,17 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=ouster_warthog_default.yaml
-        data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
+        model_dir:=${VTRROOT}/models
+        planner:="cbit"
+        
+  #     data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
 
       #- htop # monitor hardware usage
 
