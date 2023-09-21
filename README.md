@@ -3,6 +3,8 @@
 ## Note
 
 We are still in the process of cleaning up the codebase and having all features of VT&amp;R3 on the main branch.
+The current Dockerfile requires GPU support and a CUDA driver capable of supporting 11.7.
+Work is in progress to re-enable GPU-free functionality.
 
 - [Main branch](https://github.com/utiasASRL/vtr3) has support for lidar/radar teach and repeat.
 - [v3.0.0 tag](https://github.com/utiasASRL/vtr3/tree/v3.0.0) has support for stereo camera teach and repeat (to be merged in the future).
