@@ -518,11 +518,23 @@ void GraphMapServer::updateVertexName() {
   const auto graph = getGraph();
   auto& vertices = graph_state_.vertices;
   for (auto&& vertex : vertices) {
+    const auto graph_v = graph->at(vertex.id);
     const auto waypoint_name_msg =
-        graph->at(VertexId(vertex.id))
-            ->retrieve<tactic::WaypointName>("waypoint_name",
+            graph_v->retrieve<tactic::WaypointName>("waypoint_name",
                                         "vtr_tactic_msgs/msg/WaypointName");
-    vertex.name = waypoint_name_msg->sharedLocked().get().getData().name;
+
+    if(waypoint_name_msg != nullptr)
+      vertex.name = waypoint_name_msg->sharedLocked().get().getData().name;
+    else{
+        //Allow pose graphs that are missing WaypointNames to be brought forward.
+        using WaypointNameLM = storage::LockableMessage<tactic::WaypointName>;
+        const auto waypoint_name_data = std::make_shared<tactic::WaypointName>();
+        const auto waypoint_name_msg = std::make_shared<WaypointNameLM>(waypoint_name_data, graph_v->vertexTime());
+        graph_v->insert<tactic::WaypointName>("waypoint_name", "vtr_tactic_msgs/msg/WaypointNames", waypoint_name_msg);
+        vertex.name = ""; //std::string("WP-") + std::to_string(graph_v->id().majorId()) + std::string("-") + std::to_string(graph_v->id().minorId());
+
+    }
+
   }
 }
 

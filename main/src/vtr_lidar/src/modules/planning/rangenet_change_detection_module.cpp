@@ -182,9 +182,12 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
       radii_indices.push_back(i);
   }
 
-  pcl::PointCloud<PointWithInfo> radius_filtered_points(obstacle_points, radii_indices);
-  qdata.changed_points.emplace(radius_filtered_points);
-
+  if (sid_loc > 3) {
+    pcl::PointCloud<PointWithInfo> radius_filtered_points(obstacle_points, radii_indices);
+    qdata.changed_points.emplace(radius_filtered_points);
+  } else {
+    qdata.changed_points.emplace(pcl::PointCloud<PointWithInfo>());
+  }
 
   // if (config_->save_nn_point_cloud) {
   //   auto vertex = graph->at(*qdata.vid_odo);
