@@ -143,8 +143,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   tf_sbc_->sendTransform(msg);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
-  // \note lidar point cloud data frequency is low, and we cannot afford dropping data
-  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  
+  auto lidar_qos = rclcpp::QoS(10);
+  lidar_qos.reliable();
+  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  //lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);  
 }
 #endif
 #ifdef VTR_ENABLE_VISION
@@ -172,10 +175,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImageSync>>(ApproximateImageSync(10), right_camera_sub_, left_camera_sub_);
   sync_->registerCallback(&Navigator::cameraCallback, this);
 }
-  auto lidar_qos = rclcpp::QoS(10);
-  lidar_qos.reliable();
-  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
-  //lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
 #endif
   // clang-format on
 
