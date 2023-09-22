@@ -10,7 +10,7 @@
 #include <opencv2/cudastereo.hpp>
 
 
-// #ifdef VTR_VISION_LEARNED
+#ifdef VTR_VISION_LEARNED
 #include <vtr_vision/features/extractor/learned_feature_extractor.hpp>
 
 namespace vtr {
@@ -700,4 +700,4 @@ ChannelFeatures LFE::extractStereoFeaturesDispExtra(const cv::Mat &left_img,
 
 }  // namespace vision
 }  // namespace vtr
-// #endif
+#endif

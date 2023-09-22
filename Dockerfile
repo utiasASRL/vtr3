@@ -173,14 +173,5 @@ RUN apt install htop
 # Install vim
 RUN apt update && apt install -q -y vim
 
-##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip --output libtorch.zip
-RUN unzip libtorch.zip -d /opt/torch
-ENV TORCH_LIB=/opt/torch/libtorch
-ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
-
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
-
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
