@@ -21,10 +21,8 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
         planner:="cbit"
+        model_dir:=${VTRROOT}/models
         
-  #     data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
-
-      #- htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -42,4 +40,4 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
-      # - ros2 run rqt_reconfigure rqt_reconfigure
+

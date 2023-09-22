@@ -11,18 +11,18 @@ suppress_history: false
 
 windows:
   - window_name: vtr_navigation_system
-    layout: main-vertical
+    layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=bumblebee_grizzly_default.yaml
-        data_dir:=${VTRTEMP}/vision/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
-
-#      - htop # monitor hardware usage
+        planner:="cbit"
+        model_dir:=${VTRROOT}/models
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -34,10 +34,10 @@ windows:
       - ros2 run vtr_gui web_server  --ros-args -r __ns:=/vtr
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
-  # - window_name: rviz2
-  #   layout: main-horizontal
-  #   shell_command_before:
-  #     - source /opt/ros/humble/setup.bash
-  #   panes:
-      # - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
-      # - ros2 run rqt_reconfigure rqt_reconfigure
+  - window_name: rviz2
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/bumblebee.rviz
+

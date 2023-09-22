@@ -33,9 +33,8 @@
     robot_frame: base_link
     # camera related
     camera_frame: front_xb3
-    camera_left_topic: /xb3/RGB/left_image #/zed2/zed_node/left/image_rect_color
-    camera_right_topic:  /xb3/RGB/right_image #/zed2/zed_node/right/image_rect_color
-    camera_calibration_topic: /zed2/zed_node/left/camera_info
+    camera_left_topic: /xb3/RGB/left_image
+    camera_right_topic:  /xb3/RGB/right_image
 
     ############ map projection configuration ############
     map_projection:
@@ -501,57 +500,77 @@
 
     path_planning:
       type: cbit
-      control_period: 33
+      control_period: 100 # ms
       cbit:
+        obstacle_avoidance: false
         obs_padding: 0.0
-        curv_to_euclid_discretization: 20
-        sliding_window_width: 10.0
+        curv_to_euclid_discretization: 10
+        sliding_window_width: 12.0
         sliding_window_freespace_padding: 0.5
-        corridor_resolution: 0.05
-        state_update_freq: 0.5
+        corridor_resolution: 0.2
+        state_update_freq: 2.0
         update_state: true
         rand_seed: 1
-        initial_samples: 250
-        batch_samples: 100
+
+        # Planner Tuning Params
+        initial_samples: 400
+        batch_samples: 200
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
-        eta: 1.1
-        rad_m_exhange: 1.0
-        initial_exp_rad: 0.75
+        eta: 1.0
+        rad_m_exhange: 1.00
+        initial_exp_rad: 1.25
         extrapolation: false
         incremental_plotting: false
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 15
+        costmap_history: 30
+      
+      speed_scheduler:
+        planar_curv_weight: 2.50
+        profile_curv_weight: 0.5 
+        eop_weight: 1.0
+        min_vel: 0.5
+
       mpc:
-        horizon_steps: 40
-        horizon_step_size: 0.1
+        # Controller Params
+        extrapolate_robot_pose: true
+        mpc_verbosity: false
+        homotopy_guided_mpc: false
+        horizon_steps: 20
+        horizon_step_size: 0.3
         forward_vel: 1.0
-        max_lin_vel: 1.25
-        max_ang_vel: 0.75
-        vehicle_model: unicycle
-        pose_error_cov:
-          - 0.5
-          - 0.5
-          - 0.5
-          - 10.0
-          - 10.0
-          - 10.0
-        vel_error_cov:
-          - 0.1
-          - 1.0
-        acc_error_cov:
-          - 0.1
-          - 0.75
-        kin_error_cov:
-          - 0.001
-          - 0.001
-          - 0.001
-          - 0.001
-          - 0.001
-          - 0.001
+        max_lin_vel: 1.5
+        max_ang_vel: 1.25
+        robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+
+        vehicle_model: "unicycle"
+
+        # Cost Function Covariance Matrices
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        vel_error_cov: [25.0, 10.0]
+        acc_error_cov: [10.0, 10.0]
+        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        lat_error_cov: [20.0]
+        
+        # Cost Function Covariance Matrices (Tracking Backup)
+        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [10.0, 10.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [10.0]
+        
+        # Cost Function Weights
+        pose_error_weight: 1.0
+        vel_error_weight: 1.0
+        acc_error_weight: 1.0
+        kin_error_weight: 1.0
+        lat_error_weight: 0.01
+
+        # Misc
         command_history_length: 100
