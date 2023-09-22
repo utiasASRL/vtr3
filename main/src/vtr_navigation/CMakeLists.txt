@@ -22,6 +22,7 @@ find_package(vtr_tactic REQUIRED)
 find_package(vtr_path_planning REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_navigation_msgs REQUIRED)
+find_package(vtr_torch REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
 

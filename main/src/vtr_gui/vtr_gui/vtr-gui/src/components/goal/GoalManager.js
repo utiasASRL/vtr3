@@ -238,22 +238,22 @@ class GoalManager extends React.Component {
   }
 
   setPause(pause) {
-    console.info("Sending pause signal with pause:", pause);
+    console.debug("Sending pause signal with pause:", pause);
     this.props.socket.emit("command/set_pause", { pause: pause });
   }
   
   cancelGoal(goal) {
-    console.info("Sending cancel goal signal with goal:", goal);
+    console.debug("Sending cancel goal signal with goal:", goal);
     this.props.socket.emit("command/cancel_goal", goal);
   }
 
   beginGoals() {
-    console.info("Sending begin goals signal");
+    console.debug("Sending begin goals signal");
     this.props.socket.emit("command/begin_goals");
   }
 
   handleAnnotateSliderChangeCommitted(type) {
-    console.info("Sending annotate slider change signal with type:", type);
+    console.debug("Sending annotate slider change signal with type:", type);
     this.props.socket.emit("command/change_env_info", { terrain_type: type });
   }
 

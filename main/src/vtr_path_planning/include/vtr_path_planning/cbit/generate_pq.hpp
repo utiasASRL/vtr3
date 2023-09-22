@@ -73,7 +73,4 @@ class CBITCorridor {
 
         CBITCorridor(CBITConfig config, std::shared_ptr<CBITPath> global_path_ptr); // Constructor, Feed this the taught path and config
         CBITCorridor() = default;
-        
-        //void update_corridor(homotopy_p, homotopy_q, robot_state);
-
 };

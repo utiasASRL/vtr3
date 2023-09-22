@@ -42,6 +42,14 @@ class OusterConversionModule : public tactic::BaseModule {
 
     bool visualize = false;
 
+    bool filter_warthog_points = false;
+
+    //A centered cylinder to remove points related to the vehicle's sturcture.
+    float filter_z_max = 0;
+    float filter_z_min = 0;
+    float filter_radius_sq = 0;
+
+
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };

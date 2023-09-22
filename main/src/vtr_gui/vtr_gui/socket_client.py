@@ -29,7 +29,7 @@ from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 SOCKET_ADDRESS = 'localhost'
 SOCKET_PORT = 5201
 
-vtr_ui_logger = logging.getLogger('vtr_ui')  # setted up in vtr_ui.py
+vtr_ui_logger = logging.getLogger('vtr_ui')  # set up in vtr_ui.py
 
 
 def graph_state_from_ros(ros_graph_state):

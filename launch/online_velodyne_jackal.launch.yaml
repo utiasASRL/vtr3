@@ -15,11 +15,12 @@ windows:
     shell_command_before:
       - source /opt/ros/humble/setup.bash 
         && source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=velodyne_jackal_default.yaml
-        data_dir:=${VTRTEMP}/lidar
+#       data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
 
