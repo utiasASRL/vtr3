@@ -531,8 +531,7 @@ void GraphMapServer::updateVertexName() {
         const auto waypoint_name_data = std::make_shared<tactic::WaypointName>();
         const auto waypoint_name_msg = std::make_shared<WaypointNameLM>(waypoint_name_data, graph_v->vertexTime());
         graph_v->insert<tactic::WaypointName>("waypoint_name", "vtr_tactic_msgs/msg/WaypointNames", waypoint_name_msg);
-        vertex.name = ""; //std::string("WP-") + std::to_string(graph_v->id().majorId()) + std::string("-") + std::to_string(graph_v->id().minorId());
-
+        vertex.name = "";
     }
 
   }

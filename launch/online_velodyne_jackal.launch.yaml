@@ -20,7 +20,6 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=velodyne_jackal_default.yaml
-#       data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
 
