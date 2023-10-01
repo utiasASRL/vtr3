@@ -69,8 +69,8 @@ add_library(${PROJECT_NAME}_navigator ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
-  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch vtr_path_planning
-  vtr_lidar 
+  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_path_planning 
+  vtr_lidar vtr_torch
   # vtr_vision
 )
 target_link_libraries(${PROJECT_NAME}_navigator

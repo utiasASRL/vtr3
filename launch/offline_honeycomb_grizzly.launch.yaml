@@ -18,7 +18,7 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_default.yaml
+        base_params:=honeycomb_grizzly_learned.yaml
         data_dir:=${VTRTEMP}/lidar
         model_dir:=${VTRMODELS}
         start_new_graph:=true

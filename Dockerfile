@@ -124,10 +124,6 @@ ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
 
-#Install PyTorch
-RUN pip3 install torch torchvision
-RUN pip3 install tqdm
-
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
 ## Switch to specified user

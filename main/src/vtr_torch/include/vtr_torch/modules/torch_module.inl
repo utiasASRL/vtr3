@@ -20,8 +20,6 @@ namespace nn {
 
     return output.toTensor().cpu();
   }
-
-
     
 } // namespace nn 
 } // namespace vtr

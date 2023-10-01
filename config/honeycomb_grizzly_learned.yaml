@@ -13,7 +13,6 @@
       - tactic.module.live_mem_manager
       - tactic.module.graph_mem_manager
       - torch
-      - torch.sample
         # path planner
         # "path_planning",
         # "path_planning.teb",
@@ -89,7 +88,7 @@
         - recall
         - icp
         - safe_corridor
-        - range_change
+        - change_detection
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
@@ -115,6 +114,11 @@
         cluster_num_sample: 10000
         visualize: true
     odometry:
+      network:
+        type: torch.sample
+        use_gpu: true
+        abs_filepath: false
+        filepath: sample_model.pt
       icp:
         type: lidar.odometry_icp
         use_trajectory_estimation: true
@@ -216,7 +220,7 @@
         abs_filepath: false
         filepath: exported_range_model.pt
         visualize: true
-      change_detection_sync:
+      change_detection:
         type: lidar.change_detection_v3
         detection_range: 8.0
         search_radius: 0.25
@@ -234,25 +238,6 @@
         size_x: 16.0
         size_y: 8.0
         visualize: true
-      change_detection:
-        type: lidar.change_detection_v2
-        detection_range: 8
-        search_radius: 0.25
-        negprob_threshold: 0.1
-        use_prior: true
-        alpha0: 3.0
-        beta0: 0.03
-        use_support_filtering: true
-        support_radius: 0.25
-        support_variance: 0.05
-        support_threshold: 2.5
-        resolution: 0.5
-        size_x: 16.0
-        size_y: 8.0
-        run_online: false
-        run_async: true
-        visualize: false
-        save_module_result: false
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
@@ -298,8 +283,8 @@
         run_async: true
         visualize: true
     path_planning:
-      type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
-      control_period: 100 # ms
+      type: cbit
+      control_period: 33
       teb:
         visualize: true
         extrapolate: false
@@ -318,63 +303,54 @@
         weight_costmap: 100.0
       cbit:
         obs_padding: 0.0
-        curv_to_euclid_discretization: 10
-        sliding_window_width: 12.0
+        curv_to_euclid_discretization: 20
+        sliding_window_width: 10.0
         sliding_window_freespace_padding: 0.5
-        corridor_resolution: 0.2
-        state_update_freq: 1.0
+        corridor_resolution: 0.05
+        state_update_freq: 0.5
         update_state: true
         rand_seed: 1
-
-        # Planner Tuning Params
-        initial_samples: 300
+        initial_samples: 250
         batch_samples: 100
         pre_seed_resolution: 0.5
         alpha: 0.5
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
-        eta: 1.0
-        rad_m_exhange: 1.00
+        eta: 1.1
+        rad_m_exhange: 1.0
         initial_exp_rad: 0.75
         extrapolation: false
         incremental_plotting: false
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
-
+        costmap_history: 15
       mpc:
-        # Controller Params
-        horizon_steps: 20
-        horizon_step_size: 0.3
-        forward_vel: 1.1
-        max_lin_vel: 1.5
-        max_ang_vel: 1.5
-        robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
-
-        vehicle_model: "unicycle"
-
-        # Cost Function Covariance Matrices
-        pose_error_cov: [30.0, 30.0, 300.0, 300.0, 300.0, 6.50]
-        vel_error_cov: [10.0, 100.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [10.0, 10.0]
-        kin_error_cov: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
-        lat_error_cov: [20.0]
-
-        # Cost Function Weights
-        pose_error_weight: 5.0
-        vel_error_weight: 5.0
-        acc_error_weight: 5.0
-        kin_error_weight: 1000.0
-        lat_error_weight: 0.01
-
-        #backup for tracking mpc
-        #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
-        #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
-        #acc_error_cov: [0.1, 0.75]
-        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-
-        # Misc
+        horizon_steps: 40
+        horizon_step_size: 0.1
+        forward_vel: 1.0
+        max_lin_vel: 1.25
+        max_ang_vel: 0.75
+        vehicle_model: unicycle
+        pose_error_cov:
+          - 0.5
+          - 0.5
+          - 0.5
+          - 10.0
+          - 10.0
+          - 10.0
+        vel_error_cov:
+          - 0.1
+          - 1.0
+        acc_error_cov:
+          - 0.1
+          - 0.75
+        kin_error_cov:
+          - 0.001
+          - 0.001
+          - 0.001
+          - 0.001
+          - 0.001
+          - 0.001
         command_history_length: 100
