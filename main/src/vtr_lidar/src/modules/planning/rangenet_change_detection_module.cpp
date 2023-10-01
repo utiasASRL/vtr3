@@ -116,14 +116,14 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
 
 
   RangeImageParams image_params;
-  image_params.fov_up = 20 * M_PI / 180;
-  image_params.fov_down = -5 * M_PI / 180;
-  image_params.crop_range = 10.0;
+  image_params.fov_up = config->fov_up * M_PI / 180;
+  image_params.fov_down = -config->fov_down * M_PI / 180;
+  image_params.crop_range = config->range_crop;
 
-  RowMatrixXf scan_image = Eigen::MatrixXf::Constant(64, 1024, -1);
-  RowMatrixXf mask_image = Eigen::MatrixXf::Zero(64, 1024);
-  Eigen::MatrixXi scan_idxs = Eigen::MatrixXi::Constant(64, 1024, -1);
-  RowMatrixXf map_image = Eigen::MatrixXf::Constant(64, 1024, -1);
+  RowMatrixXf scan_image = Eigen::MatrixXf::Constant(config->img_height, config->img_width, -1);
+  RowMatrixXf mask_image = Eigen::MatrixXf::Zero(config->img_height, config->img_width);
+  Eigen::MatrixXi scan_idxs = Eigen::MatrixXi::Constant(config->img_height, config->img_width, -1);
+  RowMatrixXf map_image = Eigen::MatrixXf::Constant(config->img_height, config->img_width, -1);
 
   common::timing::Stopwatch timer;
   timer.start();
@@ -134,18 +134,18 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
 
   using namespace torch::indexing;
 
-  auto scan_tensor = torch::from_blob(scan_image.data(), {64, 1024});
-  auto map_tensor = torch::from_blob(map_image.data(), {64, 1024});
+  auto scan_tensor = torch::from_blob(scan_image.data(), {config->img_height, config->img_width});
+  auto map_tensor = torch::from_blob(map_image.data(), {config->img_height, config->img_width});
   auto input = at::unsqueeze(at::stack({scan_tensor, map_tensor}), 0);
 
   timer.reset();
-  auto tensor = evaluateModel(input, {1, 2, 64, 1024});
+  auto tensor = evaluateModel(input, {1, 2, config->img_height, config->img_width});
   auto mask = at::squeeze(at::argmax(tensor, 1), 0).to(at::kFloat);
   timer.stop();
   CLOG(DEBUG, "lidar.range") << "Running inference takes " << timer;
   timer.reset();
 
-  torch::from_blob(mask_image.data(), {64, 1024}) = mask;
+  torch::from_blob(mask_image.data(), {config->img_height, config->img_width}) = mask;
 
   unproject_range_image(nn_point_cloud, mask_image, scan_idxs);
   unproject_range_image(*qdata.nn_point_cloud, mask_image, scan_idxs);
@@ -189,23 +189,6 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.changed_points.emplace(pcl::PointCloud<PointWithInfo>());
   }
 
-  // if (config_->save_nn_point_cloud) {
-  //   auto vertex = graph->at(*qdata.vid_odo);
-
-  //   auto nn_scan = std::make_shared<PointScan<PointWithInfo>>();
-  //   nn_scan->point_cloud() = nn_point_cloud;
-  //   nn_scan->T_vertex_this() = qdata.T_s_r->inverse();
-  //   nn_scan->vertex_id() = *qdata.vid_odo;
-  //   //
-  //   using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
-  //   auto nn_scan_odo_msg =
-  //       std::make_shared<PointScanLM>(nn_scan, *qdata.stamp);
-  //   vertex->insert<PointScan<PointWithInfo>>(
-  //       "nn_point_cloud", "vtr_lidar_msgs/msg/PointScan", nn_scan_odo_msg);
-
-  //   CLOG(DEBUG, "lidar.pipeline") << "Saved nn pointcloud to vertex" << vertex;
-  // }
-
   
   /// publish the transformed pointcloud
   if (config_->visualize) {
@@ -225,9 +208,6 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
                             
 }
 
-// costmap::PixKey RangeChangeNetModule::pointToKey(PointWithInfo &p) {
-//     return {std::lround(p.x / config_->resolution), std::lround(p.y / config_->resolution)};
-//   }
 
 }  // namespace nn
 }  // namespace vtr

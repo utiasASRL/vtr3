@@ -3,7 +3,7 @@ FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
 CMD ["/bin/bash"]
 
 # Args for setting up non-root users, example command to use your own user:
-# docker build -t vtr3torch \
+# docker build -t <name: vtr3> \
 #   --build-arg USERID=$(id -u) \
 #   --build-arg GROUPID=$(id -g) \
 #   --build-arg USERNAME=$(whoami) \

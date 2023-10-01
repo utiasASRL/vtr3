@@ -255,6 +255,11 @@
         use_gpu: true
         abs_filepath: false
         filepath: exported_model_flat_m30_10m.pt
+        img_width: 1024
+        img_height: 64
+        fov_up: 20.0
+        fov_down: 5.0
+        range_crop: 10.0
         radius_filter: 0.25
         neighbourhood: 5
         save_nn_point_cloud: true

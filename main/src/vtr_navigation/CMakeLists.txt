@@ -89,7 +89,7 @@ ament_export_dependencies(
   rclcpp tf2 tf2_ros
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch
   vtr_navigation_msgs vtr_path_planning
-  vtr_lidar 
+  vtr_lidar
   # vtr_vision
   PROJ
 )
