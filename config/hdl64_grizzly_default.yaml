@@ -97,7 +97,7 @@
       localization:
         - recall
         - icp
-    #    - safe_corridor
+        - safe_corridor
         #- change_detection_sync
         - memory
       submap_translation_threshold: 1.5
@@ -243,6 +243,8 @@
         support_radius: 0.25
         support_variance: 0.05
         support_threshold: 2.5
+      costmap_inflation:
+        type: lidar.costmap_queue
         influence_distance: 0.50 # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
         minimum_distance: 0.9
 
@@ -253,49 +255,10 @@
         size_x: 16.0
         size_y: 8.0
         visualize: true
-      change_detection:
-        type: lidar.change_detection_v2
-        detection_range: 8
-        search_radius: 0.25
-        negprob_threshold: 0.1
-        use_prior: true
-        alpha0: 3.0
-        beta0: 0.03
-        use_support_filtering: true
-        support_radius: 0.25
-        support_variance: 0.05
-        support_threshold: 2.5
-        resolution: 0.5
-        size_x: 16.0
-        size_y: 8.0
-        run_online: false
-        run_async: true
-        visualize: false
-        save_module_result: false
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
         window_size: 3
-      obstacle_detection:
-        type: lidar.obstacle_detection
-        z_min: 0.5
-        z_max: 2.0
-        resolution: 0.6
-        size_x: 40.0
-        size_y: 20.0
-        run_async: true
-        visualize: true
-      terrain_assessment:
-        type: lidar.terrain_assessment
-        lookahead_distance: 15.0
-        corridor_width: 1.0
-        search_radius: 1.0
-        resolution: 0.5
-        size_x: 40.0
-        size_y: 20.0
-        run_online: false
-        run_async: true
-        visualize: true
     path_planning:
       type: cbit
       control_period: 100 # ms
