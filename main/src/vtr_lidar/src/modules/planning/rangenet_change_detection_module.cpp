@@ -116,14 +116,14 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
 
 
   RangeImageParams image_params;
-  image_params.fov_up = config->fov_up * M_PI / 180;
-  image_params.fov_down = -config->fov_down * M_PI / 180;
-  image_params.crop_range = config->range_crop;
+  image_params.fov_up = config_->fov_up * M_PI / 180;
+  image_params.fov_down = -config_->fov_down * M_PI / 180;
+  image_params.crop_range = config_->range_crop;
 
-  RowMatrixXf scan_image = Eigen::MatrixXf::Constant(config->img_height, config->img_width, -1);
-  RowMatrixXf mask_image = Eigen::MatrixXf::Zero(config->img_height, config->img_width);
-  Eigen::MatrixXi scan_idxs = Eigen::MatrixXi::Constant(config->img_height, config->img_width, -1);
-  RowMatrixXf map_image = Eigen::MatrixXf::Constant(config->img_height, config->img_width, -1);
+  RowMatrixXf scan_image = Eigen::MatrixXf::Constant(config_->img_height, config_->img_width, -1);
+  RowMatrixXf mask_image = Eigen::MatrixXf::Zero(config_->img_height, config_->img_width);
+  Eigen::MatrixXi scan_idxs = Eigen::MatrixXi::Constant(config_->img_height, config_->img_width, -1);
+  RowMatrixXf map_image = Eigen::MatrixXf::Constant(config_->img_height, config_->img_width, -1);
 
   common::timing::Stopwatch timer;
   timer.start();
@@ -134,18 +134,18 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
 
   using namespace torch::indexing;
 
-  auto scan_tensor = torch::from_blob(scan_image.data(), {config->img_height, config->img_width});
-  auto map_tensor = torch::from_blob(map_image.data(), {config->img_height, config->img_width});
+  auto scan_tensor = torch::from_blob(scan_image.data(), {config_->img_height, config_->img_width});
+  auto map_tensor = torch::from_blob(map_image.data(), {config_->img_height, config_->img_width});
   auto input = at::unsqueeze(at::stack({scan_tensor, map_tensor}), 0);
 
   timer.reset();
-  auto tensor = evaluateModel(input, {1, 2, config->img_height, config->img_width});
+  auto tensor = evaluateModel(input, {1, 2, config_->img_height, config_->img_width});
   auto mask = at::squeeze(at::argmax(tensor, 1), 0).to(at::kFloat);
   timer.stop();
   CLOG(DEBUG, "lidar.range") << "Running inference takes " << timer;
   timer.reset();
 
-  torch::from_blob(mask_image.data(), {config->img_height, config->img_width}) = mask;
+  torch::from_blob(mask_image.data(), {config_->img_height, config_->img_width}) = mask;
 
   unproject_range_image(nn_point_cloud, mask_image, scan_idxs);
   unproject_range_image(*qdata.nn_point_cloud, mask_image, scan_idxs);

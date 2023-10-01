@@ -24,7 +24,6 @@ windows:
         start_new_graph:=false
         model_dir:=${VTRMODELS}
         use_sim_time:=false
-        planner:=cbit
 
   - window_name: vtr_gui
     layout: main-horizontal
