@@ -59,6 +59,7 @@ RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 
+
 ## Install ROS2
 # UTF-8
 RUN apt install -q -y locales \
@@ -117,12 +118,10 @@ RUN apt install ros-humble-velodyne -q -y
 # Install vim
 RUN apt update && apt install -q -y vim
 
-# Install debugger
-RUN apt install -q -y libc6-dbg gdb valgrind
-
 ##Install LibTorch
 RUN curl https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch
+RUN rm libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
