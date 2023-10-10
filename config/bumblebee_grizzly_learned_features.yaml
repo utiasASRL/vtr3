@@ -1,26 +1,137 @@
 /**:
   ros__parameters:
+    ############ system configuration ############
+    # Data logging
+    log_to_file: true
+    log_debug: true
+    log_enabled:
+      [
+        "navigator",
+        "map_projector",
+        "tactic",
+        "tactic.module",
+        "tactic.module.live_mem_manager",
+        "tactic.module.graph_mem_manager",
+        "mission_planning_server",
+        "mission.state_machine",
+        "pose_graph",
+        "stereo.pipeline",
+        "stereo.preprocessing",
+        "stereo.recall",
+        "stereo.matcher",
+        #"stereo.keyframe_optimization",
+        "stereo.bundle_adjustment",
+        "stereo.mel_matcher",
+        "stereo.odometry",
+        "stereo.tod",
+        #"stereo.vertex_test",
+        "odometry",
+        "tactic.pipeline"
+      ]
+
+    # control frame from the urdf
+    robot_frame: base_link
+    # camera related
+    camera_frame: front_xb3
+    camera_left_topic: /xb3/RGB/left_image #/zed2/zed_node/left/image_rect_color
+    camera_right_topic:  /xb3/RGB/right_image #/zed2/zed_node/right/image_rect_color
+    camera_calibration_topic: /zed2/zed_node/left/camera_info
+
+    ############ map projection configuration ############
+    map_projection:
+      origin_lat: 43.78220
+      origin_lng: -79.4661
+      origin_theta: 1.3 # positive == clockwise
+      scale: 1.0
 
     ############ tactic configuration ############
     tactic:
-      visualize: false
+      enable_parallelization: true
+      extrapolate_odometry: true # path tracker
+      localization_only_keyframe: true # EDIT BY SHERRY
+      localization_skippable: true #false # false
+      save_odometry_result: true
+      save_localization_result: true
 
+      default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
+      chain:
+        min_cusp_distance: 1.5
+        angle_weight: 7.0
+        search_depth: 20
+        search_back_depth: 10
+        distance_warning: 3.0
+      live_mem:
+        enable: true
+        lookahead_distance: 100
+        window_size: 10
+      map_mem:
+        enable: true
+        lookahead_distance: 15
+        vertex_life_span: 10
+
+      visualize: true
+      vis_loc_path_offset: [0., 0., 0.]
+
+    ############ pipeline configuration ############
     pipeline:
+      type: stereo
+
+      preprocessing: ["adapter","extraction", "triangulation"]
+      odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"]
+      bundle_adjustment: ["recall", "steam"]
       localization:
-        [
-          "recall",
-          "sub_map_extraction",
-          "experience_triage",
-          "migration",
-          "matcher",
-          "ransac",
-          "steam",
-        ]
-    
+         [
+           "recall",
+           "sub_map_extraction",
+           "tod_recognition",
+           "experience_triage",
+           "migration",
+           "matcher",
+           "ransac",
+           "steam",
+         ]
+
     preprocessing:
       # conversion+extraction module
+      adapter:
+        type: stereo.adapter
+        distortion: [0.0, 0.0, 0.0, 0.0, 0.0]
+        intrinsic:
+        - 388.425
+        - 0.0
+        - 254.002
+        - 0.0
+        - 388.425
+        - 197.32
+        - 0.0
+        - 0.0
+        - 1.0
+
+          #zed2i
+          # - 371.88385009765625
+          # - 0.0
+          # - 433.3143005371094
+          # - 0.0
+          # - 377.7867736816406
+          # - 252.2572021484375
+          # - 0.0
+          # - 0.0
+          # - 1.0
+        baseline: 0.24 #0.12
+
+
       extraction:
         type: stereo.conversion_extraction
+        visualize: true
+
+
+        # specify which conversions to do between different image formats from:
+        # RGB_TO_GRAYSCALE, RGB_TO_COLOR_CONSTANT
+        conversions: ["RGB_TO_GRAYSCALE", "RGB_TO_COLOR_CONSTANT"]
+        color_constant:
+          weights: [0.43]
+          histogram_equalization: false
+          visualize_raw_features: false
 
         extractor:
           type: ASRL_GPU_SURF
@@ -30,70 +141,423 @@
           learned:
             # we're providing the surf settings (don't change this param, use a different file)
             type: "LEARNED_FEATURE"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_16_crop_w16h15.pt"
-
-            # modelPath: "/home/asrl/libtorch_example/data/feature
-            # _detector_snow_16_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_32_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_32_h15w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
-            
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_395_32_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_165_32_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_62_16_h16w16.pt"
-
-            # modelPath: "/home/sherry/ASRL/models/feature_detector_dark_extend_585_16_h16w16.pt"
-            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_easy_checkpoint_10.pt"
-            # modelPath: "/home/sherry/ASRL/models/multiseason_easy_model_best.pt"
-            # modelPath: "/home/sherry/ASRL/models/inthedark_model_best.pt"
-  
-            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark.pt"
-            # modelPath: "/home/sherry/ASRL/models/unsupervised_pretrain_multiseason_inthedark_model_best.pt"
-            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_e20.pt"
-            # modelPath: "/home/sherry/ASRL/models/unsupervised_inthedark_multiseason_e10.pt"
 
             # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_seqslam_model_best.pt"
-            modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_seqslam_vgg16_pretrain.pt"
-
-
-
+            modelPath: "/home/david/ASRL/vtr3/models/model.pt"
 
             stereoDisparityMinimum: 0.1
             stereoDisparityMaximum: 100.0
+      triangulation:
+        type: image_triangulation
+        visualize: false
+        min_triangulation_depth: 0.01
+        max_triangulation_depth: 500.0
 
     odometry:
+      recall:
+        type: landmark_recall
+
+        landmark_source: live
+
+      matcher:
+        type: asrl_stereo_matcher
+
+        check_laplacian_bit: true
+        check_octave: true
+        check_response: true
+        min_response_ratio: 0.2
+        matching_pixel_thresh: 400
+        tight_matching_pixel_thresh: 20
+
+        # !!! The covariance is currently set to identity * dt*dt,
+        # So the sigma will be dt, where dt is the time difference
+        # between the last keyframe and the live frame.
+        # This is ugly, but it is mirroring the mel matcher for
+        # simplicity, since we are just trying to get things working.
+        # in the case that we're not extrapolating and using identity,
+        # the covariance is multiplied by 4 (dt is doubled).
+        # This is not currently configurable.
+        # e.g. 0.4 is 400 ms while extrapolating, and 200 ms with identity
+        tight_matching_x_sigma: 0.6 # in s
+        tight_matching_y_sigma: 0.6 # in s
+        tight_matching_theta_sigma: 0.6 # in s
+
+        use_pixel_variance: true
+        prediction_method: se3
+        max_point_depth: 500.0
+        descriptor_thresh: 0.1
+        parallel_threads: 8
+        visualize_feature_matches: true
+        min_matches: 1
+
       ransac:
         type: stereo_ransac
-        visualize_ransac_inliers: true #false
+
+        rig: "front_xb3"
+        channel: "grayscale"
+
+        enable: true
+        iterations: 2000
+        flavor: Vanilla
+        sigma: 3.5
+        threshold: 5.0
+        early_stop_ratio: 0.8
+        early_stop_min_inliers: 200
+        visualize_ransac_inliers: true
+        use_migrated_points: false
+        min_inliers: 15
+
+        mask_depth: 200.0
+        mask_depth_inlier_count: 0
+        use_covariance: false
+        is_odometry: true
+
+      keyframe_optimize:
+        type: keyframe_optimization
+
+        solver_type: "DoglegGaussNewton"
+        loss_function: "DCS"
+
+        verbose: true
+        iterations: 5
+        absoluteCostThreshold: 0.0
+        absoluteCostChangeThreshold: .0001
+        relativeCostChangeThreshold: .0001
+        ratioThresholdShrink: 0.25
+        ratioThresholdGrow: 0.75
+        shrinkCoeff: 0.5
+        growCoeff: 3.0
+        maxShrinkSteps: 50
+
+        perform_planarity_check: false
+        plane_distance: 20.0
+
+        min_point_depth: 0.0
+        max_point_depth: 200.0
+        backtrackMultiplier: 0.5
+        maxBacktrackSteps: 10
+
+        disable_solver: false # Set true to do everything but run optimise()
+
+        use_T_q_m_prior: false
+
+        ## sample and save trajectory results to disk
+        save_trajectory: false
+
+        # Smoothing based on vehicle dynamics,
+        # tune these for your robot in your robot-specific config
+        # E.g. a nonholonomic ground vehicle on rugged terrain:
+        trajectory_smoothing: true
+        ## smoothing factor
+        ## zero mean white noise on acceleration
+        ## one-sigma standard deviation for linear acceleration (m/s/s)
+        lin_acc_std_dev_x: 10.0 ## lifted from max acceleration in grizzly launch
+        lin_acc_std_dev_y: 10.0 ## grizzly does not strafe very fast
+        lin_acc_std_dev_z: 10.0 ## neither does it jump quickly, except for going over bumps
+        ## one-sigma standard devitation for angular acceleration (rad/s/s0)
+        ang_acc_std_dev_x: 1.0 # roll rate, should be low
+        ang_acc_std_dev_y: 1.0 # pitch rate,
+        ang_acc_std_dev_z: 1.0 # yaw rate, approx 2 deg
+
+        # Mean for the velocity prior (0 mean is probably what you want)
+        velocity_prior: false
+        lin_vel_mean_x: 4.0
+        lin_vel_mean_y: 0.0
+        lin_vel_mean_z: 0.0
+        ang_vel_mean_x: 0.0
+        ang_vel_mean_y: 0.0
+        ang_vel_mean_z: 0.0
+
+        ## standard deviation for velocity prior
+        ## linear velocity m/s
+        lin_vel_std_dev_x: 8.0 ## the grizzly is usually within +- 3.0 m/s
+        lin_vel_std_dev_y: 3.0
+        lin_vel_std_dev_z: 0.5
+        ## angular velocity rad/s
+        ang_vel_std_dev_x: 0.5
+        ang_vel_std_dev_y: 0.5
+        ang_vel_std_dev_z: 0.2
+
+        pose_prior_enable: false
+        use_migrated_points: false
+        is_odometry: true
+
+      vertex_test:
+        type: simple_vertex_creation_test
+
+        min_distance: 0.05
+        min_creation_distance: 0.3
+        max_creation_distance: 2.0
+        rotation_threshold_min: 3.0
+        rotation_threshold_max: 20.0
+        match_threshold_min_count: 50
+        match_threshold_fail_count: 15
 
     localization:
+      recall:
+        type: landmark_recall
+        landmark_source: live
+
+      sub_map_extraction:
+        type: sub_map_extraction
+
+        temporal_min_depth: 5 # use at least a depth of 5
+        temporal_max_depth: 10 # vertices to search for scaled sigma
+        search_spatially: true
+        sigma_scale: 3.0
+        angle_weight: 5.0
+
+      tod_recognition:
+        # the module type to configure (don't change this param)
+        type: timeofday_recognition
+
+        # Whether to print out debug logs
+        verbose: true
+
+        # The number of experiences to recommend for localization
+        num_desired_experiences: 8
+
+        # Whether or not we make the recommendation and restrict the experiences
+        in_the_loop: true
+
+        # The weight to convert time-of-day difference to a distance
+        # probably just leave this at 1.0, and adjust the rest
+        time_of_day_weight: 1.0
+
+        # The weight to convert total time difference to a distance
+        # 1.0/24.0 means 1 day is worth 1 time-of-day hour
+        # 1.0/(7.0*24.0) means 1 week is worth 1 time-of-day-hour
+        total_time_weight: 0.00595 # 1.0/(7.0*24.0)
+
       experience_triage:
         type: experience_triage
-        only_privileged: true
+
+        verbose: false
+        always_privileged: true
+        in_the_loop: true
+
+      migration:
+        type: landmark_migration
 
       matcher:
         type: mel_matcher
-        min_response_ratio: 0.0 #0.2
-        descriptor_thresh_cpu: 0.7 #0.115
-        descriptor_thresh_gpu: 100.0 #0.55
-        # descriptor_thresh_gpu: 100.0 #0.55 #EDIT: SHERRY
+
+        target_match_count: 200
+        min_match_count: 20
+        min_track_length: 1
+        max_landmark_depth: 200.0
+        matching_pixel_thresh: 200
+        tight_matching_pixel_thresh: 50
+        tight_matching_x_sigma: 0.1 # in [m]
+        tight_matching_y_sigma: 0.1 # in [m]
+        tight_matching_theta_sigma: 0.0 # in [rad] Note: In VTR2 was listed as 0.00349 but bug so always 0 in ModuleLoc
+        min_response_ratio: 0.2
+        time_allowance: 2000.0
+        descriptor_thresh_cpu: 0.115
+        descriptor_thresh_gpu: 0.55
+        screen_matched_landmarks: true
+        max_depth_diff: 5.0
+        parallel_threads: 8
         match_on_gpu: false
-        visualize: false
-        # match_on_gpu: true #EDIT
-        use_learned: true
+        match_gpu_knn_match_num: 8
+        visualize: true
 
       ransac:
+        # the module type (don't change this param)
+        type: stereo_ransac
+
+        enable: true
+        iterations: 6000
+        flavor: Vanilla
+        sigma: 3.5
+        threshold: 10.0
+        early_stop_ratio: 1.0
+        early_stop_min_inliers: 400
         visualize_ransac_inliers: true
+        use_migrated_points: true
+        min_inliers: 6
 
-    ############ path tracker configuration ############
-    path_tracker:
-      # target_linear_speed: [0.8, 1.0, 1.2, 1.5]
-      # target_linear_speed: [0.8, 0.9, 1.0, 1.2]
-      target_linear_speed: [0.5, 0.6, 0.7, 0.9]
+        mask_depth: 1000.0
+        mask_depth_inlier_count: 0
+        use_covariance: false
+        is_odometry: false
 
+      steam:
+        type: keyframe_optimization
 
+        solver_type: "DoglegGaussNewton"
+        loss_function: "DCS"
+
+        verbose: false
+        iterations: 15
+        absoluteCostThreshold: 0.0
+        absoluteCostChangeThreshold: .0001
+        relativeCostChangeThreshold: .0001
+        ratioThresholdShrink: 0.25
+        ratioThresholdGrow: 0.75
+        shrinkCoeff: 0.5
+        growCoeff: 3.0
+        maxShrinkSteps: 50
+        max_point_depth: 1000.0
+        backtrackMultiplier: 0.5
+        maxBacktrackSteps: 10
+
+        disable_solver: false # Set true to do everything but run optimise()
+
+        use_T_q_m_prior: true
+
+        save_trajectory: false
+        trajectory_smoothing: false
+        velocity_prior: false
+        pose_prior_enable: true
+        use_migrated_points: true
+        is_odometry: false
+
+    bundle_adjustment:
+      recall:
+        type: stereo_windowed_recall
+        window_size: 5
+
+      steam:
+        type: stereo_window_optimization
+
+        enable: true
+        solver_type: "DoglegGaussNewton"
+        loss_function: "DCS"
+        verbose: false
+        iterations: 3
+
+        absoluteCostThreshold: 0.0
+        absoluteCostChangeThreshold: .01
+        relativeCostChangeThreshold: .01
+        ratioThresholdShrink: 0.25
+        ratioThresholdGrow: 0.75
+        shrinkCoeff: 0.5
+        growCoeff: 3.0
+        maxShrinkSteps: 50
+
+        perform_planarity_check: false
+        plane_distance: 20.0
+
+        min_point_depth: 1.0
+        max_point_depth: 800.0
+
+        backtrackMultiplier: 0.5
+        maxBacktrackSteps: 10
+
+        disable_solver: false # Set true to do everything but run optimise()
+
+        use_T_q_m_prior: false
+
+        ## sample and save trajectory results to disk
+        save_trajectory: false
+
+        trajectory_smoothing: true
+        ## smoothing factor
+        ## zero mean white noise on acceleration
+        ## one-sigma standard deviation for linear acceleration (m/s/s)
+        lin_acc_std_dev_x: 0.25 ## lifted from max acceleration in grizzly launch
+        lin_acc_std_dev_y: 0.001 ## grizzly does not strafe very fast
+        lin_acc_std_dev_z: 0.1 ## neither does it jump quickly, except for going over bumps
+        ## one-sigma standard devitation for angular acceleration (rad/s/s0)
+        ang_acc_std_dev_x: 0.001 # roll rate, should be low
+        ang_acc_std_dev_y: 0.001 # pitch rate,
+        ang_acc_std_dev_z: 0.003 # yaw rate, approx 2 deg
+
+        velocity_prior: false
+        lin_vel_mean_x: 0.0
+        lin_vel_mean_y: 0.0
+        lin_vel_mean_z: 0.0
+        ang_vel_mean_x: 0.0
+        ang_vel_mean_y: 0.0
+        ang_vel_mean_z: 0.0
+
+        ## standard deviation for velocity prior
+        ## linear velocity m/s
+        lin_vel_std_dev_x: 3.0 ## the grizzly is usually within +- 3.0 m/s
+        lin_vel_std_dev_y: 0.02
+        lin_vel_std_dev_z: 0.02
+        ## angular velocity rad/s
+        ang_vel_std_dev_x: 0.001
+        ang_vel_std_dev_y: 0.001
+        ang_vel_std_dev_z: 0.003
+
+        depth_prior_enable: true
+        depth_prior_weight: 1000.0
+
+    path_planning:
+      type: cbit
+      control_period: 100 # ms
+      cbit:
+        obstacle_avoidance: false
+        obs_padding: 0.0
+        curv_to_euclid_discretization: 10
+        sliding_window_width: 12.0
+        sliding_window_freespace_padding: 0.5
+        corridor_resolution: 0.2
+        state_update_freq: 2.0
+        update_state: true
+        rand_seed: 1
+
+        # Planner Tuning Params
+        initial_samples: 400
+        batch_samples: 200
+        pre_seed_resolution: 0.5
+        alpha: 0.5
+        q_max: 2.5
+        frame_interval: 50
+        iter_max: 10000000
+        eta: 1.0
+        rad_m_exhange: 1.00
+        initial_exp_rad: 1.25
+        extrapolation: false
+        incremental_plotting: false
+        plotting: true
+      costmap:
+        costmap_filter_value: 0.01
+        costmap_history: 30
+      
+      speed_scheduler:
+        planar_curv_weight: 2.50
+        profile_curv_weight: 0.5 
+        eop_weight: 1.0
+        min_vel: 0.5
+
+      mpc:
+        # Controller Params
+        extrapolate_robot_pose: true
+        mpc_verbosity: false
+        homotopy_guided_mpc: false
+        horizon_steps: 20
+        horizon_step_size: 0.3
+        forward_vel: 1.0
+        max_lin_vel: 1.5
+        max_ang_vel: 1.25
+        robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+
+        vehicle_model: "unicycle"
+
+        # Cost Function Covariance Matrices
+        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        vel_error_cov: [25.0, 10.0]
+        acc_error_cov: [10.0, 10.0]
+        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        lat_error_cov: [20.0]
+        
+        # Cost Function Covariance Matrices (Tracking Backup)
+        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
+        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
+        #acc_error_cov: [10.0, 10.0]
+        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        #lat_error_cov: [10.0]
+        
+        # Cost Function Weights
+        pose_error_weight: 1.0
+        vel_error_weight: 1.0
+        acc_error_weight: 1.0
+        kin_error_weight: 1.0
+        lat_error_weight: 0.01
+
+        # Misc
+        command_history_length: 100
