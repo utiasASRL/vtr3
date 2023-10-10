@@ -181,6 +181,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     if (prev_time == query_time) {
       CLOG(WARNING, "lidar.odometry") << "Skipping point cloud with duplicate stamp";
+      //CLOG(WARNING, "lidar.odometry") << "The prev_time was: "<< prev_time;
+      //CLOG(WARNING, "lidar.odometry") << "The query_time was: "<< query_time;
       *qdata.odo_success = false;
       return;
     }

@@ -103,6 +103,7 @@ typedef message_filters::sync_policies::ApproximateTime<
   mutable std::condition_variable cv_thread_finish_;
 
   std::queue<tactic::QueryCache::Ptr> queue_;
+  int max_queue_size_ = 5;
   tactic::EnvInfo env_info_;
 #ifdef VTR_ENABLE_LIDAR
   bool pointcloud_in_queue_ = false;

@@ -23,6 +23,7 @@
   <depend>vtr_tactic</depend>
   <depend>vtr_mission_planning</depend>
   <depend>vtr_navigation_msgs</depend>
+  <depend>vtr_torch</depend>
 
   <!-- <depend>vtr_lidar</depend> -->
   <depend>vtr_vision</depend>

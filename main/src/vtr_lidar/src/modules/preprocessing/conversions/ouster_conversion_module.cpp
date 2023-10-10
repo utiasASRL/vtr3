@@ -51,6 +51,15 @@ auto OusterConversionModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
+  config->filter_warthog_points = node->declare_parameter<bool>(param_prefix + ".filter_warthog", config->filter_warthog_points);
+  config->filter_z_max = node->declare_parameter<float>(param_prefix + ".filter_z_max", config->filter_z_max);
+  config->filter_z_min = node->declare_parameter<float>(param_prefix + ".filter_z_min", config->filter_z_min);
+  auto filter_radius = node->declare_parameter<float>(param_prefix + ".filter_radius", config->filter_radius_sq);
+  config->filter_radius_sq = filter_radius * filter_radius;
+
+  CLOG(INFO, "ouster") << config->filter_z_max << "-" << config->filter_z_min;
+  CLOG(INFO, "ouster") << config->filter_warthog_points << "-" << config->filter_radius_sq;
+
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -79,29 +88,55 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
   // clang-format off
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
   sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(*msg, "intensity");
+
   // clang-format on
 
   for (size_t idx = 0; iter_x != iter_x.end();
-       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_time) {
+       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_time, ++iter_intensity) {
     // cartesian coordinates
     point_cloud->at(idx).x = *iter_x;
     point_cloud->at(idx).y = *iter_y;
     point_cloud->at(idx).z = *iter_z;
+    point_cloud->at(idx).intensity = *iter_intensity;
 
     // pointwise timestamp
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Timestamp is: " << *iter_time;
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Message Header Stamp (sec)" << (msg->header).stamp.sec;
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Message Header Stamp (nanosec)" << (msg->header).stamp.nanosec;
+
+
     point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
-    CLOG(WARNING, "lidar.odometry_icp") << "point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
+    //CLOG(DEBUG, "lidar.ouster_converter") << "First point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
+    //CLOG(DEBUG, "lidar.ouster_converter") << "Second point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time);
   }
 
+  auto filtered_point_cloud =
+      std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
+
+  /// Range cropping
+  if (config_->filter_warthog_points){
+    std::vector<int> indices;
+    indices.reserve(filtered_point_cloud->size());
+    for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+      auto& p = (*filtered_point_cloud)[i];
+      if (p.x*p.x + p.y*p.y > config_->filter_radius_sq || (p.z > config_->filter_z_max || p.z < config_->filter_z_min))
+        indices.emplace_back(i);
+    }
+    *filtered_point_cloud =
+        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+  }
+
+
   // ouster has no polar coordinates, so compute them manually.
-  ousterCart2Pol(*point_cloud);
+  ousterCart2Pol(*filtered_point_cloud);
 
   // Output
-  qdata.raw_point_cloud = point_cloud;
+  qdata.raw_point_cloud = filtered_point_cloud;
 
   // Visualize
   if (config_->visualize) {
-    pcl::PointCloud<PointWithInfo> point_cloud_tmp(*point_cloud);
+    pcl::PointCloud<PointWithInfo> point_cloud_tmp(*filtered_point_cloud);
     std::for_each(point_cloud_tmp.begin(), point_cloud_tmp.end(),
                   [&](PointWithInfo &point) {
                     point.flex21 = static_cast<float>(

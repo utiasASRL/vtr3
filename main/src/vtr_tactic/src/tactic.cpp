@@ -167,7 +167,7 @@ bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
   const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
 
-  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 1)) {
+  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
     return false;
   }
 
@@ -636,6 +636,7 @@ bool Tactic::teachMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "
                                "and localization chain.";
+    chain_->lostLocalization();
     return true;
   }
 
@@ -675,6 +676,7 @@ bool Tactic::teachMergeLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
+    chain_->lostLocalization();
     return true;
   }
 
@@ -712,6 +714,8 @@ bool Tactic::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
+    chain_->lostLocalization();
+
     return true;
   }
 

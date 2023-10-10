@@ -3,45 +3,46 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - lidar.terrain_assessment
-      - navigation
-      - navigation.graph_map_server
+      #- navigation
+      #- navigation.graph_map_server
       #- navigation.command
-      - navigation.sensor_input
         # tactic
       #- tactic
-      - tactic.pipeline
+      #- tactic.pipeline
       #- tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
-        # path planner
-        # "path_planning",
-        # "path_planning.teb",
-        # "path_planning.cbit",
-        # "path_planning.cbit_planner",
-      - mpc.cbit
-      #- mpc_debug.cbit
-        # mission planner
-      #- mission.server
       #- mission.state_machine
+      - mission.server
+        # planner manager
+      #- cbit.control
+      #- cbit.debug
+      #- cbit.path_planning
+      #- cbit.obstacle_filtering
+      #- grizzly_controller_tests.cbit
+        # mpc
+      #- mpc.speed_scheduler
+      #- mpc.debug
+      #- mpc.solver
+        # path planner
+      #- cbit_planner.path_planning
         # pose graph
       #- pose_graph
-        # pipeline specific
+        # lidar pipeline
       #- lidar.pipeline
-      - lidar.velodyne_converter_v2
-      - lidar.preprocessing
-      - lidar.odometry_icp
-        # "lidar.odometry_map_maintenance",
-      - lidar.vertex_test
-        # "lidar.localization_map_recall",
-      - lidar.localization_icp
-        # "lidar.intra_exp_merging",
-        # "lidar.dynamic_detection",
-        # "lidar.inter_exp_merging",
-        # "lidar.change_detection",
-        # "lidar.ground_extraction",
-        # "lidar.obstacle_detection",
-      # "lidar.terrain_assessment",
+      #- lidar.honeycomb_converter
+      #- lidar.preprocessing
+      #- lidar.odometry_icp
+      #- lidar.odometry_map_maintenance
+      #- lidar.vertex_test
+      #- lidar.localization_map_recall
+      #- lidar.localization_icp
+      #- lidar.intra_exp_merging
+      #- lidar.dynamic_detection
+      #- lidar.inter_exp_merging
+      #- lidar.ground_extraction
+      #- lidar.obstacle_detection
+      #- lidar.terrain_assessment
     robot_frame: base_link
     env_info_topic: env_info
     # lidar related
@@ -50,8 +51,8 @@
 
     ############ map projection configuration ############
     graph_projection:
-      origin_lat: 43.78220 # PETAWAWA: 45.8983, # UTIAS: 43.78220
-      origin_lng: -79.4661 # PETAWA: -77.2829, # UTIAS: -79.4661
+      origin_lat: 43.78220 # UTIAS: 43.78220
+      origin_lng: -79.4661 # UTIAS: -79.4661
       origin_theta: 0.0
     graph_map:
       origin_lat: 43.7822
@@ -242,11 +243,11 @@
         support_radius: 0.25
         support_variance: 0.05
         support_threshold: 2.5
-        influence_distance: 0.50 # was 0.5 Jordy # Note that the total distancr=e where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.9 # was 0.3 Jordy
+        influence_distance: 0.50 # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 0.9
 
         # cost map
-        costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
+        costmap_history_size: 15 # Keep between 3 and 30, used for temporal filtering
 
         resolution: 0.25
         size_x: 16.0
@@ -296,10 +297,11 @@
         run_async: true
         visualize: true
     path_planning:
-      type: cbit.lidar # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit
       control_period: 100 # ms
 
       cbit:
+        obstacle_avoidance: false
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0
@@ -325,10 +327,19 @@
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 30 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
+        costmap_history: 30
+      
+      speed_scheduler:
+        planar_curv_weight: 2.50
+        profile_curv_weight: 0.5 
+        eop_weight: 1.0
+        min_vel: 0.5
 
       mpc:
         # Controller Params
+        extrapolate_robot_pose: true
+        mpc_verbosity: false
+        homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.3
         forward_vel: 0.75
@@ -341,7 +352,7 @@
 
         # Cost Function Covariance Matrices
         pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [25.0, 10.0] # was [0.1 2.0] # No longer using this cost term
+        vel_error_cov: [25.0, 10.0]
         acc_error_cov: [10.0, 10.0]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         lat_error_cov: [20.0]
@@ -359,12 +370,6 @@
         acc_error_weight: 1.0
         kin_error_weight: 1.0
         lat_error_weight: 0.01
-
-        #backup for tracking mpc
-        #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
-        #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
-        #acc_error_cov: [0.1, 0.75]
-        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
 
         # Misc
         command_history_length: 100

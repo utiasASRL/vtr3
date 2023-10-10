@@ -57,7 +57,13 @@ class CBITConfig {
         bool incremental_plotting = true;
         bool plotting = true;   
 
-        // MPC Configs //TODO: NEED TO MOVE THIS TO ITS OWN MPC CONFIG FILE MOST LIKELY
+        // Speed Scheduler
+        double planar_curv_weight = 2.50;
+        double profile_curv_weight = 0.5;
+        double eop_weight = 1.0;
+        double min_vel = 0.5; 
+
+        // MPC Configs 
         int horizon_steps = 10;
         double horizon_step_size = 0.5;
         double forward_vel = 0.75;
@@ -65,14 +71,6 @@ class CBITConfig {
         double max_ang_vel = 0.75;
         double robot_linear_velocity_scale = 1.0;
         double robot_angular_velocity_scale = 1.0;
-
-        // Add unicycle model param
-
-        // Covariance Tuning Weights
-        //Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
-        //Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-        //Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-        //Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
 
         int command_history_length = 100;
 
