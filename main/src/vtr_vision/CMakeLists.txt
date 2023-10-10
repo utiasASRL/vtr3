@@ -33,6 +33,8 @@ find_package(vtr_common_msgs REQUIRED)
 find_package(vtr_storage REQUIRED)
 find_package(vtr_tactic REQUIRED)
 
+if(DEFINED VTR_ENABLE_VISION)
+
 file(GLOB_RECURSE SRC src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC})
 
@@ -89,4 +91,5 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+endif() #VTR_ENABLE_VISION
 ament_package()
