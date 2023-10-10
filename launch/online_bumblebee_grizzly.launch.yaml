@@ -14,11 +14,11 @@ windows:
     layout: main-vertical
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=bumblebee_grizzly_default.yaml
-        data_dir:=${VTRTEMP}/vision/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
         use_sim_time:=false
 
