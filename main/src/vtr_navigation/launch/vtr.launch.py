@@ -24,7 +24,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('data_dir', default_value='', description='directory to store graph, if blank use setup UI'),
-        DeclareLaunchArgument('model_dir', description='model directory (folder for PyTorch .pt models)'),
+        DeclareLaunchArgument('model_dir', default_value="", description='model directory (folder for PyTorch .pt models)'),
         DeclareLaunchArgument('start_new_graph', default_value='false', description='whether to start a new pose graph'),
         DeclareLaunchArgument('use_sim_time', default_value='false', description='use simulated time for playback'),
         DeclareLaunchArgument('planner', default_value='cbit', description='use no planner. Publish zero'),

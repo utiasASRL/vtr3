@@ -32,10 +32,9 @@
     # control frame from the urdf
     robot_frame: base_link
     # camera related
-    camera_frame: front_xb3
-    camera_left_topic: /xb3/RGB/left_image #/zed2/zed_node/left/image_rect_color
-    camera_right_topic:  /xb3/RGB/right_image #/zed2/zed_node/right/image_rect_color
-    camera_calibration_topic: /zed2/zed_node/left/camera_info
+    camera_frame: nerian_stereo
+    camera_left_topic: /nerian_stereo/left_image
+    camera_right_topic:  /nerian_stereo/right_image
 
     ############ map projection configuration ############
     map_projection:
@@ -97,27 +96,17 @@
         type: stereo.adapter
         distortion: [0.0, 0.0, 0.0, 0.0, 0.0]
         intrinsic:
-        - 388.425
+        - 1164.947
         - 0.0
-        - 254.002
+        - 503.269
         - 0.0
-        - 388.425
-        - 197.32
+        - 1161.145
+        - 366.974
         - 0.0
         - 0.0
         - 1.0
 
-          #zed2i
-          # - 371.88385009765625
-          # - 0.0
-          # - 433.3143005371094
-          # - 0.0
-          # - 377.7867736816406
-          # - 252.2572021484375
-          # - 0.0
-          # - 0.0
-          # - 1.0
-        baseline: 0.24 #0.12
+        baseline: 0.24975419255607140 #0.12
 
 
       extraction:
@@ -135,18 +124,32 @@
 
         extractor:
           type: ASRL_GPU_SURF
-          visualize_disparity: false
-          use_learned: true
+          channels: ["grayscale", "cc_0.430000"]
 
-          learned:
-            # we're providing the surf settings (don't change this param, use a different file)
-            type: "LEARNED_FEATURE"
+          surf:
+            threshold: 0.000001
+            upright_flag: true
+            nOctaves: 4
+            nIntervals: 4
+            initialScale: 1.5
+            edgeScale: 1.5
+            l1: 2.0 # 3.f/1.5f
+            l2: 3.333333 # 5.f/1.5f
+            l3: 2.0 # 3.f/1.5f
+            l4: 0.666667 # 1.f/1.5f
+            initialStep: 1
+            targetFeatures: 1000
+            detector_threads_x: 16
+            detector_threads_y: 16
+            regions_horizontal: 16
+            regions_vertical: 16
+            regions_target: 1000
+            stereoDisparityMinimum: 0.0
+            stereoDisparityMaximum: 64.0
+            stereoCorrelationThreshold: 0.79
+            stereoYTolerance: 0.9
+            stereoScaleTolerance: 0.9
 
-            # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_seqslam_model_best.pt"
-            modelPath: "/home/alec/ASRL/vtr3/models/learned_visual_features.pt"
-
-            stereoDisparityMinimum: 0.1
-            stereoDisparityMaximum: 100.0
       triangulation:
         type: image_triangulation
         visualize: false

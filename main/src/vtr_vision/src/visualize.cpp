@@ -774,14 +774,14 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
         T_q_m = *qdata.T_r_m_prior;
       }
       // print the number of matches
-      std::stringstream display_text;
-      display_text.precision(3);
-      display_text << "(" << sqrt(T_q_m.cov()(0, 0)) * 100 << "cm,"
-                   << sqrt(T_q_m.cov()(1, 1)) * 100 << "cm,"
-                   << sqrt(T_q_m.cov()(5, 5)) * 57.29577 << "deg)";
-      cv::putText(display_image, display_text.str().c_str(), cv::Point(25, 370),
-                  cv::FONT_HERSHEY_TRIPLEX, 1.0, cv::Scalar(255, 255, 255, 125),
-                  3);
+      // std::stringstream display_text;
+      // display_text.precision(3);
+      // display_text << "(" << sqrt(T_q_m.cov()(0, 0)) * 100 << "cm,"
+      //              << sqrt(T_q_m.cov()(1, 1)) * 100 << "cm,"
+      //              << sqrt(T_q_m.cov()(5, 5)) * 57.29577 << "deg)";
+      // cv::putText(display_image, display_text.str().c_str(), cv::Point(25, 370),
+      //             cv::FONT_HERSHEY_TRIPLEX, 1.0, cv::Scalar(255, 255, 255, 125),
+      //             3);
 
       // show the images
       {
