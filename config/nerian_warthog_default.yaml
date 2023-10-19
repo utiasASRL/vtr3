@@ -32,7 +32,7 @@
     # control frame from the urdf
     robot_frame: base_link
     # camera related
-    camera_frame: nerian_stereo
+    camera_frame: nerian_left
     camera_left_topic: /nerian_stereo/left_image
     camera_right_topic:  /nerian_stereo/right_image
 
