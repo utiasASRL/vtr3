@@ -13,8 +13,6 @@ find_package(cudpp REQUIRED)
 find_package(CUDA REQUIRED)
 
 
-# go to https://developer.nvidia.com/cuda-gpus, look for the compute capability of your gpu
-# replace the two "75" with the compute capability of your gpu
 include(FindCUDA/select_compute_arch)
 CUDA_DETECT_INSTALLED_GPUS(INSTALLED_GPU_CCS_1)
 string(STRIP "${INSTALLED_GPU_CCS_1}" INSTALLED_GPU_CCS_2)
