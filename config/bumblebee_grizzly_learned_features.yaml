@@ -143,7 +143,8 @@
             type: "LEARNED_FEATURE"
 
             # modelPath: "/home/sherry/ASRL/models/unsupervised_multiseason_inthedark_seqslam_model_best.pt"
-            modelPath: "/home/alec/ASRL/vtr3/models/learned_visual_features.pt"
+            # modelPath: "/home/alec/ASRL/vtr3/models/learned_visual_features.pt"
+            modelPath: "/home/david/ASRL/vtr3/models/feature_detector_dark_extend_585_16_h16w16.pt"
 
             stereoDisparityMinimum: 0.1
             stereoDisparityMaximum: 100.0
