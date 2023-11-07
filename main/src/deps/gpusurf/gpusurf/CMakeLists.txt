@@ -11,9 +11,23 @@ add_compile_options(-Wno-unused-variable -Wno-unused-parameter -Wno-narrowing -W
 find_package(ament_cmake REQUIRED)
 find_package(cudpp REQUIRED)
 find_package(CUDA REQUIRED)
+
+
 # go to https://developer.nvidia.com/cuda-gpus, look for the compute capability of your gpu
 # replace the two "75" with the compute capability of your gpu
-SET(CUDA_NVCC_FLAGS -arch=compute_75 -code=sm_75 --std c++11 --default-stream per-thread)
+include(FindCUDA/select_compute_arch)
+CUDA_DETECT_INSTALLED_GPUS(INSTALLED_GPU_CCS_1)
+string(STRIP "${INSTALLED_GPU_CCS_1}" INSTALLED_GPU_CCS_2)
+string(REPLACE " " ";" INSTALLED_GPU_CCS_3 "${INSTALLED_GPU_CCS_2}")
+string(REPLACE "." "" CUDA_ARCH_LIST "${INSTALLED_GPU_CCS_3}")
+string(CONCAT CUDA_COMPUTE "compute_" "${CUDA_ARCH_LIST}" )
+string(CONCAT CUDA_CODE "sm_" "${CUDA_ARCH_LIST}")
+
+message(WARNING "Autodetected Cuda Version: ${CUDA_ARCH_LIST}.")
+SET(CUDA_NVCC_FLAGS -arch=${CUDA_COMPUTE} -code=${CUDA_CODE} --std c++11 --default-stream per-thread)
+
+
+
 SET(CUDA_VERBOSE_BUILD OFF)
 SET(CUDA_BUILD_TYPE Device)
 SET(CUDA_GENERATED_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/intermediate)
