@@ -83,7 +83,10 @@ auto NavtechExtractionModule::Config::fromROS(
 
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
+
+  // Doppler stuff
   config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
+  config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -119,6 +122,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
   /// temp variables
+  cv::Mat scan_use;
   cv::Mat fft_scan;
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
@@ -134,8 +138,29 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   float cart_resolution = config_->cart_resolution;
   beta = config_->beta;
 
+  // Downsample scan based on desired chirp type
+  if (config_->chirp_type == "up") {
+    // Choose only every second row, starting from row 0
+    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
+    int j = 0;
+    for (int i = 0; i < scan.rows; i+=2) {
+      scan.row(i).copyTo(scan_use.row(j));
+      j++;
+    }
+  } else if (config_->chirp_type == "down") {
+    // Choose only every second row, starting from row 1
+    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
+    int j = 0;
+    for (int i = 1; i < scan.rows; i+=2) {
+      scan.row(i).copyTo(scan_use.row(i));
+      j++;
+    }
+  } else{
+    scan_use = scan;
+  }
+
   // Load scan, times, azimuths from scan
-  load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
+  load_radar(scan_use, azimuth_times, azimuth_angles, fft_scan);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
@@ -145,6 +170,14 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "radar.navtech_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;
+
+  CLOG(DEBUG, "radar.navtech_extractor") << "cartesian has " << cartesian.rows
+                                         << " rows and " << cartesian.cols
+                                         << " cols with resolution "
+                                         << cart_resolution;
+                                    
+  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
+  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
 
   // Extract keypoints and times
 #if false
@@ -238,7 +271,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     scan_image.header.frame_id = "radar";
     // scan_image.header.stamp = qdata.scan_msg->header.stamp;
     scan_image.encoding = "mono8";
-    scan_image.image = scan;
+    scan_image.image = scan_use;
     scan_pub_->publish(*scan_image.toImageMsg());
 
     // publish the fft scan image
