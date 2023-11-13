@@ -122,6 +122,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
   /// temp variables
+  cv::Mat scan_use;
   cv::Mat fft_scan;
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
@@ -140,6 +141,27 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
   float cart_resolution = config_->cart_resolution;
   beta = config_->beta;
+
+  // Downsample scan based on desired chirp type
+  if (config_->chirp_type == "up") {
+    // Choose only every second row, starting from row 0
+    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
+    int j = 0;
+    for (int i = 0; i < scan.rows; i+=2) {
+      scan.row(i).copyTo(scan_use.row(j));
+      j++;
+    }
+  } else if (config_->chirp_type == "down") {
+    // Choose only every second row, starting from row 1
+    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
+    int j = 0;
+    for (int i = 1; i < scan.rows; i+=2) {
+      scan.row(i).copyTo(scan_use.row(i));
+      j++;
+    }
+  } else{
+    scan_use = scan;
+  }
 
   // Load scan, times, azimuths from scan
   load_radar(scan, azimuth_times, azimuth_angles, up_chirps, azimuth_vel, fft_scan, vel_meas, yaw_meas);
@@ -290,7 +312,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     scan_image.header.frame_id = "radar";
     // scan_image.header.stamp = qdata.scan_msg->header.stamp;
     scan_image.encoding = "mono8";
-    scan_image.image = scan;
+    scan_image.image = scan_use;
     scan_pub_->publish(*scan_image.toImageMsg());
 
     // publish the fft scan image
