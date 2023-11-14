@@ -33,9 +33,8 @@
     robot_frame: base_link
     # camera related
     camera_frame: front_xb3
-    camera_left_topic: /xb3/RGB/left_image #/zed2/zed_node/left/image_rect_color
-    camera_right_topic:  /xb3/RGB/right_image #/zed2/zed_node/right/image_rect_color
-    camera_calibration_topic: /zed2/zed_node/left/camera_info
+    camera_left_topic: /xb3/RGB/left_image
+    camera_right_topic:  /xb3/RGB/right_image
 
     ############ map projection configuration ############
     map_projection:
@@ -83,7 +82,7 @@
          [
            "recall",
            "sub_map_extraction",
-           "tod_recognition",
+           #"tod_recognition",
            "experience_triage",
            "migration",
            "matcher",
@@ -137,6 +136,32 @@
           type: ASRL_GPU_SURF
           visualize_disparity: false
           use_learned: true
+          
+          channels: ["grayscale", "cc_0.430000"]
+          surf:
+            threshold: 0.000001
+            upright_flag: true
+            nOctaves: 4
+            nIntervals: 4
+            initialScale: 1.5
+            edgeScale: 1.5
+            l1: 2.0 # 3.f/1.5f
+            l2: 3.333333 # 5.f/1.5f
+            l3: 2.0 # 3.f/1.5f
+            l4: 0.666667 # 1.f/1.5f
+            initialStep: 1
+            targetFeatures: 1000
+            detector_threads_x: 16
+            detector_threads_y: 16
+            regions_horizontal: 16
+            regions_vertical: 16
+            regions_target: 1000
+            stereoDisparityMinimum: 0.0
+            stereoDisparityMaximum: 64.0
+            stereoCorrelationThreshold: 0.79
+            stereoYTolerance: 0.9
+            stereoScaleTolerance: 0.9
+
 
           learned:
             # we're providing the surf settings (don't change this param, use a different file)
@@ -334,7 +359,7 @@
         type: experience_triage
 
         verbose: false
-        always_privileged: true
+        only_privileged: true
         in_the_loop: true
 
       migration:
@@ -342,26 +367,14 @@
 
       matcher:
         type: mel_matcher
-
-        target_match_count: 200
-        min_match_count: 20
-        min_track_length: 1
-        max_landmark_depth: 200.0
-        matching_pixel_thresh: 200
-        tight_matching_pixel_thresh: 50
-        tight_matching_x_sigma: 0.1 # in [m]
-        tight_matching_y_sigma: 0.1 # in [m]
-        tight_matching_theta_sigma: 0.0 # in [rad] Note: In VTR2 was listed as 0.00349 but bug so always 0 in ModuleLoc
-        min_response_ratio: 0.2
-        time_allowance: 2000.0
-        descriptor_thresh_cpu: 0.115
-        descriptor_thresh_gpu: 0.55
-        screen_matched_landmarks: true
-        max_depth_diff: 5.0
-        parallel_threads: 8
-        match_on_gpu: false
-        match_gpu_knn_match_num: 8
+        min_response_ratio: 0.0 #0.2
+        descriptor_thresh_cpu: 0.7 #0.115
+        descriptor_thresh_gpu: 100.0 #0.55
+        # descriptor_thresh_gpu: 100.0 #0.55 #EDIT: SHERRY
+        # match_on_gpu: false
         visualize: true
+        match_on_gpu: true #EDIT
+        use_learned_features: true
 
       ransac:
         # the module type (don't change this param)

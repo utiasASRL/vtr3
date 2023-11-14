@@ -148,7 +148,7 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 -DWITH_FFMPEG=ON \
 -DBUILD_opencv_cudacodec=OFF \
 -D BUILD_EXAMPLES=ON \
--D CUDA_ARCH_BIN="7.5" ..  && make -j16 && make install
+-D CUDA_ARCH_BIN="8.6" ..  && make -j16 && make install
 
 
 ENV LD_LIBRARY_PATH=/usr/local/opencv_cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
