@@ -7,11 +7,13 @@ CMD ["/bin/bash"]
 #   --build-arg USERID=$(id -u) \
 #   --build-arg GROUPID=$(id -g) \
 #   --build-arg USERNAME=$(whoami) \
-#   --build-arg HOMEDIR=${HOME} .
+#   --build-arg HOMEDIR=${HOME} \
+#   --build-arg CUDA_ARCH=${nvidia-smi --query-gpu=compute_cap --format=csv,noheader} .
 ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
 ARG HOMEDIR=/root
+ARG CUDA_ARCH="8.6"
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
@@ -148,7 +150,7 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 -DWITH_FFMPEG=ON \
 -DBUILD_opencv_cudacodec=OFF \
 -D BUILD_EXAMPLES=ON \
--D CUDA_ARCH_BIN="8.6" ..  && make -j16 && make install
+-D CUDA_ARCH_BIN=$CUDA_ARCH ..  && make -j16 && make install
 
 
 ENV LD_LIBRARY_PATH=/usr/local/opencv_cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
