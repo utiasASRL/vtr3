@@ -26,7 +26,8 @@
         "stereo.tod",
         #"stereo.vertex_test",
         "odometry",
-        "tactic.pipeline"
+        "tactic.pipeline",
+        "preprocessing"
       ]
 
     # control frame from the urdf
@@ -94,19 +95,20 @@
       # conversion+extraction module
       adapter:
         type: stereo.adapter
+        target_width: 512
         distortion: [0.0, 0.0, 0.0, 0.0, 0.0]
         intrinsic:
-        - 1164.947
+        - 488.1484
         - 0.0
-        - 503.269
+        - 253.6597
         - 0.0
-        - 1161.145
-        - 366.974
+        - 488.1484
+        - 175.043
         - 0.0
         - 0.0
         - 1.0
 
-        baseline: 0.24975419255607140 #0.12
+        baseline: 0.2501335
 
 
       extraction:
@@ -120,7 +122,7 @@
         color_constant:
           weights: [0.43]
           histogram_equalization: false
-          visualize_raw_features: false
+        visualize_raw_features: true
 
         extractor:
           type: ASRL_GPU_SURF
@@ -147,7 +149,7 @@
             stereoDisparityMinimum: 0.0
             stereoDisparityMaximum: 64.0
             stereoCorrelationThreshold: 0.79
-            stereoYTolerance: 0.9
+            stereoYTolerance: 3.0
             stereoScaleTolerance: 0.9
 
       triangulation:

@@ -23,6 +23,8 @@
 #include <vtr_vision/modules/preprocessing/calibration_module.hpp>
 #include <vtr_vision/types.hpp>
 #include <cv_bridge/cv_bridge.h>
+#include "opencv2/imgproc.hpp"
+
 
 namespace vtr {
 namespace vision {
@@ -42,6 +44,7 @@ auto CalibrationModule::Config::fromROS(
   config->distortion=Eigen::Map<CameraDistortion>(distortion.data());
   config->intrinsic=Eigen::Map<CameraIntrinsic>(intrinsic.data()).transpose();
   config->rig_name = node->declare_parameter<std::string>(param_prefix + ".rig_name", config->rig_name);
+  config->target_width = node->declare_parameter<int>(param_prefix + ".target_width", config->target_width);
 
   return config;
 }
@@ -83,13 +86,27 @@ void CalibrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &ou
   Image left_im = {};
   left_im.stamp = *qdata.stamp;
   left_im.name = "left";
-  left_im.data = cv_bridge::toCvShare(qdata.left_image.ptr(), qdata.left_image->encoding)->image;
+  left_im.data = cv_bridge::toCvShare(qdata.left_image.ptr(), "bgr8")->image;
+
+  if (config_->target_width > 0){
+    unsigned height = (config_->target_width / (float)left_im.data.cols) * left_im.data.rows;
+    CLOG(INFO, "preprocessing") << "Resizing to: (" << config_->target_width << ", " << height << ")";
+
+    cv::resize(left_im.data, left_im.data, cv::Size(config_->target_width, height));
+  }
+
   CLOG(INFO, "preprocessing") << "Left image size: " << left_im.data.size();
 
   Image right_im = {};
   right_im.stamp = *qdata.stamp;
   right_im.name = "right";
-  right_im.data = cv_bridge::toCvShare(qdata.right_image.ptr(), qdata.right_image->encoding)->image;
+  right_im.data = cv_bridge::toCvShare(qdata.right_image.ptr(), "bgr8")->image;
+
+if (config_->target_width > 0){
+    unsigned height = (config_->target_width / (float)right_im.data.cols) * right_im.data.rows;
+    cv::resize(right_im.data, right_im.data, cv::Size(config_->target_width, height));
+  }
+
   CLOG(INFO, "preprocessing") << "Right image size: " << right_im.data.size();
 
   

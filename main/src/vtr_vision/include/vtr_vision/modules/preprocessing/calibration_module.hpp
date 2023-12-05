@@ -58,6 +58,7 @@ class CalibrationModule : public tactic::BaseModule {
     CameraIntrinsic intrinsic;
     float baseline = 0.0;       //m
     std::string rig_name = "stereo";
+    int target_width = -1;
     
   };
 

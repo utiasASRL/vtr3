@@ -37,6 +37,9 @@ namespace visualize {
 std::map<std::string, cv::Mat> setupDisplayImages(CameraQueryCache &qdata,
                                                   std::string suffix = "");
 
+void showRGBImage(std::mutex &vis_mtx, CameraQueryCache &qdata,
+                       std::string suffix = "");
+
 /** \brief */
 void showStereoMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                        std::string suffix = "");
