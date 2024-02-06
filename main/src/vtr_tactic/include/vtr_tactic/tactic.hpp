@@ -27,6 +27,7 @@
 #include "vtr_tactic/tactic_interface.hpp"
 #include "vtr_tactic/task_queue.hpp"
 #include "vtr_tactic/types.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -61,6 +62,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
     LocalizationChain::Config chain_config;
 
     bool save_odometry_result = false;
+    bool save_odometry_vel_result = false;
     bool save_localization_result = false;
     /** \brief Visualize odometry and localization via Rviz. */
     bool visualize = false;
