@@ -232,25 +232,6 @@
         size_x: 16.0
         size_y: 8.0
         visualize: true
-      change_detection:
-        type: lidar.change_detection_v2
-        detection_range: 8
-        search_radius: 0.25
-        negprob_threshold: 0.1
-        use_prior: true
-        alpha0: 3.0
-        beta0: 0.03
-        use_support_filtering: true
-        support_radius: 0.25
-        support_variance: 0.05
-        support_threshold: 2.5
-        resolution: 0.5
-        size_x: 16.0
-        size_y: 8.0
-        run_online: false
-        run_async: true
-        visualize: false
-        save_module_result: false
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
