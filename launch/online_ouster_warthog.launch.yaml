@@ -2,7 +2,8 @@
 session_name: vtr_online_ouster_warthog
 
 environment:
-  CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
+  RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+  FASTRTPS_DEFAULT_PROFILES_FILE: ${VTRSRC}/config/vtr_rtps.xml
   # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
@@ -21,7 +22,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
         model_dir:=${VTRROOT}/models
-        planner:="cbit.lidar"
+        planner:="cbit"
         
   #     data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
 

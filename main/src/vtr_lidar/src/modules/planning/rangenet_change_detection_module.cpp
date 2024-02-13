@@ -134,21 +134,26 @@ void RangeChangeNetModule::run_(QueryCache &qdata0, OutputCache &,
 
   using namespace torch::indexing;
 
+
+  timer.reset();
   auto scan_tensor = torch::from_blob(scan_image.data(), {64, 1024});
   auto map_tensor = torch::from_blob(map_image.data(), {64, 1024});
   auto input = at::unsqueeze(at::stack({scan_tensor, map_tensor}), 0);
 
-  timer.reset();
+  CLOG(DEBUG, "lidar.range") << "GPU load takes " << timer;
+
+
   auto tensor = evaluateModel(input, {1, 2, 64, 1024});
   auto mask = at::squeeze(at::argmax(tensor, 1), 0).to(at::kFloat);
-  timer.stop();
-  CLOG(DEBUG, "lidar.range") << "Running inference takes " << timer;
-  timer.reset();
+  
 
   torch::from_blob(mask_image.data(), {64, 1024}) = mask;
 
   unproject_range_image(nn_point_cloud, mask_image, scan_idxs);
   unproject_range_image(*qdata.nn_point_cloud, mask_image, scan_idxs);
+  timer.stop();
+  CLOG(DEBUG, "lidar.range") << "Running inference takes " << timer;
+  timer.reset();
 
   // filter out non-obstacle points
   std::vector<int> indices;

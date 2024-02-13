@@ -50,7 +50,7 @@
 
     robot_frame: base_link
     env_info_topic: env_info
-    lidar_frame: os_sensor
+    lidar_frame: os_lidar
     lidar_topic: /ouster/points
     queue_size: 1
     graph_map:
@@ -98,7 +98,7 @@
         - recall
         - icp
         - safe_corridor
-        - change_detection_sync
+        #- change_detection_sync
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
@@ -110,6 +110,8 @@
         filter_z_min: -0.2
         filter_z_max: 0.35
         filter_radius: 0.8
+        
+        radius_filter: 0.05
       filtering:
         type: lidar.preprocessing
         num_threads: 8
@@ -338,20 +340,20 @@
 
       mpc:
         # Controller Params
-        horizon_steps: 20
+        horizon_steps: 30
         horizon_step_size: 0.3
         forward_vel: 0.75
         max_lin_vel: 1.25
-        max_ang_vel: 2.0
+        max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.8 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 0.75 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
         pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [100.0, 200.0] # was [0.1 2.0] # No longer using this cost term
-        acc_error_cov: [100.0, 200.0]
+        vel_error_cov: [25.0, 100.0]
+        acc_error_cov: [10.0, 100.0]
         kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
         lat_error_cov: [20.0]
         

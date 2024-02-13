@@ -65,6 +65,8 @@ EdgeTransform loadTransform(const std::string& source_frame,
       << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+  throw std::runtime_error("Transform not found");
+
   return T_source_target;
 }
 

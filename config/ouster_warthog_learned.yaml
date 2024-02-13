@@ -11,13 +11,13 @@
         # tactic
       #- tactic
       - tactic.pipeline
-      #- tactic.module
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
         # path planner
       #- path_planning
-      - path_planning.cbit
+      #- path_planning.cbit
       #- path_planning.cbit_planner
       - mpc.cbit
       #- mpc_debug
@@ -36,7 +36,7 @@
       - lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
-      - lidar.odometry_icp
+      #- lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       - lidar.vertex_test
       #- lidar.localization_map_recall
@@ -53,7 +53,7 @@
 
     robot_frame: base_link
     env_info_topic: env_info
-    lidar_frame: os_sensor
+    lidar_frame: os_lidar
     lidar_topic: /ouster/points
     queue_size: 1
     graph_map:
