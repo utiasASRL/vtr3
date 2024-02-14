@@ -145,6 +145,9 @@ auto ExperienceTriageModule::Config::fromROS(
   config->always_privileged = node->declare_parameter<bool>(param_prefix + ".always_privileged", config->always_privileged);
   config->only_privileged = node->declare_parameter<bool>(param_prefix + ".only_privileged", config->only_privileged);
   config->in_the_loop = node->declare_parameter<bool>(param_prefix + ".in_the_loop", config->in_the_loop);
+
+  CLOG(DEBUG, "stereo.triage") << "Always priviledged: " << config->always_privileged << " Only privileged: " << config->only_privileged;
+
   // clang-format on
   return config;
 }
@@ -193,9 +196,10 @@ void ExperienceTriageModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     }
   }
 
+  CLOG(INFO, "stereo.triage") << "Recommended experience: " << recommended;
+
   if ((recommended.size() > 1) || (*recommended.begin() != 0 )) { 
-    LOG(ERROR) << "We are getting the wrong or more than one experience recommended!!";
-    LOG(ERROR) << "Recommended experience: " << recommended;
+    CLOG(DEBUG, "stereo.triage") << "We are getting the wrong or more than one experience recommended!!";
   }
 
   // Build the status message we'll save out to the graph

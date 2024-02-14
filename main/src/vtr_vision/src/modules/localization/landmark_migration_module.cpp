@@ -128,11 +128,11 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
     // get the cached pose, in the coordinate frame of the sensor
     using LambdaEval = pose_graph::eval::mask::variable::Eval<tactic::Graph>;
     auto vEval = [&](const Graph &g, const VertexId &vp) {
-      return vp.majorId() == curr_vid.majorId();
+      return true;
     };
 
     auto eEval = [&](const Graph &g,const EdgeId &ep) {
-      return g.at(ep)->isManual();
+      return true;
     };
     
     LambdaEval::Ptr mask = 

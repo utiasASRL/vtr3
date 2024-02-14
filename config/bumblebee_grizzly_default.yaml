@@ -19,6 +19,7 @@
         "stereo.preprocessing",
         "stereo.recall",
         "stereo.matcher",
+        "stereo.triage",
         #"stereo.keyframe_optimization",
         "stereo.bundle_adjustment",
         "stereo.mel_matcher",

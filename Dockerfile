@@ -150,7 +150,7 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 -DWITH_OPENMP=ON \
 -DWITH_FFMPEG=ON \
 -DBUILD_opencv_cudacodec=OFF \
--D BUILD_EXAMPLES=ON \
+-D BUILD_EXAMPLES=OFF \
 -D CUDA_ARCH_BIN=$CUDA_ARCH ..  && make -j16 && make install
 
 

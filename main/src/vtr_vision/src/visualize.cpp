@@ -78,8 +78,6 @@ void showRGBImage(std::mutex &vis_mutex, CameraQueryCache &qdata,
   
   auto display_image = setupDisplayImage(qdata.rig_images->front().channels.at(0).cameras.front().data);
 
-  std::cout << "Visualghjize " << title;
-
   // show the images
   {
     std::lock_guard<std::mutex> lock(vis_mutex);
