@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.17)
 project(gpusurf)
 
 # Compiler setup (assumed to be GNU)
@@ -22,7 +22,9 @@ string(CONCAT CUDA_COMPUTE "compute_" "${CUDA_ARCH_LIST}" )
 string(CONCAT CUDA_CODE "sm_" "${CUDA_ARCH_LIST}")
 
 message(WARNING "Autodetected Cuda Version: ${CUDA_ARCH_LIST}.")
-SET(CUDA_NVCC_FLAGS -arch=${CUDA_COMPUTE} -code=${CUDA_CODE} --std c++11 --default-stream per-thread)
+#SET(CUDA_NVCC_FLAGS -arch=${CUDA_COMPUTE} -code=${CUDA_CODE} --std c++11 --default-stream per-thread)
+SET(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_LIST})
+
 
 
 
