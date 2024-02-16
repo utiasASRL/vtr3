@@ -51,7 +51,7 @@ void SubMapExtractionModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
 
   // sanity check
   if (root == VertexId::Invalid()) {
-    LOG(ERROR) << "Root vertex is invalid. Not extracting submap.";
+    CLOG(ERROR, "stereo.sub_map") << "Root vertex is invalid. Not extracting submap.";
     return;
   }
 

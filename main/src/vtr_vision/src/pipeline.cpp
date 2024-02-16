@@ -522,13 +522,11 @@ void StereoPipeline::addLandmarksAndObs(
     const auto &channel_matches = all_matches.channels[channel_idx].matches;
     const auto &map_channel_lm = rig_map_lm.observations.channels[channel_idx];
 
-    // LOG(INFO) << "Add landmarks: " << channel_features.name;
 
     // Get the number of candidate landmarks for this channel.
     auto num_candidate_landmarks =
         rig_landmarks.channels[channel_idx].points.cols();
 
-    // LOG(INFO) << "Num candidate landmarks: " << num_candidate_landmarks;
 
     // create a new set of observations for this channel.
     auto &channel_obs = observations.channels.emplace_back();

@@ -215,7 +215,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
             }
 
           } catch (std::invalid_argument &e) {
-            LOG(ERROR) << "landmark measurement noise is bad!! " << e.what();
+            CLOG(ERROR, "stereo.keyframe_optimization") << "landmark measurement noise is bad!! " << e.what();
             landmarks_ic.pop_back();
             continue;
           }
@@ -247,7 +247,7 @@ steam::OptimizationProblem KeyframeOptimizationModule::generateOptimizationProbl
 
           // steam throws?
         } catch (std::exception &e) {
-          LOG(ERROR) << "Error with noise model:\n" << e.what();
+          CLOG(ERROR, "stereo.keyframe_optimization") << "Error with noise model:\n" << e.what();
           continue;
         }
       }  // end for match
@@ -292,7 +292,7 @@ void KeyframeOptimizationModule::addPosePrior(CameraQueryCache &qdata, Optimizat
   } catch (std::invalid_argument &e) {
     priorUncertainty = std::make_shared<steam::StaticNoiseModel<6>>(
         Eigen::Matrix<double, 6, 6>::Identity());
-    LOG(ERROR) << "Error on adding pose prior: " << e.what();
+    CLOG(ERROR, "stereo.keyframe_optimization") << "Error on adding pose prior: " << e.what();
   }
   auto prior_error_func = std::make_shared<se3::SE3ErrorEvaluator>(query_pose_, pose_prior);
   // Create cost term and add to problem
@@ -316,7 +316,7 @@ bool KeyframeOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
 
   // if there are no inliers, then abort.
   if (qdata.ransac_matches.valid() == false) {
-    LOG(WARNING)
+    CLOG(WARNING, "stereo.keyframe_optimization")
         << "KeyframeOptimizationModule::verifyInputData(): Matches is "
            "not set in the map data (no inliers?), this is ok if first frame.";
     // *qdata.T_r_m = lgmath::se3::Transformation();
@@ -333,7 +333,7 @@ bool KeyframeOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
 
   // If there are not enough inliers then abort.
   if (inlier_count < keyframe_config_->min_inliers && keyframe_config_->pose_prior_enable == false) {
-    LOG(ERROR) << "KeyframeOptimizationModule::verifyInputData(): Insufficient "
+    CLOG(ERROR,"stereo.keyframe_optimization") << "KeyframeOptimizationModule::verifyInputData(): Insufficient "
                   "number of inliers, Bailing on steam problem!";
     return false;
   }

@@ -59,7 +59,7 @@ class ProgressiveSampler : public BasicSampler {
   /// @param [in] verifier The sample verifier to use
   ////////////////////////////////////////////////////////////////////
   virtual void setVerifier(const std::shared_ptr<VerifySampleNoOp>& verifier) {
-    LOG(WARNING) << "Progressive sampler can only use VerifySampleIndices or "
+    CLOG(ERROR, "stereo.outliers") << "Progressive sampler can only use VerifySampleIndices or "
                     "it can get stuck. "
                  << "Reverting to VerifySampleIndices and ignoring request for "
                  << typeid(verifier).name() << ".";

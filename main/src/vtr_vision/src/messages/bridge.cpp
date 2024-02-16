@@ -42,7 +42,7 @@ std::tuple<decltype(CV_32F), decltype(sizeof(float))> featureCvType(
     case vision::FeatureImpl::LEARNED_FEATURE:
       return std::make_tuple(CV_32F, sizeof(float));
     default:
-      LOG(WARNING) << "featureCvType: Can't find the feature type "
+      CLOG(WARNING, "stereo.features") << "featureCvType: Can't find the feature type "
                    << static_cast<long long>(type);
       return std::make_tuple(CV_16F, sizeof(char));
   }
@@ -56,7 +56,7 @@ vision::FeatureImpl str2FeatureType(std::string str) {
     return vision::FeatureImpl::OPENCV_ORB;
   else if (str.find("learned") != std::string::npos)
     return vision::FeatureImpl::LEARNED_FEATURE;
-  LOG(WARNING) << "Could not identify feature type '" << str << "'";
+  CLOG(WARNING, "stereo.features") << "Could not identify feature type '" << str << "'";
   return vision::FeatureImpl::UNKNOWN;
 }
 
@@ -71,7 +71,7 @@ std::string featureType2Str(const vision::FeatureImpl &impl) {
     case vision::FeatureImpl::UNKNOWN:
       return "unknown";
     default:
-      LOG(WARNING) << "featureType2Str: Can't find the feature type "
+      CLOG(WARNING, "stereo.features") << "featureType2Str: Can't find the feature type "
                    << static_cast<long long>(impl);
       return "unknown";
   }
@@ -104,7 +104,7 @@ vision::Features copyFeatures(const vtr_vision_msgs::msg::Features &msg_features
   int num_info = msg_kp_info.size();
   bool use_info = num_info == num_kps;
   if (!use_info)
-    LOG(WARNING) << "for " << num_kps << " keypoints, only " << num_info
+    CLOG(WARNING, "stereo.features") << "for " << num_kps << " keypoints, only " << num_info
                  << " info items, skipping.";
 
   // fill in keypoints
@@ -131,12 +131,12 @@ vision::Features copyFeatures(const vtr_vision_msgs::msg::Features &msg_features
   decltype(CV_8UC1) cv_type;
   std::tie(cv_type, byte_depth) = featureCvType(features.feat_type.impl);
   if (bpd % byte_depth != 0) {
-    LOG(ERROR) << "bytes per descriptor: " << bpd
+    CLOG(ERROR, "stereo.features") << "bytes per descriptor: " << bpd
                << " is not divisible by byte depth: " << byte_depth;
     return features;
   }
   if (num_kps * bpd != (unsigned)msg_descriptors.size()) {
-    LOG(WARNING) << "the descriptor size: " << msg_descriptors.size()
+    CLOG(WARNING, "stereo.features") << "the descriptor size: " << msg_descriptors.size()
                  << " is not equal to #: " << num_kps << " x B/d: " << bpd;
     return features;
   }
@@ -288,63 +288,6 @@ vision::RigMatches concatenateMatches(const vision::RigMatches &matches1,
   return outmatches;
 }
 
-Eigen::Matrix<double, 3, Eigen::Dynamic> copyPointCloud(
-    const vtr_vision_msgs::msg::ChannelLandmarks &msg_landmarks) {
-  int num_points = msg_landmarks.points.size();
-  if (!num_points) return Eigen::Matrix<double, 3, Eigen::Dynamic>();
-
-  //    LOG(WARNING) << "CHECK THIS FUNCTION!" << __FILE__ << " " << __LINE__;
-  //    const auto proto_data = asrl_described_image.mutable_points_3d();
-  //    Eigen::Map<const
-  //    Eigen::Matrix<float,4,Eigen::Dynamic>,0,Eigen::OuterStride<>>
-  //        homogeneous((float*)proto_data->data(),4,num_points,Eigen::OuterStride<>(proto_data->Get(0).ByteSize()));
-
-  Eigen::Matrix<double, 4, Eigen::Dynamic> homogeneous(4, num_points);
-  for (int idx = 0; idx < num_points; idx++) {
-    const auto &pt = msg_landmarks.points[idx];
-    homogeneous.col(idx) = Eigen::Vector4d(pt.x, pt.y, pt.z, pt.w);
-  }
-
-  Eigen::Matrix<double, 3, Eigen::Dynamic> points =
-      homogeneous.cast<double>().colwise().hnormalized();
-  return points;
-}
-
-cv::Mat wrapDescriptors(const vtr_vision_msgs::msg::Features &features) {
-  // Get the descriptor type
-  if (features.desc_type == vtr_vision_msgs::msg::DescriptorType())
-    return cv::Mat();
-  auto type = features.desc_type;
-
-  // Shortcut to sizes
-  unsigned n = features.keypoints.size();
-  unsigned bpd = type.bytes_per_desc;
-  unsigned d = type.dims;
-
-  // Check that the binary blob is the right size
-  const auto &descriptor_string = features.descriptors;
-  if (descriptor_string.size() != bpd * n) {
-    LOG(ERROR) << "The descriptor binary blob is the wrong size: # keypoints:  "
-               << n;
-    return cv::Mat();
-  }
-
-  // Figure out the columns / type for OpenCV
-  unsigned cv_type, cols;
-  if (bpd == d * sizeof(float)) {
-    cv_type = CV_32F;
-    cols = bpd / sizeof(float);
-  } else if (bpd == d * sizeof(char) || bpd * 8 == d) {
-    cv_type = CV_8U;
-    cols = bpd / sizeof(char);
-  } else {
-    LOG(ERROR) << "Unknown descriptor type: " << bpd << " bytes per descriptor";
-    return cv::Mat();
-  }
-
-  // Construct and return the mat around the data
-  return cv::Mat(n, cols, cv_type, (void *)descriptor_string.data());
-}
 
 cv::Mat wrapImage(const vtr_vision_msgs::msg::Image &asrl_image) {
   const auto &data = asrl_image.data;
@@ -416,7 +359,7 @@ vtr_vision_msgs::msg::Features copyFeatures(const vision::Features &features) {
   // memcpy the descriptors over.
   auto ros_descriptors = &ros_features.descriptors;
   if (features.descriptors.step[0] != features.feat_type.bytes_per_desc) {
-    LOG(ERROR) << "feature bytes per descriptor is set incorrectly to "
+    CLOG(ERROR, "stereo.features") << "feature bytes per descriptor is set incorrectly to "
                << features.feat_type.bytes_per_desc << ", should be "
                << features.descriptors.step[0];
   }

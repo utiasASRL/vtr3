@@ -271,7 +271,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     try {
       if (!config_->disable_solver) solver_->optimize();
     } catch (std::logic_error &e) {
-      LOG(ERROR) << "Forced Gradient-Descent, running in LM..." << e.what();
+      CLOG(ERROR, "stereo.optimization") << "Forced Gradient-Descent, running in LM..." << e.what();
       success = forceLM(problem);
     } catch (steam::unsuccessful_step &e) {
       // did any successful steps occur?
@@ -294,7 +294,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     if (success) updateCaches(qdata);
 
   } catch (...) {
-    LOG(ERROR) << " bailing on steam problem!";
+    CLOG(ERROR, "stereo.keyframe_optimization") << " bailing on steam problem!";
     success = false;
   }
 
@@ -303,7 +303,7 @@ void SteamModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output, 
     double prior_ct_sigma = sqrt((*qdata.T_r_m_prior).cov()(1, 1));
     double ct_sigma = sqrt((*qdata.T_r_m).cov()(1, 1));
     if (ct_sigma > prior_ct_sigma) {
-      LOG(WARNING) << "Loc. added uncertainty, bailing.";
+      CLOG(WARNING, "stereo.keyframe_optimization") << "Loc. added uncertainty, bailing.";
       success = false;
     }
   }

@@ -265,11 +265,11 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
   // Extra 
   auto &rig_extra_list = qdata.rig_extra.emplace();
   if (extractor_ == nullptr) {
-    LOG(ERROR) << " Our extractor is null!";
+    CLOG(ERROR, "preprocessing") << " Our extractor is null!";
     return;
   }
   if ((config_->use_learned) && (extractor_learned_ == nullptr)) {
-    LOG(ERROR) << " Our learned extractor is null!";
+    CLOG(ERROR, "preprocessing") << " Our learned extractor is null!";
     return;
   }
 

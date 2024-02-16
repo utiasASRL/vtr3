@@ -157,11 +157,13 @@ void MelMatcherModule::matchAcrossExperiences(
          map_itr != graph->end();
        ++map_itr) {
     if (!localization_map->contains(map_itr->v()->id())) continue;
-    if (map_itr->v()->id().majorId() != 0) {
-      // Should not pass previous line, but check just in case.
-      LOG(ERROR) << "Localizing to other than privileged";
-      continue;
-    }
+   
+    //Mona add REMOVE
+    // if (map_itr->v()->id().majorId() != 0) {
+    //   // Should not pass previous line, but check just in case.
+    //   CLOG(ERROR, "stereo.mel_matcher") << "Localizing to other than privileged";
+    //   continue;
+    // }
     // check for breaking criteria
     if (total_match_count_ >= config_->target_match_count ||
         timer_.count() > config_->time_allowance) {
@@ -186,7 +188,7 @@ void MelMatcherModule::matchVertex(CameraQueryCache &qdata,
     auto locked_landmark_msg = vertex->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
             rig_name + "_landmarks", "vtr_vision_msgs/msg/RigLandmarks");
     if (locked_landmark_msg == nullptr) {
-      LOG(ERROR) << "landmarks at " << vertex->id() << " could not be loaded";
+      CLOG(ERROR, "stereo.mel_matcher") << "landmarks at " << vertex->id() << " could not be loaded";
       return;
     }
     auto locked_msg = locked_landmark_msg->sharedLocked();
@@ -252,7 +254,6 @@ void MelMatcherModule::matchChannel(
       try {
         best_match =
             matchQueryKeypoint(qdata, channel_id, q_kp_idx, map_channel_lm);
-        // LOG(INFO) << "best_match: " << best_match;
       } catch (...) {
         continue;
       }  // since this is in openmp, any exceptions are deadly
@@ -303,7 +304,6 @@ void MelMatcherModule::matchChannel(
   output_channel_matches.matches.insert(output_channel_matches.matches.end(),
                                         channel_matches.begin(),
                                         channel_matches.end());
-  // LOG(INFO) << total_match_count_;
 }
 
 void MelMatcherModule::matchChannelGPU(
@@ -410,8 +410,8 @@ void MelMatcherModule::matchChannelGPU(
   for (unsigned qry_idx = 0; qry_idx < knnmatches.size(); ++qry_idx) {
     // sanity check
     if (knnmatches[qry_idx].empty()) {
+      CLOG(ERROR, "stereo.mel_matcher") << "NO matches";
       continue;
-      // LOG(ERROR) << "NO matches";
     }
 
     // get the query point index
@@ -473,7 +473,6 @@ void MelMatcherModule::matchChannelGPU(
           // do nothing
         }
 
-        // LOG(ERROR) << "Score: " << score;
 
         // check if we have the best score so far
         if (score <= best_score) {
@@ -594,7 +593,6 @@ int MelMatcherModule::matchQueryKeypoint(
 
   // for each landmark in the map (for this channel), see if there are any that
   // match this query keypoint
-  // LOG(INFO) << "LM POints: " << map_channel_lm.points.size();
   for (unsigned lm_idx = 0; lm_idx < map_channel_lm.points.size(); ++lm_idx) {
     const auto &lm_info_map = map_channel_lm.lm_info[lm_idx];
 
@@ -612,7 +610,6 @@ int MelMatcherModule::matchQueryKeypoint(
     // if this landmark is not valid, then don't bother matching
     if ((unsigned)(point_map_offset + lm_idx) >= migrated_validity.size() ||
         migrated_validity.at(point_map_offset + lm_idx) == false) {
-      // LOG(INFO) << "Not Valid";
       continue;
     }
 
@@ -634,7 +631,6 @@ int MelMatcherModule::matchQueryKeypoint(
       double score = vision::ASRLFeatureMatcher::distance(
           query_descriptor, map_descriptor,
           query_channel_lm.appearance.feat_type);
-      // LOG(INFO) << score << ", " << best_score;
 
       // check if we have the best score so far
       if (score <= best_score) {
@@ -656,27 +652,23 @@ inline bool MelMatcherModule::potential_match(
     const double &map_depth, const vtr_vision_msgs::msg::Match &lm_track) {
   // 1. check track length
   if (map_track_length < config_->min_track_length) {
-    // LOG(INFO) << "Fails track length";
     return false;
   }
 
   // 2. check max dpeth
   if (map_depth > config_->max_landmark_depth ||
       query_depth > config_->max_landmark_depth) {
-    // LOG(INFO) << "Fails max depth";
     return false;
   }
 
   // 3. check depth similarity
   double depth_diff = std::fabs(map_depth - query_depth);
   if (depth_diff > config_->max_depth_diff) {
-    // LOG(INFO) << "Fails depth similarity: " << depth_diff;
     return false;
   }
 
   // 4. check octave
   if (query_lm_info.octave != lm_info_map.scale) {
-    // LOG(INFO) << "Fails octave";
     return false;
   }
 
@@ -686,7 +678,6 @@ inline bool MelMatcherModule::potential_match(
   float lowest_response =
       std::min(query_lm_info.response, lm_info_map.response);
   if (lowest_response / highest_response < config_->min_response_ratio) {
-    // LOG(INFO) << "Fails response: " << highest_response << ", " << lowest_response;
     return false;
   }
 
@@ -697,13 +688,11 @@ inline bool MelMatcherModule::potential_match(
   // 6. check pixel distance
   float pixel_distance_x = std::fabs(query_kp.x - map_kp(0));
   if (pixel_distance_x >= matching_pixel_thresh) {
-    // LOG(INFO) << "Fails pixel distance x";
     return false;
   }
 
   float pixel_distance_y = std::fabs(query_kp.y - map_kp(1));
   if (pixel_distance_y >= matching_pixel_thresh) {
-    // LOG(INFO) << "Fails pixel distance y";
     return false;
   }
 
@@ -722,7 +711,6 @@ inline bool MelMatcherModule::potential_match(
     }
 
     if (previously_matched) {
-      // LOG(INFO) << "Fails already macthed";
       return false;
     }
   }

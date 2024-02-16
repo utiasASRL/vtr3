@@ -85,14 +85,14 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
   }
 #endif
   if (inlier_count < config_->match_threshold_fail_count) {
-    LOG(ERROR) << "Uh oh, " << inlier_count << " is not enough inliers";
+    CLOG(ERROR, "stereo.vertex_test") << "Uh oh, " << inlier_count << " is not enough inliers";
     *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
     *qdata.odo_success = false;
     return;
   }
 
   if (*qdata.odo_success == false) {
-    LOG(ERROR) << "Uh oh, state estimation failed";
+    CLOG(ERROR, "stereo.vertex_test") << "Uh oh, state estimation failed";
     *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
     return;
   }
@@ -118,13 +118,13 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
     }
 
     else if (translation_distance > config_->max_creation_distance) {
-      LOG(ERROR) << "Uh oh, we have a huge translation " << translation_distance
+      CLOG(ERROR, "stereo.vertex_test") << "Uh oh, we have a huge translation " << translation_distance
                  << " m";
       *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
       *qdata.odo_success = false;
       return;
     } else if (rotation_distance > config_->rotation_threshold_max) {
-      LOG(ERROR) << "Uh oh, we have a huge rotation " << rotation_distance
+      CLOG(ERROR, "stereo.vertex_test") << "Uh oh, we have a huge rotation " << rotation_distance
                  << " deg";
       *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
       *qdata.odo_success = false;
@@ -140,7 +140,7 @@ void SimpleVertexTestModule::run_(tactic::QueryCache &qdata0, tactic::OutputCach
       *qdata.vertex_test_result = VertexTestResult::CREATE_VERTEX;
     }
   } else {
-    LOG(ERROR) << "QVO did not estimate T_r_m";
+    CLOG(ERROR, "stereo.vertex_test") << "QVO did not estimate T_r_m";
     *qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
     *qdata.odo_success = false;
   }

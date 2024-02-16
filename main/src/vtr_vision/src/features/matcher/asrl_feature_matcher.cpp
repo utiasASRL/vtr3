@@ -92,7 +92,7 @@ SimpleMatches ASRLFeatureMatcher::matchFeatures(
 
   // sanity check
   if (frame1.feat_type.impl != frame2.feat_type.impl) {
-    LOG(ERROR)
+    CLOG(ERROR, "stereo.features")
         << "ASRLFeatureMatcher::matchfeatures(): feature types do not match!";
     return matches;
   }
@@ -158,7 +158,7 @@ SimpleMatches ASRLFeatureMatcher::matchFeatures(
                            &frame2.descriptors.at<float>(jj, 0),
                            frame1.feat_type.bytes_per_desc / sizeof(float));
         } else {
-          LOG(ERROR)
+          CLOG(ERROR, "stereo.features")
               << "ASRLFeatureMatcher::matchfeatures(): unknown feature type!";
         }
         if (dist < config_.descriptor_match_thresh_ && dist < best_dist) {
@@ -334,9 +334,7 @@ float ASRLFeatureMatcher::learnedfeaturematch(const float *d1, const float *d2, 
   // size is the number of bytes used for the descriptor
   float score =  m1.transpose()*m2;
 #endif
-  // LOG(INFO) << score;
   score = score / size;
-  // LOG(INFO) << score;
   //return the value
   return 1.f-score;
 }

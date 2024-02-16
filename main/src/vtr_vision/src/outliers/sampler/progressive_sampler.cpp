@@ -121,7 +121,7 @@ bool ProgressiveSampler::precheck(unsigned int m, SimpleMatches* p_sample) {
   // Make sure we have the match order, and that it's the same size as the match
   // list
   if (!order_ || matches_->size() != order_->size()) {
-    LOG(ERROR) << "The ProgressiveSampler match order is not set properly.";
+    CLOG(ERROR, "stereo.ransac") << "The ProgressiveSampler match order is not set properly.";
     return false;
   }
 
@@ -131,7 +131,7 @@ bool ProgressiveSampler::precheck(unsigned int m, SimpleMatches* p_sample) {
     n_ = m;
     T_ = double(T_N_) / choose(order_->size(), m);  // Approx T_N/(N Choose m)
   } else if (m_ != m) {
-    LOG(ERROR)
+    CLOG(ERROR, "stereo.ransac")
         << "Sample size can't change in the middle of ProgressiveSampler.";
     return false;
   }

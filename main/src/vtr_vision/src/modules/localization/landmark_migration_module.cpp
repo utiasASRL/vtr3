@@ -25,6 +25,7 @@
 #include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_pose_graph/evaluator/evaluators.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>
+#include <vtr_vision/types.hpp>
 #include <vtr_vision/modules/localization/landmark_migration_module.hpp>
 
 namespace vtr {
@@ -44,21 +45,21 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
   // check if the required data is in the cache
   if (!qdata.rig_features.valid()) {
-    LOG(ERROR) << "rig_features not present";
+    CLOG(ERROR, "stereo.migration") << "rig_features not present";
   }
 
   // sanity check
   if (!qdata.localization_map.valid()) {
-    LOG(ERROR) << "localization_map not present";
+    CLOG(ERROR,"stereo.migration") << "localization_map not present";
     return;
   } else if (!qdata.T_s_r.valid()) {
-    LOG(ERROR) << "T_s_r not present";
+    CLOG(ERROR, "stereo.migration") << "T_s_r not present";
     return;
   } else if (!qdata.T_sensor_vehicle_map.valid()) {
-    LOG(ERROR) << "T_sensor_vehicle_map not present";
+    CLOG(ERROR, "stereo.migration") << "T_sensor_vehicle_map not present";
     return;
   } else if (!qdata.vid_loc.valid()) {
-    LOG(ERROR) << "map_id (vid_loc) not present";
+    CLOG(ERROR, "stereo.migration") << "map_id (vid_loc) not present";
     return;
   }
 
@@ -122,28 +123,16 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
     if (it != T_s_v_map.end()) {
       T_s_v_m = it->second;
     } else {
-      LOG(WARNING) << "Couldn't find T_s_v for vertex " << curr_vid;
+      CLOG(WARNING, "stereo.migration") << "Couldn't find T_s_v for vertex " << curr_vid;
     }
 
-    // get the cached pose, in the coordinate frame of the sensor
-    using LambdaEval = pose_graph::eval::mask::variable::Eval<tactic::Graph>;
-    auto vEval = [&](const Graph &g, const VertexId &vp) {
-      return true;
-    };
-
-    auto eEval = [&](const Graph &g,const EdgeId &ep) {
-      return true;
-    };
-    
-    LambdaEval::Ptr mask = 
-        std::make_shared<LambdaEval>(*graph, eEval, vEval);
     EdgeTransform T_root_curr;
     try {
       T_root_curr =
-          T_s_v_r * pose_cache.T_root_query(curr_vid, mask) * T_s_v_m.inverse();
+          T_s_v_r * pose_cache.T_root_query(curr_vid) * T_s_v_m.inverse();
     } catch (std::exception &e) {
       /// \todo when would this happen?? Is this due to threading issue?
-      LOG(ERROR) << "Error migrating landmarks at " << curr_vid << ": "
+      CLOG(ERROR, "stereo.migration") << "Error migrating landmarks at " << curr_vid << ": "
                  << e.what();
       search_time += timer.count();
       continue;
@@ -173,8 +162,11 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
       std::stringstream err;
       err << "Landmarks at " << curr_vertex->id() << " for " << rig_name
           << " could not be loaded!";
-      LOG(ERROR) << err.str();
+      CLOG(ERROR, "stereo.migration") << err.str();
       throw std::runtime_error{err.str()};
+    } else {
+      CLOG(DEBUG, "stereo.migration") << "Landmarks loaded " << curr_vertex->id() << " for " << rig_name
+          << "!";
     }
     load_time += timer.count();
     timer.reset();
@@ -190,16 +182,16 @@ void LandmarkMigrationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCac
   if (load_time + migrate_time + search_time >= 200) {
     auto num_vertices = sub_map->numberOfVertices();
 
-    LOG(WARNING) << std::setprecision(5) << " search time: " << search_time
+    CLOG(WARNING, "stereo.migration") << std::setprecision(5) << " search time: " << search_time
                  << " ms ";
-    LOG(WARNING) << " load time: " << load_time << " ms ";
-    LOG(WARNING) << " migration time: " << migrate_time << " ms ";
-    LOG(WARNING) << " temporal depth: "
+    CLOG(WARNING, "stereo.migration") << " load time: " << load_time << " ms ";
+    CLOG(WARNING, "stereo.migration") << " migration time: " << migrate_time << " ms ";
+    CLOG(WARNING, "stereo.migration") << " temporal depth: "
                  << (*qdata.localization_status).window_temporal_depth
                  << " total vertices: "
                  << (*qdata.localization_status).window_num_vertices;
-    LOG(WARNING) << " Avg load time " << load_time / num_vertices;
-    LOG(WARNING) << " Avg migrate time " << migrate_time / num_vertices;
+    CLOG(WARNING, "stereo.migration") << " Avg load time " << load_time / num_vertices;
+    CLOG(WARNING, "stereo.migration") << " Avg migrate time " << migrate_time / num_vertices;
   }
 
   // Get hnormalized migrated points.
@@ -242,7 +234,7 @@ void LandmarkMigrationModule::migrate(
     const EdgeTransform &T_root_curr, CameraQueryCache &qdata,
     std::shared_ptr<vtr_vision_msgs::msg::RigLandmarks> &landmarks) {
   if (landmarks == nullptr) {
-    LOG(ERROR) << "Retrieved landmark is not valid";
+    CLOG(ERROR, "stereo.migration") << "Retrieved landmark is not valid";
     return;
   }
   // Outputs: migrated points, landmark<->point map.
@@ -280,6 +272,8 @@ void LandmarkMigrationModule::migrate(
         const auto &point_msg = channel_landmarks.points[lm_idx];
         Eigen::Vector3d point(point_msg.x, point_msg.y, point_msg.z);
         migrated_point = T_root_curr * point.homogeneous();
+      } else {
+        CLOG(WARNING, "stereo.migration") << "Point: " << lm_idx << " in " << channel_landmarks.name << " is invalid.";
       }
 
       // insert the migrated point

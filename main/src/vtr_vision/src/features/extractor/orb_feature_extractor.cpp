@@ -266,7 +266,7 @@ Features OFE::extractFeatures(const cv::Mat &image) {
       frame.gpu_descriptors.download(frame.descriptors);
     }
 #else   // defined(HAVE_OPENCV_CUDAFEATURES2D)
-    LOG(ERROR)
+    CLOG(ERROR, "stereo.features")
         << "You asked vtr_vision::OrbFeatureMatcher::extractFeatures() to "
            "use the GPU for descriptor generation, but OpenCV wasn't built "
            "with this support configured!";

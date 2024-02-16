@@ -123,18 +123,6 @@ std::vector<vision::RigMatches> concatenateMatches(
 vision::RigMatches concatenateMatches(const vision::RigMatches &matches1,
                                       const vision::RigMatches &matches2);
 
-/// Copies a point cloud from a message into an Eigen Matrix
-/// @return an Eigen::Matrix that wraps the point cloud data.
-Eigen::Matrix<double, 3, Eigen::Dynamic> copyPointCloud(
-    const vtr_vision_msgs::msg::ChannelLandmarks
-        &landmarks);  ///<[in] the landmark proto message
-
-/// Wraps a cv::Mat around the feature descriptor WARNING can't write-protect
-/// cv::Mat
-/// @return A cv::Mat that wraps the descriptor blob for this feature list.
-cv::Mat wrapDescriptors(const vtr_vision_msgs::msg::Features
-                            &features);  ///<[in] features with descriptor blob
-
 /// @brief Wraps a cv::Mat around the image data in a proto message
 /// @return A cv::Mat that wraps the image data in the message
 cv::Mat wrapImage(const vtr_vision_msgs::msg::Image

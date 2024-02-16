@@ -175,7 +175,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   vision::SimpleMatches inliers;
 
   if (flattened_matches.size() < (unsigned)config_->min_inliers) {
-    LOG(ERROR) << "Insufficient number of raw matches: "
+    CLOG(ERROR, "stereo.ransac") << "Insufficient number of raw matches: "
                << flattened_matches.size();
   } else {
     // Run RANSAC
@@ -211,7 +211,7 @@ void RansacModule::run_(tactic::QueryCache &qdata0, tactic::OutputCache &output,
   }
 
   if (inliers.size() <= static_cast<uint32_t>(config_->min_inliers)) {
-    LOG(ERROR) << "RansacModule::" << __func__ << "(): " << inliers.size()
+    CLOG(ERROR, "stereo.ransac") << "RansacModule::" << __func__ << "(): " << inliers.size()
                << "/" << flattened_matches.size() << " is not enough inliers! ";
     inliers.clear();
     success = false;

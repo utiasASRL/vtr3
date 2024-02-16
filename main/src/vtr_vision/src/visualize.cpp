@@ -734,7 +734,7 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
   auto ros_image = locked_msg.get().getDataPtr();
 
   if (ros_image == nullptr) {
-    LOG(WARNING)
+    CLOG(WARNING, "stereo.visualization")
         << "Could not retrieve visualization image from the graph! NOT "
            "displaying MEL matches.";
     return;
@@ -774,6 +774,7 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
         cv::Scalar kpColor(blue, green, red);
         // cv::Scalar trackColor = getChannelColor(channel_name);
 
+        CLOG(DEBUG, "stereo.visualize") << "Landmark major id" << map_run;
         cv::Scalar trackColor = getExperienceColor(
             map_run, map_vertex->id().majorId());  //(blue,green,red);
 

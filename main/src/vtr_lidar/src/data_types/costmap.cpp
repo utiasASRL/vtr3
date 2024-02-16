@@ -34,7 +34,7 @@ BaseCostMap::BaseCostMap(const float& dl, const float& size_x,
       origin_(-std::round(size_x_ / 2.0f / dl_),
               -std::round(size_y_ / 2.0f / dl_)) {
 #if false
-    LOG(DEBUG) << "BaseCostMap: dl: " << dl_ << ", size_x_: " << size_x_
+    CLOG(DEBUG, "planning.costmap") << "BaseCostMap: dl: " << dl_ << ", size_x_: " << size_x_
                << ", size_y_: " << size_y_ << ", width_: " << width_
                << ", height_: " << height_ << ", origin_: " << origin_.x << ", "
                << origin_.y;

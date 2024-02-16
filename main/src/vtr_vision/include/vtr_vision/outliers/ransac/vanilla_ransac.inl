@@ -93,7 +93,7 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches &matches,
       sched_param sch_params;
       sch_params.sched_priority = sched_get_priority_max(SCHED_BATCH);
       if (pthread_setschedparam(pthread_self(), SCHED_BATCH, &sch_params)) {
-        LOG(ERROR) << "Failed to set thread scheduling : "
+        CLOG(ERROR, "stereo.ransac") << "Failed to set thread scheduling : "
                    << std::strerror(errno);
       }
 

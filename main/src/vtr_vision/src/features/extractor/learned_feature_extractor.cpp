@@ -45,8 +45,8 @@ torch::Tensor getKeypointDisparities(torch::Tensor disparity,
                      torch::kNearest).align_corners(false);
 
 
-  LOG(INFO) << "disparity:" << disparity.sizes();
-  LOG(INFO) << "kp_norm:" << keypoints_norm.sizes();
+  CLOG(INFO, "stereo.learned_features") << "disparity:" << disparity.sizes();
+  CLOG(INFO, "stereo.learned_features") << "kp_norm:" << keypoints_norm.sizes();
   
 
   return F::grid_sample(disparity, keypoints_norm, options).reshape({-1});
@@ -97,15 +97,15 @@ void LFE::initialize(const LearnedFeatureConfiguration &config) {
   // Load the pytorch model.
   try {
     // Deserialize the ScriptModule from a file using torch::jit::load().
-    LOG(INFO) << config_.model_path;
+    CLOG(INFO, "stereo.learned_features") << config_.model_path;
     detector_ = torch::jit::load(config_.model_path);
     std::unique_lock<std::mutex> lock(gpu_mutex_);
     detector_.to(at::kCUDA);
     lock.unlock();
   }
   catch (const c10::Error& err) {
-    LOG(ERROR) << "Error loading the Pytorch learned feature model.";
-    LOG(ERROR) << "Model path: " << config_.model_path;
+    CLOG(ERROR, "stereo.learned_features") << "Error loading the Pytorch learned feature model.";
+    CLOG(ERROR, "stereo.learned_features") << "Model path: " << config_.model_path;
     throw std::runtime_error{"Error loading Pytorch learned feature model."};
   }
 }
@@ -269,7 +269,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
 
   // Make sure image memory is contigious before converting it to a tensor.
   if (!image_cropped.isContinuous()) {  
-    LOG(INFO) << "Converting cv::Mat to torch::Tensor, memory isn't contigious";
+    CLOG(INFO, "stereo.learned_features") << "Converting cv::Mat to torch::Tensor, memory isn't contigious";
     image_cropped = image_cropped.clone();
   }
 
@@ -327,7 +327,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
 
   // Make sure image memory is contigious before converting it to a tensor.
   if (!image_cropped.isContinuous()) {  
-    LOG(INFO) << "Converting cv::Mat to torch::Tensor, memory isn't contigious";
+    CLOG(INFO, "stereo.learned_features") << "Converting cv::Mat to torch::Tensor, memory isn't contigious";
     image_cropped = image_cropped.clone();
   }             
 
@@ -530,7 +530,6 @@ ChannelFeatures LFE::learnedFeaturesToStereoKeypoints(
     }  
   }
 
-  // LOG(INFO) << "num_valid: " << num_valid;
 
   auto options = torch::TensorOptions().dtype(torch::kLong);
   torch::Tensor valid = torch::from_blob(valid_keypoints.data(), {num_valid}, 
@@ -650,9 +649,9 @@ ChannelFeatures LFE::extractStereoFeaturesDispExtra(const cv::Mat &left_img,
                                                     const cv::Mat &descriptors,
                                                     const cv::Mat &scores) {
   
-  LOG(INFO) << "Kpt: " << keypoints.size;
-  LOG(INFO) << "desc: " << descriptors.size;
-  LOG(INFO) << "scores: " << scores.size;
+  CLOG(INFO, "stereo.learned_features") << "Kpt: " << keypoints.size;
+  CLOG(INFO, "stereo.learned_features") << "desc: " << descriptors.size;
+  CLOG(INFO, "stereo.learned_features") << "scores: " << scores.size;
 
   int height = descriptors.size[1];
   int width = descriptors.size[2];
@@ -670,29 +669,27 @@ ChannelFeatures LFE::extractStereoFeaturesDispExtra(const cv::Mat &left_img,
                                             torch::kFloat).unsqueeze_(0);
 
 
-  LOG(INFO) << "Before";
-
-  LOG(INFO) << "Kpt: " << keypoints_t.sizes();
-  LOG(INFO) << "desc: " << descriptors_t.sizes();
-  LOG(INFO) << "scores: " << scores_t.sizes();
+  CLOG(INFO, "stereo.learned_features") << "Before" << "Kpt: " << keypoints_t.sizes() << std::endl
+    << "desc: " << descriptors_t.sizes() << std::endl
+    << "scores: " << scores_t.sizes();
 
   // Get a score and descriptor for each keypoint
   torch::Tensor point_scores = getKeypointScores(scores_t, keypoints_t);
   
-  LOG(INFO) << "point scores: " << point_scores.sizes();
+  CLOG(INFO, "stereo.learned_features") << "point scores: " << point_scores.sizes();
 
   torch::Tensor point_descriptors = getKeypointDescriptors(descriptors_t, 
                                                            keypoints_t);
-  LOG(INFO) << "point descriptors: " << point_descriptors.sizes();
+  CLOG(INFO, "stereo.learned_features") << "point descriptors: " << point_descriptors.sizes();
 
   // Get disparity for each keypoint
   torch::Tensor disparity = getDisparityTensor(disp);
   torch::Tensor point_disparities = getKeypointDisparities(disparity, 
                                                            keypoints_t);
 
-  LOG(INFO) << "point disparity: " << point_disparities.sizes();
+  CLOG(INFO, "stereo.learned_features") << "point disparity: " << point_disparities.sizes();
 
-  LOG(INFO) << "After";
+  CLOG(INFO, "stereo.learned_features") << "After";
 
   return learnedFeaturesToStereoKeypoints(keypoints_t, point_descriptors, 
                                           point_scores, point_disparities);

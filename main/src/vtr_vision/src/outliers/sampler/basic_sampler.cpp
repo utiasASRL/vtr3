@@ -87,24 +87,24 @@ bool BasicSampler::getSample(unsigned int m, SimpleMatches* p_sample,
 bool BasicSampler::precheck(unsigned int m, SimpleMatches* p_sample) {
   // Allocate the sample
   if (!p_sample) {
-    LOG(ERROR) << "The sample list was not allocated.";
+    CLOG(ERROR, "stereo.ransac") << "The sample list was not allocated.";
     return false;
   }
   p_sample->reserve(m);
 
   // Check the verifier
   if (!verifier_) {
-    LOG(ERROR) << "The sample verifier is invalid.";
+    CLOG(ERROR, "stereo.ransac") << "The sample verifier is invalid.";
     return false;
   }
 
   // Make sure we have enough matches
   if (!matches_) {
-    LOG(ERROR) << "Matches have not been set";
+    CLOG(ERROR, "stereo.ransac") << "Matches have not been set";
     return false;
   }
   if (matches_->size() < m) {
-    LOG(WARNING) << "There aren't enough matches to satisfy the model.";
+    CLOG(WARNING, "stereo.ransac") << "There aren't enough matches to satisfy the model.";
     return false;
   }
 

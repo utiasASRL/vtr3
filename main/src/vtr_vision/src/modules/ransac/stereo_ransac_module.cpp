@@ -47,12 +47,7 @@ auto StereoRansacModule::Config::fromROS(
 
 std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
 StereoRansacModule::generateRANSACModel(CameraQueryCache &qdata) {
-  // Add this back in if you want to test your robustness to VO failures.
-  //  auto vo_doom = doom_distribution(doom_twister);
-  //  if(vo_doom >= 99.5 && stereo_config_->use_migrated_points == false) {
-  //    LOG(ERROR) << "DOOM TO YOUR VO " << THE_DEVIL;
-  //    return nullptr;
-  //  }
+
   // Get the data from the cache.
   const auto &calibrations = *qdata.rig_calibrations;
 

@@ -120,12 +120,6 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
           pose_obs_lm = tf_identity_;
         } else {
           // // otherwise compose the transform
-          // steam::se3::TransformEvaluator::Ptr pose_lm_0 =
-          //     steam::se3::TransformStateEvaluator::MakeShared(
-          //         lm_pose.tf_state_var);
-          // steam::se3::TransformEvaluator::Ptr pose_obs_0 =
-          //     steam::se3::TransformStateEvaluator::MakeShared(
-          //         obs_pose.tf_state_var);
           pose_obs_lm = steam::se3::compose_rinv(lm_pose.tf_state_var, obs_pose.tf_state_var);
         }
 
@@ -140,7 +134,7 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
         if (T_s_v_ptr == tsv_transforms.end() ||
             T_s_v_obs_ptr == tsv_transforms.end()) {
           // no, compose with fixed camera to vehicle transform
-          LOG(WARNING) << "Couldn't find transform! for either " << obs_vertex
+          CLOG(WARNING, "stereo.windowed_recall") << "Couldn't find transform! for either " << obs_vertex
                        << " or " << vertex;
           T_obs_lm = steam::se3::compose_rinv(
               steam::se3::compose(tf_sensor_vehicle_, pose_obs_lm),
@@ -221,7 +215,7 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
 
         // steam throws?
       } catch (std::exception &e) {
-        LOG(ERROR) << "Error with noise model:\n" << e.what();
+        CLOG(ERROR, "stereo.windowed_recall") << "Error with noise model:\n" << e.what();
         continue;
       }
     }
@@ -256,7 +250,7 @@ steam::OptimizationProblem StereoWindowOptimizationModule::generateOptimizationP
     for (auto &pose : poses) {
       auto &steam_pose = pose.second;
       if (steam_pose.velocity == nullptr) {
-        LOG(ERROR) << "Trajectory velocity was null!";
+        CLOG(ERROR, "stereo.windowed_recall") << "Trajectory velocity was null!";
         continue;
       }
       trajectory_->add(steam_pose.time, steam_pose.tf_state_var,
@@ -302,7 +296,7 @@ bool StereoWindowOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
   if (qdata.landmark_map.valid() == false ||
       qdata.pose_map.valid() == false ||
       qdata.rig_calibrations.valid() == false) {
-    LOG(ERROR)
+    CLOG(ERROR, "stereo.windowed_recall")
         << "StereoWindowOptimizationModule::verifyInputData(): Input data for "
            "windowed BA problem is not set! (Is the Windowed Recall "
            "Module Running?)";
@@ -311,7 +305,7 @@ bool StereoWindowOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
 
   // If there is nothing to optimize, then quit.
   if ((*qdata.pose_map).empty() || (*qdata.landmark_map).empty()) {
-    LOG(ERROR)
+    CLOG(ERROR, "stereo.windowed_recall")
         << "StereoWindowOptimizationModule::verifyInputData(): No poses or "
            "landmarks found. (Is the Windowed Recall Module Running?)";
     return false;
@@ -384,7 +378,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(CameraQueryCache &qdata) {
             Eigen::Vector4f(coefficients.values[0], coefficients.values[1],
                             coefficients.values[2], coefficients.values[3]);
       } else {
-        LOG(WARNING) << "SteamModule: Couldn't estimate map landmarks plane! "
+        CLOG(WARNING, "stereo.windowed_recall") << "SteamModule: Couldn't estimate map landmarks plane! "
                         "Inliers/Points: "
                      << std::count_if(inliers.indices.begin(),
                                       inliers.indices.end(),
@@ -440,7 +434,7 @@ void StereoWindowOptimizationModule::saveTrajectory(
           : std::dynamic_pointer_cast<steam::GaussNewtonSolverBase>(solver_);
 
   if (gn_solver == nullptr) {
-    LOG(ERROR) << "This solver does not derive from The GaussNewtonSolverBase!";
+    CLOG(ERROR, "stereo.windowed_recall") << "This solver does not inherit from The GaussNewtonSolverBase!";
     return;
   }
 
@@ -578,7 +572,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
           : std::dynamic_pointer_cast<steam::GaussNewtonSolver>(solver_);
 
   if (gn_solver == nullptr) {
-    LOG(ERROR) << "This solver does not derive from The GaussNewtonSolverBase!";
+    CLOG(ERROR, "stereo.windowed_recall") << "This solver does not inherit from The GaussNewtonSolverBase!";
     return;
   } else if (window_config_->solver_type == "LevenburgMarquardt" ||
              backup_lm_solver_used_) {
@@ -586,15 +580,6 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
     // this may throw
     auto lm_solver =
         std::dynamic_pointer_cast<steam::LevMarqGaussNewtonSolver>(gn_solver);
-    // try {
-    //   lm_solver->solveCovariances();
-    // } catch (std::runtime_error &e) {
-    //   LOG(ERROR)
-    //       << "StereoWindowOptimizationModule: Couldn't solve for covariance "
-    //          "in LM solver!"
-    //       << std::endl
-    //       << e.what();
-    // }
   }
 
   // update the edges in the graph.
@@ -635,14 +620,14 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
         // }
         e->setTransform(T_b_a);
       } else {
-        LOG(WARNING) << "Trying to update covariance of edge " << e_id
+        CLOG(WARNING, "stereo.windowed_recall") << "Trying to update covariance of edge " << e_id
                      << ", which doesnt exist!";
-        LOG(WARNING) << "++++++++++++++++++ Current Optimization problem "
+        CLOG(WARNING, "stereo.windowed_recall") << "++++++++++++++++++ Current Optimization problem "
                         "++++++++++++++++++++++++++++";
         for (auto itr = poses.begin(); itr != poses.end(); ++itr) {
-          LOG(WARNING) << itr->first << " " << itr->second.isLocked();
+          CLOG(WARNING, "stereo.windowed_recall") << itr->first << " " << itr->second.isLocked();
         }
-        LOG(WARNING) << "++++++++++++++++++ Current Optimization problem "
+        CLOG(WARNING, "stereo.windowed_recall") << "++++++++++++++++++ Current Optimization problem "
                         "++++++++++++++++++++++++++++";
       }
     }
@@ -695,8 +680,6 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
 
   for (auto &landmark : lm_map) {
       auto vid = landmark.first.vid;
-    // VertexId vid = graph->fromPersistent(
-    //     messages::copyPersistentId(landmark.first.persistent));
 
     if (!landmark_msgs.count(vid)) {
       auto v = graph->at(vid);
@@ -710,13 +693,10 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
         std::stringstream err;
         err << "Landmarks at " << v->id() << " for " << "stereo"
             << " could not be loaded!";
-        LOG(ERROR) << err.str();
+        CLOG(ERROR, "stereo.windowed_recall") << err.str();
         throw std::runtime_error{err.str()};
       }
 
-
-      // auto v_lms = v->retrieve<vtr_vision_msgs::msg::RigLandmarks>(
-      //     "front_xb3_landmarks");
       landmark_msgs.emplace(std::make_pair(vid, v_lms));
     }
 

@@ -200,7 +200,7 @@ void LandmarkRecallModule::recallLandmark(
   feat_info.laplacian_bit = landmark_channel.lm_info[index.index].laplacian_bit;
 
   if (landmark_channel.matches.size() <= index.index) {
-    LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).idx
+    CLOG(ERROR, "stereo.recall") << "Uh oh, " << messages::copyLandmarkId(index).idx
                << " is out of range.";
     return;
   }
@@ -359,14 +359,14 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedSensorTransform(
   if (T_s_v_map_ptr != T_s_v_map_.end()) {
     T_s_v_map = T_s_v_map_ptr->second;
   } else {
-    LOG(WARNING) << "Couldn't find T_s_v for the map vertex!";
+    CLOG(WARNING, "stereo.recall") << "Couldn't find T_s_v for the map vertex!";
   }
   auto T_s_v_lm_ptr = T_s_v_map_.find(landmark_vid);
   EdgeTransform T_s_v_lm = T_s_v_;
   if (T_s_v_lm_ptr != T_s_v_map_.end()) {
     T_s_v_lm = T_s_v_lm_ptr->second;
   } else {
-    LOG(WARNING) << "Couldn't find T_s_v for the landmark vertex!";
+    CLOG(WARNING, "stereo.recall") << "Couldn't find T_s_v for the landmark vertex!";
   }
   // save the sensor-frame transform in the cache
   auto T_map_lm = cachedVehicleTransform(map_vid, landmark_vid, graph);

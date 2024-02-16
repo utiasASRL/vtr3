@@ -76,7 +76,7 @@ ChannelExtra BFE::extractFeaturesExtra(const Image &left) {
 
 ChannelFeatures BFE::extractStereoFeatures(const ChannelImages &channel) {
   if (channel.cameras.size() != 2) {
-    LOG(WARNING) << "Can't extract stereo features on "
+    CLOG(WARNING, "stereo.features") << "Can't extract stereo features on "
                  << channel.cameras.size() << " images, will not fully match";
     return extractChannelFeatures(channel, false);
   }
@@ -95,7 +95,7 @@ ChannelFeatures BFE::extractStereoFeatures(const ChannelImages &channel) {
 ChannelFeatures BFE::extractStereoFeaturesDisp(
     const ChannelImages &channel, const ChannelImages &channel_disp) {
   if (channel.cameras.size() != 2) {
-    LOG(WARNING) << "Can't extract stereo features on "
+    CLOG(WARNING, "stereo.features") << "Can't extract stereo features on "
                  << channel.cameras.size() << " images, will not fully match";
     return extractChannelFeatures(channel, false);
   }
@@ -117,7 +117,7 @@ ChannelFeatures BFE::extractStereoFeaturesDispExtra(
     const ChannelImages &channel, const ChannelImages &channel_disp, 
     const ChannelExtra &channel_extra) {
   if (channel.cameras.size() != 2) {
-    LOG(WARNING) << "Can't extract stereo features on "
+    CLOG(WARNING, "stereo.features") << "Can't extract stereo features on "
                  << channel.cameras.size() << " images, will not fully match";
     return extractChannelFeatures(channel, false);
   }

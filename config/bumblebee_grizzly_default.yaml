@@ -7,27 +7,28 @@
     log_enabled:
       [
         "navigator",
-        "map_projector",
+        #"map_projector",
         "tactic",
         "tactic.module",
         "tactic.module.live_mem_manager",
         "tactic.module.graph_mem_manager",
-        "mission_planning_server",
-        "mission.state_machine",
-        "pose_graph",
+        #"mission_planning_server",
+        #"mission.state_machine",
+        #"pose_graph",
         "stereo.pipeline",
-        "stereo.preprocessing",
-        "stereo.recall",
-        "stereo.matcher",
+        #"stereo.preprocessing",
+        #"stereo.recall",
+        #"stereo.matcher",
         "stereo.triage",
         #"stereo.keyframe_optimization",
         "stereo.bundle_adjustment",
         "stereo.mel_matcher",
-        "stereo.odometry",
+        #"stereo.odometry",
         "stereo.tod",
         #"stereo.vertex_test",
-        "odometry",
-        "tactic.pipeline"
+        #"odometry",
+        "stereo.migration",
+        
       ]
 
     # control frame from the urdf
