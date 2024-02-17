@@ -6,7 +6,7 @@
     log_debug: true
     log_enabled:
       [
-        "navigator",
+        "navigation",
         "map_projector",
         "tactic",
         "tactic.module",
@@ -16,18 +16,18 @@
         "mission.state_machine",
         "pose_graph",
         "stereo.pipeline",
-        "stereo.preprocessing",
-        "stereo.recall",
-        "stereo.matcher",
+        #"stereo.preprocessing",
+        #"stereo.recall",
+        #"stereo.matcher",
         #"stereo.keyframe_optimization",
-        "stereo.bundle_adjustment",
+        #"stereo.bundle_adjustment",
         "stereo.mel_matcher",
-        "stereo.odometry",
+        #"stereo.odometry",
         "stereo.tod",
         #"stereo.vertex_test",
-        "odometry",
+        #"odometry",
         "tactic.pipeline",
-        "preprocessing"
+        #"preprocessing"
       ]
 
     # control frame from the urdf
@@ -198,7 +198,6 @@
       ransac:
         type: stereo_ransac
 
-        rig: "front_xb3"
         channel: "grayscale"
 
         enable: true
