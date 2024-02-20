@@ -1,0 +1,30 @@
+ ros__parameters:
+    log_to_file: true
+    log_debug: true
+    log_enabled:
+      - navigation
+      - radar.pipeline
+    robot_frame: base_link
+    env_info_topic: env_info
+    radar_frame: os_sensor
+    radar_topic: /ouster/points
+    queue_size: 1
+    graph_map:
+      origin_lat: 43.7822 # UTIAS: 43.78220
+      origin_lng: -79.4661 # UTIAS: -79.4661
+      origin_theta: 1.3
+      scale: 1.0
+      
+ ############ pipeline configuration ############
+    pipeline:
+      type: radar
+      preprocessing:
+        - conversion
+        #- filtering
+      odometry: []
+      localization: []
+      submap_translation_threshold: 1.5
+      submap_rotation_threshold: 30.0
+    preprocessing:
+      conversion:
+        type: radar.navtech_extraction

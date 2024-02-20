@@ -32,7 +32,7 @@ if (OpenMP_FOUND)
 endif()
 
 
-## Enable certain pipelines
-add_definitions(-DVTR_ENABLE_LIDAR)
+## Enable certain pipelines (#Sam disabled LIDAR for now)
+# add_definitions(-DVTR_ENABLE_LIDAR)
 add_definitions(-DVTR_ENABLE_RADAR)
 #add_definitions(-DSAVE_ALL_REPEATS)

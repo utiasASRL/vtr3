@@ -147,7 +147,28 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 #endif
   // clang-format on
 
-  ///
+// #Sam added radar callback
+#ifdef VTR_ENABLE_RADAR
+
+  radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");\
+  // #TODO not sure if there is a radar frame
+  T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
+  // static transform
+  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
+  auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_radar_robot_.inverse().matrix()));
+  msg.header.frame_id = "robot";
+  msg.child_frame_id = "radar";
+  tf_sbc_->sendTransform(msg);
+  // radar pointcloud data subscription
+  const auto radar_topic = node_->declare_parameter<std::string>("radar_topic", "/radar_data/b_scan_image");
+  // not sure if the  radar data rate is low as well
+  auto radar_qos = rclcpp::QoS(max_queue_size_);
+  radar_qos.reliable();
+  radar_sub = node_->create_subscription<sensor_msgs::msg::Image>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
+
+#endif
+
+  /// This creates a thred to process the sensor input
   thread_count_ = 1;
   process_thread_ = std::thread(&Navigator::process, this);
   CLOG(INFO, "navigation") << "VT&R3 initialization done!";
@@ -197,6 +218,14 @@ void Navigator::process() {
 #ifdef VTR_ENABLE_LIDAR
     auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0);
 #endif
+
+// hey I think this is where the query cache gets passed to the pipeline
+// radar probably needs one too
+#ifdef VTR_ENABLE_RADAR
+// #TODO Sam
+    auto qdata = std::dynamic_pointer_cast<radar::RadarQueryCache>(qdata0);
+#endif
+
 
     // unlock the queue so that new data can be added
     lock.unlock();
@@ -256,6 +285,48 @@ void Navigator::lidarCallback(
   queue_.push(query_data);
   cv_set_or_stop_.notify_one();
 };
+#endif
+
+// #Sam added radar callback. SImilar to Lidar, we need to know what to do when a radar message is received
+#ifdef VTR_ENABLE_RADAR
+void Navigator::radarCallback(
+    const sensor_msgs::msg::Image::SharedPtr msg) {
+
+  // set the timestamp
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+  CLOG(DEBUG, "navigation") << "Received a radar Image with stamp " << timestamp;
+
+  // Convert message to query_data format and store into query_data
+  auto query_data = std::make_shared<radar::RadarQueryCache>();
+
+  LockGuard lock(mutex_);
+
+  // I mean we can still drop those frames if the queue is too big
+  if (queue_.size() > max_queue_size_) {
+    CLOG(WARNING, "navigation")
+        << "Dropping old radar message because the queue is full.";
+    queue_.pop();
+  }
+
+  // some modules require node for visualization
+  query_data->node = node_;
+
+  query_data->stamp.emplace(timestamp);
+
+  // add the current environment info
+  query_data->env_info.emplace(env_info_);
+
+  // put in the radar msg pointer into query data
+  query_data->radar_msg = msg;
+
+  // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r.emplace(T_radar_robot_);
+
+  // add to the queue and notify the processing thread
+  queue_.push(query_data);
+  cv_set_or_stop_.notify_one();
+
 #endif
 
 }  // namespace navigation
