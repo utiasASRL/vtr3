@@ -27,6 +27,7 @@ find_package(vtr_torch REQUIRED)
 ## TODO make these two optional (depending on which pipeline to use)
 find_package(vtr_lidar REQUIRED)
 # find_package(vtr_vision REQUIRED)
+find_package(vtr_radar REQUIRED)
 
 ## C++ Libraries
 include_directories(
@@ -70,7 +71,7 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_path_planning 
-  vtr_lidar vtr_torch
+  vtr_lidar vtr_torch vtr_radar
   # vtr_vision
 )
 target_link_libraries(${PROJECT_NAME}_navigator
@@ -90,6 +91,7 @@ ament_export_dependencies(
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch
   vtr_navigation_msgs vtr_path_planning
   vtr_lidar
+  vtr_radar
   # vtr_vision
   PROJ
 )

@@ -30,6 +30,10 @@
 #include "vtr_lidar/pipeline.hpp"
 #endif
 
+#ifdef VTR_ENABLE_RADAR
+#include "vtr_radar/pipeline.hpp"
+#endif
+
 namespace vtr {
 namespace navigation {
 
@@ -150,21 +154,21 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 // #Sam added radar callback
 #ifdef VTR_ENABLE_RADAR
 
-  radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");\
+  radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
   // #TODO not sure if there is a radar frame
   T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
-  // static transform
+  // static transform make a shared pointer to the static transform broadcaster
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_radar_robot_.inverse().matrix()));
   msg.header.frame_id = "robot";
   msg.child_frame_id = "radar";
   tf_sbc_->sendTransform(msg);
-  // radar pointcloud data subscription
+  // radar pointcloud data subscription this is the default value
   const auto radar_topic = node_->declare_parameter<std::string>("radar_topic", "/radar_data/b_scan_image");
   // not sure if the  radar data rate is low as well
   auto radar_qos = rclcpp::QoS(max_queue_size_);
   radar_qos.reliable();
-  radar_sub = node_->create_subscription<sensor_msgs::msg::Image>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
+  radar_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
 
 #endif
 
@@ -318,7 +322,7 @@ void Navigator::radarCallback(
   query_data->env_info.emplace(env_info_);
 
   // put in the radar msg pointer into query data
-  query_data->radar_msg = msg;
+  query_data->scan_msg = msg;
 
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r.emplace(T_radar_robot_);
@@ -326,7 +330,7 @@ void Navigator::radarCallback(
   // add to the queue and notify the processing thread
   queue_.push(query_data);
   cv_set_or_stop_.notify_one();
-
+}
 #endif
 
 }  // namespace navigation

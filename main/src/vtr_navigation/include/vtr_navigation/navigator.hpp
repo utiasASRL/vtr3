@@ -28,6 +28,10 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #endif
 
+#ifdef VTR_ENABLE_RADAR
+#include "sensor_msgs/msg/image.hpp"
+#endif
+
 namespace vtr {
 namespace navigation {
 
@@ -64,6 +68,16 @@ class Navigator {
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub_;
   std::string lidar_frame_;
   tactic::EdgeTransform T_lidar_robot_;
+#endif
+
+#ifdef VTR_ENABLE_RADAR 
+  // radar
+  const std::string &radar_frame() const { return radar_frame_; }
+  const tactic::EdgeTransform &T_radar_robot() const { return T_radar_robot_; }
+  void radarCallback(const sensor_msgs::msg::Image::SharedPtr msg);
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr radar_sub_;
+  std::string radar_frame_;
+  tactic::EdgeTransform T_radar_robot_;
 #endif
 
  private:

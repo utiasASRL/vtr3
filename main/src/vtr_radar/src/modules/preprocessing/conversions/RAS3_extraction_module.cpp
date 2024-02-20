@@ -17,7 +17,7 @@
  * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
  * \brief NavtechExtractionModule class methods definition
  */
-#include "vtr_radar/modules/preprocessing/conversions/navtech_extraction_module.hpp"
+#include "vtr_radar/modules/preprocessing/conversions/RAS3_extraction_module.hpp"
 
 #include "cv_bridge/cv_bridge.h"
 
