@@ -1,4 +1,4 @@
-## Online Visual VTR3
+## Online Visual VTR3 with Learned Features
 session_name: vtr_online_nerian_warthog
 
 environment:
@@ -19,6 +19,7 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=nerian_warthog_default.yaml
+        override_params:=nerian_learned_features_extras.yaml
         start_new_graph:=false
         use_sim_time:=false
         planner:="cbit"
