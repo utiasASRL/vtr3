@@ -33,18 +33,29 @@ if (OpenMP_FOUND)
 endif()
 
 
-## Enable certain pipelines
-#set(VTR_ENABLE_LIDAR true)
-set(VTR_ENABLE_VISION true)
+#Set to VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR
+set(SelectedPipeline "$ENV{VTR_PIPELINE}")
 
-if(DEFINED VTR_ENABLE_LIDAR)
+
+if(SelectedPipeline MATCHES "LIDAR")
   add_definitions(-DVTR_ENABLE_LIDAR)
+  set(VTR_ENABLE_LIDAR true)
+elseif(SelectedPipeline MATCHES "RADAR")
   add_definitions(-DVTR_ENABLE_RADAR)
-elseif(DEFINED VTR_ENABLE_VISION)
+  set(VTR_ENABLE_RADAR true)
+elseif(SelectedPipeline MATCHES "RADAR-LIDAR")
+  add_definitions(-DVTR_ENABLE_RADAR)
+  set(VTR_ENABLE_RADAR true)
+  add_definitions(-DVTR_ENABLE_LIDAR)
+  set(VTR_ENABLE_LIDAR true)
+elseif(SelectedPipeline MATCHES "VISION")
   ## GPUSURF enable/disable flag (used by vision pipeline only)
   # Note: currently assume that gpusurf is always available, because we have no
   # other options, so do not disable (i.e. comment out) this flag
   add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
   add_definitions(-DVTR_ENABLE_VISION)
   add_definitions(-DVTR_VISION_LEARNED)
+  set(VTR_ENABLE_VISION true)
+else()
+  message(FATAL_ERROR "VTR_PIPELINE not set! Must select one of VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR")
 endif()

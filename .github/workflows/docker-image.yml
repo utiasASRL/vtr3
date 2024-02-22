@@ -25,7 +25,11 @@ jobs:
         run: docker build . --file Dockerfile --tag vtr3
       - name: run container
         run: docker run -td --name vtr3 --privileged -v `pwd`:/home/asrl/vtr3:rw vtr3
-      - name: colcon build
+      - name: colcon build lidar
         run: docker exec -w /home/asrl/vtr3/main vtr3 bash -c "source
-          /opt/ros/humble/setup.sh && colcon build --symlink-install
+          /opt/ros/humble/setup.sh && VTR_PIPELINE=LIDAR colcon build --symlink-install
+          --cmake-args -DCMAKE_BUILD_TYPE=Release"
+      - name: colcon build vision
+        run: docker exec -w /home/asrl/vtr3/main vtr3 bash -c "source
+          /opt/ros/humble/setup.sh && VTR_PIPELINE=VISION colcon build --symlink-install
           --cmake-args -DCMAKE_BUILD_TYPE=Release"
