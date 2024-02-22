@@ -42,7 +42,7 @@ torch::Tensor getKeypointDisparities(torch::Tensor disparity,
 
   namespace F = torch::nn::functional;
   auto options = F::GridSampleFuncOptions().mode(
-                     torch::kNearest).align_corners(false);
+                     torch::kBilinear).padding_mode(torch::kBorder).align_corners(false);
 
 
   CLOG(INFO, "stereo.learned_features") << "disparity:" << disparity.sizes();
@@ -207,7 +207,8 @@ torch::Tensor LFE::getDisparity(const cv::Mat& left, const cv::Mat& right,
 
   // //Crop the image
   cv::Mat disp_cropped;
-  floatDisp(cv::Rect(48, 0, 464, 384)).copyTo(disp_cropped);
+  floatDisp.copyTo(disp_cropped);
+  //floatDisp(cv::Rect(48, 0, 464, 384)).copyTo(disp_cropped);
 
   // Convert the cv image to a tensor
   torch::Tensor disp_tensor = torch::from_blob(disp_cropped.data, 
@@ -240,7 +241,8 @@ torch::Tensor LFE::getDisparityTensor(const cv::Mat& disp) {
 
   //Crop the image
   cv::Mat disp_cropped;
-  floatDisp(cv::Rect(48, 0, 464, 384)).copyTo(disp_cropped);
+  floatDisp.copyTo(disp_cropped);
+  //floatDisp(cv::Rect(48, 0, 464, 384)).copyTo(disp_cropped);
 
   // Convert the cv image to a tensor
   torch::Tensor disp_tensor = torch::from_blob(disp_cropped.data, 
@@ -265,7 +267,8 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
 
   // Crop the image
   cv::Mat image_cropped;
-  image(cv::Rect(48, 0, 464, 384)).copyTo(image_cropped);
+  image.copyTo(image_cropped);
+  //image(cv::Rect(48, 0, 464, 384)).copyTo(image_cropped);
 
   // Make sure image memory is contigious before converting it to a tensor.
   if (!image_cropped.isContinuous()) {  
@@ -323,7 +326,8 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
 
   //Crop the image
   cv::Mat image_cropped;
-  image(cv::Rect(48, 0, 464, 384)).copyTo(image_cropped);
+  image.copyTo(image_cropped);
+  //image(cv::Rect(48, 0, 464, 384)).copyTo(image_cropped);
 
   // Make sure image memory is contigious before converting it to a tensor.
   if (!image_cropped.isContinuous()) {  
