@@ -42,10 +42,10 @@ void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
 
 using namespace tactic;
 
-/// boreas navtech radar upgrade time
-static constexpr int64_t upgrade_time = 1632182400000000000;
+// /// #Sam: warthog navtech radar upgrade time? #TODO
+// static constexpr int64_t upgrade_time = 1632182400000000000;
 
-auto NavtechExtractionModule::Config::fromROS(
+auto RAS3ExtractionModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -84,16 +84,16 @@ auto NavtechExtractionModule::Config::fromROS(
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
 
-  // Doppler stuff
-  config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
-  config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
+  // // Doppler stuff
+  // config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
+  // config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
 }
 
-void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
+void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                                    const Graph::Ptr &,
                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
@@ -110,9 +110,11 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Input
-#if false
-  auto scan = cv_bridge::toCvShare(qdata.scan_msg.ptr(), "mono8")->image;
-  scan.convertTo(scan, CV_32F);
+#if true
+  auto fft_scan = cv_bridge::toCvShare(qdata.scan_msg.ptr())->image;
+  fft_scan.convertTo(fft_scan, CV_32F);
+  // normalize to 0-1
+  fft_scan = fft_scan/255.0;
 #else
   const auto &scan = *qdata.scan;
 #endif
@@ -122,45 +124,68 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
   /// temp variables
-  cv::Mat scan_use;
-  cv::Mat fft_scan;
+  // cv::Mat scan_use;
+  // cv::Mat fft_scan;
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
+  // # Sam creates a made-up timestamp for the radar data assuming 4hz on a 400 azimuth angles
+  Cache<Timestamp> qstamp = qdata.stamp;
+  int64_t time_per_resulution = 1.0/4.0*1000000000;
+  int64_t current_time_stamp = *qstamp;
+
+  for(int i=0; i<200; i++){
+    azimuth_times.emplace_back(current_time_stamp - (200-i-1)*(time_per_resulution/400));
+  }
+  for(int j=201;j<401; j++){
+    azimuth_times.emplace_back(current_time_stamp + (j-200)*(time_per_resulution/400));
+  }
+
+  // CLOG(DEBUG, "radar.navtech_extractor") <<"Sam: the timestamp size is: "<< qstamp.size();
+  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: the timestamp is: " << qstamp;
+
   std::vector<double> azimuth_angles;
+  // # Sam creates a made-up azimuth angle for the radar data
+  double per_azimuth_angle = 2*M_PI/400.0;
+  for(int i=0; i<400; i++){
+    azimuth_angles.emplace_back((i+1)*per_azimuth_angle);
+  }
+
+
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
   // Set radar resolution
   float radar_resolution = config_->radar_resolution;
 #else
   // use the first timestamp to determine the resolution
-  float radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
+  // float radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
+  float radar_resolution = 0.044;
 #endif
   float cart_resolution = config_->cart_resolution;
   beta = config_->beta;
 
-  // Downsample scan based on desired chirp type
-  if (config_->chirp_type == "up") {
-    // Choose only every second row, starting from row 0
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 0; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(j));
-      j++;
-    }
-  } else if (config_->chirp_type == "down") {
-    // Choose only every second row, starting from row 1
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 1; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(i));
-      j++;
-    }
-  } else{
-    scan_use = scan;
-  }
+  // // Downsample scan based on desired chirp type
+  // if (config_->chirp_type == "up") {
+  //   // Choose only every second row, starting from row 0
+  //   scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
+  //   int j = 0;
+  //   for (int i = 0; i < scan.rows; i+=2) {
+  //     scan.row(i).copyTo(scan_use.row(j));
+  //     j++;
+  //   }
+  // } else if (config_->chirp_type == "down") {
+  //   // Choose only every second row, starting from row 1
+  //   scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
+  //   int j = 0;
+  //   for (int i = 1; i < scan.rows; i+=2) {
+  //     scan.row(i).copyTo(scan_use.row(i));
+  //     j++;
+  //   }
+  // } else{
+  //   scan_use = scan;
+  // }
 
-  // Load scan, times, azimuths from scan
-  load_radar(scan_use, azimuth_times, azimuth_angles, fft_scan);
+  // // Load scan, times, azimuths from scan
+  // load_radar(scan_use, azimuth_times, azimuth_angles, fft_scan);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
@@ -271,7 +296,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     scan_image.header.frame_id = "radar";
     // scan_image.header.stamp = qdata.scan_msg->header.stamp;
     scan_image.encoding = "mono8";
-    scan_image.image = scan_use;
+    scan_image.image = fft_scan;
     scan_pub_->publish(*scan_image.toImageMsg());
 
     // publish the fft scan image

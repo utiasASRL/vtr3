@@ -155,7 +155,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 #ifdef VTR_ENABLE_RADAR
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
-  // #TODO not sure if there is a radar frame
+  // there is a radar frame
   T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
   // static transform make a shared pointer to the static transform broadcaster
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
@@ -172,12 +172,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
 #endif
 
-  /// This creates a thred to process the sensor input
+  /// This creates a thread to process the sensor input
   thread_count_ = 1;
   process_thread_ = std::thread(&Navigator::process, this);
   CLOG(INFO, "navigation") << "VT&R3 initialization done!";
 }
 
+// Sam: This is the destructor for the navigator class
 Navigator::~Navigator() {
   UniqueLock lock(mutex_);
   // send stop signal
@@ -203,7 +204,7 @@ Navigator::~Navigator() {
 
 void Navigator::process() {
   el::Helpers::setThreadName("navigation.sensor_input");
-  CLOG(INFO, "navigation.sensor_input") << "Starting the sensor input thread.";
+  CLOG(DEBUG, "navigation.sensor_input") << "Starting the sensor input thread.";
   while (true) {
     UniqueLock lock(mutex_);
 
@@ -219,6 +220,7 @@ void Navigator::process() {
     // get the front in queue
     auto qdata0 = queue_.front();
     queue_.pop();
+
 #ifdef VTR_ENABLE_LIDAR
     auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0);
 #endif
@@ -234,8 +236,11 @@ void Navigator::process() {
     // unlock the queue so that new data can be added
     lock.unlock();
 
+    // Sam: I want to log before and after the data is passed to the pipeline
+    CLOG(DEBUG, "navigation") << "Sam: Passing data to the pipeline";
     // execute the pipeline
     tactic_->input(qdata0);
+    CLOG(DEBUG, "navigation") << "Sam: Data passed to the pipeline";
 
     // handle any transitions triggered by changes in localization status
     state_machine_->handle();
@@ -304,6 +309,8 @@ void Navigator::radarCallback(
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
 
+  CLOG(DEBUG, "navigation") << "Sam: In the callback: Created radar query cache";
+
   LockGuard lock(mutex_);
 
   // I mean we can still drop those frames if the queue is too big
@@ -328,7 +335,9 @@ void Navigator::radarCallback(
   query_data->T_s_r.emplace(T_radar_robot_);
 
   // add to the queue and notify the processing thread
+  CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding radar message to the queue";
   queue_.push(query_data);
+  CLOG(DEBUG, "navigation") << "Sam: In the callback: Added radar message to the queue";
   cv_set_or_stop_.notify_one();
 }
 #endif

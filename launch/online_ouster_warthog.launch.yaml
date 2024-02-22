@@ -21,6 +21,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
         planner:="cbit"
+        model_dir:=${VTRROOT}/models
         
   #     data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
 

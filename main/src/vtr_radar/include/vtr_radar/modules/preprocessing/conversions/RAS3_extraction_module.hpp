@@ -26,7 +26,7 @@ namespace vtr {
 namespace radar {
 
 /** \brief Extracts keypoints from Navtech radar scans. */
-class NavtechExtractionModule : public tactic::BaseModule {
+class RAS3ExtractionModule : public tactic::BaseModule {
  public:
   using ImageMsg = sensor_msgs::msg::Image;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
@@ -91,7 +91,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  NavtechExtractionModule(
+  RAS3ExtractionModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -111,7 +111,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
   rclcpp::Publisher<ImageMsg>::SharedPtr bev_scan_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(NavtechExtractionModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(RAS3ExtractionModule);
 };
 
 }  // namespace radar
