@@ -1,0 +1,22 @@
+/**:
+  ros__parameters:
+    log_enabled:
+      - lidar.perspective
+      
+    pipeline:
+      localization:
+        - recall
+        - icp
+        - safe_corridor
+        - perspective
+        #- change_detection_sync
+        - memory
+
+    localization:
+      perspective:
+        type: lidar.render_perspective
+        img_width: 256
+        img_height: 128
+        h_fov: 1.5707
+        v_fov: 0.7853
+        visualize: true

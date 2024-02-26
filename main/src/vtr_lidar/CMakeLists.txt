@@ -10,6 +10,8 @@ find_package(ament_cmake_python REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 
 find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
@@ -39,12 +41,13 @@ include_directories(PUBLIC
 # components
 file(GLOB_RECURSE COMPONENTS_SRC
   src/data_types/*.cpp
+  src/filters/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 pcl_conversions pcl_ros
   nav_msgs
-  lgmath steam
+  lgmath steam OpenCV
   vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
@@ -58,7 +61,7 @@ target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions pcl_ros
   nav_msgs visualization_msgs
-  lgmath steam vtr_torch
+  lgmath steam vtr_torch cv_bridge
   vtr_logging vtr_tactic vtr_lidar_msgs
 )
 

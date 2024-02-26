@@ -49,6 +49,7 @@ class OusterConversionModule : public tactic::BaseModule {
     float filter_z_min = 0;
     float filter_radius_sq = 0;
 
+    float radius_filter = 0;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);

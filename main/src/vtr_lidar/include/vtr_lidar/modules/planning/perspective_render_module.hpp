@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2024, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,41 +13,34 @@
 // limitations under the License.
 
 /**
- * \file diff_generator.hpp
+ * \file perspective_rnder_module.hpp
  * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
-#pragma once
 
-#include "tf2/convert.h"
-#include "tf2_eigen/tf2_eigen.hpp"
-#include "tf2_ros/transform_broadcaster.h"
+#pragma once
 
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
+#include "vtr_lidar/filters/perspective_image.hpp"
+
+#include "sensor_msgs/msg/image.hpp"
 
 namespace vtr {
 namespace lidar {
 
-class DifferenceDetector : public tactic::BaseModule {
+class PerspectiveRenderModule : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(DifferenceDetector);
-  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  PTR_TYPEDEFS(PerspectiveRenderModule);
+  using ImageMsg = sensor_msgs::msg::Image;
 
-  static constexpr auto static_name = "lidar.diff_generator";
+  static constexpr auto static_name = "lidar.render_perspective";
 
   /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    // change detection
-    float detection_range = 10.0; //m
-    float minimum_distance = 0.0; //m
-
-    float neighbour_threshold = 0.05; //m
-    float voxel_size = 0.2; //m
-
-    float angle_weight = 10.0/2/M_PI;
+    PerspectiveImageParams perspective_params;
 
     //
     bool visualize = false;
@@ -56,11 +49,10 @@ class DifferenceDetector : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  DifferenceDetector(
+  PerspectiveRenderModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
-      const std::string &name = static_name)
-      : tactic::BaseModule{module_factory, name}, config_(config) {}
+      const std::string &name = static_name);
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
@@ -71,9 +63,11 @@ class DifferenceDetector : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr diffpcd_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(DifferenceDetector);
+  rclcpp::Publisher<ImageMsg>::SharedPtr img_pub_;
+
+
+  VTR_REGISTER_MODULE_DEC_TYPE(PerspectiveRenderModule);
 
 };
 
