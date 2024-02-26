@@ -227,15 +227,6 @@ void Navigator::process() {
     // get the front in queue
     auto qdata0 = queue_.front();
     queue_.pop();
-#ifdef VTR_ENABLE_LIDAR
-    auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0);
-#endif
-
-#ifdef VTR_ENABLE_VISION
-    if (auto qdata = std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
-      // \todo Maybe make an int value rather than binary
-      image_in_queue_ = false;
-#endif
 
     // unlock the queue so that new data can be added
     lock.unlock();

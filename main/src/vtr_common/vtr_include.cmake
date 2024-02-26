@@ -20,7 +20,6 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # set(CMAKE_CXX_STANDARD_LIBRARIES -lasan)
 # add_compile_options(-g -Og)
 
-add_compile_options(-g -Og)
 
 ## Common packages setup
 # Boost requirement (by mission_planning but needed everywhere)
