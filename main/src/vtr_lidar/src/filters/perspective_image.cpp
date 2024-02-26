@@ -25,12 +25,9 @@ namespace lidar {
 /// \todo Parallelize  
 void generate_intensity_image(const pcl::PointCloud<PointWithInfo>& point_cloud, cv::Mat& intensity_image, cv::Mat& idx_image, PerspectiveImageParams params) {
 
-  params.width = intensity_image.cols;
-  params.height = intensity_image.rows;
-
   for (size_t i = 0; i < point_cloud.size(); ++i) {
     auto& point = point_cloud[i];
-    if (point.z > params.crop_range || point.z < params.min_range)
+    if (point.z > params.max_range || point.z < params.min_range)
       continue;
     
     int u = (int)round(params.f_u() * point.x / point.z) + params.c_u();
@@ -46,22 +43,25 @@ void generate_intensity_image(const pcl::PointCloud<PointWithInfo>& point_cloud,
 
 void generate_depth_image(const pcl::PointCloud<PointWithInfo>& point_cloud, cv::Mat& depth_image, cv::Mat& idx_image, PerspectiveImageParams params) {
 
-  params.width = depth_image.cols;
-  params.height = depth_image.rows;
-
   for (size_t i = 0; i < point_cloud.size(); ++i) {
     auto& point = point_cloud[i];
-    if (point.z > params.crop_range || point.z < params.min_range)
+    if (point.z > params.max_range || point.z < params.min_range)
       continue;
     
     int u = (int)round(params.f_u() * point.x / point.z) + params.c_u();
     int v = (int)round(params.f_v() * point.y / point.z) + params.c_v();
 
     if (0 <= u && u < params.width && 0 <= v && v < params.height) {
-      depth_image.at<u_int8_t>(u, v, 2) = point.intensity;
-      depth_image.at<u_int8_t>(u, v, 0) = point.z;
+      cv::Vec3b &hsv = depth_image.at<cv::Vec3b>(v, u);
 
-      idx_image.at<u_int32_t>(u, v) = i;
+      if (hsv[0] == 0 ||  hsv[0] > abs(point.z) * UINT8_MAX / params.max_range) {
+        hsv[2] = sqrt(point.flex23) * 15.5 < UINT8_MAX ? sqrt(point.intensity) * 15.5 : UINT8_MAX;
+        hsv[1] = UINT8_MAX - 1;
+        hsv[0] = abs(point.z) * UINT8_MAX / params.max_range;
+
+        idx_image.at<u_int32_t>(v, u) = i;
+      }
+
     }
   }
 

@@ -29,7 +29,7 @@ namespace lidar{
 struct PerspectiveImageParams {
   double v_fov;    //In radians
   double h_fov;  //In radians
-  double crop_range = 1000.0; //m
+  double max_range = 1000.0; //m
   double min_range = 0.1; //m
   int width;
   int height;

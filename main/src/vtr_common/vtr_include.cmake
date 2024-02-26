@@ -10,7 +10,7 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # add_compile_options(-frepo)
 
 #Add debug symbols
-#add_compile_options(-g -Og)
+#add_compile_options(-g)
 
 # built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
@@ -19,8 +19,6 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # add_compile_options(-fsanitize=address)
 # set(CMAKE_CXX_STANDARD_LIBRARIES -lasan)
 # add_compile_options(-g -Og)
-
-add_compile_options(-g -Og)
 
 ## Common packages setup
 # Boost requirement (by mission_planning but needed everywhere)
@@ -31,6 +29,9 @@ if (OpenMP_FOUND)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
+
+
 
 
 #Set to VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR
@@ -57,5 +58,16 @@ elseif(SelectedPipeline MATCHES "VISION")
   add_definitions(-DVTR_VISION_LEARNED)
   set(VTR_ENABLE_VISION true)
 else()
-  message(FATAL_ERROR "VTR_PIPELINE not set! Must select one of VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR")
+  add_definitions(-DVTR_ENABLE_LIDAR)
+  add_definitions(-DVTR_ENABLE_RADAR)
+  add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
+  add_definitions(-DVTR_ENABLE_VISION)
+  add_definitions(-DVTR_VISION_LEARNED)
+
+
+  set(VTR_ENABLE_VISION true)
+  set(VTR_ENABLE_LIDAR true)
+  set(VTR_ENABLE_RADAR true)
+
+  message(DEBUG "VTR_PIPELINE not set! Compiling all pipelines.")
 endif()

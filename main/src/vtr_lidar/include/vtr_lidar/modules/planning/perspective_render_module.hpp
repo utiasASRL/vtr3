@@ -64,7 +64,8 @@ class PerspectiveRenderModule : public tactic::BaseModule {
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
 
-  rclcpp::Publisher<ImageMsg>::SharedPtr img_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr live_img_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr map_img_pub_;
 
 
   VTR_REGISTER_MODULE_DEC_TYPE(PerspectiveRenderModule);

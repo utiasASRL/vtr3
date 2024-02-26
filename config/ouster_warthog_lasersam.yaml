@@ -2,14 +2,24 @@
   ros__parameters:
     log_enabled:
       - lidar.perspective
-      
+      - navigation.sensor_input
+      - tactic.pipeline
+      - tactic.module
+      #- tactic.module.live_mem_manager
+      #- tactic.module.graph_mem_manager
+  
+
+        # pose graph
+      #- pose_graph
+
+        # lidar pipeline
+      - lidar.pipeline
     pipeline:
       localization:
         - recall
         - icp
         - safe_corridor
         - perspective
-        #- change_detection_sync
         - memory
 
     localization:
@@ -19,4 +29,6 @@
         img_height: 128
         h_fov: 1.5707
         v_fov: 0.7853
+        min_range: 0.5
+        max_range: 50.0
         visualize: true

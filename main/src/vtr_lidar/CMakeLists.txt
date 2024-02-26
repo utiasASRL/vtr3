@@ -32,6 +32,9 @@ find_package(vtr_torch REQUIRED)
 
 if(DEFINED VTR_ENABLE_LIDAR)
 
+add_compile_options(-g)
+
+
 ## C++ Libraries
 include_directories(PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -60,7 +63,7 @@ add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions pcl_ros
-  nav_msgs visualization_msgs
+  nav_msgs visualization_msgs OpenCV
   lgmath steam vtr_torch cv_bridge
   vtr_logging vtr_tactic vtr_lidar_msgs
 )
@@ -79,7 +82,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 pcl_conversions pcl_ros
   nav_msgs visualization_msgs
-  lgmath steam
+  lgmath steam cv_bridge
   vtr_logging vtr_tactic vtr_lidar_msgs vtr_torch
 )
 
