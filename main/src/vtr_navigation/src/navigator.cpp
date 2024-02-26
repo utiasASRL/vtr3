@@ -134,7 +134,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   max_queue_size_ = node->declare_parameter<int>("queue_size", max_queue_size_);
 
 #ifdef VTR_ENABLE_LIDAR
-{
+if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   // static transform
@@ -153,7 +153,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 }
 #endif
 #ifdef VTR_ENABLE_VISION
-{
+if (pipeline->name() == "stereo") {
   using namespace std::placeholders;
 
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "camera");

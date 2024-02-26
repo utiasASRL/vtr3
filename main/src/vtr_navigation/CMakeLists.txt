@@ -25,6 +25,10 @@ find_package(vtr_navigation_msgs REQUIRED)
 find_package(vtr_torch REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
+find_package(vtr_radar_lidar REQUIRED)
+find_package(vtr_lidar REQUIRED)
+find_package(vtr_radar REQUIRED)
+find_package(vtr_vision REQUIRED)
 
 
 ## C++ Libraries
@@ -66,45 +70,54 @@ ament_target_dependencies(${PROJECT_NAME}_task_queue_server
 file(GLOB_RECURSE SRC src/navigator.cpp)
 add_library(${PROJECT_NAME}_navigator ${SRC})
 
-if((DEFINED VTR_ENABLE_LIDAR) AND (DEFINED VTR_ENABLE_RADAR))
-  message(WARNING "Radar-Lidar in use")
-    find_package(vtr_radar_lidar REQUIRED)
-    ament_target_dependencies(${PROJECT_NAME}_navigator
-      rclcpp tf2 tf2_ros
-      sensor_msgs  # for visualization only
-      vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
-      vtr_radar_lidar
-    )
-elseif(DEFINED VTR_ENABLE_LIDAR)
-  message(WARNING "Lidar in use")
-  find_package(vtr_lidar REQUIRED)
-  ament_target_dependencies(${PROJECT_NAME}_navigator
-    rclcpp tf2 tf2_ros
-    sensor_msgs  # for visualization only
-    vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
-    vtr_lidar
-  )
-elseif(DEFINED VTR_ENABLE_RADAR)
-  message(WARNING "Radar in use")
-  find_package(vtr_radar REQUIRED)
-  ament_target_dependencies(${PROJECT_NAME}_navigator
-    rclcpp tf2 tf2_ros
-    sensor_msgs  # for visualization only
-    vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
-    vtr_radar
-  )
-elseif(DEFINED VTR_ENABLE_VISION)
-  message(WARNING "Vision in use")
-  find_package(vtr_vision REQUIRED)
-  ament_target_dependencies(${PROJECT_NAME}_navigator
-    rclcpp tf2 tf2_ros
-    sensor_msgs  # for visualization only
-    vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
-    vtr_vision
-  )
-else()
-  message(FATAL_ERROR "No pipeline defined")
-endif()
+
+find_package(vtr_radar_lidar REQUIRED)
+ament_target_dependencies(${PROJECT_NAME}_navigator
+  rclcpp tf2 tf2_ros
+  sensor_msgs  # for visualization only
+  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+  vtr_radar_lidar vtr_radar vtr_lidar vtr_vision
+)
+
+# if((DEFINED VTR_ENABLE_LIDAR) AND (DEFINED VTR_ENABLE_RADAR))
+#   message(WARNING "Radar-Lidar in use")
+#     find_package(vtr_radar_lidar REQUIRED)
+#     ament_target_dependencies(${PROJECT_NAME}_navigator
+#       rclcpp tf2 tf2_ros
+#       sensor_msgs  # for visualization only
+#       vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+#       vtr_radar_lidar
+#     )
+# elseif(DEFINED VTR_ENABLE_LIDAR)
+#   message(WARNING "Lidar in use")
+#   find_package(vtr_lidar REQUIRED)
+#   ament_target_dependencies(${PROJECT_NAME}_navigator
+#     rclcpp tf2 tf2_ros
+#     sensor_msgs  # for visualization only
+#     vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+#     vtr_lidar
+#   )
+# elseif(DEFINED VTR_ENABLE_RADAR)
+#   message(WARNING "Radar in use")
+#   find_package(vtr_radar REQUIRED)
+#   ament_target_dependencies(${PROJECT_NAME}_navigator
+#     rclcpp tf2 tf2_ros
+#     sensor_msgs  # for visualization only
+#     vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+#     vtr_radar
+#   )
+# elseif(DEFINED VTR_ENABLE_VISION)
+#   message(WARNING "Vision in use")
+#   find_package(vtr_vision REQUIRED)
+#   ament_target_dependencies(${PROJECT_NAME}_navigator
+#     rclcpp tf2 tf2_ros
+#     sensor_msgs  # for visualization only
+#     vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+#     vtr_vision
+#   )
+# else()
+#   message(FATAL_ERROR "No pipeline defined")
+# endif()
 
 target_link_libraries(${PROJECT_NAME}_navigator
   ${PROJECT_NAME}_graph_map_server
