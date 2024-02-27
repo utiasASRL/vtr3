@@ -2,8 +2,7 @@
 session_name: vtr_online_ouster_warthog
 
 environment:
-  CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
-  # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+  ROS_DOMAIN_ID: "131"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
 suppress_history: false
@@ -21,10 +20,8 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
         planner:="cbit"
+        model_dir:=${VTRROOT}/models
         
-  #     data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
-
-      #- htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -42,4 +39,4 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
-      # - ros2 run rqt_reconfigure rqt_reconfigure
+

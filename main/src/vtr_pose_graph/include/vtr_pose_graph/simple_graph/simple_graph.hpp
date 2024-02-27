@@ -145,6 +145,8 @@ class SimpleGraph {
   EdgeIter beginEdge() const { return edges_.begin(); }
   /** \brief Get an iterator to the end of the edge map */
   EdgeIter endEdge() const { return edges_.end(); }
+  
+  VertexVec getNodeIds() const;
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
@@ -232,8 +234,12 @@ class SimpleGraph {
   JunctionSet pathDecomposition(ComponentList &paths,
                                 ComponentList &cycles) const;
 
+
+
   /** \brief Print the structure of the graph */
   void print() const;
+
+
 
  private:
   /**

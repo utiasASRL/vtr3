@@ -40,6 +40,15 @@ SimpleGraph::SimpleGraph(const VertexList& vertices, bool cyclic) {
   }
 }
 
+SimpleGraph::VertexVec SimpleGraph::getNodeIds() const {
+  SimpleGraph::VertexVec result;
+  for (NodeMap::const_iterator it = node_map_.begin(); it != node_map_.end();
+      ++it) {
+      result.push_back(it->second.getId());
+  }
+  return result;
+}
+
 void SimpleGraph::addVertex(const VertexId& vertex) {
   // Insert, but don't overwrite if this vertex already exists
   node_map_.emplace(vertex, SimpleNode(vertex));
@@ -428,7 +437,7 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
   // Check that root exists
   NodeMap::const_iterator rootIter = node_map_.find(root_id);
   if (rootIter == node_map_.end()) {
-    CLOG(ERROR, "pose_graph") << "Root node did not exist in graph.";
+    CLOG(ERROR, "pose_graph") << "Root node " << root_id << " did not exist in graph.";
     throw std::invalid_argument("Root node did not exist in graph.");
   }
 

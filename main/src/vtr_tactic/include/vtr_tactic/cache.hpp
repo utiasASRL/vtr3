@@ -126,6 +126,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<bool> odo_success;
   Cache<EdgeTransform> T_r_v_odo;
   Cache<Eigen::Matrix<double, 6, 1>> w_v_r_in_r_odo;  // body centric velocity
+  Cache<Timestamp> timestamp_odo;
 
   // localization
   Cache<const VertexId> vid_loc;

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<dds>
+    <profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+        <transport_descriptors>
+        <transport_descriptor>
+            <transport_id>robotethernet</transport_id>
+            <type>UDPv4</type>
+            <interfaceWhiteList>
+                <address>enx207bd29e670f</address>
+            </interfaceWhiteList>
+        </transport_descriptor>
+            <!-- Create a descriptor for the new transport -->
+            <transport_descriptor>
+                <transport_id>shm_transport</transport_id>
+                <type>SHM</type>
+            </transport_descriptor>
+        </transport_descriptors>
+
+        <participant profile_name="SHMParticipant">
+            <rtps>
+                <!-- Link the Transport Layer to the Participant -->
+                <userTransports>
+                    <transport_id>shm_transport</transport_id>
+                </userTransports>
+            </rtps>
+        </participant>
+    </profiles>
+</dds>

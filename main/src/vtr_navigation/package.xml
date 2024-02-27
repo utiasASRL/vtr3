@@ -23,10 +23,13 @@
   <depend>vtr_tactic</depend>
   <depend>vtr_mission_planning</depend>
   <depend>vtr_navigation_msgs</depend>
+  <depend>vtr_torch</depend>
 
   <depend>vtr_lidar</depend>
-  <depend>vtr_torch</depend>
-  <!-- <depend>vtr_vision</depend> -->
+  <depend>vtr_vision</depend>
+  <depend>vtr_radar</depend>
+  <depend>vtr_radar_lidar</depend>
+
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
