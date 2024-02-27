@@ -67,14 +67,15 @@ class TorchModule : public tactic::BaseModule {
           CLOG(ERROR, "torch") << "error loading the model\n" << "Tried to load " << config_->model_filepath;
         }
 
-        if (config_->use_gpu && torch::cuda::is_available()){
-          device = torch::kCUDA;
-          network.to(device);
+        if (config_->use_gpu){
+          if (torch::cuda::is_available()) {
+            device = torch::kCUDA;  
+            network.to(device);
+          } else {
+            CLOG(ERROR, "torch") << "Device cuda requested but torch.cuda.is_available() is false. Using CPU!";
+          }
         }
         CLOG(INFO, "torch") << "Using device " << device << std::endl;
-
-        //Copy the model weights into the graph folder for saving?
-
       }
 
   

@@ -1,9 +1,9 @@
-FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
+FROM ubuntu:22.04
 
 CMD ["/bin/bash"]
 
 # Args for setting up non-root users, example command to use your own user:
-# docker build -t vtr3torch \
+# docker build -t <name: vtr3> \
 #   --build-arg USERID=$(id -u) \
 #   --build-arg GROUPID=$(id -g) \
 #   --build-arg USERNAME=$(whoami) \
@@ -57,7 +57,6 @@ RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
   && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
 
 ## Install ROS2
 # UTF-8
@@ -117,15 +116,16 @@ RUN apt install ros-humble-velodyne -q -y
 # Install vim
 RUN apt update && apt install -q -y vim
 
+#Install debugger
+RUN apt install -q -y libc6-dbg gdb valgrind
+
 ##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip --output libtorch.zip
+RUN curl https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch
 RUN rm libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
-
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

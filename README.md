@@ -4,6 +4,14 @@
 
 We are still in the process of cleaning up the codebase and having all features of VT&amp;R3 on the main branch.
 
+The primary support version of VTR requires an NVidia Driver with Cuda capabilities.
+The current Dockerfile requires a CUDA driver capable of supporting 11.7.
+A GPU is required for all versions of the vision (camera) pipeline and features for LiDAR and RADAR that use PyTorch models for processing.
+
+If no GPU is available a CPU only version is available.
+Note that the CPU version of TorchLib is installed for easier compilation but the models are unlikely to run fast enough on a CPU to be useful. 
+
+
 - [Main branch](https://github.com/utiasASRL/vtr3) has support for lidar/radar teach and repeat.
 - [v3.0.0 tag](https://github.com/utiasASRL/vtr3/tree/v3.0.0) has support for stereo camera teach and repeat (to be merged in the future).
 

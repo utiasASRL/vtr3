@@ -46,6 +46,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
 
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
+  config->save_odometry_vel_result = node->declare_parameter<bool>(prefix+".save_odometry_vel_result", false);
   config->save_localization_result = node->declare_parameter<bool>(prefix+".save_localization_result", false);
   config->visualize = node->declare_parameter<bool>(prefix+".visualize", false);
   // clang-format on
@@ -165,7 +166,7 @@ bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
   const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
 
-  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 1)) {
+  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
     return false;
   }
 
@@ -243,6 +244,27 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
     graph_->write<OdometryResult>("odometry_result",
                                   "vtr_tactic_msgs/msg/OdometryResult", msg);
+  }
+
+  // save odometry velocity result
+  if (config_->save_odometry_vel_result) {
+    CLOG(DEBUG, "tactic") << "Saving odometry velocity result";
+    using TwistLM = storage::LockableMessage<geometry_msgs::msg::Twist>;
+    auto twist_msg = std::make_shared<geometry_msgs::msg::Twist>();
+
+    // Populate Twist message
+    auto vel = *qdata->w_v_r_in_r_odo;
+    twist_msg->linear.x = vel(0, 0);
+    twist_msg->linear.y = vel(1, 0);
+    twist_msg->linear.z = vel(2, 0);
+    twist_msg->angular.x = vel(3, 0);
+    twist_msg->angular.y = vel(4, 0);
+    twist_msg->angular.z = vel(5, 0);
+
+    auto msg = std::make_shared<TwistLM>(twist_msg, *qdata->stamp);
+    graph_->write<geometry_msgs::msg::Twist>(
+      "odometry_vel_result", "geometry_msgs/msg/Twist",
+      msg);
   }
 
   // Rviz visualization
@@ -326,6 +348,28 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
                                   "vtr_tactic_msgs/msg/OdometryResult", msg);
   }
 
+  // save odometry velocity result
+  if (config_->save_odometry_vel_result) {
+    CLOG(DEBUG, "tactic") << "Saving odometry velocity result";
+    using TwistLM = storage::LockableMessage<geometry_msgs::msg::Twist>;
+    auto twist_msg = std::make_shared<geometry_msgs::msg::Twist>();
+
+    // Populate Twist message
+    auto vel = *qdata->w_v_r_in_r_odo;
+    twist_msg->linear.x = vel(0, 0);
+    twist_msg->linear.y = vel(1, 0);
+    twist_msg->linear.z = vel(2, 0);
+    twist_msg->angular.x = vel(3, 0);
+    twist_msg->angular.y = vel(4, 0);
+    twist_msg->angular.z = vel(5, 0);
+
+    auto msg = std::make_shared<TwistLM>(twist_msg, *qdata->stamp);
+    graph_->write<geometry_msgs::msg::Twist>(
+      "odometry_vel_result", "geometry_msgs/msg/Twist",
+      msg);
+  }
+
+
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
@@ -398,6 +442,27 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
     auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
     graph_->write<OdometryResult>("odometry_result",
                                   "vtr_tactic_msgs/msg/OdometryResult", msg);
+  }
+
+  // save odometry velocity result
+  if (config_->save_odometry_vel_result) {
+    CLOG(DEBUG, "tactic") << "Saving odometry velocity result";
+    using TwistLM = storage::LockableMessage<geometry_msgs::msg::Twist>;
+    auto twist_msg = std::make_shared<geometry_msgs::msg::Twist>();
+
+    // Populate Twist message
+    auto vel = *qdata->w_v_r_in_r_odo;
+    twist_msg->linear.x = vel(0, 0);
+    twist_msg->linear.y = vel(1, 0);
+    twist_msg->linear.z = vel(2, 0);
+    twist_msg->angular.x = vel(3, 0);
+    twist_msg->angular.y = vel(4, 0);
+    twist_msg->angular.z = vel(5, 0);
+
+    auto msg = std::make_shared<TwistLM>(twist_msg, *qdata->stamp);
+    graph_->write<geometry_msgs::msg::Twist>(
+      "odometry_vel_result", "geometry_msgs/msg/Twist",
+      msg);
   }
 
   // Rviz visualization

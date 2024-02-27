@@ -13,9 +13,15 @@
 // limitations under the License.
 
 /**
- * \file path_planners.cpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file speed_scheduler.hpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
-#pragma once
 
-#include "vtr_lidar/path_planning/cbit.hpp"
+
+#pragma once
+#include <vector>
+#include "vtr_logging/logging.hpp"
+#include "vtr_path_planning/cbit/generate_pq.hpp"
+
+
+double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, int curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, double horizon_step_size, double min_vel);

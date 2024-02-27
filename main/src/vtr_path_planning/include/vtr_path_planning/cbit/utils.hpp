@@ -117,25 +117,13 @@ double calc_weighted_dist(Node start, Node end, double alpha);
 
 double calc_dist(Node start_node, Node end_node);
 
-//bool is_inside_obs(std::vector<std::vector<double>> obs, Node node);
-
-//bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
-
 double exp_radius(double q, double sample_box_height, double sample_box_width, double eta);
 
 int bisection(std::vector<double> array, double value);
 
 std::vector<double> linspace(double start_in, double end_in, int num_in);
 
-//Pose lin_interpolate(int p_ind, double p_val, std::shared_ptr<Path> global_path);
-
-//Node curve_to_euclid(Node node, std::shared_ptr<Path> global_path);
-
 // signum function I got online
 template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
-
-//Function for checking if a tuple of nodes representing an edge is already in the queue/tree or not
-// I think I might put this in the cbit code so it has easy access to view the tree
-//bool edge_in_tree(std::tuple<Node, Node> edge);

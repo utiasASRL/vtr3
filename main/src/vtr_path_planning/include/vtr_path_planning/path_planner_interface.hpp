@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file base_path_planner.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file path_planner_interface.hpp
+ * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

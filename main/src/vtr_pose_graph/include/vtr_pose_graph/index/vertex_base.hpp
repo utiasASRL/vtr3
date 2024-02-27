@@ -39,6 +39,12 @@ class VertexBase {
   /** \brief Get the vertex id */
   VertexId id() const;
 
+  /** \brief Get the pose graph terrain type */
+  int GetTerrainType() const;
+  
+  /** \brief Set the pose graph terrain type */
+  void SetTerrainType(const int terrain_type);
+
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const VertexBase& v);
 
@@ -48,6 +54,9 @@ class VertexBase {
 
   /** \brief protects non-const class members including */
   mutable std::shared_mutex mutex_;
+
+  /** \brief The Terrain Type */
+  int terrain_type_ = 1;
 };
 
 }  // namespace pose_graph
