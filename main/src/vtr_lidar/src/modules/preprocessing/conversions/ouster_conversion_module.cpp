@@ -99,6 +99,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).y = *iter_y;
     point_cloud->at(idx).z = *iter_z;
     point_cloud->at(idx).intensity = *iter_intensity;
+    point_cloud->at(idx).flex23 = point_cloud->at(idx).intensity;
 
     // pointwise timestamp
     //CLOG(DEBUG, "lidar.ouster_converter") << "Timestamp is: " << *iter_time;

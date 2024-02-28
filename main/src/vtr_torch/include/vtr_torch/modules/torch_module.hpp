@@ -96,6 +96,8 @@ class TorchModule : public tactic::BaseModule {
   template <typename DataType>
   torch::Tensor evaluateModel(std::vector<DataType> inputs, const Shape shape);
 
+  torch::Tensor evaluateModel(torch::Tensor input, const Shape shape);
+
 };
 
 }  // namespace nn

@@ -17,6 +17,8 @@
  * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/filters/perspective_image.hpp"
+#include "opencv2/imgproc.hpp"
+
 
 
 namespace vtr {
@@ -55,7 +57,7 @@ void generate_depth_image(const pcl::PointCloud<PointWithInfo>& point_cloud, cv:
       cv::Vec3b &hsv = depth_image.at<cv::Vec3b>(v, u);
 
       if (hsv[0] == 0 ||  hsv[0] > abs(point.z) * UINT8_MAX / params.max_range) {
-        hsv[2] = sqrt(point.flex23) * 15.5 < UINT8_MAX ? sqrt(point.intensity) * 15.5 : UINT8_MAX;
+        hsv[2] = sqrt(point.flex23) * 15.5 < UINT8_MAX ? sqrt(point.flex23) * 15.5 : UINT8_MAX;
         hsv[1] = UINT8_MAX - 1;
         hsv[0] = abs(point.z) * UINT8_MAX / params.max_range;
 
@@ -65,6 +67,40 @@ void generate_depth_image(const pcl::PointCloud<PointWithInfo>& point_cloud, cv:
     }
   }
 
+}
+
+void interpolate_hsv_image(cv::Mat& depth_image) {
+  cv::Mat measured_pixel_mask;
+
+  cv::Mat hsv[3];   //destination array
+  cv::split(depth_image, hsv);//split source    
+
+  cv::threshold(hsv[1], measured_pixel_mask, 1, UINT8_MAX, cv::THRESH_BINARY);
+
+  cv::Mat kernel = cv::Mat::ones(3, 3, CV_32F);
+    
+
+  cv::Mat smoothed;
+  cv::Mat weight;
+
+  depth_image.convertTo(smoothed, CV_32FC3, 1/255.0);
+  measured_pixel_mask.convertTo(weight, CV_32FC3, 1/255.0);
+
+  cv::filter2D(smoothed, smoothed, -1, kernel);
+  cv::filter2D(weight, weight, -1, kernel);
+
+  cv::Mat smooth_hsv[3];   //destination array
+  cv::split(smoothed, smooth_hsv);//split source 
+  for (size_t i = 0; i < 3; i++) {
+    cv::divide(smooth_hsv[i], weight, smooth_hsv[i]);
+  }
+
+  cv::merge(smooth_hsv, 3, smoothed);
+
+  smoothed.convertTo(smoothed, CV_8UC3, 255.0);
+  cv::bitwise_not(measured_pixel_mask, measured_pixel_mask);
+
+  cv::add(depth_image, smoothed, depth_image, measured_pixel_mask);
 }
 
 } //lidar
