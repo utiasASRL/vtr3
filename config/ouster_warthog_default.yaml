@@ -34,7 +34,7 @@
 
         # lidar pipeline
       - lidar.pipeline
-      #- lidar.preprocessing
+      - lidar.preprocessing
       #- lidar.ouster_converter
       #- lidar.odometry_icp
       #- lidar.odometry_map_maintenance
@@ -91,7 +91,7 @@
         - mapping
         - vertex_test
         - intra_exp_merging
-        - dynamic_detection
+        #- dynamic_detection
         - inter_exp_merging
         - memory
       localization:
@@ -102,6 +102,7 @@
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
+      save_raw_point_cloud: True
     preprocessing:
       conversion:
         type: lidar.ouster_converter
@@ -117,7 +118,7 @@
         num_threads: 8
         crop_range: 40.0
 
-        frame_voxel_size: 0.3 # grid subsampling voxel size
+        frame_voxel_size: 0.1 # grid subsampling voxel size
 
         vertical_angle_res: 0.0061365 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
@@ -167,10 +168,10 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
 
         crop_range_front: 40.0
-        back_over_front_ratio: 0.5
+        back_over_front_ratio: 1.0
         point_life_time: 20.0
         visualize: true
       vertex_test:
@@ -182,10 +183,10 @@
         type: lidar.intra_exp_merging_v2
         depth: 6.0
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
 
         crop_range_front: 40.0
-        back_over_front_ratio: 0.5
+        back_over_front_ratio: 1.0
         visualize: true
       dynamic_detection:
         type: lidar.dynamic_detection
@@ -200,7 +201,7 @@
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
         max_num_experiences: 128
         distance_threshold: 0.6
         planar_threshold: 0.2

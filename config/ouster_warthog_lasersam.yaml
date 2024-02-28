@@ -5,21 +5,20 @@
       - navigation.sensor_input
       - tactic.pipeline
       - tactic.module
-      #- tactic.module.live_mem_manager
-      #- tactic.module.graph_mem_manager
-  
 
         # pose graph
       #- pose_graph
 
         # lidar pipeline
       - lidar.pipeline
+      - torch
     pipeline:
       localization:
         - recall
         - icp
         - safe_corridor
         - perspective
+        - segmentation
         - memory
 
     localization:
@@ -32,3 +31,8 @@
         min_range: 0.5
         max_range: 50.0
         visualize: true
+      segmentation:
+        type: lidar.SAM
+        use_gpu: true
+        abs_filepath: false
+        filepath: sam_vit_b_cuda.torchscript

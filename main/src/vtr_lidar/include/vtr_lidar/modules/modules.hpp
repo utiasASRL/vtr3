@@ -48,4 +48,5 @@
 #include "vtr_lidar/modules/planning/safe_corridor_module.hpp"
 #include "vtr_lidar/modules/planning/terrain_assessment_module.hpp"
 #include "vtr_lidar/modules/planning/perspective_render_module.hpp"
+#include "vtr_lidar/modules/planning/segmentanything_module.hpp"
 

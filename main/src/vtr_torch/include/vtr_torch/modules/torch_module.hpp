@@ -87,11 +87,12 @@ class TorchModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) = 0;
 
   Config::ConstPtr config_;
-  torch::Device device = torch::kCPU;
 
 
  protected:
   Module network;
+  torch::Device device = torch::kCPU;
+
 
   template <typename DataType>
   torch::Tensor evaluateModel(std::vector<DataType> inputs, const Shape shape);
