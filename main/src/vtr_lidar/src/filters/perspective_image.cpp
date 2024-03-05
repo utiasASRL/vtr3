@@ -79,7 +79,6 @@ void interpolate_hsv_image(cv::Mat& depth_image) {
 
   cv::Mat kernel = cv::Mat::ones(3, 3, CV_32F);
     
-
   cv::Mat smoothed;
   cv::Mat weight;
 
@@ -101,6 +100,16 @@ void interpolate_hsv_image(cv::Mat& depth_image) {
   cv::bitwise_not(measured_pixel_mask, measured_pixel_mask);
 
   cv::add(depth_image, smoothed, depth_image, measured_pixel_mask);
+}
+
+void mask_to_pointcloud(const cv::Mat& mask, const cv::Mat& index_img, pcl::PointCloud<PointWithInfo>& point_cloud) {
+  index_img.forEach<int32_t>
+(
+  [&](int32_t &idx, const int position[]) -> void
+  {
+    point_cloud[idx].flex24 = (mask.at<uint8_t>(position[0], position[1]) > 0) ? 2 : 1;
+  }
+);
 }
 
 } //lidar

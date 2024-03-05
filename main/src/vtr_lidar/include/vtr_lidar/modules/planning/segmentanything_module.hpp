@@ -22,6 +22,8 @@
 #include "vtr_tactic/task_queue.hpp"
 #include <vtr_torch/modules/torch_module.hpp>
 #include "vtr_lidar/cache.hpp"
+#include "vtr_lidar/filters/perspective_image.hpp"
+
 #include <vector>
 #include <list>
 
@@ -49,6 +51,11 @@ class SegmentAnythingModule : public nn::TorchModule {
     PTR_TYPEDEFS(Config);
 
     bool visualize = false;
+    PerspectiveImageParams perspective_params;
+
+    float iou_thresh = 0.5;
+    int num_prompts = 4;
+
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -68,8 +75,15 @@ class SegmentAnythingModule : public nn::TorchModule {
 
   Config::ConstPtr config_;
 
-  rclcpp::Publisher<ImageMsg>::SharedPtr mask_pub_;
   bool pub_init_ = false;
+
+  rclcpp::Publisher<ImageMsg>::SharedPtr mask_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr diff_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr live_img_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr map_img_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
+
+
 
 
   VTR_REGISTER_MODULE_DEC_TYPE(SegmentAnythingModule);

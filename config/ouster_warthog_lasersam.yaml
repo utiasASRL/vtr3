@@ -17,22 +17,20 @@
         - recall
         - icp
         - safe_corridor
-        - perspective
         - segmentation
         - memory
 
     localization:
-      perspective:
-        type: lidar.render_perspective
+      segmentation:
+        type: lidar.SAM
+        use_gpu: true
+        abs_filepath: false
+        filepath: sam_vit_b_cuda.torchscript
         img_width: 256
         img_height: 128
         h_fov: 1.5707
         v_fov: 0.7853
         min_range: 0.5
         max_range: 50.0
+        num_prompts: 4
         visualize: true
-      segmentation:
-        type: lidar.SAM
-        use_gpu: true
-        abs_filepath: false
-        filepath: sam_vit_b_cuda.torchscript

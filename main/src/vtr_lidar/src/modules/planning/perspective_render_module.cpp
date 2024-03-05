@@ -139,7 +139,7 @@ void PerspectiveRenderModule::run_(QueryCache &qdata0, OutputCache &output0,
   cv::Mat map_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
 
 
-  generate_depth_image(map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
+  // generate_depth_image(map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
   generate_depth_image(nn_map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
   interpolate_hsv_image(map_hsv_img);
 
@@ -156,7 +156,7 @@ void PerspectiveRenderModule::run_(QueryCache &qdata0, OutputCache &output0,
     map_cv_rgb_img.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     map_cv_rgb_img.encoding = "rgb8";
-    map_cv_rgb_img.image = diff;
+    map_cv_rgb_img.image = map_rgb_img;
     map_img_pub_->publish(*map_cv_rgb_img.toImageMsg());
   }
 }

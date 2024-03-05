@@ -57,6 +57,7 @@ void unproject_data_image(pcl::PointCloud<PointWithInfo>& point_cloud, const cv:
 
 void interpolate_hsv_image(cv::Mat& depth_image);
 
+void mask_to_pointcloud(const cv::Mat& mask, const cv::Mat& index_img, pcl::PointCloud<PointWithInfo>& point_cloud);
 
 } // namespace lidar
 } // vtr

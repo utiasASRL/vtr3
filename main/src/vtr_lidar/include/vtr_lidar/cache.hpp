@@ -62,7 +62,7 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
 
   // dynamic detection async
   tactic::Cache<const tactic::VertexId> dynamic_detection_async;
-  tactic::Cache<std::pair<cv::Mat, cv::Mat>> rendered_images; 
+  tactic::Cache<const std::pair<cv::Mat, cv::Mat>> rendered_images; 
 
   // inter exp merging async (priv, curr, T_priv_curr)
   tactic::Cache<const std::tuple<tactic::VertexId, tactic::VertexId,
