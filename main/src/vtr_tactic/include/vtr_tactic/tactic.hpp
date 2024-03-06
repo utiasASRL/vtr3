@@ -142,7 +142,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
    * \brief used to determine what pipeline to use
    * \note Only change this when pipeline is locked
    */
-  PipelineMode pipeline_mode_;
+  PipelineMode pipeline_mode_ = PipelineMode::Idle;
 
  private:
   Config::UniquePtr config_;
