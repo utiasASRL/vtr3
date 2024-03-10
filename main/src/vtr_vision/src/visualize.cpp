@@ -86,6 +86,30 @@ void showRGBImage(std::mutex &vis_mutex, CameraQueryCache &qdata,
   }
 }
 
+
+// void showRGBImage(std::mutex &vis_mutex, CameraQueryCache &qdata,
+//                        std::string suffix) {
+//   if (!qdata.rig_images.valid()) {
+//     return;
+//   }
+
+//   // get a map of images to titles
+//   auto display_map = setupDisplayImages(qdata, suffix);
+
+//   auto title = "raw image/" + suffix;
+
+  
+//   auto display_image = setupDisplayImage(qdata.rig_images->front().channels.at(0).cameras.front().data);
+
+//   // show the images
+//   {
+//     std::lock_guard<std::mutex> lock(vis_mutex);
+//     cv::namedWindow(title, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+//     cv::imshow(title, display_image);
+//   }
+// }
+
+
 void showStereoMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                        std::string suffix) {
   // check if the required data is in the cache

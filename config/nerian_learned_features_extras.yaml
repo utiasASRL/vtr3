@@ -5,9 +5,10 @@
 
     ############ tactic configuration ############
     tactic:
-      visualize: false
+      visualize: true
 
     pipeline:
+      preprocessing: ["adapter","extraction", "triangulation", "styletransfer"]
       localization:
         [
           "recall",
@@ -32,11 +33,18 @@
           learned:
             # we're providing the surf settings (don't change this param, use a different file)
             type: "LEARNED_FEATURE"
-            modelPath: "/home/alec/ASRL/vtr3/models/unsup_unet_3.pt"
+            modelPath: "/home/david/ASRL/vtr3/models/unsup_unet_3.pt"
 
 
             stereoDisparityMinimum: 0.1
             stereoDisparityMaximum: 100.0
+      
+      styletransfer:
+        type: vision.styletransfer
+
+        use_gpu: true
+        filepath: "/home/david/ASRL/vtr3/models/style.pt"
+
 
 
     localization:

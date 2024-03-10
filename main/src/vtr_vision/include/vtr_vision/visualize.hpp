@@ -34,6 +34,8 @@ namespace visualize {
  * \brief Sets up a map of RGB images used for visualization, based on all of
  * the rig images.
  */
+cv::Mat setupDisplayImage(cv::Mat input_image);
+
 std::map<std::string, cv::Mat> setupDisplayImages(CameraQueryCache &qdata,
                                                   std::string suffix = "");
 

@@ -35,3 +35,5 @@
 #include <vtr_vision/modules/localization/tod_recognition_module.hpp>
 #include <vtr_vision/modules/bundle_adjustment/stereo_windowed_recall_module.hpp>
 #include <vtr_vision/modules/optimization/stereo_window_optimization_module.hpp>
+
+#include <vtr_vision/modules/preprocessing/styletransfer_module.hpp>

@@ -32,6 +32,8 @@ find_package(vtr_vision_msgs REQUIRED)
 find_package(vtr_common_msgs REQUIRED)
 find_package(vtr_storage REQUIRED)
 find_package(vtr_tactic REQUIRED)
+find_package(vtr_torch REQUIRED)
+
 
 if(DEFINED VTR_ENABLE_VISION)
 
@@ -45,7 +47,7 @@ ament_target_dependencies(${PROJECT_NAME}
   OpenCV
   cv_bridge
   gpusurf lgmath steam
-  vtr_common vtr_logging vtr_vision_msgs vtr_storage vtr_tactic vtr_common_msgs
+  vtr_common vtr_logging vtr_vision_msgs vtr_storage vtr_tactic vtr_common_msgs vtr_torch
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -57,7 +59,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   cv_bridge gpusurf lgmath steam
   vtr_common vtr_logging vtr_vision_msgs vtr_storage vtr_tactic vtr_common_msgs
-  Torch
+  Torch vtr_torch
 )
 
 #ament_export_include_directories(${TORCH_INCLUDE_DIRS})
