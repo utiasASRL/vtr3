@@ -45,7 +45,7 @@ auto SegmentAnythingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   params.min_range = node->declare_parameter<double>(param_prefix + ".min_range", params.min_range);
   
   config->iou_thresh = node->declare_parameter<float>(param_prefix + ".iou_threshold", config->iou_thresh);
-  config->num_prompts = node->declare_parameter<int>(param_prefix + ".num_prompts", config->num_prompts);
+  config->num_prompts = node->declare_parameter<long>(param_prefix + ".num_prompts", config->num_prompts);
 
   // clang-format off
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -191,7 +191,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   torch::Tensor diff = live_tensor - map_tensor;
   diff = diff.norm(2, {0});
-  const auto [topk_vals, topk_idx] = diff.flatten().topk(4l);
+  const auto [topk_vals, topk_idx] = diff.flatten().topk(config_->num_prompts);
 
   using namespace torch::indexing;
 
@@ -205,12 +205,24 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   for (size_t i = 0; i < idxs_a.size(0); i++) {
     const long& idx = idxs_a[i];
     int prompt[] = {idx % diff.size(1), idx / diff.size(1)};
-    CLOG(DEBUG, "lidar.perspective") << "Diff Tensor prompts (" << prompt[0] << ", " << prompt[1] << ")";
 
-    if (map_tensor.index({0, idx % diff.size(1), idx / diff.size(1)}) > 0)
+    auto& pc_idx = live_index_img.at<uint32_t>(prompt[1] / 4, prompt[0] / 4);
+
+    auto live_point = raw_point_cloud[pc_idx];
+    Eigen::Vector4f h_point;
+    h_point << live_point.x, live_point.y, live_point.z, 1.0f;
+    h_point = T_s_sm.inverse().cast<float>() * h_point;
+
+    double theta = atan2(h_point[1], h_point[0]);
+    CLOG(DEBUG, "lidar.perspective") << "Diff Tensor prompt (" << prompt[0] << ", " << prompt[1] << ") Theta: " << theta;
+
+
+    //Prompts are x, y rather than row, column
+    //map_tensor.index({0, prompt[1], prompt[0]}).item().to<float>() > 0  || 
+    if (!((theta > 2.06 && theta < 2.18) || (theta > -2.27 && theta < -2.135)))
       prompts.push_back(torch::from_blob(prompt, {2}, torch::kInt).to(device));  
     else
-      CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again."
+      CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again.";
   }
   
   // prompts.push_back(torch::from_blob(&data[2], {2}, torch::kInt).to(device));  
@@ -251,23 +263,20 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "lidar.perspective") << "IDs to KEEP " << idxs_to_keep;
 
-  cv::Mat repeat_mask = cv::Mat::zeros(teach_masks.size(1), teach_masks.size(2), CV_8UC1);
+  cv::Mat teach_mask = cv::Mat::zeros(teach_masks.size(1), teach_masks.size(2), CV_8UC1);
+  cv::Mat repeat_mask = cv::Mat::zeros(repeat_masks.size(1), repeat_masks.size(2), CV_8UC1);
 
   if (idxs_to_keep.size() > 0){
+    auto bg_flat = teach_masks.sum({0});
+    bg_flat = bg_flat.div(bg_flat.max()).to(torch::kByte).mul(255);
+    teach_mask = cv::Mat{bg_flat.size(0), bg_flat.size(1), CV_8UC1, bg_flat.data_ptr<uint8_t>()};
+
+
     auto changes = repeat_masks.index({torch::from_blob(idxs_to_keep.data(), {idxs_to_keep.size()}, torch::kInt), Slice(), Slice()});
     CLOG(DEBUG, "lidar.perspective") << "Repeat Tensor size " << changes.sizes();
 
     changes = changes.sum({0}).div(changes.max()).to(torch::kByte).mul(255);
 
-
-    teach_masks = teach_masks.squeeze().to(torch::kByte).mul(255).contiguous();
-
-    CLOG(DEBUG, "lidar.perspective") << "Teach Tensor size " << teach_masks.sizes();
-    CLOG(DEBUG, "lidar.perspective") << "Tensor type " << teach_masks.dtype() << " with size " << teach_masks.element_size();
-
-    teach_masks = teach_masks.permute({1, 2, 0}).contiguous();
-
-    cv::Mat map_mask{teach_masks.size(0), teach_masks.size(1), CV_8UC3, teach_masks.data_ptr<uint8_t>()};
     repeat_mask = cv::Mat{changes.size(0), changes.size(1), CV_8UC1, changes.data_ptr<uint8_t>()};
 
 
@@ -296,6 +305,14 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
       filtered_pub_->publish(pc2_msg);
     }
 
+  } else {
+    if (config_->visualize) {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(raw_point_cloud, pc2_msg);
+      pc2_msg.header.frame_id = "lidar"; //"lidar" for honeycomb
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      filtered_pub_->publish(pc2_msg);
+    }
   }
 
   // /// publish the transformed pointcloud
@@ -314,7 +331,8 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     diff_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     diff_img_msg.encoding = "mono8";
-    diff_img_msg.image = cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
+    // diff_img_msg.image = cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
+    diff_img_msg.image = teach_mask;
     diff_pub_->publish(*diff_img_msg.toImageMsg());
   }
                             

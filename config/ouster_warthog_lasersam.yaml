@@ -12,6 +12,8 @@
         # lidar pipeline
       - lidar.pipeline
       - torch
+    tactic:
+      localization_skippable: true
     pipeline:
       localization:
         - recall
@@ -32,5 +34,5 @@
         v_fov: 0.7853
         min_range: 0.5
         max_range: 50.0
-        num_prompts: 4
+        num_prompts: 5
         visualize: true

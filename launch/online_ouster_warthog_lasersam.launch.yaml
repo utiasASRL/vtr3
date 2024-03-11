@@ -14,7 +14,7 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-      #- ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
@@ -24,7 +24,9 @@ windows:
         use_sim_time:=false
         planner:="stationary"
         model_dir:=${VTRROOT}/models
-        data_dir:=${VTRTEMP}/lidar/sam_testing
+        
+        
+     # data_dir:=${VTRTEMP}/lidar/sam_testing
 
   - window_name: vtr_gui
     layout: main-horizontal
