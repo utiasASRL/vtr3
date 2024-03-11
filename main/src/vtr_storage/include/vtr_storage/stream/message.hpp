@@ -89,6 +89,8 @@ class Message : public MessageBase {
 
   const DataType& getData() const { return *data_; }
 
+  const std::shared_ptr<DataType>& getDataPtr() const {return data_;} 
+
   void setData(const DataType& data) {
     *data_ = data;
     saved_ = false;

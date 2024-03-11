@@ -23,10 +23,8 @@ windows:
         use_sim_time:=false
         model_dir:=${VTRROOT}/models
         planner:="cbit"
+        model_dir:=${VTRROOT}/models
         
-  #     data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
-
-      #- htop # monitor hardware usage
 
   - window_name: vtr_gui
     layout: main-horizontal

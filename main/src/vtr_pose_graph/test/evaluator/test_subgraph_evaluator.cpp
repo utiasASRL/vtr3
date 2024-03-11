@@ -53,7 +53,7 @@ class SubGraphTestFixture : public Test {
       graph_->addVertex();
       for (int vidx = 1; vidx < 250; ++vidx) {
         graph_->addVertex();
-        graph_->addEdge(VertexId(idx, vidx - 1), VertexId(idx, vidx), EdgeType::Temporal, idx == 0 ? true : false, EdgeTransform(true));
+        graph_->addEdge(VertexId(idx, vidx - 1), VertexId(idx, vidx), EdgeType::Temporal, (idx == 0 || idx == 2) ? true : false, EdgeTransform(true));
       }
     }
     // Add spatial edge across runs.
@@ -102,8 +102,36 @@ TEST_F(SubGraphTestFixture, SubGraphPrivilegedPath) {
   CLOG(INFO, "test") << ss.str();
 }
 
+
+TEST_F(SubGraphTestFixture, SubGraphSpecificRunsPath) {
+  // Get only the privileged edges.
+  using RunSelector = eval::mask::runs::Eval<BasicGraph>;
+  using RunId = BaseIdType;
+
+  auto select_runs = std::set<RunId> {2, 4};
+
+  CLOG(INFO, "test") << "selected runs" << select_runs.count(2);
+
+
+  auto evaluator = std::make_shared<RunSelector>(*graph_, select_runs);
+  auto sub_graph = graph_->getSubgraph(VertexId(2, 0), evaluator);
+  CLOG(INFO, "test") << sub_graph->numberOfVertices();
+
+  EXPECT_TRUE(sub_graph->contains(VertexId(2, 0)));
+  EXPECT_FALSE(sub_graph->contains(VertexId(0, 0)));
+  auto itr = sub_graph->begin(VertexId(2, 15));
+  int count = 0;
+  std::stringstream ss;
+  for (; itr != sub_graph->end(); ++itr) {
+    count++;
+    ss << itr->e()->id() << ", ";
+  }
+  EXPECT_EQ(count, 235);
+  CLOG(INFO, "test") << ss.str();
+}
+
 int main(int argc, char** argv) {
-  configureLogging("", true);
+  configureLogging("", true, {"test"});
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

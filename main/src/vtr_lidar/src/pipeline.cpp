@@ -202,6 +202,8 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     //
     if (!submap_vid_odo_.isValid()) return true;
     //
+
+    //Submap vertex to robot
     const auto T_sv_r = T_sv_m_odo_ * T_r_m_odo_->inverse();
     auto T_sv_r_vec = T_sv_r.vec();
     auto dtran = T_sv_r_vec.head<3>().norm();

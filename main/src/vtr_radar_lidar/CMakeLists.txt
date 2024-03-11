@@ -31,6 +31,9 @@ find_package(vtr_radar REQUIRED)
 find_package(vtr_lidar REQUIRED)
 find_package(vtr_torch REQUIRED)
 
+if(DEFINED VTR_ENABLE_LIDAR AND DEFINED VTR_ENABLE_RADAR)
+
+
 ## C++ Libraries
 include_directories(PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -81,6 +84,8 @@ if(BUILD_TESTING)
   # Linting
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+endif()
+
 endif()
 
 ament_package()

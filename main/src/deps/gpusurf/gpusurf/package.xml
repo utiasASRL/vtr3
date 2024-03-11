@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>gpusurf</name>
+  <version>0.0.0</version>
+  <description>
+    The gpu_surf library built as a ROS2 package.
+  </description>
+  <maintainer email="yuchen.wu@robotics.utias.utoronto.ca">Yuchen Wu</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>cudpp</depend>
+  <depend>CUDA</depend>
+  <depend>OpenCV</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
