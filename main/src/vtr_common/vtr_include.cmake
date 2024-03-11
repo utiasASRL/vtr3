@@ -10,9 +10,7 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # add_compile_options(-frepo)
 
 #Add debug symbols
-add_compile_options(-g)
-#Prevent all optimization (useful for detailed debugging but really slow!)
-#add_compile_options(-O0)
+#add_compile_options(-g -Og)
 
 # built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
@@ -34,7 +32,37 @@ if (OpenMP_FOUND)
 endif()
 
 
-## Enable certain pipelines
-add_definitions(-DVTR_ENABLE_LIDAR)
-add_definitions(-DVTR_ENABLE_RADAR)
-#add_definitions(-DSAVE_ALL_REPEATS)
+#Set to VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR
+set(SelectedPipeline "$ENV{VTR_PIPELINE}")
+
+
+if(SelectedPipeline MATCHES "LIDAR")
+  add_definitions(-DVTR_ENABLE_LIDAR)
+  set(VTR_ENABLE_LIDAR true)
+elseif(SelectedPipeline MATCHES "RADAR")
+  add_definitions(-DVTR_ENABLE_RADAR)
+  set(VTR_ENABLE_RADAR true)
+elseif(SelectedPipeline MATCHES "RADAR-LIDAR")
+  add_definitions(-DVTR_ENABLE_RADAR)
+  set(VTR_ENABLE_RADAR true)
+  add_definitions(-DVTR_ENABLE_LIDAR)
+  set(VTR_ENABLE_LIDAR true)
+elseif(SelectedPipeline MATCHES "VISION")
+  ## GPUSURF enable/disable flag (used by vision pipeline only)
+  # Note: currently assume that gpusurf is always available, because we have no
+  # other options, so do not disable (i.e. comment out) this flag
+  add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
+  add_definitions(-DVTR_ENABLE_VISION)
+  add_definitions(-DVTR_VISION_LEARNED)
+  set(VTR_ENABLE_VISION true)
+else()
+  add_definitions(-DVTR_ENABLE_RADAR)
+  set(VTR_ENABLE_RADAR true)
+  add_definitions(-DVTR_ENABLE_LIDAR)
+  set(VTR_ENABLE_LIDAR true)
+  add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
+  add_definitions(-DVTR_ENABLE_VISION)
+  add_definitions(-DVTR_VISION_LEARNED)
+  set(VTR_ENABLE_VISION true)
+  message(WARNING "VTR_PIPELINE not set! Compiling all! Save time by selecting VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR")
+endif()

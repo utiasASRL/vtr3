@@ -23,9 +23,7 @@ windows:
         base_params:=hdl64_grizzly_default.yaml
 #       data_dir:=${VTRTEMP}/lidar/$(date '+%F')/$(date '+%F')
         start_new_graph:=false
-        model_dir:=${VTRMODELS}
         use_sim_time:=false
-        planner:=cbit
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -42,6 +40,5 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      #- ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/hdl_64.rviz
-      - ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/hdl_64.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure
