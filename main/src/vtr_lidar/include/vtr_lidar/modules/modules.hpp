@@ -31,7 +31,6 @@
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module_v2.hpp"
 #include "vtr_lidar/modules/odometry/vertex_test_module.hpp"
-#include "vtr_lidar/modules/odometry/sample_module.hpp"
 
 #include "vtr_lidar/modules/localization/localization_icp_module.hpp"
 #include "vtr_lidar/modules/localization/localization_map_recall_module.hpp"
@@ -49,4 +48,9 @@
 #include "vtr_lidar/modules/planning/terrain_assessment_module.hpp"
 #include "vtr_lidar/modules/planning/perspective_render_module.hpp"
 #include "vtr_lidar/modules/planning/segmentanything_module.hpp"
+#include "vtr_lidar/modules/planning/rangenet_change_detection_module.hpp"
+
+#include "vtr_lidar/modules/planning/costmap_inflation_module.hpp"
+#include "vtr_lidar/modules/planning/blindspot_inflation_module.hpp"
+#include "vtr_lidar/modules/planning/queued_inflation_module.hpp"
 

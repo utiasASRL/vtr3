@@ -26,7 +26,7 @@
         # pose graph
       - pose_graph
         # pipeline specific
-        # "lidar.pipeline",
+      - lidar.range_change
         # "lidar.honeycomb_converter",
         # "lidar.preprocessing",
         # "lidar.odometry_icp",
@@ -84,12 +84,11 @@
         - dynamic_detection
         - inter_exp_merging
         - memory
-        - network
       localization:
         - recall
         - icp
         - safe_corridor
-        - change_detection_sync
+        - range_change
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
@@ -115,11 +114,6 @@
         cluster_num_sample: 10000
         visualize: true
     odometry:
-      network:
-        type: torch.sample
-        use_gpu: true
-        abs_filepath: false
-        filepath: sample_model.pt
       icp:
         type: lidar.odometry_icp
         use_trajectory_estimation: true
@@ -214,6 +208,13 @@
         size_x: 16.0
         size_y: 8.0
         visualize: true
+
+      range_change:
+        type: torch.range_change
+        use_gpu: false
+        abs_filepath: false
+        filepath: exported_range_model.pt
+        visualize: true
       change_detection_sync:
         type: lidar.change_detection_v3
         detection_range: 8.0
@@ -277,24 +278,8 @@
         run_async: true
         visualize: true
     path_planning:
-      type: cbit
-      control_period: 33
-      teb:
-        visualize: true
-        extrapolate: false
-        extrapolation_timeout: 2.0
-        lookahead_distance: 8.5
-        robot_model: circular
-        robot_radius: 0.5
-        map_frame: planning frame
-        enable_homotopy_class_planning: true
-        free_goal_vel: true
-        max_vel_x: 0.6
-        max_vel_y: 0.0
-        max_vel_theta: 0.3
-        min_turning_radius: 3
-        weight_viapoint: 0.5
-        weight_costmap: 100.0
+      type: cbit # teb.lidar for old teb version, cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      control_period: 100 # ms
       cbit:
         obs_padding: 0.0
         curv_to_euclid_discretization: 20

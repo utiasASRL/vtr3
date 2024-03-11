@@ -20,6 +20,7 @@ find_package(pcl_ros REQUIRED)
 
 find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -48,7 +49,7 @@ file(GLOB_RECURSE COMPONENTS_SRC
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
-  Eigen3 pcl_conversions pcl_ros
+  Eigen3 pcl_conversions pcl_ros OpenCV
   nav_msgs
   lgmath steam OpenCV
   vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
@@ -80,10 +81,10 @@ ament_target_dependencies(${PROJECT_NAME}_tools
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  Eigen3 pcl_conversions pcl_ros
+  Eigen3 pcl_conversions pcl_ros OpenCV
   nav_msgs visualization_msgs
   lgmath steam cv_bridge
-  vtr_logging vtr_tactic vtr_lidar_msgs vtr_torch
+  vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs vtr_torch
 )
 
 install(
