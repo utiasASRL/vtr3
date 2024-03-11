@@ -18,7 +18,7 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=ouster_warthog_learned.yaml
+        base_params:=ouster_warthog_default.yaml
         start_new_graph:=false
         use_sim_time:=false
         model_dir:=${VTRROOT}/models
@@ -44,4 +44,3 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
-      # - ros2 run rqt_reconfigure rqt_reconfigure

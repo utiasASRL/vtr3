@@ -325,7 +325,7 @@
         initial_samples: 400
         batch_samples: 200
         pre_seed_resolution: 0.5
-        alpha: 0.5
+        alpha: 0.25
         q_max: 2.5
         frame_interval: 50
         iter_max: 10000000
@@ -339,11 +339,20 @@
         costmap_filter_value: 0.01
         costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
 
+      speed_scheduler:
+        planar_curv_weight: 2.50
+        profile_curv_weight: 0.5 
+        eop_weight: 1.0
+        min_vel: 0.5
+
       mpc:
         # Controller Params
-        horizon_steps: 30
-        horizon_step_size: 0.3
-        forward_vel: 1.0
+        extrapolate_robot_pose: true
+        mpc_verbosity: false
+        homotopy_guided_mpc: false
+        horizon_steps: 20
+        horizon_step_size: 0.5
+        forward_vel: 0.75
         max_lin_vel: 1.25
         max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
@@ -352,31 +361,18 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        vel_error_cov: [25.0, 100.0]
-        acc_error_cov: [10.0, 100.0]
-        kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        lat_error_cov: [20.0]
-        
-        # Cost Function Covariance Matrices (Tracking Backup)
-        #pose_error_cov: [100.0, 100.0, 1000.0, 1000.0, 1000.0, 200.0]
-        #vel_error_cov: [30.0, 30.0] # was [0.1 2.0] # No longer using this cost term
-        #acc_error_cov: [10.0, 10.0]
-        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-        #lat_error_cov: [10.0]
-        
+        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
+        vel_error_cov: [20.0, 30.0]
+        acc_error_cov: [20.0, 20.0]
+        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+        lat_error_cov: [2.0]
+
         # Cost Function Weights
         pose_error_weight: 1.0
-        vel_error_weight: 1.0
-        acc_error_weight: 1.0
+        vel_error_weight: 1.5
+        acc_error_weight: 1.5
         kin_error_weight: 1.0
         lat_error_weight: 0.01
-
-        #backup for tracking mpc
-        #pose_error_cov: [0.5, 0.5, 0.5, 10.0, 10.0, 10.0] # Used to have yaw components set to 1000 but it seems to cause some instability, others set to 1.0
-        #vel_error_cov: [0.1, 1.0] # was [0.1 2.0]
-        #acc_error_cov: [0.1, 0.75]
-        #kin_error_cov: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
 
         # Misc
         command_history_length: 100

@@ -26,8 +26,13 @@
 
 #include "vtr_path_planning/path_planning.hpp"
 #include "vtr_route_planning/route_planning.hpp"
+
 #ifdef VTR_ENABLE_LIDAR
 #include "vtr_lidar/pipeline.hpp"
+#endif
+
+#ifdef VTR_ENABLE_VISION
+#include "vtr_vision/pipeline.hpp"
 #endif
 
 namespace vtr {
@@ -64,8 +69,6 @@ EdgeTransform loadTransform(const std::string& source_frame,
       << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
-  throw std::runtime_error("Transform not found");
-
   return T_source_target;
 }
 
@@ -131,6 +134,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   max_queue_size_ = node->declare_parameter<int>("queue_size", max_queue_size_);
 
 #ifdef VTR_ENABLE_LIDAR
+if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   // static transform
@@ -141,11 +145,38 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   tf_sbc_->sendTransform(msg);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
-  // \note lidar point cloud data frequency is low, and we cannot afford dropping data
+
+
   auto lidar_qos = rclcpp::QoS(max_queue_size_);
   lidar_qos.reliable();
   lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
-  //lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+}
+#endif
+#ifdef VTR_ENABLE_VISION
+if (pipeline->name() == "stereo") {
+  using namespace std::placeholders;
+
+  camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "camera");
+  T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
+  // static transform
+  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
+  auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_camera_robot_.inverse().matrix()));
+  msg.header.frame_id = "robot";
+  msg.child_frame_id = "camera";
+  tf_sbc_->sendTransform(msg);
+  // camera images subscription
+  const auto right_image_topic = node_->declare_parameter<std::string>("camera_right_topic", "/image_right");
+  const auto left_image_topic = node_->declare_parameter<std::string>("camera_left_topic", "/image_left");
+
+  auto camera_qos = rclcpp::QoS(10);
+  camera_qos.reliable();
+
+  right_camera_sub_.subscribe(node_, right_image_topic, camera_qos.get_rmw_qos_profile());
+  left_camera_sub_.subscribe(node_, left_image_topic, camera_qos.get_rmw_qos_profile());
+
+  sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImageSync>>(ApproximateImageSync(10), right_camera_sub_, left_camera_sub_);
+  sync_->registerCallback(&Navigator::cameraCallback, this);
+}
 #endif
   // clang-format on
 
@@ -196,9 +227,6 @@ void Navigator::process() {
     // get the front in queue
     auto qdata0 = queue_.front();
     queue_.pop();
-#ifdef VTR_ENABLE_LIDAR
-    auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0);
-#endif
 
     // unlock the queue so that new data can be added
     lock.unlock();
@@ -256,6 +284,46 @@ void Navigator::lidarCallback(
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);
+  cv_set_or_stop_.notify_one();
+};
+#endif
+
+#ifdef VTR_ENABLE_VISION
+void Navigator::cameraCallback(
+    const sensor_msgs::msg::Image::SharedPtr msg_r, const sensor_msgs::msg::Image::SharedPtr msg_l) {
+  LockGuard lock(mutex_);
+  CLOG(DEBUG, "navigation") << "Received an image.";
+
+  if (image_in_queue_) {
+    CLOG(WARNING, "navigation")
+        << "Skip image message because there is already "
+           "one in queue.";
+    return;
+  }
+
+  // Convert message to query_data format and store into query_data
+  auto query_data = std::make_shared<vision::CameraQueryCache>();
+
+  // some modules require node for visualization
+  query_data->node = node_;
+
+  query_data->left_image = msg_l;
+  query_data->right_image = msg_r;
+
+  // set the timestamp
+  Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
+  query_data->stamp.emplace(timestamp);
+
+  // add the current environment info
+  query_data->env_info.emplace(env_info_);
+
+  // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r.emplace(T_camera_robot_);
+
+
+  // add to the queue and notify the processing thread
+  queue_.push(query_data);
+  image_in_queue_ = true;
   cv_set_or_stop_.notify_one();
 };
 #endif

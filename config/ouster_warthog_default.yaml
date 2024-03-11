@@ -352,7 +352,7 @@
         max_lin_vel: 1.25
         max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 0.75 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 

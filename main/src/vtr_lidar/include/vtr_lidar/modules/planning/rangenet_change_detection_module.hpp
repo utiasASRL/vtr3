@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file sample_module.hpp
+ * \file rangenet_change_detection_module.hpp
  * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
