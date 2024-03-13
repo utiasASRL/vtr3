@@ -15,12 +15,15 @@
     tactic:
       localization_skippable: true
     pipeline:
+      save_raw_point_cloud: True
       localization:
         - recall
         - icp
         - safe_corridor
         - segmentation
+        - costmap_inflation
         - memory
+
 
     localization:
       segmentation:
@@ -35,4 +38,15 @@
         min_range: 0.5
         max_range: 50.0
         num_prompts: 5
+        visualize: true
+      costmap_inflation:
+        type: lidar.costmap_queue
+        influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 0.8 # was 0.3 Jordy
+
+        # cost map
+        costmap_history_size: 5 # Keep between 3 and 30, used for temporal filtering
+        resolution: 0.25
+        size_x: 16.0
+        size_y: 8.0
         visualize: true

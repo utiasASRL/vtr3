@@ -180,7 +180,7 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
 
   }
   // raw point cloud
-  if (config_->save_raw_point_cloud)
+  if (config_->save_raw_point_cloud && (*qdata->pipeline_mode == PipelineMode::TeachBranch || *qdata->pipeline_mode == PipelineMode::TeachMetricLoc))
   {
     auto raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
     raw_scan_odo->point_cloud() = *qdata->raw_point_cloud;

@@ -59,14 +59,9 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
                             const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-
-  // if(!qdata.rendered_images.valid()) {
-  //   CLOG(WARNING, "lidar.perspective") << "Rendered perspective images required a map to work!";
-  //   return;
-  // }
-
   if(!pub_init_){
-    mask_pub_ = qdata.node->create_publisher<ImageMsg>("detection_mask", 5);
+    live_mask_pub_ = qdata.node->create_publisher<ImageMsg>("detection_mask", 5);
+    map_mask_pub_ = qdata.node->create_publisher<ImageMsg>("background_mask", 5);
     diff_pub_ = qdata.node->create_publisher<ImageMsg>("normed_diff", 5);
     live_img_pub_ = qdata.node->create_publisher<ImageMsg>("live_range_coloured", 5);
     map_img_pub_ = qdata.node->create_publisher<ImageMsg>("map_range_coloured", 5);
@@ -191,8 +186,19 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   torch::Tensor diff = live_tensor - map_tensor;
   diff = diff.norm(2, {0});
-  const auto [topk_vals, topk_idx] = diff.flatten().topk(config_->num_prompts);
 
+  namespace F = torch::nn::functional;
+
+  torch::Tensor average = torch::ones({1, 1, 5, 5}) / 25;
+
+  diff = F::conv2d(diff.unsqueeze(0).unsqueeze(0), average);
+
+  const auto [smaller_diff, idx] = F::max_pool2d_with_indices(diff.squeeze(0), F::MaxPool2dFuncOptions(20));
+  const auto [topk_vals, topk_idx] = smaller_diff.flatten().topk(config_->num_prompts);
+
+  CLOG(DEBUG, "lidar.perspective") << "Max pooling " << smaller_diff.sizes() << " and " << idx.sizes();
+
+  diff = diff.squeeze();
   using namespace torch::indexing;
 
   // int data[] = { 512, 256,
@@ -200,10 +206,15 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   //                768, 256 };
   std::vector<torch::Tensor> prompts;
 
-  auto idxs_a = topk_idx.accessor<long, 1>();
+  auto topk_idx_a = topk_idx.accessor<long, 1>();
+  auto idx_a = idx.accessor<long, 3>();
 
-  for (size_t i = 0; i < idxs_a.size(0); i++) {
-    const long& idx = idxs_a[i];
+  for (size_t i = 0; i < topk_idx_a.size(0); i++) {
+    const long& small_idx = topk_idx_a[i];
+
+    const long& idx = idx_a[0][small_idx / diff.size(1)][small_idx % diff.size(1)];
+
+
     int prompt[] = {idx % diff.size(1), idx / diff.size(1)};
 
     auto& pc_idx = live_index_img.at<uint32_t>(prompt[1] / 4, prompt[0] / 4);
@@ -224,9 +235,6 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     else
       CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again.";
   }
-  
-  // prompts.push_back(torch::from_blob(&data[2], {2}, torch::kInt).to(device));  
-  // prompts.push_back(torch::from_blob(&data[4], {2}, torch::kInt).to(device));  
 
   torch::NoGradGuard no_grad;
   std::vector<torch::jit::IValue> jit_inputs;
@@ -267,8 +275,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat repeat_mask = cv::Mat::zeros(repeat_masks.size(1), repeat_masks.size(2), CV_8UC1);
 
   if (idxs_to_keep.size() > 0){
-    auto bg_flat = teach_masks.sum({0});
-    bg_flat = bg_flat.div(bg_flat.max()).to(torch::kByte).mul(255);
+    auto bg_flat = teach_masks.sum({0}).to(torch::kByte).mul(255);
     teach_mask = cv::Mat{bg_flat.size(0), bg_flat.size(1), CV_8UC1, bg_flat.data_ptr<uint8_t>()};
 
 
@@ -282,58 +289,60 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
     mask_to_pointcloud(repeat_mask, live_index_img, raw_point_cloud);
 
-    auto filtered_point_cloud =
+    auto obstacle_point_cloud =
         std::make_shared<pcl::PointCloud<PointWithInfo>>(raw_point_cloud);
 
     /// changed cropping
     {
       std::vector<int> indices;
-      indices.reserve(filtered_point_cloud->size());
-      for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
-        if ((*filtered_point_cloud)[i].flex24 > 0)
+      indices.reserve(obstacle_point_cloud->size());
+      for (size_t i = 0; i < obstacle_point_cloud->size(); ++i) {
+        if ((*obstacle_point_cloud)[i].flex24 > 0)
           indices.emplace_back(i);
       }
-      *filtered_point_cloud =
-          pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+      *obstacle_point_cloud =
+          pcl::PointCloud<PointWithInfo>(*obstacle_point_cloud, indices);
+
+      auto obs_mat = obstacle_point_cloud->getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      obs_mat = T_s_r.inverse().matrix().cast<float>() * T_c_s.inverse() * obs_mat;
+
+      qdata.changed_points.emplace(*obstacle_point_cloud);
     }
 
-    if (config_->visualize) {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(*filtered_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = "lidar"; //"lidar" for honeycomb
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      filtered_pub_->publish(pc2_msg);
-    }
-
-  } else {
-    if (config_->visualize) {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(raw_point_cloud, pc2_msg);
-      pc2_msg.header.frame_id = "lidar"; //"lidar" for honeycomb
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      filtered_pub_->publish(pc2_msg);
-    }
   }
 
   // /// publish the transformed pointcloud
   if (config_->visualize) {
-    cv_bridge::CvImage mask_img_msg;
-    mask_img_msg.header.frame_id = "lidar";
+    cv_bridge::CvImage live_mask_img_msg;
+    live_mask_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
-    mask_img_msg.encoding = "mono8";
-    mask_img_msg.image = repeat_mask;
-    mask_pub_->publish(*mask_img_msg.toImageMsg());
+    live_mask_img_msg.encoding = "mono8";
+    live_mask_img_msg.image = repeat_mask;
+    live_mask_pub_->publish(*live_mask_img_msg.toImageMsg());
+
+    cv_bridge::CvImage map_mask_img_msg;
+    map_mask_img_msg.header.frame_id = "lidar";
+    //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
+    map_mask_img_msg.encoding = "mono8";
+    map_mask_img_msg.image = teach_mask;
+    map_mask_pub_->publish(*map_mask_img_msg.toImageMsg());
 
     diff = diff.div(diff.max()).mul(255).to(torch::kByte).contiguous();
-    CLOG(DEBUG, "lidar.perspective") << "Max: " << diff.max() << " Min: " << diff.min();
 
     cv_bridge::CvImage diff_img_msg;
     diff_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     diff_img_msg.encoding = "mono8";
-    // diff_img_msg.image = cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
-    diff_img_msg.image = teach_mask;
+    diff_img_msg.image = cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
     diff_pub_->publish(*diff_img_msg.toImageMsg());
+  }
+
+  if (config_->visualize) {
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(raw_point_cloud, pc2_msg);
+    pc2_msg.header.frame_id = "lidar"; //"lidar" for honeycomb
+    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    filtered_pub_->publish(pc2_msg);
   }
                             
 }

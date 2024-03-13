@@ -77,7 +77,8 @@ class SegmentAnythingModule : public nn::TorchModule {
 
   bool pub_init_ = false;
 
-  rclcpp::Publisher<ImageMsg>::SharedPtr mask_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr live_mask_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr map_mask_pub_;
   rclcpp::Publisher<ImageMsg>::SharedPtr diff_pub_;
   rclcpp::Publisher<ImageMsg>::SharedPtr live_img_pub_;
   rclcpp::Publisher<ImageMsg>::SharedPtr map_img_pub_;

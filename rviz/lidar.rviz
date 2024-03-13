@@ -9,7 +9,7 @@ Panels:
         - /Image1
         - /Image2
         - /Image3
-        - /PointCloud21
+        - /Image4
       Splitter Ratio: 0.5
     Tree Height: 162
   - Class: rviz_common/Selection
@@ -105,7 +105,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /vtr/normed_diff
+        Value: /vtr/background_mask
       Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: false

@@ -102,7 +102,6 @@
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
-      save_raw_point_cloud: True
     preprocessing:
       conversion:
         type: lidar.ouster_converter
