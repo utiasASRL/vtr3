@@ -61,7 +61,8 @@ void generate_depth_image(const pcl::PointCloud<PointWithInfo>& point_cloud, cv:
         hsv[1] = UINT8_MAX - 1;
         hsv[0] = abs(point.z) * UINT8_MAX / params.max_range;
 
-        idx_image.at<u_int32_t>(v, u) = i;
+        //Offset by 1, so that a value of 0 means no associated 3D point. 
+        idx_image.at<u_int32_t>(v, u) = i + 1;
       }
 
     }
@@ -102,12 +103,16 @@ void interpolate_hsv_image(cv::Mat& depth_image) {
   cv::add(depth_image, smoothed, depth_image, measured_pixel_mask);
 }
 
-void mask_to_pointcloud(const cv::Mat& mask, const cv::Mat& index_img, pcl::PointCloud<PointWithInfo>& point_cloud) {
+void mask_to_pointcloud(const cv::Mat& mask, const cv::Mat& index_img, pcl::PointCloud<PointWithInfo>& point_cloud, int selected_val) {
   index_img.forEach<int32_t>
 (
-  [&](int32_t &idx, const int position[]) -> void
+  [&](const int32_t &idx, const int position[]) -> void
   {
-    point_cloud[idx].flex24 = (mask.at<uint8_t>(position[0], position[1]) > 0) ? 2 : 1;
+    if(idx > 0){
+      if (point_cloud[idx - 1].flex24 < 2) {
+        point_cloud[idx - 1].flex24 = (mask.at<uint8_t>(position[0], position[1]) > 0) ? selected_val : 1;
+      }
+    }
   }
 );
 }

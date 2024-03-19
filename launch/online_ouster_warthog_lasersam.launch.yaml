@@ -22,7 +22,7 @@ windows:
         override_params:=ouster_warthog_lasersam.yaml
         start_new_graph:=false
         use_sim_time:=false
-        planner:="stationary"
+        planner:="cbit"
         model_dir:=${VTRROOT}/models
         
         

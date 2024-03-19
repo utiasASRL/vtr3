@@ -55,6 +55,7 @@ class SegmentAnythingModule : public nn::TorchModule {
 
     float iou_thresh = 0.5;
     int num_prompts = 4;
+    int smooth_size = 10;
 
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
@@ -83,7 +84,6 @@ class SegmentAnythingModule : public nn::TorchModule {
   rclcpp::Publisher<ImageMsg>::SharedPtr live_img_pub_;
   rclcpp::Publisher<ImageMsg>::SharedPtr map_img_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
-
 
 
 

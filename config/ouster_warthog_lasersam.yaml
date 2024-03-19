@@ -5,6 +5,7 @@
       - navigation.sensor_input
       - tactic.pipeline
       - tactic.module
+      - cbit.obstacle_filtering
 
         # pose graph
       #- pose_graph
@@ -30,7 +31,7 @@
         type: lidar.SAM
         use_gpu: true
         abs_filepath: false
-        filepath: sam_vit_b_cuda.torchscript
+        filepath: sam_vit_b_fast_cuda.torchscript
         img_width: 256
         img_height: 128
         h_fov: 1.5707
@@ -38,6 +39,8 @@
         min_range: 0.5
         max_range: 50.0
         num_prompts: 5
+        smooth_size: 40
+        iou_threshold: 1.0
         visualize: true
       costmap_inflation:
         type: lidar.costmap_queue
@@ -50,3 +53,9 @@
         size_x: 16.0
         size_y: 8.0
         visualize: true
+    path_planning:
+      cbit:
+        obstacle_avoidance: true
+      mpc:
+        homotopy_guided_mpc: true
+

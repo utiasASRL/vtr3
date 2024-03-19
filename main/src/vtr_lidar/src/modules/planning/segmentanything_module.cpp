@@ -19,6 +19,7 @@
 #include <vtr_lidar/modules/planning/segmentanything_module.hpp>
 
 #include <opencv2/imgproc.hpp>
+#include <pcl/common/common.h>
 #include "cv_bridge/cv_bridge.h"
 
 
@@ -46,6 +47,7 @@ auto SegmentAnythingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   
   config->iou_thresh = node->declare_parameter<float>(param_prefix + ".iou_threshold", config->iou_thresh);
   config->num_prompts = node->declare_parameter<long>(param_prefix + ".num_prompts", config->num_prompts);
+  config->smooth_size = node->declare_parameter<long>(param_prefix + ".smooth_size", config->smooth_size);
 
   // clang-format off
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -54,10 +56,16 @@ auto SegmentAnythingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
+using BGR = typename cv::Scalar;
 
 void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
                             const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+
+  static const std::vector<cv::Scalar> color_options {BGR(230, 25, 75), BGR(60, 180, 75), BGR(255, 225, 25), BGR(0, 130, 200), BGR(245, 130, 48), BGR(145, 30, 180),
+  BGR(70, 240, 240), BGR(240, 50, 230), BGR(210, 245, 60), BGR(250, 190, 212), BGR(0, 128, 128), BGR(220, 190, 255), BGR(170, 110, 40), BGR(255, 250, 200), BGR(128, 0, 0),
+   BGR(170, 255, 195), BGR(128, 128, 0), BGR(255, 215, 180), BGR(0, 0, 128)};
+
 
   if(!pub_init_){
     live_mask_pub_ = qdata.node->create_publisher<ImageMsg>("detection_mask", 5);
@@ -120,8 +128,6 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   map_points_mat = (T_c_s * T_s_m.cast<float>()) * map_points_mat;
   map_nn_mat = (T_c_s * T_s_sm.cast<float>()) * map_nn_mat;
 
-  
-
   cv::Mat live_index_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_32S);
   cv::Mat live_hsv_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
   cv::Mat live_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
@@ -151,8 +157,6 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   
   cv::cvtColor(map_hsv_img, map_rgb_img, cv::COLOR_HSV2RGB);
-
-  // qdata.rendered_images.emplace(std::make_pair(live_rgb_img, map_rgb_img));
 
   if (config_->visualize) {
     cv_bridge::CvImage map_cv_rgb_img;
@@ -189,7 +193,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   namespace F = torch::nn::functional;
 
-  torch::Tensor average = torch::ones({1, 1, 5, 5}) / 25;
+  torch::Tensor average = torch::ones({1, 1, 10, 10}) / 100;
 
   diff = F::conv2d(diff.unsqueeze(0).unsqueeze(0), average);
 
@@ -201,19 +205,16 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   diff = diff.squeeze();
   using namespace torch::indexing;
 
-  // int data[] = { 512, 256,
-  //                256, 256,
-  //                768, 256 };
   std::vector<torch::Tensor> prompts;
 
   auto topk_idx_a = topk_idx.accessor<long, 1>();
-  auto idx_a = idx.accessor<long, 3>();
+  auto topk_val_a = topk_vals.accessor<float, 1>();
+  auto idx_a = idx.accessor<long, 3>();  //shape (x, y, z, dtype=long)
 
   for (size_t i = 0; i < topk_idx_a.size(0); i++) {
     const long& small_idx = topk_idx_a[i];
 
     const long& idx = idx_a[0][small_idx / diff.size(1)][small_idx % diff.size(1)];
-
 
     int prompt[] = {idx % diff.size(1), idx / diff.size(1)};
 
@@ -225,15 +226,17 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     h_point = T_s_sm.inverse().cast<float>() * h_point;
 
     double theta = atan2(h_point[1], h_point[0]);
-    CLOG(DEBUG, "lidar.perspective") << "Diff Tensor prompt (" << prompt[0] << ", " << prompt[1] << ") Theta: " << theta;
+    CLOG(DEBUG, "lidar.perspective") << "Diff Tensor prompt (" << prompt[0] << ", " << prompt[1] << ") Theta: " << theta << " DIff norm " << topk_val_a[i];
 
 
     //Prompts are x, y rather than row, column
     //map_tensor.index({0, prompt[1], prompt[0]}).item().to<float>() > 0  || 
-    if (!((theta > 2.06 && theta < 2.18) || (theta > -2.27 && theta < -2.135)))
+    if (!((theta > 1.98 && theta < 2.18) || (theta > -2.27 && theta < -2.135)) && topk_val_a[i] > 10.){
       prompts.push_back(torch::from_blob(prompt, {2}, torch::kInt).to(device));  
-    else
+      
+    } else {
       CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again.";
+    }
   }
 
   torch::NoGradGuard no_grad;
@@ -245,10 +248,12 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   auto outputs = network(jit_inputs).toGenericDict();
 
-  CLOG(DEBUG, "lidar.perspective") << "Ran model!";
 
   auto teach_masks = outputs.at("teach_masks").toTensor();
   auto repeat_masks = outputs.at("repeat_masks").toTensor();
+
+
+  CLOG(DEBUG, "lidar.perspective") << "Ran model! Teach size " << teach_masks.sizes() << " Repeat size " << repeat_masks.sizes();
 
   auto intersection = teach_masks.bitwise_and(repeat_masks);
   auto unions = teach_masks.bitwise_or(repeat_masks);
@@ -261,33 +266,76 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   auto ious_a = ious.accessor<float, 1>();
 
 
-  for (size_t i = 0; i < ious_a.size(0); i++) {
-    CLOG(DEBUG, "lidar.perspective") << "Iou VAL " << ious_a[i] << " < " << config_->iou_thresh;
+  cv::Mat teach_mask = cv::Mat::zeros(teach_masks.size(1), teach_masks.size(2), CV_8UC3);
+  cv::Mat repeat_mask = cv::Mat::zeros(repeat_masks.size(1), repeat_masks.size(2), CV_8UC3);
 
-    if (ious_a[i] < config_->iou_thresh) {
+  for (int i = 0; i < prompts.size(); ++i) {
+
+    auto prompt = prompts[i].cpu();
+    auto prompt_a = prompt.accessor<int, 1>();
+
+
+    auto active_teach_tensor = teach_masks.index({i, Slice(), Slice()}).to(torch::kByte).mul(255).contiguous();
+    auto active_repeat_tensor = repeat_masks.index({i, Slice(), Slice()}).to(torch::kByte).mul(255).contiguous();
+
+    cv::Mat active_teach_mask = cv::Mat{active_teach_tensor.size(0), active_teach_tensor.size(1), CV_8UC1, active_teach_tensor.data_ptr<uint8_t>()};
+    //mask_to_pointcloud(active_teach_mask, map_index_img, nn_map_point_cloud, 2+i);
+
+    // auto map_change_point_cloud = [&]{
+    //   std::vector<int> indices;
+    //   indices.reserve(nn_map_point_cloud.size());
+    //   for (size_t i = 0; i < nn_map_point_cloud.size(); ++i) {
+    //     if (nn_map_point_cloud[i].flex24 == 2+i)
+    //       indices.emplace_back(i);
+    //   }
+    //   return pcl::PointCloud<PointWithInfo>(nn_map_point_cloud, indices);
+    // }();
+    
+    cv::Mat active_repeat_mask = cv::Mat{active_repeat_tensor.size(0), active_repeat_tensor.size(1), CV_8UC1, active_repeat_tensor.data_ptr<uint8_t>()};
+    //mask_to_pointcloud(active_repeat_mask, live_index_img, raw_point_cloud, 2+i);
+
+    // auto change_point_cloud = [&]{
+    //   std::vector<int> indices;
+    //   indices.reserve(raw_point_cloud.size());
+    //   for (size_t i = 0; i < raw_point_cloud.size(); ++i) {
+    //     if (raw_point_cloud[i].flex24 == 2+i)
+    //       indices.emplace_back(i);
+    //   }
+    //   return pcl::PointCloud<PointWithInfo>(raw_point_cloud, indices);
+    // }();
+
+    cv::Scalar mapMean, mapStdDev, liveMean, liveStdDev;
+    cv::meanStdDev(map_hsv_img, mapMean, mapStdDev, active_teach_mask);
+    cv::meanStdDev(live_hsv_img, liveMean, liveStdDev, active_repeat_mask);
+
+    CLOG(DEBUG, "lidar.perspective") << "Map Mean" << mapMean << "Live mean " << liveMean;
+
+    if (ious_a[i] < config_->iou_thresh && active_repeat_tensor.sum().item<float>() < 0.1*255*128*256 && abs(liveMean[0] - mapMean[0]) > 10.) {
       idxs_to_keep.push_back(i);
+      teach_mask.setTo(color_options[2*i % color_options.size()], active_teach_mask == 255);
+      repeat_mask.setTo(color_options[2*i % color_options.size()], active_repeat_mask == 255);
     }
+
+    cv::circle(teach_mask, cv::Point{prompt_a[0] / 4, prompt_a[1] / 4}, 6, color_options[(2*i + 1) % color_options.size()], 1);
+    cv::circle(repeat_mask, cv::Point{prompt_a[0] / 4, prompt_a[1] / 4}, 6, color_options[(2*i + 1) % color_options.size()], 1);
+    
+    // PointWithInfo minPt, maxPt;
+    // pcl::getMinMax3D(change_point_cloud, minPt, maxPt);
+    // CLOG(DEBUG, "lidar.perspective") << "Min" << minPt.x << " max: " << maxPt.x;    
   }
+
 
   CLOG(DEBUG, "lidar.perspective") << "IDs to KEEP " << idxs_to_keep;
 
-  cv::Mat teach_mask = cv::Mat::zeros(teach_masks.size(1), teach_masks.size(2), CV_8UC1);
-  cv::Mat repeat_mask = cv::Mat::zeros(repeat_masks.size(1), repeat_masks.size(2), CV_8UC1);
+  // cv::Mat teach_mask = cv::Mat::zeros(teach_masks.size(1), teach_masks.size(2), CV_8UC1);
+  // cv::Mat repeat_mask = cv::Mat::zeros(repeat_masks.size(1), repeat_masks.size(2), CV_8UC1);
 
   if (idxs_to_keep.size() > 0){
-    auto bg_flat = teach_masks.sum({0}).to(torch::kByte).mul(255);
-    teach_mask = cv::Mat{bg_flat.size(0), bg_flat.size(1), CV_8UC1, bg_flat.data_ptr<uint8_t>()};
-
-
     auto changes = repeat_masks.index({torch::from_blob(idxs_to_keep.data(), {idxs_to_keep.size()}, torch::kInt), Slice(), Slice()});
-    CLOG(DEBUG, "lidar.perspective") << "Repeat Tensor size " << changes.sizes();
+    changes = changes.sum({0}).to(torch::kByte).mul(255).contiguous();
 
-    changes = changes.sum({0}).div(changes.max()).to(torch::kByte).mul(255);
-
-    repeat_mask = cv::Mat{changes.size(0), changes.size(1), CV_8UC1, changes.data_ptr<uint8_t>()};
-
-
-    mask_to_pointcloud(repeat_mask, live_index_img, raw_point_cloud);
+    auto repeat_mask_flat = cv::Mat{changes.size(0), changes.size(1), CV_8UC1, changes.data_ptr<uint8_t>()};
+    mask_to_pointcloud(repeat_mask_flat, live_index_img, raw_point_cloud, 2);
 
     auto obstacle_point_cloud =
         std::make_shared<pcl::PointCloud<PointWithInfo>>(raw_point_cloud);
@@ -297,18 +345,19 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
       std::vector<int> indices;
       indices.reserve(obstacle_point_cloud->size());
       for (size_t i = 0; i < obstacle_point_cloud->size(); ++i) {
-        if ((*obstacle_point_cloud)[i].flex24 > 0)
+        if ((*obstacle_point_cloud)[i].flex24 > 1)
           indices.emplace_back(i);
       }
       *obstacle_point_cloud =
           pcl::PointCloud<PointWithInfo>(*obstacle_point_cloud, indices);
 
       auto obs_mat = obstacle_point_cloud->getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-      obs_mat = T_s_r.inverse().matrix().cast<float>() * T_c_s.inverse() * obs_mat;
+      obs_mat = (T_s_r * T_r_v_loc).inverse().matrix().cast<float>() * T_c_s.inverse() * obs_mat;
 
       qdata.changed_points.emplace(*obstacle_point_cloud);
     }
-
+  } else {
+    qdata.changed_points.emplace(pcl::PointCloud<PointWithInfo>());
   }
 
   // /// publish the transformed pointcloud
@@ -316,14 +365,14 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     cv_bridge::CvImage live_mask_img_msg;
     live_mask_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
-    live_mask_img_msg.encoding = "mono8";
+    live_mask_img_msg.encoding = "bgr8";
     live_mask_img_msg.image = repeat_mask;
     live_mask_pub_->publish(*live_mask_img_msg.toImageMsg());
 
     cv_bridge::CvImage map_mask_img_msg;
     map_mask_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
-    map_mask_img_msg.encoding = "mono8";
+    map_mask_img_msg.encoding = "bgr8";
     map_mask_img_msg.image = teach_mask;
     map_mask_pub_->publish(*map_mask_img_msg.toImageMsg());
 

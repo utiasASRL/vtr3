@@ -151,9 +151,16 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
   }
 
   /// output
-  auto change_detection_costmap_ref = output.change_detection_costmap.locked();
-  auto &change_detection_costmap = change_detection_costmap_ref.get();
-  change_detection_costmap = costmap;
+  {
+        // Lock the mutex before modifying output.obs_map
+        std::lock_guard<std::mutex> lock(output.obsMapMutex);
+        output.costmap_sid = costmap->vertex_sid(); 
+        output.obs_map = costmap->filter(0.1); // Modify output.obs_map safely
+        output.grid_resolution = config_->resolution;
+   } 
+  // auto change_detection_costmap_ref = output.change_detection_costmap.locked();
+  // auto &change_detection_costmap = change_detection_costmap_ref.get();
+  // change_detection_costmap = costmap;
 
   CLOG(INFO, "lidar.obstacle_inflation")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";
