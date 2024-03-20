@@ -55,7 +55,7 @@ class DetectChangeOp {
     // update the value of v
     dist = std::sqrt(dist);  // convert to distance
     v = std::max(1 - (dist - d1_) / d0_, 0.0f);
-    v = std::min(v, 0.9f);  // 1 is bad for visualization
+    v = std::min(v, 1.0f);  // 1 is NESSECARY!
   }
 
  private:
@@ -152,15 +152,12 @@ void CostmapInflationModule::run_(QueryCache &qdata0, OutputCache &output0,
 
   /// output
   {
-        // Lock the mutex before modifying output.obs_map
-        std::lock_guard<std::mutex> lock(output.obsMapMutex);
-        output.costmap_sid = costmap->vertex_sid(); 
-        output.obs_map = costmap->filter(0.1); // Modify output.obs_map safely
-        output.grid_resolution = config_->resolution;
-   } 
-  // auto change_detection_costmap_ref = output.change_detection_costmap.locked();
-  // auto &change_detection_costmap = change_detection_costmap_ref.get();
-  // change_detection_costmap = costmap;
+    // Lock the mutex before modifying output.obs_map
+    std::lock_guard<std::mutex> lock(output.obsMapMutex);
+    output.costmap_sid = costmap->vertex_sid(); 
+    output.obs_map = costmap->filter(0.01); // Modify output.obs_map safely
+    output.grid_resolution = config_->resolution;
+  } 
 
   CLOG(INFO, "lidar.obstacle_inflation")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";

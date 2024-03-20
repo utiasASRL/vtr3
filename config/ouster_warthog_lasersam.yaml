@@ -6,6 +6,7 @@
       - tactic.pipeline
       - tactic.module
       - cbit.obstacle_filtering
+      - lidar.obstacle_inflation
 
         # pose graph
       #- pose_graph
@@ -53,9 +54,11 @@
         size_x: 16.0
         size_y: 8.0
         visualize: true
+      fake_segmentation:
+        type: lidar.TestObstacleModule
     path_planning:
       cbit:
         obstacle_avoidance: true
       mpc:
-        homotopy_guided_mpc: true
+        homotopy_guided_mpc: false
 

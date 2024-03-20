@@ -112,21 +112,25 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   auto map_point_cloud = sub_map.point_cloud();
   auto map_points_mat = map_point_cloud.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   
-  const auto T_s_m = (T_s_r * T_r_v_loc * T_v_m_loc).matrix();
+  const auto T_s_m = T_s_r * T_r_v_loc * T_v_m_loc;
 
 
   auto live_points_mat = raw_point_cloud.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
-  Eigen::Matrix4f T_c_s;
+  Eigen::Matrix4d T_c_s_temp;
 
-  T_c_s << 0, -1, 0, 0,
+  T_c_s_temp << 0, -1, 0, 0,
            0, 0, 1, 0,
            -1, 0, 0, 0,
            0, 0, 0, 1;
 
-  live_points_mat = T_c_s * live_points_mat;
-  map_points_mat = (T_c_s * T_s_m.cast<float>()) * map_points_mat;
-  map_nn_mat = (T_c_s * T_s_sm.cast<float>()) * map_nn_mat;
+  const tactic::EdgeTransform T_c_s {T_c_s_temp};
+  const tactic::EdgeTransform T_v_loc_c = (T_c_s * T_s_r * T_r_v_loc).inverse();
+
+
+  live_points_mat = T_c_s.matrix().cast<float>() * live_points_mat;
+  map_points_mat = (T_c_s * T_s_m).matrix().cast<float>() * map_points_mat;
+  map_nn_mat = (T_c_s * T_s_sm).matrix().cast<float>() * map_nn_mat;
 
   cv::Mat live_index_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_32S);
   cv::Mat live_hsv_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
@@ -220,10 +224,15 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
     auto& pc_idx = live_index_img.at<uint32_t>(prompt[1] / 4, prompt[0] / 4);
 
-    auto live_point = raw_point_cloud[pc_idx];
+    if (pc_idx == 0) {
+      CLOG(DEBUG, "lidar.perspective") << "Prompt point on an interpolated live pixel. Skipping.";
+      continue;
+    }
+
+    auto live_point = raw_point_cloud[pc_idx - 1];
     Eigen::Vector4f h_point;
     h_point << live_point.x, live_point.y, live_point.z, 1.0f;
-    h_point = T_s_sm.inverse().cast<float>() * h_point;
+    h_point = T_v_loc_c.matrix().cast<float>() * h_point;
 
     double theta = atan2(h_point[1], h_point[0]);
     CLOG(DEBUG, "lidar.perspective") << "Diff Tensor prompt (" << prompt[0] << ", " << prompt[1] << ") Theta: " << theta << " DIff norm " << topk_val_a[i];
@@ -231,9 +240,8 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
     //Prompts are x, y rather than row, column
     //map_tensor.index({0, prompt[1], prompt[0]}).item().to<float>() > 0  || 
-    if (!((theta > 1.98 && theta < 2.18) || (theta > -2.27 && theta < -2.135)) && topk_val_a[i] > 10.){
+    if (!((theta > 0.611 && theta < 0.96) || (theta > -0.96 && theta < -0.611)) && topk_val_a[i] > 10.){
       prompts.push_back(torch::from_blob(prompt, {2}, torch::kInt).to(device));  
-      
     } else {
       CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again.";
     }
@@ -352,7 +360,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
           pcl::PointCloud<PointWithInfo>(*obstacle_point_cloud, indices);
 
       auto obs_mat = obstacle_point_cloud->getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-      obs_mat = (T_s_r * T_r_v_loc).inverse().matrix().cast<float>() * T_c_s.inverse() * obs_mat;
+      obs_mat = T_v_loc_c.matrix().cast<float>() * obs_mat;
 
       qdata.changed_points.emplace(*obstacle_point_cloud);
     }
