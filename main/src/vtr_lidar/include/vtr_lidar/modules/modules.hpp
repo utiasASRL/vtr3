@@ -49,6 +49,7 @@
 #include "vtr_lidar/modules/planning/perspective_render_module.hpp"
 #include "vtr_lidar/modules/planning/segmentanything_module.hpp"
 #include "vtr_lidar/modules/planning/rangenet_change_detection_module.hpp"
+#include "vtr_lidar/modules/planning/test_obstacle_module.hpp"
 
 #include "vtr_lidar/modules/planning/costmap_inflation_module.hpp"
 #include "vtr_lidar/modules/planning/blindspot_inflation_module.hpp"
