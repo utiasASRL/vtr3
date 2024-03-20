@@ -94,10 +94,12 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
 
   auto scaled_clamped = clamped_outputs.clone().contiguous() * 255;
 
-  auto disp_outputs_l = scaled_clamped[0].squeeze().permute({1, 2, 0}).to(torch::kByte).contiguous();
+  auto disp_outputs_l = scaled_clamped[0].squeeze().index({Slice(), Slice(None, -3), Slice()}).permute({1, 2, 0}).to(torch::kByte).contiguous();
+
   cv::Mat daytime_l{disp_outputs_l.size(0), disp_outputs_l.size(1), CV_8UC3, disp_outputs_l.data_ptr<uint8_t>()};
 
-  auto disp_outputs_r = scaled_clamped[1].squeeze().permute({1, 2, 0}).to(torch::kByte).contiguous();
+  auto disp_outputs_r = scaled_clamped[1].squeeze() .index({Slice(), Slice(None, -3), Slice()}).permute({1, 2, 0}).to(torch::kByte).contiguous();
+
   cv::Mat daytime_r{disp_outputs_r.size(0), disp_outputs_r.size(1), CV_8UC3, disp_outputs_r.data_ptr<uint8_t>()};
 
   CLOG(DEBUG, "stereo.learned_features") << daytime_l.size() << " left size";
@@ -110,24 +112,63 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
 
 
   {
-    CLOG(DEBUG, "stereo.learned_features") << "mutex";
+    // CLOG(DEBUG, "stereo.learned_features") << "mutex";
     std::lock_guard<std::mutex> lock(*qdata.vis_mutex);
-    CLOG(DEBUG, "stereo.learned_features") << "window";
+    // CLOG(DEBUG, "stereo.learned_features") << "window";
     cv::namedWindow("left daytime", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
-    CLOG(DEBUG, "stereo.learned_features") << "show";
+    // CLOG(DEBUG, "stereo.learned_features") << "show";
     cv::imshow("left daytime", daytime_l);
-    CLOG(DEBUG, "stereo.learned_features") << "success";
+    // CLOG(DEBUG, "stereo.learned_features") << "success";
 
-    CLOG(DEBUG, "stereo.learned_features") << "window";
+    // CLOG(DEBUG, "stereo.learned_features") << "window";
     cv::namedWindow("right daytime", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
-    CLOG(DEBUG, "stereo.learned_features") << "show";
+    // CLOG(DEBUG, "stereo.learned_features") << "show";
     cv::imshow("right daytime", daytime_r);
-    CLOG(DEBUG, "stereo.learned_features") << "success";
+    // CLOG(DEBUG, "stereo.learned_features") << "success";
   }
 
 
-  qdata.rig_images->front().channels.at(0).cameras.front().data = daytime_l.clone();
-  qdata.rig_images->front().channels.at(0).cameras.back().data = daytime_r.clone();
+  // set up the new channel
+  ChannelImages styled;
+  styled.name = "styled";
+
+  Image left_img;
+  // left_img.data = daytime_l.clone();
+  left_img.data = live_image_l.clone();
+  left_img.name = "styled_left";
+  left_img.stamp = qdata.rig_images->front().channels.at(0).cameras.front().stamp;
+
+  Image right_img;
+  // right_img.data = daytime_r.clone();
+  right_img.data = live_image_r.clone();
+  right_img.name = "styled_right";
+  right_img.stamp = qdata.rig_images->front().channels.at(0).cameras.back().stamp;
+
+  styled.cameras.emplace_back(left_img);
+  styled.cameras.emplace_back(right_img);  
+
+  qdata.rig_images->front().channels.emplace_back(styled);
+
+  CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.size() << " number of channels";
+  CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(1).cameras.front().data.size() << " left image size";
+  CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(1).cameras.back().data.size() << " right image size";
+
+  // qdata.rig_images->front().channels.at(0).cameras.front().data = daytime_l.clone();
+  // qdata.rig_images->front().channels.at(0).cameras.back().data = daytime_r.clone();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

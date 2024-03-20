@@ -33,7 +33,7 @@
           learned:
             # we're providing the surf settings (don't change this param, use a different file)
             type: "LEARNED_FEATURE"
-            modelPath: "/home/david/ASRL/vtr3/models/unsup_unet_4.pt"
+            modelPath: "/home/david/ASRL/vtr3/models/unsup_unet_377.pt"
 
 
             stereoDisparityMinimum: 0.1

@@ -25,6 +25,7 @@
 
 #include <vector>
 #include <list>
+#include <vtr_vision/types.hpp>
 
 #include "sensor_msgs/msg/image.hpp"
 

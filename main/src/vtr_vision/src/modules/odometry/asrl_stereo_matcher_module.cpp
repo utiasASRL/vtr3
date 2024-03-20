@@ -175,6 +175,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
           (qry_channel_lm.appearance.descriptors.rows > 0) &&
           (map_channel_lm.appearance.descriptors.rows > 0)) {
 
+        CLOG(DEBUG, "stereo.learned_features") << "Using channel " << qry_channel_lm.name << " for matching";
         CLOG(DEBUG, "stereo.matcher") << "Using channel " << qry_channel_lm.name << " for matching";
         // make a new matcher
         vision::ASRLFeatureMatcher::Config matcher_config;
