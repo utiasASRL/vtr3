@@ -135,18 +135,21 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat live_index_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_32S);
   cv::Mat live_hsv_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
   cv::Mat live_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
+  cv::Mat raw_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
 
   generate_depth_image(raw_point_cloud, live_hsv_img, live_index_img, config_->perspective_params);
+  cv::Mat raw_hsv_img = live_hsv_img.clone();
   interpolate_hsv_image(live_hsv_img);
 
   cv::cvtColor(live_hsv_img, live_rgb_img, cv::COLOR_HSV2RGB);
+  cv::cvtColor(raw_hsv_img, raw_rgb_img, cv::COLOR_HSV2RGB);
 
   if (config_->visualize) {
     cv_bridge::CvImage live_cv_rgb_img;
     live_cv_rgb_img.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     live_cv_rgb_img.encoding = "rgb8";
-    live_cv_rgb_img.image = live_rgb_img;
+    live_cv_rgb_img.image = raw_rgb_img;
     live_img_pub_->publish(*live_cv_rgb_img.toImageMsg());
   }
 
@@ -192,16 +195,18 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   torch::Tensor live_tensor = torch::from_blob(big_live.data, {big_live.rows, big_live.cols, big_live.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous();
   torch::Tensor map_tensor = torch::from_blob(big_map.data, {big_map.rows, big_map.cols, big_map.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous();
 
-  torch::Tensor diff = live_tensor - map_tensor;
-  diff = diff.norm(2, {0});
+  torch::Tensor small_live_tensor = torch::from_blob(raw_rgb_img.data, {raw_rgb_img.rows, raw_rgb_img.cols, raw_rgb_img.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1});
+  torch::Tensor small_map_tensor = torch::from_blob(map_rgb_img.data, {map_rgb_img.rows, map_rgb_img.cols, map_rgb_img.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1});
+  torch::Tensor diff = small_live_tensor - small_map_tensor;
+  diff = diff.clamp(0, 255.0).norm(2, {0});
 
   namespace F = torch::nn::functional;
 
-  torch::Tensor average = torch::ones({1, 1, 10, 10}) / 100;
+  torch::Tensor average = torch::ones({1, 1, 3, 3}) / 9;
 
   diff = F::conv2d(diff.unsqueeze(0).unsqueeze(0), average);
 
-  const auto [smaller_diff, idx] = F::max_pool2d_with_indices(diff.squeeze(0), F::MaxPool2dFuncOptions(20));
+  const auto [smaller_diff, idx] = F::max_pool2d_with_indices(diff.squeeze(0), F::MaxPool2dFuncOptions(5));
   const auto [topk_vals, topk_idx] = smaller_diff.flatten().topk(config_->num_prompts);
 
   CLOG(DEBUG, "lidar.perspective") << "Max pooling " << smaller_diff.sizes() << " and " << idx.sizes();
@@ -218,16 +223,20 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   for (size_t i = 0; i < topk_idx_a.size(0); i++) {
     const long& small_idx = topk_idx_a[i];
 
-    const long& idx = idx_a[0][small_idx / diff.size(1)][small_idx % diff.size(1)];
+    const long& idx = idx_a[0][small_idx / smaller_diff.size(2)][small_idx % smaller_diff.size(2)];
 
     int prompt[] = {idx % diff.size(1), idx / diff.size(1)};
 
-    auto& pc_idx = live_index_img.at<uint32_t>(prompt[1] / 4, prompt[0] / 4);
+    auto& pc_idx = live_index_img.at<uint32_t>(prompt[1], prompt[0]);
 
     if (pc_idx == 0) {
-      CLOG(DEBUG, "lidar.perspective") << "Prompt point on an interpolated live pixel. Skipping.";
+      CLOG(DEBUG, "lidar.perspective") << "Prompt point (" << prompt[0] << ", " << prompt[1] << ") <<  on an interpolated live pixel. Skipping.";
       continue;
     }
+
+    //Scale up to whole image
+    prompt[0] = 4*prompt[0] + 2;
+    prompt[1] = 4*prompt[1] + 2;
 
     auto live_point = raw_point_cloud[pc_idx - 1];
     Eigen::Vector4f h_point;
