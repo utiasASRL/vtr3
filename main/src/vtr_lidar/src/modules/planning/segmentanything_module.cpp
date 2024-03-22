@@ -21,6 +21,9 @@
 #include <opencv2/imgproc.hpp>
 #include <pcl/common/common.h>
 #include "cv_bridge/cv_bridge.h"
+#include <opencv2/quality/qualityssim.hpp>
+
+
 
 
 namespace vtr {
@@ -156,6 +159,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat map_index_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_32S);
   cv::Mat map_hsv_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
   cv::Mat map_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
+  cv::Mat similarity_diff; // = cv::Mat::empty(config_->perspective_params.height, config_->perspective_params.width, CV_32FC1);
 
 
   // generate_depth_image(map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
@@ -164,6 +168,19 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   
   cv::cvtColor(map_hsv_img, map_rgb_img, cv::COLOR_HSV2RGB);
+
+  auto val = cv::quality::QualitySSIM::compute(map_hsv_img, live_hsv_img, similarity_diff);
+  CLOG(DEBUG, "lidar.perspective") << "Sim: " << similarity_diff.type();
+  similarity_diff = similarity_diff;
+  similarity_diff *= 255;
+  similarity_diff.convertTo(similarity_diff, CV_8UC3);
+
+  cv::Mat hsv_scores[3];   //destination array
+  cv::split(similarity_diff, hsv_scores);//split source  
+
+
+  CLOG(DEBUG, "lidar.perspective") << "SSIM " << val;
+
 
   if (config_->visualize) {
     cv_bridge::CvImage map_cv_rgb_img;
@@ -202,28 +219,24 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   namespace F = torch::nn::functional;
 
+  using namespace torch::indexing;
+
   torch::Tensor average = torch::ones({1, 1, 3, 3}) / 9;
 
   diff = F::conv2d(diff.unsqueeze(0).unsqueeze(0), average);
 
-  const auto [smaller_diff, idx] = F::max_pool2d_with_indices(diff.squeeze(0), F::MaxPool2dFuncOptions(5));
-  const auto [topk_vals, topk_idx] = smaller_diff.flatten().topk(config_->num_prompts);
-
-  CLOG(DEBUG, "lidar.perspective") << "Max pooling " << smaller_diff.sizes() << " and " << idx.sizes();
-
-  diff = diff.squeeze();
-  using namespace torch::indexing;
+  diff = diff.squeeze().squeeze();
 
   std::vector<torch::Tensor> prompts;
 
-  auto topk_idx_a = topk_idx.accessor<long, 1>();
-  auto topk_val_a = topk_vals.accessor<float, 1>();
-  auto idx_a = idx.accessor<long, 3>();  //shape (x, y, z, dtype=long)
 
-  for (size_t i = 0; i < topk_idx_a.size(0); i++) {
-    const long& small_idx = topk_idx_a[i];
+  for (int i = 0; i < config_->num_prompts; ++i) {
+    const auto [max_val, idx2] = torch::max(diff.flatten(), 0);
 
-    const long& idx = idx_a[0][small_idx / smaller_diff.size(2)][small_idx % smaller_diff.size(2)];
+    int idx = idx2.item<long>();
+
+    diff.index_put_({Slice(idx / diff.size(1) - 3, idx / diff.size(1) + 4), 
+                    Slice(idx % diff.size(1) - 3, idx % diff.size(1) + 4) }, 0);
 
     int prompt[] = {idx % diff.size(1), idx / diff.size(1)};
 
@@ -233,8 +246,6 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
       CLOG(DEBUG, "lidar.perspective") << "Prompt point (" << prompt[0] << ", " << prompt[1] << ") <<  on an interpolated live pixel. Skipping.";
       continue;
     }
-
-    //Scale up to whole image
     prompt[0] = 4*prompt[0] + 2;
     prompt[1] = 4*prompt[1] + 2;
 
@@ -244,17 +255,43 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     h_point = T_v_loc_c.matrix().cast<float>() * h_point;
 
     double theta = atan2(h_point[1], h_point[0]);
-    CLOG(DEBUG, "lidar.perspective") << "Diff Tensor prompt (" << prompt[0] << ", " << prompt[1] << ") Theta: " << theta << " DIff norm " << topk_val_a[i];
+    CLOG(DEBUG, "lidar.perspective") << "Diff Tensor prompt (" << prompt[0] << ", " << prompt[1] << ") Theta: " << theta << " DIff norm " << max_val;
 
 
     //Prompts are x, y rather than row, column
     //map_tensor.index({0, prompt[1], prompt[0]}).item().to<float>() > 0  || 
-    if (!((theta > 0.611 && theta < 0.96) || (theta > -0.96 && theta < -0.611)) && topk_val_a[i] > 10.){
+    if (!((theta > 0.611 && theta < 0.96) || (theta > -0.96 && theta < -0.611))){
       prompts.push_back(torch::from_blob(prompt, {2}, torch::kInt).to(device));  
     } else {
       CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again.";
+      continue;
     }
+
   }
+
+  
+  // const auto [smaller_diff, idx] = F::max_pool2d_with_indices(diff.squeeze(0), F::MaxPool2dFuncOptions(5));
+  // const auto [topk_vals, topk_idx] = smaller_diff.flatten().topk(config_->num_prompts);
+
+  // CLOG(DEBUG, "lidar.perspective") << "Max pooling " << smaller_diff.sizes() << " and " << idx.sizes();
+
+  // diff = diff.squeeze();
+
+
+  // auto topk_idx_a = topk_idx.accessor<long, 1>();
+  // auto topk_val_a = topk_vals.accessor<float, 1>();
+  // auto idx_a = idx.accessor<long, 3>();  //shape (x, y, z, dtype=long)
+
+  // for (size_t i = 0; i < topk_idx_a.size(0); i++) {
+  //   const long& small_idx = topk_idx_a[i];
+
+  //   const long& idx = idx_a[0][small_idx / smaller_diff.size(2)][small_idx % smaller_diff.size(2)];
+
+
+
+  //   //Scale up to whole image
+
+  // }
 
   torch::NoGradGuard no_grad;
   std::vector<torch::jit::IValue> jit_inputs;
@@ -399,7 +436,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     diff_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     diff_img_msg.encoding = "mono8";
-    diff_img_msg.image = cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
+    diff_img_msg.image = hsv_scores[2];//cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
     diff_pub_->publish(*diff_img_msg.toImageMsg());
   }
 
