@@ -294,11 +294,11 @@ void Navigator::cameraCallback(
   LockGuard lock(mutex_);
   CLOG(DEBUG, "navigation") << "Received an image.";
 
-  if (image_in_queue_) {
+  /// Discard old frames if our queue is too big
+  if (queue_.size() > max_queue_size_) {
     CLOG(WARNING, "navigation")
-        << "Skip image message because there is already "
-           "one in queue.";
-    return;
+        << "Dropping old images because the queue is full.";
+    queue_.pop();
   }
 
   // Convert message to query_data format and store into query_data
@@ -323,7 +323,6 @@ void Navigator::cameraCallback(
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);
-  image_in_queue_ = true;
   cv_set_or_stop_.notify_one();
 };
 #endif

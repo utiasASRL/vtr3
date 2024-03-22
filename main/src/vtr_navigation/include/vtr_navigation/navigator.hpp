@@ -105,14 +105,7 @@ typedef message_filters::sync_policies::ApproximateTime<
   std::queue<tactic::QueryCache::Ptr> queue_;
   int max_queue_size_ = 5;
   tactic::EnvInfo env_info_;
-#ifdef VTR_ENABLE_LIDAR
-  bool pointcloud_in_queue_ = false;
-#endif
-
-#ifdef VTR_ENABLE_VISION
-  bool image_in_queue_ = false;
-#endif
-
+  
   /// VTR building blocks
   GraphMapServer::Ptr graph_map_server_;
   tactic::Graph::Ptr graph_;
