@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2024, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,53 +13,46 @@
 // limitations under the License.
 
 /**
- * \file ouster_conversion_module.hpp
- * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ * \file perspective_rnder_module.hpp
+ * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
+
 #pragma once
 
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
+#include "vtr_lidar/filters/perspective_image.hpp"
+
+#include "sensor_msgs/msg/image.hpp"
 
 namespace vtr {
 namespace lidar {
 
-/**
- * \brief A specialized point cloud converter for data from Ouster OS1
- * LiDAR.
- */
-class OusterConversionModule : public tactic::BaseModule {
+class PerspectiveRenderModule : public tactic::BaseModule {
  public:
-  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  PTR_TYPEDEFS(PerspectiveRenderModule);
+  using ImageMsg = sensor_msgs::msg::Image;
 
-  /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.ouster_converter";
+  static constexpr auto static_name = "lidar.render_perspective";
 
-  /** \brief Config parameters. */
+  /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
+    PerspectiveImageParams perspective_params;
+
+    //
     bool visualize = false;
-
-    bool filter_warthog_points = false;
-
-    //A centered cylinder to remove points related to the vehicle's sturcture.
-    float filter_z_max = 0;
-    float filter_z_min = 0;
-    float filter_radius_sq = 0;
-
-    float radius_filter = 0;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  OusterConversionModule(
+  PerspectiveRenderModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
-      const std::string &name = static_name)
-      : tactic::BaseModule{module_factory, name}, config_(config) {}
+      const std::string &name = static_name);
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
@@ -70,9 +63,13 @@ class OusterConversionModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(OusterConversionModule);
+  rclcpp::Publisher<ImageMsg>::SharedPtr live_img_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr map_img_pub_;
+
+
+  VTR_REGISTER_MODULE_DEC_TYPE(PerspectiveRenderModule);
+
 };
 
 }  // namespace lidar

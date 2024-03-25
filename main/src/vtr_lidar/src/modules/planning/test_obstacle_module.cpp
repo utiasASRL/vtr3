@@ -1,4 +1,4 @@
-// Copyright 2023, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2024, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,37 +13,39 @@
 // limitations under the License.
 
 /**
- * \file torch_module.cpp
+ * \file test_obstacle_module.cpp
  * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_lidar/modules/odometry/sample_module.hpp>
-
+#include <vtr_lidar/modules/planning/test_obstacle_module.hpp>
+#include "vtr_lidar/data_types/costmap.hpp"
 
 namespace vtr {
 namespace lidar {
 
 using namespace tactic;
 
-auto TestNNModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+auto TestObstacleModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                           const std::string &param_prefix)
     -> ConstPtr {
-  auto config = std::make_shared<TestNNModule::Config>();
-  auto base_config = std::static_pointer_cast<TorchModule::Config>(config);
-  *base_config =  *nn::TorchModule::Config::fromROS(node, param_prefix);
-  // clang-format off
   // clang-format on
-  return config;
+  return std::make_shared<TestObstacleModule::Config>();
 }
 
 
-void TestNNModule::run_(QueryCache &qdata0, OutputCache &,
-                            const Graph::Ptr &, const TaskExecutor::Ptr &) {
+void TestObstacleModule::run_(QueryCache &qdata0, OutputCache &,
+                            const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  std::vector<float> inputs {2, 5};
-  evaluateModel<float>(inputs, {1, 2});
-                            
+  auto point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(200, 1);
+
+  for (size_t i = 0; i < point_cloud->size(); ++i) {
+    point_cloud->at(i).x = 3.0 + (rand() % 100) / 100.0;
+    point_cloud->at(i).y = 0.0 + (rand() % 100) / 100.0;
+    point_cloud->at(i).z = 1.0 + (rand() % 100) / 100.0;
+  }
+
+  qdata.changed_points.emplace(*point_cloud);               
 }
 
-}  // namespace nn
+}  // namespace lidar
 }  // namespace vtr

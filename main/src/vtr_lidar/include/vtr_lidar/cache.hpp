@@ -19,6 +19,7 @@
 #pragma once
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "opencv2/core.hpp"
 
 #include "vtr_lidar/data_types/costmap.hpp"
 #include "vtr_lidar/data_types/point.hpp"
@@ -40,7 +41,7 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   // preprocessing
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
-  tactic::Cache<const pcl::PointCloud<PointWithInfo>> nn_point_cloud;
+  tactic::Cache<pcl::PointCloud<PointWithInfo>> nn_point_cloud;
 
   // odometry & mapping
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
@@ -56,11 +57,15 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const bool> submap_loc_changed;
   tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
 
+  //change detection
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> changed_points;
+
   // intra exp merging async
   tactic::Cache<const tactic::VertexId> intra_exp_merging_async;
 
   // dynamic detection async
   tactic::Cache<const tactic::VertexId> dynamic_detection_async;
+  tactic::Cache<const std::pair<cv::Mat, cv::Mat>> rendered_images; 
 
   // inter exp merging async (priv, curr, T_priv_curr)
   tactic::Cache<const std::tuple<tactic::VertexId, tactic::VertexId,

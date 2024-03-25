@@ -20,6 +20,8 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
+
 
 namespace vtr {
 namespace lidar {
@@ -99,6 +101,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).y = *iter_y;
     point_cloud->at(idx).z = *iter_z;
     point_cloud->at(idx).intensity = *iter_intensity;
+    point_cloud->at(idx).flex23 = point_cloud->at(idx).intensity;
 
     // pointwise timestamp
     //CLOG(DEBUG, "lidar.ouster_converter") << "Timestamp is: " << *iter_time;
@@ -106,7 +109,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
     //CLOG(DEBUG, "lidar.ouster_converter") << "Message Header Stamp (nanosec)" << (msg->header).stamp.nanosec;
 
 
-    point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+    point_cloud->at(idx).timestamp = *qdata.stamp;
     //CLOG(DEBUG, "lidar.ouster_converter") << "First point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
     //CLOG(DEBUG, "lidar.ouster_converter") << "Second point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time);
   }
