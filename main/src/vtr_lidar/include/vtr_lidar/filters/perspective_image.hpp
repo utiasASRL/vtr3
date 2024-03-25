@@ -34,17 +34,17 @@ struct PerspectiveImageParams {
   int width;
   int height;
 
-  double f_u(){
+  double f_u() const {
     return (double)(width) / 2.0 / tan(h_fov / 2);
   }
   
-  unsigned c_u() { return width / 2; }
+  unsigned c_u() const { return width / 2; }
 
-  double f_v(){
+  double f_v() const {
     return (double)(height) / 2.0 / tan(v_fov / 2);
   }
   
-  unsigned c_v() { return height / 2; }
+  unsigned c_v() const { return height / 2; }
 };
 
 //Greyscale image with intensity

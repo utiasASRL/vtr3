@@ -22,6 +22,7 @@
 #include <pcl/common/common.h>
 #include "cv_bridge/cv_bridge.h"
 #include <opencv2/quality/qualityssim.hpp>
+#include <vtr_lidar/filters/corridor_filter.hpp>
 
 
 
@@ -61,7 +62,7 @@ auto SegmentAnythingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
 using BGR = typename cv::Scalar;
 
-void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
+void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
                             const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
@@ -92,6 +93,11 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
   const auto &vid_loc = *qdata.vid_loc;
+  const auto &curr_sid = *qdata.sid_loc;
+  
+  auto &chain = *output.chain;
+  const auto T_w_curr = chain.pose(curr_sid);
+
 
   auto map_vertex = graph->at(vid_loc);
   auto nn_map_scan = [&] {
@@ -129,6 +135,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
 
   const tactic::EdgeTransform T_c_s {T_c_s_temp};
   const tactic::EdgeTransform T_v_loc_c = (T_c_s * T_s_r * T_r_v_loc).inverse();
+  const auto T_cam_w = T_c_s * T_s_r * T_w_curr.inverse();
 
 
   live_points_mat = T_c_s.matrix().cast<float>() * live_points_mat;
@@ -140,6 +147,9 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat live_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
   cv::Mat raw_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
 
+  raw_point_cloud = filter_by_corridor(raw_point_cloud, curr_sid, 20, chain, 2.0, T_cam_w);
+//pcl::PointCloud<PointWithInfo> filter_by_corridor(const pcl::PointCloud<PointWithInfo>& point_cloud, long curr_sid, double path_length, const LocalizationChain &chain, double corridor_width, 
+        // const tactic::EdgeTransform &T_cam_w) {
   generate_depth_image(raw_point_cloud, live_hsv_img, live_index_img, config_->perspective_params);
   cv::Mat raw_hsv_img = live_hsv_img.clone();
   interpolate_hsv_image(live_hsv_img);
@@ -161,7 +171,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat map_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
   cv::Mat similarity_diff; // = cv::Mat::empty(config_->perspective_params.height, config_->perspective_params.width, CV_32FC1);
 
-
+  nn_map_point_cloud = filter_by_corridor(nn_map_point_cloud, curr_sid, 20, chain, 2.0, T_cam_w);
   // generate_depth_image(map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
   generate_depth_image(nn_map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
   interpolate_hsv_image(map_hsv_img);
@@ -169,17 +179,52 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   
   cv::cvtColor(map_hsv_img, map_rgb_img, cv::COLOR_HSV2RGB);
 
-  auto val = cv::quality::QualitySSIM::compute(map_hsv_img, live_hsv_img, similarity_diff);
-  CLOG(DEBUG, "lidar.perspective") << "Sim: " << similarity_diff.type();
-  similarity_diff = similarity_diff;
-  similarity_diff *= 255;
-  similarity_diff.convertTo(similarity_diff, CV_8UC3);
+  //   {
+  //   CLOG(DEBUG, "lidar.perspective") << chain.size();
 
-  cv::Mat hsv_scores[3];   //destination array
-  cv::split(similarity_diff, hsv_scores);//split source  
+  //   auto lock = chain.guard();
+  //   // compute vertex lookahead
+  //   const auto distance = chain.dist(curr_sid);
+  //   // forwards
+  //   for (auto query_sid = curr_sid;
+  //        query_sid < chain.size()
+  //             && (chain.dist(query_sid) - distance) < 10;
+  //        ++query_sid) {
+  //     const auto T_cam_query = T_c_s * T_s_r * T_w_curr.inverse() * chain.pose(query_sid);
+  //     const auto p_cam_query = T_cam_query.matrix().block<4, 1>(0, 3);
+  //     // T_curr_query_vec.emplace_back(T_curr_query.matrix());
+  //     CLOG(DEBUG, "lidar.perspective") << "Pose origin" << p_cam_query;
+
+  //     int lu = (int)round(config_->perspective_params.f_u() * (p_cam_query[0] - 0.75) / p_cam_query[2]) + config_->perspective_params.c_u();
+  //     int lv = (int)round(config_->perspective_params.f_v() * (p_cam_query[1] - 0.2) / p_cam_query[2]) + config_->perspective_params.c_v();
+
+  //     int ru = (int)round(config_->perspective_params.f_u() * (p_cam_query[0] + 0.75) / p_cam_query[2]) + config_->perspective_params.c_u();
+  //     int rv = (int)round(config_->perspective_params.f_v() * (p_cam_query[1] + 3) / p_cam_query[2]) + config_->perspective_params.c_v();
 
 
-  CLOG(DEBUG, "lidar.perspective") << "SSIM " << val;
+  //     if ((chain.dist(query_sid) - distance) > 0.75)
+  //       cv::rectangle(map_rgb_img, cv::Point{lu, lv}, cv::Point{ru, rv}, color_options[3], cv::FILLED);
+
+
+  //     CLOG(DEBUG, "lidar.perspective") << "Recatngle " << cv::Point{lu, lv} << " " << cv::Point{ru, rv};
+
+  //     // if (0 <= u && u < config_->perspective_params.width && 0 <= v && v < config_->perspective_params.height) {
+  //     //   cv::circle(map_rgb_img, cv::Point{u, v}, 12, color_options[color_options.size() - 1], 1);
+  //     // }
+  //   }
+  // }
+
+  // auto val = cv::quality::QualitySSIM::compute(map_hsv_img, live_hsv_img, similarity_diff);
+  // CLOG(DEBUG, "lidar.perspective") << "Sim: " << similarity_diff.type();
+  // similarity_diff = similarity_diff;
+  // similarity_diff *= 255;
+  // similarity_diff.convertTo(similarity_diff, CV_8UC3);
+
+  // cv::Mat hsv_scores[3];   //destination array
+  // cv::split(similarity_diff, hsv_scores);//split source  
+
+
+  // CLOG(DEBUG, "lidar.perspective") << "SSIM " << val;
 
 
   if (config_->visualize) {
@@ -212,10 +257,11 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   torch::Tensor live_tensor = torch::from_blob(big_live.data, {big_live.rows, big_live.cols, big_live.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous();
   torch::Tensor map_tensor = torch::from_blob(big_map.data, {big_map.rows, big_map.cols, big_map.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous();
 
-  torch::Tensor small_live_tensor = torch::from_blob(raw_rgb_img.data, {raw_rgb_img.rows, raw_rgb_img.cols, raw_rgb_img.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1});
+  torch::Tensor small_live_tensor = torch::from_blob(live_rgb_img.data, {raw_rgb_img.rows, raw_rgb_img.cols, raw_rgb_img.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1});
   torch::Tensor small_map_tensor = torch::from_blob(map_rgb_img.data, {map_rgb_img.rows, map_rgb_img.cols, map_rgb_img.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1});
   torch::Tensor diff = small_live_tensor - small_map_tensor;
-  diff = diff.clamp(0, 255.0).norm(2, {0});
+  diff = diff.norm(2, {0});
+  //.clamp(0, 255.0)
 
   namespace F = torch::nn::functional;
 
@@ -230,20 +276,19 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<torch::Tensor> prompts;
 
 
-  for (int i = 0; i < config_->num_prompts; ++i) {
+  for (int i = 0; prompts.size() < config_->num_prompts; ++i) {
     const auto [max_val, idx2] = torch::max(diff.flatten(), 0);
 
     int idx = idx2.item<long>();
-
-    diff.index_put_({Slice(idx / diff.size(1) - 3, idx / diff.size(1) + 4), 
-                    Slice(idx % diff.size(1) - 3, idx % diff.size(1) + 4) }, 0);
-
     int prompt[] = {idx % diff.size(1), idx / diff.size(1)};
 
     auto& pc_idx = live_index_img.at<uint32_t>(prompt[1], prompt[0]);
 
     if (pc_idx == 0) {
-      CLOG(DEBUG, "lidar.perspective") << "Prompt point (" << prompt[0] << ", " << prompt[1] << ") <<  on an interpolated live pixel. Skipping.";
+      // CLOG(DEBUG, "lidar.perspective") << "Prompt point (" << prompt[0] << ", " << prompt[1] << ") <<  on an interpolated live pixel. Skipping.";
+
+      diff.index_put_({Slice(idx / diff.size(1), idx / diff.size(1) + 1), 
+                    Slice(idx % diff.size(1), idx % diff.size(1) + 1) }, 0);
       continue;
     }
     prompt[0] = 4*prompt[0] + 2;
@@ -262,8 +307,15 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     //map_tensor.index({0, prompt[1], prompt[0]}).item().to<float>() > 0  || 
     if (!((theta > 0.611 && theta < 0.96) || (theta > -0.96 && theta < -0.611))){
       prompts.push_back(torch::from_blob(prompt, {2}, torch::kInt).to(device));  
+
+
+      diff.index_put_({Slice(idx / diff.size(1) - 3, idx / diff.size(1) + 4), 
+                      Slice(idx % diff.size(1) - 3, idx % diff.size(1) + 4) }, 0);
+
     } else {
-      CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again.";
+      // CLOG(DEBUG, "lidar.perspective") << "Prompt point on an empty map pixel. Try again.";
+      diff.index_put_({Slice(idx / diff.size(1), idx / diff.size(1) + 1), 
+                    Slice(idx % diff.size(1), idx % diff.size(1) + 1) }, 0);
       continue;
     }
 
@@ -436,7 +488,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &,
     diff_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     diff_img_msg.encoding = "mono8";
-    diff_img_msg.image = hsv_scores[2];//cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
+    diff_img_msg.image = cv::Mat{diff.size(0), diff.size(1), CV_8UC1, diff.data_ptr<uint8_t>()};;
     diff_pub_->publish(*diff_img_msg.toImageMsg());
   }
 
