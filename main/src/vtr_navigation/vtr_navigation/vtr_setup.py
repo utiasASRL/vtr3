@@ -44,6 +44,6 @@ def get_available_subdirs(dir_path=DEFAULT_DIR):
         next_level_subdirs = get_available_subdirs(osp.join(dir_path, subdir))
         available_subdirs.extend(next_level_subdirs)
     
-    return available_subdirs
+    return sorted(available_subdirs, key=os.path.getmtime, reverse=True)
         
 
