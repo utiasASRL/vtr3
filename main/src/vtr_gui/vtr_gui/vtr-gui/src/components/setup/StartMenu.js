@@ -68,11 +68,11 @@ class StartMenu extends React.Component {constructor(props) {
         />
         <div
           style={{
-            width: "25%",
+            width: "30%",
             marginTop: "8%",
             marginBottom: "5%",
             position: 'relative',
-            left: "55%",
+            left: "50%",
           }}
         >
           <Card
@@ -149,12 +149,12 @@ class StartMenu extends React.Component {constructor(props) {
                 <Tooltip title={item} placement="left">
                   <Button
                     sx={{
-                      justifyContent: "flex-end",
+                      justifyContent: "flex-start",
                       overflow: 'hidden',
                       whiteSpace: 'nowrap',
                     }}
                     disableElevation={true}
-                    endIcon={<FolderIcon/>}
+                    startIcon={<FolderIcon/>}
                     onClick={this.setGraphDataDir.bind(this, item)}
                   >
                   {item}
