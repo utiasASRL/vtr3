@@ -37,6 +37,9 @@ find_package(vtr_torch REQUIRED)
 
 if(DEFINED VTR_ENABLE_VISION)
 
+add_compile_options(-g)
+
+
 file(GLOB_RECURSE SRC src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC})
 
