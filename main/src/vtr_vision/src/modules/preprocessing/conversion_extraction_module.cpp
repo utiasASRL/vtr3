@@ -301,14 +301,13 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
     rig.channels[0].name = "RGB";
 
 
-    // #ifdef VTR_VISION_LEARNED
-    // rig.channels[1].name = "RGB";
+    if (config_->use_learned){
+      rig.channels[1].name = "RGB";
 
-
-    // CLOG(DEBUG, "stereo.learned_features") << "num_channels: " << num_input_channels;
-    // CLOG(DEBUG, "stereo.learned_features") << "channel 0 name: " << rig.channels[0].name;
-    // CLOG(DEBUG, "stereo.learned_features") << "channel 1 name: " << rig.channels[1].name;
-    // #endif
+      CLOG(DEBUG, "stereo.learned_features") << "num_channels: " << num_input_channels;
+      CLOG(DEBUG, "stereo.learned_features") << "channel 0 name: " << rig.channels[0].name;
+      CLOG(DEBUG, "stereo.learned_features") << "channel 1 name: " << rig.channels[1].name;
+    }
 
     for (unsigned channel_idx = 0; channel_idx < num_input_channels;
          ++channel_idx) {
@@ -365,9 +364,14 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
       #ifdef VTR_VISION_LEARNED 
 
       if (config_->use_learned && channel_idx == 1) {
-        
         CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[4].name;
         const auto &disp_channel = rig.channels[4]; // Grayscale
+
+      // if (config_->use_learned) {
+      //   CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[1].name;
+      //   const auto &disp_channel = rig.channels[1]; // Grayscale
+        
+
         rig.channels.emplace_back(vision::Disparity(disp_channel));
 
         // Get the dense descriptors and scores

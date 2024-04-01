@@ -28,8 +28,9 @@ torch::Tensor normalizeKeypointCoordinates(torch::Tensor keypoints,
   torch::Tensor v_norm = 
       (2 * keypoints.index({0, 1, "..."}).reshape({1, -1}) / (height - 1)) - 1;
 
+  // CLOG(DEBUG, "stereo.learned_features") << "U: " << u_norm.max() << " V: " << v_norm.max();
   // grid_sample expects the normalized coordinates as (u, v), 1 x 1 x N x 2.
-  return torch::stack({u_norm, v_norm}, 2).unsqueeze_(1);
+  return torch::stack({u_norm, v_norm}, 2).unsqueeze_(1); //.clamp(-1f, 1f);
 }
 
 torch::Tensor getKeypointDisparities(torch::Tensor disparity, 
@@ -42,7 +43,7 @@ torch::Tensor getKeypointDisparities(torch::Tensor disparity,
 
   namespace F = torch::nn::functional;
   auto options = F::GridSampleFuncOptions().mode(
-                     torch::kBilinear).padding_mode(torch::kBorder).align_corners(false);
+                     torch::kNearest).padding_mode(torch::kBorder).align_corners(false);
 
 
   CLOG(INFO, "stereo.learned_features") << "disparity:" << disparity.sizes();
@@ -64,6 +65,9 @@ torch::Tensor getKeypointScores(torch::Tensor scores, torch::Tensor keypoints) {
   auto options = F::GridSampleFuncOptions().mode(
                      torch::kBilinear).align_corners(false);
 
+  CLOG(DEBUG, "stereo.learned_features") << "scores width: " << width;
+  CLOG(DEBUG, "stereo.learned_features") << "scores height: " << height;
+
   return F::grid_sample(scores, keypoints_norm, options).reshape({-1});
 
 }
@@ -80,6 +84,9 @@ torch::Tensor getKeypointDescriptors(torch::Tensor descriptors,
   namespace F = torch::nn::functional;
   auto options = F::GridSampleFuncOptions().mode(
                      torch::kBilinear).align_corners(false);
+
+  CLOG(DEBUG, "stereo.learned_features") << "descr width: " << width;
+  CLOG(DEBUG, "stereo.learned_features") << "descr height: " << height;
   
   torch::Tensor point_descriptors = F::grid_sample(descriptors, keypoints_norm, 
                                                    options);
@@ -224,7 +231,8 @@ torch::Tensor LFE::getDisparity(const cv::Mat& left, const cv::Mat& right,
   disp_tensor = disp_tensor.permute({(2), (0), (1)});
   disp_tensor.unsqueeze_(0);
 
-  return disp_tensor;
+  // return disp_tensor;
+  return disp_tensor.contiguous();
 
 }
 

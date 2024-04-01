@@ -133,14 +133,14 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
   styled.name = "styled";
 
   Image left_img;
-  // left_img.data = daytime_l.clone();
-  left_img.data = live_image_l.clone();
+  left_img.data = daytime_l.clone();
+  // left_img.data = live_image_l.clone();
   left_img.name = "styled_left";
   left_img.stamp = qdata.rig_images->front().channels.at(0).cameras.front().stamp;
 
   Image right_img;
-  // right_img.data = daytime_r.clone();
-  right_img.data = live_image_r.clone();
+  right_img.data = daytime_r.clone();
+  // right_img.data = live_image_r.clone();
   right_img.name = "styled_right";
   right_img.stamp = qdata.rig_images->front().channels.at(0).cameras.back().stamp;
 
@@ -149,9 +149,9 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
 
   qdata.rig_images->front().channels.emplace_back(styled);
 
-  CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.size() << " number of channels";
-  CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(1).cameras.front().data.size() << " left image size";
-  CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(1).cameras.back().data.size() << " right image size";
+  // CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.size() << " number of channels";
+  // CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(1).cameras.front().data.size() << " left image size";
+  // CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(1).cameras.back().data.size() << " right image size";
 
   // qdata.rig_images->front().channels.at(0).cameras.front().data = daytime_l.clone();
   // qdata.rig_images->front().channels.at(0).cameras.back().data = daytime_r.clone();

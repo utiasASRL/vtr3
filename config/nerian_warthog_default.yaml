@@ -337,7 +337,7 @@
         type: experience_triage
 
         verbose: false
-        only_privileged: true
+        only_privileged: false
         in_the_loop: true
 
       migration:

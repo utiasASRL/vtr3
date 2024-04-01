@@ -380,6 +380,13 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
         auto locked_image_msg =
                 std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg), *qdata.stamp);
         vertex->insert<ImageMsg>(vis_str, "vtr_vision_msgs/msg/Image", locked_image_msg);
+
+        auto image_msg_right = messages::copyImages(channel_img_itr->cameras[1]);
+
+        auto locked_image_msg_right =
+                std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg_right), *qdata.stamp);
+        vertex->insert<ImageMsg>(rig_name + "_visualization_images_right", "vtr_vision_msgs/msg/Image", locked_image_msg_right);
+
         break;
       }
     }
