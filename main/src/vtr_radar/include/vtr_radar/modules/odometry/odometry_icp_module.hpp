@@ -44,6 +44,7 @@ class OdometryICPModule : public tactic::BaseModule {
 
     // continuous-time estimation
     bool use_trajectory_estimation = false;
+    bool use_radial_velocity = false;
     int traj_num_extra_states = 0;
     bool traj_lock_prev_pose = false;
     bool traj_lock_prev_vel = false;
@@ -71,6 +72,8 @@ class OdometryICPModule : public tactic::BaseModule {
     unsigned int max_iterations = 1;
     double huber_delta = 1.0;
     double cauchy_k = 0.5;
+    double dopp_cauchy_k = 0.8;
+    double dopp_meas_cov = 1.0;
 
     /// Success criteria
     float min_matched_ratio = 0.4;
