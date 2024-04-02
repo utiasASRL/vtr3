@@ -23,28 +23,49 @@ namespace vtr {
 namespace radar {
 
 void load_radar(const std::string &path, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, cv::Mat &fft_data) {
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, std::vector<double> &azimuth_vel, cv::Mat &fft_data) {
   const cv::Mat raw_data = cv::imread(path, cv::IMREAD_GRAYSCALE);
-  load_radar(raw_data, timestamps, azimuths, fft_data);
+  load_radar(raw_data, timestamps, azimuths, up_chirps, azimuth_vel, fft_data);
 }
 
 void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, cv::Mat &fft_data) {
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, std::vector<double> &azimuth_vel, cv::Mat &fft_data) {
+
   const int64_t time_convert = 1000;
   const double encoder_conversion = 2 * M_PI / 5600;
   const uint N = raw_data.rows;
+  const uint M = raw_data.cols;
   timestamps = std::vector<int64_t>(N, 0);
   azimuths = std::vector<double>(N, 0);
-  const uint range_bins = raw_data.cols - 11;
+  up_chirps = std::vector<bool>(N, true);
+  azimuth_vel = std::vector<double>(N, 0);
+
+  bool doppler_metadata = false;
+  if (M == 6859) {
+    doppler_metadata = false;
+  } else if (M == 6863) {
+    doppler_metadata = true;
+  } else {
+    throw std::runtime_error("Invalid radar data size");
+  }
+
+  const uint range_bins = M - 11 - (doppler_metadata ? 4 : 0);
   fft_data = cv::Mat::zeros(N, range_bins, CV_32F);
+
   // #pragma omp parallel
   for (uint i = 0; i < N; ++i) {
     const uchar *byteArray = raw_data.ptr<uchar>(i);
     timestamps[i] = *((int64_t *)(byteArray)) * time_convert;
-    azimuths[i] = *((uint16_t *)(byteArray + 8)) * encoder_conversion;
-    // The 10th byte is reserved but unused
+    azimuths[i] = *((uint16_t *)(byteArray + 8)) * encoder_conversion;\
+    // The 11th byte is used for up_chirp
+    up_chirps[i] = *(byteArray + 10);
     for (uint j = 0; j < range_bins; ++j) {
       fft_data.at<float>(i, j) = (float)*(byteArray + 11 + j) / 255.0;
+    }
+    if (doppler_metadata) {
+      azimuth_vel[i] = *((float *)(byteArray + M - 4));
+    } else {
+      azimuth_vel[i] = -1000.0;
     }
   }
 }

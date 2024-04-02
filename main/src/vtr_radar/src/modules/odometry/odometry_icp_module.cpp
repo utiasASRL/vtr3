@@ -49,6 +49,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   // motion compensation
   config->use_trajectory_estimation = node->declare_parameter<bool>(param_prefix + ".use_trajectory_estimation", config->use_trajectory_estimation);
+  config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
   config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
   config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
@@ -76,6 +77,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
+  config->dopp_cauchy_k = node->declare_parameter<double>(param_prefix + ".dopp_cauchy_k", config->dopp_cauchy_k);
+  config->dopp_meas_cov = node->declare_parameter<double>(param_prefix + ".dopp_meas_cov", config->dopp_meas_cov);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
@@ -210,7 +213,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   kdtree->buildIndex();
 
   /// perform initial alignment
-  CLOG(DEBUG, "lidar.odometry_icp") << "Start initial alignment.";
+  CLOG(DEBUG, "radar.odometry_icp") << "Start initial alignment.";
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
   for (unsigned i = 0; i < query_points.size(); ++i) {
     aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
@@ -219,13 +222,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (unsigned i = 0; i < query_points.size(); ++i) {
       const auto &qry_time = query_points[i].timestamp;
+      const auto &up_chirp = query_points[i].up_chirp;
       const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
       const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
       const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
       const Eigen::Vector3f v_m_s_in_s = w_m_s_in_s.block<3, 1>(0, 0);
       Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
       abar.normalize();
-      aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+      // If up chirp azimuth, subtract Doppler shift
+      if (up_chirp) { 
+        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+      } else {
+        aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
+      }
     }
   }
   if (config_->use_trajectory_estimation) {
@@ -328,8 +337,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // shared loss function
     // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
-    auto loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
+    auto icp_loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
     // cost terms and noise model
+    bool rv_cost_added = false;
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
@@ -347,13 +357,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
         return W;
       }();
-      auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
+      auto icp_noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      auto error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
+      auto icp_error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
         if (config_->use_trajectory_estimation) {
           const auto &qry_time = query_points[ind.first].timestamp;
           const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
@@ -361,7 +371,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           if (beta != 0) {
             const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
             const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-            return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta);
+            const auto &up_chirp = query_points[ind.first].up_chirp;
+            if (up_chirp) {
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta);
+            } else {
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta);
+            }
+            
           } else {
             return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
           }
@@ -371,10 +387,47 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       }();
 
       // create cost term and add to problem
-      auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, icp_loss_func);
+
+      // process radial velocity measurement
+      auto rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(nullptr, nullptr, nullptr);
+      if (config_->use_radial_velocity) {
+        
+        if (query_points[ind.first].radial_velocity != -1000.0 && !rv_cost_added) {
+          // noise properties
+          Eigen::Matrix<double, 1, 1> meas_cov = pow(config_->dopp_meas_cov, 2) * Eigen::Matrix<double, 1, 1>::Identity();
+          const auto vel_noise_model = StaticNoiseModel<1>::MakeShared(meas_cov);
+
+          // loss function
+          auto rv_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
+
+          // auto rv_error_func = [&]() -> Evaluable<double>::Ptr {
+          //   const auto &vel = query_points[ind.first].vel;
+          //   const auto &qry_time = query_points[ind.first].timestamp;
+          //   const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+          //   const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+
+          //   return p2p::radialVelError(w_m_s_in_s_intp_eval, qry_pt, vel);
+          // }();
+
+          const auto &vel = query_points[ind.first].radial_velocity;
+          const auto &qry_time = query_points[ind.first].timestamp;
+          const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+          const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+          const auto rv_error = p2p::RadialVelErrorEvaluator::MakeShared(w_m_s_in_s_intp_eval, qry_pt, -vel);
+          
+          rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(rv_error, vel_noise_model, rv_loss_func);
+        }
+      }
 
 #pragma omp critical(odo_icp_add_p2p_error_cost)
-      problem.addCostTerm(cost);
+{
+      problem.addCostTerm(icp_cost);
+      if (config_->use_radial_velocity && query_points[ind.first].radial_velocity != -1000.0 && !rv_cost_added) {
+        rv_cost_added = true;
+        problem.addCostTerm(rv_cost);
+      }
+}
     }
 
     // optimize
@@ -396,13 +449,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_points.size(); ++i) {
         const auto &qry_time = query_points[i].timestamp;
+        const auto &up_chirp = query_points[i].up_chirp;
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
         const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
         const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
         const Eigen::Vector3f v_m_s_in_s = w_m_s_in_s.block<3, 1>(0, 0);
         Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
         abar.normalize();
-        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+        if (up_chirp) {
+          aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+        } else {
+          aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
+        }
       }
     }
     if (config_->use_trajectory_estimation) {
