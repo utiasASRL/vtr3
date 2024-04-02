@@ -21,6 +21,9 @@
 #include "vtr_lidar/data_types/pointmap_pointer.hpp"
 #include "vtr_tactic/modules/factory.hpp"
 
+#include "cv_bridge/cv_bridge.h"
+
+
 namespace vtr {
 namespace lidar {
 
@@ -229,6 +232,28 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     // save the submap vertex id and transform
     submap_vid_odo_ = *qdata->vid_odo;
     T_sv_m_odo_ = *T_r_m_odo_;
+  }
+
+  {
+    using Image_LockMsg = storage::LockableMessage<sensor_msgs::msg::Image>;
+
+    cv_bridge::CvImage left_img;
+    left_img.header.frame_id = "nerian";
+    left_img.encoding = "bgr8";
+    left_img.image = *qdata->left_img;
+
+    auto locked_image_msg =
+            std::make_shared<Image_LockMsg>(left_img.toImageMsg(), *qdata->stamp);
+    vertex->insert<sensor_msgs::msg::Image>("left_image", "sensor_msgs/msg/Image", locked_image_msg);
+
+    cv_bridge::CvImage right_img;
+    right_img.header.frame_id = "nerian";
+    right_img.encoding = "bgr8";
+    right_img.image = *qdata->left_img;
+
+    locked_image_msg =
+            std::make_shared<Image_LockMsg>(right_img.toImageMsg(), *qdata->stamp);
+    vertex->insert<sensor_msgs::msg::Image>("right_img", "sensor_msgs/msg/Image", locked_image_msg);
   }
 
   /// save a pointer to the latest submap

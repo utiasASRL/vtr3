@@ -149,11 +149,13 @@ if (pipeline->name() == "lidar"){
 
   auto lidar_qos = rclcpp::QoS(max_queue_size_);
   lidar_qos.reliable();
-  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  pc_sub_.subscribe(node_, lidar_topic, lidar_qos.get_rmw_qos_profile());
+  // lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
 }
 #endif
 #ifdef VTR_ENABLE_VISION
-if (pipeline->name() == "stereo") {
+//if (pipeline->name() == "stereo") {
+{
   using namespace std::placeholders;
 
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "camera");
@@ -174,10 +176,13 @@ if (pipeline->name() == "stereo") {
   right_camera_sub_.subscribe(node_, right_image_topic, camera_qos.get_rmw_qos_profile());
   left_camera_sub_.subscribe(node_, left_image_topic, camera_qos.get_rmw_qos_profile());
 
-  sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImageSync>>(ApproximateImageSync(10), right_camera_sub_, left_camera_sub_);
-  sync_->registerCallback(&Navigator::cameraCallback, this);
+  // sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImageSync>>(ApproximateImageSync(10), right_camera_sub_, left_camera_sub_);
+  // sync_->registerCallback(&Navigator::cameraCallback, this);
 }
 #endif
+  combo_sync_ = std::make_shared<message_filters::Synchronizer<ApproximateImagePCSync>>(ApproximateImagePCSync(10), right_camera_sub_, left_camera_sub_, pc_sub_);
+  combo_sync_->registerCallback(&Navigator::comboCallback, this);
+
   // clang-format on
 
   ///
@@ -287,6 +292,57 @@ void Navigator::lidarCallback(
   cv_set_or_stop_.notify_one();
 };
 #endif
+
+void Navigator::comboCallback(const sensor_msgs::msg::Image::SharedPtr msg_r, const sensor_msgs::msg::Image::SharedPtr msg_l,
+    const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+
+  // set the timestamp
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
+
+  // Convert message to query_data format and store into query_data
+  auto query_data = std::make_shared<lidar::LidarQueryCache>();
+
+  LockGuard lock(mutex_);
+
+
+  /// Discard old frames if our queue is too big
+  if (queue_.size() > max_queue_size_) {
+    CLOG(WARNING, "navigation")
+        << "Dropping old pointcloud message because the queue is full.";
+    queue_.pop();
+  }
+
+
+  // some modules require node for visualization
+  query_data->node = node_;
+
+  query_data->stamp.emplace(timestamp);
+
+  // add the current environment info
+  query_data->env_info.emplace(env_info_);
+
+  // put in the pointcloud msg pointer into query data
+  query_data->pointcloud_msg = msg;
+
+  // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r.emplace(T_lidar_robot_);
+
+
+  auto mat_r = cv_bridge::toCvShare(msg_r, "bgr8")->image;
+  auto mat_l = cv_bridge::toCvShare(msg_l, "bgr8")->image;
+  cv::resize(mat_r, mat_r, cv::Size(512, 377));
+  cv::resize(mat_l, mat_l, cv::Size(512, 377));
+
+  query_data->right_img.emplace(mat_r);
+  query_data->left_img.emplace(mat_l);
+
+  // add to the queue and notify the processing thread
+  queue_.push(query_data);
+  cv_set_or_stop_.notify_one();
+};
+
 
 #ifdef VTR_ENABLE_VISION
 void Navigator::cameraCallback(

@@ -26,6 +26,8 @@
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
 
+#include "opencv2/core.hpp"
+
 namespace vtr {
 namespace lidar {
 
@@ -61,6 +63,9 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
 
   // dynamic detection async
   tactic::Cache<const tactic::VertexId> dynamic_detection_async;
+
+  tactic::Cache<const cv::Mat> left_img;
+  tactic::Cache<const cv::Mat> right_img;
 
   // inter exp merging async (priv, curr, T_priv_curr)
   tactic::Cache<const std::tuple<tactic::VertexId, tactic::VertexId,

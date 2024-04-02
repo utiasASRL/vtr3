@@ -51,6 +51,9 @@
     robot_frame: base_link
     env_info_topic: env_info
     lidar_frame: os_lidar
+    camera_frame: nerian_left
+    camera_left_topic: /nerian_stereo/left_image
+    camera_right_topic:  /nerian_stereo/right_image
     lidar_topic: /ouster/points
     queue_size: 1
     graph_map:
