@@ -86,7 +86,7 @@ auto NavtechExtractionModule::Config::fromROS(
 
   // Doppler stuff
   config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
-  config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
+  config->upfront_range_corr = node->declare_parameter<bool>(param_prefix + ".upfront_range_corr", config->upfront_range_corr);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -122,13 +122,14 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
   /// temp variables
-  cv::Mat scan_use;
   cv::Mat fft_scan;
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
   std::vector<double> azimuth_angles;
+  std::vector<bool> up_chirps;
+  std::vector<double> azimuth_vel;
   /// \note for now we retrieve radar resolution from load_radar function
-#if false
+#if true
   // Set radar resolution
   float radar_resolution = config_->radar_resolution;
 #else
@@ -138,29 +139,8 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   float cart_resolution = config_->cart_resolution;
   beta = config_->beta;
 
-  // Downsample scan based on desired chirp type
-  if (config_->chirp_type == "up") {
-    // Choose only every second row, starting from row 0
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 0; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(j));
-      j++;
-    }
-  } else if (config_->chirp_type == "down") {
-    // Choose only every second row, starting from row 1
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 1; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(i));
-      j++;
-    }
-  } else{
-    scan_use = scan;
-  }
-
   // Load scan, times, azimuths from scan
-  load_radar(scan_use, azimuth_times, azimuth_angles, fft_scan);
+  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, azimuth_vel, fft_scan);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
@@ -219,44 +199,77 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     Cen2018 detector = Cen2018<PointWithInfo>(
         config_->cen2018.zq, config_->cen2018.sigma, config_->minr,
         config_->maxr, config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                 raw_point_cloud);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
+                 azimuth_vel, raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
     KStrongest detector = KStrongest<PointWithInfo>(
         config_->kstrong.kstrong, config_->kstrong.threshold2,
         config_->kstrong.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                 raw_point_cloud);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
+                 azimuth_vel, raw_point_cloud);
   } else if (config_->detector == "cacfar") {
     CACFAR detector = CACFAR<PointWithInfo>(
         config_->cacfar.width, config_->cacfar.guard, config_->cacfar.threshold,
         config_->cacfar.threshold2, config_->cacfar.threshold3, config_->minr,
         config_->maxr, config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                 raw_point_cloud);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
+                 azimuth_vel, raw_point_cloud);
   } else if (config_->detector == "oscfar") {
     OSCFAR detector = OSCFAR<PointWithInfo>(
         config_->oscfar.width, config_->oscfar.guard, config_->oscfar.kstat,
         config_->oscfar.threshold, config_->oscfar.threshold2,
         config_->oscfar.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                 raw_point_cloud);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
+                 azimuth_vel, raw_point_cloud);
   } else if (config_->detector == "modified_cacfar") {
     ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
         config_->modified_cacfar.width, config_->modified_cacfar.guard,
         config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
         config_->modified_cacfar.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                 raw_point_cloud);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
+                 azimuth_vel, raw_point_cloud);
   } else {
     CLOG(ERROR, "radar.navtech_extractor")
         << "Unknown detector: " << config_->detector;
     throw std::runtime_error("Unknown detector: " + config_->detector);
   }
 #endif
+
+  // do upfront range correction if desired and radial velocity metadata present
+  if (config_->upfront_range_corr) {
+    bool all_pts_have_rv = true;
+    for (auto &point : raw_point_cloud) {
+      if (point.radial_velocity != -1000.0) {
+        if (point.up_chirp)
+          point.rho += point.radial_velocity * config_->beta;
+        else
+          point.rho -= point.radial_velocity * config_->beta;
+      } else {
+        all_pts_have_rv = false;
+      }
+    }
+
+    if (!all_pts_have_rv) {
+      CLOG(ERROR, "radar.navtech_extractor")
+          << "Not all points have radial velocity for upfront range "
+             "correction!!!!";
+    }
+
+    // If we did upfront correction, save the beta value
+    beta = 0.0;
+  }
+
+  // sort points into a canonical order, this helps to reduce randomness and improves
+  // reproducability while multithreading
+  std::sort(raw_point_cloud.begin(), raw_point_cloud.end(), [](PointWithInfo a, PointWithInfo b) {
+    if (a.timestamp == b.timestamp)
+      return a.rho < b.rho;
+    else
+      return a.timestamp < b.timestamp;
+  });
 
   // Convert to cartesian format
   pol2Cart2D(raw_point_cloud);
@@ -271,7 +284,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     scan_image.header.frame_id = "radar";
     // scan_image.header.stamp = qdata.scan_msg->header.stamp;
     scan_image.encoding = "mono8";
-    scan_image.image = scan_use;
+    scan_image.image = scan;
     scan_pub_->publish(*scan_image.toImageMsg());
 
     // publish the fft scan image
