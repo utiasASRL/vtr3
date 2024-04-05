@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module.hpp
+ * \file odometry_doppler_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -31,12 +31,12 @@ namespace vtr {
 namespace lidar {
 
 /** \brief ICP for odometry. */
-class OdometryICPModule : public tactic::BaseModule {
+class OdometryDopplerModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.odometry_icp";
+  static constexpr auto static_name = "lidar.odometry_doppler";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
@@ -81,7 +81,7 @@ class OdometryICPModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  OdometryICPModule(
+  OdometryDopplerModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -94,7 +94,7 @@ class OdometryICPModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(OdometryICPModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometryDopplerModule);
 };
 
 }  // namespace lidar

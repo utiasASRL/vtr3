@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module.cpp
+ * \file odometry_doppler_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
+#include "vtr_lidar/modules/odometry/odometry_doppler_module.hpp"
 
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
@@ -42,7 +42,7 @@ using namespace steam::se3;
 using namespace steam::traj;
 using namespace steam::vspace;
 
-auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -55,7 +55,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
-    CLOG(ERROR, "lidar.odometry_icp") << err;
+    CLOG(ERROR, "lidar.odometry_doppler") << err;
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
@@ -84,12 +84,12 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
+void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (!qdata.sliding_map_odo) {
-    CLOG(INFO, "lidar.odometry_icp") << "First frame, simply return.";
+    CLOG(INFO, "lidar.odometry_doppler") << "First frame, simply return.";
     // clang-format off
 #if false
     // undistorted raw point cloud
@@ -111,8 +111,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     return;
   }
 
-  CLOG(DEBUG, "lidar.odometry_icp")
+  CLOG(DEBUG, "lidar.odometry_doppler")
       << "Retrieve input data and setup evaluators.";
+
+  CLOG(WARNING, "lidar.odometry_doppler") << "doing doppler!!!!!";
 
   // Inputs
   const auto &query_stamp = *qdata.stamp;
@@ -180,15 +182,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     //
     Time prev_time(static_cast<int64_t>(timestamp_odo));
     Time query_time(static_cast<int64_t>(query_stamp));
-
-    if (prev_time == query_time) {
-      CLOG(WARNING, "lidar.odometry") << "Skipping point cloud with duplicate stamp";
-      //CLOG(WARNING, "lidar.odometry") << "The prev_time was: "<< prev_time;
-      //CLOG(WARNING, "lidar.odometry") << "The query_time was: "<< query_time;
-      *qdata.odo_success = false;
-      return;
-    }
-
     const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
     const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
@@ -211,14 +204,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// create kd-tree of the map
-  CLOG(DEBUG, "lidar.odometry_icp") << "Start building a kd-tree of the map.";
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Start building a kd-tree of the map.";
   NanoFLANNAdapter<PointWithInfo> adapter(point_map);
   KDTreeParams tree_params(10 /* max leaf */);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   /// perform initial alignment
-  CLOG(DEBUG, "lidar.odometry_icp") << "Start initial alignment.";
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Start initial alignment.";
   if (config_->use_trajectory_estimation) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (unsigned i = 0; i < query_points.size(); i++) {
@@ -264,7 +257,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool refinement_stage = false;
   int refinement_step = 0;
 
-  CLOG(DEBUG, "lidar.odometry_icp") << "Start the ICP optimization loop.";
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Start the ICP optimization loop.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -380,13 +373,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
     GaussNewtonSolver solver(problem, params);
-
-    try{
-      solver.optimize();
-    } catch (std::runtime_error& e) {
-      CLOG(WARNING, "lidar.odometry_icp") <<  "Steam failed.\n e.what(): " << e.what();
-      break;
-    }
+    solver.optimize();
     Covariance covariance(solver);
     timer[3]->stop();
 
@@ -445,7 +432,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (!refinement_stage && step >= first_steps) {
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
-        CLOG(DEBUG, "lidar.odometry_icp") << "Initial alignment takes " << step << " steps.";
+        CLOG(DEBUG, "lidar.odometry_doppler") << "Initial alignment takes " << step << " steps.";
 
         // enter the second refine stage
         refinement_stage = true;
@@ -480,12 +467,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       //
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
-      CLOG(DEBUG, "lidar.odometry_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
+      CLOG(DEBUG, "lidar.odometry_doppler") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "lidar.odometry_icp") << "ICP did not converge to the specified threshold";
+        CLOG(WARNING, "lidar.odometry_doppler") << "ICP did not converge to the specified threshold";
         if (!refinement_stage) {
-          CLOG(WARNING, "lidar.odometry_icp") << "ICP did not enter refinement stage at all.";
+          CLOG(WARNING, "lidar.odometry_doppler") << "ICP did not enter refinement stage at all.";
         }
       }
       break;
@@ -494,9 +481,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Dump timing info
-  CLOG(DEBUG, "lidar.odometry_icp") << "Dump timing info inside loop: ";
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Dump timing info inside loop: ";
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.odometry_icp") << "  " << clock_str[i] << timer[i]->count();
+    CLOG(DEBUG, "lidar.odometry_doppler") << "  " << clock_str[i] << timer[i]->count();
   }
 
   /// Outputs
@@ -540,27 +527,20 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     *qdata.T_r_m_odo = T_r_m_eval->value();
     *qdata.timestamp_odo = query_stamp;
-//#if 1
-//    CLOG(WARNING, "lidar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-//    CLOG(WARNING, "lidar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-//#endif
+#if 1
+    CLOG(WARNING, "lidar.odometry_doppler") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+    CLOG(WARNING, "lidar.odometry_doppler") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
-
-    // Temporary modification by Jordy to test calibration of hte grizzly controller
-    //CLOG(DEBUG, "grizzly_controller_tests.cbit") << "The Odometry Velocity is: " << *qdata.w_m_r_in_r_odo * -1;
-    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Linear Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(0);
-    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Odom Angular Velocity: " << (*qdata.w_m_r_in_r_odo * -1)(5);
-    // End of Jordy's Modifications
-
     /// \todo double check that we can indeed treat m same as v for velocity
     if (config_->use_trajectory_estimation)
       *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     //
     *qdata.odo_success = true;
   } else {
-    CLOG(WARNING, "lidar.odometry_icp")
+    CLOG(WARNING, "lidar.odometry_doppler")
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
     // do not undistort the pointcloud
