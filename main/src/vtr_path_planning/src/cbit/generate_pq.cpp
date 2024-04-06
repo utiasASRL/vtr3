@@ -33,15 +33,19 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     path = disc_path;
 
     // Iterate through all poses in disc_path, assign a p coordinate value to the pose to use for the curvilinear space reference
-    int vect_size = disc_path.size();
+    unsigned vect_size = disc_path.size();
     p.reserve(vect_size);
     p.push_back(0.0);
     sid.reserve(vect_size);
     sid.push_back(0);
-    for (int i=1; i<vect_size; i++)
+    for (unsigned i=1; i < vect_size; i++)
     {
         p.push_back(p[i-1] + delta_p_calc(disc_path[i-1], disc_path[i], alpha));
         sid.push_back(i);
+    }
+
+    if (vect_size < 2) {
+        throw std::runtime_error("Path of length 1 cannot be interpolated!");
     }
 
     // Generate XY, XZ Curvature Estimates
@@ -52,7 +56,7 @@ CBITPath::CBITPath(CBITConfig config, std::vector<Pose> initial_path)
     Eigen::Spline<double, 2> spline_xz_yz = spline_path_xz_yz(disc_path);
 
     // Calculate curvature along the teach path at each vertex
-    for (int i=0; i < p.size(); i++)
+    for (size_t i=0; i < p.size(); i++)
     {
         disc_path_curvature_xy.push_back(1.0 / radius_of_curvature(p[i]/p.back(), spline_xy)); // the input chord length should be normalized to [0,1] along the length of the path
         disc_path_curvature_xz_yz.push_back(1.0 / radius_of_curvature(p[i]/p.back(), spline_xz_yz)); // the input chord length should be normalized to [0,1] along the length of the path
@@ -99,21 +103,27 @@ double CBITPath::delta_p_calc(Pose start_pose, Pose end_pose, double alpha)
     return sqrt((dx * dx) + (dy * dy) + (dz * dz) + (alpha * abs_angle * abs_angle));
 }
 
-Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
+Eigen::Spline<double, 2> CBITPath::spline_path_xy(const std::vector<Pose> &input_path)
 {
     std::vector<Eigen::Vector2d> valid_points;
 
-    for (int i = 0; i < input_path.size(); i++) 
-    {
-        if (i % 5 == 0)
-        {
-            valid_points.push_back(Eigen::Vector2d(input_path[i].x, input_path[i].y));
+    // Usually use every fifth point. 
+    // If the input path is shorter than 5 points use a linear fit between the start and end
+
+    if (input_path.size() < 5){
+        valid_points.push_back(Eigen::Vector2d(input_path[0].x, input_path[0].y));
+        valid_points.push_back(Eigen::Vector2d(input_path[input_path.size()-1].x, input_path[input_path.size()-1].y));
+    } else {
+        for (size_t i = 0; i < input_path.size(); i++) {
+            if (i % 5 == 0) {
+                valid_points.push_back(Eigen::Vector2d(input_path[i].x, input_path[i].y));
+            }
         }
     }
 
     Eigen::MatrixXd points(2, valid_points.size());
 
-    for (int i = 0; i < valid_points.size(); i++) 
+    for (size_t i = 0; i < valid_points.size(); i++) 
     {
         points(0, i) = valid_points[i](0);
         points(1, i) = valid_points[i](1);
@@ -129,21 +139,26 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xy(std::vector<Pose> input_path)
     return spline;
 }
 
-Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(std::vector<Pose> input_path)
-{
+Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(const std::vector<Pose> &input_path) {
     std::vector<Eigen::Vector2d> valid_points;
 
-    for (int i = 0; i < input_path.size(); i++) 
-    {
-        if (i % 5 == 0)
-        {
-            valid_points.push_back(Eigen::Vector2d(sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y)), input_path[i].z));
+    // Usually use every fifth point. 
+    // If the input path is shorter than 5 points use a linear fit between the start and end
+
+    if (input_path.size() < 5){
+        valid_points.push_back(Eigen::Vector2d(input_path[0].x, input_path[0].y));
+        valid_points.push_back(Eigen::Vector2d(input_path[input_path.size()-1].x, input_path[input_path.size()-1].y));
+    } else {
+        for (size_t i = 0; i < input_path.size(); i++) {
+            if (i % 5 == 0) {
+                valid_points.push_back(Eigen::Vector2d(sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y)), input_path[i].z));
+            }
         }
     }
 
     Eigen::MatrixXd points(2, valid_points.size());
 
-    for (int i = 0; i < valid_points.size(); i++) 
+    for (size_t i = 0; i < valid_points.size(); i++) 
     {
         points(0, i) = valid_points[i](0);
         points(1, i) = valid_points[i](1);
@@ -181,6 +196,10 @@ double CBITPath::radius_of_curvature(double dist, Eigen::Spline<double, 2> splin
     // If using only the magnitude of radius of curvature:
     double roc_magnitude = std::pow(std::pow(dx_dt, 2) + std::pow(dy_dt, 2), 1.5) / std::abs(dx_dt * d2y_dt2 - dy_dt * d2x_dt2);
 
+
+    // TODO, return both signed and magnitude ROC's
+    // We use the magnitude ROC's for speed scheduling and the signed ones for generating wormhole regions
+    /**
     // Calculating the sign of the radius of curvature, positive means curving left, negative means curving right
     double cross_prod = dx_dt * d2y_dt2 - dy_dt * d2x_dt2; // compute the z-component of the cross product
     int sign = (cross_prod > 0) ? 1 : -1; // determine the sign of the radius of curvature
@@ -189,9 +208,7 @@ double CBITPath::radius_of_curvature(double dist, Eigen::Spline<double, 2> splin
     double x_pred = curvature(0,0);
     double y_pred = curvature(1,0);
     
-    // TODO, return both signed and magnitude ROC's
-    // We use the magnitude ROC's for speed scheduling and the signed ones for generating wormhole regions
-
+    */
     return roc_magnitude;
 }
 

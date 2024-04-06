@@ -42,7 +42,7 @@ void initialize_plot()
 
 // Function for plotting all the edges in the current tree (Called at the conclusion of each batch)
 // Note this will also get triggered following state updates and repairs as well
-void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector<double> path_q, std::vector<std::shared_ptr<Node>> samples)
+void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector<double> path_q, std::vector<std::shared_ptr<Node>>&)
 {
     // Clear the figure
     matplotlibcpp::clf();
@@ -58,7 +58,7 @@ void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector
 
 
     // Iterate through the current tree, plot each edge
-    for (int i = 0; i < tree.E.size(); i++)
+    for (size_t i = 0; i < tree.E.size(); i++)
     {
         std::shared_ptr<Node> vm = std::get<0>(tree.E[i]);
         std::shared_ptr<Node> xm = std::get<1>(tree.E[i]);
@@ -73,7 +73,7 @@ void plot_tree(Tree tree, Node robot_pq, std::vector<double> path_p, std::vector
 
     // Plot the current path solution
     // Invert the q values
-    for (int j= 0; j < path_q.size(); j++)
+    for (size_t j= 0; j < path_q.size(); j++)
     {
         path_q[j] = path_q[j] * -1;
     }

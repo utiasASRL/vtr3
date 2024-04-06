@@ -106,7 +106,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     vel_states.push_back(v0);
 
     // Set the remaining states using a warm start from the cbit solution
-    for (int i=1; i<K; i++)
+    for (int i=1; i < K; i++)
     {
         pose_states.push_back(tracking_reference_poses[i]); // New initialization - use the reference measurements from the cbit solution as our initialization - the first one is the same as our initial state
         vel_states.push_back(v0);
@@ -302,7 +302,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
       // if we do detect nans, return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
-      for (int i = 0; i<pose_state_vars.size(); i++)
+      for (size_t i = 0; i < pose_state_vars.size(); i++)
       {
         mpc_poses.push_back(T0);
       }
@@ -349,7 +349,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
       // if we do detect nans, return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
-      for (int i = 0; i<pose_state_vars.size(); i++)
+      for (size_t i = 0; i < pose_state_vars.size(); i++)
       {
         mpc_poses.push_back(T0);
       }
@@ -361,7 +361,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     {
     // Store the sequence of resulting mpc prediction horizon poses for visualization
     std::vector<lgmath::se3::Transformation> mpc_poses;
-    for (int i = 0; i<pose_state_vars.size(); i++)
+    for (size_t i = 0; i < pose_state_vars.size(); i++)
     {
       mpc_poses.push_back(pose_state_vars[i]->value().inverse());
     }
@@ -401,7 +401,7 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
     std::vector<double> cbit_p;
     cbit_p.reserve(cbit_path.size());
     cbit_p.push_back(0.0);
-    for (int i = 0; i < (cbit_path.size()-2); i++) // the last value of vector is size()-1, so second to last will be size-2
+    for (size_t i = 0; i < (cbit_path.size()-2); i++) // the last value of vector is size()-1, so second to last will be size-2
     { 
       // calculate the p value for the point
       p_dist = sqrt((((cbit_path)[i].x - (cbit_path)[i+1].x) * ((cbit_path)[i].x - (cbit_path)[i+1].x)) + (((cbit_path)[i].y - (cbit_path)[i+1].y) * ((cbit_path)[i].y - (cbit_path)[i+1].y)));
@@ -448,7 +448,7 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
     // Iterate through the p_measurements and interpolate euclidean poses from the cbit_path and the corresponding cbit_p values
     // Note this could probably just be combined in the previous loop too
     bool point_stabilization = false;
-    for (int i = 0; i < p_meas_vec.size(); i++)
+    for (size_t i = 0; i < p_meas_vec.size(); i++)
     {
       // handle end of path case:
       // if the p meas we would have needed exceeds the final measurement pose, set it equal to our last p value in the path
@@ -473,8 +473,7 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
 
 
 // For generating VT&R teach path poses used in the corridor mpc (new version which directly uses the interpolated p measurements from the cbit path trajectory tracking)
-struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF, int current_sid, std::vector<double> p_interp_vec)
-{
+struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, const std::vector<double> &p_interp_vec) {
     // Set point stabilization, but just note if we use this function in the cbit.cpp file we need to use the Tracking reference pose point stabilization instead
     bool point_stabilization = false;
 
@@ -490,7 +489,7 @@ struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> gl
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
 
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
-    for (int i = 0; i < p_interp_vec.size(); i++)
+    for (size_t i = 0; i < p_interp_vec.size(); i++)
     {
 
       struct InterpResult interp_pose = InterpolatePose(p_interp_vec[i], teach_path_p, teach_path);
@@ -522,7 +521,7 @@ struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> gl
 struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, std::vector<Pose> cbit_path)
 {
   // Find the lower bound of the p values
-  for (int i = 0; i < cbit_p.size(); i++)
+  for (size_t i = 0; i < cbit_p.size(); i++)
   {
     if (cbit_p[i] < p_val)
     {
@@ -606,8 +605,7 @@ Eigen::Matrix<double, 2, 1> SaturateVel(Eigen::Matrix<double, 2, 1> applied_vel,
     Eigen::Matrix<double, 2, 1> saturated_vel;
 
 
-    if (abs(applied_vel(0)) >= v_lim)
-    {
+    if (abs(applied_vel(0)) >= v_lim) {
       if (applied_vel(0) > 0.0)
       {
         command_lin_x = v_lim;
@@ -615,11 +613,10 @@ Eigen::Matrix<double, 2, 1> SaturateVel(Eigen::Matrix<double, 2, 1> applied_vel,
       else if (applied_vel(0)  < 0.0)
       {
         command_lin_x = -1.0* v_lim;
+      } else {
+        command_lin_x = 0;
       }
-    }
-
-    else
-    {
+    } else {
       command_lin_x = applied_vel(0) ;
     }
 
@@ -632,11 +629,10 @@ Eigen::Matrix<double, 2, 1> SaturateVel(Eigen::Matrix<double, 2, 1> applied_vel,
       else if (applied_vel(1)  < 0.0)
       {
         command_ang_z = -1.0 * w_lim;
+      } else {
+        command_ang_z = 0;
       }
-    }
-
-    else
-    {
+    } else {
       command_ang_z = applied_vel(1) ;
     }
 
