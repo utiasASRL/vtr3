@@ -18,7 +18,7 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=navtech_warthog_default.yaml
-        start_new_graph:=true
+        start_new_graph:=false
         use_sim_time:=true
         planner:="stationary"
         model_dir:=${VTRROOT}/models

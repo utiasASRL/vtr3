@@ -24,6 +24,8 @@
 #include "vtr_radar/detector/detector.hpp"
 #include "vtr_radar/utils/utils.hpp"
 
+#include <pcl/common/common.h>
+
 namespace vtr {
 namespace radar {
 
@@ -130,7 +132,8 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<int64_t> azimuth_times;
   // # Sam creates a made-up timestamp for the radar data assuming 4hz on a 400 azimuth angles
   Cache<Timestamp> qstamp = qdata.stamp;
-  int64_t time_per_resulution = 1.0/4.0*1000000000;
+  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
+  int64_t time_per_resulution = 1.0/4.0*1e9;
   int64_t current_time_stamp = *qstamp;
 
   for(int i=0; i<200; i++){
@@ -147,9 +150,10 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   // # Sam creates a made-up azimuth angle for the radar data
   double per_azimuth_angle = 2*M_PI/400.0;
   for(int i=0; i<400; i++){
-    azimuth_angles.emplace_back((i+1)*per_azimuth_angle);
+    azimuth_angles.emplace_back((i)*per_azimuth_angle);
   }
 
+  
 
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
@@ -158,7 +162,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 #else
   // use the first timestamp to determine the resolution
   // float radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
-  float radar_resolution = 0.044;
+  float radar_resolution = config_->radar_resolution;
 #endif
   float cart_resolution = config_->cart_resolution;
   beta = config_->beta;
@@ -288,6 +292,24 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "radar.navtech_extractor")
       << "Extracted " << raw_point_cloud.size() << " points";
+
+  // # Sam I like to know the exact details of the point cloud
+  // for(int j=0; j<raw_point_cloud.size(); j++){
+  //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point is: " << raw_point_cloud.points[j].x << " " << raw_point_cloud.points[j].y ;
+  // }
+
+  PointWithInfo min_pt, max_pt;
+  pcl::getMinMax3D(raw_point_cloud, min_pt, max_pt);
+
+  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The min point is: " << min_pt.x << " " << min_pt.y << " " << min_pt.z;
+  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The max point is: " << max_pt.x << " " << max_pt.y << " " << max_pt.z;
+
+  // for (auto &point : pointcloud) {
+
+  //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point x is: " << point.x ;
+  //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point y is: " << point.y ;
+
+  // }
 
   /// Visualize
   if (config_->visualize) {
