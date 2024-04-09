@@ -27,3 +27,5 @@
 #include "vtr_pose_graph/evaluator/mask/privileged.hpp"
 #include "vtr_pose_graph/evaluator/mask/spatial.hpp"
 #include "vtr_pose_graph/evaluator/mask/temporal.hpp"
+#include "vtr_pose_graph/evaluator/mask/run_select.hpp"
+#include "vtr_pose_graph/evaluator/mask/lambda.hpp"

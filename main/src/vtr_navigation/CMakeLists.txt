@@ -25,9 +25,11 @@ find_package(vtr_navigation_msgs REQUIRED)
 find_package(vtr_torch REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
+find_package(vtr_radar_lidar REQUIRED)
 find_package(vtr_lidar REQUIRED)
-# find_package(vtr_vision REQUIRED)
 find_package(vtr_radar REQUIRED)
+find_package(vtr_vision REQUIRED)
+
 
 ## C++ Libraries
 include_directories(
@@ -67,13 +69,16 @@ ament_target_dependencies(${PROJECT_NAME}_task_queue_server
 
 file(GLOB_RECURSE SRC src/navigator.cpp)
 add_library(${PROJECT_NAME}_navigator ${SRC})
+
+
+find_package(vtr_radar_lidar REQUIRED)
 ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
-  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_path_planning 
-  vtr_lidar vtr_torch vtr_radar
-  # vtr_vision
+  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+  vtr_radar_lidar vtr_radar vtr_lidar vtr_vision
 )
+
 target_link_libraries(${PROJECT_NAME}_navigator
   ${PROJECT_NAME}_graph_map_server
   ${PROJECT_NAME}_mission_server
@@ -86,15 +91,25 @@ target_include_directories(${PROJECT_NAME}_navigator
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(
-  rclcpp tf2 tf2_ros
-  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning vtr_torch
-  vtr_navigation_msgs vtr_path_planning
-  vtr_lidar
-  vtr_radar
-  # vtr_vision
-  PROJ
-)
+
+if(DEFINED VTR_ENABLE_LIDAR)
+  ament_export_dependencies(
+    rclcpp tf2 tf2_ros
+    vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+    vtr_navigation_msgs
+    vtr_lidar
+    PROJ
+  )
+elseif(DEFINED VTR_ENABLE_VISION)
+  ament_export_dependencies(
+    rclcpp tf2 tf2_ros
+    vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+    vtr_navigation_msgs
+    vtr_vision
+    PROJ
+  )
+endif()
+
 
 # main
 add_executable(${PROJECT_NAME} src/main.cpp)

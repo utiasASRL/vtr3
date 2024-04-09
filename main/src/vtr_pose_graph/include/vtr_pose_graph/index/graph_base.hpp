@@ -69,6 +69,7 @@ class GraphBase {
   GraphBase(const GraphBase& other, const SimpleGraph& graph);
   /** \brief Constructor to create subgraphs, using move on the structure */
   GraphBase(const GraphBase& other, SimpleGraph&& graph);
+  inline const SimpleGraph& subgraph() const { return graph_; }
 
   virtual ~GraphBase() = default;
 

@@ -1,0 +1,57 @@
+/**:
+  ros__parameters:
+    log_enabled:
+     - stereo.learned_features
+
+    ############ tactic configuration ############
+    tactic:
+      visualize: false
+
+    pipeline:
+      localization:
+        [
+          "recall",
+          "sub_map_extraction",
+          "experience_triage",
+          "migration",
+          "matcher",
+          "ransac",
+          "steam",
+        ]
+
+    
+    preprocessing:
+      extraction:
+        type: stereo.conversion_extraction
+
+        extractor:
+          type: ASRL_GPU_SURF
+          visualize_disparity: false
+          use_learned: true
+
+          learned:
+            # we're providing the surf settings (don't change this param, use a different file)
+            type: "LEARNED_FEATURE"
+            modelPath: "/home/alec/ASRL/vtr3/models/unsup_unet_3.pt"
+
+
+            stereoDisparityMinimum: 0.1
+            stereoDisparityMaximum: 100.0
+
+
+    localization:
+      experience_triage:
+        type: experience_triage
+        only_privileged: true
+
+      matcher:
+        type: mel_matcher
+        min_response_ratio: 0.0 #0.2
+        descriptor_thresh_cpu: 0.7 #0.115
+        descriptor_thresh_gpu: 100.0 #0.55
+
+        match_on_gpu: false
+        visualize: false
+        # match_on_gpu: true #EDIT
+        use_learned: true
+
