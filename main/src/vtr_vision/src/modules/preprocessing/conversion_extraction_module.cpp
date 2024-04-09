@@ -305,67 +305,66 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
       rig.channels[1].name = "RGB";
 
       CLOG(DEBUG, "stereo.learned_features") << "num_channels: " << num_input_channels;
-      CLOG(DEBUG, "stereo.learned_features") << "channel 0 name: " << rig.channels[0].name;
-      CLOG(DEBUG, "stereo.learned_features") << "channel 1 name: " << rig.channels[1].name;
+      // CLOG(DEBUG, "stereo.learned_features") << "channel 0 name: " << rig.channels[0].name;
+      // CLOG(DEBUG, "stereo.learned_features") << "channel 1 name: " << rig.channels[1].name;
     }
 
     for (unsigned channel_idx = 0; channel_idx < num_input_channels;
          ++channel_idx) {
       auto cc_weight_idx = 0;
 
-      // rig.channels[channel_idx].name = "RGB";
-
       CLOG(DEBUG, "stereo.learned_features") << "channel " << channel_idx;
 
       std::vector<std::future<vision::ChannelFeatures>> feature_futures;
-
-      CLOG(DEBUG, "stereo.learned_features") << "futures " << channel_idx;
 
       // extract features on this channel. The extractor config selects if the
       // channel requires feature extraction, otherwise it inserts an empty set
       // of channel features
 
       // make the appropriate conversions.
-      for (unsigned conversion_idx = 0;
-           conversion_idx < config_->conversions.size(); ++conversion_idx) {
-        const auto &input_channel = rig.channels[channel_idx];
-        const auto &conversion = vision::StringToImageConversion(
-            config_->conversions[conversion_idx]);
-        // convert
-        if (conversion == vision::ImageConversion::RGB_TO_GRAYSCALE) {
-          CLOG(DEBUG, "stereo.learned_features") << "Gray " << channel_idx;
-          rig.channels.emplace_back(vision::RGB2Grayscale(input_channel));
-        } else if (conversion ==
-                   vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
-          // move the new channel onto the rig.
-          CLOG(DEBUG, "stereo.learned_features") << "cc " << channel_idx;
-          rig.channels.emplace_back(vision::RGB2ColorConstant(
-              rig.channels[channel_idx],
-              config_->color_constant_weights[cc_weight_idx],
-              config_->color_constant_histogram_equalization));
-          cc_weight_idx++;    
-        } else if (conversion == vision::ImageConversion::UNKNOWN) {
-          throw std::runtime_error("ERROR: Image conversion " +
-                                   config_->conversions[conversion_idx] +
-                                   " unknown!");
-        }
+      if (channel_idx == 0){
+        for (unsigned conversion_idx = 0;
+            conversion_idx < config_->conversions.size(); ++conversion_idx) {
+          const auto &input_channel = rig.channels[channel_idx];
+          const auto &conversion = vision::StringToImageConversion(
+              config_->conversions[conversion_idx]);
+          // convert
+          if (conversion == vision::ImageConversion::RGB_TO_GRAYSCALE) {
+            CLOG(DEBUG, "stereo.learned_features") << "Gray " << channel_idx;
+            rig.channels.emplace_back(vision::RGB2Grayscale(input_channel));
+          } else if (conversion ==
+                    vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
+            // move the new channel onto the rig.
+            CLOG(DEBUG, "stereo.learned_features") << "cc " << channel_idx;
+            rig.channels.emplace_back(vision::RGB2ColorConstant(
+                rig.channels[channel_idx],
+                config_->color_constant_weights[cc_weight_idx],
+                config_->color_constant_histogram_equalization));
+            cc_weight_idx++;    
+          } else if (conversion == vision::ImageConversion::UNKNOWN) {
+            throw std::runtime_error("ERROR: Image conversion " +
+                                    config_->conversions[conversion_idx] +
+                                    " unknown!");
+          }
 
+          // Non-styled image - extract SURF
+          if (channel_idx == 0) {
+            // extract
+            feature_futures.emplace_back(std::async(std::launch::async, extract,
+                                          extractor_.get(),
+                                          rig.channels.back(), true));
+          }
 
-        if (channel_idx == 0) {
-          // extract
-          feature_futures.emplace_back(std::async(std::launch::async, extract,
-                                        extractor_.get(),
-                                        rig.channels.back(), true));
-        }
-
-        
-      }  // finish the conversions
+          
+        }  // finish the conversions
+      }
 
       #ifdef VTR_VISION_LEARNED 
 
+      // Extract learned features from style image
       if (config_->use_learned && channel_idx == 1) {
-        CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[4].name;
-        const auto &disp_channel = rig.channels[4]; // Grayscale
+        CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[1].name;
+        const auto &disp_channel = rig.channels[1]; // Grayscale
 
       // if (config_->use_learned) {
       //   CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[1].name;

@@ -49,11 +49,12 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
                             const Graph::Ptr &, const TaskExecutor::Ptr &) {
   
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
+  const auto &pipeline_mode = *qdata.pipeline_mode;
 
   const auto &rig_images = *qdata.rig_images;  
 
   CLOG(DEBUG, "stereo.learned_features") << "Live image pulled!";
-  CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(0).cameras.front().data.size();
+  // CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(0).cameras.front().data.size();
 
   // Extract RGB image from rig_images
   cv::Mat live_image_l = qdata.rig_images->front().channels.at(0).cameras.front().data;
@@ -70,8 +71,8 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(WARNING, "stereo.learned_features") << "Live image was not contiguous in memory!";
   }
 
-  torch::Tensor live_tensor_l = torch::from_blob(live_image_l.data, {live_image_l.rows, live_image_l.cols, live_image_l.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous() /255;
-  torch::Tensor live_tensor_r = torch::from_blob(live_image_r.data, {live_image_r.rows, live_image_r.cols, live_image_r.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous() /255;
+  torch::Tensor live_tensor_l = torch::from_blob(live_image_l.data, {live_image_l.rows, live_image_l.cols, live_image_l.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous();
+  torch::Tensor live_tensor_r = torch::from_blob(live_image_r.data, {live_image_r.rows, live_image_r.cols, live_image_r.channels()}, torch::kByte).to(torch::kFloat32).permute({2, 0, 1}).contiguous();
   
   torch::Tensor live_tensor = torch::stack({live_tensor_l, live_tensor_r});
 
@@ -82,23 +83,18 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<torch::jit::IValue> jit_inputs;
 
   jit_inputs.push_back(live_tensor.to(device));
-  // jit_inputs.push_back(prompts);
 
   auto outputs = network(jit_inputs).toTensor().to("cpu");
 
-  auto clamped_outputs = torch::clamp(outputs, 0.0, 255.0) / 255;
+  auto clamped_outputs = torch::clamp(outputs, 0.0, 255.0).contiguous();
 
   CLOG(DEBUG, "stereo.learned_features") << "Converted image style!";
 
-  // auto teach_masks = outputs.at("teach_masks").toTensor();
-
-  auto scaled_clamped = clamped_outputs.clone().contiguous() * 255;
-
-  auto disp_outputs_l = scaled_clamped[0].squeeze().index({Slice(), Slice(None, -3), Slice()}).permute({1, 2, 0}).to(torch::kByte).contiguous();
+  auto disp_outputs_l = clamped_outputs[0].squeeze().index({Slice(), Slice(3, None), Slice()}).permute({1, 2, 0}).to(torch::kByte).contiguous();
 
   cv::Mat daytime_l{disp_outputs_l.size(0), disp_outputs_l.size(1), CV_8UC3, disp_outputs_l.data_ptr<uint8_t>()};
 
-  auto disp_outputs_r = scaled_clamped[1].squeeze() .index({Slice(), Slice(None, -3), Slice()}).permute({1, 2, 0}).to(torch::kByte).contiguous();
+  auto disp_outputs_r = clamped_outputs[1].squeeze() .index({Slice(), Slice(3, None), Slice()}).permute({1, 2, 0}).to(torch::kByte).contiguous();
 
   cv::Mat daytime_r{disp_outputs_r.size(0), disp_outputs_r.size(1), CV_8UC3, disp_outputs_r.data_ptr<uint8_t>()};
 
@@ -108,23 +104,17 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
   if (!daytime_l.isContinuous()){
     CLOG(WARNING, "stereo.learned_features") << "Day image was not contiguous in memory!";
     daytime_l = daytime_l.clone();
+    daytime_r = daytime_r.clone();
   }
 
 
   {
-    // CLOG(DEBUG, "stereo.learned_features") << "mutex";
     std::lock_guard<std::mutex> lock(*qdata.vis_mutex);
-    // CLOG(DEBUG, "stereo.learned_features") << "window";
     cv::namedWindow("left daytime", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
-    // CLOG(DEBUG, "stereo.learned_features") << "show";
     cv::imshow("left daytime", daytime_l);
-    // CLOG(DEBUG, "stereo.learned_features") << "success";
 
-    // CLOG(DEBUG, "stereo.learned_features") << "window";
     cv::namedWindow("right daytime", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
-    // CLOG(DEBUG, "stereo.learned_features") << "show";
     cv::imshow("right daytime", daytime_r);
-    // CLOG(DEBUG, "stereo.learned_features") << "success";
   }
 
 
@@ -133,14 +123,22 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
   styled.name = "styled";
 
   Image left_img;
-  left_img.data = daytime_l.clone();
-  // left_img.data = live_image_l.clone();
+  // If in repeat mode, use styled image. Otherwise, use the non-styled image
+  if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow){
+    left_img.data = daytime_l.clone();
+  }else{
+    left_img.data = live_image_l.clone();
+  }
   left_img.name = "styled_left";
   left_img.stamp = qdata.rig_images->front().channels.at(0).cameras.front().stamp;
 
   Image right_img;
-  right_img.data = daytime_r.clone();
-  // right_img.data = live_image_r.clone();
+
+  if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow){
+    right_img.data = daytime_r.clone();
+  }else{
+    right_img.data = live_image_r.clone();
+  }
   right_img.name = "styled_right";
   right_img.stamp = qdata.rig_images->front().channels.at(0).cameras.back().stamp;
 
@@ -148,6 +146,7 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
   styled.cameras.emplace_back(right_img);  
 
   qdata.rig_images->front().channels.emplace_back(styled);
+
 
   // CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.size() << " number of channels";
   // CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(1).cameras.front().data.size() << " left image size";
