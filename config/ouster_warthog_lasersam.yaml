@@ -44,13 +44,13 @@
         iou_threshold: 1.0
         visualize: true
       costmap_inflation:
-        type: lidar.costmap_queue
-        influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.8 # was 0.3 Jordy
-
-        # cost map
-        costmap_history_size: 5 # Keep between 3 and 30, used for temporal filtering
+        type: lidar.costmap_blindspot
+        influence_distance: 0.3 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 1.0 # was 0.3 Jordy
         resolution: 0.25
+        costmap_history_size: 15
+        blind_spot_radius: 1.5
+        lifetime: 1.5
         size_x: 16.0
         size_y: 8.0
         visualize: true

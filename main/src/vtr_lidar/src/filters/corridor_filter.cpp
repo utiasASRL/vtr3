@@ -48,7 +48,6 @@ pcl::PointCloud<PointWithInfo> filter_by_corridor(const pcl::PointCloud<PointWit
          ++query_sid) {
       const auto T_cam_query = T_cam_w * chain.pose(query_sid);
       const auto p_cam_query = T_cam_query.matrix().block<4, 1>(0, 3);
-      CLOG(DEBUG, "lidar.perspective") << "Pose origin" << p_cam_query;
 
       auto idx_i = points_near_vertex(point_cloud, p_cam_query, corridor_width);
       indices.insert(std::make_move_iterator(idx_i.begin()),

@@ -135,7 +135,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
 
   const tactic::EdgeTransform T_c_s {T_c_s_temp};
   const tactic::EdgeTransform T_v_loc_c = (T_c_s * T_s_r * T_r_v_loc).inverse();
-  const auto T_cam_w = T_c_s * T_s_r * T_w_curr.inverse();
+  const auto T_cam_w = (T_w_curr * T_v_loc_c).inverse();
 
 
   live_points_mat = T_c_s.matrix().cast<float>() * live_points_mat;
@@ -148,9 +148,8 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
   cv::Mat raw_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
 
   raw_point_cloud = filter_by_corridor(raw_point_cloud, curr_sid, 20, chain, 2.0, T_cam_w);
-//pcl::PointCloud<PointWithInfo> filter_by_corridor(const pcl::PointCloud<PointWithInfo>& point_cloud, long curr_sid, double path_length, const LocalizationChain &chain, double corridor_width, 
-        // const tactic::EdgeTransform &T_cam_w) {
   generate_depth_image(raw_point_cloud, live_hsv_img, live_index_img, config_->perspective_params);
+
   cv::Mat raw_hsv_img = live_hsv_img.clone();
   interpolate_hsv_image(live_hsv_img);
 
@@ -275,8 +274,8 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
 
   std::vector<torch::Tensor> prompts;
 
-
-  for (int i = 0; prompts.size() < config_->num_prompts; ++i) {
+  static const int MAX_ITERS = 20;
+  for (int i = 0; prompts.size() < config_->num_prompts && i < MAX_ITERS; ++i) {
     const auto [max_val, idx2] = torch::max(diff.flatten(), 0);
 
     int idx = idx2.item<long>();
