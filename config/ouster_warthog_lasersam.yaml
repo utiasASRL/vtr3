@@ -38,18 +38,20 @@
         h_fov: 1.5707
         v_fov: 0.7853
         min_range: 0.5
-        max_range: 50.0
+        max_range: 35.0
         num_prompts: 5
         smooth_size: 40
         iou_threshold: 1.0
         visualize: true
       costmap_inflation:
-        type: lidar.costmap_blindspot
-        influence_distance: 0.3 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        type: lidar.costmap_queue
+        influence_distance: 0.8 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
         minimum_distance: 1.0 # was 0.3 Jordy
         resolution: 0.25
-        costmap_history_size: 15
-        blind_spot_radius: 1.5
+        costmap_history_size: 6
+        neighbourhood: 5
+        radius_filter: 0.5
+        blind_spot_radius: 1.25
         lifetime: 1.5
         size_x: 16.0
         size_y: 8.0

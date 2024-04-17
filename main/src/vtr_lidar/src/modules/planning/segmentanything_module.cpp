@@ -161,7 +161,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
     live_cv_rgb_img.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     live_cv_rgb_img.encoding = "rgb8";
-    live_cv_rgb_img.image = raw_rgb_img;
+    live_cv_rgb_img.image = live_rgb_img;
     live_img_pub_->publish(*live_cv_rgb_img.toImageMsg());
   }
 
@@ -462,6 +462,8 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
       qdata.changed_points.emplace(*obstacle_point_cloud);
     }
   } else {
+    mask_to_pointcloud(cv::Mat::zeros(repeat_masks.size(1), repeat_masks.size(2), CV_8UC1), live_index_img, raw_point_cloud, 2);
+
     qdata.changed_points.emplace(pcl::PointCloud<PointWithInfo>());
   }
 

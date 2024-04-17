@@ -47,6 +47,8 @@ class QueuedCostmapModule : public CostmapInflationModule {
 
     // cost map
     unsigned int costmap_history_size = 10;
+    double radius_filter = 1.0;
+    int neighbourhood = 10;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);

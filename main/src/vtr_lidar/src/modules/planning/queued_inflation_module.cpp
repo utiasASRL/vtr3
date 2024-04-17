@@ -23,6 +23,9 @@
 #include "vtr_lidar/data_types/costmap.hpp"
 #include "vtr_lidar/filters/voxel_downsample.hpp"
 
+#include "vtr_lidar/utils/nanoflann_utils.hpp"
+
+
 namespace vtr {
 namespace lidar {
 
@@ -43,6 +46,8 @@ auto QueuedCostmapModule::Config::fromROS(
 
   int hist_size = node->declare_parameter<int>(param_prefix + ".costmap_history_size", config->costmap_history_size);
   config->costmap_history_size = (unsigned) hist_size;
+  config->radius_filter = node->declare_parameter<double>(param_prefix + ".radius_filter", config->radius_filter);
+  config->neighbourhood = node->declare_parameter<int>(param_prefix + ".neighbourhood", config->neighbourhood);
   // clang-format on
   return config;
 }
@@ -97,11 +102,44 @@ QueuedCostmapModule::VtrPointCloud QueuedCostmapModule::assemble_pointcloud(tact
     aligned_point_cloud_copy = T_v_loc_v_detect.matrix().cast<float>() * aligned_point_cloud;
     aligned_norms_copy = T_v_loc_v_detect.matrix().cast<float>() * aligned_norms;
 
+    for (size_t i = 0; i < point_cloud_copy.size(); ++i){
+      point_cloud_copy[i].flex23 = p_loc_sid;
+    }
+
     concat_pc += point_cloud_copy;
 
     CLOG(DEBUG, "lidar.obstacle_inflation") << "Point cloud of size " << point_cloud.size() << " is connected to sid: " << p_loc_sid;
 
   }
+
+  NanoFLANNAdapter<PointWithInfo> adapter(concat_pc);
+  KDTreeSearchParams search_params;
+  KDTreeParams tree_params(10);
+  auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
+  kdtree->buildIndex();
+
+  std::vector<int> radii_indices;
+  radii_indices.reserve(concat_pc.size());
+
+  const auto sq_search_radius = config_->radius_filter * config_->radius_filter;
+  for (size_t i = 0; i < concat_pc.size(); i++) {
+    // radius search of the closest point
+    std::vector<float> dists;
+    std::vector<int> indices;
+    NanoFLANNRadiusResultSet<float, int> result(sq_search_radius, dists, indices);
+    kdtree->radiusSearchCustomCallback(concat_pc[i].data, result, search_params);
+
+    int other_points_size = 0;
+    for (auto &idx : indices) {
+      if (concat_pc[idx].flex23 != concat_pc[i].flex23)
+        ++other_points_size;
+    }
+    // filter based on neighbors in map
+    if (other_points_size > config_->neighbourhood)
+      radii_indices.push_back(i);
+  }
+
+  concat_pc = pcl::PointCloud<PointWithInfo>(concat_pc, radii_indices);
 
 
   /// publish the transformed pointcloud
