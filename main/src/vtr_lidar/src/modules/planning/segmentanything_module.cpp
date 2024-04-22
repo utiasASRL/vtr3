@@ -21,7 +21,7 @@
 #include <opencv2/imgproc.hpp>
 #include <pcl/common/common.h>
 #include "cv_bridge/cv_bridge.h"
-#include <opencv2/quality/qualityssim.hpp>
+// #include <opencv2/quality/qualityssim.hpp>
 #include <vtr_lidar/filters/corridor_filter.hpp>
 
 
@@ -31,6 +31,8 @@ namespace vtr {
 namespace lidar {
 
 using namespace tactic;
+using Image_LockMsg = storage::LockableMessage<sensor_msgs::msg::Image>;
+
 
 auto SegmentAnythingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                           const std::string &param_prefix)
@@ -52,6 +54,7 @@ auto SegmentAnythingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->iou_thresh = node->declare_parameter<float>(param_prefix + ".iou_threshold", config->iou_thresh);
   config->num_prompts = node->declare_parameter<long>(param_prefix + ".num_prompts", config->num_prompts);
   config->smooth_size = node->declare_parameter<long>(param_prefix + ".smooth_size", config->smooth_size);
+  config->corridor_width = node->declare_parameter<double>(param_prefix + ".corridor_width", config->corridor_width);
 
   // clang-format off
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -94,6 +97,9 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
   const auto &vid_loc = *qdata.vid_loc;
   const auto &curr_sid = *qdata.sid_loc;
+
+  auto vertex = graph->at(*qdata.vid_odo);
+
   
   auto &chain = *output.chain;
   const auto T_w_curr = chain.pose(curr_sid);
@@ -108,6 +114,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
         auto locked_msg = locked_nn_pc_msg->sharedLocked();
         return locked_msg.get().getDataPtr();
       }
+      CLOG(WARNING, "lidar.perspective") << "Could not load raw view from teach";
       return std::make_shared<PointScan<PointWithInfo>>();
   }();
 
@@ -147,7 +154,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
   cv::Mat live_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
   cv::Mat raw_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
 
-  raw_point_cloud = filter_by_corridor(raw_point_cloud, curr_sid, 20, chain, 2.0, T_cam_w);
+  raw_point_cloud = filter_by_corridor(raw_point_cloud, curr_sid, 20, chain, config_->corridor_width, T_cam_w);
   generate_depth_image(raw_point_cloud, live_hsv_img, live_index_img, config_->perspective_params);
 
   cv::Mat raw_hsv_img = live_hsv_img.clone();
@@ -163,6 +170,11 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
     live_cv_rgb_img.encoding = "rgb8";
     live_cv_rgb_img.image = live_rgb_img;
     live_img_pub_->publish(*live_cv_rgb_img.toImageMsg());
+    if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+      auto locked_image_msg =
+              std::make_shared<Image_LockMsg>(live_cv_rgb_img.toImageMsg(), *qdata.stamp);
+      vertex->insert<sensor_msgs::msg::Image>("live_depth_image", "sensor_msgs/msg/Image", locked_image_msg);
+    }
   }
 
   cv::Mat map_index_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_32S);
@@ -170,7 +182,7 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
   cv::Mat map_rgb_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
   cv::Mat similarity_diff; // = cv::Mat::empty(config_->perspective_params.height, config_->perspective_params.width, CV_32FC1);
 
-  nn_map_point_cloud = filter_by_corridor(nn_map_point_cloud, curr_sid, 20, chain, 2.0, T_cam_w);
+  nn_map_point_cloud = filter_by_corridor(nn_map_point_cloud, curr_sid, 20, chain, config_->corridor_width, T_cam_w);
   // generate_depth_image(map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
   generate_depth_image(nn_map_point_cloud, map_hsv_img, map_index_img, config_->perspective_params);
   interpolate_hsv_image(map_hsv_img);
@@ -233,6 +245,12 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
     map_cv_rgb_img.encoding = "rgb8";
     map_cv_rgb_img.image = map_rgb_img;
     map_img_pub_->publish(*map_cv_rgb_img.toImageMsg());
+
+    if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+      auto locked_image_msg =
+              std::make_shared<Image_LockMsg>(map_cv_rgb_img.toImageMsg(), *qdata.stamp);
+      vertex->insert<sensor_msgs::msg::Image>("map_depth_image", "sensor_msgs/msg/Image", locked_image_msg);
+    }
   }
 
   CLOG(DEBUG, "lidar.perspective") << "Received images! ";

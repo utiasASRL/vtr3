@@ -55,3 +55,4 @@
 #include "vtr_lidar/modules/planning/blindspot_inflation_module.hpp"
 #include "vtr_lidar/modules/planning/queued_inflation_module.hpp"
 
+#include "vtr_lidar/modules/testing/change_detection_outputs.hpp"

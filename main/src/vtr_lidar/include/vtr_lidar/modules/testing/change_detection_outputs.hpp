@@ -13,62 +13,46 @@
 // limitations under the License.
 
 /**
- * \file segmentanything_module.hpp
+ * \file change_detection_outputs.hpp
  * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
+#include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
-#include <vtr_torch/modules/torch_module.hpp>
-#include "vtr_lidar/cache.hpp"
+
 #include "vtr_lidar/filters/perspective_image.hpp"
-
-#include <vector>
-#include <list>
-
-#include "sensor_msgs/msg/image.hpp"
-
 
 
 namespace vtr {
 namespace lidar {
 
-using ImageMsg = sensor_msgs::msg::Image;
-using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-
-
-/** \brief Load and store Torch Models */
-class SegmentAnythingModule : public nn::TorchModule {
+/** \brief Preprocesses raw pointcloud points and computes normals. */
+class CDTestModule : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(SegmentAnythingModule);    
-
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.SAM";
+  static constexpr auto static_name = "lidar.cd_testing";
 
   /** \brief Config parameters. */
-  struct Config : public nn::TorchModule::Config {
+  struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    bool visualize = false;
-    PerspectiveImageParams perspective_params;
+    bool save_point_cloud = true;
+    std::string suffix = "";
 
-    float iou_thresh = 0.5;
-    int num_prompts = 4;
-    int smooth_size = 10;
-    float corridor_width = 2.0;
+    PerspectiveImageParams perspective_params;
 
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
-
   };
 
-  SegmentAnythingModule(
+  CDTestModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : nn::TorchModule{config, module_factory, name}, config_(config) {}
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
@@ -77,19 +61,7 @@ class SegmentAnythingModule : public nn::TorchModule {
 
   Config::ConstPtr config_;
 
-  bool pub_init_ = false;
-
-  rclcpp::Publisher<ImageMsg>::SharedPtr live_mask_pub_;
-  rclcpp::Publisher<ImageMsg>::SharedPtr map_mask_pub_;
-  rclcpp::Publisher<ImageMsg>::SharedPtr diff_pub_;
-  rclcpp::Publisher<ImageMsg>::SharedPtr live_img_pub_;
-  rclcpp::Publisher<ImageMsg>::SharedPtr map_img_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
-
-
-
-  VTR_REGISTER_MODULE_DEC_TYPE(SegmentAnythingModule);
-
+  VTR_REGISTER_MODULE_DEC_TYPE(CDTestModule);
 };
 
 }  // namespace lidar

@@ -33,7 +33,12 @@ auto TorchModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->use_gpu = node->declare_parameter<bool>(param_prefix + ".use_gpu", config->use_gpu);
   config->abs_filepath = node->declare_parameter<bool>(param_prefix + ".abs_filepath", config->abs_filepath);
 
-  auto model_dir = node->declare_parameter<std::string>("model_dir", "default");
+  std::string model_dir = "default";
+  if (!node->has_parameter("model_dir")) {
+    model_dir = node->declare_parameter<std::string>("model_dir", "default");
+  } else {
+    node->get_parameter<std::string>("model_dir", model_dir);
+  }
   model_dir = common::utils::expand_user(common::utils::expand_env(model_dir));
 
   if (config->abs_filepath){

@@ -111,7 +111,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
   const auto &vid_loc = *qdata.vid_loc;
   const auto &sid_loc = *qdata.sid_loc;
   const auto &T_r_v_loc = *qdata.T_r_v_loc;
-  const auto &points = *qdata.undistorted_point_cloud;
+  const auto &points = *qdata.raw_point_cloud;
   const auto &submap_loc = *qdata.submap_loc;
   const auto &map_point_cloud = submap_loc.point_cloud();
   const auto &T_v_m_loc = *qdata.T_v_m_loc;
@@ -133,7 +133,7 @@ void ChangeDetectionModuleV3::run_(QueryCache &qdata0, OutputCache &output0,
     CLOG(WARNING, "lidar.change_detection") << "No points were valid to detect changes";
     return;
   }
-  voxelDownsample(query_points, 0.2);
+  //voxelDownsample(query_points, 0.2);
 
   // Eigen matrix of original data (only shallow copy of ref clouds)
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());

@@ -84,6 +84,8 @@ QueuedCostmapModule::VtrPointCloud QueuedCostmapModule::assemble_pointcloud(tact
   if (detected_history.size() > config_->costmap_history_size)
     detected_history.pop_back();
 
+  unsigned idx = 0;
+
   for (auto &pair : detected_history) {
     auto &p_loc_sid = pair.first;
     auto &point_cloud = pair.second;
@@ -103,10 +105,11 @@ QueuedCostmapModule::VtrPointCloud QueuedCostmapModule::assemble_pointcloud(tact
     aligned_norms_copy = T_v_loc_v_detect.matrix().cast<float>() * aligned_norms;
 
     for (size_t i = 0; i < point_cloud_copy.size(); ++i){
-      point_cloud_copy[i].flex23 = p_loc_sid;
+      point_cloud_copy[i].flex23 = idx;
     }
 
     concat_pc += point_cloud_copy;
+    ++idx;
 
     CLOG(DEBUG, "lidar.obstacle_inflation") << "Point cloud of size " << point_cloud.size() << " is connected to sid: " << p_loc_sid;
 
