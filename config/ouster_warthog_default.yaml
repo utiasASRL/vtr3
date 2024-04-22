@@ -11,7 +11,7 @@
         # tactic
       #- tactic
       - tactic.pipeline
-      #- tactic.module
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
@@ -34,7 +34,9 @@
 
         # lidar pipeline
       - lidar.pipeline
-      - lidar.preprocessing
+      #- lidar.preprocessing
+      - lidar.change_detection
+      - lidar.obstacle_inflation
       #- lidar.ouster_converter
       #- lidar.odometry_icp
       #- lidar.odometry_map_maintenance
@@ -62,7 +64,7 @@
       enable_parallelization: true
       preprocessing_skippable: false
       odometry_mapping_skippable: false
-      localization_skippable: false
+      localization_skippable: true
       task_queue_num_threads: 1
       task_queue_size: -1
 
@@ -97,8 +99,8 @@
       localization:
         - recall
         - icp
-        - safe_corridor
-        #- change_detection_sync
+        - change_detection_sync
+        - obstacle_inflation
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
@@ -122,7 +124,7 @@
         vertical_angle_res: 0.0061365 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
         r_scale: 4.0 # scale down point range by this value after taking log, whatever works
-        h_scale: 2.0 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution when 5Hz spin frequence is ~0.7031 degree, so 0.7031 / 0.3516 = 2.00
+        h_scale: 1.0 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution currently 1024
 
         num_sample1: 20000 # max number of sample after filtering based on planarity
         min_norm_score1: 0.95 # min planarity score
@@ -241,10 +243,10 @@
         visualize: true
       change_detection_sync:
         type: lidar.change_detection_v3
-        detection_range: 8.0
+        detection_range: 30.0
         search_radius: 0.25
 
-        negprob_threshold: 0.015 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
+        negprob_threshold: 1.5 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
         use_prior: true
         alpha0: 3.0
         beta0: 0.03
@@ -252,15 +254,19 @@
         support_radius: 0.25
         support_variance: 0.05
         support_threshold: 2.5
-
-        influence_distance: 0.6 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.9 # was 0.3 Jordy
-
-        # cost map
-        costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
+        visualize: true
+      obstacle_inflation:
+        type: lidar.costmap_queue
+        influence_distance: 0.8 # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 1.0 # was 0.3 Jordy
         resolution: 0.25
+        costmap_history_size: 6
+        neighbourhood: 5
+        radius_filter: 0.5
+        blind_spot_radius: 1.25
+        lifetime: 1.5
         size_x: 16.0
-        size_y: 8.0
+        size_y: 16.0
         visualize: true
       memory:
         type: graph_mem_manager
@@ -275,43 +281,13 @@
         size_y: 20.0
         run_async: true
         visualize: true
-      ground_extraction:
-        type: lidar.ground_extraction
-        z_offset: 0.2
-        alpha: 0.035
-        tolerance: 0.25
-        Tm: 0.3
-        Tm_small: 0.1
-        Tb: 0.5
-        Trmse: 0.1
-        Tdprev: 1.0
-        rmin: 2.0
-        num_bins_small: 30.0
-        bin_size_small: 0.5
-        num_bins_large: 10.0
-        bin_size_large: 1.0
-        resolution: 0.6
-        size_x: 40.0
-        size_y: 20.0
-        run_async: true
-        visualize: true
-      terrain_assessment:
-        type: lidar.terrain_assessment
-        lookahead_distance: 15.0
-        corridor_width: 1.0
-        search_radius: 1.0
-        resolution: 0.5
-        size_x: 40.0
-        size_y: 20.0
-        run_online: false
-        run_async: true
         visualize: true
     
     path_planning:
       type: cbit
       control_period: 100 # ms
       cbit:
-        obstacle_avoidance: false
+        obstacle_avoidance: true
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0

@@ -5,7 +5,10 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Filtered Scan1
+        - /Localization Submap1
         - /Change Detection Scan1
+        - /Change Detection Scan1/Status1
         - /Teach Path1/Topic1
       Splitter Ratio: 0.4507042169570923
     Tree Height: 1391
@@ -60,67 +63,15 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
-        base_link:
-          Value: true
-        chassis_link:
-          Value: true
-        diff_link:
-          Value: true
-        front_left_wheel_link:
-          Value: true
-        front_right_wheel_link:
-          Value: true
-        imu_link:
-          Value: true
-        left_diff_unit_headlight_link:
-          Value: true
-        left_diff_unit_link:
-          Value: true
-        left_diff_unit_taillight_link:
-          Value: true
         lidar:
           Value: false
         loc vertex frame:
           Value: true
         loc vertex frame (offset):
           Value: true
-        navtech_base:
-          Value: true
-        nerian_left:
-          Value: true
-        nerian_stereo:
-          Value: true
-        novatel:
-          Value: true
         odo vertex frame:
           Value: true
-        odom:
-          Value: true
-        os_imu:
-          Value: true
-        os_lidar:
-          Value: true
-        os_sensor:
-          Value: true
-        os_sensor_base_link:
-          Value: true
-        os_sensor_baseplate:
-          Value: true
-        rear_left_wheel_link:
-          Value: true
-        rear_right_wheel_link:
-          Value: true
-        right_diff_unit_headlight_link:
-          Value: true
-        right_diff_unit_link:
-          Value: true
-        right_diff_unit_taillight_link:
-          Value: true
         robot:
-          Value: true
-        sensor_tower:
-          Value: true
-        top_chassis_link:
           Value: true
         world:
           Value: false
@@ -185,17 +136,17 @@ Visualization Manager:
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: time
+      Channel Name: normal_z
       Class: rviz_default_plugins/PointCloud2
       Color: 0; 255; 0
-      Color Transformer: FlatColor
+      Color Transformer: Intensity
       Decay Time: 0
       Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 999999
+      Max Intensity: 1
       Min Color: 0; 0; 0
-      Min Intensity: 999999
+      Min Intensity: -0.9999999403953552
       Name: Filtered Scan
       Position Transformer: XYZ
       Selectable: true
@@ -253,12 +204,12 @@ Visualization Manager:
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: icp_score
+      Channel Name: normal_z
       Class: rviz_default_plugins/PointCloud2
       Color: 255; 0; 0
-      Color Transformer: FlatColor
+      Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 3
@@ -268,7 +219,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.10000000149011612
+      Size (m): 0.05000000074505806
       Style: Flat Squares
       Topic:
         Depth: 5
@@ -279,7 +230,7 @@ Visualization Manager:
         Value: /vtr/submap_loc
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -370,8 +321,8 @@ Visualization Manager:
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 5
-      Size (m): 0.10000000149011612
-      Style: Points
+      Size (m): 0.30000001192092896
+      Style: Flat Squares
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -680,25 +631,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 27.497325897216797
+      Distance: 65.87181854248047
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 11.865821838378906
-        Y: -0.894321084022522
-        Z: -0.5033813714981079
+        X: 11.6036958694458
+        Y: 1.764120101928711
+        Z: 0.03465702384710312
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4447973966598511
+      Pitch: 1.0402021408081055
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.4912807941436768
+      Yaw: 3.2712206840515137
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
