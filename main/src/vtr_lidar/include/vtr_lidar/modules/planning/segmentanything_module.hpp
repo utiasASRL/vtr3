@@ -57,6 +57,7 @@ class SegmentAnythingModule : public nn::TorchModule {
     int num_prompts = 4;
     int smooth_size = 10;
     float corridor_width = 2.0;
+    float max_size = 0.1;
 
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
