@@ -51,8 +51,6 @@ void CDTestModule::run_(QueryCache &qdata0, OutputCache &,
                             const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  if (!*qdata.run_cd)
-    return;
 
   if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
 
