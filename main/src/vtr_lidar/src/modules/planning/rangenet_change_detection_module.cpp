@@ -66,6 +66,7 @@ auto RangeChangeNetModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->range_crop = node->declare_parameter<float>(param_prefix + ".range_crop", config->range_crop);
   config->neighbourhood = node->declare_parameter<int>(param_prefix + ".neighbourhood", config->neighbourhood);
   config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
+  config->radius_filter = node->declare_parameter<float>(param_prefix + ".radius_filter", config->radius_filter);
 
   // clang-format on
   return config;

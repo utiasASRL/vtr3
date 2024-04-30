@@ -169,7 +169,7 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.1
+        map_voxel_size: 0.2
 
         crop_range_front: 40.0
         back_over_front_ratio: 1.0
@@ -184,7 +184,7 @@
         type: lidar.intra_exp_merging_v2
         depth: 6.0
 
-        map_voxel_size: 0.1
+        map_voxel_size: 0.2
 
         crop_range_front: 40.0
         back_over_front_ratio: 1.0
@@ -202,7 +202,7 @@
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
-        map_voxel_size: 0.1
+        map_voxel_size: 0.2
         max_num_experiences: 128
         distance_threshold: 0.6
         planar_threshold: 0.2
@@ -243,10 +243,10 @@
         visualize: true
       change_detection_sync:
         type: lidar.change_detection_v3
-        detection_range: 30.0
+        detection_range: 15.0
         search_radius: 0.25
 
-        negprob_threshold: 1.5 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
+        negprob_threshold: 7.5 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
         use_prior: true
         alpha0: 3.0
         beta0: 0.03

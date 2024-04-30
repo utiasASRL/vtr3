@@ -18,11 +18,10 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=ouster_warthog_default.yaml
-        override_params:=ouster_warthog_learned.yaml
+        base_params:=ouster_lasersam_test.yaml
         start_new_graph:=false
         use_sim_time:=false
-        planner:="cbit"
+        planner:="stationary"
         model_dir:=${VTRROOT}/models
         
         

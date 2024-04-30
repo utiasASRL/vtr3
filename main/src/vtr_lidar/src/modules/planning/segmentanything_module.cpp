@@ -146,8 +146,6 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
     pub_init_ = true;
   }
 
-  if (!*qdata.run_cd)
-    return;
 
   auto raw_point_cloud = *qdata.raw_point_cloud;
 
@@ -600,12 +598,24 @@ void SegmentAnythingModule::run_(QueryCache &qdata0, OutputCache &output,
     live_mask_img_msg.image = repeat_mask;
     live_mask_pub_->publish(*live_mask_img_msg.toImageMsg());
 
+    if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+      auto locked_image_msg =
+              std::make_shared<Image_LockMsg>(live_mask_img_msg.toImageMsg(), *qdata.stamp);
+      vertex->insert<sensor_msgs::msg::Image>("live_sam_mask", "sensor_msgs/msg/Image", locked_image_msg);
+    }
+
     cv_bridge::CvImage map_mask_img_msg;
     map_mask_img_msg.header.frame_id = "lidar";
     //cv_rgb_img.header.stamp = qdata.stamp->header.stamp;
     map_mask_img_msg.encoding = "bgr8";
     map_mask_img_msg.image = teach_mask;
     map_mask_pub_->publish(*map_mask_img_msg.toImageMsg());
+
+    if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+      auto locked_image_msg =
+              std::make_shared<Image_LockMsg>(map_mask_img_msg.toImageMsg(), *qdata.stamp);
+      vertex->insert<sensor_msgs::msg::Image>("map_sam_mask", "sensor_msgs/msg/Image", locked_image_msg);
+    }
 
     // diff = diff.div(diff.max()).mul(255).to(torch::kByte).contiguous();
 

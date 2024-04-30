@@ -22,7 +22,8 @@
         filepath: exported_model_forest_m30_10m.pt
         radius_filter: 0.25
         neighbourhood: 5
-        save_nn_point_cloud: true
+        save_nn_point_cloud: false
+        range_crop: 10.0
         visualize: true
       costmap_inflation:
         type: lidar.costmap_blindspot

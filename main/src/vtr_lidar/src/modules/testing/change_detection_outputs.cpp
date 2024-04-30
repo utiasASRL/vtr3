@@ -51,6 +51,8 @@ void CDTestModule::run_(QueryCache &qdata0, OutputCache &,
                             const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
+  if (!*qdata.run_cd)
+    return;
 
   if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
 
@@ -92,7 +94,6 @@ void CDTestModule::run_(QueryCache &qdata0, OutputCache &,
 
     cv::Mat changed_idx_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_32S);
     cv::Mat changed_hsv_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC3);
-    cv::Mat changed_thresh_img = cv::Mat::zeros(config_->perspective_params.height, config_->perspective_params.width, CV_8UC1);
 
     generate_depth_image(changed_points_copy, changed_hsv_img, changed_idx_img, config_->perspective_params);
 
