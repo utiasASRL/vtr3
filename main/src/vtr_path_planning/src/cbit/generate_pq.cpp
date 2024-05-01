@@ -106,18 +106,17 @@ double CBITPath::delta_p_calc(Pose start_pose, Pose end_pose, double alpha)
 Eigen::Spline<double, 2> CBITPath::spline_path_xy(const std::vector<Pose> &input_path)
 {
     std::vector<Eigen::Vector2d> valid_points;
+    int spacing = (input_path.size() < 20) ? input_path.size() / 4 : 5;
+    if (spacing == 0)
+        spacing = 1;
 
     // Usually use every fifth point. 
-    // If the input path is shorter than 5 points use a linear fit between the start and end
+    // If the input path is shorter than 20 choose a spacing between 1 and 5
 
-    if (input_path.size() < 5){
-        valid_points.push_back(Eigen::Vector2d(input_path[0].x, input_path[0].y));
-        valid_points.push_back(Eigen::Vector2d(input_path[input_path.size()-1].x, input_path[input_path.size()-1].y));
-    } else {
-        for (size_t i = 0; i < input_path.size(); i++) {
-            if (i % 5 == 0) {
-                valid_points.push_back(Eigen::Vector2d(input_path[i].x, input_path[i].y));
-            }
+    
+    for (size_t i = 0; i < input_path.size(); i++) {
+        if (i % spacing == 0) {
+            valid_points.push_back(Eigen::Vector2d(input_path[i].x, input_path[i].y));
         }
     }
 
@@ -143,16 +142,14 @@ Eigen::Spline<double, 2> CBITPath::spline_path_xz_yz(const std::vector<Pose> &in
     std::vector<Eigen::Vector2d> valid_points;
 
     // Usually use every fifth point. 
-    // If the input path is shorter than 5 points use a linear fit between the start and end
+    // If the input path is shorter than 20 choose a spacing between 1 and 5
+    int spacing = (input_path.size() < 20) ? input_path.size() / 4 : 5;
+    if (spacing == 0)
+        spacing = 1;
 
-    if (input_path.size() < 5){
-        valid_points.push_back(Eigen::Vector2d(input_path[0].x, input_path[0].y));
-        valid_points.push_back(Eigen::Vector2d(input_path[input_path.size()-1].x, input_path[input_path.size()-1].y));
-    } else {
-        for (size_t i = 0; i < input_path.size(); i++) {
-            if (i % 5 == 0) {
-                valid_points.push_back(Eigen::Vector2d(sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y)), input_path[i].z));
-            }
+    for (size_t i = 0; i < input_path.size(); i++) {
+        if (i % spacing == 0) {
+            valid_points.push_back(Eigen::Vector2d(sqrt((input_path[i].x * input_path[i].x) + (input_path[i].y * input_path[i].y)), input_path[i].z));
         }
     }
 
