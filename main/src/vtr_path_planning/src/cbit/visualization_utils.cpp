@@ -192,7 +192,7 @@ void VisualizationUtils::visualize(
         pose_array_msg.header.frame_id = "world";
 
         // fill the PoseArray with some sample poses
-        for (int i = 0; i < tracking_pose_vec.size(); i++) {
+        for (size_t i = 0; i < tracking_pose_vec.size(); i++) {
             geometry_msgs::msg::Pose pose;
             auto T1 = tracking_pose_vec[i].matrix();
             pose.position.x = T1(0,3);
@@ -211,7 +211,7 @@ void VisualizationUtils::visualize(
         pose_array_msg.header.frame_id = "world";
 
         // fill the PoseArray with some sample poses
-        for (int i = 0; i < homotopy_pose_vec.size(); i++) {
+        for (size_t i = 0; i < homotopy_pose_vec.size(); i++) {
             geometry_msgs::msg::Pose pose;
             auto T2 = homotopy_pose_vec[i].matrix();
             pose.position.x = T2(0,3);

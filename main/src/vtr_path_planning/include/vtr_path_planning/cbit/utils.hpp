@@ -59,17 +59,20 @@ class Pose {
 
 class Node {
     public:
+        using Ptr = std::shared_ptr<Node>;
+
         double p;
         double q;
         double z; // experimental
         double g_T = NAN;
         double g_T_weighted = NAN;
-        std::shared_ptr<Node> parent; // Shared pointer method (safer) // NOTE: Shared pointers initialize to null
-        std::shared_ptr<Node> child; // Shared pointer method (safer)
+        Node::Ptr parent; // Shared pointer method (safer) // NOTE: Shared pointers initialize to null
+        Node::Ptr child; // Shared pointer method (safer)
         bool worm_hole = false;
         Node(double p_in, double q_in) // Node constructor
         : p{p_in}
         , q{q_in}
+        , z{0}
         {
         }
 
