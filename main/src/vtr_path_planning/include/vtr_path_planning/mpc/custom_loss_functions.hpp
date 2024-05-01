@@ -53,7 +53,7 @@ class L2WeightedLossFunc : public BaseLossFunc {
    * \brief Weight for iteratively reweighted least-squares (influence function
    * div. by error)
    */
-  double weight(double whitened_error_norm) const override { return weight_val; }
+  double weight(double) const override { return weight_val; }
 
 };
 

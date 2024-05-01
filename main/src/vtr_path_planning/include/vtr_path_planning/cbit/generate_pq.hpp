@@ -48,8 +48,8 @@ class CBITPath {
         double delta_p_calc(Pose start_pose, Pose end_pose, double alpha); // Function for computing delta p intervals in p,q space
     // Internal function declarations
     private:
-        Eigen::Spline<double, 2> spline_path_xy(std::vector<Pose> input_path); // Processes the input discrete path into a cubic spline
-        Eigen::Spline<double, 2> spline_path_xz_yz(std::vector<Pose> input_path); // Processes the input discrete path into a cubic spline
+        Eigen::Spline<double, 2> spline_path_xy(const std::vector<Pose> &input_path); // Processes the input discrete path into a cubic spline
+        Eigen::Spline<double, 2> spline_path_xz_yz(const std::vector<Pose> &input_path); // Processes the input discrete path into a cubic spline
 
         double radius_of_curvature(double dist, Eigen::Spline<double, 2> spline); // Calculates the radius of curvature using the spline at a given distance along the spline
        

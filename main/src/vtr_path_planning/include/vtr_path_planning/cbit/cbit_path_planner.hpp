@@ -42,6 +42,9 @@
 // Note long term, this class should probably be inherited by the base path planner
 
 // enum for path traversal direction:
+
+using namespace vtr;
+
 enum PathDirection 
 {
     PATH_DIRECTION_REVERSE = -1,
@@ -52,8 +55,8 @@ class CBITPlanner {
     public:
         CBITConfig conf;
         std::shared_ptr<CBITPath> global_path;
-        std::shared_ptr<Node> p_start;
-        std::shared_ptr<Node> p_goal;
+        Node::Ptr p_start;
+        Node::Ptr p_goal;
         std::vector<double> path_x;
         std::vector<double> path_y;
         double sample_box_height;
@@ -64,10 +67,11 @@ class CBITPlanner {
 
         // Repair mode variables
         bool repair_mode = false; // Flag for whether or not we should resume the planner in repair mode to update the tree following a state update
-        std::shared_ptr<Node> repair_vertex;
+        Node::Ptr repair_vertex;
         double repair_g_T_old;
         double repair_g_T_weighted_old;
-        std::shared_ptr<Node> p_goal_backup;
+
+        Node::Ptr p_goal_backup;
 
 
         // For storing the most up-to-date euclidean robot pose
@@ -106,7 +110,7 @@ class CBITPlanner {
         void InitializePlanningSpace();
         void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
         void ResetPlanner();
-        std::shared_ptr<Node> UpdateStateSID(int SID, vtr::tactic::EdgeTransform T_p_r);
+        std::shared_ptr<Node> UpdateStateSID(size_t SID, vtr::tactic::EdgeTransform T_p_r);
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
         double BestVertexQueueValue();

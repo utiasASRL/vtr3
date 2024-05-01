@@ -21,7 +21,7 @@
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 
 #include <tf2/convert.h>
-#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 
 namespace vtr {
 namespace path_planning {
@@ -363,7 +363,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     // Storing sequences of costmaps for temporal filtering purposes
     // For the first x iterations, fill the obstacle vector
-    if (costmap_ptr->obs_map_vect.size() < config_->costmap_history)
+    if (costmap_ptr->obs_map_vect.size() < (unsigned) config_->costmap_history)
     {
       costmap_ptr->obs_map_vect.push_back(obs_map);
       costmap_ptr->T_c_w_vect.push_back(costmap_ptr->T_c_w);
@@ -497,19 +497,19 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
 
     // Synchronized Tracking/Teach Reference Poses For Homotopy Guided MPC:
-    auto ref_homotopy_result = GenerateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, K,  DT, VF, curr_sid, p_interp_vec);
+    auto ref_homotopy_result = GenerateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, p_interp_vec);
     auto homotopy_poses = ref_homotopy_result.poses;
     bool point_stabilization = ref_homotopy_result.point_stabilization;
     std::vector<double> barrier_q_left = ref_homotopy_result.barrier_q_left;
     std::vector<double> barrier_q_right = ref_homotopy_result.barrier_q_right;
+
     std::vector<lgmath::se3::Transformation> tracking_pose_vec;
-    for (int i = 0; i<tracking_poses.size(); i++)
-    {
+    for (size_t i = 0; i < tracking_poses.size(); i++) {
       tracking_pose_vec.push_back(tracking_poses[i].inverse());
     }
+
     std::vector<lgmath::se3::Transformation> homotopy_pose_vec;
-    for (int i = 0; i<homotopy_poses.size(); i++)
-    {
+    for (size_t i = 0; i < homotopy_poses.size(); i++) {
       homotopy_pose_vec.push_back(homotopy_poses[i].inverse());
     }
 
