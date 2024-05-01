@@ -316,15 +316,15 @@ void Navigator::lidarCallback(
 };
 #endif
 
-// #Sam added radar callback. SImilar to Lidar, we need to know what to do when a radar message is received
+// #Sam added radar callback. Similar to Lidar, we need to know what to do when a radar message is received
 #ifdef VTR_ENABLE_RADAR
 void Navigator::radarCallback(
     const sensor_msgs::msg::Image::SharedPtr msg) {
 
   // set the timestamp
-  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+  Timestamp timestamp_radar = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
-  CLOG(DEBUG, "navigation") << "Received a radar Image with stamp " << timestamp;
+  CLOG(DEBUG, "navigation") << "Received a radar Image with stamp " << timestamp_radar;
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
@@ -344,8 +344,8 @@ void Navigator::radarCallback(
   query_data->node = node_;
 
   // set the timestamp
-  Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
-  query_data->stamp.emplace(timestamp);
+  // Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
+  query_data->stamp.emplace(timestamp_radar);
 
   // add the current environment info
   query_data->env_info.emplace(env_info_);

@@ -36,7 +36,7 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #endif
 
-#ifdef VTR_ENABLE_RADAR || VTR_ENABLE_VISION
+#if defined(VTR_ENABLE_RADAR) || defined(VTR_ENABLE_VISION)
 #include "sensor_msgs/msg/image.hpp"
 #endif
 
