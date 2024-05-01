@@ -265,15 +265,16 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     }
 
     // Solve the optimization problem with GuassNewton solver
-    using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
+    //using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
     //using SolverType = steam::LineSearchGaussNewtonSolver;
+    using SolverType = steam::DoglegGaussNewtonSolver;
 
     // Initialize solver parameters
     SolverType::Params params;
     params.verbose = verbosity; // Makes the output display for debug when true
-    params.relative_cost_change_threshold = 1e-4;
+    // params.relative_cost_change_threshold = 1e-4;
     params.max_iterations = 100;
-    params.absolute_cost_change_threshold = 1e-4;
+    params.absolute_cost_change_threshold = 1e-2;
     //params.backtrack_multiplier = 0.95; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
     //params.max_backtrack_steps = 1000; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
 
@@ -294,13 +295,12 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     if (final_cost > initial_cost)
     {
       CLOG(ERROR, "mpc.solver") << "The final cost was > initial cost, something went wrong. Commanding the vehicle to stop";
-         // First check if any of the values are nan, if so we return a zero velocity and flag the error
       Eigen::Matrix<double, 2, 1> bad_cost_vel;
       
       bad_cost_vel(0) = 0.0;
       bad_cost_vel(1) = 0.0;
 
-      // if we do detect nans, return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
+      // Return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
       for (size_t i = 0; i < pose_state_vars.size(); i++)
       {
@@ -347,6 +347,10 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       nan_vel(0) = 0.0;
       nan_vel(1) = 0.0;
 
+      if (verbosity) {
+        throw std::runtime_error("NAN values detected in MPC! Crashing for debug!");
+      }
+
       // if we do detect nans, return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
       for (size_t i = 0; i < pose_state_vars.size(); i++)
@@ -355,7 +359,6 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       }
       return {nan_vel, mpc_poses};
     }
-
     // if no nan values, return the applied velocity and mpc pose predictions as normal
     else
     {

@@ -555,7 +555,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
       mpc_poses = MPCResult.mpc_poses;
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
     }
-    catch(...)
+    catch(steam::unsuccessful_step &e)
     {
       CLOG(WARNING, "cbit.control") << "STEAM Optimization Failed; Commanding to Stop the Vehicle";
       applied_vel(0) = 0.0;
