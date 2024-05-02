@@ -315,11 +315,6 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   // retrieve the transorm info from the localization chain for the current robot state
   const auto chain_info = getChainInfo(robot_state);
   auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
-  if (curr_sid == (chain.size()-2))
-  {
-    CLOG(INFO, "cbit.control") << "Reaching End of Path, Disabling MPC";
-    return Command();
-  }
 
 
   // Handling Dynamic Corridor Widths:
@@ -358,7 +353,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     costmap_ptr->obs_map = obs_map;
     // Store the transform T_c_w (from costmap to world)
     costmap_ptr->T_c_w = T_start_vertex.inverse(); // note that T_start_vertex is T_w_c if we want to bring keypoints to the world frame
-    // Store the grid resoltuion
+    // Store the grid resolution
     CLOG(DEBUG, "cbit.obstacle_filtering") << "The costmap to world transform is: " << T_start_vertex.inverse();
 
     // Storing sequences of costmaps for temporal filtering purposes
