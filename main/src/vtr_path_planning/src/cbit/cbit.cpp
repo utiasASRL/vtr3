@@ -323,15 +323,11 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   {
     CLOG(DEBUG, "cbit.control") << "Trying to query the graph vertex type for SID: " << curr_sid;
     int vertex_type = chain.query_terrain_type(curr_sid);
-    CLOG(DEBUG, "cbit.control") << "GUI Vertex Type is: " << (vertex_type + 1); // we may want to look ahead a few frames instead
-    
-    // Type 1 in GUI is default and returns the value 0. This should correspond to 2.5m maximum lateral deviation.
-    // Each subsequent type maps to Type # - 1, i.e. Type 2 path = 1, Type 3 = 2, and so on.
 
     // Calculate q_max width for planner
-    *q_max_ptr = 2.5 - (0.5 * vertex_type);
-    // Note: Minimum should never go to exactly zero or this could cause issues in the planner (0.01 is fine)
-    // TODO: Update the type values in the GUI to reflect this change
+    *q_max_ptr = pose_graph::BasicPathBase::terrian_type_corridor_width(vertex_type);
+    CLOG(DEBUG, "cbit.control") << "Vertex Corridor Width is: " << *q_max_ptr; // we may want to look ahead a few frames instead
+
   }
 
   // Retrieve the latest obstacle costmap
@@ -435,24 +431,24 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
       const auto curr_time = now();  // always in nanoseconds
       const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
 
-      // Check the time past since the last state update was received
-      // Go back through the vel_history to approximately dt seconds in the past
-      // Start applying each of the applied velocities sequentially
-      double control_period = config_->control_period / 1000.0; // control period is given by user in ms in the config
-      for (int i=std::floor(dt / control_period); i > 0; i--)
-      {
-        w_p_r_in_r(0) = -1* vel_history[vel_history.size()-(i+1)][0];
-        w_p_r_in_r(1) = 0.0;
-        w_p_r_in_r(2) = 0.0;
-        w_p_r_in_r(3) = 0.0;
-        w_p_r_in_r(4) = 0.0;
-        w_p_r_in_r(5) = -1* vel_history[vel_history.size()-(i+1)][1];
-        CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+      // // Check the time past since the last state update was received
+      // // Go back through the vel_history to approximately dt seconds in the past
+      // // Start applying each of the applied velocities sequentially
+      // double control_period = config_->control_period / 1000.0; // control period is given by user in ms in the config
+      // for (int i=std::floor(dt / control_period); i > 0; i--)
+      // {
+      //   w_p_r_in_r(0) = -1* vel_history[vel_history.size()-(i+1)][0];
+      //   w_p_r_in_r(1) = 0.0;
+      //   w_p_r_in_r(2) = 0.0;
+      //   w_p_r_in_r(3) = 0.0;
+      //   w_p_r_in_r(4) = 0.0;
+      //   w_p_r_in_r(5) = -1* vel_history[vel_history.size()-(i+1)][1];
+      //   CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
 
-        Eigen::Matrix<double, 6, 1> xi_p_r_in_r(control_period * w_p_r_in_r);
-        T_p_r_prop = T_p_r_prop * tactic::EdgeTransform(xi_p_r_in_r).inverse();
+      //   Eigen::Matrix<double, 6, 1> xi_p_r_in_r(control_period * w_p_r_in_r);
+      //   T_p_r_prop = T_p_r_prop * tactic::EdgeTransform(xi_p_r_in_r).inverse();
 
-      }
+      // }
       // Apply the final partial period velocity
       w_p_r_in_r(0) = -1* vel_history.back()[0];
       w_p_r_in_r(1) = 0.0;
@@ -461,9 +457,10 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
       w_p_r_in_r(4) = 0.0;
       w_p_r_in_r(5) = -1* vel_history.back()[1];
       CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
-      Eigen::Matrix<double, 6, 1> xi_p_r_in_r((dt - (std::floor(dt / control_period) * control_period)) * w_p_r_in_r);
+      //- (std::floor(dt / control_period) * control_period
+      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * w_p_r_in_r);
       T_p_r_prop = T_p_r_prop * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-      CLOG(DEBUG, "cbit.debug") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
+      // CLOG(DEBUG, "cbit.debug") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
       T_p_r_extp = T_p_r_prop;
 
       CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;

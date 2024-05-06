@@ -53,8 +53,8 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
         end_of_path = 1.0;
         break;
       }
-      avg_curvature_xy = avg_curvature_xy + disc_path_curvature_xy[i];
-      avg_curvature_xz_yz = avg_curvature_xz_yz + disc_path_curvature_xz_yz[i];
+      avg_curvature_xy += disc_path_curvature_xy[i];
+      avg_curvature_xz_yz += disc_path_curvature_xz_yz[i];
 
     }
     avg_curvature_xy = avg_curvature_xy / horizon_steps;
