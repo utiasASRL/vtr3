@@ -10,6 +10,8 @@ find_package(ament_cmake_python REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 
 find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
@@ -18,6 +20,7 @@ find_package(pcl_ros REQUIRED)
 
 find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -30,6 +33,9 @@ find_package(vtr_torch REQUIRED)
 
 if(DEFINED VTR_ENABLE_LIDAR)
 
+add_compile_options(-g)
+
+
 ## C++ Libraries
 include_directories(PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -39,12 +45,13 @@ include_directories(PUBLIC
 # components
 file(GLOB_RECURSE COMPONENTS_SRC
   src/data_types/*.cpp
+  src/filters/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
-  Eigen3 pcl_conversions pcl_ros
+  Eigen3 pcl_conversions pcl_ros OpenCV
   nav_msgs
-  lgmath steam
+  lgmath steam OpenCV
   vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
@@ -57,8 +64,8 @@ add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions pcl_ros
-  nav_msgs visualization_msgs
-  lgmath steam vtr_torch
+  nav_msgs visualization_msgs OpenCV
+  lgmath steam vtr_torch cv_bridge
   vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
@@ -74,10 +81,10 @@ ament_target_dependencies(${PROJECT_NAME}_tools
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  Eigen3 pcl_conversions pcl_ros
+  Eigen3 pcl_conversions pcl_ros OpenCV
   nav_msgs visualization_msgs
-  lgmath steam
-  vtr_logging vtr_tactic vtr_lidar_msgs vtr_torch
+  lgmath steam cv_bridge
+  vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs vtr_torch
 )
 
 install(

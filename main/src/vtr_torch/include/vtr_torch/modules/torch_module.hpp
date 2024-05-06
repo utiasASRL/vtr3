@@ -59,12 +59,12 @@ class TorchModule : public tactic::BaseModule {
       : tactic::BaseModule{module_factory, name}, config_(config) {
 
         //Load the model
-        //Should the system crash out if the model is loaded incorrectly?
         try {
           // Deserialize the ScriptModule from a file using torch::jit::load().
           network = torch::jit::load(config_->model_filepath);
         } catch (const c10::Error& e) {
           CLOG(ERROR, "torch") << "error loading the model\n" << "Tried to load " << config_->model_filepath;
+          throw std::runtime_error("Error loading requested network model. Please check your filepaths in the config file.");
         }
 
         if (config_->use_gpu){
@@ -87,14 +87,15 @@ class TorchModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) = 0;
 
   Config::ConstPtr config_;
-  torch::Device device = torch::kCPU;
-
 
  protected:
   Module network;
+  torch::Device device = torch::kCPU;
 
   template <typename DataType>
   torch::Tensor evaluateModel(std::vector<DataType> inputs, const Shape shape);
+
+  torch::Tensor evaluateModel(torch::Tensor input, const Shape shape);
 
 };
 

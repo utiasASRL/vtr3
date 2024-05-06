@@ -241,6 +241,8 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   {
   }
 
+  costmap_ptr = std::make_shared<CBITCostmap> ();
+
   lgmath::se3::TransformationWithCovariance teach_frame;
   std::tuple<double, double, double, double, double, double> se3_vector;
   Pose se3_pose;

@@ -106,7 +106,7 @@ void DenseCostMap::update(
 void DenseCostMap::update(
     const std::unordered_map<std::pair<float,float>, float> values) {    
     
-  for (const auto val : values) {
+  for (const auto &val : values) {
     auto shifted_k = costmap::PixKey(val.first.first / dl_, val.first.second / dl_) - origin_;
 
     //const auto shifted_k_x = val.first.first;// - origin_.x;

@@ -1,12 +1,12 @@
-## Online Lidar VTR3
-session_name: vtr_online_ouster_warthog
+## Offline Lidar VTR3 with LaserSAM
+session_name: vtr_offline_ouster_warthog
 
 environment:
-  RMW_IMPLEMENTATION: rmw_fastrtps_cpp
   FASTRTPS_DEFAULT_PROFILES_FILE: ${VTRSRC}/config/vtr_rtps.xml
-  ROS_DOMAIN_ID: "131"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+  #ROS_DOMAIN_ID: "131"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
+
 suppress_history: false
 
 windows:
@@ -14,17 +14,17 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
+      #- ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=ouster_warthog_default.yaml
+        override_params:=ouster_warthog_lasersam.yaml
         start_new_graph:=false
         use_sim_time:=false
+        planner:="stationary"
         model_dir:=${VTRROOT}/models
-        planner:="cbit"
-        model_dir:=${VTRROOT}/models
-        
+        data_dir:=${VTRTEMP}/lidar/forest_sam_testing
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -41,4 +41,5 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+

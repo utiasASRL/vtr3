@@ -1,0 +1,39 @@
+/**:
+  ros__parameters:
+    pipeline:
+      type: lidar
+      localization:
+        - recall
+        - icp
+        - safe_corridor
+        - range_change
+        - costmap_inflation
+        - memory
+      submap_translation_threshold: 1.5
+      submap_rotation_threshold: 30.0
+      save_nn_point_cloud: true
+
+
+    localization:
+      range_change:
+        type: torch.range_change
+        use_gpu: true
+        abs_filepath: false
+        filepath: exported_model_forest_m30_10m.pt
+        radius_filter: 0.25
+        neighbourhood: 5
+        save_nn_point_cloud: false
+        range_crop: 10.0
+        visualize: true
+      costmap_inflation:
+        type: lidar.costmap_blindspot
+        influence_distance: 0.3 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 1.0 # was 0.3 Jordy
+        resolution: 0.25
+        costmap_history_size: 15
+        blind_spot_radius: 1.5
+        lifetime: 1.5
+        size_x: 16.0
+        size_y: 16.0
+        visualize: true
+

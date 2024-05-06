@@ -93,6 +93,7 @@
         - icp
         - safe_corridor
         - change_detection_sync
+        - costmap_inflation
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
@@ -240,8 +241,10 @@
         support_radius: 0.25
         support_variance: 0.05
         support_threshold: 2.5
-        influence_distance: 0.5 # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.8
+      costmap_inflation:
+        type: lidar.costmap_inflation
+        influence_distance: 0.5 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 0.8 # was 0.3 Jordy
 
         # cost map
         costmap_history_size: 30 # Keep between 3 and 30, used for temporal filtering
@@ -295,7 +298,7 @@
         visualize: true
     
     path_planning:
-      type: cbit
+      type: cbit.lidar # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       cbit:
         obstacle_avoidance: false

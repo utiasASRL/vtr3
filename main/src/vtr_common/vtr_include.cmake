@@ -10,7 +10,7 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # add_compile_options(-frepo)
 
 #Add debug symbols
-#add_compile_options(-g -Og)
+#add_compile_options(-g)
 
 # built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
@@ -19,7 +19,6 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 # add_compile_options(-fsanitize=address)
 # set(CMAKE_CXX_STANDARD_LIBRARIES -lasan)
 # add_compile_options(-g -Og)
-
 
 ## Common packages setup
 # Boost requirement (by mission_planning but needed everywhere)
@@ -30,6 +29,9 @@ if (OpenMP_FOUND)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
+
+
 
 
 #Set to VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR

@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2023, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,14 +13,18 @@
 // limitations under the License.
 
 /**
- * \file diff_generator.hpp
- * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
+ * \file change_detection_module_v3.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
+
+#include <list>
 
 #include "tf2/convert.h"
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.h"
+
+#include "nav_msgs/msg/occupancy_grid.hpp"
 
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
@@ -29,25 +33,24 @@
 namespace vtr {
 namespace lidar {
 
-class DifferenceDetector : public tactic::BaseModule {
+class CostmapInflationModule : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(DifferenceDetector);
+  PTR_TYPEDEFS(CostmapInflationModule);
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  using OccupancyGridMsg = nav_msgs::msg::OccupancyGrid;
 
-  static constexpr auto static_name = "lidar.diff_generator";
+  static constexpr auto static_name = "lidar.costmap_inflation";
 
   /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    // change detection
-    float detection_range = 10.0; //m
-    float minimum_distance = 0.0; //m
-
-    float neighbour_threshold = 0.05; //m
-    float voxel_size = 0.2; //m
-
-    float angle_weight = 10.0/2/M_PI;
+    // cost map
+    float resolution = 1.0;
+    float size_x = 20.0;
+    float size_y = 20.0;
+    float influence_distance = 1.0;
+    float minimum_distance = 0.5;
 
     //
     bool visualize = false;
@@ -56,11 +59,15 @@ class DifferenceDetector : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  DifferenceDetector(
+  CostmapInflationModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
       : tactic::BaseModule{module_factory, name}, config_(config) {}
+
+ protected:
+  virtual pcl::PointCloud<PointWithInfo> assemble_pointcloud(tactic::QueryCache &qdata, 
+              tactic::OutputCache &output, const tactic::Graph::Ptr &graph);
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
@@ -71,10 +78,11 @@ class DifferenceDetector : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr diffpcd_pub_;
+  rclcpp::Publisher<OccupancyGridMsg>::SharedPtr costmap_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr costpcd_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(DifferenceDetector);
 
+  VTR_REGISTER_MODULE_DEC_TYPE(CostmapInflationModule);
 };
 
 }  // namespace lidar
