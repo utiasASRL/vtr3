@@ -11,6 +11,7 @@
         # tactic
       #- tactic
       - tactic.pipeline
+      - tactic.eop
       #- tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
@@ -21,6 +22,7 @@
       #- path_planning.cbit_planner
       - mpc.cbit
       - mpc_debug
+      - cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
@@ -66,7 +68,7 @@
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.5
+      route_completion_translation_threshold: 0.1
 
       chain:
         min_cusp_distance: 1.5
@@ -355,7 +357,7 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
+        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 5.0]
         vel_error_cov: [20.0, 30.0]
         acc_error_cov: [20.0, 20.0]
         kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]

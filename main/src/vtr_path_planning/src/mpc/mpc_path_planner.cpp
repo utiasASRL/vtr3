@@ -172,39 +172,25 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         opt_problem.addCostTerm(kin_cost_term);
 
         // Non-Zero Velocity Penalty (penalty of non resting control effort helps with point stabilization)
-        const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
-        opt_problem.addCostTerm(vel_cost_term);
-
-        // Velocity set-point constraint - No longer using this due to complications when repeating a path in reverse
         // Only add this cost term if we are not in point stabilization mode (end of path)
         
-        //if (point_stabilization == false)
-        //{
-        //  const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i],v_ref), sharedVelNoiseModel, velLossFunc);
-        //  opt_problem.addCostTerm(vel_cost_term);
-        //}
 
-        //  End of Path Termination Constraint
-        if (point_stabilization == true)
-        {
+        if (point_stabilization == false) {
           const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
           opt_problem.addCostTerm(vel_cost_term);
         }
         
         
         // Acceleration Constraints
-        if (i == 0)
-        {
-        // On the first iteration, we need to use an error with the previously applied control command state
-        const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i], previous_vel), sharedAccelNoiseModel, accelLossFunc);
-        opt_problem.addCostTerm(accel_cost_term);
-        } 
-        else
-        {
-        // Subsequent iterations we make an error between consecutive velocities. We penalize large changes in velocity between time steps
-        const auto accel_diff = steam::vspace::AdditionEvaluator<2>::MakeShared(vel_state_vars[i], steam::vspace::NegationEvaluator<2>::MakeShared(vel_state_vars[i-1]));
-        const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, accelLossFunc);
-        opt_problem.addCostTerm(accel_cost_term);
+        if (i == 0) {
+          // On the first iteration, we need to use an error with the previously applied control command state
+          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i], previous_vel), sharedAccelNoiseModel, accelLossFunc);
+          opt_problem.addCostTerm(accel_cost_term);
+        } else {
+          // Subsequent iterations we make an error between consecutive velocities. We penalize large changes in velocity between time steps
+          const auto accel_diff = steam::vspace::AdditionEvaluator<2>::MakeShared(vel_state_vars[i], steam::vspace::NegationEvaluator<2>::MakeShared(vel_state_vars[i-1]));
+          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, accelLossFunc);
+          opt_problem.addCostTerm(accel_cost_term);
         }  
       }
 
@@ -251,9 +237,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
         // Generate least square cost terms and add them to the optimization problem
         const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, latLossFunc);
-        //opt_problem.addCostTerm(lat_cost_term_right);
         const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, latLossFunc);
-        //opt_problem.addCostTerm(lat_cost_term_left);
 
         // If using homotopy class based control, apply barrier constraints. Else ignore them (more stable but potentially more aggressive)
         if (homotopy_mode == true)

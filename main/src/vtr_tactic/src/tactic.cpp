@@ -166,8 +166,9 @@ bool Tactic::passedSeqId(const uint64_t& sid) const {
 
 bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
-  const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
+  const auto translation = (chain_->T_leaf_trunk()*chain_->T_trunk_target(chain_->sequence().size() - 1)).r_ba_ina().norm();
 
+  CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
   if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
     return false;
   }
