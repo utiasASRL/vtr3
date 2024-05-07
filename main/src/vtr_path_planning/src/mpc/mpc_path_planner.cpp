@@ -538,9 +538,9 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
       }
 
     
-      double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.x - pose_lower.x);
-      double y_int = pose_lower.y + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.y - pose_lower.y);
-      double z_int = pose_lower.z + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.z - pose_lower.z);
+      // double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.x - pose_lower.x);
+      // double y_int = pose_lower.y + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.y - pose_lower.y);
+      // double z_int = pose_lower.z + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.z - pose_lower.z);
 
       // For yaw we need to be abit careful about sign and angle wrap around
       // Derive the yaw by creating the vector connecting the pose_upp and pose_lower pts
@@ -550,14 +550,13 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
       // This interpolation if we do have yaw available (when the input path is the teach path as it is for corridor mpc)
       double yaw_int;
       //yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-      if ((pose_lower.yaw == 0.0) && (pose_upper.yaw == 0.0))
-      {
+      if ((pose_lower.yaw == 0.0) && (pose_upper.yaw == 0.0)) {
         // Yaw interpolation when we dont have yaw available explicitly (i.e from cbit path euclid conversion)
-        yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-      }
-      else
-      {
+        // yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
         yaw_int = pose_lower.yaw;
+        CLOG(WARNING, "mpc.debug") << "The yaw is unset";
+      } else       {
+        yaw_int = pose_lower.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.yaw - pose_lower.yaw);
       }
       
 
@@ -565,6 +564,8 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
       // reference poses on the teach path
       double p_int = pose_lower.p + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.p - pose_lower.p);
       double q_int = pose_lower.q + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.q - pose_lower.q);
+
+      
 
       // Build the transformation matrix
       Eigen::Matrix4d T_ref;

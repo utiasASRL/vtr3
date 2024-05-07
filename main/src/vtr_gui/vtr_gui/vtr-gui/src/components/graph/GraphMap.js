@@ -503,11 +503,12 @@ class GraphMap extends React.Component {
   route2Polyline(route) {
     // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
     let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
+    let width = route.type + 2
     let latlngs = route.ids.map((id) => {
       let v = this.id2vertex.get(id);
       return [v.lat, v.lng];
     });
-    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: GRAPH_WEIGHT, pane: "graph" });
+    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: width, pane: "graph" });
     polyline.addTo(this.map);
     return polyline;
   }

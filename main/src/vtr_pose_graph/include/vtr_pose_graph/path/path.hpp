@@ -81,6 +81,8 @@ class Path {
   /** \brief Gets the cumu. distance along the path at a sequence index */
   int query_terrain_type(unsigned seq_id) const;
 
+  static double terrian_type_corridor_width(int terrain_type);
+
  protected:
   virtual void initSequence();
 
@@ -238,6 +240,21 @@ auto Path<GraphT>::begin(const unsigned& seq_id) const -> Iterator {
 template <class GraphT>
 auto Path<GraphT>::end() const -> Iterator {
   return Iterator(this, sequence_.end());
+}
+
+
+/** based on mapping in AnnotateSlider.js*/
+template <class GraphT>
+double Path<GraphT>::terrian_type_corridor_width (int terrain_type) {
+  switch (terrain_type) {
+    case 0: return 0.1;
+    case 1: return 0.5;
+    case 2: return 1.0;
+    case 3: return 1.5;
+    case 4: return 2.0;
+    case 5: return 2.5;
+    default: return 10.0;
+  }
 }
 
 using BasicPathBase = Path<BasicGraphBase>;
