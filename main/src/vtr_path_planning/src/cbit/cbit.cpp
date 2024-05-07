@@ -391,7 +391,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
     
     // Schedule speed based on path curvatures + other factors
-    VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, VF, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, config_->horizon_step_size, config_->min_vel);
+    VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, VF, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, config_->horizon_steps, config_->min_vel);
 
     // Grab the current MPC configurations
     // Pose Covariance Weights

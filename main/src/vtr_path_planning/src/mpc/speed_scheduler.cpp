@@ -22,8 +22,7 @@
 #include <iostream>
 
 
-double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, unsigned curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, double horizon_step_size, double min_vel)
-{
+double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, unsigned curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, double horizon_steps, double min_vel) {
 
     // Experimental Speed Scheduler:
     // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
@@ -43,28 +42,24 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     double VF_XZ_YZ;
     double avg_curvature_xy = 0.0;
     double avg_curvature_xz_yz = 0.0;
-    double end_of_path = 0.0;
-    unsigned horizon_steps = 5.0 / horizon_step_size; // Set lookahead horizon to 5m (default params tuned for this value)
-    for (size_t i = curr_sid; i < curr_sid + horizon_steps; i++) 
-    {
+    unsigned end_of_path = 0;
+    for (size_t i = curr_sid; i < curr_sid + horizon_steps; i++) {
       // Handle end of path case
-      if (i == (disc_path_curvature_xy.size()-1))
-      {
-        end_of_path = 1.0;
-        break;
+      if (i < disc_path_curvature_xy.size()-1) {
+        avg_curvature_xy += disc_path_curvature_xy[i];
+        avg_curvature_xz_yz += disc_path_curvature_xz_yz[i];
+      } else {
+        end_of_path += 1;
       }
-      avg_curvature_xy += disc_path_curvature_xy[i];
-      avg_curvature_xz_yz += disc_path_curvature_xz_yz[i];
-
     }
-    avg_curvature_xy = avg_curvature_xy / horizon_steps;
-    avg_curvature_xz_yz = avg_curvature_xz_yz / horizon_steps;
+    avg_curvature_xy = avg_curvature_xy / (horizon_steps - end_of_path);
+    avg_curvature_xz_yz = avg_curvature_xz_yz / (horizon_steps - end_of_path);
     CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PLANAR CURVATURE IS:  " << avg_curvature_xy;
     CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PROFILE CURVATURE IS:  " << avg_curvature_xz_yz;
 
-    // handle forward/referse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
+    // handle forward/reverse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
 
-    VF_EOP = std::max(min_vel, VF / (1 + (end_of_path * end_of_path * eop_weight)));
+    VF_EOP = std::max(min_vel, VF * (1 - eop_weight * end_of_path / horizon_steps));
     VF_XY = std::max(min_vel, VF / (1 + (avg_curvature_xy * avg_curvature_xy * planar_curv_weight)));
     VF_XZ_YZ = std::max(min_vel, VF / (1 + (avg_curvature_xz_yz * avg_curvature_xz_yz * profile_curv_weight)));
     
