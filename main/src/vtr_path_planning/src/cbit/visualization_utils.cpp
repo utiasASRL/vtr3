@@ -125,7 +125,7 @@ void VisualizationUtils::visualize(
         for (unsigned i = 0; i < (*cbit_path_ptr).size(); ++i)
         {
         auto& pose = poses.emplace_back();
-        //pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix())); // Example for how to grab the transform from a transform with covariance data type
+        // pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix())); // Example for how to grab the transform from a transform with covariance data type
         test_pose.position.x = (*cbit_path_ptr)[i].x;
         test_pose.position.y = (*cbit_path_ptr)[i].y;
         test_pose.position.z = (*cbit_path_ptr)[i].z;
@@ -193,13 +193,8 @@ void VisualizationUtils::visualize(
 
         // fill the PoseArray with some sample poses
         for (size_t i = 0; i < tracking_pose_vec.size(); i++) {
-            geometry_msgs::msg::Pose pose;
             auto T1 = tracking_pose_vec[i].matrix();
-            pose.position.x = T1(0,3);
-            pose.position.y = T1(1,3);;
-            pose.position.z = T1(2,3);;
-            pose.orientation.w = 1.0;
-            pose_array_msg.poses.push_back(pose);
+            pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T1)));
         }
         ref_pose_pub_tracking_->publish(pose_array_msg);
     }
@@ -212,13 +207,8 @@ void VisualizationUtils::visualize(
 
         // fill the PoseArray with some sample poses
         for (size_t i = 0; i < homotopy_pose_vec.size(); i++) {
-            geometry_msgs::msg::Pose pose;
             auto T2 = homotopy_pose_vec[i].matrix();
-            pose.position.x = T2(0,3);
-            pose.position.y = T2(1,3);;
-            pose.position.z = T2(2,3);;
-            pose.orientation.w = 1.0;
-            pose_array_msg.poses.push_back(pose);
+            pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T2)));
         }
         ref_pose_pub_homotopy_->publish(pose_array_msg);
     }
