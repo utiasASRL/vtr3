@@ -503,6 +503,14 @@ struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> gl
     return {tracking_reference_poses, point_stabilization, barrier_q_left, barrier_q_right};
 }
 
+lgmath::se3::Transformation poseToTransformation(const Pose &p) {
+  Eigen::Vector3d position {p.x, p.y, p.z};
+  Eigen::Matrix3d rot_m = lgmath::so3::vec2rot({0, 0, p.yaw});
+
+  return lgmath::se3::Transformation{rot_m, position};
+}
+
+
 // function takes in the cbit path solution with a vector defining the p axis of the path, and then a desired p_meas
 // Then tries to output a euclidean pose interpolated for the desired p_meas.
 struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, std::vector<Pose> cbit_path)
@@ -537,6 +545,20 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
         pose_upper = cbit_path[i];
       }
 
+      double interp_percent = ((p_val - p_lower) / (p_upper - p_lower));
+
+
+      // we also want to interpolate p and q values based on the original p,q from the cbit_path. We use this afterwards for finding appropriate corridor mpc
+      // reference poses on the teach path
+      double p_int = pose_lower.p +  interp_percent * (pose_upper.p - pose_lower.p);
+      double q_int = pose_lower.q + interp_percent * (pose_upper.q - pose_lower.q);
+
+      auto T_upper = poseToTransformation(pose_upper);
+      auto T_lower = poseToTransformation(pose_lower);
+
+      auto T_rel = T_lower.inverse() * T_upper;
+
+      lgmath::se3::Transformation meas = T_lower * lgmath::se3::Transformation(interp_percent * T_rel.vec(), 0);
     
       // double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.x - pose_lower.x);
       // double y_int = pose_lower.y + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.y - pose_lower.y);
@@ -548,36 +570,30 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
       // For normal forward planning this is fine though
 
       // This interpolation if we do have yaw available (when the input path is the teach path as it is for corridor mpc)
-      double yaw_int;
-      //yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-      if ((pose_lower.yaw == 0.0) && (pose_upper.yaw == 0.0)) {
-        // Yaw interpolation when we dont have yaw available explicitly (i.e from cbit path euclid conversion)
-        // yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-        yaw_int = pose_lower.yaw;
-        CLOG(WARNING, "mpc.debug") << "The yaw is unset";
-      } else       {
-        yaw_int = pose_lower.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.yaw - pose_lower.yaw);
-      }
+      // double yaw_int;
+      // //yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
+      // if ((pose_lower.yaw == 0.0) && (pose_upper.yaw == 0.0)) {
+      //   // Yaw interpolation when we dont have yaw available explicitly (i.e from cbit path euclid conversion)
+      //   // yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
+      //   yaw_int = pose_lower.yaw;
+      //   CLOG(WARNING, "mpc.debug") << "The yaw is unset";
+      // } else       {
+      //   yaw_int = pose_lower.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.yaw - pose_lower.yaw);
+      // }
+      
       
 
-      // we also want to interpolate p and q values based on the original p,q from the cbit_path. We use this afterwards for finding appropriate corridor mpc
-      // reference poses on the teach path
-      double p_int = pose_lower.p + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.p - pose_lower.p);
-      double q_int = pose_lower.q + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.q - pose_lower.q);
+      // // Build the transformation matrix
+      // Eigen::Matrix4d T_ref;
+      // T_ref << std::cos(yaw_int),-1*std::sin(yaw_int),0, 0,
+      //         std::sin(yaw_int),   std::cos(yaw_int),0, 0,
+      //         0,               0,            1, 0,
+      //         0,               0,            0,                    1;
+      // T_ref = T_ref.inverse().eval();
 
-      
+      // lgmath::se3::Transformation meas = lgmath::se3::Transformation(T_ref);
 
-      // Build the transformation matrix
-      Eigen::Matrix4d T_ref;
-      T_ref << std::cos(yaw_int),-1*std::sin(yaw_int),0, x_int,
-              std::sin(yaw_int),   std::cos(yaw_int),0, y_int,
-              0,               0,            1, z_int,
-              0,               0,            0,                    1;
-      T_ref = T_ref.inverse().eval();
-
-      lgmath::se3::Transformation meas = lgmath::se3::Transformation(T_ref);
-
-      CLOG(DEBUG, "mpc.debug") << "The measurement Euclidean state is - x: " << x_int << " y: " << y_int << " z: " << z_int << " yaw: " << yaw_int;
+      CLOG(DEBUG, "mpc.debug") << "The measurement Euclidean state is - x: " << meas;
       CLOG(DEBUG, "mpc.debug") << "The measurement P,Q value is - p: " << p_int << " q: " << q_int;
       return {meas, p_int, q_int};
     }
