@@ -176,7 +176,7 @@
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 0.3
+        max_translation: 0.30
         max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
@@ -343,7 +343,7 @@
         # Controller Params
         extrapolate_robot_pose: true
         mpc_verbosity: false
-        homotopy_guided_mpc: false
+        homotopy_guided_mpc: true
         horizon_steps: 20
         horizon_step_size: 0.3
         forward_vel: 1.0
