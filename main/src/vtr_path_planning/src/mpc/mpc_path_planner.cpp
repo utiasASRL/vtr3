@@ -505,7 +505,7 @@ struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> gl
 
 lgmath::se3::Transformation poseToTransformation(const Pose &p) {
   Eigen::Vector3d position {p.x, p.y, p.z};
-  Eigen::Matrix3d rot_m = lgmath::so3::vec2rot({0, 0, p.yaw});
+  Eigen::Matrix3d rot_m = lgmath::so3::vec2rot({0, 0, -p.yaw});
 
   return lgmath::se3::Transformation{rot_m, position};
 }

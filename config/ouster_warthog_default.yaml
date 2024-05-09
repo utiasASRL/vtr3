@@ -341,31 +341,36 @@
         costmap_filter_value: 0.01
         costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
 
+      speed_scheduler:
+        planar_curv_weight: 5.0
+        profile_curv_weight: 0.5 
+        eop_weight: 1.0
+        min_vel: 0.5
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
-        mpc_verbosity: false
+        extrapolate_robot_pose: false
+        mpc_verbosity: true
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.3
         forward_vel: 1.0
         max_lin_vel: 1.5
-        max_ang_vel: 1.25
+        max_ang_vel: 0.5
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 5.0]
+        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 10.0]
         vel_error_cov: [20.0, 30.0]
         acc_error_cov: [20.0, 20.0]
         kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
         lat_error_cov: [2.0]
 
         # Cost Function Weights
-        pose_error_weight: 1.0
-        vel_error_weight: 1.5
+        pose_error_weight: 5.0
+        vel_error_weight: 0.0
         acc_error_weight: 1.5
         kin_error_weight: 1.0
         lat_error_weight: 0.01
