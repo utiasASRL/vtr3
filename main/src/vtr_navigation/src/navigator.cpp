@@ -185,6 +185,7 @@ if (pipeline->name() == "stereo") {
 
 // #Sam added radar callback
 #ifdef VTR_ENABLE_RADAR
+if (pipeline->name() == "radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
   // there is a radar frame
@@ -201,7 +202,8 @@ if (pipeline->name() == "stereo") {
   auto radar_qos = rclcpp::QoS(max_queue_size_);
   radar_qos.reliable();
   radar_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
-
+  
+}
 #endif
 
   /// This creates a thread to process the sensor input
