@@ -131,7 +131,7 @@ CBIT::CBIT(const Config::ConstPtr& config,
   robot_state_ = robot_state;
   const auto node = robot_state->node.ptr();
   // Initialize the shared pointer to the output of the planner
-  cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
+  cbit_path_ptr = std::make_shared<std::vector<Pose>>();
   valid_solution_ptr = std::make_shared<bool> (false);
   q_max_ptr = std::make_shared<double> (config->q_max);
 
@@ -267,7 +267,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
 
   // Logic for determining the forward/reverse sign:
   PathDirection path_direction; //1.0 = forward planning, -1.0 = reverse planning
-  if (abs((abs(path_yaw) - abs(pose_graph_yaw))) > 1.57075)
+  if (abs((abs(path_yaw) - abs(pose_graph_yaw))) > 1.57075)   // Investigate TODO
   {
     path_direction = PATH_DIRECTION_REVERSE;
   }
@@ -387,7 +387,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
   // START OF MPC CODE
   // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
-  if ((*cbit_path_ptr).size() != 0)
+  if (cbit_path_ptr->size() != 0)
   {
     CLOG(DEBUG, "cbit.debug") << "History of the Robot Velocities:" << vel_history;
 

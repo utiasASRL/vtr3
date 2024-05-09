@@ -212,15 +212,17 @@ void CBITPlanner::Planning(BasePathPlanner::RobotState& robot_state, std::shared
         // Generate some additional samples in a 2m local ring around the robot state
         double r_s;
         double theta_s;
-        double x_s;
-        double y_s;
+        double p_s;
+        double q_s;
         for (int i = 0; i < 50; i++)
         {
+          //Biasing the sampling towards the outer edge
+          //More weird biasing stuff inside curve leads to more samples oustide the curve
           r_s = 2.0 * sqrt(static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) ; 
-          theta_s = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 2.0 * 3.1415;
-          x_s = r_s * cos(theta_s) + p_goal->p;
-          y_s = r_s * sin(theta_s) + p_goal->q;
-          Node new_sample(x_s, y_s);
+          theta_s = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 2.0 * M_PI;
+          p_s = r_s * cos(theta_s) + p_goal->p;
+          q_s = r_s * sin(theta_s) + p_goal->q;
+          Node new_sample(p_s, q_s);
           if (costmap_col(curve_to_euclid(new_sample)) == false)
           {
             samples.push_back(std::make_shared<Node> (new_sample));
@@ -836,6 +838,8 @@ Node::Ptr CBITPlanner::UpdateStateSID(size_t SID, vtr::tactic::EdgeTransform T_p
     }
   }
 
+  //TODO untand thisders
+
   for (double i = (*p_goal).p; i < lookahead_range; i += (1.0 / (conf.roc_lookahead * conf.curv_to_euclid_discretization)))
   {
     euclid_subset.push_back(curve_to_euclid(Node(i,0)));
@@ -853,7 +857,7 @@ Node::Ptr CBITPlanner::UpdateStateSID(size_t SID, vtr::tactic::EdgeTransform T_p
     double dy = new_state->y - euclid_subset[i].q;
     q = sqrt((dy * dy) + (dx * dx));
 
-    if (q < q_min)
+    if (q < q_min || i == 0)
     {
       q_min = q;
       closest_pt = euclid_subset[i];
@@ -861,8 +865,10 @@ Node::Ptr CBITPlanner::UpdateStateSID(size_t SID, vtr::tactic::EdgeTransform T_p
     }
   }
   // Handle weird seg fault case
+  // closest_pt_ind == euclid_subset.size()-1
   if ((closest_pt_ind) > (euclid_subset.size()-2))
   {
+    CLOG(WARNING, "cbit.debug") << "Closest Point Index is at the end of the subset, setting to second last point";
     closest_pt_ind = euclid_subset.size()-2;
   }
 
@@ -923,6 +929,7 @@ Node::Ptr CBITPlanner::UpdateStateSID(size_t SID, vtr::tactic::EdgeTransform T_p
   
   // Note I think we also need to take into account the direction the robot is facing on the path for reverse planning too
   q_min = q_min * q_sign * local_path_direction;
+  CLOG(INFO, "path_planning.cbit") << "q_min: " << q_min << " q_sign: " << q_sign << " local_path_direction: " << local_path_direction;
 
   // Once we have the closest point on the path, it may not actually be the correct p-value because of singularities in the euclid to curv conversion
   // We need to use this points p-value as a starting point, then search p, qmin space in either direction discretely and find the point with

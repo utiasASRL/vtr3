@@ -28,10 +28,8 @@
 
 #pragma once
 
-
 // Some useful Classes
-class Pose {
-    public:
+struct Pose {
         double x;
         double y;
         double z;

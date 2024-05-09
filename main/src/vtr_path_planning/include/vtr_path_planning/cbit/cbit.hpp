@@ -179,7 +179,6 @@ class CBIT : public BasePathPlanner {
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
 
   // Pointers to the output path
-  std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
 
   // Pointers to the flag for there being a valid solution or not

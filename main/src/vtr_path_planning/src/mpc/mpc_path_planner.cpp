@@ -185,6 +185,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         //}
 
         //  End of Path Termination Constraint
+        //Mark as reweight aat end of path?
         if (point_stabilization == true)
         {
           const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
@@ -209,7 +210,6 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       }
 
       // Laterial Barrier State Constraints (only when using homotopy guided MPC)
-      if (i >= 0)
       {
         // Generate a locked transform evaluator to store the current measurement for state constraints
         // The reason we make it a variable and lock it is so we can use the built in steam evaluators which require evaluable inputs
@@ -404,8 +404,9 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
     for (size_t i = 0; i < (cbit_path.size()-2); i++) // the last value of vector is size()-1, so second to last will be size-2
     { 
       // calculate the p value for the point
+      //This is a euclidean distance
       p_dist = sqrt((((cbit_path)[i].x - (cbit_path)[i+1].x) * ((cbit_path)[i].x - (cbit_path)[i+1].x)) + (((cbit_path)[i].y - (cbit_path)[i+1].y) * ((cbit_path)[i].y - (cbit_path)[i+1].y)));
-      lookahead_dist = lookahead_dist + p_dist;
+      lookahead_dist += p_dist;
       cbit_p.push_back(lookahead_dist);
 
       // Keep track of the closest point to the robot state
@@ -419,6 +420,7 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
       }
       else
       {
+        //Perplexed please delete me
         if (new_dist > min_dist + 0.1)
         {
           min_flag = false;
@@ -441,7 +443,6 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
     p_meas_vec.reserve(K);
     for (int i = 0; i < K; i++)
     {
-
       p_meas_vec.push_back((i * DT * VF) + p_correction);
     }
     
@@ -550,7 +551,7 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
         pose_upper = cbit_path[i];
       }
 
-    
+      // Cutting corners in general ?
       double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.x - pose_lower.x);
       double y_int = pose_lower.y + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.y - pose_lower.y);
       double z_int = pose_lower.z + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.z - pose_lower.z);
@@ -579,6 +580,8 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
       double p_int = pose_lower.p + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.p - pose_lower.p);
       double q_int = pose_lower.q + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.q - pose_lower.q);
 
+      //Why aren't we using innterp p, q to get the x, y , z?
+
       // Build the transformation matrix
       Eigen::Matrix4d T_ref;
       T_ref << std::cos(yaw_int),-1*std::sin(yaw_int),0, x_int,
@@ -587,6 +590,7 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
               0,               0,            0,                    1;
       T_ref = T_ref.inverse().eval();
 
+      // Go to lgmath before invert for SPEEED!
       lgmath::se3::Transformation meas = lgmath::se3::Transformation(T_ref);
 
       CLOG(DEBUG, "mpc.debug") << "The measurement Euclidean state is - x: " << x_int << " y: " << y_int << " z: " << z_int << " yaw: " << yaw_int;
