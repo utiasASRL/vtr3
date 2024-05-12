@@ -5,8 +5,10 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /TF1/Status1
+        - /TF1
         - /Teach Path1/Topic1
+        - /MPC Solution1
+        - /MPC Tracking Reference Poses1
       Splitter Ratio: 0.4507042169570923
     Tree Height: 871
   - Class: rviz_common/Selection
@@ -60,23 +62,65 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
-        lidar:
-          Value: false
-        robot:
+        base_link:
           Value: true
-        world:
-          Value: false
-        world (offset):
-          Value: false
+        chassis_link:
+          Value: true
+        diff_link:
+          Value: true
+        front_left_wheel_link:
+          Value: true
+        front_right_wheel_link:
+          Value: true
+        imu_link:
+          Value: true
+        left_diff_unit_headlight_link:
+          Value: true
+        left_diff_unit_link:
+          Value: true
+        left_diff_unit_taillight_link:
+          Value: true
+        navtech_base:
+          Value: true
+        nerian_left:
+          Value: true
+        nerian_stereo:
+          Value: true
+        novatel:
+          Value: true
+        odom:
+          Value: true
+        os_imu:
+          Value: true
+        os_lidar:
+          Value: true
+        os_sensor:
+          Value: true
+        os_sensor_base_link:
+          Value: true
+        os_sensor_baseplate:
+          Value: true
+        rear_left_wheel_link:
+          Value: true
+        rear_right_wheel_link:
+          Value: true
+        right_diff_unit_headlight_link:
+          Value: true
+        right_diff_unit_link:
+          Value: true
+        right_diff_unit_taillight_link:
+          Value: true
+        sensor_tower:
+          Value: true
+        top_chassis_link:
+          Value: true
       Marker Scale: 4
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: true
+      Show Names: false
       Tree:
-        world:
-          world (offset):
-            {}
+        {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -389,7 +433,7 @@ Visualization Manager:
         Y: 0
         Z: 0
       Pose Color: 255; 85; 255
-      Pose Style: None
+      Pose Style: Axes
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
@@ -539,7 +583,7 @@ Visualization Manager:
       Name: MPC Tracking Reference Poses
       Shaft Length: 0.10000000149011612
       Shaft Radius: 0.10000000149011612
-      Shape: Arrow (3D)
+      Shape: Axes
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -615,25 +659,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 41.55506134033203
+      Distance: 7.667648792266846
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 12.343294143676758
-        Y: -3.8882362842559814
-        Z: 0.2389792650938034
+        X: 1.799404263496399
+        Y: 0.7954132556915283
+        Z: 0.3490133285522461
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.2597966194152832
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.441279411315918
+      Yaw: 4.74637508392334
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -851,5 +895,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 72
+  X: 78
   Y: 27
