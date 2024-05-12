@@ -241,12 +241,12 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   q_max_ptr = std::make_shared<double> (config_->q_max);
 
     // Initialize the current velocity state and a vector for storing a history of velocity commands applied
-  applied_vel << 0,
+  applied_vel_ << 0,
                  0;
   vel_history.reserve(config_->command_history_length);
   for (int i = 0; i < config_->command_history_length; i++)
   {
-    vel_history.push_back(applied_vel);
+    vel_history.push_back(applied_vel_);
   }
 
   lgmath::se3::TransformationWithCovariance teach_frame;
@@ -284,24 +284,25 @@ void CBIT::initializeRoute(RobotState& robot_state) {
 auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto raw_command = computeCommand_(robot_state);
   
-  applied_vel << raw_command.linear.x, raw_command.angular.z;
+  applied_vel_ << raw_command.linear.x, raw_command.angular.z;
 
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
   vel_history.erase(vel_history.begin());
-  vel_history.push_back(applied_vel);
+  vel_history.push_back(applied_vel_);
       
   // Apply robot motor controller calibration scaling factors if applicable
-  applied_vel(0) = applied_vel(0) * config_->robot_linear_velocity_scale;
-  applied_vel(1) = applied_vel(1) * config_->robot_angular_velocity_scale;
+  applied_vel_(0) = applied_vel_(0) * config_->robot_linear_velocity_scale;
+  applied_vel_(1) = applied_vel_(1) * config_->robot_angular_velocity_scale;
 
   // If required, saturate the output velocity commands based on the configuration limits
   CLOG(DEBUG, "cbit.control") << "Saturating the velocity command if required";
-  Eigen::Vector2d saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
+  Eigen::Vector2d saturated_vel = SaturateVel(applied_vel_, config_->max_lin_vel, config_->max_ang_vel);
   CLOG(INFO, "cbit.control") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
   
   Command command;
   command.linear.x = saturated_vel(0);
   command.angular.z = saturated_vel(1);
+  prev_vel_stamp_ = now();
 
   CLOG(INFO, "cbit.control")
     << "Final control command: [" << command.linear.x << ", "
@@ -326,10 +327,12 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   // retrieve the transform info from the localization chain for the current robot state
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(chain);
 
+  // Store the current robot state in the robot state path so it can be visualized
+  robot_poses.push_back(T_w_p * T_p_r);
 
   // Handling Dynamic Corridor Widths:
   // Retrieve the terrain type (corresponds to maximum planning width)
-  if (curr_sid <= chain.size()-2)
+  if (curr_sid <= chain.size() - 2)
   {
     CLOG(DEBUG, "cbit.control") << "Trying to query the graph vertex type for SID: " << curr_sid;
     int vertex_type = chain.query_terrain_type(curr_sid);
@@ -390,7 +393,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
   if (cbit_path_ptr->size() != 0)
   {
-    CLOG(DEBUG, "cbit.debug") << "History of the Robot Velocities:" << vel_history;
+    // CLOG(DEBUG, "cbit.debug") << "History of the Robot Velocities:" << vel_history;
 
     // Initializations from config
     bool extrapolate_robot_pose = config_->extrapolate_robot_pose;
@@ -431,52 +434,23 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     double kin_error_weight = config_->kin_error_weight;
     double lat_error_weight = config_->lat_error_weight;
   
-
-
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
     auto T_p_r_extp = T_p_r;
-    auto T_p_r_prop = T_p_r;
-    if (extrapolate_robot_pose == true)
-    {
+    if (extrapolate_robot_pose == true) {
       const auto curr_time = now();  // always in nanoseconds
-      const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+      const auto dt = static_cast<double>(curr_time - prev_vel_stamp_) * 1e-9;
+      Eigen::Vector<double, 6> last_w_p_r_in_r;
 
-      // // Check the time past since the last state update was received
-      // // Go back through the vel_history to approximately dt seconds in the past
-      // // Start applying each of the applied velocities sequentially
-      // double control_period = config_->control_period / 1000.0; // control period is given by user in ms in the config
-      // for (int i=std::floor(dt / control_period); i > 0; i--)
-      // {
-      //   w_p_r_in_r(0) = -1* vel_history[vel_history.size()-(i+1)][0];
-      //   w_p_r_in_r(1) = 0.0;
-      //   w_p_r_in_r(2) = 0.0;
-      //   w_p_r_in_r(3) = 0.0;
-      //   w_p_r_in_r(4) = 0.0;
-      //   w_p_r_in_r(5) = -1* vel_history[vel_history.size()-(i+1)][1];
-      //   CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
+      last_w_p_r_in_r << -vel_history.back()[0], 0.0, 0.0, 0.0, 0.0, -vel_history.back()[1];
 
-      //   Eigen::Matrix<double, 6, 1> xi_p_r_in_r(control_period * w_p_r_in_r);
-      //   T_p_r_prop = T_p_r_prop * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-
-      // }
-      // Apply the final partial period velocity
-      // w_p_r_in_r(0) = -1* vel_history.back()[0];
-      // w_p_r_in_r(1) = 0.0;
-      // w_p_r_in_r(2) = 0.0;
-      // w_p_r_in_r(3) = 0.0;
-      // w_p_r_in_r(4) = 0.0;
-      // w_p_r_in_r(5) = -1* vel_history.back()[1];
-      CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
-      //- (std::floor(dt / control_period) * control_period
-      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * w_p_r_in_r);
-      T_p_r_prop = T_p_r_prop * tactic::EdgeTransform(xi_p_r_in_r).inverse();
-      // CLOG(DEBUG, "cbit.debug") << "The final time period is: "  << (dt - (std::floor(dt / control_period) * control_period));
-      T_p_r_extp = T_p_r_prop;
+      CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -last_w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
+      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * last_w_p_r_in_r);
+      T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
 
       CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
     }
 
-    lgmath::se3::Transformation T0 = lgmath::se3::Transformation(T_w_p * T_p_r_extp);
+    lgmath::se3::Transformation T0 = T_w_p * T_p_r_extp;
 
     //Convert to x,y,z,roll, pitch, yaw
     std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
@@ -517,7 +491,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
     // Generate the mpc configuration structure:
     MPCConfig mpc_config;
-    mpc_config.previous_vel = applied_vel;
+    mpc_config.previous_vel = applied_vel_;
     mpc_config.T0 = T0;
     mpc_config.tracking_reference_poses = tracking_poses;
     if (homotopy_guided_mpc == true)
@@ -553,26 +527,21 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
       auto MPCResult = SolveMPC(mpc_config);
-      applied_vel = MPCResult.applied_vel; // note dont re-declare applied vel here
+      applied_vel_ = MPCResult.applied_vel; // note dont re-declare applied vel here
       mpc_poses = MPCResult.mpc_poses;
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
-    }
-    catch(steam::unsuccessful_step &e)
-    {
+    } catch(steam::unsuccessful_step &e) {
       CLOG(WARNING, "cbit.control") << "STEAM Optimization Failed; Commanding to Stop the Vehicle";
-      applied_vel(0) = 0.0;
-      applied_vel(1) = 0.0;
+      return Command();
     }
 
-    CLOG(INFO, "cbit.control") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
+    CLOG(INFO, "cbit.control") << "The linear velocity is:  " << applied_vel_(0) << " The angular vel is: " << applied_vel_(1);
 
     // return the computed velocity command for the first time step
     Command command;
-    command.linear.x = applied_vel(0);
-    command.angular.z = applied_vel(1);
+    command.linear.x = applied_vel_(0);
+    command.angular.z = applied_vel_(1);
 
-    // Store the current robot state in the robot state path so it can be visualized
-    robot_poses.push_back(T_w_p * T_p_r);
 
     // visualize the outputs
     visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, mpc_poses, robot_poses, tracking_pose_vec, homotopy_pose_vec, cbit_path_ptr, corridor_ptr);
@@ -580,13 +549,9 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     return command;
   }
   // Otherwise stop the robot
-  else
-  {
+  else  {
     CLOG(INFO, "cbit.control") << "There is not a valid plan yet, returning zero velocity commands";
 
-    applied_vel << 0.0, 0.0;
-    vel_history.erase(vel_history.begin());
-    vel_history.push_back(applied_vel);
     return Command();
   }
 }

@@ -190,8 +190,9 @@ class CBIT : public BasePathPlanner {
   tactic::Timestamp prev_stamp;
 
   // Store the previously applied velocity and a sliding window history of MPC results
-  Eigen::Vector2d applied_vel;
+  Eigen::Vector2d applied_vel_;
   std::vector<Eigen::Vector2d> vel_history;
+  tactic::Timestamp prev_vel_stamp_;
 
   //create vector to store the robots path for visualization purposes
   std::vector<lgmath::se3::Transformation> robot_poses;
