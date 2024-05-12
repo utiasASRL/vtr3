@@ -154,9 +154,12 @@ class CBIT : public BasePathPlanner {
                  const Callback::Ptr& callback);
   ~CBIT() override;
 
+  void setRunning(const bool running) override;
+
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
+
 
   
  protected:
@@ -173,10 +176,12 @@ class CBIT : public BasePathPlanner {
   /** \brief Retrieve information for planning from localization chain */
   ChainInfo getChainInfo(RobotState& robot_state);
 
- //private: // I think we need to make all of these protected so the derived lidarcbit class can access them
+ private: 
   const Config::ConstPtr config_;
   CBITConfig cbit_config;
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
+
+  std::shared_ptr<CBITPlanner> planner_ptr_;
 
   // Pointers to the output path
   std::vector<Pose> cbit_path;
@@ -201,8 +206,8 @@ class CBIT : public BasePathPlanner {
   tactic::Timestamp prev_stamp;
 
   // Store the previously applied velocity and a sliding window history of MPC results
-  Eigen::Matrix<double, 2, 1> applied_vel;
-  std::vector<Eigen::Matrix<double, 2, 1>> vel_history;
+  Eigen::Vector2d applied_vel;
+  std::vector<Eigen::Vector2d> vel_history;
 
   //create vector to store the robots path for visualization purposes
   std::vector<lgmath::se3::Transformation> robot_poses;

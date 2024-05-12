@@ -35,8 +35,7 @@ inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
 }
 
 
-auto CBITPlanner::getChainInfo(BasePathPlanner::RobotState& robot_state) -> ChainInfo {
-  auto& chain = *robot_state.chain;
+auto CBITPlanner::getChainInfo(const vtr::tactic::LocalizationChain &chain ) -> ChainInfo {
   auto lock = chain.guard();
   const auto stamp = chain.leaf_stamp();
   const auto w_p_r_in_r = chain.leaf_velocity();
@@ -47,8 +46,8 @@ auto CBITPlanner::getChainInfo(BasePathPlanner::RobotState& robot_state) -> Chai
 }
 
 // Class Constructor:
-CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool> solution_ptr, std::shared_ptr<double> width_ptr, PathDirection path_direction)
-{ 
+CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool> solution_ptr, std::shared_ptr<double> width_ptr)
+: robot_state_{robot_state} { 
   // Setting random seed
   srand((unsigned int)time(NULL));
 
@@ -57,13 +56,6 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   cbit_costmap_ptr = costmap_ptr;
   valid_solution_ptr = solution_ptr;
   q_max_ptr = width_ptr;
-
-  // Before beginning the planning phase, we need to wait for the robot to localize, and then update the goal state
-  auto& chain = *robot_state.chain;
-  do
-  {
-    CLOG(WARNING, "cbit_planner.path_planning") << "Robot is not localized, Planner is waiting to start";
-  } while (chain.isLocalized() == 0);
 
   
   CLOG(INFO, "cbit_planner.path_planning") << "Planner is trying to initialize";
@@ -79,7 +71,6 @@ CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, 
   //initialize_plot();
 
   InitializePlanningSpace();
-  Planning(robot_state, costmap_ptr, corridor_ptr, path_direction);
 }
 
 void CBITPlanner::InitializePlanningSpace()
@@ -118,8 +109,10 @@ void CBITPlanner::InitializePlanningSpace()
 }
 
 // If we ever exit the planner due to a fault, we will do a hard reset, everything but the current robot_state (p_goal) and the inputs will be reinitialized
-void CBITPlanner::ResetPlanner()
+void CBITPlanner::resetPlanner()
 {
+  planning_active_ = false;
+
   tree.V.clear();
   tree.E.clear();
   tree.QV2.clear();
@@ -136,12 +129,13 @@ void CBITPlanner::ResetPlanner()
 
 
 // Main planning function
-void CBITPlanner::Planning(BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction)
-{
+void CBITPlanner::plan() {
   double prev_path_cost = INFINITY;
   int compute_time = 0;
   int vertex_rej_prob = 100;
   int dyn_batch_samples = conf.batch_samples;
+
+  planning_active_ = true;
 
   // Grab the amount of time in ms between robot state updates
   int control_period_ms = (1.0 / conf.state_update_freq) * 1000.0;
@@ -158,7 +152,7 @@ void CBITPlanner::Planning(BasePathPlanner::RobotState& robot_state, std::shared
 
   bool localization_flag = true; // Set the fact we are localized if we make it to this point
 
-  for (int k = 0; k < conf.iter_max; k++)
+  for (int k = 0; k < conf.iter_max && planning_active_; k++)
   {
     // Check whether a robot state update should be applied
     // We only update the state if A: we have first found a valid initial solution, and B: if the current time has elapsed the control period
@@ -172,7 +166,7 @@ void CBITPlanner::Planning(BasePathPlanner::RobotState& robot_state, std::shared
         state_update_time = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(control_period_ms);
 
         // get the euclidean robot state in the world frame from vt&r
-        auto& chain = *robot_state.chain;
+        auto& chain = *robot_state_.chain;
         if (chain.isLocalized() == 0)
           {
           // If we ever become unlocalized, I think we just need to break, then set a flag to exit the outer loop
@@ -184,7 +178,7 @@ void CBITPlanner::Planning(BasePathPlanner::RobotState& robot_state, std::shared
         
         std::tuple<double, double, double, double, double, double> robot_pose;
 
-        const auto chain_info = getChainInfo(robot_state);
+        const auto chain_info = getChainInfo(chain);
         auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
         robot_pose= T2xyzrpy(T_w_p * T_p_r);
         CLOG(INFO, "cbit_planner.path_planning") << "Displaying Current Robot Transform: " << T_p_r;
@@ -318,7 +312,7 @@ void CBITPlanner::Planning(BasePathPlanner::RobotState& robot_state, std::shared
         m = dyn_batch_samples;
 
         // Extract the solution
-        std::tuple<std::vector<double>, std::vector<double>> curv_path = ExtractPath(robot_state, costmap_ptr);
+        std::tuple<std::vector<double>, std::vector<double>> curv_path = ExtractPath(robot_state_, cbit_costmap_ptr);
         path_x = std::get<0>(curv_path); // p coordinates of the current path
         path_y = std::get<1>(curv_path); // q coordinates of the current path
 
@@ -624,13 +618,8 @@ void CBITPlanner::Planning(BasePathPlanner::RobotState& robot_state, std::shared
  
   } // End of main planning for loop
   
-  // Exiting cleanly:
-  // If we make it here and are no longer localized, we've reached end of path and should clear the bitstar path from memory
-  if (localization_flag == false)
-  {
-    CLOG(ERROR, "cbit_planner.path_planning") << "Reached End of Plan, Exiting cleanly";
-    (*cbit_path_ptr).clear();
-  }
+  CLOG(INFO, "cbit_planner.path_planning") << "Reached End of Plan, Exiting cleanly";
+  cbit_path_ptr->clear();
 } // End of main planning function
 
 

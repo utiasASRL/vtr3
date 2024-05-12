@@ -117,11 +117,6 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 }
 
 
-
-
-
-
-
 // Declare class as inherited from the BasePathPlanner
 CBIT::CBIT(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
@@ -130,10 +125,6 @@ CBIT::CBIT(const Config::ConstPtr& config,
   CLOG(INFO, "cbit.path_planning") << "Constructing the CBIT Class";
   robot_state_ = robot_state;
   const auto node = robot_state->node.ptr();
-  // Initialize the shared pointer to the output of the planner
-  cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
-  valid_solution_ptr = std::make_shared<bool> (false);
-  q_max_ptr = std::make_shared<double> (config->q_max);
 
   // Create visualizer and its corresponding pointer:
   VisualizationUtils visualization_utils(node);
@@ -169,17 +160,26 @@ CBIT::CBIT(const Config::ConstPtr& config,
   CLOG(INFO, "cbit.path_planning") << "Successfully Constructed the CBIT Class";
 
 
-  // Initialize the current velocity state and a vector for storing a history of velocity commands applied
-  applied_vel << 0,
-                 0;
-  vel_history.reserve(config_->command_history_length);
-  for (int i = 0; i < config_->command_history_length; i++)
-  {
-    vel_history.push_back(applied_vel);
-  }
 
-  thread_count_ = 2;
-  process_thread_cbit_ = std::thread(&CBIT::process_cbit, this);
+
+  //thread_count_ = 2;
+  //process_thread_cbit_ = std::thread(&CBIT::process_cbit, this);
+}
+
+void CBIT::setRunning(const bool running) {
+  //Starting up
+  if (running_ == false && running == true) {
+    CLOG(INFO, "cbit.path_planning") << "Initializing CBIT Route";
+    initializeRoute(*robot_state_);
+    CLOG(INFO, "cbit.path_planning") << "CBIT Plan Completed";
+  } else if (running_ == true && running == false) {
+    CLOG(INFO, "cbit.path_planning") << "Stopping CBIT Planning";
+    planner_ptr_->resetPlanner();
+    if (process_thread_cbit_.joinable()) process_thread_cbit_.join();
+    planner_ptr_.reset();
+    CLOG(INFO, "cbit.path_planning") << "Stopped CBIT Planning";
+  }
+  BasePathPlanner::setRunning(running);
 }
 
 
@@ -223,9 +223,7 @@ void CBIT::process_cbit() {
     lock.unlock();
 
     // Note we need to run the above first so that the lidarcbit class can be constructed before calling initializeroute (so it can be overrided correctly)
-    CLOG(INFO, "cbit.path_planning") << "Initializing CBIT Route";
-    initializeRoute(*robot_state_);
-    CLOG(INFO, "cbit.path_planning") << "CBIT Plan Completed";
+
   }
 }
 
@@ -236,9 +234,19 @@ void CBIT::process_cbit() {
 void CBIT::initializeRoute(RobotState& robot_state) {
   auto& chain = *robot_state.chain;
 
-  // Wait until the chain becomes localized
-  while (!chain.isLocalized())
+
+  // Initialize the shared pointer to the output of the planner
+  cbit_path_ptr = std::make_shared<std::vector<Pose>> (cbit_path);
+  valid_solution_ptr = std::make_shared<bool> (false);
+  q_max_ptr = std::make_shared<double> (config_->q_max);
+
+    // Initialize the current velocity state and a vector for storing a history of velocity commands applied
+  applied_vel << 0,
+                 0;
+  vel_history.reserve(config_->command_history_length);
+  for (int i = 0; i < config_->command_history_length; i++)
   {
+    vel_history.push_back(applied_vel);
   }
 
   lgmath::se3::TransformationWithCovariance teach_frame;
@@ -256,44 +264,21 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   }
 
 
-  // Using two consecutive poses on the path, we need to try to determine which direction the repeat is going before we generate the pq space:
-  const auto chain_info = getChainInfo(robot_state);
-  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
-  auto world_frame_pose = T2xyzrpy(T_w_p * T_p_r);
-  auto first_pose = euclid_path_vec[0];
-  auto second_pose = euclid_path_vec[1];
-  auto path_yaw = std::atan2((second_pose.y-first_pose.y),(second_pose.x-first_pose.x));
-  auto pose_graph_yaw = std::get<5>(world_frame_pose);
-
-  // Logic for determining the forward/reverse sign:
-  PathDirection path_direction; //1.0 = forward planning, -1.0 = reverse planning
-  if (abs((abs(path_yaw) - abs(pose_graph_yaw))) > 1.57075)
-  {
-    path_direction = PATH_DIRECTION_REVERSE;
-  }
-  else
-  {
-    path_direction = PATH_DIRECTION_FORWARD;
-  }
-
-  CLOG(INFO, "cbit.path_planning") << "The path repeat direction is:" << path_direction;
   CLOG(INFO, "cbit.path_planning") << "Trying to create global path";
   // Create the path class object (Path preprocessing)
-  CBITPath global_path(cbit_config, euclid_path_vec);
-  // Make a pointer to this path
-  global_path_ptr = std::make_shared<CBITPath>(global_path);
+  global_path_ptr = std::make_shared<CBITPath>(cbit_config, euclid_path_vec);
   CLOG(INFO, "cbit.path_planning") << "Teach Path has been pre-processed. Attempting to initialize the dynamic corridor";
 
 
   // Initialize the dynamic corridor
-  CBITCorridor corridor(cbit_config, global_path_ptr);
-  // Make a pointer to the corridor
-  corridor_ptr = std::make_shared<CBITCorridor>(corridor);
+  corridor_ptr = std::make_shared<CBITCorridor>(cbit_config, global_path_ptr);
   CLOG(INFO, "cbit.path_planning") << "Corridor generated successfully. Attempting to instantiate the planner";
 
   // Instantiate the planner
-  CBITPlanner cbit(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, valid_solution_ptr, q_max_ptr, path_direction);
+  planner_ptr_ = std::make_shared<CBITPlanner>(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, valid_solution_ptr, q_max_ptr);
   CLOG(INFO, "cbit.path_planning") << "Planner successfully created and resolved";
+  process_thread_cbit_ = std::thread(&CBITPlanner::plan, planner_ptr_);
+
 }
 
 

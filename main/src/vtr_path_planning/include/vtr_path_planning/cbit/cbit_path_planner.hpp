@@ -41,15 +41,8 @@
 
 // Note long term, this class should probably be inherited by the base path planner
 
-// enum for path traversal direction:
-
 using namespace vtr;
 
-enum PathDirection 
-{
-    PATH_DIRECTION_REVERSE = -1,
-    PATH_DIRECTION_FORWARD = 1
-};
 
 class CBITPlanner {
     public:
@@ -92,8 +85,10 @@ class CBITPlanner {
         // Costmap pointer
         std::shared_ptr<CBITCostmap> cbit_costmap_ptr;
 
-        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, std::shared_ptr<double>width_ptr, PathDirection path_direction);
+        CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, std::shared_ptr<double>width_ptr);
 
+        void plan();
+        void resetPlanner();
     protected:
     struct ChainInfo {
         vtr::tactic::Timestamp stamp;
@@ -104,17 +99,16 @@ class CBITPlanner {
         unsigned curr_sid;
     };
     /** \brief Retrieve information for planning from localization chain */
-    ChainInfo getChainInfo(vtr::path_planning::BasePathPlanner::RobotState& robot_state);
+    ChainInfo getChainInfo(const vtr::tactic::LocalizationChain& robot_state);
 
     private:
         void InitializePlanningSpace();
-        void Planning(vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, PathDirection path_direction);
-        void ResetPlanner();
         std::shared_ptr<Node> UpdateStateSID(size_t SID, vtr::tactic::EdgeTransform T_p_r);
         std::vector<std::shared_ptr<Node>> SampleBox(int m);
         std::vector<std::shared_ptr<Node>> SampleFreeSpace(int m);
         double BestVertexQueueValue();
         double BestEdgeQueueValue();
+        vtr::path_planning::BasePathPlanner::RobotState& robot_state_;
         std::shared_ptr<Node> BestInVertexQueue();
         void ExpandVertex(std::shared_ptr<Node> v);
         std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> BestInEdgeQueue();
@@ -131,4 +125,6 @@ class CBITPlanner {
         bool costmap_col_tight(Node node);
         bool discrete_collision(std::vector<std::vector<double>> obs, double discretization, Node start, Node end);
         std::shared_ptr<Node> col_check_path_v2(double max_lookahead_p);
+
+        mutable bool planning_active_ = false;
 };
