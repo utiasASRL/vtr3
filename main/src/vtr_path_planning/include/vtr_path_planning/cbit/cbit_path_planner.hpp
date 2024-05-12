@@ -98,9 +98,6 @@ class CBITPlanner {
         vtr::tactic::EdgeTransform T_w_p;  // T_world_planning
         unsigned curr_sid;
     };
-    /** \brief Retrieve information for planning from localization chain */
-    ChainInfo getChainInfo(const vtr::tactic::LocalizationChain& robot_state);
-
     private:
         void InitializePlanningSpace();
         std::shared_ptr<Node> UpdateStateSID(size_t SID, vtr::tactic::EdgeTransform T_p_r);

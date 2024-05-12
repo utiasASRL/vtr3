@@ -35,16 +35,6 @@ inline std::tuple<double, double, double, double, double, double> T2xyzrpy(
 }
 
 
-auto CBITPlanner::getChainInfo(const vtr::tactic::LocalizationChain &chain ) -> ChainInfo {
-  auto lock = chain.guard();
-  const auto stamp = chain.leaf_stamp();
-  const auto w_p_r_in_r = chain.leaf_velocity();
-  const auto T_p_r = chain.T_leaf_trunk().inverse();
-  const auto T_w_p = chain.T_start_trunk();
-  const auto curr_sid = chain.trunkSequenceId();
-  return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid};
-}
-
 // Class Constructor:
 CBITPlanner::CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool> solution_ptr, std::shared_ptr<double> width_ptr)
 : robot_state_{robot_state} { 
@@ -178,9 +168,9 @@ void CBITPlanner::plan() {
         
         std::tuple<double, double, double, double, double, double> robot_pose;
 
-        const auto chain_info = getChainInfo(chain);
-        auto [stamp, w_p_r_in_r, T_p_r, T_w_p, curr_sid] = chain_info;
-        robot_pose= T2xyzrpy(T_w_p * T_p_r);
+        const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(chain);
+
+        robot_pose = T2xyzrpy(T_w_p * T_p_r);
         CLOG(INFO, "cbit_planner.path_planning") << "Displaying Current Robot Transform: " << T_p_r;
 
         Pose se3_robot_pose = Pose(std::get<0>(robot_pose),(std::get<1>(robot_pose)),std::get<2>(robot_pose),std::get<3>(robot_pose),std::get<4>(robot_pose),std::get<5>(robot_pose));

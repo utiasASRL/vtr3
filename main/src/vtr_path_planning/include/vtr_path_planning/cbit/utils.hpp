@@ -26,7 +26,32 @@
 #include <iostream>
 #include <map>
 
+#include "vtr_tactic/tactic.hpp"
+
 #pragma once
+
+
+namespace vtr {
+namespace path_planning {
+
+    struct ChainInfo {
+        tactic::Timestamp stamp;
+        Eigen::Matrix<double, 6, 1> w_p_r_in_r;
+        // planning frame is the current localization frame
+        tactic::EdgeTransform T_p_r;  // T_planning_robot
+        tactic::EdgeTransform T_w_p;  // T_world_planning
+        tactic::EdgeTransform T_w_v_odo;  // T_planning_robot
+        tactic::EdgeTransform T_r_v_odo;  // T_world_planning
+        unsigned curr_sid;
+    };
+
+    /** \brief Retrieve information for planning from localization chain */
+    ChainInfo getChainInfo(const tactic::LocalizationChain& robot_state);
+    
+} // namespace path_planning
+} // namespace vtr
+
+
 
 
 // Some useful Classes

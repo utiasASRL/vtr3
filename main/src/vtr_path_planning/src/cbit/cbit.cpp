@@ -281,25 +281,50 @@ void CBIT::initializeRoute(RobotState& robot_state) {
 
 }
 
+auto CBIT::computeCommand(RobotState& robot_state) -> Command {
+  auto raw_command = computeCommand_(robot_state);
+  
+  applied_vel << raw_command.linear.x, raw_command.angular.z;
+
+  // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
+  vel_history.erase(vel_history.begin());
+  vel_history.push_back(applied_vel);
+      
+  // Apply robot motor controller calibration scaling factors if applicable
+  applied_vel(0) = applied_vel(0) * config_->robot_linear_velocity_scale;
+  applied_vel(1) = applied_vel(1) * config_->robot_angular_velocity_scale;
+
+  // If required, saturate the output velocity commands based on the configuration limits
+  CLOG(DEBUG, "cbit.control") << "Saturating the velocity command if required";
+  Eigen::Vector2d saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
+  CLOG(INFO, "cbit.control") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
+  
+  Command command;
+  command.linear.x = saturated_vel(0);
+  command.angular.z = saturated_vel(1);
+
+  CLOG(INFO, "cbit.control")
+    << "Final control command: [" << command.linear.x << ", "
+    << command.linear.y << ", " << command.linear.z << ", "
+    << command.angular.x << ", " << command.angular.y << ", "
+    << command.angular.z << "]";
+  
+  return command;
+}
 
 
 
 
 // Generate twist commands to track the planned local path (function is called at the control rate)
-auto CBIT::computeCommand(RobotState& robot_state) -> Command {
+auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
     CLOG(WARNING, "cbit.control") << "Robot is not localized, commanding the robot to stop";
-    applied_vel << 0.0, 0.0;
-    // Update history:
-    vel_history.erase(vel_history.begin());
-    vel_history.push_back(applied_vel);
     return Command();
   }
 
-  // retrieve the transorm info from the localization chain for the current robot state
-  const auto chain_info = getChainInfo(robot_state);
-  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = chain_info;
+  // retrieve the transform info from the localization chain for the current robot state
+  const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(chain);
 
 
   // Handling Dynamic Corridor Widths:
@@ -363,7 +388,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
   // START OF MPC CODE
   // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
-  if ((*cbit_path_ptr).size() != 0)
+  if (cbit_path_ptr->size() != 0)
   {
     CLOG(DEBUG, "cbit.debug") << "History of the Robot Velocities:" << vel_history;
 
@@ -435,12 +460,12 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
       // }
       // Apply the final partial period velocity
-      w_p_r_in_r(0) = -1* vel_history.back()[0];
-      w_p_r_in_r(1) = 0.0;
-      w_p_r_in_r(2) = 0.0;
-      w_p_r_in_r(3) = 0.0;
-      w_p_r_in_r(4) = 0.0;
-      w_p_r_in_r(5) = -1* vel_history.back()[1];
+      // w_p_r_in_r(0) = -1* vel_history.back()[0];
+      // w_p_r_in_r(1) = 0.0;
+      // w_p_r_in_r(2) = 0.0;
+      // w_p_r_in_r(3) = 0.0;
+      // w_p_r_in_r(4) = 0.0;
+      // w_p_r_in_r(5) = -1* vel_history.back()[1];
       CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << std::endl;
       //- (std::floor(dt / control_period) * control_period
       Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * w_p_r_in_r);
@@ -541,40 +566,16 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
     CLOG(INFO, "cbit.control") << "The linear velocity is:  " << applied_vel(0) << " The angular vel is: " << applied_vel(1);
 
-    // Apply robot motor controller calibration scaling factors if applicable
-    applied_vel(0) = applied_vel(0) * config_->robot_linear_velocity_scale;
-    applied_vel(1) = applied_vel(1) * config_->robot_angular_velocity_scale;
-
-    // If required, saturate the output velocity commands based on the configuration limits
-    CLOG(INFO, "cbit.control") << "Saturating the velocity command if required";
-    Eigen::Matrix<double, 2, 1> saturated_vel = SaturateVel(applied_vel, config_->max_lin_vel, config_->max_ang_vel);
-    CLOG(INFO, "cbit.control") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
-    
-    // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
-    vel_history.erase(vel_history.begin());
-    vel_history.push_back(saturated_vel);
+    // return the computed velocity command for the first time step
+    Command command;
+    command.linear.x = applied_vel(0);
+    command.angular.z = applied_vel(1);
 
     // Store the current robot state in the robot state path so it can be visualized
     robot_poses.push_back(T_w_p * T_p_r);
 
     // visualize the outputs
     visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, mpc_poses, robot_poses, tracking_pose_vec, homotopy_pose_vec, cbit_path_ptr, corridor_ptr);
-
-    // return the computed velocity command for the first time step
-    Command command;
-    command.linear.x = saturated_vel(0);
-    command.angular.z = saturated_vel(1);
-    
-    // Flagged log messages to test calibration of the grizzly controller (or any future robot)
-    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Linear Velocity: " << saturated_vel(0);
-    CLOG(DEBUG, "grizzly_controller_tests.cbit") << "Twist Angular Velocity: " << saturated_vel(1);
-
-    
-    CLOG(INFO, "cbit.control")
-      << "Final control command: [" << command.linear.x << ", "
-      << command.linear.y << ", " << command.linear.z << ", "
-      << command.angular.x << ", " << command.angular.y << ", "
-      << command.angular.z << "]";
 
     return command;
   }
@@ -588,21 +589,6 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     vel_history.push_back(applied_vel);
     return Command();
   }
-}
-
-
-// Function for grabbing the robots velocity in planning frame, transform of robot into planning frame, and transform of planning frame to world frame
-auto CBIT::getChainInfo(RobotState& robot_state) -> ChainInfo {
-  auto& chain = *robot_state.chain;
-  auto lock = chain.guard();
-  const auto stamp = chain.leaf_stamp();
-  const auto w_p_r_in_r = chain.leaf_velocity();
-  const auto T_p_r = chain.T_leaf_trunk().inverse();
-  const auto T_w_p = chain.T_start_trunk();
-  const auto T_w_v_odo = chain.T_start_petiole();
-  const auto T_r_v_odo = chain.T_leaf_petiole();
-  const auto curr_sid = chain.trunkSequenceId();
-  return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid};
 }
 
 

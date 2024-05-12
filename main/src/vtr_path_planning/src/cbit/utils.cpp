@@ -188,3 +188,20 @@ std::vector<double> linspace(double start_in, double end_in, int num_in)
                             // are exactly the same as the input
   return linspaced;
 }
+
+namespace vtr {
+namespace path_planning {
+    // Function for grabbing the robots velocity in planning frame, transform of robot into planning frame, and transform of planning frame to world frame
+ChainInfo getChainInfo(const tactic::LocalizationChain& chain)  {
+  auto lock = chain.guard();
+  const auto stamp = chain.leaf_stamp();
+  const auto w_p_r_in_r = chain.leaf_velocity();
+  const auto T_p_r = chain.T_leaf_trunk().inverse();
+  const auto T_w_p = chain.T_start_trunk();
+  const auto T_w_v_odo = chain.T_start_petiole();
+  const auto T_r_v_odo = chain.T_leaf_petiole();
+  const auto curr_sid = chain.trunkSequenceId();
+  return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid};
+}
+}
+}

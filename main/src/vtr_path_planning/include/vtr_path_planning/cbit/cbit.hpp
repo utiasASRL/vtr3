@@ -160,22 +160,6 @@ class CBIT : public BasePathPlanner {
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
 
-
-  
- protected:
-  struct ChainInfo {
-    tactic::Timestamp stamp;
-    Eigen::Matrix<double, 6, 1> w_p_r_in_r;
-    // planning frame is the current localization frame
-    tactic::EdgeTransform T_p_r;  // T_planning_robot
-    tactic::EdgeTransform T_w_p;  // T_world_planning
-    tactic::EdgeTransform T_w_v_odo;  // T_planning_robot
-    tactic::EdgeTransform T_r_v_odo;  // T_world_planning
-    unsigned curr_sid;
-  };
-  /** \brief Retrieve information for planning from localization chain */
-  ChainInfo getChainInfo(RobotState& robot_state);
-
  private: 
   const Config::ConstPtr config_;
   CBITConfig cbit_config;
@@ -220,6 +204,7 @@ class CBIT : public BasePathPlanner {
   void process_cbit();
   std::thread process_thread_cbit_;
   void stop_cbit();
+  Command computeCommand_(RobotState& robot_state);
 
  private:
   /** \brief shared memory that stores the current robot state */
