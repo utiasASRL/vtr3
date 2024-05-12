@@ -152,19 +152,19 @@ class LocalizationChain : public Path<Graph> {
   }
 
   /// What is the privileged vehicle pose (relative to the start of the path)
-  EdgeTransform T_start_twig() {
+  EdgeTransform T_start_twig() const {
     LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_) * T_twig_trunk().inverse();
   }
-  EdgeTransform T_start_petiole() {
+  EdgeTransform T_start_petiole() const {
     LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_) * T_petiole_trunk().inverse();
   }
-  EdgeTransform T_start_leaf() {
+  EdgeTransform T_start_leaf() const {
     LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_) * T_leaf_trunk().inverse();
   }
-  EdgeTransform T_start_trunk() {
+  EdgeTransform T_start_trunk() const {
     LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_);
   }
