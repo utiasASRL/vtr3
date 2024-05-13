@@ -42,16 +42,16 @@ public:
     VisualizationUtils();
     VisualizationUtils(rclcpp::Node::SharedPtr node);
     void visualize(
-    const tactic::Timestamp& stamp,
-    const tactic::EdgeTransform& T_w_p,
-    const tactic::EdgeTransform& T_p_r,
-    const tactic::EdgeTransform& T_p_r_extp_mpc,
-    const std::vector<lgmath::se3::Transformation>& mpc_prediction,
-    const std::vector<lgmath::se3::Transformation>& robot_prediction,
-    const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
-    const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
-    const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
-    const std::shared_ptr<CBITCorridor> corridor_ptr);
+        const tactic::Timestamp& stamp,
+        const tactic::EdgeTransform& T_w_p,
+        const tactic::EdgeTransform& T_p_r,
+        const tactic::EdgeTransform& T_p_r_extp_mpc,
+        const std::vector<lgmath::se3::Transformation>& mpc_prediction,
+        const std::vector<lgmath::se3::Transformation>& robot_prediction,
+        const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
+        const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
+        const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
+        const std::shared_ptr<CBITCorridor> corridor_ptr);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
