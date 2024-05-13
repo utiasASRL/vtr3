@@ -60,7 +60,6 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->pre_seed_resolution = node->declare_parameter<double>(prefix + ".cbit.pre_seed_resolution", config->pre_seed_resolution);
   config->alpha = node->declare_parameter<double>(prefix + ".cbit.alpha", config->alpha);
   config->q_max = node->declare_parameter<double>(prefix + ".cbit.q_max", config->q_max);
-  config->iter_max = node->declare_parameter<int>(prefix + ".cbit.iter_max", config->iter_max); // going to get rid of this
   config->eta = node->declare_parameter<double>(prefix + ".cbit.eta", config->eta);
   config->rad_m_exhange = node->declare_parameter<double>(prefix + ".rad_m_exhange", config->rad_m_exhange);
   config->initial_exp_rad = node->declare_parameter<double>(prefix + ".cbit.initial_exp_rad", config->initial_exp_rad);
@@ -146,7 +145,6 @@ CBIT::CBIT(const Config::ConstPtr& config,
   cbit_config.pre_seed_resolution = config->pre_seed_resolution;
   cbit_config.alpha = config->alpha;
   cbit_config.q_max = config->q_max;
-  cbit_config.iter_max = config->iter_max;
   cbit_config.eta = config->eta;
   cbit_config.rad_m_exhange = config->rad_m_exhange;
   cbit_config.initial_exp_rad = config->initial_exp_rad;
@@ -274,13 +272,8 @@ void CBIT::initializeRoute(RobotState& robot_state) {
 auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto raw_command = computeCommand_(robot_state);
   
-  applied_vel_ << raw_command.linear.x, raw_command.angular.z;
-  auto output_vel = applied_vel_;
+  Eigen::Vector2d output_vel = {raw_command.linear.x, raw_command.angular.z};
 
-  // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
-  vel_history.erase(vel_history.begin());
-  vel_history.push_back(applied_vel_);
-      
   // Apply robot motor controller calibration scaling factors if applicable
   output_vel(0) = output_vel(0) * config_->robot_linear_velocity_scale;
   output_vel(1) = output_vel(1) * config_->robot_angular_velocity_scale;
@@ -294,6 +287,11 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   command.linear.x = saturated_vel(0);
   command.angular.z = saturated_vel(1);
   prev_vel_stamp_ = now();
+  applied_vel_ = saturated_vel;
+
+  // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
+  vel_history.erase(vel_history.begin());
+  vel_history.push_back(applied_vel_);
 
   CLOG(INFO, "cbit.control")
     << "Final control command: [" << command.linear.x << ", "
@@ -468,6 +466,8 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     bool point_stabilization = ref_homotopy_result.point_stabilization;
     std::vector<double> barrier_q_left = ref_homotopy_result.barrier_q_left;
     std::vector<double> barrier_q_right = ref_homotopy_result.barrier_q_right;
+
+    CLOG(DEBUG, "cbit.debug") << "Sizes of corridor " << barrier_q_left.size() << " , " << barrier_q_right.size();
 
     std::vector<lgmath::se3::Transformation> tracking_pose_vec;
     for (size_t i = 0; i < tracking_poses.size(); i++) {

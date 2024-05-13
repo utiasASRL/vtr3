@@ -142,7 +142,7 @@ void CBITPlanner::plan() {
 
   bool localization_flag = true; // Set the fact we are localized if we make it to this point
 
-  for (int k = 0; k < conf.iter_max && planning_active_; k++)
+  for (int k = 0; planning_active_; k++)
   {
     // Check whether a robot state update should be applied
     // We only update the state if A: we have first found a valid initial solution, and B: if the current time has elapsed the control period
