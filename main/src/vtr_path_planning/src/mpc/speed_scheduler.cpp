@@ -37,23 +37,23 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     // Basic implementation - weights hardcoded for now
     CLOG(INFO, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
     CLOG(INFO, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
-    double VF_EOP;
+
+    double VF_EOP = std::max(min_vel, VF * (eop_weight * (disc_path_curvature_xy.size()- 1 - curr_sid) / 20.0));
+    double VF_SOP = std::max(min_vel, VF * (eop_weight * curr_sid / 10));
+
+
     double VF_XY;
     double VF_XZ_YZ;
     double avg_curvature_xy = 0.0;
     double avg_curvature_xz_yz = 0.0;
     unsigned end_of_path = 0;
     unsigned window_steps = 0;
-    for (int i = static_cast<int>(curr_sid) - horizon_steps / 2; i < static_cast<int>(curr_sid) + horizon_steps; i++) {
+    for (int i = static_cast<int>(curr_sid) - horizon_steps / 2; i < static_cast<int>(curr_sid) + horizon_steps / 2; i++) {
       // Handle end of path case
-      if (i < 0) {
-        end_of_path += 1;
-      } else if (i < disc_path_curvature_xy.size()-1) {
+      if (i >= 0 && i < disc_path_curvature_xy.size()-1) {
         avg_curvature_xy += disc_path_curvature_xy[i];
         avg_curvature_xz_yz += disc_path_curvature_xz_yz[i];
         ++window_steps;
-      } else {
-        end_of_path += 1;
       }
     }
     avg_curvature_xy /= window_steps;
@@ -63,13 +63,13 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
 
     // handle forward/reverse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
 
-    VF_EOP = std::max(min_vel, VF * (1 - eop_weight * end_of_path / horizon_steps));
     VF_XY = std::max(min_vel, VF / (1 + (avg_curvature_xy * avg_curvature_xy * planar_curv_weight)));
     VF_XZ_YZ = std::max(min_vel, VF / (1 + (avg_curvature_xz_yz * avg_curvature_xz_yz * profile_curv_weight)));
     
     // Take the minimum of all candidate (positive) scheduled speeds (Lowest allowed scheduled velocity is 0.5m/s, should be left this way)
-    VF = std::min({VF_EOP, VF_XY, VF_XZ_YZ});
+    VF = std::min({VF_EOP, VF_SOP, VF_XY, VF_XZ_YZ});
     CLOG(INFO, "mpc.speed_scheduler") << "THE VF_EOP SPEED IS:  " << VF_EOP;
+    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_SOP SPEED IS:  " << VF_SOP;
     CLOG(INFO, "mpc.speed_scheduler") << "THE VF_XY SPEED IS:  " << VF_XY;
     CLOG(INFO, "mpc.speed_scheduler") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
 
