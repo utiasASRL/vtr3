@@ -44,7 +44,7 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     double avg_curvature_xz_yz = 0.0;
     unsigned end_of_path = 0;
     unsigned window_steps = 0;
-    for (int i = curr_sid - horizon_steps / 2; i < curr_sid + horizon_steps; i++) {
+    for (int i = static_cast<int>(curr_sid) - horizon_steps / 2; i < static_cast<int>(curr_sid) + horizon_steps; i++) {
       // Handle end of path case
       if (i < 0) {
         end_of_path += 1;
@@ -56,8 +56,8 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
         end_of_path += 1;
       }
     }
-    avg_curvature_xy = avg_curvature_xy / window_steps;
-    avg_curvature_xz_yz = avg_curvature_xz_yz / window_steps;
+    avg_curvature_xy /= window_steps;
+    avg_curvature_xz_yz /= window_steps;
     CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PLANAR CURVATURE IS:  " << avg_curvature_xy;
     CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PROFILE CURVATURE IS:  " << avg_curvature_xz_yz;
 

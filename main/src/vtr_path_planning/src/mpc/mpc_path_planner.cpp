@@ -19,7 +19,6 @@
 
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 #include "vtr_path_planning/mpc/lateral_error_evaluators.hpp"
-#include "vtr_path_planning/mpc/custom_loss_functions.hpp"
 #include "vtr_path_planning/mpc/scalar_log_barrier_evaluator.hpp"
 
 
@@ -69,7 +68,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
                 0, -1;
 
     // Lateral constraint projection matrices (Experimental)
-    Eigen::Matrix<double, 3, 1> I_4; // In steam, the homopoint vars automatically add the 4th row 1, so representing I_4 just needs the 3 zeros
+    Eigen::Vector3d I_4; // In steam, the homopoint vars automatically add the 4th row 1, so representing I_4 just needs the 3 zeros
     I_4 << 0,
            0,
            0;
@@ -88,7 +87,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
     // Generate STEAM States for the velocity vector and SE3 state transforms
     std::vector<lgmath::se3::Transformation> pose_states;
-    std::vector<Eigen::Matrix<double,2,1>> vel_states;
+    std::vector<Eigen::Vector2d> vel_states;
 
     // Invert the extrapolated robot state and use this as the state initialization
     lgmath::se3::Transformation T0_inv = T0.inverse();
@@ -140,7 +139,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     }
 
     // Generate the cost terms using combinations of the built-in steam evaluators
-    double dynamic_pose_error_weight = pose_error_weight;
+    // double dynamic_pose_error_weight = pose_error_weight;
     for (int i = 0; i < K; i++)
     {
       // Pose Error
@@ -150,6 +149,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
         opt_problem.addCostTerm(pose_cost_term);
         //dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
+        //Note to reintroduce down-weighting of distant poses, make distince noise models, not loss functions!
       }
 
       // Kinematic constraints (softened but penalized heavily)
@@ -322,7 +322,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         throw std::runtime_error("NAN values detected in MPC! Crashing for debug!");
       }
 
-      // if we do detect nans, return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
+      // if we do detect nans, return the mpc_poses as all being the robot's current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
       for (size_t i = 0; i < pose_state_vars.size(); i++)
       {
@@ -333,15 +333,15 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     // if no nan values, return the applied velocity and mpc pose predictions as normal
     else
     {
-    // Store the sequence of resulting mpc prediction horizon poses for visualization
-    std::vector<lgmath::se3::Transformation> mpc_poses;
-    for (size_t i = 0; i < pose_state_vars.size(); i++)
-    {
-      mpc_poses.push_back(pose_state_vars[i]->value().inverse());
-    }
+      // Store the sequence of resulting mpc prediction horizon poses for visualization
+      std::vector<lgmath::se3::Transformation> mpc_poses;
+      for (size_t i = 0; i < pose_state_vars.size(); i++)
+      {
+        mpc_poses.push_back(pose_state_vars[i]->value().inverse());
+      }
 
-    // Return the resulting structure
-    return {applied_vel, mpc_poses};
+      // Return the resulting structure
+      return {applied_vel, mpc_poses};
     }
 }
 
