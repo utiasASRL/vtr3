@@ -86,10 +86,13 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
     // Invert the extrapolated robot state and use this as the state initialization
     lgmath::se3::Transformation T0_inv = T0.inverse();
+    auto T0_var = steam::se3::SE3StateVar::MakeShared(T0_inv);
+    T0_var->locked() = true;
+
     Eigen::Vector2d v0(VF, 0.0);
 
     // Create STEAM states
-    std::vector<steam::se3::SE3StateVar::Ptr> pose_state_vars;
+    // std::vector<steam::se3::SE3StateVar::Ptr> pose_state_vars;
     std::vector<steam::vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
     std::vector<steam::se3::SE3StateVar::Ptr> measurement_vars; // This one is for storing measurements as locked evaluators for barrier constraints
     
@@ -97,24 +100,15 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     steam::stereo::HomoPointStateVar::Ptr I_4_eval = steam::stereo::HomoPointStateVar::MakeShared(I_4);
     I_4_eval->locked() = true;
 
-    pose_state_vars.push_back(steam::se3::SE3StateVar::MakeShared(T0_inv)); 
-    // Lock the first (current robot) state from being modified during the optimization
-    pose_state_vars[0]->locked() = true;
-
     // Create STEAM variables
     for (int i = 1; i < K; i++)
     {
-        pose_state_vars.push_back(steam::se3::SE3StateVar::MakeShared(tracking_reference_poses[i])); 
         vel_state_vars.push_back(steam::vspace::VSpaceStateVar<2>::MakeShared(v0)); 
     }
 
 
     // Setup the optimization problem
     steam::OptimizationProblem opt_problem;
-    for (auto& pose_var : pose_state_vars) // start at 1 so as to not add the first locked state variable to the problem
-    {
-        opt_problem.addStateVariable(pose_var);
-    }
 
     // The velocity states should have one less variable then the pose states
     for (auto& vel_var : vel_state_vars)
@@ -124,33 +118,37 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
     // Generate the cost terms using combinations of the built-in steam evaluators
     // double dynamic_pose_error_weight = pose_error_weight;
-    for (int i = 0; i < K; i++)
+
+    steam::Evaluable<lgmath::se3::Transformation>::Ptr Tf_acc = T0_var;
+    for (int i = 0; i < vel_state_vars.size(); i++)
     {
+      auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
+      auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
+      auto deltaTf = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
+      Tf_acc = steam::se3::compose(deltaTf, Tf_acc);
+
       // Pose Error
-      if (i > 0)
-      {
-        const auto pose_error_func = steam::se3::se3_error(pose_state_vars[i], homotopy_reference_poses[i]);
-        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
-        opt_problem.addCostTerm(pose_cost_term);
-        //dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
-        //Note to reintroduce down-weighting of distant poses, make distince noise models, not loss functions!
-      }
+      
+      const auto pose_error_func = steam::se3::se3_error(Tf_acc, homotopy_reference_poses[i+1]);
+      const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
+      opt_problem.addCostTerm(pose_cost_term);
+      //dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
+      //Note to reintroduce down-weighting of distant poses, make distince noise models, not loss functions!
+      
 
       // Kinematic constraints (softened but penalized heavily)
       if (i < (K-1))
       {
-        const auto lhs = steam::se3::compose_rinv(pose_state_vars[i+1], pose_state_vars[i]);
-        const auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
-        const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
-        const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
-        const auto kin_error_func = steam::se3::tran2vec(steam::se3::compose_rinv(lhs, rhs));
-        const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, sharedLossFunc);
-        opt_problem.addCostTerm(kin_cost_term);
+        // const auto lhs = steam::se3::compose_rinv(pose_state_vars[i+1], pose_state_vars[i]);
+        // const auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
+        // const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
+        // const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
+        // const auto kin_error_func = steam::se3::tran2vec(steam::se3::compose_rinv(lhs, rhs));
+        // const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, sharedLossFunc);
+        // opt_problem.addCostTerm(kin_cost_term);
 
         // Non-Zero Velocity Penalty (penalty of non resting control effort helps with point stabilization)
         // Only add this cost term if we are not in point stabilization mode (end of path)
-        
-
         if (point_stabilization == false) {
           const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, sharedLossFunc);
           opt_problem.addCostTerm(vel_cost_term);
@@ -179,7 +177,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         measurement_vars[i]->locked() = true;
 
         // Take the compose inverse of the locked measurement w.r.t the state transforms
-        const auto compose_inv = steam::se3::ComposeInverseEvaluator::MakeShared(measurement_vars[i], pose_state_vars[i]);
+        const auto compose_inv = steam::se3::ComposeInverseEvaluator::MakeShared(measurement_vars[i], Tf_acc);
 
         // Use the ComposeLandmarkEvaluator to right multiply the 4th column of the identity matrix to create a 4x1 homogenous point vector with lat,lon,alt error components
         const auto error_vec = steam::stereo::ComposeLandmarkEvaluator::MakeShared(compose_inv, I_4_eval);
@@ -224,7 +222,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       }
     }
 
-    // Solve the optimization problem with GuassNewton solver
+    // Solve the optimization problem with GaussNewton solver
     //using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
     //using SolverType = steam::LineSearchGaussNewtonSolver;
     using SolverType = steam::DoglegGaussNewtonSolver;
@@ -259,7 +257,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
       // Return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
-      for (size_t i = 0; i < pose_state_vars.size(); i++)
+      for (size_t i = 0; i < K; i++)
       {
         mpc_poses.push_back(T0);
       }
@@ -308,7 +306,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
       // if we do detect nans, return the mpc_poses as all being the robot's current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
-      for (size_t i = 0; i < pose_state_vars.size(); i++)
+      for (size_t i = 0; i < K; i++)
       {
         mpc_poses.push_back(T0);
       }
@@ -319,9 +317,15 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     {
       // Store the sequence of resulting mpc prediction horizon poses for visualization
       std::vector<lgmath::se3::Transformation> mpc_poses;
-      for (size_t i = 0; i < pose_state_vars.size(); i++)
+      steam::Evaluable<lgmath::se3::Transformation>::Ptr Tf_acc = T0_var;
+      for (size_t i = 0; i < vel_state_vars.size(); i++)
       {
-        mpc_poses.push_back(pose_state_vars[i]->value().inverse());
+        auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
+        auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
+        CLOG(DEBUG, "mpc.solver") << "velo" << i << " is " << vel_state_vars[i]->value();
+        auto deltaTf = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
+        Tf_acc = steam::se3::compose(deltaTf, Tf_acc);
+        mpc_poses.push_back(Tf_acc->value().inverse());
       }
 
       // Return the resulting structure
