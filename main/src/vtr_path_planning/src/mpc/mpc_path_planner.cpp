@@ -510,6 +510,11 @@ lgmath::se3::Transformation poseToTransformation(const Pose &p) {
 // Then tries to output a euclidean pose interpolated for the desired p_meas.
 struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, std::vector<Pose> cbit_path)
 {
+  //If the path is length 0, return identity.
+  if (cbit_path.size() == 0){
+    return {tactic::EdgeTransform(true), 0, 0};
+  }
+
   // Find the lower bound of the p values
   for (size_t i = 0; i < cbit_p.size(); i++)
   {
@@ -554,45 +559,16 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
       auto T_rel = T_lower.inverse() * T_upper;
 
       lgmath::se3::Transformation meas = T_lower * lgmath::se3::Transformation(interp_percent * T_rel.vec(), 0);
-    
-      // double x_int = pose_lower.x + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.x - pose_lower.x);
-      // double y_int = pose_lower.y + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.y - pose_lower.y);
-      // double z_int = pose_lower.z + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.z - pose_lower.z);
-
-      // For yaw we need to be abit careful about sign and angle wrap around
-      // Derive the yaw by creating the vector connecting the pose_upp and pose_lower pts
-      // TODO: There is a problem here for reverse planning, will need to rotate the yaw 180 degrees in that case.
-      // For normal forward planning this is fine though
-
-      // This interpolation if we do have yaw available (when the input path is the teach path as it is for corridor mpc)
-      // double yaw_int;
-      // //yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-      // if ((pose_lower.yaw == 0.0) && (pose_upper.yaw == 0.0)) {
-      //   // Yaw interpolation when we dont have yaw available explicitly (i.e from cbit path euclid conversion)
-      //   // yaw_int = std::atan2((pose_upper.y - pose_lower.y), (pose_upper.x - pose_lower.x));
-      //   yaw_int = pose_lower.yaw;
-      //   CLOG(WARNING, "mpc.debug") << "The yaw is unset";
-      // } else       {
-      //   yaw_int = pose_lower.yaw + ((p_val - p_lower) / (p_upper - p_lower)) * (pose_upper.yaw - pose_lower.yaw);
-      // }
-      
-      
-
-      // // Build the transformation matrix
-      // Eigen::Matrix4d T_ref;
-      // T_ref << std::cos(yaw_int),-1*std::sin(yaw_int),0, 0,
-      //         std::sin(yaw_int),   std::cos(yaw_int),0, 0,
-      //         0,               0,            1, 0,
-      //         0,               0,            0,                    1;
-      // T_ref = T_ref.inverse().eval();
-
-      // lgmath::se3::Transformation meas = lgmath::se3::Transformation(T_ref);
 
       CLOG(DEBUG, "mpc.debug") << "The measurement Euclidean state is - x: " << meas;
       CLOG(DEBUG, "mpc.debug") << "The measurement P,Q value is - p: " << p_int << " q: " << q_int;
       return {meas, p_int, q_int};
     }
   }
+  //If we've reached here, the p value is longer than the path
+  //return the last element.
+
+  return {poseToTransformation(cbit_path.back()), cbit_p.back(), 0};
 }
 
 

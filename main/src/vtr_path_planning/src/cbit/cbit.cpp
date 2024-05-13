@@ -275,18 +275,19 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
   auto raw_command = computeCommand_(robot_state);
   
   applied_vel_ << raw_command.linear.x, raw_command.angular.z;
+  auto output_vel = applied_vel_;
 
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
   vel_history.erase(vel_history.begin());
   vel_history.push_back(applied_vel_);
       
   // Apply robot motor controller calibration scaling factors if applicable
-  applied_vel_(0) = applied_vel_(0) * config_->robot_linear_velocity_scale;
-  applied_vel_(1) = applied_vel_(1) * config_->robot_angular_velocity_scale;
+  output_vel(0) = output_vel(0) * config_->robot_linear_velocity_scale;
+  output_vel(1) = output_vel(1) * config_->robot_angular_velocity_scale;
 
   // If required, saturate the output velocity commands based on the configuration limits
   CLOG(DEBUG, "cbit.control") << "Saturating the velocity command if required";
-  Eigen::Vector2d saturated_vel = SaturateVel(applied_vel_, config_->max_lin_vel, config_->max_ang_vel);
+  Eigen::Vector2d saturated_vel = SaturateVel(output_vel, config_->max_lin_vel, config_->max_ang_vel);
   CLOG(INFO, "cbit.control") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
   
   Command command;
@@ -512,11 +513,12 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
     // Create and solve the STEAM optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
+    Eigen::Vector2d mpc_vel;
     try
     {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
       auto MPCResult = SolveMPC(mpc_config);
-      applied_vel_ = MPCResult.applied_vel; // note dont re-declare applied vel here
+      mpc_vel = MPCResult.applied_vel; // note dont re-declare applied vel here
       mpc_poses = MPCResult.mpc_poses;
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
     } catch(steam::unsuccessful_step &e) {
@@ -524,12 +526,12 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       return Command();
     }
 
-    CLOG(INFO, "cbit.control") << "The linear velocity is:  " << applied_vel_(0) << " The angular vel is: " << applied_vel_(1);
+    CLOG(INFO, "cbit.control") << "The linear velocity is:  " << mpc_vel(0) << " The angular vel is: " << mpc_vel(1);
 
     // return the computed velocity command for the first time step
     Command command;
-    command.linear.x = applied_vel_(0);
-    command.angular.z = applied_vel_(1);
+    command.linear.x = mpc_vel(0);
+    command.angular.z = mpc_vel(1);
 
 
     // visualize the outputs
