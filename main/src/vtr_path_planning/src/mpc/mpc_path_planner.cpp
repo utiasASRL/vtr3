@@ -28,7 +28,7 @@
 struct MPCResult SolveMPC(const MPCConfig& config)
 {
     // Access configuration parameters from the config structure
-    Eigen::Matrix<double, 2, 1> previous_vel = config.previous_vel;
+    Eigen::Vector2d previous_vel = config.previous_vel;
     lgmath::se3::Transformation T0 = config.T0;
     std::vector<lgmath::se3::Transformation> homotopy_reference_poses = config.homotopy_reference_poses;
     std::vector<lgmath::se3::Transformation> tracking_reference_poses = config.tracking_reference_poses;
@@ -54,9 +54,9 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     // Conduct an MPC Iteration given current configurations
 
     // Velocity set-points (desired forward velocity and angular velocity), here we set a static forward target velocity, and try to minimize rotations (0rad/sec)
-    Eigen::Matrix<double, 2, 1> v_ref;
-    v_ref << VF,
-                0;
+    // Eigen::Matrix<double, 2, 1> v_ref;
+    // v_ref << VF,
+    //             0;
 
 
     // Kinematic projection Matrix for Unicycle Model (note its -1's because our varpi lie algebra vector is of a weird frame)
@@ -279,10 +279,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     if (final_cost > initial_cost)
     {
       CLOG(ERROR, "mpc.solver") << "The final cost was > initial cost, something went wrong. Commanding the vehicle to stop";
-      Eigen::Matrix<double, 2, 1> bad_cost_vel;
-      
-      bad_cost_vel(0) = 0.0;
-      bad_cost_vel(1) = 0.0;
+      Eigen::Vector2d bad_cost_vel {0.0, 0.0};
 
       // Return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
       std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -321,15 +318,13 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     */
 
     // Store the velocity command to apply
-    Eigen::Matrix<double, 2, 1> applied_vel = vel_state_vars[0]->value();
+    Eigen::Vector2d applied_vel = vel_state_vars[0]->value();
 
     // First check if any of the values are nan, if so we return a zero velocity and flag the error
-    Eigen::Matrix<double, 2, 1> nan_vel;
     if (std::isnan(applied_vel(0)) || std::isnan(applied_vel(1)))
     {
       CLOG(ERROR, "mpc.solver") << "NAN values detected, mpc optimization failed. Returning zero velocities";
-      nan_vel(0) = 0.0;
-      nan_vel(1) = 0.0;
+      Eigen::Vector2d nan_vel {0.0, 0.0};
 
       if (verbosity) {
         throw std::runtime_error("NAN values detected in MPC! Crashing for debug!");
@@ -602,44 +597,23 @@ struct InterpResult InterpolatePose(double p_val, std::vector<double> cbit_p, st
 
 
 // Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
-Eigen::Matrix<double, 2, 1> SaturateVel(Eigen::Matrix<double, 2, 1> applied_vel, double v_lim, double w_lim)
+Eigen::Vector2d SaturateVel(const Eigen::Vector2d applied_vel, double v_lim, double w_lim)
 {
     double command_lin_x;
     double command_ang_z;
-    Eigen::Matrix<double, 2, 1> saturated_vel;
-
 
     if (abs(applied_vel(0)) >= v_lim) {
-      if (applied_vel(0) > 0.0)
-      {
-        command_lin_x = v_lim;
-      }
-      else if (applied_vel(0)  < 0.0)
-      {
-        command_lin_x = -1.0* v_lim;
-      } else {
-        command_lin_x = 0;
-      }
+      command_lin_x = sgn(applied_vel(0)) * v_lim;
     } else {
       command_lin_x = applied_vel(0) ;
     }
 
     if (abs(applied_vel(1)) >= w_lim)
     {
-      if (applied_vel(1) > 0.0)
-      {
-        command_ang_z = w_lim;
-      }
-      else if (applied_vel(1)  < 0.0)
-      {
-        command_ang_z = -1.0 * w_lim;
-      } else {
-        command_ang_z = 0;
-      }
+      command_ang_z = sgn(applied_vel(1)) * w_lim;
     } else {
       command_ang_z = applied_vel(1) ;
     }
 
-    saturated_vel << command_lin_x, command_ang_z;
-    return saturated_vel;
+    return {command_lin_x, command_ang_z};
 }

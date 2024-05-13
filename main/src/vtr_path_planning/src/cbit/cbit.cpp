@@ -60,7 +60,6 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->pre_seed_resolution = node->declare_parameter<double>(prefix + ".cbit.pre_seed_resolution", config->pre_seed_resolution);
   config->alpha = node->declare_parameter<double>(prefix + ".cbit.alpha", config->alpha);
   config->q_max = node->declare_parameter<double>(prefix + ".cbit.q_max", config->q_max);
-  config->frame_interval = node->declare_parameter<int>(prefix + ".cbit.frame_interval", config->frame_interval); // going to get rid of this
   config->iter_max = node->declare_parameter<int>(prefix + ".cbit.iter_max", config->iter_max); // going to get rid of this
   config->eta = node->declare_parameter<double>(prefix + ".cbit.eta", config->eta);
   config->rad_m_exhange = node->declare_parameter<double>(prefix + ".rad_m_exhange", config->rad_m_exhange);
@@ -147,7 +146,6 @@ CBIT::CBIT(const Config::ConstPtr& config,
   cbit_config.pre_seed_resolution = config->pre_seed_resolution;
   cbit_config.alpha = config->alpha;
   cbit_config.q_max = config->q_max;
-  cbit_config.frame_interval = config->frame_interval;
   cbit_config.iter_max = config->iter_max;
   cbit_config.eta = config->eta;
   cbit_config.rad_m_exhange = config->rad_m_exhange;
@@ -158,12 +156,6 @@ CBIT::CBIT(const Config::ConstPtr& config,
   cbit_config.incremental_plotting = config->incremental_plotting;
   cbit_config.plotting = config->plotting;
   CLOG(INFO, "cbit.path_planning") << "Successfully Constructed the CBIT Class";
-
-
-
-
-  //thread_count_ = 2;
-  //process_thread_cbit_ = std::thread(&CBIT::process_cbit, this);
 }
 
 void CBIT::setRunning(const bool running) {
@@ -176,16 +168,12 @@ void CBIT::setRunning(const bool running) {
     CLOG(INFO, "cbit.path_planning") << "Stopping CBIT Planning";
     planner_ptr_->resetPlanner();
     if (process_thread_cbit_.joinable()) process_thread_cbit_.join();
+    thread_count_--;
     planner_ptr_.reset();
     CLOG(INFO, "cbit.path_planning") << "Stopped CBIT Planning";
   }
   BasePathPlanner::setRunning(running);
 }
-
-
-
-
-
 
 CBIT::~CBIT() { stop_cbit(); }
 
@@ -218,7 +206,6 @@ void CBIT::process_cbit() {
         return;
     }
 
-
     // Planner should not require the thread lock to execute
     lock.unlock();
 
@@ -249,6 +236,8 @@ void CBIT::initializeRoute(RobotState& robot_state) {
     vel_history.push_back(applied_vel_);
   }
 
+  robot_poses.clear();
+
   lgmath::se3::TransformationWithCovariance teach_frame;
   std::tuple<double, double, double, double, double, double> se3_vector;
   Pose se3_pose;
@@ -277,6 +266,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   // Instantiate the planner
   planner_ptr_ = std::make_shared<CBITPlanner>(cbit_config, global_path_ptr, robot_state, cbit_path_ptr, costmap_ptr, corridor_ptr, valid_solution_ptr, q_max_ptr);
   CLOG(INFO, "cbit.path_planning") << "Planner successfully created and resolved";
+  thread_count_++;
   process_thread_cbit_ = std::thread(&CBITPlanner::plan, planner_ptr_);
 
 }
@@ -344,8 +334,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   }
 
   // Retrieve the latest obstacle costmap
-  bool obstacle_avoidance = config_->obstacle_avoidance;
-  if ((prev_stamp != stamp) && (obstacle_avoidance == true))
+  if ((prev_stamp != stamp) && (config_->obstacle_avoidance == true))
   {
     
     std::lock_guard<std::mutex> lock(robot_state.obsMapMutex);

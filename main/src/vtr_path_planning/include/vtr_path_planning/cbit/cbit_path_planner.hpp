@@ -56,7 +56,7 @@ class CBITPlanner {
         double sample_box_width;
         double dynamic_window_width;
         Tree tree;
-        std::vector<std::shared_ptr<Node>> samples;
+        Node::Path samples;
 
         // Repair mode variables
         bool repair_mode = false; // Flag for whether or not we should resume the planner in repair mode to update the tree following a state update
@@ -71,7 +71,7 @@ class CBITPlanner {
         std::unique_ptr<Pose> new_state;
 
         // For storing the Output Path
-        std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
+        std::shared_ptr<Pose::Path> cbit_path_ptr;
 
         // Flag that tells the cbit.cpp planning interface to stop the mpc if there is no current cbit solution
         std::shared_ptr<bool> valid_solution_ptr;

@@ -57,6 +57,9 @@ namespace path_planning {
 // Some useful Classes
 class Pose {
     public:
+        using Ptr = std::shared_ptr<Pose>;
+        using Path = std::vector<Pose>;
+
         double x;
         double y;
         double z;
@@ -85,6 +88,8 @@ class Pose {
 class Node {
     public:
         using Ptr = std::shared_ptr<Node>;
+        using Path = std::vector<Ptr>;
+        using Edge = std::tuple<Ptr, Ptr>;
 
         double p;
         double q;

@@ -135,7 +135,7 @@ int bisection(std::vector<double> array, double value)
     int jm;
     while ((ju - jl) > 1)
     {
-        jm = (ju + jl) >> 1; // Compute midpoint using bitshit
+        jm = (ju + jl) >> 1; // Compute midpoint using bitshift
         if (value >= array[jm])
         {
             jl = jm; // Replace either lower limit
@@ -191,7 +191,7 @@ std::vector<double> linspace(double start_in, double end_in, int num_in)
 
 namespace vtr {
 namespace path_planning {
-    // Function for grabbing the robots velocity in planning frame, transform of robot into planning frame, and transform of planning frame to world frame
+    // Function for grabbing the robot's velocity in planning frame, transform of robot into planning frame, and transform of planning frame to world frame
 ChainInfo getChainInfo(const tactic::LocalizationChain& chain)  {
   auto lock = chain.guard();
   const auto stamp = chain.leaf_stamp();
