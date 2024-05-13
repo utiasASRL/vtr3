@@ -84,25 +84,9 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     const auto sharedKinNoiseModel = steam::StaticNoiseModel<6>::MakeShared(kin_noise_vect / kin_error_weight);
     const auto sharedLatNoiseModel = steam::StaticNoiseModel<1>::MakeShared(lat_noise_vect / lat_error_weight);
 
-
-    // Generate STEAM States for the velocity vector and SE3 state transforms
-    std::vector<lgmath::se3::Transformation> pose_states;
-    std::vector<Eigen::Vector2d> vel_states;
-
     // Invert the extrapolated robot state and use this as the state initialization
     lgmath::se3::Transformation T0_inv = T0.inverse();
     Eigen::Vector2d v0(VF, 0.0);
-
-    // Push back the initial states (current robot state)
-    pose_states.push_back(T0_inv);
-    vel_states.push_back(v0);
-
-    // Set the remaining states using a warm start from the cbit solution
-    for (int i=1; i < K; i++)
-    {
-        pose_states.push_back(tracking_reference_poses[i]); // New initialization - use the reference measurements from the cbit solution as our initialization - the first one is the same as our initial state
-        vel_states.push_back(v0);
-    }
 
     // Create STEAM states
     std::vector<steam::se3::SE3StateVar::Ptr> pose_state_vars;
@@ -113,29 +97,29 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     steam::stereo::HomoPointStateVar::Ptr I_4_eval = steam::stereo::HomoPointStateVar::MakeShared(I_4);
     I_4_eval->locked() = true;
 
-    // Create STEAM variables
-    for (int i = 0; i < K; i++)
-    {
-        pose_state_vars.push_back(steam::se3::SE3StateVar::MakeShared(pose_states[i])); 
-        vel_state_vars.push_back(steam::vspace::VSpaceStateVar<2>::MakeShared(vel_states[i])); 
-    }
-
+    pose_state_vars.push_back(steam::se3::SE3StateVar::MakeShared(T0_inv)); 
     // Lock the first (current robot) state from being modified during the optimization
     pose_state_vars[0]->locked() = true;
 
+    // Create STEAM variables
+    for (int i = 1; i < K; i++)
+    {
+        pose_state_vars.push_back(steam::se3::SE3StateVar::MakeShared(tracking_reference_poses[i])); 
+        vel_state_vars.push_back(steam::vspace::VSpaceStateVar<2>::MakeShared(v0)); 
+    }
 
 
     // Setup the optimization problem
     steam::OptimizationProblem opt_problem;
-    for (int i=1; i<K; i++) // start at 1 so as to not add the first locked state variable to the problem
+    for (auto& pose_var : pose_state_vars) // start at 1 so as to not add the first locked state variable to the problem
     {
-        opt_problem.addStateVariable(pose_state_vars[i]);
+        opt_problem.addStateVariable(pose_var);
     }
 
     // The velocity states should have one less variable then the pose states
-    for (int i=0; i<K-1; i++)
+    for (auto& vel_var : vel_state_vars)
     {
-        opt_problem.addStateVariable(vel_state_vars[i]);
+        opt_problem.addStateVariable(vel_var);
     }
 
     // Generate the cost terms using combinations of the built-in steam evaluators
@@ -145,7 +129,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       // Pose Error
       if (i > 0)
       {
-        const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], homotopy_reference_poses[i]);
+        const auto pose_error_func = steam::se3::se3_error(pose_state_vars[i], homotopy_reference_poses[i]);
         const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
         opt_problem.addCostTerm(pose_cost_term);
         //dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
@@ -155,11 +139,11 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       // Kinematic constraints (softened but penalized heavily)
       if (i < (K-1))
       {
-        const auto lhs = steam::se3::ComposeInverseEvaluator::MakeShared(pose_state_vars[i+1], pose_state_vars[i]);
-        const auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran); // TODO, I guess this version of steam doesnt have this one, will need to do it myself
+        const auto lhs = steam::se3::compose_rinv(pose_state_vars[i+1], pose_state_vars[i]);
+        const auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
         const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
         const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
-        const auto kin_error_func = steam::se3::LogMapEvaluator::MakeShared(steam::se3::ComposeInverseEvaluator::MakeShared(lhs, rhs));
+        const auto kin_error_func = steam::se3::tran2vec(steam::se3::compose_rinv(lhs, rhs));
         const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, sharedLossFunc);
         opt_problem.addCostTerm(kin_cost_term);
 
