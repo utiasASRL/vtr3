@@ -10,8 +10,8 @@
     
         # tactic
       #- tactic
-      - tactic.pipeline
-      - tactic.eop
+      #- tactic.pipeline
+      #- tactic.eop
       #- tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
@@ -19,10 +19,13 @@
         # path planner
       - path_planning
       - path_planning.cbit
-      #- path_planning.cbit_planner
-      - mpc.cbit
-      - mpc_debug
-      - cbit.control
+      - path_planning.cbit_planner
+      - cbit.path_planning
+      #- cbit_planner.path_planning
+      - cbit.debug
+      #- mpc.cbit
+      #- mpc_debug
+      #- cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
@@ -35,7 +38,7 @@
       #- pose_graph
 
         # lidar pipeline
-      - lidar.pipeline
+      #- lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
       #- lidar.odometry_icp
@@ -348,8 +351,8 @@
         min_vel: 0.5
       mpc:
         # Controller Params
-        extrapolate_robot_pose: false
-        mpc_verbosity: true
+        extrapolate_robot_pose: true
+        mpc_verbosity: false
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.3
@@ -370,7 +373,7 @@
 
         # Cost Function Weights
         pose_error_weight: 5.0
-        vel_error_weight: 0.0
+        vel_error_weight: 0.0001
         acc_error_weight: 1.5
         kin_error_weight: 1.0
         lat_error_weight: 0.01

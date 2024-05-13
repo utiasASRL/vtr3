@@ -76,21 +76,14 @@ struct MPCResult SolveMPC(const MPCConfig& config)
 
 
     // Setup shared loss functions and noise models for all cost terms
-    //const auto sharedLossFunc = steam::L2LossFunc::MakeShared(); // The default L2 loss function weights all cost terms with a value of 1.0 (not using this one anymore)
-
-    // The custom L2WeightedLossFunc allows you to dynamically set the weights of cost terms by providing the value as an argument
-    const auto poseLossFunc = steam::L2WeightedLossFunc::MakeShared(pose_error_weight);
-    const auto velLossFunc = steam::L2WeightedLossFunc::MakeShared(vel_error_weight);
-    const auto accelLossFunc = steam::L2WeightedLossFunc::MakeShared(acc_error_weight);
-    const auto kinLossFunc = steam::L2WeightedLossFunc::MakeShared(kin_error_weight);
-    const auto latLossFunc = steam::L2WeightedLossFunc::MakeShared(lat_error_weight); 
+    const auto sharedLossFunc = steam::L2LossFunc::MakeShared();
 
     // Cost term Noise Covariance Initialization
-    const auto sharedPoseNoiseModel = steam::StaticNoiseModel<6>::MakeShared(pose_noise_vect);
-    const auto sharedVelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(vel_noise_vect);
-    const auto sharedAccelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(accel_noise_vect);
-    const auto sharedKinNoiseModel = steam::StaticNoiseModel<6>::MakeShared(kin_noise_vect);
-    const auto sharedLatNoiseModel = steam::StaticNoiseModel<1>::MakeShared(lat_noise_vect);
+    const auto sharedPoseNoiseModel = steam::StaticNoiseModel<6>::MakeShared(pose_noise_vect / pose_error_weight);
+    const auto sharedVelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(vel_noise_vect / vel_error_weight);
+    const auto sharedAccelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(accel_noise_vect / acc_error_weight);
+    const auto sharedKinNoiseModel = steam::StaticNoiseModel<6>::MakeShared(kin_noise_vect / kin_error_weight);
+    const auto sharedLatNoiseModel = steam::StaticNoiseModel<1>::MakeShared(lat_noise_vect / lat_error_weight);
 
 
     // Generate STEAM States for the velocity vector and SE3 state transforms
@@ -154,8 +147,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       if (i > 0)
       {
         const auto pose_error_func = steam::se3::SE3ErrorEvaluator::MakeShared(pose_state_vars[i], homotopy_reference_poses[i]);
-        auto dynamicposeLossFunc = steam::L2WeightedLossFunc::MakeShared(dynamic_pose_error_weight);
-        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, dynamicposeLossFunc);
+        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
         opt_problem.addCostTerm(pose_cost_term);
         //dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
       }
@@ -168,7 +160,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
         const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
         const auto kin_error_func = steam::se3::LogMapEvaluator::MakeShared(steam::se3::ComposeInverseEvaluator::MakeShared(lhs, rhs));
-        const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, kinLossFunc);
+        const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, sharedLossFunc);
         opt_problem.addCostTerm(kin_cost_term);
 
         // Non-Zero Velocity Penalty (penalty of non resting control effort helps with point stabilization)
@@ -176,7 +168,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         
 
         if (point_stabilization == false) {
-          const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, velLossFunc);
+          const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, sharedLossFunc);
           opt_problem.addCostTerm(vel_cost_term);
         }
         
@@ -184,12 +176,12 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         // Acceleration Constraints
         if (i == 0) {
           // On the first iteration, we need to use an error with the previously applied control command state
-          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i], previous_vel), sharedAccelNoiseModel, accelLossFunc);
+          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i], previous_vel), sharedAccelNoiseModel, sharedLossFunc);
           opt_problem.addCostTerm(accel_cost_term);
         } else {
           // Subsequent iterations we make an error between consecutive velocities. We penalize large changes in velocity between time steps
           const auto accel_diff = steam::vspace::AdditionEvaluator<2>::MakeShared(vel_state_vars[i], steam::vspace::NegationEvaluator<2>::MakeShared(vel_state_vars[i-1]));
-          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, accelLossFunc);
+          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, sharedLossFunc);
           opt_problem.addCostTerm(accel_cost_term);
         }  
       }
@@ -236,8 +228,8 @@ struct MPCResult SolveMPC(const MPCConfig& config)
         const auto lat_barrier_left = steam::vspace::ScalarInverseBarrierEvaluator<1>::MakeShared(lat_error_left);
 
         // Generate least square cost terms and add them to the optimization problem
-        const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, latLossFunc);
-        const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, latLossFunc);
+        const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, sharedLossFunc);
+        const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, sharedLossFunc);
 
         // If using homotopy class based control, apply barrier constraints. Else ignore them (more stable but potentially more aggressive)
         if (homotopy_mode == true)
