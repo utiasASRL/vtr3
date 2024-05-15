@@ -63,7 +63,7 @@ class Stopwatch {
     accumulated_ = typename clock::duration(0);
   }
 
-  template <class duration_t = std::chrono::milliseconds>
+  template <class duration_t = std::chrono::nanoseconds>
   typename duration_t::rep count() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (started_) {
@@ -80,7 +80,7 @@ class Stopwatch {
   }
 
   friend std::ostream& operator<<(std::ostream& os, const Stopwatch& sw) {
-    return os << sw.count() << "ms";
+    return os << sw.count() << "ns";
   }
 
  private:
@@ -131,7 +131,7 @@ class Stopwatch<boost::chrono::thread_clock> {
     accumulated_ = typename clock::duration(0);
   }
 
-  template <class duration_t = boost::chrono::milliseconds>
+  template <class duration_t = boost::chrono::nanoseconds>
   typename duration_t::rep count() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (started_) {
@@ -148,7 +148,7 @@ class Stopwatch<boost::chrono::thread_clock> {
   }
 
   friend std::ostream& operator<<(std::ostream& os, const Stopwatch& sw) {
-    return os << sw.count() << "ms";
+    return os << sw.count() << "ns";
   }
 
  private:

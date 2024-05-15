@@ -14,11 +14,12 @@
 
 /**
  * \file odometry_doppler_module.cpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/odometry/odometry_doppler_module.hpp"
-
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
+
+#include <random>
 
 namespace vtr {
 namespace lidar {
@@ -60,329 +61,464 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
 
-  // icp params
+  // 
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
-  config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
-  config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
-  config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
-  config->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config->initial_max_planar_dist);
-  config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
-  config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
-  config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
-  config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
-  config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
-  config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
 
-  config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
-  config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
+  // doppler odom parameters
+  config->num_sensors = node->declare_parameter<int>(param_prefix + ".num_sensors", config->num_sensors);
+  config->ransac_max_iter = node->declare_parameter<int>(param_prefix + ".ransac_max_iter", config->ransac_max_iter);
+  config->ransac_min_range = node->declare_parameter<double>(param_prefix + ".ransac_min_range", config->ransac_min_range);
+  config->ransac_thres = node->declare_parameter<double>(param_prefix + ".ransac_thres", config->ransac_thres);
+  config->integration_steps = node->declare_parameter<int>(param_prefix + ".integration_steps", config->integration_steps);
+  config->zero_vel_tol = node->declare_parameter<double>(param_prefix + ".zero_vel_tol", config->zero_vel_tol);
 
-  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
+  config->min_dist = node->declare_parameter<double>(param_prefix + ".min_dist_lidar_center", config->min_dist);
+  config->max_dist = node->declare_parameter<double>(param_prefix + ".max_dist_lidar_center", config->max_dist);
+  
+  const auto p0_inv = node->declare_parameter<std::vector<double>>(param_prefix + ".P0inv", std::vector<double>());
+  if (p0_inv.size() != 6) {
+    std::string err{"P0inv malformed. Must be 6 elements!"};
+    CLOG(ERROR, "lidar.odometry_doppler") << err;
+    throw std::invalid_argument{err};
+  }
+  config->P0inv = Eigen::DiagonalMatrix<double, 6>(p0_inv[0], p0_inv[1], p0_inv[2], p0_inv[3], p0_inv[4], p0_inv[5]);
+
+  const auto qz_inv = node->declare_parameter<std::vector<double>>(param_prefix + ".Qzinv", std::vector<double>());
+  if (qz_inv.size() != 6) {
+    std::string err{"Qzinv diagonal malformed. Must be 6 elements!"};
+    CLOG(ERROR, "lidar.odometry_doppler") << err;
+    throw std::invalid_argument{err};
+  }
+  config->Qzinv = Eigen::DiagonalMatrix<double, 6>(qz_inv[0], qz_inv[1], qz_inv[2], qz_inv[3], qz_inv[4], qz_inv[5]);
+
+  const auto qk_inv = node->declare_parameter<std::vector<double>>(param_prefix + ".Qkinv", std::vector<double>());
+  if (qk_inv.size() != 6) {
+    std::string err{"Qkinv diagonal malformed. Must be 6 elements!"};
+    CLOG(ERROR, "lidar.odometry_doppler") << err;
+    throw std::invalid_argument{err};
+  }
+  config->Qkinv = Eigen::DiagonalMatrix<double, 6>(qk_inv[0], qk_inv[1], qk_inv[2], qk_inv[3], qk_inv[4], qk_inv[5]);
+  
+  const auto const_gbias = node->declare_parameter<std::vector<double>>(param_prefix + ".const_gyro_bias", std::vector<double>());
+  config->const_gyro_bias << const_gbias[0], const_gbias[1], const_gbias[2];
+
   // clang-format on
   return config;
 }
+
+OdometryDopplerModule::OdometryDopplerModule(const Config::ConstPtr &config,
+                      const std::shared_ptr<tactic::ModuleFactory> &module_factory,
+                      const std::string &name)
+                      : tactic::BaseModule(module_factory, name), config_(config) {
+                        
+  // move T_sv to params
+  T_sv_.resize(config_->num_sensors);
+  T_sv_[0] << 0.9999366830849237, 0.008341717781538466, 0.0075534496251198685, -1.0119098938516395,
+             -0.008341717774127972, 0.9999652112886684, -3.150635091210066e-05, -0.39658824335171944,
+             -0.007553449599178521, -3.1504388681967066e-05, 0.9999714717963843, -1.697000000000001,
+              0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00;
+  
+  // adjoint
+  adT_sv_top3rows_.resize(config_->num_sensors);
+  adT_sv_top3rows_[0] = lgmath::se3::tranAd(T_sv_[0]).topRows<3>(); 
+
+  // precompute wnoa lhs
+  Eigen::Matrix<double, 12, 6> temp_wnoa;
+  temp_wnoa.topRows<6>() = -Eigen::Matrix<double, 6, 6>::Identity();
+  temp_wnoa.bottomRows<6>() = Eigen::Matrix<double, 6, 6>::Identity();
+  wnoa_lhs_ = temp_wnoa * config_->Qkinv * temp_wnoa.transpose();
+
+  // gyro noise
+  gyro_invcov_.resize(config_->num_sensors);
+  gyro_invcov_[0] = Eigen::Matrix3d::Identity();
+  gyro_invcov_[0](0,0) = 1.0/(2.9e-4);
+  gyro_invcov_[0](1,1) = 1.0/(4.7e-4);
+  gyro_invcov_[0](2,2) = 1.0/(3.4e-5);
+
+  // ransac generator
+  random_engine_ = std::mt19937_64(size_t(seed_));
+
+}
+
+std::vector<Eigen::MatrixXd> OdometryDopplerModule::next_gyro(const double &start_time, const double &end_time, const std::vector<Eigen::MatrixXd> &gyro) {
+  double dt = 0.1;
+  std::vector<Eigen::MatrixXd> output;
+
+  for (unsigned sensorid = 0; sensorid < gyro.size(); ++sensorid) {
+    std::vector<int> inds; inds.clear();
+    for (int r = 0; r < gyro[sensorid].rows(); ++r) {
+      double meas_time = gyro[sensorid](r, 0) - dt;
+      if (meas_time >= start_time && meas_time < end_time) {
+        inds.push_back(r);
+      }
+    } // end for r
+
+    if (inds.size() == 0) {
+      // no measurements
+      output.push_back(Eigen::Matrix<double, 1, 1>());  // 1x1 zero matrix
+      continue;
+    }
+
+    Eigen::MatrixXd temp_gyro(inds.size(), 4);
+    for (unsigned r = 0; r < inds.size(); ++r) {
+      temp_gyro(r, 0) = gyro[sensorid](inds[r], 0) - dt; // timestamp
+      temp_gyro.row(r).rightCols<3>() = gyro[sensorid].row(inds[r]).rightCols<3>();
+    }
+    output.push_back(temp_gyro);
+  } // end for sensorid
+  return output;
+}
+
 
 void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (!qdata.sliding_map_odo) {
-    CLOG(INFO, "lidar.odometry_doppler") << "First frame, simply return.";
-    // clang-format off
-#if false
-    // undistorted raw point cloud
-    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
-    cart2pol(*undistorted_raw_point_cloud);
-    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
-#endif
-    // undistorted preprocessed point cloud
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.preprocessed_point_cloud);
-    cart2pol(*undistorted_point_cloud);
-    qdata.undistorted_point_cloud = undistorted_point_cloud;
     //
     qdata.timestamp_odo.emplace(*qdata.stamp);
     qdata.T_r_m_odo.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
-    //
-    *qdata.odo_success = true;
-    // clang-format on
-    return;
+    qdata.last_lhs_.emplace(Eigen::Matrix<double, 6, 6>::Zero());
+    qdata.last_rhs_.emplace(Eigen::Matrix<double, 6, 1>::Zero());
   }
 
-  CLOG(DEBUG, "lidar.odometry_doppler")
-      << "Retrieve input data and setup evaluators.";
-
-  CLOG(WARNING, "lidar.odometry_doppler") << "doing doppler!!!!!";
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Retrieve input data and setup evaluators.";
 
   // Inputs
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &timestamp_odo = *qdata.timestamp_odo;
+  const auto &gyro = *qdata.gyro;
+  const auto &first_frame_micro = *qdata.initial_timestamp;
+  const auto &timestamp_odo = *qdata.timestamp_odo; 
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-  auto &sliding_map_odo = *qdata.sliding_map_odo;
-  auto &point_map = sliding_map_odo.point_cloud();
 
   /// Parameters
-  int first_steps = config_->first_num_steps;
-  int max_it = config_->initial_max_iter;
-  float max_pair_d = config_->initial_max_pairing_dist;
-  float max_planar_d = config_->initial_max_planar_dist;
-  float max_pair_d2 = max_pair_d * max_pair_d;
-  KDTreeSearchParams search_params;
+  std::vector<Eigen::Vector3d> const_gyro_bias;
+  const_gyro_bias.push_back(config_->const_gyro_bias);
 
   // clang-format off
   /// Create robot to sensor transform variable, fixed.
-  const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
+  const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r); // at rear axle
   T_s_r_var->locked() = true;
 
-  /// trajectory smoothing
-  Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval = nullptr;
-  Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
-  const_vel::Interface::Ptr trajectory = nullptr;
-  std::vector<StateVarBase::Ptr> state_vars;
-  if (config_->use_trajectory_estimation) {
-    trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
+  // current state time
+  auto query_time = static_cast<int64_t>(query_stamp);
+  // save last frame state
+  auto prev_time = static_cast<int64_t>(timestamp_odo);
+  auto prev_T_r_m_odo = *qdata.T_r_m_odo; 
+  auto prev_w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo; 
 
+  const_vel::Interface::Ptr trajectory = nullptr;
+  if (config_->use_trajectory_estimation) {
+    trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag); // change this
+    
     /// last frame state
-    Time prev_time(static_cast<int64_t>(timestamp_odo));
+    Time t_prev_time(static_cast<int64_t>(timestamp_odo));
     auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
     auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
     if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
     if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
-    trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-    state_vars.emplace_back(prev_T_r_m_var);
-    state_vars.emplace_back(prev_w_m_r_in_r_var);
-
-    const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
-    const auto first_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
-    const auto last_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
-    const int64_t num_states = config_->traj_num_extra_states + 2;
-    const int64_t time_diff = (last_time - first_time) / (num_states - 1);
-    for (int i = 0; i < num_states; ++i) {
-      Time knot_time(static_cast<int64_t>(first_time + i * time_diff));
-      //
-      const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo);
-      const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
-      const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-      //
-      const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-      //
-      trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
-      state_vars.emplace_back(T_r_m_var);
-      state_vars.emplace_back(w_m_r_in_r_var);
-    }
-    Time query_time(static_cast<int64_t>(query_stamp));
-    T_r_m_eval = trajectory->getPoseInterpolator(query_time);
-    w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
-  } else {
-    //
-    Time prev_time(static_cast<int64_t>(timestamp_odo));
-    Time query_time(static_cast<int64_t>(query_stamp));
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
-    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
-    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-    state_vars.emplace_back(T_r_m_var);
-    T_r_m_eval = T_r_m_var;
+    trajectory->add(t_prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
   }
 
-  /// compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
+  CLOG(WARNING, "lidar_odometry_doppler") << "current frame: " << query_time;
 
-  /// Initialize aligned points for matching (Deep copy of targets)
-  pcl::PointCloud<PointWithInfo> aligned_points(query_points);
-
-  /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-  const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-  auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-
-  /// create kd-tree of the map
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Start building a kd-tree of the map.";
-  NanoFLANNAdapter<PointWithInfo> adapter(point_map);
-  KDTreeParams tree_params(10 /* max leaf */);
-  auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
-  kdtree->buildIndex();
-
-  /// perform initial alignment
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Start initial alignment.";
-  if (config_->use_trajectory_estimation) {
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (unsigned i = 0; i < query_points.size(); i++) {
-      const auto &qry_time = query_points[i].timestamp;
-      const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-      const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-      const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
-      aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
-      aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
-    }
-  } else {
-    const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
-    aligned_mat = T_m_s * query_mat;
-    aligned_norms_mat = T_m_s * query_norms_mat;
+  if (prev_time == query_time && qdata.sliding_map_odo) {
+    CLOG(WARNING, "lidar.odometry_doppler") << "Skipping point cloud with duplicate stamp";
+    *qdata.odo_success = false;
+    return;
   }
 
   using Stopwatch = common::timing::Stopwatch<>;
   std::vector<std::unique_ptr<Stopwatch>> timer;
   std::vector<std::string> clock_str;
-  clock_str.push_back("Random Sample ...... ");
+  clock_str.push_back("Loading gyro ...... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("KNN Search ......... ");
+  clock_str.push_back("Ransac ............ ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Point Filtering .... ");
+  clock_str.push_back("Solve ............. ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Optimization ....... ");
+  clock_str.push_back("Integration ....... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Alignment .......... ");
-  timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Check Convergence .. ");
-  timer.emplace_back(std::make_unique<Stopwatch>(false));
-  clock_str.push_back("Compute Covariance . ");
+  clock_str.push_back("Undistortion ...... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
 
-  // ICP results
-  EdgeTransform T_r_m_icp;
-  float matched_points_ratio = 0.0;
 
-  // Convergence variables
-  float mean_dT = 0;
-  float mean_dR = 0;
-  Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
-  bool refinement_stage = false;
-  int refinement_step = 0;
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Starting Doppler Odometry";
+  std::vector<double> total_time_timer(clock_str.size(), 0.0);
 
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Start the ICP optimization loop.";
-  for (int step = 0;; step++) {
-    /// sample points
-    timer[0]->start();
-    std::vector<std::pair<size_t, size_t>> sample_inds;
-    sample_inds.resize(query_points.size());
-    // pick queries (for now just use all of them)
-    for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
-    timer[0]->stop();
 
-    /// find nearest neigbors and distances
-    timer[1]->start();
-    std::vector<float> nn_dists(sample_inds.size());
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (size_t i = 0; i < sample_inds.size(); i++) {
-      KDTreeResultSet result_set(1);
-      result_set.init(&sample_inds[i].second, &nn_dists[i]);
-      kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
+  timer[0]->start();
+  // *********** NEXT GYRO ***********
+  auto compare_times = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
+  auto min_max_time = std::minmax_element(query_points.begin(), query_points.end(), compare_times);
+  double first_pt_time = min_max_time.first->timestamp;
+  double last_pt_time = min_max_time.second->timestamp;
+  auto start_time = (first_pt_time / 1e9) - (first_frame_micro / 1e6); // in [s]
+  auto end_time = (last_pt_time / 1e9) - (first_frame_micro / 1e6);  // in [s]
+
+  std::vector<Eigen::MatrixXd> curr_gyro = next_gyro(start_time, end_time, gyro);
+  // end next gyro
+  timer[0]->stop();
+
+
+  // *********** RANSAC ***********
+  timer[1]->start();
+  // precompute for full solve
+  Eigen::Matrix<double, Eigen::Dynamic,6> ransac_precompute_all = Eigen::Matrix<double, Eigen::Dynamic, 6>(query_points.size(), 6);
+  Eigen::Matrix<double, Eigen::Dynamic,1> meas_precompute_all = Eigen::Matrix<double, Eigen::Dynamic, 1>(query_points.size());
+
+  // loop over each point to precompute
+  for (unsigned i = 0; i < query_points.size(); ++i) {
+    // get x,y,z vector for solve
+    Eigen::Vector3d point(query_points[i].x, query_points[i].y, query_points[i].z); 
+    // the 'C' in y = C*x
+    ransac_precompute_all.row(i) = point.transpose()/query_points[i].rho * adT_sv_top3rows_[0];  
+    // the 'y' in y = C*x
+    meas_precompute_all(i) = query_points[i].flex23;
+  } 
+
+  // initialize uniform distribution
+  std::uniform_int_distribution<int> uni_dist(0, query_points.size() - 1);
+
+  // ransac
+  Eigen::Matrix3d lhs_ransac;
+  Eigen::Vector3d rhs_ransac;
+  Eigen::Vector3d G_ransac;
+  int max_inliers = 0;
+  // using bool_vec = Eigen::Array<bool,Eigen::Dynamic,1>;
+  Eigen::Array<bool, Eigen::Dynamic,1> inliers;       
+  Eigen::Array<bool, Eigen::Dynamic,1> best_inliers;  
+  Eigen::Vector3d best_varpi;   // for debugging
+  Eigen::Vector3d curr_varpi;   // for debugging
+  for (int iter = 0; iter < config_->ransac_max_iter; ++iter) {
+    // setup linear system
+    lhs_ransac.setZero();
+    rhs_ransac.setZero();
+
+    // sample until we satisfy min. range condition for ransac
+    int sample1, sample2;
+    for (int k = 0; k < 1e3; ++k) { // 1e3 is safety measure to prevent infinite loop
+      sample1 = uni_dist(random_engine_);
+      if (query_points[sample1].rho > config_->ransac_min_range)
+        break;
     }
-    timer[1]->stop();
-
-    /// filtering based on distances metrics
-    timer[2]->start();
-    std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
-    filtered_sample_inds.reserve(sample_inds.size());
-    for (size_t i = 0; i < sample_inds.size(); i++) {
-      if (nn_dists[i] < max_pair_d2) {
-        // Check planar distance (only after a few steps for initial alignment)
-        auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
-                    point_map[sample_inds[i].second].getVector3fMap();
-        float planar_dist = std::abs(
-            diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
-        if (step < first_steps || planar_dist < max_planar_d) {
-          filtered_sample_inds.push_back(sample_inds[i]);
-        }
-      }
-    }
-    timer[2]->stop();
-
-    /// point to plane optimization
-    timer[3]->start();
-
-    // initialize problem
-    OptimizationProblem problem(config_->num_threads);
-
-    // add variables
-    for (const auto &var : state_vars)
-      problem.addStateVariable(var);
-
-    // add prior cost terms
-    if (config_->use_trajectory_estimation)
-      trajectory->addPriorCostTerms(problem);
-
-    // shared loss function
-    auto loss_func = L2LossFunc::MakeShared();
-    // cost terms and noise model
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (const auto &ind : filtered_sample_inds) {
-      // noise model W = n * n.T (information matrix)
-      if (point_map[ind.second].normal_score <= 0.0) continue;
-      Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-      Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
-      auto icp_noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
-
-      // query and reference point
-      const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-      const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
-
-      auto icp_error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
-        if (config_->use_trajectory_estimation) {
-          const auto &qry_time = query_points[ind.first].timestamp;
-          const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-          const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-          return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt); 
-        } else {
-          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
-        }
-      }();
-      
-      // create cost term and add to problem
-      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, loss_func);
-
-      // process radial velocity measurement
-      auto rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(nullptr, nullptr, nullptr);
-      if (config_->use_radial_velocity) {
-        // CLOG(WARNING, "test") << "radial_vel: " << query_points[ind.first].flex23;
-        if (query_points[ind.first].flex23 != -1000.0) {
-          Eigen::Matrix<double, 1, 1> meas_cov = Eigen::Matrix<double, 1, 1>::Identity(); // set to identity for now
-          const auto vel_noise_model = StaticNoiseModel<1>::MakeShared(meas_cov);
-          const auto &vel = query_points[ind.first].flex23;
-          const auto &qry_time = query_points[ind.first].timestamp;
-          // CLOG(WARNING, "test") << "radial_vel time: " << std::fixed << std::setprecision(30) << query_points[ind.first].timestamp;
-          const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-          const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-          const auto rv_error = p2p::RadialVelErrorEvaluator::MakeShared(w_m_s_in_s_intp_eval, qry_pt, -vel);
-          
-          rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(rv_error, vel_noise_model, loss_func);
-        ;
-        }
-      }
-      
-#pragma omp critical(odo_icp_add_p2p_error_cost)
-{
-      problem.addCostTerm(icp_cost);
-      if (config_->use_radial_velocity) {
-        problem.addCostTerm(rv_cost);
-      }
-}
+    
+    for (int k = 0; k < 1e3; ++k) { // 1e3 is safety measure to prevent infinite loop
+      sample2 = uni_dist(random_engine_);
+      if (query_points[sample2].rho > config_->ransac_min_range)
+        break;
     }
 
-    // CLOG(WARNING, "test") << "debug 4";
-    // optimize
-    GaussNewtonSolver::Params params;
-    params.verbose = config_->verbose;
-    params.max_iterations = (unsigned int)config_->max_iterations;
-    GaussNewtonSolver solver(problem, params);
-    solver.optimize();
-    Covariance covariance(solver);
-    timer[3]->stop();
+    // sample 1
+    G_ransac(0) = ransac_precompute_all(sample1, 0);
+    G_ransac(1) = ransac_precompute_all(sample1, 1);
+    G_ransac(2) = ransac_precompute_all(sample1, 5);
+    lhs_ransac += G_ransac * G_ransac.transpose();
+    rhs_ransac += G_ransac * meas_precompute_all(sample1);
 
-    /// Alignment
-    timer[4]->start();
+    // sample 2
+    G_ransac(0) = ransac_precompute_all(sample2, 0);
+    G_ransac(1) = ransac_precompute_all(sample2, 1);
+    G_ransac(2) = ransac_precompute_all(sample2, 5);
+    lhs_ransac += G_ransac * G_ransac.transpose();
+    rhs_ransac += G_ransac * meas_precompute_all(sample2);
+
+    // 2 DOF solve
+    Eigen::Matrix2d lhs2d;
+    lhs2d << lhs_ransac(0, 0), lhs_ransac(0, 2), lhs_ransac(2, 0), lhs_ransac(2, 2);
+    if (fabs(lhs2d.determinant()) < 1e-7)
+      continue; // not invertible
+
+    Eigen::Vector2d rhs2d;
+    rhs2d << rhs_ransac(0), rhs_ransac(2);
+
+    Eigen::Vector2d varpi2d = lhs2d.inverse()*rhs2d;  // inverse should be fast for 2x2
+    curr_varpi << varpi2d(0), 0.0, varpi2d(1);
+
+    // calculate error and inliers 
+    auto errors = meas_precompute_all - ransac_precompute_all.col(0)*curr_varpi(0) 
+                                      - ransac_precompute_all.col(1)*curr_varpi(1) 
+                                      - ransac_precompute_all.col(5)*curr_varpi(2);
+    inliers = errors.array().abs() < config_->ransac_thres;
+    int num_inliers = inliers.count();
+
+    // check for improvement in number of inliers
+    if (num_inliers > max_inliers) {
+      max_inliers = num_inliers;
+      best_varpi = curr_varpi;  // for debugging
+      best_inliers = inliers;
+    }
+  }
+  // std::cout << best_varpi.transpose() << std::endl;   // for debugging
+
+  // create new frame with only inliers
+  pcl::PointCloud<PointWithInfo> inlier_frame;
+  inlier_frame.reserve(max_inliers);
+
+  ransac_precompute_ = Eigen::Matrix<double, Eigen::Dynamic, 6>(query_points.size(), 6);
+  meas_precompute_ = Eigen::Matrix<double, Eigen::Dynamic, 1>(query_points.size());
+  alpha_precompute_ = Eigen::Matrix<double, Eigen::Dynamic, 1>(query_points.size());
+  malpha_precompute_ = Eigen::Matrix<double, Eigen::Dynamic, 1>(query_points.size());
+
+  // loop over each measurement
+  int k = 0;
+  for (unsigned i = 0; i < query_points.size(); ++i) {
+    if (!best_inliers(i))
+      continue; // skip since it's not an inlier
+
+    inlier_frame.push_back(query_points[i]);
+    ransac_precompute_.row(k) = ransac_precompute_all.row(i);
+    meas_precompute_[k] = meas_precompute_all[i];
+
+    alpha_precompute_[k] = std::min(1.0, std::max(0.0, (query_points[i].timestamp - first_pt_time) / (last_pt_time - first_pt_time)));
+    malpha_precompute_[k] = std::max(0.0, 1.0 - alpha_precompute_[k]);
+    ++k;
+  }
+  timer[1]->stop();
+
+  CLOG(WARNING, "lidar.doppler_odometry") << "before ransac: " << query_points.size() << std::endl;
+  CLOG(WARNING, "lidar.doppler_odometry") << "after ransac: " << inlier_frame.size() << std::endl;
+  // end ransac
+
+
+
+  timer[2]->start();
+  // *********** SOLVE FRAME *********** 
+  // we build a 12x12 linear system and marginalize to a 6x6 system to solve for the latest vehicle velocity 
+  // to do: use transformation with covariance, don't define lhs and rhs seperately
+  Eigen::Matrix<double, 12, 12> lhs = Eigen::Matrix<double, 12, 12>::Zero(); 
+  Eigen::Matrix<double, 12, 1> rhs = Eigen::Matrix<double, 12, 1>::Zero();
+
+  if (!qdata.sliding_map_odo) {
+    // prior
+    lhs.topLeftCorner<6, 6>() += config_->P0inv;
+  } else {
+    lhs.topLeftCorner<6, 6>() += *qdata.last_lhs_;
+    rhs.topLeftCorner<6, 1>() += *qdata.last_rhs_;
+  }
+
+  // wnoa prior
+  lhs += wnoa_lhs_;
+
+  // zero velocity prior
+  lhs.bottomRightCorner<6, 6>() += config_->Qzinv;
+
+  // IMU measurements
+  for (int i = 0; i < config_->num_sensors; ++i) {
+    if (curr_gyro[i].rows() == 1 && curr_gyro[i].cols() == 1){
+      CLOG(WARNING, "lidar.odometry_doppler") << "No gyro data.";
+      continue; // no data
+    }
+    Eigen::Matrix<double,3,6> Cgyro = Eigen::Matrix<double, 3, 6>::Zero();
+    Cgyro.rightCols<3>() = T_sv_[i].topLeftCorner<3, 3>();
+    Eigen::Matrix<double,3,12> Ggyro = Eigen::Matrix<double, 3, 12>::Zero();
+    // loop over each gyro measurement
+    for (int j = 0; j < curr_gyro[i].rows(); ++j) {
+      double alpha = std::min(1.0, std::max(0.0, (curr_gyro[i](j, 0) - start_time)/(end_time - start_time))); // times in [s]
+      Ggyro.leftCols<6>() = (1.0 - alpha)*Cgyro;
+      Ggyro.rightCols<6>() = alpha*Cgyro;
+      lhs += Ggyro.transpose() * gyro_invcov_[i] * Ggyro;
+      rhs += Ggyro.transpose() * gyro_invcov_[i] * (curr_gyro[i].row(j).rightCols<3>().transpose() - const_gyro_bias[i]);
+    }
+  } // end for i
+
+  // doppler measurements
+  Eigen::Matrix<double, Eigen::Dynamic, 12> G(inlier_frame.size(), 12); // N x 12
+  G.leftCols<6>() = ransac_precompute_.array().colwise() * malpha_precompute_.array();
+  G.rightCols<6>() = ransac_precompute_.array().colwise() * alpha_precompute_.array();
+  lhs += G.transpose() * G / (0.2*0.2);   // TODO: add variance as parameter
+  rhs += G.transpose() * meas_precompute_ / (0.2*0.2);
+
+  // marginalize
+  Eigen::Matrix<double, 6, 6> temp = lhs.bottomLeftCorner<6,6>()*lhs.topLeftCorner<6,6>().inverse();
+  Eigen::Matrix<double, 6, 6> lhs_new = lhs.bottomRightCorner<6,6>() - temp*lhs.topRightCorner<6,6>();
+  Eigen::Matrix<double, 6, 1> rhs_new = rhs.tail<6>() - temp*rhs.head<6>();
+
+  // solve
+  *qdata.w_m_r_in_r_odo = lhs_new.llt().solve(rhs_new);  
+  *qdata.last_lhs_ = lhs_new;
+  *qdata.last_rhs_ = rhs_new;
+
+  // end solve frame
+  timer[2]->stop();
+
+
+  timer[3]->start();
+  // *********** NUM INTEGRATE ***********
+  const Eigen::Matrix<double, 6, 6>& zeroMatrix = Eigen::Matrix<double, 6, 6>::Zero();
+  const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();  
+  // get velocity knots
+  Eigen::Matrix<double,6,1> knot1 = Eigen::Matrix<double,6,1>::Zero();
+  double dt = 0.1;
+  if (qdata.sliding_map_odo) {
+    knot1 = prev_w_m_r_in_r_odo;
+    dt = (query_time - prev_time) / 1e9;
+  }
+  Eigen::Matrix<double,6,1> knot2 = *qdata.w_m_r_in_r_odo;
+
+  // mask to zero when stationary
+  if (std::fabs(knot1(0)) < config_->zero_vel_tol)
+    knot1 = Eigen::Matrix<double,6,1>::Zero();
+  if (std::fabs(knot2(0)) < config_->zero_vel_tol)
+    knot2 = Eigen::Matrix<double,6,1>::Zero();
+
+  // integrate between the knots
+  double dtt = dt/static_cast<double>(config_->integration_steps);
+  Eigen::Matrix4d T_21 = Eigen::Matrix4d::Identity(); 
+  for (int s = 1; s <= config_->integration_steps; ++s) {
+    double t = s*dtt;
+    double alpha = t/dt;
+    Eigen::Matrix<double,6,1> vinterp = (1.0-alpha)*knot1 + alpha*knot2;
+    T_21 = lgmath::se3::vec2tran(dtt*vinterp)*T_21; // lgmath::se3
+  }
+
+  // output latest pose
+  if (!qdata.sliding_map_odo) {
+    EdgeTransform T_temp(identityMatrix,
+                         lhs_new);
+    *qdata.T_r_m_odo = T_temp;
+  }
+
+  EdgeTransform T_temp(T_21 * prev_T_r_m_odo,
+                       lhs_new);
+  *qdata.T_r_m_odo = T_temp;
+
+  // end num integrate
+  timer[3]->stop();
+
+  // outputs
+  timer[4]->start();
+  pcl::PointCloud<PointWithInfo> aligned_points(inlier_frame);
+  const auto query_mat = inlier_frame.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = inlier_frame.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+  auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+
+  // to do: fix frames
+  const auto T_r_m_eval = SE3StateVar::MakeShared(T_temp);
+  // compound transform for alignment (sensor to point map transform)
+  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
+
+  if (qdata.sliding_map_odo) {
+    auto &sliding_map_odo = *qdata.sliding_map_odo;
+    // auto &point_map = sliding_map_odo.point_cloud();
     if (config_->use_trajectory_estimation) {
+      Time knot_time(static_cast<int64_t>(query_stamp));
+      const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
+      const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+      trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
+
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (unsigned i = 0; i < query_points.size(); i++) {
-        const auto &qry_time = query_points[i].timestamp;
+      for (unsigned i = 0; i < inlier_frame.size(); i++) {
+        const auto &qry_time = inlier_frame[i].timestamp;
         const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
         const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
         const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
@@ -394,168 +530,43 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       aligned_mat = T_m_s * query_mat;
       aligned_norms_mat = T_m_s * query_norms_mat;
     }
-
-    // Update all result matrices
-    const auto T_m_s = T_m_s_eval->evaluate().matrix();
-    if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_m_s);
-    else {
-      Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
-      temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(4) = Eigen::MatrixXd(T_m_s);
-      all_tfs = temp;
-    }
-    timer[4]->stop();
-
-    /// Check convergence
-    timer[5]->start();
-    // Update variations
-    if (step > 0) {
-      float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
-
-      // Get last transformation variations
-      Eigen::Matrix4d T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
-      Eigen::Matrix4d T1 = all_tfs.block<4, 4>(all_tfs.rows() - 8, 0);
-      Eigen::Matrix4d diffT = T2 * T1.inverse();
-      Eigen::Matrix<double, 6, 1> diffT_vec = lgmath::se3::tran2vec(diffT);
-      float dT_b = diffT_vec.block<3, 1>(0, 0).norm();
-      float dR_b = diffT_vec.block<3, 1>(3, 0).norm();
-
-      mean_dT += (dT_b - mean_dT) / avg_tot;
-      mean_dR += (dR_b - mean_dR) / avg_tot;
-    }
-
-    // Refininement incremental
-    if (refinement_stage) refinement_step++;
-
-    // Stop condition
-    if (!refinement_stage && step >= first_steps) {
-      if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
-                                   mean_dR < config_->rot_diff_thresh)) {
-        CLOG(DEBUG, "lidar.odometry_doppler") << "Initial alignment takes " << step << " steps.";
-
-        // enter the second refine stage
-        refinement_stage = true;
-
-        max_it = step + config_->refined_max_iter;
-
-        // reduce the max distance
-        max_pair_d = config_->refined_max_pairing_dist;
-        max_pair_d2 = max_pair_d * max_pair_d;
-        max_planar_d = config_->refined_max_planar_dist;
-      }
-    }
-    timer[5]->stop();
-
-    /// Last step
-    timer[6]->start();
-    if ((refinement_stage && step >= max_it - 1) ||
-        (refinement_step > config_->averaging_num_steps &&
-         mean_dT < config_->trans_diff_thresh &&
-         mean_dR < config_->rot_diff_thresh)) {
-      // result
-      if (config_->use_trajectory_estimation) {
-        Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        /// \todo remove this if condition once steam allows for cov interp. between locked variables
-        if ((!config_->traj_lock_prev_pose) && (!config_->traj_lock_prev_vel))
-          T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
-        T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
-      } else {
-        const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
-        T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));
-      }
-      //
-      matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
-      //
-      CLOG(DEBUG, "lidar.odometry_doppler") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
-      if (mean_dT >= config_->trans_diff_thresh ||
-          mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "lidar.odometry_doppler") << "ICP did not converge to the specified threshold";
-        if (!refinement_stage) {
-          CLOG(WARNING, "lidar.odometry_doppler") << "ICP did not enter refinement stage at all.";
-        }
-      }
-      break;
-    }
-    timer[6]->stop();
-  }
-
-  /// Dump timing info
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Dump timing info inside loop: ";
-  for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.odometry_doppler") << "  " << clock_str[i] << timer[i]->count();
-  }
-
-  /// Outputs
-  if (matched_points_ratio > config_->min_matched_ratio) {
     // undistort the preprocessed pointcloud
     const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
     aligned_mat = T_s_m * aligned_mat;
     aligned_norms_mat = T_s_m * aligned_norms_mat;
-
+    //
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
     qdata.undistorted_point_cloud = undistorted_point_cloud;
-#if false
-    // store undistorted raw point cloud
-    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
-    if (config_->use_trajectory_estimation) {
-      auto &raw_points = *undistorted_raw_point_cloud;
-      auto points_mat = raw_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (unsigned i = 0; i < raw_points.size(); i++) {
-        const auto &qry_time = raw_points[i].timestamp;
-        const auto T_rintp_m_eval = trajectory->getPoseInterpolator(Time(qry_time));
-        const auto T_s_sintp_eval = inverse(compose(T_s_r_eval, compose(T_rintp_m_eval, T_m_s_eval)));
-        const auto T_s_sintp = T_s_sintp_eval->evaluate().matrix().cast<float>();
-        points_mat.block<4, 1>(0, i) = T_s_sintp * points_mat.block<4, 1>(0, i);
-      }
-    }
-    cart2pol(*undistorted_raw_point_cloud);
-    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
-#endif
-    // store trajectory info
-    if (config_->use_trajectory_estimation)
-      *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
-    else {
-      // finite diff approximation
-      Time prev_time(static_cast<int64_t>(timestamp_odo));
-      Time query_time(static_cast<int64_t>(query_stamp));
-      const auto T_r_m_prev = *qdata.T_r_m_odo;
-      const auto T_r_m_query = T_r_m_eval->value();
-      *qdata.w_m_r_in_r_odo = (T_r_m_query * T_r_m_prev.inverse()).vec() / (query_time - prev_time).seconds();
-    }
-    *qdata.T_r_m_odo = T_r_m_eval->value();
-    *qdata.timestamp_odo = query_stamp;
-#if 1
-    CLOG(WARNING, "lidar.odometry_doppler") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-    CLOG(WARNING, "lidar.odometry_doppler") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-#endif
-    //
-    /// \todo double check validity when no vertex has been created
-    *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
-    /// \todo double check that we can indeed treat m same as v for velocity
-    if (config_->use_trajectory_estimation)
-      *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-    //
-    *qdata.odo_success = true;
+    *qdata.T_r_v_odo = *qdata.T_r_m_odo * sliding_map_odo.T_vertex_this().inverse();
   } else {
-    CLOG(WARNING, "lidar.odometry_doppler")
-        << "Matched points ratio " << matched_points_ratio
-        << " is below the threshold. ICP is considered failed.";
-    // do not undistort the pointcloud
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+    CLOG(INFO, "lidar.odometry_doppler") << "First frame.";
+    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.preprocessed_point_cloud);
     cart2pol(*undistorted_point_cloud);
     qdata.undistorted_point_cloud = undistorted_point_cloud;
-#if false
-    // do not undistort the raw pointcloud as well
-    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
-    cart2pol(*undistorted_raw_point_cloud);
-    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
-#endif
-    // no update to map to robot transform
-    *qdata.odo_success = false;
   }
+  timer[4]->stop();
+
+  
+  *qdata.timestamp_odo = query_stamp;
+  *qdata.odo_success = true;
+
+  /// Dump timing info
+  // timing for current frame
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Dump timing info inside loop: ";
+  for (size_t i = 0; i < clock_str.size(); i++) {
+    CLOG(DEBUG, "lidar.odometry_doppler") << "  " << clock_str[i] << timer[i]->count();
+  }
+  // elapsed timing
+  CLOG(DEBUG, "lidar.odometry_doppler") << "Total timing info: ";
+  for (size_t i = 0; i < timer.size(); ++i) {
+    auto count = timer[i]->count();
+    tot_timers[i] += count;
+  }
+  for (size_t i = 0; i < clock_str.size(); i++) {
+      CLOG(DEBUG, "lidar.odometry_doppler") << "  " << clock_str[i] << tot_timers[i];
+  }
+
   // clang-format on
 }
 

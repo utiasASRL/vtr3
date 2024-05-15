@@ -26,11 +26,12 @@
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
-namespace vtr {
+#include <random>
 
+namespace vtr {
 namespace lidar {
 
-/** \brief ICP for odometry. */
+/** \brief Doppler for odometry. */
 class OdometryDopplerModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
@@ -50,33 +51,29 @@ class OdometryDopplerModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
-    /// ICP parameters
-    // number of threads for nearest neighbor search
     int num_threads = 4;
-    // initial alignment config
-    size_t first_num_steps = 3;
-    size_t initial_max_iter = 100;
-    float initial_max_pairing_dist = 2.0;
-    float initial_max_planar_dist = 0.3;
-    // refined stage
-    size_t refined_max_iter = 10;  // we use a fixed number of iters for now
-    float refined_max_pairing_dist = 2.0;
-    float refined_max_planar_dist = 0.1;
-    // error calculation
-    float averaging_num_steps = 5;
-    float trans_diff_thresh = 0.01;              // threshold on variation of T
-    float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
-    // steam optimizer
+    bool visualize = false;
+    // steam parameters
     bool verbose = false;
     unsigned int max_iterations = 1;
 
-    bool use_radial_velocity = true;
+    // DOPPLER
+    int num_sensors = 1;
+    int ransac_max_iter = 20;
+    double ransac_thres = 0.2;
+    double ransac_min_range = 20.0;
+    int integration_steps = 100;
+    double zero_vel_tol = 0.03;
 
-    /// Success criteria
-    float min_matched_ratio = 0.4;
+    double min_dist = 20.0;
+    double max_dist = 150.0;
 
-    bool visualize = false;
-
+    // inverse covariances
+    Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Identity(); 
+    Eigen::Matrix<double, 6, 6> P0inv = Eigen::Matrix<double, 6, 6>::Identity();
+    Eigen::Matrix<double, 6, 6> Qzinv = Eigen::Matrix<double, 6, 6>::Identity();
+    Eigen::Vector3d const_gyro_bias = Eigen::Vector3d(-0.004580390732042348, -0.015914139544965403, 0.002919723147493117);
+    
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
@@ -84,11 +81,39 @@ class OdometryDopplerModule : public tactic::BaseModule {
   OdometryDopplerModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
-      const std::string &name = static_name)
-      : tactic::BaseModule(module_factory, name), config_(config) {}
+      const std::string &name = static_name);
+
+ protected: 
+  // vector to track elapsed time
+  std::vector<double> tot_timers{0.0, 0.0, 0.0, 0.0, 0.0};
+
+  // precomputed measurement model (to avoid repeated calculations in RANSAC and main solve)
+  Eigen::Matrix<double,Eigen::Dynamic,6> ransac_precompute_;
+  Eigen::Matrix<double,Eigen::Dynamic,1> meas_precompute_;
+  Eigen::Matrix<double,Eigen::Dynamic,1> alpha_precompute_;
+  Eigen::Matrix<double,Eigen::Dynamic,1> malpha_precompute_;
+
+  // ransac generator
+  long int seed_ = 0;
+  std::mt19937_64 random_engine_;  
+
+  // extrinsic
+  std::vector<Eigen::Matrix4d> T_sv_;
+  std::vector<Eigen::Matrix<double,3,6>> adT_sv_top3rows_;
+
+  // precompute
+  Eigen::Matrix<double, 12, 12> wnoa_lhs_;
+
+  // gyro inverse covariance
+  std::vector<Eigen::Matrix3d> gyro_invcov_;
 
  private:
-  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+  std::vector<Eigen::MatrixXd> next_gyro(const double &start_time, 
+                                         const double &end_time, 
+                                         const std::vector<Eigen::MatrixXd> &gyro);
+
+  void run_(tactic::QueryCache &qdata, 
+            tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
 

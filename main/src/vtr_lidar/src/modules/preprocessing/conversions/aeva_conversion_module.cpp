@@ -36,6 +36,22 @@ auto AevaConversionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
+void aevaCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
+  for (size_t i = 0; i < point_cloud.size(); i++) {
+    auto &p = point_cloud[i];
+    auto &pm1 = i > 0 ? point_cloud[i - 1] : point_cloud[i];
+
+    p.rho = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = atan2(p.y, p.x); // + M_PI / 2;
+
+    if (i > 0 && (p.phi - pm1.phi) > 1.5 * M_PI)
+      p.phi -= 2 * M_PI;
+    else if (i > 0 && (p.phi - pm1.phi) < -1.5 * M_PI)
+      p.phi += 2 * M_PI;
+  }
+}
+
 void AevaConversionModule::run_(QueryCache &qdata0, OutputCache &,
                                 const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
@@ -63,16 +79,21 @@ void AevaConversionModule::run_(QueryCache &qdata0, OutputCache &,
     // radial velocity
     point_cloud->at(idx).flex23 = points(idx, 4);
 
+    // beam id
+    point_cloud->at(idx).flex24 = points(idx, 6);
+
     // pointwise timestamp
     point_cloud->at(idx).timestamp = static_cast<int64_t>(points(idx, 5) * 1e9);
   }
 
   // Aeva has no polar coordinates, so compute them manually.
-  for (auto &p : *point_cloud) {
-    p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-    p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
-    p.phi = std::atan2(p.y, p.x);
-  }
+  // for (auto &p : *point_cloud) {
+  //   p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);         // range
+  //   p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);  // elevation
+  //   p.phi = std::atan2(p.y, p.x);                                 // azimuth
+  // }
+
+  aevaCart2Pol(*point_cloud);
 
   // Output
   qdata.raw_point_cloud = point_cloud;

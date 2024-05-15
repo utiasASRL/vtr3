@@ -326,13 +326,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       if (point_map[ind.second].normal_score <= 0.0) continue;
       Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
       Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
-      auto icp_noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
+      auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      auto icp_error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
+      auto error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
         if (config_->use_trajectory_estimation) {
           const auto &qry_time = query_points[ind.first].timestamp;
           const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
@@ -344,34 +344,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       }();
       
       // create cost term and add to problem
-      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, loss_func);
+      auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-      // process radial velocity measurement
-      auto rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(nullptr, nullptr, nullptr);
-      if (config_->use_radial_velocity) {
-        // CLOG(WARNING, "test") << "radial_vel: " << query_points[ind.first].flex23;
-        if (query_points[ind.first].flex23 != -1000.0) {
-          Eigen::Matrix<double, 1, 1> meas_cov = Eigen::Matrix<double, 1, 1>::Identity(); // set to identity for now
-          const auto vel_noise_model = StaticNoiseModel<1>::MakeShared(meas_cov);
-          const auto &vel = query_points[ind.first].flex23;
-          const auto &qry_time = query_points[ind.first].timestamp;
-          // CLOG(WARNING, "test") << "radial_vel time: " << std::fixed << std::setprecision(30) << query_points[ind.first].timestamp;
-          const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-          const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-          const auto rv_error = p2p::RadialVelErrorEvaluator::MakeShared(w_m_s_in_s_intp_eval, qry_pt, -vel);
-          
-          rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(rv_error, vel_noise_model, loss_func);
-        ;
-        }
-      }
       
 #pragma omp critical(odo_icp_add_p2p_error_cost)
-{
-      problem.addCostTerm(icp_cost);
-      if (config_->use_radial_velocity) {
-        problem.addCostTerm(rv_cost);
-      }
-}
+      problem.addCostTerm(cost);
     }
 
     // CLOG(WARNING, "test") << "debug 4";

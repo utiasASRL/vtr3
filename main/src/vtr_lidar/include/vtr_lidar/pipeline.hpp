@@ -98,6 +98,9 @@ class LidarPipeline : public tactic::BasePipeline {
   /** \brief current pose and body velocity w.r.t the sliding map */
   std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_;
+  /** \brief current */
+  std::shared_ptr<Eigen::Matrix<double, 6, 6>> last_lhs_;
+  std::shared_ptr<Eigen::Matrix<double, 6, 1>> last_rhs_;
   /** \brief vertex id of the last submap */
   tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
   /** \brief transformation from latest submap vertex to robot */
