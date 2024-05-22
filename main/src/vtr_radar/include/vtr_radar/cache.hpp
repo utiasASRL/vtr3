@@ -22,6 +22,7 @@
 
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "navtech_msgs/msg/radar_b_scan_msg.hpp"
 
 #include "vtr_radar/data_types/point.hpp"
 #include "vtr_radar/data_types/pointmap.hpp"
@@ -35,7 +36,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   PTR_TYPEDEFS(RadarQueryCache);
 
   // input
-  tactic::Cache<sensor_msgs::msg::Image> scan_msg;  // from ROS
+  tactic::Cache<navtech_msgs::msg::RadarBScanMsg> scan_msg;  // from ROS
   tactic::Cache<cv::Mat> scan;                      // from cpp
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
 

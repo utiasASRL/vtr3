@@ -197,11 +197,11 @@ if (pipeline->name() == "radar") {
   msg.child_frame_id = "radar";
   tf_sbc_->sendTransform(msg);
   // radar pointcloud data subscription this is the default value
-  const auto radar_topic = node_->declare_parameter<std::string>("radar_topic", "/radar_data/b_scan_image");
+  const auto radar_topic = node_->declare_parameter<std::string>("radar_topic", "/radar_data/b_scan_msg");
   // not sure if the  radar data rate is low as well
   auto radar_qos = rclcpp::QoS(max_queue_size_);
   radar_qos.reliable();
-  radar_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
+  radar_sub_ = node_->create_subscription<navtech_msgs::msg::RadarBScanMsg>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
   
 }
 #endif
@@ -321,10 +321,10 @@ void Navigator::lidarCallback(
 // #Sam added radar callback. Similar to Lidar, we need to know what to do when a radar message is received
 #ifdef VTR_ENABLE_RADAR
 void Navigator::radarCallback(
-    const sensor_msgs::msg::Image::SharedPtr msg) {
+    const navtech_msgs::msg::RadarBScanMsg::SharedPtr msg) {
 
   // set the timestamp
-  Timestamp timestamp_radar = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+  Timestamp timestamp_radar = msg->b_scan_img.header.stamp.sec * 1e9 + msg->b_scan_img.header.stamp.nanosec;
 
   CLOG(DEBUG, "navigation") << "Received a radar Image with stamp " << timestamp_radar;
 

@@ -113,7 +113,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Input
 #if true
-  auto fft_scan = cv_bridge::toCvShare(qdata.scan_msg.ptr())->image;
+  auto fft_scan = cv_bridge::toCvShare(std::make_shared<ImageMsg>(qdata.scan_msg->b_scan_img))->image;
   fft_scan.convertTo(fft_scan, CV_32F);
   // normalize to 0-1
   fft_scan = fft_scan/255.0;
@@ -129,32 +129,30 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   // cv::Mat scan_use;
   // cv::Mat fft_scan;
   cv::Mat cartesian;
-  std::vector<int64_t> azimuth_times;
   // # Sam creates a made-up timestamp for the radar data assuming 4hz on a 400 azimuth angles
   Cache<Timestamp> qstamp = qdata.stamp;
-  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
+  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
+
   int64_t time_per_resulution = 1.0/4.0*1e9;
   int64_t current_time_stamp = *qstamp;
 
-  for(int i=0; i<200; i++){
-    azimuth_times.emplace_back(current_time_stamp - (200-i-1)*(time_per_resulution/400));
-  }
-  for(int j=201;j<401; j++){
-    azimuth_times.emplace_back(current_time_stamp + (j-200)*(time_per_resulution/400));
+
+  std::vector<int64_t> azimuth_times;
+  for (const auto& time : qdata.scan_msg->timestamps) {
+    azimuth_times.emplace_back(static_cast<int64_t>(time));
+    CLOG(DEBUG, "radar.navtech_extractor") << "timestamp is " << azimuth_times.back() << "nano-secs";
   }
 
   // CLOG(DEBUG, "radar.navtech_extractor") <<"Sam: the timestamp size is: "<< qstamp.size();
   // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: the timestamp is: " << qstamp;
 
   std::vector<double> azimuth_angles;
-  // # Sam creates a made-up azimuth angle for the radar data
-  double per_azimuth_angle = 2*M_PI/400.0;
-  for(int i=0; i<400; i++){
-    azimuth_angles.emplace_back((i)*per_azimuth_angle);
+  for (const auto& encoder_value : qdata.scan_msg->encoder_values) {
+    azimuth_angles.emplace_back(static_cast<double>(encoder_value)/16000*2*M_PI);
+    CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angle is " << azimuth_angles.back() << " radians";
   }
 
   
-
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
   // Set radar resolution
@@ -204,7 +202,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                                          << " rows and " << cartesian.cols
                                          << " cols with resolution "
                                          << cart_resolution;
-                                    
+  
   CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
   CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
 
@@ -293,6 +291,8 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "radar.navtech_extractor")
       << "Extracted " << raw_point_cloud.size() << " points";
 
+
+  // DEBUG
   // # Sam I like to know the exact details of the point cloud
   // for(int j=0; j<raw_point_cloud.size(); j++){
   //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point is: " << raw_point_cloud.points[j].x << " " << raw_point_cloud.points[j].y ;
@@ -304,6 +304,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The min point is: " << min_pt.x << " " << min_pt.y << " " << min_pt.z;
   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The max point is: " << max_pt.x << " " << max_pt.y << " " << max_pt.z;
 
+  // DEBUG
   // for (auto &point : pointcloud) {
 
   //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point x is: " << point.x ;

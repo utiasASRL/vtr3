@@ -19,7 +19,7 @@
     robot_frame: base_link
     env_info_topic: env_info
     radar_frame: navtech_base #navtech_base
-    radar_topic: /radar_data/b_scan_image
+    radar_topic: /radar_data/b_scan_msg
     queue_size: 1
     graph_map:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -77,6 +77,7 @@
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.00 # Doppler correction factor (set to 0 to turn this off)
+        range_offset: -0.220240 # range offset in meters
         kstrong:
           kstrong: 12 # k-strongest per azimuth to retain
           threshold2: 0.0 # threshold for k-strongest (mult of mean)

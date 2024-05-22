@@ -68,7 +68,8 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   if (point_cloud->size() == 0) {
     std::string err{"Empty point cloud."};
     CLOG(ERROR, "radar.preprocessing") << err;
-    throw std::runtime_error{err};
+    return;
+    // throw std::runtime_error{err};
   }
 
   CLOG(DEBUG, "radar.preprocessing")

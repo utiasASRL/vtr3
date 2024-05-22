@@ -28,6 +28,7 @@
 #include "message_filters/subscriber.h"
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include "sensor_msgs/msg/image.hpp"
 #endif
 
 #include "vtr_common/conversions/tf2_ros_eigen.hpp"
@@ -36,8 +37,8 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #endif
 
-#if defined(VTR_ENABLE_RADAR) || defined(VTR_ENABLE_VISION)
-#include "sensor_msgs/msg/image.hpp"
+#if defined(VTR_ENABLE_RADAR)
+#include "navtech_msgs/msg/radar_b_scan_msg.hpp"
 #endif
 
 namespace vtr {
@@ -82,8 +83,8 @@ class Navigator {
   // radar
   const std::string &radar_frame() const { return radar_frame_; }
   const tactic::EdgeTransform &T_radar_robot() const { return T_radar_robot_; }
-  void radarCallback(const sensor_msgs::msg::Image::SharedPtr msg);
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr radar_sub_;
+  void radarCallback(const navtech_msgs::msg::RadarBScanMsg::SharedPtr msg);
+  rclcpp::Subscription<navtech_msgs::msg::RadarBScanMsg>::SharedPtr radar_sub_;
   std::string radar_frame_;
   tactic::EdgeTransform T_radar_robot_;
 #endif
