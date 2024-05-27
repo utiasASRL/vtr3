@@ -48,7 +48,7 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     double avg_curvature_xz_yz = 0.0;
     unsigned end_of_path = 0;
     unsigned window_steps = 0;
-    for (int i = static_cast<int>(curr_sid) - horizon_steps / 2; i < static_cast<int>(curr_sid) + horizon_steps / 2; i++) {
+    for (int i = static_cast<int>(curr_sid); i < static_cast<int>(curr_sid) + horizon_steps; i++) {
       // Handle end of path case
       if (i >= 0 && i < disc_path_curvature_xy.size()-1) {
         avg_curvature_xy += disc_path_curvature_xy[i];

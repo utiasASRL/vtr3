@@ -92,8 +92,8 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->vel_error_cov.diagonal() << vel_error_diag[0], vel_error_diag[1];
   const auto acc_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.acc_error_cov", std::vector<double>());
   config->acc_error_cov.diagonal() << acc_error_diag[0], acc_error_diag[1];
-  const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
-  config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
+  // const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
+  // config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
   const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
   config->lat_error_cov.diagonal() << lat_error_diag[0];
 
@@ -392,7 +392,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
     
     // Schedule speed based on path curvatures + other factors
-    VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, VF, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 5, config_->min_vel);
+    VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, VF, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7, config_->min_vel);
 
     // Grab the current MPC configurations
     // Pose Covariance Weights
