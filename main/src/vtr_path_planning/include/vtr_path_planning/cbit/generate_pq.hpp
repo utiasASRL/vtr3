@@ -32,6 +32,22 @@
 
 #pragma once 
 
+//TODO New CBIT Path Class that uses localization chain etc to find items
+namespace vtr {
+namespace path_planning {
+    class CBITPath2 {
+    public:
+        PTR_TYPEDEFS(CBITPath2);
+
+        CBITPath2(const tactic::LocalizationChain::Ptr chain, const CBIT::Config::ConstPtr config): chain_{chain}, config_{config} {}
+
+    private:
+        const tactic::LocalizationChain::Ptr chain_; 
+        const CBIT::Config::ConstPtr config_;
+    };
+}
+}
+
 // TODO: ROC singularity region handling
 
 class CBITPath {

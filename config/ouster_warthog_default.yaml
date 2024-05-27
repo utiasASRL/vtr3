@@ -23,9 +23,11 @@
       - cbit.path_planning
       #- cbit_planner.path_planning
       - cbit.debug
+      - mpc.solver
+      - mpc.speed_scheduler
       #- mpc.cbit
       #- mpc_debug
-      #- cbit.control
+      - cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
@@ -95,9 +97,9 @@
         - icp
         - mapping
         - vertex_test
-        - intra_exp_merging
-        - dynamic_detection
-        - inter_exp_merging
+        #- intra_exp_merging
+        #- dynamic_detection
+        #- inter_exp_merging
         - memory
       localization:
         - recall
@@ -333,7 +335,6 @@
         alpha: 0.25
         q_max: 2.5
         frame_interval: 50
-        iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
         initial_exp_rad: 0.75
@@ -346,7 +347,7 @@
 
       speed_scheduler:
         planar_curv_weight: 5.0
-        profile_curv_weight: 0.5 
+        profile_curv_weight: 100.0 
         eop_weight: 1.0
         min_vel: 0.5
       mpc:
@@ -365,17 +366,15 @@
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 10.0]
-        vel_error_cov: [20.0, 30.0]
-        acc_error_cov: [20.0, 20.0]
-        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-        lat_error_cov: [2.0]
+        pose_error_cov: [1.0, 1.0, 10.0, 10.0, 10.0, 0.1]
+        vel_error_cov: [1.0, 1.5]
+        acc_error_cov: [1.0, 2.0]
+        lat_error_cov: [1.0]
 
         # Cost Function Weights
-        pose_error_weight: 5.0
-        vel_error_weight: 0.0001
-        acc_error_weight: 1.5
-        kin_error_weight: 1.0
+        pose_error_weight: 1.0
+        vel_error_weight: 0.1
+        acc_error_weight: 0.1
         lat_error_weight: 0.01
 
         # Misc
