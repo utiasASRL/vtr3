@@ -77,8 +77,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
-  config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
-
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -337,21 +335,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           const auto &qry_time = query_points[ind.first].timestamp;
           const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
           const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-          return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt); 
+          return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
         } else {
           return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
         }
       }();
-      
+
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-      
 #pragma omp critical(odo_icp_add_p2p_error_cost)
       problem.addCostTerm(cost);
     }
 
-    // CLOG(WARNING, "test") << "debug 4";
     // optimize
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
@@ -473,7 +469,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// Dump timing info
   CLOG(DEBUG, "lidar.odometry_icp") << "Dump timing info inside loop: ";
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.odometry_icp") << "  " << clock_str[i] << timer[i]->count();
+    CLOG(DEBUG, "lidar.odometry_icp") << "  " << clock_str[i] << timer[i]->count() / 1e6;
   }
 
   /// Outputs

@@ -59,6 +59,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
 
     // DOPPLER
     int num_sensors = 1;
+    long int ransac_seed = 0;
     int ransac_max_iter = 20;
     double ransac_thres = 0.2;
     double ransac_min_range = 20.0;
@@ -86,15 +87,9 @@ class OdometryDopplerModule : public tactic::BaseModule {
  protected: 
   // vector to track elapsed time
   std::vector<double> tot_timers{0.0, 0.0, 0.0, 0.0, 0.0};
-
-  // precomputed measurement model (to avoid repeated calculations in RANSAC and main solve)
-  Eigen::Matrix<double,Eigen::Dynamic,6> ransac_precompute_;
-  Eigen::Matrix<double,Eigen::Dynamic,1> meas_precompute_;
-  Eigen::Matrix<double,Eigen::Dynamic,1> alpha_precompute_;
-  Eigen::Matrix<double,Eigen::Dynamic,1> malpha_precompute_;
+  int frame_count = 0;
 
   // ransac generator
-  long int seed_ = 0;
   std::mt19937_64 random_engine_;  
 
   // extrinsic
@@ -103,6 +98,10 @@ class OdometryDopplerModule : public tactic::BaseModule {
 
   // precompute
   Eigen::Matrix<double, 12, 12> wnoa_lhs_;
+
+  // save linear system
+  Eigen::Matrix<double, 6, 6> last_lhs_;
+  Eigen::Matrix<double, 6, 1> last_rhs_;
 
   // gyro inverse covariance
   std::vector<Eigen::Matrix3d> gyro_invcov_;

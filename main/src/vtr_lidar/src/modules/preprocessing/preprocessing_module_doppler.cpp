@@ -202,27 +202,21 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<std::vector<PointWFlag>> grid(config_->num_rows, std::vector<PointWFlag>(config_->num_cols, PointWFlag(false, NULL)));
   // iterate over each point
   for (unsigned i = 0; i < filtered_point_cloud.size(); i++) {
-    // point.range = sqrt(point.pt[0]*point.pt[0] + point.pt[1]*point.pt[1] + point.pt[2]*point.pt[2]);
-    if (filtered_point_cloud[i].rho < config_->min_dist || filtered_point_cloud[i].rho > config_->max_dist)
+    const double range = sqrt(filtered_point_cloud[i].x * filtered_point_cloud[i].x + filtered_point_cloud[i].y * filtered_point_cloud[i].y + filtered_point_cloud[i].z * filtered_point_cloud[i].z);
+    if (range < config_->min_dist || range > config_->max_dist)
       continue;
-
-    // const double range = sqrt(filtered_point_cloud[i].x * filtered_point_cloud[i].x + filtered_point_cloud[i].y * filtered_point_cloud[i].y + filtered_point_cloud[i].z * filtered_point_cloud[i].z);
-    // const double azimuth = atan2_approx(filtered_point_cloud[i].y, filtered_point_cloud[i].x, pi, pi_2);
+    
+    // use atan2_approx for speed, atan2 takes ~3ms longer per frame
+    const double azimuth = atan2_approx(filtered_point_cloud[i].y, filtered_point_cloud[i].x, pi, pi_2);
     const double xy = sqrt(filtered_point_cloud[i].x * filtered_point_cloud[i].x + filtered_point_cloud[i].y * filtered_point_cloud[i].y);
-    // double elevation = atan2(point.pt[2], xy);
     const double elevation = atan2_approx(filtered_point_cloud[i].z, xy, pi, pi_2);
 
-    // CLOG(WARNING, "lidar.prepro") << "azi 1 " << azimuth;
-    // CLOG(WARNING, "lidar.prepro") << "azi 2 " << filtered_point_cloud[i].phi;
-    // CLOG(WARNING, "lidar.prepro") << "ele 1 " << elevation;
-    // CLOG(WARNING, "lidar.prepro") << "ele 2 " << filtered_point_cloud[i].theta;
-
     // skip if not within azimuth bounds (horizontal fov)
-    if (filtered_point_cloud[i].phi <= config_->azimuth_start || filtered_point_cloud[i].phi >= config_->azimuth_end)
+    if (azimuth <= config_->azimuth_start || azimuth >= config_->azimuth_end)
       continue;
 
     // determine column
-    const short col = (config_->num_cols - 1) - int((filtered_point_cloud[i].phi - config_->azimuth_start)/config_->azimuth_res);
+    const short col = (config_->num_cols - 1) - int((azimuth - config_->azimuth_start)/config_->azimuth_res);
   
     // determine row by matching by beam_id (0, 1, 2, or 3) and closest elevation to precalculated values
     // note: elevation_order_by_beam_id_[sensorid][point.beam_id] first column is mean elevation, second column is row id

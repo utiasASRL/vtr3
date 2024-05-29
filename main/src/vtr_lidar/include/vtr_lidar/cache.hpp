@@ -38,6 +38,7 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
   tactic::Cache<const std::vector<Eigen::MatrixXd>> gyro;
   tactic::Cache<const int64_t> initial_timestamp;
+  tactic::Cache<const int64_t> next_state_time;
 
   // preprocessing
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
@@ -52,8 +53,6 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
-  tactic::Cache<Eigen::Matrix<double, 6, 6>> last_lhs_;
-  tactic::Cache<Eigen::Matrix<double, 6, 1>> last_rhs_;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
