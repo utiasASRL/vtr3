@@ -517,7 +517,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     try
     {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
-      auto MPCResult = SolveMPC(mpc_config);
+      auto MPCResult = SolveMPC(mpc_config, robot_state.chain.ptr());
       mpc_vel = MPCResult.applied_vel; // note dont re-declare applied vel here
       mpc_poses = MPCResult.mpc_poses;
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";

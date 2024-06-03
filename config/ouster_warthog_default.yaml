@@ -25,6 +25,7 @@
       - cbit.debug
       - mpc.solver
       - mpc.speed_scheduler
+      - mpc.cost_function
       #- mpc.cbit
       #- mpc_debug
       - cbit.control
@@ -375,7 +376,7 @@
         pose_error_weight: 1.0
         vel_error_weight: 0.1
         acc_error_weight: 0.1
-        lat_error_weight: 0.01
+        lat_error_weight: 1.0
 
         # Misc
         command_history_length: 100

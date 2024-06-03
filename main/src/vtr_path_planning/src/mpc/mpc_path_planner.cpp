@@ -24,8 +24,10 @@
 
 
 // Main MPC problem solve function - TODO: dump all these arguments into an mpc config class
-struct MPCResult SolveMPC(const MPCConfig& config)
+struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationChain::Ptr chain)
 {
+    using namespace steam;
+
     // Access configuration parameters from the config structure
     Eigen::Vector2d previous_vel = config.previous_vel;
     lgmath::se3::Transformation T0 = config.T0;
@@ -53,9 +55,6 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     // Conduct an MPC Iteration given current configurations
 
     // Velocity set-points (desired forward velocity and angular velocity), here we set a static forward target velocity, and try to minimize rotations (0rad/sec)
-    // Eigen::Matrix<double, 2, 1> v_ref;
-    // v_ref << VF,
-    //             0;
 
 
     // Kinematic projection Matrix for Unicycle Model (note its -1's because our varpi lie algebra vector is of a weird frame)
@@ -66,12 +65,6 @@ struct MPCResult SolveMPC(const MPCConfig& config)
                 0, 0,
                 0, 0,
                 0, -1;
-
-    // Lateral constraint projection matrices (Experimental)
-    Eigen::Vector3d I_4; // In steam, the homopoint vars automatically add the 4th row 1, so representing I_4 just needs the 3 zeros
-    I_4 << 0,
-           0,
-           0;
 
 
     // Setup shared loss functions and noise models for all cost terms
@@ -89,164 +82,94 @@ struct MPCResult SolveMPC(const MPCConfig& config)
     auto T0_var = steam::se3::SE3StateVar::MakeShared(T0_inv);
     T0_var->locked() = true;
 
-    Eigen::Vector2d v0(VF, 0.0);
 
-    // Create STEAM states
-    // std::vector<steam::se3::SE3StateVar::Ptr> pose_state_vars;
-    std::vector<steam::vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
-    std::vector<steam::se3::SE3StateVar::Ptr> measurement_vars; // This one is for storing measurements as locked evaluators for barrier constraints
-    
-    // Create a locked state var for the 4th column of the identity matrix (used in state constraint)
-    steam::stereo::HomoPointStateVar::Ptr I_4_eval = steam::stereo::HomoPointStateVar::MakeShared(I_4);
-    I_4_eval->locked() = true;
 
-    // Create STEAM variables
-    for (int i = 1; i < K; i++)
-    {
-        vel_state_vars.push_back(steam::vspace::VSpaceStateVar<2>::MakeShared(v0)); 
+    const Eigen::Vector2d V_REF {VF, 0.0};
+
+    const Eigen::Vector2d V_MAX {VF+0.1, VF+0.1};
+    const Eigen::Vector2d V_MIN = -V_MAX;
+
+    const Eigen::Vector2d ACC_MAX {0.1, 0.2};
+    const Eigen::Vector2d ACC_MIN {-0.1, -0.2};
+
+    // Setup shared loss functions and noise models for all cost terms
+    const auto l2Loss = L2LossFunc::MakeShared();
+
+
+    std::vector<vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
+    // vel_state_vars.push_back(vspace::VSpaceStateVar<2>::MakeShared(previous_vel)); 
+    // vel_state_vars.front()->locked() = true;
+
+    for (unsigned i = 0; i < K; i++) {
+        vel_state_vars.push_back(vspace::VSpaceStateVar<2>::MakeShared(Eigen::Vector2d::Zero())); 
+        std::cout << "Initial velo " << vel_state_vars.back()->value() << std::endl;
     }
 
+    steam::Timer timer;
+    double final_cost = 0;
+    double initial_cost = std::numeric_limits<double>::max();
 
-    // Setup the optimization problem
-    steam::OptimizationProblem opt_problem;
+    for (double weight = 1.0; weight > 5e-5; weight *= 0.8) {
 
-    // The velocity states should have one less variable then the pose states
-    for (auto& vel_var : vel_state_vars)
-    {
+      // Setup the optimization problem
+      OptimizationProblem opt_problem;
+
+      Evaluable<lgmath::se3::Transformation>::Ptr Tf_acc = T0_var;
+
+      // Create STEAM variables
+      for (const auto &vel_var : vel_state_vars)
+      {
         opt_problem.addStateVariable(vel_var);
-    }
+        const auto vel_cost_term = WeightedLeastSqCostTerm<2>::MakeShared(vspace::vspace_error<2>(vel_var, V_REF), sharedVelNoiseModel, l2Loss);
+        opt_problem.addCostTerm(vel_cost_term);
 
-    // Generate the cost terms using combinations of the built-in steam evaluators
-    // double dynamic_pose_error_weight = pose_error_weight;
-
-    steam::Evaluable<lgmath::se3::Transformation>::Ptr Tf_acc = T0_var;
-    for (int i = 0; i < vel_state_vars.size(); i++)
-    {
-      auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
-      auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
-      auto deltaTf = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
-      Tf_acc = steam::se3::compose(deltaTf, Tf_acc);
-
-      // Pose Error
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(vel_var, V_MAX), weight));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(vel_var, V_MIN)), weight));
       
-      const auto pose_error_func = steam::se3::se3_error(Tf_acc, homotopy_reference_poses[i+1]);
-      const auto pose_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(pose_error_func, sharedPoseNoiseModel, sharedLossFunc);
-      opt_problem.addCostTerm(pose_cost_term);
-      //dynamic_pose_error_weight = dynamic_pose_error_weight * 0.95;
-      //Note to reintroduce down-weighting of distant poses, make distince noise models, not loss functions!
-      
-
-      // Kinematic constraints (softened but penalized heavily)
-      if (i < (K-1))
-      {
-        // const auto lhs = steam::se3::compose_rinv(pose_state_vars[i+1], pose_state_vars[i]);
-        // const auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
-        // const auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
-        // const auto rhs = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
-        // const auto kin_error_func = steam::se3::tran2vec(steam::se3::compose_rinv(lhs, rhs));
-        // const auto kin_cost_term = steam::WeightedLeastSqCostTerm<6>::MakeShared(kin_error_func, sharedKinNoiseModel, sharedLossFunc);
-        // opt_problem.addCostTerm(kin_cost_term);
-
-        // Non-Zero Velocity Penalty (penalty of non resting control effort helps with point stabilization)
-        // Only add this cost term if we are not in point stabilization mode (end of path)
-        if (point_stabilization == false) {
-          const auto vel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(vel_state_vars[i], sharedVelNoiseModel, sharedLossFunc);
-          opt_problem.addCostTerm(vel_cost_term);
-        }
         
-        
-        // Acceleration Constraints
-        if (i == 0) {
-          // On the first iteration, we need to use an error with the previously applied control command state
-          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(steam::vspace::VSpaceErrorEvaluator<2>::MakeShared(vel_state_vars[i], previous_vel), sharedAccelNoiseModel, sharedLossFunc);
-          opt_problem.addCostTerm(accel_cost_term);
-        } else {
-          // Subsequent iterations we make an error between consecutive velocities. We penalize large changes in velocity between time steps
-          const auto accel_diff = steam::vspace::AdditionEvaluator<2>::MakeShared(vel_state_vars[i], steam::vspace::NegationEvaluator<2>::MakeShared(vel_state_vars[i-1]));
-          const auto accel_cost_term = steam::WeightedLeastSqCostTerm<2>::MakeShared(accel_diff, sharedAccelNoiseModel, sharedLossFunc);
-          opt_problem.addCostTerm(accel_cost_term);
-        }  
+        auto vel_proj = vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_var, P_tran);
+        auto scaled_vel_proj = vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, -DT);
+        auto deltaTf = se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
+        Tf_acc = se3::compose(deltaTf, Tf_acc);
+
+        const auto pose_error_func = steam_extension::path_track_error(Tf_acc, chain);
+        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<1>::MakeShared(pose_error_func, sharedLatNoiseModel, sharedLossFunc);
+        opt_problem.addCostTerm(pose_cost_term);
+
       }
 
-      // Laterial Barrier State Constraints (only when using homotopy guided MPC)
-      if (i >= 0)
+      for (unsigned i = 1; i < vel_state_vars.size(); i++)
       {
-        // Generate a locked transform evaluator to store the current measurement for state constraints
-        // The reason we make it a variable and lock it is so we can use the built in steam evaluators which require evaluable inputs
-        measurement_vars.push_back(steam::se3::SE3StateVar::MakeShared(homotopy_reference_poses[i]));
-        measurement_vars[i]->locked() = true;
-
-        // Take the compose inverse of the locked measurement w.r.t the state transforms
-        const auto compose_inv = steam::se3::ComposeInverseEvaluator::MakeShared(measurement_vars[i], Tf_acc);
-
-        // Use the ComposeLandmarkEvaluator to right multiply the 4th column of the identity matrix to create a 4x1 homogenous point vector with lat,lon,alt error components
-        const auto error_vec = steam::stereo::ComposeLandmarkEvaluator::MakeShared(compose_inv, I_4_eval);
-
-        // Build lateral barrier terms by querying the current cbit corridor
-        Eigen::Matrix<double, 4, 1> barrier_right;
-        barrier_right <<  0,
-                          barrier_q_right[i],
-                          0,
-                          1;
-        Eigen::Matrix<double, 4, 1> barrier_left;
-        barrier_left <<   0.0,
-                          barrier_q_left[i],
-                          0,
-                          1;
-
-        CLOG(DEBUG, "mpc.debug") << "Left Barrier for this meas is: " << barrier_q_left[i];
-        CLOG(DEBUG, "mpc.debug") << "Right Barrier for tis meas is: " << barrier_q_right[i];
-
-        // compute the lateral error using a custom Homogenous point error STEAM evaluator
-        const auto lat_error_right = steam::LateralErrorEvaluatorRight::MakeShared(error_vec, barrier_right); // TODO, rename this evaluator to something else
-        const auto lat_error_left = steam::LateralErrorEvaluatorLeft::MakeShared(error_vec, barrier_left);
-
-        // Previously used Log barriers, however due to instability switch to using inverse squared barriers
-        //const auto lat_barrier_right = steam::vspace::ScalarLogBarrierEvaluator<1>::MakeShared(lat_error_right);
-        //const auto lat_barrier_left = steam::vspace::ScalarLogBarrierEvaluator<1>::MakeShared(lat_error_left);
-
-        // For each side of the barrier, compute a scalar inverse barrier term to penalize being close to the bound
-        const auto lat_barrier_right = steam::vspace::ScalarInverseBarrierEvaluator<1>::MakeShared(lat_error_right);
-        const auto lat_barrier_left = steam::vspace::ScalarInverseBarrierEvaluator<1>::MakeShared(lat_error_left);
-
-        // Generate least square cost terms and add them to the optimization problem
-        const auto lat_cost_term_right = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_right, sharedLatNoiseModel, sharedLossFunc);
-        const auto lat_cost_term_left = steam::WeightedLeastSqCostTerm<1>::MakeShared(lat_barrier_left, sharedLatNoiseModel, sharedLossFunc);
-
-        // If using homotopy class based control, apply barrier constraints. Else ignore them (more stable but potentially more aggressive)
-        if (homotopy_mode == true)
-        {
-          opt_problem.addCostTerm(lat_cost_term_right);
-          opt_problem.addCostTerm(lat_cost_term_left);
-        }
+        const auto accel_term = vspace::add<2>(vel_state_vars[i], vspace::neg<2>(vel_state_vars[i-1]));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(accel_term, ACC_MAX), weight));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(accel_term, ACC_MIN)), weight));
       }
+
+
+      // Solve the optimization problem with GaussNewton solver
+      //using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
+      //using SolverType = steam::LineSearchGaussNewtonSolver;
+      using SolverType = LevMarqGaussNewtonSolver;
+
+      // Initialize solver parameters
+      SolverType::Params params;
+      params.verbose = false; // Makes the output display for debug when true
+      params.max_iterations = 100;
+      params.absolute_cost_change_threshold = 1e-3;
+
+      SolverType solver(opt_problem, params);
+
+      // if (initial_cost == std::numeric_limits<double>::max())
+      initial_cost = opt_problem.cost();
+      // Check the cost, disregard the result if it is unreasonable (i.e if its higher then the initial cost)
+
+
+      // Solve the optimization problem
+      solver.optimize();
+
+      final_cost = opt_problem.cost();
     }
-
-    // Solve the optimization problem with GaussNewton solver
-    //using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
-    //using SolverType = steam::LineSearchGaussNewtonSolver;
-    using SolverType = steam::DoglegGaussNewtonSolver;
-
-    // Initialize solver parameters
-    SolverType::Params params;
-    params.verbose = verbosity; // Makes the output display for debug when true
-    // params.relative_cost_change_threshold = 1e-4;
-    params.max_iterations = 100;
-    params.absolute_cost_change_threshold = 1e-2;
-    //params.backtrack_multiplier = 0.95; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
-    //params.max_backtrack_steps = 1000; // Line Search Specific Params, will fail to build if using GaussNewtonSolver
-
-    SolverType solver(opt_problem, params);
-
-    double initial_cost = opt_problem.cost();
-    // Check the cost, disregard the result if it is unreasonable (i.e if its higher then the initial cost)
-    CLOG(DEBUG, "mpc.solver") << "The Initial Solution Cost is:" << initial_cost;
-
-
-    // Solve the optimization problem
-    solver.optimize();
-
-    double final_cost = opt_problem.cost();
+    
     // Check the cost, disregard the result if it is unreasonable (i.e if its higher then the initial cost)
     CLOG(DEBUG, "mpc.solver") << "The Final Solution Cost is:" << final_cost;
 
@@ -331,6 +254,7 @@ struct MPCResult SolveMPC(const MPCConfig& config)
       // Return the resulting structure
       return {applied_vel, mpc_poses};
     }
+  
 }
 
 

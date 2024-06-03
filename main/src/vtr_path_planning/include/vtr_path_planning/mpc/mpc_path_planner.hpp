@@ -81,7 +81,7 @@ struct InterpResult
 // Declaring helper functions
 
 // Primary optimization function: Takes in the input configurations and the extrapolated robot pose, outputs a vector for the velocity to apply and the predicted horizon
-struct MPCResult SolveMPC(const MPCConfig& config);
+struct MPCResult SolveMPC(const MPCConfig& config, tactic::LocalizationChain::Ptr);
 
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<Pose>> cbit_path_ptr,  std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF);

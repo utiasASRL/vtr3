@@ -68,6 +68,13 @@ class Path {
   /** \brief Vertex id implicitly converts to unsigned */
   double dist(VertexId vtx_id) const = delete;
 
+  /** \brief Gets the curvilinear p value along the path at a sequence index */
+  double p(unsigned seq_id, double angle_weight=0.25) const;
+  /** \brief Gets the cumu. distance along the path at an iterator position */
+  double p(const Iterator& it, double angle_weight=0.25) const { return p(unsigned(it), angle_weight); }
+  /** \brief Vertex id implicitly converts to unsigned */
+  double p(VertexId vtx_id, double angle_weight=0.25) const = delete;
+
   /** \brief Returns the current sequence */
   Sequence sequence() const;
   /** \brief Total number of poses in the sequence */
@@ -95,6 +102,7 @@ class Path {
   Sequence sequence_;
   mutable std::vector<EdgeTransform> poses_;
   mutable std::vector<double> distances_;
+  mutable std::vector<double> p_vals_;
 
   /** \brief for thread safety, use whenever read from/write to the path */
   mutable Mutex mutex_;
@@ -195,6 +203,34 @@ double Path<GraphT>::dist(unsigned seq_id) const {
   }
 
   return distances_[seq_id];
+}
+
+template <class GraphT>
+double Path<GraphT>::p(unsigned seq_id, double angle_weight) const {
+  LockGuard lock(mutex_);
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][dist] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
+  // We've already done up to this point
+  if (seq_id < p_vals_.size()) return p_vals_[seq_id];
+
+  // expand on demand
+  auto it = begin(p_vals_.size());
+  if (p_vals_.empty()) {
+    p_vals_.emplace_back(0.);
+    ++it;
+  }
+  for (; unsigned(it) <= seq_id; ++it) {
+    Eigen::Matrix<double, 6, 1> se3_vec = it->T().vec();
+    double distance = se3_vec.head<3>().norm() +
+                      angle_weight * se3_vec.tail<3>().norm();
+    const_cast<Path<GraphT>*>(this)->p_vals_.push_back(
+        p_vals_.back() + distance);
+  }
+
+  return p_vals_[seq_id];
 }
 
 template <class GraphT>
