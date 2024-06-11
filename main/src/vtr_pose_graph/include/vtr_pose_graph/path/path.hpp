@@ -90,13 +90,14 @@ class Path {
 
   static double terrian_type_corridor_width(int terrain_type);
 
- protected:
-  virtual void initSequence();
-
   /** \brief An iterator to a specified id along the path */
   Iterator begin(const unsigned& seq_id = 0) const;
   /** \brief An iterator to the end of the path (beyond the last vertex) */
   Iterator end() const;
+
+ protected:
+  virtual void initSequence();
+
 
   typename GraphT::Ptr graph_;
   Sequence sequence_;

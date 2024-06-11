@@ -456,12 +456,13 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     CLOG(INFO, "cbit.control") << "Attempting to generate T_ref poses";
     auto ref_tracking_result = GenerateTrackingReference(cbit_path_ptr, robot_pose, K,  DT, VF);
     auto tracking_poses = ref_tracking_result.poses;
-    //bool point_stabilization = ref_tracking_result.point_stabilization; // No need to do both tracking and homotopy point stabilization
+    bool point_stabilization = ref_tracking_result.point_stabilization; // No need to do both tracking and homotopy point stabilization
     std::vector<double> p_interp_vec = ref_tracking_result.p_interp_vec;
     std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
 
+
     // Synchronized Tracking/Teach Reference Poses For Homotopy Guided MPC:
-    auto ref_homotopy_result = GenerateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, p_interp_vec);
+    /*auto ref_homotopy_result = generateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, p_interp_vec);
     auto homotopy_poses = ref_homotopy_result.poses;
     bool point_stabilization = ref_homotopy_result.point_stabilization;
     std::vector<double> barrier_q_left = ref_homotopy_result.barrier_q_left;
@@ -469,31 +470,29 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
     CLOG(DEBUG, "cbit.debug") << "Sizes of corridor " << barrier_q_left.size() << " , " << barrier_q_right.size();
 
+    std::vector<lgmath::se3::Transformation> homotopy_pose_vec;
+    for (size_t i = 0; i < homotopy_poses.size(); i++) {
+      homotopy_pose_vec.push_back(homotopy_poses[i].inverse());
+    }
+  */
     std::vector<lgmath::se3::Transformation> tracking_pose_vec;
     for (size_t i = 0; i < tracking_poses.size(); i++) {
       tracking_pose_vec.push_back(tracking_poses[i].inverse());
     }
 
-    std::vector<lgmath::se3::Transformation> homotopy_pose_vec;
-    for (size_t i = 0; i < homotopy_poses.size(); i++) {
-      homotopy_pose_vec.push_back(homotopy_poses[i].inverse());
-    }
 
+    Eigen::Vector2d measured_vel;
+    measured_vel << w_p_r_in_r.head<1>(), w_p_r_in_r.tail<1>();
     // Generate the mpc configuration structure:
     MPCConfig mpc_config;
-    mpc_config.previous_vel = applied_vel_;
+    mpc_config.previous_vel = measured_vel;
     mpc_config.T0 = T0;
     mpc_config.tracking_reference_poses = tracking_poses;
-    if (homotopy_guided_mpc == true)
-    {
-      mpc_config.homotopy_reference_poses = homotopy_poses;
-    }
-    else
-    {
-      mpc_config.homotopy_reference_poses = tracking_poses; // if not using homotopy guided mpc, set the homotopy reference poses to be the tracking poses
-    }
-    mpc_config.barrier_q_left = barrier_q_left;
-    mpc_config.barrier_q_right = barrier_q_right;
+
+    // mpc_config.homotopy_reference_poses = tracking_poses; // if not using homotopy guided mpc, set the homotopy reference poses to be the tracking poses
+
+    // mpc_config.barrier_q_left = barrier_q_left;
+    // mpc_config.barrier_q_right = barrier_q_right;
     mpc_config.K = K;
     mpc_config.DT = DT;
     mpc_config.VF = VF;
@@ -522,9 +521,13 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       mpc_poses = MPCResult.mpc_poses;
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
     } catch(steam::unsuccessful_step &e) {
-      CLOG(WARNING, "cbit.control") << "STEAM Optimization Failed; Commanding to Stop the Vehicle";
+      CLOG(WARNING, "cbit.control") << "STEAM Optimization Failed because " << e.what() << " Commanding to Stop the Vehicle";
+      return Command();
+    } catch(std::logic_error &e) {
+      CLOG(WARNING, "cbit.control") << "Violated barrier constraint! " << e.what() << " Commanding to Stop the Vehicle";
       return Command();
     }
+
 
     CLOG(INFO, "cbit.control") << "The linear velocity is:  " << mpc_vel(0) << " The angular vel is: " << mpc_vel(1);
 
@@ -533,9 +536,10 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     command.linear.x = mpc_vel(0);
     command.angular.z = mpc_vel(1);
 
+    auto ref_homotopy_result = generateHomotopyReference(mpc_poses, robot_state.chain.ptr());
 
     // visualize the outputs
-    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, mpc_poses, robot_poses, tracking_pose_vec, homotopy_pose_vec, cbit_path_ptr, corridor_ptr);
+    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, mpc_poses, robot_poses, tracking_pose_vec, ref_homotopy_result.poses, cbit_path_ptr, corridor_ptr);
 
     return command;
   }

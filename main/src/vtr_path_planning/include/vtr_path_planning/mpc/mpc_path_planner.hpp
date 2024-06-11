@@ -65,7 +65,6 @@ struct PoseResultTracking
 struct PoseResultHomotopy
 {
     std::vector<lgmath::se3::Transformation> poses;
-    bool point_stabilization;
     std::vector<double> barrier_q_left;
     std::vector<double> barrier_q_right;
 };
@@ -87,7 +86,7 @@ struct MPCResult SolveMPC(const MPCConfig& config, tactic::LocalizationChain::Pt
 struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<Pose>> cbit_path_ptr,  std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF);
 
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
-struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, const std::vector<double> &p_interp_vec);
+PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
 
 // Helper function for post-processing and saturating the velocity command
 Eigen::Vector2d SaturateVel(const Eigen::Vector2d applied_vel, double v_lim, double w_lim);

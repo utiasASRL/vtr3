@@ -24,8 +24,7 @@
 #include "lgmath.hpp"
 #include "vtr_tactic/types.hpp"
 
-namespace vtr {
-namespace steam_extension {
+namespace vtr::steam_extension {
 
   using namespace lgmath::se3;
   using namespace steam;
@@ -43,124 +42,40 @@ namespace steam_extension {
   };
   
 
-  class LateralErrorEvaluator : public Evaluable<Eigen::Matrix<double, 1, 1>> {
+  class PathInterpolator : public Evaluable<Transformation> {
   public:
-    using Ptr = std::shared_ptr<LateralErrorEvaluator>;
-    using ConstPtr = std::shared_ptr<const LateralErrorEvaluator>;
+    using Ptr = std::shared_ptr<PathInterpolator>;
+    using ConstPtr = std::shared_ptr<const PathInterpolator>;
 
-    using PathPtr = tactic::LocalizationChain::Ptr;
-    using PathIter = pose_graph::PathIterator<tactic::LocalizationChain::Parent>;
-    // using InType = Eigen::Matrix<double, 6, 1>;
     using InType = Transformation;
-    using OutType = Eigen::Matrix<double, 1, 1>;
-    using Segment = std::pair<unsigned, unsigned>;
+    using OutType = Transformation;
 
     static Ptr MakeShared(const Evaluable<InType>::ConstPtr& tf,
-                          const PathPtr path);
+                          const Transformation seq_start,
+                          const Transformation seq_end);
 
-    LateralErrorEvaluator(const Evaluable<InType>::ConstPtr& tf,
-                          const PathPtr path): tf_{tf}, xi_{se3::tran2vec(tf_)},
-                          path_{path},
-                          last_closest_sid_{path->trunkSequenceId()}   {};
+    PathInterpolator(const Evaluable<InType>::ConstPtr& tf,
+                     const Transformation seq_start, Transformation seq_end)
+        : tf_{tf}, seq_start_{seq_start}, seq_end_{seq_end} {};
 
     bool active() const override;
-    void getRelatedVarKeys(KeySet& keys) const override;
+    void getRelatedVarKeys(KeySet& keys) const override{};
 
     OutType value() const override;
-    typename steam::Node<OutType>::Ptr forward() const override;
-    void backward(const Eigen::MatrixXd& lhs, const typename steam::Node<OutType>::Ptr& node,
-                  Jacobians& jacs) const override;
+    steam::Node<OutType>::Ptr forward() const override;
+    void backward(const Eigen::MatrixXd& lhs,
+                  const typename steam::Node<OutType>::Ptr& node,
+                  Jacobians& jacs) const override{};
 
   private:
     /** \brief Transform to vec evaluable */
     const Evaluable<InType>::ConstPtr tf_;
-    /** \brief Transform to vec evaluable */
-    const Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr xi_;
-    /** \brief Reference path */
-    const PathPtr path_;
+    const se3::PoseInterpolator::Ptr path_;
+
+    const se3::ComposeInverseEvaluator::ConstPtr se3_err_;
 
     /** Return sequence id of path*/
-    Segment findClosestSegment(const Transformation T_rw) const;
-    unsigned last_closest_sid_;
+    const Transformation seq_start_;
+    const Transformation seq_end_;
   };
-
-  LateralErrorEvaluator::Ptr path_track_error(const Evaluable<LateralErrorEvaluator::InType>::ConstPtr& tf,
-                          const LateralErrorEvaluator::PathPtr path);
 }
-}
-
-namespace steam {
-class LateralErrorEvaluatorLeft : public Evaluable<Eigen::Matrix<double, 1, 1>> {
- public:
-  using Ptr = std::shared_ptr<LateralErrorEvaluatorLeft>;
-  using ConstPtr = std::shared_ptr<const LateralErrorEvaluatorLeft>;
-
-  using InType = Eigen::Vector4d;
-  using OutType = Eigen::Matrix<double, 1, 1>;
-
-  static Ptr MakeShared(const Evaluable<InType>::ConstPtr& pt,
-                        const InType& meas_pt);
-  LateralErrorEvaluatorLeft(const Evaluable<InType>::ConstPtr& pt,
-                          const InType& meas_pt);
-
-  bool active() const override;
-  void getRelatedVarKeys(KeySet& keys) const override;
-
-  OutType value() const override;
-  Node<OutType>::Ptr forward() const override;
-  void backward(const Eigen::MatrixXd& lhs, const Node<OutType>::Ptr& node,
-                Jacobians& jacs) const override;
-
- private:
-  /** \brief Transform evaluable */
-  const Evaluable<InType>::ConstPtr pt_;
-  /** \brief Landmark state variable */
-  const InType meas_pt_;
-  // constants
-  Eigen::Matrix<double, 1, 4> D_ = Eigen::Matrix<double, 1, 4>::Zero();
-};
-
-LateralErrorEvaluatorLeft::Ptr homo_point_error_left(
-    const Evaluable<LateralErrorEvaluatorLeft::InType>::ConstPtr& pt,
-    const LateralErrorEvaluatorLeft::InType& meas_pt);
-
-
-
-
-
-class LateralErrorEvaluatorRight : public Evaluable<Eigen::Matrix<double, 1, 1>> {
- public:
-  using Ptr = std::shared_ptr<LateralErrorEvaluatorRight>;
-  using ConstPtr = std::shared_ptr<const LateralErrorEvaluatorRight>;
-
-  using InType = Eigen::Vector4d;
-  using OutType = Eigen::Matrix<double, 1, 1>;
-
-  static Ptr MakeShared(const Evaluable<InType>::ConstPtr& pt,
-                        const InType& meas_pt);
-  LateralErrorEvaluatorRight(const Evaluable<InType>::ConstPtr& pt,
-                          const InType& meas_pt);
-
-  bool active() const override;
-  void getRelatedVarKeys(KeySet& keys) const override;
-
-  OutType value() const override;
-  Node<OutType>::Ptr forward() const override;
-  void backward(const Eigen::MatrixXd& lhs, const Node<OutType>::Ptr& node,
-                Jacobians& jacs) const override;
-
- private:
-  /** \brief Transform evaluable */
-  const Evaluable<InType>::ConstPtr pt_;
-  /** \brief Landmark state variable */
-  const InType meas_pt_;
-  // constants
-  Eigen::Matrix<double, 1, 4> D_ = Eigen::Matrix<double, 1, 4>::Zero();
-};
-
-LateralErrorEvaluatorRight::Ptr homo_point_error_right(
-    const Evaluable<LateralErrorEvaluatorRight::InType>::ConstPtr& pt,
-    const LateralErrorEvaluatorRight::InType& meas_pt);
-
-
-}  // namespace steam

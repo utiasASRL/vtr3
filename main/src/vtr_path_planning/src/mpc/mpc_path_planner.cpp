@@ -17,6 +17,8 @@
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 
+#include <ranges>
+
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 #include "vtr_path_planning/mpc/lateral_error_evaluators.hpp"
 #include "vtr_path_planning/mpc/scalar_log_barrier_evaluator.hpp"
@@ -24,238 +26,238 @@
 
 
 // Main MPC problem solve function - TODO: dump all these arguments into an mpc config class
-struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationChain::Ptr chain)
-{
-    using namespace steam;
+struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationChain::Ptr chain) {
+  using namespace steam;
 
-    // Access configuration parameters from the config structure
-    Eigen::Vector2d previous_vel = config.previous_vel;
-    lgmath::se3::Transformation T0 = config.T0;
-    std::vector<lgmath::se3::Transformation> homotopy_reference_poses = config.homotopy_reference_poses;
-    std::vector<lgmath::se3::Transformation> tracking_reference_poses = config.tracking_reference_poses;
-    std::vector<double> barrier_q_left = config.barrier_q_left;
-    std::vector<double> barrier_q_right = config.barrier_q_right;
-    int K = config.K;
-    double DT = config.DT;
-    double VF = config.VF;
-    Eigen::Matrix<double, 1, 1> lat_noise_vect = config.lat_noise_vect;
-    Eigen::Matrix<double, 6, 6> pose_noise_vect = config.pose_noise_vect;
-    Eigen::Matrix<double, 2, 2> vel_noise_vect = config.vel_noise_vect;
-    Eigen::Matrix<double, 2, 2> accel_noise_vect = config.accel_noise_vect;
-    Eigen::Matrix<double, 6, 6> kin_noise_vect = config.kin_noise_vect;
-    bool point_stabilization = config.point_stabilization;
-    double pose_error_weight = config.pose_error_weight;
-    double vel_error_weight = config.vel_error_weight;
-    double acc_error_weight = config.acc_error_weight;
-    double kin_error_weight = config.kin_error_weight;
-    double lat_error_weight = config.lat_error_weight;
-    bool verbosity = config.verbosity;
-    bool homotopy_mode = config.homotopy_mode;
+  // Access configuration parameters from the config structure
+  Eigen::Vector2d previous_vel = config.previous_vel;
+  lgmath::se3::Transformation T0 = config.T0;
+  std::vector<lgmath::se3::Transformation> tracking_reference_poses = config.tracking_reference_poses;
+  std::vector<double> barrier_q_left = config.barrier_q_left;
+  std::vector<double> barrier_q_right = config.barrier_q_right;
+  int rollout_window = config.K;
+  double DT = config.DT;
+  double VF = config.VF;
+  Eigen::Matrix<double, 1, 1> lat_noise_vect = config.lat_noise_vect;
+  Eigen::Matrix<double, 2, 2> vel_noise_vect = config.vel_noise_vect;
+  bool point_stabilization = config.point_stabilization;
+  double vel_error_weight = config.vel_error_weight;
+  double lat_error_weight = config.lat_error_weight;
+  bool verbosity = config.verbosity;
+  bool homotopy_mode = config.homotopy_mode;
 
-    // Conduct an MPC Iteration given current configurations
+  // Conduct an MPC Iteration given current configurations
 
-    // Velocity set-points (desired forward velocity and angular velocity), here we set a static forward target velocity, and try to minimize rotations (0rad/sec)
-
-
-    // Kinematic projection Matrix for Unicycle Model (note its -1's because our varpi lie algebra vector is of a weird frame)
-    Eigen::Matrix<double, 6, 2> P_tran;
-    P_tran << -1, 0,
-                0, 0,
-                0, 0,
-                0, 0,
-                0, 0,
-                0, -1;
-
-
-    // Setup shared loss functions and noise models for all cost terms
-    const auto sharedLossFunc = steam::L2LossFunc::MakeShared();
-
-    // Cost term Noise Covariance Initialization
-    const auto sharedPoseNoiseModel = steam::StaticNoiseModel<6>::MakeShared(pose_noise_vect / pose_error_weight);
-    const auto sharedVelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(vel_noise_vect / vel_error_weight);
-    const auto sharedAccelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(accel_noise_vect / acc_error_weight);
-    const auto sharedKinNoiseModel = steam::StaticNoiseModel<6>::MakeShared(kin_noise_vect / kin_error_weight);
-    const auto sharedLatNoiseModel = steam::StaticNoiseModel<1>::MakeShared(lat_noise_vect / lat_error_weight);
-
-    // Invert the extrapolated robot state and use this as the state initialization
-    lgmath::se3::Transformation T0_inv = T0.inverse();
-    auto T0_var = steam::se3::SE3StateVar::MakeShared(T0_inv);
-    T0_var->locked() = true;
+  // Invert the extrapolated robot state and use this as the state initialization
+  lgmath::se3::Transformation T0_inv = T0.inverse();
+  auto T_init = steam::se3::SE3StateVar::MakeShared(T0);
+  T_init->locked() = true;
 
 
 
-    const Eigen::Vector2d V_REF {VF, 0.0};
+  const Eigen::Vector2d V_REF{VF, 0.0};
+  const Eigen::Vector2d V_INIT{VF, 0.0};
 
-    const Eigen::Vector2d V_MAX {VF+0.1, VF+0.1};
-    const Eigen::Vector2d V_MIN = -V_MAX;
+  const Eigen::Vector2d V_MAX{1.5, 1.0};
+  const Eigen::Vector2d V_MIN{-1.5, -1.0};
 
-    const Eigen::Vector2d ACC_MAX {0.1, 0.2};
-    const Eigen::Vector2d ACC_MIN {-0.1, -0.2};
+  const Eigen::Vector2d ACC_MAX{5.0, 8.0};
+  const Eigen::Vector2d ACC_MIN{-5.0, -8.0};
 
-    // Setup shared loss functions and noise models for all cost terms
-    const auto l2Loss = L2LossFunc::MakeShared();
+  Eigen::Matrix<double, 6, 2> P_tran;
+  P_tran << 1, 0,
+            0, 0,
+            0, 0,
+            0, 0,
+            0, 0,
+            0, 1;
 
 
-    std::vector<vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
-    // vel_state_vars.push_back(vspace::VSpaceStateVar<2>::MakeShared(previous_vel)); 
-    // vel_state_vars.front()->locked() = true;
+  auto tf_from_global = [](double x, double y,
+                           double theta) -> lgmath::se3::Transformation {
+    auto rotm = lgmath::so3::vec2rot({0, 0, theta});
+    Eigen::Vector3d final_pose{x, y, 0};
+    return lgmath::se3::Transformation(rotm, -rotm.transpose() * final_pose);
+  };
 
-    for (unsigned i = 0; i < K; i++) {
-        vel_state_vars.push_back(vspace::VSpaceStateVar<2>::MakeShared(Eigen::Vector2d::Zero())); 
-        std::cout << "Initial velo " << vel_state_vars.back()->value() << std::endl;
+  // Setup shared loss functions and noise models for all cost terms
+  const auto l2Loss = L2LossFunc::MakeShared();
+  Eigen::Matrix2d vel_cov = Eigen::Matrix2d::Zero();
+  vel_cov.diagonal() << 100.0, 1e5;
+  const auto sharedVelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(
+      vel_cov);
+
+  Eigen::Matrix<double, 6, 6> pose_cov =
+      Eigen::Matrix<double, 6, 6>::Identity();
+  pose_cov.diagonal() << 1.0, 1.0, 1e5, 1e5, 1e5, 1e2;
+  const auto finalPoseNoiseModel =
+      steam::StaticNoiseModel<6>::MakeShared(pose_cov);
+
+  std::vector<vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
+  std::vector<Eigen::Vector2d> last_valid_vels;
+
+  auto seq_start = tf_from_global(0, 2, M_PI);
+  auto seq_end = tf_from_global(-3, -1, -M_PI_2);
+
+  auto T_final = se3::SE3StateVar::MakeShared(seq_end);
+  T_final->locked() = true;
+
+  for (unsigned i = 0; i < rollout_window; i++) {
+    vel_state_vars.push_back(
+        vspace::VSpaceStateVar<2>::MakeShared(V_INIT));
+    std::cout << "Initial velo " << vel_state_vars.back()->value() << std::endl;
+  }
+
+  steam::Timer timer;
+
+  std::vector<Evaluable<lgmath::se3::Transformation>::Ptr> pose_vars;
+  std::vector<Evaluable<lgmath::se3::Transformation>::Ptr> path_vars;
+  double final_cost = std::numeric_limits<double>::max();
+
+  for (double weight = 1.0; weight > 1e-2; weight *= 0.8) {
+    pose_vars.clear();
+    path_vars.clear();
+    std::vector<lgmath::se3::Transformation> pose_vals;
+
+    std::cout << "Weight is: " << weight;
+
+    // Setup the optimization problem
+    OptimizationProblem opt_problem;
+
+    Evaluable<lgmath::se3::Transformation>::Ptr Tf_acc = T_init;
+
+    // Create STEAM variables
+    for (unsigned i = 0; i < rollout_window; i++) {
+      auto& vel_var = vel_state_vars[i];
+
+      auto vel_proj =
+          vspace::MatrixMultEvaluator<6, 2>::MakeShared(vel_var, DT * P_tran);
+      auto deltaTf = se3::ExpMapEvaluator::MakeShared(vel_proj);
+      Tf_acc = se3::compose(Tf_acc, deltaTf);
+      pose_vars.push_back(Tf_acc);
+      pose_vals.push_back(Tf_acc->value());
     }
 
-    steam::Timer timer;
-    double final_cost = 0;
-    double initial_cost = std::numeric_limits<double>::max();
 
-    for (double weight = 1.0; weight > 5e-5; weight *= 0.8) {
+    const auto pose_refs = generateHomotopyReference(pose_vals, chain);
 
-      // Setup the optimization problem
-      OptimizationProblem opt_problem;
+    try{
+    for (unsigned i = 0; i < rollout_window; i++) {
+      auto& vel_var = vel_state_vars[i];
+      auto& Tf_k = pose_vars[i];
 
-      Evaluable<lgmath::se3::Transformation>::Ptr Tf_acc = T0_var;
+      // const auto interp_state = se3::SE3StateVar::MakeShared(pose_refs.poses[i]);
+      const auto interp_state = se3::SE3StateVar::MakeShared(chain->pose(std::min(chain->trunkSequenceId() + i, unsigned(chain->size()) - 1)));
+      interp_state->locked() = true;
+      path_vars.push_back(interp_state);
 
-      // Create STEAM variables
-      for (const auto &vel_var : vel_state_vars)
-      {
-        opt_problem.addStateVariable(vel_var);
-        const auto vel_cost_term = WeightedLeastSqCostTerm<2>::MakeShared(vspace::vspace_error<2>(vel_var, V_REF), sharedVelNoiseModel, l2Loss);
-        opt_problem.addCostTerm(vel_cost_term);
+      opt_problem.addStateVariable(vel_var);
+      const auto vel_cost_term = WeightedLeastSqCostTerm<2>::MakeShared(
+          vspace::vspace_error<2>(vel_var, V_REF), sharedVelNoiseModel, l2Loss);
+      opt_problem.addCostTerm(vel_cost_term);
 
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(vel_var, V_MAX), weight));
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(vel_var, V_MIN)), weight));
-      
-        
-        auto vel_proj = vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_var, P_tran);
-        auto scaled_vel_proj = vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, -DT);
-        auto deltaTf = se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
-        Tf_acc = se3::compose(deltaTf, Tf_acc);
+      const auto path_cost = WeightedLeastSqCostTerm<6>::MakeShared(se3::tran2vec(se3::compose(
+        se3::inverse(interp_state), Tf_k)), finalPoseNoiseModel, l2Loss);
+      opt_problem.addCostTerm(path_cost);
 
-        const auto pose_error_func = steam_extension::path_track_error(Tf_acc, chain);
-        const auto pose_cost_term = steam::WeightedLeastSqCostTerm<1>::MakeShared(pose_error_func, sharedLatNoiseModel, sharedLossFunc);
-        opt_problem.addCostTerm(pose_cost_term);
 
+      opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(vel_var,
+      V_MAX), weight));
+      opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(vel_var,
+      V_MIN)), weight));
+
+
+      if (i > 0) {
+        const auto accel_term = vspace::add<2>(
+            vel_state_vars[i], vspace::neg<2>(vel_state_vars[i - 1]));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(accel_term,
+        DT*ACC_MAX), weight));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(accel_term,
+        DT*ACC_MIN)), weight));
+      } else {
+        const auto accel_term = vspace::vspace_error<2>(
+            vspace::neg<2>(vel_state_vars[i]), -previous_vel);
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(accel_term,
+        DT*ACC_MAX), weight));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(accel_term,
+        DT*ACC_MIN)), weight));
       }
+    }
 
-      for (unsigned i = 1; i < vel_state_vars.size(); i++)
-      {
-        const auto accel_term = vspace::add<2>(vel_state_vars[i], vspace::neg<2>(vel_state_vars[i-1]));
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(accel_term, ACC_MAX), weight));
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(accel_term, ACC_MIN)), weight));
-      }
-
-
-      // Solve the optimization problem with GaussNewton solver
-      //using SolverType = steam::GaussNewtonSolver; // Old solver, does not have back stepping capability
-      //using SolverType = steam::LineSearchGaussNewtonSolver;
-      using SolverType = LevMarqGaussNewtonSolver;
-
-      // Initialize solver parameters
-      SolverType::Params params;
-      params.verbose = false; // Makes the output display for debug when true
-      params.max_iterations = 100;
-      params.absolute_cost_change_threshold = 1e-3;
-
-      SolverType solver(opt_problem, params);
-
-      // if (initial_cost == std::numeric_limits<double>::max())
-      initial_cost = opt_problem.cost();
-      // Check the cost, disregard the result if it is unreasonable (i.e if its higher then the initial cost)
+    } catch(std::logic_error &e) {
+      CLOG(WARNING, "mpc.solver") << "Last update was unsuccessful! Falling back on previous solution!";
+      break;
+    }
 
 
-      // Solve the optimization problem
+    using SolverType = LevMarqGaussNewtonSolver;
+
+    // Initialize solver parameters
+    SolverType::Params params;
+    params.verbose = true;  // Makes the output display for debug when true
+    params.max_iterations = 100;
+    params.ratio_threshold = 0.1;
+
+    double initial_cost = opt_problem.cost();
+    // Check the cost, disregard the result if it is unreasonable (i.e if its
+    // higher then the initial cost)
+    std::cout << "The Initial Solution Cost is:" << initial_cost << std::endl;
+
+    SolverType solver(opt_problem, params);
+
+    try{
       solver.optimize();
-
-      final_cost = opt_problem.cost();
+    } catch (steam::unsuccessful_step &e) {
+      break;
     }
-    
-    // Check the cost, disregard the result if it is unreasonable (i.e if its higher then the initial cost)
-    CLOG(DEBUG, "mpc.solver") << "The Final Solution Cost is:" << final_cost;
+    last_valid_vels.clear();
+    for (const auto& vel_var : vel_state_vars) {
+      last_valid_vels.push_back(vel_var->value());
+    }
+  }
 
-    if (final_cost > initial_cost)
+
+  std::cout << "Total time: " << timer.milliseconds() << "ms" << std::endl;
+  for (const auto& vel_var : vel_state_vars) {
+    std::cout << "Final velo " << vel_var->value() << std::endl;
+  }
+
+  // First check if any of the values are nan, if so we return a zero velocity and flag the error
+  if (last_valid_vels.size() == 0)
+  {
+    CLOG(ERROR, "mpc.solver") << "MPC failed!";
+    Eigen::Vector2d nan_vel {0.0, 0.0};
+
+    if (verbosity) {
+      throw std::runtime_error("Steam failed Crashing for debug!");
+    }
+
+    // if we do detect nans, return the mpc_poses as all being the robot's current pose (not moving across the horizon as we should be stopped)
+    std::vector<lgmath::se3::Transformation> mpc_poses;
+    for (size_t i = 0; i < rollout_window; i++)
     {
-      CLOG(ERROR, "mpc.solver") << "The final cost was > initial cost, something went wrong. Commanding the vehicle to stop";
-      Eigen::Vector2d bad_cost_vel {0.0, 0.0};
-
-      // Return the mpc_poses as all being the robots current pose (not moving across the horizon as we should be stopped)
-      std::vector<lgmath::se3::Transformation> mpc_poses;
-      for (size_t i = 0; i < K; i++)
-      {
-        mpc_poses.push_back(T0);
-      }
-      return {bad_cost_vel, mpc_poses};
+      mpc_poses.push_back(T0);
     }
-
-    // DEBUG: Display the prediction horizon results
-    /*
-    CLOG(DEBUG, "mpc.solver") << "Trying to Display the Optimization Results for the isolated MPC";
-    CLOG(DEBUG, "mpc.solver") << "The First State is: " << pose_state_vars[0]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Second State is: " << pose_state_vars[1]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Third State is: " << pose_state_vars[2]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Forth State is: " << pose_state_vars[3]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Fifth State is: " << pose_state_vars[4]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Sixth State is: " << pose_state_vars[5]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Seventh State is: " << pose_state_vars[6]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Eighth State is: " << pose_state_vars[7]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Ninth State is: " << pose_state_vars[8]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The Tenth State is: " << pose_state_vars[9]->value().inverse();
-    CLOG(DEBUG, "mpc.solver") << "The First Velocity is: " << vel_state_vars[0]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Second Velocity is: " << vel_state_vars[1]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Third Velocity is: " << vel_state_vars[2]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Forth Velocity is: " << vel_state_vars[3]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Fifth Velocity is: " << vel_state_vars[4]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Sixth Velocity is: " << vel_state_vars[5]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Seventh Velocity is: " << vel_state_vars[6]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Eighth Velocity is: " << vel_state_vars[7]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Ninth Velocity is: " << vel_state_vars[8]->value();
-    CLOG(DEBUG, "mpc.solver") << "The Tenth Velocity is: " << vel_state_vars[9]->value();
-    CLOG(DEBUG, "mpc.solver") << "Linear Component to Return is: " << (vel_state_vars[0]->value())[0];
-    CLOG(DEBUG, "mpc.solver") << "Angular Component to Return is: " << (vel_state_vars[0]->value())[1];
-    */
+    return {nan_vel, mpc_poses};
+  } else {
 
     // Store the velocity command to apply
-    Eigen::Vector2d applied_vel = vel_state_vars[0]->value();
+    Eigen::Vector2d applied_vel = last_valid_vels[0];
 
-    // First check if any of the values are nan, if so we return a zero velocity and flag the error
-    if (std::isnan(applied_vel(0)) || std::isnan(applied_vel(1)))
-    {
-      CLOG(ERROR, "mpc.solver") << "NAN values detected, mpc optimization failed. Returning zero velocities";
-      Eigen::Vector2d nan_vel {0.0, 0.0};
-
-      if (verbosity) {
-        throw std::runtime_error("NAN values detected in MPC! Crashing for debug!");
-      }
-
-      // if we do detect nans, return the mpc_poses as all being the robot's current pose (not moving across the horizon as we should be stopped)
-      std::vector<lgmath::se3::Transformation> mpc_poses;
-      for (size_t i = 0; i < K; i++)
-      {
-        mpc_poses.push_back(T0);
-      }
-      return {nan_vel, mpc_poses};
-    }
     // if no nan values, return the applied velocity and mpc pose predictions as normal
-    else
-    {
-      // Store the sequence of resulting mpc prediction horizon poses for visualization
-      std::vector<lgmath::se3::Transformation> mpc_poses;
-      steam::Evaluable<lgmath::se3::Transformation>::Ptr Tf_acc = T0_var;
-      for (size_t i = 0; i < vel_state_vars.size(); i++)
-      {
-        auto vel_proj = steam::vspace::MatrixMultEvaluator<6,2>::MakeShared(vel_state_vars[i], P_tran);
-        auto scaled_vel_proj = steam::vspace::ScalarMultEvaluator<6>::MakeShared(vel_proj, DT);
-        CLOG(DEBUG, "mpc.solver") << "velo" << i << " is " << vel_state_vars[i]->value();
-        auto deltaTf = steam::se3::ExpMapEvaluator::MakeShared(scaled_vel_proj);
-        Tf_acc = steam::se3::compose(deltaTf, Tf_acc);
-        mpc_poses.push_back(Tf_acc->value().inverse());
-      }
-
-      // Return the resulting structure
-      return {applied_vel, mpc_poses};
+    // Store the sequence of resulting mpc prediction horizon poses for visualization
+    std::vector<lgmath::se3::Transformation> mpc_poses;
+    for (const auto& pose_var : pose_vars) {
+      mpc_poses.push_back(pose_var->value());
     }
+
+    // Return the resulting structure
+    return {applied_vel, mpc_poses};
+  }
   
 }
+
+
 
 
 // helper function for computing the optimization reference poses T_ref based on the current path solution
@@ -357,49 +359,159 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
     return {homotopy_reference_poses, point_stabilization, p_interp_vec, q_interp_vec};
 }
 
+using Segment = std::pair<unsigned, unsigned>;
+
+Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0) {
+
+    double best_distance = std::numeric_limits<double>::max();
+    double max_distance = -1.;
+    unsigned best_sid = sid_start;
+    const unsigned end_sid = std::min(sid_start + 20 + 1,
+                                    unsigned(chain->size()));
+
+    // Explicit casting to avoid numerical underflow when near the beginning of
+    // the chain
+    const unsigned begin_sid = unsigned(std::max(int(sid_start) - 5, 0));
+
+    // Find the closest vertex to the input
+    for (auto path_it = chain->begin(begin_sid); unsigned(path_it) < end_sid;
+        ++path_it) {
+
+      // Calculate the distance
+      double distance = (T_wr.inverse() * chain->pose(path_it)).r_ab_inb().norm();
+      // CLOG(DEBUG, "mpc.cost_function") << "Dist: " << distance << " sid: " << unsigned(path_it);
+
+      // Record the best distance
+      max_distance = std::max(distance, max_distance);
+      if (distance < best_distance) {
+        best_distance = distance;
+        best_sid = unsigned(path_it);
+      }
+
+      // This block detects direction switches, and prevents searching across them
+      // It's only enabled in safe-search mode (no searching backwards as well),
+      // it only tries if the current sid is not an extremum of the search range,
+      // and it only stops at cusps that pass X m in 'distance' from the current
+      // position
+      // if (max_distance > config_.min_cusp_distance &&
+      //     unsigned(path_it) > begin_sid && unsigned(path_it) + 1 < end_sid) {
+      //   Eigen::Matrix<double, 6, 1> vec_prev_cur = path_it->T().vec();
+      //   Eigen::Matrix<double, 6, 1> vec_cur_next = (path_it + 1)->T().vec();
+      //   // + means they are in the same direction (note the negative at the front
+      //   // to invert one of them)
+      //   double r_dot = vec_prev_cur.head<3>().dot(vec_cur_next.head<3>());
+      //   // + means they are in the same direction
+      //   double C_dot = vec_prev_cur.tail<3>().dot(vec_cur_next.tail<3>());
+      //   // combine the translation and rotation components using the angle weight
+      //   double T_dot = r_dot + config_.angle_weight * C_dot;
+      //   // If this is negative, they are in the 'opposite direction', and we're at
+      //   // a cusp
+      //   if (T_dot < 0) {
+      //     CLOG_EVERY_N(1, DEBUG, "pose_graph")
+      //         << "Not searching past the cusp at " << path_it->to() << ", "
+      //         << distance << " (m/8degress) away.";
+      //     break;
+      //   }
+      // }
+    }
+
+    //Handle end of path exceptions
+    if(best_sid == 0)
+      return std::make_pair(best_sid, best_sid + 1);
+    if(best_sid == chain->size() - 1)
+      return std::make_pair(best_sid - 1, best_sid);
+
+    double next_distance = (T_wr.inverse() * chain->pose(best_sid + 1)).r_ab_inb().norm();
+    double past_distance = (T_wr.inverse() * chain->pose(best_sid - 1)).r_ab_inb().norm();
+
+    if(next_distance < past_distance)
+      return std::make_pair(best_sid, best_sid + 1);
+    else
+      return std::make_pair(best_sid - 1, best_sid);
+  }
+
+struct CurvatureInfo
+{
+  Eigen::Vector3d center;
+  double radius;
+
+  inline double curvature() const {
+    return 1 / radius;
+  }
+
+  static CurvatureInfo fromTransform(const lgmath::se3::Transformation &T_12);
+};
+
+CurvatureInfo CurvatureInfo::fromTransform(const lgmath::se3::Transformation& T) {
+  // Note that this is only along a relative path with an origin at 0,0
+  // Using the base tf is still required to move into the world frame
+  auto aang = lgmath::so3::rot2vec(T.inverse().C_ba());
+  double roc = T.r_ba_ina().norm() / 2 / (sin(aang(2) / 2) + 1e-6);
+
+  static Eigen::Matrix3d rotm_perp;
+  rotm_perp << 0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0;
+
+  auto dist = T.r_ba_ina().norm();
+  auto lin_dir = T.r_ba_ina() / dist;
+
+  Eigen::Vector3d coc = T.r_ba_ina() / 2 + sqrt(roc * roc - dist * dist / 4) *
+                                               sgn(roc) * rotm_perp * lin_dir;
+  return {coc, roc};
+}
+
+lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T_wr,
+                const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end,
+                 double& interp) {
+  const lgmath::se3::Transformation edge = seq_start.inverse() * seq_end;
+  const auto& [coc, roc] = CurvatureInfo::fromTransform(edge);
+  Eigen::Vector4d coc_h{0, 0, 0, 1};
+  coc_h.head<3>() = coc;
+
+  coc_h = seq_start.inverse().matrix() * coc_h;
+
+  const auto interp_ang =
+      acos((T_wr.r_ab_inb() - coc_h.head<3>())
+               .normalized()
+               .dot((seq_start.r_ab_inb() - coc_h.head<3>()).normalized()));
+  const auto interp_full =
+      acos((seq_end.r_ab_inb() - coc_h.head<3>())
+               .normalized()
+               .dot((seq_start.r_ab_inb() - coc_h.head<3>()).normalized()));
+  interp = interp_ang / interp_full;
+  const auto val = seq_start * lgmath::se3::Transformation(interp * edge.vec(), 0);
+  return val;
+}
 
 // For generating VT&R teach path poses used in the corridor mpc (new version which directly uses the interpolated p measurements from the cbit path trajectory tracking)
-struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, const std::vector<double> &p_interp_vec) {
-    // Set point stabilization, but just note if we use this function in the cbit.cpp file we need to use the Tracking reference pose point stabilization instead
-    bool point_stabilization = false;
+PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation>& rolled_out_poses, tactic::LocalizationChain::Ptr chain) {
 
     // Initialize vectors storing the barrier values:
     std::vector<double> barrier_q_left;
     std::vector<double> barrier_q_right;
-    
-    // load the teach path
-    std::vector<Pose> teach_path = global_path_ptr->disc_path;
-    std::vector<double> teach_path_p = global_path_ptr->p;
-    
 
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
 
-    // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
-    for (size_t i = 0; i < p_interp_vec.size(); i++)
-    {
+    unsigned last_sid = chain->trunkSequenceId();
 
-      struct InterpResult interp_pose = InterpolatePose(p_interp_vec[i], teach_path_p, teach_path);
+    // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
+    for (const auto& T_wrk : rolled_out_poses) {
+      Segment closestSegment = findClosestSegment(T_wrk, chain, last_sid);
+      last_sid = closestSegment.first;
+
+      double interp;
+      auto interpTf = interpolatePath(T_wrk, chain->pose(closestSegment.first), chain->pose(closestSegment.second), interp);
 
       // add to measurement vector
-      tracking_reference_poses.push_back(interp_pose.pose);
-
+      tracking_reference_poses.push_back(interpTf);
 
       // Find the corresponding left and right barrier q values to pass to the mpc
-
-      // The corridor_ptr points to the stored barrier values for the entire teach trajectory (0,p_len)
-      // To find the corresponding values, we just need to query the corridor_ptr given the current sid_p + p_meas_vec[i], and return the q values for that bin
-      double p_query = p_interp_vec[i];
-      // this isnt the most efficient way of doing this, but it should be fine, we really only need to run this loop 10-20 times and the size is likely less then 1000 each
-      int p_ind = 0;
-      while (corridor_ptr->p_bins[p_ind] <= p_query)
-      {
-        p_ind++;
-      }
-      barrier_q_left.push_back(corridor_ptr->q_left[p_ind-1]);
-      barrier_q_right.push_back(corridor_ptr->q_right[p_ind-1]);
+      auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.first));
+      auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.second));
+      barrier_q_left.push_back((1-interp) * width1 + interp * width2);
+      barrier_q_right.push_back((1-interp) * width1 + interp * width2);
     }
 
-    return {tracking_reference_poses, point_stabilization, barrier_q_left, barrier_q_right};
+    return {tracking_reference_poses, barrier_q_left, barrier_q_right};
 }
 
 lgmath::se3::Transformation poseToTransformation(const Pose &p) {
