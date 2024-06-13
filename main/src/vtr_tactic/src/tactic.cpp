@@ -45,6 +45,10 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.search_back_depth = node->declare_parameter<int>(prefix+".chain.search_back_depth", 10);
   config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
 
+  /// localization execution intervals
+  config->use_loc_threshold = node->declare_parameter<bool>(prefix+".use_loc_threshold", false);
+  config->loc_threshold = node->declare_parameter<int>(prefix+".loc_threshold", 1);
+
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
   config->save_odometry_vel_result = node->declare_parameter<bool>(prefix+".save_odometry_vel_result", false);
   config->save_localization_result = node->declare_parameter<bool>(prefix+".save_localization_result", false);
@@ -807,7 +811,22 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
 
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
-  pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+
+  if (config_->use_loc_threshold) {
+    std::cout << "here 1: using loc intervals" << std::endl;
+    // const auto T_v_odo_loc = (*qdata->T_r_v_odo).inverse() * (*qdata->T_r_v_loc);
+    // auto T_v_odo_loc_vec = T_v_odo_loc.vec();
+    // auto dtran = T_v_odo_loc_vec.head<3>().norm();
+    // CLOG(WARNING, "tactic") << "frame num: " << dtran;
+    
+    if (frame_count % config_->loc_threshold == 0) {
+      pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+    }
+  } else {
+    pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+  }
+  frame_count += 1;
+
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to localization vertex ("
       << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "

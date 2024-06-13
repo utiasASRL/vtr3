@@ -38,30 +38,9 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
-
-  config->crop_range = node->declare_parameter<float>(param_prefix + ".crop_range", config->crop_range);
-  config->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config->vertical_angle_res);
-  config->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config->polar_r_scale);
-  config->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config->r_scale);
-  config->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config->h_scale);
-  config->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config->frame_voxel_size);
-  config->nn_voxel_size = node->declare_parameter<float>(param_prefix + ".nn_voxel_size", config->nn_voxel_size);
-
-
-  config->filter_by_normal_score = node->declare_parameter<bool>(param_prefix + ".filter_normal", config->filter_by_normal_score);
-  config->num_sample1 = node->declare_parameter<int>(param_prefix + ".num_sample1", config->num_sample1);
-  config->min_norm_score1 = node->declare_parameter<float>(param_prefix + ".min_norm_score1", config->min_norm_score1);
-
-  config->num_sample2 = node->declare_parameter<int>(param_prefix + ".num_sample2", config->num_sample2);
-  config->min_norm_score2 = node->declare_parameter<float>(param_prefix + ".min_norm_score2", config->min_norm_score2);
-  config->min_normal_estimate_dist = node->declare_parameter<float>(param_prefix + ".min_normal_estimate_dist", config->min_normal_estimate_dist);
-  config->max_normal_estimate_angle = node->declare_parameter<float>(param_prefix + ".max_normal_estimate_angle", config->max_normal_estimate_angle);
-
-  config->cluster_num_sample = node->declare_parameter<int>(param_prefix + ".cluster_num_sample", config->cluster_num_sample);
-
+  
   // doppler calib parameters
-  // config->azimuth_res = node->declare_parameter<double>(param_prefix + ".azimuth_res", config->azimuth_res);
+  config->azimuth_res = node->declare_parameter<double>(param_prefix + ".azimuth_res", config->azimuth_res);
   config->azimuth_start = node->declare_parameter<double>(param_prefix + ".azimuth_start", config->azimuth_start);
   config->azimuth_end = node->declare_parameter<double>(param_prefix + ".azimuth_end", config->azimuth_end);
   config->num_rows = node->declare_parameter<int>(param_prefix + ".num_rows", config->num_rows);
@@ -70,7 +49,6 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   //
   config->active_sensors = node->declare_parameter<std::vector<bool>>(param_prefix + ".active_sensors", config->active_sensors);
   config->root_path = node->declare_parameter<std::string>(param_prefix + ".root_path", config->root_path);
-
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -216,7 +194,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       continue;
 
     // determine column
-    const short col = (config_->num_cols - 1) - int((azimuth - config_->azimuth_start)/config_->azimuth_res);
+    const short col = (config_->num_cols - 1) - int((azimuth - config_->azimuth_start) / config_->azimuth_res);
   
     // determine row by matching by beam_id (0, 1, 2, or 3) and closest elevation to precalculated values
     // note: elevation_order_by_beam_id_[sensorid][point.beam_id] first column is mean elevation, second column is row id
