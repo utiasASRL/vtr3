@@ -80,6 +80,12 @@ Visualization Manager:
           Value: true
         left_diff_unit_taillight_link:
           Value: true
+        lidar:
+          Value: true
+        loc vertex frame:
+          Value: true
+        loc vertex frame (offset):
+          Value: true
         navtech_base:
           Value: true
         nerian_left:
@@ -87,6 +93,8 @@ Visualization Manager:
         nerian_stereo:
           Value: true
         novatel:
+          Value: true
+        odo vertex frame:
           Value: true
         odom:
           Value: true
@@ -100,6 +108,8 @@ Visualization Manager:
           Value: true
         os_sensor_baseplate:
           Value: true
+        planning frame:
+          Value: true
         rear_left_wheel_link:
           Value: true
         rear_right_wheel_link:
@@ -110,9 +120,19 @@ Visualization Manager:
           Value: true
         right_diff_unit_taillight_link:
           Value: true
+        robot:
+          Value: true
+        robot planning:
+          Value: true
+        robot planning (extrapolated) mpc:
+          Value: true
         sensor_tower:
           Value: true
         top_chassis_link:
+          Value: true
+        world:
+          Value: true
+        world (offset):
           Value: true
       Marker Scale: 4
       Name: TF
@@ -120,7 +140,21 @@ Visualization Manager:
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        world:
+          loc vertex frame:
+            {}
+          odo vertex frame:
+            robot:
+              lidar:
+                {}
+          planning frame:
+            robot planning:
+              {}
+            robot planning (extrapolated) mpc:
+              {}
+          world (offset):
+            loc vertex frame (offset):
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -674,10 +708,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2597966194152832
+      Pitch: 1.5697963237762451
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.74637508392334
+      Yaw: 3.8413708209991455
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453

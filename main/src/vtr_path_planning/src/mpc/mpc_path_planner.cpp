@@ -49,20 +49,19 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
   // Conduct an MPC Iteration given current configurations
 
   // Invert the extrapolated robot state and use this as the state initialization
-  lgmath::se3::Transformation T0_inv = T0.inverse();
   auto T_init = steam::se3::SE3StateVar::MakeShared(T0);
   T_init->locked() = true;
 
 
 
   const Eigen::Vector2d V_REF{VF, 0.0};
-  const Eigen::Vector2d V_INIT{VF, 0.0};
+  const Eigen::Vector2d V_INIT = previous_vel;
 
   const Eigen::Vector2d V_MAX{1.5, 1.0};
   const Eigen::Vector2d V_MIN{-1.5, -1.0};
 
-  const Eigen::Vector2d ACC_MAX{5.0, 8.0};
-  const Eigen::Vector2d ACC_MIN{-5.0, -8.0};
+  const Eigen::Vector2d ACC_MAX{0.25, 0.5};
+  const Eigen::Vector2d ACC_MIN{-0.25, -0.5};
 
   Eigen::Matrix<double, 6, 2> P_tran;
   P_tran << 1, 0,
@@ -73,17 +72,10 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
             0, 1;
 
 
-  auto tf_from_global = [](double x, double y,
-                           double theta) -> lgmath::se3::Transformation {
-    auto rotm = lgmath::so3::vec2rot({0, 0, theta});
-    Eigen::Vector3d final_pose{x, y, 0};
-    return lgmath::se3::Transformation(rotm, -rotm.transpose() * final_pose);
-  };
-
   // Setup shared loss functions and noise models for all cost terms
   const auto l2Loss = L2LossFunc::MakeShared();
   Eigen::Matrix2d vel_cov = Eigen::Matrix2d::Zero();
-  vel_cov.diagonal() << 100.0, 1e5;
+  vel_cov.diagonal() << 1.0, 1e5;
   const auto sharedVelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(
       vel_cov);
 
@@ -96,11 +88,6 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
   std::vector<vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
   std::vector<Eigen::Vector2d> last_valid_vels;
 
-  auto seq_start = tf_from_global(0, 2, M_PI);
-  auto seq_end = tf_from_global(-3, -1, -M_PI_2);
-
-  auto T_final = se3::SE3StateVar::MakeShared(seq_end);
-  T_final->locked() = true;
 
   for (unsigned i = 0; i < rollout_window; i++) {
     vel_state_vars.push_back(
@@ -112,12 +99,26 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
 
   std::vector<Evaluable<lgmath::se3::Transformation>::Ptr> pose_vars;
   std::vector<Evaluable<lgmath::se3::Transformation>::Ptr> path_vars;
+  std::vector<lgmath::se3::Transformation> pose_vals;
+
+  lgmath::se3::Transformation Tf_accum = T_init->value();
+
+    // Create STEAM variables
+    for (unsigned i = 0; i < rollout_window; i++) {
+      
+
+      Eigen::VectorXd vel_proj = DT * P_tran * V_REF;
+      auto deltaTf = lgmath::se3::Transformation(vel_proj);
+      Tf_accum = Tf_accum * deltaTf;
+      pose_vals.push_back(Tf_accum);
+
+    }
+
   double final_cost = std::numeric_limits<double>::max();
 
-  for (double weight = 1.0; weight > 1e-2; weight *= 0.8) {
+  for (double weight = 10.0; weight > 1e-2; weight *= 0.8) {
     pose_vars.clear();
     path_vars.clear();
-    std::vector<lgmath::se3::Transformation> pose_vals;
 
     std::cout << "Weight is: " << weight;
 
@@ -135,7 +136,7 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
       auto deltaTf = se3::ExpMapEvaluator::MakeShared(vel_proj);
       Tf_acc = se3::compose(Tf_acc, deltaTf);
       pose_vars.push_back(Tf_acc);
-      pose_vals.push_back(Tf_acc->value());
+
     }
 
 
@@ -146,8 +147,8 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
       auto& vel_var = vel_state_vars[i];
       auto& Tf_k = pose_vars[i];
 
-      // const auto interp_state = se3::SE3StateVar::MakeShared(pose_refs.poses[i]);
-      const auto interp_state = se3::SE3StateVar::MakeShared(chain->pose(std::min(chain->trunkSequenceId() + i, unsigned(chain->size()) - 1)));
+      const auto interp_state = se3::SE3StateVar::MakeShared(pose_refs.poses[i]);
+      // const auto interp_state = se3::SE3StateVar::MakeShared(chain->pose(std::min(chain->trunkSequenceId() + i, unsigned(chain->size()) - 1)));
       interp_state->locked() = true;
       path_vars.push_back(interp_state);
 
@@ -228,9 +229,9 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
     CLOG(ERROR, "mpc.solver") << "MPC failed!";
     Eigen::Vector2d nan_vel {0.0, 0.0};
 
-    if (verbosity) {
-      throw std::runtime_error("Steam failed Crashing for debug!");
-    }
+    // if (verbosity) {
+    //   throw std::runtime_error("Steam failed Crashing for debug!");
+    // }
 
     // if we do detect nans, return the mpc_poses as all being the robot's current pose (not moving across the horizon as we should be stopped)
     std::vector<lgmath::se3::Transformation> mpc_poses;

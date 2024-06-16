@@ -528,8 +528,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // End of Jordy's Modifications
 
     /// \todo double check that we can indeed treat m same as v for velocity
-    if (config_->use_trajectory_estimation)
-      *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+    // if (config_->use_trajectory_estimation)
+    *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     //
     *qdata.odo_success = true;
   } else {

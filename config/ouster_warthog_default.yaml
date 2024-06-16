@@ -16,18 +16,18 @@
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
-        # path planner
+      # path planner
       - path_planning
       - path_planning.cbit
       - path_planning.cbit_planner
       - cbit.path_planning
       #- cbit_planner.path_planning
-      - cbit.debug
+      #- cbit.debug
       - mpc.solver
       - mpc.speed_scheduler
-      - mpc.cost_function
+      #- mpc.cost_function
       #- mpc.cbit
-      #- mpc_debug
+      #- mpc.debug
       - cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
@@ -354,7 +354,7 @@
       mpc:
         # Controller Params
         extrapolate_robot_pose: true
-        mpc_verbosity: false
+        mpc_verbosity: true
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.3
@@ -368,13 +368,13 @@
 
         # Cost Function Covariance Matrices
         pose_error_cov: [1.0, 1.0, 10.0, 10.0, 10.0, 0.1]
-        vel_error_cov: [1.0, 1.5]
+        vel_error_cov: [1.0, 1.0]
         acc_error_cov: [1.0, 2.0]
         lat_error_cov: [1.0]
 
         # Cost Function Weights
         pose_error_weight: 1.0
-        vel_error_weight: 0.1
+        vel_error_weight: 1.0
         acc_error_weight: 0.1
         lat_error_weight: 1.0
 

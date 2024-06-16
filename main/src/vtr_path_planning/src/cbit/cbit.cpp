@@ -442,13 +442,15 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
     //Convert to x,y,z,roll, pitch, yaw
     std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
-    CLOG(DEBUG, "cbit.control") << "The Current Robot Pose (from planning) is - x: " << std::get<0>(robot_pose) << " y: " << std::get<1>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
+    // CLOG(DEBUG, "cbit.control") << "The Current Robot Pose (from planning) is - x: " << std::get<0>(robot_pose) << " y: " << std::get<1>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
 
-    CLOG(DEBUG, "cbit.control") << "The Current Robot State Transform is: : " << T0;
-    // Need to also invert the robot state to make it T_vi instead of T_iv as this is how the MPC problem is structured
-    lgmath::se3::Transformation T0_inv = T0.inverse();
-    CLOG(DEBUG, "cbit.control") << "The Inverted Current Robot State Using Direct Robot Values is: " << T0_inv;
-    // END OF ROBOT POSE EXTRAPOLATION
+    // CLOG(DEBUG, "cbit.control") << "The Current Robot State Transform is: : " << T0;
+    // // Need to also invert the robot state to make it T_vi instead of T_iv as this is how the MPC problem is structured
+    // lgmath::se3::Transformation T0_inv = T0.inverse();
+    // CLOG(DEBUG, "cbit.control") << "The Inverted Current Robot State Using Direct Robot Values is: " << T0_inv;
+    // // END OF ROBOT POSE EXTRAPOLATION
+
+    CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r;
 
 
 
@@ -482,7 +484,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
 
     Eigen::Vector2d measured_vel;
-    measured_vel << w_p_r_in_r.head<1>(), w_p_r_in_r.tail<1>();
+    measured_vel << -w_p_r_in_r.head<1>(), w_p_r_in_r.tail<1>();
     // Generate the mpc configuration structure:
     MPCConfig mpc_config;
     mpc_config.previous_vel = measured_vel;
