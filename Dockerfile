@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 CMD ["/bin/bash"]
 
@@ -115,19 +115,29 @@ RUN pip3 install \
 RUN apt install wget
 RUN apt install nano
 
+# added by sam
+RUN apt update
+# install dependencies
+RUN apt install software-properties-common apt-transport-https wget -y
+# Import the GPG key provided by Microsoft to verify the package integrity. 
+RUN wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | apt-key add 
+# Run the following command to add the Visual Studio Code repository to your system
+RUN add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"
+# install vscode
+RUN apt install code
 
-## install opencv 4.5.1
 
+## sam install opencv 4.10.0
 RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 
 
 RUN mkdir -p ${HOMEDIR}/opencv && cd ${HOMEDIR}/opencv \
 && git clone https://github.com/opencv/opencv.git . 
 
-RUN cd ${HOMEDIR}/opencv && git checkout 4.6.0
+RUN cd ${HOMEDIR}/opencv && git checkout 4.10.0
 RUN mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
 && git clone https://github.com/opencv/opencv_contrib.git . 
-RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.6.0 
+RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.10.0 
 
 
 RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
@@ -142,7 +152,7 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 -DBUILD_opencv_python3=ON \
 -DWITH_OPENMP=ON \
 -DWITH_CUDA=ON \
--D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.7 \
+-D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.8 \
 -DOPENCV_ENABLE_NONFREE=ON \
 -D OPENCV_GENERATE_PKGCONFIG=ON \
 -DWITH_TBB=ON \

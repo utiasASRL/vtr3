@@ -16,6 +16,7 @@
       - tactic.module.live_mem_manager
       - tactic.module.graph_mem_manager
       - path_planning.cbit
+      - mpc.debug
     robot_frame: base_link
     env_info_topic: env_info
     radar_frame: navtech_base #navtech_base

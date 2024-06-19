@@ -131,7 +131,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat cartesian;
   // # Sam creates a made-up timestamp for the radar data assuming 4hz on a 400 azimuth angles
   Cache<Timestamp> qstamp = qdata.stamp;
-  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
+  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
 
   int64_t time_per_resulution = 1.0/4.0*1e9;
   int64_t current_time_stamp = *qstamp;
@@ -140,7 +140,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<int64_t> azimuth_times;
   for (const auto& time : qdata.scan_msg->timestamps) {
     azimuth_times.emplace_back(static_cast<int64_t>(time));
-    CLOG(DEBUG, "radar.navtech_extractor") << "timestamp is " << azimuth_times.back() << "nano-secs";
+    // CLOG(DEBUG, "radar.navtech_extractor") << "timestamp is " << azimuth_times.back() << "nano-secs";
   }
 
   // CLOG(DEBUG, "radar.navtech_extractor") <<"Sam: the timestamp size is: "<< qstamp.size();
@@ -149,7 +149,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<double> azimuth_angles;
   for (const auto& encoder_value : qdata.scan_msg->encoder_values) {
     azimuth_angles.emplace_back(static_cast<double>(encoder_value)/16000*2*M_PI);
-    CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angle is " << azimuth_angles.back() << " radians";
+    // CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angle is " << azimuth_angles.back() << " radians";
   }
 
   
