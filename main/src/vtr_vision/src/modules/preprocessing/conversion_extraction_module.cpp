@@ -304,7 +304,7 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
     if (config_->use_learned){
       rig.channels[1].name = "RGB";
 
-      CLOG(DEBUG, "stereo.learned_features") << "num_channels: " << num_input_channels;
+      // CLOG(DEBUG, "stereo.learned_features") << "num_channels: " << num_input_channels;
       // CLOG(DEBUG, "stereo.learned_features") << "channel 0 name: " << rig.channels[0].name;
       // CLOG(DEBUG, "stereo.learned_features") << "channel 1 name: " << rig.channels[1].name;
     }
@@ -313,7 +313,7 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
          ++channel_idx) {
       auto cc_weight_idx = 0;
 
-      CLOG(DEBUG, "stereo.learned_features") << "channel " << channel_idx;
+      // CLOG(DEBUG, "stereo.learned_features") << "channel " << channel_idx;
 
       std::vector<std::future<vision::ChannelFeatures>> feature_futures;
 
@@ -330,12 +330,12 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
               config_->conversions[conversion_idx]);
           // convert
           if (conversion == vision::ImageConversion::RGB_TO_GRAYSCALE) {
-            CLOG(DEBUG, "stereo.learned_features") << "Gray " << channel_idx;
+            // CLOG(DEBUG, "stereo.learned_features") << "Gray " << channel_idx;
             rig.channels.emplace_back(vision::RGB2Grayscale(input_channel));
           } else if (conversion ==
                     vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
             // move the new channel onto the rig.
-            CLOG(DEBUG, "stereo.learned_features") << "cc " << channel_idx;
+            // CLOG(DEBUG, "stereo.learned_features") << "cc " << channel_idx;
             rig.channels.emplace_back(vision::RGB2ColorConstant(
                 rig.channels[channel_idx],
                 config_->color_constant_weights[cc_weight_idx],
@@ -363,8 +363,8 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
 
       // Extract learned features from style image
       if (config_->use_learned && channel_idx == 1) {
-        CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[1].name;
-        const auto &disp_channel = rig.channels[1]; // Grayscale
+        // CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[2].name;
+        const auto &disp_channel = rig.channels[2]; // Grayscale
 
       // if (config_->use_learned) {
       //   CLOG(DEBUG, "stereo.learned_features") << "disparity: " << rig.channels[1].name;
@@ -372,6 +372,8 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
         
 
         rig.channels.emplace_back(vision::Disparity(disp_channel));
+
+        // CLOG(DEBUG, "stereo.learned_features") << "disparity done";
 
         // Get the dense descriptors and scores
         // vision::ChannelExtra extra = 
@@ -403,13 +405,13 @@ void ConversionExtractionModule::run_(tactic::QueryCache &qdata0, tactic::Output
           rig_features.channels.emplace_back(future.get());
         }else if (channel_idx == 1){
           rig_features.channels.emplace(rig_features.channels.begin(), future.get());
-          CLOG(INFO, "stereo.learned_features") << "Number of keypoints found" << rig_features.channels.front().cameras[0].keypoints.size() << " for cam " << rig_features.channels.front().name;
+          // CLOG(INFO, "stereo.learned_features") << "Number of keypoints found" << rig_features.channels.front().cameras[0].keypoints.size() << " for cam " << rig_features.channels.front().name;
           break;
         }
-        CLOG(INFO, "stereo.learned_features") << "Num feature channels " << rig_features.channels.size();
+        // CLOG(INFO, "stereo.learned_features") << "Num feature channels " << rig_features.channels.size();
         for (auto &cam : rig_features.channels.back().cameras){ 
           CLOG(INFO, "preprocessing") << "Number of keypoints found" << cam.keypoints.size() << " for cam " << rig_features.channels.back().name;
-          CLOG(INFO, "stereo.learned_features") << "Number of keypoints found" << cam.keypoints.size() << " for cam " << rig_features.channels.back().name;
+          // CLOG(INFO, "stereo.learned_features") << "Number of keypoints found" << cam.keypoints.size() << " for cam " << rig_features.channels.back().name;
         }
       }
     }

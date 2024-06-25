@@ -50,6 +50,9 @@ class StyleTransferModule : public nn::TorchModule {
   struct Config : public nn::TorchModule::Config {
     PTR_TYPEDEFS(Config);
 
+    bool style_repeat;
+    bool style_teach;
+
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
 

@@ -376,18 +376,32 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
           !channel_img_itr->cameras.empty()) {
         auto image_msg = messages::copyImages(channel_img_itr->cameras[0]);
 
-        using Image_LockMsg = storage::LockableMessage<ImageMsg>;
-        auto locked_image_msg =
-                std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg), *qdata.stamp);
-        vertex->insert<ImageMsg>(vis_str, "vtr_vision_msgs/msg/Image", locked_image_msg);
+        if(channel_img_itr->cameras[0].name != "styled_left"){
+          using Image_LockMsg = storage::LockableMessage<ImageMsg>;
+          auto locked_image_msg =
+                  std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg), *qdata.stamp);
+          vertex->insert<ImageMsg>(vis_str, "vtr_vision_msgs/msg/Image", locked_image_msg);
 
-        auto image_msg_right = messages::copyImages(channel_img_itr->cameras[1]);
+          auto image_msg_right = messages::copyImages(channel_img_itr->cameras[1]);
 
-        auto locked_image_msg_right =
-                std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg_right), *qdata.stamp);
-        vertex->insert<ImageMsg>(rig_name + "_visualization_images_right", "vtr_vision_msgs/msg/Image", locked_image_msg_right);
+          auto locked_image_msg_right =
+                  std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg_right), *qdata.stamp);
+          vertex->insert<ImageMsg>(rig_name + "_visualization_images_right_", "vtr_vision_msgs/msg/Image", locked_image_msg_right);
+        }else{
+          using Image_LockMsg = storage::LockableMessage<ImageMsg>;
+          auto locked_image_msg =
+                  std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg), *qdata.stamp);
+          vertex->insert<ImageMsg>(rig_name + "_visualization_style_images_left", "vtr_vision_msgs/msg/Image", locked_image_msg);
 
-        break;
+          auto image_msg_right = messages::copyImages(channel_img_itr->cameras[1]);
+
+          auto locked_image_msg_right =
+                  std::make_shared<Image_LockMsg>(std::make_shared<ImageMsg>(image_msg_right), *qdata.stamp);
+          vertex->insert<ImageMsg>(rig_name + "_visualization_style_images_right", "vtr_vision_msgs/msg/Image", locked_image_msg_right);
+
+          break;
+        }
+        
       }
     }
     ++rig_img_itr;

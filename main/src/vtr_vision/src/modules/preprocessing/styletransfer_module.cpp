@@ -38,6 +38,9 @@ auto StyleTransferModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   *base_config =  *nn::TorchModule::Config::fromROS(node, param_prefix);
 
 
+  config->style_teach = node->declare_parameter<bool>(param_prefix + ".style_teach", false);
+  config->style_repeat = node->declare_parameter<bool>(param_prefix + ".style_repeat", false);
+
   // params.width = node->declare_parameter<int>(param_prefix + ".img_width", 0);
 
   // clang-format on
@@ -53,7 +56,7 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
 
   const auto &rig_images = *qdata.rig_images;  
 
-  CLOG(DEBUG, "stereo.learned_features") << "Live image pulled!";
+  // CLOG(DEBUG, "stereo.learned_features") << "Live image pulled!";
   // CLOG(DEBUG, "stereo.learned_features") << qdata.rig_images->front().channels.at(0).cameras.front().data.size();
 
   // Extract RGB image from rig_images
@@ -98,8 +101,8 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
 
   cv::Mat daytime_r{disp_outputs_r.size(0), disp_outputs_r.size(1), CV_8UC3, disp_outputs_r.data_ptr<uint8_t>()};
 
-  CLOG(DEBUG, "stereo.learned_features") << daytime_l.size() << " left size";
-  CLOG(DEBUG, "stereo.learned_features") << daytime_r.size() << " right size";
+  // CLOG(DEBUG, "stereo.learned_features") << daytime_l.size() << " left size";
+  // CLOG(DEBUG, "stereo.learned_features") << daytime_r.size() << " right size";
 
   if (!daytime_l.isContinuous()){
     CLOG(WARNING, "stereo.learned_features") << "Day image was not contiguous in memory!";
@@ -123,22 +126,34 @@ void StyleTransferModule::run_(QueryCache &qdata0, OutputCache &,
   styled.name = "styled";
 
   Image left_img;
+  Image right_img;
+
+  // CLOG(DEBUG, "stereo.learned_features") << "style the repeat: "<< config_->style_repeat;
+  // CLOG(DEBUG, "stereo.learned_features") << "style the teach: "<< config_->style_teach;
+
   // If in repeat mode, use styled image. Otherwise, use the non-styled image
   if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow){
-    left_img.data = daytime_l.clone();
+    if(config_->style_repeat){
+      left_img.data = daytime_l.clone(); // Use styled for repeat
+      right_img.data = daytime_r.clone(); // Use styled for repeat
+    }else{
+      left_img.data = live_image_l.clone(); // Use non styled for repeat
+      right_img.data = live_image_r.clone(); // Use non styled for repeat
+    }
   }else{
-    left_img.data = live_image_l.clone();
+    if(config_->style_teach){
+      left_img.data = daytime_l.clone(); // Use styled for teach
+      right_img.data = daytime_r.clone(); // Use styled for teach
+    }else{
+      left_img.data = live_image_l.clone(); // Use non styled for teach
+      right_img.data = live_image_r.clone(); // Use non styled for teach
+    }
+
   }
   left_img.name = "styled_left";
   left_img.stamp = qdata.rig_images->front().channels.at(0).cameras.front().stamp;
 
-  Image right_img;
 
-  if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow){
-    right_img.data = daytime_r.clone();
-  }else{
-    right_img.data = live_image_r.clone();
-  }
   right_img.name = "styled_right";
   right_img.stamp = qdata.rig_images->front().channels.at(0).cameras.back().stamp;
 

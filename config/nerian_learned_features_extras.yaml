@@ -33,7 +33,8 @@
           learned:
             # we're providing the surf settings (don't change this param, use a different file)
             type: "LEARNED_FEATURE"
-            modelPath: "/home/david/ASRL/vtr3/models/unsup_unet_377.pt"
+            # modelPath: "/home/david/ASRL/vtr3/models/unsup_unet_377.pt"
+            modelPath: "/home/david/ASRL/vtr3/models/feature_best.pt"
 
 
             stereoDisparityMinimum: 0.1
@@ -43,8 +44,10 @@
         type: vision.styletransfer
 
         use_gpu: true
-        filepath: "/home/david/ASRL/vtr3/models/style.pt"
-
+        # filepath: "/home/david/ASRL/vtr3/models/style.pt"
+        filepath: "/home/david/ASRL/vtr3/models/style_best.pt"
+        style_teach: false
+        style_repeat: true
 
 
     localization:
