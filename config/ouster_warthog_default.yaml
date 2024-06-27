@@ -24,7 +24,7 @@
       #- cbit_planner.path_planning
       #- cbit.debug
       - mpc.solver
-      - mpc.speed_scheduler
+      #- mpc.speed_scheduler
       #- mpc.cost_function
       #- mpc.cbit
       #- mpc.debug
@@ -180,7 +180,7 @@
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
         point_life_time: 20.0
-        visualize: true
+        visualize: false
       vertex_test:
         type: lidar.vertex_test
 
@@ -354,29 +354,25 @@
       mpc:
         # Controller Params
         extrapolate_robot_pose: true
-        mpc_verbosity: true
+        mpc_verbosity: false
         homotopy_guided_mpc: false
-        horizon_steps: 20
+        horizon_steps: 10
         horizon_step_size: 0.3
         forward_vel: 1.0
         max_lin_vel: 1.5
         max_ang_vel: 0.5
+        max_ang_acc: 5.0
+        ang_alpha: 0.811
+        lin_alpha: 0.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [1.0, 1.0, 10.0, 10.0, 10.0, 0.1]
-        vel_error_cov: [1.0, 1.0]
-        acc_error_cov: [1.0, 2.0]
+        pose_error_cov: [1.0, 1.0, 1e5, 1e5, 1e5, 1e2]
+        vel_error_cov: [1.0, 5e2]
         lat_error_cov: [1.0]
-
-        # Cost Function Weights
-        pose_error_weight: 1.0
-        vel_error_weight: 1.0
-        acc_error_weight: 0.1
-        lat_error_weight: 1.0
 
         # Misc
         command_history_length: 100

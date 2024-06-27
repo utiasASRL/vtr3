@@ -4,6 +4,7 @@ project(vtr_path_planning)
 
 ## Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
+add_compile_options(-g -Og)
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
@@ -93,6 +94,9 @@ install(
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_unicycle test/closed_loop/unicycle_tests.cpp)
+  target_link_libraries(test_unicycle ${PROJECT_NAME}_cbit)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

@@ -82,27 +82,20 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
   config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
   config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
+  config->max_lin_acc = node->declare_parameter<double>(prefix + ".mpc.max_lin_acc", config->max_lin_acc);
+  config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
+  config->lin_alpha = node->declare_parameter<double>(prefix + ".mpc.lin_alpha", config->lin_alpha);
+  config->ang_alpha = node->declare_parameter<double>(prefix + ".mpc.ang_alpha", config->ang_alpha);
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
 
   // MPC COST FUNCTION COVARIANCE
-  const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", std::vector<double>());
+  const auto pose_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.pose_error_cov", {1.0, 1.0, 1.0, 1.0, 1.0, 1.0});
   config->pose_error_cov.diagonal() << pose_error_diag[0], pose_error_diag[1], pose_error_diag[2], pose_error_diag[3], pose_error_diag[4], pose_error_diag[5];
-  const auto vel_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.vel_error_cov", std::vector<double>());
+  const auto vel_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.vel_error_cov", {1.0, 1.0});
   config->vel_error_cov.diagonal() << vel_error_diag[0], vel_error_diag[1];
-  const auto acc_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.acc_error_cov", std::vector<double>());
-  config->acc_error_cov.diagonal() << acc_error_diag[0], acc_error_diag[1];
-  // const auto kin_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.kin_error_cov", std::vector<double>());
-  // config->kin_error_cov.diagonal() << kin_error_diag[0], kin_error_diag[1], kin_error_diag[2], kin_error_diag[3], kin_error_diag[4], kin_error_diag[5];
-  const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", std::vector<double>());
+  const auto lat_error_diag = node->declare_parameter<std::vector<double>>(prefix + ".mpc.lat_error_cov", {1.0});
   config->lat_error_cov.diagonal() << lat_error_diag[0];
-
-  // MPC COST FUNCTION WEIGHTS
-  config->pose_error_weight = node->declare_parameter<double>(prefix + ".mpc.pose_error_weight", config->pose_error_weight);
-  config->vel_error_weight = node->declare_parameter<double>(prefix + ".mpc.vel_error_weight", config->vel_error_weight);
-  config->acc_error_weight = node->declare_parameter<double>(prefix + ".mpc.acc_error_weight", config->acc_error_weight);
-  config->kin_error_weight = node->declare_parameter<double>(prefix + ".mpc.kin_error_weight", config->kin_error_weight);
-  config->lat_error_weight = node->declare_parameter<double>(prefix + ".mpc.lat_error_weight", config->lat_error_weight);
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -233,7 +226,7 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   {
     vel_history.push_back(applied_vel_);
   }
-
+  estimated_last_vel_ = Eigen::Vector2d::Zero();
   robot_poses.clear();
 
   lgmath::se3::TransformationWithCovariance teach_frame;
@@ -297,7 +290,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     << "Final control command: [" << command.linear.x << ", "
     << command.linear.y << ", " << command.linear.z << ", "
     << command.angular.x << ", " << command.angular.y << ", "
-    << command.angular.z << "]";
+    << command.angular.z << "] for timestamp: " << robot_state.chain->leaf_stamp();
   
   return command;
 }
@@ -329,6 +322,10 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     // Calculate q_max width for planner
     *q_max_ptr = pose_graph::BasicPathBase::terrian_type_corridor_width(vertex_type);
     CLOG(DEBUG, "cbit.control") << "Vertex Corridor Width is: " << *q_max_ptr; // we may want to look ahead a few frames instead
+
+    //Figure out if we're driving backwards or forwards
+    const auto nextEdge = chain.pose(curr_sid).inverse() * chain.pose(curr_sid + 1);
+    direction_scale_ = (nextEdge.vec()(0) > 0) ? 1.0 : -1.0;
 
   }
 
@@ -394,46 +391,21 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     // Schedule speed based on path curvatures + other factors
     VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, VF, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7, config_->min_vel);
 
-    // Grab the current MPC configurations
-    // Pose Covariance Weights
-    Eigen::Matrix<double, 6, 6> pose_noise_vect;
-    pose_noise_vect = config_->pose_error_cov;
-
-    // Disturbance Velocity Covariance
-    Eigen::Matrix<double, 2, 2> vel_noise_vect;
-    vel_noise_vect = config_->vel_error_cov;
-
-    // Acceleration Tuning
-    Eigen::Matrix<double, 2, 2> accel_noise_vect;
-    accel_noise_vect = config_->acc_error_cov;
-
-    // Kinematics Covariance Weights (should be weighted quite heavily (smaller is higher because its covariance))
-    Eigen::Matrix<double, 6, 6> kin_noise_vect;
-    kin_noise_vect = config_->kin_error_cov;
-
-    // Lateral Covariance Weights (should be weighted quite heavily (smaller is higher because its covariance))
-    Eigen::Matrix<double, 1, 1> lat_noise_vect;
-    lat_noise_vect = config_->lat_error_cov;
-
-    // Cost term weights
-    double pose_error_weight = config_->pose_error_weight;
-    double vel_error_weight = config_->vel_error_weight;
-    double acc_error_weight = config_->acc_error_weight;
-    double kin_error_weight = config_->kin_error_weight;
-    double lat_error_weight = config_->lat_error_weight;
   
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
     auto T_p_r_extp = T_p_r;
     if (extrapolate_robot_pose == true) {
       const auto curr_time = now();  // always in nanoseconds
-      const auto dt = static_cast<double>(curr_time - prev_vel_stamp_) * 1e-9;
-      Eigen::Vector<double, 6> last_w_p_r_in_r;
+      const auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
+      if (fabs(dt) > 0.5) { 
+        CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
+              << "Ignoring extrapolation requestion. Check your time sync!";
+        dt = 0;
+      }
 
-      last_w_p_r_in_r << -vel_history.back()[0], 0.0, 0.0, 0.0, 0.0, -vel_history.back()[1];
-
-      CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -last_w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
-      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(dt * last_w_p_r_in_r);
-      T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r).inverse();
+      CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
+      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
+      T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
       CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
     }
@@ -441,7 +413,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     lgmath::se3::Transformation T0 = T_w_p * T_p_r_extp;
 
     //Convert to x,y,z,roll, pitch, yaw
-    std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
+    // std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
     // CLOG(DEBUG, "cbit.control") << "The Current Robot Pose (from planning) is - x: " << std::get<0>(robot_pose) << " y: " << std::get<1>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
 
     // CLOG(DEBUG, "cbit.control") << "The Current Robot State Transform is: : " << T0;
@@ -450,17 +422,17 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     // CLOG(DEBUG, "cbit.control") << "The Inverted Current Robot State Using Direct Robot Values is: " << T0_inv;
     // // END OF ROBOT POSE EXTRAPOLATION
 
-    CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r;
+    CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
 
 
     // Calculate which T_ref poses to used based on the current path solution
-    CLOG(INFO, "cbit.control") << "Attempting to generate T_ref poses";
-    auto ref_tracking_result = GenerateTrackingReference(cbit_path_ptr, robot_pose, K,  DT, VF);
-    auto tracking_poses = ref_tracking_result.poses;
-    bool point_stabilization = ref_tracking_result.point_stabilization; // No need to do both tracking and homotopy point stabilization
-    std::vector<double> p_interp_vec = ref_tracking_result.p_interp_vec;
-    std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
+    // CLOG(INFO, "cbit.control") << "Attempting to generate T_ref poses";
+    // auto ref_tracking_result = GenerateTrackingReference(cbit_path_ptr, robot_pose, K,  DT, VF);
+    // auto tracking_poses = ref_tracking_result.poses;
+    // bool point_stabilization = ref_tracking_result.point_stabilization; // No need to do both tracking and homotopy point stabilization
+    // std::vector<double> p_interp_vec = ref_tracking_result.p_interp_vec;
+    // std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
 
 
     // Synchronized Tracking/Teach Reference Poses For Homotopy Guided MPC:
@@ -478,39 +450,37 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     }
   */
     std::vector<lgmath::se3::Transformation> tracking_pose_vec;
-    for (size_t i = 0; i < tracking_poses.size(); i++) {
-      tracking_pose_vec.push_back(tracking_poses[i].inverse());
-    }
+    // for (size_t i = 0; i < tracking_poses.size(); i++) {
+    //   tracking_pose_vec.push_back(tracking_poses[i].inverse());
+    // }
 
 
     Eigen::Vector2d measured_vel;
-    measured_vel << -w_p_r_in_r.head<1>(), w_p_r_in_r.tail<1>();
+    measured_vel << -w_p_r_in_r.head<1>(), -w_p_r_in_r.tail<1>();
     // Generate the mpc configuration structure:
     MPCConfig mpc_config;
-    mpc_config.previous_vel = measured_vel;
     mpc_config.T0 = T0;
-    mpc_config.tracking_reference_poses = tracking_poses;
-
-    // mpc_config.homotopy_reference_poses = tracking_poses; // if not using homotopy guided mpc, set the homotopy reference poses to be the tracking poses
+    // mpc_config.tracking_reference_poses = tracking_poses;
+    mpc_config.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+    mpc_config.acc_max = {config_->max_lin_acc, config_->max_ang_acc};
+    mpc_config.vel_warm_start = (mpc_rollout_.size() > 0) ? mpc_rollout_ : std::list<Eigen::Vector2d>{measured_vel};
 
     // mpc_config.barrier_q_left = barrier_q_left;
     // mpc_config.barrier_q_right = barrier_q_right;
     mpc_config.K = K;
     mpc_config.DT = DT;
-    mpc_config.VF = VF;
-    mpc_config.lat_noise_vect = lat_noise_vect;
-    mpc_config.pose_noise_vect = pose_noise_vect;
-    mpc_config.vel_noise_vect = vel_noise_vect;
-    mpc_config.accel_noise_vect = accel_noise_vect;
-    mpc_config.kin_noise_vect = kin_noise_vect;
-    mpc_config.point_stabilization = point_stabilization;
-    mpc_config.pose_error_weight = pose_error_weight;
-    mpc_config.vel_error_weight = vel_error_weight;
-    mpc_config.acc_error_weight = acc_error_weight;
-    mpc_config.kin_error_weight = kin_error_weight;
-    mpc_config.lat_error_weight = lat_error_weight;
+    mpc_config.VF = direction_scale_ * VF;
+    mpc_config.lat_noise_cov = config_->lat_error_cov;
+    mpc_config.pose_noise_cov = config_->pose_error_cov;
+    mpc_config.vel_noise_cov = config_->vel_error_cov;
     mpc_config.verbosity = mpc_verbosity;
     mpc_config.homotopy_mode = homotopy_guided_mpc;
+    mpc_config.alpha = Eigen::Matrix2d::Zero();
+    mpc_config.alpha.diagonal() << config_->lin_alpha, config_->ang_alpha;
+
+    estimated_last_vel_ = (Eigen::Matrix2d::Identity() - mpc_config.alpha) * applied_vel_ + mpc_config.alpha * estimated_last_vel_;
+    // mpc_config.previous_vel = (Eigen::Matrix2d::Identity() - mpc_config.alpha) * measured_vel + mpc_config.alpha * applied_vel_;
+    mpc_config.previous_vel = measured_vel;
 
     // Create and solve the STEAM optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -519,14 +489,18 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
       auto MPCResult = SolveMPC(mpc_config, robot_state.chain.ptr());
-      mpc_vel = MPCResult.applied_vel; // note dont re-declare applied vel here
+      mpc_vel = MPCResult.applied_vels.front(); // note dont re-declare applied vel here
       mpc_poses = MPCResult.mpc_poses;
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
+      mpc_rollout_ = MPCResult.applied_vels;
+      mpc_rollout_.pop_front();
     } catch(steam::unsuccessful_step &e) {
       CLOG(WARNING, "cbit.control") << "STEAM Optimization Failed because " << e.what() << " Commanding to Stop the Vehicle";
+      mpc_rollout_ = {{VF, 0}};
       return Command();
     } catch(std::logic_error &e) {
       CLOG(WARNING, "cbit.control") << "Violated barrier constraint! " << e.what() << " Commanding to Stop the Vehicle";
+      mpc_rollout_ = {{VF, 0}};
       return Command();
     }
 

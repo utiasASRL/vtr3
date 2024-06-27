@@ -112,24 +112,19 @@ class CBIT : public BasePathPlanner {
     double forward_vel = 0.75;
     double max_lin_vel = 1.25;
     double max_ang_vel = 0.75;
+    double max_lin_acc = 10.0;
+    double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
+    double ang_alpha = 0.0;
+    double lin_alpha = 0.0;
 
     // Add unicycle model param
 
     // Covariance tuning weights
     Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
     Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-    Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-    Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
     Eigen::Matrix<double, 1, 1> lat_error_cov = Eigen::Matrix<double, 1, 1>::Zero();
-
-    // MPC weight params:
-    double pose_error_weight = 1.0;
-    double vel_error_weight = 1.0;
-    double acc_error_weight = 1.0;
-    double kin_error_weight = 1.0;
-    double lat_error_weight = 0.01;
 
     // Misc
     int command_history_length = 100;
@@ -189,8 +184,11 @@ class CBIT : public BasePathPlanner {
 
   // Store the previously applied velocity and a sliding window history of MPC results
   Eigen::Vector2d applied_vel_;
+  Eigen::Vector2d estimated_last_vel_ = Eigen::Vector2d::Zero();
   std::vector<Eigen::Vector2d> vel_history;
   tactic::Timestamp prev_vel_stamp_;
+  std::list<Eigen::Vector2d> mpc_rollout_;
+  double direction_scale_ = 1.0;
 
   //create vector to store the robots path for visualization purposes
   std::vector<lgmath::se3::Transformation> robot_poses;

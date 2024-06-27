@@ -93,7 +93,7 @@ TEST(QueryCache, query_cache_copy_move) {
   EXPECT_EQ(qdata->stamp.ptr(), stamp);
   EXPECT_EQ(qdata2->stamp.ptr(), stamp2);
 
-  // values are differenct now
+  // values are different now
   (*stamp)--;
   (*stamp2)++;
   EXPECT_EQ(*qdata->stamp, *stamp);

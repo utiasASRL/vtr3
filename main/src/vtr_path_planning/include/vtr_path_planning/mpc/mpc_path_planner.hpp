@@ -24,8 +24,9 @@
 
 struct MPCConfig
 {
-    Eigen::Matrix<double, 2, 1> previous_vel;
+    Eigen::Vector2d previous_vel;
     lgmath::se3::Transformation T0;
+    std::list<Eigen::Vector2d> vel_warm_start;
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
     std::vector<lgmath::se3::Transformation> homotopy_reference_poses;
     std::vector<double> barrier_q_left;
@@ -33,24 +34,19 @@ struct MPCConfig
     int K;
     double DT;
     double VF;
-    Eigen::Matrix<double, 1, 1> lat_noise_vect;
-    Eigen::Matrix<double, 6, 6> pose_noise_vect;
-    Eigen::Matrix<double, 2, 2> vel_noise_vect;
-    Eigen::Matrix<double, 2, 2> accel_noise_vect;
-    Eigen::Matrix<double, 6, 6> kin_noise_vect;
-    bool point_stabilization;
-    double pose_error_weight;
-    double vel_error_weight;
-    double acc_error_weight;
-    double kin_error_weight;
-    double lat_error_weight;
+    Eigen::Vector2d vel_max;
+    Eigen::Vector2d acc_max;
+    Eigen::Matrix<double, 1, 1> lat_noise_cov;
+    Eigen::Matrix<double, 6, 6> pose_noise_cov;
+    Eigen::Matrix2d vel_noise_cov;
+    Eigen::Matrix2d alpha;
     bool verbosity;
     bool homotopy_mode;
 };
 
 struct MPCResult
 {
-    Eigen::Matrix<double, 2, 1> applied_vel;
+    std::list<Eigen::Vector2d> applied_vels {};
     std::vector<lgmath::se3::Transformation> mpc_poses;
 };
 
@@ -87,6 +83,7 @@ struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<
 
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
+PoseResultHomotopy generateHomotopyReference(const std::vector<steam::Evaluable<lgmath::se3::Transformation>::Ptr> &rolled_out_poses, tactic::LocalizationChain::Ptr);
 
 // Helper function for post-processing and saturating the velocity command
 Eigen::Vector2d SaturateVel(const Eigen::Vector2d applied_vel, double v_lim, double w_lim);

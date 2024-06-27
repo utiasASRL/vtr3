@@ -5,30 +5,35 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      [
-        "navigation",
-        "map_projector",
-        "tactic",
-        "tactic.module",
-        "tactic.module.live_mem_manager",
-        "tactic.module.graph_mem_manager",
-        "mission_planning_server",
-        "mission.state_machine",
-        "pose_graph",
-        "stereo.pipeline",
+      #"navigation",
+        #"map_projector",
+        #"tactic",
+        #"tactic.module",
+        #"tactic.module.live_mem_manager",
+        #"tactic.module.graph_mem_manager",
+        #"mission_planning_server",
+        #"mission.state_machine",
+        #"pose_graph",
+        #"stereo.pipeline",
         #"stereo.preprocessing",
         #"stereo.recall",
         #"stereo.matcher",
         #"stereo.keyframe_optimization",
         #"stereo.bundle_adjustment",
-        "stereo.mel_matcher",
+      - stereo.mel_matcher
         #"stereo.odometry",
-        "stereo.tod",
+      - stereo.tod
         #"stereo.vertex_test",
         #"odometry",
-        "tactic.pipeline",
-        "preprocessing"
-      ]
+        #"tactic.pipeline",
+        #"preprocessing"
+      - mpc.solver
+      - mpc.speed_scheduler
+      #- mpc.cost_function
+      #- mpc.cbit
+      #- mpc.debug
+      - cbit.control
+      
 
     # control frame from the urdf
     robot_frame: base_link
@@ -98,11 +103,11 @@
         target_width: 512
         distortion: [0.0, 0.0, 0.0, 0.0, 0.0]
         intrinsic:
-        - 488.1484
+        - 488.1067
         - 0.0
-        - 253.6597
+        - 252.4117
         - 0.0
-        - 488.1484
+        - 488.1067
         - 175.043
         - 0.0
         - 0.0
@@ -490,7 +495,7 @@
         depth_prior_weight: 1000.0
 
     path_planning:
-      type: cbit
+      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
       control_period: 100 # ms
       cbit:
         obstacle_avoidance: false
@@ -502,7 +507,7 @@
         state_update_freq: 2.0
         update_state: true
         rand_seed: 1
-
+        
         # Planner Tuning Params
         initial_samples: 400
         batch_samples: 200
@@ -510,51 +515,43 @@
         alpha: 0.25
         q_max: 2.5
         frame_interval: 50
-        iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
-        initial_exp_rad: 1.25
+        initial_exp_rad: 0.75
         extrapolation: false
         incremental_plotting: false
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 30
-      
+        costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
+
       speed_scheduler:
-        planar_curv_weight: 2.50
-        profile_curv_weight: 0.5 
+        planar_curv_weight: 5.0
+        profile_curv_weight: 100.0 
         eop_weight: 1.0
         min_vel: 0.5
-
       mpc:
         # Controller Params
         extrapolate_robot_pose: true
         mpc_verbosity: false
         homotopy_guided_mpc: false
-        horizon_steps: 20
+        horizon_steps: 10
         horizon_step_size: 0.3
         forward_vel: 1.0
         max_lin_vel: 1.5
-        max_ang_vel: 1.25
+        max_ang_vel: 0.5
+        max_ang_acc: 5.0
+        ang_alpha: 0.811
+        lin_alpha: 0.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
 
         # Cost Function Covariance Matrices
-        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
-        vel_error_cov: [20.0, 30.0]
-        acc_error_cov: [20.0, 20.0]
-        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-        lat_error_cov: [2.0]
-
-        # Cost Function Weights
-        pose_error_weight: 1.0
-        vel_error_weight: 1.5
-        acc_error_weight: 1.5
-        kin_error_weight: 1.0
-        lat_error_weight: 0.01
+        pose_error_cov: [1.0, 1.0, 1e5, 1e5, 1e5, 1e2]
+        vel_error_cov: [1.0, 5e2]
+        lat_error_cov: [1.0]
 
         # Misc
         command_history_length: 100

@@ -35,8 +35,8 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     // - Average the radius of curvature in the upcoming segments of the path
 
     // Basic implementation - weights hardcoded for now
-    CLOG(INFO, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
-    CLOG(INFO, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
+    CLOG(DEBUG, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
 
     double VF_EOP = std::max(min_vel, VF * (eop_weight * (disc_path_curvature_xy.size()- 1 - curr_sid) / 20.0));
     double VF_SOP = std::max(min_vel, VF * (eop_weight * curr_sid / 10));
@@ -58,8 +58,8 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     }
     avg_curvature_xy /= window_steps;
     avg_curvature_xz_yz /= window_steps;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PLANAR CURVATURE IS:  " << avg_curvature_xy;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PROFILE CURVATURE IS:  " << avg_curvature_xz_yz;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE AVERAGE PLANAR CURVATURE IS:  " << avg_curvature_xy;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE AVERAGE PROFILE CURVATURE IS:  " << avg_curvature_xz_yz;
 
     // handle forward/reverse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
 
@@ -68,13 +68,13 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     
     // Take the minimum of all candidate (positive) scheduled speeds (Lowest allowed scheduled velocity is 0.5m/s, should be left this way)
     VF = std::min({VF_EOP, VF_SOP, VF_XY, VF_XZ_YZ});
-    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_EOP SPEED IS:  " << VF_EOP;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_SOP SPEED IS:  " << VF_SOP;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_XY SPEED IS:  " << VF_XY;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_EOP SPEED IS:  " << VF_EOP;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_SOP SPEED IS:  " << VF_SOP;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_XY SPEED IS:  " << VF_XY;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
 
     // Take the minimum of all candidate scheduled speeds
-    CLOG(INFO, "mpc.speed_scheduler") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
     // End of speed scheduler code
 
     // Return the scheduled speed

@@ -19,6 +19,7 @@
 
 #include "vtr_path_planning/mpc/lateral_error_evaluators.hpp"
 #include <iostream>
+#include <algorithm>
 #include "math.h"
 #include "vtr_path_planning/cbit/utils.hpp"
 
@@ -66,7 +67,7 @@ namespace vtr::steam_extension {
           acos((seq_end_.r_ab_inb() - coc_h.head<3>())
                    .normalized()
                    .dot((seq_start_.r_ab_inb() - coc_h.head<3>()).normalized()));
-      const double interp = interp_ang / interp_full;
+      const double interp = std::clamp(interp_ang / interp_full, 0.0, 1.0);
       const auto val = seq_start_ * Transformation(interp * edge.vec(), 0);
       return val;
   }

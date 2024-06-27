@@ -32,19 +32,10 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
   // Access configuration parameters from the config structure
   Eigen::Vector2d previous_vel = config.previous_vel;
   lgmath::se3::Transformation T0 = config.T0;
-  std::vector<lgmath::se3::Transformation> tracking_reference_poses = config.tracking_reference_poses;
-  std::vector<double> barrier_q_left = config.barrier_q_left;
-  std::vector<double> barrier_q_right = config.barrier_q_right;
   int rollout_window = config.K;
   double DT = config.DT;
   double VF = config.VF;
-  Eigen::Matrix<double, 1, 1> lat_noise_vect = config.lat_noise_vect;
-  Eigen::Matrix<double, 2, 2> vel_noise_vect = config.vel_noise_vect;
-  bool point_stabilization = config.point_stabilization;
-  double vel_error_weight = config.vel_error_weight;
-  double lat_error_weight = config.lat_error_weight;
   bool verbosity = config.verbosity;
-  bool homotopy_mode = config.homotopy_mode;
 
   // Conduct an MPC Iteration given current configurations
 
@@ -52,16 +43,14 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
   auto T_init = steam::se3::SE3StateVar::MakeShared(T0);
   T_init->locked() = true;
 
-
-
   const Eigen::Vector2d V_REF{VF, 0.0};
   const Eigen::Vector2d V_INIT = previous_vel;
 
-  const Eigen::Vector2d V_MAX{1.5, 1.0};
-  const Eigen::Vector2d V_MIN{-1.5, -1.0};
+  const Eigen::Vector2d V_MAX = config.vel_max;
+  const Eigen::Vector2d V_MIN = -config.vel_max;
 
-  const Eigen::Vector2d ACC_MAX{0.25, 0.5};
-  const Eigen::Vector2d ACC_MIN{-0.25, -0.5};
+  const Eigen::Vector2d ACC_MAX = config.acc_max;
+  const Eigen::Vector2d ACC_MIN = -config.acc_max;
 
   Eigen::Matrix<double, 6, 2> P_tran;
   P_tran << 1, 0,
@@ -74,26 +63,35 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
 
   // Setup shared loss functions and noise models for all cost terms
   const auto l2Loss = L2LossFunc::MakeShared();
-  Eigen::Matrix2d vel_cov = Eigen::Matrix2d::Zero();
-  vel_cov.diagonal() << 1.0, 1e5;
-  const auto sharedVelNoiseModel = steam::StaticNoiseModel<2>::MakeShared(
-      vel_cov);
-
-  Eigen::Matrix<double, 6, 6> pose_cov =
-      Eigen::Matrix<double, 6, 6>::Identity();
-  pose_cov.diagonal() << 1.0, 1.0, 1e5, 1e5, 1e5, 1e2;
-  const auto finalPoseNoiseModel =
-      steam::StaticNoiseModel<6>::MakeShared(pose_cov);
+  const auto sharedVelNoiseModel = StaticNoiseModel<2>::MakeShared(config.vel_noise_cov);
+  const auto finalPoseNoiseModel = StaticNoiseModel<6>::MakeShared(config.pose_noise_cov);
 
   std::vector<vspace::VSpaceStateVar<2>::Ptr> vel_state_vars;
-  std::vector<Eigen::Vector2d> last_valid_vels;
+  std::list<Eigen::Vector2d> last_valid_vels;
 
-
+  auto v_init_iter = config.vel_warm_start.begin();
   for (unsigned i = 0; i < rollout_window; i++) {
+    Eigen::Vector2d v_init;
+    if (v_init_iter == config.vel_warm_start.end()) {
+      v_init = config.vel_warm_start.back();
+    } else {
+      v_init = *v_init_iter;
+      v_init_iter++;
+    }
     vel_state_vars.push_back(
-        vspace::VSpaceStateVar<2>::MakeShared(V_INIT));
-    std::cout << "Initial velo " << vel_state_vars.back()->value() << std::endl;
+        vspace::VSpaceStateVar<2>::MakeShared(v_init));
+    // std::cout << "Initial velo " << vel_state_vars.back()->value() << std::endl;
   }
+
+  std::vector<Evaluable<Eigen::Vector2d>::Ptr> actual_vels;
+
+  const Eigen::Matrix2d alpha = config.alpha;
+  const Eigen::Matrix2d one_m_alpha = Eigen::Matrix2d::Identity() - alpha;
+
+  // std::cout << "Alpha " << alpha << " \n1 - alpha " << one_m_alpha << std::endl;
+
+  const auto INIT_VAR = vspace::VSpaceStateVar<2>::MakeShared(V_INIT);
+  INIT_VAR->locked() = true;
 
   steam::Timer timer;
 
@@ -103,24 +101,24 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
 
   lgmath::se3::Transformation Tf_accum = T_init->value();
 
-    // Create STEAM variables
-    for (unsigned i = 0; i < rollout_window; i++) {
-      
+  // Create STEAM variables
+  for (unsigned i = 0; i < rollout_window; i++) {
+    
+    Eigen::VectorXd vel_proj = DT * P_tran * V_REF;
+    auto deltaTf = lgmath::se3::Transformation(vel_proj);
+    Tf_accum = Tf_accum * deltaTf;
+    pose_vals.push_back(Tf_accum);
+  }
 
-      Eigen::VectorXd vel_proj = DT * P_tran * V_REF;
-      auto deltaTf = lgmath::se3::Transformation(vel_proj);
-      Tf_accum = Tf_accum * deltaTf;
-      pose_vals.push_back(Tf_accum);
 
-    }
 
-  double final_cost = std::numeric_limits<double>::max();
-
-  for (double weight = 10.0; weight > 1e-2; weight *= 0.8) {
+  for (double weight = 1.0; weight > 5e-2; weight *= 0.8) {
     pose_vars.clear();
     path_vars.clear();
+    actual_vels.clear();
+    actual_vels.push_back(INIT_VAR);
 
-    std::cout << "Weight is: " << weight;
+    // std::cout << "Weight is: " << weight;
 
     // Setup the optimization problem
     OptimizationProblem opt_problem;
@@ -131,60 +129,61 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
     for (unsigned i = 0; i < rollout_window; i++) {
       auto& vel_var = vel_state_vars[i];
 
+      actual_vels.push_back(vspace::AdditionEvaluator<2>::MakeShared(
+        vspace::MatrixMultEvaluator<2, 2>::MakeShared(actual_vels[i], alpha),
+        vspace::MatrixMultEvaluator<2, 2>::MakeShared(vel_var, one_m_alpha)));
+
       auto vel_proj =
-          vspace::MatrixMultEvaluator<6, 2>::MakeShared(vel_var, DT * P_tran);
+          vspace::MatrixMultEvaluator<6, 2>::MakeShared(actual_vels.back(), DT * P_tran);
       auto deltaTf = se3::ExpMapEvaluator::MakeShared(vel_proj);
       Tf_acc = se3::compose(Tf_acc, deltaTf);
       pose_vars.push_back(Tf_acc);
 
     }
 
+    const auto pose_refs = generateHomotopyReference(pose_vars, chain);
 
-    const auto pose_refs = generateHomotopyReference(pose_vals, chain);
 
     try{
-    for (unsigned i = 0; i < rollout_window; i++) {
-      auto& vel_var = vel_state_vars[i];
-      auto& Tf_k = pose_vars[i];
-
-      const auto interp_state = se3::SE3StateVar::MakeShared(pose_refs.poses[i]);
-      // const auto interp_state = se3::SE3StateVar::MakeShared(chain->pose(std::min(chain->trunkSequenceId() + i, unsigned(chain->size()) - 1)));
-      interp_state->locked() = true;
-      path_vars.push_back(interp_state);
-
-      opt_problem.addStateVariable(vel_var);
-      const auto vel_cost_term = WeightedLeastSqCostTerm<2>::MakeShared(
-          vspace::vspace_error<2>(vel_var, V_REF), sharedVelNoiseModel, l2Loss);
-      opt_problem.addCostTerm(vel_cost_term);
-
-      const auto path_cost = WeightedLeastSqCostTerm<6>::MakeShared(se3::tran2vec(se3::compose(
-        se3::inverse(interp_state), Tf_k)), finalPoseNoiseModel, l2Loss);
-      opt_problem.addCostTerm(path_cost);
+      for (unsigned i = 0; i < rollout_window; i++) {
+        auto& vel_var = vel_state_vars[i];
+        auto& Tf_k = pose_vars[i];
 
 
-      opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(vel_var,
-      V_MAX), weight));
-      opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(vel_var,
-      V_MIN)), weight));
+        const auto interp_state = se3::SE3StateVar::MakeShared(pose_refs.poses[i]);
+        interp_state->locked() = true;
+        path_vars.push_back(interp_state);
+
+        opt_problem.addStateVariable(vel_var);
+        const auto vel_cost_term = WeightedLeastSqCostTerm<2>::MakeShared(
+            vspace::vspace_error<2>(vel_var, V_REF), sharedVelNoiseModel, l2Loss);
+        opt_problem.addCostTerm(vel_cost_term);
+
+        const auto path_cost = WeightedLeastSqCostTerm<6>::MakeShared(se3::tran2vec(se3::compose(
+          se3::inverse(interp_state), Tf_k)), finalPoseNoiseModel, l2Loss);
+        opt_problem.addCostTerm(path_cost);
 
 
-      if (i > 0) {
-        const auto accel_term = vspace::add<2>(
-            vel_state_vars[i], vspace::neg<2>(vel_state_vars[i - 1]));
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(accel_term,
-        DT*ACC_MAX), weight));
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(accel_term,
-        DT*ACC_MIN)), weight));
-      } else {
-        const auto accel_term = vspace::vspace_error<2>(
-            vspace::neg<2>(vel_state_vars[i]), -previous_vel);
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::vspace_error<2>(accel_term,
-        DT*ACC_MAX), weight));
-        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(vspace::neg<2>(vspace::vspace_error<2>(accel_term,
-        DT*ACC_MIN)), weight));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(
+              vspace::vspace_error<2>(vel_var, V_MAX), weight));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(
+              vspace::neg<2>(vspace::vspace_error<2>(vel_var, V_MIN)), weight));
+
+        // if (i > 0) {
+        const auto accel_term = vspace::add<2>(actual_vels[i+1], vspace::neg<2>(actual_vels[i]));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(
+            vspace::vspace_error<2>(accel_term, DT*ACC_MAX), weight));
+        opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(
+            vspace::neg<2>(vspace::vspace_error<2>(accel_term, DT*ACC_MIN)), weight));
+        // } else {
+        //   const auto accel_term = vspace::vspace_error<2>(
+        //       vspace::neg<2>(vel_state_vars[i]), -previous_vel);
+        //   opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(
+        //       vspace::vspace_error<2>(accel_term, DT*ACC_MAX), weight));
+        //   opt_problem.addCostTerm(vspace::LogBarrierCostTerm<2>::MakeShared(
+        //       vspace::neg<2>(vspace::vspace_error<2>(accel_term, DT*ACC_MIN)), weight));
+        // }
       }
-    }
-
     } catch(std::logic_error &e) {
       CLOG(WARNING, "mpc.solver") << "Last update was unsuccessful! Falling back on previous solution!";
       break;
@@ -195,22 +194,26 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
 
     // Initialize solver parameters
     SolverType::Params params;
-    params.verbose = true;  // Makes the output display for debug when true
+    params.verbose = config.verbosity;  // Makes the output display for debug when true
     params.max_iterations = 100;
     params.ratio_threshold = 0.1;
 
     double initial_cost = opt_problem.cost();
     // Check the cost, disregard the result if it is unreasonable (i.e if its
     // higher then the initial cost)
-    std::cout << "The Initial Solution Cost is:" << initial_cost << std::endl;
+    // std::cout << "The Initial Solution Cost is:" << initial_cost << std::endl;
 
     SolverType solver(opt_problem, params);
 
-    try{
-      solver.optimize();
-    } catch (steam::unsuccessful_step &e) {
-      break;
+    if (abs(opt_problem.cost()) > 1e-1) {
+      try{
+        solver.optimize();
+      } catch (steam::unsuccessful_step &e) {
+        CLOG(ERROR, "mpc.solver") << e.what();
+        break;
+      }
     }
+
     last_valid_vels.clear();
     for (const auto& vel_var : vel_state_vars) {
       last_valid_vels.push_back(vel_var->value());
@@ -218,9 +221,13 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
   }
 
 
-  std::cout << "Total time: " << timer.milliseconds() << "ms" << std::endl;
+  // std::cout << "Total time: " << timer.milliseconds() << "ms" << std::endl;
   for (const auto& vel_var : vel_state_vars) {
-    std::cout << "Final velo " << vel_var->value() << std::endl;
+    // std::cout << "Final velo " << vel_var->value() << std::endl;
+  }
+
+  for (const auto& vel_var : actual_vels) {
+    // std::cout << "Actual velo " << vel_var->value() << std::endl;
   }
 
   // First check if any of the values are nan, if so we return a zero velocity and flag the error
@@ -229,9 +236,9 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
     CLOG(ERROR, "mpc.solver") << "MPC failed!";
     Eigen::Vector2d nan_vel {0.0, 0.0};
 
-    // if (verbosity) {
-    //   throw std::runtime_error("Steam failed Crashing for debug!");
-    // }
+    if (verbosity) {
+      throw std::runtime_error("Steam failed Crashing for debug!");
+    }
 
     // if we do detect nans, return the mpc_poses as all being the robot's current pose (not moving across the horizon as we should be stopped)
     std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -239,11 +246,13 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
     {
       mpc_poses.push_back(T0);
     }
-    return {nan_vel, mpc_poses};
+    return {{nan_vel}, mpc_poses};
   } else {
+    CLOG(DEBUG, "mpc.solver") << "Expected vel: " << actual_vels[1]->value();
 
-    // Store the velocity command to apply
-    Eigen::Vector2d applied_vel = last_valid_vels[0];
+
+    // // Store the velocity command to apply
+    // Eigen::Vector2d applied_vel = last_valid_vels[0];
 
     // if no nan values, return the applied velocity and mpc pose predictions as normal
     // Store the sequence of resulting mpc prediction horizon poses for visualization
@@ -253,7 +262,7 @@ struct MPCResult SolveMPC(const MPCConfig& config, const tactic::LocalizationCha
     }
 
     // Return the resulting structure
-    return {applied_vel, mpc_poses};
+    return {last_valid_vels, mpc_poses};
   }
   
 }
@@ -394,26 +403,22 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
       // it only tries if the current sid is not an extremum of the search range,
       // and it only stops at cusps that pass X m in 'distance' from the current
       // position
-      // if (max_distance > config_.min_cusp_distance &&
-      //     unsigned(path_it) > begin_sid && unsigned(path_it) + 1 < end_sid) {
-      //   Eigen::Matrix<double, 6, 1> vec_prev_cur = path_it->T().vec();
-      //   Eigen::Matrix<double, 6, 1> vec_cur_next = (path_it + 1)->T().vec();
-      //   // + means they are in the same direction (note the negative at the front
-      //   // to invert one of them)
-      //   double r_dot = vec_prev_cur.head<3>().dot(vec_cur_next.head<3>());
-      //   // + means they are in the same direction
-      //   double C_dot = vec_prev_cur.tail<3>().dot(vec_cur_next.tail<3>());
-      //   // combine the translation and rotation components using the angle weight
-      //   double T_dot = r_dot + config_.angle_weight * C_dot;
-      //   // If this is negative, they are in the 'opposite direction', and we're at
-      //   // a cusp
-      //   if (T_dot < 0) {
-      //     CLOG_EVERY_N(1, DEBUG, "pose_graph")
-      //         << "Not searching past the cusp at " << path_it->to() << ", "
-      //         << distance << " (m/8degress) away.";
-      //     break;
-      //   }
-      // }
+      if (unsigned(path_it) > begin_sid && unsigned(path_it) + 1 < end_sid) {
+        Eigen::Matrix<double, 6, 1> vec_prev_cur = path_it->T().vec();
+        Eigen::Matrix<double, 6, 1> vec_cur_next = (path_it + 1)->T().vec();
+        // + means they are in the same direction (note the negative at the front
+        // to invert one of them)
+        double r_dot = vec_prev_cur.head<3>().dot(vec_cur_next.head<3>());
+        // + means they are in the same direction
+        double C_dot = vec_prev_cur.tail<3>().dot(vec_cur_next.tail<3>());
+        // combine the translation and rotation components using the angle weight
+        double T_dot = r_dot + 0.25 * C_dot;
+        // If this is negative, they are in the 'opposite direction', and we're at
+        // a cusp
+        if (T_dot < 0) {
+          break;
+        }
+      }
     }
 
     //Handle end of path exceptions
@@ -478,7 +483,7 @@ lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T
       acos((seq_end.r_ab_inb() - coc_h.head<3>())
                .normalized()
                .dot((seq_start.r_ab_inb() - coc_h.head<3>()).normalized()));
-  interp = interp_ang / interp_full;
+  interp = std::clamp(interp_ang / interp_full, 0.0, 1.0);
   const auto val = seq_start * lgmath::se3::Transformation(interp * edge.vec(), 0);
   return val;
 }
@@ -514,6 +519,18 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Tran
 
     return {tracking_reference_poses, barrier_q_left, barrier_q_right};
 }
+
+
+PoseResultHomotopy generateHomotopyReference(const std::vector<steam::Evaluable<lgmath::se3::Transformation>::Ptr>& rolled_out_poses, tactic::LocalizationChain::Ptr chain) {
+
+  std::vector<lgmath::se3::Transformation> poses;
+  for(const auto& pose_var : rolled_out_poses) {
+    poses.push_back(pose_var->value());
+  }
+
+  return generateHomotopyReference(poses, chain);
+}
+
 
 lgmath::se3::Transformation poseToTransformation(const Pose &p) {
   Eigen::Vector3d position {p.x, p.y, p.z};
