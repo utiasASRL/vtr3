@@ -8,8 +8,8 @@
       #- navigation.command
         # tactic
       #- tactic
-      #- tactic.pipeline
-      #- tactic.module
+      - tactic.pipeline
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
       #- mission.state_machine
@@ -342,7 +342,7 @@
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.3
-        forward_vel: 0.75
+        forward_vel: 1.0
         max_lin_vel: 1.25
         max_ang_vel: 0.75
         robot_linear_velocity_scale: 1.1 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
