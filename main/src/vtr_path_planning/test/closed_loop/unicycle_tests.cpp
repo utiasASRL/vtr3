@@ -12,6 +12,7 @@ using namespace vtr;
 using namespace vtr::tactic;
 using namespace vtr::pose_graph;
 
+constexpr unsigned NUM_STEPS = 15;
 
 
 void print(const tactic::LocalizationChain& chain) {
@@ -38,15 +39,15 @@ EdgeTransform tf_from_global(double x, double y,
     return EdgeTransform(rotm, -rotm.transpose() * final_pose);
 }
 
-class ChainTest : public Test {
+class ChainTest : public TestWithParam<lgmath::se3::Transformation>  {
  public:
-  ChainTest() : graph_(new RCGraph("temp/testing", false)), chain_(new tactic::LocalizationChain(graph_)) {
-  P_tran << 1, 0,
-            0, 0,
-            0, 0,
-            0, 0,
-            0, 0,
-            0, 1;
+  ChainTest() : graph_(new RCGraph(std::string("temp/") + std::string(UnitTest::GetInstance()->current_test_info()->name()), false)), chain_(new tactic::LocalizationChain(graph_)) {
+    P_tran << 1, 0,
+              0, 0,
+              0, 0,
+              0, 0,
+              0, 0,
+              0, 1;
   }
   ~ChainTest() override {}
 
@@ -99,7 +100,6 @@ class ChainTest : public Test {
   uint64_t t_offset_ = 4*60*1e9; 
   Eigen::Matrix<double, 6, 2> P_tran;
 
-
 };
 
 template<int dim>
@@ -117,11 +117,11 @@ Eigen::Matrix<double, dim, 1> normalVector(double mu, double sigma) {
   return out;
 }
 
-TEST_F(ChainTest, solve_mpc_constant_curve) {
+TEST_P(ChainTest, NoiseFreeMPC) {
   //Init localization
   uint64_t repeat_run = graph_->addRun();
 
-  EdgeTransform T_init = tf_from_global(0, 0.0, 0.0);
+  EdgeTransform T_init =  GetParam(); //tf_from_global(0, 0.0, 0.0);
   graph_->addVertex(t_offset_);
   graph_->addEdge(VertexId(repeat_run, 0), VertexId(0, 0), EdgeType::Spatial,
                       false, T_init);
@@ -135,18 +135,119 @@ TEST_F(ChainTest, solve_mpc_constant_curve) {
   chain_->updateBranchToTwigTransform(live_id, map_id, map_sid,
                                       T_init.inverse(), true, false);
 
-  // CLOG(DEBUG, "test") << chain_->pose(19).r_ab_inb().transpose().head<2>()
-  //             << " " << chain_->pose(19).vec().tail<1>();
-
   print(*chain_);
-
-
-  constexpr unsigned NUM_STEPS = 10;
-
 
   Eigen::Vector2d last_velo = {0.8, 0.0};
 
-  constexpr double DT_MPC = 0.12;
+  MPCConfig config;
+  config.VF = 0.8;
+  config.DT = 0.1;
+  config.K = NUM_STEPS;
+  config.vel_max = {1.5, 0.5};
+  config.acc_max = {10.0, 10.0};
+  config.previous_vel = last_velo;
+  config.verbosity = true;
+  config.T0 = T_init;
+  config.vel_warm_start = {last_velo};
+
+  config.pose_noise_cov = Eigen::Matrix<double, 6, 6>::Identity(); 
+  config.pose_noise_cov.diagonal() << 1.0, 1.0, 1e5, 1e5, 1e5, 5e2;
+
+  config.vel_noise_cov = Eigen::Matrix<double, 2, 2>::Identity(); 
+  config.vel_noise_cov.diagonal() << 1.0, 100.0;
+
+  config.alpha = Eigen::Matrix<double, 2, 2>::Zero(); 
+  // config.alpha.diagonal() << 0.5, 0.5;
+
+  Eigen::Matrix2d alpha = Eigen::Matrix2d::Zero();
+  // alpha.diagonal() << 0.5, 0.5;
+  const Eigen::Matrix2d one_m_alpha = Eigen::Matrix2d::Identity() - alpha;
+
+  auto mpc_res = SolveMPC(config, chain_);
+
+  try {
+    for(unsigned i = 0; i < 20*NUM_STEPS; ++i) {
+      auto mpc_res = SolveMPC(config, chain_);
+      auto applied_vel = mpc_res.applied_vels.front();
+      mpc_res.applied_vels.pop_front();
+      EXPECT_TRUE(applied_vel.allFinite());
+      auto new_velo = alpha * last_velo + one_m_alpha * applied_vel;
+
+      EdgeTransform delta_TF = EdgeTransform{-config.DT * P_tran * new_velo, 0};
+      delta_TF.setZeroCovariance();
+      auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);
+      graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
+                        false, delta_TF);
+
+      chain_->updatePetioleToLeafTransform(t_offset_ + (i + 1) * config.DT * 1e9, P_tran * new_velo,
+                                        delta_TF, false);
+
+      last_velo = new_velo;
+
+      chain_->setPetiole(new_vertex->id());
+      auto live_id = chain_->petioleVertexId();
+      auto map_id = chain_->trunkVertexId();
+      auto map_sid = chain_->trunkSequenceId();
+      chain_->updateBranchToTwigTransform(live_id, map_id, map_sid,
+                                        chain_->T_leaf_trunk(), true, false);
+      
+      config.previous_vel = last_velo;
+      config.T0 = chain_->T_start_leaf();
+      config.vel_warm_start = mpc_res.applied_vels;
+      CLOG(DEBUG, "test") << chain_->T_start_leaf().r_ab_inb().transpose().head<2>()
+                << " " << chain_->T_start_leaf().vec().tail<1>();
+    }
+  } catch (std::runtime_error& e){
+
+    uint64_t mpc_rollout_run = graph_->addRun();
+    graph_->addVertex(t_offset_);
+    graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 0), EdgeType::Spatial,
+                        false, T_init);
+
+    mpc_res.mpc_poses.insert(mpc_res.mpc_poses.begin(), T_init);
+    for(unsigned i = 0; i < NUM_STEPS; ++i) {
+      auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
+      graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
+                        false, mpc_res.mpc_poses[i+1].inverse()*mpc_res.mpc_poses[i]);
+    }
+
+
+    throw e;
+  }
+
+  uint64_t mpc_rollout_run = graph_->addRun();
+  graph_->addVertex(t_offset_);
+  graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 0), EdgeType::Spatial,
+                      false, T_init);
+
+  mpc_res.mpc_poses.insert(mpc_res.mpc_poses.begin(), T_init);
+  for(unsigned i = 0; i < NUM_STEPS; ++i) {
+    auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
+    graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
+                      false, mpc_res.mpc_poses[i+1].inverse()*mpc_res.mpc_poses[i]);
+  }
+  
+}
+
+TEST_P(ChainTest, NoisyMPC) {
+  //Init localization
+  uint64_t repeat_run = graph_->addRun();
+
+  EdgeTransform T_init =  GetParam();
+  graph_->addVertex(t_offset_);
+  graph_->addEdge(VertexId(repeat_run, 0), VertexId(0, 0), EdgeType::Spatial,
+                      false, T_init);
+
+
+  // initialize the localization chain
+  chain_->setPetiole(VertexId(repeat_run, 0));
+  auto live_id = chain_->petioleVertexId();
+  auto map_id = chain_->trunkVertexId();
+  auto map_sid = chain_->trunkSequenceId();
+  chain_->updateBranchToTwigTransform(live_id, map_id, map_sid,
+                                      T_init.inverse(), true, false);
+
+  Eigen::Vector2d last_velo = {0.8, 0.0};
 
   MPCConfig config;
   config.VF = 0.8;
@@ -237,6 +338,9 @@ TEST_F(ChainTest, solve_mpc_constant_curve) {
     }
   
 }
+
+
+INSTANTIATE_TEST_SUITE_P(MPCSet, ChainTest, Values(tf_from_global(0, 0.0, 0.0), tf_from_global(0.0, 0.5, 0.0), tf_from_global(0.0, -0.5, 0.0)));
 
 
 //Variations:

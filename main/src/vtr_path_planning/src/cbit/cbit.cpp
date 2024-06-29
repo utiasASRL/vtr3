@@ -396,7 +396,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     auto T_p_r_extp = T_p_r;
     if (extrapolate_robot_pose == true) {
       const auto curr_time = now();  // always in nanoseconds
-      const auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
+      auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
       if (fabs(dt) > 0.5) { 
         CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
               << "Ignoring extrapolation requestion. Check your time sync!";
