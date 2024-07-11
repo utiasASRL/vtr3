@@ -69,11 +69,11 @@ class Path {
   double dist(VertexId vtx_id) const = delete;
 
   /** \brief Gets the curvilinear p value along the path at a sequence index */
-  double p(unsigned seq_id, double angle_weight=0.25) const;
+  double p(unsigned seq_id, double angle_weight=0.75) const;
   /** \brief Gets the cumu. distance along the path at an iterator position */
-  double p(const Iterator& it, double angle_weight=0.25) const { return p(unsigned(it), angle_weight); }
+  double p(const Iterator& it, double angle_weight=0.75) const { return p(unsigned(it), angle_weight); }
   /** \brief Vertex id implicitly converts to unsigned */
-  double p(VertexId vtx_id, double angle_weight=0.25) const = delete;
+  double p(VertexId vtx_id, double angle_weight=0.75) const = delete;
 
   /** \brief Returns the current sequence */
   Sequence sequence() const;

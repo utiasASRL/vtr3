@@ -169,13 +169,23 @@ RUN rm libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
+  
+RUN apt install swig liblapack-dev libmetis-dev -y -q --install-recommends
+RUN mkdir -p ${HOMEDIR}/.casadi && cd ${HOMEDIR}/.casadi \
+  && git clone https://github.com/casadi/casadi.git .
+RUN cd ${HOMEDIR}/.casadi \
+  && git checkout 3.6.5 \
+  && mkdir -p build && cd build \
+  && cmake build -DWITH_PYTHON=ON -DWITH_PYTHON3=ON -DWITH_IPOPT=ON -DWITH_BUILD_IPOPT=ON -DWITH_BUILD_REQUIRED=ON -DWITH_SELFCONTAINED=ON .. \
+  && make -j${NUMPROC} install
+ENV PYTHONPATH=${PYTHONPATH}:/usr/local
+ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
+
 
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
-RUN apt install htop
+RUN apt install -q -y vim htop
 
-# Install vim
-RUN apt update && apt install -q -y vim
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

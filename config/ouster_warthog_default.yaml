@@ -24,7 +24,7 @@
       #- cbit_planner.path_planning
       #- cbit.debug
       - mpc.solver
-      #- mpc.speed_scheduler
+      - mpc.speed_scheduler
       #- mpc.cost_function
       #- mpc.cbit
       #- mpc.debug
@@ -35,7 +35,7 @@
         
         # mission planner
       #- mission.server
-      #- mission.state_machine
+      - mission.state_machine
 
         # pose graph
       #- pose_graph
@@ -70,7 +70,7 @@
       enable_parallelization: true
       preprocessing_skippable: false
       odometry_mapping_skippable: false
-      localization_skippable: false
+      localization_skippable: true
       task_queue_num_threads: 1
       task_queue_size: -1
 
@@ -347,13 +347,13 @@
         costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
 
       speed_scheduler:
-        planar_curv_weight: 5.0
-        profile_curv_weight: 100.0 
+        planar_curv_weight: 0.0
+        profile_curv_weight: 0.0 
         eop_weight: 1.0
-        min_vel: 0.5
+        min_vel: 0.25
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
+        extrapolate_robot_pose: false
         mpc_verbosity: false
         homotopy_guided_mpc: false
         horizon_steps: 10

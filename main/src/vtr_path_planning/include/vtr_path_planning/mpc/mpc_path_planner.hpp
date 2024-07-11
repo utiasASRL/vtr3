@@ -16,39 +16,56 @@
  * \file mpc_path_planner.hpp
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
-
-#include "vtr_path_planning/cbit/cbit.hpp"
-#include "steam.hpp"
-
 #pragma once
 
-struct MPCConfig
-{
-    Eigen::Vector2d previous_vel;
-    lgmath::se3::Transformation T0;
-    std::list<Eigen::Vector2d> vel_warm_start;
-    std::vector<lgmath::se3::Transformation> tracking_reference_poses;
-    std::vector<lgmath::se3::Transformation> homotopy_reference_poses;
-    std::vector<double> barrier_q_left;
-    std::vector<double> barrier_q_right;
-    int K;
-    double DT;
-    double VF;
-    Eigen::Vector2d vel_max;
-    Eigen::Vector2d acc_max;
-    Eigen::Matrix<double, 1, 1> lat_noise_cov;
-    Eigen::Matrix<double, 6, 6> pose_noise_cov;
-    Eigen::Matrix2d vel_noise_cov;
-    Eigen::Matrix2d alpha;
-    bool verbosity;
-    bool homotopy_mode;
+#include "steam.hpp"
+#include <casadi/casadi.hpp>
+#include <vtr_tactic/types.hpp>
+#include <lgmath.hpp>
+
+
+namespace vtr::path_planning {
+class CasadiUnicycleMPC {
+public:
+  PTR_TYPEDEFS(CasadiUnicycleMPC);
+  using DM = casadi::DM;
+
+  struct Config {
+    // These values are defined the python code and exported
+    // TODO add an automatic way to keep the code in sync
+    static constexpr int nStates = 3;
+    static constexpr int nControl = 2;
+    static constexpr double alpha = 0.8;
+    static constexpr int N = 15;
+    static constexpr double DT = 0.2;
+    DM previous_vel{nControl, 1};
+    DM T0{nStates, 1};
+    std::vector<DM> reference_poses;
+    std::vector<double> up_barrier_q;
+    std::vector<double> low_barrier_q;
+    double VF = 0.0;
+    DM vel_max{nControl, 1};
+  };
+
+
+  CasadiUnicycleMPC(bool verbose=false, casadi::Dict iopt_config={ 
+    { "max_iter", 2000 }, 
+    { "acceptable_tol", 1e-8 } ,
+    {"acceptable_obj_change_tol", 1e-6}
+  });
+
+  std::map<std::string, casadi::DM> solve(const Config& mpcConf);
+
+
+private:
+  casadi::Function solve_mpc;
+  std::map<std::string, casadi::DM> arg_;
+
 };
 
-struct MPCResult
-{
-    std::list<Eigen::Vector2d> applied_vels {};
-    std::vector<lgmath::se3::Transformation> mpc_poses;
-};
+std::vector<double> tf_to_global(const lgmath::se3::Transformation& T);
+tactic::EdgeTransform tf_from_global(double x, double y, double theta);
+
 
 struct PoseResultTracking
 {
@@ -61,8 +78,8 @@ struct PoseResultTracking
 struct PoseResultHomotopy
 {
     std::vector<lgmath::se3::Transformation> poses;
-    std::vector<double> barrier_q_left;
-    std::vector<double> barrier_q_right;
+    std::vector<double> barrier_q_max;
+    std::vector<double> barrier_q_min;
 };
 
 struct InterpResult
@@ -72,21 +89,33 @@ struct InterpResult
     double q_interp;
 };
 
+struct CurvatureInfo
+{
+  Eigen::Vector3d center;
+  double radius;
+
+  inline double curvature() const {
+    return 1 / radius;
+  }
+
+  static CurvatureInfo fromTransform(const lgmath::se3::Transformation &T_12);
+};
+
 
 // Declaring helper functions
-
-// Primary optimization function: Takes in the input configurations and the extrapolated robot pose, outputs a vector for the velocity to apply and the predicted horizon
-struct MPCResult SolveMPC(const MPCConfig& config, tactic::LocalizationChain::Ptr);
-
-// Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
-struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<Pose>> cbit_path_ptr,  std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF);
 
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
 PoseResultHomotopy generateHomotopyReference(const std::vector<steam::Evaluable<lgmath::se3::Transformation>::Ptr> &rolled_out_poses, tactic::LocalizationChain::Ptr);
+PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain);
 
-// Helper function for post-processing and saturating the velocity command
-Eigen::Vector2d SaturateVel(const Eigen::Vector2d applied_vel, double v_lim, double w_lim);
+using Segment = std::pair<unsigned, unsigned>;
+Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
+Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
 
-// Helper function in Generate Reference Meas which interpolates a Transformation measurement gen the cbit_path and the desired measurements p value along the path
-struct InterpResult InterpolatePose(double p_meas, std::vector<double> cbit_p, std::vector<Pose> cbit_path);
+lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T_wr,
+                const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end,
+                 double& interp);
+double findRobotP(const tactic::LocalizationChain::Ptr chain);
+
+} //namespace vtr::path_planning

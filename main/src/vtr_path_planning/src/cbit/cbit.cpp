@@ -18,7 +18,6 @@
  */
 
 #include "vtr_path_planning/cbit/cbit.hpp"
-#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.hpp>
@@ -112,7 +111,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 CBIT::CBIT(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, callback), config_(config) {
+    : BasePathPlanner(config, robot_state, callback), config_(config), solver_{config_->mpc_verbosity} {
   CLOG(INFO, "cbit.path_planning") << "Constructing the CBIT Class";
   robot_state_ = robot_state;
   const auto node = robot_state->node.ptr();
@@ -160,7 +159,7 @@ void CBIT::setRunning(const bool running) {
     planner_ptr_->resetPlanner();
     if (process_thread_cbit_.joinable()) process_thread_cbit_.join();
     thread_count_--;
-    planner_ptr_.reset();
+    // planner_ptr_.reset();
     CLOG(INFO, "cbit.path_planning") << "Stopped CBIT Planning";
   }
   BasePathPlanner::setRunning(running);
@@ -273,7 +272,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 
   // If required, saturate the output velocity commands based on the configuration limits
   CLOG(DEBUG, "cbit.control") << "Saturating the velocity command if required";
-  Eigen::Vector2d saturated_vel = SaturateVel(output_vel, config_->max_lin_vel, config_->max_ang_vel);
+  Eigen::Vector2d saturated_vel = saturateVel(output_vel, config_->max_lin_vel, config_->max_ang_vel);
   CLOG(INFO, "cbit.control") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
   
   Command command;
@@ -296,36 +295,30 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
 }
 
 
-
-
 // Generate twist commands to track the planned local path (function is called at the control rate)
 auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
-  auto& chain = *robot_state.chain;
-  if (!chain.isLocalized()) {
+  auto& chain = robot_state.chain.ptr();
+  if (!chain->isLocalized()) {
     CLOG(WARNING, "cbit.control") << "Robot is not localized, commanding the robot to stop";
     return Command();
   }
 
   // retrieve the transform info from the localization chain for the current robot state
-  const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(chain);
+  const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
 
   // Store the current robot state in the robot state path so it can be visualized
   robot_poses.push_back(T_w_p * T_p_r);
 
   // Handling Dynamic Corridor Widths:
   // Retrieve the terrain type (corresponds to maximum planning width)
-  if (curr_sid <= chain.size() - 2)
+  if (curr_sid <= chain->size() - 2)
   {
     CLOG(DEBUG, "cbit.control") << "Trying to query the graph vertex type for SID: " << curr_sid;
-    int vertex_type = chain.query_terrain_type(curr_sid);
+    int vertex_type = chain->query_terrain_type(curr_sid);
 
     // Calculate q_max width for planner
     *q_max_ptr = pose_graph::BasicPathBase::terrian_type_corridor_width(vertex_type);
     CLOG(DEBUG, "cbit.control") << "Vertex Corridor Width is: " << *q_max_ptr; // we may want to look ahead a few frames instead
-
-    //Figure out if we're driving backwards or forwards
-    const auto nextEdge = chain.pose(curr_sid).inverse() * chain.pose(curr_sid + 1);
-    direction_scale_ = (nextEdge.vec()(0) > 0) ? 1.0 : -1.0;
 
   }
 
@@ -337,7 +330,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     // Read or use output.obs_map safely
     auto obs_map = robot_state.obs_map;
     const auto costmap_sid = robot_state.costmap_sid;
-    const auto T_start_vertex = chain.pose(costmap_sid);
+    const auto T_start_vertex = chain->pose(costmap_sid);
     costmap_ptr->grid_resolution = robot_state.grid_resolution;
   
     CLOG(DEBUG, "cbit.obstacle_filtering") << "The size of the map is: " << obs_map.size();
@@ -360,6 +353,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     // After that point, we then do a sliding window using shift operations, moving out the oldest map and appending the newest one
     else
     {
+      //TODO looks like this shold use a list, it looks like it's just overwriting the last one.
       costmap_ptr->obs_map_vect[config_->costmap_history-1] = obs_map;
       costmap_ptr->T_c_w_vect[config_->costmap_history-1] = costmap_ptr->T_c_w ;
     }
@@ -378,129 +372,80 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
   if (cbit_path_ptr->size() != 0)
   {
-    // CLOG(DEBUG, "cbit.debug") << "History of the Robot Velocities:" << vel_history;
+
+    CasadiUnicycleMPC::Config mpcConfig;
+    mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+
 
     // Initializations from config
-    bool extrapolate_robot_pose = config_->extrapolate_robot_pose;
-    bool mpc_verbosity = config_->mpc_verbosity;
-    bool homotopy_guided_mpc = config_->homotopy_guided_mpc;
-    int K = config_->horizon_steps; // Horizon steps
-    double DT = config_->horizon_step_size; // Horizon step size
-    double VF = config_->forward_vel; // Desired Forward velocity set-point for the robot. MPC will try to maintain this rate while balancing other constraints
     
     // Schedule speed based on path curvatures + other factors
-    VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, VF, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7, config_->min_vel);
+    // TODO refactor to accept the chain and use the curvature of the links
+    mpcConfig.VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, config_->forward_vel, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7, config_->min_vel);
 
   
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
+    // Removing for now. I'm not sure this is a good idea with noisy velocity estimates
     auto T_p_r_extp = T_p_r;
-    if (extrapolate_robot_pose == true) {
-      const auto curr_time = now();  // always in nanoseconds
-      auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
-      if (fabs(dt) > 0.5) { 
-        CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
-              << "Ignoring extrapolation requestion. Check your time sync!";
-        dt = 0;
-      }
+    // if (config_->extrapolate_robot_pose) {
+    //   const auto curr_time = now();  // always in nanoseconds
+    //   auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
+    //   if (fabs(dt) > 0.5) { 
+    //     CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
+    //           << "Ignoring extrapolation requestion. Check your time sync!";
+    //     dt = 0;
+    //   }
 
-      CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
-      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
-      T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
+    //   CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
+    //   Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
+    //   T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
-      CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
-    }
+    //   CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
+    // }
 
-    lgmath::se3::Transformation T0 = T_w_p * T_p_r_extp;
-
-    //Convert to x,y,z,roll, pitch, yaw
-    // std::tuple<double, double, double, double, double, double> robot_pose = T2xyzrpy(T0);
-    // CLOG(DEBUG, "cbit.control") << "The Current Robot Pose (from planning) is - x: " << std::get<0>(robot_pose) << " y: " << std::get<1>(robot_pose) << " yaw: " << std::get<5>(robot_pose);
-
-    // CLOG(DEBUG, "cbit.control") << "The Current Robot State Transform is: : " << T0;
-    // // Need to also invert the robot state to make it T_vi instead of T_iv as this is how the MPC problem is structured
-    // lgmath::se3::Transformation T0_inv = T0.inverse();
-    // CLOG(DEBUG, "cbit.control") << "The Inverted Current Robot State Using Direct Robot Values is: " << T0_inv;
-    // // END OF ROBOT POSE EXTRAPOLATION
+    lgmath::se3::Transformation T0 = T_p_r_extp;
+    mpcConfig.T0 = tf_to_global(T0);
 
     CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
+    double state_p = findRobotP(chain);
 
-
-    // Calculate which T_ref poses to used based on the current path solution
-    // CLOG(INFO, "cbit.control") << "Attempting to generate T_ref poses";
-    // auto ref_tracking_result = GenerateTrackingReference(cbit_path_ptr, robot_pose, K,  DT, VF);
-    // auto tracking_poses = ref_tracking_result.poses;
-    // bool point_stabilization = ref_tracking_result.point_stabilization; // No need to do both tracking and homotopy point stabilization
-    // std::vector<double> p_interp_vec = ref_tracking_result.p_interp_vec;
-    // std::vector<double> q_interp_vec = ref_tracking_result.q_interp_vec;
-
-
-    // Synchronized Tracking/Teach Reference Poses For Homotopy Guided MPC:
-    /*auto ref_homotopy_result = generateHomotopyReference(global_path_ptr, corridor_ptr, robot_pose, p_interp_vec);
-    auto homotopy_poses = ref_homotopy_result.poses;
-    bool point_stabilization = ref_homotopy_result.point_stabilization;
-    std::vector<double> barrier_q_left = ref_homotopy_result.barrier_q_left;
-    std::vector<double> barrier_q_right = ref_homotopy_result.barrier_q_right;
-
-    CLOG(DEBUG, "cbit.debug") << "Sizes of corridor " << barrier_q_left.size() << " , " << barrier_q_right.size();
-
-    std::vector<lgmath::se3::Transformation> homotopy_pose_vec;
-    for (size_t i = 0; i < homotopy_poses.size(); i++) {
-      homotopy_pose_vec.push_back(homotopy_poses[i].inverse());
+    std::vector<double> p_rollout;
+    for(int j = 1; j < mpcConfig.N+1; j++){
+      p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
     }
-  */
-    std::vector<lgmath::se3::Transformation> tracking_pose_vec;
-    // for (size_t i = 0; i < tracking_poses.size(); i++) {
-    //   tracking_pose_vec.push_back(tracking_poses[i].inverse());
-    // }
 
+    mpcConfig.reference_poses.clear();
+    auto referenceInfo = generateHomotopyReference(p_rollout, chain);
+    for(const auto& Tf : referenceInfo.poses) {
+      mpcConfig.reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+      CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+    }
 
-    Eigen::Vector2d measured_vel;
-    measured_vel << -w_p_r_in_r.head<1>(), -w_p_r_in_r.tail<1>();
-    // Generate the mpc configuration structure:
-    MPCConfig mpc_config;
-    mpc_config.T0 = T0;
-    // mpc_config.tracking_reference_poses = tracking_poses;
-    mpc_config.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-    mpc_config.acc_max = {config_->max_lin_acc, config_->max_ang_acc};
-    mpc_config.vel_warm_start = (mpc_rollout_.size() > 0) ? mpc_rollout_ : std::list<Eigen::Vector2d>{measured_vel};
-
-    // mpc_config.barrier_q_left = barrier_q_left;
-    // mpc_config.barrier_q_right = barrier_q_right;
-    mpc_config.K = K;
-    mpc_config.DT = DT;
-    mpc_config.VF = direction_scale_ * VF;
-    mpc_config.lat_noise_cov = config_->lat_error_cov;
-    mpc_config.pose_noise_cov = config_->pose_error_cov;
-    mpc_config.vel_noise_cov = config_->vel_error_cov;
-    mpc_config.verbosity = mpc_verbosity;
-    mpc_config.homotopy_mode = homotopy_guided_mpc;
-    mpc_config.alpha = Eigen::Matrix2d::Zero();
-    mpc_config.alpha.diagonal() << config_->lin_alpha, config_->ang_alpha;
-
-    estimated_last_vel_ = (Eigen::Matrix2d::Identity() - mpc_config.alpha) * applied_vel_ + mpc_config.alpha * estimated_last_vel_;
-    // mpc_config.previous_vel = (Eigen::Matrix2d::Identity() - mpc_config.alpha) * measured_vel + mpc_config.alpha * applied_vel_;
-    mpc_config.previous_vel = measured_vel;
+    mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
+    mpcConfig.low_barrier_q = referenceInfo.barrier_q_min;
+    
+    mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
+   
 
     // Create and solve the STEAM optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
     Eigen::Vector2d mpc_vel;
-    try
-    {
+    try {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
-      auto MPCResult = SolveMPC(mpc_config, robot_state.chain.ptr());
-      mpc_vel = MPCResult.applied_vels.front(); // note dont re-declare applied vel here
-      mpc_poses = MPCResult.mpc_poses;
+      auto mpc_res = solver_.solve(mpcConfig);
+      
+      for(int i = 0; i < mpc_res["pose"].columns(); i++) {
+        const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
+        mpc_poses.push_back(T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2]));
+      }
+
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
-      mpc_rollout_ = MPCResult.applied_vels;
-      mpc_rollout_.pop_front();
-    } catch(steam::unsuccessful_step &e) {
-      CLOG(WARNING, "cbit.control") << "STEAM Optimization Failed because " << e.what() << " Commanding to Stop the Vehicle";
-      mpc_rollout_ = {{VF, 0}};
-      return Command();
-    } catch(std::logic_error &e) {
-      CLOG(WARNING, "cbit.control") << "Violated barrier constraint! " << e.what() << " Commanding to Stop the Vehicle";
-      mpc_rollout_ = {{VF, 0}};
+      const auto& mpc_vel_vec = mpc_res["vel"](casadi::Slice(), 0).get_elements();
+
+      mpc_vel << mpc_vel_vec[0], mpc_vel_vec[1];
+    } catch(std::exception &e) {
+      CLOG(WARNING, "cbit.control") << "casadi failed! " << e.what() << " Commanding to Stop the Vehicle";
       return Command();
     }
 
@@ -512,10 +457,9 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     command.linear.x = mpc_vel(0);
     command.angular.z = mpc_vel(1);
 
-    auto ref_homotopy_result = generateHomotopyReference(mpc_poses, robot_state.chain.ptr());
 
     // visualize the outputs
-    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, mpc_poses, robot_poses, tracking_pose_vec, ref_homotopy_result.poses, cbit_path_ptr, corridor_ptr);
+    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, mpc_poses, robot_poses, referenceInfo.poses, referenceInfo.poses, cbit_path_ptr, corridor_ptr);
 
     return command;
   }
@@ -527,6 +471,26 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   }
 }
 
+
+// Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
+Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim) {
+  double command_lin_x;
+  double command_ang_z;
+
+  if (abs(applied_vel(0)) >= v_lim) {
+    command_lin_x = sgn(applied_vel(0)) * v_lim;
+  } else {
+    command_lin_x = applied_vel(0) ;
+  }
+
+  if (abs(applied_vel(1)) >= w_lim) {
+    command_ang_z = sgn(applied_vel(1)) * w_lim;
+  } else {
+    command_ang_z = applied_vel(1) ;
+  }
+
+  return {command_lin_x, command_ang_z};
+}
 
 }  // namespace path_planning
 }  // namespace vtr

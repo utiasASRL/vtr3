@@ -44,6 +44,7 @@
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
 #include "vtr_path_planning/cbit/visualization_utils.hpp"
 #include "vtr_path_planning/mpc/speed_scheduler.hpp"
+#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 
 #include "steam.hpp"
 
@@ -160,6 +161,8 @@ class CBIT : public BasePathPlanner {
 
   std::shared_ptr<CBITPlanner> planner_ptr_;
 
+  CasadiUnicycleMPC solver_;
+
   // Pointers to the output path
   std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
@@ -187,8 +190,6 @@ class CBIT : public BasePathPlanner {
   Eigen::Vector2d estimated_last_vel_ = Eigen::Vector2d::Zero();
   std::vector<Eigen::Vector2d> vel_history;
   tactic::Timestamp prev_vel_stamp_;
-  std::list<Eigen::Vector2d> mpc_rollout_;
-  double direction_scale_ = 1.0;
 
   //create vector to store the robots path for visualization purposes
   std::vector<lgmath::se3::Transformation> robot_poses;
@@ -209,6 +210,9 @@ class CBIT : public BasePathPlanner {
 
 
 };
+
+// Helper function for post-processing and saturating the velocity command
+Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim);
 
 }  // namespace path_planning
 }  // namespace vtr
