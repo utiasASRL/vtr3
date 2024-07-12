@@ -369,10 +369,5 @@
 
         vehicle_model: "unicycle"
 
-        # Cost Function Covariance Matrices
-        pose_error_cov: [1.0, 1.0, 1e5, 1e5, 1e5, 1e2]
-        vel_error_cov: [1.0, 5e2]
-        lat_error_cov: [1.0]
-
         # Misc
         command_history_length: 100

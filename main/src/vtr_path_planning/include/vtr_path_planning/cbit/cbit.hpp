@@ -122,11 +122,6 @@ class CBIT : public BasePathPlanner {
 
     // Add unicycle model param
 
-    // Covariance tuning weights
-    Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
-    Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-    Eigen::Matrix<double, 1, 1> lat_error_cov = Eigen::Matrix<double, 1, 1>::Zero();
-
     // Misc
     int command_history_length = 100;
 
