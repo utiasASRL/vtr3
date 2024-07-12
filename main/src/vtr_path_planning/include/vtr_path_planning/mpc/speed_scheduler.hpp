@@ -17,11 +17,29 @@
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 
-
 #pragma once
 #include <vector>
-#include "vtr_logging/logging.hpp"
-#include "vtr_path_planning/cbit/generate_pq.hpp"
+#include <vtr_tactic/types.hpp>
+#include <vtr_path_planning/mpc/mpc_common.hpp>
 
 
-double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, unsigned curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, int horizon_steps, double min_vel);
+
+namespace vtr::path_planning
+{
+struct SpeedSchedConfig {
+    double target_vel = 1;
+    double min_vel = 0;
+    
+    double planar_curv_weight = 0;
+    double profile_curv_weight = 0;
+    double eop_weight = 0;
+    unsigned horizon_steps = 1;
+};
+
+double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params);
+  
+} // namespace vtr::path_planning
+
+
+
+double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, unsigned curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, unsigned horizon_steps, double min_vel);

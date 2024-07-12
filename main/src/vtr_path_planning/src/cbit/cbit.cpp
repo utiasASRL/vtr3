@@ -367,7 +367,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     
     // Schedule speed based on path curvatures + other factors
     // TODO refactor to accept the chain and use the curvature of the links
-    mpcConfig.VF = ScheduleSpeed(global_path_ptr->disc_path_curvature_xy, global_path_ptr->disc_path_curvature_xz_yz, config_->forward_vel, curr_sid, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7, config_->min_vel);
+    mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
 
   
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
@@ -414,9 +414,10 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
    
 
-    // Create and solve the STEAM optimization problem
+    // Create and solve the casadi optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
-    Eigen::Vector2d mpc_vel;
+    // return the computed velocity command for the first time step
+    Command command;
     try {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
       auto mpc_res = solver_.solve(mpcConfig);
@@ -429,19 +430,15 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
       const auto& mpc_vel_vec = mpc_res["vel"](casadi::Slice(), 0).get_elements();
 
-      mpc_vel << mpc_vel_vec[0], mpc_vel_vec[1];
+      command.linear.x = mpc_vel_vec[0];
+      command.angular.z = mpc_vel_vec[1];
     } catch(std::exception &e) {
       CLOG(WARNING, "cbit.control") << "casadi failed! " << e.what() << " Commanding to Stop the Vehicle";
       return Command();
     }
 
 
-    CLOG(INFO, "cbit.control") << "The linear velocity is:  " << mpc_vel(0) << " The angular vel is: " << mpc_vel(1);
-
-    // return the computed velocity command for the first time step
-    Command command;
-    command.linear.x = mpc_vel(0);
-    command.angular.z = mpc_vel(1);
+    CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 
 
     // visualize the outputs

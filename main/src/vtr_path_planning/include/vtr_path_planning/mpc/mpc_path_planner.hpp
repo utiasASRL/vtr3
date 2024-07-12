@@ -19,9 +19,7 @@
 #pragma once
 
 #include <casadi/casadi.hpp>
-#include <vtr_tactic/types.hpp>
-#include <lgmath.hpp>
-
+#include <vtr_path_planning/mpc/mpc_common.hpp>
 
 namespace vtr::path_planning {
 class CasadiUnicycleMPC {
@@ -61,44 +59,5 @@ private:
   std::map<std::string, casadi::DM> arg_;
 
 };
-
-std::vector<double> tf_to_global(const lgmath::se3::Transformation& T);
-tactic::EdgeTransform tf_from_global(double x, double y, double theta);
-
-
-struct PoseResultHomotopy
-{
-    std::vector<lgmath::se3::Transformation> poses;
-    std::vector<double> barrier_q_max;
-    std::vector<double> barrier_q_min;
-};
-
-struct CurvatureInfo
-{
-  Eigen::Vector3d center;
-  double radius;
-
-  inline double curvature() const {
-    return 1 / radius;
-  }
-
-  static CurvatureInfo fromTransform(const lgmath::se3::Transformation &T_12);
-};
-
-
-// Declaring helper functions
-
-// Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
-PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
-PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain);
-
-using Segment = std::pair<unsigned, unsigned>;
-Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
-Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
-
-lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T_wr,
-                const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end,
-                 double& interp);
-double findRobotP(const lgmath::se3::Transformation& T_wr, tactic::LocalizationChain::Ptr chain);
 
 } //namespace vtr::path_planning

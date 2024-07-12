@@ -19,10 +19,54 @@
 
 #include "vtr_path_planning/mpc/speed_scheduler.hpp"
 #include <algorithm>
-#include <iostream>
+
+namespace vtr::path_planning
+{
+  double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params) {
+    
+    unsigned curr_sid = chain->trunkSequenceId();
+
+    CLOG(DEBUG, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
+    CLOG(DEBUG, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
+
+    double VF_EOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * (chain->size()- 1 - curr_sid) / 20.0));
+    double VF_SOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * curr_sid / 10));
 
 
-double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, unsigned curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, int horizon_steps, double min_vel) {
+    double VF_XY;
+    double avg_curvature = 0.0;
+    unsigned window_steps = 0;
+    for (auto itr = chain->begin(curr_sid); itr != chain->end() && unsigned(itr) < curr_sid + params.horizon_steps; itr++) {
+      const auto curvature = CurvatureInfo::fromTransform(itr->T());
+      avg_curvature += curvature.curvature();
+      ++window_steps;
+    }
+    avg_curvature /= window_steps;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE AVERAGE CURVATURE IS:  " << avg_curvature;
+
+    // handle forward/reverse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
+
+    VF_XY = std::max(params.min_vel, params.target_vel / (1 + (avg_curvature * avg_curvature * params.planar_curv_weight)));
+    
+    // Take the minimum of all candidate (positive) scheduled speeds (Lowest allowed scheduled velocity is 0.5m/s, should be left this way)
+    double VF = std::min({VF_EOP, VF_SOP, VF_XY});
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_EOP SPEED IS:  " << VF_EOP;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_SOP SPEED IS:  " << VF_SOP;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_XY SPEED IS:  " << VF_XY;
+
+    // Take the minimum of all candidate scheduled speeds
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
+    // End of speed scheduler code
+
+    // Return the scheduled speed
+    return VF;
+  }
+
+  
+} // namespace vtr::path_planning
+
+
+double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, unsigned curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, unsigned horizon_steps, double min_vel) {
 
     // Experimental Speed Scheduler:
     // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
@@ -46,11 +90,10 @@ double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const st
     double VF_XZ_YZ;
     double avg_curvature_xy = 0.0;
     double avg_curvature_xz_yz = 0.0;
-    unsigned end_of_path = 0;
     unsigned window_steps = 0;
-    for (int i = static_cast<int>(curr_sid); i < static_cast<int>(curr_sid) + horizon_steps; i++) {
+    for (unsigned i = curr_sid; i < curr_sid + horizon_steps; i++) {
       // Handle end of path case
-      if (i >= 0 && i < disc_path_curvature_xy.size()-1) {
+      if (i < disc_path_curvature_xy.size()-1) {
         avg_curvature_xy += disc_path_curvature_xy[i];
         avg_curvature_xz_yz += disc_path_curvature_xz_yz[i];
         ++window_steps;

@@ -26,13 +26,12 @@
 #include <iostream>
 #include <map>
 
-#include "vtr_tactic/tactic.hpp"
+#include "vtr_tactic/types.hpp"
 
 #pragma once
 
 
-namespace vtr {
-namespace path_planning {
+namespace vtr::path_planning {
 
     struct ChainInfo {
         tactic::Timestamp stamp;
@@ -47,9 +46,7 @@ namespace path_planning {
 
     /** \brief Retrieve information for planning from localization chain */
     ChainInfo getChainInfo(const tactic::LocalizationChain& robot_state);
-    
-} // namespace path_planning
-} // namespace vtr
+} // namespace vtr::path_planning
 
 
 
