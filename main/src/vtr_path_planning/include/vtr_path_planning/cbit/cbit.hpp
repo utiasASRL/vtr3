@@ -107,9 +107,6 @@ class CBIT : public BasePathPlanner {
     bool obstacle_avoidance = false;
     bool extrapolate_robot_pose = true;
     bool mpc_verbosity = false;
-    bool homotopy_guided_mpc = false;
-    int horizon_steps = 10;
-    double horizon_step_size = 0.5;
     double forward_vel = 0.75;
     double max_lin_vel = 1.25;
     double max_ang_vel = 0.75;
@@ -117,8 +114,6 @@ class CBIT : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
-    double ang_alpha = 0.0;
-    double lin_alpha = 0.0;
 
     // Add unicycle model param
 
@@ -132,10 +127,6 @@ class CBIT : public BasePathPlanner {
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
-    // Subscription for parameter change
-    rclcpp::AsyncParametersClient::SharedPtr ros_parameters_client;
-    rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr
-        ros_parameter_event_sub;
   };
 
   CBIT(const Config::ConstPtr& config,
@@ -178,11 +169,10 @@ class CBIT : public BasePathPlanner {
   std::shared_ptr<VisualizationUtils> visualization_ptr;
 
   unsigned int prev_costmap_sid = 0;
-  tactic::Timestamp prev_stamp;
+  tactic::Timestamp prev_cost_stamp_;
 
   // Store the previously applied velocity and a sliding window history of MPC results
   Eigen::Vector2d applied_vel_;
-  Eigen::Vector2d estimated_last_vel_ = Eigen::Vector2d::Zero();
   std::vector<Eigen::Vector2d> vel_history;
   tactic::Timestamp prev_vel_stamp_;
 
@@ -191,7 +181,7 @@ class CBIT : public BasePathPlanner {
 
 
   // Create costmap pointer object
-  std::shared_ptr<CBITCostmap> costmap_ptr = std::make_shared<CBITCostmap> ();
+  std::shared_ptr<CBITCostmap> costmap_ptr = std::make_shared<CBITCostmap>();
 
  private:
   void process_cbit();

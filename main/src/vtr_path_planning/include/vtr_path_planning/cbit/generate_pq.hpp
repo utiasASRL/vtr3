@@ -21,8 +21,6 @@
 
 #include <vector>
 #include <cmath>
-#include <cstdlib>
-#include <cstdio>
 #include <Eigen/Core>
 #include <unsupported/Eigen/Splines>
 
@@ -52,9 +50,6 @@ class CBITPath {
         Eigen::Spline<double, 2> spline_path_xz_yz(const std::vector<Pose> &input_path); // Processes the input discrete path into a cubic spline
 
         double radius_of_curvature(double dist, Eigen::Spline<double, 2> spline); // Calculates the radius of curvature using the spline at a given distance along the spline
-       
-        // Actually I think ill just do this in the constructor for now
-        //std::vector<double> ProcessPath(std::vector<Pose> disc_path); // Function for assigning p distance values for each euclidean point in pre-processing
 };
 
 // Class for storing the dynamic corridor information

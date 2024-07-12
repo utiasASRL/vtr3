@@ -75,16 +75,11 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   // CONTROLLER PARAMS
   config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
   config->mpc_verbosity = node->declare_parameter<bool>(prefix + ".mpc.mpc_verbosity", config->mpc_verbosity);
-  config->homotopy_guided_mpc = node->declare_parameter<bool>(prefix + ".mpc.homotopy_guided_mpc", config->homotopy_guided_mpc);
-  config->horizon_steps = node->declare_parameter<int>(prefix + ".mpc.horizon_steps", config->horizon_steps);
-  config->horizon_step_size = node->declare_parameter<double>(prefix + ".mpc.horizon_step_size", config->horizon_step_size);
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
   config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
   config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
   config->max_lin_acc = node->declare_parameter<double>(prefix + ".mpc.max_lin_acc", config->max_lin_acc);
   config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
-  config->lin_alpha = node->declare_parameter<double>(prefix + ".mpc.lin_alpha", config->lin_alpha);
-  config->ang_alpha = node->declare_parameter<double>(prefix + ".mpc.ang_alpha", config->ang_alpha);
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
 
@@ -217,7 +212,6 @@ void CBIT::initializeRoute(RobotState& robot_state) {
   {
     vel_history.push_back(applied_vel_);
   }
-  estimated_last_vel_ = Eigen::Vector2d::Zero();
   robot_poses.clear();
 
   lgmath::se3::TransformationWithCovariance teach_frame;
@@ -315,7 +309,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   }
 
   // Retrieve the latest obstacle costmap
-  if ((prev_stamp != stamp) && (config_->obstacle_avoidance == true))
+  if ((prev_cost_stamp_ != stamp) && (config_->obstacle_avoidance == true))
   {
     
     std::lock_guard<std::mutex> lock(robot_state.obsMapMutex);
@@ -350,7 +344,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       costmap_ptr->T_c_w_vect[config_->costmap_history-1] = costmap_ptr->T_c_w ;
     }
   }
-  prev_stamp = stamp;
+  prev_cost_stamp_ = stamp;
   // END OF OBSTACLE PERCEPTION UPDATES
 
   // Make sure there is a valid solution, else stop the robot
@@ -466,22 +460,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
 // Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
 Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim) {
-  double command_lin_x;
-  double command_ang_z;
-
-  if (abs(applied_vel(0)) >= v_lim) {
-    command_lin_x = sgn(applied_vel(0)) * v_lim;
-  } else {
-    command_lin_x = applied_vel(0) ;
-  }
-
-  if (abs(applied_vel(1)) >= w_lim) {
-    command_ang_z = sgn(applied_vel(1)) * w_lim;
-  } else {
-    command_ang_z = applied_vel(1) ;
-  }
-
-  return {command_lin_x, command_ang_z};
+  return {std::clamp(applied_vel(0), -v_lim, v_lim), std::clamp(applied_vel(1), -w_lim, w_lim)};
 }
 
 }  // namespace path_planning

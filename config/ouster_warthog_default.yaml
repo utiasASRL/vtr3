@@ -355,9 +355,6 @@
         # Controller Params
         extrapolate_robot_pose: false
         mpc_verbosity: false
-        homotopy_guided_mpc: false
-        horizon_steps: 10
-        horizon_step_size: 0.3
         forward_vel: 1.0
         max_lin_vel: 1.5
         max_ang_vel: 0.5
