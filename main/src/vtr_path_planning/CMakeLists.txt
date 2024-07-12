@@ -16,7 +16,6 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 
 find_package(lgmath REQUIRED)
-find_package(steam REQUIRED)
 find_package(casadi REQUIRED)
 
 find_package(vtr_common REQUIRED)
@@ -50,7 +49,7 @@ target_link_libraries(${PROJECT_NAME}_mpc ${PROJECT_NAME}_base)
 target_link_libraries(${PROJECT_NAME}_mpc casadi)
 ament_target_dependencies(${PROJECT_NAME}_mpc
   rclcpp tf2 tf2_ros tf2_eigen
-  lgmath steam Python3 casadi
+  lgmath Python3 casadi
 )
 
 
@@ -69,7 +68,7 @@ target_link_libraries(${PROJECT_NAME}_cbit ${PYTHON_LIBRARIES})
 
 ament_target_dependencies(${PROJECT_NAME}_cbit
   rclcpp tf2 tf2_ros tf2_eigen Python3
-  lgmath steam PythonLibs matplotlib_cpp
+  lgmath PythonLibs matplotlib_cpp
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)

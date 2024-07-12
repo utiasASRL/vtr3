@@ -126,11 +126,7 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
       }
 
       // This block detects direction switches, and prevents searching across them
-      // It's only enabled in safe-search mode (no searching backwards as well),
-      // it only tries if the current sid is not an extremum of the search range,
-      // and it only stops at cusps that pass X m in 'distance' from the current
-      // position
-      if (unsigned(path_it) > begin_sid && unsigned(path_it) + 1 < end_sid) {
+      if (unsigned(path_it) < end_sid - 1) {
         Eigen::Matrix<double, 6, 1> vec_prev_cur = path_it->T().vec();
         Eigen::Matrix<double, 6, 1> vec_cur_next = (path_it + 1)->T().vec();
         // + means they are in the same direction (note the negative at the front
@@ -143,7 +139,14 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
         // If this is negative, they are in the 'opposite direction', and we're at
         // a cusp
         if (T_dot < 0) {
-          break;
+          if (unsigned(path_it) <= sid_start) {
+            CLOG(DEBUG, "cbit.debug") << "Direction switch behind reset";
+            best_distance = std::numeric_limits<double>::max();
+            max_distance = -1.;
+          } else {
+            CLOG(DEBUG, "cbit.debug") << "Direction switch ahead break";
+            break;
+          }
         }
       }
     }
@@ -189,28 +192,6 @@ Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr 
         best_distance = distance;
         best_sid = unsigned(path_it);
       }
-
-      // This block detects direction switches, and prevents searching across them
-      // It's only enabled in safe-search mode (no searching backwards as well),
-      // it only tries if the current sid is not an extremum of the search range,
-      // and it only stops at cusps that pass X m in 'distance' from the current
-      // position
-      if (unsigned(path_it) > begin_sid && unsigned(path_it) + 1 < end_sid) {
-        Eigen::Matrix<double, 6, 1> vec_prev_cur = path_it->T().vec();
-        Eigen::Matrix<double, 6, 1> vec_cur_next = (path_it + 1)->T().vec();
-        // + means they are in the same direction (note the negative at the front
-        // to invert one of them)
-        double r_dot = vec_prev_cur.head<3>().dot(vec_cur_next.head<3>());
-        // + means they are in the same direction
-        double C_dot = vec_prev_cur.tail<3>().dot(vec_cur_next.tail<3>());
-        // combine the translation and rotation components using the angle weight
-        double T_dot = r_dot + 0.25 * C_dot;
-        // If this is negative, they are in the 'opposite direction', and we're at
-        // a cusp
-        if (T_dot < 0) {
-          break;
-        }
-      }
     }
 
     //Handle end of path exceptions
@@ -226,10 +207,10 @@ Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr 
   }
 
 
-double findRobotP(const tactic::LocalizationChain::Ptr chain) {
+double findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
   double state_interp = 0;
-  auto segment = findClosestSegment(chain->T_start_leaf(), chain, chain->trunkSequenceId());
-  auto path_ref = interpolatePath(chain->T_start_leaf(), chain->pose(segment.first), chain->pose(segment.second), state_interp);
+  auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
+  auto path_ref = interpolatePath(T_wr, chain->pose(segment.first), chain->pose(segment.second), state_interp);
   return chain->p(segment.first) + state_interp * (chain->p(segment.second) - chain->p(segment.first));
 }
 
@@ -364,14 +345,4 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
     return {tracking_reference_poses, barrier_q_max, barrier_q_min};
 }
 
-
-PoseResultHomotopy generateHomotopyReference(const std::vector<steam::Evaluable<lgmath::se3::Transformation>::Ptr>& rolled_out_poses, tactic::LocalizationChain::Ptr chain) {
-
-  std::vector<lgmath::se3::Transformation> poses;
-  for(const auto& pose_var : rolled_out_poses) {
-    poses.push_back(pose_var->value());
-  }
-
-  return generateHomotopyReference(poses, chain);
-}
 } //namespace vtr::path_planning

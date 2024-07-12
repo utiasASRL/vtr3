@@ -14,6 +14,10 @@ Q_theta = 1
 R1 = 1
 R2 = 100
 
+# Acceleration Cost Covariance
+Acc_R1 = 2.0
+Acc_R2 = 0.01
+
 step_horizon = 0.2  # time between steps in seconds
 N = 15           # number of look ahead steps
 
@@ -67,6 +71,9 @@ Q = ca.diagcat(Q_x, Q_y)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
+
+#Acceleration weith matrix
+R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
 
 # RHS = states + J @ controls * step_horizon  # Euler discretization
@@ -126,9 +133,9 @@ for k in range(N):
     g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
 
 #Acceleration constraints
-# g = ca.vertcat(g, U[:, 0] - measured_velo)
-# for k in range(1, N):
-#     g = ca.vertcat(g, U[:, k] - U[:, k-1])
+cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
+for k in range(1, N):
+    cost_fn += (U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1])
 
 
 OPT_variables = ca.vertcat(

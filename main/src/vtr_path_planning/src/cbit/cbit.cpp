@@ -387,28 +387,28 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
     // Removing for now. I'm not sure this is a good idea with noisy velocity estimates
     auto T_p_r_extp = T_p_r;
-    // if (config_->extrapolate_robot_pose) {
-    //   const auto curr_time = now();  // always in nanoseconds
-    //   auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
-    //   if (fabs(dt) > 0.5) { 
-    //     CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
-    //           << "Ignoring extrapolation requestion. Check your time sync!";
-    //     dt = 0;
-    //   }
+    if (config_->extrapolate_robot_pose) {
+      const auto curr_time = now();  // always in nanoseconds
+      auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
+      if (fabs(dt) > 0.25) { 
+        CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
+              << "Ignoring extrapolation requestion. Check your time sync!";
+        dt = 0;
+      }
 
-    //   CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
-    //   Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
-    //   T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
+      CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
+      Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
+      T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
-    //   CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
-    // }
+      CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
+    }
 
     lgmath::se3::Transformation T0 = T_p_r_extp;
     mpcConfig.T0 = tf_to_global(T0);
 
     CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
-    double state_p = findRobotP(chain);
+    double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
 
     std::vector<double> p_rollout;
     for(int j = 1; j < mpcConfig.N+1; j++){

@@ -195,7 +195,7 @@ TEST_P(ChainTest, NoiseFreeMPC) {
   config.previous_vel = {0.0, 0.0};
   config.T0 = {x_init, y_init, theta_init};
 
-  double state_p = findRobotP(chain_);
+  double state_p = findRobotP(chain_->T_start_leaf(), chain_);
 
   for(int i = 1; i < config.N+1; i++){
     config.reference_poses.push_back({i*config.VF*config.DT, 0, 0});
@@ -242,7 +242,7 @@ TEST_P(ChainTest, NoiseFreeMPC) {
       chain_->updateBranchToTwigTransform(live_id, map_id, map_sid,
                                         chain_->T_leaf_trunk(), true, false);
 
-      state_p = findRobotP(chain_);     
+      state_p = findRobotP(chain_->T_start_leaf(), chain_);     
       std::vector<double> p_rollout;
       for(int j = 1; j < config.N+1; j++){
         p_rollout.push_back(state_p + j*config.VF*config.DT);
@@ -313,7 +313,7 @@ TEST_P(ChainTest, NoisyMPC) {
   config.previous_vel = {0.0, 0.0};
   config.T0 = {x_init, y_init, theta_init};
 
-  double state_p = findRobotP(chain_);
+  double state_p = findRobotP(chain_->T_start_leaf(), chain_);
 
   for(int i = 1; i < config.N+1; i++){
     config.reference_poses.push_back({i*config.VF*config.DT, 0, 0});
@@ -360,7 +360,7 @@ TEST_P(ChainTest, NoisyMPC) {
       chain_->updateBranchToTwigTransform(live_id, map_id, map_sid,
                                         chain_->T_leaf_trunk(), true, false);
 
-      state_p = findRobotP(chain_);     
+      state_p = findRobotP(chain_->T_start_leaf(), chain_);     
       std::vector<double> p_rollout;
       for(int j = 1; j < config.N+1; j++){
         p_rollout.push_back(state_p + j*config.VF*config.DT);
@@ -433,7 +433,7 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
 
   std::vector<tactic::EdgeTransform> target_poses_0;
 
-  double state_p = findRobotP(chain_);     
+  double state_p = findRobotP(chain_->T_start_leaf(), chain_);     
   std::vector<double> p_rollout;
   for(int j = 1; j < config.N+1; j++){
     p_rollout.push_back(state_p + j*config.VF*config.DT);
@@ -493,7 +493,7 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
       chain_->updateBranchToTwigTransform(live_id, map_id, map_sid,
                                         chain_->T_leaf_trunk(), true, false);
 
-      state_p = findRobotP(chain_);     
+      state_p = findRobotP(chain_->T_start_leaf(), chain_);     
       std::vector<double> p_rollout;
       for(int j = 1; j < config.N+1; j++){
         p_rollout.push_back(state_p + j*config.VF*config.DT);

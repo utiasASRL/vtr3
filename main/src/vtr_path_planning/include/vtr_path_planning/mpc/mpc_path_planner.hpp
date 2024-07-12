@@ -18,7 +18,6 @@
  */
 #pragma once
 
-#include "steam.hpp"
 #include <casadi/casadi.hpp>
 #include <vtr_tactic/types.hpp>
 #include <lgmath.hpp>
@@ -67,26 +66,11 @@ std::vector<double> tf_to_global(const lgmath::se3::Transformation& T);
 tactic::EdgeTransform tf_from_global(double x, double y, double theta);
 
 
-struct PoseResultTracking
-{
-    std::vector<lgmath::se3::Transformation> poses;
-    bool point_stabilization;
-    std::vector<double> p_interp_vec;
-    std::vector<double> q_interp_vec;
-};
-
 struct PoseResultHomotopy
 {
     std::vector<lgmath::se3::Transformation> poses;
     std::vector<double> barrier_q_max;
     std::vector<double> barrier_q_min;
-};
-
-struct InterpResult
-{
-    lgmath::se3::Transformation pose;
-    double p_interp;
-    double q_interp;
 };
 
 struct CurvatureInfo
@@ -106,7 +90,6 @@ struct CurvatureInfo
 
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
-PoseResultHomotopy generateHomotopyReference(const std::vector<steam::Evaluable<lgmath::se3::Transformation>::Ptr> &rolled_out_poses, tactic::LocalizationChain::Ptr);
 PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain);
 
 using Segment = std::pair<unsigned, unsigned>;
@@ -116,6 +99,6 @@ Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr 
 lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T_wr,
                 const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end,
                  double& interp);
-double findRobotP(const tactic::LocalizationChain::Ptr chain);
+double findRobotP(const lgmath::se3::Transformation& T_wr, tactic::LocalizationChain::Ptr chain);
 
 } //namespace vtr::path_planning

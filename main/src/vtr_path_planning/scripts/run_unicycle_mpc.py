@@ -71,18 +71,18 @@ lbx[n_states*(N+1)+1::2] = w_min                # v upper bound for all V
 ubx[n_states*(N+1)+1::2] = w_max                # v upper bound for all V
 
 #Motion Model Constraints
-lbg = ca.DM.zeros((n_states*(N+1) + N + n_controls*N, 1))  # constraints lower bound
-ubg = ca.DM.zeros((n_states*(N+1) + N + n_controls*N, 1))  # constraints upper bound
+lbg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints lower bound
+ubg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints upper bound
 
 #Corridor Width constraints
 lbg[n_states*(N+1):n_states*(N+1)+N] = -1.0
 ubg[n_states*(N+1):n_states*(N+1)+N] = 1.0
 
 #Acceleration constraints
-lbg[n_states*(N+1)+N::2] = -lin_acc_max * step_horizon
-ubg[n_states*(N+1)+N::2] = lin_acc_max * step_horizon
-lbg[n_states*(N+1)+N+1::2] = -ang_acc_max * step_horizon
-ubg[n_states*(N+1)+N+1::2] = ang_acc_max * step_horizon
+# lbg[n_states*(N+1)+N::2] = -lin_acc_max * step_horizon
+# ubg[n_states*(N+1)+N::2] = lin_acc_max * step_horizon
+# lbg[n_states*(N+1)+N+1::2] = -ang_acc_max * step_horizon
+# ubg[n_states*(N+1)+N+1::2] = ang_acc_max * step_horizon
 
 print(lbx.shape)
 
