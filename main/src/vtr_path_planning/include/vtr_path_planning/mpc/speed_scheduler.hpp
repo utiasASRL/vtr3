@@ -39,7 +39,3 @@ struct SpeedSchedConfig {
 double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params);
   
 } // namespace vtr::path_planning
-
-
-
-double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, unsigned curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, unsigned horizon_steps, double min_vel);
