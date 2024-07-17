@@ -39,7 +39,7 @@ class Path {
   using UniqueLock = std::unique_lock<Mutex>;
   using LockGuard = std::lock_guard<Mutex>;
 
-  Path(const typename GraphT::Ptr& graph) : graph_(graph) {}
+  Path(const typename GraphT::Ptr& graph, double angle_weight=0.75) : graph_(graph), alpha_{angle_weight} {}
 
  public:
   /** \brief Sequence setters */
@@ -69,11 +69,11 @@ class Path {
   double dist(VertexId vtx_id) const = delete;
 
   /** \brief Gets the curvilinear p value along the path at a sequence index */
-  double p(unsigned seq_id, double angle_weight=0.75) const;
+  double p(unsigned seq_id) const;
   /** \brief Gets the cumu. distance along the path at an iterator position */
-  double p(const Iterator& it, double angle_weight=0.75) const { return p(unsigned(it), angle_weight); }
+  double p(const Iterator& it) const { return p(unsigned(it)); }
   /** \brief Vertex id implicitly converts to unsigned */
-  double p(VertexId vtx_id, double angle_weight=0.75) const = delete;
+  double p(VertexId vtx_id) const = delete;
 
   /** \brief Returns the current sequence */
   Sequence sequence() const;
@@ -104,6 +104,7 @@ class Path {
   mutable std::vector<EdgeTransform> poses_;
   mutable std::vector<double> distances_;
   mutable std::vector<double> p_vals_;
+  double alpha_;
 
   /** \brief for thread safety, use whenever read from/write to the path */
   mutable Mutex mutex_;
@@ -207,7 +208,7 @@ double Path<GraphT>::dist(unsigned seq_id) const {
 }
 
 template <class GraphT>
-double Path<GraphT>::p(unsigned seq_id, double angle_weight) const {
+double Path<GraphT>::p(unsigned seq_id) const {
   LockGuard lock(mutex_);
   if (seq_id >= sequence_.size()) {
     std::string err{"[Path][dist] id out of range."};
@@ -226,7 +227,7 @@ double Path<GraphT>::p(unsigned seq_id, double angle_weight) const {
   for (; unsigned(it) <= seq_id; ++it) {
     Eigen::Matrix<double, 6, 1> se3_vec = it->T().vec();
     double distance = se3_vec.head<3>().norm() +
-                      angle_weight * se3_vec.tail<3>().norm();
+                      alpha_ * se3_vec.tail<3>().norm();
     const_cast<Path<GraphT>*>(this)->p_vals_.push_back(
         p_vals_.back() + distance);
   }

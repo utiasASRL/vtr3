@@ -58,6 +58,7 @@ class LocalizationChain : public Path<Graph> {
     int search_depth = 20;
     int search_back_depth = 10;
     double distance_warning = 3.0;
+    double alpha = 0.25;
   };
 
   using Parent = Path<Graph>;
@@ -78,7 +79,7 @@ class LocalizationChain : public Path<Graph> {
   PTR_TYPEDEFS(LocalizationChain);
 
   LocalizationChain(const Config &config, const typename Graph::Ptr &graph)
-      : Parent(graph), config_(config) {}
+      : Parent(graph, config.alpha), config_(config) {}
 
   LocalizationChain(const typename Graph::Ptr &graph)
       : LocalizationChain(Config(), graph) {}
