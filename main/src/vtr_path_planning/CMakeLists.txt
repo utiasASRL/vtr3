@@ -21,6 +21,7 @@ find_package(casadi REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
+find_package(vtr_path_planning_msgs REQUIRED)
 
 
 # # find python libraries
@@ -41,6 +42,7 @@ add_library(${PROJECT_NAME}_base ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_base
   geometry_msgs
   vtr_common vtr_logging vtr_tactic
+  vtr_path_planning_msgs
 )
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
@@ -50,6 +52,7 @@ target_link_libraries(${PROJECT_NAME}_mpc casadi)
 ament_target_dependencies(${PROJECT_NAME}_mpc
   rclcpp tf2 tf2_ros tf2_eigen
   lgmath Python3 casadi
+  vtr_path_planning_msgs
 )
 
 
@@ -69,12 +72,14 @@ target_link_libraries(${PROJECT_NAME}_cbit ${PYTHON_LIBRARIES})
 ament_target_dependencies(${PROJECT_NAME}_cbit
   rclcpp tf2 tf2_ros tf2_eigen Python3
   lgmath PythonLibs matplotlib_cpp
+  vtr_path_planning_msgs
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros tf2_eigen geometry_msgs matplotlib_cpp
   vtr_common vtr_logging vtr_tactic casadi
+  vtr_path_planning_msgs
 )
 
 install(

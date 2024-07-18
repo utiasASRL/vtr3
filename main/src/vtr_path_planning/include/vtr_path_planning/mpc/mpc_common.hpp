@@ -51,6 +51,7 @@ struct PoseResultHomotopy
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
 PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain);
+lgmath::se3::Transformation interpolatedPose(double p, const tactic::LocalizationChain::Ptr chain);
 
 using Segment = std::pair<unsigned, unsigned>;
 Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);

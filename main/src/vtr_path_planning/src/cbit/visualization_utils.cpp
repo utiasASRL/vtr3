@@ -35,6 +35,7 @@ VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
     ref_pose_pub_tracking_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_tracking", 10);
     ref_pose_pub_homotopy_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_homotopy", 10);
+    path_info_for_external_navigation_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>("path_info_for_external_navigation", 10);
 }
 
 void VisualizationUtils::visualize(
@@ -42,13 +43,99 @@ void VisualizationUtils::visualize(
     const tactic::EdgeTransform& T_w_p,
     const tactic::EdgeTransform& T_p_r,
     const tactic::EdgeTransform& T_p_r_extp_mpc,
+    const tactic::EdgeTransform& T_w_r,
     const std::vector<lgmath::se3::Transformation>& mpc_prediction,
+    const std::vector<Eigen::Vector2d>& mpc_velocities,
     const std::vector<lgmath::se3::Transformation>& robot_prediction,
     const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
     const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
     const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
-    const std::shared_ptr<CBITCorridor> corridor_ptr)
+    const std::shared_ptr<CBITCorridor> corridor_ptr,
+    const lgmath::se3::Transformation& T_w_p_interpolated_closest_to_robot,
+    const double& state_p,
+    const std::shared_ptr<CBITPath> global_path_ptr)
     {
+
+    {
+        vtr_path_planning_msgs::msg::PathInfoForExternalNavigation path_info_for_external_navigation_msg;
+        // path_info_msg.timestamp = stamp;
+        path_info_for_external_navigation_msg.header.stamp = rclcpp::Time(stamp);
+        path_info_for_external_navigation_msg.p_value = state_p;  // Ensure closest_node_id is defined elsewhere
+
+        // Set robot_pose
+        const auto T_w_r_matrix = T_w_r.matrix();
+        double robot_x = T_w_r_matrix(0, 3);
+        double robot_y = T_w_r_matrix(1, 3);
+        double robot_th = atan2(T_w_r_matrix(1, 0), T_w_r_matrix(0, 0));
+
+        path_info_for_external_navigation_msg.robot_pose[0] = robot_x;
+        path_info_for_external_navigation_msg.robot_pose[1] = robot_y;
+        path_info_for_external_navigation_msg.robot_pose[2] = robot_th;
+
+        // Reference path in robot frame
+        std::vector<Pose> path = global_path_ptr->disc_path;  // Assuming disc_path is a member of cbit_path_ptr
+
+        Eigen::MatrixXd path_mat(path.size(), 2);
+        Eigen::MatrixXd th_mat(path.size(), 1);
+        for (size_t i = 0; i < path.size(); i++) {
+            path_mat(i, 0) = path[i].x;
+            path_mat(i, 1) = path[i].y;
+            th_mat(i, 0) = path[i].yaw;
+        }
+
+        // Construct rotation matrix C
+        Eigen::Matrix2d C;
+        C << cos(robot_th), -sin(robot_th), sin(robot_th), cos(robot_th);
+        Eigen::MatrixXd path_mat_rot = (path_mat.rowwise() - Eigen::Vector2d(robot_x, robot_y).transpose()) * C.transpose();
+        Eigen::MatrixXd th_mat_rot = th_mat.array() - robot_th;  // Element-wise subtraction
+
+        // Assign path to message
+        path_info_for_external_navigation_msg.path.resize(path.size() * 4);  // Resize to accommodate all elements
+
+        for (size_t i = 0; i < path.size(); i++) {
+            path_info_for_external_navigation_msg.path[i * 4] = path_mat_rot(i, 0);       // x
+            path_info_for_external_navigation_msg.path[i * 4 + 1] = path_mat_rot(i, 1);   // y
+            path_info_for_external_navigation_msg.path[i * 4 + 2] = cos(th_mat_rot(i, 0));  // dx
+            path_info_for_external_navigation_msg.path[i * 4 + 3] = sin(th_mat_rot(i, 0));  // dy
+        }
+
+        // Set mpc_solution
+        path_info_for_external_navigation_msg.mpc_solution.resize(mpc_velocities.size() * 2);  // Resize to accommodate all elements
+        for (int i = 0; i < mpc_velocities.size(); i++) {
+            path_info_for_external_navigation_msg.mpc_solution[i * 2] = mpc_velocities[i](0);  // v
+            path_info_for_external_navigation_msg.mpc_solution[i * 2 + 1] = mpc_velocities[i](1);  // w
+        }
+
+        // closest interpolated node's pose
+        path_info_for_external_navigation_msg.closest_interpolated_node_pose[0] = T_w_p_interpolated_closest_to_robot.matrix()(0, 3);
+        path_info_for_external_navigation_msg.closest_interpolated_node_pose[1] = T_w_p_interpolated_closest_to_robot.matrix()(1, 3);
+        path_info_for_external_navigation_msg.closest_interpolated_node_pose[2] = atan2(T_w_p_interpolated_closest_to_robot.matrix()(1, 0), T_w_p_interpolated_closest_to_robot.matrix()(0, 0));
+
+        // Compute distance and th offset to closest node
+        lgmath::se3::Transformation T_p_interpolated_closest_node_r = T_w_p_interpolated_closest_to_robot.inverse() * T_w_r;
+        const auto T_p_interpolated_closest_node_r_matrix = T_p_interpolated_closest_node_r.matrix();
+        double distance_to_closest_interpolated_node = sqrt(pow(T_p_interpolated_closest_node_r_matrix(0, 3), 2) + pow(T_p_interpolated_closest_node_r_matrix(1, 3), 2));
+        path_info_for_external_navigation_msg.distance_to_closest_interpolated_node = distance_to_closest_interpolated_node;
+
+        double theta_offset_to_closest_interpolated_node = atan2(T_p_interpolated_closest_node_r_matrix(1, 0), T_p_interpolated_closest_node_r_matrix(0, 0));
+        // note that this is already wrapped to [-pi, pi] by atan2 calc
+        path_info_for_external_navigation_msg.theta_offset_to_closest_interpolated_node = theta_offset_to_closest_interpolated_node;
+
+        // Compute distance to goal node
+        const auto& goal_node_pose = global_path_ptr->disc_path.back();  
+        double goal_node_x = goal_node_pose.x;
+        double goal_node_y = goal_node_pose.y;
+        double distance_to_goal_node = sqrt(pow(goal_node_x - robot_x, 2) + pow(goal_node_y - robot_y, 2));
+        path_info_for_external_navigation_msg.distance_to_goal_node = distance_to_goal_node;
+
+        // Compute theta offset to goal node  
+        double theta_offset_to_goal_node = goal_node_pose.yaw - robot_th;
+        path_info_for_external_navigation_msg.theta_offset_to_goal_node = theta_offset_to_goal_node;
+
+        path_info_for_external_navigation_pub_->publish(path_info_for_external_navigation_msg); 
+        CLOG(INFO, "cbit.visualization") << "Published path info for external navigation";
+    }
+
     /// Publish the current frame for planning
     {
         Eigen::Affine3d T(T_w_p.matrix());
