@@ -278,5 +278,10 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
     return {tracking_reference_poses, barrier_q_max, barrier_q_min};
 }
 
+lgmath::se3::Transformation interpolatedPose(double p, const tactic::LocalizationChain::Ptr chain) {
+  Segment closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
+  double interp = std::clamp((p - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
+  return interpolatePoses(interp, chain->pose(closestSegment.first), chain->pose(closestSegment.second));
+}
 
 }

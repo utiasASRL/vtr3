@@ -293,7 +293,8 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
 
   // Store the current robot state in the robot state path so it can be visualized
-  robot_poses.push_back(T_w_p * T_p_r);
+  auto T_w_r = T_w_p * T_p_r;
+  robot_poses.push_back(T_w_r);
 
   // Handling Dynamic Corridor Widths:
   // Retrieve the terrain type (corresponds to maximum planning width)
@@ -418,6 +419,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     std::vector<lgmath::se3::Transformation> mpc_poses;
     // return the computed velocity command for the first time step
     Command command;
+    std::vector<Eigen::Vector2d> mpc_velocities;
     try {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
       auto mpc_res = solver_.solve(mpcConfig);
@@ -432,6 +434,13 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
       command.linear.x = mpc_vel_vec[0];
       command.angular.z = mpc_vel_vec[1];
+
+      // Get all the mpc velocities 
+      for (int i = 0; i < mpc_res["vel"].columns(); i++) {
+        const auto& vel_i = mpc_res["vel"](casadi::Slice(), i).get_elements();
+        mpc_velocities.emplace_back(vel_i[0], vel_i[1]);
+      }
+
     } catch(std::exception &e) {
       CLOG(WARNING, "cbit.control") << "casadi failed! " << e.what() << " Commanding to Stop the Vehicle";
       return Command();
@@ -440,9 +449,11 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
     CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 
+    // grab elements for visualization
+    lgmath::se3::Transformation T_w_p_interpolated_closest_to_robot = interpolatedPose(state_p, chain);
 
     // visualize the outputs
-    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, mpc_poses, robot_poses, referenceInfo.poses, referenceInfo.poses, cbit_path_ptr, corridor_ptr);
+    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_w_r, mpc_poses, mpc_velocities, robot_poses, referenceInfo.poses, referenceInfo.poses, cbit_path_ptr, corridor_ptr, T_w_p_interpolated_closest_to_robot, state_p, global_path_ptr, curr_sid);
 
     return command;
   }
