@@ -53,7 +53,8 @@ void VisualizationUtils::visualize(
     const std::shared_ptr<CBITCorridor> corridor_ptr,
     const lgmath::se3::Transformation& T_w_p_interpolated_closest_to_robot,
     const double& state_p,
-    const std::shared_ptr<CBITPath> global_path_ptr)
+    const std::shared_ptr<CBITPath> global_path_ptr,
+    unsigned closest_node_idx)
     {
 
     {
@@ -105,6 +106,8 @@ void VisualizationUtils::visualize(
             path_info_for_external_navigation_msg.mpc_solution[i * 2] = mpc_velocities[i](0);  // v
             path_info_for_external_navigation_msg.mpc_solution[i * 2 + 1] = mpc_velocities[i](1);  // w
         }
+
+        path_info_for_external_navigation_msg.closest_node_idx = closest_node_idx;
 
         // closest interpolated node's pose
         path_info_for_external_navigation_msg.closest_interpolated_node_pose[0] = T_w_p_interpolated_closest_to_robot.matrix()(0, 3);

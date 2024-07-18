@@ -58,7 +58,8 @@ public:
         const std::shared_ptr<CBITCorridor> corridor_ptr,
         const lgmath::se3::Transformation& T_w_p_interpolated_closest_to_robot,
         const double& state_p,
-        const std::shared_ptr<CBITPath> global_path_ptr);
+        const std::shared_ptr<CBITPath> global_path_ptr,
+        unsigned closest_node_idx);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;

@@ -453,7 +453,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     lgmath::se3::Transformation T_w_p_interpolated_closest_to_robot = interpolatedPose(state_p, chain);
 
     // visualize the outputs
-    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_w_r, mpc_poses, mpc_velocities, robot_poses, referenceInfo.poses, referenceInfo.poses, cbit_path_ptr, corridor_ptr, T_w_p_interpolated_closest_to_robot, state_p, global_path_ptr);
+    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_w_r, mpc_poses, mpc_velocities, robot_poses, referenceInfo.poses, referenceInfo.poses, cbit_path_ptr, corridor_ptr, T_w_p_interpolated_closest_to_robot, state_p, global_path_ptr, curr_sid);
 
     return command;
   }

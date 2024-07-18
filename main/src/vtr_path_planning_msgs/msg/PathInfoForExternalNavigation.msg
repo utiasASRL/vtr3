@@ -14,7 +14,8 @@ float32[3] robot_pose
 
 float32[3] closest_interpolated_node_pose
 
-# accessories that are useful for RL
+
+uint64 closest_node_idx
 float32 p_value
 float32 distance_to_closest_interpolated_node
 float32 theta_offset_to_closest_interpolated_node
