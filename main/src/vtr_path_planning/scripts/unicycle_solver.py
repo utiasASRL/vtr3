@@ -7,15 +7,15 @@ from casadi import sin, cos, pi
 #Compile Time Constants (Could use params to set!)
 
 # Pose Covariance
-Q_x = 100
-Q_y = 100
-Q_theta = 1
+Q_x = 10
+Q_y = 10
+Q_theta = 10
 # Command Covariance
 R1 = 1
-R2 = 100
+R2 = 10
 
 # Acceleration Cost Covariance
-Acc_R1 = 2.0
+Acc_R1 = 200.0
 Acc_R2 = 0.01
 
 step_horizon = 0.2  # time between steps in seconds
@@ -76,10 +76,20 @@ R = ca.diagcat(R1, R2)
 R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
 
-# RHS = states + J @ controls * step_horizon  # Euler discretization
-RHS = ca.vertcat(v*cos(theta), v*sin(theta), (1 - alpha) * omega + alpha * last_omega)
-# maps controls from [v, omega].T to [vx, vy, omega].T
+RHS = ca.vertcat(v*cos(theta), v*sin(theta), omega)
 motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
+# RHS_angle = ca.vertcat(x + v/omega*sin(theta + omega*step_horizon) - v/omega*sin(theta), 
+#                  y + v/omega*cos(theta) - v/omega*cos(theta + omega*step_horizon), 
+#                  theta + omega*step_horizon)
+
+# RHS_straight = ca.vertcat(x + v*cos(theta)*step_horizon, 
+#                  y + v*sin(theta)*step_horizon, 
+#                  theta)
+# straight_motion = ca.Function('straight_mm', [states, controls], [RHS_straight])
+# curved_motion = ca.Function('curved_mm', [states, controls], [RHS_angle])
+# if_motion_model = ca.Function.if_else('motion_model_cond', curved_motion, straight_motion)
+# motion_model = ca.Function("motion_model", [states, controls], [if_motion_model(ca.fabs(omega) > 1e-4, states, controls)])
+# motion_model = curved_motion
 
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
 
@@ -89,7 +99,7 @@ g = X[:, 0] - P[:n_states]  # constraints in the equation
 
 def so2_error(ref, current):
     rel_m = theta_to_so2(ref).T @ theta_to_so2(current)
-    return rel_m[0, 1]
+    return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
 #for initial
 k = 0
@@ -106,7 +116,9 @@ k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
 k4 = motion_model(st + step_horizon * k3, con, last_vel)
 st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-g = ca.vertcat(g, st_next - st_next_RK4)
+# st_next_int = motion_model(st, con)
+g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
+g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
 # runge kutta
 for k in range(1, N):
@@ -125,7 +137,10 @@ for k in range(1, N):
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
     k4 = motion_model(st + step_horizon * k3, con, last_vel)
     st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-    g = ca.vertcat(g, st_next - st_next_RK4)
+    # st_next_int = motion_model(st, con)
+
+    g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
+    g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
 
 for k in range(N):
@@ -153,8 +168,8 @@ opts = {
     'ipopt': {
         'max_iter': 2000,
         'print_level': 0,
-        'acceptable_tol': 1e-8,
-        'acceptable_obj_change_tol': 1e-6
+        'acceptable_tol': 1e-5,
+        'acceptable_obj_change_tol': 1e-4
     },
     'print_time': 0
 }

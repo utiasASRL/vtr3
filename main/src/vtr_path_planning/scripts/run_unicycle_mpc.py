@@ -1,4 +1,3 @@
-import sys
 from time import time
 import casadi as ca
 import numpy as np
@@ -9,7 +8,7 @@ from unicycle_solver import solver, motion_model, alpha, N, step_horizon, n_stat
 
 
 # specs
-x_init = 0
+x_init = 0.5
 y_init = 0.2
 theta_init = 0
 
@@ -43,7 +42,7 @@ def shift_timestep(step, t0, state_init, u, f, last_u):
 def DM2Arr(dm):
     return np.array(dm.full())
 
-path_x = np.linspace(0, 30, 1000)
+path_x = np.linspace(0, 30, 10000)
 path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
 path_mat = np.zeros((np.size(path_x), 3))
 path_mat[:, 0] = path_x
@@ -75,8 +74,8 @@ lbg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints lower bound
 ubg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints upper bound
 
 #Corridor Width constraints
-lbg[n_states*(N+1):n_states*(N+1)+N] = -1.0
-ubg[n_states*(N+1):n_states*(N+1)+N] = 1.0
+lbg[n_states*(N+1):n_states*(N+1)+N] = -0.5
+ubg[n_states*(N+1):n_states*(N+1)+N] = 0.5
 
 #Acceleration constraints
 # lbg[n_states*(N+1)+N::2] = -lin_acc_max * step_horizon
@@ -97,7 +96,7 @@ t0 = 0
 
 t = ca.DM(t0)
 
-u0 = ca.DM.zeros((n_controls, N))  # initial control
+u0 = 0.1*ca.DM.ones((n_controls, N))  # initial control
 X0 = ca.repmat(state_init, 1, N+1)         # initial state full
 
 
@@ -149,11 +148,14 @@ if __name__ == '__main__':
             p=args['p']
         )
         if not solver.stats()["success"]:
-            print("Infeasible Optimization")
+            print(solver.stats()['return_status'])
+            print(solver.stats())
             break
 
 
         u = ca.reshape(sol['x'][n_states * (N + 1):], n_controls, N)
+        # print(u)
+        
         X0 = ca.reshape(sol['x'][: n_states * (N+1)], n_states, N+1)
 
         cat_states = np.dstack((
@@ -171,7 +173,7 @@ if __name__ == '__main__':
         ))
 
         t0, state_init, u0 = shift_timestep(step_horizon, t0, state_init, u, motion_model, last_u)
-        last_u = ca.vertcat(u0[0, 0], (1-alpha) * last_u[1] + alpha * u0[1, 0])
+        last_u = ca.vertcat(u[0, 0], (1-alpha) * last_u[1] + alpha * u[1, 0])
 
         closest_idx = np.argmin(np.linalg.norm(path_mat - state_init.T, axis=1))
 
