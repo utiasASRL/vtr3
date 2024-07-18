@@ -20,7 +20,7 @@ import React from "react";
 import { Box, Slider, Paper } from "@mui/material";
 
 const marks = [
-  { value: 0, label: "0.1 m" },
+  { value: 0, label: "0.2 m" },
   { value: 1, label: "0.5 m" },
   { value: 2, label: "1.0 m" },
   { value: 3, label: "1.5 m" },

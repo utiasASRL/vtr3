@@ -285,7 +285,7 @@ auto Path<GraphT>::end() const -> Iterator {
 template <class GraphT>
 double Path<GraphT>::terrian_type_corridor_width (int terrain_type) {
   switch (terrain_type) {
-    case 0: return 0.1;
+    case 0: return 0.2;
     case 1: return 0.5;
     case 2: return 1.0;
     case 3: return 1.5;
