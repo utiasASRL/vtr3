@@ -4,7 +4,7 @@ project(vtr_path_planning)
 
 ## Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
-add_compile_options(-g -Og)
+# add_compile_options(-g -Og)
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
@@ -28,6 +28,7 @@ find_package(vtr_path_planning_msgs REQUIRED)
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 find_package(PythonLibs 3.0 REQUIRED)
 
+
 # C++ Libraries
 include_directories(
   PUBLIC
@@ -45,6 +46,13 @@ ament_target_dependencies(${PROJECT_NAME}_base
   vtr_path_planning_msgs
 )
 
+add_custom_command(OUTPUT "include/vtr_path_planning/mpc/mpc_solver.hpp"
+  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_unicycle.py"
+  DEPENDS "scripts/unicycle_solver.py")
+
+add_custom_target(generate_header ALL
+DEPENDS "include/vtr_path_planning/mpc/mpc_solver.hpp")
+
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
 add_library(${PROJECT_NAME}_mpc ${SRC})
 target_link_libraries(${PROJECT_NAME}_mpc ${PROJECT_NAME}_base)
@@ -57,6 +65,7 @@ ament_target_dependencies(${PROJECT_NAME}_mpc
 
 
 add_library(solve_unicycle_mpc SHARED src/mpc/mpc_solver.cpp)
+add_dependencies(solve_unicycle_mpc generate_header)
 target_link_libraries(solve_unicycle_mpc casadi)
 
 
