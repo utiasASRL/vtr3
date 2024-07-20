@@ -275,7 +275,7 @@ auto CBIT::computeCommand(RobotState& robot_state) -> Command {
     << "Final control command: [" << command.linear.x << ", "
     << command.linear.y << ", " << command.linear.z << ", "
     << command.angular.x << ", " << command.angular.y << ", "
-    << command.angular.z << "] for timestamp: " << robot_state.chain->leaf_stamp();
+    << command.angular.z << "] for timestamp: " << prev_cost_stamp_;
   
   return command;
 }
