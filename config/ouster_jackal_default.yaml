@@ -73,7 +73,7 @@
         distance_warning: 5.0
       save_odometry_result: true
       save_localization_result: true
-      visualize: false
+      visualize: true
       rviz_loc_path_offset:
         - 0.0
         - 0.0
