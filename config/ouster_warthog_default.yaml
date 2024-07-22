@@ -317,7 +317,7 @@
         visualize: true
     
     path_planning:
-      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit
       control_period: 100 # ms
       cbit:
         obstacle_avoidance: false

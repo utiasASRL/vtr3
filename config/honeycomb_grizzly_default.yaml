@@ -294,7 +294,7 @@
         visualize: true
     
     path_planning:
-      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit
       control_period: 100 # ms
       cbit:
         obstacle_avoidance: false
@@ -325,17 +325,14 @@
         costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
 
       speed_scheduler:
-        planar_curv_weight: 5.0
-        profile_curv_weight: 100.0 
+        planar_curv_weight: 0.0
+        profile_curv_weight: 0.0 
         eop_weight: 1.0
         min_vel: 0.5
       mpc:
         # Controller Params
         extrapolate_robot_pose: false
         mpc_verbosity: false
-        homotopy_guided_mpc: false
-        horizon_steps: 10
-        horizon_step_size: 0.3
         forward_vel: 1.0
         max_lin_vel: 1.5
         max_ang_vel: 0.5
@@ -346,11 +343,6 @@
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
-
-        # Cost Function Covariance Matrices
-        pose_error_cov: [1.0, 1.0, 1e5, 1e5, 1e5, 1e2]
-        vel_error_cov: [1.0, 5e2]
-        lat_error_cov: [1.0]
 
         # Misc
         command_history_length: 100
