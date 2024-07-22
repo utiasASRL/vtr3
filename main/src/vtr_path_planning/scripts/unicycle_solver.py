@@ -15,7 +15,7 @@ R1 = 1.0 #0.1
 R2 = 1.0 #0.1
 
 # Acceleration Cost Covariance
-Acc_R1 = 2.0
+Acc_R1 = 0.1
 Acc_R2 = 0.5 #0.01
 
 step_horizon = 0.25  # time between steps in seconds
