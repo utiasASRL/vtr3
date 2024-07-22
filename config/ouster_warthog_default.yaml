@@ -77,11 +77,12 @@
       route_completion_translation_threshold: 0.2
 
       chain:
-        min_cusp_distance: 1.5
-        angle_weight: 7.0
+        min_cusp_distance: 0.5
+        angle_weight: 1.0
         search_depth: 5
         search_back_depth: 10
         distance_warning: 5.0
+        alpha: 1.0
       save_odometry_result: true
       save_localization_result: true
       visualize: true

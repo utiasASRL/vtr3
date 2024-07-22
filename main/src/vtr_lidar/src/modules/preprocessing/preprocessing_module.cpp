@@ -121,8 +121,6 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   auto filtered_point_cloud =
       std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
-  auto nn_downsampled_cloud = 
-      std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
 
   /// Range cropping
   {
@@ -143,7 +141,14 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Get subsampling of the frame in carthesian coordinates
   voxelDownsample(*filtered_point_cloud, config_->frame_voxel_size);
-  voxelDownsample(*nn_downsampled_cloud, config_->nn_voxel_size);
+
+  //Secondary input for change detection
+  if (config_->nn_voxel_size > 0) {
+    auto nn_downsampled_cloud = 
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
+    voxelDownsample(*nn_downsampled_cloud, config_->nn_voxel_size);
+    qdata.nn_point_cloud = nn_downsampled_cloud;
+  }
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "grid subsampled point cloud size: " << filtered_point_cloud->size();
@@ -262,7 +267,6 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Output
   qdata.preprocessed_point_cloud = filtered_point_cloud;
-  qdata.nn_point_cloud = nn_downsampled_cloud;
 }
 
 }  // namespace lidar
