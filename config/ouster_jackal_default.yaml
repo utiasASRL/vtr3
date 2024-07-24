@@ -63,14 +63,16 @@
       task_queue_num_threads: 1
       task_queue_size: -1
       
-      route_completion_translation_threshold: 0.5
+      route_completion_translation_threshold: 0.1 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
+      route_completion_angle_threshold: 0.26
 
       chain:
         min_cusp_distance: 1.5
         angle_weight: 0.25
         search_depth: 5
-        search_back_depth: 10
+        search_back_depth: 5
         distance_warning: 5.0
+        alpha: 0.25 # the one in genreate_pq is not used.
       save_odometry_result: true
       save_localization_result: true
       visualize: true
@@ -358,7 +360,7 @@
         planar_curv_weight: 2.50
         profile_curv_weight: 0.5 
         eop_weight: 1.0
-        min_vel: 1.0 #0.5
+        min_vel: 1.2 #0.5
 
       mpc:
         # Controller Params
@@ -367,8 +369,8 @@
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.25 # JH: I think this is planning time step which I need to be 0.25s for DRL model.
-        forward_vel: 0.85
-        max_lin_vel: 1.35 #1.0
+        forward_vel: 0.75
+        max_lin_vel: 1.5 #1.0
         max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
