@@ -143,6 +143,7 @@ void CBIT::setRunning(const bool running) {
     CLOG(INFO, "cbit.path_planning") << "CBIT Plan Completed";
   } else if (running_ == true && running == false) {
     CLOG(INFO, "cbit.path_planning") << "Stopping CBIT Planning";
+    planner_ptr_->stopPlanning();
     if (process_thread_cbit_.joinable()) process_thread_cbit_.join();
     thread_count_--;
     planner_ptr_->resetPlanner();

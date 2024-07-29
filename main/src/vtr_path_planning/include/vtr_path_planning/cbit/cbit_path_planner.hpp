@@ -88,6 +88,7 @@ class CBITPlanner {
         CBITPlanner(CBITConfig conf_in, std::shared_ptr<CBITPath> path_in, vtr::path_planning::BasePathPlanner::RobotState& robot_state, std::shared_ptr<std::vector<Pose>> path_ptr, std::shared_ptr<CBITCostmap> costmap_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::shared_ptr<bool>solution_ptr, std::shared_ptr<double>width_ptr);
 
         void plan();
+        void stopPlanning();
         void resetPlanner();
     protected:
     struct ChainInfo {

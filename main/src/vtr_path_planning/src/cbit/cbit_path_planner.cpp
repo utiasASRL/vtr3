@@ -99,10 +99,13 @@ void CBITPlanner::InitializePlanningSpace()
 }
 
 // If we ever exit the planner due to a fault, we will do a hard reset, everything but the current robot_state (p_goal) and the inputs will be reinitialized
+void CBITPlanner::stopPlanning() {
+  planning_active_ = false;
+}
+
 void CBITPlanner::resetPlanner()
 {
-  planning_active_ = false;
-
+  stopPlanning();
   tree.V.clear();
   tree.E.clear();
   tree.QV2.clear();
