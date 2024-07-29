@@ -75,6 +75,7 @@
       task_queue_size: -1
 
       route_completion_translation_threshold: 0.2
+      route_completion_angle_threshold: 0.1
 
       chain:
         min_cusp_distance: 0.5
