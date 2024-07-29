@@ -18,11 +18,9 @@
  */
 #pragma once
 
-//#define C10_UTIL_LOGGING_IS_NOT_GOOGLE_GLOG_H_
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_common/utils/filesystem.hpp"
 #include "vtr_tactic/task_queue.hpp"
-#include <torch/torch.h>
 #include <torch/script.h> 
 #include "vtr_torch/types.hpp"
 #include <vector>

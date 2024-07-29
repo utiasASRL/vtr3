@@ -37,6 +37,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->task_queue_size = node->declare_parameter<int>(prefix+".task_queue_size", -1);
 
   config->route_completion_translation_threshold = node->declare_parameter<double>(prefix+".route_completion_translation_threshold", 0.5);
+  config->route_completion_angle_threshold = node->declare_parameter<double>(prefix+".route_completion_angle_threshold", 0.26);
 
   /// setup localization chain
   config->chain_config.min_cusp_distance = node->declare_parameter<double>(prefix+".chain.min_cusp_distance", 1.5);
@@ -44,6 +45,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.search_depth = node->declare_parameter<int>(prefix+".chain.search_depth", 20);
   config->chain_config.search_back_depth = node->declare_parameter<int>(prefix+".chain.search_back_depth", 10);
   config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
+  config->chain_config.alpha = node->declare_parameter<double>(prefix+".chain.alpha", 0.25);
 
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
   config->save_odometry_vel_result = node->declare_parameter<bool>(prefix+".save_odometry_vel_result", false);
@@ -166,7 +168,11 @@ bool Tactic::passedSeqId(const uint64_t& sid) const {
 
 bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
-  const auto translation = (chain_->T_leaf_trunk()*chain_->T_trunk_target(chain_->sequence().size() - 1)).r_ba_ina().norm();
+  const auto T_leaf_target = chain_->T_leaf_trunk()*chain_->T_trunk_target(chain_->sequence().size() - 1);
+  const auto translation = T_leaf_target.r_ba_ina().norm(); // lgmath bring to aang
+  // angle threshold of 15 degrees hardcoded for now
+  const auto T_leaf_target_matrix = T_leaf_target.matrix();
+  const auto angle = atan2(T_leaf_target_matrix(1, 0), T_leaf_target_matrix(0, 0));
 
   CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
   if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
@@ -174,6 +180,10 @@ bool Tactic::routeCompleted() const {
   }
 
   if (translation > config_->route_completion_translation_threshold) {
+    return false;
+  }
+
+  if (std::abs(angle) > config_->route_completion_angle_threshold) {
     return false;
   }
   

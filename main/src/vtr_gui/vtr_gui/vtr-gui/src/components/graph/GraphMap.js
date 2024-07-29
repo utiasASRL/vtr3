@@ -46,7 +46,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 /// pose graph constants
-const ROUTE_TYPE_COLOR = ["#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#00bcd4", "#2196f3", "#9c27b0"];
+const ROUTE_TYPE_COLOR = ["#ff0000", "#fd4a18", "#ffa500", "#fecd29", "#ffff00", "#6aaf1e", "#008000"];
 const GRAPH_OPACITY = 0.9;
 const GRAPH_WEIGHT = 7;
 
@@ -503,11 +503,12 @@ class GraphMap extends React.Component {
   route2Polyline(route) {
     // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
     let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
+    let width = route.type + 2
     let latlngs = route.ids.map((id) => {
       let v = this.id2vertex.get(id);
       return [v.lat, v.lng];
     });
-    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: GRAPH_WEIGHT, pane: "graph" });
+    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: width, pane: "graph" });
     polyline.addTo(this.map);
     return polyline;
   }

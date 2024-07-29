@@ -39,7 +39,7 @@ class Path {
   using UniqueLock = std::unique_lock<Mutex>;
   using LockGuard = std::lock_guard<Mutex>;
 
-  Path(const typename GraphT::Ptr& graph) : graph_(graph) {}
+  Path(const typename GraphT::Ptr& graph, double angle_weight=0.75) : graph_(graph), alpha_{angle_weight} {}
 
  public:
   /** \brief Sequence setters */
@@ -68,6 +68,13 @@ class Path {
   /** \brief Vertex id implicitly converts to unsigned */
   double dist(VertexId vtx_id) const = delete;
 
+  /** \brief Gets the curvilinear p value along the path at a sequence index */
+  double p(unsigned seq_id) const;
+  /** \brief Gets the cumu. distance along the path at an iterator position */
+  double p(const Iterator& it) const { return p(unsigned(it)); }
+  /** \brief Vertex id implicitly converts to unsigned */
+  double p(VertexId vtx_id) const = delete;
+
   /** \brief Returns the current sequence */
   Sequence sequence() const;
   /** \brief Total number of poses in the sequence */
@@ -81,18 +88,23 @@ class Path {
   /** \brief Gets the cumu. distance along the path at a sequence index */
   int query_terrain_type(unsigned seq_id) const;
 
- protected:
-  virtual void initSequence();
+  static double terrian_type_corridor_width(int terrain_type);
 
   /** \brief An iterator to a specified id along the path */
   Iterator begin(const unsigned& seq_id = 0) const;
   /** \brief An iterator to the end of the path (beyond the last vertex) */
   Iterator end() const;
 
+ protected:
+  virtual void initSequence();
+
+
   typename GraphT::Ptr graph_;
   Sequence sequence_;
   mutable std::vector<EdgeTransform> poses_;
   mutable std::vector<double> distances_;
+  mutable std::vector<double> p_vals_;
+  double alpha_;
 
   /** \brief for thread safety, use whenever read from/write to the path */
   mutable Mutex mutex_;
@@ -196,6 +208,34 @@ double Path<GraphT>::dist(unsigned seq_id) const {
 }
 
 template <class GraphT>
+double Path<GraphT>::p(unsigned seq_id) const {
+  LockGuard lock(mutex_);
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][dist] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
+  // We've already done up to this point
+  if (seq_id < p_vals_.size()) return p_vals_[seq_id];
+
+  // expand on demand
+  auto it = begin(p_vals_.size());
+  if (p_vals_.empty()) {
+    p_vals_.emplace_back(0.);
+    ++it;
+  }
+  for (; unsigned(it) <= seq_id; ++it) {
+    Eigen::Matrix<double, 6, 1> se3_vec = it->T().vec();
+    double distance = se3_vec.head<3>().norm() +
+                      alpha_ * se3_vec.tail<3>().norm();
+    const_cast<Path<GraphT>*>(this)->p_vals_.push_back(
+        p_vals_.back() + distance);
+  }
+
+  return p_vals_[seq_id];
+}
+
+template <class GraphT>
 int Path<GraphT>::query_terrain_type(unsigned seq_id) const {
   int terrain_type = graph_->at(sequence_.at(seq_id))->GetTerrainType();
   return terrain_type;
@@ -238,6 +278,21 @@ auto Path<GraphT>::begin(const unsigned& seq_id) const -> Iterator {
 template <class GraphT>
 auto Path<GraphT>::end() const -> Iterator {
   return Iterator(this, sequence_.end());
+}
+
+
+/** based on mapping in AnnotateSlider.js*/
+template <class GraphT>
+double Path<GraphT>::terrian_type_corridor_width (int terrain_type) {
+  switch (terrain_type) {
+    case 0: return 0.2;
+    case 1: return 0.5;
+    case 2: return 1.0;
+    case 3: return 1.5;
+    case 4: return 2.0;
+    case 5: return 2.5;
+    default: return 10.0;
+  }
 }
 
 using BasicPathBase = Path<BasicGraphBase>;
