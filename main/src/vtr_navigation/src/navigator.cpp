@@ -293,7 +293,7 @@ void Navigator::lidarCallback(
   /// Discard old frames if our queue is too big
   if (queue_.size() > max_queue_size_) {
     CLOG(WARNING, "navigation")
-        << "Dropping old pointcloud message because the queue is full.";
+        << "Dropping pointcloud message " << *queue_.front()->stamp << " because the queue is full.";
     queue_.pop();
   }
 
@@ -375,7 +375,7 @@ void Navigator::cameraCallback(
   /// Discard old frames if our queue is too big
   if (queue_.size() > max_queue_size_) {
     CLOG(WARNING, "navigation")
-        << "Dropping old images because the queue is full.";
+        << "Dropping old image " << *queue_.front()->stamp << " because the queue is full.";
     queue_.pop();
   }
 

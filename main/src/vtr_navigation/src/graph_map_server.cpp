@@ -389,9 +389,13 @@ void GraphMapServer::optimizeGraph(const tactic::GraphBase::Ptr& priv_graph) {
       std::make_shared<pose_graph::PoseGraphRelaxation<tactic::GraphBase>>(cov);
   optimizer.addFactor(relaxation_factor);
 
-  // udpates the tf map
-  using SolverType = steam::DoglegGaussNewtonSolver;
-  optimizer.optimize<SolverType>();
+  try {
+    // udpates the tf map
+    using SolverType = steam::DoglegGaussNewtonSolver;
+    optimizer.optimize<SolverType>();
+  } catch (steam::unsuccessful_step &e) {
+    CLOG(WARNING, "navigation.graph_map_server") << "Pose graph relaxation for visualization failed. Falling back back to initial config.";
+  }
 
   // update the graph state vertices and idx map
   auto& vertices = graph_state_.vertices;

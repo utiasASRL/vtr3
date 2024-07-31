@@ -22,7 +22,6 @@ find_package(cv_bridge REQUIRED)
 find_package(Torch REQUIRED)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-find_package(gpusurf REQUIRED) # currently assuming this is required
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 
@@ -34,6 +33,8 @@ find_package(vtr_storage REQUIRED)
 find_package(vtr_tactic REQUIRED)
 
 if(DEFINED VTR_ENABLE_VISION)
+
+find_package(gpusurf REQUIRED) # currently assuming this is required
 
 file(GLOB_RECURSE SRC src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC})

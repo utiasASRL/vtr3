@@ -44,6 +44,7 @@
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
 #include "vtr_path_planning/cbit/visualization_utils.hpp"
 #include "vtr_path_planning/mpc/speed_scheduler.hpp"
+#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
 
 #include "steam.hpp"
 
@@ -87,8 +88,6 @@ class CBIT : public BasePathPlanner {
     double pre_seed_resolution = 0.5;
     double alpha = 0.5;
     double q_max = 2.5;
-    int frame_interval = 50;
-    int iter_max = 10000000;
     double eta = 1.1;
     double rad_m_exhange = 1.00;
     double initial_exp_rad = 1.00;
@@ -108,30 +107,15 @@ class CBIT : public BasePathPlanner {
     bool obstacle_avoidance = false;
     bool extrapolate_robot_pose = true;
     bool mpc_verbosity = false;
-    bool homotopy_guided_mpc = false;
-    int horizon_steps = 10;
-    double horizon_step_size = 0.5;
     double forward_vel = 0.75;
     double max_lin_vel = 1.25;
     double max_ang_vel = 0.75;
+    double max_lin_acc = 10.0;
+    double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
 
     // Add unicycle model param
-
-    // Covariance tuning weights
-    Eigen::Matrix<double, 6, 6> pose_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
-    Eigen::Matrix<double, 2, 2> vel_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-    Eigen::Matrix<double, 2, 2> acc_error_cov = Eigen::Matrix<double, 2, 2>::Zero();
-    Eigen::Matrix<double, 6, 6> kin_error_cov = Eigen::Matrix<double, 6, 6>::Zero();
-    Eigen::Matrix<double, 1, 1> lat_error_cov = Eigen::Matrix<double, 1, 1>::Zero();
-
-    // MPC weight params:
-    double pose_error_weight = 1.0;
-    double vel_error_weight = 1.0;
-    double acc_error_weight = 1.0;
-    double kin_error_weight = 1.0;
-    double lat_error_weight = 0.01;
 
     // Misc
     int command_history_length = 100;
@@ -143,10 +127,6 @@ class CBIT : public BasePathPlanner {
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
-    // Subscription for parameter change
-    rclcpp::AsyncParametersClient::SharedPtr ros_parameters_client;
-    rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr
-        ros_parameter_event_sub;
   };
 
   CBIT(const Config::ConstPtr& config,
@@ -154,29 +134,20 @@ class CBIT : public BasePathPlanner {
                  const Callback::Ptr& callback);
   ~CBIT() override;
 
+  void setRunning(const bool running) override;
+
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
 
-  
- protected:
-  struct ChainInfo {
-    tactic::Timestamp stamp;
-    Eigen::Matrix<double, 6, 1> w_p_r_in_r;
-    // planning frame is the current localization frame
-    tactic::EdgeTransform T_p_r;  // T_planning_robot
-    tactic::EdgeTransform T_w_p;  // T_world_planning
-    tactic::EdgeTransform T_w_v_odo;  // T_planning_robot
-    tactic::EdgeTransform T_r_v_odo;  // T_world_planning
-    unsigned curr_sid;
-  };
-  /** \brief Retrieve information for planning from localization chain */
-  ChainInfo getChainInfo(RobotState& robot_state);
-
- //private: // I think we need to make all of these protected so the derived lidarcbit class can access them
+ private: 
   const Config::ConstPtr config_;
   CBITConfig cbit_config;
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(CBIT);
+
+  std::shared_ptr<CBITPlanner> planner_ptr_;
+
+  CasadiUnicycleMPC solver_;
 
   // Pointers to the output path
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
@@ -197,23 +168,25 @@ class CBIT : public BasePathPlanner {
   std::shared_ptr<VisualizationUtils> visualization_ptr;
 
   unsigned int prev_costmap_sid = 0;
-  tactic::Timestamp prev_stamp;
+  tactic::Timestamp prev_cost_stamp_;
 
   // Store the previously applied velocity and a sliding window history of MPC results
-  Eigen::Matrix<double, 2, 1> applied_vel;
-  std::vector<Eigen::Matrix<double, 2, 1>> vel_history;
+  Eigen::Vector2d applied_vel_;
+  std::vector<Eigen::Vector2d> vel_history;
+  tactic::Timestamp prev_vel_stamp_;
 
   //create vector to store the robots path for visualization purposes
   std::vector<lgmath::se3::Transformation> robot_poses;
 
 
   // Create costmap pointer object
-  std::shared_ptr<CBITCostmap> costmap_ptr = std::make_shared<CBITCostmap> ();
+  std::shared_ptr<CBITCostmap> costmap_ptr = std::make_shared<CBITCostmap>();
 
  private:
   void process_cbit();
   std::thread process_thread_cbit_;
   void stop_cbit();
+  Command computeCommand_(RobotState& robot_state);
 
  private:
   /** \brief shared memory that stores the current robot state */
@@ -221,6 +194,9 @@ class CBIT : public BasePathPlanner {
 
 
 };
+
+// Helper function for post-processing and saturating the velocity command
+Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim);
 
 }  // namespace path_planning
 }  // namespace vtr
