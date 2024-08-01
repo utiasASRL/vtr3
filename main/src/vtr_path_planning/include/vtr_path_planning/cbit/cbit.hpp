@@ -150,6 +150,7 @@ class CBIT : public BasePathPlanner {
   CasadiUnicycleMPC solver_;
 
   // Pointers to the output path
+  std::vector<Pose> cbit_path;
   std::shared_ptr<std::vector<Pose>> cbit_path_ptr;
 
   // Pointers to the flag for there being a valid solution or not
