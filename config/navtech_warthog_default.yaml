@@ -9,14 +9,12 @@
       # - navigation.sensor_input
       - radar.navtech_extractor
       - radar.odometry_icp
-      - sam
       - tactic
       - tactic.pipeline
       - tactic.module
-      - tactic.module.live_mem_manager
-      - tactic.module.graph_mem_manager
       - path_planning.cbit
       - mpc.debug
+      - cbit.control
     robot_frame: base_link
     env_info_topic: env_info
     radar_frame: navtech_base #navtech_base
@@ -74,11 +72,11 @@
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
         detector: modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar)
         minr: 1.0 # mininum detection distance
-        maxr: 72.0 # maximum detection distance
+        maxr: 69.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.00 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.220240 # range offset in meters
+        range_offset: -0.3199 # range offset in meters
         kstrong:
           kstrong: 12 # k-strongest per azimuth to retain
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
