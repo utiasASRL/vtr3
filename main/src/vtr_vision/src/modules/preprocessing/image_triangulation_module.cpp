@@ -110,7 +110,7 @@ void ImageTriangulationModule::run_(tactic::QueryCache &qdata0, tactic::OutputCa
       auto num_keypoints = channel.cameras[0].keypoints.size();
 
       // copy the descriptor info from the feature.
-      landmarks.appearance.descriptors = channel.cameras[0].descriptors.clone();
+      landmarks.appearance.descriptors = channel.cameras[0].descriptors;
       landmarks.appearance.feat_infos = channel.cameras[0].feat_infos;
       landmarks.appearance.feat_type = channel.cameras[0].feat_type;
       landmarks.appearance.name = channel.cameras[0].name;
