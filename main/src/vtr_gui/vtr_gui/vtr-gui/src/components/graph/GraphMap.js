@@ -40,13 +40,14 @@ import SelectorStartSVG from "../../images/selector-start.svg";
 import MoveGraphTranslationSvg from "../../images/move-graph-translation.svg";
 import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
 import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
+import MoveGraphScaleRefSvg from "../../images/move-graph-scale-ref.svg";
 import MyhalPlan from "../../images/myhal-plan.svg"
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 /// pose graph constants
-const ROUTE_TYPE_COLOR = ["#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#00bcd4", "#2196f3", "#9c27b0"];
+const ROUTE_TYPE_COLOR = ["#ff0000", "#fd4a18", "#ffa500", "#fecd29", "#ffff00", "#6aaf1e", "#008000"];
 const GRAPH_OPACITY = 0.9;
 const GRAPH_WEIGHT = 7;
 
@@ -104,6 +105,10 @@ const MOVE_GRAPH_ROTATION_ICON = new L.Icon({
 });
 const MOVE_GRAPH_SCALE_ICON = new L.Icon({
   iconUrl: MoveGraphScaleSvg,
+  iconSize: new L.Point(40, 40),
+});
+const MOVE_GRAPH_SCALE_REF_ICON = new L.Icon({
+  iconUrl: MoveGraphScaleRefSvg,
   iconSize: new L.Point(40, 40),
 });
 const MOVE_GRAPH_MARKER_OPACITY = 0.9; // translation and rotation
@@ -443,26 +448,29 @@ class GraphMap extends React.Component {
   }
 
   handleMapClick(e) {
-    // Find the closest vertex
-    let best = this.getClosestVertex(e.latlng);
-    if (best.target === null) return;
-    this.setState((state) => {
-      if (!(state.waypoints_map.has(best.target.id))){
-        let disp_wps_map = new Map(state.display_waypoints_map);
-        let wps_map = new Map(state.waypoints_map);
+    // Only add waypoints when no tool is selected
+    if (this.state.current_tool === null) {
+      // Find the closest vertex
+      let best = this.getClosestVertex(e.latlng);
+      if (best.target === null) return;
+      this.setState((state) => {
+        if (!(state.waypoints_map.has(best.target.id))){
+          let disp_wps_map = new Map(state.display_waypoints_map);
+          let wps_map = new Map(state.waypoints_map);
 
-        let new_wp_name = this.genDefaultWaypointName(best.target.id)
-        wps_map.set(best.target.id, new_wp_name);
-        disp_wps_map.set(best.target.id, new_wp_name);
-        this.handleUpdateWaypoint(best.target.id, 0, new_wp_name); /*ADD*/
+          let new_wp_name = this.genDefaultWaypointName(best.target.id)
+          wps_map.set(best.target.id, new_wp_name);
+          disp_wps_map.set(best.target.id, new_wp_name);
+          this.handleUpdateWaypoint(best.target.id, 0, new_wp_name); /*ADD*/
 
-        return { waypoints_map: wps_map, display_waypoints_map: disp_wps_map };
+          return { waypoints_map: wps_map, display_waypoints_map: disp_wps_map };
+        }
+      });
+      if (this.state.new_goal_type === "repeat") {
+        this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
       }
-    });
-    if (this.state.new_goal_type === "repeat") {
-      this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
+      console.log(this.state.waypoints_map);
     }
-    console.log(this.state.waypoints_map);
   }
 
   handleUpdateWaypoint(vertex_id, type, name="") {
@@ -503,11 +511,12 @@ class GraphMap extends React.Component {
   route2Polyline(route) {
     // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
     let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
+    let width = route.type + 2
     let latlngs = route.ids.map((id) => {
       let v = this.id2vertex.get(id);
       return [v.lat, v.lng];
     });
-    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: GRAPH_WEIGHT, pane: "graph" });
+    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: width, pane: "graph" });
     polyline.addTo(this.map);
     return polyline;
   }
@@ -1122,16 +1131,15 @@ class GraphMap extends React.Component {
 
     // Marker that indicates scale change (basically a circle at the same
     // location as the translation marker), for visualization only
-    this.scale_marker = L.marker(trans_loc, {
+    this.ref_marker = L.marker(trans_loc, {
       draggable: false,
-      icon: MOVE_GRAPH_SCALE_ICON,
+      icon: MOVE_GRAPH_SCALE_REF_ICON,
       opacity: MOVE_GRAPH_MARKER_OPACITY2,
     });
-    // adjust the size of the marker so that it connects the trans and rot
-    // marker
-    let icon = this.scale_marker.options.icon;
+    // adjust the size of the marker so that it connects other markers
+    let icon = this.ref_marker.options.icon;
     icon.options.iconSize = [2 * unit_scale_p, 2 * unit_scale_p];
-    this.scale_marker.setIcon(icon);
+    this.ref_marker.setIcon(icon);
 
     let rot_loc = this.map.layerPointToLatLng(p_center.add(L.point(0, unit_scale_p)));
     // Marker for rotating the graph
@@ -1142,12 +1150,23 @@ class GraphMap extends React.Component {
       opacity: MOVE_GRAPH_MARKER_OPACITY,
     });
 
+    let scale_loc = this.map.layerPointToLatLng(p_center.add(L.point(-unit_scale_p, 0)));
+    // Marker for scaling the graph
+    this.scale_marker = L.marker(scale_loc, {
+      draggable: true,
+      zIndexOffset: 1200,
+      icon: MOVE_GRAPH_SCALE_ICON,
+      opacity: MOVE_GRAPH_MARKER_OPACITY,
+    });
+
     let computeMoveGraphUpdate = () => {
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
       let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
-      let diff_p = rot_loc_p.subtract(trans_loc_p);
-      let theta = Math.atan2(diff_p.x, diff_p.y);
-      let scale = Math.sqrt(Math.pow(diff_p.x, 2) + Math.pow(diff_p.y, 2)) / unit_scale_p;
+      let scale_loc_p = this.map.latLngToLayerPoint(scale_loc);
+      let diff_rot_p = rot_loc_p.subtract(trans_loc_p);
+      let diff_scale_p = scale_loc_p.subtract(trans_loc_p);
+      let theta = Math.atan2(diff_rot_p.x, diff_rot_p.y);
+      let scale = Math.sqrt(Math.pow(diff_scale_p.x, 2) + Math.pow(diff_scale_p.y, 2)) / unit_scale_p;
       let move_graph_change = {
         lng: trans_loc.lng - origin.lng,
         lat: trans_loc.lat - origin.lat,
@@ -1167,34 +1186,42 @@ class GraphMap extends React.Component {
       /// transform
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
       let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
+      let scale_loc_p = this.map.latLngToLayerPoint(scale_loc);
       // Translation
       let xy_offs = trans_loc_p.subtract(origin_p); // x and y
       let x = xy_offs.x;
       let y = xy_offs.y;
       // Rotation
-      let diff_p = rot_loc_p.subtract(trans_loc_p);
-      let theta = Math.atan2(diff_p.x, diff_p.y);
+      let diff_rot_p = rot_loc_p.subtract(trans_loc_p);
+      let theta = Math.atan2(diff_rot_p.x, diff_rot_p.y);
       // Scale
-      let scale = Math.sqrt(Math.pow(diff_p.x, 2) + Math.pow(diff_p.y, 2)) / unit_scale_p;
+      let diff_scale_p = scale_loc_p.subtract(trans_loc_p);
+      let scale = Math.sqrt(Math.pow(diff_scale_p.x, 2) + Math.pow(diff_scale_p.y, 2)) / unit_scale_p;
       //
       style.transform = `translate(${x}px, ${y}px) rotate(${(-theta / Math.PI) * 180}deg) scale(${scale}, ${scale})`;
     };
 
     //
     let updateTransMarker = (e) => {
-      // Rotation marker moves with the translation marker.
+      // Rotation and scale markers move with the translation marker.
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
       let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
-      let diff_p = rot_loc_p.subtract(trans_loc_p);
+      let scale_loc_p = this.map.latLngToLayerPoint(scale_loc);
+      let diff_rot_p = rot_loc_p.subtract(trans_loc_p);
+      let diff_scale_p = scale_loc_p.subtract(trans_loc_p);
       let new_trans_loc_p = this.map.latLngToLayerPoint(e.latlng);
-      let new_rot_loc_p = new_trans_loc_p.add(diff_p);
+      let new_rot_loc_p = new_trans_loc_p.add(diff_rot_p);
+      let new_scale_loc_p = new_trans_loc_p.add(diff_scale_p);
       let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
+      let new_scale_loc = this.map.layerPointToLatLng(new_scale_loc_p);
       this.rot_marker.setLatLng(new_rot_loc);
-      // Scale marker also moves with the translation marker
-      this.scale_marker.setLatLng(e.latlng);
+      this.scale_marker.setLatLng(new_scale_loc);
+      // Ref marker also moves with the translation marker
+      this.ref_marker.setLatLng(e.latlng);
       //
       trans_loc = e.latlng;
       rot_loc = new_rot_loc;
+      scale_loc = new_scale_loc;
       //
       updateGraphPane();
     };
@@ -1208,17 +1235,31 @@ class GraphMap extends React.Component {
     this.trans_marker.addTo(this.map);
 
     let updateRotMarker = (e) => {
-      // Adjust the size of the marker to connect the trans and rot marker.
+      // Constrain rot marker to circle
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
-      let rot_loc_p = this.map.latLngToLayerPoint(e.latlng);
-      let diff_p = rot_loc_p.subtract(trans_loc_p);
-      let scale_p = Math.sqrt(Math.pow(diff_p.x, 2) + Math.pow(diff_p.y, 2));
-      let icon = this.scale_marker.options.icon;
-      icon.options.iconSize = [2 * scale_p, 2 * scale_p];
-      this.scale_marker.setIcon(icon);
-      //
-      rot_loc = e.latlng;
-      //
+      let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
+      let diff_rot_p = rot_loc_p.subtract(trans_loc_p);
+      let new_rot_loc_p = this.map.latLngToLayerPoint(e.latlng);
+      let new_diff_rot_p = new_rot_loc_p.subtract(trans_loc_p);
+      let rot_mag = Math.sqrt(Math.pow(diff_rot_p.x, 2) + Math.pow(diff_rot_p.y, 2));
+      let new_rot_mag = Math.sqrt(Math.pow(new_diff_rot_p.x, 2) + Math.pow(new_diff_rot_p.y, 2));
+      if (new_rot_mag == 0) return;
+      new_rot_loc_p = trans_loc_p.add(new_diff_rot_p.multiplyBy(rot_mag / new_rot_mag));
+
+      // Scale marker moves with rot marker
+      new_diff_rot_p = new_rot_loc_p.subtract(trans_loc_p);
+      let new_scale_loc_p = trans_loc_p.add(L.point(-new_diff_rot_p.y, new_diff_rot_p.x));
+      
+      // Update rot marker
+      let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
+      this.rot_marker.setLatLng(new_rot_loc);
+      rot_loc = new_rot_loc;
+
+      // Update scale marker
+      let new_scale_loc = this.map.layerPointToLatLng(new_scale_loc_p);
+      this.scale_marker.setLatLng(new_scale_loc);
+      scale_loc = new_scale_loc;
+
       updateGraphPane();
     };
     // add rotation marker to the map
@@ -1230,34 +1271,84 @@ class GraphMap extends React.Component {
     });
     this.rot_marker.addTo(this.map);
 
+    let updateScaleMarker = (e) => {
+      // Constrain scale marker to line
+      let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
+      let scale_loc_p = this.map.latLngToLayerPoint(scale_loc);
+      let diff_scale_p = scale_loc_p.subtract(trans_loc_p);
+      let new_scale_loc_p = this.map.latLngToLayerPoint(e.latlng);
+      let new_diff_scale_p = new_scale_loc_p.subtract(trans_loc_p);
+      let scale_mag = Math.sqrt(Math.pow(diff_scale_p.x, 2) + Math.pow(diff_scale_p.y, 2));
+      let new_scale_mag = Math.sqrt(Math.pow(new_diff_scale_p.x, 2) + Math.pow(new_diff_scale_p.y, 2));
+      if (new_scale_mag == 0) return;
+      new_scale_loc_p = trans_loc_p.add(diff_scale_p.multiplyBy(new_scale_mag / scale_mag));
+
+      // Scale marker moves with rot marker
+      new_diff_scale_p = new_scale_loc_p.subtract(trans_loc_p);
+      let new_rot_loc_p = trans_loc_p.add(L.point(new_diff_scale_p.y, -new_diff_scale_p.x));
+
+      // Update ref marker
+      let icon = this.ref_marker.options.icon;
+      icon.options.iconSize = [2 * new_scale_mag, 2 * new_scale_mag];
+      this.ref_marker.setIcon(icon);
+
+      // Update scale marker
+      let new_scale_loc = this.map.layerPointToLatLng(new_scale_loc_p);
+      this.scale_marker.setLatLng(new_scale_loc);
+      scale_loc = new_scale_loc;
+
+      // Update rot marker
+      let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
+      this.rot_marker.setLatLng(new_rot_loc);
+      rot_loc = new_rot_loc;
+
+      updateGraphPane();
+    };
     // add scale marker to the map
+    this.scale_marker.on("dragstart", () => this.map.scrollWheelZoom.disable());
+    this.scale_marker.on("drag", updateScaleMarker, this);
+    this.scale_marker.on("dragend", () => {
+      this.map.scrollWheelZoom.enable();
+      computeMoveGraphUpdate();
+    });
     this.scale_marker.addTo(this.map);
 
+    // add ref marker to the map
+    this.ref_marker.addTo(this.map);
+
     // handle zoom
-    let trans_rot_diff_p = null;
+    let diff_rot_p_zoom = null;
+    let diff_scale_p_zoom = null;
     this.moveGraphZoomStart = () => {
       // hide markers
-      this.scale_marker.setOpacity(0);
       this.rot_marker.setOpacity(0);
+      this.scale_marker.setOpacity(0);
+      this.ref_marker.setOpacity(0);
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
       let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
-      trans_rot_diff_p = rot_loc_p.subtract(trans_loc_p);
+      let scale_loc_p = this.map.latLngToLayerPoint(scale_loc);
+      diff_rot_p_zoom = rot_loc_p.subtract(trans_loc_p);
+      diff_scale_p_zoom = scale_loc_p.subtract(trans_loc_p);
       // hide graph pane
       this.map.getPane("graph").style.zIndex = -100;
     };
     this.moveGraphZoomEnd = () => {
-      // display markers
-      this.scale_marker.setOpacity(MOVE_GRAPH_MARKER_OPACITY2);
       // Maintain the relative position of rotMarker and transMarker
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
-      let new_rot_loc_p = trans_loc_p.add(trans_rot_diff_p);
+      let new_rot_loc_p = trans_loc_p.add(diff_rot_p_zoom);
       let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
+      let new_scale_loc_p = trans_loc_p.add(diff_scale_p_zoom);
+      let new_scale_loc = this.map.layerPointToLatLng(new_scale_loc_p);
       this.rot_marker.setLatLng(new_rot_loc);
       this.rot_marker.setOpacity(MOVE_GRAPH_MARKER_OPACITY);
+      this.scale_marker.setLatLng(new_scale_loc);
+      this.scale_marker.setOpacity(MOVE_GRAPH_MARKER_OPACITY);
+      this.ref_marker.setOpacity(MOVE_GRAPH_MARKER_OPACITY2);
       // display graph pane
       this.map.getPane("graph").style.zIndex = 500;
       //
       rot_loc = new_rot_loc;
+      scale_loc = new_scale_loc;
       //
       updateGraphPane();
     };
@@ -1279,11 +1370,13 @@ class GraphMap extends React.Component {
     style.transform = null;
     //
     this.trans_marker.remove();
-    this.scale_marker.remove();
     this.rot_marker.remove();
+    this.scale_marker.remove();
+    this.ref_marker.remove();
     this.trans_marker = null;
     this.rot_marker = null;
     this.scale_marker = null;
+    this.ref_marker = null;
   }
 
   startMoveRobot() {

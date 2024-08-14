@@ -1,32 +1,34 @@
-## Online Lidar VTR3
-session_name: vtr_online_honeycomb_grizzly
+## Offline Lidar VTR3 (using datasets)
+session_name: vtr_offline_ouster_jackal
 
 environment:
-  RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-  FASTRTPS_DEFAULT_PROFILES_FILE: ${VTRSRC}/config/vtr_rtps.xml
-  ROS_DOMAIN_ID: "13"  # set this to a unique number when multiple ROS2 processes running on the same network
-
+  CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
+  # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
+
 suppress_history: false
 
 windows:
   - window_name: vtr_navigation_system
-    layout: main-horizontal
+    layout: main-vertical
     shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
+      - source /opt/ros/humble/setup.bash 
+        && source ${VTRSRC}/main/install/setup.bash
       - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
+
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_default.yaml
-        start_new_graph:=false
-        use_sim_time:=false
-
-      #- htop # monitor hardware usage
+        base_params:=ouster_jackal_default.yaml
+        data_dir:=${VTRTEMP}/lidar
+        model_dir:=${VTRMODELS}
+        start_new_graph:=true
+        use_sim_time:=true
+        planner:="cbit"
 
   - window_name: vtr_gui
-    layout: main-horizontal
+    layout: main-vertical
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
@@ -36,9 +38,9 @@ windows:
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: rviz2
-    layout: main-horizontal
+    layout: main-vertical
     shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
+      - source /opt/ros/humble/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

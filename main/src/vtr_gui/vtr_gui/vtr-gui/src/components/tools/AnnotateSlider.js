@@ -20,13 +20,13 @@ import React from "react";
 import { Box, Slider, Paper } from "@mui/material";
 
 const marks = [
-  { value: 0, label: "Type 1" },
-  { value: 1, label: "Type 2" },
-  { value: 2, label: "Type 3" },
-  { value: 3, label: "Type 4" },
-  { value: 4, label: "Type 5" },
-  { value: 5, label: "Type 6" },
-  { value: 6, label: "Type 7" },
+  { value: 0, label: "0.2 m" },
+  { value: 1, label: "0.5 m" },
+  { value: 2, label: "1.0 m" },
+  { value: 3, label: "1.5 m" },
+  { value: 4, label: "2.0 m" },
+  { value: 5, label: "2.5 m" },
+  { value: 6, label: "10.0 m" },
 ];
 
 function valueLabelFormat(value) {
@@ -51,7 +51,7 @@ class AnnotateSlider extends React.Component {
             left: "50%",
             transform: "translate(-50%, -50%)",
             opacity: 0.5,
-            background: "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet)",
+            background: "linear-gradient(90deg, red, orange, yellow, green)",
             width: 550,
             height: 50,
             zIndex: 1000,
@@ -70,7 +70,7 @@ class AnnotateSlider extends React.Component {
         >
           <Slider
             sx={{ color: "white" }}
-            defaultValue={0}
+            defaultValue={5}
             // color="secondary"
             valueLabelFormat={valueLabelFormat}
             step={null}
