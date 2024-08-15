@@ -128,6 +128,8 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<double> azimuth_angles;
   std::vector<bool> up_chirps;
   std::vector<double> azimuth_vel;
+  Eigen::Vector2d vel_meas;
+  double yaw_meas = -1000.0;
   /// \note for now we retrieve radar resolution from load_radar function
 #if true
   // Set radar resolution
@@ -140,7 +142,13 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   beta = config_->beta;
 
   // Load scan, times, azimuths from scan
-  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, azimuth_vel, fft_scan);
+  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, azimuth_vel, fft_scan, vel_meas, yaw_meas);
+
+  // Check if yaw meas and vel_meas passed in from the radar data
+  qdata.yaw_meas.emplace(yaw_meas);
+  if (yaw_meas != -1000.0) {
+    qdata.vel_meas.emplace(vel_meas);
+  }
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;

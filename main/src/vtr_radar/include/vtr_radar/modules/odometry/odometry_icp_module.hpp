@@ -45,6 +45,8 @@ class OdometryICPModule : public tactic::BaseModule {
     // continuous-time estimation
     bool use_trajectory_estimation = false;
     bool use_radial_velocity = false;
+    bool use_yaw_meas = false;
+    bool use_vel_meas = false;
     int traj_num_extra_states = 0;
     bool traj_lock_prev_pose = false;
     bool traj_lock_prev_vel = false;
@@ -73,7 +75,14 @@ class OdometryICPModule : public tactic::BaseModule {
     double huber_delta = 1.0;
     double cauchy_k = 0.5;
     double dopp_cauchy_k = 0.8;
-    double dopp_meas_cov = 1.0;
+    double dopp_meas_std = 1.0;
+    double vel_fwd_std = 0.1;
+    double vel_side_std = 1.0;
+    double yaw_cauchy_k = 0.5;
+    double yaw_meas_std = 0.1;
+    bool use_p2pl = false;
+    double p2pl_fwd_weight = 1.0;
+    double normal_score_threshold = 0.0;
 
     /// Success criteria
     float min_matched_ratio = 0.4;

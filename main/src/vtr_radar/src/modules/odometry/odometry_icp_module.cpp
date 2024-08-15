@@ -50,6 +50,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // motion compensation
   config->use_trajectory_estimation = node->declare_parameter<bool>(param_prefix + ".use_trajectory_estimation", config->use_trajectory_estimation);
   config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
+  config->use_yaw_meas = node->declare_parameter<bool>(param_prefix + ".use_yaw_meas", config->use_yaw_meas);
+  config->use_vel_meas = node->declare_parameter<bool>(param_prefix + ".use_vel_meas", config->use_vel_meas);
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
   config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
   config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
@@ -78,7 +80,14 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
   config->dopp_cauchy_k = node->declare_parameter<double>(param_prefix + ".dopp_cauchy_k", config->dopp_cauchy_k);
-  config->dopp_meas_cov = node->declare_parameter<double>(param_prefix + ".dopp_meas_cov", config->dopp_meas_cov);
+  config->dopp_meas_std = node->declare_parameter<double>(param_prefix + ".dopp_meas_std", config->dopp_meas_std);
+  config->vel_fwd_std = node->declare_parameter<double>(param_prefix + ".vel_fwd_std", config->vel_fwd_std);
+  config->vel_side_std = node->declare_parameter<double>(param_prefix + ".vel_side_std", config->vel_side_std);
+  config->yaw_cauchy_k = node->declare_parameter<double>(param_prefix + ".yaw_cauchy_k", config->yaw_cauchy_k);
+  config->yaw_meas_std = node->declare_parameter<double>(param_prefix + ".yaw_meas_std", config->yaw_meas_std);
+  config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
+  config->p2pl_fwd_weight = node->declare_parameter<double>(param_prefix + ".p2pl_fwd_weight", 1.0);
+  config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
@@ -125,6 +134,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   const auto &beta = *qdata.beta;
+  const auto &yaw_meas = *qdata.yaw_meas;
+  const auto &vel_meas = *qdata.vel_meas;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
 
@@ -344,17 +355,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
       Eigen::Matrix3d W = [&] {
-        // point to line
-        // if (point_map[ind.second].normal_score > 0) {
-        //   Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-        //   return Eigen::Matrix3d((nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
-        // } else {
-        //   Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
-        //   W(2, 2) = 1e-5;
-        //   return W;
-        // }
-        /// point to point
         Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        if (config_->use_p2pl) {
+          // point to line
+          if (point_map[ind.second].normal_score > config_->normal_score_threshold) {
+            Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+            W = Eigen::Matrix3d((nrm * nrm.transpose()) + config_->p2pl_fwd_weight * Eigen::Matrix3d::Identity());
+            W(2, 2) = 1.0;
+          } else {
+            W(0, 0) = config_->p2pl_fwd_weight;
+          }
+        } else {
+          W(0, 0) = config_->p2pl_fwd_weight;
+        }
         return W;
       }();
       auto icp_noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
@@ -395,7 +408,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         
         if (query_points[ind.first].radial_velocity != -1000.0 && !rv_cost_added) {
           // noise properties
-          Eigen::Matrix<double, 1, 1> meas_cov = pow(config_->dopp_meas_cov, 2) * Eigen::Matrix<double, 1, 1>::Identity();
+          Eigen::Matrix<double, 1, 1> meas_cov = pow(config_->dopp_meas_std, 2) * Eigen::Matrix<double, 1, 1>::Identity();
           const auto vel_noise_model = StaticNoiseModel<1>::MakeShared(meas_cov);
 
           // loss function
@@ -429,6 +442,50 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       }
 }
     }
+
+    // See if yaw_meas is available
+    if (config_->use_yaw_meas) {
+      if (yaw_meas != -1000.0) {
+        // Add yaw measurement-based cost term
+        // yaw_meas is the so(2) element of the change between the previous and current timestamp SO(2) orientation
+        // so we want to feed the error term this difference, as well as the current and past sensor state variables
+        const auto T_r_m_prev_eval = trajectory->getPoseInterpolator(Time(timestamp_odo));
+        const auto T_m_s_prev_eval = inverse(compose(T_s_r_var, T_r_m_prev_eval));
+        const auto T_r_m_curr_eval = trajectory->getPoseInterpolator(Time(query_stamp));
+        const auto T_m_s_curr_eval = inverse(compose(T_s_r_var, T_r_m_curr_eval));
+
+        const auto yaw_noise_model = StaticNoiseModel<1>::MakeShared(pow(config_->yaw_meas_std, 2) * Eigen::Matrix<double, 1, 1>::Identity());
+        const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
+        const auto yaw_err_func = p2p::YawErrorEvaluator::MakeShared(-yaw_meas, T_m_s_prev_eval, T_m_s_curr_eval);
+
+        auto yaw_cost = WeightedLeastSqCostTerm<1>::MakeShared(yaw_err_func, yaw_noise_model, yaw_loss_func);
+        problem.addCostTerm(yaw_cost);
+      } else {
+        CLOG(ERROR, "radar.odometry_icp") << "Yaw measurement not available.";
+      }
+    }
+
+    if (config_->use_vel_meas) {
+      if (yaw_meas != -1000.0) {
+        // Add fwd/side velocity measurement-based cost term
+        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(query_stamp));
+        const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+
+        Eigen::Matrix<double, 2, 2> W_vel = Eigen::Matrix<double, 2, 2>::Identity();
+        W_vel.block<1, 1>(0, 0) *= pow(config_->vel_fwd_std, 2);
+        W_vel.block<1, 1>(1, 1) *= pow(config_->vel_side_std, 2);
+        const auto vel_noise_model = StaticNoiseModel<2>::MakeShared(W_vel);
+        const auto vel_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
+        // Minus sign because vel_meas is v_s_m_in_s, but we want v_m_s_in_s
+        const auto vel_err_func = p2p::VelErrorEvaluator::MakeShared(-vel_meas, w_m_s_in_s_intp_eval);
+
+        auto vel_cost = WeightedLeastSqCostTerm<2>::MakeShared(vel_err_func, vel_noise_model, vel_loss_func);
+        problem.addCostTerm(vel_cost);
+      } else {
+        CLOG(ERROR, "radar.odometry_icp") << "Velocity measurement not available.";
+      }
+    }
+    
 
     // optimize
     GaussNewtonSolver::Params params;
@@ -569,7 +626,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Outputs
-  if (matched_points_ratio > config_->min_matched_ratio) {
+  bool estimate_reasonable = true;
+  // Check if change between initial and final velocity is reasonable
+  if (config_->use_trajectory_estimation) {
+    const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(query_stamp))->evaluate().matrix();
+    const auto diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
+    const auto diff_norm = diff.norm();
+    if (diff_norm > 2.0) {
+      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << diff_norm;
+      estimate_reasonable = false;
+    }
+  }
+
+  if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable) {
     // undistort the preprocessed pointcloud
     const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
     aligned_mat = T_s_m * aligned_mat;
@@ -609,10 +678,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     *qdata.T_r_m_odo = T_r_m_eval->value();
     *qdata.timestamp_odo = query_stamp;
-//#if 1
-//    CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-//    CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-//#endif
+#if 1
+   CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+   CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
@@ -622,9 +691,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     //
     *qdata.odo_success = true;
   } else {
-    CLOG(WARNING, "radar.odometry_icp")
-        << "Matched points ratio " << matched_points_ratio
-        << " is below the threshold. ICP is considered failed.";
+    if (matched_points_ratio <= config_->min_matched_ratio) {
+      CLOG(WARNING, "radar.odometry_icp")
+          << "Matched points ratio " << matched_points_ratio
+          << " is below the threshold. ICP is considered failed.";
+    }
+
     // do not undistort the pointcloud
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
     cart2pol(*undistorted_point_cloud);
