@@ -23,13 +23,13 @@ namespace vtr {
 namespace radar {
 
 void load_radar(const std::string &path, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, std::vector<double> &azimuth_vel, cv::Mat &fft_data) {
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, std::vector<double> &azimuth_vel, cv::Mat &fft_data, Eigen::Vector2d &vel_meas, double &yaw_meas) {
   const cv::Mat raw_data = cv::imread(path, cv::IMREAD_GRAYSCALE);
-  load_radar(raw_data, timestamps, azimuths, up_chirps, azimuth_vel, fft_data);
+  load_radar(raw_data, timestamps, azimuths, up_chirps, azimuth_vel, fft_data, vel_meas, yaw_meas);
 }
 
 void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, std::vector<double> &azimuth_vel, cv::Mat &fft_data) {
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, std::vector<double> &azimuth_vel, cv::Mat &fft_data, Eigen::Vector2d &vel_meas, double &yaw_meas) {
 
   const int64_t time_convert = 1000;
   const double encoder_conversion = 2 * M_PI / 5600;
@@ -41,15 +41,18 @@ void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
   azimuth_vel = std::vector<double>(N, 0);
 
   bool doppler_metadata = false;
+  bool paper1_metadata = false;
   if (M == 6859) {
     doppler_metadata = false;
   } else if (M == 6863) {
     doppler_metadata = true;
+  } else if (M == 6871) {
+    paper1_metadata = true;
   } else {
     throw std::runtime_error("Invalid radar data size");
   }
 
-  const uint range_bins = M - 11 - (doppler_metadata ? 4 : 0);
+  const uint range_bins = M - 11 - (doppler_metadata ? 4 : 0) - (paper1_metadata ? 12 : 0);
   fft_data = cv::Mat::zeros(N, range_bins, CV_32F);
 
   // #pragma omp parallel
@@ -66,6 +69,13 @@ void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
       azimuth_vel[i] = *((float *)(byteArray + M - 4));
     } else {
       azimuth_vel[i] = -1000.0;
+    }
+    
+    // For paper 1, the last 12 bytes contain fwd, side, and yaw measurements
+    if (paper1_metadata && i == 0) {
+      vel_meas(0) = *((float *)(byteArray + M - 12));
+      vel_meas(1) = *((float *)(byteArray + M - 8));
+      yaw_meas = *((float *)(byteArray + M - 4));
     }
   }
 }
