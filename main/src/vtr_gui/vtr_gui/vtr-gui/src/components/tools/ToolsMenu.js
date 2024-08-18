@@ -17,7 +17,7 @@
 
 import React from "react";
 
-import { Box } from "@mui/material";
+import { Box, Switch } from "@mui/material";
 
 import AnnotateRoute from "./AnnotateRoute";
 import DeleteWaypoints from "./DeleteWaypoints";
@@ -25,19 +25,26 @@ import MoveGraph from "./MoveGraph";
 import MoveRobot from "./MoveRobot";
 
 class ToolsMenu extends React.Component {
+  
+  constructor(props) {
+    super(props);
+    this.isChecked = true;
+    this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
+  }
+  
   render() {
     const { socket, currentTool, selectTool, deselectTool } = this.props;
     return (
       <Box
-        sx={{
-          position: "absolute",
-          bottom: 0,
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 1000,
-          display: "flex",
-          flexDirection: "row",
-        }}
+      sx={{
+        position: "absolute",
+        bottom: 0,
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 1000,
+        display: "flex",
+        flexDirection: "row",
+      }}
       >
         <MoveRobot
           socket={socket}
@@ -45,14 +52,14 @@ class ToolsMenu extends React.Component {
           onSelect={() => selectTool("move_robot")}
           onCancel={deselectTool}
           moveRobotVertex={this.props.moveRobotVertex}
-        />
+          />
         <MoveGraph
           socket={socket}
           active={currentTool === "move_graph" ? true : false}
           onSelect={() => selectTool("move_graph")}
           onCancel={deselectTool}
           moveGraphChange={this.props.moveGraphChange}
-        />
+          />
         <AnnotateRoute
           socket={socket}
           active={currentTool === "annotate_route" ? true : false}
@@ -61,7 +68,7 @@ class ToolsMenu extends React.Component {
           onSliderChange={this.props.onSliderChange}
           annotateRouteType={this.props.annotateRouteType}
           annotateRouteIds={this.props.annotateRouteIds}
-        />
+          />
         <DeleteWaypoints
           socket={socket}
           active={currentTool === "delete_waypoints" ? true : false}
@@ -69,10 +76,28 @@ class ToolsMenu extends React.Component {
           onCancel={deselectTool}
           waypointsMap={this.props.waypointsMap}
           handleUpdateWaypoint={this.props.handleUpdateWaypoint}
-        />
+          />
+        <DeleteWaypoints
+          socket={socket}
+          active={currentTool === "delete_waypoints" ? true : false}
+          onSelect={() => selectTool("delete_waypoints")}
+          onCancel={deselectTool}
+          waypointsMap={this.props.waypointsMap}
+          handleUpdateWaypoint={this.props.handleUpdateWaypoint}
+          />
       </Box>
     );
   }
+  
+  handleCheckboxChange(event) {
+    this.isChecked = event.target.checked;
+    if (event.target.checked) {
+      console.log("Checked");
+    }
+    else {
+      console.log("Unchecked");
+    }
+  }
 }
 
-export default ToolsMenu;
+export default ToolsMenu

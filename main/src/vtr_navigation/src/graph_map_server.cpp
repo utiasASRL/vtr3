@@ -80,6 +80,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   following_route_pub_ = node->create_publisher<FollowingRoute>("following_route", 10);
   following_route_srv_ = node->create_service<FollowingRouteSrv>("following_route_srv", std::bind(&GraphMapServer::followingRouteSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
+
    // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
@@ -87,6 +88,8 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   move_graph_sub_ = node->create_subscription<MoveGraphMsg>("move_graph", rclcpp::QoS(10), std::bind(&GraphMapServer::moveGraphCallback, this, std::placeholders::_1), sub_opt);
   update_waypoint_sub_ = node->create_subscription<UpdateWaypointMsg>("update_waypoint", rclcpp::QoS(10), std::bind(&GraphMapServer::updateWaypointCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
+
+  pose_pub_ = node->create_subscription<NavSatFix>("/novatel/fix", rclcpp::QoS(10), std::bind(&GraphMapServer::poseCallback, this, std::placeholders::_1), sub_opt);
 
   // initialize graph mapinfo if working on a new map
   auto map_info = graph->getMapInfo();
@@ -204,6 +207,28 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   updateRobotProjection();
   //
   graph_state_pub_->publish(graph_state_);
+}
+
+void GraphMapServer::poseCallback(const NavSatFix::ConstSharedPtr msg) {
+  if (set_starting_pose_ == 0) {
+    prev_lng_ = (float) msg->longitude;
+    prev_lat_ = (float) msg->latitude;
+    set_starting_pose_++;
+  }
+  if (set_starting_pose_ == 1) {
+    // initialize graph mapinfo if working on a new map
+    const auto graph = getGraph();
+    auto map_info = graph->getMapInfo();
+    CLOG(INFO, "navigation.graph_map_server")
+        << "Setting starting location";
+    map_info.root_vid = 0;
+    map_info.lng = (float) prev_lng_;
+    map_info.lat = (float) prev_lat_;
+    map_info.theta = (float) atan2(msg->longitude - prev_lng_, msg->latitude - prev_lat_);
+    map_info.set = true;
+    graph->setMapInfo(map_info);
+    set_starting_pose_++;
+  }
 }
 
 void GraphMapServer::updateWaypointCallback(

@@ -20,7 +20,7 @@ import React from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet-rotatedmarker"; // enable marker rotation
-import { Card, IconButton, TextField } from "@mui/material";
+import { Card, IconButton, TextField, Switch, Box, FormControlLabel, Typography } from "@mui/material";
 import { MapContainer, TileLayer, ZoomControl, ImageOverlay, Marker, Popup } from "react-leaflet";
 import { kdTree } from "kd-tree-javascript";
 
@@ -47,7 +47,9 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 /// pose graph constants
-const ROUTE_TYPE_COLOR = ["#ff0000", "#fd4a18", "#ffa500", "#fecd29", "#ffff00", "#6aaf1e", "#008000"];
+const ROUTE_TYPE_COLOR = ["#ff0000", "#fd4a18", "#ffa500", "#fecd29", "#ffff00", "#6aaf1e", "#008000", "#000000"];
+const ROUTE_TYPE_WIDTH = [0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 10.0, 0.05];
+const ROUTE_TYPE_OPACITY = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.9];
 const GRAPH_OPACITY = 0.9;
 const GRAPH_WEIGHT = 7;
 
@@ -143,6 +145,8 @@ class GraphMap extends React.Component {
       move_robot_vertex: { lng: 0, lat: 0, id: -1 },
       // map center
       map_center: {lat: 43.78220, lng: -79.4661},
+      /// whether the path selection will be the whole path (for annotation)
+      annotateFull: false,
     };
     this.fetchMapCenter()
     /// leaflet map
@@ -327,6 +331,7 @@ class GraphMap extends React.Component {
       [43.660511, -79.397019], // Bottom-left coordinates of the image
       [43.661091, -79.395995], // Top-right coordinates of the image
     ];
+    // const [annotateFull, setAnnotateFull] = useState(false);
     return (
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
@@ -366,6 +371,30 @@ class GraphMap extends React.Component {
           // move robot
           moveRobotVertex={move_robot_vertex}
         />
+        <Box
+        sx={{
+          position: "absolute",
+          bottom: 0,
+          left: "77%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 1000,
+          display: "flex",
+          flexDirection: "row",
+        }}
+        >
+          <FormControlLabel control={
+            <Switch
+              checked={this.state.annotateFull}
+              onChange={() => this.setState({annotateFull: !this.state.annotateFull})}
+              inputProps={{ 'aria-label': 'controlled' }}
+            />
+          } label={
+            <Typography sx={{ color: "#ffffff" }}>
+              SELECT FULL PATH
+            </Typography>
+          }
+          />
+        </Box>
         <GoalManager
           socket={socket}
           currentTool={current_tool}
@@ -410,6 +439,25 @@ class GraphMap extends React.Component {
       });
   }
 
+  zoomEnd = () => {
+    this.fixed_routes.forEach((route) => {
+      route.polyline.setStyle({ 
+        color: ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length],
+        weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
+        opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
+        lineCap: "butt",
+      })
+    });
+    this.active_routes.forEach((route) => {
+      route.polyline.setStyle({ 
+        color: ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length],
+        weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
+        opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
+        lineCap: "butt",
+      })
+    });
+  }
+
   /** @brief Leaflet map creationg callback */
   mapCreatedCallback(map) {
     console.debug("Leaflet map created.");
@@ -419,6 +467,8 @@ class GraphMap extends React.Component {
     map.getPane("graph").style.zIndex = 500; // same as the shadow pane (polylines default)
     //
     this.map.on("click", this.handleMapClick.bind(this));
+    //
+    this.map.on("zoomend", this.zoomEnd, this);
     //
     this.fetchGraphState(true);
   }
@@ -516,7 +566,13 @@ class GraphMap extends React.Component {
       let v = this.id2vertex.get(id);
       return [v.lat, v.lng];
     });
-    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: width, pane: "graph" });
+    let polyline = L.polyline(latlngs, { 
+      color: color,
+      weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
+      opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
+      pane: "graph",
+      lineCap: "butt",
+    });
     polyline.addTo(this.map);
     return polyline;
   }
@@ -545,17 +601,23 @@ class GraphMap extends React.Component {
     this.fixed_routes.forEach((route) => {
       route.polyline.remove();
     });
-    this.fixed_routes = graph.fixed_routes.map((route) => {
+    this.fixed_routes = graph.fixed_routes.flatMap((route) => {
       let polyline = this.route2Polyline(route);
-      return { ...route, polyline: polyline };
+      let route_centre = structuredClone(route);
+      route_centre.type = 7;
+      let polyline_centre = this.route2Polyline(route_centre);
+      return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
     });
     // active routes
     this.active_routes.forEach((route) => {
       route.polyline.remove();
     });
-    this.active_routes = graph.active_routes.map((route) => {
+    this.active_routes = graph.active_routes.flatMap((route) => {
       let polyline = this.route2Polyline(route);
-      return { ...route, polyline: polyline };
+      let route_centre = structuredClone(route);
+      route_centre.type = 7;
+      let polyline_centre = this.route2Polyline(route_centre);
+      return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
     });
 
     // center set to root vertex
@@ -598,6 +660,7 @@ class GraphMap extends React.Component {
         this.robot_marker.marker.remove();
       }
     } else {
+      console.log(robot.lng, robot.lat);
       this.robot_marker.marker.setLatLng({ lng: robot.lng, lat: robot.lat });
       this.robot_marker.marker.setOpacity(robot.localized ? ROBOT_OPACITY : ROBOT_UNLOCALIZED_OPACITY);
       this.robot_marker.marker.setRotationAngle(-(robot.theta / Math.PI) * 180);
@@ -730,14 +793,23 @@ class GraphMap extends React.Component {
       let active_route = { ids: [vf.id], type: vf.type };
       active_route = { ...active_route, polyline: this.route2Polyline(active_route) };
       this.active_routes.push(active_route);
+      let active_route_centre = { ids: [vf.id], type: 7 };
+      active_route_centre = { ...active_route_centre, polyline: this.route2Polyline(active_route_centre) };
+      this.active_routes.push(active_route_centre);
     }
-    let active_route = this.active_routes[this.active_routes.length - 1];
+    let active_route = this.active_routes[this.active_routes.length - 2];
     active_route.ids.push(vt.id);
     active_route.polyline.addLatLng([vt.lat, vt.lng]);
+    let active_route_centre = this.active_routes[this.active_routes.length - 1];
+    active_route_centre.ids.push(vt.id);
+    active_route_centre.polyline.addLatLng([vt.lat, vt.lng]);
     if (active_route.type !== vt.type) {
       let new_active_route = { ids: [vt.id], type: vt.type };
       new_active_route = { ...new_active_route, polyline: this.route2Polyline(new_active_route) };
       this.active_routes.push(new_active_route);
+      let new_active_route_centre = { ids: [vf.id], type: 7 };
+      new_active_route_centre = { ...new_active_route_centre, polyline: this.route2Polyline(new_active_route_centre) };
+      this.active_routes.push(new_active_route_centre);
     }
   }
 
@@ -878,6 +950,7 @@ class GraphMap extends React.Component {
           current = parents.get(current);
         }
       }
+      
       paths.push(path);
     });
 
@@ -906,9 +979,18 @@ class GraphMap extends React.Component {
     let interm_pos = { s: null, c: null, e: null };
 
     let getSelectedPath = () => {
-      let paths = this.breadthFirstSearch(selector.vertex.c.id, [selector.vertex.s.id, selector.vertex.e.id]);
-      paths[0].reverse();
-      return paths[0].concat(paths[1].slice(1));
+      if (!this.state.annotateFull) {
+        let paths = this.breadthFirstSearch(selector.vertex.c.id, [selector.vertex.s.id, selector.vertex.e.id]);
+        paths[0].reverse();
+        return paths[0].concat(paths[1].slice(1));
+      }
+      else {
+        let paths = Array.from(this.id2vertex.keys());
+        paths.sort(function(a, b) {
+          return a - b;
+        });
+        return paths;
+      }
     };
 
     let getRotationAngle = (p1, p2) => {
@@ -969,6 +1051,8 @@ class GraphMap extends React.Component {
     // set up and add the center marker
     let closest_vertices = this.kdtree.nearest(center_pos, 1);
     selector.vertex.c = closest_vertices ? closest_vertices[0][0] : center_pos;
+    selector.vertex.c = this.id2vertex.get(0);
+    console.log("Selector centre", selector.vertex.c, this.id2vertex.get(0));
     selector.marker.c = L.marker(selector.vertex.c, {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
@@ -1078,10 +1162,11 @@ class GraphMap extends React.Component {
         });
         if (this.annotate_polyline === null) {
           this.annotate_polyline = L.polyline(latlngs, {
-            color: ROUTE_TYPE_COLOR[0],
+            color: "#000000",
             opacity: GRAPH_OPACITY,
             weight: GRAPH_WEIGHT,
             pane: "graph",
+            lineCap: "butt"
           });
           this.annotate_polyline.addTo(this.map);
         } else {
@@ -1090,10 +1175,26 @@ class GraphMap extends React.Component {
       });
     };
     this.createSelector(this.annotate_route_selector, selectPathCallback);
+
+    this.annotateRouteZoomEnd = () => {
+      let type = this.state.annotate_route_type;
+      this.setState({ annotate_route_type: type }, () =>
+        this.annotate_polyline.setStyle({ 
+          color: ROUTE_TYPE_COLOR[type % ROUTE_TYPE_COLOR.length],
+          weight: this.metres2pix(ROUTE_TYPE_WIDTH[type % ROUTE_TYPE_COLOR.length]),
+          opacity: ROUTE_TYPE_OPACITY[type % ROUTE_TYPE_COLOR.length],
+          lineCap: "butt"
+        })
+      );
+    };
+    this.map.on("zoomend", this.annotateRouteZoomEnd, this);
   }
 
   finishAnnotateRoute() {
     console.info("Finish annotating route");
+    this.map.off("zoomend", this.annotateRouteZoomEnd, this);
+    this.moveGraphZoomEnd = null;
+
     if (this.annotate_polyline !== null) {
       this.annotate_polyline.remove();
       this.annotate_polyline = null;
@@ -1107,7 +1208,12 @@ class GraphMap extends React.Component {
   handleAnnotateRouteSliderChange(type) {
     if (this.annotate_polyline === null) return;
     this.setState({ annotate_route_type: type }, () =>
-      this.annotate_polyline.setStyle({ color: ROUTE_TYPE_COLOR[type % ROUTE_TYPE_COLOR.length] })
+      this.annotate_polyline.setStyle({ 
+        color: ROUTE_TYPE_COLOR[type % ROUTE_TYPE_COLOR.length],
+        weight: this.metres2pix(ROUTE_TYPE_WIDTH[type % ROUTE_TYPE_COLOR.length]),
+        opacity: ROUTE_TYPE_OPACITY[type % ROUTE_TYPE_COLOR.length],
+        lineCap: "butt"
+      })
     );
   }
 
@@ -1176,13 +1282,13 @@ class GraphMap extends React.Component {
       console.warn(move_graph_change);
       this.setState({ move_graph_change: move_graph_change });
     };
-
+    
     let updateGraphPane = () => {
       let style = this.map.getPane("graph").style;
       /// transform origin
       let origin_p = this.map.latLngToLayerPoint(origin);
       style.transformOrigin = `${origin_p.x}px ${origin_p.y}px`;
-
+      
       /// transform
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
       let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
@@ -1333,6 +1439,14 @@ class GraphMap extends React.Component {
       this.map.getPane("graph").style.zIndex = -100;
     };
     this.moveGraphZoomEnd = () => {
+      this.fixed_routes.forEach((route) => {
+        route.polyline = this.route2Polyline(route);
+      });
+      this.active_routes.forEach((route) => {
+        route.polyline = this.route2Polyline(route);
+      });
+      // display markers
+      this.scale_marker.setOpacity(MOVE_GRAPH_MARKER_OPACITY2);
       // Maintain the relative position of rotMarker and transMarker
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
       let new_rot_loc_p = trans_loc_p.add(diff_rot_p_zoom);
@@ -1421,6 +1535,15 @@ class GraphMap extends React.Component {
     this.setState({ move_robot_vertex: { lng: 0, lat: 0, id: -1 } });
     // add the robot marker back
     this.robot_marker.marker.addTo(this.map);
+  }
+
+  metres2pix(metres) {
+    // Compute conversion factor ( better way of doing this)
+    let origin = L.latLng(this.id2vertex.get(this.root_vid));
+    let origin_plus_metre = this.map.latLngToLayerPoint(L.latLng(origin.lat - 1, origin.lng));
+    let metre_standard = origin_plus_metre.subtract(this.map.latLngToLayerPoint(origin));
+    let factor = metre_standard.y * 0.000009;
+    return metres * factor;
   }
 }
 

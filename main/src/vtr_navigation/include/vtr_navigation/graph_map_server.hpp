@@ -38,6 +38,7 @@
 #include "vtr_navigation_msgs/srv/robot_state.hpp"
 #include "vtr_pose_graph_msgs/msg/map_info.hpp"
 #include "vtr_pose_graph_msgs/srv/map_info.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
 
 namespace vtr {
 namespace navigation {
@@ -76,6 +77,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   using GraphWeakPtr = tactic::Graph::WeakPtr;
   using GraphBasePtr = tactic::GraphBase::Ptr;
 
+  using NavSatFix = sensor_msgs::msg::NavSatFix;
+
   using VertexId2TransformMap = std::unordered_map<VertexId, Transform>;
   using VertexId2IdxMap = std::unordered_map<VertexId, size_t>;
   using ProjectVertex =
@@ -105,6 +108,7 @@ class GraphMapServer : public tactic::Graph::Callback,
       std::shared_ptr<MapInfoSrv::Response> response) const;
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
+  void poseCallback(const NavSatFix::ConstSharedPtr msg);
   void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
 
  private:
@@ -178,6 +182,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
   rclcpp::Service<RobotStateSrv>::SharedPtr robot_state_srv_;
 
+
   /** \brief Service to request the initialized map info */
   rclcpp::Service<MapInfoSrv>::SharedPtr map_info_srv_;
 
@@ -189,6 +194,12 @@ class GraphMapServer : public tactic::Graph::Callback,
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
   rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
   rclcpp::Subscription<UpdateWaypointMsg>::SharedPtr update_waypoint_sub_;
+
+  rclcpp::Subscription<NavSatFix>::SharedPtr pose_pub_;
+
+  unsigned int set_starting_pose_ = 0;
+  float prev_lat_;
+  float prev_lng_;
 };
 
 class RvizGraphMapServer : public GraphMapServer,
