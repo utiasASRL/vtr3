@@ -129,7 +129,6 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   // cv::Mat scan_use;
   // cv::Mat fft_scan;
   cv::Mat cartesian;
-  // # Sam creates a made-up timestamp for the radar data assuming 4hz on a 400 azimuth angles
   Cache<Timestamp> qstamp = qdata.stamp;
   // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
 
