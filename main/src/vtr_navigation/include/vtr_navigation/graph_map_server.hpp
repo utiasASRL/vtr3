@@ -18,7 +18,11 @@
  */
 #pragma once
 
+#include <utility>
 #include <proj.h>
+#include <boost/circular_buffer.hpp>
+#include <math.h>
+#include <cmath>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -139,6 +143,10 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   void updateRobotProjection();
 
+  float haversineDist(float lat1, float lat2, float lon1, float lon2);
+  float deltaLongToMetres(float lat1, float lat2, float lon1, float lon2);
+  float deltaLatToMetres(float lat1, float lat2);
+
  private:
   /** \brief Graph that generates the callbacks */
   GraphWeakPtr graph_;
@@ -197,9 +205,9 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   rclcpp::Subscription<NavSatFix>::SharedPtr pose_pub_;
 
-  unsigned int set_starting_pose_ = 0;
-  float prev_lat_;
-  float prev_lng_;
+  const float dist_thres_ = 0.1;
+  bool initial_pose_set_ = false;
+  boost::circular_buffer<std::pair<int, int>> gps_coords_ {2};
 };
 
 class RvizGraphMapServer : public GraphMapServer,

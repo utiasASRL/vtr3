@@ -209,25 +209,48 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   graph_state_pub_->publish(graph_state_);
 }
 
+float GraphMapServer::haversineDist(float lat1, float lat2, float lon1, float lon2) {
+  float R = 6378137.0; // Radius of earth in metres
+  float dLat = lat2 * M_PI / 180 - lat1 * M_PI / 180;
+  float dLon = lon2 * M_PI / 180 - lon1 * M_PI / 180;
+  float a = std::sin(dLat/2) * std::sin(dLat/2) +
+    std::cos(lat1 * M_PI / 180) * std::cos(lat2 * M_PI / 180) *
+    std::sin(dLon/2) * std::sin(dLon/2);
+  float c = 2 * atan2(std::sqrt(a), std::sqrt(1-a));
+  float d = R * c;
+  return d;
+}
+
+float GraphMapServer::deltaLongToMetres(float lat1, float lat2, float lon1, float lon2) {
+  float avg_lat = (lat1 + lat2) / 2;
+  float dist = (lon2 - lon1) * std::cos(avg_lat * M_PI / 180) * 111000;
+  return dist;
+}
+
+float GraphMapServer::deltaLatToMetres(float lat1, float lat2) {
+  float dist = (lat2 - lat1) * 111000;
+  return dist;
+}
+
 void GraphMapServer::poseCallback(const NavSatFix::ConstSharedPtr msg) {
-  if (set_starting_pose_ == 0) {
-    prev_lng_ = (float) msg->longitude;
-    prev_lat_ = (float) msg->latitude;
-    set_starting_pose_++;
-  }
-  if (set_starting_pose_ == 1) {
-    // initialize graph mapinfo if working on a new map
-    const auto graph = getGraph();
-    auto map_info = graph->getMapInfo();
-    CLOG(INFO, "navigation.graph_map_server")
-        << "Setting starting location";
+  gps_coords_.push_back(std::make_pair(msg->longitude, msg->latitude));
+  const auto graph = getGraph();
+  auto map_info = graph->getMapInfo();
+
+  auto prev_coords = gps_coords_[0];
+  auto dist = haversineDist(prev_coords.second, msg->latitude, prev_coords.first, msg->longitude);
+
+  if (gps_coords_.size() >= 2 && !initial_pose_set_ && dist > dist_thres_) {
+    auto delta_lng = deltaLongToMetres(prev_coords.second, msg->latitude, prev_coords.first, msg->longitude);
+    auto delta_lat = deltaLatToMetres(prev_coords.second, msg->latitude);
+
     map_info.root_vid = 0;
-    map_info.lng = (float) prev_lng_;
-    map_info.lat = (float) prev_lat_;
-    map_info.theta = (float) atan2(msg->longitude - prev_lng_, msg->latitude - prev_lat_);
+    map_info.lng = (float) msg->longitude;
+    map_info.lat = (float) msg->latitude;
+    map_info.theta = (float) atan2(delta_lat, delta_lng);
     map_info.set = true;
     graph->setMapInfo(map_info);
-    set_starting_pose_++;
+    initial_pose_set_ = true;
   }
 }
 

@@ -550,17 +550,17 @@ class GraphMap extends React.Component {
       .catch((error) => {
         console.error(error);
       });
-  }
-
-  graphStateCallback(graph_state) {
-    console.info("Received graph state: ", graph_state);
-    this.loadGraphState(graph_state);
-  }
-
-  /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
-  route2Polyline(route) {
-    // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
-    let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
+    }
+    
+    graphStateCallback(graph_state) {
+      console.info("Received graph state: ", graph_state);
+      this.loadGraphState(graph_state);
+    }
+    
+    /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
+    route2Polyline(route) {
+      // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
+      let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
     let width = route.type + 2
     let latlngs = route.ids.map((id) => {
       let v = this.id2vertex.get(id);
@@ -594,7 +594,7 @@ class GraphMap extends React.Component {
         wps_map.set(v.id, v.name);
       }
     });
-    this.setState({waypoints_map: wps_map, display_waypoints_map: wps_map}); 
+    this.setState({waypoints_map: wps_map, display_waypoints_map: wps_map});
 
     this.kdtree = new kdTree(graph.vertices, (a, b) => b.distanceTo(a), ["lat", "lng"]);
     // fixed routes
