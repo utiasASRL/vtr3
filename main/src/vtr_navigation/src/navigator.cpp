@@ -188,14 +188,20 @@ if (pipeline->name() == "stereo") {
 if (pipeline->name() == "radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
-  // there is a radar frame
+  gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "lidar");
+  // there are a radar and gyro frames
   T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform make a shared pointer to the static transform broadcaster
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
-  auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_radar_robot_.inverse().matrix()));
-  msg.header.frame_id = "robot";
-  msg.child_frame_id = "radar";
-  tf_sbc_->sendTransform(msg);
+  auto msg_radar = tf2::eigenToTransform(Eigen::Affine3d(T_radar_robot_.inverse().matrix()));
+  msg_radar.header.frame_id = "robot";
+  msg_radar.child_frame_id = "radar";
+  auto msg_gyro = tf2::eigenToTransform(Eigen::Affine3d(T_gyro_robot_.inverse().matrix()));
+  msg_gyro.header.frame_id = "robot";
+  msg_gyro.child_frame_id = "gyro";
+  std::vector<geometry_msgs::msg::TransformStamped> tfs = {msg_radar,msg_gyro};
+  tf_sbc_->sendTransform(tfs);
   // radar pointcloud data subscription this is the default value
   const auto radar_topic = node_->declare_parameter<std::string>("radar_topic", "/radar_data/b_scan_msg");
   // not sure if the  radar data rate is low as well
@@ -407,6 +413,10 @@ void Navigator::gyroCallback(
 
   // put in the radar msg pointer into query data
   query_data->gyro_msg = msg;
+
+
+  // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r.emplace(T_gyro_robot_);
 
   // add to the queue and notify the processing thread
   CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding gyro message to the queue";

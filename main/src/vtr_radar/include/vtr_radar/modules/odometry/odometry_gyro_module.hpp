@@ -31,7 +31,7 @@ namespace vtr {
 namespace radar {
 
 /** \brief Gyro for odometry. */
-class OdometryGyroodule : public tactic::BaseModule {
+class OdometryGyroModule : public tactic::BaseModule {
  public:
   using ImuMsg = sensor_msgs::msg::Imu;
 
@@ -44,38 +44,15 @@ class OdometryGyroodule : public tactic::BaseModule {
 
     // continuous-time estimation
     bool use_trajectory_estimation = false;
-    int traj_num_extra_states = 0;
     bool traj_lock_prev_pose = false;
     bool traj_lock_prev_vel = false;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
-    /// ICP parameters
-    // number of threads for nearest neighbor search
-    int num_threads = 4;
-    // initial alignment config
-    size_t first_num_steps = 3;
-    size_t initial_max_iter = 100;
-    float initial_max_pairing_dist = 2.0;
-    float initial_max_planar_dist = 0.3;
-    // refined stage
-    size_t refined_max_iter = 10;  // we use a fixed number of iters for now
-    float refined_max_pairing_dist = 2.0;
-    float refined_max_planar_dist = 0.1;
-    // error calculation
-    float averaging_num_steps = 5;
-    float trans_diff_thresh = 0.01;              // threshold on variation of T
-    float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
-    // steam optimizer
+
+    // Steam optimization parameters 
     bool verbose = false;
     unsigned int max_iterations = 1;
-    double huber_delta = 1.0;
-    double cauchy_k = 0.5;
-
-    /// Success criteria
-    float min_matched_ratio = 0.4;
-
-    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);

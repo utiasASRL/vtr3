@@ -127,6 +127,17 @@
         visualize: true
 
     odometry:
+      gyro:
+        type: radar.odometry_gyro
+        use_trajectory_estimation: true
+        traj_lock_prev_pose: true
+        traj_lock_prev_vel: false
+        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
+
+        # steam parameters #TOTUNE
+        verbose: false
+        max_iterations: 2
+
       icp:
         type: radar.odometry_icp
 
