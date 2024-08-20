@@ -11,10 +11,9 @@
       - radar.odometry_icp
       - tactic
       - tactic.pipeline
-      - tactic.module
-      - path_planning.cbit
-      - mpc.debug
-      - cbit.control
+      # - tactic.module
+      # - mpc.debug
+      # - cbit.control
     robot_frame: base_link
     env_info_topic: env_info
     radar_frame: navtech_base #navtech_base
@@ -76,7 +75,7 @@
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.00 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.220240  # range offset in meters
+        range_offset: -0.220240 # range offset in meters -0.220240    -0.3088
         kstrong:
           kstrong: 12 # k-strongest per azimuth to retain
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
@@ -140,7 +139,7 @@
         initial_max_iter: 4
         initial_max_pairing_dist: 5.0
         initial_max_planar_dist: 5.0
-        refined_max_iter: 1000
+        refined_max_iter: 50
         refined_max_pairing_dist: 5.0
         refined_max_planar_dist: 5.0
         averaging_num_steps: 5
@@ -196,7 +195,7 @@
         initial_max_iter: 4
         initial_max_pairing_dist: 5.0
         initial_max_planar_dist: 5.0
-        refined_max_iter: 1000
+        refined_max_iter: 50
         refined_max_pairing_dist: 5.0
         refined_max_planar_dist: 5.0
         averaging_num_steps: 5

@@ -111,15 +111,20 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  /// Input
-#if true
-  auto fft_scan = cv_bridge::toCvShare(std::make_shared<ImageMsg>(qdata.scan_msg->b_scan_img))->image;
-  fft_scan.convertTo(fft_scan, CV_32F);
+  /// Input radar message from the query cache
+// #if true
+  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: at line 116";
+
+  // This is to convert a ROS image to an opencv image
+  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: " << qdata.scan_msg->b_scan_img.encoding;
+  auto fft_scan = cv_bridge::toCvCopy(std::make_shared<ImageMsg>(qdata.scan_msg->b_scan_img))->image;
+
+  fft_scan.convertTo(fft_scan, CV_32F); 
+
   // normalize to 0-1
   fft_scan = fft_scan/255.0;
-#else
-  const auto &scan = *qdata.scan;
-#endif
+
+
 
   /// Output
   auto &beta = *qdata.beta.emplace();
@@ -128,6 +133,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   /// temp variables
   // cv::Mat scan_use;
   // cv::Mat fft_scan;
+
   cv::Mat cartesian;
   Cache<Timestamp> qstamp = qdata.stamp;
   // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
@@ -190,6 +196,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
+  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: We passed line 193 " ;
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,
                            true, CV_32F);
