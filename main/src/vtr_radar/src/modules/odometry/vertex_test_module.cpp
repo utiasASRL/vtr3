@@ -38,6 +38,13 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
                             const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  // Do nothing if qdata does not contain any radar data (was populated by gyro)
+  // This means that we will only create vertices when radar data arrives (which I think is what we wanna do)
+  if(!qdata.scan_msg.valid())
+  {
+    return;
+  }
+
   // default to
   qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
 

@@ -44,6 +44,12 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
                                         const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  // Do nothing if qdata does not contain any radar data (was populated by gyro)
+  if(!qdata.scan_msg.valid())
+  {
+    return;
+  }
+
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_point_cloud", 5);

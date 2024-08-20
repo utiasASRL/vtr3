@@ -88,12 +88,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
-  // Do nothing if qdata does not contain any radar data (was populated by gyro)
-  if(!qdata.scan_msg.valid())
-  {
-    return;
-  }
-
   if (!qdata.sliding_map_odo) {
     CLOG(INFO, "radar.odometry_icp") << "First frame, simply return.";
     // clang-format off
@@ -124,9 +118,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &timestamp_odo = *qdata.timestamp_odo_radar; // use last data from radar scan msg (not gyro!)
-  const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
-  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
+  const auto &timestamp_odo = *qdata.timestamp_odo;
+  const auto &T_r_m_odo = *qdata.T_r_m_odo;
+  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   const auto &beta = *qdata.beta;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();

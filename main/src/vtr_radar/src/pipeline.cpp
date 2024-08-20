@@ -74,6 +74,11 @@ void RadarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
+
+  timestamp_odo_radar_ = nullptr;
+  T_r_m_odo_radar_ = nullptr;
+  w_m_r_in_r_odo_radar_ = nullptr;
+
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -100,6 +105,10 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
+
+    qdata->timestamp_odo_radar = timestamp_odo_radar_;
+    qdata->T_r_m_odo_radar = T_r_m_odo_radar_;
+    qdata->w_m_r_in_r_odo_radar = w_m_r_in_r_odo_radar_;
   }
 
   for (const auto &module : odometry_)
@@ -111,6 +120,14 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+
+    if (qdata->scan_msg.valid())
+    { 
+      timestamp_odo_radar_ = qdata->timestamp_odo.ptr();
+      T_r_m_odo_radar_ = qdata->T_r_m_odo.ptr();
+      w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo.ptr(); 
+    }
+
   }
 }
 

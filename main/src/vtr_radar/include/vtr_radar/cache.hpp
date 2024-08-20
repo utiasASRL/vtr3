@@ -21,6 +21,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
 
@@ -35,10 +36,18 @@ namespace radar {
 struct RadarQueryCache : virtual public tactic::QueryCache {
   PTR_TYPEDEFS(RadarQueryCache);
 
-  // input
+  // radar input
   tactic::Cache<navtech_msgs::msg::RadarBScanMsg> scan_msg;  // from ROS
   tactic::Cache<cv::Mat> scan;                      // from cpp
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
+
+  // gyro input
+  tactic::Cache<sensor_msgs::msg::Imu> gyro_msg;
+
+  // preintegration values
+  tactic::Cache<tactic::Timestamp> stamp_start_pre_integration;
+  tactic::Cache<tactic::Timestamp> stamp_end_pre_integration;
+  tactic::Cache<float> preintegrated_delta_yaw;
 
   // preprocessing
   tactic::Cache<float> beta;
@@ -53,6 +62,13 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
+
+  // save odometry variables from last radar update (to be used for next ICP)
+  // this is necessary since the above variables might be overwritten by gyro in the meantime
+
+  tactic::Cache<tactic::EdgeTransform> T_r_m_odo_radar;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar;
+  tactic::Cache<tactic::Timestamp> timestamp_odo_radar;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;

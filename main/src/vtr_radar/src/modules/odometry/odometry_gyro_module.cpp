@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module.cpp
+ * \file odometry_gyro_module.cpp
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
@@ -88,45 +88,23 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
-  // Do nothing if qdata does not contain any radar data (was populated by gyro)
-  if(!qdata.scan_msg.valid())
+  // Do nothing if qdata does not contain any gyro data (was populated by radar)
+  // Also do nothing, if odometry has not been initialized (we will wait until radar did this)
+  if(!qdata.gyro_msg.valid() || !qdata.sliding_map_odo)
   {
     return;
   }
 
-  if (!qdata.sliding_map_odo) {
-    CLOG(INFO, "radar.odometry_icp") << "First frame, simply return.";
-    // clang-format off
-#if false
-    // undistorted raw point cloud
-    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
-    cart2pol(*undistorted_raw_point_cloud);
-    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
-#endif
-    // undistorted preprocessed point cloud
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.preprocessed_point_cloud);
-    cart2pol(*undistorted_point_cloud);
-    qdata.undistorted_point_cloud = undistorted_point_cloud;
-    //
-    qdata.timestamp_odo.emplace(*qdata.stamp);
-    qdata.T_r_m_odo.emplace(EdgeTransform(true));
-    qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
-    //
-    *qdata.odo_success = true;
-    // clang-format on
-    return;
-  }
-
-  CLOG(DEBUG, "radar.odometry_icp")
+  CLOG(DEBUG, "radar.odometry_gyro")
       << "Retrieve input data and setup evaluators.";
 
   // Inputs
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &timestamp_odo = *qdata.timestamp_odo_radar; // use last data from radar scan msg (not gyro!)
-  const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
-  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
+  const auto &timestamp_odo = *qdata.timestamp_odo;
+  const auto &T_r_m_odo = *qdata.T_r_m_odo;
+  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   const auto &beta = *qdata.beta;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();

@@ -19,6 +19,7 @@
     env_info_topic: env_info
     radar_frame: navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
+    gyro_topic: /ouster/imu
     queue_size: 1
     graph_map:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -55,7 +56,9 @@
       preprocessing: 
         - conversion
         - filtering
-      odometry: 
+      odometry:
+        - gyro
+        - preintegration
         - icp
         - mapping
         - vertex_test

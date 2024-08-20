@@ -94,9 +94,12 @@ class RadarPipeline : public tactic::BasePipeline {
   std::shared_ptr<PointMap<PointWithInfo>> sliding_map_odo_;
   /** \brief current timestamp*/
   std::shared_ptr<tactic::Timestamp> timestamp_odo_;
+  std::shared_ptr<tactic::Timestamp> timestamp_odo_radar_;
   /** \brief current pose and body velocity w.r.t the sliding map */
   std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_;
+  std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_radar_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_;
+  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar_;
   /** \brief vertex id of the last submap */
   tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
   /** \brief transformation from latest submap vertex to robot */

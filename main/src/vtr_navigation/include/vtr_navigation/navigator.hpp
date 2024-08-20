@@ -39,6 +39,7 @@
 
 #if defined(VTR_ENABLE_RADAR)
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #endif
 
 namespace vtr {
@@ -87,6 +88,10 @@ class Navigator {
   rclcpp::Subscription<navtech_msgs::msg::RadarBScanMsg>::SharedPtr radar_sub_;
   std::string radar_frame_;
   tactic::EdgeTransform T_radar_robot_;
+  
+  // gyro
+  void gyroCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr gyro_sub_;
 #endif
 
 #ifdef VTR_ENABLE_VISION

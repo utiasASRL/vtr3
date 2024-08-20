@@ -202,7 +202,15 @@ if (pipeline->name() == "radar") {
   auto radar_qos = rclcpp::QoS(max_queue_size_);
   radar_qos.reliable();
   radar_sub_ = node_->create_subscription<navtech_msgs::msg::RadarBScanMsg>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
-  
+
+  // Subscribe to the imu topic 
+  auto gyro_qos = rclcpp::QoS(max_queue_size_);
+  gyro_qos.reliable();
+  const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
+  gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
+
+
+
 }
 #endif
 
@@ -338,7 +346,7 @@ void Navigator::radarCallback(
   // I mean we can still drop those frames if the queue is too big
   if (queue_.size() > max_queue_size_) {
     CLOG(WARNING, "navigation")
-        << "Dropping old radar message because the queue is full.";
+        << "Dropping old message because the queue is full.";
     queue_.pop();
   }
 
@@ -362,6 +370,48 @@ void Navigator::radarCallback(
   CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding radar message to the queue";
   queue_.push(query_data);
   CLOG(DEBUG, "navigation") << "Sam: In the callback: Added radar message to the queue";
+  cv_set_or_stop_.notify_one();
+}
+
+void Navigator::gyroCallback(
+    const sensor_msgs::msg::Imu::SharedPtr msg) {
+
+  // set the timestamp
+  Timestamp timestamp_gyro = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+  CLOG(DEBUG, "navigation") << "Received gyro data with stamp " << timestamp_gyro;
+
+  // Convert message to query_data format and store into query_data
+  auto query_data = std::make_shared<radar::RadarQueryCache>();
+
+  CLOG(DEBUG, "navigation") << "Sam: In the callback: Created gyro query cache";
+
+  LockGuard lock(mutex_);
+
+  // I mean we can still drop those frames if the queue is too big
+  if (queue_.size() > max_queue_size_) {
+    CLOG(WARNING, "navigation")
+        << "Dropping old message because the queue is full.";
+    queue_.pop();
+  }
+
+  // some modules require node for visualization
+  query_data->node = node_;
+
+  // set the timestamp
+  // Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
+  query_data->stamp.emplace(timestamp_gyro);
+
+  // add the current environment info
+  query_data->env_info.emplace(env_info_);
+
+  // put in the radar msg pointer into query data
+  query_data->gyro_msg = msg;
+
+  // add to the queue and notify the processing thread
+  CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding gyro message to the queue";
+  queue_.push(query_data);
+  CLOG(DEBUG, "navigation") << "Sam: In the callback: Added gyro message to the queue";
   cv_set_or_stop_.notify_one();
 }
 #endif
