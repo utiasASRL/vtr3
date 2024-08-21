@@ -4,13 +4,13 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      # - navigation
+      - navigation
       - radar.pipeline
       # - navigation.sensor_input
       - radar.navtech_extractor
-      - radar.odometry_icp
-      - tactic
-      - tactic.pipeline
+      # - radar.odometry_icp
+      # - tactic
+      # - tactic.pipeline
       # - tactic.module
       # - mpc.debug
       # - cbit.control
@@ -69,13 +69,13 @@
       conversion:
         type: radar.RAS3_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar)
-        minr: 1.0 # mininum detection distance
-        maxr: 72.0 # maximum detection distance
+        detector: modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        minr: 2.0 # mininum detection distance
+        maxr: 60.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.00 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.220240 # range offset in meters -0.220240    -0.3088
+        range_offset: -0.3088 # range offset in meters -0.220240    -0.3088
         kstrong:
           kstrong: 12 # k-strongest per azimuth to retain
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
@@ -97,12 +97,15 @@
           threshold2: 0.0 # cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
           threshold3: 0.07
         modified_cacfar:
-          width: 137 # Old: 101, New: 41
-          guard: 7 # Old: 5, New: 2
-          threshold: 0.55 # Old: 0.2, New: 1.0 # was 0.7
+          width: 137 # Old: 101, New: 41 # Elliot 101
+          guard: 7 # Old: 5, New: 2 # 5
+          threshold: 0.50 # Old: 0.2, New: 1.0 # was 0.7
           threshold2: 0.0 # Old: 4.0, New: 0.0 cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
-          threshold3: 0.20 # Old: 0.0, New: 0.08 # was 0.23
-
+          threshold3: 0.23 # Old: 0.0, New: 0.08 # was 0.23
+        caso_cfar:
+          width: 101 # was 101
+          guard: 5 # was 5
+          threshold: 800.0 # I may have to change 100,200,400,600 ... 800
         visualize: true
 
       filtering:
@@ -150,7 +153,7 @@
         max_iterations: 2
 
         # threshold #TOTUNE
-        min_matched_ratio: 0.2
+        min_matched_ratio: 0.3
 
         visualize: true
 
@@ -206,7 +209,7 @@
         max_iterations: 2
 
         # threshold #TOTUNE
-        min_matched_ratio: 0.1
+        min_matched_ratio: 0.3
 
       memory:
         type: "graph_mem_manager"

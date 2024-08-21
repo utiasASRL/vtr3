@@ -78,6 +78,13 @@ class RAS3ExtractionModule : public tactic::BaseModule {
       double threshold2 = 0.5;
       double threshold3 = 0.22;
     } modified_cacfar;
+    // caso_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+    } caso_cfar;
+
 
     double radar_resolution = 0.0438;
     double range_offset = -0.31;

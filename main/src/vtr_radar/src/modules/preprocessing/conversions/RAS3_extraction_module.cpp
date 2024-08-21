@@ -44,7 +44,6 @@ void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
 
 using namespace tactic;
 
-// /// #Sam: warthog navtech radar upgrade time? #TODO
 // static constexpr int64_t upgrade_time = 1632182400000000000;
 
 auto RAS3ExtractionModule::Config::fromROS(
@@ -83,6 +82,13 @@ auto RAS3ExtractionModule::Config::fromROS(
   config->modified_cacfar.threshold2 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold2", config->modified_cacfar.threshold2);
   config->modified_cacfar.threshold3 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold3", config->modified_cacfar.threshold3);
 
+  // added new cell averging smallest of detector
+  config->caso_cfar.width = node->declare_parameter<int>(param_prefix + ".caso_cfar.width", config->caso_cfar.width);
+  config->caso_cfar.guard = node->declare_parameter<int>(param_prefix + ".caso_cfar.guard", config->caso_cfar.guard);
+  config->caso_cfar.threshold = node->declare_parameter<double>(param_prefix + ".caso_cfar.threshold", config->caso_cfar.threshold);
+  
+
+
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
 
@@ -112,9 +118,6 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Input radar message from the query cache
-// #if true
-  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: at line 116";
-
   // This is to convert a ROS image to an opencv image
   // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: " << qdata.scan_msg->b_scan_img.encoding;
   auto fft_scan = cv_bridge::toCvCopy(std::make_shared<ImageMsg>(qdata.scan_msg->b_scan_img))->image;
@@ -124,15 +127,9 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   // normalize to 0-1
   fft_scan = fft_scan/255.0;
 
-
-
   /// Output
   auto &beta = *qdata.beta.emplace();
   auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
-
-  /// temp variables
-  // cv::Mat scan_use;
-  // cv::Mat fft_scan;
 
   cv::Mat cartesian;
   Cache<Timestamp> qstamp = qdata.stamp;
@@ -157,60 +154,30 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     // CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angle is " << azimuth_angles.back() << " radians";
   }
 
-  
-  /// \note for now we retrieve radar resolution from load_radar function
-#if false
-  // Set radar resolution
+  /// \note for now we retrieve radar resolution from config file
   float radar_resolution = config_->radar_resolution;
-#else
-  // use the first timestamp to determine the resolution
-  // float radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
-  float radar_resolution = config_->radar_resolution;
-#endif
   float cart_resolution = config_->cart_resolution;
   beta = config_->beta;
 
-  // // Downsample scan based on desired chirp type
-  // if (config_->chirp_type == "up") {
-  //   // Choose only every second row, starting from row 0
-  //   scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-  //   int j = 0;
-  //   for (int i = 0; i < scan.rows; i+=2) {
-  //     scan.row(i).copyTo(scan_use.row(j));
-  //     j++;
-  //   }
-  // } else if (config_->chirp_type == "down") {
-  //   // Choose only every second row, starting from row 1
-  //   scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-  //   int j = 0;
-  //   for (int i = 1; i < scan.rows; i+=2) {
-  //     scan.row(i).copyTo(scan_use.row(i));
-  //     j++;
-  //   }
-  // } else{
-  //   scan_use = scan;
-  // }
-
-  // // Load scan, times, azimuths from scan
-  // load_radar(scan_use, azimuth_times, azimuth_angles, fft_scan);
-
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
-  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: We passed line 193 " ;
+
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,
                            true, CV_32F);
-  CLOG(DEBUG, "radar.navtech_extractor")
-      << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
-      << " cols with resolution " << radar_resolution;
 
-  CLOG(DEBUG, "radar.navtech_extractor") << "cartesian has " << cartesian.rows
-                                         << " rows and " << cartesian.cols
-                                         << " cols with resolution "
-                                         << cart_resolution;
+  // debug message
+  // CLOG(DEBUG, "radar.navtech_extractor")
+  //     << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
+  //     << " cols with resolution " << radar_resolution;
+
+  // CLOG(DEBUG, "radar.navtech_extractor") << "cartesian has " << cartesian.rows
+  //                                        << " rows and " << cartesian.cols
+  //                                        << " cols with resolution "
+  //                                        << cart_resolution;
   
-  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
-  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
+  // CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
+  // CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
 
   // Extract keypoints and times
 #if false
@@ -284,7 +251,22 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
-  } else {
+  }else if(config_->detector == "caso_cfar"){
+    CASO_CFAR detector = CASO_CFAR<PointWithInfo>(
+        config_->caso_cfar.width, config_->caso_cfar.guard,
+        config_->caso_cfar.threshold, config_->minr, config_->maxr,
+        config_->range_offset);
+        
+    // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: CASO" <<  config_->caso_cfar.width;
+    // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: CASO" <<  config_->caso_cfar.guard;
+    // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: CASO" <<  config_->caso_cfar.threshold;
+    // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: CASO" <<  config_->minr;
+    // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: CASO" <<  config_->maxr;
+    // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: CASO" <<  config_->range_offset;
+
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);  
+    }else {
     CLOG(ERROR, "radar.navtech_extractor")
         << "Unknown detector: " << config_->detector;
     throw std::runtime_error("Unknown detector: " + config_->detector);
@@ -294,8 +276,7 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   // Convert to cartesian format
   pol2Cart2D(raw_point_cloud);
 
-  CLOG(DEBUG, "radar.navtech_extractor")
-      << "Extracted " << raw_point_cloud.size() << " points";
+  CLOG(DEBUG, "radar.navtech_extractor")<< "Radar Extracted " << raw_point_cloud.size() << " points";
 
 
   // DEBUG
@@ -304,15 +285,15 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point is: " << raw_point_cloud.points[j].x << " " << raw_point_cloud.points[j].y ;
   // }
 
-  PointWithInfo min_pt, max_pt;
-  pcl::getMinMax3D(raw_point_cloud, min_pt, max_pt);
+  // if you would like to know what are the min anfd max points in the point cloud
+  // PointWithInfo min_pt, max_pt;
+  // pcl::getMinMax3D(raw_point_cloud, min_pt, max_pt);
 
-  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The min point is: " << min_pt.x << " " << min_pt.y << " " << min_pt.z;
-  CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The max point is: " << max_pt.x << " " << max_pt.y << " " << max_pt.z;
+  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The min point is: " << min_pt.x << " " << min_pt.y << " " << min_pt.z;
+  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The max point is: " << max_pt.x << " " << max_pt.y << " " << max_pt.z;
 
   // DEBUG
   // for (auto &point : pointcloud) {
-
   //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point x is: " << point.x ;
   //   CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The point y is: " << point.y ;
 
