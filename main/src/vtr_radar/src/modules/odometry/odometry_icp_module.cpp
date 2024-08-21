@@ -20,6 +20,8 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
+#include "steam/evaluable/p2p/yaw_error_evaluator.hpp"
+
 namespace vtr {
 namespace radar {
 
@@ -77,6 +79,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
 
+  config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", 0.1);
+
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -89,7 +93,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
-  if(!qdata.scan_msg.valid())
+  if(!qdata.scan_msg)
   {
     return;
   }
@@ -114,6 +118,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     //
     *qdata.odo_success = true;
     // clang-format on
+
+    // This is the first odometyr frame
+    // Initialize preintegration
+    qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
+    qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
+    qdata.preintegrated_delta_yaw.emplace(0.0);
+
     return;
   }
 
@@ -383,9 +394,51 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
-    // TODO: Add preintegration cost terms
+    //Add preintegration cost terms
+    if(!qdata.preintegrated_delta_yaw)
+    {
 
-    // TODO: clear accumulated preintegration and reset variables for next interval
+    }
+    else{
+      const auto &start_stamp = *qdata.stamp_start_pre_integration;
+      const auto &end_stamp = *qdata.stamp_end_pre_integration;
+
+      // Integrate the last remaining velocity
+
+      // Distance between current and last time
+      Time int_start_time(static_cast<int64_t>(end_stamp)); 
+      Time int_end_time(static_cast<int64_t>(query_stamp));
+
+      const auto &prev_gyro_msg = *qdata.prev_gyro_msg;
+      double delta_yaw = (int_end_time - int_start_time).seconds() * -1*(prev_gyro_msg.angular_velocity.z);
+
+      // Get states at the times of the preintegration
+      const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
+      const auto T_r_m_end = trajectory->getPoseInterpolator(query_stamp); // use query stamp, because we just integrated until here
+
+      // Transform into sensor frame
+      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+      const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
+      T_s_r_gyro_var->locked() = true;
+
+      const auto T_m_s_start = inverse(compose(T_s_r_gyro_var, T_r_m_start));
+      const auto T_m_s_end = inverse(compose(T_s_r_gyro_var, T_r_m_end));
+
+      // Cost Term 
+      const auto &yaw = *qdata.preintegrated_delta_yaw + delta_yaw;
+
+      const auto loss_func = L2LossFunc::MakeShared();
+      const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->preint_cov);
+      const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw,T_m_s_start,T_m_s_end);
+      const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+
+      problem.addCostTerm(measurement_cost);
+
+      //clear accumulated preintegration and reset variables for next interval
+      *qdata.stamp_end_pre_integration = query_stamp;
+      *qdata.stamp_start_pre_integration = query_stamp;
+      *qdata.preintegrated_delta_yaw = 0.0;
+    }
 
     // optimize
     GaussNewtonSolver::Params params;

@@ -57,7 +57,7 @@ class OdometryPreintegrationModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(OdometryICPModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometryPreintegrationModule);
 };
 
 }  // namespace radar

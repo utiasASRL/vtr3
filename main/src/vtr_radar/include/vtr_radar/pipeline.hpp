@@ -109,6 +109,12 @@ class RadarPipeline : public tactic::BasePipeline {
   /** \brief Current submap for localization */
   std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;
 
+  /// preintegration cached data
+  std::shared_ptr<tactic::Timestamp> preint_start_time_;
+  std::shared_ptr<tactic::Timestamp> preint_end_time_;
+  std::shared_ptr<sensor_msgs::msg::Imu> last_gyro_msg_;
+  std::shared_ptr<float> preint_detla_yaw_;
+
   VTR_REGISTER_PIPELINE_DEC_TYPE(RadarPipeline);
 };
 

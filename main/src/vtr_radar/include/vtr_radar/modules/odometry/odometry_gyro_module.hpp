@@ -46,6 +46,9 @@ class OdometryGyroModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
+    // gyro cov weight
+    double gyro_cov = 0.1;
+
 
     // Steam optimization parameters 
     bool verbose = false;

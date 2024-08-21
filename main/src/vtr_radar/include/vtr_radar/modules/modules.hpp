@@ -23,6 +23,7 @@
 #include "vtr_radar/modules/preprocessing/preprocessing_module.hpp"
 
 #include "vtr_radar/modules/odometry/odometry_gyro_module.hpp"
+#include "vtr_radar/modules/odometry/odometry_preintegration_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_map_maintenance_module.hpp"
 #include "vtr_radar/modules/odometry/vertex_test_module.hpp"

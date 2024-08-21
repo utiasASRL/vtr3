@@ -20,7 +20,7 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
-#include "steam/problem/cost_term/gyro_super_cost_term.hpp"
+#include "steam/evaluable/p2p/yaw_vel_error_evaluator.hpp"
 
 namespace vtr {
 namespace radar {
@@ -44,6 +44,7 @@ auto OdometryGyroModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
+  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", 0.1);
 
   // optimization params
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
@@ -59,7 +60,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Do nothing if qdata does not contain any gyro data (was populated by radar)
   // Also do nothing, if odometry has not been initialized (we will wait until radar did this)
-  if(!qdata.gyro_msg.valid() || !qdata.sliding_map_odo)
+  if(!qdata.gyro_msg || !qdata.sliding_map_odo)
   {
     return;
   }
@@ -69,7 +70,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Inputs
   const auto &query_stamp = *qdata.stamp;
-  const auto &T_s_r = *qdata.T_s_r;
+  const auto &T_s_r = *qdata.T_s_r_gyro;
   const auto &timestamp_odo = *qdata.timestamp_odo;
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
@@ -112,6 +113,8 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   state_vars.emplace_back(T_r_m_var);
   state_vars.emplace_back(w_m_r_in_r_var);
 
+  const auto w_m_s_in_s_var = compose_velocity(T_s_r_var,w_m_r_in_r_var);
+
   // initialize problem
   OptimizationProblem problem;
 
@@ -123,30 +126,13 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   trajectory->addPriorCostTerms(problem);
 
   // Lets define a velocity measurement cost term
+  double gyro_measurement = -1*gyro_msg.angular_velocity.z;
 
   const auto loss_func = L2LossFunc::MakeShared();
+  const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->gyro_cov);
+  const auto error_func = p2p::YawVelErrorEvaluator::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*gyro_measurement,w_m_s_in_s_var);
+  const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
 
-  Eigen::Matrix<double,3,1> gyro_measurement;
-  gyro_measurement(0) = -1*gyro_msg.angular_velocity.x; // Need to use negative value due to Tim's convention? 
-  gyro_measurement(1) = -1*gyro_msg.angular_velocity.y;
-  gyro_measurement(2) = -1*gyro_msg.angular_velocity.z;
-
-  // Define the bias values
-  Eigen::Matrix<double, 6, 1> bias_value1 = Eigen::Matrix<double, 6, 1>::Zero();
-  Eigen::Matrix<double, 6, 1> bias_value2 = Eigen::Matrix<double, 6, 1>::Zero();
-
-  Evaluable<GyroSuperCostTerm::BiasType>::ConstPtr bias1 = std::make_shared<Evaluable<GyroSuperCostTerm::BiasType>>(bias_value1);
-  Evaluable<GyroSuperCostTerm::BiasType>::ConstPtr bias2 = std::make_shared<Evaluable<GyroSuperCostTerm::BiasType>>(bias_value2);
-
-
-  GyroSuperCostTerm::Options options;
-  options.num_threads = 1;
-  options.gyro_loss_func = GyroSuperCostTerm::LOSS_FUNC::L2;
-  options.gyro_loss_sigma = 0.1; //gyro_msg.angular_velocity_covariance[8] ??
-  options.r_imu_ang = gyro_measurement;
-  options.se2 = true;
-
-  const auto measurement_cost = GyroSuperCostTerm::MakeShared(trajectory, prev_time, query_time, bias1, bias2, options);
   problem.addCostTerm(measurement_cost);
 
   // optimize
@@ -164,8 +150,8 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   *qdata.odo_success = true;
 
   // Do I need to set these??
-  // qdata.T_r_v_odo
-  // qdata.w_v_r_in_r_odo
+  //*qdata.T_r_v_odo = T_r_m_var->value();
+  //*qdata.w_v_r_in_r_odo = w_m_r_in_r_var->value();
 }
 
 }  // namespace radar
