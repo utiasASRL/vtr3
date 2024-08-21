@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module.cpp
+ * \file odometry_preintegration_module.cpp
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
+#include "vtr_radar/modules/odometry/odometry_preintegration_module.hpp"
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 

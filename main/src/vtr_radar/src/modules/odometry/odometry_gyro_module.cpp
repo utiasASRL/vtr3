@@ -20,6 +20,8 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
+#include "steam/problem/cost_term/gyro_super_cost_term.hpp"
+
 namespace vtr {
 namespace radar {
 
@@ -35,9 +37,6 @@ auto OdometryGyroModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
   // motion compensation
-  config->use_trajectory_estimation = node->declare_parameter<bool>(param_prefix + ".use_trajectory_estimation", config->use_trajectory_estimation);
-  config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
-  config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
@@ -86,56 +85,32 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
-  if (config_->use_trajectory_estimation) {
-    trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
+  trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
-    /// last frame state
-    Time prev_time(static_cast<int64_t>(timestamp_odo)); // get previous odometry timestamp
-    auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo); // get previous odometry pose
-    auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo); // get previous odometry velocity
-    if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true; // Lock previous pose
-    if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true; // Lock previous velocity
-    trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var); // add stuff to the trajectory
-    state_vars.emplace_back(prev_T_r_m_var);
-    state_vars.emplace_back(prev_w_m_r_in_r_var);
+  /// last frame state
+  Time prev_time(static_cast<int64_t>(timestamp_odo)); // get previous odometry timestamp
+  auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo); // get previous odometry pose
+  auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo); // get previous odometry velocity
+  prev_T_r_m_var->locked() = true; // Lock previous pose
+  prev_w_m_r_in_r_var->locked() = true; // Lock previous velocity
+  trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var); // add stuff to the trajectory
+  state_vars.emplace_back(prev_T_r_m_var);
+  state_vars.emplace_back(prev_w_m_r_in_r_var);
 
 
-    // frame state at measurement time
+  // frame state at measurement time
 
-    Time query_time(static_cast<int64_t>(query_stamp));
+  Time query_time(static_cast<int64_t>(query_stamp));
 
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
-    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
-    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-    //
-    const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-    //
-    trajectory->add(query_stamp, T_r_m_var, w_m_r_in_r_var);
-    state_vars.emplace_back(T_r_m_var);
-    state_vars.emplace_back(w_m_r_in_r_var);
-    T_r_m_eval = T_r_m_var;
-    w_m_r_in_r_eval = w_m_r_in_r_var;
-  } else {
-    //
-    Time prev_time(static_cast<int64_t>(timestamp_odo));
-    Time query_time(static_cast<int64_t>(query_stamp));
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
-    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
-    const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-
-    const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-
-    state_vars.emplace_back(T_r_m_var);
-    state_vars.emplace_back(w_m_r_in_r_var);
-    T_r_m_eval = T_r_m_var;
-    w_m_r_in_r_eval = w_m_r_in_r_var;
-  }
-
-  /// compound transform for alignment (gyro sensor to robot transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
-
-  // Is this correct? The velocity notation is so confusing here lol
-  const auto w_m_s_in_s_eval = (compose_velocity(T_s_r_var, w_m_r_in_r_eval));
+  const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+  const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+  const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
+  //
+  const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+  //
+  trajectory->add(query_stamp, T_r_m_var, w_m_r_in_r_var);
+  state_vars.emplace_back(T_r_m_var);
+  state_vars.emplace_back(w_m_r_in_r_var);
 
   // initialize problem
   OptimizationProblem problem;
@@ -145,32 +120,33 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
     problem.addStateVariable(var);
 
   // add prior cost terms
-  if (config_->use_trajectory_estimation)
-    trajectory->addPriorCostTerms(problem);
+  trajectory->addPriorCostTerms(problem);
 
   // Lets define a velocity measurement cost term
 
   const auto loss_func = L2LossFunc::MakeShared();
 
-  Eigen::Matrix<double,1,1> gyro_measurement;
-  gyro_measurement(0) = -1*gyro_msg.angular_velocity.z; // Need to use negative value due to Tim's convention? 
-  Eigen::Matrix<double, 1, 1> gyro_noise;
-  gyro_noise(0,0) =  gyro_msg.angular_velocity_covariance[8];
+  Eigen::Matrix<double,3,1> gyro_measurement;
+  gyro_measurement(0) = -1*gyro_msg.angular_velocity.x; // Need to use negative value due to Tim's convention? 
+  gyro_measurement(1) = -1*gyro_msg.angular_velocity.y;
+  gyro_measurement(2) = -1*gyro_msg.angular_velocity.z;
 
-  const auto noise_model = StaticNoiseModel<1>::MakeShared(gyro_noise);
+  // Define the bias values
+  Eigen::Matrix<double, 6, 1> bias_value1 = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 6, 1> bias_value2 = Eigen::Matrix<double, 6, 1>::Zero();
+
+  Evaluable<GyroSuperCostTerm::BiasType>::ConstPtr bias1 = std::make_shared<Evaluable<GyroSuperCostTerm::BiasType>>(bias_value1);
+  Evaluable<GyroSuperCostTerm::BiasType>::ConstPtr bias2 = std::make_shared<Evaluable<GyroSuperCostTerm::BiasType>>(bias_value2);
 
 
-  // Selecting only yaw velocity (How to do this?)
-  Eigen::Matrix<double,1,6> proj;
-  proj << 0, 0, 0, 0, 0, 1;
-  const auto proj_var = VSpaceStateVar<6>::MakeShared(proj);
-  proj_var->locked() = true;
-  const auto vel = VSpaceStateVar<6>::MakeShared(w_m_s_in_s_eval);
-  const auto w_m_s_in_s_eval_sel = proj_var*vel;
+  GyroSuperCostTerm::Options options;
+  options.num_threads = 1;
+  options.gyro_loss_func = GyroSuperCostTerm::LOSS_FUNC::L2;
+  options.gyro_loss_sigma = 0.1; //gyro_msg.angular_velocity_covariance[8] ??
+  options.r_imu_ang = gyro_measurement;
+  options.se2 = true;
 
-  const auto error_func = vspace::vspace_error<1>(w_m_s_in_s_eval, gyro_measurement);
-
-  WeightedLeastSqCostTerm<6>::MakeShared measurement_cost(error_func, noise_model, loss_func);
+  const auto measurement_cost = GyroSuperCostTerm::MakeShared(trajectory, prev_time, query_time, bias1, bias2, options);
   problem.addCostTerm(measurement_cost);
 
   // optimize
@@ -182,9 +158,9 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   Covariance covariance(solver);
 
   // Get the odometry results
-  *qdata.T_r_m_odo = T_r_m_eval->value();
+  *qdata.T_r_m_odo = T_r_m_var->value();
   *qdata.timestamp_odo = query_stamp;
-  *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
+  *qdata.w_m_r_in_r_odo = w_m_r_in_r_var->value();
   *qdata.odo_success = true;
 
   // Do I need to set these??

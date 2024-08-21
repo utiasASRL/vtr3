@@ -383,6 +383,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
+    // TODO: Add preintegration cost terms
+
+    // TODO: clear accumulated preintegration and reset variables for next interval
+
     // optimize
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;

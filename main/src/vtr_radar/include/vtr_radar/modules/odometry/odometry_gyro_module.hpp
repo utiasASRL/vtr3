@@ -43,9 +43,6 @@ class OdometryGyroModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // continuous-time estimation
-    bool use_trajectory_estimation = false;
-    bool traj_lock_prev_pose = false;
-    bool traj_lock_prev_vel = false;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
