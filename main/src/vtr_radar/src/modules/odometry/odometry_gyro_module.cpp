@@ -135,6 +135,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
 
 
   CLOG(DEBUG, "radar.odometry_gyro") << "Adding yaw velocity measurement: " << gyro_measurement;
+  CLOG(DEBUG, "radar.odometry_gyro") << "Time between states: " << (query_time - prev_time).seconds();
 
   problem.addCostTerm(measurement_cost);
 
