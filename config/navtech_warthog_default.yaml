@@ -137,6 +137,9 @@
         # steam parameters #TOTUNE
         verbose: false
         max_iterations: 2
+        
+      preintegration:
+        type: radar.odometry_preintegration
 
       icp:
         type: radar.odometry_icp
