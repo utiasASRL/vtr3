@@ -109,6 +109,11 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+  if(!qdata.scan_msg)
+  {
+    return;
+  }
+
   /// Input
 #if false // rename to fft_data
   auto scan = cv_bridge::toCvShare(qdata.scan_msg.ptr(), "mono8")->image; // 400 by number of bins 7000

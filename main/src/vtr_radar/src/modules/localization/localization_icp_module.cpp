@@ -61,6 +61,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  if(!qdata.scan_msg)
+  {
+    return;
+  }
+
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;

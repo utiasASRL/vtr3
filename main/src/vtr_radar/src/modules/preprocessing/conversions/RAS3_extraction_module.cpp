@@ -117,6 +117,11 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+  if(!qdata.scan_msg)
+  {
+    return;
+  }
+
   /// Input radar message from the query cache
   // This is to convert a ROS image to an opencv image
   // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: " << qdata.scan_msg->b_scan_img.encoding;
