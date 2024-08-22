@@ -432,6 +432,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw,T_m_s_start,T_m_s_end);
       const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
 
+      CLOG(DEBUG, "radar.odometry_icp") << "Adding preintegrated yaw value of: " << yaw;
+
       problem.addCostTerm(measurement_cost);
 
       //clear accumulated preintegration and reset variables for next interval

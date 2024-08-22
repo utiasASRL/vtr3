@@ -8,7 +8,7 @@
       - radar.pipeline
       # - navigation.sensor_input
       - radar.navtech_extractor
-      # - radar.odometry_icp
+      - radar.odometry_icp
       # - tactic
       # - tactic.pipeline
       # - tactic.module
