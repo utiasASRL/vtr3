@@ -416,6 +416,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
       const auto T_r_m_end = trajectory->getPoseInterpolator(query_stamp); // use query stamp, because we just integrated until here
 
+
+      CLOG(DEBUG, "radar.odometry_icp") << "Preintegrated remaining yaw value: " << delta_yaw;
+      CLOG(DEBUG, "radar.odometry_icp") << "Delta time since last preintegration: " << (int_end_time - int_start_time).seconds();
+
       // Transform into sensor frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
       const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
@@ -432,14 +436,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw,T_m_s_start,T_m_s_end);
       const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
 
-      CLOG(DEBUG, "radar.odometry_icp") << "Adding preintegrated yaw value of: " << yaw;
+      CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
 
       problem.addCostTerm(measurement_cost);
 
-      //clear accumulated preintegration and reset variables for next interval
-      *qdata.stamp_end_pre_integration = query_stamp;
-      *qdata.stamp_start_pre_integration = query_stamp;
-      *qdata.preintegrated_delta_yaw = 0.0;
+      
     }
 
     // optimize
@@ -568,6 +569,15 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[6]->stop();
   }
+
+  if(qdata.preintegrated_delta_yaw)
+  {
+    //clear accumulated preintegration and reset variables for next interval
+    *qdata.stamp_end_pre_integration = query_stamp;
+    *qdata.stamp_start_pre_integration = query_stamp;
+    *qdata.preintegrated_delta_yaw = 0.0;
+  }
+  
 
   /// Dump timing info
   CLOG(DEBUG, "radar.odometry_icp") << "Dump timing info inside loop: ";
