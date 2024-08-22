@@ -146,6 +146,9 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   solver.optimize();
   Covariance covariance(solver);
 
+  CLOG(DEBUG, "radar.odometry_gyro") << "Pose at previous timestep: " << prev_T_r_m_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Pose at new timestep: " << T_r_m_var->value();
+
   // Get the odometry results
   *qdata.T_r_m_odo = T_r_m_var->value();
   *qdata.timestamp_odo = query_stamp;

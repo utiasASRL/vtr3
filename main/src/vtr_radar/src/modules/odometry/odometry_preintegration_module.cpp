@@ -73,12 +73,18 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   // Integrate last gyro measurement
   double delta_yaw = (cur_time - prev_time).seconds() * -1*prev_gyro_msg.angular_velocity.z;
 
+
+  CLOG(DEBUG, "radar.odometry_preintegration") << "Current delta yaw value: " << delta_yaw;
+
   // Set preintegrated value
   double value = 0;
   const auto &preintegration_value = *qdata.preintegrated_delta_yaw;
   value += preintegration_value;
   value += delta_yaw;
   *qdata.preintegrated_delta_yaw = value;
+
+
+  CLOG(DEBUG, "radar.odometry_preintegration") << "Old preintegrated yaw value: " << preintegration_value;
 
   CLOG(DEBUG, "radar.odometry_preintegration") << "New preintegrated yaw value: " << value;
 
