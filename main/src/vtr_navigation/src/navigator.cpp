@@ -188,7 +188,7 @@ if (pipeline->name() == "stereo") {
 if (pipeline->name() == "radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
-  gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "lidar");
+  gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
   // there are a radar and gyro frames
   T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
