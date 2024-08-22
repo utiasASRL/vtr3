@@ -80,6 +80,9 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   value += delta_yaw;
   *qdata.preintegrated_delta_yaw = value;
 
+  CLOG(DEBUG, "radar.odometry_preintegration") << "New preintegrated yaw value: " << value;
+
+
 
   // Set preintegration end time to current time
 

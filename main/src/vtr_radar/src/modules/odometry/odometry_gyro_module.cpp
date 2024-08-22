@@ -133,6 +133,9 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   const auto error_func = p2p::YawVelErrorEvaluator::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*gyro_measurement,w_m_s_in_s_var);
   const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
 
+
+  CLOG(DEBUG, "radar.odometry_gyro") << "Adding yaw velocity measurement: " << gyro_measurement;
+
   problem.addCostTerm(measurement_cost);
 
   // optimize

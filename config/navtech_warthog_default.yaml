@@ -9,6 +9,8 @@
       # - navigation.sensor_input
       - radar.navtech_extractor
       - radar.odometry_icp
+      - radar.odometry_gyro
+      - radar.odometry_preintegration
       # - tactic
       # - tactic.pipeline
       # - tactic.module
