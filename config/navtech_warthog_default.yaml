@@ -20,7 +20,7 @@
     env_info_topic: env_info
     radar_frame: navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
-    radar_frame: os_imu #navtech_base
+    gyro_frame: os_imu #navtech_base
     gyro_topic: /ouster/imu
     queue_size: 1
     graph_map:
