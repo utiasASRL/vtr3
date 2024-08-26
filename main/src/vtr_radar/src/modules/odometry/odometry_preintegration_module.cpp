@@ -78,13 +78,18 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Set preintegrated value
   double value = 0;
-  const auto &preintegration_value = *qdata.preintegrated_delta_yaw;
 
-  CLOG(DEBUG, "radar.odometry_preintegration") << "Old preintegrated yaw value: " << preintegration_value;
-  
-  value += preintegration_value;
+  // Check if we have a pre-integrated value, add it if so
+  if(!qdata.preintegrated_delta_yaw) value += *qdata.preintegrated_delta_yaw;
+
+  CLOG(DEBUG, "radar.odometry_preintegration") << "Old preintegrated yaw value: " << value;
+
   value += delta_yaw;
-  *qdata.preintegrated_delta_yaw = value;
+   
+  if(!qdata.preintegrated_delta_yaw)
+    qdata.preintegrated_delta_yaw.emplace(value);
+  else
+    *qdata.preintegrated_delta_yaw = value;
 
 
 

@@ -123,7 +123,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // Initialize preintegration
     qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
     qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
-    qdata.preintegrated_delta_yaw.emplace(0.0);
 
     return;
   }
