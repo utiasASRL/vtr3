@@ -103,17 +103,17 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
 
   Time query_time(static_cast<int64_t>(query_stamp));
 
-  const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
-  const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
-  const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
+  Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+  auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+  auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
   //
-  const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+  auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
   //
   trajectory->add(query_stamp, T_r_m_var, w_m_r_in_r_var);
   state_vars.emplace_back(T_r_m_var);
   state_vars.emplace_back(w_m_r_in_r_var);
 
-  const auto w_m_s_in_s_var = compose_velocity(T_s_r_var,w_m_r_in_r_var);
+  auto w_m_s_in_s_var = compose_velocity(T_s_r_var,w_m_r_in_r_var);
 
   // initialize problem
   OptimizationProblem problem;
@@ -139,6 +139,11 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
 
   problem.addCostTerm(measurement_cost);
 
+  CLOG(DEBUG, "radar.odometry_gyro") << "Pose at previous timestep: " << prev_T_r_m_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at previous timestep: " << prev_w_m_r_in_r_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Pose at new timestep before optimization: " << T_r_m_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at new timestep before optimization: " << w_m_r_in_r_var->value();
+
   // optimize
   GaussNewtonSolver::Params params;
   params.verbose = config_->verbose;
@@ -147,8 +152,8 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   solver.optimize();
   Covariance covariance(solver);
 
-  CLOG(DEBUG, "radar.odometry_gyro") << "Pose at previous timestep: " << prev_T_r_m_var->value();
-  CLOG(DEBUG, "radar.odometry_gyro") << "Pose at new timestep: " << T_r_m_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Pose at new timestep after optimization: " << T_r_m_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at new timestep after optimization: " << w_m_r_in_r_var->value();
 
   // Get the odometry results
   *qdata.T_r_m_odo = T_r_m_var->value();

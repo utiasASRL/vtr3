@@ -80,7 +80,7 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   double value = 0;
 
   // Check if we have a pre-integrated value, add it if so
-  if(!qdata.preintegrated_delta_yaw) value += *qdata.preintegrated_delta_yaw;
+  if(qdata.preintegrated_delta_yaw) value += *qdata.preintegrated_delta_yaw;
 
   CLOG(DEBUG, "radar.odometry_preintegration") << "Old preintegrated yaw value: " << value;
 
