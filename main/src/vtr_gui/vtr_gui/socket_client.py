@@ -317,6 +317,8 @@ class SocketVTRUI(VTRUI):
       self._send(name, {'following_route': following_route_from_ros(kwargs["following_route"])})
     if name == 'task_queue_update':
       self._send(name, {'task_queue_update': task_queue_update_from_ros(kwargs["task_queue_update"])})
+    if name == 'navigator_crashed':
+      self._send(name, None)
 
 
 def main():

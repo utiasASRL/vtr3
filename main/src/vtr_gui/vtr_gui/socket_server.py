@@ -144,6 +144,12 @@ def handle_server_state(json):
   socketio.emit(u"mission/server_state", server_state)
 
 
+@socketio.on('notification/navigator_crashed')
+def handle_navigator_crashed():
+  logger.info('Broadcasting navigator crashed')
+  socketio.emit(u"mission/navigator_crashed")
+
+
 @socketio.on('notification/graph_state')
 def handle_graph_state(json):
   logger.info('Broadcasting graph state')

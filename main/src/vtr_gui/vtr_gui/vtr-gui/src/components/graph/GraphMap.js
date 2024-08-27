@@ -42,6 +42,7 @@ import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
 import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
 import MoveGraphScaleRefSvg from "../../images/move-graph-scale-ref.svg";
 import MyhalPlan from "../../images/myhal-plan.svg"
+import ServerCrashed from "../../images/server-crashed.svg"
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -197,6 +198,7 @@ class GraphMap extends React.Component {
     this.props.socket.on("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.on("following_route", this.followingRouteCallback.bind(this));
     this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
+    this.props.socket.on("mission/navigator_crashed", this.navigatorCrashedCallback.bind(this));
   }
 
   componentWillUnmount() {
@@ -206,6 +208,7 @@ class GraphMap extends React.Component {
     this.props.socket.off("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.off("following_route", this.followingRouteCallback.bind(this));
     this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
+    this.props.socket.off("mission/navigator_crashed", this.navigatorCrashedCallback.bind(this));
   }
 
   displayWaypointMarkers() {
@@ -384,6 +387,27 @@ class GraphMap extends React.Component {
           mergeIds={merge_ids}
         />
         <TaskQueue socket={socket} />
+        {this.state.server_state === "CRASHED" && 
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: "rgb(255, 0, 0, 0.7)",
+            backgroundSize: "cover",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+            zIndex: 10000
+          }}
+        >
+          <img src={ServerCrashed} style={{height: '50%'}}/>
+          <h1 style={{color: "white"}}>SYSTEM CRASHED</h1>
+        </div>}
       </>
     );
   }
@@ -688,6 +712,11 @@ class GraphMap extends React.Component {
   serverStateCallback(data) {
     console.info("Received the server state (full): ", data);
     this.loadServerState(data);
+  }
+
+  navigatorCrashedCallback() {
+    console.info("Received navigator crashed signal, setting server_state to 'CRASHED'");
+    this.setState({server_state: "CRASHED"})
   }
 
   loadServerState(data) {

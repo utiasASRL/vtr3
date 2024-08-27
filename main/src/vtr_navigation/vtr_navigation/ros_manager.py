@@ -15,6 +15,7 @@
 # limitations under the License.
 """Defines a class that isolates ROS in a separate process."""
 
+import time
 import logging
 from multiprocessing import Process, Queue, Event
 from threading import Thread
@@ -55,11 +56,15 @@ class ROSWorker(Node):
     self._listener = Thread(target=self._listen)
     self._listener.start()
 
+    self._watchdog = Thread(target=self._watchdog)
+    self._watchdog.start()
+
   def stop(self):
-    worker_logger.debug("Stopping ROS worker:listener thread.")
+    worker_logger.debug("Stopping ROS worker:listener and worker::watchdog thread.")
     self._call_queue.put(("stop", (), {}))
     self._listener.join()
-    worker_logger.debug("Stopping ROS worker:listener thread - done.")
+    self._watchdog.join()
+    worker_logger.debug("Stopping ROS worker:listener and worker::watchdog thread - done.")
 
   def _listen(self):
     """Listens for incoming ROS commands from the main process"""
@@ -77,6 +82,16 @@ class ROSWorker(Node):
     """Transmits messages to the main process"""
     worker_logger.debug(f"ROS process is notifying: {name}")
     self._notify_queue.put((name, args, kwargs))
+  
+  def _watchdog(self):
+    """Watches navigator node"""
+    worker_logger.debug("ROS watchdog starts watching navigator.")
+    while True:
+      if "navigator" not in self.get_node_names():
+          worker_logger.debug("ROS watchdog cannot find navigator! Notifying manager process of crash.")
+          self.notify("navigator_crashed")
+          break
+      time.sleep(1)
 
 
 class ROSManager():
@@ -173,7 +188,7 @@ class ROSManager():
     manager_logger.debug("Main process listener starts listening.")
     while True:
       type, args, kwargs = self._ros_worker_notify.get()
-      manager_logger.debug("Main process is notifying %s", type)
+      manager_logger.debug("Main process is notifying: %s", type)
       if type == "stop":
         break
       self._notify_hook(type, *args, **kwargs)
