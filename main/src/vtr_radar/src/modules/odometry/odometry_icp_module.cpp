@@ -135,7 +135,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       << "Retrieve input data and setup evaluators.";
 
   // Inputs
-  const auto &query_stamp = *qdata.stamp;
+  const auto &scan_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &timestamp_odo = *qdata.timestamp_odo_radar; // use last data from radar scan msg (not gyro!)
@@ -146,9 +146,33 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &point_map = sliding_map_odo.point_cloud();
 
 
-  Time odo_time(static_cast<int64_t>(timestamp_odo));
+  // This is the general odometry timestamp
+  // Should be the same as the above if only radar is used, but can be different if we also use gyro
+  const auto &timestamp_odo_general = *qdata.timestamp_odo; 
 
-  CLOG(DEBUG, "radar.odometry_icp") << "Previous odo timestamp: " << odo_time.seconds();
+
+  Time last_scan_time(static_cast<int64_t>(timestamp_odo));
+  Time scan_time(static_cast<int64_t>(scan_stamp));
+  Time odo_time_general(static_cast<int64_t>(timestamp_odo_general));
+
+
+
+  CLOG(DEBUG, "radar.odometry_icp") << "DT current scan to last scan: " << (scan_time - last_scan_time).seconds();
+  CLOG(DEBUG, "radar.odometry_icp") << "DT odometry to current scan: " << (odo_time_general - scan_time).seconds();
+
+  auto timestamp_odo_new = *qdata.stamp;
+
+  // Let's check if our odometry estimate already passed the time stamp of the radar scan
+  // If this is the case, we want to estimate the odometry at this time, not at the time of the scan
+  // This avoids jumping 'back' in time to the last radar scan, when we already extrapolated the state using gyro
+  // Instead the radar scan is then incorporated as a past measurement to correct this extrapolated state
+  // If the query stamp is more recent than the last odometry estimate, we proceed as usual
+  if(odo_time_general.seconds() > scan_time.seconds())
+  {
+    CLOG(DEBUG, "radar.odometry_icp") << "Last odometry and gyro preintegration update is more recent than radar scan.";
+    timestamp_odo_new = *qdata.timestamp_odo;
+  }
+
   CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
 
   /// Parameters
@@ -167,6 +191,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// trajectory smoothing
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval = nullptr;
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
+  Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
+  Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
   if (config_->use_trajectory_estimation) {
@@ -200,18 +226,34 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
     }
-    Time query_time(static_cast<int64_t>(query_stamp));
-    T_r_m_eval = trajectory->getPoseInterpolator(query_time);
-    w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
+    // General radar odometry (at scan time)
+    Time scan_time(static_cast<int64_t>(scan_stamp));
+    T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
+    w_m_r_in_r_eval = trajectory->getVelocityInterpolator(scan_time);
+
+    // Odometry at extrapolated state (might be the same as above, but not necessarily, if we have gyro)
+    Time extp_time(static_cast<int64_t>(timestamp_odo_new));
+    T_r_m_eval_extp = trajectory->getPoseInterpolator(extp_time);
+    w_m_r_in_r_eval_extp = trajectory->getVelocityInterpolator(extp_time);
   } else {
     //
     Time prev_time(static_cast<int64_t>(timestamp_odo));
-    Time query_time(static_cast<int64_t>(query_stamp));
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+    Time extp_time(static_cast<int64_t>(timestamp_odo_new));
+    Time scan_time(static_cast<int64_t>(scan_stamp));
+
+    // General radar odometry
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((scan_time - prev_time).seconds() * w_m_r_in_r_odo);
     const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
+
+    // last scan
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo_extp((extp_time - prev_time).seconds() * w_m_r_in_r_odo);
+    const auto T_r_m_odo_extp_extp = tactic::EdgeTransform(xi_m_r_in_r_odo_extp) * T_r_m_odo;
+    const auto T_r_m_var_extp = SE3StateVar::MakeShared(T_r_m_odo_extp_extp);
+    state_vars.emplace_back(T_r_m_var_extp);
+    T_r_m_eval_extp = T_r_m_var_extp;
   }
 
   /// compound transform for alignment (sensor to point map transform)
@@ -414,17 +456,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
       const auto &prev_gyro_msg = *qdata.prev_gyro_msg;
 
-      // Debug tmies
-      Time last_time(static_cast<int64_t>(timestamp_odo)); 
-      Time start_time(static_cast<int64_t>(start_stamp));
-
-      // This should be zero or positive, otherwise something is going wrong....
-      CLOG(DEBUG, "radar.odometry_icp") << "Start preint time minus last radar odom time: " << (start_time-last_time).seconds();
-
       // Get states at the times of the preintegration
       const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
-      const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use query stamp, because we just integrated until here
+      const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
 
+      Time start_int_time(static_cast<int64_t>(start_stamp));
+      CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
 
       // Transform into sensor frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
@@ -554,7 +591,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // result
       if (config_->use_trajectory_estimation) {
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(scan_stamp))).block<6, 6>(0, 0);
         T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
@@ -579,30 +616,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   if(qdata.preintegrated_delta_yaw)
   {
     //clear accumulated preintegration and reset variables for next interval
-
-
-    const auto &gyro_stamp = *qdata.stamp_end_pre_integration;
-
-    // Integrate the last remaining velocity
-
-    // Distance between current and last time
-    Time gyro_time(static_cast<int64_t>(gyro_stamp)); 
-    Time radar_time(static_cast<int64_t>(query_stamp));
-
-    // If the last gyro time is more recent we use its timestamp
-    if(gyro_time.seconds() > radar_time.seconds())
-    {
-      *qdata.stamp_end_pre_integration = gyro_stamp;
-      *qdata.stamp_start_pre_integration = gyro_stamp;
-    }
-    else
-    {
-      *qdata.stamp_end_pre_integration = query_stamp;
-      *qdata.stamp_start_pre_integration = query_stamp;
-    }
-
-    // If the radar scan is more recent, we use its timestamp
-
+    *qdata.stamp_end_pre_integration = timestamp_odo_new;
+    *qdata.stamp_start_pre_integration = timestamp_odo_new;
     *qdata.preintegrated_delta_yaw = 0.0;
   }
   
@@ -644,27 +659,35 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // store trajectory info
     if (config_->use_trajectory_estimation)
     {
-      *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
+      // odometry at radar scan
       *qdata.w_m_r_in_r_odo_radar = w_m_r_in_r_eval->value();
+
+      // odometry at extrapolated time
+      *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval_extp->value();
     }
     else {
       // finite diff approximation
       Time prev_time(static_cast<int64_t>(timestamp_odo));
-      Time query_time(static_cast<int64_t>(query_stamp));
+      Time extp_time(static_cast<int64_t>(timestamp_odo_new));
+      Time scan_time(static_cast<int64_t>(scan_stamp));
       const auto T_r_m_prev = *qdata.T_r_m_odo;
       const auto T_r_m_query = T_r_m_eval->value();
-      *qdata.w_m_r_in_r_odo = (T_r_m_query * T_r_m_prev.inverse()).vec() / (query_time - prev_time).seconds();
-      *qdata.w_m_r_in_r_odo_radar = (T_r_m_query * T_r_m_prev.inverse()).vec() / (query_time - prev_time).seconds();
+      const auto T_r_m_query_extp = T_r_m_eval_extp->value();
+      
+      // odometry at radar scan
+      *qdata.w_m_r_in_r_odo_radar = (T_r_m_query * T_r_m_prev.inverse()).vec() / (scan_time - prev_time).seconds();
+      
+      // odometry at extrapolated time
+      *qdata.w_m_r_in_r_odo = (T_r_m_query_extp * T_r_m_prev.inverse()).vec() / (extp_time - prev_time).seconds();
     }
-    *qdata.T_r_m_odo = T_r_m_eval->value();
-    *qdata.timestamp_odo = query_stamp;
-
+    // odometry at radar scan
     *qdata.T_r_m_odo_radar = T_r_m_eval->value();
-    *qdata.timestamp_odo_radar = query_stamp;
+    *qdata.timestamp_odo_radar = scan_stamp;
 
-    Time new_time(static_cast<int64_t>(query_stamp));
-    CLOG(DEBUG, "radar.odometry_icp") << "New odo timestamp: " << new_time.seconds();
-    CLOG(DEBUG, "radar.odometry_icp") << "New odo pose: " << T_r_m_eval->value();
+    // odometry at extr. time
+    *qdata.T_r_m_odo = T_r_m_eval_extp->value();
+    *qdata.timestamp_odo = timestamp_odo_new;
+
 
 
 //#if 1
