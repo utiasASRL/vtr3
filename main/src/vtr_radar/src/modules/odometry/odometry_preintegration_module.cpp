@@ -70,8 +70,8 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   Time prev_time(static_cast<int64_t>(prev_time_stamp)); // get previous odometry timestamp
   Time cur_time(static_cast<int64_t>(current_time_stamp));
   
-  // Integrate last gyro measurement
-  double delta_yaw = (cur_time - prev_time).seconds() * -1*prev_gyro_msg.angular_velocity.z;
+  // Integrate last gyro measurement (we don't multiply by -1 here due to the frame convention in the icp module)
+  double delta_yaw = (cur_time - prev_time).seconds() *prev_gyro_msg.angular_velocity.z;
 
 
   CLOG(DEBUG, "radar.odometry_preintegration") << "Current delta yaw value: " << delta_yaw;
