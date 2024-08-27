@@ -420,6 +420,7 @@ void Navigator::gyroCallback(
   query_data->T_s_r_gyro.emplace(T_gyro_robot_);
   query_data->T_s_r.emplace(T_radar_robot_);
 
+
   // add to the queue and notify the processing thread
   CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding gyro message to the queue";
   queue_.push(query_data);

@@ -91,29 +91,29 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   /// last frame state
   Time prev_time(static_cast<int64_t>(timestamp_odo)); // get previous odometry timestamp
   auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo); // get previous odometry pose
-  auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo); // get previous odometry velocity
+  auto prev_w_r_m_in_r_var = VSpaceStateVar<6>::MakeShared(-1*w_m_r_in_r_odo); // get previous odometry velocity
   prev_T_r_m_var->locked() = true; // Lock previous pose
-  prev_w_m_r_in_r_var->locked() = true; // Lock previous velocity
-  trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var); // add stuff to the trajectory
+  prev_w_r_m_in_r_var->locked() = true; // Lock previous velocity
+  trajectory->add(prev_time, prev_T_r_m_var, prev_w_r_m_in_r_var); // add stuff to the trajectory
   state_vars.emplace_back(prev_T_r_m_var);
-  state_vars.emplace_back(prev_w_m_r_in_r_var);
+  state_vars.emplace_back(prev_w_r_m_in_r_var);
 
 
   // frame state at measurement time
 
   Time query_time(static_cast<int64_t>(query_stamp));
 
-  Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+  Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * -1*w_m_r_in_r_odo);
   auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
   auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
   //
-  auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+  auto w_r_m_in_r_var = VSpaceStateVar<6>::MakeShared(-1*w_m_r_in_r_odo);
   //
-  trajectory->add(query_stamp, T_r_m_var, w_m_r_in_r_var);
+  trajectory->add(query_stamp, T_r_m_var, w_r_m_in_r_var);
   state_vars.emplace_back(T_r_m_var);
-  state_vars.emplace_back(w_m_r_in_r_var);
+  state_vars.emplace_back(w_r_m_in_r_var);
 
-  auto w_m_s_in_s_var = compose_velocity(T_s_r_var,w_m_r_in_r_var);
+  auto w_s_m_in_s_var = compose_velocity(T_s_r_var,w_r_m_in_r_var);
 
   // initialize problem
   OptimizationProblem problem;
@@ -130,7 +130,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
 
   const auto loss_func = L2LossFunc::MakeShared();
   const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->gyro_cov);
-  const auto error_func = p2p::YawVelErrorEvaluator::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*gyro_measurement,w_m_s_in_s_var);
+  const auto error_func = p2p::YawVelErrorEvaluator::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*gyro_measurement,w_s_m_in_s_var);
   const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
 
 
@@ -140,9 +140,9 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   problem.addCostTerm(measurement_cost);
 
   CLOG(DEBUG, "radar.odometry_gyro") << "Pose at previous timestep: " << prev_T_r_m_var->value();
-  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at previous timestep: " << prev_w_m_r_in_r_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at previous timestep: " << prev_w_r_m_in_r_var->value();
   CLOG(DEBUG, "radar.odometry_gyro") << "Pose at new timestep before optimization: " << T_r_m_var->value();
-  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at new timestep before optimization: " << w_m_r_in_r_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at new timestep before optimization: " << w_r_m_in_r_var->value();
 
   // optimize
   GaussNewtonSolver::Params params;
@@ -153,12 +153,12 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   Covariance covariance(solver);
 
   CLOG(DEBUG, "radar.odometry_gyro") << "Pose at new timestep after optimization: " << T_r_m_var->value();
-  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at new timestep after optimization: " << w_m_r_in_r_var->value();
+  CLOG(DEBUG, "radar.odometry_gyro") << "Velocity at new timestep after optimization: " << w_r_m_in_r_var->value();
 
   // Get the odometry results
   *qdata.T_r_m_odo = T_r_m_var->value();
   *qdata.timestamp_odo = query_stamp;
-  *qdata.w_m_r_in_r_odo = w_m_r_in_r_var->value();
+  *qdata.w_m_r_in_r_odo = -1*w_r_m_in_r_var->value();
   *qdata.odo_success = true;
 
   // Do I need to set these??
