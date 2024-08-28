@@ -134,12 +134,12 @@
     odometry:
       gyro:
         type: radar.odometry_gyro
-        traj_qc_diag: [1e-8, 1e-8, 1e-8, 1e-8, 1e-8, 1e-8]
-        gyro_cov: 1e8
+        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.1]
+        gyro_cov: 1e-1
 
         # steam parameters #TOTUNE
         verbose: false
-        max_iterations: 15
+        max_iterations: 2
         
       preintegration:
         type: radar.odometry_preintegration
