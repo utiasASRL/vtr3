@@ -79,6 +79,11 @@ void RadarPipeline::reset() {
   T_r_m_odo_radar_ = nullptr;
   w_m_r_in_r_odo_radar_ = nullptr;
 
+  preint_start_time_ = nullptr;
+  preint_end_time_ = nullptr;
+  last_gyro_msg_ = nullptr;
+  preint_detla_yaw_ = nullptr;
+
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
