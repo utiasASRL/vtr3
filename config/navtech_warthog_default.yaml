@@ -59,7 +59,7 @@
         - conversion
         - filtering
       odometry:
-        #- gyro
+        - gyro
         - preintegration
         - icp
         - mapping

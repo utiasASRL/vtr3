@@ -454,7 +454,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto &start_stamp = *qdata.stamp_start_pre_integration;
       const auto &end_stamp = *qdata.stamp_end_pre_integration;
 
-      const auto &prev_gyro_msg = *qdata.prev_gyro_msg;
 
       // Get states at the times of the preintegration
       const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
@@ -591,8 +590,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // result
       if (config_->use_trajectory_estimation) {
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(scan_stamp))).block<6, 6>(0, 0);
-        T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
+        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
+        T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
         T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));

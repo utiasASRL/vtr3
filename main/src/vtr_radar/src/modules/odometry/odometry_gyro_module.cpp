@@ -162,9 +162,9 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   *qdata.odo_success = true;
 
   // Do I need to set these??
-  //auto &sliding_map_odo = *qdata.sliding_map_odo;
-  //*qdata.T_r_v_odo = T_r_m_var->value() * sliding_map_odo.T_vertex_this().inverse();
-  //*qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+  auto &sliding_map_odo = *qdata.sliding_map_odo;
+  *qdata.T_r_v_odo = T_r_m_var->value() * sliding_map_odo.T_vertex_this().inverse();
+  *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
 }
 
 }  // namespace radar

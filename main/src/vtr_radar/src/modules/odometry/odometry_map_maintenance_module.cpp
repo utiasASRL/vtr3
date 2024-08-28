@@ -65,7 +65,7 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   // Get input and output data
   // input
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_m_odo = *qdata.T_r_m_odo;
+  const auto &T_r_m_odo = *qdata.T_r_m_odo_radar;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   // the following has to be copied because we need to change them
   auto points = *qdata.undistorted_point_cloud;
