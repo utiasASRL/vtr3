@@ -59,8 +59,8 @@
         - conversion
         - filtering
       odometry:
-        #- gyro
-        #- preintegration
+        - gyro
+        - preintegration
         - icp
         - mapping
         - vertex_test
@@ -168,7 +168,7 @@
         cauchy_k: 0.8
         
         #gyro preintegration
-        preint_cov: 1e-10
+        preint_cov: 1e-5
 
         # steam parameters #TOTUNE
         verbose: false
