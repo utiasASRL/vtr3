@@ -5,6 +5,8 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Grid1
+        - /Axes1
         - /TF1
         - /TF1/Frames1
         - /TF1/Tree1
@@ -13,8 +15,6 @@ Panels:
         - /undistorted point cloud1
         - /curr map odo1
         - /curr map loc1
-        - /PointCloud21
-        - /PointCloud21/Autocompute Value Bounds1
       Splitter Ratio: 0.4539544880390167
     Tree Height: 966
   - Class: rviz_common/Selection
@@ -34,7 +34,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: undistorted point cloud
+    SyncSource: raw point cloud
 Visualization Manager:
   Class: ""
   Displays:
@@ -42,7 +42,7 @@ Visualization Manager:
       Cell Size: 5
       Class: rviz_default_plugins/Grid
       Color: 160; 160; 164
-      Enabled: false
+      Enabled: true
       Line Style:
         Line Width: 0.029999999329447746
         Value: Lines
@@ -54,14 +54,14 @@ Visualization Manager:
         Z: 0
       Plane: XY
       Plane Cell Count: 20
-      Reference Frame: robot
-      Value: false
+      Reference Frame: world
+      Value: true
     - Class: rviz_default_plugins/Axes
       Enabled: true
       Length: 1
       Name: Axes
       Radius: 0.10000000149011612
-      Reference Frame: world
+      Reference Frame: robot
       Value: true
     - Class: rviz_default_plugins/TF
       Enabled: false
@@ -131,7 +131,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 0; 255; 0
       Max Intensity: 0.1243748664855957
@@ -152,7 +152,7 @@ Visualization Manager:
         Value: /vtr/raw_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -255,46 +255,6 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
-      odo path:
-        Angle Tolerance: 0.10000000149011612
-        Class: rviz_default_plugins/Odometry
-        Covariance:
-          Orientation:
-            Alpha: 0.5
-            Color: 255; 255; 127
-            Color Style: Unique
-            Frame: Local
-            Offset: 1
-            Scale: 1
-            Value: true
-          Position:
-            Alpha: 0.30000001192092896
-            Color: 204; 51; 204
-            Scale: 1
-            Value: true
-          Value: false
-        Enabled: true
-        Keep: 0
-        Name: odo path
-        Position Tolerance: 0.10000000149011612
-        Shape:
-          Alpha: 1
-          Axes Length: 2
-          Axes Radius: 0.20000000298023224
-          Color: 255; 25; 0
-          Head Length: 0.30000001192092896
-          Head Radius: 0.10000000149011612
-          Shaft Length: 2
-          Shaft Radius: 0.20000000298023224
-          Value: Axes
-        Topic:
-          Depth: 5
-          Durability Policy: Volatile
-          Filter size: 10
-          History Policy: Keep Last
-          Reliability Policy: Reliable
-          Value: /vtr/odometry
-        Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -354,40 +314,6 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /vtr/submap_loc
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: false
-      Autocompute Value Bounds:
-        Max Value: 11.90234088897705
-        Min Value: -5.273931503295898
-        Value: false
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz_default_plugins/PointCloud2
-      Color: 180; 180; 180
-      Color Transformer: FlatColor
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4349
-      Min Color: 0; 0; 0
-      Min Intensity: 1
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.10000000149011612
-      Style: Flat Squares
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /ouster/points
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -465,25 +391,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 53.9701042175293
+      Distance: 148.26072692871094
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.793630599975586
-        Y: 17.136930465698242
-        Z: 4.857888221740723
+        X: -15.51870059967041
+        Y: 17.64598846435547
+        Z: 4.8584747314453125
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7697961926460266
-      Target Frame: world
+      Pitch: 1.5647963285446167
+      Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.6570703983306885
+      Yaw: 3.317070484161377
     Saved: ~
 Window Geometry:
   Displays:
