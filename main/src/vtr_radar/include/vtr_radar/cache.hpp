@@ -76,6 +76,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
   tactic::Cache<const bool> submap_loc_changed;
   tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
+  tactic::Cache<bool> last_loc_success;
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {
