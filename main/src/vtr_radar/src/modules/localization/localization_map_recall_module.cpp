@@ -52,6 +52,11 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+  if(!qdata.scan_msg)
+  {
+    return;
+  }
+
 
 
   /// Input
@@ -105,11 +110,6 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
         locked_specified_map_msg.get().getData());
     // signal that loc map did change
     qdata.submap_loc_changed.emplace(true);
-  }
-
-  if(!qdata.scan_msg)
-  {
-    return;
   }
 
   /// update the submap to vertex transformation
