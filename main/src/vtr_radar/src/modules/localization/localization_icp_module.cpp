@@ -63,9 +63,14 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   if(!qdata.scan_msg)
   {
-    // Just assume the localization status did not change
-    const auto last_loc_success = *qdata.loc_success;
-    *qdata.loc_success = last_loc_success;
+    // Just assume the localization status did not change, if we don't have a new scan to do ICP on
+    // This works if we have a last value - assuming we localized at least once
+    // If not, just let loc_success be the default, which should be set to false by the pipeline
+    if(qdata.last_loc_success)
+    {
+      const auto last_loc_success = *qdata.last_loc_success;
+      *qdata.loc_success = last_loc_success;
+    }
     return;
   }
 
@@ -351,6 +356,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_v_loc = T_r_v_icp;
     // set success
     *qdata.loc_success = true;
+    *qdata.last_loc_success = true;
   } else {
     CLOG(WARNING, "radar.localization_icp")
         << "Matched points ratio " << matched_points_ratio
@@ -358,6 +364,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     // no update to map to robot transform
     // set success
     *qdata.loc_success = false;
+    *qdata.last_loc_success = false;
   }
   // clang-format on
 }

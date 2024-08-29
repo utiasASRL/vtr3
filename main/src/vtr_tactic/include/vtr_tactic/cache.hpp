@@ -133,6 +133,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<const unsigned> sid_loc;
   Cache<EdgeTransform> T_r_v_loc;
   Cache<bool> loc_success;
+  Cache<bool> last_loc_success;
 
   // graph memory management cache args
   Cache<const VertexId> live_mem_async;
