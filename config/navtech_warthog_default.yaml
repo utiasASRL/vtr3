@@ -200,7 +200,7 @@
       memory:
         type: "live_mem_manager"
 
-        window_size: 5 # unload data older than this many keyframes
+        window_size: 20 # unload data older than this many keyframes
 
     localization:
       recall:
