@@ -84,6 +84,8 @@ void RadarPipeline::reset() {
   last_gyro_msg_ = nullptr;
   preint_detla_yaw_ = nullptr;
 
+  loc_success_ = nullptr;
+
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -121,9 +123,13 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
   if(last_gyro_msg_ != nullptr) qdata->prev_gyro_msg = last_gyro_msg_;
   if(preint_detla_yaw_ != nullptr) qdata->preintegrated_delta_yaw = preint_detla_yaw_;
+  if(loc_success_ != nullptr) qdata->loc_success = loc_success_;
 
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
+
+
+  if(qdata->loc_success) loc_success_ = qdata->loc_sucess.ptr();
 
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
