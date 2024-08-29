@@ -107,11 +107,6 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.submap_loc_changed.emplace(true);
   }
 
-  if(!qdata.scan_msg)
-  {
-    return;
-  }
-
   /// update the submap to vertex transformation
   qdata.T_v_m_loc.emplace(pointmap_ptr.T_v_this_map *
                           qdata.submap_loc->T_vertex_this());
