@@ -77,10 +77,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     throw std::runtime_error("pointmap pointer this_vid mismatch.");
   }
 
-  if(!qdata.scan_msg)
-  {
-    return;
-  }
+  
 
   /// load the submap if we have switched to a new one
   if (qdata.submap_loc &&
@@ -108,6 +105,11 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
         locked_specified_map_msg.get().getData());
     // signal that loc map did change
     qdata.submap_loc_changed.emplace(true);
+  }
+
+  if(!qdata.scan_msg)
+  {
+    return;
   }
 
   /// update the submap to vertex transformation
