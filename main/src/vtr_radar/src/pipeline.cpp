@@ -129,7 +129,7 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     module->run(*qdata0, *output0, graph, executor);
 
 
-  if(qdata->loc_success) loc_success_ = qdata->loc_sucess.ptr();
+  if(qdata->loc_success) loc_success_ = qdata->loc_success.ptr();
 
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {

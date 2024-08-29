@@ -65,7 +65,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   {
     // Just assume the localization status did not change
     const auto last_loc_success = *qdata.loc_success;
-    *qdata.loc_succes = last_loc_success;
+    *qdata.loc_success = last_loc_success;
     return;
   }
 
