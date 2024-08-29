@@ -9,7 +9,7 @@ from casadi import sin, cos, pi
 # Pose Covariance
 Q_x = 10
 Q_y = 10
-Q_theta = 1
+Q_theta = 5
 # Command Covariance
 R1 = 1.0 #0.1
 R2 = 1.0 #0.1
