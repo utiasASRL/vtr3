@@ -168,11 +168,7 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
 
   /// store the current map for localization
   if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();
-  if(qdata->last_loc_success)
-  {
-    loc_success_ = qdata->last_loc_success.ptr();
-    qdata->loc_success = qdata->last_loc_success.ptr();
-  }
+  if(qdata->last_loc_success) loc_success_ = qdata->last_loc_success.ptr();
 }
 
 void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
