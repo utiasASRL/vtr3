@@ -52,6 +52,10 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+  if(!qdata.scan_msg)
+  {
+    return;
+  }
 
 
 
