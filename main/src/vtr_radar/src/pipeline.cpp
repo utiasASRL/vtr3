@@ -158,7 +158,7 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
-
+  
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
   if(loc_success_ != nullptr) qdata->last_loc_success = loc_success_;
