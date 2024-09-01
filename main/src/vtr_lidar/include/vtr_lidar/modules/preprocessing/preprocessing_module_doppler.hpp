@@ -44,33 +44,29 @@ class PreprocessingDopplerModule : public tactic::BaseModule {
 
     int num_threads = 1;
 
-    float crop_range = 100;
-    float vertical_angle_res = 0.00745;
-    float polar_r_scale = 1.5;
-    float r_scale = 4.0;
-    float h_scale = 0.5;
-    float frame_voxel_size = 0.1;
-    float nn_voxel_size = 0.05;
-    bool filter_by_normal_score = true;
-    int num_sample1 = 100000;
-    float min_norm_score1 = 0.0;
-    int num_sample2 = 100000;
-    float min_norm_score2 = 0.01;
-    float min_normal_estimate_dist = 2.0;
-    float max_normal_estimate_angle = 0.417;  // 5/12 original parameter value
-    int cluster_num_sample = 100000;
-
     // DOPPLER
-    double azimuth_res = 0.00349066;
-    double azimuth_start = -0.872665;
-    double azimuth_end = 0.872665;
-    int num_rows = 80;
-    int num_cols = 501;
+    std::vector<bool> active_lidars;
+    std::string root_path;
+    std::string model_name;
+    int downsample_steps = 1;
+    //
+    std::vector<std::string> bias_input_feat;
+    std::vector<std::string> var_input_feat;
+    int bias_polyorder;
+    int var_polyorder;
+    std::vector<double> mm_azi;
+    double azi_res;
+    //
+    mutable double azimuth_res = 0.2 * M_PI / 180.0;   // rad
+    mutable double azimuth_start = -0.872665;
+    mutable double azimuth_end = 0.872665;
+    mutable int num_rows = 80;
+    mutable int num_cols = 501;   
     int min_dist = 20;
     int max_dist = 150;
-    //
-    std::vector<bool> active_sensors;
-    std::string root_path = "/home/ASRL/doppler_odom/sensor_config/boreas/";
+    mutable int median_sensorid = 0;
+    mutable bool calc_median = false;
+    mutable bool calc_pseudovar = false;
 
     bool visualize = false;
 
@@ -84,10 +80,25 @@ class PreprocessingDopplerModule : public tactic::BaseModule {
       const std::string &name = static_name);
 
  protected:
-  std::vector<Eigen::MatrixXd> elevation_order_;
-  std::vector<std::vector<Eigen::MatrixXd>> elevation_order_by_beam_id_;
+  // calibration model weights
+  using ImgWeight = std::vector<std::vector<Eigen::VectorXd>>; // (elevation) x (azimuth) x (weight dim)
+  std::vector<std::vector<ImgWeight>> bias_weights_; // (# sensors) x (# face ids)
+  std::vector<std::vector<ImgWeight>> var_weights_; // (# sensors) x (# face ids)
+  std::vector<std::string> bias_features_;
+  std::vector<std::string> var_features_;
+  int bias_porder_;
+  int var_porder_;
+  bool calc_dop_median_ = false;
+  bool calc_pseudo_var_ = false;
+  int pseudo_var_hwidth_ = 5;
 
-  std::vector<std::vector<Eigen::MatrixXd>> weights_;
+  void initImgWeight(bool set_dims, const Config::ConstPtr &config, const std::string& dim_txt, const std::string& binary, std::vector<std::vector<ImgWeight>>& weights);
+  void buildFeatVec(Eigen::VectorXd& feat, const PointWithInfo& point, const std::vector<std::string>& feat_string, 
+                    double dop_median_, double dop_pseudovar) const;
+  double computeModel(const Eigen::VectorXd& feat, const Eigen::VectorXd& weights, int polyorder) const;
+  bool computePseudovar(double& pseudovar, const std::vector<const PointWithInfo*>& img_row, int c, int hwidth, double tol) const;
+
+  std::vector<std::vector<Eigen::MatrixXd>> weights;
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
