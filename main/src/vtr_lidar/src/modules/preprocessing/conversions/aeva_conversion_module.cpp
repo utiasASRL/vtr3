@@ -71,28 +71,22 @@ void AevaConversionModule::run_(QueryCache &qdata0, OutputCache &,
       std::make_shared<pcl::PointCloud<PointWithInfo>>(points.rows(), 1);
 
   for (size_t idx = 0; idx < (size_t)points.rows(); idx++) {
+    auto &point = point_cloud->at(idx);
     // cartesian coordinates
-    point_cloud->at(idx).x = points(idx, 0);
-    point_cloud->at(idx).y = points(idx, 1);
-    point_cloud->at(idx).z = points(idx, 2);
-
-    // radial velocity
-    point_cloud->at(idx).flex23 = points(idx, 4);
-
-    // beam id
-    point_cloud->at(idx).flex24 = points(idx, 6);
-
-    // pointwise timestamp
-    point_cloud->at(idx).timestamp = static_cast<int64_t>(points(idx, 5) * 1e9);
+    point.x = points(idx, 0);
+    point.y = points(idx, 1);
+    point.z = points(idx, 2);
+    //
+    point.radial_velocity = points(idx, 3);
+    point.intensity = points(idx, 4);
+    point.timestamp = static_cast<int64_t>(points(idx, 5));
+    // IDs
+    point.beam_id = points(idx, 6);
+    point.line_id = points(idx, 7);
+    point.face_id = points(idx, 8);
+    point.sensor_id = points(idx, 9);
   }
-
-  // Aeva has no polar coordinates, so compute them manually.
-  // for (auto &p : *point_cloud) {
-  //   p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);         // range
-  //   p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);  // elevation
-  //   p.phi = std::atan2(p.y, p.x);                                 // azimuth
-  // }
-
+  
   aevaCart2Pol(*point_cloud);
 
   // Output

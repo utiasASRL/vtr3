@@ -99,11 +99,36 @@ namespace lidar {
 #define PCL_ADD_FLEXIBLE2 \
   PCL_ADD_UNION_FLEXIBLE2
 
+#define PCL_ADD_UNION_FLEXIBLE3 \
+  union EIGEN_ALIGN16 { \
+    __uint128_t raw_flex3; \
+    float data_flex3[4]; \
+    struct { \
+      float flex31; \
+      float flex32; \
+      float flex33; \
+      float flex34; \
+    }; \
+    struct { \
+      int32_t beam_id; \
+      int32_t line_id; \
+      int32_t face_id; \
+      int32_t sensor_id; \
+    }; \
+    struct { \
+      float ivariance; \
+    }; \
+  };
+
+#define PCL_ADD_FLEXIBLE3 \
+  PCL_ADD_UNION_FLEXIBLE3
+
 struct EIGEN_ALIGN16 _PointWithInfo {
   PCL_ADD_POINT4D;
   PCL_ADD_NORMAL4D;
   PCL_ADD_FLEXIBLE1;
   PCL_ADD_FLEXIBLE2;
+  PCL_ADD_FLEXIBLE3;
   PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -115,6 +140,7 @@ struct PointWithInfo : public _PointWithInfo
     normal_x = p.normal_x; normal_y = p.normal_y; normal_z = p.normal_z; data_n[3] = 0.0f;
     raw_flex1 = p.raw_flex1;
     raw_flex2 = p.raw_flex2;
+    raw_flex3 = p.raw_flex3;
   }
 
   inline PointWithInfo ()
@@ -123,14 +149,16 @@ struct PointWithInfo : public _PointWithInfo
     normal_x = normal_y = normal_z = data_n[3] = 0.0f;
     raw_flex1 = 0;
     raw_flex2 = 0;
+    raw_flex3 = 0; 
   }
 
-  static constexpr size_t size() { return 16; }
+  static constexpr size_t size() { return 20; }
   static constexpr size_t cartesian_offset() { return 0; }
   static constexpr size_t normal_offset() { return 4; }
   static constexpr size_t polar_offset() { return 8; }
   static constexpr size_t flex1_offset() { return 8; }
   static constexpr size_t flex2_offset() { return 12; }
+  static constexpr size_t flex3_offset() { return 16; }
 };
 
 }  // namespace lidar
@@ -162,5 +190,11 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
     (float, flex21, flex21)
     (float, flex22, flex22)
     (float, flex23, flex23)
-    (float, flex24, flex24))
+    (float, flex24, flex24)
+    // IDs
+    (float, flex31, flex31)
+    (float, flex32, flex32)
+    (float, flex33, flex33)
+    (float, flex34, flex34)
+    )
 // clang-format on
