@@ -12,7 +12,7 @@
       - radar.odometry_gyro
       - radar.odometry_preintegration
       - radar.localization_icp
-      # - tactic
+      - tactic
       # - tactic.pipeline
       # - tactic.module
       # - mpc.debug

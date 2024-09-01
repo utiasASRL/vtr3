@@ -127,6 +127,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // Initialize preintegration
     qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
     qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
+    if(qdata.first_frame)
+      *qdata.first_frame = true;
+    else
+      qdata.first_frame.emplace(true); // reset first frame - this is the first frame! Gyro could have run before though
 
     return;
   }
