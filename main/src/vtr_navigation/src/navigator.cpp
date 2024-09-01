@@ -356,6 +356,7 @@ void Navigator::radarCallback(
     queue_.pop();
   }
 
+
   // some modules require node for visualization
   query_data->node = node_;
 
@@ -401,6 +402,7 @@ void Navigator::gyroCallback(
         << "Dropping old message because the queue is full.";
     queue_.pop();
   }
+
 
   // some modules require node for visualization
   query_data->node = node_;

@@ -45,7 +45,7 @@ void OdometryMapMaintenanceModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
-  if(!qdata.scan_msg.valid())
+  if(!qdata.scan_msg)
   {
     return;
   }

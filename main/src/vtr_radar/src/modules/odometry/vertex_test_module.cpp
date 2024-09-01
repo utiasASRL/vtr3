@@ -40,7 +40,7 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
   // This means that we will only create vertices when radar data arrives (which I think is what we wanna do)
-  if(!qdata.scan_msg.valid())
+  if(!qdata.scan_msg)
   {
     return;
   }
