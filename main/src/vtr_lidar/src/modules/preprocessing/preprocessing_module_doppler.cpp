@@ -47,15 +47,31 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   config->num_cols = node->declare_parameter<int>(param_prefix + ".num_cols", config->num_cols);
   config->max_dist = node->declare_parameter<int>(param_prefix + ".max_dist", config->max_dist);
   //
-  config->active_sensors = node->declare_parameter<std::vector<bool>>(param_prefix + ".active_sensors", config->active_sensors);
+  config->active_lidars = node->declare_parameter<std::vector<bool>>(param_prefix + ".active_lidars", config->active_lidars);
   config->root_path = node->declare_parameter<std::string>(param_prefix + ".root_path", config->root_path);
-
+  config->model_name = node->declare_parameter<std::string>(param_prefix + ".model_name", config->model_name);
+  config->downsample_steps = node->declare_parameter<int>(param_prefix + ".downsample_steps", config->downsample_steps);
+  //
+  config->bias_input_feat =node->declare_parameter<std::vector<std::string>>(param_prefix + ".bias_input_feat", config->bias_input_feat);
+  config->var_input_feat = node->declare_parameter<std::vector<std::string>>(param_prefix + ".var_input_feat", config->var_input_feat);
+  config->bias_polyorder = node->declare_parameter<int>(param_prefix + ".bias_polyorder", config->bias_polyorder);
+  config->var_polyorder = node->declare_parameter<int>(param_prefix + ".var_polyorder", config->var_polyorder);
+  config->median_sensorid = node->declare_parameter<int>(param_prefix + ".median_sensorid", config->median_sensorid);
+  config->mm_azi = node->declare_parameter<std::vector<double>>(param_prefix + ".mm_azi", config->mm_azi);
+  config->azi_res = node->declare_parameter<double>(param_prefix + ".azi_res", config->azi_res);
+  //
+  config->calc_median = node->declare_parameter<bool>(param_prefix + ".calc_median", config->calc_median);
+  config->calc_pseudovar = node->declare_parameter<bool>(param_prefix + ".calc_pseudovar", config->calc_pseudovar);
+  //
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
 }
 
-float atan2_approx(float y, float x, float pi, float pi_2) {
+float atan2_approx(float y, float x) {
+  float pi = M_PI;
+  float pi_2 = M_PI_2;
+
   bool swap = fabs(x) < fabs(y);
   float atanin = (swap ? x : y) / (swap ? y : x);
   float a1 = 0.99997726;
@@ -90,58 +106,152 @@ Eigen::MatrixXd readCSVtoEigenXd(std::ifstream &csv) {
   return output;
 }
 
+void PreprocessingDopplerModule::initImgWeight(bool set_dims, const Config::ConstPtr &config, const std::string& dim_txt, const std::string& binary, std::vector<std::vector<ImgWeight>>& weights) {
+  // read csv that specifies dimensions
+  std::ifstream csv(dim_txt);
+  Eigen::MatrixXi dims = readCSVtoEigenXd(csv).cast<int>();  // 0(# sensors) x 1(# rows) x 2(# cols) x 3(# faces) x 4(weight dim)
+
+  CLOG(WARNING, "lidar.preprocessing_doppler") << "int1";
+
+  // reassigns values for rows and cols based on weights data
+  if (set_dims) {
+    config_->num_rows = dims(1);
+    config_->num_cols = dims(2);
+  }
+
+  CLOG(WARNING, "lidar.preprocessing_doppler") << "int2";
+
+  Eigen::VectorXd dummy_vec(dims(4)); // dummy vector with appropriate size
+  ImgWeight bias_weight(dims(1), std::vector<Eigen::VectorXd>(dims(2), dummy_vec)); // (# rows) x (# cols) x (weight dim)
+
+  // initialize with approriate (# sensors) x (# faces)
+  weights = std::vector<std::vector<ImgWeight>>(dims(0), std::vector<ImgWeight>(dims(3), bias_weight));
+
+  CLOG(WARNING, "lidar.preprocessing_doppler") << "int3";
+
+  // read binary
+  std::ifstream ifs(binary, std::ios::binary);
+  std::vector<char> buffer(std::istreambuf_iterator<char>(ifs), {});
+  unsigned float_offset = 4;
+  auto getFloatFromByteArray = [](char *byteArray, unsigned index) -> float { return *((float *)(byteArray + index)); };
+
+  CLOG(WARNING, "lidar.preprocessing_doppler") << "int4";
+
+  for (size_t sensor = 0; sensor < dims(0); ++sensor) {
+    for (size_t row = 0; row < dims(1); ++row) {
+      for (size_t col = 0; col < dims(2); ++col) {
+        for (size_t face = 0; face < dims(3); ++face) {
+          for (size_t d = 0; d < dims(4); ++d) {  
+            int offset = d + dims(4)*face + dims(4)*dims(3)*col 
+              + dims(4)*dims(3)*dims(2)*row + dims(4)*dims(3)*dims(2)*dims(1)*sensor;
+            weights[sensor][face][row][col](d) = getFloatFromByteArray(buffer.data(), offset * float_offset);
+          } // d
+        } // face
+      } // col
+    } // row
+  } // sensor
+
+  CLOG(WARNING, "lidar.preprocessing_doppler") << "int5";
+}
+
+void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const PointWithInfo& point, 
+    const std::vector<std::string>& feat_string, double dop_median, double dop_pseudovar) const {
+
+  auto scaleValue = [](double value, double lower, double upper) -> double { return 2.0*(value - lower)/(upper - lower) - 1.0; }; 
+
+  for (size_t i = 0; i < feat_string.size(); ++i) {
+    double val = 0;
+    if (feat_string[i] == "range")
+      val = scaleValue(point.rho, 0.0, 150.0);  // note: range is calculated in preprocess function of DopplerFilter
+    else if (feat_string[i] == "intensity")
+      val = scaleValue(point.intensity, -70.0, 0.0);
+    else if (feat_string[i] == "medianrv") {
+      if (config_->median_sensorid == 0)
+        val = scaleValue(dop_median, -30.0, 1.0); // for forward-facing sensor
+      else if (config_->median_sensorid == 3)
+        val = scaleValue(dop_median, -1.0, 30.0); // for back-facing sensor
+      else
+        throw std::runtime_error("[DopplerImageCalib::buildFeatVec] Unexpected median_sensorid!");
+    }
+    else if (feat_string[i] == "rv_var5") // TODO: handle variable
+      val = scaleValue(std::min(1.0 / sqrt(dop_pseudovar), 200.0), 0.0, 200.0);
+    else if (feat_string[i] == "rv_stddev5") // TODO: handle variable
+      val = scaleValue(sqrt(dop_pseudovar), 0.0, 1.0);
+    else
+      throw std::runtime_error("[DopplerImageCalib::buildFeatVec] Unknown feature!");
+    feat(i) = val;  // set value
+  }
+}
+
+double PreprocessingDopplerModule::computeModel(const Eigen::VectorXd& feat, const Eigen::VectorXd& weights, int polyorder) const {
+  if (polyorder * feat.size() + 1 != weights.size()) {
+    LOG(WARNING) << "[DopplerImageCalib::computeModel] Incompatible feature and weight dimensions!" 
+                 << polyorder << ", " << feat.size() << ", " << weights.size() << std::endl;
+    throw std::runtime_error("[DopplerImageCalib::computeModel] Incompatible feature and weight dimensions!");
+  }
+  
+  double output = 0;
+  Eigen::VectorXd featpow = feat;
+  // Eigen::VectorXd featpow = Eigen::VectorXd::Ones(feat.size()); // TODO: bug in training code that starts with feat^0
+  for (int i = 0; i < polyorder; ++i) {
+    output += featpow.dot(weights.segment(i * feat.size(), feat.size()));
+    featpow.array() *= feat.array();
+  }
+  output += weights(weights.size() - 1);  // bias term
+  return output;
+}
+
+bool PreprocessingDopplerModule::computePseudovar(double& pseudovar, const std::vector<const PointWithInfo*>& img_row, int c, int hwidth, double tol) const {
+  pseudovar = 1.0;  // default value
+  double vbar = img_row[c]->radial_velocity;  // use value at (r, c) as the "mean"
+  int count = 0;  // count for calculating variance
+  double sum = 0; // sum for calculating variance
+
+  // loop from -hwidth to +hwidth
+  for (int ci = c - hwidth; ci <= c + hwidth; ++ci) {
+    if (ci == c || ci < 0 || ci >= config_->num_cols || img_row[ci] == nullptr)
+      continue; // skip if ci is at c, or no measurement at (r, ci), or beyond limits
+
+    double diff = img_row[ci]->radial_velocity - vbar;
+    if (fabs(diff) > tol)
+      continue; // skip if value difference is beyond tolerance
+
+    // okay to add
+    sum += (diff * diff);
+    ++count;
+  } // end for ci
+
+  if (count > 3 && sum != 0) {
+    pseudovar = sum/count; // set pseudovariance
+    return true;
+  }
+  else
+    return false;     // skip this measurement since there are no neighbours
+}
+
 PreprocessingDopplerModule::PreprocessingDopplerModule(const Config::ConstPtr &config, const std::shared_ptr<tactic::ModuleFactory> &module_factory, const std::string &name) : tactic::BaseModule(module_factory, name), config_(config) {
-  int num_sensors = config_->active_sensors.size();
+  // init weights
+  std::string bias_shape = config_->root_path + "/" + config_->model_name + "/bias_shape.txt"; 
+  std::string binary = config_->root_path + "/" + config_->model_name + "/bias.bin";
+  initImgWeight(true, config, bias_shape, binary, bias_weights_);
+  
+  std::string var_shape = config_->root_path + "/" + config_->model_name + "/var_shape.txt"; 
+  std::string var = config_->root_path + "/" + config_->model_name + "/var.bin";
+  initImgWeight(false, config, var_shape, var, var_weights_);
 
-  // read elevation settings
-  elevation_order_.clear();
-  elevation_order_by_beam_id_.clear();
-  for (int i = 0; i < num_sensors; ++i) {
-    if (!config_->active_sensors[i]) {
-      continue;
-    }
+  config_->azimuth_start = config_->mm_azi[0] * M_PI / 180.0;
+  config_->azimuth_end = config_->mm_azi[1] * M_PI / 180.0;
+  config_->azimuth_res = config_->azi_res * M_PI / 180.0;
 
-    std::string path = config_->root_path + "/mean_elevation_beam_order_" + std::to_string(i);
-    std::ifstream csv(path);
-    if (!csv) throw std::ios::failure("Error opening csv file");
-    elevation_order_.push_back(readCSVtoEigenXd(csv));
-    const auto& temp = elevation_order_.back();
-
-    std::vector<Eigen::MatrixXd> sensor_elevation_order;
-    for (int j = 0; j < 4; ++j) {   // 4 beams   
-      Eigen::MatrixXd elevation_order_for_this_beam(temp.rows()/4, 2);  // first column is mean elevation, second column is row id
-      int h = 0;
-      for (int r = 0; r < temp.rows(); ++r) {
-        // first column is mean elevation. Second column is beam id
-        if (temp(r, 1) == j) {
-          elevation_order_for_this_beam(h, 0) = temp(r, 0);
-          elevation_order_for_this_beam(h, 1) = r;
-          ++h;
-        }
-      } // end for r
-      assert(h == temp.rows()/4);
-      sensor_elevation_order.push_back(elevation_order_for_this_beam);
-    } // end for j
-    assert(sensor_elevation_order.size() == 4); // 4 beams
-    elevation_order_by_beam_id_.push_back(sensor_elevation_order);
-  } // end for i
-
-  // TODO: handle different regression models. Load right model according to a parameter (currently hardcoded)
-  weights_.clear();
-  for (int i = 0; i < num_sensors; ++i) {
-    if (!config_->active_sensors[i])
-      continue;
-
-    std::vector<Eigen::MatrixXd> temp; temp.clear();
-    for (int r = 0; r < config_->num_rows; ++r) {
-      std::string path = config_->root_path + "/sensor" + std::to_string(i) + "_s1/lr_weights_row_" + std::to_string(r);
-      
-      std::ifstream csv(path);
-      if (!csv) throw std::ios::failure("Error opening csv file");
-      Eigen::MatrixXd dummy = readCSVtoEigenXd(csv);
-      temp.push_back(dummy);
-    }
-    weights_.push_back(temp);
+  // check if we need to calculate median Doppler velocity
+  for (const auto& feat: config_->bias_input_feat)
+    if (feat == "medianrv")
+      config_->calc_median = true;
+  for (const auto& feat: config_->var_input_feat) {
+    if (feat == "medianrv")
+      config_->calc_median = true;
+    if (feat == "rv_var5")  // TODO: handle variable parameter in string
+      config_->calc_pseudovar = true;
   }
 }
 
@@ -171,69 +281,105 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   const auto &filtered_point_cloud = *qdata.raw_point_cloud;
 
-  float pi = M_PI;
-  float pi_2 = M_PI_2;
-
   // 2D vector of pointers to points
-  using PointWFlag = std::pair<bool,const PointWithInfo*>;
-  int grid_count = 0;
-  std::vector<std::vector<PointWFlag>> grid(config_->num_rows, std::vector<PointWFlag>(config_->num_cols, PointWFlag(false, NULL)));
-  // iterate over each point
-  for (unsigned i = 0; i < filtered_point_cloud.size(); i++) {
-    const double range = sqrt(filtered_point_cloud[i].x * filtered_point_cloud[i].x + filtered_point_cloud[i].y * filtered_point_cloud[i].y + filtered_point_cloud[i].z * filtered_point_cloud[i].z);
-    if (range < config_->min_dist || range > config_->max_dist)
-      continue;
-    
-    // use atan2_approx for speed, atan2 takes ~3ms longer per frame
-    const double azimuth = atan2_approx(filtered_point_cloud[i].y, filtered_point_cloud[i].x, pi, pi_2);
-    const double xy = sqrt(filtered_point_cloud[i].x * filtered_point_cloud[i].x + filtered_point_cloud[i].y * filtered_point_cloud[i].y);
-    const double elevation = atan2_approx(filtered_point_cloud[i].z, xy, pi, pi_2);
+  using PointImg = std::vector<std::vector<const PointWithInfo*>>;
 
-    // skip if not within azimuth bounds (horizontal fov)
+  // initialize empty grid (2D img filled with null pointers)
+  PointImg empty_img(config_->num_rows, std::vector<const PointWithInfo*>(config_->num_cols, nullptr));
+
+  // create an image for each active sensor
+  int num_active_sensors = 0; 
+  int img_count = 0;
+  
+  std::unordered_map<int, int> sid2iid; // mapping from sensor id to img id
+  for (size_t sensorid = 0; sensorid < config_->active_lidars.size(); ++sensorid) {
+    if (config_->active_lidars[sensorid]) {
+      ++num_active_sensors;
+      sid2iid[sensorid] = img_count;
+      ++img_count;
+    }
+  }
+
+  CLOG(DEBUG, "lidar.preprocessing_doppler") << "num active sensors " << num_active_sensors;
+
+  std::vector<PointImg> imgs(num_active_sensors, empty_img);
+  int pt_count = 0;  // keeps track of total # points to reserve later
+  std::vector<double> dop_vels; // doppler median
+
+  // iterate over each point
+  for (size_t i = 0; i < filtered_point_cloud.size(); i++) {
+    // polynomial approx. of atan2
+    const double azimuth = atan2_approx(filtered_point_cloud[i].y, filtered_point_cloud[i].x);  // approximation slightly faster than atan2 call
+
+    // skip if not within azimuth bounds (horizontal fov) 
     if (azimuth <= config_->azimuth_start || azimuth >= config_->azimuth_end)
       continue;
 
     // determine column
-    const short col = (config_->num_cols - 1) - int((azimuth - config_->azimuth_start) / config_->azimuth_res);
-  
-    // determine row by matching by beam_id (0, 1, 2, or 3) and closest elevation to precalculated values
-    // note: elevation_order_by_beam_id_[sensorid][point.beam_id] first column is mean elevation, second column is row id
-    const auto ele_diff = elevation_order_by_beam_id_[0][filtered_point_cloud[i].flex24].col(0).array() - elevation; // to do: shouldn't be hardcoded for one sensor
-    double min_val = ele_diff(0)*ele_diff(0);
-    int min_id = 0;
-    for (int i = 1; i < ele_diff.rows(); ++i) {
-      const auto val = ele_diff(i) * ele_diff(i);
-      if (val < min_val) {
-        min_val = val;
-        min_id = i;
-      }
-    }
+    int img_id = sid2iid[filtered_point_cloud[i].sensor_id];
+    const short col = (config_->num_cols - 1) - int((azimuth - config_->azimuth_start)/config_->azimuth_res);
+    
+    if (col < 0 || col >= imgs[img_id][filtered_point_cloud[i].line_id].size())
+      continue;
     
     // picking the closest in elevation
-    const short row = elevation_order_by_beam_id_[0][filtered_point_cloud[i].flex24](min_id, 1); // to do: shouldn't be hardcoded for one sensor
-    if (!grid[row][col].first) {
+    if (imgs[img_id][filtered_point_cloud[i].line_id][col] == nullptr) {
       // keep first measurement in bin
-      grid[row][col] = PointWFlag(true, &filtered_point_cloud[i]);
-      ++grid_count;
+      imgs[img_id][filtered_point_cloud[i].line_id][col] = &filtered_point_cloud[i];
+      ++pt_count;
+
+      // stack velocities for median calculation
+      if (config_->calc_median && filtered_point_cloud[i].sensor_id == config_->median_sensorid)
+        dop_vels.push_back(filtered_point_cloud[i].radial_velocity);
     }
   }
 
-  // print size after regression step
-  CLOG(DEBUG, "lidar.preprocessing_doppler") << "grid_count: " << grid_count;
+  // median calculation
+  double dop_median;
+  if (config_->calc_median) {
+    int n = dop_vels.size()/2;
+    auto nitr = dop_vels.begin() + n;
+    std::nth_element(dop_vels.begin(), nitr, dop_vels.end());
+    dop_median = *nitr;
+  }
 
   // output
   pcl::PointCloud<PointWithInfo> out_frame;
-  out_frame.reserve(grid_count);
-  for (int r = 0; r < config_->num_rows; ++r) {
-    for (int c = 0; c < config_->num_cols; ++c) {
-      if (grid[r][c].first) {
-        // pushback if we have data in this elevation-azimuth bin
-        out_frame.push_back(*grid[r][c].second);
-        // int sensorid = (*grid[r][c].second).sensor_id; 
-        int sensorid = 0; // to do: add support for multiple sensors
+  out_frame.reserve(pt_count);
+  Eigen::VectorXd bias_feat(config_->bias_input_feat.size());
+  Eigen::VectorXd var_feat(config_->var_input_feat.size());
+  int dscount = 0;
+  for (size_t s = 0; s < num_active_sensors; ++s) {
+    for (size_t r = 0; r < config_->num_rows; ++r) {
+      for (size_t c = 0; c < config_->num_cols; ++c) {
+        if (imgs[s][r][c] != nullptr) {
 
-        // apply linear regression model
-        out_frame.back().radial_velocity -= (weights_[sensorid][r](c, 0) + weights_[sensorid][r](c, 1)*out_frame.back().rho/250.0);
+          // step downsample after image projection
+          ++dscount;
+          if (dscount % config_->downsample_steps != 0)
+            continue;
+
+          // pseudo-variance
+          double pseudovar = 1.0;
+          if (config_->calc_pseudovar) {
+            bool varflag = computePseudovar(pseudovar, imgs[s][r], c, pseudo_var_hwidth_, 9999);
+            if (!varflag)
+              continue;
+          }
+
+          // pushback if we have data in this elevation-azimuth bin
+          out_frame.push_back(*imgs[s][r][c]);
+          
+          // build features
+          buildFeatVec(bias_feat, out_frame.back(), config_->bias_input_feat, dop_median, pseudovar);
+          buildFeatVec(var_feat, out_frame.back(), config_->var_input_feat, dop_median, pseudovar);
+
+          // apply linear regression model
+          int sensorid = out_frame.back().sensor_id;
+          int faceid = out_frame.back().face_id;
+          out_frame.back().radial_velocity -= computeModel(bias_feat, bias_weights_[sensorid][faceid][r][c], config_->bias_polyorder);
+          out_frame.back().ivariance = exp(computeModel(var_feat, var_weights_[sensorid][faceid][0][0], config_->var_polyorder)); // TODO: when var is also a grid/image
+        }
       }
     }
   }
@@ -242,7 +388,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   // print size after regression step
   CLOG(DEBUG, "lidar.preprocessing_doppler")
-      << "final subsampled point size: " << filtered_cloud->size();
+      << "final point size: " << filtered_cloud->size();
 
   if (config_->visualize) {
     PointCloudMsg pc2_msg;
