@@ -100,6 +100,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func);
   }
 
+  CLOG(WARNING, "test_prior") << "\n" << T_r_v.matrix();
+
   /// compound transform for alignment (sensor to point map transform)
   const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
 
@@ -327,6 +329,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[6]->stop();
   }
+
+  CLOG(WARNING, "test_result") << "\n" << T_r_v_icp.matrix();
 
   /// Dump timing info
   CLOG(DEBUG, "lidar.localization_icp") << "Dump timing info inside loop: ";
