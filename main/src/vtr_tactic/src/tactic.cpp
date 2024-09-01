@@ -813,12 +813,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   qdata->loc_success.emplace(false);
 
   if (config_->use_loc_threshold) {
-    std::cout << "here 1: using loc intervals" << std::endl;
-    // const auto T_v_odo_loc = (*qdata->T_r_v_odo).inverse() * (*qdata->T_r_v_loc);
-    // auto T_v_odo_loc_vec = T_v_odo_loc.vec();
-    // auto dtran = T_v_odo_loc_vec.head<3>().norm();
-    // CLOG(WARNING, "tactic") << "frame num: " << dtran;
-    
+    CLOG(DEBUG, "tactic") << "ATTN! using loc intervals";    
     if (frame_count % config_->loc_threshold == 0) {
       pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
     }
