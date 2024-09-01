@@ -17,7 +17,7 @@
       # - tactic.module
       # - mpc.debug
       # - cbit.control
-      - mission.state-machine
+      - mission.state_machine
     robot_frame: base_link
     env_info_topic: env_info
     radar_frame: navtech_base #navtech_base
@@ -165,12 +165,12 @@
         refined_max_iter: 500 # 50
         refined_max_pairing_dist: 5.0 # 5.0
         refined_max_planar_dist: 5.0 # 5.0
-        averaging_num_steps: 50 # 5
+        averaging_num_steps: 10 # 5
         huber_delta: 1.0 # 1.0
         cauchy_k: 0.8
         
         #gyro preintegration
-        preint_cov: 1e-10
+        preint_cov: 1e-15
 
         # steam parameters #TOTUNE
         verbose: false
@@ -225,7 +225,7 @@
         refined_max_iter: 500 # 50
         refined_max_pairing_dist: 5.0 # 5.0
         refined_max_planar_dist: 5.0 # 5.0
-        averaging_num_steps: 50 # 5
+        averaging_num_steps: 10 # 5
         huber_delta: 1.0 # 1.0
         cauchy_k: 0.8
 
