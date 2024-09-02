@@ -190,7 +190,6 @@ class GraphMapServer : public tactic::Graph::Callback,
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
   rclcpp::Service<RobotStateSrv>::SharedPtr robot_state_srv_;
 
-
   /** \brief Service to request the initialized map info */
   rclcpp::Service<MapInfoSrv>::SharedPtr map_info_srv_;
 

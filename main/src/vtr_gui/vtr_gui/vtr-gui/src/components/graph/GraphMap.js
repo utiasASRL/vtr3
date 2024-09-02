@@ -372,15 +372,15 @@ class GraphMap extends React.Component {
           moveRobotVertex={move_robot_vertex}
         />
         <Box
-        sx={{
-          position: "absolute",
-          bottom: 0,
-          left: "77%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 1000,
-          display: "flex",
-          flexDirection: "row",
-        }}
+          sx={{
+            position: "absolute",
+            bottom: 0,
+            left: "77%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 1000,
+            display: "flex",
+            flexDirection: "row",
+          }}
         >
           <FormControlLabel control={
             <Switch
@@ -519,7 +519,6 @@ class GraphMap extends React.Component {
       if (this.state.new_goal_type === "repeat") {
         this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
       }
-      console.log(this.state.waypoints_map);
     }
   }
 
@@ -536,31 +535,31 @@ class GraphMap extends React.Component {
   fetchGraphState(center = false) {
     console.info("Fetching the current pose graph state (full).");
     fetchWithTimeout("/vtr/graph")
-      .then((response) => {
-        if (response.status !== 200) throw new Error("Failed to fetch pose graph state: " + response.status);
-        response.json().then((data) => {
-          console.info("Received the pose graph state (full): ", data);
-          this.loadGraphState(data, center);
-          // fetch robot and following route after graph has been set
-          this.fetchRobotState();
-          this.fetchFollowingRoute();
-          this.fetchServerState();
-        });
-      })
-      .catch((error) => {
-        console.error(error);
+    .then((response) => {
+      if (response.status !== 200) throw new Error("Failed to fetch pose graph state: " + response.status);
+      response.json().then((data) => {
+        console.info("Received the pose graph state (full): ", data);
+        this.loadGraphState(data, center);
+        // fetch robot and following route after graph has been set
+        this.fetchRobotState();
+        this.fetchFollowingRoute();
+        this.fetchServerState();
       });
-    }
+    })
+    .catch((error) => {
+      console.error(error);
+    });
+  }
     
-    graphStateCallback(graph_state) {
-      console.info("Received graph state: ", graph_state);
-      this.loadGraphState(graph_state);
-    }
-    
-    /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
-    route2Polyline(route) {
-      // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
-      let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
+  graphStateCallback(graph_state) {
+    console.info("Received graph state: ", graph_state);
+    this.loadGraphState(graph_state);
+  }
+  
+  /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
+  route2Polyline(route) {
+    // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
+    let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
     let width = route.type + 2
     let latlngs = route.ids.map((id) => {
       let v = this.id2vertex.get(id);
@@ -660,7 +659,6 @@ class GraphMap extends React.Component {
         this.robot_marker.marker.remove();
       }
     } else {
-      console.log(robot.lng, robot.lat);
       this.robot_marker.marker.setLatLng({ lng: robot.lng, lat: robot.lat });
       this.robot_marker.marker.setOpacity(robot.localized ? ROBOT_OPACITY : ROBOT_UNLOCALIZED_OPACITY);
       this.robot_marker.marker.setRotationAngle(-(robot.theta / Math.PI) * 180);
@@ -950,7 +948,6 @@ class GraphMap extends React.Component {
           current = parents.get(current);
         }
       }
-      
       paths.push(path);
     });
 
@@ -1052,7 +1049,6 @@ class GraphMap extends React.Component {
     let closest_vertices = this.kdtree.nearest(center_pos, 1);
     selector.vertex.c = closest_vertices ? closest_vertices[0][0] : center_pos;
     selector.vertex.c = this.id2vertex.get(0);
-    console.log("Selector centre", selector.vertex.c, this.id2vertex.get(0));
     selector.marker.c = L.marker(selector.vertex.c, {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
@@ -1282,13 +1278,13 @@ class GraphMap extends React.Component {
       console.warn(move_graph_change);
       this.setState({ move_graph_change: move_graph_change });
     };
-    
+
     let updateGraphPane = () => {
       let style = this.map.getPane("graph").style;
       /// transform origin
       let origin_p = this.map.latLngToLayerPoint(origin);
       style.transformOrigin = `${origin_p.x}px ${origin_p.y}px`;
-      
+
       /// transform
       let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
       let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
