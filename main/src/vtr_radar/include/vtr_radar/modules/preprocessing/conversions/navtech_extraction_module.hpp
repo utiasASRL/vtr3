@@ -42,12 +42,12 @@ class NavtechExtractionModule : public tactic::BaseModule {
     double minr = 2;
     double maxr = 100;
 
-    // kstrong
+    // kstrongest
     struct {
       int kstrong = 10;
       double threshold2 = 0.5;
       double threshold3 = 0.22;
-    } kstrong;
+    } kstrongest;
     // cen2018
     struct {
       double zq = 3;
@@ -70,6 +70,14 @@ class NavtechExtractionModule : public tactic::BaseModule {
       double threshold2 = 0.5;
       double threshold3 = 0.22;
     } oscfar;
+    // tm_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 15.0;
+      int N1 = 5;
+      int N2 = 5;
+    } tm_cfar;
     // modified_cacfar
     struct {
       int width = 40;
@@ -78,6 +86,91 @@ class NavtechExtractionModule : public tactic::BaseModule {
       double threshold2 = 0.5;
       double threshold3 = 0.22;
     } modified_cacfar;
+    // modified_cacfar_power test
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+      double threshold2 = 0.5;
+      double threshold3 = 0.22;
+    } modified_cacfar_power;
+    // cago_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 15.0;
+      double static_threshold = 8.0;
+    } cago_cfar;
+     // caso_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 15.0;
+      double static_threshold = 8.0;
+    } caso_cfar;
+    //is_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double alpha_I = 0.05;
+      int N_TI = 7;
+      double beta_I = 20.02;
+    } is_cfar;
+    //vi_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double alpha_I = 0.05;
+      double K_VI = 7.0;
+      double K_MR = 1.5;
+      double C_N = 20.02;
+    } vi_cfar;
+    // cfear_kstrong
+    struct {
+      int width = 40;
+      int guard = 2;
+      int kstrong = 12;
+      double z_min = 0.2;
+      double r = 3.5;
+      double f = 1.0;
+    } cfear_kstrong;
+    // bfar_pure
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+      double threshold2 = 0.5;
+      double threshold3 = 0.22;
+    } bfar_pure;
+    // msca_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+      int M = 5;
+    } msca_cfar;
+    // landmark_extraction
+    struct {
+      int width = 40;
+      int guard = 2;
+      int w_median = 200;
+      int w_binom = 50;
+      double z_q = 11.0;
+    } landmark_extraction;
+    // surf
+    struct {
+      int width = 40;
+      int guard = 2;
+      int w_median = 200;
+      int w_binom = 50;
+      double z_q = 11.0;
+    } surf;
+    // cen2019
+    struct {
+      int width = 40;
+      int guard = 2;
+      int l_max = 200;
+    } cen2019;
 
     double radar_resolution = 0.0438;
     double range_offset = -0.31;

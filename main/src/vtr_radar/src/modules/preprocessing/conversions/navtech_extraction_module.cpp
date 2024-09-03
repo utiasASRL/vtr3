@@ -55,9 +55,9 @@ auto NavtechExtractionModule::Config::fromROS(
   config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
   config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
 
-  config->kstrong.kstrong = node->declare_parameter<int>(param_prefix + ".kstrong.kstrong", config->kstrong.kstrong);
-  config->kstrong.threshold2 = node->declare_parameter<double>(param_prefix + ".kstrong.threshold2", config->kstrong.threshold2);
-  config->kstrong.threshold3 = node->declare_parameter<double>(param_prefix + ".kstrong.threshold3", config->kstrong.threshold3);
+  config->kstrongest.kstrong = node->declare_parameter<int>(param_prefix + ".kstrongest.kstrong", config->kstrongest.kstrong);
+  config->kstrongest.threshold2 = node->declare_parameter<double>(param_prefix + ".kstrongest.threshold2", config->kstrongest.threshold2);
+  config->kstrongest.threshold3 = node->declare_parameter<double>(param_prefix + ".kstrongest.threshold3", config->kstrongest.threshold3);
 
   config->cen2018.zq = node->declare_parameter<double>(param_prefix + ".cen2018.zq", config->cen2018.zq);
   config->cen2018.sigma = node->declare_parameter<int>(param_prefix + ".cen2018.sigma", config->cen2018.sigma);
@@ -75,11 +75,79 @@ auto NavtechExtractionModule::Config::fromROS(
   config->oscfar.threshold2 = node->declare_parameter<double>(param_prefix + ".oscfar.threshold2", config->oscfar.threshold2);
   config->oscfar.threshold3 = node->declare_parameter<double>(param_prefix + ".oscfar.threshold3", config->oscfar.threshold3);
 
+  config->tm_cfar.width = node->declare_parameter<int>(param_prefix + ".tm_cfar.width", config->tm_cfar.width);
+  config->tm_cfar.guard = node->declare_parameter<int>(param_prefix + ".tm_cfar.guard", config->tm_cfar.guard);
+  config->tm_cfar.threshold = node->declare_parameter<double>(param_prefix + ".tm_cfar.threshold", config->tm_cfar.threshold);
+  config->tm_cfar.N1 = node->declare_parameter<int>(param_prefix + ".tm_cfar.N1", config->tm_cfar.N1);
+  config->tm_cfar.N2 = node->declare_parameter<int>(param_prefix + ".tm_cfar.N2", config->tm_cfar.N2);
+
   config->modified_cacfar.width = node->declare_parameter<int>(param_prefix + ".modified_cacfar.width", config->modified_cacfar.width);
   config->modified_cacfar.guard = node->declare_parameter<int>(param_prefix + ".modified_cacfar.guard", config->modified_cacfar.guard);
   config->modified_cacfar.threshold = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold", config->modified_cacfar.threshold);
   config->modified_cacfar.threshold2 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold2", config->modified_cacfar.threshold2);
   config->modified_cacfar.threshold3 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold3", config->modified_cacfar.threshold3);
+
+  config->modified_cacfar_power.width = node->declare_parameter<int>(param_prefix + ".modified_cacfar_power.width", config->modified_cacfar_power.width);
+  config->modified_cacfar_power.guard = node->declare_parameter<int>(param_prefix + ".modified_cacfar_power.guard", config->modified_cacfar_power.guard);
+  config->modified_cacfar_power.threshold = node->declare_parameter<double>(param_prefix + ".modified_cacfar_power.threshold", config->modified_cacfar_power.threshold);
+  config->modified_cacfar_power.threshold2 = node->declare_parameter<double>(param_prefix + ".modified_cacfar_power.threshold2", config->modified_cacfar_power.threshold2);
+  config->modified_cacfar_power.threshold3 = node->declare_parameter<double>(param_prefix + ".modified_cacfar_power.threshold3", config->modified_cacfar_power.threshold3);
+
+  config->cago_cfar.width = node->declare_parameter<int>(param_prefix + ".cago_cfar.width", config->cago_cfar.width);
+  config->cago_cfar.guard = node->declare_parameter<int>(param_prefix + ".cago_cfar.guard", config->cago_cfar.guard);
+  config->cago_cfar.threshold = node->declare_parameter<double>(param_prefix + ".cago_cfar.threshold", config->cago_cfar.threshold);
+  config->cago_cfar.static_threshold = node->declare_parameter<double>(param_prefix + ".cago_cfar.static_threshold", config->cago_cfar.static_threshold);
+
+  config->caso_cfar.width = node->declare_parameter<int>(param_prefix + ".caso_cfar.width", config->caso_cfar.width);
+  config->caso_cfar.guard = node->declare_parameter<int>(param_prefix + ".caso_cfar.guard", config->caso_cfar.guard);
+  config->caso_cfar.threshold = node->declare_parameter<double>(param_prefix + ".caso_cfar.threshold", config->caso_cfar.threshold);
+  config->caso_cfar.static_threshold = node->declare_parameter<double>(param_prefix + ".caso_cfar.static_threshold", config->caso_cfar.static_threshold);
+
+  config->is_cfar.width = node->declare_parameter<int>(param_prefix + ".is_cfar.width", config->is_cfar.width);
+  config->is_cfar.guard = node->declare_parameter<int>(param_prefix + ".is_cfar.guard", config->is_cfar.guard);
+  config->is_cfar.alpha_I = node->declare_parameter<double>(param_prefix + ".is_cfar.alpha_I", config->is_cfar.alpha_I);
+  config->is_cfar.N_TI = node->declare_parameter<int>(param_prefix + ".is_cfar.N_TI", config->is_cfar.N_TI);
+  config->is_cfar.beta_I = node->declare_parameter<double>(param_prefix + ".is_cfar.beta_I", config->is_cfar.beta_I);
+
+  config->vi_cfar.width = node->declare_parameter<int>(param_prefix + ".vi_cfar.width", config->vi_cfar.width);
+  config->vi_cfar.guard = node->declare_parameter<int>(param_prefix + ".vi_cfar.guard", config->vi_cfar.guard);
+  config->vi_cfar.K_VI = node->declare_parameter<double>(param_prefix + ".vi_cfar.K_VI", config->vi_cfar.K_VI);
+  config->vi_cfar.K_MR = node->declare_parameter<double>(param_prefix + ".vi_cfar.K_MR", config->vi_cfar.K_MR);
+  config->vi_cfar.C_N = node->declare_parameter<double>(param_prefix + ".vi_cfar.C_N", config->vi_cfar.C_N);
+
+  config->cfear_kstrong.width = node->declare_parameter<int>(param_prefix + ".cfear_kstrong.width", config->cfear_kstrong.width);
+  config->cfear_kstrong.guard = node->declare_parameter<int>(param_prefix + ".cfear_kstrong.guard", config->cfear_kstrong.guard);
+  config->cfear_kstrong.kstrong = node->declare_parameter<int>(param_prefix + ".cfear_kstrong.kstrong", config->cfear_kstrong.kstrong);
+  config->cfear_kstrong.z_min = node->declare_parameter<double>(param_prefix + ".cfear_kstrong.z_min", config->cfear_kstrong.z_min);
+  config->cfear_kstrong.r = node->declare_parameter<double>(param_prefix + ".cfear_kstrong.r", config->cfear_kstrong.r);
+  config->cfear_kstrong.f = node->declare_parameter<double>(param_prefix + ".cfear_kstrong.f", config->cfear_kstrong.f);
+
+  config->bfar_pure.width = node->declare_parameter<int>(param_prefix + ".bfar_pure.width", config->bfar_pure.width);
+  config->bfar_pure.guard = node->declare_parameter<int>(param_prefix + ".bfar_pure.guard", config->bfar_pure.guard);
+  config->bfar_pure.threshold = node->declare_parameter<double>(param_prefix + ".bfar_pure.threshold", config->bfar_pure.threshold);
+  config->bfar_pure.threshold2 = node->declare_parameter<double>(param_prefix + ".bfar_pure.threshold2", config->bfar_pure.threshold2);
+  config->bfar_pure.threshold3 = node->declare_parameter<double>(param_prefix + ".bfar_pure.threshold3", config->bfar_pure.threshold3);
+
+  config->msca_cfar.width = node->declare_parameter<int>(param_prefix + ".msca_cfar.width", config->msca_cfar.width);
+  config->msca_cfar.guard = node->declare_parameter<int>(param_prefix + ".msca_cfar.guard", config->msca_cfar.guard);
+  config->msca_cfar.threshold = node->declare_parameter<double>(param_prefix + ".msca_cfar.threshold", config->msca_cfar.threshold);
+  config->msca_cfar.M = node->declare_parameter<int>(param_prefix + ".msca_cfar.M", config->msca_cfar.M);
+
+  config->landmark_extraction.width = node->declare_parameter<int>(param_prefix + ".landmark_extraction.width", config->landmark_extraction.width);
+  config->landmark_extraction.guard = node->declare_parameter<int>(param_prefix + ".landmark_extraction.guard", config->landmark_extraction.guard);
+  config->landmark_extraction.w_median = node->declare_parameter<int>(param_prefix + ".landmark_extraction.w_median", config->landmark_extraction.w_median);
+  config->landmark_extraction.w_binom = node->declare_parameter<int>(param_prefix + ".landmark_extraction.w_binom", config->landmark_extraction.w_binom);
+  config->landmark_extraction.z_q = node->declare_parameter<double>(param_prefix + ".landmark_extraction.z_q", config->landmark_extraction.z_q);
+
+  config->surf.width = node->declare_parameter<int>(param_prefix + ".surf.width", config->surf.width);
+  config->surf.guard = node->declare_parameter<int>(param_prefix + ".surf.guard", config->surf.guard);
+  config->surf.w_median = node->declare_parameter<int>(param_prefix + ".surf.w_median", config->surf.w_median);
+  config->surf.w_binom = node->declare_parameter<int>(param_prefix + ".surf.w_binom", config->surf.w_binom);
+  config->surf.z_q = node->declare_parameter<double>(param_prefix + ".surf.z_q", config->surf.z_q);
+
+  config->cen2019.width = node->declare_parameter<int>(param_prefix + ".cen2019.width", config->cen2019.width);
+  config->cen2019.guard = node->declare_parameter<int>(param_prefix + ".cen2019.guard", config->cen2019.guard);
+  config->cen2019.l_max = node->declare_parameter<int>(param_prefix + ".cen2019.l_max", config->cen2019.l_max);
 
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
@@ -188,8 +256,8 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
           config_->maxr);
     else if (config_->detector == "kstrongest")
       return std::make_unique<KStrongest<PointWithInfo>>(
-          config_->kstrong.kstrong, config_->kstrong.threshold2
-          , config_->kstrong.threshold3, config_->minr, config_->maxr);
+          config_->kstrongest.kstrong, config_->kstrongest.threshold2
+          , config_->kstrongest.threshold3, config_->minr, config_->maxr);
     else if (config_->detector == "cacfar")
       return std::make_unique<CACFAR<PointWithInfo>>(
           config_->cacfar.width, config_->cacfar.guard,
@@ -200,12 +268,84 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
           config_->oscfar.width, config_->oscfar.guard, config_->oscfar.kstat,
           config_->oscfar.threshold, config_->oscfar.threshold2, config_->oscfar.threshold3,
           config_->oscfar.minr, config_->oscfar.maxr);
+    else if (config_->detector == "tm_cfar")
+      return std::make_unique<TM_CFAR<PointWithInfo>>(
+          config_->tm_cfar.width, config_->tm_cfar.guard,
+          config_->tm_cfar.threshold, config_->tm_cfar.N1, config_->tm_cfar.N2,
+          config_->tm_cfar.minr, config_->tm_cfar.maxr);
     else if (config_->detector == "modified_cacfar")
       return std::make_unique<ModifiedCACFAR<PointWithInfo>>(
           config_->modified_cacfar.width, config_->modified_cacfar.guard,
           config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
           config_->modified_cacfar.threshold3,
           config_->modified_cacfar.minr, config_->modified_cacfar.maxr);
+    else if (config_->detector == "modified_cacfar_power")
+      return std::make_unique<ModifiedCACFARPower<PointWithInfo>>(
+          config_->modified_cacfar_power.width, config_->modified_cacfar_power.guard,
+          config_->modified_cacfar_power.threshold, config_->modified_cacfar_power.threshold2,
+          config_->modified_cacfar_power.threshold3,
+          config_->modified_cacfar_power.minr, config_->modified_cacfar_power.maxr);
+    else if (config_->detector == "cago_cfar")
+      return std::make_unique<CAGO_CFAR<PointWithInfo>>(
+          config_->cago_cfar.width, config_->cago_cfar.guard,
+          config_->cago_cfar.threshold,
+          config_->cago_cfar.static_threshold,
+          config_->cago_cfar.minr, config_->cago_cfar.maxr);
+    else if (config_->detector == "caso_cfar")
+      return std::make_unique<CASO_CFAR<PointWithInfo>>(
+          config_->caso_cfar.width, config_->caso_cfar.guard,
+          config_->caso_cfar.threshold,
+          config_->caso_cfar.static_threshold,
+          config_->caso_cfar.minr, config_->caso_cfar.maxr);
+      else if (config_->detector == "is_cfar")
+      return std::make_unique<IS_CFAR<PointWithInfo>>(
+          config_->is_cfar.width, config_->is_cfar.guard,
+          config_->is_cfar.alpha_I,
+          config_->is_cfar.N_TI,
+          config_->is_cfar.beta_I,
+          config_->is_cfar.minr, config_->is_cfar.maxr);
+    else if (config_->detector == "vi_cfar")
+      return std::make_unique<VI_CFAR<PointWithInfo>>(
+          config_->vi_cfar.width, config_->vi_cfar.guard,
+          config_->vi_cfar.K_VI,
+          config_->vi_cfar.K_MR,
+          config_->vi_cfar.C_N,
+          config_->vi_cfar.minr, config_->vi_cfar.maxr);
+    else if (config_->detector == "cfear_kstrong")
+      return std::make_unique<CFEAR_KStrong<PointWithInfo>>(
+          config_->cfear_kstrong.width, config_->cfear_kstrong.guard,
+          config_->cfear_kstrong.kstrong, config_->cfear_kstrong.z_min,
+          config_->cfear_kstrong.r, config_->cfear_kstrong.f, 
+          config_->cfear_kstrong.minr, config_->cfear_kstrong.maxr);
+    else if (config_->detector == "bfar_pure")
+      return std::make_unique<BFAR_PURE<PointWithInfo>>(
+          config_->bfar_pure.width, config_->bfar_pure.guard,
+          config_->bfar_pure.threshold, config_->bfar_pure.threshold2,
+          config_->bfar_pure.threshold3,
+          config_->bfar_pure.minr, config_->bfar_pure.maxr);
+    else if (config_->detector == "msca_cfar")
+      return std::make_unique<MSCA_CFAR<PointWithInfo>>(
+          config_->msca_cfar.width, config_->msca_cfar.guard,
+          config_->msca_cfar.threshold,
+          config_->msca_cfar.M,
+          config_->msca_cfar.minr, config_->msca_cfar.maxr);
+    else if (config_->detector == "landmark_extraction")
+      return std::make_unique<LandmarkExtraction<PointWithInfo>>(
+          config_->landmark_extraction.width, config_->landmark_extraction.guard,
+          config_->landmark_extraction.w_median, config_->landmark_extraction.w_binom,
+          config_->landmark_extraction.z_q,
+          config_->landmark_extraction.minr, config_->landmark_extraction.maxr);
+    else if (config_->detector == "surf")
+      return std::make_unique<SURFExtraction<PointWithInfo>>(
+          config_->surf.width, config_->surf.guard,
+          config_->surf.w_median, config_->surf.w_binom,
+          config_->surf.z_q,
+          config_->surf.minr, config_->surf.maxr);
+    else if (config_->detector == "cen2019")
+      return std::make_unique<Cen2019<PointWithInfo>>(
+          config_->cen2019.width, config_->cen2019.guard,
+          config_->cen2019.l_max,
+          config_->cen2019.minr, config_->cen2019.maxr);
     else {
       CLOG(ERROR, "radar.navtech_extractor")
           << "Unknown detector: " << config_->detector;
@@ -223,8 +363,8 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                  raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
     KStrongest detector = KStrongest<PointWithInfo>(
-        config_->kstrong.kstrong, config_->kstrong.threshold2,
-        config_->kstrong.threshold3, config_->minr, config_->maxr,
+        config_->kstrongest.kstrong, config_->kstrongest.threshold2,
+        config_->kstrongest.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
@@ -243,12 +383,95 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
+  } else if (config_->detector == "tm_cfar") {
+    TM_CFAR detector = TM_CFAR<PointWithInfo>(
+        config_->tm_cfar.width, config_->tm_cfar.guard,
+        config_->tm_cfar.threshold, config_->tm_cfar.N1,
+        config_->tm_cfar.N2, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
   } else if (config_->detector == "modified_cacfar") {
     ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
         config_->modified_cacfar.width, config_->modified_cacfar.guard,
         config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
         config_->modified_cacfar.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "modified_cacfar_power") {
+    ModifiedCACFARPower detector = ModifiedCACFARPower<PointWithInfo>(
+        config_->modified_cacfar_power.width, config_->modified_cacfar_power.guard,
+        config_->modified_cacfar_power.threshold, config_->modified_cacfar_power.threshold2,
+        config_->modified_cacfar_power.threshold3, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "cfear_kstrong") {
+    CFEAR_KStrong detector = CFEAR_KStrong<PointWithInfo>(
+        config_->cfear_kstrong.width, config_->cfear_kstrong.guard,
+        config_->cfear_kstrong.kstrong, config_->cfear_kstrong.z_min,
+        config_->cfear_kstrong.r, config_->cfear_kstrong.f, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "bfar_pure") {
+    BFAR_PURE detector = BFAR_PURE<PointWithInfo>(
+        config_->bfar_pure.width, config_->bfar_pure.guard,
+        config_->bfar_pure.threshold, config_->bfar_pure.threshold2,
+        config_->bfar_pure.threshold3, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "cago_cfar") {
+    CAGO_CFAR detector = CAGO_CFAR<PointWithInfo>(
+        config_->cago_cfar.width, config_->cago_cfar.guard,
+        config_->cago_cfar.threshold,
+        config_->cago_cfar.static_threshold, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "caso_cfar") {
+    CASO_CFAR detector = CASO_CFAR<PointWithInfo>(
+        config_->caso_cfar.width, config_->caso_cfar.guard,
+        config_->caso_cfar.threshold,
+        config_->caso_cfar.static_threshold, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "is_cfar") {
+    IS_CFAR detector = IS_CFAR<PointWithInfo>(
+        config_->is_cfar.width, config_->is_cfar.guard,
+        config_->is_cfar.alpha_I, config_->is_cfar.N_TI,
+        config_->is_cfar.beta_I, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "vi_cfar") {
+    VI_CFAR detector = VI_CFAR<PointWithInfo>(
+        config_->vi_cfar.width, config_->vi_cfar.guard,
+        config_->vi_cfar.K_VI, config_->vi_cfar.K_MR,
+        config_->vi_cfar.C_N, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "msca_cfar") {
+    MSCA_CFAR detector = MSCA_CFAR<PointWithInfo>(
+        config_->msca_cfar.width, config_->msca_cfar.guard,
+        config_->msca_cfar.threshold, config_->msca_cfar.M,
+        config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "landmark_extraction") {
+    LandmarkExtraction detector = LandmarkExtraction<PointWithInfo>(
+        config_->landmark_extraction.width, config_->landmark_extraction.guard,
+        config_->landmark_extraction.w_median, config_->landmark_extraction.w_binom,
+        config_->landmark_extraction.z_q, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "surf") {
+    SURFExtraction detector = SURFExtraction<PointWithInfo>(
+        config_->surf.width, config_->surf.guard,
+        config_->surf.w_median, config_->surf.w_binom,
+        config_->surf.z_q, config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "cen2019") {
+    Cen2019 detector = Cen2019<PointWithInfo>(
+        config_->cen2019.width, config_->cen2019.guard,
+        config_->cen2019.l_max, config_->minr, config_->maxr, config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else {

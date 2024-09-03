@@ -85,8 +85,6 @@ void Tactic::addRun(const bool) {
   graph_->addRun();
   // re-initialize the run
   first_frame_ = true;
-
-  // \todo change to VertexId::Invalid():
   current_vertex_id_ = VertexId((uint64_t)-1);
   // re-initialize the localization chain (path will be added later)
   chain_->reset();
@@ -166,9 +164,8 @@ bool Tactic::passedSeqId(const uint64_t& sid) const {
 
 bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
-  const auto translation = (chain_->T_leaf_trunk()*chain_->T_trunk_target(chain_->sequence().size() - 1)).r_ba_ina().norm();
+  const auto translation = chain_->T_leaf_trunk().r_ab_inb().norm();
 
-  CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
   if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
     return false;
   }

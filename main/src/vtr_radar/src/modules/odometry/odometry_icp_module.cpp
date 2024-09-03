@@ -20,6 +20,11 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
+#include "vtr_radar/modules/preprocessing/conversions/navtech_extraction_module.hpp"
+#include "cv_bridge/cv_bridge.h"
+#include "vtr_radar/detector/detector.hpp"
+#include "vtr_radar/utils/utils.hpp"
+
 namespace vtr {
 namespace radar {
 
@@ -84,6 +89,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
+int frame_num1 = 0;
+
 void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
@@ -125,6 +132,112 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
 
+  // if(frame_num1>3439 && frame_num1 < 3451){
+  //   auto &scan = *qdata.scan;
+  //   scan.convertTo(scan, CV_32F);
+
+  //   /// temp variables
+  //   cv::Mat fft_scan;
+  //   cv::Mat cartesian;
+  //   std::vector<int64_t> azimuth_times;
+  //   std::vector<double> azimuth_angles;
+
+  //   // Load scan, times, azimuths from scan
+  //   load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
+
+  //   // Convert to cartesian BEV image
+  //   double maxr = 80.0;
+  //   double radar_resolution_ = 0.0596;
+  //   double cart_resolution_= 0.2384;
+  //   int cart_pixel_width = (2 * maxr) / cart_resolution_;
+
+  //   const int rows = fft_scan.rows;
+
+  //   // cv::Mat temp;
+  //   // radar_polar_to_cartesian((fft_scan*255.0/2.0), azimuth_angles, temp, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
+  //   // cv::imwrite("/home/epk/radar_topometric_localization/data/epk_test_plots/cen2019/new_sweep_20_0f15/raw_scans/raw_scan_"+ std::to_string(frame_num1) +".jpg", temp);
+
+
+  //   cv::Mat qp_overlay = cv::Mat::zeros(671, 671, CV_32F);
+
+  //   for(unsigned i = 0; i < query_points.size(); ++i) {
+  //     float x = query_points[i].rho*cos(query_points[i].phi)/cart_resolution_;
+  //     float y = query_points[i].rho*sin(query_points[i].phi)/cart_resolution_;
+  //     int px = static_cast<int>(0.5 * 671-x); // Shift by half azimuth_size for positive values
+  //     // int py = static_cast<int>(671 - y);         // Flip y-axis for image coordinates
+  //     int py = static_cast<int>(y+0.5 * 671);         // Flip y-axis for image coordinates
+
+  //     // Plot the point (ensure within image bounds)
+  //     if (px >= 0 && px < 671 && py >= 0 && py < 671) {
+  //         qp_overlay.at<float>(px, py) = 245.0;
+  //         qp_overlay.at<float>(px, py+1) = 245.0;
+  //         qp_overlay.at<float>(px, py-1) = 245.0;
+  //         qp_overlay.at<float>(px+1, py) = 245.0;
+  //         qp_overlay.at<float>(px-1, py) = 245.0;
+  //         qp_overlay.at<float>(px+1, py+1) = 245.0;
+  //         qp_overlay.at<float>(px+1, py-1) = 245.0;
+  //         qp_overlay.at<float>(px-1, py+1) = 245.0;
+  //         qp_overlay.at<float>(px-1, py-1) = 245.0;
+  //     }
+  //   }
+    
+  //   // sleep(5);
+
+  //   // // cv::Mat L_cart;
+  //   // cv::Mat L_cart_colour;
+  //   // // radar_polar_to_cartesian(qp_overlay, azimuth_angles, L_cart, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
+  //   // cv::cvtColor(qp_overlay, L_cart_colour, cv::COLOR_GRAY2BGR);
+  //   // cv::Mat raw_scan_convert, raw_colour_convert;
+  //   // radar_polar_to_cartesian((fft_scan*255.0/2.0), azimuth_angles, raw_scan_convert, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
+  //   // cv::cvtColor(raw_scan_convert, raw_colour_convert, cv::COLOR_GRAY2BGR);
+  //   // // std::cout<<"wid"<<raw_colour_convert.rows<< "col"<<raw_colour_convert.rows<<std::endl;
+  //   // // std::cout<<"wid"<<qp_overlay.rows<< "col"<<qp_overlay.rows<<std::endl;
+
+
+  //   // raw_colour_convert = raw_colour_convert + L_cart_colour;
+
+  //   cv::imwrite("/home/epk/radar_topometric_localization/data/epk_test_plots/CFEAR/points/query_points_"+ std::to_string(frame_num1) +".jpg", qp_overlay);
+
+  //   // cv::Mat pm_overlay = cv::Mat::zeros(400, 3360, CV_32F);
+  //   cv::Mat pm_overlay = cv::Mat::zeros(671, 671, CV_32F);
+
+
+  //   for(unsigned i = 0; i < point_map.size(); ++i) {
+
+  //     float x = point_map[i].rho*cos(point_map[i].phi)/cart_resolution_;
+  //     float y = point_map[i].rho*sin(point_map[i].phi)/cart_resolution_;
+  //     int px = static_cast<int>(0.5 * 671-x);
+  //     int py = static_cast<int>(y+0.5 * 671);   
+
+  //     if (px >= 0 && px < 671 && py >= 0 && py < 671) {
+  //         pm_overlay.at<float>(px, py) = 245.0;
+  //         pm_overlay.at<float>(px, py+1) = 245.0;
+  //         pm_overlay.at<float>(px, py-1) = 245.0;
+  //         pm_overlay.at<float>(px+1, py) = 245.0;
+  //         pm_overlay.at<float>(px-1, py) = 245.0;
+  //         pm_overlay.at<float>(px+1, py+1) = 245.0;
+  //         pm_overlay.at<float>(px+1, py-1) = 245.0;
+  //         pm_overlay.at<float>(px-1, py+1) = 245.0;
+  //         pm_overlay.at<float>(px-1, py-1) = 245.0;
+  //     }
+
+  //   }
+
+  //   // // cv::Mat L_cart1;
+  //   // cv::Mat L_cart_colour1;
+  //   // // radar_polar_to_cartesian(pm_overlay, azimuth_angles, L_cart1, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
+  //   // cv::cvtColor(pm_overlay, L_cart_colour1, cv::COLOR_GRAY2BGR);
+  //   // cv::Mat raw_scan_convert1, raw_colour_convert1;
+  //   // radar_polar_to_cartesian((fft_scan*255.0/2.0), azimuth_angles, raw_scan_convert1, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
+  //   // cv::cvtColor(raw_scan_convert1, raw_colour_convert1, cv::COLOR_GRAY2BGR);
+  //   // raw_colour_convert1 = raw_colour_convert1 + L_cart_colour1;
+
+  //   cv::imwrite("/home/epk/radar_topometric_localization/data/epk_test_plots/CFEAR/maps/point_map_"+ std::to_string(frame_num1) +".jpg", pm_overlay);
+  // }
+
+  // frame_num1++;
+
+  
   /// Parameters
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
@@ -321,14 +434,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // add variables
     for (const auto &var : state_vars)
       problem.addStateVariable(var);
-
+  
     // add prior cost terms
     if (config_->use_trajectory_estimation)
       trajectory->addPriorCostTerms(problem);
 
+
     // shared loss function
     // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
     auto loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
+    
     // cost terms and noise model
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
@@ -381,9 +496,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
+
     GaussNewtonSolver solver(problem, params);
     solver.optimize();
+
     Covariance covariance(solver);
+
+
     timer[3]->stop();
 
     /// Alignment
@@ -511,7 +630,31 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Outputs
-  if (matched_points_ratio > config_->min_matched_ratio) {
+  bool estimate_reasonable = true;
+  // Check if change between initial and final velocity is reasonable
+  if (config_->use_trajectory_estimation) {
+    const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(query_stamp)))->evaluate().matrix();
+    const auto diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
+    // Evaluable<Eigen::Matrix<double, 6, 1>>
+    const auto trans_diff = diff.head<3>();
+    const auto rot_diff = diff.tail<3>();
+    const auto diff_norm = diff.norm();
+    const auto trans_diff_norm = trans_diff.norm();
+    const auto rot_diff_norm = rot_diff.norm();
+
+    CLOG(WARNING, "radar.odometry_icp") << "Current velocity difference: " << diff_norm << " trans diff: "<<trans_diff_norm<< " rot diff: "<<rot_diff_norm; 
+    // CLOG(WARNING, "radar.odometry_icp") << " w_m_r_in_r_eval_: "<< w_m_r_in_r_eval_.transpose();
+    // CLOG(WARNING, "radar.odometry_icp") << " w_m_r_in_r_odo: "<<w_m_r_in_r_odo.transpose();
+
+    // if (diff_norm > 2.0) {
+    if (trans_diff_norm > 2.60 || rot_diff_norm > 1.35) {
+    // if ((trans_diff_norm > 2.5 || rot_diff_norm > 1.35) && matched_points_ratio < 0.95) {
+      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << diff_norm<<" trans diff: "<<trans_diff_norm<< " rot diff: "<<rot_diff_norm;
+      estimate_reasonable = false;
+    }
+  }
+
+  if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable) {
     // undistort the preprocessed pointcloud
     const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
     aligned_mat = T_s_m * aligned_mat;
@@ -551,10 +694,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     *qdata.T_r_m_odo = T_r_m_eval->value();
     *qdata.timestamp_odo = query_stamp;
-//#if 1
-//    CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-//    CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-//#endif
+#if 1
+   CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+   CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
@@ -564,9 +707,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     //
     *qdata.odo_success = true;
   } else {
-    CLOG(WARNING, "radar.odometry_icp")
-        << "Matched points ratio " << matched_points_ratio
-        << " is below the threshold. ICP is considered failed.";
+    if (matched_points_ratio <= config_->min_matched_ratio) {
+      CLOG(WARNING, "radar.odometry_icp")
+          << "Matched points ratio " << matched_points_ratio
+          << " is below the threshold. ICP is considered failed.";
+    }
+
     // do not undistort the pointcloud
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
     cart2pol(*undistorted_point_cloud);
