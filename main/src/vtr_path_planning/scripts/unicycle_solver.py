@@ -22,7 +22,7 @@ step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the angular velocity
-alpha = 0
+alpha = 0.4
 
 # state symbolic variables
 x = ca.SX.sym('x')
