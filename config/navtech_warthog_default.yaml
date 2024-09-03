@@ -79,8 +79,8 @@
         type: radar.RAS3_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
         detector: modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
-        minr: 2.0 # mininum detection distance
-        maxr: 35.0 # maximum detection distance
+        minr: 0.25 # mininum detection distance
+        maxr: 40.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
@@ -130,7 +130,7 @@
         rho_scale: 1.0 # when finding neighbors, set rho to log(rho) / rho_scale
 
         num_sample_linearity: 5000 # max number of sample after filtering based on linearity
-        min_linearity_score: -1.0 # min linearity score (negative value means no filtering)
+        min_linearity_score: 0.4 # min linearity score (negative value means no filtering)
 
         visualize: true
 
