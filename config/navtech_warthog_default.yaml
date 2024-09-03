@@ -80,7 +80,7 @@
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
         detector: modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 2.0 # mininum detection distance
-        maxr: 60.0 # maximum detection distance
+        maxr: 35.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
