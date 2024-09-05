@@ -41,6 +41,7 @@
       task_queue_size: -1
 
       route_completion_translation_threshold: 0.1
+
       chain:
         min_cusp_distance: 1.5
         angle_weight: 7.0
@@ -107,7 +108,7 @@
         modified_cacfar:
           width: 137 # Old: 101, New: 41 # Elliot 101
           guard: 7 # Old: 5, New: 2 # 5
-          threshold: 0.48 # Old: 0.2, New: 1.0 # was 0.7
+          threshold: 0.49 # Old: 0.2, New: 1.0 # was 0.7
           threshold2: 0.0 # Old: 4.0, New: 0.0 cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
           threshold3: 0.23 # Old: 0.0, New: 0.08 # was 0.23
         caso_cfar:
@@ -129,7 +130,7 @@
         rho_scale: 1.0 # when finding neighbors, set rho to log(rho) / rho_scale
 
         num_sample_linearity: 5000 # max number of sample after filtering based on linearity
-        min_linearity_score: 0.4 # min linearity score (negative value means no filtering)
+        min_linearity_score: 0.2 # min linearity score (negative value means no filtering)
 
         visualize: true
 
@@ -137,11 +138,11 @@
       gyro:
         type: radar.odometry_gyro
         traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
-        gyro_cov: 1e-5
+        gyro_cov: 1e-7
 
         # steam parameters #TOTUNE
         verbose: false
-        max_iterations: 5
+        max_iterations: 3
         
       preintegration:
         type: radar.odometry_preintegration
@@ -170,11 +171,11 @@
         cauchy_k: 0.8
         
         #gyro preintegration
-        preint_cov: 1e-15
+        preint_cov: 1e-7
 
         # steam parameters #TOTUNE
         verbose: false
-        max_iterations: 1
+        max_iterations: 3
 
         # threshold #TOTUNE
         min_matched_ratio: 0.3
@@ -231,7 +232,7 @@
 
         # steam parameters #TOTUNE
         verbose: false
-        max_iterations: 1
+        max_iterations: 3
 
         # threshold #TOTUNE
         min_matched_ratio: 0.3
