@@ -113,10 +113,7 @@ class RadarPipeline : public tactic::BasePipeline {
   std::shared_ptr<tactic::Timestamp> preint_start_time_;
   std::shared_ptr<tactic::Timestamp> preint_end_time_;
   std::shared_ptr<sensor_msgs::msg::Imu> last_gyro_msg_;
-  std::shared_ptr<float> preint_detla_yaw_;
-
-  // store last localization status
-  std::shared_ptr<bool> loc_success_;
+  std::shared_ptr<float> preint_delta_yaw_;
 
   VTR_REGISTER_PIPELINE_DEC_TYPE(RadarPipeline);
 };

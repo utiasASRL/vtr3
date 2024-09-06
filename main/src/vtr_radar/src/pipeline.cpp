@@ -82,9 +82,8 @@ void RadarPipeline::reset() {
   preint_start_time_ = nullptr;
   preint_end_time_ = nullptr;
   last_gyro_msg_ = nullptr;
-  preint_detla_yaw_ = nullptr;
+  preint_delta_yaw_ = nullptr;
 
-  loc_success_ = nullptr;
 
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
@@ -122,7 +121,7 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   if(preint_start_time_ != nullptr) qdata->stamp_start_pre_integration = preint_start_time_;
   if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
   if(last_gyro_msg_ != nullptr) qdata->prev_gyro_msg = last_gyro_msg_;
-  if(preint_detla_yaw_ != nullptr) qdata->preintegrated_delta_yaw = preint_detla_yaw_;
+  if(preint_delta_yaw_ != nullptr) qdata->preintegrated_delta_yaw = preint_delta_yaw_;
 
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
@@ -150,7 +149,7 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
   if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
   if(qdata->prev_gyro_msg) last_gyro_msg_ = qdata->prev_gyro_msg.ptr();
-  if(qdata->preintegrated_delta_yaw) preint_detla_yaw_ = qdata->preintegrated_delta_yaw.ptr();
+  if(qdata->preintegrated_delta_yaw) preint_delta_yaw_ = qdata->preintegrated_delta_yaw.ptr();
 }
 
 void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
@@ -161,14 +160,12 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
-  if(loc_success_ != nullptr) qdata->last_loc_success = loc_success_;
 
   for (const auto &module : localization_)
     module->run(*qdata0, *output0, graph, executor);
 
   /// store the current map for localization
   if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();
-  if(qdata->last_loc_success) loc_success_ = qdata->last_loc_success.ptr();
 }
 
 void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
