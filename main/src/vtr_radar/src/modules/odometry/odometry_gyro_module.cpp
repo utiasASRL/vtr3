@@ -166,6 +166,8 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   *qdata.T_r_v_odo = T_r_m_gyro * sliding_map_odo.T_vertex_this().inverse();
   *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+
+  CLOG(DEBUG, "radar.odometry_gyro") << "T_r_v_odo: " << *qdata.T_r_v_odo;
 }
 
 }  // namespace radar
