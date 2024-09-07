@@ -396,8 +396,8 @@ void Navigator::gyroCallback(
 
   LockGuard lock(mutex_);
 
-  // I mean we can still drop those frames if the queue is too big
-  if (queue_.size() > max_queue_size_) {
+  // Drop frames if queue is too big and if it is not a scan message (just gyro)
+  if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
     CLOG(WARNING, "navigation")
         << "Dropping old message because the queue is full.";
     queue_.pop();
