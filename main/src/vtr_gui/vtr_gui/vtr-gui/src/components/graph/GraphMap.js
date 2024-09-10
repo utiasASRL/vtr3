@@ -146,7 +146,7 @@ class GraphMap extends React.Component {
       // map center
       map_center: {lat: 43.78220, lng: -79.4661},
       /// whether the path selection will be the whole path (for annotation)
-      annotateFull: false,
+      annotate_full: false,
     };
     this.fetchMapCenter()
     /// leaflet map
@@ -331,7 +331,6 @@ class GraphMap extends React.Component {
       [43.660511, -79.397019], // Bottom-left coordinates of the image
       [43.661091, -79.395995], // Top-right coordinates of the image
     ];
-    // const [annotateFull, setAnnotateFull] = useState(false);
     return (
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
@@ -384,8 +383,8 @@ class GraphMap extends React.Component {
         >
           <FormControlLabel control={
             <Switch
-              checked={this.state.annotateFull}
-              onChange={() => this.setState({annotateFull: !this.state.annotateFull})}
+              checked={this.state.annotate_full}
+              onChange={() => this.setState({annotate_full: !this.state.annotate_full})}
               inputProps={{ 'aria-label': 'controlled' }}
             />
           } label={
@@ -976,7 +975,7 @@ class GraphMap extends React.Component {
     let interm_pos = { s: null, c: null, e: null };
 
     let getSelectedPath = () => {
-      if (!this.state.annotateFull) {
+      if (!this.state.annotate_full) {
         let paths = this.breadthFirstSearch(selector.vertex.c.id, [selector.vertex.s.id, selector.vertex.e.id]);
         paths[0].reverse();
         return paths[0].concat(paths[1].slice(1));
@@ -1534,7 +1533,6 @@ class GraphMap extends React.Component {
   }
 
   metres2pix(metres) {
-    // Compute conversion factor ( better way of doing this)
     let origin = L.latLng(this.id2vertex.get(this.root_vid));
     let origin_plus_metre = this.map.latLngToLayerPoint(L.latLng(origin.lat - 1, origin.lng));
     let metre_standard = origin_plus_metre.subtract(this.map.latLngToLayerPoint(origin));

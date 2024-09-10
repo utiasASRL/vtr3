@@ -83,4 +83,4 @@ class ToolsMenu extends React.Component {
   }
 }
 
-export default ToolsMenu
+export default ToolsMenu;
