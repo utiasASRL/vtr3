@@ -70,14 +70,6 @@ class ToolsMenu extends React.Component {
           waypointsMap={this.props.waypointsMap}
           handleUpdateWaypoint={this.props.handleUpdateWaypoint}
         />
-        <DeleteWaypoints
-          socket={socket}
-          active={currentTool === "delete_waypoints" ? true : false}
-          onSelect={() => selectTool("delete_waypoints")}
-          onCancel={deselectTool}
-          waypointsMap={this.props.waypointsMap}
-          handleUpdateWaypoint={this.props.handleUpdateWaypoint}
-        />
       </Box>
     );
   }

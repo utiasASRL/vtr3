@@ -48,10 +48,11 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 /// pose graph constants
 const ROUTE_TYPE_COLOR = ["#ff0000", "#fd4a18", "#ffa500", "#fecd29", "#ffff00", "#6aaf1e", "#008000", "#000000"];
-const ROUTE_TYPE_WIDTH = [0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 10.0, 0.05];
+const ROUTE_TYPE_WIDTH = [0.4, 1.0, 2.0, 3.0, 4.0, 5.0, 20.0, 0.05];
 const ROUTE_TYPE_OPACITY = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.9];
+const ANNOTATE_LINE_COLOR = "#000000";
+const ANNOTATE_LINE_WIDTH = 0.5;
 const GRAPH_OPACITY = 0.9;
-const GRAPH_WEIGHT = 7;
 
 /// robot constants
 const ROBOT_OPACITY = 0.8;
@@ -1157,11 +1158,11 @@ class GraphMap extends React.Component {
         });
         if (this.annotate_polyline === null) {
           this.annotate_polyline = L.polyline(latlngs, {
-            color: "#000000",
+            color: ANNOTATE_LINE_COLOR,
             opacity: GRAPH_OPACITY,
-            weight: GRAPH_WEIGHT,
+            weight: this.metres2pix(ANNOTATE_LINE_WIDTH),
             pane: "graph",
-            lineCap: "butt"
+            lineCap: "butt",
           });
           this.annotate_polyline.addTo(this.map);
         } else {
@@ -1172,13 +1173,15 @@ class GraphMap extends React.Component {
     this.createSelector(this.annotate_route_selector, selectPathCallback);
 
     this.annotateRouteZoomEnd = () => {
+
       let type = this.state.annotate_route_type;
       this.setState({ annotate_route_type: type }, () =>
         this.annotate_polyline.setStyle({ 
-          color: ROUTE_TYPE_COLOR[type % ROUTE_TYPE_COLOR.length],
-          weight: this.metres2pix(ROUTE_TYPE_WIDTH[type % ROUTE_TYPE_COLOR.length]),
-          opacity: ROUTE_TYPE_OPACITY[type % ROUTE_TYPE_COLOR.length],
-          lineCap: "butt"
+          color: ANNOTATE_LINE_COLOR,
+          opacity: GRAPH_OPACITY,
+          weight: this.metres2pix(ANNOTATE_LINE_WIDTH),
+          pane: "graph",
+          lineCap: "butt",
         })
       );
     };
@@ -1204,10 +1207,11 @@ class GraphMap extends React.Component {
     if (this.annotate_polyline === null) return;
     this.setState({ annotate_route_type: type }, () =>
       this.annotate_polyline.setStyle({ 
-        color: ROUTE_TYPE_COLOR[type % ROUTE_TYPE_COLOR.length],
-        weight: this.metres2pix(ROUTE_TYPE_WIDTH[type % ROUTE_TYPE_COLOR.length]),
-        opacity: ROUTE_TYPE_OPACITY[type % ROUTE_TYPE_COLOR.length],
-        lineCap: "butt"
+        color: ANNOTATE_LINE_COLOR,
+        opacity: GRAPH_OPACITY,
+        weight: this.metres2pix(ANNOTATE_LINE_WIDTH),
+        pane: "graph",
+        lineCap: "butt",
       })
     );
   }

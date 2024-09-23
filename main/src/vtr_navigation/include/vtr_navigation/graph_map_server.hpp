@@ -20,7 +20,6 @@
 
 #include <utility>
 #include <proj.h>
-#include <boost/circular_buffer.hpp>
 #include <math.h>
 #include <cmath>
 
@@ -206,7 +205,7 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   const float dist_thres_ = 0.1;
   bool initial_pose_set_ = false;
-  boost::circular_buffer<std::pair<int, int>> gps_coords_ {2};
+  std::deque<std::pair<int, int>> gps_coords_ {2};
 };
 
 class RvizGraphMapServer : public GraphMapServer,

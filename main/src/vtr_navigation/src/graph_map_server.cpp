@@ -66,6 +66,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   const auto lng = node->declare_parameter<double>("graph_projection.origin_lng", -79.466092);
   const auto theta = node->declare_parameter<double>("graph_projection.origin_theta", 0.);
   const auto scale = node->declare_parameter<double>("graph_projection.scale", 1.);
+  const auto pose_pub_topic_ = node->declare_parameter<std::string>("graph_projection.gps_topic", "/novatel/fix");
 
   /// Publishers and services
   callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -89,7 +90,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   update_waypoint_sub_ = node->create_subscription<UpdateWaypointMsg>("update_waypoint", rclcpp::QoS(10), std::bind(&GraphMapServer::updateWaypointCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
 
-  pose_pub_ = node->create_subscription<NavSatFix>("/novatel/fix", rclcpp::QoS(10), std::bind(&GraphMapServer::poseCallback, this, std::placeholders::_1), sub_opt);
+  pose_pub_ = node->create_subscription<NavSatFix>(pose_pub_topic_, rclcpp::QoS(10), std::bind(&GraphMapServer::poseCallback, this, std::placeholders::_1), sub_opt);
 
   // initialize graph mapinfo if working on a new map
   auto map_info = graph->getMapInfo();
@@ -234,6 +235,7 @@ float GraphMapServer::deltaLatToMetres(float lat1, float lat2) {
 
 void GraphMapServer::poseCallback(const NavSatFix::ConstSharedPtr msg) {
   gps_coords_.push_back(std::make_pair(msg->longitude, msg->latitude));
+  gps_coords_.pop_front();
   const auto graph = getGraph();
   auto map_info = graph->getMapInfo();
 
