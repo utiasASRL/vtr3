@@ -982,11 +982,10 @@ class GraphMap extends React.Component {
         return paths[0].concat(paths[1].slice(1));
       }
       else {
-        let paths = Array.from(this.id2vertex.keys());
-        paths.sort(function(a, b) {
-          return a - b;
-        });
-        return paths;
+        let end_id = Math.max(...Array.from(this.id2vertex.keys()));
+        let paths = this.breadthFirstSearch(selector.vertex.c.id, [0, end_id]);
+        paths[0].reverse();
+        return paths[0].concat(paths[1].slice(1));
       }
     };
 
