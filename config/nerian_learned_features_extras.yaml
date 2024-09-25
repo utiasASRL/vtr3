@@ -2,6 +2,7 @@
   ros__parameters:
     log_enabled:
      - stereo.learned_features
+    #  - tactic.module
 
     ############ tactic configuration ############
     tactic:
@@ -32,8 +33,7 @@
           learned:
             # we're providing the surf settings (don't change this param, use a different file)
             type: "LEARNED_FEATURE"
-            modelPath: "/home/alec/ASRL/vtr3/models/unsup_unet_3.pt"
-
+            modelPath: "${VTRROOT}/models/weights.pt"
 
             stereoDisparityMinimum: 0.1
             stereoDisparityMaximum: 100.0
