@@ -31,7 +31,6 @@ import GoalManager from "../goal/GoalManager";
 import TaskQueue from "../task_queue/TaskQueue";
 
 import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";
-import RunningGoalWaypointSVG from "../../images/running-goal-waypoint.svg";
 import RobotIconSVG from "../../images/arrow.svg";
 import TargetIconSVG from "../../images/arrow-merge.svg";
 import SelectorCenterSVG from "../../images/selector-center.svg";
@@ -73,11 +72,6 @@ const FOLLOWING_ROUTE_WEIGHT = 4;
 ///
 const NEW_GOAL_WAYPOINT_ICON = new L.Icon({
   iconUrl: NewGoalWaypointSVG,
-  iconAnchor: [15, 30],
-  iconSize: new L.Point(30, 30),
-});
-const RUNNING_GOAL_WAYPOINT_ICON = new L.Icon({
-  iconUrl: RunningGoalWaypointSVG,
   iconAnchor: [15, 30],
   iconSize: new L.Point(30, 30),
 });
@@ -148,6 +142,7 @@ class GraphMap extends React.Component {
       map_center: {lat: 43.78220, lng: -79.4661},
       /// whether the path selection will be the whole path (for annotation)
       annotate_full: false,
+      in_select_mode: false,
     };
     this.fetchMapCenter()
     /// leaflet map
@@ -314,7 +309,6 @@ class GraphMap extends React.Component {
     const {
       server_state,
       waypoints_map,
-      display_waypoints_map,
       goals,
       curr_goal_idx,
       new_goal_type,
@@ -374,8 +368,8 @@ class GraphMap extends React.Component {
         <Box
           sx={{
             position: "absolute",
-            bottom: 0,
-            left: "77%",
+            bottom: -3,
+            left: "72.5%",
             transform: "translate(-50%, -50%)",
             zIndex: 1000,
             display: "flex",
@@ -385,6 +379,7 @@ class GraphMap extends React.Component {
           <FormControlLabel control={
             <Switch
               checked={this.state.annotate_full}
+              disabled={this.state.in_select_mode}
               onChange={() => this.setState({annotate_full: !this.state.annotate_full})}
               inputProps={{ 'aria-label': 'controlled' }}
             />
@@ -560,7 +555,6 @@ class GraphMap extends React.Component {
   route2Polyline(route) {
     // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
     let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
-    let width = route.type + 2
     let latlngs = route.ids.map((id) => {
       let v = this.id2vertex.get(id);
       return [v.lat, v.lng];
@@ -1147,6 +1141,7 @@ class GraphMap extends React.Component {
   /// Annotate Route
   startAnnotateRoute() {
     console.info("Start annotating route");
+    this.setState({in_select_mode: true});
     this.annotate_route_selector = { marker: { s: null, c: null, e: null }, vertex: { s: null, c: null, e: null } };
     this.annotate_polyline = null;
     let selectPathCallback = (ids) => {
@@ -1200,6 +1195,7 @@ class GraphMap extends React.Component {
       this.removeSelector(this.annotate_route_selector);
       this.annotate_route_selector = null;
     }
+    this.setState({in_select_mode: false});
   }
 
   handleAnnotateRouteSliderChange(type) {
@@ -1347,7 +1343,7 @@ class GraphMap extends React.Component {
       let new_diff_rot_p = new_rot_loc_p.subtract(trans_loc_p);
       let rot_mag = Math.sqrt(Math.pow(diff_rot_p.x, 2) + Math.pow(diff_rot_p.y, 2));
       let new_rot_mag = Math.sqrt(Math.pow(new_diff_rot_p.x, 2) + Math.pow(new_diff_rot_p.y, 2));
-      if (new_rot_mag == 0) return;
+      if (new_rot_mag === 0) return;
       new_rot_loc_p = trans_loc_p.add(new_diff_rot_p.multiplyBy(rot_mag / new_rot_mag));
 
       // Scale marker moves with rot marker
@@ -1384,7 +1380,7 @@ class GraphMap extends React.Component {
       let new_diff_scale_p = new_scale_loc_p.subtract(trans_loc_p);
       let scale_mag = Math.sqrt(Math.pow(diff_scale_p.x, 2) + Math.pow(diff_scale_p.y, 2));
       let new_scale_mag = Math.sqrt(Math.pow(new_diff_scale_p.x, 2) + Math.pow(new_diff_scale_p.y, 2));
-      if (new_scale_mag == 0) return;
+      if (new_scale_mag === 0) return;
       new_scale_loc_p = trans_loc_p.add(diff_scale_p.multiplyBy(new_scale_mag / scale_mag));
 
       // Scale marker moves with rot marker
