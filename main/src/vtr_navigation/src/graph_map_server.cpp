@@ -66,6 +66,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   const auto lng = node->declare_parameter<double>("graph_projection.origin_lng", -79.466092);
   const auto theta = node->declare_parameter<double>("graph_projection.origin_theta", 0.);
   const auto scale = node->declare_parameter<double>("graph_projection.scale", 1.);
+  const auto pose_pub_topic_ = node->declare_parameter<std::string>("graph_projection.gps_topic", "/novatel/fix");
 
   /// Publishers and services
   callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -80,13 +81,17 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   following_route_pub_ = node->create_publisher<FollowingRoute>("following_route", 10);
   following_route_srv_ = node->create_service<FollowingRouteSrv>("following_route_srv", std::bind(&GraphMapServer::followingRouteSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
+
    // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
   annotate_route_sub_ = node->create_subscription<AnnotateRouteMsg>("annotate_route", rclcpp::QoS(10), std::bind(&GraphMapServer::annotateRouteCallback, this, std::placeholders::_1), sub_opt);
   move_graph_sub_ = node->create_subscription<MoveGraphMsg>("move_graph", rclcpp::QoS(10), std::bind(&GraphMapServer::moveGraphCallback, this, std::placeholders::_1), sub_opt);
   update_waypoint_sub_ = node->create_subscription<UpdateWaypointMsg>("update_waypoint", rclcpp::QoS(10), std::bind(&GraphMapServer::updateWaypointCallback, this, std::placeholders::_1), sub_opt);
+  mission_command_sub_ = node->create_subscription<MissionCommandMsg>("mission_command", rclcpp::QoS(10), std::bind(&GraphMapServer::updateMissionCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
+
+  pose_pub_ = node->create_subscription<NavSatFix>(pose_pub_topic_, rclcpp::QoS(10), std::bind(&GraphMapServer::poseCallback, this, std::placeholders::_1), sub_opt);
 
   // initialize graph mapinfo if working on a new map
   auto map_info = graph->getMapInfo();
@@ -151,6 +156,11 @@ void GraphMapServer::followingRouteSrvCallback(
   response->following_route = following_route_;
 }
 
+void GraphMapServer::updateMissionCallback(
+    const MissionCommandMsg::ConstSharedPtr msg) {
+  goal_ = msg->goal_handle.type;
+}
+
 void GraphMapServer::annotateRouteCallback(
     const AnnotateRouteMsg::ConstSharedPtr msg) {
   CLOG(DEBUG, "navigation.graph_map_server")
@@ -204,6 +214,52 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   updateRobotProjection();
   //
   graph_state_pub_->publish(graph_state_);
+}
+
+float GraphMapServer::haversineDist(float lat1, float lat2, float lon1, float lon2) {
+  float R = 6378137.0; // Radius of earth in metres
+  float dLat = lat2 * M_PI / 180 - lat1 * M_PI / 180;
+  float dLon = lon2 * M_PI / 180 - lon1 * M_PI / 180;
+  float a = std::sin(dLat/2) * std::sin(dLat/2) +
+    std::cos(lat1 * M_PI / 180) * std::cos(lat2 * M_PI / 180) *
+    std::sin(dLon/2) * std::sin(dLon/2);
+  float c = 2 * atan2(std::sqrt(a), std::sqrt(1-a));
+  float d = R * c;
+  return d;
+}
+
+float GraphMapServer::deltaLongToMetres(float lat1, float lat2, float lon1, float lon2) {
+  float avg_lat = (lat1 + lat2) / 2;
+  float dist = (lon2 - lon1) * std::cos(avg_lat * M_PI / 180) * 111000;
+  return dist;
+}
+
+float GraphMapServer::deltaLatToMetres(float lat1, float lat2) {
+  float dist = (lat2 - lat1) * 111000;
+  return dist;
+}
+
+void GraphMapServer::poseCallback(const NavSatFix::ConstSharedPtr msg) {
+  gps_coords_.push_back(std::make_pair(msg->longitude, msg->latitude));
+  gps_coords_.pop_front();
+  const auto graph = getGraph();
+  auto map_info = graph->getMapInfo();
+
+  auto prev_coords = gps_coords_[0];
+  auto dist = haversineDist(prev_coords.second, msg->latitude, prev_coords.first, msg->longitude);
+
+  if (goal_ == GoalHandle::TEACH && gps_coords_.size() >= 2 && !initial_pose_set_ && dist > dist_thres_) {
+    auto delta_lng = deltaLongToMetres(prev_coords.second, msg->latitude, prev_coords.first, msg->longitude);
+    auto delta_lat = deltaLatToMetres(prev_coords.second, msg->latitude);
+
+    map_info.root_vid = 0;
+    map_info.lng = (float) msg->longitude;
+    map_info.lat = (float) msg->latitude;
+    map_info.theta = (float) atan2(delta_lat, delta_lng);
+    map_info.set = true;
+    graph->setMapInfo(map_info);
+    initial_pose_set_ = true;
+  }
 }
 
 void GraphMapServer::updateWaypointCallback(

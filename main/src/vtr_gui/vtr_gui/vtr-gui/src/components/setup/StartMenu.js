@@ -92,6 +92,7 @@ class StartMenu extends React.Component {constructor(props) {
                 width: "90%",
                 margin: "5% 10% 0% 0%",
               }}
+              alt="ASRL"
             />
             <div
               style={{

@@ -18,7 +18,10 @@
  */
 #pragma once
 
+#include <utility>
 #include <proj.h>
+#include <math.h>
+#include <cmath>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -28,6 +31,7 @@
 
 #include "vtr_navigation_msgs/msg/annotate_route.hpp"
 #include "vtr_navigation_msgs/msg/update_waypoint.hpp"
+#include "vtr_navigation_msgs/msg/mission_command.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
 #include "vtr_navigation_msgs/msg/graph_update.hpp"
@@ -38,6 +42,7 @@
 #include "vtr_navigation_msgs/srv/robot_state.hpp"
 #include "vtr_pose_graph_msgs/msg/map_info.hpp"
 #include "vtr_pose_graph_msgs/srv/map_info.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
 
 namespace vtr {
 namespace navigation {
@@ -65,6 +70,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
   using UpdateWaypointMsg = vtr_navigation_msgs::msg::UpdateWaypoint;
+  using MissionCommandMsg = vtr_navigation_msgs::msg::MissionCommand;
+  using GoalHandle = vtr_navigation_msgs::msg::GoalHandle;
 
   using VertexPtr = tactic::Graph::VertexPtr;
   using EdgePtr = tactic::Graph::EdgePtr;
@@ -75,6 +82,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   using GraphPtr = tactic::Graph::Ptr;
   using GraphWeakPtr = tactic::Graph::WeakPtr;
   using GraphBasePtr = tactic::GraphBase::Ptr;
+
+  using NavSatFix = sensor_msgs::msg::NavSatFix;
 
   using VertexId2TransformMap = std::unordered_map<VertexId, Transform>;
   using VertexId2IdxMap = std::unordered_map<VertexId, size_t>;
@@ -105,7 +114,9 @@ class GraphMapServer : public tactic::Graph::Callback,
       std::shared_ptr<MapInfoSrv::Response> response) const;
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
+  void poseCallback(const NavSatFix::ConstSharedPtr msg);
   void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
+  void updateMissionCallback(const MissionCommandMsg::ConstSharedPtr msg);
 
  private:
   /// these functions are called with graph mutex locked
@@ -135,6 +146,10 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   void updateRobotProjection();
 
+  float haversineDist(float lat1, float lat2, float lon1, float lon2);
+  float deltaLongToMetres(float lat1, float lat2, float lon1, float lon2);
+  float deltaLatToMetres(float lat1, float lat2);
+
  private:
   /** \brief Graph that generates the callbacks */
   GraphWeakPtr graph_;
@@ -148,6 +163,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   VertexId2IdxMap vid2idx_map_;
   /** \brief Vertices and routes */
   GraphState graph_state_;
+
+  uint goal_;
 
   /**
    * \brief Cached robot persistent & target localization used after graph
@@ -189,6 +206,13 @@ class GraphMapServer : public tactic::Graph::Callback,
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
   rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
   rclcpp::Subscription<UpdateWaypointMsg>::SharedPtr update_waypoint_sub_;
+  rclcpp::Subscription<MissionCommandMsg>::SharedPtr mission_command_sub_;
+
+  rclcpp::Subscription<NavSatFix>::SharedPtr pose_pub_;
+
+  const float dist_thres_ = 0.1;
+  bool initial_pose_set_ = false;
+  std::deque<std::pair<int, int>> gps_coords_ {2};
 };
 
 class RvizGraphMapServer : public GraphMapServer,
