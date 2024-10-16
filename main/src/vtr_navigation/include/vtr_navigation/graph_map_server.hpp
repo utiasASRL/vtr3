@@ -31,6 +31,7 @@
 
 #include "vtr_navigation_msgs/msg/annotate_route.hpp"
 #include "vtr_navigation_msgs/msg/update_waypoint.hpp"
+#include "vtr_navigation_msgs/msg/mission_command.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
 #include "vtr_navigation_msgs/msg/graph_update.hpp"
@@ -69,6 +70,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
   using UpdateWaypointMsg = vtr_navigation_msgs::msg::UpdateWaypoint;
+  using MissionCommandMsg = vtr_navigation_msgs::msg::MissionCommand;
+  using GoalHandle = vtr_navigation_msgs::msg::GoalHandle;
 
   using VertexPtr = tactic::Graph::VertexPtr;
   using EdgePtr = tactic::Graph::EdgePtr;
@@ -113,6 +116,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
   void poseCallback(const NavSatFix::ConstSharedPtr msg);
   void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
+  void updateMissionCallback(const MissionCommandMsg::ConstSharedPtr msg);
 
  private:
   /// these functions are called with graph mutex locked
@@ -160,6 +164,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   /** \brief Vertices and routes */
   GraphState graph_state_;
 
+  uint goal_;
+
   /**
    * \brief Cached robot persistent & target localization used after graph
    * relaxation and calibration
@@ -200,6 +206,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
   rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
   rclcpp::Subscription<UpdateWaypointMsg>::SharedPtr update_waypoint_sub_;
+  rclcpp::Subscription<MissionCommandMsg>::SharedPtr mission_command_sub_;
 
   rclcpp::Subscription<NavSatFix>::SharedPtr pose_pub_;
 

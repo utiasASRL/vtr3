@@ -88,6 +88,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   annotate_route_sub_ = node->create_subscription<AnnotateRouteMsg>("annotate_route", rclcpp::QoS(10), std::bind(&GraphMapServer::annotateRouteCallback, this, std::placeholders::_1), sub_opt);
   move_graph_sub_ = node->create_subscription<MoveGraphMsg>("move_graph", rclcpp::QoS(10), std::bind(&GraphMapServer::moveGraphCallback, this, std::placeholders::_1), sub_opt);
   update_waypoint_sub_ = node->create_subscription<UpdateWaypointMsg>("update_waypoint", rclcpp::QoS(10), std::bind(&GraphMapServer::updateWaypointCallback, this, std::placeholders::_1), sub_opt);
+  mission_command_sub_ = node->create_subscription<MissionCommandMsg>("mission_command", rclcpp::QoS(10), std::bind(&GraphMapServer::updateMissionCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
 
   pose_pub_ = node->create_subscription<NavSatFix>(pose_pub_topic_, rclcpp::QoS(10), std::bind(&GraphMapServer::poseCallback, this, std::placeholders::_1), sub_opt);
@@ -153,6 +154,11 @@ void GraphMapServer::followingRouteSrvCallback(
       << "Received following route request";
   SharedLock lock(mutex_);
   response->following_route = following_route_;
+}
+
+void GraphMapServer::updateMissionCallback(
+    const MissionCommandMsg::ConstSharedPtr msg) {
+  goal_ = msg->goal_handle.type;
 }
 
 void GraphMapServer::annotateRouteCallback(
@@ -242,7 +248,7 @@ void GraphMapServer::poseCallback(const NavSatFix::ConstSharedPtr msg) {
   auto prev_coords = gps_coords_[0];
   auto dist = haversineDist(prev_coords.second, msg->latitude, prev_coords.first, msg->longitude);
 
-  if (gps_coords_.size() >= 2 && !initial_pose_set_ && dist > dist_thres_) {
+  if (goal_ == GoalHandle::TEACH && gps_coords_.size() >= 2 && !initial_pose_set_ && dist > dist_thres_) {
     auto delta_lng = deltaLongToMetres(prev_coords.second, msg->latitude, prev_coords.first, msg->longitude);
     auto delta_lat = deltaLatToMetres(prev_coords.second, msg->latitude);
 
