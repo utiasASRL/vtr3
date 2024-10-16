@@ -186,6 +186,33 @@ class ModifiedCACFAR : public Detector<PointT> {
   double range_offset_ = -0.31;
 };
 
+template <class PointT>
+class CASO_CFAR : public Detector<PointT> {
+ public:
+  CASO_CFAR() = default;
+  CASO_CFAR(int width, int guard, double threshold, double minr, double maxr,
+                 double range_offset)
+      : width_(width),
+        guard_(guard),
+        threshold_(threshold),
+        minr_(minr),
+        maxr_(maxr),
+        range_offset_(range_offset) {}
+
+  void run(const cv::Mat &raw_scan, const float &res,
+           const std::vector<int64_t> &azimuth_times,
+           const std::vector<double> &azimuth_angles,
+           pcl::PointCloud<PointT> &pointcloud) override;
+
+ private:
+  int width_ = 41;  // window = width + 2 * guard
+  int guard_ = 2;
+  double threshold_ = 3.0;
+  double minr_ = 2.0;
+  double maxr_ = 100.0;
+  double range_offset_ = -0.31;
+};
+
 }  // namespace radar
 }  // namespace vtr
 

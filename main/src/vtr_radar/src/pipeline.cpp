@@ -74,6 +74,17 @@ void RadarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
+
+  timestamp_odo_radar_ = nullptr;
+  T_r_m_odo_radar_ = nullptr;
+  w_m_r_in_r_odo_radar_ = nullptr;
+
+  preint_start_time_ = nullptr;
+  preint_end_time_ = nullptr;
+  last_gyro_msg_ = nullptr;
+  preint_delta_yaw_ = nullptr;
+
+
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -100,10 +111,22 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
+
+    qdata->timestamp_odo_radar = timestamp_odo_radar_;
+    qdata->T_r_m_odo_radar = T_r_m_odo_radar_;
+    qdata->w_m_r_in_r_odo_radar = w_m_r_in_r_odo_radar_;
   }
+
+  /// Carry over preintegration stuff
+  if(preint_start_time_ != nullptr) qdata->stamp_start_pre_integration = preint_start_time_;
+  if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
+  if(last_gyro_msg_ != nullptr) qdata->prev_gyro_msg = last_gyro_msg_;
+  if(preint_delta_yaw_ != nullptr) qdata->preintegrated_delta_yaw = preint_delta_yaw_;
 
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
+
+
 
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
@@ -111,7 +134,22 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+
+    if (qdata->scan_msg)
+    { 
+      timestamp_odo_radar_ = qdata->timestamp_odo_radar.ptr();
+      T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
+      w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr(); 
+    }
+
   }
+
+  // store the preintegration stuff
+
+  if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
+  if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
+  if(qdata->prev_gyro_msg) last_gyro_msg_ = qdata->prev_gyro_msg.ptr();
+  if(qdata->preintegrated_delta_yaw) preint_delta_yaw_ = qdata->preintegrated_delta_yaw.ptr();
 }
 
 void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
@@ -119,7 +157,7 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
-
+  
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
 
