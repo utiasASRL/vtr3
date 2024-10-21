@@ -94,9 +94,12 @@ class RadarPipeline : public tactic::BasePipeline {
   std::shared_ptr<PointMap<PointWithInfo>> sliding_map_odo_;
   /** \brief current timestamp*/
   std::shared_ptr<tactic::Timestamp> timestamp_odo_;
+  std::shared_ptr<tactic::Timestamp> timestamp_odo_radar_;
   /** \brief current pose and body velocity w.r.t the sliding map */
   std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_;
+  std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_radar_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_;
+  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar_;
   /** \brief vertex id of the last submap */
   tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
   /** \brief transformation from latest submap vertex to robot */
@@ -105,6 +108,12 @@ class RadarPipeline : public tactic::BasePipeline {
   /// localization cached data
   /** \brief Current submap for localization */
   std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;
+
+  /// preintegration cached data
+  std::shared_ptr<tactic::Timestamp> preint_start_time_;
+  std::shared_ptr<tactic::Timestamp> preint_end_time_;
+  std::shared_ptr<sensor_msgs::msg::Imu> last_gyro_msg_;
+  std::shared_ptr<float> preint_delta_yaw_;
 
   VTR_REGISTER_PIPELINE_DEC_TYPE(RadarPipeline);
 };

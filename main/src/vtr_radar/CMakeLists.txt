@@ -29,6 +29,8 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
 find_package(vtr_radar_msgs REQUIRED)
 
+find_package(navtech_msgs REQUIRED)
+
 if(DEFINED VTR_ENABLE_RADAR)
 
 ## C++ Libraries
@@ -63,7 +65,7 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
   cv_bridge pcl_conversions pcl_ros
   nav_msgs visualization_msgs
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_radar_msgs
+  vtr_common vtr_logging vtr_tactic vtr_radar_msgs navtech_msgs
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
@@ -72,7 +74,7 @@ ament_export_dependencies(
   cv_bridge pcl_conversions pcl_ros
   nav_msgs visualization_msgs
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_radar_msgs
+  vtr_common vtr_logging vtr_tactic vtr_radar_msgs navtech_msgs
 )
 
 install(
