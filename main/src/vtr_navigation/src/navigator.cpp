@@ -183,7 +183,6 @@ if (pipeline->name() == "stereo") {
 #endif
   // clang-format on
 
-// #Sam added radar callback
 #ifdef VTR_ENABLE_RADAR
 if (pipeline->name() == "radar") {
 
@@ -226,7 +225,7 @@ if (pipeline->name() == "radar") {
   CLOG(INFO, "navigation") << "VT&R3 initialization done!";
 }
 
-// Sam: This is the destructor for the navigator class
+
 Navigator::~Navigator() {
   UniqueLock lock(mutex_);
   // send stop signal
@@ -272,12 +271,9 @@ void Navigator::process() {
     // unlock the queue so that new data can be added
     lock.unlock();
 
-    // Sam: I want to log before and after the data is passed to the pipeline
-    CLOG(DEBUG, "navigation") << "Sam: Passing data to the pipeline";
     // execute the pipeline
     tactic_->input(qdata0);
-    CLOG(DEBUG, "navigation") << "Sam: Data passed to the pipeline";
-
+ 
     // handle any transitions triggered by changes in localization status
     state_machine_->handle();
   };
@@ -302,7 +298,6 @@ void Navigator::lidarCallback(
   auto query_data = std::make_shared<lidar::LidarQueryCache>();
 
   LockGuard lock(mutex_);
-
 
   /// Discard old frames if our queue is too big
   if (queue_.size() > max_queue_size_) {
@@ -332,7 +327,7 @@ void Navigator::lidarCallback(
 };
 #endif
 
-// #Sam added radar callback. Similar to Lidar, we need to know what to do when a radar message is received
+// Radar callback: Similar to Lidar, we need to know what to do when a radar message is received
 #ifdef VTR_ENABLE_RADAR
 void Navigator::radarCallback(
     const navtech_msgs::msg::RadarBScanMsg::SharedPtr msg) {
@@ -345,7 +340,7 @@ void Navigator::radarCallback(
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
 
-  CLOG(DEBUG, "navigation") << "Sam: In the callback: Created radar query cache";
+  // CLOG(DEBUG, "navigation") << "Sam: In the callback: Created radar query cache";
 
   LockGuard lock(mutex_);
 
@@ -377,7 +372,7 @@ void Navigator::radarCallback(
   // add to the queue and notify the processing thread
   CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding radar message to the queue";
   queue_.push(query_data);
-  CLOG(DEBUG, "navigation") << "Sam: In the callback: Added radar message to the queue";
+
   cv_set_or_stop_.notify_one();
 }
 
@@ -392,7 +387,7 @@ void Navigator::gyroCallback(
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
 
-  CLOG(DEBUG, "navigation") << "Sam: In the callback: Created gyro query cache";
+  CLOG(DEBUG, "navigation") << "In the callback: Created gyro query cache";
 
   LockGuard lock(mutex_);
 

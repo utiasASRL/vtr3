@@ -123,7 +123,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = true;
     // clang-format on
 
-    // This is the first odometyr frame
+    // This is the first odomety frame
     // Initialize preintegration
     qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
     qdata.stamp_start_pre_integration.emplace(*qdata.stamp);

@@ -14,7 +14,7 @@
 
 /**
  * \file odometry_gyro_module.cpp
- * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \author Sven Lilge, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar/modules/odometry/odometry_gyro_module.hpp"
 

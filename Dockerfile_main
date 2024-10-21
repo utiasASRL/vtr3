@@ -52,6 +52,9 @@ RUN apt update && apt install -q -y libeigen3-dev
 RUN apt update && apt install -q -y libsqlite3-dev sqlite3
 RUN apt install -q -y libc6-dbg gdb valgrind
 
+## Dependency for navtech radar
+RUN apt update && apt install -q -y apt libbotan-2-dev
+
 ## Install PROJ (8.2.0) (this is for graph_map_server in vtr_navigation)
 RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
 RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \

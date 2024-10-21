@@ -37,7 +37,7 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #endif
 
-#if defined(VTR_ENABLE_RADAR)
+#ifdef VTR_ENABLE_RADAR
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #endif

@@ -24,7 +24,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RadarConfigurationMsg.msg"
-  "msg/CameraConfigurationMessage.msg"
   "msg/RadarBScanMsg.msg"
   "msg/RadarFftDataMsg.msg"
   DEPENDENCIES builtin_interfaces std_msgs sensor_msgs
