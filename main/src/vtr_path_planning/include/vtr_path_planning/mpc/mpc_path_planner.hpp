@@ -32,9 +32,9 @@ public:
     // TODO add an automatic way to keep the code in sync
     static constexpr int nStates = 3;
     static constexpr int nControl = 2;
-    static constexpr double alpha = 0.4;
-    static constexpr int N = 15;
-    static constexpr double DT = 0.25;
+    static constexpr double alpha = 0.15;
+    static constexpr int N = 8;
+    static constexpr double DT = 0.4;
     DM previous_vel{nControl, 1};
     DM T0{nStates, 1};
     std::vector<DM> reference_poses;

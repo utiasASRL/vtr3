@@ -103,7 +103,7 @@ typedef message_filters::sync_policies::ApproximateTime<
   mutable std::condition_variable cv_thread_finish_;
 
   std::queue<tactic::QueryCache::Ptr> queue_;
-  int max_queue_size_ = 5;
+  int max_queue_size_ = 2;
   tactic::EnvInfo env_info_;
   
   /// VTR building blocks

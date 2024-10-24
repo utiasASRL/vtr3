@@ -62,6 +62,11 @@ void BasePathPlanner::stop() {
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
   CLOG(INFO, "path_planning") << "Starting the base path planning thread.";
+
+  tactic::Timestamp last_processed_timestamp = 0;
+  // track last command
+  Command last_command;
+
   while (true) {
     UniqueLock lock(mutex_);
     cv_terminate_or_state_changed_.wait(lock, [this] {
@@ -85,11 +90,26 @@ void BasePathPlanner::process() {
     /// \note command computation should not require the lock, and this is
     /// required to give other threads a chance to acquire the lock
     lock.unlock();
-    //
+
+    // const tactic::LocalizationChain& chain = *(robot_state_->chain);
+
+    // const auto current_timestamp = chain.leaf_stamp();
+    const auto current_timestamp = (*(robot_state_->chain)).leaf_stamp();
+    if (current_timestamp == last_processed_timestamp) {
+      callback_->commandReceived(last_command);
+      std::this_thread::sleep_for(std::chrono::milliseconds(config_->control_period));
+      CLOG(WARNING, "path_planning")
+          << "We have already processed the timestamp " << current_timestamp;
+      continue;
+    }
+
+    last_processed_timestamp = current_timestamp;
+
     const auto wait_until_time =
         std::chrono::steady_clock::now() +
         std::chrono::milliseconds(config_->control_period);
     const auto command = computeCommand(*robot_state_);
+    last_command = command;
 
     callback_->commandReceived(command);
     if (config_->control_period > 0 &&

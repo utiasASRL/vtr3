@@ -76,26 +76,28 @@ void VisualizationUtils::visualize(
         // Reference path in robot frame
         std::vector<Pose> path = global_path_ptr->disc_path;  // Assuming disc_path is a member of cbit_path_ptr
 
-        Eigen::MatrixXd path_mat(path.size(), 2);
+        Eigen::MatrixXd path_mat(2, path.size());
         Eigen::MatrixXd th_mat(path.size(), 1);
         for (size_t i = 0; i < path.size(); i++) {
-            path_mat(i, 0) = path[i].x;
-            path_mat(i, 1) = path[i].y;
+            path_mat(0, i) = path[i].x;
+            path_mat(1, i) = path[i].y;
             th_mat(i, 0) = path[i].yaw;
         }
 
         // Construct rotation matrix C
         Eigen::Matrix2d C;
-        C << cos(robot_th), -sin(robot_th), sin(robot_th), cos(robot_th);
-        Eigen::MatrixXd path_mat_rot = (path_mat.rowwise() - Eigen::Vector2d(robot_x, robot_y).transpose()) * C.transpose();
+        // C << cos(robot_th), -sin(robot_th), sin(robot_th), cos(robot_th);
+        // Eigen::MatrixXd path_mat_rot = (path_mat.rowwise() - Eigen::Vector2d(robot_x, robot_y).transpose()) * C.transpose();
+        C << cos(robot_th), sin(robot_th), -sin(robot_th), cos(robot_th);
+        Eigen::MatrixXd path_mat_rot = C * (path_mat.colwise() - Eigen::Vector2d(robot_x, robot_y));
         Eigen::MatrixXd th_mat_rot = th_mat.array() - robot_th;  // Element-wise subtraction
 
         // Assign path to message
         path_info_for_external_navigation_msg.path.resize(path.size() * 4);  // Resize to accommodate all elements
 
         for (size_t i = 0; i < path.size(); i++) {
-            path_info_for_external_navigation_msg.path[i * 4] = path_mat_rot(i, 0);       // x
-            path_info_for_external_navigation_msg.path[i * 4 + 1] = path_mat_rot(i, 1);   // y
+            path_info_for_external_navigation_msg.path[i * 4] = path_mat_rot(0, i);       // x
+            path_info_for_external_navigation_msg.path[i * 4 + 1] = path_mat_rot(1, i);   // y
             path_info_for_external_navigation_msg.path[i * 4 + 2] = cos(th_mat_rot(i, 0));  // dx
             path_info_for_external_navigation_msg.path[i * 4 + 3] = sin(th_mat_rot(i, 0));  // dy
         }
