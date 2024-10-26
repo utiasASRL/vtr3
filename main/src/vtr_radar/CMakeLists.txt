@@ -1,5 +1,8 @@
-cmake_minimum_required(VERSION 3.16)
-project(vtr_radar)
+cmake_minimum_required(VERSION 3.16.3)
+# project(vtr_radar)
+# added for new cuda implementation
+project(vtr_radar LANGUAGES CXX CUDA)
+set(ENABLE_CUDA ON)
 
 ## Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
@@ -31,6 +34,21 @@ find_package(vtr_radar_msgs REQUIRED)
 
 find_package(navtech_msgs REQUIRED)
 
+# added for new cuda implementation
+if(ENABLE_CUDA)
+  message("Use CUDA for radar processing")
+  # CUDA stuff, automatically detect arch
+  find_package(CUDA REQUIRED)
+  include_directories(${CUDA_INCLUDE_DIRS})
+  CUDA_SELECT_NVCC_ARCH_FLAGS(ARCH_FLAGS "Auto")
+  set(CUDA_ARCH "${ARCH_FLAGS}" CACHE STRING "Value of the NVCC -arch option." FORCE)
+  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${CUDA_ARCH} -lineinfo")
+  message("CUDA ARCH FLAGS: ${ARCH_FLAGS}")
+  message("CUDA FLAGS: ${CUDA_NVCC_FLAGS}")
+  message(STATUS "CUDA_ARCH: \"${CUDA_ARCH}\"")
+endif()
+
+
 if(DEFINED VTR_ENABLE_RADAR)
 
 ## C++ Libraries
@@ -44,6 +62,18 @@ file(GLOB_RECURSE COMPONENTS_SRC
   src/data_types/*.cpp
   src/utils/*.cpp
 )
+
+# pipelines and modules
+file(GLOB_RECURSE PIPELINE_SRC
+  src/modules/*.cpp
+  src/pipeline.cpp
+)
+
+# added for cuda implementation
+file(GLOB_RECURSE VTR_RADAR_SRCS_CU src/*.cu)
+message(${VTR_RADAR_SRCS_CU})
+message(${CUDA_LIBRARIES})
+
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 OpenCV
@@ -53,13 +83,19 @@ ament_target_dependencies(${PROJECT_NAME}_components
   vtr_common vtr_logging vtr_tactic vtr_radar_msgs
 )
 
-# pipelines and modules
-file(GLOB_RECURSE PIPELINE_SRC
-  src/modules/*.cpp
-  src/pipeline.cpp
-)
-add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
-target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
+# add for cuda implementation
+if(ENABLE_CUDA)
+  add_library(${PROJECT_NAME}_pipeline ${VTR_RADAR_SRCS_CU} ${PIPELINE_SRC})
+  target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components ${CUDA_LIBRARIES})
+  set_target_properties(${PROJECT_NAME}_pipeline 
+  PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+  )
+  add_definitions(-DENABLE_CUDA)
+else()
+  add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
+  target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
+endif()
+
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros

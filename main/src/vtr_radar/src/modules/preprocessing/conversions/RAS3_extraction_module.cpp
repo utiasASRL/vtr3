@@ -231,8 +231,12 @@ void RAS3ExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
         config_->modified_cacfar.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+        #ifdef ENABLE_CUDA
+          detector.cudaRun(fft_scan, radar_resolution, azimuth_times, azimuth_angles, raw_point_cloud);
+        #else
+          detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
+        #endif  
   }else if(config_->detector == "caso_cfar"){
     CASO_CFAR detector = CASO_CFAR<PointWithInfo>(
         config_->caso_cfar.width, config_->caso_cfar.guard,

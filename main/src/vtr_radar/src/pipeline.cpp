@@ -20,6 +20,9 @@
 
 #include "vtr_radar/data_types/pointmap_pointer.hpp"
 #include "vtr_tactic/modules/factory.hpp"
+#ifdef ENABLE_CUDA
+  #include "vtr_radar/utils/cuda_utils.cuh"
+#endif
 
 namespace vtr {
 namespace radar {
@@ -58,6 +61,15 @@ RadarPipeline::RadarPipeline(
   // localization
   for (auto module : config_->localization)
     localization_.push_back(factory()->get("localization." + module));
+
+  #ifdef ENABLE_CUDA 
+    // checking CUDA device
+    const int n_devices = getDeviceInfo();
+    if (!n_devices) {
+      CLOG(DEBUG, "radar.pipeline") << std::string(environ[0]) + "|ERROR GPU not found";
+      CLOG(DEBUG, "radar.pipeline") << std::endl;
+    }
+  #endif
 }
 
 OutputCache::Ptr RadarPipeline::createOutputCache() const {

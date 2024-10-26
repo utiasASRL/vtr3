@@ -19,8 +19,6 @@
  */
 #pragma once
 
-#include "vtr_radar/detector/detector.hpp"
-
 namespace vtr {
 namespace radar {
 
