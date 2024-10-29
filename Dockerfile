@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 CMD ["/bin/bash"]
 
@@ -117,18 +117,6 @@ RUN pip3 install \
 
 RUN apt install wget
 RUN apt install nano
-
-# added by sam
-RUN apt update
-# install dependencies
-RUN apt install software-properties-common apt-transport-https wget -y
-# Import the GPG key provided by Microsoft to verify the package integrity. 
-RUN wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | apt-key add 
-# Run the following command to add the Visual Studio Code repository to your system
-RUN add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"
-# install vscode
-RUN apt install code
-
 
 ## sam install opencv 4.10.0
 RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
