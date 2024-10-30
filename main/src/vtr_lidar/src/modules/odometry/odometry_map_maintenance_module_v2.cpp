@@ -37,6 +37,7 @@ auto OdometryMapMaintenanceModuleV2::Config::fromROS(
 
   config->point_life_time = node->declare_parameter<float>(param_prefix + ".point_life_time", config->point_life_time);
 
+  config->update_normals = node->declare_parameter<bool>(param_prefix + ".update_normals", config->update_normals);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -139,7 +140,9 @@ void OdometryMapMaintenanceModuleV2::run_(QueryCache &qdata0, OutputCache &,
     // normal score
     curr_pt.normal_score = (eigenvalues(1) - eigenvalues(0)) / eigenvalues(2);
   };
-  sliding_map_odo.update(points, update_normal_cb);
+
+  if (config_->update_normals)
+    sliding_map_odo.update(points, update_normal_cb);
 
   // filter based on life time
   auto filter_life_time_cb = [](PointWithInfo &query_pt) {
