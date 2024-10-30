@@ -13,7 +13,7 @@ ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
 ARG HOMEDIR=/root
-ARG CUDA_ARCH="8.6"
+ARG CUDA_ARCH="8.9"
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
@@ -164,7 +164,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   
   
 ##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip --output libtorch.zip
+RUN curl https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch
 RUN rm libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch

@@ -449,12 +449,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
-    //Add preintegration cost terms
-    if(!qdata.preintegrated_delta_yaw)
+    //Add preintegration cost terms if the flag is set
+    if(qdata.preintegrated_delta_yaw)
     {
-
-    }
-    else{
       const auto &start_stamp = *qdata.stamp_start_pre_integration;
       const auto &end_stamp = *qdata.stamp_end_pre_integration;
 
@@ -485,8 +482,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
 
       problem.addCostTerm(measurement_cost);
-
-      
     }
 
     // optimize
