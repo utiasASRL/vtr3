@@ -44,11 +44,11 @@ auto OdometryGyroModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
-  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", 0.1);
+  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
 
   // optimization params
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
+  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->max_iterations);
 
   // clang-format on
   return config;

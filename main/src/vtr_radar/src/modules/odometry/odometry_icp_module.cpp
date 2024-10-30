@@ -74,12 +74,13 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  
+  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
+  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->max_iterations);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
 
-  config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", 0.1);
+  config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", config->preint_cov);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
