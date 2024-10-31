@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2024, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file navtech_extraction_module.hpp
- * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \file online_radar_module.hpp
+ * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

@@ -19,11 +19,11 @@
       # - cbit.control
       - mission.state_machine
       - mission.server
-    robot_frame: w200_0066_base_link
+    robot_frame: base_link #w200_0066_base_link
     env_info_topic: env_info
-    radar_frame: w200_0066_navtech_base #navtech_base
+    radar_frame: navtech_base # w200_0066_navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
-    gyro_frame: w200_0066_os_imu #navtech_base
+    gyro_frame: os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
     queue_size: 10
     graph_map:
@@ -74,11 +74,13 @@
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
+      save_raw_point_cloud: true
+      save_radar_images: true
     preprocessing:
       conversion:
         type: radar.RAS3_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        detector: kstrongest # modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 1.0 # mininum detection distance
         maxr: 69.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
@@ -86,9 +88,9 @@
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
         range_offset: -0.3088 # range offset in meters -0.220240    -0.3088
         kstrong:
-          kstrong: 12 # k-strongest per azimuth to retain
+          kstrong: 6 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.216 # treshold for k-strongest (constant)
+          threshold3: 0.23 # treshold for k-strongest (constant)
         cen2018:
           zq: 2.5
           sigma: 8
