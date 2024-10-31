@@ -23,6 +23,12 @@
 #include "vtr_tactic/modules/modules.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 
+// need to include radar b_scan_msg
+#include "navtech_msgs/msg/radar_b_scan_msg.hpp"
+#include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/image.hpp"
+
+
 namespace vtr {
 namespace radar {
 
@@ -45,6 +51,8 @@ class RadarPipeline : public tactic::BasePipeline {
     double submap_rotation_threshold = 0.0;     // in degrees
 
     bool save_raw_point_cloud = false;
+    // added for saving radar images
+    bool save_radar_images = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
