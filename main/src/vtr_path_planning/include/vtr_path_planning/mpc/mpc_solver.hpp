@@ -159,4 +159,4 @@ extern "C" int nlp_jac_g_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casa
 #define nlp_jac_g_SZ_ARG 2
 #define nlp_jac_g_SZ_RES 2
 #define nlp_jac_g_SZ_IW 0
-#define nlp_jac_g_SZ_W 370
+#define nlp_jac_g_SZ_W 369

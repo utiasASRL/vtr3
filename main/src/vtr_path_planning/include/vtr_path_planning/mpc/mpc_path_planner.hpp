@@ -32,7 +32,7 @@ public:
     // TODO add an automatic way to keep the code in sync
     static constexpr int nStates = 3;
     static constexpr int nControl = 2;
-    static constexpr double alpha = 0.2; // lidar default 0.4
+    static constexpr double alpha = 0.4; // lidar default 0.4
     static constexpr int N = 15;
     static constexpr double DT = 0.25;
     DM previous_vel{nControl, 1};
