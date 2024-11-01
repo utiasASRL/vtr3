@@ -48,13 +48,14 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
   return config;
 }
 
-void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
+void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                  const Graph::Ptr &,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
@@ -62,6 +63,11 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   //Check that
   if(!*qdata.odo_success) {
     CLOG(WARNING, "lidar.localization_icp") << "Odometry failed, skip localization";
+    return;
+  }
+
+  if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time) {
+    CLOG(WARNING, "lidar.localization_icp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
     return;
   }
 
