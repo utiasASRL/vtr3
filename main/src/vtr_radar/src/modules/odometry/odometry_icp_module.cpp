@@ -134,8 +134,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   const auto &beta = *qdata.beta;
-  const auto &yaw_meas = *qdata.yaw_meas;
-  const auto &vel_meas = *qdata.vel_meas;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
 
@@ -445,6 +443,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // See if yaw_meas is available
     if (config_->use_yaw_meas) {
+      const auto &yaw_meas = *qdata.yaw_meas;
       if (yaw_meas != -1000.0) {
         // Add yaw measurement-based cost term
         // yaw_meas is the so(2) element of the change between the previous and current timestamp SO(2) orientation
@@ -466,6 +465,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     if (config_->use_vel_meas) {
+      const auto &yaw_meas = *qdata.yaw_meas;
+      const auto &vel_meas = *qdata.vel_meas;
       if (yaw_meas != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(query_stamp));
