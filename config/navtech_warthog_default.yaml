@@ -8,17 +8,17 @@
       - radar.pipeline
       # - navigation.sensor_input
       - radar.navtech_extractor
-      - radar.odometry_icp
-      - radar.odometry_gyro
-      - radar.odometry_preintegration
-      - radar.localization_icp
-      - tactic
+      # - radar.odometry_icp
+      # - radar.odometry_gyro
+      # - radar.odometry_preintegration
+      # - radar.localization_icp
+      # - tactic
       # - tactic.pipeline
       # - tactic.module
       # - mpc.debug
       # - cbit.control
-      - mission.state_machine
-      - mission.server
+      # - mission.state_machine
+      # - mission.server
     robot_frame: w200_0066_base_link
     env_info_topic: env_info
     radar_frame: w200_0066_navtech_base #navtech_base
@@ -84,11 +84,11 @@
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.3088 # range offset in meters -0.220240    -0.3088
+        range_offset: -0.319910 # range offset in meters -0.220240    -0.3088
         kstrong:
-          kstrong: 12 # k-strongest per azimuth to retain
+          kstrong: 4 # k-strongest per azimuth to retain
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.216 # treshold for k-strongest (constant)
+          threshold3: 0.23 # treshold for k-strongest (constant)
         cen2018:
           zq: 2.5
           sigma: 8
@@ -108,7 +108,7 @@
         modified_cacfar:
           width: 137 # Old: 101, New: 41 # Elliot 101
           guard: 7 # Old: 5, New: 2 # 5
-          threshold: 0.49 # Old: 0.2, New: 1.0 # was 0.7
+          threshold: 0.45 # Old: 0.2, New: 1.0 # was 0.7
           threshold2: 0.0 # Old: 4.0, New: 0.0 cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
           threshold3: 0.23 # Old: 0.0, New: 0.08 # was 0.23
         caso_cfar:
