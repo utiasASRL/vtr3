@@ -60,6 +60,7 @@
       type: radar
       preprocessing: 
         - conversion
+        - extraction
         - filtering
       odometry:
         - gyro
@@ -78,7 +79,9 @@
       save_radar_images: true
     preprocessing:
       conversion:
-        type: radar.RAS3_extractor
+        type: radar.online_converter
+      extraction:
+        type: radar.pc_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
         detector: kstrongest # modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 1.0 # mininum detection distance
@@ -86,9 +89,9 @@
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.3088 # range offset in meters -0.220240    -0.3088
+        range_offset: -0.319910 # range offset in meters -0.220240    -0.3088
         kstrong:
-          kstrong: 6 # k-strongest per azimuth to retain was 12
+          kstrong: 4 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
           threshold3: 0.23 # treshold for k-strongest (constant)
         cen2018:

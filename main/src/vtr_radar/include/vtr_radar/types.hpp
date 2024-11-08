@@ -13,11 +13,40 @@
 // limitations under the License.
 
 /**
- * \file online_radar_module.hpp
+ * \file types.hpp
+ * \brief Header defining types used in VTR radar package
+ * \details
+ *
  * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
-*/
+ */
 #pragma once
 
-#include "vtr_radar/cache.hpp"
-#include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/task_queue.hpp"
+#include <array>
+#include <memory>
+#include <vector>
+
+#ifdef VTR_ENABLE_RADAR
+#include <navtech_msgs/msg/radar_b_scan_msg.hpp>
+#endif
+
+// opencv definitions
+#include <opencv2/core/core.hpp>
+
+
+namespace vtr {
+namespace radar{
+
+struct RadarData {
+ /// The radar azimuth timestamps (ns epoch time)
+  std::vector<int64_t> azimuth_times;
+
+  /// The radar azimuth angles
+  std::vector<double> azimuth_angles;
+
+  /// The OpenCV image for the FFT scan
+  cv::Mat fft_scan;
+  cv::Mat cartesian;
+};
+
+}  // namespace radar
+}  // namespace vtr 

@@ -13,22 +13,19 @@
 // limitations under the License.
 
 /**
- * \file online_radar_module.cpp
+ * \file radar_extraction_module.cpp
  * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
- * \brief online_radar_module class methods definition
- */
-#include "vtr_radar/modules/preprocessing/conversions/online_radar_module.hpp"
-
+ * \brief base_radar_extraction_module class methods definition
+**/
+ 
+#include "vtr_radar/modules/preprocessing/extraction/radar_extraction_module.hpp"
 #include "cv_bridge/cv_bridge.h"
-
 #include "vtr_radar/detector/detector.hpp"
 #include "vtr_radar/utils/utils.hpp"
-
 #include <pcl/common/common.h>
 
 namespace vtr {
 namespace radar {
-
 namespace {
 
 template <class PointT>
@@ -43,10 +40,7 @@ void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
 }  // namespace
 
 using namespace tactic;
-
-// static constexpr int64_t upgrade_time = 1632182400000000000;
-
-auto OnlineRadarModule::Config::fromROS(
+auto RadarExtractionModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -92,14 +86,14 @@ auto OnlineRadarModule::Config::fromROS(
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   
   // Doppler stuff (not used for now but may be useful in the future)
-  // config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
-  // config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
+  config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
+  config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
 
   // clang-format on
   return config;
 }
 
-void OnlineRadarModule::run_(QueryCache &qdata0, OutputCache &,
+void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                                    const Graph::Ptr &,
                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
@@ -115,52 +109,26 @@ void OnlineRadarModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  if(!qdata.scan_msg)
+  if(!qdata.scan_msg) //no radar data
   {
     return;
   }
-
-  /// Input radar message from the query cache
-  // This is to convert a ROS image to an opencv image
-  auto fft_scan = cv_bridge::toCvCopy(std::make_shared<ImageMsg>(qdata.scan_msg->b_scan_img))->image;
-
-  fft_scan.convertTo(fft_scan, CV_32F); 
-
-  // normalize to 0-1
-  fft_scan = fft_scan/255.0;
-
-  /// Output
+  /// Establish output beta and also the raw point cloud
   auto &beta = *qdata.beta.emplace();
-  auto &raw_point_cloud = *qdata.raw_point_cloud.emplace();
 
-  cv::Mat cartesian;
-  Cache<Timestamp> qstamp = qdata.stamp;
-  // CLOG(DEBUG, "radar.navtech_extractor") << "Sam: The timestamp is " << *qstamp << " nano-secs";
-  // int64_t time_per_resulution = 1.0/4.0*1e9;
-  // int64_t current_time_stamp = *qstamp;
+  // create a reference to the raw point cloud
+  auto &raw_point_cloud = *(qdata.raw_point_cloud.emplace());
 
-  std::vector<int64_t> azimuth_times;
-  for (const auto& time : qdata.scan_msg->timestamps) {
-    azimuth_times.emplace_back(static_cast<int64_t>(time));
-  }
-
-  std::vector<double> azimuth_angles;
-  for (const auto& encoder_value : qdata.scan_msg->encoder_values) {
-    azimuth_angles.emplace_back(static_cast<double>(encoder_value)/16000*2*M_PI);
-  }
-
-  /// \note for now we retrieve radar resolution from config file
+  // get the data from the radar cache
+  cv::Mat fft_scan = qdata.radar_data->fft_scan;
+  cv::Mat cartesian = qdata.radar_data->cartesian;
+  std::vector<int64_t> azimuth_times = qdata.radar_data->azimuth_times;
+  std::vector<double> azimuth_angles = qdata.radar_data->azimuth_angles;
   float radar_resolution = config_->radar_resolution;
-  float cart_resolution = config_->cart_resolution;
 
-  // Convert to cartesian BEV image
-  int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
+  beta = config_->beta;
 
-  radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
-                           radar_resolution, cart_resolution, cart_pixel_width,
-                           true, CV_32F);
-
-
+  // Now based on the choice of the detector, we will run the detector accordingly
   if (config_->detector == "cen2018") {
     Cen2018 detector = Cen2018<PointWithInfo>(
         config_->cen2018.zq, config_->cen2018.sigma, config_->minr,
@@ -209,13 +177,12 @@ void OnlineRadarModule::run_(QueryCache &qdata0, OutputCache &,
         << "Unknown detector: " << config_->detector;
     throw std::runtime_error("Unknown detector: " + config_->detector);
   }
+// #endif
 
-  // Convert to cartesian format
   pol2Cart2D(raw_point_cloud);
   CLOG(DEBUG, "radar.navtech_extractor")<< "Radar Extracted " << raw_point_cloud.size() << " points";
 
-
-  /// Visualize
+  /// Visualize to rviz
   if (config_->visualize) {
     // publish the raw scan image
     cv_bridge::CvImage scan_image;

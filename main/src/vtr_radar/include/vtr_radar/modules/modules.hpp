@@ -18,8 +18,8 @@
  */
 #pragma once
 
-#include "vtr_radar/modules/preprocessing/conversions/navtech_extraction_module.hpp"
-#include "vtr_radar/modules/preprocessing/conversions/RAS3_extraction_module.hpp"
+#include "vtr_radar/modules/preprocessing/conversions/online_radar_conversion_module.hpp"
+#include "vtr_radar/modules/preprocessing/extraction/radar_extraction_module.hpp"
 #include "vtr_radar/modules/preprocessing/preprocessing_module.hpp"
 
 #include "vtr_radar/modules/odometry/odometry_gyro_module.hpp"

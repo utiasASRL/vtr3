@@ -1,4 +1,4 @@
-// Copyright 2024, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file online_radar_module.hpp
- * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
+ * \file offline_radar_conversion_module.hpp
+ * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -26,13 +26,13 @@ namespace vtr {
 namespace radar {
 
 /** \brief Extracts keypoints from Navtech radar scans. */
-class RAS3ExtractionModule : public tactic::BaseModule {
+class OfflineRadarConversionModule : public tactic::BaseModule {
  public:
   using ImageMsg = sensor_msgs::msg::Image;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.RAS3_extractor";
+  static constexpr auto static_name = "radar.navtech_extractor";
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
@@ -42,63 +42,17 @@ class RAS3ExtractionModule : public tactic::BaseModule {
     double minr = 2;
     double maxr = 100;
 
-    // kstrong
-    struct {
-      int kstrong = 10;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } kstrong;
-    // cen2018
-    struct {
-      double zq = 3;
-      int sigma = 17;
-    } cen2018;
-    // cacfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } cacfar;
-    // oscfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      int kstat = 20;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } oscfar;
-    // modified_cacfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } modified_cacfar;
-    // caso_cfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-    } caso_cfar;
-
-
     double radar_resolution = 0.0438;
     double range_offset = -0.31;
     double cart_resolution = 0.25;
     double beta = 0.049;
     std::string chirp_type = "both";
 
-    bool visualize = false;
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  RAS3ExtractionModule(
+  OfflineRadarConversionModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -111,14 +65,8 @@ class RAS3ExtractionModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  /** \brief for visualization only */
-  bool publisher_initialized_ = false;
-  rclcpp::Publisher<ImageMsg>::SharedPtr scan_pub_;
-  rclcpp::Publisher<ImageMsg>::SharedPtr fft_scan_pub_;
-  rclcpp::Publisher<ImageMsg>::SharedPtr bev_scan_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(RAS3ExtractionModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OfflineRadarConversionModule);
 };
 
 }  // namespace radar
