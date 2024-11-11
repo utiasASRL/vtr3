@@ -188,8 +188,8 @@ class ModifiedCACFAR : public Detector<PointT> {
                         const std::vector<double> &azimuth_angles,  pcl::PointCloud<PointT> &pointcloud) {
                           gpu_mem.toGpu(raw_scan, azimuth_times, azimuth_angles);
                           cudaModifiedCACFAR<PointT>(gpu_mem, minr_, maxr_, w2_, guard_, range_offset_,
-+                                                     threshold_, threshold2_, threshold3_, 
-+                                                     raw_scan, res, azimuth_times, azimuth_angles, pointcloud);
+                                                     threshold_, threshold2_, threshold3_, 
+                                                     raw_scan, res, azimuth_times, azimuth_angles, pointcloud);
                           return;
                         }
   #endif
