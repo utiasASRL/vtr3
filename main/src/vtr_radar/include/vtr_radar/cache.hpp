@@ -30,6 +30,8 @@
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
 
+#include"vtr_radar/types.hpp"
+
 namespace vtr {
 namespace radar {
 
@@ -50,6 +52,9 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<tactic::Timestamp> stamp_start_pre_integration;
   tactic::Cache<tactic::Timestamp> stamp_end_pre_integration;
   tactic::Cache<float> preintegrated_delta_yaw;
+
+  // radar raw data
+  tactic::Cache<RadarData> radar_data;
 
   // preprocessing
   tactic::Cache<float> beta;
