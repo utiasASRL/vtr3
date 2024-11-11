@@ -74,12 +74,13 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  
+  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
+  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->max_iterations);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
 
-  config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", 0.1);
+  config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", config->preint_cov);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
@@ -449,12 +450,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
-    //Add preintegration cost terms
-    if(!qdata.preintegrated_delta_yaw)
+    //Add preintegration cost terms if the flag is set
+    if(qdata.preintegrated_delta_yaw)
     {
-
-    }
-    else{
       const auto &start_stamp = *qdata.stamp_start_pre_integration;
       const auto &end_stamp = *qdata.stamp_end_pre_integration;
 
@@ -485,8 +483,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
 
       problem.addCostTerm(measurement_cost);
-
-      
     }
 
     // optimize

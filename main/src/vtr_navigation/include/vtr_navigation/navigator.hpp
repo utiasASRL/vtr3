@@ -40,6 +40,7 @@
 #ifdef VTR_ENABLE_RADAR
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/image.hpp"
 #endif
 
 namespace vtr {
