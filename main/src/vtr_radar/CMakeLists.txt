@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16.3)
 # project(vtr_radar)
 # added for new cuda implementation
-project(vtr_radar LANGUAGES CXX CUDA)
+project(vtr_radar LANGUAGES CUDA CXX)
 set(ENABLE_CUDA ON)
 
 ## Common setup for vtr packages
@@ -43,6 +43,7 @@ if(ENABLE_CUDA)
   CUDA_SELECT_NVCC_ARCH_FLAGS(ARCH_FLAGS "Auto")
   set(CUDA_ARCH "${ARCH_FLAGS}" CACHE STRING "Value of the NVCC -arch option." FORCE)
   set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${CUDA_ARCH} -lineinfo")
+  set(CUDA_NVCC_FLAGS "${ARCH_FLAGS} -Wall")
   message("CUDA ARCH FLAGS: ${ARCH_FLAGS}")
   message("CUDA FLAGS: ${CUDA_NVCC_FLAGS}")
   message(STATUS "CUDA_ARCH: \"${CUDA_ARCH}\"")
@@ -85,18 +86,17 @@ ament_target_dependencies(${PROJECT_NAME}_components
 
 # add for cuda implementation
 if(ENABLE_CUDA)
-  add_library(${PROJECT_NAME}_pipeline ${VTR_RADAR_SRCS_CU} ${PIPELINE_SRC})
-  target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components ${CUDA_LIBRARIES})
+  add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC} ${VTR_RADAR_SRCS_CU})
+  target_link_libraries(${PROJECT_NAME}_pipeline PUBLIC ${PROJECT_NAME}_components ${CUDA_LIBRARIES})
   set_target_properties(${PROJECT_NAME}_pipeline 
-  PROPERTIES CUDA_SEPARABLE_COMPILATION ON
-  )
+  PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS ON)
   add_definitions(-DENABLE_CUDA)
 else()
   add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
-  target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
+  target_link_libraries(${PROJECT_NAME}_pipeline PUBLIC ${PROJECT_NAME}_components)
 endif()
 
-ament_target_dependencies(${PROJECT_NAME}_pipeline
+ament_target_dependencies(${PROJECT_NAME}_pipeline PUBLIC
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
   nav_msgs visualization_msgs

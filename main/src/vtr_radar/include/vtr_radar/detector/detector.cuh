@@ -65,7 +65,7 @@ namespace radar {
                                         double threshold2,
                                         double threshold3);
   
-  // template <typename PointT>                                 
+  template <typename PointT>                                 
   void cudaModifiedCACFAR(CudaMem& gpu_mem,
                             double minr,
                             double maxr,
@@ -78,6 +78,6 @@ namespace radar {
                             const cv::Mat &raw_scan, const float &res, 
                             const std::vector<int64_t> &azimuth_times,
                             const std::vector<double> &azimuth_angles,
-                            pcl::PointCloud<PointWithInfo> &pointcloud);
+                            pcl::PointCloud<PointT> &pointcloud);
 } // namespace radar
 } // namespace vtr

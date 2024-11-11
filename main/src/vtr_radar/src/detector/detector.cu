@@ -58,7 +58,7 @@ namespace radar {
                             const cv::Mat &raw_scan, const float &res, 
                             const std::vector<int64_t> &azimuth_times,
                             const std::vector<double> &azimuth_angles,
-                            pcl::PointCloud<PointWithInfo> &pointcloud) {
+                            pcl::PointCloud<PointT> &pointcloud) {
 
     pointcloud.clear();
     int rows = raw_scan.rows;
@@ -99,14 +99,14 @@ namespace radar {
       int num_peak_points = 0;
       const double azimuth = azimuth_angles[row];
       const double time = azimuth_times[row];
-      pcl::PointCloud<PointWithInfo> polar_time;
+      pcl::PointCloud<PointT> polar_time;
 
       for (int col = mincol; col < maxcol; ++col) {
         if (gpu_mem.th_mat.at<uchar>(row, col) == 255) {
           peak_points += col;
           num_peak_points += 1;
         } else if (num_peak_points > 0) {
-          PointWithInfo p;
+          PointT p;
           p.rho = res * peak_points / num_peak_points + range_offset;
           p.phi = azimuth;
           p.theta = 0;
@@ -121,18 +121,20 @@ namespace radar {
     return;
   }
 
-  // void cudaModifiedCACFAR(CudaMem& gpu_mem,
-  //                           double minr,
-  //                           double maxr,
-  //                           int w2,
-  //                           int guard,
-  //                           double range_offset,
-  //                           double th,
-  //                           double th2,
-  //                           double th3,
-  //                           const cv::Mat &raw_scan, const float &res, 
-  //                           const std::vector<int64_t> &azimuth_times,
-  //                           const std::vector<double> &azimuth_angles,
-  //                           pcl::PointCloud<PointWithInfo> &pointcloud);
+
+template 
+void cudaModifiedCACFAR<PointWithInfo>(CudaMem& gpu_mem,
+                            double minr,
+                            double maxr,
+                            int w2,
+                            int guard,
+                            double range_offset,
+                            double th,
+                            double th2,
+                            double th3,
+                            const cv::Mat &raw_scan, const float &res, 
+                            const std::vector<int64_t> &azimuth_times,
+                            const std::vector<double> &azimuth_angles,
+                            pcl::PointCloud<PointWithInfo> &pointcloud);
 }  // namespace radar
 }  // namespace vtr
