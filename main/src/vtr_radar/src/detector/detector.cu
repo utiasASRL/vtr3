@@ -46,6 +46,7 @@ namespace radar {
     return;
   }
 
+  template <typename PointT> 
   void cudaModifiedCACFAR(CudaMem& gpu_mem,
                             double minr,
                             double maxr,
