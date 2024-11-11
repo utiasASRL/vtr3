@@ -165,6 +165,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->range_offset);
         #ifdef ENABLE_CUDA
           detector.cudaRun(fft_scan, radar_resolution, azimuth_times, azimuth_angles, raw_point_cloud);
+          CLOG(DEBUG, "radar.pc_extractor")<< "Sam: I am running the cuda version of the detector";
         #else
           detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
@@ -177,14 +178,14 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);  
     }else {
-    CLOG(ERROR, "radar.navtech_extractor")
+    CLOG(ERROR, "radar.pc_extractor")
         << "Unknown detector: " << config_->detector;
     throw std::runtime_error("Unknown detector: " + config_->detector);
   }
 // #endif
 
   pol2Cart2D(raw_point_cloud);
-  CLOG(DEBUG, "radar.navtech_extractor")<< "Radar Extracted " << raw_point_cloud.size() << " points";
+  CLOG(DEBUG, "radar.pc_extractor")<< "Radar Extracted " << raw_point_cloud.size() << " points";
 
   /// Visualize to rviz
   if (config_->visualize) {
