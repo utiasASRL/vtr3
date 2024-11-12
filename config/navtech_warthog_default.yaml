@@ -7,6 +7,7 @@
       - navigation
       - radar.pipeline
       # - navigation.sensor_input
+      - radar.online_converter
       - radar.pc_extractor
       # - radar.odometry_icp
       # - radar.odometry_gyro
@@ -19,11 +20,11 @@
       # - cbit.control
       - mission.state_machine
       - mission.server
-    robot_frame: base_link #w200_0066_base_link
+    robot_frame: w200_0066_base_link #w200_0066_base_link
     env_info_topic: env_info
-    radar_frame: navtech_base # w200_0066_navtech_base #navtech_base
+    radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
-    gyro_frame: os_imu #w200_0066_os_imu #navtech_base
+    gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
     queue_size: 10
     graph_map:
@@ -158,7 +159,9 @@
         # continuous time estimation
         use_trajectory_estimation: true
         traj_num_extra_states: 0
-        traj_lock_prev_pose: true
+        traj_lock_prev_pose: true      #- obstacle detection.cbit
+      #- grizzly_controller_tests.cbit
+      #- ouster
         traj_lock_prev_vel: true
         traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
 
