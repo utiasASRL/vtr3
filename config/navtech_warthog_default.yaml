@@ -7,6 +7,7 @@
       - navigation
       - radar.pipeline
       # - navigation.sensor_input
+      - radar.online_converter
       - radar.pc_extractor
       # - radar.odometry_icp
       # - radar.odometry_gyro
@@ -17,13 +18,13 @@
       # - tactic.module
       # - mpc.debug
       # - cbit.control
-      - mission.state_machine
-      - mission.server
-    robot_frame: base_link #w200_0066_base_link
+      # - mission.state_machine
+      # - mission.server
+    robot_frame: w200_0066_base_link #w200_0066_base_link
     env_info_topic: env_info
-    radar_frame: navtech_base # w200_0066_navtech_base #navtech_base
+    radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
-    gyro_frame: os_imu #w200_0066_os_imu #navtech_base
+    gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
     queue_size: 10
     graph_map:
@@ -113,7 +114,7 @@
         modified_cacfar:
           width: 137 # Old: 101, New: 41 # Elliot 101
           guard: 7 # Old: 5, New: 2 # 5
-          threshold: 0.45 # Old: 0.2, New: 1.0 # was 0.7
+          threshold: 0.50 # Old: 0.2, New: 1.0 # was 0.7
           threshold2: 0.0 # Old: 4.0, New: 0.0 cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
           threshold3: 0.23 # Old: 0.0, New: 0.08 # was 0.23
         caso_cfar:
