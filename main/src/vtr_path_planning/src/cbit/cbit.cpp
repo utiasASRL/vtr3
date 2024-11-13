@@ -82,6 +82,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+  config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -361,9 +362,9 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   if (cbit_path_ptr->size() != 0)
   {
 
-    CasadiUnicycleMPC::Config mpcConfig;
+    CasadiAckermanMPC::Config mpcConfig;
     mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-
+    mpcConfig.turning_radius = config_->turning_radius;
 
     // Initializations from config
     
