@@ -74,7 +74,7 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
 
   std::vector<double> azimuth_angles;
   for (const auto& encoder_value : qdata.scan_msg->encoder_values) {
-    azimuth_angles.emplace_back(static_cast<double>(encoder_value)/16000*2*M_PI);
+    azimuth_angles.emplace_back(static_cast<double>(encoder_value)/16000*2*M_PI); //16000 is for RAS3 radar
   }
 
   /// \note for now we retrieve radar resolution from config file

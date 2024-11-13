@@ -25,10 +25,6 @@
 #include <memory>
 #include <vector>
 
-#ifdef VTR_ENABLE_RADAR
-#include <navtech_msgs/msg/radar_b_scan_msg.hpp>
-#endif
-
 // opencv definitions
 #include <opencv2/core/core.hpp>
 

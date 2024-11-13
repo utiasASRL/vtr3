@@ -211,16 +211,21 @@ void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     CLOG(DEBUG, "radar.pipeline") << "Saved raw pointcloud to vertex" << vertex;
   }
 
-  // to add another function to save the radar b_scan_img to the vertex
+  // to add another function to save the radar b_scan_msg to the vertex
   // radar images
-  if(config_->save_radar_images)
+  // check if b_scan_msg is available
+  if(qdata->scan_msg)
   {
-    using RadarBScanMsgLM = storage::LockableMessage<navtech_msgs::msg::RadarBScanMsg>;
-    auto radar_b_scan_msg_msg = std::make_shared<RadarBScanMsgLM>(qdata->scan_msg.ptr(), *qdata->stamp);
-    vertex->insert<navtech_msgs::msg::RadarBScanMsg>(
-        "radar_b_scan_img", "navtech_msgs/msg/RadarBScanMsg", radar_b_scan_msg_msg);
-    CLOG(DEBUG, "radar.pipeline") << "Saved radar b_scan_img to vertex" << vertex;
+    if(config_->save_radar_images)
+    {
+      using RadarBScanMsgLM = storage::LockableMessage<navtech_msgs::msg::RadarBScanMsg>;
+      auto radar_b_scan_msg_msg = std::make_shared<RadarBScanMsgLM>(qdata->scan_msg.ptr(), *qdata->stamp);
+      vertex->insert<navtech_msgs::msg::RadarBScanMsg>(
+          "radar_b_scan_img", "navtech_msgs/msg/RadarBScanMsg", radar_b_scan_msg_msg);
+      CLOG(DEBUG, "radar.pipeline") << "Saved radar b_scan_img to vertex" << vertex;
+    }
   }
+
 
   /// save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {

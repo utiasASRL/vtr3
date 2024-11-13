@@ -74,7 +74,6 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
     std::string err{"Empty point cloud."};
     CLOG(ERROR, "radar.preprocessing") << err;
     throw std::runtime_error{err};
-    return;
   }
 
   CLOG(DEBUG, "radar.preprocessing")
