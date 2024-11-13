@@ -43,6 +43,8 @@ class OdometryMapMaintenanceModuleV2 : public tactic::BaseModule {
 
     float point_life_time = -1.0;  // negative means infinite life time
 
+    bool update_normals = true;
+
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
