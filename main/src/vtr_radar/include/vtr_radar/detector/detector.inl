@@ -34,56 +34,7 @@ bool sort_asc_by_second(const std::pair<int, float> &a,
 
 } // namespace
 
-// // old K-strongest
-// template <class PointT>
-// void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
-//                              const std::vector<int64_t> &azimuth_times,
-//                              const std::vector<double> &azimuth_angles,
-//                              pcl::PointCloud<PointT> &pointcloud) {
-//   pointcloud.clear();
-//   const int rows = raw_scan.rows;
-//   const int cols = raw_scan.cols;
-//   auto mincol = minr_ / res;
-//   if (mincol > cols || mincol < 0) mincol = 0;
-//   auto maxcol = maxr_ / res;
-//   if (maxcol > cols || maxcol < 0) maxcol = cols;
-//   const auto N = maxcol - mincol;
-
-//   // #pragma omp parallel for
-//   for (int i = 0; i < rows; ++i) {
-//     std::vector<std::pair<float, int>> intens;
-//     intens.reserve(N / 2);
-//     double mean = 0;
-//     for (int j = mincol; j < maxcol; ++j) {
-//       mean += raw_scan.at<float>(i, j);
-//     }
-//     mean /= N;
-//     const double thres = mean * threshold2_ + threshold3_;
-//     for (int j = mincol; j < maxcol; ++j) {
-//       if (raw_scan.at<float>(i, j) >= thres)
-//         intens.emplace_back(raw_scan.at<float>(i, j), j);
-//     }
-//     // sort intensities in descending order
-//     std::sort(intens.begin(), intens.end(), sort_desc_by_first);
-//     const double azimuth = azimuth_angles[i];
-//     const int64_t time = azimuth_times[i];
-//     pcl::PointCloud<PointT> polar_time;
-//     for (int j = 0; j < kstrong_; ++j) {
-//       if (intens[j].first < thres) break;
-//       PointT p;
-//       p.rho = float(intens[j].second) * res + range_offset_;
-//       p.phi = azimuth;
-//       p.theta = 0;
-//       p.timestamp = time;
-//       polar_time.push_back(p);
-//     }
-//     // #pragma omp critical
-//     {
-//       pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
-//     }
-//   }
-// }
-// Elliot's K-strongest implementation as per the paper
+// K-strongest implementation as per Elliot's paper
 template <class PointT>
 void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
                              const std::vector<int64_t> &azimuth_times,
