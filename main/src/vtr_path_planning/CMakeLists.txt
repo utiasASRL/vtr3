@@ -53,12 +53,12 @@ add_custom_command(OUTPUT "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp
 add_custom_target(generate_unicycle_header ALL
 DEPENDS "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp")
 
-add_custom_command(OUTPUT "include/vtr_path_planning/mpc/ackerman_mpc_solver.hpp"
+add_custom_command(OUTPUT "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp"
   COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
   DEPENDS "scripts/acker_cycle_solver.py")
 
-add_custom_target(generate_ackerman_header ALL
-DEPENDS "include/vtr_path_planning/mpc/ackerman_mpc_solver.hpp")
+add_custom_target(generate_ackermann_header ALL
+DEPENDS "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp")
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
 add_library(${PROJECT_NAME}_mpc ${SRC})
@@ -75,9 +75,9 @@ add_library(solve_unicycle_mpc SHARED src/mpc/unicycle_mpc_solver.cpp)
 add_dependencies(solve_unicycle_mpc generate_unicycle_header)
 target_link_libraries(solve_unicycle_mpc casadi)
 
-add_library(solve_ackerman_mpc SHARED src/mpc/ackerman_mpc_solver.cpp)
-add_dependencies(solve_ackerman_mpc generate_ackerman_header)
-target_link_libraries(solve_ackerman_mpc casadi)
+add_library(solve_ackermann_mpc SHARED src/mpc/ackermann_mpc_solver.cpp)
+add_dependencies(solve_ackermann_mpc generate_ackermann_header)
+target_link_libraries(solve_ackermann_mpc casadi)
 
 find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})
@@ -112,7 +112,7 @@ install(
     ${PROJECT_NAME}_mpc
     ${PROJECT_NAME}_cbit
     solve_unicycle_mpc
-    solve_ackerman_mpc
+    solve_ackermann_mpc
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

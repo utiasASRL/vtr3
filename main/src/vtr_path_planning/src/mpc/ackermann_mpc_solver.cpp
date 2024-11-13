@@ -11,7 +11,7 @@
   #define _CASADI_NAMESPACE_CONCAT(NS, ID) NS ## ID
   #define CASADI_PREFIX(ID) CASADI_NAMESPACE_CONCAT(CODEGEN_PREFIX, ID)
 #else
-  #define CASADI_PREFIX(ID) ackerman_mpc_solver_ ## ID
+  #define CASADI_PREFIX(ID) ackermann_mpc_solver_ ## ID
 #endif
 
 #include <math.h>

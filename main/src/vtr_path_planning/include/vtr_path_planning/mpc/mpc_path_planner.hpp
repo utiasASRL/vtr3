@@ -23,21 +23,25 @@
 
 namespace vtr::path_planning {
 
-// class CasadiMPC {
-//   public:
-//     struct Config {
-//       virtual ~Config() = 0;  // for polymorphism
-//     };
-//     virtual ~CasadiMPC() = 0;
-//     virtual std::map<std::string, casadi::DM> solve(const Config& mpcConf);
-// };
+class CasadiMPC {
+  public:
+    PTR_TYPEDEFS(CasadiMPC);
 
-class CasadiUnicycleMPC { //: public CasadiMPC {
+    struct Config {
+      PTR_TYPEDEFS(Config);
+
+      virtual ~Config() {};  // for polymorphism
+    };
+    virtual ~CasadiMPC() {};
+    virtual std::map<std::string, casadi::DM> solve(const Config& mpcConf) = 0;
+};
+
+class CasadiUnicycleMPC : public CasadiMPC {
 public:
   PTR_TYPEDEFS(CasadiUnicycleMPC);
   using DM = casadi::DM;
 
-  struct Config {//: public CasadiMPC::Config {
+  struct Config : public CasadiMPC::Config {
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
     static constexpr int nStates = 3;
@@ -61,7 +65,7 @@ public:
     {"acceptable_obj_change_tol", 1e-6}
   });
 
-  std::map<std::string, casadi::DM> solve(const Config& mpcConf);
+  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf);
 
 
 private:
@@ -71,12 +75,12 @@ private:
 };
 
 
-class CasadiAckermanMPC { //: public CasadiMPC {
+class CasadiAckermannMPC : public CasadiMPC {
 public:
-  PTR_TYPEDEFS(CasadiAckermanMPC);
+  PTR_TYPEDEFS(CasadiAckermannMPC);
   using DM = casadi::DM;
 
-  struct Config {//: public CasadiMPC::Config {
+  struct Config : public CasadiMPC::Config {
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
     static constexpr int nStates = 3;
@@ -95,13 +99,13 @@ public:
   };
 
 
-  CasadiAckermanMPC(bool verbose=false, casadi::Dict iopt_config={ 
+  CasadiAckermannMPC(bool verbose=false, casadi::Dict iopt_config={ 
     { "max_iter", 2000 }, 
     { "acceptable_tol", 1e-8 } ,
     {"acceptable_obj_change_tol", 1e-6}
   });
 
-  std::map<std::string, casadi::DM> solve(const Config& mpcConf);
+  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf);
 
 
 private:

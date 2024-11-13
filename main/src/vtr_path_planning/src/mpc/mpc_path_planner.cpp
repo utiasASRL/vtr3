@@ -39,8 +39,10 @@ CasadiUnicycleMPC::CasadiUnicycleMPC( bool verbose, casadi::Dict ipopt_opts){
   solve_mpc = nlpsol("solver", "ipopt", "libsolve_unicycle_mpc.so", opts);
 }
 
-std::map<std::string, casadi::DM> CasadiUnicycleMPC::solve(const Config& mpcConf) {
+std::map<std::string, casadi::DM> CasadiUnicycleMPC::solve(const CasadiMPC::Config& baseMpcConf) {
   using namespace casadi;
+
+  const auto& mpcConf = dynamic_cast<const CasadiUnicycleMPC::Config& >(baseMpcConf);
 
   std::map<std::string, DM> arg;
 
@@ -97,19 +99,21 @@ std::vector<double> tf_to_global(const lgmath::se3::Transformation& T) {
 }
 
 
-CasadiAckermanMPC::CasadiAckermanMPC( bool verbose, casadi::Dict ipopt_opts){
+CasadiAckermannMPC::CasadiAckermannMPC( bool verbose, casadi::Dict ipopt_opts){
   casadi::Dict opts;
   if (!verbose) { 
     opts["print_time"] = 0;
     ipopt_opts["print_level"] = 0;
   }
   opts["ipopt"] = ipopt_opts;
-  solve_mpc = nlpsol("solver", "ipopt", "libsolve_ackerman_mpc.so", opts);
+  solve_mpc = nlpsol("solver", "ipopt", "libsolve_ackermann_mpc.so", opts);
 }
 
 
-std::map<std::string, casadi::DM> CasadiAckermanMPC::solve(const Config& mpcConf) {
+std::map<std::string, casadi::DM> CasadiAckermannMPC::solve(const CasadiMPC::Config& baseMpcConf) {
   using namespace casadi;
+  const auto& mpcConf = dynamic_cast<const CasadiAckermannMPC::Config& >(baseMpcConf);
+
 
   std::map<std::string, DM> arg;
 
@@ -127,13 +131,9 @@ std::map<std::string, casadi::DM> CasadiAckermanMPC::solve(const Config& mpcConf
   arg["lbg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + 3 * mpcConf.N, 1);
   arg["ubg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + 3 * mpcConf.N, 1);
 
-  // if (mpcConf.up_barrier_q.size() > 0 && mpcConf.low_barrier_q.size() > 0) {
-  //   arg["ubg"].set(DM(mpcConf.up_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-  //   arg["lbg"].set(DM(mpcConf.low_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-  // } else {
-    arg["ubg"].set(DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-    arg["lbg"].set(-DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-  // }
+  arg["ubg"].set(DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
+  arg["lbg"].set(-DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
+  
 
   arg["lbg"].set(DM(0), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + 3*mpcConf.N, 2));
   arg["lbg"].set(-DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1, mpcConf.nStates*(mpcConf.N+1) + 3*mpcConf.N, 2));
@@ -161,7 +161,7 @@ std::map<std::string, casadi::DM> CasadiAckermanMPC::solve(const Config& mpcConf
 
   if(stats["success"].as_bool() == false) { 
     CLOG(WARNING, "mpc.solver") << "Casadi error: " << stats["return_status"];
-    // throw std::logic_error("Casadi was unable to find a feasible solution. Barrier constraint likely violated");
+    throw std::logic_error("Casadi was unable to find a feasible solution. Barrier constraint likely violated");
   }
   
   std::map<std::string, DM> output;

@@ -1,4 +1,4 @@
-# This controller is for an ackerman drive robot that receives linear and agular velocity twist commands.
+# This controller is for an ackermann drive robot that receives linear and agular velocity twist commands.
 # There is a turning radius constraint that helps the robot drive forward. 
 # There is a higher cost to driving backwards than forwards
 
