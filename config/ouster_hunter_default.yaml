@@ -107,7 +107,7 @@
       localization:
         - recall
         - icp
-        - safe_corridor
+        #- safe_corridor
         #- change_detection_sync
         - memory
       submap_translation_threshold: 1.5
@@ -367,7 +367,7 @@
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "ackermann"
-        turning_radius: 1.0
+        turning_radius: 1.4
 
         # Misc
         command_history_length: 100

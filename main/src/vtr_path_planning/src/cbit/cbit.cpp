@@ -397,66 +397,66 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     CasadiMPC::Config::Ptr baseMpcConfig;
 
     if (config_->kinematic_model == "unicycle"){
-      CasadiUnicycleMPC::Config mpcConfig;
-      mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+      CasadiUnicycleMPC::Config::Ptr mpcConfig;
+      mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
 
       // Initializations from config
       
       // Schedule speed based on path curvatures + other factors
       // TODO refactor to accept the chain and use the curvature of the links
-      mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
+      mpcConfig->VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
 
       lgmath::se3::Transformation T0 = T_p_r_extp;
-      mpcConfig.T0 = tf_to_global(T0);
+      mpcConfig->T0 = tf_to_global(T0);
 
       std::vector<double> p_rollout;
-      for(int j = 1; j < mpcConfig.N+1; j++){
-        p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
+      for(int j = 1; j < mpcConfig->N+1; j++){
+        p_rollout.push_back(state_p + j*mpcConfig->VF*mpcConfig->DT);
       }
 
       referenceInfo = std::make_shared<PoseResultHomotopy>(generateHomotopyReference(p_rollout, chain));
 
-      mpcConfig.reference_poses.clear();
+      mpcConfig->reference_poses.clear();
 
       for(const auto& Tf : referenceInfo->poses) {
-        mpcConfig.reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+        mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
         CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
       }
 
-      mpcConfig.up_barrier_q = referenceInfo->barrier_q_max;
-      mpcConfig.low_barrier_q = referenceInfo->barrier_q_min;
+      mpcConfig->up_barrier_q = referenceInfo->barrier_q_max;
+      mpcConfig->low_barrier_q = referenceInfo->barrier_q_min;
       
-      mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
-      baseMpcConfig = std::make_shared<CasadiMPC::Config>(mpcConfig);
+      mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
+      baseMpcConfig = mpcConfig;
     } else if (config_->kinematic_model == "ackermann") {
-      CasadiAckermannMPC::Config mpcConfig;
-      mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-      mpcConfig.turning_radius = config_->turning_radius;
+      CasadiAckermannMPC::Config::Ptr mpcConfig = std::make_shared<CasadiAckermannMPC::Config>();
+      mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+      mpcConfig->turning_radius = config_->turning_radius;
 
       // Initializations from config
       
       // Schedule speed based on path curvatures + other factors
       // TODO refactor to accept the chain and use the curvature of the links
-      mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
+      mpcConfig->VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
 
       lgmath::se3::Transformation T0 = T_p_r_extp;
-      mpcConfig.T0 = tf_to_global(T0);
+      mpcConfig->T0 = tf_to_global(T0);
 
       std::vector<double> p_rollout;
-      for(int j = 1; j < mpcConfig.N+1; j++){
-        p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
+      for(int j = 1; j < mpcConfig->N+1; j++){
+        p_rollout.push_back(state_p + j*mpcConfig->VF*mpcConfig->DT);
       }
 
       referenceInfo = std::make_shared<PoseResultHomotopy>(generateHomotopyReference(p_rollout, chain));
-      mpcConfig.reference_poses.clear();
+      mpcConfig->reference_poses.clear();
       for(const auto& Tf : referenceInfo->poses) {
-        mpcConfig.reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+        mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
         CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
       }
       
-      mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
+      mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
     
-      baseMpcConfig = std::make_shared<CasadiMPC::Config>(mpcConfig);
+      baseMpcConfig = mpcConfig;
     }
    
 

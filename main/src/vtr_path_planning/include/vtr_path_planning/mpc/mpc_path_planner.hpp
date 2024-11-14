@@ -42,6 +42,7 @@ public:
   using DM = casadi::DM;
 
   struct Config : public CasadiMPC::Config {
+    PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
     static constexpr int nStates = 3;
@@ -81,11 +82,12 @@ public:
   using DM = casadi::DM;
 
   struct Config : public CasadiMPC::Config {
+    PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
     static constexpr int nStates = 3;
     static constexpr int nControl = 2;
-    static constexpr double alpha = 0.2;
+    static constexpr double alpha = 0.0;
     static constexpr int N = 15;
     static constexpr double DT = 0.25;
     DM previous_vel{nControl, 1};

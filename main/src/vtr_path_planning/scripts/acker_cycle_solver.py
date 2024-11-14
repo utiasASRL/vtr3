@@ -14,7 +14,7 @@ from casadi import sin, cos, pi
 # Pose Covariance
 Q_x = 1
 Q_y = 1
-Q_theta = 5
+Q_theta = 1
 
 # Command Covariance
 R1_fwd = 1.0
