@@ -45,6 +45,10 @@ class OnlineRadarConversionModule : public tactic::BaseModule {
     double range_offset = -0.31;
     double cart_resolution = 0.25;
     double beta = 0.049;
+
+    // add an encoder bin size parameter
+    int encoder_bin_size = 16000;
+
     std::string chirp_type = "both";
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

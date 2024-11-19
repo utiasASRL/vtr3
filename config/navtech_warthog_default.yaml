@@ -87,12 +87,13 @@
         detector: modified_cacfar #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 1.0 # mininum detection distance
         maxr: 69.0 # maximum detection distance
+        encoder_bin_size: 16000 # encoder bin size
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.319910 # range offset in meters -0.220240  -0.3088
+        range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
         kstrong:
-          kstrong: 4 # k-strongest per azimuth to retain was 12
+          kstrong: 3 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
           threshold3: 0.23 # treshold for k-strongest (constant)
         cen2018:
