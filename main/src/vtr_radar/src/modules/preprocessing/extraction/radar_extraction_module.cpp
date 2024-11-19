@@ -111,8 +111,9 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   if(!qdata.scan_msg) //no radar data
   {
-    return;
+    CLOG(DEBUG, "radar.pc_extractor") << "Sam: We don't have the scan_msg set it is possible we are running offline pipeline";
   }
+
   /// Establish output beta and also the raw point cloud
   auto &beta = *qdata.beta.emplace();
 
@@ -180,7 +181,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 // #endif
 
   pol2Cart2D(raw_point_cloud);
-  CLOG(DEBUG, "radar.navtech_extractor")<< "Radar Extracted " << raw_point_cloud.size() << " points";
+  CLOG(DEBUG, "radar.pc_extractor")<< "Radar Extracted " << raw_point_cloud.size() << " points";
 
   /// Visualize to rviz
   if (config_->visualize) {
