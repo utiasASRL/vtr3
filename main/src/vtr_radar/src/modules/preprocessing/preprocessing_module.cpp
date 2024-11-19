@@ -62,7 +62,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  if(!qdata.scan_msg)
+  if(!qdata.radar_data)
   {
     return;
   }

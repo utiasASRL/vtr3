@@ -95,7 +95,7 @@
         kstrong:
           kstrong: 4 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.23 # treshold for k-strongest (constant)
+          threshold3: 0.225 # treshold for k-strongest (constant)
         cen2018:
           zq: 2.5
           sigma: 8

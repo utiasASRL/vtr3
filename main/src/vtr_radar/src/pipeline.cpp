@@ -136,7 +136,7 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
 
-    if (qdata->scan_msg)
+    if (qdata->radar_data)
     { 
       timestamp_odo_radar_ = qdata->timestamp_odo_radar.ptr();
       T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
