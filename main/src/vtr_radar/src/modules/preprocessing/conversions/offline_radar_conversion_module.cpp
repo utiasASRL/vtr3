@@ -142,6 +142,9 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.radar_data->cartesian = cartesian;
   qdata.radar_data->azimuth_times = azimuth_times;
   qdata.radar_data->azimuth_angles = azimuth_angles;  
+
+  /// make a non-null pointer here to indicate that the radar data has been loaded
+  qdata.scan_msg.emplace();
                                    }
 
 }  // namespace radar
