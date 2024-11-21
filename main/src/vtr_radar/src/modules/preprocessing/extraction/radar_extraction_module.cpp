@@ -109,10 +109,12 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  if(!qdata.scan_msg) //no radar data
+  if(!qdata.radar_data)  //no online radar data yet check to see if this is a gyro message
   {
+    CLOG(DEBUG, "radar.pc_extractor") << "We have the gyro set it is possible we are running online pipeline";
     return;
   }
+
   /// Establish output beta and also the raw point cloud
   auto &beta = *qdata.beta.emplace();
 

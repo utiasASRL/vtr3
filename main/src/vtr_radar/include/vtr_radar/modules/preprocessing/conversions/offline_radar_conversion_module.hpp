@@ -32,7 +32,7 @@ class OfflineRadarConversionModule : public tactic::BaseModule {
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.navtech_extractor";
+  static constexpr auto static_name = "radar.offline_converter";
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
