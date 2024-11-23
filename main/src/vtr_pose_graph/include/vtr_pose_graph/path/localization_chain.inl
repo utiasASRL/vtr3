@@ -207,21 +207,37 @@ void LocalizationChain<Graph>::updateBranchToTwigTransform(
   }();
 
   // update localization
+  // CLOG(DEBUG, "pose_graph") << "OLD T_petiole_twig_ " << T_petiole_twig_;
+  // CLOG(DEBUG, "pose_graph") << "Updating T_petiole_twig_ with Ttw_old_new: " << Ttw_old_new;
   T_petiole_twig_ = T_petiole_twig_ * Ttw_old_new;
+  // CLOG(DEBUG, "pose_graph") << "NEW T_petiole_twig_ " << T_petiole_twig_;
+
+  // CLOG(DEBUG, "pose_graph") << "Setting T_twig_branch_ to: " << T_twig_branch;
   T_twig_branch_ = T_twig_branch;
+
+  // CLOG(DEBUG, "pose_graph") << "OLD T_branch_trunk_ " << T_branch_trunk_;
+  // CLOG(DEBUG, "pose_graph") << "Updating T_branch_trunk_ with Tbr_old_new: " << Tbr_old_new;
   T_branch_trunk_ = Tbr_old_new.inverse() * T_branch_trunk_;
+  // CLOG(DEBUG, "pose_graph") << "NEW T_branch_trunk_ " << T_branch_trunk_;
 
   // update vertex id
+  // CLOG(DEBUG, "pose_graph") << "Updating twig_vid_ to " << twig_vid;
   twig_vid_ = twig_vid;
+
+  // CLOG(DEBUG, "pose_graph") << "Updating branch_vid_ to " << branch_vid;
   branch_vid_ = branch_vid;
+
+  // CLOG(DEBUG, "pose_graph") << "Updating branch_sid_ to " << branch_sid;
   branch_sid_ = branch_sid;
 
   // Localized!
+  // CLOG(DEBUG, "pose_graph") << "Localization successful";
   is_localized_ = true;
 
   if (!search_closest_trunk) return;
 
   // Search along the path for the closest vertex (Trunk)
+  // CLOG(DEBUG, "pose_graph") << "Searching for the closest trunk";
   searchClosestTrunk(search_backwards);
 }
 
@@ -241,20 +257,31 @@ void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
       (search_backwards
            ? unsigned(std::max(int(trunk_sid_) - config_.search_back_depth, 0))
            : trunk_sid_);
+  // CLOG(DEBUG, "pose_graph") << "Searching for the closest trunk from " << begin_sid
+  //                          << " to " << end_sid;
 
   EdgeTransform T_trunk_root = this->pose(trunk_sid_).inverse();
   EdgeTransform T_leaf_root = T_leaf_trunk() * T_trunk_root;
 
+  // CLOG(DEBUG, "pose_graph") << "T_trunk_root: " << T_trunk_root;
+  // CLOG(DEBUG, "pose_graph") << "T_leaf_trunk(): " << T_leaf_trunk();
+  // CLOG(DEBUG, "pose_graph") << "T_leaf_root: " << T_leaf_root;
+
   // Find the closest vertex (updating Trunk) now that VO has updated the leaf
   for (auto path_it = this->begin(begin_sid); unsigned(path_it) < end_sid;
        ++path_it) {
+    // CLOG(DEBUG, "pose_graph") << "Checking sid: " << unsigned(path_it);
     EdgeTransform T_root_new = this->pose(path_it);
+    // CLOG(DEBUG, "pose_graph") << "T_root_new: " << T_root_new;
     EdgeTransform T_leaf_new = T_leaf_root * T_root_new;
+    // CLOG(DEBUG, "pose_graph") << "T_leaf_new: " << T_leaf_new;
 
     // Calculate the "distance"
     Eigen::Matrix<double, 6, 1> se3_leaf_new = T_leaf_new.vec();
     double distance = se3_leaf_new.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
+
+    // CLOG(DEBUG, "pose_graph") << "distance: " << distance;  
 
     // This block is just for the debug log below
     if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;

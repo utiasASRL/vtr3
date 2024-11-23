@@ -45,7 +45,6 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   config->azimuth_end = node->declare_parameter<double>(param_prefix + ".azimuth_end", config->azimuth_end);
   config->num_rows = node->declare_parameter<int>(param_prefix + ".num_rows", config->num_rows);
   config->num_cols = node->declare_parameter<int>(param_prefix + ".num_cols", config->num_cols);
-  config->max_dist = node->declare_parameter<int>(param_prefix + ".max_dist", config->max_dist);
   //
   config->active_lidars = node->declare_parameter<std::vector<bool>>(param_prefix + ".active_lidars", config->active_lidars);
   config->root_path = node->declare_parameter<std::string>(param_prefix + ".root_path", config->root_path);
@@ -111,15 +110,11 @@ void PreprocessingDopplerModule::initImgWeight(bool set_dims, const Config::Cons
   std::ifstream csv(dim_txt);
   Eigen::MatrixXi dims = readCSVtoEigenXd(csv).cast<int>();  // 0(# sensors) x 1(# rows) x 2(# cols) x 3(# faces) x 4(weight dim)
 
-  CLOG(WARNING, "lidar.preprocessing_doppler") << "int1";
-
   // reassigns values for rows and cols based on weights data
   if (set_dims) {
     config_->num_rows = dims(1);
     config_->num_cols = dims(2);
   }
-
-  CLOG(WARNING, "lidar.preprocessing_doppler") << "int2";
 
   Eigen::VectorXd dummy_vec(dims(4)); // dummy vector with appropriate size
   ImgWeight bias_weight(dims(1), std::vector<Eigen::VectorXd>(dims(2), dummy_vec)); // (# rows) x (# cols) x (weight dim)
@@ -127,15 +122,11 @@ void PreprocessingDopplerModule::initImgWeight(bool set_dims, const Config::Cons
   // initialize with approriate (# sensors) x (# faces)
   weights = std::vector<std::vector<ImgWeight>>(dims(0), std::vector<ImgWeight>(dims(3), bias_weight));
 
-  CLOG(WARNING, "lidar.preprocessing_doppler") << "int3";
-
   // read binary
   std::ifstream ifs(binary, std::ios::binary);
   std::vector<char> buffer(std::istreambuf_iterator<char>(ifs), {});
   unsigned float_offset = 4;
   auto getFloatFromByteArray = [](char *byteArray, unsigned index) -> float { return *((float *)(byteArray + index)); };
-
-  CLOG(WARNING, "lidar.preprocessing_doppler") << "int4";
 
   for (size_t sensor = 0; sensor < dims(0); ++sensor) {
     for (size_t row = 0; row < dims(1); ++row) {
@@ -150,8 +141,6 @@ void PreprocessingDopplerModule::initImgWeight(bool set_dims, const Config::Cons
       } // col
     } // row
   } // sensor
-
-  CLOG(WARNING, "lidar.preprocessing_doppler") << "int5";
 }
 
 void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const PointWithInfo& point, 
@@ -185,7 +174,7 @@ void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const Point
 
 double PreprocessingDopplerModule::computeModel(const Eigen::VectorXd& feat, const Eigen::VectorXd& weights, int polyorder) const {
   if (polyorder * feat.size() + 1 != weights.size()) {
-    LOG(WARNING) << "[DopplerImageCalib::computeModel] Incompatible feature and weight dimensions!" 
+    CLOG(WARNING, "lidar.preprocessing_doppler") << "[DopplerImageCalib::computeModel] Incompatible feature and weight dimensions!" 
                  << polyorder << ", " << feat.size() << ", " << weights.size() << std::endl;
     throw std::runtime_error("[DopplerImageCalib::computeModel] Incompatible feature and weight dimensions!");
   }

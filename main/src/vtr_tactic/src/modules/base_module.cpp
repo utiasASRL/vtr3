@@ -31,7 +31,7 @@ BaseModule::~BaseModule() {
       << ", count: " << count_.load() << ", time: " << timer_
       << ", time(ms)/count: "
       << (count_.load() > 0 ? (double)timer_.count() / (double)count_.load()
-                            : 0)
+                            : 0) / 1e6
       << "\033[0m";
 }
 

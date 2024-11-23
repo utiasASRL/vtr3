@@ -45,7 +45,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.search_back_depth = node->declare_parameter<int>(prefix+".chain.search_back_depth", 10);
   config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
 
-  /// localization execution intervals
+  /// localization execution by interval
   config->use_loc_threshold = node->declare_parameter<bool>(prefix+".use_loc_threshold", false);
   config->loc_threshold = node->declare_parameter<int>(prefix+".loc_threshold", 1);
 
@@ -871,7 +871,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
                                       *qdata->sid_loc, T_v_odo_loc, true,
                                       false);
 
-  // Correct keyfram pose (for visualization)
+  // Correct keyframe pose (for visualization)
   auto lock = chain_->guard();
   T_w_v_odo_ = chain_->T_start_petiole();
   T_w_v_loc_ = chain_->T_start_trunk();
