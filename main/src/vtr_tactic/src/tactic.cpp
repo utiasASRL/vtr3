@@ -284,7 +284,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -387,7 +387,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -482,7 +482,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -552,7 +552,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -622,7 +622,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
