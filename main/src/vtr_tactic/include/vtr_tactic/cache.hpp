@@ -117,6 +117,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<EnvInfo> env_info;
 
   // preprocessing
+  Cache<const double> preproc_time;
   Cache<const PipelineMode> pipeline_mode;
   Cache<const bool> first_frame;
 
@@ -127,12 +128,14 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<EdgeTransform> T_r_v_odo;
   Cache<Eigen::Matrix<double, 6, 1>> w_v_r_in_r_odo;  // body centric velocity
   Cache<Timestamp> timestamp_odo;
+  Cache<const double> odo_time;
 
   // localization
   Cache<const VertexId> vid_loc;
   Cache<const unsigned> sid_loc;
   Cache<EdgeTransform> T_r_v_loc;
   Cache<bool> loc_success;
+  Cache<const double> loc_time;
 
   // graph memory management cache args
   Cache<const VertexId> live_mem_async;

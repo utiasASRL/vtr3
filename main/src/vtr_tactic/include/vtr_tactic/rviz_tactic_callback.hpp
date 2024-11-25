@@ -41,7 +41,8 @@ class RvizTacticCallback : virtual public TacticCallbackInterface {
 
   void publishOdometryRviz(const Timestamp& stamp,
                            const EdgeTransform& T_r_v_odo,
-                           const EdgeTransform& T_w_v_odo) override;
+                           const EdgeTransform& T_w_v_odo,
+                           const Eigen::Vector<double, 6>& w_r_in_r) override;
   void publishPathRviz(const LocalizationChain& chain) override;
   void publishLocalizationRviz(const Timestamp& stamp,
                                const EdgeTransform& T_w_v_loc) override;
