@@ -56,9 +56,9 @@
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
 
-    robot_frame: base_link
+    robot_frame: w200_0066_base_link
     env_info_topic: env_info
-    lidar_frame: os_lidar
+    lidar_frame: w200_0066_os_lidar
     lidar_topic: /ouster/points
     queue_size: 1
     graph_map:
@@ -186,7 +186,7 @@
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 0.3
+        max_translation: 0.30
         max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2

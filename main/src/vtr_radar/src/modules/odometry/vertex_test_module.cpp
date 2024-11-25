@@ -41,6 +41,13 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
   // default to
   qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
 
+  // Do nothing if qdata does not contain any radar data (was populated by gyro)
+  // This means that we will only create vertices when radar data arrives (which I think is what we wanna do)
+  if(!qdata.radar_data)
+  {
+    return;
+  }
+
   // input
   const auto &first_frame = *qdata.first_frame;
   const auto &T_r_v = *qdata.T_r_v_odo;

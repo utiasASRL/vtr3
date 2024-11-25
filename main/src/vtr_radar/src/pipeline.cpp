@@ -40,6 +40,8 @@ auto RadarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
   
   config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
+  // added for saving radar images
+  config->save_radar_images = node->declare_parameter<bool>(param_prefix + ".save_radar_images", config->save_radar_images);
   // clang-format on
   return config;
 }
@@ -74,6 +76,17 @@ void RadarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
+
+  timestamp_odo_radar_ = nullptr;
+  T_r_m_odo_radar_ = nullptr;
+  w_m_r_in_r_odo_radar_ = nullptr;
+
+  preint_start_time_ = nullptr;
+  preint_end_time_ = nullptr;
+  last_gyro_msg_ = nullptr;
+  preint_delta_yaw_ = nullptr;
+
+
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -100,10 +113,21 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
+
+    qdata->timestamp_odo_radar = timestamp_odo_radar_;
+    qdata->T_r_m_odo_radar = T_r_m_odo_radar_;
+    qdata->w_m_r_in_r_odo_radar = w_m_r_in_r_odo_radar_;
   }
+
+  /// Carry over preintegration stuff
+  if(preint_start_time_ != nullptr) qdata->stamp_start_pre_integration = preint_start_time_;
+  if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
+  if(last_gyro_msg_ != nullptr) qdata->prev_gyro_msg = last_gyro_msg_;
+  if(preint_delta_yaw_ != nullptr) qdata->preintegrated_delta_yaw = preint_delta_yaw_;
 
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
+
 
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
@@ -111,7 +135,22 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+
+    if (qdata->radar_data)
+    { 
+      timestamp_odo_radar_ = qdata->timestamp_odo_radar.ptr();
+      T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
+      w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr(); 
+    }
+
   }
+
+  // store the preintegration stuff
+
+  if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
+  if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
+  if(qdata->prev_gyro_msg) last_gyro_msg_ = qdata->prev_gyro_msg.ptr();
+  if(qdata->preintegrated_delta_yaw) preint_delta_yaw_ = qdata->preintegrated_delta_yaw.ptr();
 }
 
 void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
@@ -119,7 +158,7 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
-
+  
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
 
@@ -170,6 +209,22 @@ void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
         "raw_point_cloud", "vtr_radar_msgs/msg/PointScan", raw_scan_odo_msg);
     CLOG(DEBUG, "radar.pipeline") << "Saved raw pointcloud to vertex" << vertex;
   }
+
+  // to add another function to save the radar b_scan_msg to the vertex
+  // radar images
+  // check if b_scan_msg is available
+  if(qdata->scan_msg)
+  {
+    if(config_->save_radar_images)
+    {
+      using RadarBScanMsgLM = storage::LockableMessage<navtech_msgs::msg::RadarBScanMsg>;
+      auto radar_b_scan_msg_msg = std::make_shared<RadarBScanMsgLM>(qdata->scan_msg.ptr(), *qdata->stamp);
+      vertex->insert<navtech_msgs::msg::RadarBScanMsg>(
+          "radar_b_scan_img", "navtech_msgs/msg/RadarBScanMsg", radar_b_scan_msg_msg);
+      CLOG(DEBUG, "radar.pipeline") << "Saved radar b_scan_img to vertex" << vertex;
+    }
+  }
+
 
   /// save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {
@@ -225,6 +280,8 @@ void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   vertex->insert<PointMapPointer>(
       "pointmap_ptr", "vtr_radar_msgs/msg/PointMapPointer", submap_ptr_msg);
 }
+
+
 
 }  // namespace radar
 }  // namespace vtr

@@ -34,8 +34,9 @@ bool sort_asc_by_second(const std::pair<int, float> &a,
   return (a.second < b.second);
 }
 
-}  // namespace
+} // namespace
 
+// K-strongest implementation as per Elliot's paper
 template <class PointT>
 void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
                              const std::vector<int64_t> &azimuth_times,
@@ -45,42 +46,45 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
   const int rows = raw_scan.rows;
   const int cols = raw_scan.cols;
   auto mincol = minr_ / res;
+
   if (mincol > cols || mincol < 0) mincol = 0;
   auto maxcol = maxr_ / res;
+
   if (maxcol > cols || maxcol < 0) maxcol = cols;
-  const auto N = maxcol - mincol;
 
   // #pragma omp parallel for
   for (int i = 0; i < rows; ++i) {
     std::vector<std::pair<float, int>> intens;
-    intens.reserve(N / 2);
-    double mean = 0;
+
+    const float thres = threshold3_;
     for (int j = mincol; j < maxcol; ++j) {
-      mean += raw_scan.at<float>(i, j);
+      if (raw_scan.at<float>(i, j) >= thres){
+        intens.push_back(std::make_pair(raw_scan.at<float>(i, j), j));
+      }
     }
-    mean /= N;
-    const double thres = mean * threshold2_ + threshold3_;
-    for (int j = mincol; j < maxcol; ++j) {
-      if (raw_scan.at<float>(i, j) >= thres)
-        intens.emplace_back(raw_scan.at<float>(i, j), j);
-    }
-    // sort intensities in descending order
-    std::sort(intens.begin(), intens.end(), sort_desc_by_first);
-    const double azimuth = azimuth_angles[i];
-    const int64_t time = azimuth_times[i];
-    pcl::PointCloud<PointT> polar_time;
-    for (int j = 0; j < kstrong_; ++j) {
-      if (intens[j].first < thres) break;
-      PointT p;
-      p.rho = float(intens[j].second) * res + range_offset_;
-      p.phi = azimuth;
-      p.theta = 0;
-      p.timestamp = time;
-      polar_time.push_back(p);
-    }
-    // #pragma omp critical
-    {
-      pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+
+    int thresholded_point_count = intens.size();
+    if(thresholded_point_count > 0){
+
+      std::sort(intens.begin(), intens.end(), sort_desc_by_first);
+
+      const double azimuth = azimuth_angles[i];
+      const int64_t time = azimuth_times[i];
+      pcl::PointCloud<PointT> polar_time;
+      for (int j = 0; j < kstrong_; ++j) {
+        if (j >= thresholded_point_count){break;}
+
+        PointT p;
+        p.rho = static_cast<float>(intens[j].second) * res + static_cast<float>(range_offset_);
+        p.phi = azimuth;
+        p.theta = 0;
+        p.timestamp = time;
+        polar_time.push_back(p);
+      }
+      // #pragma omp critical
+      {
+        pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+      }
     }
   }
 }
@@ -380,7 +384,7 @@ void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
         right += raw_scan.at<float>(i, j + k);
       // (statistic) estimate of clutter power
       // const double stat = (left + right) / (2 * w2);
-      const double stat = std::max(left, right) / w2;  // GO-CFAR
+      const double stat = std::max(left, right) / w2;  // GO-CFAR  // use max min or average
       const float thres = threshold_ * stat + threshold2_ * mean + threshold3_;
       if (raw_scan.at<float>(i, j) > thres) {
         peak_points += j;
@@ -398,6 +402,81 @@ void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
     }
     pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
   }
+}
+
+template <class PointT>
+void CASO_CFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
+                                 const std::vector<int64_t> &azimuth_times,
+                                 const std::vector<double> &azimuth_angles,
+                                 pcl::PointCloud<PointT> &pointcloud) {
+  pointcloud.clear();
+  const int rows = raw_scan.rows;
+  const int cols = raw_scan.cols;
+  if (width_ % 2 == 0) width_ += 1;
+  const int w2 = std::floor(width_ / 2);
+  auto mincol = minr_ / res + w2 + guard_ + 1;
+  if (mincol > cols || mincol < 0) mincol = 0;
+  auto maxcol = maxr_ / res - w2 - guard_;
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
+  // const int N = maxcol - mincol;  not used
+
+  // // debug
+  // std::cout<< "width:" << width_<<std::endl;
+  // std::cout<< "Guard:" << guard_<<std::endl;
+  // std::cout<< "Theshold" << threshold_<<std::endl;
+  // std::cout<< "minr" << minr_<<std::endl;
+  // std::cout<< "maxr" << maxr_<<std::endl;
+  
+  // Convert Navtechs 8-bit dB half steps to watts
+  cv::Mat raw_scan_watts_sqrd = raw_scan.clone();
+  double conversion_factor = 255.0/20.0*std::log(10.0);
+  raw_scan_watts_sqrd = raw_scan_watts_sqrd * conversion_factor;
+  cv::exp(raw_scan_watts_sqrd, raw_scan_watts_sqrd);
+  // apply square law detector to test cell
+  cv::pow(raw_scan_watts_sqrd, 2, raw_scan_watts_sqrd);
+
+  for (int i = 0; i < rows; ++i) {
+    const double azimuth = azimuth_angles[i];
+    const int64_t time = azimuth_times[i];
+    pcl::PointCloud<PointT> polar_time;
+    double mean = 0;
+    float peak_points = 0;
+    int num_peak_points = 0;
+
+    double left = 0;
+    double right = 0;
+    for (int k = -w2 - guard_; k < -guard_; ++k){left += raw_scan_watts_sqrd.at<float>(i, mincol-1 + k);}
+    for (int k = guard_ + 1; k <= w2 + guard_; ++k){right += raw_scan_watts_sqrd.at<float>(i, mincol-1 + k);}
+
+    for (int j = mincol; j < maxcol; ++j) {
+      // Intensity of test cell Y with sqaure law
+      double intensity_Y=raw_scan_watts_sqrd.at<float>(i, j);
+
+      left = left - raw_scan_watts_sqrd.at<float>(i, j + -w2 - guard_ - 1) + raw_scan_watts_sqrd.at<float>(i, j -guard_ - 1);
+      right = right - raw_scan_watts_sqrd.at<float>(i, j + guard_) + raw_scan_watts_sqrd.at<float>(i, j + w2 + guard_);
+
+      mean = std::min(left, right) / w2;
+
+      const double thres = threshold_ * mean;
+
+      if (intensity_Y > thres) {
+        peak_points += j;
+        num_peak_points += 1;
+      } else if (num_peak_points > 0) {
+        PointT p;
+        p.rho = res * peak_points / num_peak_points + range_offset_;
+        p.phi = azimuth;
+        p.theta = 0;
+        p.timestamp = time;
+        polar_time.push_back(p);
+        peak_points = 0;
+        num_peak_points = 0;
+      }
+    } 
+
+    pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+  }
+
 }
 
 }  // namespace radar
