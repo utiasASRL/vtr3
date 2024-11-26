@@ -51,7 +51,8 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 
 void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
                                              const EdgeTransform& T_r_v_odo,
-                                             const EdgeTransform& T_w_v_odo) {
+                                             const EdgeTransform& T_w_v_odo,
+                                             const Eigen::Vector<double, 6>& w_r_in_r) {
   // publish vertex frame
   Eigen::Affine3d T(T_w_v_odo.matrix());
   auto msg = tf2::eigenToTransform(T);
@@ -67,6 +68,7 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   odometry.header.stamp = rclcpp::Time(stamp);
   odometry.pose.pose =
       tf2::toMsg(Eigen::Affine3d((T_w_v_odo * T_r_v_odo.inverse()).matrix()));
+  odometry.twist.twist = tf2::toMsg(w_r_in_r);
   odometry_pub_->publish(odometry);
 
   // publish current frame
