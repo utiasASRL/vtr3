@@ -63,6 +63,7 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   // publish odometry
   OdometryMsg odometry;
   odometry.header.frame_id = "world";
+  odometry.child_frame_id = "robot";
   odometry.header.stamp = rclcpp::Time(stamp);
   odometry.pose.pose =
       tf2::toMsg(Eigen::Affine3d((T_w_v_odo * T_r_v_odo.inverse()).matrix()));

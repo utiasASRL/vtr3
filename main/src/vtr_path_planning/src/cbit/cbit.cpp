@@ -397,7 +397,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     CasadiMPC::Config::Ptr baseMpcConfig;
 
     if (config_->kinematic_model == "unicycle"){
-      CasadiUnicycleMPC::Config::Ptr mpcConfig;
+      CasadiUnicycleMPC::Config::Ptr mpcConfig = std::make_shared<CasadiUnicycleMPC::Config>();;
       mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
 
       // Initializations from config
