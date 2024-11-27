@@ -43,20 +43,21 @@ USER 0:0
 
 ## Dependencies
 RUN apt update && apt upgrade -q -y
-RUN apt update && apt install -q -y cmake git build-essential lsb-release curl gnupg2
+RUN apt update && apt install -q -y git build-essential lsb-release curl gnupg2
 RUN apt update && apt install -q -y libboost-all-dev libomp-dev
 RUN apt update && apt install -q -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
 RUN apt update && apt install -q -y freeglut3-dev
 RUN apt update && apt install -q -y python3 python3-distutils python3-pip
 RUN apt update && apt install -q -y libeigen3-dev
 RUN apt update && apt install -q -y libsqlite3-dev sqlite3
-RUN apt install -q -y libc6-dbg gdb valgrind
+RUN apt install -q -y libc6-dbg gdb valgrind cmake
 
 ## Dependency for navtech radar
 RUN apt update && apt install -q -y apt libbotan-2-dev
 
+
 ## Install PROJ (8.2.0) (this is for graph_map_server in vtr_navigation)
-RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
+RUN apt update && apt install -q -y libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
 RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
   && git clone https://github.com/OSGeo/PROJ.git . && git checkout 8.2.0 \
   && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
@@ -131,7 +132,9 @@ RUN mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
 RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.10.0 
 
 
-RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+RUN apt install -q -y build-essential git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+
+
 # # generate Makefiles (note that install prefix is customized to: /usr/local/opencv_cuda)
 
 RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
@@ -181,10 +184,19 @@ RUN cd ${HOMEDIR}/.casadi \
 ENV PYTHONPATH=${PYTHONPATH}:/usr/local
 ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 
-
+# env vars for the nvidia-container-runtime
+ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
 RUN apt install -q -y vim htop
+
+# leonardo nice profiler
+RUN git clone https://github.com/gperftools/gperftools && cd gperftools && ./autogen.sh && ./configure && make && make install
+RUN apt update && apt install -q -y \
+  google-perftools \
+  graphviz \
+  gperf \
+  libgoogle-perftools-dev
 
 
 ## Switch to specified user

@@ -5,8 +5,6 @@ project(vtr_vision)
 #   add_compile_options(-Wall -Wextra -Wpedantic)
 # endif()
 
-
-
 # Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 

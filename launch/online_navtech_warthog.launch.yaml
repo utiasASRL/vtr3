@@ -41,6 +41,7 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
+      # - source ${VTRSRC}/../vtr3/warthog/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/radar.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure

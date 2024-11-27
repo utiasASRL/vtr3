@@ -1,5 +1,5 @@
-## Online Lidar VTR3
-session_name: vtr_online_nerian_warthog
+## Online NerianVTR3
+session_name: vtr_offline_nerian_warthog
 
 # environment:
 #   CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs

@@ -25,6 +25,10 @@
 #include "vtr_radar/data_types/point.hpp"
 #include "vtr_radar/utils/utils.hpp"
 
+#ifdef ENABLE_CUDA
+  #include "vtr_radar/detector/detector.cuh"
+#endif
+
 namespace vtr {
 namespace radar {
 
@@ -154,6 +158,7 @@ class OSCFAR : public Detector<PointT> {
   double range_offset_ = -0.31;
 };
 
+// add w2 attribute for cuda implementation
 template <class PointT>
 class ModifiedCACFAR : public Detector<PointT> {
  public:
@@ -168,12 +173,26 @@ class ModifiedCACFAR : public Detector<PointT> {
         threshold3_(threshold3),
         minr_(minr),
         maxr_(maxr),
-        range_offset_(range_offset) {}
+        range_offset_(range_offset) {
+    if (width_ % 2 == 0) width_ += 1;
+    w2_ = std::floor(width_ / 2);
+        }
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
            pcl::PointCloud<PointT> &pointcloud) override;
+
+  #ifdef ENABLE_CUDA
+    inline void cudaRun(const cv::Mat &raw_scan, const float &res, const std::vector<int64_t> &azimuth_times,
+                        const std::vector<double> &azimuth_angles,  pcl::PointCloud<PointT> &pointcloud) {
+                          gpu_mem.toGpu(raw_scan, azimuth_times, azimuth_angles);
+                          cudaModifiedCACFAR<PointT>(gpu_mem, minr_, maxr_, w2_, guard_, range_offset_,
+                                                     threshold_, threshold2_, threshold3_, 
+                                                     raw_scan, res, azimuth_times, azimuth_angles, pointcloud);
+                          return;
+                        }
+  #endif
 
  private:
   int width_ = 41;  // window = width + 2 * guard
@@ -184,6 +203,11 @@ class ModifiedCACFAR : public Detector<PointT> {
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
+
+  int w2_ = width_ / 2;
+  #ifdef ENABLE_CUDA
+    CudaMem gpu_mem;
+  #endif
 };
 
 template <class PointT>
