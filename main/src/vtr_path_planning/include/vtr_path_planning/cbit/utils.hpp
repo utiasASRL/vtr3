@@ -26,12 +26,37 @@
 #include <iostream>
 #include <map>
 
+#include "vtr_tactic/types.hpp"
+
 #pragma once
+
+
+namespace vtr::path_planning {
+
+    struct ChainInfo {
+        tactic::Timestamp stamp;
+        Eigen::Matrix<double, 6, 1> w_p_r_in_r;
+        // planning frame is the current localization frame
+        tactic::EdgeTransform T_p_r;  // T_planning_robot
+        tactic::EdgeTransform T_w_p;  // T_world_planning
+        tactic::EdgeTransform T_w_v_odo;  // T_planning_robot
+        tactic::EdgeTransform T_r_v_odo;  // T_world_planning
+        unsigned curr_sid;
+    };
+
+    /** \brief Retrieve information for planning from localization chain */
+    ChainInfo getChainInfo(const tactic::LocalizationChain& robot_state);
+} // namespace vtr::path_planning
+
+
 
 
 // Some useful Classes
 class Pose {
     public:
+        using Ptr = std::shared_ptr<Pose>;
+        using Path = std::vector<Pose>;
+
         double x;
         double y;
         double z;
@@ -59,17 +84,22 @@ class Pose {
 
 class Node {
     public:
+        using Ptr = std::shared_ptr<Node>;
+        using Path = std::vector<Ptr>;
+        using Edge = std::tuple<Ptr, Ptr>;
+
         double p;
         double q;
         double z; // experimental
         double g_T = NAN;
         double g_T_weighted = NAN;
-        std::shared_ptr<Node> parent; // Shared pointer method (safer) // NOTE: Shared pointers initialize to null
-        std::shared_ptr<Node> child; // Shared pointer method (safer)
+        Node::Ptr parent; // Shared pointer method (safer) // NOTE: Shared pointers initialize to null
+        Node::Ptr child; // Shared pointer method (safer)
         bool worm_hole = false;
         Node(double p_in, double q_in) // Node constructor
         : p{p_in}
         , q{q_in}
+        , z{0}
         {
         }
 

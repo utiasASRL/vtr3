@@ -29,6 +29,8 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
+#include <vtr_path_planning_msgs/msg/path_info_for_external_navigation.hpp>
+#include "std_msgs/msg/header.hpp"
 
 #include "vtr_tactic/tactic.hpp"
 #include "vtr_logging/logging.hpp"
@@ -42,16 +44,22 @@ public:
     VisualizationUtils();
     VisualizationUtils(rclcpp::Node::SharedPtr node);
     void visualize(
-    const tactic::Timestamp& stamp,
-    const tactic::EdgeTransform& T_w_p,
-    const tactic::EdgeTransform& T_p_r,
-    const tactic::EdgeTransform& T_p_r_extp_mpc,
-    const std::vector<lgmath::se3::Transformation>& mpc_prediction,
-    const std::vector<lgmath::se3::Transformation>& robot_prediction,
-    const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
-    const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
-    const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
-    const std::shared_ptr<CBITCorridor> corridor_ptr);
+        const tactic::Timestamp& stamp,
+        const tactic::EdgeTransform& T_w_p,
+        const tactic::EdgeTransform& T_p_r,
+        const tactic::EdgeTransform& T_p_r_extp_mpc,
+        const tactic::EdgeTransform& T_w_r,
+        const std::vector<lgmath::se3::Transformation>& mpc_prediction,
+        const std::vector<Eigen::Vector2d>& mpc_velocities,
+        const std::vector<lgmath::se3::Transformation>& robot_prediction,
+        const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
+        const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
+        const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
+        const std::shared_ptr<CBITCorridor> corridor_ptr,
+        const lgmath::se3::Transformation& T_w_p_interpolated_closest_to_robot,
+        const double& state_p,
+        const std::shared_ptr<CBITPath> global_path_ptr,
+        unsigned closest_node_idx);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
@@ -62,6 +70,7 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_r_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub_tracking_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub_homotopy_;
+    rclcpp::Publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>::SharedPtr path_info_for_external_navigation_pub_;
 };
 
 } // namespace path_planning

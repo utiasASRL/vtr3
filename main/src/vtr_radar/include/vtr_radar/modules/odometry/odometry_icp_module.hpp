@@ -50,6 +50,9 @@ class OdometryICPModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
+    // preintegration weight
+    double preint_cov = 0.1;
+
     /// ICP parameters
     // number of threads for nearest neighbor search
     int num_threads = 4;

@@ -57,6 +57,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
     /** \brief */
     double route_completion_translation_threshold = 0.5;
+    double route_completion_angle_threshold = 0.26;
 
     /** \brief Configuration for the localization chain */
     LocalizationChain::Config chain_config;

@@ -47,7 +47,7 @@ class PreprocessingModule : public tactic::BaseModule {
     float r_scale = 4.0;
     float h_scale = 0.5;
     float frame_voxel_size = 0.1;
-    float nn_voxel_size = 0.05;
+    float nn_voxel_size = -1;
     bool filter_by_normal_score = true;
     int num_sample1 = 100000;
     float min_norm_score1 = 0.0;

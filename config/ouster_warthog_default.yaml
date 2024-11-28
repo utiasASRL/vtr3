@@ -10,30 +10,38 @@
     
         # tactic
       #- tactic
-      - tactic.pipeline
+      #- tactic.pipeline
+      #- tactic.eop
       #- tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
-        # path planner
+      # path planner
       - path_planning
       - path_planning.cbit
-      #- path_planning.cbit_planner
-      - mpc.cbit
-      - mpc_debug
+      - path_planning.cbit_planner
+      - cbit.path_planning
+      #- cbit_planner.path_planning
+      #- cbit.debug
+      - mpc.solver
+      - mpc.speed_scheduler
+      #- mpc.cost_function
+      #- mpc.cbit
+      #- mpc.debug
+      - cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
         
         # mission planner
       #- mission.server
-      #- mission.state_machine
+      - mission.state_machine
 
         # pose graph
       #- pose_graph
 
         # lidar pipeline
-      - lidar.pipeline
+      #- lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
       #- lidar.odometry_icp
@@ -48,9 +56,9 @@
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
 
-    robot_frame: base_link
+    robot_frame: w200_0066_base_link
     env_info_topic: env_info
-    lidar_frame: os_lidar
+    lidar_frame: w200_0066_os_lidar
     lidar_topic: /ouster/points
     queue_size: 1
     graph_map:
@@ -62,18 +70,20 @@
       enable_parallelization: true
       preprocessing_skippable: false
       odometry_mapping_skippable: false
-      localization_skippable: false
+      localization_skippable: true
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.5
+      route_completion_translation_threshold: 0.2
+      route_completion_angle_threshold: 0.1
 
       chain:
-        min_cusp_distance: 1.5
-        angle_weight: 7.0
+        min_cusp_distance: 0.5
+        angle_weight: 1.0
         search_depth: 5
         search_back_depth: 10
         distance_warning: 5.0
+        alpha: 1.0
       save_odometry_result: true
       save_localization_result: true
       visualize: true
@@ -90,9 +100,9 @@
         - icp
         - mapping
         - vertex_test
-        - intra_exp_merging
-        - dynamic_detection
-        - inter_exp_merging
+        #- intra_exp_merging
+        #- dynamic_detection
+        #- inter_exp_merging
         - memory
       localization:
         - recall
@@ -172,11 +182,11 @@
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
         point_life_time: 20.0
-        visualize: true
+        visualize: false
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 0.3
+        max_translation: 0.30
         max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
@@ -308,7 +318,7 @@
         visualize: true
     
     path_planning:
-      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      type: cbit
       control_period: 100 # ms
       cbit:
         obstacle_avoidance: false
@@ -328,7 +338,6 @@
         alpha: 0.25
         q_max: 2.5
         frame_interval: 50
-        iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
         initial_exp_rad: 0.75
@@ -339,34 +348,25 @@
         costmap_filter_value: 0.01
         costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
 
+      speed_scheduler:
+        planar_curv_weight: 0.0
+        profile_curv_weight: 0.0 
+        eop_weight: 1.0
+        min_vel: 0.5
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
+        extrapolate_robot_pose: false
         mpc_verbosity: false
-        homotopy_guided_mpc: false
-        horizon_steps: 20
-        horizon_step_size: 0.3
         forward_vel: 1.0
         max_lin_vel: 1.5
-        max_ang_vel: 1.25
+        max_ang_vel: 0.5
+        max_ang_acc: 5.0
+        ang_alpha: 0.811
+        lin_alpha: 0.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
-
-        # Cost Function Covariance Matrices
-        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
-        vel_error_cov: [20.0, 30.0]
-        acc_error_cov: [20.0, 20.0]
-        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-        lat_error_cov: [2.0]
-
-        # Cost Function Weights
-        pose_error_weight: 1.0
-        vel_error_weight: 1.5
-        acc_error_weight: 1.5
-        kin_error_weight: 1.0
-        lat_error_weight: 0.01
 
         # Misc
         command_history_length: 100

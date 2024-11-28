@@ -5,10 +5,13 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /TF1/Status1
+        - /TF1
+        - /TF1/Frames1
         - /Teach Path1/Topic1
+        - /MPC Solution1
+        - /MPC Tracking Reference Poses1
       Splitter Ratio: 0.4507042169570923
-    Tree Height: 871
+    Tree Height: 1391
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -60,9 +63,73 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
+        base_link:
+          Value: true
+        chassis_link:
+          Value: true
+        diff_link:
+          Value: true
+        front_left_wheel_link:
+          Value: true
+        front_right_wheel_link:
+          Value: true
+        imu_link:
+          Value: true
+        left_diff_unit_headlight_link:
+          Value: true
+        left_diff_unit_link:
+          Value: true
+        left_diff_unit_taillight_link:
+          Value: true
         lidar:
           Value: false
+        loc vertex frame:
+          Value: true
+        loc vertex frame (offset):
+          Value: false
+        navtech_base:
+          Value: true
+        nerian_left:
+          Value: true
+        nerian_stereo:
+          Value: true
+        novatel:
+          Value: true
+        odo vertex frame:
+          Value: false
+        odom:
+          Value: true
+        os_imu:
+          Value: true
+        os_lidar:
+          Value: true
+        os_sensor:
+          Value: true
+        os_sensor_base_link:
+          Value: true
+        os_sensor_baseplate:
+          Value: true
+        planning frame:
+          Value: false
+        rear_left_wheel_link:
+          Value: true
+        rear_right_wheel_link:
+          Value: true
+        right_diff_unit_headlight_link:
+          Value: true
+        right_diff_unit_link:
+          Value: true
+        right_diff_unit_taillight_link:
+          Value: true
         robot:
+          Value: true
+        robot planning:
+          Value: false
+        robot planning (extrapolated) mpc:
+          Value: true
+        sensor_tower:
+          Value: true
+        top_chassis_link:
           Value: true
         world:
           Value: false
@@ -75,8 +142,20 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          world (offset):
+          loc vertex frame:
             {}
+          odo vertex frame:
+            robot:
+              lidar:
+                {}
+          planning frame:
+            robot planning:
+              {}
+            robot planning (extrapolated) mpc:
+              {}
+          world (offset):
+            loc vertex frame (offset):
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -389,7 +468,7 @@ Visualization Manager:
         Y: 0
         Z: 0
       Pose Color: 255; 85; 255
-      Pose Style: None
+      Pose Style: Axes
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
@@ -539,7 +618,7 @@ Visualization Manager:
       Name: MPC Tracking Reference Poses
       Shaft Length: 0.10000000149011612
       Shaft Radius: 0.10000000149011612
-      Shape: Arrow (3D)
+      Shape: Axes
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -614,26 +693,26 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/Orbit
-      Distance: 41.55506134033203
+      Class: rviz_default_plugins/ThirdPersonFollower
+      Distance: 16.207958221435547
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 12.343294143676758
-        Y: -3.8882362842559814
-        Z: 0.2389792650938034
-      Focal Shape Fixed Size: false
+        X: -9.903048515319824
+        Y: -2.746500015258789
+        Z: 0.005913601256906986
+      Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.5547972917556763
       Target Frame: robot
-      Value: Orbit (rviz_default_plugins)
-      Yaw: 3.441279411315918
+      Value: ThirdPersonFollower (rviz_default_plugins)
+      Yaw: 3.401355266571045
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -838,10 +917,10 @@ Visualization Manager:
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1016
+  Height: 1536
   Hide Left Dock: false
-  Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd000000040000000000000281000003a2fc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000003a2000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c0000003bdfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003b000003bd000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d00650100000000000004500000000000000000000004b1000003a200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd000000040000000000000281000005aafc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000005aa000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c0000005aafc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003b000005aa000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d0065010000000000000450000000000000000000000565000005aa00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -849,7 +928,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
-  Width: 1848
-  X: 72
+    collapsed: false
+  Width: 2482
+  X: 78
   Y: 27

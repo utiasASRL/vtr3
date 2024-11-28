@@ -21,8 +21,6 @@
 
 #include <vector>
 #include <cmath>
-#include <cstdlib>
-#include <cstdio>
 #include <Eigen/Core>
 #include <unsupported/Eigen/Splines>
 
@@ -31,6 +29,7 @@
 #include "vtr_path_planning/cbit/cbit_config.hpp"
 
 #pragma once 
+
 
 // TODO: ROC singularity region handling
 
@@ -44,17 +43,13 @@ class CBITPath {
         std::vector<int> sid; // store the sid value of the transform from the teach path
         CBITPath(CBITConfig config, std::vector<Pose> initial_path); // constructor; need to feed this the path 
         CBITPath() = default;
-        Pose interp_pose(double p_in); // Function to interpolate a pose from the teach path given a p value
         double delta_p_calc(Pose start_pose, Pose end_pose, double alpha); // Function for computing delta p intervals in p,q space
     // Internal function declarations
     private:
-        Eigen::Spline<double, 2> spline_path_xy(std::vector<Pose> input_path); // Processes the input discrete path into a cubic spline
-        Eigen::Spline<double, 2> spline_path_xz_yz(std::vector<Pose> input_path); // Processes the input discrete path into a cubic spline
+        Eigen::Spline<double, 2> spline_path_xy(const std::vector<Pose> &input_path); // Processes the input discrete path into a cubic spline
+        Eigen::Spline<double, 2> spline_path_xz_yz(const std::vector<Pose> &input_path); // Processes the input discrete path into a cubic spline
 
         double radius_of_curvature(double dist, Eigen::Spline<double, 2> spline); // Calculates the radius of curvature using the spline at a given distance along the spline
-       
-        // Actually I think ill just do this in the constructor for now
-        //std::vector<double> ProcessPath(std::vector<Pose> disc_path); // Function for assigning p distance values for each euclidean point in pre-processing
 };
 
 // Class for storing the dynamic corridor information

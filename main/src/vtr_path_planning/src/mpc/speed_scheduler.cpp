@@ -19,65 +19,48 @@
 
 #include "vtr_path_planning/mpc/speed_scheduler.hpp"
 #include <algorithm>
-#include <iostream>
 
-
-double ScheduleSpeed(const std::vector<double>& disc_path_curvature_xy, const std::vector<double>& disc_path_curvature_xz_yz, double VF, int curr_sid, double planar_curv_weight, double profile_curv_weight, double eop_weight, double horizon_step_size, double min_vel)
+namespace vtr::path_planning
 {
+  double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params) {
+    
+    unsigned curr_sid = chain->trunkSequenceId();
 
-    // Experimental Speed Scheduler:
-    // Takes in the desired forward_velocity and the pre-processed global path and reduces the set speed based on a range of tunable factors:
-    // 1. Planar Curvature
-    // 2. Profile Curvature
-    // 3. End of Path
+    CLOG(DEBUG, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
+    CLOG(DEBUG, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
 
-    // Pseudocode:
-    // - Estimate the current p value of the vehicle (doesnt need to be super precise so here we can imply opt to use the sid value)
-    // - Avergage the radius of curvature in the upcoming segments of the path
+    double VF_EOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * (chain->size()- 1 - curr_sid) / 20.0));
+    double VF_SOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * curr_sid / 10));
 
-    // Basic implementation - weights hardcoded for now
-    CLOG(INFO, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
-    CLOG(INFO, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
-    double VF_EOP;
+
     double VF_XY;
-    double VF_XZ_YZ;
-    double avg_curvature_xy = 0.0;
-    double avg_curvature_xz_yz = 0.0;
-    double end_of_path = 0.0;
-    int horizon_steps = 5.0 / horizon_step_size; // Set lookahead horizon to 5m (default params tuned for this value)
-    for (int i = curr_sid; i < curr_sid + horizon_steps; i++) 
-    {
-      // Handle end of path case
-      if (i == (disc_path_curvature_xy.size()-1))
-      {
-        end_of_path = 1.0;
-        break;
-      }
-      avg_curvature_xy = avg_curvature_xy + disc_path_curvature_xy[i];
-      avg_curvature_xz_yz = avg_curvature_xz_yz + disc_path_curvature_xz_yz[i];
-
+    double avg_curvature = 0.0;
+    unsigned window_steps = 0;
+    for (auto itr = chain->begin(curr_sid); itr != chain->end() && unsigned(itr) < curr_sid + params.horizon_steps; itr++) {
+      const auto curvature = CurvatureInfo::fromTransform(itr->T());
+      avg_curvature += abs(curvature.curvature());
+      ++window_steps;
     }
-    avg_curvature_xy = avg_curvature_xy / horizon_steps;
-    avg_curvature_xz_yz = avg_curvature_xz_yz / horizon_steps;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PLANAR CURVATURE IS:  " << avg_curvature_xy;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE AVERAGE PROFILE CURVATURE IS:  " << avg_curvature_xz_yz;
+    avg_curvature /= window_steps;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE AVERAGE CURVATURE IS:  " << avg_curvature;
 
-    // handle forward/referse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
+    // handle forward/reverse case and calculate a candidate VF speed for each of our scheduler modules (XY curvature, XZ curvature, End of Path etc)
 
-    VF_EOP = std::max(0.5, VF / (1 + (end_of_path * end_of_path * eop_weight)));
-    VF_XY = std::max(0.5, VF / (1 + (avg_curvature_xy * avg_curvature_xy * planar_curv_weight)));
-    VF_XZ_YZ = std::max(0.5, VF / (1 + (avg_curvature_xz_yz * avg_curvature_xz_yz * profile_curv_weight)));
+    VF_XY = std::max(params.min_vel, params.target_vel / (1 + (avg_curvature * avg_curvature * params.planar_curv_weight)));
     
     // Take the minimum of all candidate (positive) scheduled speeds (Lowest allowed scheduled velocity is 0.5m/s, should be left this way)
-    VF = std::min({VF_EOP, VF_XY, VF_XZ_YZ});
-    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_EOP SPEED IS:  " << VF_EOP;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_XY SPEED IS:  " << VF_XY;
-    CLOG(INFO, "mpc.speed_scheduler") << "THE VF_XZ SPEED IS:  " << VF_XZ_YZ;
+    double VF = std::min({VF_EOP, VF_SOP, VF_XY});
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_EOP SPEED IS:  " << VF_EOP;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_SOP SPEED IS:  " << VF_SOP;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_XY SPEED IS:  " << VF_XY;
 
     // Take the minimum of all candidate scheduled speeds
-    CLOG(INFO, "mpc.speed_scheduler") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
+    CLOG(DEBUG, "mpc.speed_scheduler") << "THE SPEED SCHEDULED SPEED IS:  " << VF;
     // End of speed scheduler code
 
     // Return the scheduled speed
     return VF;
-}
+  }
+
+  
+} // namespace vtr::path_planning

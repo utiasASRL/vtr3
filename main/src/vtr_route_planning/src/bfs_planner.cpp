@@ -39,8 +39,10 @@ auto BFSPlanner::path(const VertexId &from, const VertexId::List &to,
   auto to_iter = std::next(from_iter);
   for (; to_iter != to.end(); ++from_iter, ++to_iter) {
     const auto segment = path(priv_graph, *from_iter, *to_iter);
-    rval.insert(rval.end(), std::next(segment.begin()), segment.end());
-    idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
+    if (segment.size() > 0){
+      rval.insert(rval.end(), std::next(segment.begin()), segment.end());
+      idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
+    }
   }
 
   return rval;
