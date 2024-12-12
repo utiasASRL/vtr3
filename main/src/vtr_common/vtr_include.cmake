@@ -35,6 +35,7 @@ endif()
 #Set to VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR
 set(SelectedPipeline "$ENV{VTR_PIPELINE}")
 
+
 if(SelectedPipeline MATCHES "LIDAR")
   add_definitions(-DVTR_ENABLE_LIDAR)
   set(VTR_ENABLE_LIDAR true)

@@ -45,30 +45,20 @@ class NavtechExtractionModule : public tactic::BaseModule {
     // kstrongest
     struct {
       int kstrong = 10;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
+      double threshold = 0.5;
+      double static_threshold = 0.22;
     } kstrongest;
     // cen2018
     struct {
       double zq = 3;
       int sigma = 17;
     } cen2018;
-    // cacfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } cacfar;
     // oscfar
     struct {
       int width = 40;
       int guard = 2;
       int kstat = 20;
       double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
     } oscfar;
     // tm_cfar
     struct {
@@ -78,22 +68,12 @@ class NavtechExtractionModule : public tactic::BaseModule {
       int N1 = 5;
       int N2 = 5;
     } tm_cfar;
-    // modified_cacfar
+    // cacfar
     struct {
       int width = 40;
       int guard = 2;
       double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } modified_cacfar;
-    // modified_cacfar_power test
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } modified_cacfar_power;
+    } cacfar;
     // cago_cfar
     struct {
       int width = 40;
@@ -134,14 +114,13 @@ class NavtechExtractionModule : public tactic::BaseModule {
       double r = 3.5;
       double f = 1.0;
     } cfear_kstrong;
-    // bfar_pure
+    // bfar
     struct {
       int width = 40;
       int guard = 2;
       double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } bfar_pure;
+      double static_threshold = 0.22;
+    } bfar;
     // msca_cfar
     struct {
       int width = 40;
@@ -149,22 +128,6 @@ class NavtechExtractionModule : public tactic::BaseModule {
       double threshold = 0.5;
       int M = 5;
     } msca_cfar;
-    // landmark_extraction
-    struct {
-      int width = 40;
-      int guard = 2;
-      int w_median = 200;
-      int w_binom = 50;
-      double z_q = 11.0;
-    } landmark_extraction;
-    // surf
-    struct {
-      int width = 40;
-      int guard = 2;
-      int w_median = 200;
-      int w_binom = 50;
-      double z_q = 11.0;
-    } surf;
     // cen2019
     struct {
       int width = 40;
@@ -178,6 +141,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
     double beta = 0.049;
     std::string chirp_type = "both";
 
+    bool save_overlay = false;
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

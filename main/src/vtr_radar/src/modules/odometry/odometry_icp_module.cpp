@@ -89,8 +89,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-int frame_num1 = 0;
-
 void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
@@ -131,112 +129,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &beta = *qdata.beta;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
-
-  // if(frame_num1>3439 && frame_num1 < 3451){
-  //   auto &scan = *qdata.scan;
-  //   scan.convertTo(scan, CV_32F);
-
-  //   /// temp variables
-  //   cv::Mat fft_scan;
-  //   cv::Mat cartesian;
-  //   std::vector<int64_t> azimuth_times;
-  //   std::vector<double> azimuth_angles;
-
-  //   // Load scan, times, azimuths from scan
-  //   load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
-
-  //   // Convert to cartesian BEV image
-  //   double maxr = 80.0;
-  //   double radar_resolution_ = 0.0596;
-  //   double cart_resolution_= 0.2384;
-  //   int cart_pixel_width = (2 * maxr) / cart_resolution_;
-
-  //   const int rows = fft_scan.rows;
-
-  //   // cv::Mat temp;
-  //   // radar_polar_to_cartesian((fft_scan*255.0/2.0), azimuth_angles, temp, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
-  //   // cv::imwrite("/home/epk/radar_topometric_localization/data/epk_test_plots/cen2019/new_sweep_20_0f15/raw_scans/raw_scan_"+ std::to_string(frame_num1) +".jpg", temp);
-
-
-  //   cv::Mat qp_overlay = cv::Mat::zeros(671, 671, CV_32F);
-
-  //   for(unsigned i = 0; i < query_points.size(); ++i) {
-  //     float x = query_points[i].rho*cos(query_points[i].phi)/cart_resolution_;
-  //     float y = query_points[i].rho*sin(query_points[i].phi)/cart_resolution_;
-  //     int px = static_cast<int>(0.5 * 671-x); // Shift by half azimuth_size for positive values
-  //     // int py = static_cast<int>(671 - y);         // Flip y-axis for image coordinates
-  //     int py = static_cast<int>(y+0.5 * 671);         // Flip y-axis for image coordinates
-
-  //     // Plot the point (ensure within image bounds)
-  //     if (px >= 0 && px < 671 && py >= 0 && py < 671) {
-  //         qp_overlay.at<float>(px, py) = 245.0;
-  //         qp_overlay.at<float>(px, py+1) = 245.0;
-  //         qp_overlay.at<float>(px, py-1) = 245.0;
-  //         qp_overlay.at<float>(px+1, py) = 245.0;
-  //         qp_overlay.at<float>(px-1, py) = 245.0;
-  //         qp_overlay.at<float>(px+1, py+1) = 245.0;
-  //         qp_overlay.at<float>(px+1, py-1) = 245.0;
-  //         qp_overlay.at<float>(px-1, py+1) = 245.0;
-  //         qp_overlay.at<float>(px-1, py-1) = 245.0;
-  //     }
-  //   }
-    
-  //   // sleep(5);
-
-  //   // // cv::Mat L_cart;
-  //   // cv::Mat L_cart_colour;
-  //   // // radar_polar_to_cartesian(qp_overlay, azimuth_angles, L_cart, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
-  //   // cv::cvtColor(qp_overlay, L_cart_colour, cv::COLOR_GRAY2BGR);
-  //   // cv::Mat raw_scan_convert, raw_colour_convert;
-  //   // radar_polar_to_cartesian((fft_scan*255.0/2.0), azimuth_angles, raw_scan_convert, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
-  //   // cv::cvtColor(raw_scan_convert, raw_colour_convert, cv::COLOR_GRAY2BGR);
-  //   // // std::cout<<"wid"<<raw_colour_convert.rows<< "col"<<raw_colour_convert.rows<<std::endl;
-  //   // // std::cout<<"wid"<<qp_overlay.rows<< "col"<<qp_overlay.rows<<std::endl;
-
-
-  //   // raw_colour_convert = raw_colour_convert + L_cart_colour;
-
-  //   cv::imwrite("/home/epk/radar_topometric_localization/data/epk_test_plots/CFEAR/points/query_points_"+ std::to_string(frame_num1) +".jpg", qp_overlay);
-
-  //   // cv::Mat pm_overlay = cv::Mat::zeros(400, 3360, CV_32F);
-  //   cv::Mat pm_overlay = cv::Mat::zeros(671, 671, CV_32F);
-
-
-  //   for(unsigned i = 0; i < point_map.size(); ++i) {
-
-  //     float x = point_map[i].rho*cos(point_map[i].phi)/cart_resolution_;
-  //     float y = point_map[i].rho*sin(point_map[i].phi)/cart_resolution_;
-  //     int px = static_cast<int>(0.5 * 671-x);
-  //     int py = static_cast<int>(y+0.5 * 671);   
-
-  //     if (px >= 0 && px < 671 && py >= 0 && py < 671) {
-  //         pm_overlay.at<float>(px, py) = 245.0;
-  //         pm_overlay.at<float>(px, py+1) = 245.0;
-  //         pm_overlay.at<float>(px, py-1) = 245.0;
-  //         pm_overlay.at<float>(px+1, py) = 245.0;
-  //         pm_overlay.at<float>(px-1, py) = 245.0;
-  //         pm_overlay.at<float>(px+1, py+1) = 245.0;
-  //         pm_overlay.at<float>(px+1, py-1) = 245.0;
-  //         pm_overlay.at<float>(px-1, py+1) = 245.0;
-  //         pm_overlay.at<float>(px-1, py-1) = 245.0;
-  //     }
-
-  //   }
-
-  //   // // cv::Mat L_cart1;
-  //   // cv::Mat L_cart_colour1;
-  //   // // radar_polar_to_cartesian(pm_overlay, azimuth_angles, L_cart1, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
-  //   // cv::cvtColor(pm_overlay, L_cart_colour1, cv::COLOR_GRAY2BGR);
-  //   // cv::Mat raw_scan_convert1, raw_colour_convert1;
-  //   // radar_polar_to_cartesian((fft_scan*255.0/2.0), azimuth_angles, raw_scan_convert1, radar_resolution_, cart_resolution_, cart_pixel_width, true, CV_32F);
-  //   // cv::cvtColor(raw_scan_convert1, raw_colour_convert1, cv::COLOR_GRAY2BGR);
-  //   // raw_colour_convert1 = raw_colour_convert1 + L_cart_colour1;
-
-  //   cv::imwrite("/home/epk/radar_topometric_localization/data/epk_test_plots/CFEAR/maps/point_map_"+ std::to_string(frame_num1) +".jpg", pm_overlay);
-  // }
-
-  // frame_num1++;
-
   
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -498,7 +390,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     params.max_iterations = (unsigned int)config_->max_iterations;
 
     GaussNewtonSolver solver(problem, params);
-    solver.optimize();
+    // solver.optimize();
+    try {
+      solver.optimize();
+    } catch(std::runtime_error e) {
+      CLOG(WARNING, "radar.odometry_icp") << "STEAM failed to solve, skipping frame. Erorr message: " << e.what();
+    }
 
     Covariance covariance(solver);
 
@@ -642,16 +539,23 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     const auto trans_diff_norm = trans_diff.norm();
     const auto rot_diff_norm = rot_diff.norm();
 
-    CLOG(WARNING, "radar.odometry_icp") << "Current velocity difference: " << diff_norm << " trans diff: "<<trans_diff_norm<< " rot diff: "<<rot_diff_norm; 
-    // CLOG(WARNING, "radar.odometry_icp") << " w_m_r_in_r_eval_: "<< w_m_r_in_r_eval_.transpose();
-    // CLOG(WARNING, "radar.odometry_icp") << " w_m_r_in_r_odo: "<<w_m_r_in_r_odo.transpose();
 
-    // if (diff_norm > 2.0) {
+    const auto T_r_m_prev = *qdata.T_r_m_odo;
+    const auto T_r_m_query = T_r_m_eval->value();
+    const auto diff_T = (T_r_m_query * T_r_m_prev.inverse()).vec().norm();
+    CLOG(WARNING, "radar.odometry_icp") << "Current Transformation difference: " << diff_T;
+
     if (trans_diff_norm > 2.60 || rot_diff_norm > 1.35) {
-    // if ((trans_diff_norm > 2.5 || rot_diff_norm > 1.35) && matched_points_ratio < 0.95) {
-      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << diff_norm<<" trans diff: "<<trans_diff_norm<< " rot diff: "<<rot_diff_norm;
+      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << diff_norm<<" translational diff: "<<trans_diff_norm<< " rotational diff: "<<rot_diff_norm;
       estimate_reasonable = false;
     }
+
+    // if (diff_norm > 2.0) {
+    if ( diff_T > 1000.0) {
+      CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final is too large: " << diff_T;
+      estimate_reasonable = false;
+    }
+
   }
 
   if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable) {

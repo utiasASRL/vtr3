@@ -43,11 +43,11 @@ template <class PointT>
 class KStrongest : public Detector<PointT> {
  public:
   KStrongest() = default;
-  KStrongest(int kstrong, double threshold2, double threshold3, double minr,
+  KStrongest(int kstrong, double threshold, double static_threshold, double minr,
              double maxr, double range_offset)
       : kstrong_(kstrong),
-        threshold2_(threshold2),
-        threshold3_(threshold3),
+        threshold_(threshold),
+        static_threshold_(static_threshold),
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset) {}
@@ -59,8 +59,8 @@ class KStrongest : public Detector<PointT> {
 
  private:
   int kstrong_ = 10;
-  double threshold2_ = 1.5;
-  double threshold3_ = 0.22;
+  double threshold_ = 1.5;
+  double static_threshold_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
@@ -91,48 +91,14 @@ class Cen2018 : public Detector<PointT> {
 };
 
 template <class PointT>
-class CACFAR : public Detector<PointT> {
- public:
-  CACFAR() = default;
-  CACFAR(int width, int guard, double threshold, double threshold2,
-         double threshold3, double minr, double maxr, double range_offset)
-      : width_(width),
-        guard_(guard),
-        threshold_(threshold),
-        threshold2_(threshold2),
-        threshold3_(threshold3),
-        minr_(minr),
-        maxr_(maxr),
-        range_offset_(range_offset) {}
-
-  void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<int64_t> &azimuth_times,
-           const std::vector<double> &azimuth_angles,
-           pcl::PointCloud<PointT> &pointcloud) override;
-
- private:
-  int width_ = 41;  // window = width + 2 * guard
-  int guard_ = 2;
-  double threshold_ = 3.0;
-  double threshold2_ = 1.1;
-  double threshold3_ = 0.22;
-  double minr_ = 2.0;
-  double maxr_ = 100.0;
-  double range_offset_ = -0.31;
-};
-
-template <class PointT>
 class OSCFAR : public Detector<PointT> {
  public:
   OSCFAR() = default;
-  OSCFAR(int width, int guard, int kstat, double threshold, double threshold2,
-         double threshold3, double minr, double maxr, double range_offset)
+  OSCFAR(int width, int guard, int kstat, double threshold, double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         kstat_(kstat),
         threshold_(threshold),
-        threshold2_(threshold2),
-        threshold3_(threshold3),
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset) {}
@@ -147,8 +113,6 @@ class OSCFAR : public Detector<PointT> {
   int guard_ = 2;
   int kstat_ = 20;
   double threshold_ = 1.25;
-  double threshold2_ = 1.2;
-  double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
@@ -185,19 +149,14 @@ class TM_CFAR : public Detector<PointT> {
   double range_offset_ = -0.31;
 };
 
-
 template <class PointT>
-class ModifiedCACFAR : public Detector<PointT> {
+class CACFAR : public Detector<PointT> {
  public:
-  ModifiedCACFAR() = default;
-  ModifiedCACFAR(int width, int guard, double threshold, double threshold2,
-                 double threshold3, double minr, double maxr,
-                 double range_offset)
+  CACFAR() = default;
+  CACFAR(int width, int guard, double threshold, double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
-        threshold2_(threshold2),
-        threshold3_(threshold3),
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset) {}
@@ -211,39 +170,6 @@ class ModifiedCACFAR : public Detector<PointT> {
   int width_ = 41;  // window = width + 2 * guard
   int guard_ = 2;
   double threshold_ = 3.0;
-  double threshold2_ = 1.1;
-  double threshold3_ = 0.22;
-  double minr_ = 2.0;
-  double maxr_ = 100.0;
-  double range_offset_ = -0.31;
-};
-
-template <class PointT>
-class ModifiedCACFARPower : public Detector<PointT> {
- public:
-  ModifiedCACFARPower() = default;
-  ModifiedCACFARPower(int width, int guard, double threshold, double threshold2,
-                 double threshold3, double minr, double maxr, double range_offset)
-      : width_(width),
-        guard_(guard),
-        threshold_(threshold),
-        threshold2_(threshold2),
-        threshold3_(threshold3),
-        minr_(minr),
-        maxr_(maxr),
-        range_offset_(range_offset) {}
-
-  void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<int64_t> &azimuth_times,
-           const std::vector<double> &azimuth_angles,
-           pcl::PointCloud<PointT> &pointcloud) override;
-
- private:
-  int width_ = 41;  // window = width + 2 * guard
-  int guard_ = 2;
-  double threshold_ = 3.0;
-  double threshold2_ = 1.1;
-  double threshold3_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
@@ -309,7 +235,8 @@ template <class PointT>
 class CFEAR_KStrong : public Detector<PointT> {
  public:
   CFEAR_KStrong() = default;
-  CFEAR_KStrong(int width, int guard, int kstrong, double z_min, double r, double f, double minr, double maxr, double range_offset)
+  CFEAR_KStrong(int width, int guard, int kstrong, double z_min, double r, double f, 
+            double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         kstrong_(kstrong),
@@ -338,16 +265,15 @@ class CFEAR_KStrong : public Detector<PointT> {
 };
 
 template <class PointT>
-class BFAR_PURE : public Detector<PointT> {
+class BFAR : public Detector<PointT> {
  public:
-  BFAR_PURE() = default;
-  BFAR_PURE(int width, int guard, double threshold, double threshold2,
-                 double threshold3, double minr, double maxr, double range_offset)
+  BFAR() = default;
+  BFAR(int width, int guard, double threshold,
+                 double static_threshold, double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
-        threshold2_(threshold2),
-        threshold3_(threshold3),
+        static_threshold_(static_threshold),
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset) {}
@@ -361,8 +287,7 @@ class BFAR_PURE : public Detector<PointT> {
   int width_ = 41;  // window = width + 2 * guard
   int guard_ = 2;
   double threshold_ = 3.0;
-  double threshold2_ = 1.1;
-  double threshold3_ = 0.22;
+  double static_threshold_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
@@ -410,7 +335,7 @@ class IS_CFAR : public Detector<PointT> {
         beta_I_(beta_I),
         minr_(minr),
         maxr_(maxr),
-        range_offset_(range_offset)  {}
+        range_offset_(range_offset) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
@@ -441,7 +366,7 @@ class VI_CFAR : public Detector<PointT> {
         C_N_(C_N),
         minr_(minr),
         maxr_(maxr),
-        range_offset_(range_offset)  {}
+        range_offset_(range_offset) {}
 
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
@@ -455,68 +380,6 @@ class VI_CFAR : public Detector<PointT> {
   int K_VI_ = 7;
   double K_MR_ = 1.5;
   double C_N_ = 20.02;
-  double minr_ = 2.0;
-  double maxr_ = 100.0;
-  double range_offset_ = -0.31;
-};
-
-template <class PointT>
-class LandmarkExtraction : public Detector<PointT> {
- public:
-  LandmarkExtraction() = default;
-  LandmarkExtraction(int width, int guard,
-                int w_median, int w_binom, double z_q, double minr, double maxr, double range_offset)
-      : width_(width),
-        guard_(guard),
-        w_median_(w_median),
-        w_binom_(w_binom),
-        z_q_(z_q),
-        minr_(minr),
-        maxr_(maxr),
-        range_offset_(range_offset) {}
-
-  void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<int64_t> &azimuth_times,
-           const std::vector<double> &azimuth_angles,
-           pcl::PointCloud<PointT> &pointcloud) override;
-
- private:
-  int width_ = 41;  // window = width + 2 * guard
-  int guard_ = 2;
-  int w_median_ = 199;
-  int w_binom_ = 50;
-  double z_q_ = 12;
-  double minr_ = 2.0;
-  double maxr_ = 100.0;
-  double range_offset_ = -0.31;
-};
-
-template <class PointT>
-class SURFExtraction : public Detector<PointT> {
- public:
-  SURFExtraction() = default;
-  SURFExtraction(int width, int guard,
-                int w_median, int w_binom, double z_q, double minr, double maxr, double range_offset)
-      : width_(width),
-        guard_(guard),
-        w_median_(w_median),
-        w_binom_(w_binom),
-        z_q_(z_q),
-        minr_(minr),
-        maxr_(maxr),
-        range_offset_(range_offset) {}
-
-  void run(const cv::Mat &raw_scan, const float &res,
-           const std::vector<int64_t> &azimuth_times,
-           const std::vector<double> &azimuth_angles,
-           pcl::PointCloud<PointT> &pointcloud) override;
-
- private:
-  int width_ = 41;  // window = width + 2 * guard
-  int guard_ = 2;
-  int w_median_ = 199;
-  int w_binom_ = 50;
-  double z_q_ = 12;
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
@@ -548,7 +411,6 @@ class Cen2019 : public Detector<PointT> {
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
 };
-
 
 }  // namespace radar
 }  // namespace vtr
