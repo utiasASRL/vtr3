@@ -87,6 +87,8 @@ void Tactic::addRun(const bool) {
   graph_->addRun();
   // re-initialize the run
   first_frame_ = true;
+
+  // \todo change to VertexId::Invalid():
   current_vertex_id_ = VertexId((uint64_t)-1);
   // re-initialize the localization chain (path will be added later)
   chain_->reset();
@@ -172,6 +174,7 @@ bool Tactic::routeCompleted() const {
   const auto T_leaf_target_matrix = T_leaf_target.matrix();
   const auto angle = atan2(T_leaf_target_matrix(1, 0), T_leaf_target_matrix(0, 0));
 
+  CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
   if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
     return false;
   }

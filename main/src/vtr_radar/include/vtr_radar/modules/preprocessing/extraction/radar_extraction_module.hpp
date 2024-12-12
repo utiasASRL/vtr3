@@ -45,7 +45,6 @@ class RadarExtractionModule : public tactic::BaseModule {
     // kstrongest
     struct {
       int kstrong = 10;
-      double threshold = 0.5;
       double static_threshold = 0.22;
     } kstrongest;
     // cen2018
@@ -80,7 +79,7 @@ class RadarExtractionModule : public tactic::BaseModule {
       int guard = 2;
       double threshold = 1.0;
       double threshold2 = 0.5;
-      double threshold3 = 0.09;
+      double threshold3 = 0.22;
     } modified_cacfar;
     // cago_cfar
     struct {

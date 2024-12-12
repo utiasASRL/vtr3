@@ -103,7 +103,6 @@ auto RadarExtractionModule::Config::fromROS(
   config->save_pointcloud_overlay = node->declare_parameter<bool>(param_prefix + ".save_pointcloud_overlay", config->save_pointcloud_overlay);
 
   config->kstrongest.kstrong = node->declare_parameter<int>(param_prefix + ".kstrongest.kstrong", config->kstrongest.kstrong);
-  config->kstrongest.threshold = node->declare_parameter<double>(param_prefix + ".kstrongest.threshold", config->kstrongest.threshold);
   config->kstrongest.static_threshold = node->declare_parameter<double>(param_prefix + ".kstrongest.static_threshold", config->kstrongest.static_threshold);
 
   config->cen2018.zq = node->declare_parameter<double>(param_prefix + ".cen2018.zq", config->cen2018.zq);
@@ -230,9 +229,8 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                  raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
     KStrongest detector = KStrongest<PointWithInfo>(
-        config_->kstrongest.kstrong, config_->kstrongest.threshold,
-        config_->kstrongest.static_threshold, config_->minr, config_->maxr,
-        config_->range_offset);
+        config_->kstrongest.kstrong, config_->kstrongest.static_threshold,
+        config_->minr, config_->maxr, config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "oscfar") {

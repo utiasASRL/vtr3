@@ -43,10 +43,9 @@ template <class PointT>
 class KStrongest : public Detector<PointT> {
  public:
   KStrongest() = default;
-  KStrongest(int kstrong, double threshold, double static_threshold, double minr,
+  KStrongest(int kstrong, double static_threshold, double minr,
              double maxr, double range_offset)
       : kstrong_(kstrong),
-        threshold_(threshold),
         static_threshold_(static_threshold),
         minr_(minr),
         maxr_(maxr),
@@ -59,7 +58,6 @@ class KStrongest : public Detector<PointT> {
 
  private:
   int kstrong_ = 10;
-  double threshold_ = 1.5;
   double static_threshold_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
