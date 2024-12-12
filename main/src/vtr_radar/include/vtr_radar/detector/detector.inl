@@ -21,13 +21,6 @@
 
 #include "vtr_radar/detector/detector.hpp"
 
-#include "opencv2/features2d.hpp"
-#include "opencv2/highgui/highgui.hpp"
-
-#include <functional>
-#include <set>
-
-
 namespace vtr {
 namespace radar {
 
@@ -36,7 +29,6 @@ bool sort_desc_by_first(const std::pair<float, int> &a,
                         const std::pair<float, int> &b) {
   return (a.first > b.first);
 }
-
 bool sort_asc_by_second(const std::pair<int, float> &a,
                         const std::pair<int, float> &b) {
   return (a.second < b.second);
@@ -127,8 +119,8 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
     }
   }
 
-  // // Create 1D Gaussian Filter
-  // // TODO: binomial filter may be more efficient
+  // Create 1D Gaussian Filter
+  // TODO: binomial filter may be more efficient
   int fsize = sigma_ * 2 * 3;
   if (fsize % 2 == 0) fsize += 1;
   // const int mu = fsize / 2;
@@ -171,14 +163,12 @@ void Cen2018<PointT>::run(const cv::Mat &raw_scan, const float &res,
     const float thres = zq_ * sigma_q[i];
     const double azimuth = azimuth_angles[i];
     const int64_t time = azimuth_times[i];
-
     for (int j = mincol; j < maxcol; ++j) {
       const float nqp = exp(
           -0.5 * pow((q.at<float>(i, j) - p.at<float>(i, j)) / sigma_q[i], 2));
       const float npp = exp(-0.5 * pow(p.at<float>(i, j) / sigma_q[i], 2));
       const float b = nqp - npp;
       const float y = q.at<float>(i, j) * (1 - nqp) + p.at<float>(i, j) * b;
-
       if (y > thres) {
         peak_points += j;
         num_peak_points += 1;
@@ -428,8 +418,8 @@ void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
     double mean = 0;
 
     for (int k = -w2 - guard_; k < -guard_; ++k){
-        left += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));
-      }
+      left += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));
+    }
 
     for (int k = guard_ + 1; k <= w2 + guard_; ++k){
       right += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));
@@ -460,6 +450,74 @@ void CACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
       }
     } 
 
+    pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+  }
+}
+
+template <class PointT>
+void ModifiedCACFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
+                                 const std::vector<int64_t> &azimuth_times,
+                                 const std::vector<double> &azimuth_angles,
+                                 pcl::PointCloud<PointT> &pointcloud) {
+  pointcloud.clear();
+  const int rows = raw_scan.rows;
+  const int cols = raw_scan.cols;
+  if (width_ % 2 == 0) width_ += 1;
+  const int w2 = std::floor(width_ / 2);
+  auto mincol = minr_ / res + w2 + guard_ + 1;
+  if (mincol > cols || mincol < 0) mincol = 0;
+  auto maxcol = maxr_ / res - w2 - guard_;
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
+  const int N = maxcol - mincol;
+
+  float conversion_factor = 255.0/20.0*std::log(10.0);
+  cv::Mat raw_scan_watts_sqrd = raw_scan * conversion_factor;
+  cv::exp(raw_scan_watts_sqrd, raw_scan_watts_sqrd);
+  // apply square law detector to test cell
+  cv::pow(raw_scan_watts_sqrd, 2, raw_scan_watts_sqrd);
+
+  double static_threshold_watts = std::pow(10,(255.0*threshold3_/20.0));
+  double static_threshold_squared = static_threshold_watts*static_threshold_watts;
+  if(threshold3_ == 0.0){static_threshold_squared=0.0;}
+
+  for (int i = 0; i < rows; ++i) {
+    const double azimuth = azimuth_angles[i];
+    const int64_t time = azimuth_times[i];
+    pcl::PointCloud<PointT> polar_time;
+    double mean = 0;
+    for (int j = mincol; j < maxcol; ++j) {
+      mean += raw_scan_watts_sqrd.at<float>(i, j);
+    }
+    mean /= N;
+
+    float peak_points = 0;
+    int num_peak_points = 0;
+
+    for (int j = mincol; j < maxcol; ++j) {
+      double left = 0;
+      double right = 0;
+      for (int k = -w2 - guard_; k < -guard_; ++k)
+        left += raw_scan_watts_sqrd.at<float>(i, j + k);
+      for (int k = guard_ + 1; k <= w2 + guard_; ++k)
+        right += raw_scan_watts_sqrd.at<float>(i, j + k);
+      // (statistic) estimate of clutter power
+      // const double stat = (left + right) / (2 * w2);
+      const double stat = std::max(left, right) / w2;  // GO-CFAR  // use max min or average
+      const float thres = threshold_ * stat + threshold2_ * mean + static_threshold_squared;
+      if (raw_scan_watts_sqrd.at<float>(i, j) > thres) {
+        peak_points += j;
+        num_peak_points += 1;
+      } else if (num_peak_points > 0) {
+        PointT p;
+        p.rho = res * peak_points / num_peak_points + range_offset_;
+        p.phi = azimuth;
+        p.theta = 0;
+        p.timestamp = time;
+        polar_time.push_back(p);
+        peak_points = 0;
+        num_peak_points = 0;
+      }
+    }
     pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
   }
 }
@@ -498,8 +556,12 @@ void CAGO_CFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
     double right = 0;
     double mean = 0;
 
-    for (int k = -w2 - guard_; k < -guard_; ++k){left += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));}
-    for (int k = guard_ + 1; k <= w2 + guard_; ++k){right += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));}
+    for (int k = -w2 - guard_; k < -guard_; ++k){
+      left += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));
+    }
+    for (int k = guard_ + 1; k <= w2 + guard_; ++k){
+      right += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));
+    }
 
     for (int j = mincol; j < maxcol; ++j) {
       // Intensity of test cell Y with sqaure law
@@ -564,8 +626,12 @@ void CASO_CFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
 
     double left = 0;
     double right = 0;
-    for (int k = -w2 - guard_; k < -guard_; ++k){left += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));}
-    for (int k = guard_ + 1; k <= w2 + guard_; ++k){right += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));}
+    for (int k = -w2 - guard_; k < -guard_; ++k){
+      left += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));
+    }
+    for (int k = guard_ + 1; k <= w2 + guard_; ++k){
+      right += static_cast<double>(raw_scan_watts_sqrd.at<float>(i, mincol-1 + k));
+    }
 
     for (int j = mincol; j < maxcol; ++j) {
       // Intensity of test cell Y with sqaure law

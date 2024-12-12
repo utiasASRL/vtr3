@@ -20,11 +20,6 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
-#include "vtr_radar/modules/preprocessing/conversions/navtech_extraction_module.hpp"
-#include "cv_bridge/cv_bridge.h"
-#include "vtr_radar/detector/detector.hpp"
-#include "vtr_radar/utils/utils.hpp"
-
 namespace vtr {
 namespace radar {
 
@@ -83,7 +78,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
-
+  
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -129,7 +124,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &beta = *qdata.beta;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
-  
+
   /// Parameters
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
@@ -326,16 +321,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // add variables
     for (const auto &var : state_vars)
       problem.addStateVariable(var);
-  
+
     // add prior cost terms
     if (config_->use_trajectory_estimation)
       trajectory->addPriorCostTerms(problem);
 
-
     // shared loss function
     // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
     auto loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
-    
     // cost terms and noise model
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
@@ -390,16 +383,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     params.max_iterations = (unsigned int)config_->max_iterations;
 
     GaussNewtonSolver solver(problem, params);
-    // solver.optimize();
     try {
       solver.optimize();
     } catch(std::runtime_error e) {
-      CLOG(WARNING, "radar.odometry_icp") << "STEAM failed to solve, skipping frame. Erorr message: " << e.what();
+      CLOG(WARNING, "radar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
     }
 
     Covariance covariance(solver);
-
-
     timer[3]->stop();
 
     /// Alignment
@@ -532,23 +522,21 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   if (config_->use_trajectory_estimation) {
     const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(query_stamp)))->evaluate().matrix();
     const auto diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
-    // Evaluable<Eigen::Matrix<double, 6, 1>>
     const auto trans_diff = diff.head<3>();
     const auto rot_diff = diff.tail<3>();
     const auto diff_norm = diff.norm();
     const auto trans_diff_norm = trans_diff.norm();
     const auto rot_diff_norm = rot_diff.norm();
 
+    if (trans_diff_norm > 2.60 || rot_diff_norm > 1.35) {
+      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << diff_norm<<" translational difference: "<<trans_diff_norm<< " rotational difference: "<<rot_diff_norm;
+      estimate_reasonable = false;
+    }
 
     const auto T_r_m_prev = *qdata.T_r_m_odo;
     const auto T_r_m_query = T_r_m_eval->value();
     const auto diff_T = (T_r_m_query * T_r_m_prev.inverse()).vec().norm();
     CLOG(WARNING, "radar.odometry_icp") << "Current Transformation difference: " << diff_T;
-
-    if (trans_diff_norm > 2.60 || rot_diff_norm > 1.35) {
-      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << diff_norm<<" translational diff: "<<trans_diff_norm<< " rotational diff: "<<rot_diff_norm;
-      estimate_reasonable = false;
-    }
 
     // if (diff_norm > 2.0) {
     if ( diff_T > 1000.0) {

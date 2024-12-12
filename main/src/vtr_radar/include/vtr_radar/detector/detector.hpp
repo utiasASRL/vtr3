@@ -176,15 +176,45 @@ class CACFAR : public Detector<PointT> {
 };
 
 template <class PointT>
-class CAGO_CFAR : public Detector<PointT> {
+class ModifiedCACFAR : public Detector<PointT> {
  public:
-  CAGO_CFAR() = default;
-  CAGO_CFAR(int width, int guard, double threshold,
-              double static_threshold, double minr, double maxr, double range_offset)
+  ModifiedCACFAR() = default;
+  ModifiedCACFAR(int width, int guard, double threshold, double threshold2,
+                 double threshold3, double minr, double maxr,
+                 double range_offset)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
-        static_threshold_(static_threshold),
+        threshold2_(threshold2),
+        threshold3_(threshold3),
+        minr_(minr),
+        maxr_(maxr),
+        range_offset_(range_offset) {}
+
+  void run(const cv::Mat &raw_scan, const float &res,
+           const std::vector<int64_t> &azimuth_times,
+           const std::vector<double> &azimuth_angles,
+           pcl::PointCloud<PointT> &pointcloud) override;
+
+ private:
+  int width_ = 41;  // window = width + 2 * guard
+  int guard_ = 2;
+  double threshold_ = 3.0;
+  double threshold2_ = 1.1;
+  double threshold3_ = 0.22;
+  double minr_ = 2.0;
+  double maxr_ = 100.0;
+  double range_offset_ = -0.31;
+};
+
+template <class PointT>
+class CAGO_CFAR : public Detector<PointT> {
+ public:
+  CAGO_CFAR() = default;
+  CAGO_CFAR(int width, int guard, double threshold, double minr, double maxr, double range_offset)
+      : width_(width),
+        guard_(guard),
+        threshold_(threshold),
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset) {}
@@ -197,7 +227,6 @@ class CAGO_CFAR : public Detector<PointT> {
   int width_ = 41;  // window = width + 2 * guard
   int guard_ = 2;
   double threshold_ = 3.0;
-  double static_threshold_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
@@ -207,12 +236,10 @@ template <class PointT>
 class CASO_CFAR : public Detector<PointT> {
  public:
   CASO_CFAR() = default;
-  CASO_CFAR(int width, int guard, double threshold,
-              double static_threshold, double minr, double maxr, double range_offset)
+  CASO_CFAR(int width, int guard, double threshold, double minr, double maxr, double range_offset)
       : width_(width),
         guard_(guard),
         threshold_(threshold),
-        static_threshold_(static_threshold),
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset) {}
@@ -225,7 +252,6 @@ class CASO_CFAR : public Detector<PointT> {
   int width_ = 41;  // window = width + 2 * guard
   int guard_ = 2;
   double threshold_ = 3.0;
-  double static_threshold_ = 0.22;
   double minr_ = 2.0;
   double maxr_ = 100.0;
   double range_offset_ = -0.31;

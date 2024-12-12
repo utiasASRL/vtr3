@@ -74,19 +74,25 @@ class NavtechExtractionModule : public tactic::BaseModule {
       int guard = 2;
       double threshold = 0.5;
     } cacfar;
+    // modified_cacfar 
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 1.0;
+      double threshold2 = 0.5;
+      double threshold3 = 0.09;
+    } modified_cacfar;
     // cago_cfar
     struct {
       int width = 40;
       int guard = 2;
       double threshold = 15.0;
-      double static_threshold = 8.0;
     } cago_cfar;
      // caso_cfar
     struct {
       int width = 40;
       int guard = 2;
       double threshold = 15.0;
-      double static_threshold = 8.0;
     } caso_cfar;
     //is_cfar
     struct {
@@ -141,7 +147,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
     double beta = 0.049;
     std::string chirp_type = "both";
 
-    bool save_overlay = false;
+    bool save_pointcloud_overlay = false;
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

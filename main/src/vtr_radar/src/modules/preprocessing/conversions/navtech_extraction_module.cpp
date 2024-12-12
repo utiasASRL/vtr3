@@ -63,7 +63,7 @@ cv::Mat extract_indices_from_pointcloud(const cv::Mat &raw_scan, const pcl::Poin
   return point_overlay;
 }
 
-void save_pointcloud_overlay(const cv::Mat &raw_scan, const std::vector<double> &azimuth_angles, const double maxr, const double cart_resolution, const double radar_resolution, const cv::Mat &point_overlay, const std::string config_name){
+void save_radar_pointcloud_overlay(const cv::Mat &raw_scan, const std::vector<double> &azimuth_angles, const double maxr, const double cart_resolution, const double radar_resolution, const cv::Mat &point_overlay, const std::string config_name){
 
   int cart_pixel_width = (2 * maxr) / cart_resolution;
   
@@ -104,7 +104,7 @@ auto NavtechExtractionModule::Config::fromROS(
   config->minr = node->declare_parameter<double>(param_prefix + ".minr", config->minr);
   config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
   config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
-  config->save_overlay = node->declare_parameter<bool>(param_prefix + ".save_overlay", config->save_overlay);
+  config->save_pointcloud_overlay = node->declare_parameter<bool>(param_prefix + ".save_pointcloud_overlay", config->save_pointcloud_overlay);
 
   config->kstrongest.kstrong = node->declare_parameter<int>(param_prefix + ".kstrongest.kstrong", config->kstrongest.kstrong);
   config->kstrongest.threshold = node->declare_parameter<double>(param_prefix + ".kstrongest.threshold", config->kstrongest.threshold);
@@ -128,15 +128,19 @@ auto NavtechExtractionModule::Config::fromROS(
   config->cacfar.guard = node->declare_parameter<int>(param_prefix + ".cacfar.guard", config->cacfar.guard);
   config->cacfar.threshold = node->declare_parameter<double>(param_prefix + ".cacfar.threshold", config->cacfar.threshold);
 
+  config->modified_cacfar.width = node->declare_parameter<int>(param_prefix + ".modified_cacfar.width", config->modified_cacfar.width);
+  config->modified_cacfar.guard = node->declare_parameter<int>(param_prefix + ".modified_cacfar.guard", config->modified_cacfar.guard);
+  config->modified_cacfar.threshold = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold", config->modified_cacfar.threshold);
+  config->modified_cacfar.threshold2 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold2", config->modified_cacfar.threshold2);
+  config->modified_cacfar.threshold3 = node->declare_parameter<double>(param_prefix + ".modified_cacfar.threshold3", config->modified_cacfar.threshold3);
+
   config->cago_cfar.width = node->declare_parameter<int>(param_prefix + ".cago_cfar.width", config->cago_cfar.width);
   config->cago_cfar.guard = node->declare_parameter<int>(param_prefix + ".cago_cfar.guard", config->cago_cfar.guard);
   config->cago_cfar.threshold = node->declare_parameter<double>(param_prefix + ".cago_cfar.threshold", config->cago_cfar.threshold);
-  config->cago_cfar.static_threshold = node->declare_parameter<double>(param_prefix + ".cago_cfar.static_threshold", config->cago_cfar.static_threshold);
 
   config->caso_cfar.width = node->declare_parameter<int>(param_prefix + ".caso_cfar.width", config->caso_cfar.width);
   config->caso_cfar.guard = node->declare_parameter<int>(param_prefix + ".caso_cfar.guard", config->caso_cfar.guard);
   config->caso_cfar.threshold = node->declare_parameter<double>(param_prefix + ".caso_cfar.threshold", config->caso_cfar.threshold);
-  config->caso_cfar.static_threshold = node->declare_parameter<double>(param_prefix + ".caso_cfar.static_threshold", config->caso_cfar.static_threshold);
 
   config->is_cfar.width = node->declare_parameter<int>(param_prefix + ".is_cfar.width", config->is_cfar.width);
   config->is_cfar.guard = node->declare_parameter<int>(param_prefix + ".is_cfar.guard", config->is_cfar.guard);
@@ -293,17 +297,20 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
       return std::make_unique<CACFAR<PointWithInfo>>(
           config_->cacfar.width, config_->cacfar.guard,
           config_->cacfar.threshold, config_->cacfar.minr, config_->cacfar.maxr);
+    else if (config_->detector == "modified_cacfar")
+      return std::make_unique<ModifiedCACFAR<PointWithInfo>>(
+          config_->modified_cacfar.width, config_->modified_cacfar.guard,
+          config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2, config_->modified_cacfar.threshold3,
+          config_->modified_cacfar.minr, config_->modified_cacfar.maxr);
     else if (config_->detector == "cago_cfar")
       return std::make_unique<CAGO_CFAR<PointWithInfo>>(
           config_->cago_cfar.width, config_->cago_cfar.guard,
           config_->cago_cfar.threshold,
-          config_->cago_cfar.static_threshold,
           config_->cago_cfar.minr, config_->cago_cfar.maxr);
     else if (config_->detector == "caso_cfar")
       return std::make_unique<CASO_CFAR<PointWithInfo>>(
           config_->caso_cfar.width, config_->caso_cfar.guard,
           config_->caso_cfar.threshold,
-          config_->caso_cfar.static_threshold,
           config_->caso_cfar.minr, config_->caso_cfar.maxr);
       else if (config_->detector == "is_cfar")
       return std::make_unique<IS_CFAR<PointWithInfo>>(
@@ -385,6 +392,14 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
+  } else if (config_->detector == "modified_cacfar") {
+    ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
+        config_->modified_cacfar.width, config_->modified_cacfar.guard,
+        config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2, 
+        config_->modified_cacfar.threshold3, config_->minr, config_->maxr, 
+        config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
   } else if (config_->detector == "cfear_kstrong") {
     CFEAR_KStrong detector = CFEAR_KStrong<PointWithInfo>(
         config_->cfear_kstrong.width, config_->cfear_kstrong.guard,
@@ -404,16 +419,14 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   } else if (config_->detector == "cago_cfar") {
     CAGO_CFAR detector = CAGO_CFAR<PointWithInfo>(
         config_->cago_cfar.width, config_->cago_cfar.guard,
-        config_->cago_cfar.threshold,
-        config_->cago_cfar.static_threshold, config_->minr, config_->maxr, 
+        config_->cago_cfar.threshold, config_->minr, config_->maxr, 
         config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else if (config_->detector == "caso_cfar") {
     CASO_CFAR detector = CASO_CFAR<PointWithInfo>(
         config_->caso_cfar.width, config_->caso_cfar.guard,
-        config_->caso_cfar.threshold,
-        config_->caso_cfar.static_threshold, config_->minr, config_->maxr, 
+        config_->caso_cfar.threshold, config_->minr, config_->maxr, 
         config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
@@ -454,9 +467,9 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   }
 #endif
 
-  if(config_->save_overlay){
+  if(config_->save_pointcloud_overlay){
     cv::Mat point_overlay = extract_indices_from_pointcloud(fft_scan, raw_point_cloud, azimuth_angles, radar_resolution, config_->range_offset);
-    save_pointcloud_overlay(fft_scan, azimuth_angles, config_->maxr, cart_resolution, radar_resolution, point_overlay, config_->detector);
+    save_radar_pointcloud_overlay(fft_scan, azimuth_angles, config_->maxr, cart_resolution, radar_resolution, point_overlay, config_->detector);
   }
 
   // Convert to cartesian format
