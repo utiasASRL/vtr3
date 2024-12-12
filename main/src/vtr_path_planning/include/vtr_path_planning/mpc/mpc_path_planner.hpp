@@ -16,81 +16,48 @@
  * \file mpc_path_planner.hpp
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
-
-#include "vtr_path_planning/cbit/cbit.hpp"
-#include "steam.hpp"
-
 #pragma once
 
-struct MPCConfig
-{
-    Eigen::Matrix<double, 2, 1> previous_vel;
-    lgmath::se3::Transformation T0;
-    std::vector<lgmath::se3::Transformation> tracking_reference_poses;
-    std::vector<lgmath::se3::Transformation> homotopy_reference_poses;
-    std::vector<double> barrier_q_left;
-    std::vector<double> barrier_q_right;
-    int K;
-    double DT;
-    double VF;
-    Eigen::Matrix<double, 1, 1> lat_noise_vect;
-    Eigen::Matrix<double, 6, 6> pose_noise_vect;
-    Eigen::Matrix<double, 2, 2> vel_noise_vect;
-    Eigen::Matrix<double, 2, 2> accel_noise_vect;
-    Eigen::Matrix<double, 6, 6> kin_noise_vect;
-    bool point_stabilization;
-    double pose_error_weight;
-    double vel_error_weight;
-    double acc_error_weight;
-    double kin_error_weight;
-    double lat_error_weight;
-    bool verbosity;
-    bool homotopy_mode;
+#include <casadi/casadi.hpp>
+#include <vtr_path_planning/mpc/mpc_common.hpp>
+
+namespace vtr::path_planning {
+class CasadiUnicycleMPC {
+public:
+  PTR_TYPEDEFS(CasadiUnicycleMPC);
+  using DM = casadi::DM;
+
+  struct Config {
+    // These values are defined the python code and exported
+    // TODO add an automatic way to keep the code in sync
+    static constexpr int nStates = 3;
+    static constexpr int nControl = 2;
+    static constexpr double alpha = 0.4; // lidar default 0.4
+    static constexpr int N = 15;
+    static constexpr double DT = 0.25;
+    DM previous_vel{nControl, 1};
+    DM T0{nStates, 1};
+    std::vector<DM> reference_poses;
+    std::vector<double> up_barrier_q;
+    std::vector<double> low_barrier_q;
+    double VF = 0.0;
+    DM vel_max{nControl, 1};
+  };
+
+
+  CasadiUnicycleMPC(bool verbose=false, casadi::Dict iopt_config={ 
+    { "max_iter", 2000 }, 
+    { "acceptable_tol", 1e-8 } ,
+    {"acceptable_obj_change_tol", 1e-6}
+  });
+
+  std::map<std::string, casadi::DM> solve(const Config& mpcConf);
+
+
+private:
+  casadi::Function solve_mpc;
+  std::map<std::string, casadi::DM> arg_;
+
 };
 
-struct MPCResult
-{
-    Eigen::Matrix<double, 2, 1> applied_vel;
-    std::vector<lgmath::se3::Transformation> mpc_poses;
-};
-
-struct PoseResultTracking
-{
-    std::vector<lgmath::se3::Transformation> poses;
-    bool point_stabilization;
-    std::vector<double> p_interp_vec;
-    std::vector<double> q_interp_vec;
-};
-
-struct PoseResultHomotopy
-{
-    std::vector<lgmath::se3::Transformation> poses;
-    bool point_stabilization;
-    std::vector<double> barrier_q_left;
-    std::vector<double> barrier_q_right;
-};
-
-struct InterpResult
-{
-    lgmath::se3::Transformation pose;
-    double p_interp;
-    double q_interp;
-};
-
-
-// Declaring helper functions
-
-// Primary optimization function: Takes in the input configurations and the extrapolated robot pose, outputs a vector for the velocity to apply and the predicted horizon
-struct MPCResult SolveMPC(const MPCConfig& config);
-
-// Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
-struct PoseResultTracking GenerateTrackingReference(std::shared_ptr<std::vector<Pose>> cbit_path_ptr,  std::tuple<double, double, double, double, double, double> robot_pose, int K, double DT, double VF);
-
-// Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
-struct PoseResultHomotopy GenerateHomotopyReference(std::shared_ptr<CBITPath> global_path_ptr, std::shared_ptr<CBITCorridor> corridor_ptr, std::tuple<double, double, double, double, double, double> robot_pose, const std::vector<double> &p_interp_vec);
-
-// Helper function for post-processing and saturating the velocity command
-Eigen::Matrix<double, 2, 1> SaturateVel(Eigen::Matrix<double, 2, 1> applied_vel, double v_lim, double w_lim);
-
-// Helper function in Generate Reference Meas which interpolates a Transformation measurement gen the cbit_path and the desired measurements p value along the path
-struct InterpResult InterpolatePose(double p_meas, std::vector<double> cbit_p, std::vector<Pose> cbit_path);
+} //namespace vtr::path_planning

@@ -230,7 +230,6 @@ namespace asrl {
 	int n_lt = m_leftFeatures.ftCount();
 	int n_rt = m_rightFeatures.ftCount();
 
-  std::cout << "Right raw matches " << n_rt << " left raw matches " << n_lt; 
 
 	// cublasSgemm('t','n',n_lt,n_rt,ASRL_SURF_DESCRIPTOR_DIM,1.f,
 	// 	    m_leftFeatures.deviceDescriptors(),ASRL_SURF_DESCRIPTOR_DIM,

@@ -38,7 +38,7 @@ class CBITCostmap {
         std::vector<std::unordered_map<std::pair<float, float>, float>> obs_map_vect;
 
         //std::unique_ptr<vtr::tactic::EdgeTransform> T_r_costmap_ptr;
-        // We also want to store a pointer to the current transform from the robot to the costmap
+        // We also want to store the current transform from the robot to the costmap
         vtr::tactic::EdgeTransform T_c_w;
 
         // For storing a history of the transforms for temporal filtering

@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2024, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file navtech_extraction_module.hpp
- * \author Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \file radar_extraction_module.hpp
+ * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -26,13 +26,13 @@ namespace vtr {
 namespace radar {
 
 /** \brief Extracts keypoints from Navtech radar scans. */
-class NavtechExtractionModule : public tactic::BaseModule {
+class RadarExtractionModule : public tactic::BaseModule {
  public:
   using ImageMsg = sensor_msgs::msg::Image;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.navtech_extractor";
+  static constexpr auto static_name = "radar.pc_extractor";
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
@@ -92,7 +92,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
     struct {
       int width = 40;
       int guard = 2;
-      double threshold = 15.0;
+      double threshold = 0.5;
     } caso_cfar;
     //is_cfar
     struct {
@@ -154,7 +154,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  NavtechExtractionModule(
+  RadarExtractionModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -174,7 +174,7 @@ class NavtechExtractionModule : public tactic::BaseModule {
   rclcpp::Publisher<ImageMsg>::SharedPtr bev_scan_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr pointcloud_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(NavtechExtractionModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(RadarExtractionModule);
 };
 
 }  // namespace radar

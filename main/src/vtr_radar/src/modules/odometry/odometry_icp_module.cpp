@@ -20,6 +20,8 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
+#include "steam/evaluable/p2p/yaw_error_evaluator.hpp"
+
 namespace vtr {
 namespace radar {
 
@@ -72,10 +74,13 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  
+  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
+  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->max_iterations);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
+
+  config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", config->preint_cov);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   
@@ -87,6 +92,12 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
+
+  // Do nothing if qdata does not contain any radar data (was populated by gyro)
+  if(!qdata.radar_data)
+  {
+    return;
+  }
 
   if (!qdata.sliding_map_odo) {
     CLOG(INFO, "radar.odometry_icp") << "First frame, simply return.";
@@ -105,9 +116,23 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.timestamp_odo.emplace(*qdata.stamp);
     qdata.T_r_m_odo.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+
+    qdata.timestamp_odo_radar.emplace(*qdata.stamp);
+    qdata.T_r_m_odo_radar.emplace(EdgeTransform(true));
+    qdata.w_m_r_in_r_odo_radar.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     //
     *qdata.odo_success = true;
     // clang-format on
+
+    // This is the first odomety frame
+    // Initialize preintegration
+    qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
+    qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
+    if(qdata.first_frame)
+      *qdata.first_frame = true;
+    else
+      qdata.first_frame.emplace(true); // reset first frame - this is the first frame! Gyro could have run before though
+
     return;
   }
 
@@ -115,15 +140,45 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       << "Retrieve input data and setup evaluators.";
 
   // Inputs
-  const auto &query_stamp = *qdata.stamp;
+  const auto &scan_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &timestamp_odo = *qdata.timestamp_odo;
-  const auto &T_r_m_odo = *qdata.T_r_m_odo;
-  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+  const auto &timestamp_odo = *qdata.timestamp_odo_radar; // use last data from radar scan msg (not gyro!)
+  const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
+  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &beta = *qdata.beta;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
+
+
+  // This is the general odometry timestamp
+  // Should be the same as the above if only radar is used, but can be different if we also use gyro
+  const auto &timestamp_odo_general = *qdata.timestamp_odo; 
+
+
+  Time last_scan_time(static_cast<int64_t>(timestamp_odo));
+  Time scan_time(static_cast<int64_t>(scan_stamp));
+  Time odo_time_general(static_cast<int64_t>(timestamp_odo_general));
+
+
+
+  CLOG(DEBUG, "radar.odometry_icp") << "DT current scan to last scan: " << (scan_time - last_scan_time).seconds();
+  CLOG(DEBUG, "radar.odometry_icp") << "DT odometry to current scan: " << (odo_time_general - scan_time).seconds();
+
+  auto timestamp_odo_new = *qdata.stamp;
+
+  // Let's check if our odometry estimate already passed the time stamp of the radar scan
+  // If this is the case, we want to estimate the odometry at this time, not at the time of the scan
+  // This avoids jumping 'back' in time to the last radar scan, when we already extrapolated the state using gyro
+  // Instead the radar scan is then incorporated as a past measurement to correct this extrapolated state
+  // If the query stamp is more recent than the last odometry estimate, we proceed as usual
+  if(odo_time_general.seconds() > scan_time.seconds())
+  {
+    CLOG(DEBUG, "radar.odometry_icp") << "Last odometry and gyro preintegration update is more recent than radar scan.";
+    timestamp_odo_new = *qdata.timestamp_odo;
+  }
+
+  CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -141,6 +196,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// trajectory smoothing
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval = nullptr;
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
+  Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
+  Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
   if (config_->use_trajectory_estimation) {
@@ -174,18 +231,34 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
     }
-    Time query_time(static_cast<int64_t>(query_stamp));
-    T_r_m_eval = trajectory->getPoseInterpolator(query_time);
-    w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
+    // General radar odometry (at scan time)
+    Time scan_time(static_cast<int64_t>(scan_stamp));
+    T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
+    w_m_r_in_r_eval = trajectory->getVelocityInterpolator(scan_time);
+
+    // Odometry at extrapolated state (might be the same as above, but not necessarily, if we have gyro)
+    Time extp_time(static_cast<int64_t>(timestamp_odo_new));
+    T_r_m_eval_extp = trajectory->getPoseInterpolator(extp_time);
+    w_m_r_in_r_eval_extp = trajectory->getVelocityInterpolator(extp_time);
   } else {
     //
     Time prev_time(static_cast<int64_t>(timestamp_odo));
-    Time query_time(static_cast<int64_t>(query_stamp));
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((query_time - prev_time).seconds() * w_m_r_in_r_odo);
+    Time extp_time(static_cast<int64_t>(timestamp_odo_new));
+    Time scan_time(static_cast<int64_t>(scan_stamp));
+
+    // General radar odometry
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((scan_time - prev_time).seconds() * w_m_r_in_r_odo);
     const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
+
+    // last scan
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo_extp((extp_time - prev_time).seconds() * w_m_r_in_r_odo);
+    const auto T_r_m_odo_extp_extp = tactic::EdgeTransform(xi_m_r_in_r_odo_extp) * T_r_m_odo;
+    const auto T_r_m_var_extp = SE3StateVar::MakeShared(T_r_m_odo_extp_extp);
+    state_vars.emplace_back(T_r_m_var_extp);
+    T_r_m_eval_extp = T_r_m_var_extp;
   }
 
   /// compound transform for alignment (sensor to point map transform)
@@ -377,6 +450,41 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
+    //Add preintegration cost terms if the flag is set
+    if(qdata.preintegrated_delta_yaw)
+    {
+      const auto &start_stamp = *qdata.stamp_start_pre_integration;
+      const auto &end_stamp = *qdata.stamp_end_pre_integration;
+
+
+      // Get states at the times of the preintegration
+      const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
+      const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
+
+      Time start_int_time(static_cast<int64_t>(start_stamp));
+      CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
+
+      // Transform into sensor frame
+      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+      const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
+      T_s_r_gyro_var->locked() = true;
+
+      const auto T_m_s_start = inverse(compose(T_s_r_gyro_var, T_r_m_start));
+      const auto T_m_s_end = inverse(compose(T_s_r_gyro_var, T_r_m_end));
+
+      // Cost Term 
+      const auto &yaw = *qdata.preintegrated_delta_yaw;
+
+      const auto loss_func = L2LossFunc::MakeShared();
+      const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->preint_cov);
+      const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw,T_m_s_start,T_m_s_end);
+      const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+
+      CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
+
+      problem.addCostTerm(measurement_cost);
+    }
+
     // optimize
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
@@ -488,8 +596,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // result
       if (config_->use_trajectory_estimation) {
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
-        T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
+        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
+        T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
         T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));
@@ -509,6 +617,15 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[6]->stop();
   }
+
+  if(qdata.preintegrated_delta_yaw)
+  {
+    //clear accumulated preintegration and reset variables for next interval
+    *qdata.stamp_end_pre_integration = timestamp_odo_new;
+    *qdata.stamp_start_pre_integration = timestamp_odo_new;
+    *qdata.preintegrated_delta_yaw = 0.0;
+  }
+  
 
   /// Dump timing info
   CLOG(DEBUG, "radar.odometry_icp") << "Dump timing info inside loop: ";
@@ -575,21 +692,42 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
     // store trajectory info
     if (config_->use_trajectory_estimation)
-      *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
+    {
+      // odometry at radar scan
+      *qdata.w_m_r_in_r_odo_radar = w_m_r_in_r_eval->value();
+
+      // odometry at extrapolated time
+      *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval_extp->value();
+    }
     else {
       // finite diff approximation
       Time prev_time(static_cast<int64_t>(timestamp_odo));
-      Time query_time(static_cast<int64_t>(query_stamp));
+      Time extp_time(static_cast<int64_t>(timestamp_odo_new));
+      Time scan_time(static_cast<int64_t>(scan_stamp));
       const auto T_r_m_prev = *qdata.T_r_m_odo;
       const auto T_r_m_query = T_r_m_eval->value();
-      *qdata.w_m_r_in_r_odo = (T_r_m_query * T_r_m_prev.inverse()).vec() / (query_time - prev_time).seconds();
+      const auto T_r_m_query_extp = T_r_m_eval_extp->value();
+      
+      // odometry at radar scan
+      *qdata.w_m_r_in_r_odo_radar = (T_r_m_query * T_r_m_prev.inverse()).vec() / (scan_time - prev_time).seconds();
+      
+      // odometry at extrapolated time
+      *qdata.w_m_r_in_r_odo = (T_r_m_query_extp * T_r_m_prev.inverse()).vec() / (extp_time - prev_time).seconds();
     }
-    *qdata.T_r_m_odo = T_r_m_eval->value();
-    *qdata.timestamp_odo = query_stamp;
-#if 1
-   CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-   CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-#endif
+    // odometry at radar scan
+    *qdata.T_r_m_odo_radar = T_r_m_eval->value();
+    *qdata.timestamp_odo_radar = scan_stamp;
+
+    // odometry at extr. time
+    *qdata.T_r_m_odo = T_r_m_eval_extp->value();
+    *qdata.timestamp_odo = timestamp_odo_new;
+
+
+
+//#if 1
+//    CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+//    CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+//#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
@@ -598,6 +736,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     //
     *qdata.odo_success = true;
+    CLOG(DEBUG, "radar.odometry_icp") << "Odometry successful. T_r_m_icp: " << T_r_m_icp;
+    CLOG(DEBUG, "radar.odometry_icp") << "T_r_v_odo: " << *qdata.T_r_v_odo;
   } else {
     if (matched_points_ratio <= config_->min_matched_ratio) {
       CLOG(WARNING, "radar.odometry_icp")

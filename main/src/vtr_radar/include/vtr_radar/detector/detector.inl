@@ -34,8 +34,9 @@ bool sort_asc_by_second(const std::pair<int, float> &a,
   return (a.second < b.second);
 }
 
-}  // namespace
+} // namespace
 
+// K-strongest implementation as per Elliot's paper
 template <class PointT>
 void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
                              const std::vector<int64_t> &azimuth_times,
@@ -45,9 +46,11 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
   const int rows = raw_scan.rows;
   const int cols = raw_scan.cols;
   auto mincol = minr_ / res;
+
   if (mincol > cols || mincol < 0) mincol = 0;
   auto maxcol = maxr_ / res;
-  if (maxcol > cols || maxcol < 0) maxcol = cols; 
+
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
 
   // #pragma omp parallel for
   for (int i = 0; i < rows; ++i) {
@@ -70,7 +73,6 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
       pcl::PointCloud<PointT> polar_time;
       for (int j = 0; j < kstrong_; ++j) {
         if (j >= thresholded_point_count){break;}
-        
         PointT p;
         p.rho = static_cast<float>(intens[j].second) * res + static_cast<float>(range_offset_);
         p.phi = azimuth;
@@ -607,10 +609,18 @@ void CASO_CFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
   if (mincol > cols || mincol < 0) mincol = 0;
   auto maxcol = maxr_ / res - w2 - guard_;
   if (maxcol > cols || maxcol < 0) maxcol = cols;
+  // const int N = maxcol - mincol;  not used
 
+  // // debug
+  // std::cout<< "width:" << width_<<std::endl;
+  // std::cout<< "Guard:" << guard_<<std::endl;
+  // std::cout<< "Theshold" << threshold_<<std::endl;
+  // std::cout<< "minr" << minr_<<std::endl;
+  // std::cout<< "maxr" << maxr_<<std::endl;
+  
   // Convert Navtechs 8-bit dB half steps to watts
   cv::Mat raw_scan_watts_sqrd = raw_scan.clone();
-  float conversion_factor = 255.0/20.0*std::log(10.0);
+  double conversion_factor = 255.0/20.0*std::log(10.0);
   raw_scan_watts_sqrd = raw_scan_watts_sqrd * conversion_factor;
   cv::exp(raw_scan_watts_sqrd, raw_scan_watts_sqrd);
   // apply square law detector to test cell
