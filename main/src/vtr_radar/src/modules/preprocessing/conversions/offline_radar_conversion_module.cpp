@@ -124,17 +124,17 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,
                            true, CV_32F);
-  CLOG(DEBUG, "radar.navtech_extractor")
+  CLOG(DEBUG, "radar.pc_extractor")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;
 
-  CLOG(DEBUG, "radar.navtech_extractor") << "cartesian has " << cartesian.rows
+  CLOG(DEBUG, "radar.pc_extractor") << "cartesian has " << cartesian.rows
                                          << " rows and " << cartesian.cols
                                          << " cols with resolution "
                                          << cart_resolution;
                                     
-  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
-  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
+  CLOG(DEBUG, "radar.pc_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
+  CLOG(DEBUG, "radar.pc_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
 
   qdata.radar_data.emplace();
   /// store them to the cache
