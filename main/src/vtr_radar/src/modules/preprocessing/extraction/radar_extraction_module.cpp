@@ -217,6 +217,19 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<int64_t> azimuth_times = qdata.radar_data->azimuth_times;
   std::vector<double> azimuth_angles = qdata.radar_data->azimuth_angles;
   float radar_resolution = config_->radar_resolution;
+  float cart_resolution = config_->cart_resolution;
+
+  /// boreas navtech radar upgrade time
+  static constexpr int64_t upgrade_time = 1632182400000000000;
+  if (*qdata.stamp > upgrade_time){
+    if(radar_resolution == static_cast<float>(0.0596)){
+      CLOG(WARNING, "radar.pc_extractor") << "Double check radar resolution: " << radar_resolution << ". Use 0.04381 for radar data after upgrade time";
+    }
+  } else{
+    if(radar_resolution == static_cast<float>(0.04381)){
+      CLOG(WARNING, "radar.pc_extractor") << "Double check radar resolution: " << radar_resolution << ". Use 0.0596 for radar data before upgrade time";
+    }  
+  }
 
   beta = config_->beta;
 
@@ -323,7 +336,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
   } else {
-    CLOG(ERROR, "radar.navtech_extractor")
+    CLOG(ERROR, "radar.pc_extractor")
         << "Unknown detector: " << config_->detector;
     throw std::runtime_error("Unknown detector: " + config_->detector);
   }
