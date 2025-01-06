@@ -56,8 +56,6 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   config->bias_polyorder = node->declare_parameter<int>(param_prefix + ".bias_polyorder", config->bias_polyorder);
   config->var_polyorder = node->declare_parameter<int>(param_prefix + ".var_polyorder", config->var_polyorder);
   config->median_sensorid = node->declare_parameter<int>(param_prefix + ".median_sensorid", config->median_sensorid);
-  config->mm_azi = node->declare_parameter<std::vector<double>>(param_prefix + ".mm_azi", config->mm_azi);
-  config->azi_res = node->declare_parameter<double>(param_prefix + ".azi_res", config->azi_res);
   //
   config->calc_median = node->declare_parameter<bool>(param_prefix + ".calc_median", config->calc_median);
   config->calc_pseudovar = node->declare_parameter<bool>(param_prefix + ".calc_pseudovar", config->calc_pseudovar);
@@ -227,10 +225,6 @@ PreprocessingDopplerModule::PreprocessingDopplerModule(const Config::ConstPtr &c
   std::string var_shape = config_->root_path + "/" + config_->model_name + "/var_shape.txt"; 
   std::string var = config_->root_path + "/" + config_->model_name + "/var.bin";
   initImgWeight(false, config, var_shape, var, var_weights_);
-
-  config_->azimuth_start = config_->mm_azi[0] * M_PI / 180.0;
-  config_->azimuth_end = config_->mm_azi[1] * M_PI / 180.0;
-  config_->azimuth_res = config_->azi_res * M_PI / 180.0;
 
   // check if we need to calculate median Doppler velocity
   for (const auto& feat: config_->bias_input_feat)

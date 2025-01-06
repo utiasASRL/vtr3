@@ -265,8 +265,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   auto query_time_sec = (query_time / 1e9) - (first_frame_micro / 1e6);       // curr state start time in [s] 
   auto next_time_sec = (next_time / 1e9) - (first_frame_micro / 1e6);         // next state start time in [s]
 
-  // *********** RANSAC ***********
   timer[0]->start();
+  // *********** RANSAC ***********
   // precompute for full solve
   Eigen::Matrix<double, Eigen::Dynamic,6> ransac_precompute_all = Eigen::Matrix<double, Eigen::Dynamic, 6>(query_points.size(), 6);
   Eigen::Matrix<double, Eigen::Dynamic,1> meas_precompute_all = Eigen::Matrix<double, Eigen::Dynamic, 1>(query_points.size());
@@ -402,8 +402,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     ivariance_precompute_[k] = query_points[i].ivariance;
     ++k;
   }
-  timer[0]->stop();
   // end ransac
+  timer[0]->stop();
 
   timer[1]->start();
   // *********** SOLVE FRAME *********** 
@@ -582,6 +582,10 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   T_next = T_temp;
   w_next = w_temp;
+
+  CLOG(WARNING, "lidar.odometry_doppler") << "T_r_v_odo: " << *qdata.T_r_v_odo;
+  CLOG(WARNING, "lidar.odometry_doppler") << "w_v_r_in_r_odo: " << *qdata.w_v_r_in_r_odo;
+  CLOG(WARNING, "lidar.odometry_doppler") << "T_r_m_odo: " << *qdata.T_r_m_odo;
 
   /// Dump timing info
   // timing for current frame

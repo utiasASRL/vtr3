@@ -517,6 +517,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.timestamp_odo = query_stamp;
     
     *qdata.odo_success = true;
+
+    CLOG(WARNING, "lidar.odometry_icp") << "T_r_v_odo: " << *qdata.T_r_v_odo;
+    CLOG(WARNING, "lidar.odometry_icp") << "w_v_r_in_r_odo: " << *qdata.w_v_r_in_r_odo;
+    CLOG(WARNING, "lidar.odometry_icp") << "T_r_m_odo: " << *qdata.T_r_m_odo;
+
   } else {
     CLOG(WARNING, "lidar.odometry_icp")
         << "Matched points ratio " << matched_points_ratio

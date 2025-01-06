@@ -54,16 +54,15 @@ class PreprocessingDopplerModule : public tactic::BaseModule {
     std::vector<std::string> var_input_feat;
     int bias_polyorder;
     int var_polyorder;
-    std::vector<double> mm_azi;
-    double azi_res;
     //
-    mutable double azimuth_res = 0.2 * M_PI / 180.0;   // rad
-    mutable double azimuth_start = -0.872665;
-    mutable double azimuth_end = 0.872665;
+    double azimuth_res;   // rad
+    double azimuth_start;
+    double azimuth_end;
     mutable int num_rows = 80;
     mutable int num_cols = 501;   
     int min_dist = 20;
     int max_dist = 150;
+    //
     mutable int median_sensorid = 0;
     mutable bool calc_median = false;
     mutable bool calc_pseudovar = false;
