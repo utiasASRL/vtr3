@@ -216,17 +216,17 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat cartesian = qdata.radar_data->cartesian;
   std::vector<int64_t> azimuth_times = qdata.radar_data->azimuth_times;
   std::vector<double> azimuth_angles = qdata.radar_data->azimuth_angles;
-  float radar_resolution = config_->radar_resolution;
-  float cart_resolution = config_->cart_resolution;
+  double radar_resolution = config_->radar_resolution;
+  double cart_resolution = config_->cart_resolution;
 
   /// boreas navtech radar upgrade time
   static constexpr int64_t upgrade_time = 1632182400000000000;
   if (*qdata.stamp > upgrade_time){
-    if(radar_resolution == static_cast<float>(0.0596)){
+    if(radar_resolution == 0.0596){
       CLOG(WARNING, "radar.pc_extractor") << "Double check radar resolution: " << radar_resolution << ". Use 0.04381 for radar data after upgrade time";
     }
   } else{
-    if(radar_resolution == static_cast<float>(0.04381)){
+    if(radar_resolution == 0.04381){
       CLOG(WARNING, "radar.pc_extractor") << "Double check radar resolution: " << radar_resolution << ". Use 0.0596 for radar data before upgrade time";
     }  
   }
