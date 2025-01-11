@@ -647,7 +647,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     const auto rot_vel_diff_norm = diff.tail<3>().norm();
 
     if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
-      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm<<" translational velocity difference: "<<trans_vel_diff_norm<< " rotational velocity difference: "<<rot_vel_diff_norm;
+      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm << " translational velocity difference: " << trans_vel_diff_norm << " rotational velocity difference: " << rot_vel_diff_norm;
       estimate_reasonable = false;
     }
 
