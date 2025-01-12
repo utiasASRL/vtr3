@@ -492,12 +492,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
+    solver_failed = false;
 
     GaussNewtonSolver solver(problem, params);
     try {
       solver.optimize();
     } catch(std::runtime_error e) {
       CLOG(WARNING, "radar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
+      solver_failed = true;
     }
 
     Covariance covariance(solver);
@@ -662,7 +664,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
   }
 
-  if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable) {
+  if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable && !solver_failed) {
     // undistort the preprocessed pointcloud
     const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
     aligned_mat = T_s_m * aligned_mat;
