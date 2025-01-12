@@ -347,6 +347,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   float mean_dR = 0;
   Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
   bool refinement_stage = false;
+  bool solver_failed = false;
   int refinement_step = 0;
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
@@ -492,7 +493,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
-    solver_failed = false;
 
     GaussNewtonSolver solver(problem, params);
     try {
