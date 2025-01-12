@@ -219,7 +219,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   double radar_resolution = config_->radar_resolution;
   double cart_resolution = config_->cart_resolution;
 
-  /// boreas navtech radar upgrade time
+  /// boreas navtech radar upgrade time - approximately 2021-10 onwards
   static constexpr int64_t upgrade_time = 1632182400000000000;
   if (*qdata.stamp > upgrade_time){
     if(radar_resolution == 0.0596){

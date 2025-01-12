@@ -16,6 +16,8 @@
  * \file radar_extraction_module.hpp
  * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
  */
+// For more details on the pointcloud extraction methods and parameter selection,
+// please refer to the following paper: https://arxiv.org/abs/2409.12256
 #pragma once
 
 #include "vtr_radar/cache.hpp"
