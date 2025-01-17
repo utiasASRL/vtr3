@@ -4,14 +4,16 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - navigation
-      - radar.pipeline
+      # - navigation
+      # - radar.pipeline
       # - navigation.sensor_input
       - radar.online_converter
       - radar.pc_extractor
-      - radar.odometry_icp
-      - radar.odometry_gyro
-      - radar.odometry_preintegration
+      # - radar.localization_map_recall
+      - radar.localization_icp
+      # - radar.odometry_icp
+      # - radar.odometry_gyro
+      # - radar.odometry_preintegration
       # - radar.localization_icp
       # - tactic
       # - tactic.pipeline
@@ -19,12 +21,12 @@
       # - mpc.debug
       # - cbit.control
       - mission.state_machine
-      # - mission.server
-    robot_frame: w200_0066_base_link #w200_0066_base_link
+      - mission.server
+    robot_frame: base_link # w200_0066_base_link 
     env_info_topic: env_info
-    radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
-    radar_topic: /radar_data/b_scan_msg
-    gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
+    radar_frame: radar_link # w200_0066_navtech_base 
+    radar_topic: /radar/b_scan_msg # /radar_data/b_scan_msg
+    gyro_frame: w200_0066_os_imu #w200_0066_os_imu
     gyro_topic: /ouster/imu
     queue_size: 10
     graph_map:
@@ -81,13 +83,13 @@
     preprocessing:
       conversion:
         type: radar.online_converter
+        encoder_bin_size: 5600.0 # Fomo # RAS3 16000 # encoder bin size
       extraction:
         type: radar.pc_extractor
-        radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: kstrongest # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
+        radar_resolution: 0.043810 # fomo # RAS3 0.040308 # 0307827  # RAS3 0.161231 #0.044
+        detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 1.0 # mininum detection distance
-        maxr: 69.0 # maximum detection distance
-        encoder_bin_size: 16000 # encoder bin size
+        maxr: 300.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
@@ -95,7 +97,7 @@
         kstrong:
           kstrong: 4 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.235 # treshold for k-strongest (constant)
+          threshold3: 0.225 # treshold for k-strongest (constant)
         cen2018:
           zq: 2.5
           sigma: 8

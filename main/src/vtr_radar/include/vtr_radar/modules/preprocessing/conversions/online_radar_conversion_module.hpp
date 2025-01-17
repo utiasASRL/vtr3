@@ -47,7 +47,7 @@ class OnlineRadarConversionModule : public tactic::BaseModule {
     double beta = 0.049;
 
     // add an encoder bin size parameter
-    int encoder_bin_size = 16000;
+    double encoder_bin_size = 16000;
 
     std::string chirp_type = "both";
 

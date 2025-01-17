@@ -409,7 +409,7 @@ void Navigator::gyroCallback(
   // add the current environment info
   query_data->env_info.emplace(env_info_);
 
-  // put in the radar msg pointer into query data
+  // put in the gyro msg pointer into query data
   query_data->gyro_msg = msg;
 
 
