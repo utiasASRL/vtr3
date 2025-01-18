@@ -83,7 +83,10 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", config->preint_cov);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
-
+  config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
+  config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
+  config->max_transformation_diff = node->declare_parameter<float>(param_prefix + ".max_transformation_diff", config->max_transformation_diff);
+  
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -344,6 +347,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   float mean_dR = 0;
   Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
   bool refinement_stage = false;
+  bool solver_failed = false;
   int refinement_step = 0;
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
@@ -489,8 +493,15 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
+
     GaussNewtonSolver solver(problem, params);
-    solver.optimize();
+    try {
+      solver.optimize();
+    } catch(std::runtime_error e) {
+      CLOG(WARNING, "radar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
+      solver_failed = true;
+    }
+
     Covariance covariance(solver);
     timer[3]->stop();
 
@@ -628,7 +639,32 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Outputs
-  if (matched_points_ratio > config_->min_matched_ratio) {
+  bool estimate_reasonable = true;
+  // Check if change between initial and final velocity is reasonable
+  if (config_->use_trajectory_estimation) {
+    const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->evaluate().matrix();
+    const auto diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
+    const auto vel_diff_norm = diff.norm();
+    const auto trans_vel_diff_norm = diff.head<3>().norm();
+    const auto rot_vel_diff_norm = diff.tail<3>().norm();
+
+    if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
+      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm << " translational velocity difference: " << trans_vel_diff_norm << " rotational velocity difference: " << rot_vel_diff_norm;
+      estimate_reasonable = false;
+    }
+
+    const auto T_r_m_prev = *qdata.T_r_m_odo;
+    const auto T_r_m_query = T_r_m_eval->value();
+    const auto diff_T = (T_r_m_query * T_r_m_prev.inverse()).vec().norm();
+    CLOG(WARNING, "radar.odometry_icp") << "Current Transformation difference: " << diff_T;
+
+    if (diff_T > config_->max_transformation_diff) {
+      CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final is too large: " << diff_T;
+      estimate_reasonable = false;
+    }
+  }
+
+  if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable && !solver_failed) {
     // undistort the preprocessed pointcloud
     const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
     aligned_mat = T_s_m * aligned_mat;
@@ -704,9 +740,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "radar.odometry_icp") << "Odometry successful. T_r_m_icp: " << T_r_m_icp;
     CLOG(DEBUG, "radar.odometry_icp") << "T_r_v_odo: " << *qdata.T_r_v_odo;
   } else {
-    CLOG(WARNING, "radar.odometry_icp")
-        << "Matched points ratio " << matched_points_ratio
-        << " is below the threshold. ICP is considered failed.";
+    if (matched_points_ratio <= config_->min_matched_ratio) {
+      CLOG(WARNING, "radar.odometry_icp")
+          << "Matched points ratio " << matched_points_ratio
+          << " is below the threshold. ICP is considered failed.";
+    }
+
     // do not undistort the pointcloud
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
     cart2pol(*undistorted_point_cloud);
