@@ -45,19 +45,14 @@ class OdometryDopplerModule : public tactic::BaseModule {
 
     // continuous-time estimation
     bool use_trajectory_estimation = false;
-    int traj_num_extra_states = 0;
     bool traj_lock_prev_pose = false;
     bool traj_lock_prev_vel = false;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
-
+    //
     int num_threads = 4;
-    bool visualize = false;
-    // steam parameters
-    bool verbose = false;
-    unsigned int max_iterations = 1;
-
-    // DOPPLER
+    
+    // doppler odom parameters
     int num_sensors = 1;
     long int ransac_seed = 0;
     bool ransac_gyro = false;
@@ -67,14 +62,10 @@ class OdometryDopplerModule : public tactic::BaseModule {
     int integration_steps = 100;
     double zero_vel_tol = 0.03;
 
-    double min_dist = 20.0;
-    double max_dist = 150.0;
-
     // inverse covariances
     Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Identity(); 
     Eigen::Matrix<double, 6, 6> P0inv = Eigen::Matrix<double, 6, 6>::Identity();
     Eigen::Matrix<double, 6, 6> Qzinv = Eigen::Matrix<double, 6, 6>::Identity();
-    // Eigen::Vector3d const_gyro_bias = Eigen::Vector3d(-0.004580390732042348, -0.015914139544965403, 0.002919723147493117);
     
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -86,8 +77,6 @@ class OdometryDopplerModule : public tactic::BaseModule {
       const std::string &name = static_name);
 
  protected: 
-  // vector to track elapsed time
-  std::vector<double> tot_timers{0.0, 0.0, 0.0, 0.0};
   int frame_count = 0;
 
   // ransac generator
@@ -106,18 +95,6 @@ class OdometryDopplerModule : public tactic::BaseModule {
 
   // gyro inverse covariance
   std::vector<Eigen::Matrix3d> gyro_invcov_;
-
-  // gyro bias
-  std::vector<Eigen::Vector3d> const_gyro_bias_;
-
-  // store estimations for next frame
-  tactic::EdgeTransform T_next;
-  Eigen::Matrix<double, 6, 1> w_next;
-
- private:
-  std::vector<Eigen::MatrixXd> next_gyro(const double &start_time, 
-                                         const double &end_time, 
-                                         const std::vector<Eigen::MatrixXd> &gyro);
 
   void run_(tactic::QueryCache &qdata, 
             tactic::OutputCache &output,

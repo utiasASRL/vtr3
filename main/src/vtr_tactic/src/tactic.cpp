@@ -48,8 +48,8 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.alpha = node->declare_parameter<double>(prefix+".chain.alpha", 0.25);
 
   /// localization execution by interval
-  config->use_loc_threshold = node->declare_parameter<bool>(prefix+".use_loc_threshold", false);
-  config->loc_threshold = node->declare_parameter<int>(prefix+".loc_threshold", 1);
+  config->use_loc_threshold = node->get_parameter("tactic.use_loc_threshold").as_bool();
+  config->loc_threshold = node->get_parameter("tactic.loc_threshold").as_int();
 
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
   config->save_odometry_vel_result = node->declare_parameter<bool>(prefix+".save_odometry_vel_result", false);

@@ -45,6 +45,7 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   // preprocessing
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> doppler_preprocessed_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> nn_point_cloud;
 
   // odometry & mapping

@@ -38,9 +38,12 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
-  
+  //
   config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
   config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
+  // localization execution by interval
+  config->use_loc_threshold = node->declare_parameter<bool>("tactic.use_loc_threshold", false);
+  config->loc_threshold = node->declare_parameter<int>("tactic.loc_threshold", 1);
   // clang-format on
   return config;
 }
@@ -85,8 +88,21 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
-  for (const auto &module : preprocessing_)
-    module->run(*qdata0, *output0, graph, executor);
+  for (const auto &module : preprocessing_) {
+    if (config_->use_loc_threshold &&
+        odometry_[0]->name() == "lidar.odometry_doppler" &&
+        module->name() == "lidar.preprocessing") {
+
+      CLOG(DEBUG, "lidar.pipeline") << "ATTN! using loc intervals";
+      if (frame_count % config_->loc_threshold == 0) {
+        module->run(*qdata0, *output0, graph, executor);
+      }
+
+    } else {
+      module->run(*qdata0, *output0, graph, executor);
+    }
+  }
+  frame_count += 1;
 }
 
 void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,

@@ -33,22 +33,27 @@ BaseModule::~BaseModule() {
       << (count_.load() > 0 ? (double)timer_.count() / (double)count_.load()
                             : 0) / 1e6
       << "\033[0m";
+
+  static double total_time = 0;
+  total_time += (count_.load() > 0 ? timer_.count() / (double)count_.load() : 0);
+  CLOG(DEBUG, "tactic.module")
+      << "\033[1;31mTotal run time per frame: " << total_time / 1e6 << " ms\033[0m";
 }
 
 void BaseModule::run(QueryCache &qdata, OutputCache &output,
                      const Graph::Ptr &graph,
                      const std::shared_ptr<TaskExecutor> &executor) {
-  CLOG(DEBUG, "tactic.module")
-      << "\033[1;31mRunning module: " << name() << "\033[0m";
+  // CLOG(DEBUG, "tactic.module")
+  //     << "\033[1;31mRunning module: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
   common::timing::Stopwatch<boost::chrono::thread_clock> thread_timer;
   ++count_;
   timer_.start();
   run_(qdata, output, graph, executor);
   timer_.stop();
-  CLOG(DEBUG, "tactic.module")
-      << "Finished running module: " << name() << ", which takes "
-      << thread_timer << " / " << timer;
+  // CLOG(DEBUG, "tactic.module")
+  //     << "Finished running module: " << name() << ", which takes "
+  //     << thread_timer << " / " << timer;
 }
 
 void BaseModule::runAsync(QueryCache &qdata, OutputCache &output,
@@ -56,16 +61,16 @@ void BaseModule::runAsync(QueryCache &qdata, OutputCache &output,
                           const std::shared_ptr<TaskExecutor> &executor,
                           const size_t &priority,
                           const boost::uuids::uuid &dep_id) {
-  CLOG(DEBUG, "tactic.module")
-      << "\033[1;31mRunning module (async): " << name() << "\033[0m";
+  // CLOG(DEBUG, "tactic.module")
+  //     << "\033[1;31mRunning module (async): " << name() << "\033[0m";
   common::timing::Stopwatch timer;
   common::timing::Stopwatch<boost::chrono::thread_clock> thread_timer;
   timer_.start();
   runAsync_(qdata, output, graph, executor, priority, dep_id);
   timer_.stop();
-  CLOG(DEBUG, "tactic.module")
-      << "Finished running module (async): " << name() << ", which takes "
-      << thread_timer << " / " << timer;
+  // CLOG(DEBUG, "tactic.module")
+  //     << "Finished running module (async): " << name() << ", which takes "
+  //     << thread_timer << " / " << timer;
 }
 
 std::shared_ptr<ModuleFactory> BaseModule::factory() const {

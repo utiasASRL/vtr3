@@ -382,7 +382,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Output
-  qdata.preprocessed_point_cloud = filtered_cloud;
+  qdata.doppler_preprocessed_point_cloud = filtered_cloud;
 
 }
 
