@@ -656,7 +656,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     const auto T_r_m_prev = *qdata.T_r_m_odo;
     const auto T_r_m_query = T_r_m_eval->value();
     const auto diff_T = (T_r_m_query * T_r_m_prev.inverse()).vec().norm();
-    CLOG(WARNING, "radar.odometry_icp") << "Current Transformation difference: " << diff_T;
+    CLOG(DEBUG, "radar.odometry_icp") << "Current Transformation difference: " << diff_T;
 
     if (diff_T > config_->max_transformation_diff) {
       CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final is too large: " << diff_T;
