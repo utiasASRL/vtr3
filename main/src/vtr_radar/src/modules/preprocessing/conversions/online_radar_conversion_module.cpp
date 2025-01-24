@@ -19,10 +19,8 @@
  */
 #include "vtr_radar/modules/preprocessing/conversions/online_radar_conversion_module.hpp"
 #include "cv_bridge/cv_bridge.h"
-#include "vtr_radar/detector/detector.hpp"
 #include "vtr_radar/utils/utils.hpp"
 #include <pcl/common/common.h>
-
 #include<vtr_radar/types.hpp>
 
 namespace vtr {
@@ -35,16 +33,13 @@ auto OnlineRadarConversionModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->minr = node->declare_parameter<double>(param_prefix + ".minr", config->minr);
   config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
   config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
   
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
-
-  // add a encoder bin size parameter
   config->encoder_bin_size = node->declare_parameter<double>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
-  
+
   // clang-format on
   return config;
 }
