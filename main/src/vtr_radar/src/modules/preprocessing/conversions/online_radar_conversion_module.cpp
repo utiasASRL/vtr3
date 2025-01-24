@@ -34,7 +34,6 @@ auto OnlineRadarConversionModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->cartesian_maxr = node->declare_parameter<double>(param_prefix + ".cartesian_maxr", config->cartesian_maxr);
-  config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
   config->encoder_bin_size = node->declare_parameter<double>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
