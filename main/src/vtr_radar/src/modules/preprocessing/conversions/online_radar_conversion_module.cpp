@@ -33,9 +33,8 @@ auto OnlineRadarConversionModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
+  config->cartesian_maxr = node->declare_parameter<double>(param_prefix + ".cartesian_maxr", config->cartesian_maxr);
   config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
-  
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
   config->encoder_bin_size = node->declare_parameter<double>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
@@ -82,7 +81,7 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   float cart_resolution = config_->cart_resolution;
 
   // Convert to cartesian BEV image
-  int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
+  int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
 
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,

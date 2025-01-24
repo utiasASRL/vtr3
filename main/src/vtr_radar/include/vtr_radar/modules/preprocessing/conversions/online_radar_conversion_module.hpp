@@ -38,7 +38,7 @@ class OnlineRadarConversionModule : public tactic::BaseModule {
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    double maxr = 100;
+    double cartesian_maxr = 100;  // maximum cartesian visualization distance
     double radar_resolution = 0.0438;
     double cart_resolution = 0.25;
     int encoder_bin_size = 16000;
