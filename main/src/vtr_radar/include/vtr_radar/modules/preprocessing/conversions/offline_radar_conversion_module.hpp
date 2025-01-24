@@ -41,7 +41,6 @@ class OfflineRadarConversionModule : public tactic::BaseModule {
     double cartesian_maxr = 100;  // maximum cartesian visualization distance
     double radar_resolution = 0.0438;
     double cart_resolution = 0.25;
-    std::string chirp_type = "both";
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);

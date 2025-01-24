@@ -50,7 +50,6 @@ auto OfflineRadarConversionModule::Config::fromROS(
   config->cartesian_maxr = node->declare_parameter<double>(param_prefix + ".cartesian_maxr", config->cartesian_maxr);
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
-  config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
 
   // clang-format on
   return config;
@@ -70,7 +69,6 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
 
   /// temp variables
-  cv::Mat scan_use;
   cv::Mat fft_scan;
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
@@ -86,29 +84,8 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
   float cart_resolution = config_->cart_resolution;
 
-  // Downsample scan based on desired chirp type
-  if (config_->chirp_type == "up") {
-    // Choose only every second row, starting from row 0
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 0; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(j));
-      j++;
-    }
-  } else if (config_->chirp_type == "down") {
-    // Choose only every second row, starting from row 1
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 1; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(i));
-      j++;
-    }
-  } else{
-    scan_use = scan;
-  }
-
   // Load scan, times, azimuths from scan
-  load_radar(scan_use, azimuth_times, azimuth_angles, fft_scan);
+  load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
