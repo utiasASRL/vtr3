@@ -76,6 +76,10 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
+  config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
+  config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
+  config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
+  config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -261,6 +265,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
   bool refinement_stage = false;
   int refinement_step = 0;
+  bool solver_failed = false;
 
   CLOG(DEBUG, "lidar.odometry_icp") << "Start the ICP optimization loop.";
   for (int step = 0;; step++) {
@@ -352,14 +357,15 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
-    GaussNewtonSolver solver(problem, params);
 
-    try{
+    GaussNewtonSolver solver(problem, params);
+    try {
       solver.optimize();
-    } catch (std::runtime_error& e) {
-      CLOG(WARNING, "lidar.odometry_icp") <<  "Steam failed.\n e.what(): " << e.what();
-      break;
+    } catch(const std::runtime_error& e) {
+      CLOG(WARNING, "lidar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
+      solver_failed = true;
     }
+
     Covariance covariance(solver);
     timer[3]->stop();
 
@@ -438,7 +444,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if ((refinement_stage && step >= max_it - 1) ||
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
-         mean_dR < config_->rot_diff_thresh)) {
+         mean_dR < config_->rot_diff_thresh) ||
+         solver_failed) {
       // result
       if (config_->use_trajectory_estimation) {
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
@@ -473,7 +480,41 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Outputs
-  if (matched_points_ratio > config_->min_matched_ratio) {
+  bool estimate_reasonable = true;
+  // Check if change between initial and final velocity is reasonable
+  if (config_->use_trajectory_estimation) {
+    const auto &w_m_r_in_r_prev = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(timestamp_odo)))->evaluate().matrix();
+    const auto &w_m_r_in_r_new = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(query_stamp)))->evaluate().matrix();
+    const auto vel_diff = w_m_r_in_r_new - w_m_r_in_r_prev;
+    const auto vel_diff_norm = vel_diff.norm();
+    const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
+    const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
+
+    const auto T_r_m_prev = trajectory->getPoseInterpolator(timestamp_odo)->value();
+    const auto T_r_m_query = T_r_m_eval->value();
+    const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
+    const auto diff_T_trans = diff_T.head<3>().norm();
+    const auto diff_T_rot = diff_T.tail<3>().norm();
+    
+    CLOG(DEBUG, "lidar.odometry_icp") << "Current transformation difference: " << diff_T.transpose();
+    CLOG(DEBUG, "lidar.odometry_icp") << "Current velocity difference: " << vel_diff.transpose();
+
+    if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
+      CLOG(WARNING, "lidar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm << ". Translational velocity difference: " << trans_vel_diff_norm << ". Rotational velocity difference: " << rot_vel_diff_norm;
+      estimate_reasonable = false;
+    }
+
+    if (diff_T_trans > config_->max_trans_diff) {
+      CLOG(WARNING, "lidar.odometry_icp") << "Transformation difference between initial and final translation is too large. Transform difference vector: " << diff_T.transpose();
+      estimate_reasonable = false;
+    }
+    if (diff_T_rot > config_->max_rot_diff) {
+      CLOG(WARNING, "lidar.odometry_icp") << "Transformation difference between initial and final rotation is too large. Transform difference vector: " << diff_T.transpose();
+      estimate_reasonable = false;
+    }
+  }
+
+  if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable && !solver_failed) {
     // undistort the preprocessed pointcloud
     const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
     aligned_mat = T_s_m * aligned_mat;
@@ -518,9 +559,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     
     *qdata.odo_success = true;
   } else {
-    CLOG(WARNING, "lidar.odometry_icp")
-        << "Matched points ratio " << matched_points_ratio
-        << " is below the threshold. ICP is considered failed.";
+    if (matched_points_ratio <= config_->min_matched_ratio) {
+      CLOG(WARNING, "lidar.odometry_icp")
+          << "Matched points ratio " << matched_points_ratio
+          << " is below the threshold. ICP is considered failed.";
+    }
     // do not undistort the pointcloud
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
     cart2pol(*undistorted_point_cloud);
