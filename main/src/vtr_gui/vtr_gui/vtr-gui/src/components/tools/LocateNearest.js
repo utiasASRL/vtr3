@@ -21,13 +21,14 @@ import { Box, Button } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import AndroidIcon from "@mui/icons-material/Android";
+import SearchIcon from "@mui/icons-material/Search";
 
-class MoveRobot extends React.Component {
+class LocateNearest extends React.Component {
   constructor(props) {
     super(props);
     this.state = {};
+    
   }
-
   render() {
     const { active, onSelect, onCancel } = this.props;
     return (
@@ -50,7 +51,7 @@ class MoveRobot extends React.Component {
               disableElevation={true}
               variant={"contained"}
               size={"small"}
-              onClick={onCancel}
+              onClick={this.handleCancel.bind(this)}
             >
               <CloseIcon />
             </Button>
@@ -60,29 +61,33 @@ class MoveRobot extends React.Component {
             sx={{ m: 0.25 }}
             color={"primary"}
             disableElevation={true}
-            startIcon={<AndroidIcon />}
+            startIcon={<SearchIcon />}
             variant={"contained"}
             onClick={onSelect}
             size={"small"}
           >
-            Move Robot
+            Locate Robot
           </Button>
         )}
       </>
     );
   }
 
-  handleConfirm() {
-    this.setState(
-      (state, props) => {
-        console.debug("Confirmed move robot: ", props.moveRobotVertex);
-        if (props.moveRobotVertex.id !== -1)
 
-          props.socket.emit("command/move_robot", { vertex: props.moveRobotVertex.id });
-      },
-      () => this.props.onCancel()
-    );
+
+  handleConfirm() {
+    console.debug("Confirmed find nearest vertex:", true);
+    this.props.socket.emit("command/find_nearest_vertex", { found_nearest: true });
+    this.props.onCancel();
+  }
+  handleCancel() {
+    console.debug("Confirmed find nearest vertex:", false);
+    this.props.socket.emit("command/find_nearest_vertex", { found_nearest: false });
+    this.props.onCancel();
   }
 }
 
-export default MoveRobot;
+export default LocateNearest;
+
+
+

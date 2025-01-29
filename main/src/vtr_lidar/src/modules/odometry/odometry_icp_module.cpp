@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
+#include <vtr_lidar/modules/scan_matching/scan_matching.hpp>
 
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
@@ -45,6 +46,7 @@ using namespace steam::vspace;
 auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string &param_prefix)
     -> ConstPtr {
+
   auto config = std::make_shared<Config>();
   // clang-format off
   // motion compensation
@@ -109,6 +111,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     return;
   }
 
+
+
   CLOG(DEBUG, "lidar.odometry_icp")
       << "Retrieve input data and setup evaluators.";
 
@@ -121,6 +125,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
+
+  std::cout << "query_stamp: " << *qdata.stamp << "odo time: " << *qdata.timestamp_odo << std::endl;
+
+
 
   /// Parameters
   int first_steps = config_->first_num_steps;

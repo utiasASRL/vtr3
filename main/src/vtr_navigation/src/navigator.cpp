@@ -252,7 +252,7 @@ void Navigator::lidarCallback(
   // set the timestamp
   Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
-  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
+  // CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<lidar::LidarQueryCache>();
@@ -261,11 +261,11 @@ void Navigator::lidarCallback(
 
 
   /// Discard old frames if our queue is too big
-  if (queue_.size() > max_queue_size_) {
-    CLOG(WARNING, "navigation")
-        << "Dropping old pointcloud message because the queue is full.";
-    queue_.pop();
-  }
+  // if (queue_.size() > max_queue_size_) {
+  //   CLOG(WARNING, "navigation")
+  //       << "Dropping old pointcloud message because the queue is full.";
+  //   queue_.pop();
+  // }
 
 
   // some modules require node for visualization

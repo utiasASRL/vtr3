@@ -80,11 +80,15 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   following_route_pub_ = node->create_publisher<FollowingRoute>("following_route", 10);
   following_route_srv_ = node->create_service<FollowingRouteSrv>("following_route_srv", std::bind(&GraphMapServer::followingRouteSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
-   // graph manipulation
+  // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
   annotate_route_sub_ = node->create_subscription<AnnotateRouteMsg>("annotate_route", rclcpp::QoS(10), std::bind(&GraphMapServer::annotateRouteCallback, this, std::placeholders::_1), sub_opt);
   move_graph_sub_ = node->create_subscription<MoveGraphMsg>("move_graph", rclcpp::QoS(10), std::bind(&GraphMapServer::moveGraphCallback, this, std::placeholders::_1), sub_opt);
+
+  find_nearest_vertex_sub_ = node->create_subscription<FindNearestMsg>("find_nearest_vertex", rclcpp::QoS(10), std::bind(&GraphMapServer::findNearestCallback, this, std::placeholders::_1), sub_opt);
+  find_nearest_vertex_pub_ = node->create_publisher<FindNearestMsg>("find_nearest_vertex_2", rclcpp::QoS(10)); //So apparently, the publisher topic here and in vtr_ui.py need to be named differently than the subscriber. Otherwise it runs in an infinite loop. 
+
   update_waypoint_sub_ = node->create_subscription<UpdateWaypointMsg>("update_waypoint", rclcpp::QoS(10), std::bind(&GraphMapServer::updateWaypointCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
 
@@ -183,11 +187,31 @@ void GraphMapServer::annotateRouteCallback(
   graph_state_pub_->publish(graph_state_);
 }
 
+void GraphMapServer::findNearestCallback(const FindNearestMsg::ConstSharedPtr msg) {
+    // static bool last_message = false;
+
+    // // Only process if the message state changes
+    // if (last_message == msg->found_nearest) {
+    //     return;
+    // }
+
+    // last_message = msg->found_nearest;
+
+    FindNearestMsg nearest_msg;
+    nearest_msg.found_nearest = msg->found_nearest;
+    find_nearest_vertex_pub_->publish(nearest_msg);
+}
+
+
+
+
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   CLOG(DEBUG, "navigation.graph_map_server")
       << "Received move graph request: <" << msg->lng << ", " << msg->lat
       << ", " << msg->theta << ", " << msg->scale << ">";
   //
+  std::cout << "GraphMapServer::moveGraphCallback: " << std::endl;
+
   const auto graph = getGraph();
   auto map_info = graph->getMapInfo();
   map_info.lng += msg->lng;
@@ -204,6 +228,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   updateRobotProjection();
   //
   graph_state_pub_->publish(graph_state_);
+
 }
 
 void GraphMapServer::updateWaypointCallback(

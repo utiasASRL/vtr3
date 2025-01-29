@@ -23,6 +23,22 @@
 namespace vtr {
 namespace mission_planning {
 namespace repeat {
+struct DataPoint {
+    double timestamp;
+    double x, y, z;
+    double qx, qy, qz, qw;
+};
+
+
+std::vector<std::vector<double>> load_embeddings(const std::string& filePath);
+std::pair<std::vector<DataPoint>, std::vector<DataPoint>> readDataPoints(const std::string& filePath);
+double dot_product(const std::vector<double>& v1, const std::vector<double>& v2);
+double magnitude(const std::vector<double>& v);
+double cosine_dist(const std::vector<double>& v1, const std::vector<double>& v2);
+double euclideanDist(const DataPoint& a, const DataPoint& b);
+std::vector<std::string> get_pointcloud_files(const std::string& base_directory);
+std::vector<std::vector<double>> read_matrix_from_txt(const std::string& file_path, int rows, int cols);
+double scan_matching();
 
 class TopologicalLocalize : public Repeat {
  public:
@@ -31,7 +47,7 @@ class TopologicalLocalize : public Repeat {
   using Parent = Repeat;
 
   std::string name() const override { return Parent::name() + "::TopoLoc"; }
-  PipelineMode pipeline() const override { return PipelineMode::Idle; }
+  PipelineMode pipeline() const override { return PipelineMode::RepeatTopLoc; }
   StateInterface::Ptr entryState() const override;
   StateInterface::Ptr nextStep(const StateInterface &) const override;
   void processGoals(StateMachine &, const Event &) override;

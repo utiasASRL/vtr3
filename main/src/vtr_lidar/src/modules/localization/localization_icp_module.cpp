@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/localization/localization_icp_module.hpp"
+#include <vtr_lidar/modules/scan_matching/scan_matching.hpp>
 
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
@@ -30,6 +31,7 @@ using namespace steam::se3;
 auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string &param_prefix)
     -> ConstPtr {
+
   auto config = std::make_shared<Config>();
   // clang-format off
   config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
@@ -55,7 +57,7 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 }
 
 void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
-                                 const Graph::Ptr &,
+                                 const Graph::Ptr &, //Graph -> at (vid_loc), returns a vertex object, (def in vtr pose graph), to get timestamp. 
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
@@ -67,12 +69,15 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
-  const auto &query_points = *qdata.undistorted_point_cloud;
-  const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior
-  const auto &T_v_m = *qdata.T_v_m_loc;
+  const auto &query_points = *qdata.undistorted_point_cloud; //Current scan 
+  const auto &T_s_r = *qdata.T_s_r; //Robot to sensor
+  const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior //localisation vertex to robot
+  const auto &T_v_m = *qdata.T_v_m_loc; //TF between submap and localisation vertex 
   // const auto &map_version = qdata.submap_loc->version();
-  auto &point_map = qdata.submap_loc->point_cloud();
+  auto &point_map = qdata.submap_loc->point_cloud(); //Submap
+  // std::cerr << "CRITICAL ERROR ERROR ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+  // execute_scan_matching(qdata0);
+
 
   /// Parameters
   int first_steps = config_->first_num_steps;

@@ -21,7 +21,7 @@ from vtr_navigation.vtr_ui import VTRUI
 from vtr_navigation.vtr_ui_builder import build_master
 
 from vtr_tactic_msgs.msg import EnvInfo
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint, FindNearest
 from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 
 # socket io server address and port
@@ -179,6 +179,10 @@ def task_queue_state_from_ros(ros_task_queue_state):
       'tasks': [task_queue_task_from_ros(t) for t in ros_task_queue_state.tasks],
   }
 
+def find_nearest_update(ros_find_nearest_vertex):
+  print('find_nearest_update')
+  return {'Boolean of found nearest vertex: ': ros_find_nearest_vertex.found_nearest}
+
 
 class SocketVTRUI(VTRUI):
   """Subclass of a normal mission client that caches robot/path data and pushes
@@ -298,6 +302,15 @@ class SocketVTRUI(VTRUI):
     ros_move_graph.theta = float(data['theta'])
     ros_move_graph.scale = float(data['scale'])
     return super().move_graph(ros_move_graph)
+  
+
+  def find_nearest_vertex(self, data): ##newwwwwwwwwwwwwwwwwwwwwwwwwwww!!!!
+
+    ros_find_nearest_vertex = FindNearest()
+    ros_find_nearest_vertex.found_nearest = (data['found_nearest'])
+    print("ros_find_nearest_vertex.found_nearest = (data['found_nearest'])")
+    return super().find_nearest_vertex(ros_find_nearest_vertex)
+  
 
   def change_env_info(self, data):
     ros_env_info = EnvInfo()

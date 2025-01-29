@@ -16,9 +16,14 @@
  * \file state_machine.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/serialized_message.hpp" 
+#include "std_msgs/msg/string.hpp"
 #include "vtr_mission_planning/state_machine/state_machine.hpp"
 
 #include "vtr_mission_planning/state_machine/base_state.hpp"  // Idle
+#include <string>
+#include <typeinfo>
 
 namespace vtr {
 namespace mission_planning {
@@ -45,12 +50,37 @@ StateMachine::StateMachine(const Tactic::Ptr& tactic,
     : StateMachineInterface(callback),
       tactic_(tactic),
       route_planner_(route_planner),
-      path_planner_(path_planner) {
+      path_planner_(path_planner),
+      node_(std::make_shared<rclcpp::Node>("state_machine_node")) {
   // initialize to idle state
   goals_.push_front(std::make_shared<Idle>());
+
+  idle_instance.push_front(std::make_shared<Idle>()); // Same type as all other states, so we can use it to compare and find "idle"
   //
   thread_count_ = 1;
   process_thread_ = std::thread(&StateMachine::process, this);
+
+  find_nearest_sub_ = node_->create_generic_subscription(
+      "/vtr/find_nearest_vertex_2", "vtr_navigation_msgs/msg/FindNearest", rclcpp::QoS(10),
+      [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
+      auto serialized_data = msg->get_rcl_serialized_message().buffer;
+
+          if (serialized_data != nullptr && msg->size() >= 5) {
+              size_t relevant_index = 4;  
+              if (msg->size() > 5) {
+                  relevant_index = 4;  
+              }
+
+              found_nearest = static_cast<bool>(serialized_data[relevant_index]);
+              std::cout << "Found Nearest UP: " << (found_nearest ? "true" : "false") << std::endl;
+              {
+                  std::lock_guard<std::mutex> lock(msg_mutex_);
+                  latest_find_nearest_msg_ = msg;  
+              }
+        } 
+    });
+
+  
 }
 
 StateMachine::~StateMachine() {
@@ -65,9 +95,19 @@ StateMachine::~StateMachine() {
   if (process_thread_.joinable()) process_thread_.join();
 }
 
+
+
 void StateMachine::process() {
+
+
   el::Helpers::setThreadName("mission.state_machine");
   CLOG(INFO, "mission.state_machine") << "Starting the state machine thread.";
+
+  tactic::VertexId v_initial(this->tactic()->getPersistentLoc().v);
+
+
+
+
   while (true) {
     UniqueLock lock(mutex_);
 
@@ -92,7 +132,32 @@ void StateMachine::process() {
     const auto callback_acquired = callback();
 
     curr_state->processGoals(*this, *event_);
-    // needs state transition
+
+    rclcpp::executors::SingleThreadedExecutor executor;
+    executor.add_node(node_);
+    executor.spin_some(); // Process callbacks once and then continue
+
+    //We want to save the previous persistent localisation vertex, before it was overwritten with the scan match. In case the user clicks on using the scan match, proceedes to click cancel (wants actually no scan match), we can revert to the previous vertex. 
+    if (save_pers_vertex) {
+        prev_pers_loc = this->tactic()->getPersistentLoc().v;
+    }
+    if (found_nearest == false) {
+        this->tactic()->setTrunk(prev_pers_loc);
+    } else { 
+        if (curr_state->name() == idle_instance.front()->name()) { //Confirming we are in Idle state
+
+            // Register scan match
+            this->tactic()->registerScanMatch();
+
+            std::cout<<"SET SCAN MATCH IN STATE MACHINE" << std::endl;
+
+            // Stop saving the vertex, since the save_pers_vertex keeps track of the vertex before overwriting it with scan match
+            save_pers_vertex = false;
+        }
+    }
+
+
+  // needs state transition
     if (curr_state != goals_.front()) {
       // perform all state transitions until we get to a state that is stable
       CLOG(INFO, "mission.state_machine") << "Lock the tactic pipeline.";
@@ -107,7 +172,11 @@ void StateMachine::process() {
 
         // Invoke exit/entry logic for the old/new state
         curr_state->onExit(*this, *new_state);
+
         tactic()->setPipeline(new_state->pipeline());
+
+
+
         new_state->onEntry(*this, *curr_state);
         curr_state = new_state;
 
@@ -116,6 +185,7 @@ void StateMachine::process() {
 
         // Perform one processing step to see if the state will remain stable
         curr_state->processGoals(*this, Event());
+
       }
       CLOG(INFO, "mission.state_machine") << "Unlock the tactic pipeline.";
     }

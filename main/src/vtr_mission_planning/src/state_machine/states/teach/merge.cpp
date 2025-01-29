@@ -34,7 +34,7 @@ void Merge::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
-    case Signal::AttemptClosure:
+    case Signal::AttemptClosure: //Usually its always this AttemptClosure for Signal
       if (getTactic(state_machine)->isLocalized()) {
         closure_required_ = true;
         return Parent::processGoals(state_machine, Event(Action::EndGoal));
@@ -87,7 +87,7 @@ void Merge::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // to leaves
   const auto tactic = getTactic(state_machine);
   const auto trunk_sid = static_cast<unsigned>(match_window_.size() / 2);
-  tactic->setPath(match_window_, trunk_sid, tactic::EdgeTransform(true), true);
+  tactic->setPath(match_window_, trunk_sid, tactic::EdgeTransform(true), true); //Incresae window size to the entire path, match window is a list of vertex ids, those are refeferenced to the corresponding pointclouds
 }
 
 }  // namespace teach

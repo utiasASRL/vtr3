@@ -75,15 +75,19 @@ void ROSMissionServer::handleCommand(
       beginGoals();
       return;
     }
+
     case MissionCommandMsg::LOCALIZE:
       tmp.target = mission_planning::CommandTarget::Localize;
       tmp.vertex = command->vertex;
+      std::cerr << "TMP in MissionCommandMsg::LOCALIZE: " << tmp.vertex << std::endl;
       processCommand(tmp);
       return;
     case MissionCommandMsg::START_MERGE:
       tmp.target = mission_planning::CommandTarget::StartMerge;
       tmp.path = std::vector<tactic::VertexId>(command->window.begin(),
                                                command->window.end());
+      std::cerr << "TMP in MissionCommandMsg::START_MERGE: " << tmp.vertex << std::endl;
+
       processCommand(tmp);
       return;
     case MissionCommandMsg::CONFIRM_MERGE:

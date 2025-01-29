@@ -43,12 +43,12 @@ void BasePipeline::preprocess(const QueryCache::Ptr &qdata,
                               const OutputCache::Ptr &output,
                               const Graph::Ptr &graph,
                               const std::shared_ptr<TaskExecutor> &executor) {
-  CLOG(DEBUG, "tactic.pipeline")
-      << "\033[1;31mStart preprocessing: " << name() << "\033[0m";
+    // CLOG(DEBUG, "tactic.pipeline")
+    //     << "\033[1;31mStart preprocessing: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
   preprocess_(qdata, output, graph, executor);
-  CLOG(DEBUG, "tactic.pipeline")
-      << "Finished preprocessing: " << name() << ", which takes " << timer;
+//   CLOG(DEBUG, "tactic.pipeline")
+//       << "Finished preprocessing: " << name() << ", which takes " << timer;
 }
 
 void BasePipeline::runOdometry(const QueryCache::Ptr &qdata,

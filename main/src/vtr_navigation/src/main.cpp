@@ -29,6 +29,7 @@ using namespace vtr::logging;
 using namespace vtr::navigation;
 
 int main(int argc, char** argv) {
+
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 

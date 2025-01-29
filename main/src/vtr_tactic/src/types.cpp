@@ -41,6 +41,9 @@ std::ostream& operator<<(std::ostream& os, const PipelineMode& mode) {
     case PipelineMode::RepeatFollow:
       os << "RepeatFollow";
       return os;
+    case PipelineMode::RepeatTopLoc:
+      os << "RepeatTopLoc";
+      return os;
     default:
       os << "Unknown";
       return os;

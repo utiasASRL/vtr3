@@ -39,6 +39,9 @@
 #include "vtr_pose_graph_msgs/msg/map_info.hpp"
 #include "vtr_pose_graph_msgs/srv/map_info.hpp"
 
+#include "vtr_navigation_msgs/msg/find_nearest.hpp" //NEW Note: Run colcon build --packages-select vtr_navigation_msgs to generate this file
+
+
 namespace vtr {
 namespace navigation {
 
@@ -65,6 +68,10 @@ class GraphMapServer : public tactic::Graph::Callback,
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
   using UpdateWaypointMsg = vtr_navigation_msgs::msg::UpdateWaypoint;
+
+
+  using FindNearestMsg = vtr_navigation_msgs::msg::FindNearest;
+
 
   using VertexPtr = tactic::Graph::VertexPtr;
   using EdgePtr = tactic::Graph::EdgePtr;
@@ -106,6 +113,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
   void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
+
+  void findNearestCallback(const FindNearestMsg::ConstSharedPtr msg); ///////////////////////// NEW
 
  private:
   /// these functions are called with graph mutex locked
@@ -189,6 +198,10 @@ class GraphMapServer : public tactic::Graph::Callback,
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
   rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
   rclcpp::Subscription<UpdateWaypointMsg>::SharedPtr update_waypoint_sub_;
+
+  rclcpp::Subscription<FindNearestMsg>::SharedPtr find_nearest_vertex_sub_; //////////////////////////////////// NEW
+  rclcpp::Publisher<FindNearestMsg>::SharedPtr find_nearest_vertex_pub_; //////////////////////////////////// NEW
+
 };
 
 class RvizGraphMapServer : public GraphMapServer,

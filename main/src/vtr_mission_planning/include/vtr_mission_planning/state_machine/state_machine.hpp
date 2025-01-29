@@ -19,7 +19,8 @@
 #pragma once
 
 #include <condition_variable>
-
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/serialized_message.hpp" 
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning/state_machine/event.hpp"
 #include "vtr_path_planning/path_planner_interface.hpp"
@@ -135,7 +136,32 @@ class StateMachine : public StateMachineInterface {
   /** \brief the event processing thread */
   std::thread process_thread_;
 
+  rclcpp::Node::SharedPtr node_;
+
+  
+  //Receive input from the GUI about using scan_matching for initialisation 
+  rclcpp::SubscriptionBase::SharedPtr find_nearest_sub_;
+  std::shared_ptr<rclcpp::SerializedMessage> latest_find_nearest_msg_;
+  // std::string latest_find_nearest_msg_;
+  bool found_nearest = false;
+
+  std::mutex msg_mutex_;
+
+  GoalStack idle_instance;
+
+  bool save_pers_vertex = true;
+
+std::decay_t<decltype(std::declval<StateMachine>().tactic()->getPersistentLoc().v)> prev_pers_loc;
+
+  // VertexId prev_pers_loc(0, 0); //Initial previous persistant localisation vertex
+
+
+\
+  
+
   friend class StateInterface;
+
+
 };
 
 }  // namespace mission_planning

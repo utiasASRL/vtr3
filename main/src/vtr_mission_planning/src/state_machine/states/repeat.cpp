@@ -82,6 +82,7 @@ StateInterface::Ptr Repeat::nextStep(const StateInterface &new_state) const {
 }
 
 void Repeat::processGoals(StateMachine &state_machine, const Event &event) {
+  
   switch (event.signal) {
     case Signal::Continue:
       break;

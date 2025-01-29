@@ -18,6 +18,8 @@
  */
 #include "vtr_lidar/modules/preprocessing/preprocessing_module.hpp"
 
+#include <vtr_lidar/modules/scan_matching/scan_matching.hpp>
+
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_lidar/features/normal.hpp"
@@ -95,9 +97,35 @@ auto PreprocessingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
+void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &output_cache,
                                const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  // int match_idx = scan_matching(qdata);
+  // std::cout << "match idx: " << match_idx <<std::endl;
+  // std::cout << "Pipeline mode (preprocessing): " << *qdata.pipeline_mode <<std::endl;
+  // std::cout << "Point cloud size: " << qdata.raw_point_cloud->size() << std::endl;
+
+  std::string filepath = "/home/hendrik/ASRL/vtr3/Datasets_converted/mars_straight/run_0/current_scan/current_scan.pcd";
+
+    if (pcl::io::savePCDFile(filepath, *qdata.raw_point_cloud) == -1) {
+        PCL_ERROR("Failed to save point cloud to PCD file.\n");
+    // } else {
+    //     std::cout << "Successfully saved point cloud to " << filepath << std::endl;
+    }
+
+
+  // switch (*qdata.pipeline_mode) {
+  //   case PipelineMode::RepeatTopLoc:
+  //     int closest_vertex = scan_matching(qdata);
+  //     std::cerr << "closest_vertex NEW2: " << closest_vertex << std::endl;
+  //     output_cache.chain->resetTrunk(4);
+  //     // VertexId v_scan_match(0, 4); 
+  //     // setTrunk(v_scan_match); //localisation chain resetTrunk (vertex id), chain_->resetTrunk(trunk_sid); outputcache.chain->resetTrunk(trunk_sid);
+  //     // setScanMatchBool(true);
+
+  // }
+
+
 
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {

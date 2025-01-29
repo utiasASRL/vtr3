@@ -70,9 +70,10 @@ void MetricLocalize::onExit(StateMachine &state_machine,
 
 void MetricLocalize::onEntry(StateMachine &state_machine,
                              StateInterface &old_state) {
+
+                              
   // If the previous state was a derived class, we did not leave
   if (InChain(old_state) && !IsType(old_state)) return;
-
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onEntry(state_machine, old_state);

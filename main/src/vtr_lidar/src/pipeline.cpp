@@ -87,6 +87,7 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const TaskExecutor::Ptr &executor) {
   for (const auto &module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
+  
 }
 
 void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
@@ -113,6 +114,8 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
   }
+
+  std::cout << *qdata->pipeline_mode << std::endl;
 }
 
 void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,

@@ -42,7 +42,7 @@ class Merge : public Teach {
 
  private:
   /** \brief Window of vertices to search against for a match/localization */
-  PathType match_window_;
+  PathType match_window_; //PathType alaisa for std vector 
 
   bool closure_required_ = false;
 };

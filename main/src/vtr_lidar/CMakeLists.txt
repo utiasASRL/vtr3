@@ -3,6 +3,11 @@ project(vtr_lidar)
 
 ## Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
+include_directories(/usr/local/include)
+link_directories(/usr/local/lib)
+
+#Add debug symbols
+add_compile_options(-g -Og)
 
 ## Find dependencies
 find_package(ament_cmake REQUIRED)
@@ -28,7 +33,17 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
 find_package(vtr_torch REQUIRED)
 
+find_package(VTK REQUIRED COMPONENTS vtkCommonCore vtkCommonDataModel)
+
+
 if(DEFINED VTR_ENABLE_LIDAR)
+
+# Find Python library and include directories
+find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter Development)
+include_directories(${Python3_INCLUDE_DIRS})
+
+#Include open3d
+
 
 ## C++ Libraries
 include_directories(PUBLIC
@@ -128,7 +143,11 @@ if(BUILD_TESTING)
   # Linting
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+
+
+
 endif()
 
 endif()
 ament_package()
+

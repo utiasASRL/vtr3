@@ -60,6 +60,16 @@ class TacticInterface {
   virtual bool passedSeqId(const uint64_t& sid) const = 0;
   /** \brief Whether current route to repeat is completed */
   virtual bool routeCompleted() const = 0;
+
+  virtual bool getScanMatchBool() const = 0;
+ 
+  virtual void setScanMatchBool(bool value)  = 0;
+
+  virtual void registerScanMatch() = 0;
+
+  // virtual int scan_matching() const = 0;
+
+
 };
 
 }  // namespace tactic

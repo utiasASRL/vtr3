@@ -16,6 +16,8 @@
  * \file vertex_test_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
+#include <vtr_lidar/modules/scan_matching/scan_matching.hpp>
+
 #include "vtr_lidar/modules/odometry/vertex_test_module.hpp"
 
 namespace vtr {

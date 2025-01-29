@@ -71,8 +71,7 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
         << "Current vertex: " << persistent_loc.v
         << ", waypoints: " << waypoints_;
 
-    auto path =
-        route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+    auto path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
     tactic->setPath(path, 0, persistent_loc.T, true);
   }
 

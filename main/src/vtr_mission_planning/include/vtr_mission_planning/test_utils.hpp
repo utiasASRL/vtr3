@@ -59,6 +59,25 @@ struct TestTactic : public StateMachine::Tactic {
   void connectToTrunk(const bool privileged) override {
     LOG(WARNING) << "Connecting to trunk with privileged " << privileged;
   }
+  bool scan_matched = false;
+
+  // int sm = 5;
+
+  bool getScanMatchBool() const {
+    return scan_matched;  
+}
+
+void setScanMatchBool(bool value) {
+    scan_matched = value;
+}
+
+void registerScanMatch() {}
+
+
+  // int scan_matching()const {
+  //   return sm;
+  // }
+
 
   tactic::Localization getPersistentLoc() const override { return loc_; }
   bool isLocalized() const override { return true; }

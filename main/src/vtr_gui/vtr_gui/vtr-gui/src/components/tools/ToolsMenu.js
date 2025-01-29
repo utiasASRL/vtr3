@@ -24,6 +24,9 @@ import DeleteWaypoints from "./DeleteWaypoints";
 import MoveGraph from "./MoveGraph";
 import MoveRobot from "./MoveRobot";
 
+import LocateNearest from "./LocateNearest"; //NEW
+
+
 class ToolsMenu extends React.Component {
   render() {
     const { socket, currentTool, selectTool, deselectTool } = this.props;
@@ -52,6 +55,13 @@ class ToolsMenu extends React.Component {
           onSelect={() => selectTool("move_graph")}
           onCancel={deselectTool}
           moveGraphChange={this.props.moveGraphChange}
+        />
+        <LocateNearest
+          socket={socket}
+          active={currentTool === "find_nearest_vertex" ? true : false}
+          onSelect={() => selectTool("find_nearest_vertex")}
+          onCancel={deselectTool}
+          locate={this.props.find_nearest_vertex}
         />
         <AnnotateRoute
           socket={socket}

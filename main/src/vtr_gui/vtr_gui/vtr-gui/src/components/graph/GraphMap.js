@@ -136,6 +136,7 @@ class GraphMap extends React.Component {
       move_graph_change: { lng: 0, lat: 0, theta: 0, scale: 1 },
       // move robot
       move_robot_vertex: { lng: 0, lat: 0, id: -1 },
+      find_nearest_vertex:{ found_nearest: false },
       // map center
       map_center: {lat: 43.78220, lng: -79.4661},
     };
@@ -316,6 +317,7 @@ class GraphMap extends React.Component {
       merge_ids,
       move_graph_change,
       move_robot_vertex,
+      find_nearest_vertex,
       map_center
     } = this.state;
     const imageBounds = [
@@ -360,6 +362,8 @@ class GraphMap extends React.Component {
           moveGraphChange={move_graph_change}
           // move robot
           moveRobotVertex={move_robot_vertex}
+          //Locate nearest vertex on teach to current robot position
+          findNearestVertex={find_nearest_vertex}
         />
         <GoalManager
           socket={socket}
@@ -460,6 +464,7 @@ class GraphMap extends React.Component {
       }
     });
     if (this.state.new_goal_type === "repeat") {
+
       this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
     }
     console.log(this.state.waypoints_map);
@@ -794,6 +799,9 @@ class GraphMap extends React.Component {
           break;
         case "merge":
           this.startMerge();
+          break;
+        case "locate_nearest":
+          this.exe_locate_nearest();
           break;
         default:
           break;
@@ -1286,6 +1294,8 @@ class GraphMap extends React.Component {
     this.scale_marker = null;
   }
 
+
+
   startMoveRobot() {
     if (this.robot_marker.valid === false) return;
     console.info("Start moving robot");
@@ -1328,6 +1338,12 @@ class GraphMap extends React.Component {
     this.setState({ move_robot_vertex: { lng: 0, lat: 0, id: -1 } });
     // add the robot marker back
     this.robot_marker.marker.addTo(this.map);
+  }
+
+
+  exe_locate_nearest(){
+    console.log("Locate Nearest button clicked");
+    
   }
 }
 

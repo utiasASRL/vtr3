@@ -19,9 +19,226 @@
 #include "vtr_tactic/tactic.hpp"
 
 #include "vtr_tactic/storables.hpp"
+#include <fstream>
+namespace fs = std::filesystem;
 
 namespace vtr {
 namespace tactic {
+
+
+std::vector<std::vector<double>> load_embeddings(const std::string& filePath) {
+    std::ifstream file(filePath);
+    std::vector<std::vector<double>> array;
+
+    std::string line;
+    while (getline(file, line)) {
+        std::istringstream iss(line);
+        std::vector<double> row;
+        double num;
+
+        while (iss >> num) {
+            row.push_back(num);
+        }
+
+        std::cout << "Loaded row: ";
+        for (const double& val : row) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+
+        array.push_back(row);
+    }
+
+    file.close();
+    return array;
+}
+
+
+
+std::pair<std::vector<DataPoint>, std::vector<DataPoint>> readDataPoints(const std::string& filePath) {
+    std::ifstream file(filePath);
+    std::vector<DataPoint> dataPoints;
+    std::vector<DataPoint> positions;
+
+
+
+    std::string line;
+    std::getline(file, line);
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string value;
+        std::vector<std::string> values;
+
+        while (std::getline(ss, value, ',')) {
+            values.push_back(value);
+        }
+
+        DataPoint dp;
+        dp.timestamp = std::stod(values[0]);
+        dp.x = std::stod(values[1]);
+        dp.y = std::stod(values[2]);
+        dp.z = std::stod(values[3]);
+        dp.qx = std::stod(values[4]);
+        dp.qy = std::stod(values[5]);
+        dp.qz = std::stod(values[6]);
+        dp.qw = std::stod(values[7]);
+
+        dataPoints.push_back(dp);
+
+        DataPoint ps;
+        ps.timestamp = std::stod(values[0]);
+        ps.x = std::stod(values[1]);
+        ps.y = std::stod(values[2]);
+        ps.z = std::stod(values[3]);
+        positions.push_back(dp);
+    }
+    
+    file.close();
+
+    return {dataPoints, positions};
+}
+
+double dot_product(const std::vector<double>& v1, const std::vector<double>& v2) {
+    double sum = 0.0;
+    if (v1.size() != v2.size()) {
+        throw std::invalid_argument("Vectors must be of the same length");
+    }
+    for (size_t i = 0; i < v1.size(); ++i) {
+        sum += v1[i] * v2[i];
+    }
+    return sum;
+}
+
+double magnitude(const std::vector<double>& v) {
+    double sum = 0.0;
+    for (double elem : v) {
+        sum += elem * elem;
+    }
+    return std::sqrt(sum);
+}
+
+double cosine_dist(const std::vector<double>& v1, const std::vector<double>& v2) {
+    double dot = dot_product(v1, v2);
+    double mag1 = magnitude(v1);
+    double mag2 = magnitude(v2);
+    if (mag1 == 0 || mag2 == 0) {
+        throw std::invalid_argument("Magnitude of vector must not be zero");
+    }
+    double cos_theta = dot / (mag1 * mag2);
+    return 1.0 - cos_theta;  
+}
+
+double euclideanDist(const DataPoint& a, const DataPoint& b) {
+    return std::sqrt((a.x - b.x) * (a.x - b.x) +
+                     (a.y - b.y) * (a.y - b.y) +
+                     (a.z - b.z) * (a.z - b.z));
+}
+
+std::vector<std::string> get_pointcloud_files(const std::string& base_directory) {
+    // Read all files in the directory and add them to the vector
+
+    std::vector<std::string> file_paths;
+
+    // Read all files in the directory and add their full paths to the vector
+    for (const auto& entry : fs::directory_iterator(base_directory)) {
+        if (fs::is_regular_file(entry.status())) {
+            file_paths.push_back(entry.path().string());
+        }
+    }
+
+    // Sort the file paths alphabetically
+    std::sort(file_paths.begin(), file_paths.end());
+
+
+    return file_paths;
+}
+
+std::vector<std::vector<double>> read_matrix_from_txt(const std::string& file_path, int rows, int cols) {
+    std::vector<std::vector<double>> matrix(rows, std::vector<double>(cols));  // Initialize 2D vector
+    std::ifstream file(file_path);
+
+
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            if (!(file >> matrix[i][j])) {  
+                std::cerr << "Error reading element (" << i << ", " << j << ")" << std::endl;
+            }
+        }
+    }
+
+    file.close();  
+    return matrix; 
+}
+int scan_matching(){
+
+
+
+
+  std::string file_path = "/home/hendrik/ASRL/vtr3/Datasets_converted/mars_straight/run_0/run_0_latent_vectors/run_0_latent_vectors.txt";
+  std::string file_path_current_scan = "/home/hendrik/ASRL/vtr3/Datasets_converted/mars_straight/run_0/current_scan/current_scan_latent.txt";
+  int rows = 84;
+  int cols = 1024;
+  
+  std::vector<std::vector<double>> embeddings_teach = read_matrix_from_txt(file_path, rows, cols);
+
+  std::vector<std::vector<double>> current_embedding= read_matrix_from_txt(file_path_current_scan, 1, 1024);
+
+  std::string teach_poses_file = "/home/hendrik/ASRL/vtr3/Datasets_converted/mars_straight/run_0/pose_graph_run_0.csv";
+  auto [teach_poses, teach_pos] = readDataPoints(teach_poses_file);
+  // std::string path_0 = "/home/hendrik/ASRL/vtr3/Datasets_converted/Jordy_Loop/run_0/run_0_pcd/";
+  // std::vector<std::string> teach_inidivdual_pointcloud_files = get_pointcloud_files(path_0);
+
+  // std::string submap_repeat_poses_file = "/home/hendrik/ASRL/vtr3/Datasets_converted/Jordy_Loop/submaps_0/submaps_0.csv";
+  // auto [submap_poses, submap_pos] = readDataPoints(submap_repeat_poses_file);    
+  // std::string path_submap = "/home/hendrik/ASRL/vtr3/Datasets_converted/Jordy_Loop/submaps_0/submaps_0_pcd";
+  // std::vector<std::string> submap_pointcloud_files = get_pointcloud_files(path_submap);
+  
+
+  std::vector<double> all_dist_latent; 
+
+
+  //Get the current position of the robot and find the closest match on the teach path:
+  
+  int current_idx = embeddings_teach.size() - 1; //change to make not hard coded
+  auto current_pose = teach_pos[current_idx];
+
+
+
+  for (int i = 0; i < embeddings_teach.size(); i++) {
+
+      if (i==current_idx){
+          continue;
+      }
+  all_dist_latent.push_back(cosine_dist(current_embedding[0], embeddings_teach[i]));  
+  }
+
+
+  int smallest_dist_idx = std::distance(std::begin(all_dist_latent), std::min_element(std::begin(all_dist_latent), std::end(all_dist_latent)));
+  //Remove smallest element
+  all_dist_latent.erase (all_dist_latent.begin() + smallest_dist_idx);
+
+  double second_smallest_dist_idx = std::distance(std::begin(all_dist_latent), std::min_element(std::begin(all_dist_latent), std::end(all_dist_latent)));
+
+  std::cout << "SMALLEST: " << smallest_dist_idx << std::endl;
+  std::cout << "SECOND SMALLEST: " << second_smallest_dist_idx << std::endl;
+
+  return smallest_dist_idx;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+bool scan_matched = false;
+
 
 auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
                              const std::string& prefix) -> UniquePtr {
@@ -70,6 +287,7 @@ Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
   output_->chain = chain_;  // shared pointing to the same chain, no copy
   //
   pipeline_->initialize(output_, graph_);
+  bool scan_matched = false;
 }
 
 auto Tactic::lockPipeline() -> TacticInterface::PipelineLock {
@@ -78,6 +296,8 @@ auto Tactic::lockPipeline() -> TacticInterface::PipelineLock {
 
 void Tactic::setPipeline(const PipelineMode& pipeline_mode) {
   CLOG(INFO, "tactic") << "Setting pipeline mode to " << pipeline_mode;
+  std::cerr << "Setting pipeline mode to " << pipeline_mode << std::endl;
+  
   pipeline_mode_ = pipeline_mode;
 }
 
@@ -132,11 +352,15 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
 }
 
 void Tactic::setTrunk(const VertexId& v) {
+
+
+
   CLOG(DEBUG, "tactic") << "Setting persistent loc vertex to " << v;
   RobotStateGuard lock(robot_state_mutex_);
   if (v.isValid()) persistent_loc_ = Localization(v);
   target_loc_ = Localization();
   callback_->robotStateUpdated(persistent_loc_, target_loc_);
+
 }
 
 void Tactic::connectToTrunk(const bool privileged) {
@@ -184,6 +408,23 @@ bool Tactic::input_(const QueryCache::Ptr&) {
   return config_->preprocessing_skippable;
 }
 
+
+
+bool Tactic::getScanMatchBool() const {
+    return scan_matched;  
+}
+
+void Tactic::setScanMatchBool(bool value) {
+    scan_matched = value;
+}
+
+void Tactic::registerScanMatch(){
+    int closest_vertex = scan_matching();
+    VertexId v_scan_match(0, closest_vertex); 
+    setTrunk(v_scan_match);
+    std::cout << "SCAN MATCH: " << closest_vertex << std::endl;
+}
+
 bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
   // Setup caches
   qdata->pipeline_mode.emplace(pipeline_mode_);
@@ -192,6 +433,37 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
 
   // Preprocess incoming data, which always runs no matter what mode we are in.
   pipeline_->preprocess(qdata, output_, graph_, task_queue_);
+
+
+
+  //You cannot change the persistant loc vertex when toploc has been run once already. It will fail. It needs to be initialised before.
+  //Alternatively, you can set the per loc vertex in topological localise so that its executed once state = toploc. 
+  //make a module that is called instead of piggybacking in preprocess 
+  // switch (pipeline_mode_) {
+  //   case PipelineMode::RepeatTopLoc:
+  //     auto lock = chain_->guard();
+
+  //     int closest_vertex = scan_matching();
+  //     std::cerr << "closest_vertex NEW2: " << closest_vertex << std::endl;
+  //     VertexId v_scan_match(0, 6); 
+  //     setScanMatchBool(true);
+
+  //     setTrunk(v_scan_match);
+  //     // // Set the sequence and trunk in the chain to align with the starting vertex
+  //     // chain_->setSequence({v_scan_match});  // Initialize sequence with the custom v_scan_matchertex
+  //     // chain_->resetTrunk(6);  // Set trunk to match v_scan_matchertex's sequence ID
+
+  //     // // Set the petiole to the custom vertex, making it the reference point
+  //     // chain_->setPetiole(v_scan_match);
+
+  //     // // Update the persistent location to reflect this starting vertex
+  //     // updatePersistentLoc(*qdata->stamp, v_scan_match, EdgeTransform(true), true);
+
+
+
+  // }
+
+  
 
   return config_->odometry_mapping_skippable;
 }
@@ -222,6 +494,12 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   }
   return true;
 }
+
+// void Tactic::setState(StateMachine &state_machine){
+
+// }
+
+
 
 bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   // Prior assumes no motion since last processed frame
@@ -524,6 +802,34 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
+
+  int closest_vertex = scan_matching();
+  std::cerr << "closest_vertex NEW2: " << closest_vertex << std::endl;
+  
+  // VertexId v_scan_match(0, 6); 
+  // setScanMatchBool(true);
+  // Set the sequence and trunk in the chain to align with the starting vertex
+
+  // setTrunk(v_scan_match);
+  // // connectToTrunk(false);
+  // setPath({v_scan_match}, 6, EdgeTransform(true), false);
+  
+
+  // Set the petiole to the custom vertex, making it the reference point
+  // chain_->setPetiole(v_scan_match);
+
+  // // Update the persistent location to reflect this starting vertex
+  // updatePersistentLoc(*qdata->stamp, v_scan_match, EdgeTransform(true), true);
+
+  // std::cout << "chain_->trunkVertexId(): " << chain_->trunkVertexId() << "chain_->T_leaf_trunk(): " << chain_->T_leaf_trunk().matrix() << "chain_->isLocalized(): "<< chain_->isLocalized() <<  "chain_->petioleVertexId(): " << chain_->petioleVertexId() << "chain_->trunkVertexId(): "<< chain_->trunkVertexId() << std::endl;
+
+      std::cout << "Sequence of Vertex IDs: ";
+    for (const auto& vertex_id : chain_->sequence()) {
+        std::cout << vertex_id << " ";
+    }
+    std::cout << std::endl;
+
+
   // Prior assumes no motion since last processed frame
   qdata->T_r_v_odo.emplace(chain_->T_leaf_petiole());
   qdata->w_v_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
@@ -533,10 +839,10 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Get relative pose estimate and whether a vertex should be created
   pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
-  CLOG(DEBUG, "tactic")
-      << "Estimated transformation from robot to odometry vertex"
+  //CLOG(DEBUG, "tactic")
+      std::cout << "Estimated transformation from robot to odometry vertex"
       << *qdata->vid_odo << " (i.e., T_v_r odometry): "
-      << (*qdata->T_r_v_odo).inverse().vec().transpose();
+      << (*qdata->T_r_v_odo).inverse().vec().transpose() << std::endl;
 
   // Rviz visualization
   if (config_->visualize) {
@@ -562,6 +868,9 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+
+
+
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), false,
                   *(qdata->env_info));
@@ -585,6 +894,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   }
 
   // Initialize localization
+
   auto lock = chain_->guard();
   qdata->vid_loc.emplace(chain_->trunkVertexId());
   qdata->sid_loc.emplace(chain_->trunkSequenceId());

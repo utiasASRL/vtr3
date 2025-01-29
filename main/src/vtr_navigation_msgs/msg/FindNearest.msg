@@ -1,0 +1,1 @@
+bool found_nearest

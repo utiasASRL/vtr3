@@ -31,6 +31,22 @@
 
 namespace vtr {
 namespace tactic {
+struct DataPoint {
+    double timestamp;
+    double x, y, z;
+    double qx, qy, qz, qw;
+};
+
+
+  std::vector<std::vector<double>> load_embeddings(const std::string& filePath);
+  std::pair<std::vector<DataPoint>, std::vector<DataPoint>> readDataPoints(const std::string& filePath);
+  double dot_product(const std::vector<double>& v1, const std::vector<double>& v2);
+  double magnitude(const std::vector<double>& v);
+  double cosine_dist(const std::vector<double>& v1, const std::vector<double>& v2);
+  double euclideanDist(const DataPoint& a, const DataPoint& b);
+  std::vector<std::string> get_pointcloud_files(const std::string& base_directory);
+  std::vector<std::vector<double>> read_matrix_from_txt(const std::string& file_path, int rows, int cols);
+
 
 class Tactic : public PipelineInterface, public TacticInterface {
  public:
@@ -49,6 +65,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
     bool preprocessing_skippable = false;
     bool odometry_mapping_skippable = false;
     bool localization_skippable = false;
+    
 
     /** \brief Number of threads for the async task queue */
     int task_queue_num_threads = 1;
@@ -97,12 +114,26 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool passedSeqId(const uint64_t& sid) const override;
   bool routeCompleted() const override;
 
+
+  bool getScanMatchBool() const override;
+
+  void setScanMatchBool(bool value);
+
+  void registerScanMatch() override;
+
+
+
+
+
+
+
  private:
   /** \brief Performs the actual preprocessing task */
   bool input_(const QueryCache::Ptr& qdata) override;
 
   /** \brief Performs the actual preprocessing task */
   bool preprocess_(const QueryCache::Ptr& qdata) override;
+
 
   /** \brief Performs the actual odometry mapping task */
   bool runOdometryMapping_(const QueryCache::Ptr& qdata) override;

@@ -23,7 +23,7 @@ from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
 from vtr_navigation_msgs.srv import FollowingRoute as FollowingRouteSrv
 from vtr_navigation_msgs.srv import TaskQueueState as TaskQueueStateSrv
 from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRoute
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint, FindNearest
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
 from vtr_navigation_msgs.msg import TaskQueueUpdate
 from vtr_pose_graph_msgs.srv import MapInfo as MapInfoSrv
@@ -95,6 +95,10 @@ class VTRUI(ROSManager):
     self._map_info_cli = self.create_client(MapInfoSrv, "map_info_srv")
     while not self._map_info_cli.wait_for_service(timeout_sec=1.0):
       vtr_ui_logger.info("Waiting for map_info_srv service...")
+
+    #Scan matching vertex init
+    self.find_nearest_vertex_pub_ = self.create_publisher(FindNearest, 'find_nearest_vertex_2', 1)
+    self.find_nearest_vertex_sub_ = self.create_subscription(FindNearest, 'find_nearest_vertex', self.find_nearest_vertex, 10)
 
   @ROSManager.on_ros
   def get_graph_state(self):
@@ -191,6 +195,11 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def change_env_info(self, msg):
     self._change_env_info_pub.publish(msg)
+
+  @ROSManager.on_ros
+  def find_nearest_vertex(self, msg):
+    print('TEST FOR PYTHON @ROSManager.on_ros')
+    self.find_nearest_vertex_pub_.publish(msg)
 
 
 if __name__ == "__main__":

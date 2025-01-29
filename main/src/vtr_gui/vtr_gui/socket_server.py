@@ -130,6 +130,17 @@ def handle_move_robot(data):
   logger.info('Received move robot command', data)
   build_remote().move_robot(data)
 
+@socketio.on('command/find_nearest_vertex')
+def handle_locate_nearest_toggle(data):
+  logger.info('Received find_nearest_vertex command', data)
+  print("CHECK 1: ", data)
+  build_remote().find_nearest_vertex(data)
+
+@socketio.on('command/set_pause')
+def handle_set_pause(data):
+  logger.info('Received set pause command', data)
+  build_remote().set_pause(data)
+
 
 @socketio.on('command/change_env_info')
 def handle_change_env_info(data):

@@ -66,6 +66,7 @@ enum class PipelineMode : uint8_t {
   TeachMerge,       // Teach - merging into existing path
   RepeatMetricLoc,  //
   RepeatFollow,     // Repeat - path following
+  RepeatTopLoc,
 };
 std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
