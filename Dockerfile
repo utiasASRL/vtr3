@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
 
 CMD ["/bin/bash"]
 
@@ -119,7 +119,7 @@ RUN apt install wget
 RUN apt install nano
 
 ## sam install opencv 4.10.0
-RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy libopencv-dev libopencv-contrib-dev
 
 
 RUN mkdir -p ${HOMEDIR}/opencv && cd ${HOMEDIR}/opencv \
@@ -131,7 +131,7 @@ RUN mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
 RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.10.0 
 
 
-RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy libopencv-dev libopencv-contrib-dev
 # # generate Makefiles (note that install prefix is customized to: /usr/local/opencv_cuda)
 
 RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
