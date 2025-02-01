@@ -47,6 +47,7 @@ class RadarLidarPipeline : public tactic::BasePipeline {
     double submap_rotation_threshold = 0.0;     // in degrees
 
     bool save_raw_point_cloud = false;
+    bool save_localization_submap = false;
     bool save_radar_images = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

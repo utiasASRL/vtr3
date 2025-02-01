@@ -17,7 +17,6 @@
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar_lidar/modules/localization/localization_icp_module.hpp"
-
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
@@ -64,6 +63,13 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
                                  const Graph::Ptr &,
                                  const TaskExecutor::Ptr &) {
+  // Explanation of frames:
+  // r: robot frame, the estimation frame of the repeat trajectory (leaf in T&R tree terms).
+  // s: sensor frame, the frame of the sensor used in repeat pass (so the radar frame).
+  // v: vertex frame (v_loc specifically), the frame of the teach vertex that we are localizing against.
+  // m: map frame, the frame in which the map points (lidar points here) are resolved in. This is a world frame,
+  // meaning T_v_m grows with the global displacement of the vehicle.
+
   auto &radar_qdata = dynamic_cast<radar::RadarQueryCache &>(qdata0);
   auto &lidar_qdata = dynamic_cast<lidar::LidarQueryCache &>(qdata0);
 
@@ -242,6 +248,12 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     aligned_mat = T_m_s * query_mat;
     aligned_norms_mat = T_m_s * query_norms_mat;
   }
+
+  // Print out debug statements
+  CLOG(DEBUG, "radar_lidar.localization_icp") << "Original number of points in the map: " << lidar_point_map.size();
+  CLOG(DEBUG, "radar_lidar.localization_icp") << "Number of points in the used map: " << point_map.size();
+  CLOG(DEBUG, "radar_lidar.localization_icp") << "Number of points in the query: " << query_points.size();
+  CLOG(DEBUG, "radar_lidar.localization_icp") << "Initial guess: \n" << T_m_s_eval->evaluate().matrix().cast<float>();
 
   using Stopwatch = common::timing::Stopwatch<>;
   std::vector<std::unique_ptr<Stopwatch>> timer;
@@ -456,6 +468,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "radar_lidar.localization_icp") << clock_str[i] << timer[i]->count();
   }
 
+  CLOG(DEBUG, "radar_lidar.localization_icp") << "Final estimate: \n" << T_m_s_eval->evaluate().matrix().cast<float>();
   /// Outputs
   if (matched_points_ratio > config_->min_matched_ratio) {
     // update map to robot transform
@@ -471,6 +484,34 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     // set success
     *radar_qdata.loc_success = false;
   }
+
+  // Saved used point map
+  auto filtered_point_map = std::make_shared<vtr::radar::PointMap<vtr::radar::PointWithInfo>>(1.0f, 1);
+
+  // Copy the point cloud (convert from lidar to radar's PointCloud type)
+  pcl::PointCloud<vtr::radar::PointWithInfo> radar_point_cloud;
+  
+  // Copy from lidar point cloud to radar point cloud
+  for (const auto& point : point_map) {
+    auto pos = point.getVector3fMap();
+    auto norm = point.getNormalVector3fMap();
+    // Create a radar PointWithInfo and initialize its fields
+    vtr::radar::PointWithInfo radar_point;
+    radar_point.x = pos.x();
+    radar_point.y = pos.y();
+    radar_point.z = pos.z();
+    radar_point.normal_x = norm.x();
+    radar_point.normal_y = norm.y();
+    radar_point.normal_z = norm.z();
+    radar_point_cloud.push_back(radar_point);
+  }
+  lgmath::se3::TransformationWithCovariance T_v_m_submap = lidar_qdata.submap_loc->T_vertex_this();
+  // Set the point cloud in the radar PointMap
+  filtered_point_map->point_cloud() = radar_point_cloud;
+  filtered_point_map->T_vertex_this() = T_v_m_submap;
+  // Update radar_qdata.submap_loc with the new radar PointMap
+  radar_qdata.submap_loc = std::static_pointer_cast<const vtr::radar::PointMap<vtr::radar::PointWithInfo>>(filtered_point_map);
+
   // clang-format on
 }
 

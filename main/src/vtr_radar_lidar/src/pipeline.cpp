@@ -40,6 +40,7 @@ auto RadarLidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
   
   config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
+  config->save_localization_submap = node->declare_parameter<bool>(param_prefix + ".save_localization_submap", config->save_localization_submap);
   // clang-format on
   return config;
 }
@@ -162,6 +163,26 @@ void RadarLidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
 
   /// store the current map for localization
   if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();
+
+
+  auto radar_qdata = std::dynamic_pointer_cast<radar::RadarQueryCache>(qdata0);
+  CLOG(DEBUG, "radar_lidar.pipeline") << "radar_qdata->submap_loc: " << radar_qdata->submap_loc->point_cloud().size();
+
+  // Save used submap
+  auto vertex = graph->at(*qdata->vid_odo);
+  if (config_->save_localization_submap) {
+    auto submap_loc =
+        std::make_shared<radar::PointScan<radar::PointWithInfo>>();
+    submap_loc->point_cloud() = radar_qdata->submap_loc->point_cloud();
+    submap_loc->T_vertex_this() = radar_qdata->submap_loc->T_vertex_this();
+    submap_loc->vertex_id() = *qdata->vid_loc;
+
+    using PointScanLM =
+        storage::LockableMessage<radar::PointScan<radar::PointWithInfo>>;
+    auto submap_loc_msg = std::make_shared<PointScanLM>(submap_loc, *qdata->stamp);
+    vertex->insert<radar::PointScan<radar::PointWithInfo>>(
+        "submap_loc", "vtr_radar_msgs/msg/PointScan", submap_loc_msg);
+  }
 }
 
 void RadarLidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
