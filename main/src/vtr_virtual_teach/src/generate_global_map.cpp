@@ -135,6 +135,7 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   for (const auto& [transform, timestamp] : transforms_with_timestamps) {
   if (timestamp <= vertex_time) {     // Accumulate transforms up to and including the vertex timestamp
     global_pose = transform * global_pose; 
+    x_coords.push_back(global_pose(0, 3)); //added this because it wasnt previously here and i thought i may need it
     y_coords.push_back(global_pose(1, 3));
     z_coords.push_back(global_pose(2, 3));
     if (timestamp == vertex_time) {
@@ -165,7 +166,7 @@ Eigen::Matrix4d computeAbsolutePoseByVertexId(
   std::vector<double> y_coords;
   std::vector<double> z_coords;
 
-  for (size_t i = 0; i <= static_cast<size_t>(vertex_id) && i < transforms_with_timestamps.size(); ++i) {
+  for (size_t i = 1; i <= static_cast<size_t>(vertex_id) && i < transforms_with_timestamps.size(); ++i) { // changed i = 0 to i = 1 to avoid obo error because graph is constructed using first timestamp for vertex and vertex is initial pose (identity) so shouldnt be considered here
     const auto& [transform, timestamp] = transforms_with_timestamps[i];
     global_pose = transform * global_pose; 
     x_coords.push_back(global_pose(0, 3));
@@ -200,6 +201,7 @@ int main() {
     auto loaded_graph = RCGraph::MakeShared(graph_path, true);
 
     vtr::pose_graph::VertexId last_submap_vertex_id = vtr::pose_graph::VertexId::Invalid();
+    Timestamp last_submap_timestamp = 0;
     
     // Parameters for the cylindrical filter
     float cylinder_radius = 30.0;  
@@ -285,13 +287,15 @@ int main() {
 
         std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl; // Update the last submap vertex ID
         last_submap_vertex_id = vertex_id;
+        last_submap_timestamp = vertex_time;
       } else {
         // For vertices that don't end in 0, save a pointer to the nearest submap
         if (last_submap_vertex_id.isValid()) {
 
           // Compute the absolute pose using vertex timestamp
           Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
-          Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByVertexId(matrices_with_timestamps, last_submap_vertex_id.majorId());
+          Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
+          //Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByVertexId(matrices_with_timestamps, last_submap_vertex_id.majorId());
           Eigen::Matrix4d relative_transform = last_submap_pose.inverse() * current_pose;
 
           auto submap_ptr = std::make_shared<PointMapPointer>();
