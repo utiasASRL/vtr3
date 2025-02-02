@@ -1,0 +1,8 @@
+21:46:53.820 139892213739520 INFO [configure.cpp:47] [default] Logging to: example_log.txt
+21:46:53.820 139892213739520 INFO [configure.cpp:49] [default] Enabled loggers: [test]
+19:10:13.583 140431185924096 INFO [configure.cpp:47] [default] Logging to: example_log.txt
+19:10:13.584 140431185924096 INFO [configure.cpp:49] [default] Enabled loggers: [test]
+19:51:51.468 139909167972352 INFO [configure.cpp:47] [default] Logging to: example_log.txt
+19:51:51.468 139909167972352 INFO [configure.cpp:49] [default] Enabled loggers: [test]
+19:55:04.302 139995546443776 INFO [configure.cpp:47] [default] Logging to: example_log.txt
+19:55:04.302 139995546443776 INFO [configure.cpp:49] [default] Enabled loggers: [test]

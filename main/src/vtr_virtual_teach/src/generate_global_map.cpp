@@ -134,8 +134,7 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
 
   for (const auto& [transform, timestamp] : transforms_with_timestamps) {
   if (timestamp <= vertex_time) {     // Accumulate transforms up to and including the vertex timestamp
-    global_pose = transform * global_pose; // for lidar odom: transform * global_pose; // for gazebo global_pose * transform.inverse
-    x_coords.push_back(global_pose(0, 3));
+    global_pose = transform * global_pose; 
     y_coords.push_back(global_pose(1, 3));
     z_coords.push_back(global_pose(2, 3));
     if (timestamp == vertex_time) {
@@ -166,9 +165,9 @@ Eigen::Matrix4d computeAbsolutePoseByVertexId(
   std::vector<double> y_coords;
   std::vector<double> z_coords;
 
-  for (size_t i = 0; i <= vertex_id && i < transforms_with_timestamps.size(); ++i) {
+  for (size_t i = 0; i <= static_cast<size_t>(vertex_id) && i < transforms_with_timestamps.size(); ++i) {
     const auto& [transform, timestamp] = transforms_with_timestamps[i];
-    global_pose = transform * global_pose; // for lidar odom: transform * global_pose; // for gazebo global_pose * transform.inverse
+    global_pose = transform * global_pose; 
     x_coords.push_back(global_pose(0, 3));
     y_coords.push_back(global_pose(1, 3));
     z_coords.push_back(global_pose(2, 3));
@@ -187,16 +186,14 @@ int main() {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/aligned_nerf_point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/aligned_nerf_point_cloud.pcd");
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/lidar_odom_relative_transforms.csv";
-    //auto matrices = readTransformMatrices(odometry_csv_path);
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/graph";
-    //auto graph = createPoseGraph(matrices, graph_path);
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -208,12 +205,11 @@ int main() {
     float cylinder_radius = 30.0;  
     float cylinder_height = 20.0;   
 
-    // Iterate through all vertices in the graph - CURRENTLY NOT INTERATNIG IN ASCENDING OR DESCENDING ORDER.
+    // Iterate through all vertices in the graph 
     for (auto it = loaded_graph->begin(0ul); it != loaded_graph->end(); ++it) {
       auto vertex = *it;  // Dereference iterator to access vertex
       auto vertex_id = vertex.v()->id();
       auto vertex_time = vertex.v()->vertexTime();
-      //std::cout << std::fixed << std::setprecision(9); // Ensure 9 decimal places
       std::cout << "Vertex ID: " << vertex_id
                 << ", Timestamp (nanoseconds): " << vertex_time << std::endl;
       
@@ -239,12 +235,11 @@ int main() {
         if (cloud->empty()) {
             throw std::runtime_error("Input point cloud is empty!");
         }
-        // Transform the point cloud (make sure deep copy) to align with the vertex's pose and convert to PointWithInfo
+        // Transform the point cloud to align with the vertex's pose and convert to PointWithInfo
         pcl::PointCloud<PointWithInfo>::Ptr converted_cloud(new pcl::PointCloud<PointWithInfo>());
         pcl::copyPointCloud(*cloud, *converted_cloud);
         pcl::PointCloud<PointWithInfo>::Ptr transformed_cloud(new pcl::PointCloud<PointWithInfo>());
         pcl::transformPointCloudWithNormals(*converted_cloud, *transformed_cloud, absolute_pose); // MAKE SURE NORMALS ARE TRANSFORMED AS WELL
-        //print normals before and after aligning with vertex frame
 
         // Apply cylindrical filter
         pcl::PointCloud<PointWithInfo>::Ptr cropped_cloud(new pcl::PointCloud<PointWithInfo>());
@@ -267,7 +262,7 @@ int main() {
         // Create a submap and update it with the transformed point cloud
         float voxel_size = 0.5;  // Adjust based on nerf point cloud
         auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size);
-        submap_odo->update(*cropped_cloud); //CHANGED HERE 
+        submap_odo->update(*cropped_cloud); 
 
         // Save the submap as a lockable message
         using PointMapLM = vtr::storage::LockableMessage<PointMap<PointWithInfo>>;
