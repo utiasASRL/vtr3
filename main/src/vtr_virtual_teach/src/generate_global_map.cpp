@@ -187,14 +187,14 @@ int main() {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/aligned_nerf_point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/aligned_nerf_point_cloud.pcd");
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/lidar_odom_relative_transforms.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -225,9 +225,29 @@ int main() {
       const auto waypoint_name_msg = std::make_shared<WaypointNameLM>(waypoint_name_data, vertex_time);
       vertex.v()->insert<WaypointName>("waypoint_name", "vtr_tactic_msgs/msg/WaypointNames", waypoint_name_msg);
 
-      // Check if vertex ID ends in 0
-      if (vertex_id % 10 == 0) {
-        std::cout << "Vertex " << vertex_id << " ends in 0." << std::endl;
+      // Compute the current absolute pose for this vertex
+      Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
+      
+      // Variables to hold translation components (the position)
+      Eigen::Vector3d current_translation = current_pose.block<3,1>(0,3);
+      
+      bool createNewSubmap = false;
+      if (last_submap_timestamp == 0) {
+        // No submap has been created yet – always create one.
+        createNewSubmap = true;
+      } else {
+        // Compute the last submap pose and its translation
+        Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
+        Eigen::Vector3d last_submap_translation = last_submap_pose.block<3,1>(0,3);
+        double distance = (current_translation - last_submap_translation).norm();
+        std::cout << "Distance from last submap: " << distance << " m" << std::endl;
+        if (distance > 5.0) { //DISTANCE THRSHOLD TO CREATE NEW SUBMAP CHANGE HERE
+          createNewSubmap = true;
+        }
+      }
+      
+      if (createNewSubmap) {
+        std::cout << "Creating new submap at vertex " << vertex_id << std::endl;
 
         // Compute the absolute pose using vertex timestamp
         Eigen::Matrix4d absolute_pose = computeAbsolutePoseByTimestamp(
@@ -286,34 +306,30 @@ int main() {
             "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
 
         std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl; // Update the last submap vertex ID
+        // Update the last submap tracking variables
         last_submap_vertex_id = vertex_id;
         last_submap_timestamp = vertex_time;
       } else {
-        // For vertices that don't end in 0, save a pointer to the nearest submap
-        if (last_submap_vertex_id.isValid()) {
-
-          // Compute the absolute pose using vertex timestamp
-          Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
-          Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
-          //Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByVertexId(matrices_with_timestamps, last_submap_vertex_id.majorId());
-          Eigen::Matrix4d relative_transform = last_submap_pose.inverse() * current_pose;
-
-          auto submap_ptr = std::make_shared<PointMapPointer>();
-          submap_ptr->this_vid = vertex_id; 
-          submap_ptr->map_vid = last_submap_vertex_id;
-          submap_ptr->T_v_this_map =  EdgeTransform(relative_transform); //vertex id to last submap vertex id transform WE CHANGED THIS 
-          submap_ptr->T_v_this_map.setZeroCovariance();
-
-
-          using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
-          auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
-          vertex.v()->insert<PointMapPointer>(
-              "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
-
-          std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl;
-        } else {
-          std::cerr << "No submap available to associate with vertex " << vertex_id << "." << std::endl;
-        }
+        // For vertices that are within 5 m of the last submap, create a pointer to the last submap.
+        std::cout << "Using previous submap for vertex " << vertex_id << std::endl;
+        
+        // Compute the relative transform from the last submap to the current pose.
+        Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
+        Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
+        Eigen::Matrix4d relative_transform = last_submap_pose.inverse() * current_pose;
+        
+        auto submap_ptr = std::make_shared<PointMapPointer>();
+        submap_ptr->this_vid = vertex_id; 
+        submap_ptr->map_vid = last_submap_vertex_id;
+        submap_ptr->T_v_this_map = EdgeTransform(relative_transform);
+        submap_ptr->T_v_this_map.setZeroCovariance();
+        
+        using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
+        auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
+        vertex.v()->insert<PointMapPointer>(
+            "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
+        
+        std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl;
       }
     }
   } catch (const std::exception &e) {
