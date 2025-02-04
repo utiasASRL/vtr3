@@ -158,8 +158,14 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
 }
 
 
-int main() {
+int main(int argc, char **argv) {  
   try {
+    // Initialize ROS2 node
+    rclcpp::init(argc, argv);  
+    auto node = std::make_shared<rclcpp::Node>("lidar_pipeline_node");
+
+    auto config_ = vtr::lidar::LidarPipeline::Config::fromROS(node, "lidar_pipeline");
+
     // Configure logging
     std::string log_filename = "example_log.txt";
     bool enable_debug = true;
@@ -182,7 +188,8 @@ int main() {
 
     vtr::pose_graph::VertexId last_submap_vertex_id = vtr::pose_graph::VertexId::Invalid();
     Timestamp last_submap_timestamp = 0;
-    
+    Eigen::Matrix4d last_submap_pose = Eigen::Matrix4d::Identity();  // Initialize with identity
+
     // Parameters for the cylindrical filter
     float cylinder_radius = 30.0;  
     float cylinder_height = 20.0;   
@@ -208,22 +215,30 @@ int main() {
       // Compute the current absolute pose for this vertex
       Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
       
-      // Variables to hold translation components (the position)
-      Eigen::Vector3d current_translation = current_pose.block<3,1>(0,3);
-      
       bool createNewSubmap = false;
-      if (last_submap_timestamp == 0) {
-        // No submap has been created yet – always create one.
-        createNewSubmap = true;
-      } else {
-        // Compute the last submap pose and its translation
-        Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
-        Eigen::Vector3d last_submap_translation = last_submap_pose.block<3,1>(0,3);
-        double distance = (current_translation - last_submap_translation).norm();
-        std::cout << "Distance from last submap: " << distance << " m" << std::endl;
-        if (distance > 2.0) { //DISTANCE THRSHOLD TO CREATE NEW SUBMAP CHANGE HERE
+
+      // No submap has been created yet – always create one.
+      if (!last_submap_vertex_id.isValid()) {
           createNewSubmap = true;
-        }
+      } else {
+          // Compute transformation from last submap vertex to current robot position
+          const auto T_sv_r = last_submap_pose * current_pose.inverse(); // Equivalent to T_sv_m_odo_ * T_r_m_odo_->inverse()
+          
+          // Extract translation component (3D distance)
+          Eigen::Vector3d translation = T_sv_r.block<3,1>(0,3);  
+          double dtran = translation.norm();  // Euclidean distance traveled
+          
+          // Extract rotation component (Euler angles in radians → convert to degrees)
+          Eigen::Vector3d rotation_vec = T_sv_r.block<3,3>(0,0).eulerAngles(0, 1, 2);  
+          double drot = rotation_vec.norm() * (180.0 / M_PI);  
+
+          std::cout << "Distance from last submap: " << dtran << " m" << std::endl;
+          std::cout << "Rotation from last submap: " << drot << " degrees" << std::endl;
+
+          // Apply the same thresholds as VTR3
+          if (dtran > 1.5 || drot > 30) { //when replaced with config_ references, every vertex gets a submap (tested on lidar odom w nerf cloud)... not sure why cuz its the same odometry as the existing teach graph where not every vertex has a submap
+              createNewSubmap = true;
+          }
       }
       
       if (createNewSubmap) {
@@ -276,42 +291,44 @@ int main() {
         std::cout << "Point cloud associated with vertex " << vertex_id << "." << std::endl;
       
         // Save a pointer to this submap
-        auto submap_ptr = std::make_shared<PointMapPointer>();
-        submap_ptr->this_vid = vertex_id;
-        submap_ptr->map_vid = vertex_id; 
-        submap_ptr->T_v_this_map = EdgeTransform(true); // was this in the code: submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
-        using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
-        auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
-        vertex.v()->insert<PointMapPointer>(
-            "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
+        //auto submap_ptr = std::make_shared<PointMapPointer>();
+        //submap_ptr->this_vid = vertex_id;
+        //submap_ptr->map_vid = vertex_id; 
+        //submap_ptr->T_v_this_map = EdgeTransform(true); // was this in the code: submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
+        //using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
+        //auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
+        //vertex.v()->insert<PointMapPointer>(
+        //    "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
 
         std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl; // Update the last submap vertex ID
         // Update the last submap tracking variables
         last_submap_vertex_id = vertex_id;
         last_submap_timestamp = vertex_time;
-      } else {
-        // For vertices that are within 5 m of the last submap, create a pointer to the last submap.
-        std::cout << "Using previous submap for vertex " << vertex_id << std::endl;
-        
-        // Compute the relative transform from the last submap to the current pose.
-        Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
-        Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
-        Eigen::Matrix4d relative_transform = current_pose * last_submap_pose.inverse();//last_submap_pose.inverse() * current_pose; // obtains transformation from last submap to current pose PROBLEM COULD BE HERE!!!
-        
-        auto submap_ptr = std::make_shared<PointMapPointer>();
-        submap_ptr->this_vid = vertex_id; 
-        submap_ptr->map_vid = last_submap_vertex_id;
-        submap_ptr->T_v_this_map = EdgeTransform(relative_transform);
-        submap_ptr->T_v_this_map.setZeroCovariance();
-        
-        using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
-        auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
-        vertex.v()->insert<PointMapPointer>(
-            "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
-        
-        std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl;
-      }
+        last_submap_pose = current_pose;  // Update last submap pose
+
+      } 
+      std::cout << "Using previous submap for vertex " << vertex_id << std::endl;
+      
+      // Compute the relative transform from the last submap to the current pose.
+      //Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
+      //Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
+      Eigen::Matrix4d relative_transform = current_pose * last_submap_pose.inverse();//last_submap_pose.inverse() * current_pose; // obtains transformation from last submap to current pose PROBLEM COULD BE HERE!!!
+      
+      auto submap_ptr = std::make_shared<PointMapPointer>();
+      submap_ptr->this_vid = vertex_id; 
+      submap_ptr->map_vid = last_submap_vertex_id;
+      submap_ptr->T_v_this_map = EdgeTransform(relative_transform);
+      submap_ptr->T_v_this_map.setZeroCovariance();
+      
+      using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
+      auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
+      vertex.v()->insert<PointMapPointer>(
+          "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
+      
+      std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl;
+      
     }
+    rclcpp::shutdown();
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return -1;
