@@ -88,6 +88,7 @@ std::vector<std::pair<Eigen::Matrix4d, Timestamp>> readTransformMatricesWithTime
 std::shared_ptr<RCGraph> createPoseGraph(
     const std::vector<std::pair<Eigen::Matrix4d, Timestamp>>& data, // changed Timestamp to double
     const std::string& graph_path) {
+
   // Initialize pose graph
   auto graph = std::make_shared<RCGraph>(graph_path, false);
   graph->addRun();
@@ -106,13 +107,12 @@ std::shared_ptr<RCGraph> createPoseGraph(
     throw std::runtime_error("No data provided to create the pose graph.");
   }
   
-  //auto initial_timestamp = static_cast<Timestamp>(data[0].second / 1e9);  // Convert seconds to nanoseconds
-  const auto& [initial_transform, initial_timestamp] = data.front();  //std::cout << "Initial timestamp (nanoseconds): " << initial_timestamp << std::endl;
-  graph->addVertex(initial_timestamp);
-
-  for (size_t i = 1; i < data.size(); ++i) {   // Add vertices and edges for each transformation and timestamp USES TIMESTAMPS FROM CSV FILE IN EPOCH TIME!
+  const auto& [initial_transform, initial_timestamp] = data.front();  
+  graph->addVertex(initial_timestamp); //dont need to assigna transform, this is the origin
+  
+  for (size_t i = 1; i < data.size(); ++i) {   // Add vertices and edges for each transformation and timestamp
     const auto& [transform, timestamp] = data[i];
-    RCVertex::Ptr new_vertex = graph->addVertex(timestamp);     //auto current_timestamp = static_cast<Timestamp>(timestamp / 1e9);  // Convert seconds to nanoseconds - did this to try to get around Timestamp not saving decimals but i think the same issue is present elsewhere
+    RCVertex::Ptr new_vertex = graph->addVertex(timestamp);    
     EdgeTransform edge_transform(transform);
     edge_transform.setZeroCovariance();
     graph->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal, true, edge_transform);
@@ -127,34 +127,30 @@ std::shared_ptr<RCGraph> createPoseGraph(
 Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   const std::vector<std::pair<Eigen::Matrix4d, Timestamp>>& transforms_with_timestamps,
   Timestamp vertex_time) {
-  Eigen::Matrix4d global_pose = Eigen::Matrix4d::Identity();
+  if (transforms_with_timestamps.empty()) {
+    throw std::runtime_error("No transformation data available.");
+  }
+
+  // Initialize global_pose with the first transformation
+  Eigen::Matrix4d global_pose = transforms_with_timestamps.front().first; //global pose used to be initialized with identity!!!
 
   std::vector<double> x_coords;
   std::vector<double> y_coords;
   std::vector<double> z_coords;
 
   for (const auto& [transform, timestamp] : transforms_with_timestamps) {
-  if (timestamp <= vertex_time) {     // Accumulate transforms up to and including the vertex timestamp
-    global_pose = transform * global_pose; // PROBLEM COULD BE HERE 
-    x_coords.push_back(global_pose(0, 3)); //added this because it wasnt previously here and i thought i may need it
-    y_coords.push_back(global_pose(1, 3));
-    z_coords.push_back(global_pose(2, 3));
-    if (timestamp == vertex_time) {
-    break;
+    if (timestamp <= vertex_time) {     // Accumulate transforms up to and including the vertex timestamp
+      global_pose = transform * global_pose;
+      x_coords.push_back(global_pose(0, 3)); 
+      y_coords.push_back(global_pose(1, 3));
+      z_coords.push_back(global_pose(2, 3));
+      if (timestamp == vertex_time) {
+        break;
+      }
+    } else {
+      break;
     }
-  } else {
-    break;
   }
-  }
-
-  // Plot the path
-  //plt::plot3(x_coords, y_coords, z_coords);
-  //plt::xlabel("X");
-  //plt::ylabel("Y");
-  //plt::set_zlabel("Z");
-  //plt::title("Path created by relative transforms");
-  //plt::show();
-
   return global_pose;
 }
 
@@ -179,15 +175,15 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/aligned_nerf_point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/aligned_nerf_point_cloud.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/nerf_gazebo_relative_transforms_modified.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/lidar_odom_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -223,7 +219,7 @@ int main(int argc, char **argv) {
       
       bool createNewSubmap = false;
 
-      // No submap has been created yet – always create one.
+      // No submap has been created yet - create one.
       if (!last_submap_vertex_id.isValid()) {
           createNewSubmap = true;
       } else {
@@ -234,7 +230,7 @@ int main(int argc, char **argv) {
           Eigen::Vector3d translation = T_sv_r.block<3,1>(0,3);  
           double dtran = translation.norm();  // Euclidean distance traveled
           
-          // Extract rotation component (Euler angles in radians → convert to degrees)
+          // Extract rotation component (Euler angles in radians convert to degrees)
           Eigen::Vector3d rotation_vec = T_sv_r.block<3,3>(0,0).eulerAngles(0, 1, 2);  
           double drot = rotation_vec.norm() * (180.0 / M_PI);  
 
@@ -272,7 +268,7 @@ int main(int argc, char **argv) {
           const float z = point.z;
           const float distance_xy = std::sqrt(x * x + y * y);
           if ((distance_xy <= cylinder_radius) && (std::abs(z) <= cylinder_height / 2.0)) {
-            point.normal_score = 1;      //Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity()); // NEED TO ADD THIS F0R YOUR STUFF
+            point.normal_score = 1;      //Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity()); 
             cropped_cloud->push_back(point);
           }
         }
@@ -295,17 +291,7 @@ int main(int argc, char **argv) {
         vertex.v()->insert<PointMap<PointWithInfo>>(
             "pointmap", "vtr_lidar_msgs/msg/PointMap", submap_msg);
         std::cout << "Point cloud associated with vertex " << vertex_id << "." << std::endl;
-      
-        // Save a pointer to this submap
-        //auto submap_ptr = std::make_shared<PointMapPointer>();
-        //submap_ptr->this_vid = vertex_id;
-        //submap_ptr->map_vid = vertex_id; 
-        //submap_ptr->T_v_this_map = EdgeTransform(true); // was this in the code: submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
-        //using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
-        //auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
-        //vertex.v()->insert<PointMapPointer>(
-        //    "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer", submap_ptr_msg);
-
+    
         std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl; // Update the last submap vertex ID
         // Update the last submap tracking variables
         last_submap_vertex_id = vertex_id;
@@ -315,8 +301,6 @@ int main(int argc, char **argv) {
       std::cout << "Using previous submap for vertex " << vertex_id << std::endl;
       
       // Compute the relative transform from the last submap to the current pose.
-      //Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
-      //Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
       Eigen::Matrix4d relative_transform = current_pose * last_submap_pose.inverse();//last_submap_pose.inverse() * current_pose; // obtains transformation from last submap to current pose PROBLEM COULD BE HERE!!!
       
       auto submap_ptr = std::make_shared<PointMapPointer>();
