@@ -11,6 +11,7 @@
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <vtr_logging/logging_init.hpp>
@@ -147,11 +148,11 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   }
 
   // Plot the path
-  plt::plot3(x_coords, y_coords, z_coords);
-  plt::xlabel("X");
-  plt::ylabel("Y");
-  plt::set_zlabel("Z");
-  plt::title("Path created by relative transforms");
+  //plt::plot3(x_coords, y_coords, z_coords);
+  //plt::xlabel("X");
+  //plt::ylabel("Y");
+  //plt::set_zlabel("Z");
+  //plt::title("Path created by relative transforms");
   //plt::show();
 
   return global_pose;
@@ -160,6 +161,11 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
 
 int main(int argc, char **argv) {  
   try {
+    // Redirect std::cout to a log file
+    std::ofstream log_file("output_log.txt");
+    std::streambuf* cout_buf = std::cout.rdbuf();
+    std::cout.rdbuf(log_file.rdbuf());
+
     // Initialize ROS2 node
     rclcpp::init(argc, argv);  
     auto node = std::make_shared<rclcpp::Node>("lidar_pipeline_node");
@@ -174,6 +180,7 @@ int main(int argc, char **argv) {
 
     // Load point cloud data
     auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/aligned_nerf_point_cloud.pcd");
+    std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
     std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/lidar_odom_relative_transforms.csv";
@@ -329,10 +336,13 @@ int main(int argc, char **argv) {
       
     }
     rclcpp::shutdown();
+    
+    // Restore std::cout to its original state before exiting
+    std::cout.rdbuf(cout_buf);
+    return 0;
+
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return -1;
   }
-
-  return 0;
 }
