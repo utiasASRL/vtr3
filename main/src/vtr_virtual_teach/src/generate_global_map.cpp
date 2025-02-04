@@ -221,7 +221,7 @@ int main() {
         Eigen::Vector3d last_submap_translation = last_submap_pose.block<3,1>(0,3);
         double distance = (current_translation - last_submap_translation).norm();
         std::cout << "Distance from last submap: " << distance << " m" << std::endl;
-        if (distance > 5.0) { //DISTANCE THRSHOLD TO CREATE NEW SUBMAP CHANGE HERE
+        if (distance > 2.0) { //DISTANCE THRSHOLD TO CREATE NEW SUBMAP CHANGE HERE
           createNewSubmap = true;
         }
       }
@@ -263,7 +263,7 @@ int main() {
 
         // Create a submap and update it with the transformed point cloud
         float voxel_size = 0.5;  // Adjust based on nerf point cloud
-        auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); // IDK IF THIS IS CORRECT!!!
+        auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); 
         submap_odo->update(*cropped_cloud); 
 
         // Save the submap as a lockable message
@@ -275,19 +275,11 @@ int main() {
             "pointmap", "vtr_lidar_msgs/msg/PointMap", submap_msg);
         std::cout << "Point cloud associated with vertex " << vertex_id << "." << std::endl;
       
-
-
-
-
-
-
-
-
         // Save a pointer to this submap
         auto submap_ptr = std::make_shared<PointMapPointer>();
         submap_ptr->this_vid = vertex_id;
         submap_ptr->map_vid = vertex_id; 
-        submap_ptr->T_v_this_map = true; // IDENTITY!!! was this in the code: submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
+        submap_ptr->T_v_this_map = EdgeTransform(true); // was this in the code: submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
         using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
         auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
         vertex.v()->insert<PointMapPointer>(
@@ -309,7 +301,7 @@ int main() {
         auto submap_ptr = std::make_shared<PointMapPointer>();
         submap_ptr->this_vid = vertex_id; 
         submap_ptr->map_vid = last_submap_vertex_id;
-        submap_ptr->T_v_this_map = relative_transform;
+        submap_ptr->T_v_this_map = EdgeTransform(relative_transform);
         submap_ptr->T_v_this_map.setZeroCovariance();
         
         using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
