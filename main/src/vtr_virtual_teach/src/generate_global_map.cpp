@@ -134,7 +134,7 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
 
   for (const auto& [transform, timestamp] : transforms_with_timestamps) {
   if (timestamp <= vertex_time) {     // Accumulate transforms up to and including the vertex timestamp
-    global_pose = transform * global_pose; 
+    global_pose = transform * global_pose; // PROBLEM COULD BE HERE 
     x_coords.push_back(global_pose(0, 3)); //added this because it wasnt previously here and i thought i may need it
     y_coords.push_back(global_pose(1, 3));
     z_coords.push_back(global_pose(2, 3));
@@ -157,26 +157,6 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   return global_pose;
 }
 
-Eigen::Matrix4d computeAbsolutePoseByVertexId(
-  const std::vector<std::pair<Eigen::Matrix4d, Timestamp>>& transforms_with_timestamps,
-  int vertex_id) {
-  Eigen::Matrix4d global_pose = Eigen::Matrix4d::Identity();
-
-  std::vector<double> x_coords;
-  std::vector<double> y_coords;
-  std::vector<double> z_coords;
-
-  for (size_t i = 1; i <= static_cast<size_t>(vertex_id) && i < transforms_with_timestamps.size(); ++i) { // changed i = 0 to i = 1 to avoid obo error because graph is constructed using first timestamp for vertex and vertex is initial pose (identity) so shouldnt be considered here
-    const auto& [transform, timestamp] = transforms_with_timestamps[i];
-    global_pose = transform * global_pose; 
-    x_coords.push_back(global_pose(0, 3));
-    y_coords.push_back(global_pose(1, 3));
-    z_coords.push_back(global_pose(2, 3));
-  }
-
-  return global_pose;
-}
-
 
 int main() {
   try {
@@ -187,14 +167,14 @@ int main() {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/aligned_nerf_point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/aligned_nerf_point_cloud.pcd");
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/nerf_gazebo_relative_transforms.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/lidar_odom_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -283,7 +263,7 @@ int main() {
 
         // Create a submap and update it with the transformed point cloud
         float voxel_size = 0.5;  // Adjust based on nerf point cloud
-        auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size);
+        auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); // IDK IF THIS IS CORRECT!!!
         submap_odo->update(*cropped_cloud); 
 
         // Save the submap as a lockable message
@@ -295,11 +275,19 @@ int main() {
             "pointmap", "vtr_lidar_msgs/msg/PointMap", submap_msg);
         std::cout << "Point cloud associated with vertex " << vertex_id << "." << std::endl;
       
+
+
+
+
+
+
+
+
         // Save a pointer to this submap
         auto submap_ptr = std::make_shared<PointMapPointer>();
         submap_ptr->this_vid = vertex_id;
         submap_ptr->map_vid = vertex_id; 
-        submap_ptr->T_v_this_map = EdgeTransform(true); // was this in the code: submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
+        submap_ptr->T_v_this_map = true; // IDENTITY!!! was this in the code: submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
         using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
         auto submap_ptr_msg = std::make_shared<PointMapPointerLM>(submap_ptr, vertex_time);
         vertex.v()->insert<PointMapPointer>(
@@ -316,12 +304,12 @@ int main() {
         // Compute the relative transform from the last submap to the current pose.
         Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
         Eigen::Matrix4d last_submap_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, last_submap_timestamp);
-        Eigen::Matrix4d relative_transform = last_submap_pose.inverse() * current_pose;
+        Eigen::Matrix4d relative_transform = current_pose * last_submap_pose.inverse();//last_submap_pose.inverse() * current_pose; // obtains transformation from last submap to current pose PROBLEM COULD BE HERE!!!
         
         auto submap_ptr = std::make_shared<PointMapPointer>();
         submap_ptr->this_vid = vertex_id; 
         submap_ptr->map_vid = last_submap_vertex_id;
-        submap_ptr->T_v_this_map = EdgeTransform(relative_transform);
+        submap_ptr->T_v_this_map = relative_transform;
         submap_ptr->T_v_this_map.setZeroCovariance();
         
         using PointMapPointerLM = vtr::storage::LockableMessage<PointMapPointer>;
