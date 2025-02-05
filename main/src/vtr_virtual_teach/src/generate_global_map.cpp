@@ -42,9 +42,9 @@ using namespace vtr::tactic;
 using namespace vtr::lidar;
 
 // Load PCD file and return point cloud pointer
-pcl::PointCloud<pcl::PointXYZ>::Ptr loadPointCloud(const std::string& filename) {
-  auto cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(filename, *cloud) == -1) {
+pcl::PointCloud<pcl::PointNormal>::Ptr loadPointCloud(const std::string& filename) {
+  auto cloud = std::make_shared<pcl::PointCloud<pcl::PointNormal>>();
+  if (pcl::io::loadPCDFile<pcl::PointNormal>(filename, *cloud) == -1) {
     throw std::runtime_error("Failed to load PCD file: " + filename);
   }
   return cloud;
@@ -132,7 +132,7 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   }
 
   // Initialize global_pose with the first transformation
-  Eigen::Matrix4d global_pose = transforms_with_timestamps.front().first; //global pose used to be initialized with identity!!!
+  Eigen::Matrix4d global_pose = Eigen::Matrix4d::Identity(); //transforms_with_timestamps.front().first; //global pose used to be initialized with identity!!!
 
   std::vector<double> x_coords;
   std::vector<double> y_coords;

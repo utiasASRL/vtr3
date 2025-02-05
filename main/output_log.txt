@@ -1,5 +1,5 @@
-[36m23:56:31.265 140359694094336 INFO [configure.cpp:47] [default] Logging to: example_log.txt
-[0m[36m23:56:31.265 140359694094336 INFO [configure.cpp:49] [default] Enabled loggers: [test]
+[36m19:04:08.774 140412089819136 INFO [configure.cpp:47] [default] Logging to: example_log.txt
+[0m[36m19:04:08.774 140412089819136 INFO [configure.cpp:49] [default] Enabled loggers: [test]
 [0mPoint cloud loaded successfully.
 Vertex ID: <0,0>, Timestamp (nanoseconds): 1720639339642020096
 Creating new submap at vertex <0,0>
