@@ -51,8 +51,9 @@ def shift_timestep(step, t0, state_init, u, f, last_u):
 def DM2Arr(dm):
     return np.array(dm.full())
 
-path_x = np.linspace(0, 30, 10000)
+path_x = np.linspace(0, 50, 10000)
 path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
+path_y[-1000:] = 0.5*path_x[-1000:]
 path_mat = np.zeros((np.size(path_x), 3))
 path_mat[:, 0] = path_x
 path_mat[:, 1] = path_y
@@ -138,6 +139,10 @@ if __name__ == '__main__':
     main_loop = time()  # return time in sec
     p_state_l = 0
     p_state_f = 0
+    
+    
+    last_leader_rollout = None
+    u_l = None
     while (ca.norm_2(state_init_l - state_target) > 2e-1) and (mpc_iter * step_horizon < sim_time):
         t1 = time()
 
@@ -153,7 +158,10 @@ if __name__ == '__main__':
 
         # follower waypoints
         for i in range(1, N+1):
-            p_target_f = p_state_f + last_u_l[0] * step_horizon * i
+            if last_leader_rollout is None:
+                p_target_f = p_state_f + last_u_l[1] * step_horizon * i
+            else:
+                p_target_f = p_state_f + u_l[0,1] * step_horizon * i
             p_idx_f = np.argmin(np.abs(path_p - p_target_f))
             args_f['p'] = ca.vertcat(args_f['p'],
                        ca.DM(path_mat[p_idx_f, :]))
@@ -168,9 +176,18 @@ if __name__ == '__main__':
             p_idx_l = np.argmin(np.abs(path_p - p_target_l))
             args_l['p'] = ca.vertcat(args_l['p'],
                        ca.DM(path_mat[p_idx_l, :]))
+            if last_leader_rollout is None:
+                args_f['p'] = ca.vertcat(args_f['p'],
+                        ca.DM(path_mat[p_idx_l, :]))
+            else:
+                if i < N:
+                    args_f['p'] = ca.vertcat(args_f['p'],
+                            ca.DM([last_leader_rollout[0, i+1], last_leader_rollout[1, i+1], last_leader_rollout[2, i+1]]))
+        
+        if last_leader_rollout is not None:
             args_f['p'] = ca.vertcat(args_f['p'],
-                       ca.DM(path_mat[p_idx_l, :]))
-            
+                ca.DM([last_leader_rollout[0, 0], last_leader_rollout[1, 0], last_leader_rollout[2, 0]]))
+        
         state_target = ca.DM(path_mat[p_idx_l, :])
 
 
@@ -237,6 +254,8 @@ if __name__ == '__main__':
         
         X0_l = ca.reshape(sol_l['x'][: n_states * (N+1)], n_states, N+1)
         X0_f = ca.reshape(sol_f['x'][: n_states * (N+1)], n_states, N+1)
+
+        last_leader_rollout = X0_l
 
         cat_states_l = np.dstack((
             cat_states_l,

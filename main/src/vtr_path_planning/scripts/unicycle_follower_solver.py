@@ -76,7 +76,7 @@ measured_velo = init_vel
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
 
-D = ca.DM(10)
+D = ca.DM(2000)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
@@ -139,8 +139,11 @@ for k in range(1, N):
     cost_fn = cost_fn \
         + (st_next[:2] - follower_ref_poses[n_states*k:n_states*(k+1)-1]).T @ Q @ (st_next[:2] - follower_ref_poses[n_states*k:n_states*(k+1)-1]) \
         + con.T @ R @ con \
-        + so2_error(follower_ref_poses[n_states*k + 2], st_next[2]) * Q_theta * so2_error(follower_ref_poses[n_states*k + 2], st_next[2]) \
-        + D * (ca.norm_2((st_next[:2] - leader_ref_poses[n_states*k:n_states*(k+1)-1])) - d)**2  #@ Q @ (((st_next[:2] - leader_ref_poses[n_states*k:n_states*(k+1)-1])).T @ ((st_next[:2] - leader_ref_poses[n_states*k:n_states*(k+1)-1])) - d**2).T
+        + so2_error(follower_ref_poses[n_states*k + 2], st_next[2]) * Q_theta * so2_error(follower_ref_poses[n_states*k + 2], st_next[2])
+
+
+    if (k < N-1):
+        cost_fn = cost_fn + D * (ca.norm_2((st_next[:2] - leader_ref_poses[n_states*k:n_states*(k+1)-1])) - d)**2  #@ Q @ (((st_next[:2] - leader_ref_poses[n_states*k:n_states*(k+1)-1])).T @ ((st_next[:2] - leader_ref_poses[n_states*k:n_states*(k+1)-1])) - d**2).T
 
     k1 = motion_model(st, con, last_vel)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel)

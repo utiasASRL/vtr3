@@ -290,6 +290,6 @@ def simulate_path_tracking_convoy(cat_states_1, cat_controls_1, cat_states_2, ca
     plt.show()
 
     if save == True:
-        sim.save('./animation' + str(time()) +'.gif', writer='ffmpeg', fps=30)
+        sim.save('/home/sven/ASRL/vtr3/animation' + str(time()) +'.gif', writer='ffmpeg', fps=30)
 
     return
