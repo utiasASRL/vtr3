@@ -14,6 +14,7 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>
 #include <vtr_pose_graph/serializable/rc_graph.hpp>
@@ -41,7 +42,7 @@ using namespace vtr::storage;
 using namespace vtr::tactic;
 using namespace vtr::lidar;
 
-// Load PCD file and return point cloud pointer
+// Load PCD file and return point cloud pointer with voxel downsampling
 pcl::PointCloud<pcl::PointNormal>::Ptr loadPointCloud(const std::string& filename) {
   auto cloud = std::make_shared<pcl::PointCloud<pcl::PointNormal>>();
   if (pcl::io::loadPCDFile<pcl::PointNormal>(filename, *cloud) == -1) {
@@ -157,10 +158,10 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
 
 int main(int argc, char **argv) {  
   try {
-    // Redirect std::cout to a log file
-    std::ofstream log_file("output_log.txt");
-    std::streambuf* cout_buf = std::cout.rdbuf();
-    std::cout.rdbuf(log_file.rdbuf());
+    // // Redirect std::cout to a log file
+    // std::ofstream log_file("output_log.txt");
+    // std::streambuf* cout_buf = std::cout.rdbuf();
+    // std::cout.rdbuf(log_file.rdbuf());
 
     // Initialize ROS2 node
     rclcpp::init(argc, argv);  
@@ -279,9 +280,9 @@ int main(int argc, char **argv) {
         std::cout << "Cropped cloud size: " << cropped_cloud->size() << std::endl;
 
         // Create a submap and update it with the transformed point cloud
-        float voxel_size = 0.5;  // Adjust based on nerf point cloud
+        float voxel_size = 0.9;  // Adjust based on nerf point cloud
         auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); 
-        submap_odo->update(*cropped_cloud); 
+        submap_odo->update(*cropped_cloud);
 
         // Save the submap as a lockable message
         using PointMapLM = vtr::storage::LockableMessage<PointMap<PointWithInfo>>;
@@ -319,9 +320,9 @@ int main(int argc, char **argv) {
     }
     rclcpp::shutdown();
     
-    // Restore std::cout to its original state before exiting
-    std::cout.rdbuf(cout_buf);
-    return 0;
+    // // Restore std::cout to its original state before exiting
+    // std::cout.rdbuf(cout_buf);
+    // return 0;
 
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
