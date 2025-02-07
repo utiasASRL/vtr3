@@ -12,7 +12,7 @@
       #- tactic
       - tactic.pipeline
       - tactic.eop
-      #- tactic.module
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
@@ -50,10 +50,10 @@
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
 
-    robot_frame: base_link
+    robot_frame: w200_0066_base_link
     env_info_topic: env_info
-    lidar_frame: aeva/aeries2/sensor #CHANGED
-    lidar_topic: /aeva/aeries2/point_cloud_compensated  #CHANGED
+    lidar_frame: aeva/WarthogAeries/sensor #CHANGED Add tf from base link to aeva lidar
+    lidar_topic: /aeva/WarthogAeries/point_cloud_compensated  #CHANGED
     queue_size: 1
     graph_map:
       origin_lat: 43.7822

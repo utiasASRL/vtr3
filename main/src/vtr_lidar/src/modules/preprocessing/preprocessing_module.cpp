@@ -107,6 +107,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &output_cache,
 
   std::string filepath = "/home/hendrik/ASRL/vtr3/Datasets_converted/mars_straight/run_0/current_scan/current_scan.pcd";
 
+
     if (pcl::io::savePCDFile(filepath, *qdata.raw_point_cloud) == -1) {
         PCL_ERROR("Failed to save point cloud to PCD file.\n");
     // } else {
