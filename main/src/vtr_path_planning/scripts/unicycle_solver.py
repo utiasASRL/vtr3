@@ -18,7 +18,7 @@ R2 = 1.0 #0.1
 Acc_R1 = 0.1
 Acc_R2 = 0.5 #0.01
 
-step_horizon = 0.4  # time between steps in seconds
+step_horizon = 0.3  # time between steps in seconds
 N = 8           # number of look ahead steps
 
 # The first order lag weighting for the angular velocity
