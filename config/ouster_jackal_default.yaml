@@ -97,7 +97,7 @@
       localization:
         - recall
         - icp
-        - safe_corridor
+        # - safe_corridor
         # - change_detection_sync
         - memory
       submap_translation_threshold: 0.325 
