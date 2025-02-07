@@ -108,8 +108,10 @@ std::shared_ptr<RCGraph> createPoseGraph(
   }
   
   const auto& [initial_transform, initial_timestamp] = data.front();  
-  graph->addVertex(initial_timestamp); //dont need to assigna transform, this is the origin
-  
+  graph->addVertex(initial_timestamp); //dont need to assign a transform, this is the origin
+  // EdgeTransform edge_transform(initial_transform); // STILL NOT SETTING THE FIRST VERTEX - IT IS STILL 0,0,0
+
+
   for (size_t i = 1; i < data.size(); ++i) {   // Add vertices and edges for each transformation and timestamp
     const auto& [transform, timestamp] = data[i];
     RCVertex::Ptr new_vertex = graph->addVertex(timestamp);    
@@ -175,15 +177,15 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/aligned_nerf_point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/aligned_nerf_point_cloud.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/lidar_odom_relative_transforms.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_odom_path/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
