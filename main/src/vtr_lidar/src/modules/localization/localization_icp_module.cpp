@@ -66,7 +66,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     return;
   }
 
-  if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time) {
+  if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time && *qdata.pipeline_mode == tactic::PipelineMode::RepeatFollow) {
     CLOG(WARNING, "lidar.localization_icp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
     return;
   }

@@ -55,6 +55,7 @@
       origin_lng: -79.4661
       origin_theta: 1.3
       scale: 1.0
+      gps_topic: "/novatel/fix"
     tactic:
       enable_parallelization: true
       preprocessing_skippable: false
