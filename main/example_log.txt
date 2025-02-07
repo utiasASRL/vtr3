@@ -98,3 +98,5 @@
 21:48:09.933 140109980348416 INFO [configure.cpp:49] [default] Enabled loggers: [test]
 21:53:22.879 140208505430016 INFO [configure.cpp:47] [default] Logging to: example_log.txt
 21:53:22.879 140208505430016 INFO [configure.cpp:49] [default] Enabled loggers: [test]
+23:53:09.494 140187643006976 INFO [configure.cpp:47] [default] Logging to: example_log.txt
+23:53:09.494 140187643006976 INFO [configure.cpp:49] [default] Enabled loggers: [test]
