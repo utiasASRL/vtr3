@@ -40,6 +40,8 @@ class OdometryPreintegrationModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
+    double gyro_bias = 0.003; // added simple bias correction
+    
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };

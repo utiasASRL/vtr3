@@ -45,6 +45,7 @@ auto OdometryGyroModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
   config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
+  config->gyro_bias = node->declare_parameter<double>(param_prefix + ".gyro_bias", config->gyro_bias); // added simple bias correction
 
   // optimization params
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
@@ -126,7 +127,10 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   trajectory->addPriorCostTerms(problem);
 
   // Lets define a velocity measurement cost term
-  double gyro_measurement = -1*gyro_msg.angular_velocity.z;
+  double gyro_measurement = -1*(gyro_msg.angular_velocity.z- config_->gyro_bias); // here is wz and I applied a very simple bias correction
+
+  // lets log the bias
+  CLOG(DEBUG, "radar.odometry_gyro") << "Gyro bias: " << config_->gyro_bias;
 
   const auto loss_func = L2LossFunc::MakeShared();
   const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->gyro_cov);

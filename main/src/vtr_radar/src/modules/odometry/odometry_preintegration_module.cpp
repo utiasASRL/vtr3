@@ -33,6 +33,7 @@ auto OdometryPreintegrationModule::Config::fromROS(const rclcpp::Node::SharedPtr
                                         const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();// clang-format on
+  config->gyro_bias = node->declare_parameter<double>(param_prefix + ".gyro_bias", config->gyro_bias); // added simple bias correction
   return config;
 }
 
@@ -71,7 +72,10 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   Time cur_time(static_cast<int64_t>(current_time_stamp));
   
   // Integrate last gyro measurement (we don't multiply by -1 here due to the frame convention in the icp module)
-  double delta_yaw = (cur_time - prev_time).seconds() *prev_gyro_msg.angular_velocity.z;
+  double delta_yaw = (cur_time - prev_time).seconds() *(prev_gyro_msg.angular_velocity.z- config_->gyro_bias); // I applied a very simple bias correction
+
+  // lets log the bias
+  CLOG(DEBUG, "radar.odometry_preintegration") << "Gyro bias: " << config_->gyro_bias;
 
 
   CLOG(DEBUG, "radar.odometry_preintegration") << "Current delta yaw value: " << delta_yaw;
