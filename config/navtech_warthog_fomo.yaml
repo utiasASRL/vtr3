@@ -29,9 +29,9 @@
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu
     gyro_topic: /ouster/imu
     queue_size: 10
-    graph_map:
-      origin_lat: 43.7822 # UTIAS: 43.78220
-      origin_lng: -79.4661 # UTIAS: -79.4661
+    graph_projection:
+      origin_lat: 47.322053763 # UTIAS: 43.78220
+      origin_lng: -71.147490359 # UTIAS: -79.4661
       origin_theta: 1.3
       scale: 1.0
     # Added Tactical Params
@@ -87,7 +87,7 @@
       extraction:
         type: radar.pc_extractor
         radar_resolution: 0.043810 # fomo # RAS3 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        detector: cen2018 # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 1.0 # mininum detection distance
         maxr: 300.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
@@ -117,7 +117,7 @@
         modified_cacfar:
           width: 137 # Old: 101, New: 41 # Elliot 101
           guard: 7 # Old: 5, New: 2 # 5
-          threshold: 0.50 # Old: 0.2, New: 1.0 # was 0.7
+          threshold: 0.48 # Old: 0.2, New: 1.0 # was 0.7
           threshold2: 0.0 # Old: 4.0, New: 0.0 cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
           threshold3: 0.23 # Old: 0.0, New: 0.08 # was 0.23
         caso_cfar:

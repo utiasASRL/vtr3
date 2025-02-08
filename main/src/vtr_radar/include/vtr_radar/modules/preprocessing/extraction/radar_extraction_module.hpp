@@ -86,8 +86,8 @@ class RadarExtractionModule : public tactic::BaseModule {
     } caso_cfar;
 
 
-    double radar_resolution = 0.0438;
-    double range_offset = -0.31;
+    double radar_resolution = 0.040308;
+    double range_offset = -0.319910;
     double cart_resolution = 0.25;
     double beta = 0.049;
     std::string chirp_type = "both";
