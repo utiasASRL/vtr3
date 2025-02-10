@@ -34,7 +34,7 @@ bool sort_asc_by_second(const std::pair<int, float> &a,
 
 } // namespace
 
-// K-strongest implementation as per Elliot's paper
+// K-strongest implementation with scale correction due to range quantization errors
 template <class PointT>
 void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
                              const std::vector<int64_t> &azimuth_times,
@@ -44,45 +44,67 @@ void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
   const int rows = raw_scan.rows;
   const int cols = raw_scan.cols;
   auto mincol = minr_ / res;
-
   if (mincol > cols || mincol < 0) mincol = 0;
   auto maxcol = maxr_ / res;
-
   if (maxcol > cols || maxcol < 0) maxcol = cols;
 
-  // #pragma omp parallel for
   for (int i = 0; i < rows; ++i) {
     std::vector<std::pair<float, int>> intens;
-
     const float thres = threshold3_;
+    
+    // 1. Collect threshold-exceeding points (in column order)
     for (int j = mincol; j < maxcol; ++j) {
-      if (raw_scan.at<float>(i, j) >= thres){
-        intens.push_back(std::make_pair(raw_scan.at<float>(i, j), j));
+      if (raw_scan.at<float>(i, j) >= thres) {
+        intens.emplace_back(raw_scan.at<float>(i, j), j);
       }
     }
 
-    int thresholded_point_count = intens.size();
-    if(thresholded_point_count > 0){
+    if (!intens.empty()) {
+      // 2. Group adjacent bins into peaks
+      std::vector<std::pair<float, std::vector<int>>> peaks;
+      float current_max = intens[0].first;
+      std::vector<int> current_bins = {intens[0].second};
 
-      std::sort(intens.begin(), intens.end(), sort_desc_by_first);
+      for (size_t idx = 1; idx < intens.size(); ++idx) {
+        const int current_j = intens[idx].second;
+        
+        if (current_j == current_bins.back() + 1) {
+          // Continuation of current peak
+          current_max = std::max(current_max, intens[idx].first);
+          current_bins.push_back(current_j);
+        } else {
+          // Finalize current peak
+          peaks.emplace_back(current_max, current_bins);
+          current_max = intens[idx].first;
+          current_bins = {current_j};
+        }
+      }
+      peaks.emplace_back(current_max, current_bins);  // Add last peak
 
+      // 3. Sort peaks by maximum intensity
+      std::sort(peaks.begin(), peaks.end(),
+               [](const auto& a, const auto& b) { return a.first > b.first; });
+
+      // 4. Select top-k peaks with averaged positions
       const double azimuth = azimuth_angles[i];
       const int64_t time = azimuth_times[i];
       pcl::PointCloud<PointT> polar_time;
-      for (int j = 0; j < kstrong_; ++j) {
-        if (j >= thresholded_point_count){break;}
-
-        PointT p;
-        p.rho = static_cast<float>(intens[j].second) * res + static_cast<float>(range_offset_);
-        p.phi = azimuth;
-        p.theta = 0;
-        p.timestamp = time;
-        polar_time.push_back(p);
+      
+      for (int p = 0; p < std::min(kstrong_, (int)peaks.size()); ++p) {
+        const auto& peak = peaks[p];
+        const float avg_j = std::accumulate(peak.second.begin(), 
+                                           peak.second.end(), 0.0f) 
+                           / peak.second.size();
+        
+        PointT point;
+        point.rho = avg_j * res + static_cast<float>(range_offset_);
+        point.phi = azimuth;
+        point.theta = 0;
+        point.timestamp = time;
+        polar_time.push_back(point);
       }
-      // #pragma omp critical
-      {
-        pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
-      }
+      
+      pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
     }
   }
 }

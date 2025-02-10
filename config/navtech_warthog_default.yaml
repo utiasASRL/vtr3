@@ -84,7 +84,7 @@
       extraction:
         type: radar.pc_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
+        detector: kstrongest # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
         minr: 1.0 # mininum detection distance
         maxr: 69.0 # maximum detection distance
         encoder_bin_size: 16000 # encoder bin size
@@ -95,7 +95,7 @@
         kstrong:
           kstrong: 4 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.235 # treshold for k-strongest (constant)
+          threshold3: 0.25 # treshold for k-strongest (constant)
         cen2018:
           zq: 2.5
           sigma: 8
