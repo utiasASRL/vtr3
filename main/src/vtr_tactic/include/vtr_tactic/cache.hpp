@@ -119,7 +119,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   // preprocessing
   Cache<const double> preproc_time;
   Cache<const PipelineMode> pipeline_mode;
-  Cache<const bool> first_frame;
+  Cache<bool> first_frame;
 
   // odometry and mapping - initialized in tactic, modified by pipeline
   Cache<VertexId> vid_odo;

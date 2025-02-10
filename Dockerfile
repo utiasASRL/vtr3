@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 CMD ["/bin/bash"]
 
@@ -13,7 +13,7 @@ ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
 ARG HOMEDIR=/root
-ARG CUDA_ARCH="8.6"
+ARG CUDA_ARCH="8.9"
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
@@ -51,6 +51,9 @@ RUN apt update && apt install -q -y python3 python3-distutils python3-pip
 RUN apt update && apt install -q -y libeigen3-dev
 RUN apt update && apt install -q -y libsqlite3-dev sqlite3
 RUN apt install -q -y libc6-dbg gdb valgrind
+
+## Dependency for navtech radar
+RUN apt update && apt install -q -y apt libbotan-2-dev
 
 ## Install PROJ (8.2.0) (this is for graph_map_server in vtr_navigation)
 RUN apt update && apt install -q -y cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
@@ -115,19 +118,17 @@ RUN pip3 install \
 RUN apt install wget
 RUN apt install nano
 
-
-## install opencv 4.5.1
-
+## sam install opencv 4.10.0
 RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 
 
 RUN mkdir -p ${HOMEDIR}/opencv && cd ${HOMEDIR}/opencv \
 && git clone https://github.com/opencv/opencv.git . 
 
-RUN cd ${HOMEDIR}/opencv && git checkout 4.6.0
+RUN cd ${HOMEDIR}/opencv && git checkout 4.10.0
 RUN mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
 && git clone https://github.com/opencv/opencv_contrib.git . 
-RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.6.0 
+RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.10.0 
 
 
 RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
@@ -142,7 +143,7 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 -DBUILD_opencv_python3=ON \
 -DWITH_OPENMP=ON \
 -DWITH_CUDA=ON \
--D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.7 \
+-D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.8 \
 -DOPENCV_ENABLE_NONFREE=ON \
 -D OPENCV_GENERATE_PKGCONFIG=ON \
 -DWITH_TBB=ON \
@@ -163,7 +164,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   
   
 ##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip --output libtorch.zip
+RUN curl https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch
 RUN rm libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch

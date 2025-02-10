@@ -62,6 +62,11 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+  if(!qdata.radar_data)
+  {
+    return;
+  }
+
   // Get input point cloud
   const auto point_cloud = qdata.raw_point_cloud.ptr();
 

@@ -186,7 +186,7 @@
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 0.3
+        max_translation: 0.30
         max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2

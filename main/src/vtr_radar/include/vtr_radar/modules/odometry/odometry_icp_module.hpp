@@ -50,6 +50,9 @@ class OdometryICPModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
+    // preintegration weight
+    double preint_cov = 0.1;
+
     /// ICP parameters
     // number of threads for nearest neighbor search
     int num_threads = 4;
@@ -74,6 +77,10 @@ class OdometryICPModule : public tactic::BaseModule {
 
     /// Success criteria
     float min_matched_ratio = 0.4;
+    float max_trans_vel_diff = 1000.0; // m/s
+    float max_rot_vel_diff = 1000.0; // m/s
+    float max_trans_diff = 1000.0; // m
+    float max_rot_diff = 1000.0; // rad
 
     bool visualize = false;
 

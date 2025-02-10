@@ -28,6 +28,7 @@
 #include "message_filters/subscriber.h"
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include "sensor_msgs/msg/image.hpp"
 #endif
 
 #include "vtr_common/conversions/tf2_ros_eigen.hpp"
@@ -36,7 +37,9 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #endif
 
-#ifdef VTR_ENABLE_VISION
+#ifdef VTR_ENABLE_RADAR
+#include "navtech_msgs/msg/radar_b_scan_msg.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #endif
 
@@ -76,6 +79,24 @@ class Navigator {
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub_;
   std::string lidar_frame_;
   tactic::EdgeTransform T_lidar_robot_;
+#endif
+
+#ifdef VTR_ENABLE_RADAR 
+  // radar
+  const std::string &radar_frame() const { return radar_frame_; }
+  const tactic::EdgeTransform &T_radar_robot() const { return T_radar_robot_; }
+  void radarCallback(const navtech_msgs::msg::RadarBScanMsg::SharedPtr msg);
+  rclcpp::Subscription<navtech_msgs::msg::RadarBScanMsg>::SharedPtr radar_sub_;
+  std::string radar_frame_;
+  tactic::EdgeTransform T_radar_robot_;
+  
+  // gyro
+  const std::string &gyro_frame() const { return gyro_frame_; }
+  const tactic::EdgeTransform &T_gyro_robot() const { return T_gyro_robot_; }
+  void gyroCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr gyro_sub_;
+  std::string gyro_frame_;
+  tactic::EdgeTransform T_gyro_robot_;
 #endif
 
 #ifdef VTR_ENABLE_VISION

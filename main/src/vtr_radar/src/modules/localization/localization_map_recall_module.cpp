@@ -52,6 +52,13 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+  if(!qdata.radar_data)
+  {
+    return;
+  }
+
+
+
   /// Input
   const auto &vid_loc = *qdata.vid_loc;
 
@@ -74,6 +81,8 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
         << "pointmap pointer this_vid mismatch.";
     throw std::runtime_error("pointmap pointer this_vid mismatch.");
   }
+
+  
 
   /// load the submap if we have switched to a new one
   if (qdata.submap_loc &&
