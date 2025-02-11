@@ -142,6 +142,13 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
 
+  for(int i = 0; i < mpcConf.N; i++) {
+      arg["p"] = vertcat(arg["p"],
+          mpcConf.leader_reference_poses.at(i));
+  }
+  
+  arg["p"] = vertcat(arg["p"], mpcConf.distance);
+
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
 

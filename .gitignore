@@ -15,3 +15,7 @@ __pycache__/
 
 #vscode config
 .vscode/
+
+#auto generated C++ code for MPC
+main/src/vtr_path_planning/include/vtr_path_planning/mpc/*mpc_solver*
+main/src/vtr_path_planning/src/mpc/*mpc_solver*

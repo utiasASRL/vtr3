@@ -46,19 +46,29 @@ ament_target_dependencies(${PROJECT_NAME}_base
   vtr_path_planning_msgs
 )
 
+execute_process(COMMAND ${PYTHON_EXECUTABLE} scripts/export_mpc.py
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_custom_command(OUTPUT "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp"
-  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
+  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
   DEPENDS "scripts/unicycle_solver.py")
 
 add_custom_target(generate_unicycle_header ALL
 DEPENDS "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp")
 
 add_custom_command(OUTPUT "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp"
-  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
+  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
   DEPENDS "scripts/acker_cycle_solver.py")
 
 add_custom_target(generate_ackermann_header ALL
 DEPENDS "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp")
+
+add_custom_command(OUTPUT "include/vtr_path_planning/mpc/unicycle_mpc_solver_follower.hpp"
+  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
+  DEPENDS "scripts/unicycle_follower_solver.py")
+
+add_custom_target(generate_unicycle_follower_header ALL
+DEPENDS "include/vtr_path_planning/mpc/unicycle_mpc_solver_follower.hpp")
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
 add_library(${PROJECT_NAME}_mpc ${SRC})
@@ -78,6 +88,10 @@ target_link_libraries(solve_unicycle_mpc casadi)
 add_library(solve_ackermann_mpc SHARED src/mpc/ackermann_mpc_solver.cpp)
 add_dependencies(solve_ackermann_mpc generate_ackermann_header)
 target_link_libraries(solve_ackermann_mpc casadi)
+
+add_library(solve_unicycle_follower_mpc SHARED src/mpc/unicycle_mpc_solver_follower.cpp)
+add_dependencies(solve_unicycle_follower_mpc generate_unicycle_follower_header)
+target_link_libraries(solve_unicycle_follower_mpc casadi)
 
 find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})
