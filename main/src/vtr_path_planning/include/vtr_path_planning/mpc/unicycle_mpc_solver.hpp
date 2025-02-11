@@ -33,7 +33,7 @@ extern "C" int nlp_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casadi_int
 #define nlp_SZ_ARG 2
 #define nlp_SZ_RES 2
 #define nlp_SZ_IW 0
-#define nlp_SZ_W 138
+#define nlp_SZ_W 132
 extern "C" int nlp_f(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_f_alloc_mem(void);
 extern "C" int nlp_f_init_mem(int mem);
@@ -75,7 +75,7 @@ extern "C" int nlp_g_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casadi_i
 #define nlp_g_SZ_ARG 2
 #define nlp_g_SZ_RES 1
 #define nlp_g_SZ_IW 0
-#define nlp_g_SZ_W 47
+#define nlp_g_SZ_W 41
 extern "C" int nlp_grad(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_grad_alloc_mem(void);
 extern "C" int nlp_grad_init_mem(int mem);
@@ -96,7 +96,7 @@ extern "C" int nlp_grad_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casad
 #define nlp_grad_SZ_ARG 4
 #define nlp_grad_SZ_RES 4
 #define nlp_grad_SZ_IW 0
-#define nlp_grad_SZ_W 897
+#define nlp_grad_SZ_W 848
 extern "C" int nlp_grad_f(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_grad_f_alloc_mem(void);
 extern "C" int nlp_grad_f_init_mem(int mem);
@@ -117,7 +117,7 @@ extern "C" int nlp_grad_f_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, cas
 #define nlp_grad_f_SZ_ARG 2
 #define nlp_grad_f_SZ_RES 2
 #define nlp_grad_f_SZ_IW 0
-#define nlp_grad_f_SZ_W 395
+#define nlp_grad_f_SZ_W 410
 extern "C" int nlp_hess_l(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_hess_l_alloc_mem(void);
 extern "C" int nlp_hess_l_init_mem(int mem);
@@ -138,7 +138,7 @@ extern "C" int nlp_hess_l_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, cas
 #define nlp_hess_l_SZ_ARG 4
 #define nlp_hess_l_SZ_RES 1
 #define nlp_hess_l_SZ_IW 0
-#define nlp_hess_l_SZ_W 827
+#define nlp_hess_l_SZ_W 767
 extern "C" int nlp_jac_g(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_jac_g_alloc_mem(void);
 extern "C" int nlp_jac_g_init_mem(int mem);
@@ -159,4 +159,4 @@ extern "C" int nlp_jac_g_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casa
 #define nlp_jac_g_SZ_ARG 2
 #define nlp_jac_g_SZ_RES 2
 #define nlp_jac_g_SZ_IW 0
-#define nlp_jac_g_SZ_W 369
+#define nlp_jac_g_SZ_W 371

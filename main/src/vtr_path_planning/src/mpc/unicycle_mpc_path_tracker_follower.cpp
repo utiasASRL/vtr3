@@ -133,9 +133,9 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   // Store the current robot state in the robot state path so it can be visualized
   auto T_w_r = T_w_p * T_p_r;
 
-  CasadiUnicycleMPC::Config mpcConfig;
+  CasadiUnicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-
+  mpcConfig.distance = 1.5;
 
     
   // Schedule speed based on path curvatures + other factors
@@ -227,6 +227,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 
 void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   recentLeaderPath_ = path;
+  
 }
 
 }  // namespace path_planning

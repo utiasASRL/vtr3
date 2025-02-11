@@ -85,7 +85,7 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(UnicycleMPCPathFollower);
 
   Config::ConstPtr config_;
-  CasadiUnicycleMPC solver_;
+  CasadiUnicycleMPCFollower solver_;
 
   // Store the previously applied velocity and a sliding window history of MPC results
   Eigen::Vector2d applied_vel_;

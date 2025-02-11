@@ -182,6 +182,8 @@ class Tactic : public PipelineInterface, public TacticInterface {
   /** \brief Transformation from the localization vertex frame to world frame */
   EdgeTransform T_w_v_loc_ = EdgeTransform(true);
 
+  EdgeTransform T_m_w_ = EdgeTransform(true);
+
   friend class TacticCallbackInterface;
 };
 
