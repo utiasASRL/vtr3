@@ -59,12 +59,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  //Check that
-  if(!*qdata.odo_success) {
-    CLOG(WARNING, "lidar.localization_icp") << "Odometry failed, skip localization";
-    return;
-  }
-
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
