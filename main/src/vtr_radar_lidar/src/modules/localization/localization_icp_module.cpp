@@ -18,6 +18,8 @@
  */
 #include "vtr_radar_lidar/modules/localization/localization_icp_module.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
+#include <torch/torch.h>
+namespace F = torch::nn::functional;
 
 namespace vtr {
 namespace radar_lidar {
@@ -25,6 +27,7 @@ namespace radar_lidar {
 using namespace tactic;
 using namespace steam;
 using namespace steam::se3;
+
 
 auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string &param_prefix)
@@ -55,6 +58,11 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
+  // Masking
+  config->use_mask = node->declare_parameter<bool>(param_prefix + ".use_mask", config->use_mask);
+  config->mask_dir = node->declare_parameter<std::string>(param_prefix + ".mask_dir", config->mask_dir);
+  config->mask_id = node->declare_parameter<std::string>(param_prefix + ".mask_id", config->mask_id);
+
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -83,8 +91,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // Inputs
-  // const auto &query_stamp = *radar_qdata.stamp;
+  const auto &query_stamp = *radar_qdata.stamp / 1000;
   const auto &query_points = *radar_qdata.undistorted_point_cloud;
+  const auto &raw_radar_points = *radar_qdata.raw_point_cloud;
   const auto &T_s_r = *radar_qdata.T_s_r;
   auto T_r_v = *radar_qdata.T_r_v_loc;  // used as a prior (after projected)
   const auto &T_v_m = *lidar_qdata.T_v_m_loc;
@@ -234,6 +243,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto query_norms_mat = query_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, radar::PointWithInfo::size(), radar::PointWithInfo::normal_offset());
+  const auto raw_mat = raw_radar_points.getMatrixXfMap(3, radar::PointWithInfo::size(), radar::PointWithInfo::cartesian_offset());
 
   /// create kd-tree of the map
   CLOG(DEBUG, "radar_lidar.localization_icp") << "Start building a kd-tree of the map.";
@@ -241,6 +251,110 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   lidar::KDTreeParams tree_params(/* max leaf */ 10);
   auto kdtree = std::make_unique<lidar::KDTree<lidar::PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
+
+  // deal with mask sampling
+  torch::Tensor weight_vect;
+  if (config_->use_mask || true) {
+    // Need to get the name of the sequence being run
+    const auto &sequence_name = *radar_qdata.seq_name;
+    const auto &mask_id = config_->mask_id;
+
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "sequence_name: " << sequence_name;
+
+    // First, form mask path based on query_stamp
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "query_stamp: " << query_stamp;
+    //const std::string mask_path = "/home/dli/mm_masking/data/masks/" + sequence_name + "/" + std::to_string(query_stamp) + ".png";
+    const std::string mask_path = config_->mask_dir + "/" + mask_id + "/" + sequence_name + "/" + std::to_string(query_stamp) + ".png";
+
+    // Print name of path
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "mask_path: " << mask_path;
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "mask_path exists: " << std::filesystem::exists(mask_path);
+
+    // Read in mask
+    cv::Mat weight_mask_og = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
+    cv::Mat weight_mask;
+    weight_mask_og.convertTo(weight_mask, CV_32F, 1.0 / 255.0);
+    // Print shape of weight_mask
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_mask_og.shape: " << weight_mask_og.rows << ", " << weight_mask_og.cols;
+    // CLOG(DEBUG, "radar_lidar.localization_icp") 
+    //     << "weight_mask_og first 5 values: " 
+    //     << (int)weight_mask_og.at<uchar>(0, 0) << ", " 
+    //     << (int)weight_mask_og.at<uchar>(0, 1) << ", " 
+    //     << (int)weight_mask_og.at<uchar>(0, 2) << ", " 
+    //     << (int)weight_mask_og.at<uchar>(0, 3) << ", " 
+    //     << (int)weight_mask_og.at<uchar>(0, 4);
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_mask.shape: " << weight_mask.rows << ", " << weight_mask.cols;
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_mask first 5 values: " << weight_mask.at<float>(0, 0) << ", " << weight_mask.at<float>(0, 1) << ", " << weight_mask.at<float>(0, 2) << ", " << weight_mask.at<float>(0, 3) << ", " << weight_mask.at<float>(0, 4);
+
+    // Print type and shape of raw_mat
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "raw_mat.shape: " << raw_mat.rows() << ", " << raw_mat.cols();
+    
+    // Compute the cartesian pixel coordinates of each point in the pointcloud pc
+    // pc is an Eigen::MatrixXf with shape (N, m, 2/3)
+
+    double cart_resolution = 0.2384;
+    int cart_pixel_width = 640;
+
+    // Create a new Eigen::MatrixXf to store the grid_pc
+    Eigen::MatrixXf grid_pc(raw_mat.cols(), 2);
+
+    // Iterate through the cols (points) in the matrix
+    for (int i = 0; i < raw_mat.cols(); ++i) {
+        // Extract the x and y coordinates of the point
+        double x = -raw_mat(0, i) / cart_resolution;
+        double y = raw_mat(1, i) / cart_resolution;
+
+        // Normalize x and y to be in the range [-1, 1]
+        x = x / (cart_pixel_width - 1) * 2;
+        y = y / (cart_pixel_width - 1) * 2;
+
+        // Store the normalized coordinates in the grid_pc matrix
+        grid_pc(i, 0) = y;
+        grid_pc(i, 1) = x;
+    }
+
+    // Print result
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "grid_pc.shape: " << grid_pc.rows() << ", " << grid_pc.cols();
+    // //CLOG(DEBUG, "radar_lidar.localization_icp") << "grid_pc: \n" << grid_pc;
+
+    // // Print first 3 points and weights
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "raw_mat: \n" << raw_mat.block<3, 3>(0, 0);
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "grid_pc: \n" << grid_pc.block<5, 2>(0, 0);
+
+    // Convert mask and grid_pc to torch
+    torch::Tensor weight_mask_torch = torch::from_blob(weight_mask.data, {weight_mask.rows, weight_mask.cols}, torch::kFloat32);
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> grid_pc_row_major = grid_pc;
+    torch::Tensor grid_pc_torch = torch::from_blob(grid_pc_row_major.data(), {grid_pc.rows(), grid_pc.cols()}, torch::kFloat32);
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "grid_pc_torch.shape original: \n" << grid_pc_torch.sizes();
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "grid_pc_torch first 5 values: \n" << grid_pc_torch[0] << ", " << grid_pc_torch[1] << ", " << grid_pc_torch[2] << ", " << grid_pc_torch[3] << ", " << grid_pc_torch[4];
+
+    // Expand weight_mask_torch to have a batch dimension
+    weight_mask_torch = weight_mask_torch.unsqueeze(0).unsqueeze(0);
+    grid_pc_torch = grid_pc_torch.unsqueeze(0).unsqueeze(2);
+
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_mask_torch.shape: \n" << weight_mask_torch.sizes();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_mask_torch first 5 values: \n" << weight_mask_torch[0][0][0][0] << ", " << weight_mask_torch[0][0][1][0] << ", " << weight_mask_torch[0][0][2][0] << ", " << weight_mask_torch[0][0][3][0] << ", " << weight_mask_torch[0][0][4][0];
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "grid_pc_torch.shape: \n" << grid_pc_torch.sizes();
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "grid_pc_torch first 5 values: \n" << grid_pc_torch[0][0] << ", " << grid_pc_torch[0][1] << ", " << grid_pc_torch[0][2] << ", " << grid_pc_torch[0][3] << ", " << grid_pc_torch[0][4];
+
+    auto grid_sample_opts = F::GridSampleFuncOptions()
+                      .mode(torch::kBilinear)
+                      .padding_mode(torch::kZeros)
+                      .align_corners(true);
+    auto weight_vect_torch = F::grid_sample(weight_mask_torch, grid_pc_torch, grid_sample_opts);
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_vect_torch.shape: " << weight_vect_torch.size(0) << ", " << weight_vect_torch.size(1) << ", " << weight_vect_torch.size(2) << ", " << weight_vect_torch.size(3);
+    weight_vect_torch = weight_vect_torch.squeeze(0).squeeze(0);
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_vect_torch.shape: " << weight_vect_torch.size(0) << ", " << weight_vect_torch.size(1);
+
+    //weight_vect = weight_vect_torch.accessor<float, 2>();
+    weight_vect = weight_vect_torch;
+
+    // Print weight_vect shape and values of first 3 points
+    // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_vect.shape: " << weight_vect.size(0) << ", " << weight_vect.size(1);
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_vect: \n" << weight_vect[0] << ", " << weight_vect[1] << ", " << weight_vect[2];
+    // Print last 3 weights
+    CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_vect: \n" << weight_vect[weight_vect.size(0) - 3] << ", " << weight_vect[weight_vect.size(0) - 2] << ", " << weight_vect[weight_vect.size(0) - 1];
+  }
 
   /// perform initial alignment
   {
@@ -316,6 +430,13 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         // float planar_dist = std::abs(
         //     diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
         // if (step < first_steps || planar_dist < max_planar_d) {
+        // If using mask, don't add very low weight points
+        if (config_->use_mask) {
+          float weight = weight_vect[sample_inds[i].first][0].item<float>();
+          if (weight <= 0.01) {
+            continue;
+          }
+        }
           filtered_sample_inds.push_back(sample_inds[i]);
         // }
       }
@@ -352,7 +473,16 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         //   return W;
         // }
         /// point to point
+        
         Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+
+        if (config_->use_mask) {
+          // Extract the weight from the weight_vect
+          //float weight = weight_vect[ind.first][0];
+          float weight = weight_vect[ind.first][0].item<float>();
+          W = W * weight;
+        }
+
         return W;
       }();
       auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);

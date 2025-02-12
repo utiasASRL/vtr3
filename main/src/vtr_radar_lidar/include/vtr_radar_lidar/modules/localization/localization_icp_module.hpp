@@ -68,6 +68,10 @@ class LocalizationICPModule : public tactic::BaseModule {
     unsigned int max_iterations = 1;
     double huber_delta = 1.0;
     double cauchy_k = 0.35;
+    // masking
+    bool use_mask = false;
+    std::string mask_dir = "/";
+    std::string mask_id = "MMICP-0";
 
     /// Success criteria
     float min_matched_ratio = 0.4;
