@@ -19,6 +19,8 @@
 #include "vtr_radar_lidar/modules/localization/localization_icp_module.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 #include <torch/torch.h>
+#include "cv_bridge/cv_bridge.h"
+
 namespace F = torch::nn::functional;
 
 namespace vtr {
@@ -84,8 +86,10 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    tmp_scan_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_scan_loc", 5);
-    map_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("filtered_submap_loc", 5);
+    loc_scan_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("curr_scan_loc", 5);
+    loc_used_scan_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("used_scan_loc", 5);
+    loc_map_pub_ = radar_qdata.node->create_publisher<PointCloudMsg>("filtered_submap_loc", 5);
+    mask_pub_ = radar_qdata.node->create_publisher<ImageMsg>("mask_scan", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -191,16 +195,23 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (config_->visualize) {
     // clang-format off
+    // publish the live scan
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(query_points, pc2_msg);
+    pc2_msg.header.frame_id = "radar";
+    pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp);
+    loc_scan_pub_->publish(pc2_msg);
+
+    // publish the map
     auto point_map_in_v = point_map;  // makes a copy
     auto map_point_mat = point_map_in_v.getMatrixXfMap(4, lidar::PointWithInfo::size(), lidar::PointWithInfo::cartesian_offset());
     Eigen::Matrix4f T_v_m_mat = T_v_m.matrix().cast<float>();
     map_point_mat = T_v_m_mat * map_point_mat;
 
-    PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map_in_v, pc2_msg);
     pc2_msg.header.frame_id = "loc vertex frame (offset)";
     pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp);
-    map_pub_->publish(pc2_msg);
+    loc_map_pub_->publish(pc2_msg);
     // clang-format on
   }
 
@@ -254,7 +265,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // deal with mask sampling
   torch::Tensor weight_vect;
-  if (config_->use_mask || true) {
+  if (config_->use_mask) {
     // Need to get the name of the sequence being run
     const auto &sequence_name = *radar_qdata.seq_name;
     const auto &mask_id = config_->mask_id;
@@ -274,6 +285,18 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     cv::Mat weight_mask_og = cv::imread(mask_path, cv::IMREAD_GRAYSCALE);
     cv::Mat weight_mask;
     weight_mask_og.convertTo(weight_mask, CV_32F, 1.0 / 255.0);
+
+    if (config_->visualize) {
+      // publish the mask
+      cv_bridge::CvImage mask_image;
+      mask_image.header.frame_id = "radar";
+      //mask_image.header.stamp = rclcpp::Time(*radar_qdata.stamp);
+      mask_image.encoding = "mono8";
+      weight_mask.convertTo(mask_image.image, CV_8UC1, 255);
+      mask_pub_->publish(*mask_image.toImageMsg());
+    }
+
+
     // Print shape of weight_mask
     // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_mask_og.shape: " << weight_mask_og.rows << ", " << weight_mask_og.cols;
     // CLOG(DEBUG, "radar_lidar.localization_icp") 
@@ -347,7 +370,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_vect_torch.shape: " << weight_vect_torch.size(0) << ", " << weight_vect_torch.size(1);
 
     //weight_vect = weight_vect_torch.accessor<float, 2>();
+
     weight_vect = weight_vect_torch;
+    // weight_vect = weight_vect.clamp(0.2, 1.0);
 
     // Print weight_vect shape and values of first 3 points
     // CLOG(DEBUG, "radar_lidar.localization_icp") << "weight_vect.shape: " << weight_vect.size(0) << ", " << weight_vect.size(1);
@@ -397,6 +422,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
   bool refinement_stage = false;
   int refinement_step = 0;
+  std::vector<float> point_weightings(query_points.size(), 1);
 
   CLOG(DEBUG, "radar_lidar.localization_icp") << "Start the ICP optimization loop.";
   for (int step = 0;; step++) {
@@ -434,11 +460,15 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
         if (config_->use_mask) {
           float weight = weight_vect[sample_inds[i].first][0].item<float>();
           if (weight <= 0.01) {
+            point_weightings[sample_inds[i].first] = 0;
             continue;
           }
+          point_weightings[sample_inds[i].first] = weight;
         }
           filtered_sample_inds.push_back(sample_inds[i]);
         // }
+      } else {
+        point_weightings[sample_inds[i].first] = 0;
       }
     }
     timer[2]->stop();
@@ -597,6 +627,40 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
   for (size_t i = 0; i < clock_str.size(); i++) {
     CLOG(DEBUG, "radar_lidar.localization_icp") << clock_str[i] << timer[i]->count();
   }
+
+  if (config_->visualize) {
+    // Create a PointCloud with color
+    pcl::PointCloud<pcl::PointXYZRGB> colored_cloud;
+    colored_cloud.points.resize(query_points.size());
+
+    // Find min and max weights for normalization
+    float min_w = *std::min_element(point_weightings.begin(), point_weightings.end());
+    float max_w = *std::max_element(point_weightings.begin(), point_weightings.end());
+
+    for (size_t i = 0; i < query_points.size(); ++i) {
+        colored_cloud.points[i].x = query_points[i].x;
+        colored_cloud.points[i].y = query_points[i].y;
+        colored_cloud.points[i].z = query_points[i].z;
+
+        // Normalize weight to range [0, 1]
+        float norm_w = (point_weightings[i] - min_w) / (max_w - min_w);
+
+        // Blue to Red colormap
+        colored_cloud.points[i].r = static_cast<uint8_t>(norm_w * 255); // 0 -> 255 (black to red)
+        colored_cloud.points[i].g = 0; // No green
+        colored_cloud.points[i].b = static_cast<uint8_t>((1.0 - norm_w) * 255); // 255 -> 0 (blue to black)
+    }
+
+    // clang-format off
+    // publish the used scan
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(colored_cloud, pc2_msg);
+    pc2_msg.header.frame_id = "radar";
+    pc2_msg.header.stamp = rclcpp::Time(*radar_qdata.stamp);
+    loc_used_scan_pub_->publish(pc2_msg);
+    // clang-format on
+  }
+
 
   CLOG(DEBUG, "radar_lidar.localization_icp") << "Final estimate: \n" << T_m_s_eval->evaluate().matrix().cast<float>();
   /// Outputs

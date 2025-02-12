@@ -32,6 +32,7 @@ namespace radar_lidar {
 class LocalizationICPModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  using ImageMsg = sensor_msgs::msg::Image;
 
   /** \brief Static module identifier. */
   static constexpr auto static_name = "radar_lidar.localization_icp";
@@ -97,8 +98,10 @@ class LocalizationICPModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr tmp_scan_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr loc_scan_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr loc_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr loc_used_scan_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr mask_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(LocalizationICPModule);
 };
