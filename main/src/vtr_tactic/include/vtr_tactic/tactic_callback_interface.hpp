@@ -41,7 +41,8 @@ class TacticCallbackInterface {
 
   virtual void publishOdometryRviz(const Timestamp& /* stamp */,
                                    const EdgeTransform& /* T_r_v_odo */,
-                                   const EdgeTransform& /* T_w_v_odo */) {}
+                                   const EdgeTransform& /* T_w_v_odo */,
+                                   const Eigen::Vector<double, 6>& /* w_r_in_r */) {}
   virtual void publishPathRviz(const LocalizationChain& /* chain */) {}
   virtual void publishLocalizationRviz(const Timestamp& /* stamp */,
                                        const EdgeTransform& /* T_w_v_loc */) {}

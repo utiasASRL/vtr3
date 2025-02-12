@@ -28,24 +28,21 @@
 #include "vtr_lidar/modules/preprocessing/preprocessing_module_v2.hpp"
 
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
-#include "vtr_lidar/modules/odometry/odometry_map_maintenance_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module_v2.hpp"
 #include "vtr_lidar/modules/odometry/vertex_test_module.hpp"
-#include "vtr_lidar/modules/odometry/sample_module.hpp"
+// #include "vtr_lidar/modules/odometry/sample_module.hpp"
 
 #include "vtr_lidar/modules/localization/localization_icp_module.hpp"
 #include "vtr_lidar/modules/localization/localization_map_recall_module.hpp"
 
 #include "vtr_lidar/modules/pointmap/dynamic_detection_module.hpp"
-#include "vtr_lidar/modules/pointmap/inter_exp_merging_module.hpp"
 #include "vtr_lidar/modules/pointmap/inter_exp_merging_module_v2.hpp"
-#include "vtr_lidar/modules/pointmap/intra_exp_merging_module.hpp"
 #include "vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp"
 
 #include "vtr_lidar/modules/planning/change_detection_module_v3.hpp"
-#include "vtr_lidar/modules/planning/ground_extraction_module.hpp"
-#include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
-#include "vtr_lidar/modules/planning/safe_corridor_module.hpp"
-#include "vtr_lidar/modules/planning/terrain_assessment_module.hpp"
-#include "vtr_lidar/modules/planning/diff_generator.hpp"
+// #include "vtr_lidar/modules/planning/ground_extraction_module.hpp"
+// #include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
+// #include "vtr_lidar/modules/planning/safe_corridor_module.hpp"
+// #include "vtr_lidar/modules/planning/terrain_assessment_module.hpp"
+// #include "vtr_lidar/modules/planning/diff_generator.hpp"
 

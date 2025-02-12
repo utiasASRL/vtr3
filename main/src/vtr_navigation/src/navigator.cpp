@@ -54,9 +54,9 @@ EdgeTransform loadTransform(const std::string& source_frame,
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
   if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),
-                             tf2::durationFromSec(1))) {
+                             tf2::durationFromSec(5))) {
     auto tf_source_target = tf_buffer.lookupTransform(
-        source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(1));
+        source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(5));
     tf2::Stamped<tf2::Transform> tf2_source_target;
     tf2::fromMsg(tf_source_target, tf2_source_target);
     EdgeTransform T_source_target(
