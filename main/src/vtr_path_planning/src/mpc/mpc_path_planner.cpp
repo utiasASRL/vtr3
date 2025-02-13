@@ -101,7 +101,7 @@ CasadiUnicycleMPCFollower::CasadiUnicycleMPCFollower( bool verbose, casadi::Dict
     ipopt_opts["print_level"] = 0;
   }
   opts["ipopt"] = ipopt_opts;
-  solve_mpc = nlpsol("solver", "ipopt", "solve_unicycle_follower_mpc.so", opts);
+  solve_mpc = nlpsol("solver", "ipopt", "libsolve_unicycle_follower_mpc.so", opts);
 }
 
 std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiMPC::Config& baseMpcConf) {
