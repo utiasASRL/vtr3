@@ -41,6 +41,7 @@ import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
 import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
 import MoveGraphScaleRefSvg from "../../images/move-graph-scale-ref.svg";
 import MyhalPlan from "../../images/myhal-plan.svg"
+import CSAPlan from "../../images/CSA_AT_TopView.jpg"
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -322,9 +323,14 @@ class GraphMap extends React.Component {
       move_robot_vertex,
       map_center
     } = this.state;
-    const imageBounds = [
+    const myhalImageBounds = [
       [43.660511, -79.397019], // Bottom-left coordinates of the image
       [43.661091, -79.395995], // Top-right coordinates of the image
+    ];
+
+    const csaImageBounds = [
+      [45.517540, -73.393919], // Bottom-left coordinates of the image
+      [45.518265, -73.392324], // Top-right coordinates of the image
     ];
     return (
       <>
@@ -344,7 +350,8 @@ class GraphMap extends React.Component {
             maxZoom={22}
           />
           {/* Add the ImageOverlay component to the map */}
-          <ImageOverlay url={MyhalPlan} bounds={imageBounds} />
+          <ImageOverlay url={MyhalPlan} bounds={myhalImageBounds} />
+          <ImageOverlay url={CSAPlan} bounds={csaImageBounds} />
           <ZoomControl position="bottomright" />
           <this.WaypointMarkers />
         </MapContainer>

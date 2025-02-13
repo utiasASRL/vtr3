@@ -114,8 +114,10 @@ class CBIT : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
+    double turning_radius = 1.0;
 
     // Add unicycle model param
+    std::string kinematic_model = "unicycle"; //Options are unicycle and ackermann
 
     // Misc
     int command_history_length = 100;
@@ -147,7 +149,7 @@ class CBIT : public BasePathPlanner {
 
   std::shared_ptr<CBITPlanner> planner_ptr_;
 
-  CasadiUnicycleMPC solver_;
+  CasadiMPC::Ptr solver_;
 
   // Pointers to the output path
   std::vector<Pose> cbit_path;

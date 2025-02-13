@@ -16,6 +16,8 @@
  * \file radar_extraction_module.hpp
  * \author Sam Qiao, Autonomous Space Robotics Lab (ASRL)
  */
+// For more details on the pointcloud extraction methods and parameter selection,
+// please refer to the following paper: https://arxiv.org/abs/2409.12256
 #pragma once
 
 #include "vtr_radar/cache.hpp"
@@ -42,56 +44,110 @@ class RadarExtractionModule : public tactic::BaseModule {
     double minr = 2;
     double maxr = 100;
 
-    // kstrong
+    // kstrongest
     struct {
       int kstrong = 10;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } kstrong;
+      double static_threshold = 0.22;
+    } kstrongest;
     // cen2018
     struct {
       double zq = 3;
       int sigma = 17;
     } cen2018;
-    // cacfar
-    struct {
-      int width = 40;
-      int guard = 2;
-      double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
-    } cacfar;
     // oscfar
     struct {
       int width = 40;
       int guard = 2;
       int kstat = 20;
       double threshold = 0.5;
-      double threshold2 = 0.5;
-      double threshold3 = 0.22;
     } oscfar;
-    // modified_cacfar
+    // tm_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 15.0;
+      int N1 = 5;
+      int N2 = 5;
+    } tm_cfar;
+    // cacfar
     struct {
       int width = 40;
       int guard = 2;
       double threshold = 0.5;
+    } cacfar;
+    // modified_cacfar 
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 1.0;
       double threshold2 = 0.5;
       double threshold3 = 0.22;
     } modified_cacfar;
-    // caso_cfar
+    // cago_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 15.0;
+    } cago_cfar;
+     // caso_cfar
     struct {
       int width = 40;
       int guard = 2;
       double threshold = 0.5;
     } caso_cfar;
-
+    //is_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double alpha_I = 0.05;
+      int N_TI = 7;
+      double beta_I = 20.02;
+    } is_cfar;
+    //vi_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double alpha_I = 0.05;
+      double K_VI = 7.0;
+      double K_MR = 1.5;
+      double C_N = 20.02;
+    } vi_cfar;
+    // cfear_kstrong
+    struct {
+      int width = 40;
+      int guard = 2;
+      int kstrong = 12;
+      double z_min = 0.2;
+      double r = 3.5;
+      double f = 1.0;
+    } cfear_kstrong;
+    // bfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+      double static_threshold = 0.22;
+    } bfar;
+    // msca_cfar
+    struct {
+      int width = 40;
+      int guard = 2;
+      double threshold = 0.5;
+      int M = 5;
+    } msca_cfar;
+    // cen2019
+    struct {
+      int width = 40;
+      int guard = 2;
+      int l_max = 200;
+    } cen2019;
 
     double radar_resolution = 0.0438;
     double range_offset = -0.31;
     double cart_resolution = 0.25;
     double beta = 0.049;
-    std::string chirp_type = "both";
 
+    bool save_pointcloud_overlay = false;
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

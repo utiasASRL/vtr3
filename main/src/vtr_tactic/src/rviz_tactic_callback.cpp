@@ -24,6 +24,7 @@
 #include <nav_msgs/msg/path.hpp>
 
 #include "vtr_tactic/rviz_tactic_callback.hpp"
+#include "vtr_common/conversions/tf2_ros_eigen.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -36,6 +37,8 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 
   tf_static_bc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
   tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
   odometry_pub_ = node->create_publisher<OdometryMsg>("odometry", 10);
   loc_path_pub_ = node->create_publisher<PathMsg>("loc_path", 10);
 
@@ -51,7 +54,8 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 
 void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
                                              const EdgeTransform& T_r_v_odo,
-                                             const EdgeTransform& T_w_v_odo) {
+                                             const EdgeTransform& T_w_v_odo,
+                                             const Eigen::Vector<double, 6>& w_r_in_r) {
   // publish vertex frame
   Eigen::Affine3d T(T_w_v_odo.matrix());
   auto msg = tf2::eigenToTransform(T);
@@ -60,12 +64,29 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   msg.child_frame_id = "odo vertex frame";
   tf_bc_->sendTransform(msg);
 
+
   // publish odometry
   OdometryMsg odometry;
   odometry.header.frame_id = "world";
+  EdgeTransform T_m_w{true};
+
+  try {
+    auto tf_map_world = tf_buffer_->lookupTransform("map", "world", tf2::TimePointZero);
+    tf2::Stamped<tf2::Transform> tf2_source_target;
+    tf2::fromMsg(tf_map_world, tf2_source_target);
+    T_m_w = common::conversions::fromStampedTransformation(tf2_source_target);
+    odometry.header.frame_id = "map";
+  } catch(std::exception& e) {
+    CLOG(WARNING, "rviz_callback") << "Map world TF is missing";
+  }
+  
+  T_m_w.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+
+  odometry.child_frame_id = "robot";
   odometry.header.stamp = rclcpp::Time(stamp);
   odometry.pose.pose =
-      tf2::toMsg(Eigen::Affine3d((T_w_v_odo * T_r_v_odo.inverse()).matrix()));
+      tf2::toMsg(Eigen::Affine3d((T_m_w * T_w_v_odo * T_r_v_odo.inverse()).matrix()));
+  odometry.twist.twist = tf2::toMsg(w_r_in_r);
   odometry_pub_->publish(odometry);
 
   // publish current frame

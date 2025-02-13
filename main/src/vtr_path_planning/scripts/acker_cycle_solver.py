@@ -1,3 +1,7 @@
+# This controller is for an ackermann drive robot that receives linear and agular velocity twist commands.
+# There is a turning radius constraint that helps the robot drive forward. 
+# There is a higher cost to driving backwards than forwards
+
 import sys
 sys.dont_write_bytecode = True
 
@@ -6,23 +10,27 @@ from casadi import sin, cos, pi
 
 #Compile Time Constants (Could use params to set!)
 
+
 # Pose Covariance
-Q_x = 10
-Q_y = 10
-Q_theta = 5
+Q_x = 1
+Q_y = 1
+Q_theta = 1
+
 # Command Covariance
-R1 = 1.0 #0.1
-R2 = 10.0 #0.1
+R1_fwd = 1.0
+R1_rev = 100.0
+R2 = 10.0
+# turning_r = 20
 
 # Acceleration Cost Covariance
 Acc_R1 = 0.1
-Acc_R2 = 0.5 #0.01
+Acc_R2 = 0.5
 
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the angular velocity
-alpha = 0.0
+alpha = 0.2
 
 # state symbolic variables
 x = ca.SX.sym('x')
@@ -63,14 +71,15 @@ last_controls = ca.vertcat(
 )
 
 # column vector for storing initial state and target states + initial velocity
-P = ca.SX.sym('P', n_states * (N+1) + n_controls)
-measured_velo = P[-2:]
+P = ca.SX.sym('P', n_states * (N+1) + n_controls + 1)
+measured_velo = P[-3:-1]
+turning_r = P[-1]
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
 
 # controls weights matrix
-R = ca.diagcat(R1, R2)
+R = ca.diagcat(R1_fwd, R2)
 
 #Acceleration weith matrix
 R_acc = ca.diagcat(Acc_R1, Acc_R2)
@@ -78,18 +87,7 @@ R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
 RHS = ca.vertcat(v*cos(theta), v*sin(theta), last_omega*alpha + (1-alpha)*omega)
 motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
-# RHS_angle = ca.vertcat(x + v/omega*sin(theta + omega*step_horizon) - v/omega*sin(theta), 
-#                  y + v/omega*cos(theta) - v/omega*cos(theta + omega*step_horizon), 
-#                  theta + omega*step_horizon)
 
-# RHS_straight = ca.vertcat(x + v*cos(theta)*step_horizon, 
-#                  y + v*sin(theta)*step_horizon, 
-#                  theta)
-# straight_motion = ca.Function('straight_mm', [states, controls], [RHS_straight])
-# curved_motion = ca.Function('curved_mm', [states, controls], [RHS_angle])
-# if_motion_model = ca.Function.if_else('motion_model_cond', curved_motion, straight_motion)
-# motion_model = ca.Function("motion_model", [states, controls], [if_motion_model(ca.fabs(omega) > 1e-4, states, controls)])
-# motion_model = curved_motion
 
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
 
@@ -137,7 +135,6 @@ for k in range(1, N):
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
     k4 = motion_model(st + step_horizon * k3, con, last_vel)
     st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-    # st_next_int = motion_model(st, con)
 
     g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
@@ -146,6 +143,11 @@ for k in range(1, N):
 for k in range(N):
     theta_k = P[n_states*(k+1) + 2]
     g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
+
+for k in range(N):
+    g = ca.vertcat(g, U[0, k] / turning_r + U[1, k])
+    g = ca.vertcat(g, -U[0, k] / turning_r + U[1, k])
+
 
 #Acceleration constraints
 cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
