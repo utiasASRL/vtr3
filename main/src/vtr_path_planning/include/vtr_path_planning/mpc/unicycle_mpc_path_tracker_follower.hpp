@@ -59,7 +59,7 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   struct Config : public BasePathPlanner::Config {
     PTR_TYPEDEFS(Config);
 
-    std::string leader_path_topic = "leader/mpc_path";
+    std::string leader_path_topic = "vtr/mpc_prediction";
 
     double following_offset = 0.5; //m
 

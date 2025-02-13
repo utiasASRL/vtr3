@@ -16,7 +16,6 @@ def generate_launch_description():
 
     commonNodeArgs = {
         "package": 'vtr_navigation',
-        "namespace": 'vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
         # "prefix": 'xterm -e gdb -ex run --args',
@@ -24,6 +23,7 @@ def generate_launch_description():
     }
 
     return LaunchDescription([
+        DeclareLaunchArgument('namespace', default_value='vtr', description='namespace for the robot'),
         DeclareLaunchArgument('data_dir', default_value='', description='directory to store graph, if blank use setup UI'),
         DeclareLaunchArgument('model_dir', default_value="", description='model directory (folder for PyTorch .pt models)'),
         DeclareLaunchArgument('start_new_graph', default_value='false', description='whether to start a new pose graph'),
@@ -40,6 +40,7 @@ def generate_launch_description():
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
                     "path_planning.type": LaunchConfiguration("planner"),
+                    "namespace": LaunchConfiguration("namespace")
               },
                 PathJoinSubstitution((config_dir, LaunchConfiguration("override_params")))
             ],
@@ -54,7 +55,7 @@ def generate_launch_description():
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
                     "path_planning.type": LaunchConfiguration("planner"),
-
+                    "namespace": LaunchConfiguration("namespace")
                 },
                 PathJoinSubstitution((config_dir, LaunchConfiguration("override_params")))
             ],

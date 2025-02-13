@@ -332,6 +332,7 @@
         profile_curv_weight: 0.0 
         eop_weight: 1.0
         min_vel: 0.5
+      follow_distance: 2.0
       mpc:
         # Controller Params
         extrapolate_robot_pose: false
