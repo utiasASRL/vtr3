@@ -133,6 +133,7 @@ class CBIT : public BasePathPlanner {
 
   CBIT(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
+                 const tactic::GraphBase::Ptr& graph,
                  const Callback::Ptr& callback);
   ~CBIT() override;
 

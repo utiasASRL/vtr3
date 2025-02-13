@@ -24,6 +24,8 @@
 #include <vtr_path_planning/mpc/mpc_path_planner.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
 
+#include <vtr_path_planning/cbit/visualization_utils.hpp>
+
 namespace vtr {
 namespace path_planning {
 
@@ -66,6 +68,7 @@ class UnicycleMPCPathTracker : public BasePathPlanner {
 
   UnicycleMPCPathTracker(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
+                 const tactic::GraphBase::Ptr& graph,
                  const Callback::Ptr& callback);
   ~UnicycleMPCPathTracker() override;
 
@@ -83,9 +86,11 @@ class UnicycleMPCPathTracker : public BasePathPlanner {
   Eigen::Vector2d applied_vel_;
   std::vector<Eigen::Vector2d> vel_history;
   tactic::Timestamp prev_vel_stamp_;
-
   RobotState::Ptr robot_state_;
   Command computeCommand_(RobotState& robot_state);
+
+  VisualizationUtils::Ptr vis;  
+
 
 };
 

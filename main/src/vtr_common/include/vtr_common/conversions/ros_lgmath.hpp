@@ -34,6 +34,8 @@ void toROSMsg(const lgmath::se3::TransformationWithCovariance& T, vtr_common_msg
 
 geometry_msgs::msg::Pose toPoseMessage(const lgmath::se3::Transformation &T_base_pose);
 geometry_msgs::msg::Transform toTransformMessage(const lgmath::se3::Transformation &T_base_child);
+
+lgmath::se3::Transformation tfFromPoseMessage(const geometry_msgs::msg::Pose& pose);
 // clang-format on
 
 }  // namespace conversions

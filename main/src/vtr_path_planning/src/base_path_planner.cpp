@@ -33,8 +33,9 @@ auto BasePathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
 
 BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
                                  const RobotState::Ptr& robot_state,
+                                 const tactic::GraphBase::Ptr& graph, 
                                  const Callback::Ptr& callback)
-    : config_(config), robot_state_(robot_state), callback_(callback) {
+    : config_(config), robot_state_(robot_state), graph_(graph), callback_(callback) {
   //
   thread_count_ = 1;
   process_thread_ = std::thread(&BasePathPlanner::process, this);

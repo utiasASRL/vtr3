@@ -99,8 +99,9 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 // Declare class as inherited from the BasePathPlanner
 CBIT::CBIT(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
+                               const tactic::GraphBase::Ptr& graph,
                                const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, callback), config_(config) {
+    : BasePathPlanner(config, robot_state, graph, callback), config_(config) {
   CLOG(INFO, "cbit.path_planning") << "Constructing the CBIT Class";
   robot_state_ = robot_state;
   const auto node = robot_state->node.ptr();
