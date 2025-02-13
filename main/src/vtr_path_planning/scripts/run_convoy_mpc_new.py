@@ -9,21 +9,17 @@ from unicycle_follower_solver import solver as solver_follower
 
 
 # specs
-x_init_l = 0
-y_init_l = 0
-theta_init_l = 0
+p_init_l = 5.45
+p_init_f = 0
 
-x_init_f = 0
-y_init_f = 0
-theta_init_f = 0
-
-dist = 5
+dist = 5.0
+dist_margin = 0.01
 
 v_max = 1.5
 v_min = -1.5
 w_max = 0.5
 w_min = -0.5
-v_ref = 0.5*v_max
+v_ref = 1.0
 
 lin_acc_max = 1.00
 ang_acc_max = 0.5
@@ -32,9 +28,6 @@ ang_acc_max = 0.5
 sim_time = 100      # simulation time
 
 
-state_init_l = ca.DM([x_init_l, y_init_l, theta_init_l])        # initial state
-
-state_init_f = ca.DM([x_init_f, y_init_f, theta_init_f])        # initial state
 
 def shift_timestep(step, t0, state_init, u, f, last_u):
     f_value = f(state_init, u[:, 0], last_u)
@@ -53,7 +46,7 @@ def DM2Arr(dm):
 
 path_x = np.linspace(0, 50, 10000)
 path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
-path_y[-1000:] = 0.5*path_x[-1000:]
+#path_y[-1000:] = 0.5*path_x[-1000:]
 path_mat = np.zeros((np.size(path_x), 3))
 path_mat[:, 0] = path_x
 path_mat[:, 1] = path_y
@@ -62,6 +55,23 @@ path_p = np.zeros_like(path_x)
 for i in range(1, np.size(path_p)):
     path_p[i] = path_p[i-1] + np.hypot(path_x[i] - path_x[i-1], path_y[i] - path_y[i-1]) + 0.25*np.abs(path_mat[i, 2] - path_mat[i-1, 2])
 
+
+# Find index of path_p where path_p is closest to p_init_l
+closest_idx_l = np.argmin(np.abs(path_p - p_init_l))
+closest_idx_f = np.argmin(np.abs(path_p - p_init_f))
+
+# Set initial values accordingly
+x_init_l = path_mat[closest_idx_l, 0]
+y_init_l = path_mat[closest_idx_l, 1]
+theta_init_l = path_mat[closest_idx_l, 2]
+
+x_init_f = path_mat[closest_idx_f, 0]
+y_init_f = path_mat[closest_idx_f, 1]
+theta_init_f = path_mat[closest_idx_f, 2]
+
+# Set init values in task space
+state_init_l = ca.DM([x_init_l, y_init_l, theta_init_l]) 
+state_init_f = ca.DM([x_init_f, y_init_f, theta_init_f])   
 
 lbx = ca.DM.zeros((n_states*(N+1) + n_controls*N, 1))
 ubx = ca.DM.zeros((n_states*(N+1) + n_controls*N, 1))
@@ -80,12 +90,20 @@ lbx[n_states*(N+1)+1::2] = w_min                # v upper bound for all V
 ubx[n_states*(N+1)+1::2] = w_max                # v upper bound for all V
 
 #Motion Model Constraints
-lbg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints lower bound
-ubg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints upper bound
+lbg_l = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints lower bound
+ubg_l = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints upper bound
+lbg_f = ca.DM.zeros((n_states*(N+1) + 2*N, 1))  # constraints lower bound
+ubg_f = ca.DM.zeros((n_states*(N+1) + 2*N, 1))  # constraints upper bound
 
 #Corridor Width constraints
-lbg[n_states*(N+1):n_states*(N+1)+N] = -5
-ubg[n_states*(N+1):n_states*(N+1)+N] = 5
+lbg_l[n_states*(N+1):n_states*(N+1)+N] = -100
+ubg_l[n_states*(N+1):n_states*(N+1)+N] = 100
+lbg_f[n_states*(N+1):n_states*(N+1)+N] = -100
+ubg_f[n_states*(N+1):n_states*(N+1)+N] = 100
+
+lbg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist - dist_margin
+ubg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist + dist_margin
+
 
 #Acceleration constraints
 # lbg[n_states*(N+1)+N::2] = -lin_acc_max * step_horizon
@@ -96,15 +114,15 @@ ubg[n_states*(N+1):n_states*(N+1)+N] = 5
 print(lbx.shape)
 
 args_l = {
-    'lbg': lbg,
-    'ubg': ubg,  
+    'lbg': lbg_l,
+    'ubg': ubg_l,  
     'lbx': lbx,
     'ubx': ubx
 }
 
 args_f = {
-    'lbg': lbg,
-    'ubg': ubg,  
+    'lbg': lbg_f,
+    'ubg': ubg_f,  
     'lbx': lbx,
     'ubx': ubx
 }
@@ -137,11 +155,12 @@ state_target = path_mat[-1, :]
 
 if __name__ == '__main__':
     main_loop = time()  # return time in sec
-    p_state_l = 0
-    p_state_f = 0
+    p_state_l = p_init_l
+    p_state_f = p_init_f
     
     
     last_leader_rollout = None
+    last_leader_vel_rollout = None
     u_l = None
     while (ca.norm_2(state_init_l - state_target) > 2e-1) and (mpc_iter * step_horizon < sim_time):
         t1 = time()
@@ -158,10 +177,16 @@ if __name__ == '__main__':
 
         # follower waypoints
         for i in range(1, N+1):
-            if last_leader_rollout is None:
+            if last_leader_vel_rollout is None:
                 p_target_f = p_state_f + last_u_l[1] * step_horizon * i
             else:
-                p_target_f = p_state_f + u_l[0,1] * step_horizon * i
+                # Average over all last_leader_vel_rollout last_leader_vel_rollout[0,i]
+                #avg_vel = np.mean(last_leader_vel_rollout[0, :])
+                #p_target_f = p_state_f + avg_vel * step_horizon * i
+                if i < N:
+                    p_target_f = p_state_f + last_leader_vel_rollout[0,i] * step_horizon * i
+                else:
+                    p_target_f = p_state_f + last_leader_vel_rollout[0,N-1] * step_horizon * i
             p_idx_f = np.argmin(np.abs(path_p - p_target_f))
             args_f['p'] = ca.vertcat(args_f['p'],
                        ca.DM(path_mat[p_idx_f, :]))
@@ -180,13 +205,16 @@ if __name__ == '__main__':
                 args_f['p'] = ca.vertcat(args_f['p'],
                         ca.DM(path_mat[p_idx_l, :]))
             else:
-                if i < N:
+                if i < N-2:
                     args_f['p'] = ca.vertcat(args_f['p'],
                             ca.DM([last_leader_rollout[0, i+1], last_leader_rollout[1, i+1], last_leader_rollout[2, i+1]]))
+                else:
+                    args_f['p'] = ca.vertcat(args_f['p'],
+                            ca.DM([last_leader_rollout[0, N], last_leader_rollout[1, N], last_leader_rollout[2, N]]))
         
-        if last_leader_rollout is not None:
-            args_f['p'] = ca.vertcat(args_f['p'],
-                ca.DM([last_leader_rollout[0, 0], last_leader_rollout[1, 0], last_leader_rollout[2, 0]]))
+        #if last_leader_rollout is not None:
+        #    args_f['p'] = ca.vertcat(args_f['p'],
+        #        ca.DM([last_leader_rollout[0, 0], last_leader_rollout[1, 0], last_leader_rollout[2, 0]]))
         
         state_target = ca.DM(path_mat[p_idx_l, :])
 
@@ -256,6 +284,7 @@ if __name__ == '__main__':
         X0_f = ca.reshape(sol_f['x'][: n_states * (N+1)], n_states, N+1)
 
         last_leader_rollout = X0_l
+        last_leader_vel_rollout = u_l
 
         cat_states_l = np.dstack((
             cat_states_l,
@@ -340,4 +369,4 @@ if __name__ == '__main__':
 
 
     # simulate
-    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=True)
+    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=False)
