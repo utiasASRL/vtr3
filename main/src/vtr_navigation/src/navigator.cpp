@@ -109,7 +109,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   /// path planner
   auto planner_factory = std::make_shared<ROSPathPlannerFactory>(node_);
   path_planner_ =
-      planner_factory->get("path_planning", pipeline_output,
+      planner_factory->get("path_planning", pipeline_output, graph_,
                            std::make_shared<CommandPublisher>(node_));
 
   /// route planner

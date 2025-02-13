@@ -41,7 +41,8 @@ namespace path_planning {
 
 class VisualizationUtils {
 public:
-    VisualizationUtils();
+    PTR_TYPEDEFS(VisualizationUtils);
+
     VisualizationUtils(rclcpp::Node::SharedPtr node);
     void visualize(
         const tactic::Timestamp& stamp,
@@ -60,6 +61,9 @@ public:
         const double& state_p,
         const std::shared_ptr<CBITPath> global_path_ptr,
         unsigned closest_node_idx);
+
+    void publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt=0.25);
+
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;

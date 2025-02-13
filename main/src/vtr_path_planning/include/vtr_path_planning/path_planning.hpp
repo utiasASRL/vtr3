@@ -17,6 +17,8 @@
  * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
-#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+
 #include "vtr_path_planning/cbit/cbit.hpp"
 #include "vtr_path_planning/stationary_planner.hpp"
+#include "vtr_path_planning/mpc/unicycle_mpc_path_tracker.hpp"
+#include "vtr_path_planning/mpc/unicycle_mpc_path_tracker_follower.hpp"

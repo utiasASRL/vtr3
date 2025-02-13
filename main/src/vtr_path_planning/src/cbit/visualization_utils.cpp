@@ -22,9 +22,6 @@
 namespace vtr {
 namespace path_planning {
 
-// Default constructor definition
-VisualizationUtils::VisualizationUtils() {
-}
 
 VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
@@ -170,19 +167,7 @@ void VisualizationUtils::visualize(
     }
 
     /// Publishing the MPC horizon prediction
-    {
-        nav_msgs::msg::Path mpc_path;
-        mpc_path.header.frame_id = "world";
-        mpc_path.header.stamp = rclcpp::Time(stamp);
-        auto& poses = mpc_path.poses;
-
-        // intermediate states
-        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
-        auto& pose = poses.emplace_back();
-        pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
-        }
-        mpc_path_pub_->publish(mpc_path);
-    }
+    publishMPCRollout(mpc_prediction, stamp);
 
     /// Publishing the history of the robots actual pose
     {
@@ -305,6 +290,21 @@ void VisualizationUtils::visualize(
     return;
     }
     
+
+    void VisualizationUtils::publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
+        nav_msgs::msg::Path mpc_path;
+        mpc_path.header.frame_id = "world";
+        mpc_path.header.stamp = rclcpp::Time(stamp);
+        auto& poses = mpc_path.poses;
+
+        // intermediate states
+        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
+            auto& pose = poses.emplace_back();
+            pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
+            pose.header.stamp = rclcpp::Time(stamp + i*dt);
+        }
+        mpc_path_pub_->publish(mpc_path);
+    }
 
 
 } // namespace path_planning

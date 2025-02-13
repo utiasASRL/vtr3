@@ -127,6 +127,7 @@ install(
     ${PROJECT_NAME}_cbit
     solve_unicycle_mpc
     solve_ackermann_mpc
+    solve_unicycle_follower_mpc
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

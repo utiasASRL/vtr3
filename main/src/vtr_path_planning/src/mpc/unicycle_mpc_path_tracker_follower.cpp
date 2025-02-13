@@ -33,6 +33,27 @@ Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, do
 }
 }
 
+PathInterpolator::PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path) {
+  using namespace vtr::common::conversions;
+  
+  for(const auto& pose : path->poses) {
+    path_info_[rclcpp::Time(pose.header.stamp).nanoseconds()] = tfFromPoseMessage(pose.pose);
+  }
+}
+
+PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) const {
+  auto up_it = path_info_.lower_bound(time);
+  const Transformation T_w_p1 = up_it->second;
+  const auto t_1 = up_it->first;
+  up_it--;
+  const Transformation T_w_p0 = up_it->second;
+  const auto t_0 = up_it->first;
+
+  const auto dt = t_1 - t_0;
+  auto xi_interp = (T_w_p0.inverse() * T_w_p1).vec() * ((time - t_0) / dt);
+  return T_w_p1 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
+}
+
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
@@ -68,10 +89,13 @@ auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& nod
 // Declare class as inherited from the BasePathPlanner
 UnicycleMPCPathFollower::UnicycleMPCPathFollower(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
+                               const tactic::GraphBase::Ptr& graph,
                                const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, callback), config_(config), solver_{config_->mpc_verbosity}, robot_state_{robot_state} {
+    : BasePathPlanner(config, robot_state, graph, callback), config_(config), solver_{config_->mpc_verbosity}, robot_state_{robot_state}, graph_{graph} {
   applied_vel_ << 0,
                   0;
+  leader_vel_ << 0,
+                 0;
   vel_history.reserve(config_->command_history_length);
   for (int i = 0; i < config_->command_history_length; i++)
   {
@@ -127,20 +151,27 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     return Command();
   }
 
+  if (recentLeaderPath_ == nullptr) {
+    CLOG(WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
+    return Command();
+  }
+
   // retrieve the transform info from the localization chain for the current robot state
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
+
+  if (robot_state.node->get_clock()->now() - rclcpp::Time(recentLeaderPath_->header.stamp) > rclcpp::Duration(1, 0)) {
+    CLOG(WARNING, "cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping";
+    return Command();
+  }
 
   // Store the current robot state in the robot state path so it can be visualized
   auto T_w_r = T_w_p * T_p_r;
 
   CasadiUnicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-  mpcConfig.distance = 1.5;
+  mpcConfig.distance = config_->following_offset;
 
-    
-  // Schedule speed based on path curvatures + other factors
-  // TODO refactor to accept the chain and use the curvature of the links
-  mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
+  mpcConfig.VF = leader_vel_(0, 0);
 
 
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
@@ -173,15 +204,23 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
   }
 
-  mpcConfig.reference_poses.clear();
+  mpcConfig.follower_reference_poses.clear();
   auto referenceInfo = generateHomotopyReference(p_rollout, chain);
   for(const auto& Tf : referenceInfo.poses) {
-    mpcConfig.reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+    mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
     CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
   }
 
-  mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
-  mpcConfig.low_barrier_q = referenceInfo.barrier_q_min;
+  mpcConfig.leader_reference_poses.clear();
+  for (uint i = 0; i < mpcConfig.N; i++){
+    const auto T_w_lp = leaderPathInterp_->at(stamp + (1+i) * mpcConfig.DT);
+    mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
+    CLOG(DEBUG, "mpc.debug") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
+
+  }
+
+  // mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
+  // mpcConfig.low_barrier_q = referenceInfo.barrier_q_min;
   
   mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
   
@@ -217,6 +256,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     return Command();
   }
 
+  vis->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 
@@ -226,8 +266,21 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 
 
 void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
-  recentLeaderPath_ = path;
+  using namespace vtr::common::conversions;
   
+  recentLeaderPath_ = path;
+
+  //reconstruct velocity
+  if (path->poses.size() > 1) {
+    const Transformation T_w_p0 = tfFromPoseMessage(path->poses[0].pose);
+    const Transformation T_w_p1 =  tfFromPoseMessage(path->poses[1].pose);
+    const auto dt = rclcpp::Time(path->poses[1].header.stamp) - rclcpp::Time(path->poses[0].header.stamp);
+    auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
+    leader_vel_ << vel(0, 0), vel(5, 0);
+  } 
+
+  leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
+
 }
 
 }  // namespace path_planning

@@ -65,8 +65,9 @@ auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node
 // Declare class as inherited from the BasePathPlanner
 UnicycleMPCPathTracker::UnicycleMPCPathTracker(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
+                               const tactic::GraphBase::Ptr& graph,
                                const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, callback), config_(config), solver_{config_->mpc_verbosity}, robot_state_{robot_state} {
+    : BasePathPlanner(config, robot_state, graph, callback), config_(config), solver_{config_->mpc_verbosity}, robot_state_{robot_state} {
   applied_vel_ << 0,
                   0;
   vel_history.reserve(config_->command_history_length);
@@ -210,6 +211,8 @@ auto UnicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command
     CLOG(WARNING, "cbit.control") << "casadi failed! " << e.what() << " Commanding to Stop the Vehicle";
     return Command();
   }
+
+  vis->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
 
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;

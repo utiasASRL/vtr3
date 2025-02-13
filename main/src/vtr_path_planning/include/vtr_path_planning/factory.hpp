@@ -39,6 +39,7 @@ class PathPlannerFactory
   virtual BasePathPlanner::Ptr get(
       const std::string& token,
       const BasePathPlanner::RobotState::Ptr& robot_state,
+      const tactic::GraphBase::Ptr& graph,
       const BasePathPlanner::Callback::Ptr& callback,
       const BasePathPlanner::Config::ConstPtr& config = nullptr) {
     CLOG(DEBUG, "path_planning")
@@ -47,7 +48,7 @@ class PathPlannerFactory
     if (iter != cached_planners_.end()) {
       return iter->second;
     } else {
-      auto planner = make(token, robot_state, callback, config);
+      auto planner = make(token, robot_state, graph, callback, config);
       cached_planners_.emplace(std::make_pair(token, planner));
       return planner;
     }
@@ -62,6 +63,7 @@ class PathPlannerFactory
   virtual BasePathPlanner::Ptr make(
       const std::string& token,
       const BasePathPlanner::RobotState::Ptr& robot_state,
+      const tactic::GraphBase::Ptr& graph,
       const BasePathPlanner::Callback::Ptr& callback,
       const BasePathPlanner::Config::ConstPtr& config = nullptr) {
     const auto type_str = getTypeStr(token);
@@ -72,7 +74,7 @@ class PathPlannerFactory
           "PathPlannerFactory::make: path planner type_str not found: " +
           type_str);
 
-    return BasePathPlanner::name2Ctor().at(type_str)(config, robot_state,
+    return BasePathPlanner::name2Ctor().at(type_str)(config, robot_state, graph,
                                                      callback);
   }
 
@@ -95,6 +97,7 @@ class ROSPathPlannerFactory : public PathPlannerFactory {
   BasePathPlanner::Ptr make(
       const std::string& param_prefix,
       const BasePathPlanner::RobotState::Ptr& robot_state,
+      const tactic::GraphBase::Ptr& graph,
       const BasePathPlanner::Callback::Ptr& callback,
       const BasePathPlanner::Config::ConstPtr& config = nullptr) override {
     const auto& type_str = getTypeStr(param_prefix);
@@ -106,7 +109,7 @@ class ROSPathPlannerFactory : public PathPlannerFactory {
         config == nullptr
             ? BasePathPlanner::name2Cfros().at(type_str)(node_, param_prefix)
             : config;
-    return PathPlannerFactory::make(param_prefix, robot_state, callback,
+    return PathPlannerFactory::make(param_prefix, robot_state, graph, callback,
                                     config_typed);
   }
 
