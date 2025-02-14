@@ -132,15 +132,16 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   }
 
   // Initialize global_pose with the first transformation
-  Eigen::Matrix4d global_pose = Eigen::Matrix4d::Identity(); //transforms_with_timestamps.front().first; //global pose used to be initialized with identity!!!
+  Eigen::Matrix4d global_pose = Eigen::Matrix4d::Identity();//transforms_with_timestamps.front().first; //Eigen::Matrix4d::Identity(); //global pose used to be initialized with identity!!!
 
   std::vector<double> x_coords;
   std::vector<double> y_coords;
   std::vector<double> z_coords;
 
-  for (const auto& [transform, timestamp] : transforms_with_timestamps) {
+  for (size_t i = 1; i < transforms_with_timestamps.size(); i++) {
+    const auto& [transform, timestamp] = transforms_with_timestamps[i];
     if (timestamp <= vertex_time) {     // Accumulate transforms up to and including the vertex timestamp
-      global_pose = transform * global_pose;
+      global_pose = transform * global_pose; //global_pose * transform.inverse();
       x_coords.push_back(global_pose(0, 3)); 
       y_coords.push_back(global_pose(1, 3));
       z_coords.push_back(global_pose(2, 3));
@@ -181,6 +182,15 @@ int main(int argc, char **argv) {
     // Read transformation matrices from CSV
     std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
+
+    // This transform brings the first pose (absolute) to identity.
+    Eigen::Matrix4d origin_transform = matrices_with_timestamps.front().first;
+    Eigen::Matrix4d rebase_transform = origin_transform.inverse();
+
+    // Rebase the point cloud: transform it using the rebase_transform.
+    pcl::PointCloud<pcl::PointNormal>::Ptr rebased_cloud = std::make_shared<pcl::PointCloud<pcl::PointNormal>>();
+    pcl::transformPointCloudWithNormals(*cloud, *rebased_cloud, rebase_transform);
+    cloud = rebased_cloud; 
 
     // Create and populate pose graph
     std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/graph";
