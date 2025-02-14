@@ -109,8 +109,6 @@ std::shared_ptr<RCGraph> createPoseGraph(
   
   const auto& [initial_transform, initial_timestamp] = data.front();  
   graph->addVertex(initial_timestamp); //dont need to assign a transform, this is the origin
-  // EdgeTransform edge_transform(initial_transform); // STILL NOT SETTING THE FIRST VERTEX - IT IS STILL 0,0,0
-
 
   for (size_t i = 1; i < data.size(); ++i) {   // Add vertices and edges for each transformation and timestamp
     const auto& [transform, timestamp] = data[i];
@@ -319,6 +317,10 @@ int main(int argc, char **argv) {
       std::cout << "Submap pointer saved for vertex " << vertex_id << "." << std::endl;
       
     }
+
+    // loop closure code 
+
+
     rclcpp::shutdown();
     
     // Restore std::cout to its original state before exiting
