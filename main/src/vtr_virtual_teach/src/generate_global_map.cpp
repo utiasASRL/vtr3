@@ -41,7 +41,6 @@ using namespace vtr::storage;
 using namespace vtr::tactic;
 using namespace vtr::lidar;
 
-// Load PCD file and return point cloud pointer
 pcl::PointCloud<pcl::PointNormal>::Ptr loadPointCloud(const std::string& filename) {
   auto cloud = std::make_shared<pcl::PointCloud<pcl::PointNormal>>();
   if (pcl::io::loadPCDFile<pcl::PointNormal>(filename, *cloud) == -1) {
@@ -50,7 +49,6 @@ pcl::PointCloud<pcl::PointNormal>::Ptr loadPointCloud(const std::string& filenam
   return cloud;
 }
 
-// Read transformation matrices from CSV file
 std::vector<std::pair<Eigen::Matrix4d, Timestamp>> readTransformMatricesWithTimestamps(const std::string& filename) {
   std::vector<std::pair<Eigen::Matrix4d, Timestamp>> data;
   std::ifstream file(filename);
@@ -84,9 +82,8 @@ std::vector<std::pair<Eigen::Matrix4d, Timestamp>> readTransformMatricesWithTime
   return data;
 }
 
-// // Create pose graph from transformation matrices
 std::shared_ptr<RCGraph> createPoseGraph(
-    const std::vector<std::pair<Eigen::Matrix4d, Timestamp>>& data, // changed Timestamp to double
+    const std::vector<std::pair<Eigen::Matrix4d, Timestamp>>& data, 
     const std::string& graph_path) {
 
   // Initialize pose graph
@@ -155,7 +152,6 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   return global_pose;
 }
 
-
 int main(int argc, char **argv) {  
   try {
     // Redirect std::cout to a log file
@@ -176,11 +172,11 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/aligned_nerf_point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/dome_spray_paint/point_cloud.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/nerf_gazebo_relative_transforms.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/dome_spray_paint/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -193,7 +189,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/nerf_with_gazebo_path/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/dome_spray_paint/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
