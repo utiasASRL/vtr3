@@ -34,9 +34,61 @@ bool sort_asc_by_second(const std::pair<int, float> &a,
 
 } // namespace
 
-// K-strongest implementation with scale correction due to range quantization errors
+// K-strongest implementation as per Elliot's paper
 template <class PointT>
 void KStrongest<PointT>::run(const cv::Mat &raw_scan, const float &res,
+                             const std::vector<int64_t> &azimuth_times,
+                             const std::vector<double> &azimuth_angles,
+                             pcl::PointCloud<PointT> &pointcloud) {
+  pointcloud.clear();
+  const int rows = raw_scan.rows;
+  const int cols = raw_scan.cols;
+  auto mincol = minr_ / res;
+
+  if (mincol > cols || mincol < 0) mincol = 0;
+  auto maxcol = maxr_ / res;
+
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
+
+  // #pragma omp parallel for
+  for (int i = 0; i < rows; ++i) {
+    std::vector<std::pair<float, int>> intens;
+
+    const float thres = static_threshold_;
+    for (int j = mincol; j < maxcol; ++j) {
+      if (raw_scan.at<float>(i, j) >= thres){
+        intens.push_back(std::make_pair(raw_scan.at<float>(i, j), j));
+      }
+    }
+
+    int thresholded_point_count = intens.size();
+    if(thresholded_point_count > 0){
+      // sort intensities in descending order
+      std::sort(intens.begin(), intens.end(), sort_desc_by_first);
+
+      const double azimuth = azimuth_angles[i];
+      const int64_t time = azimuth_times[i];
+      pcl::PointCloud<PointT> polar_time;
+      for (int j = 0; j < kstrong_; ++j) {
+        if (j >= thresholded_point_count){break;}
+        PointT p;
+        p.rho = static_cast<float>(intens[j].second) * res + static_cast<float>(range_offset_);
+        p.phi = azimuth;
+        p.theta = 0;
+        p.timestamp = time;
+        polar_time.push_back(p);
+      }
+      // #pragma omp critical
+      {
+        pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+      }
+    }
+  }
+}
+
+// K-strongest implementation with scale correction due to range quantization errors
+template <class PointT>
+void KPeaks<PointT>::run(const cv::Mat &raw_scan, const float &res,
                              const std::vector<int64_t> &azimuth_times,
                              const std::vector<double> &azimuth_angles,
                              pcl::PointCloud<PointT> &pointcloud) {

@@ -38,16 +38,21 @@ class RadarExtractionModule : public tactic::BaseModule {
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    std::string detector = "kstrongest";
-    double minr = 2;
-    double maxr = 100;
+    std::string detector = "kpeaks";
+    double minr = 1;
+    double maxr = 69;
 
-    // kstrong
+    // kpeaks
     struct {
-      int kstrong = 10;
+      int kstrong = 4;
       double threshold2 = 0.5;
       double threshold3 = 0.22;
-    } kstrong;
+    } kpeaks;
+     // kstrongest 
+     struct {
+      int kstrong = 10;
+      double static_threshold = 0.22;
+    } kstrongest;
     // cen2018
     struct {
       double zq = 3;

@@ -47,7 +47,32 @@ template <class PointT>
 class KStrongest : public Detector<PointT> {
  public:
   KStrongest() = default;
-  KStrongest(int kstrong, double threshold2, double threshold3, double minr,
+  KStrongest(int kstrong, double static_threshold, double minr,
+             double maxr, double range_offset)
+      : kstrong_(kstrong),
+        static_threshold_(static_threshold),
+        minr_(minr),
+        maxr_(maxr),
+        range_offset_(range_offset) {}
+
+  void run(const cv::Mat &raw_scan, const float &res,
+           const std::vector<int64_t> &azimuth_times,
+           const std::vector<double> &azimuth_angles,
+           pcl::PointCloud<PointT> &pointcloud) override;
+
+ private:
+  int kstrong_ = 10;
+  double static_threshold_ = 0.22;
+  double minr_ = 2.0;
+  double maxr_ = 100.0;
+  double range_offset_ = -0.31;
+};
+
+template <class PointT>
+class KPeaks : public Detector<PointT> {
+ public:
+  KPeaks() = default;
+  KPeaks(int kstrong, double threshold2, double threshold3, double minr,
              double maxr, double range_offset)
       : kstrong_(kstrong),
         threshold2_(threshold2),
@@ -63,7 +88,7 @@ class KStrongest : public Detector<PointT> {
 
  private:
   int kstrong_ = 10;
-  double threshold2_ = 1.5;
+  double threshold2_ = 0;
   double threshold3_ = 0.22;
   double minr_ = 1.0;
   double maxr_ = 69.0;

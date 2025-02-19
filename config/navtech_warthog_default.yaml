@@ -8,7 +8,7 @@
       # - radar.pipeline
       # - navigation.sensor_input
       # - radar.online_converter
-      # - radar.pc_extractor
+      - radar.pc_extractor
       # - radar.odometry_icp
       - radar.odometry_gyro
       - radar.odometry_preintegration
@@ -84,7 +84,7 @@
       extraction:
         type: radar.pc_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: kstrongest # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
+        detector: kstrongest # choose detector \in (kstrongest, kpeaks, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
         minr: 1.0 # mininum detection distance
         maxr: 69.0 # maximum detection distance
         encoder_bin_size: 16000 # encoder bin size
@@ -92,7 +92,10 @@
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
         range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
-        kstrong:
+        kstrongest:
+          kstrong: 4
+          static_threshold: 0.25
+        kpeaks:
           kstrong: 4 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
           threshold3: 0.25 # treshold for k-strongest (constant)
@@ -144,7 +147,7 @@
     odometry:
       gyro:
         type: radar.odometry_gyro
-        gyro_bias: 0.003 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
+        gyro_bias: 0.003 #0.003 #0.0041 # 0.0034 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
         traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
         gyro_cov: 1e-7
 
@@ -154,7 +157,7 @@
         
       preintegration:
         type: radar.odometry_preintegration
-        gyro_bias: 0.003 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
+        gyro_bias: 0.003 #0.003 # 0.0041 # 0.0034 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
 
       icp:
         type: radar.odometry_icp
