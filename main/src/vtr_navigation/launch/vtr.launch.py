@@ -32,6 +32,7 @@ def generate_launch_description():
         DeclareLaunchArgument('base_params', description='base parameter file (sensor, robot specific)'),
         DeclareLaunchArgument('override_params', default_value='', description='scenario specific parameter overrides'),
         Node(**commonNodeArgs,
+            namespace=LaunchConfiguration("namespace"),
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
               {
@@ -47,6 +48,7 @@ def generate_launch_description():
             condition=LaunchConfigurationNotEquals('data_dir', '')
         ),
         Node(**commonNodeArgs,
+            namespace=LaunchConfiguration("namespace"),
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
                 PathJoinSubstitution((temp_dir, "setup_params.yaml")),
@@ -55,7 +57,6 @@ def generate_launch_description():
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
                     "path_planning.type": LaunchConfiguration("planner"),
-                    "namespace": LaunchConfiguration("namespace")
                 },
                 PathJoinSubstitution((config_dir, LaunchConfiguration("override_params")))
             ],
