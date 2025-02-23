@@ -172,11 +172,11 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/parking2/point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/press/point_cloud.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/parking2/nerf_gazebo_relative_transforms.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/press/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -189,7 +189,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/parking2/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/press/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -265,15 +265,17 @@ int main(int argc, char **argv) {
         pcl::copyPointCloud(*cloud, *converted_cloud);
         pcl::PointCloud<PointWithInfo>::Ptr transformed_cloud(new pcl::PointCloud<PointWithInfo>());
         pcl::transformPointCloudWithNormals(*converted_cloud, *transformed_cloud, absolute_pose); // MAKE SURE NORMALS ARE TRANSFORMED AS WELL
-
-        // Apply cylindrical filter with asymmetric height extension
+        
+        // Apply cylindrical filter extending upwards by 3/4 the height and downwards by 1/4 the height
         pcl::PointCloud<PointWithInfo>::Ptr cropped_cloud(new pcl::PointCloud<PointWithInfo>());
+        float lower_bound = -cylinder_height / 4.0;
+        float upper_bound = 3 * cylinder_height / 4.0;
         for (auto& point : *transformed_cloud) {
           const float x = point.x;
           const float y = point.y;
           const float z = point.z;
           const float distance_xy = std::sqrt(x * x + y * y);
-          if ((distance_xy <= cylinder_radius) && (z >= -cylinder_height / 4.0) && (z <= 3.0 * cylinder_height / 4.0)) {
+          if ((distance_xy <= cylinder_radius) && (z >= lower_bound) && (z <= upper_bound)) {
             point.normal_score = 1; 
             cropped_cloud->push_back(point);
           }
@@ -285,7 +287,7 @@ int main(int argc, char **argv) {
         std::cout << "Cropped cloud size: " << cropped_cloud->size() << std::endl;
 
         // Create a submap and update it with the transformed point cloud
-        float voxel_size = 1.5;  // Adjust based on nerf point cloud - was 0.9, 0.5 0.05 - now trying 1.5 because ICP script previous did 1.0 but not using anymore
+        float voxel_size = 0.9;  // Adjust based on nerf point cloud - was 0.9, 0.5 0.05 - now trying 1.5 because ICP script previous did 1.0 but not using anymore
         auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); 
         submap_odo->update(*cropped_cloud); 
 
