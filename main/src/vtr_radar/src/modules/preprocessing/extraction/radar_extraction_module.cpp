@@ -175,9 +175,8 @@ auto RadarExtractionModule::Config::fromROS(
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   
-  // Doppler stuff (not used for now but may be useful in the future)
+  // Doppler stuff
   config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
-  config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
 
   // clang-format on
   return config;

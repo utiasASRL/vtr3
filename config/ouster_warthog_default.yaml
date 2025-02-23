@@ -107,7 +107,7 @@
       localization:
         - recall
         - icp
-        - safe_corridor
+        #- safe_corridor
         #- change_detection_sync
         - memory
       submap_translation_threshold: 1.5
@@ -240,6 +240,7 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.45
+        target_loc_time: 15.0
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0

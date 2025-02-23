@@ -609,15 +609,7 @@ void CASO_CFAR<PointT>::run(const cv::Mat &raw_scan, const float &res,
   if (mincol > cols || mincol < 0) mincol = 0;
   auto maxcol = maxr_ / res - w2 - guard_;
   if (maxcol > cols || maxcol < 0) maxcol = cols;
-  // const int N = maxcol - mincol;  not used
 
-  // // debug
-  // std::cout<< "width:" << width_<<std::endl;
-  // std::cout<< "Guard:" << guard_<<std::endl;
-  // std::cout<< "Theshold" << threshold_<<std::endl;
-  // std::cout<< "minr" << minr_<<std::endl;
-  // std::cout<< "maxr" << maxr_<<std::endl;
-  
   // Convert Navtechs 8-bit dB half steps to watts
   cv::Mat raw_scan_watts_sqrd = raw_scan.clone();
   double conversion_factor = 255.0/20.0*std::log(10.0);

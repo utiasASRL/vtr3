@@ -46,7 +46,9 @@ void BasePipeline::preprocess(const QueryCache::Ptr &qdata,
   CLOG(DEBUG, "tactic.pipeline")
       << "\033[1;31mStart preprocessing: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
+  qdata->preproc_time.emplace(ema_preproc_runtime_);
   preprocess_(qdata, output, graph, executor);
+  ema_preproc_runtime_ = ema_alpha_ * timer.count() + (1 - ema_alpha_) * ema_preproc_runtime_;
   CLOG(DEBUG, "tactic.pipeline")
       << "Finished preprocessing: " << name() << ", which takes " << timer;
 }
@@ -58,7 +60,9 @@ void BasePipeline::runOdometry(const QueryCache::Ptr &qdata,
   CLOG(DEBUG, "tactic.pipeline")
       << "\033[1;31mStart running odometry: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
+  qdata->odo_time.emplace(ema_odo_runtime_);
   runOdometry_(qdata, output, graph, executor);
+  ema_odo_runtime_ = ema_alpha_ * timer.count() + (1 - ema_alpha_) * ema_odo_runtime_;
   CLOG(DEBUG, "tactic.pipeline")
       << "Finished running odometry: " << name() << ", which takes " << timer;
 }
@@ -69,7 +73,9 @@ void BasePipeline::runLocalization(
   CLOG(DEBUG, "tactic.pipeline")
       << "\033[1;31mStart running localization: " << name() << "\033[0m";
   common::timing::Stopwatch timer;
+  qdata->loc_time.emplace(ema_loc_runtime_);
   runLocalization_(qdata, output, graph, executor);
+  ema_loc_runtime_ = ema_alpha_ * timer.count() + (1 - ema_alpha_) * ema_loc_runtime_;
   CLOG(DEBUG, "tactic.pipeline") << "Finished running localization: " << name()
                                  << ", which takes " << timer;
 }
