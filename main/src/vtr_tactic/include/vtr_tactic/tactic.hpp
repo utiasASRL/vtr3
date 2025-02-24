@@ -63,7 +63,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
     LocalizationChain::Config chain_config;
 
     /** \brief Control localization execution */
-    bool use_loc_threshold = false;
+    bool use_loc_flag = false;
     int loc_threshold = 1;
 
     bool save_odometry_result = false;

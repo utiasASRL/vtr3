@@ -13,12 +13,13 @@
 // limitations under the License.
 
 /**
- * \file preprocessing_module.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file odometry_preintegration_module.hpp
+ * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "sensor_msgs/msg/point_cloud2.hpp"
+
+#include "steam.hpp"
 
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
@@ -27,47 +28,28 @@
 namespace vtr {
 namespace lidar {
 
-/** \brief Preprocess raw pointcloud points and compute normals */
-class PreprocessingModule : public tactic::BaseModule {
+/** \brief Gyro Preintegration for odometry. */
+class OdometryPreintegrationModule : public tactic::BaseModule {
  public:
-  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.preprocessing";
+  static constexpr auto static_name = "lidar.odometry_preintegration";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
-
-    int num_threads = 1;
-
-    float crop_range = 100;
-    float vertical_angle_res = 0.00745;
-    float polar_r_scale = 1.5;
-    float r_scale = 4.0;
-    float h_scale = 0.5;
-    float frame_voxel_size = 0.1;
-    float nn_voxel_size = -1;
-    bool filter_by_normal_score = true;
-    int num_sample1 = 100000;
-    float min_norm_score1 = 0.0;
-    int num_sample2 = 100000;
-    float min_norm_score2 = 0.01;
-    float min_normal_estimate_dist = 2.0;
-    float max_normal_estimate_angle = 0.417;  // 5/12 original parameter value
-    int cluster_num_sample = 100000;
-    int min_points_threshold = 0;
-    bool visualize = false;
+    
+    Eigen::Matrix<double, 3, 3> gyro_noise = Eigen::Matrix<double, 3, 3>::Zero();
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  PreprocessingModule(
+  OdometryPreintegrationModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : tactic::BaseModule{module_factory, name}, config_(config) {}
+      : tactic::BaseModule(module_factory, name), config_(config) {}
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
@@ -76,11 +58,7 @@ class PreprocessingModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  /** \brief for visualization only */
-  bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
-
-  VTR_REGISTER_MODULE_DEC_TYPE(PreprocessingModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometryPreintegrationModule);
 };
 
 }  // namespace lidar

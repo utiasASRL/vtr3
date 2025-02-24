@@ -60,8 +60,8 @@ class PreprocessingDopplerModule : public tactic::BaseModule {
     double azimuth_end;
     mutable int num_rows = 80;
     mutable int num_cols = 501;   
-    int min_dist = 20;
-    int max_dist = 150;
+    double min_dist = 20.0;
+    double max_dist = 150.0;
     //
     mutable int median_sensorid = 0;
     mutable bool calc_median = false;

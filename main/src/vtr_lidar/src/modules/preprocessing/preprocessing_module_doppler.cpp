@@ -45,6 +45,8 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   config->azimuth_end = node->declare_parameter<double>(param_prefix + ".azimuth_end", config->azimuth_end);
   config->num_rows = node->declare_parameter<int>(param_prefix + ".num_rows", config->num_rows);
   config->num_cols = node->declare_parameter<int>(param_prefix + ".num_cols", config->num_cols);
+  config->min_dist = node->declare_parameter<double>(param_prefix + ".min_dist", config->min_dist);
+  config->max_dist = node->declare_parameter<double>(param_prefix + ".max_dist", config->num_cols);
   //
   config->active_lidars = node->declare_parameter<std::vector<bool>>(param_prefix + ".active_lidars", config->active_lidars);
   config->root_path = node->declare_parameter<std::string>(param_prefix + ".root_path", config->root_path);
@@ -149,7 +151,7 @@ void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const Point
   for (size_t i = 0; i < feat_string.size(); ++i) {
     double val = 0;
     if (feat_string[i] == "range")
-      val = scaleValue(point.rho, 0.0, 150.0);  // note: range is calculated in preprocess function of DopplerFilter
+      val = scaleValue(point.rho, config_->min_dist, config_->max_dist);  // note: range is calculated in preprocess function of DopplerFilter
     else if (feat_string[i] == "intensity")
       val = scaleValue(point.intensity, -70.0, 0.0);
     else if (feat_string[i] == "medianrv") {
@@ -291,6 +293,10 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   // iterate over each point
   for (size_t i = 0; i < filtered_point_cloud.size(); i++) {
+
+    if (filtered_point_cloud[i].rho < config_->min_dist || filtered_point_cloud[i].rho > config_->max_dist)
+      continue;  // skip if not within range
+
     // polynomial approx. of atan2
     const double azimuth = atan2_approx(filtered_point_cloud[i].y, filtered_point_cloud[i].x);  // approximation slightly faster than atan2 call
 

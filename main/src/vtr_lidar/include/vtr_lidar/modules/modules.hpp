@@ -28,6 +28,7 @@
 #include "vtr_lidar/modules/preprocessing/preprocessing_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing/preprocessing_module_doppler.hpp"
 
+#include "vtr_lidar/modules/odometry/odometry_preintegration_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_doppler_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module.hpp"

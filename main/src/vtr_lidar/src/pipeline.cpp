@@ -42,7 +42,8 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
   config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
   // localization execution by interval
-  config->use_loc_threshold = node->declare_parameter<bool>("tactic.use_loc_threshold", false);
+  // preprocessing module initializes before tactic module, declare parameters here
+  config->use_loc_flag = node->declare_parameter<bool>("tactic.use_loc_flag", false);
   config->loc_threshold = node->declare_parameter<int>("tactic.loc_threshold", 1);
   // clang-format on
   return config;
@@ -78,6 +79,13 @@ void LidarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
+  //
+  preint_start_time_ = nullptr;
+  preint_end_time_ = nullptr;
+  last_gyro_msg_ = nullptr;
+  preint_delta_gyro_ = nullptr;
+  preint_gyro_cov_ = nullptr;
+  //
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -88,19 +96,25 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
-  for (const auto &module : preprocessing_) {
-    if (config_->use_loc_threshold &&
-        odometry_[0]->name() == "lidar.odometry_doppler" &&
-        module->name() == "lidar.preprocessing") {
 
-      CLOG(DEBUG, "lidar.pipeline") << "ATTN! using loc intervals";
-      if (frame_count % config_->loc_threshold == 0) {
-        module->run(*qdata0, *output0, graph, executor);
-      }
-
-    } else {
-      module->run(*qdata0, *output0, graph, executor);
+  /// check if we are using doppler odometry
+  bool has_doppler_odometry = false;
+  for (const auto &module : odometry_) {
+    if (module->name() == "lidar.odometry_doppler") {
+      has_doppler_odometry = true;
+      break;
     }
+  }
+
+  for (const auto &module : preprocessing_) {
+    if (config_->use_loc_flag &&
+        has_doppler_odometry &&
+        module->name() == "lidar.preprocessing" &&
+        frame_count % config_->loc_threshold != 0) {
+      CLOG(DEBUG, "lidar.pipeline") << "ATTN! Localization flag enabled: skipping preprocessing frame for localization.";
+      continue;
+    }
+    module->run(*qdata0, *output0, graph, executor);
   }
   frame_count += 1;
 }
@@ -119,16 +133,51 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
   }
 
-  for (const auto &module : odometry_)
-    module->run(*qdata0, *output0, graph, executor);
+  /// carry over preintegration data
+  if(preint_start_time_ != nullptr) qdata->stamp_start_pre_integration = preint_start_time_;
+  if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
+  if(last_gyro_msg_ != nullptr) qdata->prev_gyro = last_gyro_msg_;
+  if(preint_delta_gyro_ != nullptr) qdata->preintegrated_delta_gyro = preint_delta_gyro_;
+  if(preint_gyro_cov_ != nullptr) qdata->preintegrated_gyro_cov = preint_gyro_cov_;
 
-  // store the current sliding map for odometry
+  /// check if we are using doppler odometry
+  bool has_doppler_odometry = false;
+  for (const auto &module : odometry_) {
+    if (module->name() == "lidar.odometry_doppler") {
+      has_doppler_odometry = true;
+      break;
+    }
+  }
+
+  for (const auto &module : odometry_) {
+    if (config_->use_loc_flag &&
+        has_doppler_odometry &&
+        module->name() == "lidar.odometry_map_maintenance_v2") {
+      // if we are using doppler odometry, skip map building
+      CLOG(DEBUG, "lidar.pipeline") << "ATTN! Localization flag enabled: skip map building.";
+      if (!qdata->sliding_map_odo) {
+        CLOG(DEBUG, "lidar.pipeline") << "Initializing sliding map with default voxel size.";
+        qdata->sliding_map_odo.emplace(0.2);
+      }
+    } else {
+      module->run(*qdata0, *output0, graph, executor);
+    }
+  }
+
+  /// store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
     sliding_map_odo_ = qdata->sliding_map_odo.ptr();
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
   }
+
+  // store the preintegration data
+  if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
+  if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
+  if(qdata->prev_gyro) last_gyro_msg_ = qdata->prev_gyro.ptr();
+  if(qdata->preintegrated_delta_gyro) preint_delta_gyro_ = qdata->preintegrated_delta_gyro.ptr();
+  if(qdata->preintegrated_gyro_cov) preint_gyro_cov_ = qdata->preintegrated_gyro_cov.ptr();
 }
 
 void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,

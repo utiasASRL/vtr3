@@ -48,7 +48,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.alpha = node->declare_parameter<double>(prefix+".chain.alpha", 0.25);
 
   /// localization execution by interval
-  config->use_loc_threshold = node->get_parameter("tactic.use_loc_threshold").as_bool();
+  config->use_loc_flag = node->get_parameter("tactic.use_loc_flag").as_bool();
   config->loc_threshold = node->get_parameter("tactic.loc_threshold").as_int();
 
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
@@ -202,6 +202,7 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
   // Setup caches
   qdata->pipeline_mode.emplace(pipeline_mode_);
   qdata->first_frame.emplace(first_frame_);
+  qdata->faulty_frame.emplace(false);
   first_frame_ = false;
 
   // Preprocess incoming data, which always runs no matter what mode we are in.
@@ -622,6 +623,27 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
       << *qdata->vid_odo << " (i.e., T_v_r odometry): "
       << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
+  // save odometry velocity result
+  if (config_->save_odometry_vel_result) {
+    CLOG(DEBUG, "tactic") << "Saving odometry velocity result";
+    using TwistLM = storage::LockableMessage<geometry_msgs::msg::Twist>;
+    auto twist_msg = std::make_shared<geometry_msgs::msg::Twist>();
+
+    // Populate Twist message
+    auto vel = *qdata->w_v_r_in_r_odo;
+    twist_msg->linear.x = vel(0, 0);
+    twist_msg->linear.y = vel(1, 0);
+    twist_msg->linear.z = vel(2, 0);
+    twist_msg->angular.x = vel(3, 0);
+    twist_msg->angular.y = vel(4, 0);
+    twist_msg->angular.z = vel(5, 0);
+
+    auto msg = std::make_shared<TwistLM>(twist_msg, *qdata->stamp);
+    graph_->write<geometry_msgs::msg::Twist>(
+      "odometry_vel_result", "geometry_msgs/msg/Twist",
+      msg);
+  }
+
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
@@ -823,7 +845,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
 
-  if (config_->use_loc_threshold) {
+  if (config_->use_loc_flag) {
     CLOG(DEBUG, "tactic") << "ATTN! using loc intervals";    
     if (frame_count % config_->loc_threshold == 0) {
       pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
