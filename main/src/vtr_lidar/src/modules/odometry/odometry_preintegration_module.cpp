@@ -60,34 +60,29 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   } // will have only one row when live
 
   // Ensure that gyro and gyro_stamp have the same length
-  if (qdata.gyro->rows() != qdata.gyro_stamp->size()) {
+  if (qdata.gyro->rows() != static_cast<Eigen::Index>(qdata.gyro_stamp->size())) {
     throw std::runtime_error("Mismatch between gyro data and gyro timestamp sizes.");
   }
 
   // Do nothing if qdata does not contain any gyro data
   // Also do nothing, if odometry has not been initialized
-  if(!qdata.gyro || !qdata.sliding_map_odo || !qdata.stamp_end_pre_integration) {
+  if(!qdata.gyro || !qdata.sliding_map_odo) {
     CLOG(WARNING, "lidar.odometry_preintegration") << "No gyro data or odometry data, returning.";
-    return;
-  }
-
-  if(qdata.gyro && !qdata.prev_gyro) {
-    // This is the first time we are every receiving gyro, we cannot preintegrate
-    // Save current gyro message and update preintegration terms
-    qdata.prev_gyro.emplace(qdata.gyro->row(qdata.gyro->rows() - 1).rightCols<3>());
-    *qdata.stamp_end_pre_integration = qdata.gyro_stamp->back();
-    *qdata.stamp_start_pre_integration = qdata.gyro_stamp->back();
     return;
   }
 
   CLOG(DEBUG, "lidar.odometry_preintegration") << "Number of gyro measurements: " << qdata.gyro->rows();
 
-  for (int i = 0; i < qdata.gyro->rows(); ++i) {
+  // Reset preintegrated value
+  Eigen::Matrix3d RMI_C = Eigen::Matrix3d::Identity(); // D C_ii
+  Eigen::Matrix3d Sigma_RMI = Eigen::Matrix3d::Zero(); // Sigma_ii
+
+  for (int i = 1; i < qdata.gyro->rows(); ++i) {
     // Inputs
+    const auto prev_row = qdata.gyro->row(i-1).rightCols<3>();
+    const auto &prev_gyro = std::make_shared<const Eigen::Vector3d>(prev_row);
+    const auto &prev_time_stamp = qdata.gyro_stamp->at(i-1);
     const auto &current_time_stamp = qdata.gyro_stamp->at(i);
-    const auto &prev_gyro = *qdata.prev_gyro;
-    const auto &prev_time_stamp = *qdata.stamp_end_pre_integration;
-    const auto row = qdata.gyro->row(i).rightCols<3>();
 
     // Distance between current and last time
     Time prev_time(static_cast<int64_t>(prev_time_stamp)); // get previous odometry timestamp
@@ -98,52 +93,40 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "lidar.odometry_preintegration") << "Delta time          : " << delta_time;
     
     // Integrate last gyro measurement
-    Eigen::Matrix3d delta_gyro = lgmath::so3::vec2rot(prev_gyro * delta_time); // exp(u_k-1 * dT)
-    CLOG(DEBUG, "lidar.odometry_preintegration") << "Previous gyro data  : " << prev_gyro.transpose();
+    Eigen::Matrix3d delta_gyro = lgmath::so3::vec2rot((*prev_gyro) * delta_time).transpose(); // exp(u_k-1 * dT)    CLOG(DEBUG, "lidar.odometry_preintegration") << "Previous gyro data  : " << prev_gyro->transpose();
     CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Delta gyro: " << std::endl << delta_gyro;
 
-    // Set preintegrated value
-    Eigen::Matrix3d value = Eigen::Matrix3d::Identity(); // D C_ii
-    Eigen::Matrix3d sigma_prev = Eigen::Matrix3d::Zero(); // Sigma_ii
+    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Previous value: " << std::endl << RMI_C;
+    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Previous covar:" << std::endl << Sigma_RMI;
 
-    // Check if we have a pre-integrated value
-    if (qdata.preintegrated_delta_gyro) {
-      value = lgmath::so3::vec2rot(*qdata.preintegrated_delta_gyro);  // if the first meas, then D C_ii = 1, else it is previous D C_ik-1
-      sigma_prev = *qdata.preintegrated_gyro_cov;                     // if the first meas, then Sigma_ii = 0, else it is previous Sigma_ik-1
-    }
-
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Previous value: " << std::endl << value;
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Previous covar:" << std::endl << sigma_prev;
-
-    value = value * delta_gyro; // want value to be _pc
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Current value: " << std::endl << value;
+    RMI_C = RMI_C * delta_gyro; // want value to be _pc
+    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Current value: " << std::endl << RMI_C;
 
     Eigen::Matrix3d F = -1 * delta_gyro.transpose();
     double L = -1 * delta_time;
 
     // approxmate with the assumption that DT is small
-    Eigen::Matrix3d sigma_curr = (F * sigma_prev * F.transpose()) + (L * config_->gyro_noise * L);
-    Eigen::Matrix3d sigma = Eigen::Matrix3d::Zero();
-    sigma.diagonal() = sigma_curr.diagonal();
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Current covar:" << std::endl << sigma;
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "first part: " << std::endl << (F * sigma_prev * F.transpose());
-    
-    if (!qdata.preintegrated_delta_gyro) {
-      qdata.preintegrated_delta_gyro.emplace(lgmath::so3::rot2vec(value));
-      qdata.preintegrated_gyro_cov.emplace(sigma);
-    } else {
-      *qdata.preintegrated_delta_gyro = lgmath::so3::rot2vec(value);
-      *qdata.preintegrated_gyro_cov = sigma;
-    }
-
-    // Set preintegration end time to current time
-    *qdata.stamp_end_pre_integration = current_time_stamp;
-
-    // Set prev gyro msg to the current message for the next preintegration
-    qdata.prev_gyro = std::make_shared<const Eigen::Vector3d>(row);  
-
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl;
+    Sigma_RMI = (F * Sigma_RMI * F.transpose()) + (L * config_->gyro_noise * L);
+    Eigen::Matrix3d Sigma_new = Eigen::Matrix3d::Zero();
+    Sigma_new.diagonal() = Sigma_RMI.diagonal();
+    Sigma_RMI = Sigma_new;
+    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Current covar:" << std::endl << Sigma_RMI;
   }
+
+  // Save result
+  if (!qdata.preintegrated_delta_gyro) {
+    qdata.preintegrated_delta_gyro.emplace(lgmath::so3::rot2vec(RMI_C));
+    qdata.preintegrated_gyro_cov.emplace(Sigma_RMI);
+    qdata.stamp_start_pre_integration.emplace(qdata.gyro_stamp->front());
+    qdata.stamp_end_pre_integration.emplace(qdata.gyro_stamp->back());
+  } else {
+    *qdata.preintegrated_delta_gyro = lgmath::so3::rot2vec(RMI_C);
+    *qdata.preintegrated_gyro_cov = Sigma_RMI;
+    *qdata.stamp_start_pre_integration = qdata.gyro_stamp->front();
+    *qdata.stamp_end_pre_integration = qdata.gyro_stamp->back();
+  }
+
+  
   }
   // clang-format on
 }  // namespace lidar

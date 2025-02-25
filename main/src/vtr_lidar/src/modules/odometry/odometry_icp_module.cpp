@@ -112,9 +112,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // clang-format on
 
     // This is the first odomety frame
-    // Initialize preintegration
-    qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
-    qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
     if(qdata.first_frame)
       *qdata.first_frame = true;
     else
@@ -205,27 +202,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
   }
-
-  // SE3StateVar::Ptr T_m_s_start;
-  // if (qdata.preintegrated_delta_gyro && qdata.gyro) {
-  //   const auto &start_stamp = *qdata.stamp_start_pre_integration;
-
-  //   // Get states at the times of the preintegration
-  //   const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
-
-  //   Time start_int_time(static_cast<int64_t>(start_stamp));
-  //   CLOG(DEBUG, "lidar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - prev_time).seconds();
-
-  //   // Transform into sensor frame
-  //   const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
-  //   const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
-  //   T_s_r_gyro_var->locked() = true;
-
-  //   const auto T_m_s_start_eval = inverse(compose(T_s_r_gyro_var, T_r_m_start));
-  //   T_m_s_start = SE3StateVar::MakeShared(T_m_s_start_eval->evaluate());
-  //   T_m_s_start->locked() = true;
-  //   state_vars.emplace_back(T_m_s_start);
-  // }
 
   /// compound transform for alignment (sensor to point map transform)
   const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
@@ -383,21 +359,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     // Add gyro preintegration cost terms if the flag is set
-    if (qdata.preintegrated_delta_gyro && qdata.gyro) {
-      CLOG(DEBUG, "lidar.odometry_icp") << "Adding gyro preintegration cost term.";
-
+    if (qdata.preintegrated_delta_gyro) {
       const auto &start_stamp = *qdata.stamp_start_pre_integration;
       const auto &end_stamp = *qdata.stamp_end_pre_integration;
       
-      CLOG(DEBUG, "lidar.odometry_icp") << "start stamp: " << start_stamp;
-      CLOG(DEBUG, "lidar.odometry_icp") << "end stamp  : " << end_stamp;
+      // CLOG(DEBUG, "lidar.odometry_icp") << "start stamp: " << start_stamp;
+      // CLOG(DEBUG, "lidar.odometry_icp") << "end stamp  : " << end_stamp;
 
       // Get states at the times of the preintegration
       const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
       const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
-
-      Time start_int_time(static_cast<int64_t>(start_stamp));
-      CLOG(DEBUG, "lidar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - prev_time).seconds();
 
       // Transform into sensor frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
@@ -410,15 +381,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // Cost Term
       const auto &gyro = *qdata.preintegrated_delta_gyro;
       const auto &gyro_cov = *qdata.preintegrated_gyro_cov;
-      const auto &gyro_invcov = *qdata.gyro_invcov;
 
       const auto loss_func = L2LossFunc::MakeShared();
-      // const auto noise_model = StaticNoiseModel<3>::MakeShared(Eigen::Matrix<double, 3, 3>::Identity()*0.7, NoiseType::COVARIANCE); // Eigen::Matrix<double, 3, 3>::Identity()*1e-3
-      const auto noise_model = StaticNoiseModel<3>::MakeShared(gyro_cov); // Eigen::Matrix<double, 3, 3>::Identity()*1e-3
+      const auto noise_model = StaticNoiseModel<3>::MakeShared(gyro_cov, NoiseType::COVARIANCE); // Eigen::Matrix<double, 3, 3>::Identity()*1e-3
       const auto error_func = p2p::GyroErrorEvaluator::MakeShared(gyro, T_m_s_start, T_m_s_end);
       const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
-      CLOG(DEBUG, "lidar.odometry_icp") << "Adding total preintegrated gyro value of: " << gyro.transpose();
-      CLOG(DEBUG, "lidar.odometry_icp") << "Adding gyro covariance of: " << std::endl << gyro_cov;
+      // CLOG(DEBUG, "lidar.odometry_icp") << "Adding total preintegrated gyro value of: " << gyro.transpose();
+      // CLOG(DEBUG, "lidar.odometry_icp") << "Adding gyro covariance of: " << std::endl << gyro_cov;
       problem.addCostTerm(measurement_cost);
     }
 
@@ -426,8 +395,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
     params.max_iterations = (unsigned int)config_->max_iterations;
-
-    CLOG(DEBUG, "lidar.odometry_icp") << "Start optimization.";
 
     GaussNewtonSolver solver(problem, params);
     try {
@@ -542,13 +509,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       break;
     }
     timer[6]->stop();
-  }
-
-  if(qdata.preintegrated_delta_gyro && qdata.gyro) {
-    // clear accumulated preintegration and reset variables for next interval
-    *qdata.stamp_start_pre_integration = *qdata.stamp_end_pre_integration;
-    *qdata.preintegrated_delta_gyro = Eigen::Matrix<double, 3, 1>::Zero();
-    *qdata.preintegrated_gyro_cov = Eigen::Matrix<double, 3, 3>::Zero();
   }
 
   /// Dump timing info
