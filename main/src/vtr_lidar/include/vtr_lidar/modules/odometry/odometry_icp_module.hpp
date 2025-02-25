@@ -69,6 +69,7 @@ class OdometryICPModule : public tactic::BaseModule {
     // steam optimizer
     bool verbose = false;
     unsigned int max_iterations = 1;
+    double huber_delta = 1.0;
     //
     bool use_radial_velocity = true;
     /// Success criteria

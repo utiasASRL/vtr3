@@ -45,6 +45,7 @@ auto OdometryPreintegrationModule::Config::fromROS(const rclcpp::Node::SharedPtr
   return config;
 }
 
+
 void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
@@ -88,19 +89,10 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
     Time prev_time(static_cast<int64_t>(prev_time_stamp)); // get previous odometry timestamp
     Time cur_time(static_cast<int64_t>(current_time_stamp));
     const auto delta_time = (cur_time - prev_time).seconds();
-    CLOG(DEBUG, "lidar.odometry_preintegration") << "Previous time stamp : " << prev_time_stamp;
-    CLOG(DEBUG, "lidar.odometry_preintegration") << "Current time stamp  : " << current_time_stamp;
-    CLOG(DEBUG, "lidar.odometry_preintegration") << "Delta time          : " << delta_time;
     
     // Integrate last gyro measurement
     Eigen::Matrix3d delta_gyro = lgmath::so3::vec2rot((*prev_gyro) * delta_time).transpose(); // exp(u_k-1 * dT)    CLOG(DEBUG, "lidar.odometry_preintegration") << "Previous gyro data  : " << prev_gyro->transpose();
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Delta gyro: " << std::endl << delta_gyro;
-
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Previous value: " << std::endl << RMI_C;
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Previous covar:" << std::endl << Sigma_RMI;
-
     RMI_C = RMI_C * delta_gyro; // want value to be _pc
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Current value: " << std::endl << RMI_C;
 
     Eigen::Matrix3d F = -1 * delta_gyro.transpose();
     double L = -1 * delta_time;
@@ -110,8 +102,10 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Matrix3d Sigma_new = Eigen::Matrix3d::Zero();
     Sigma_new.diagonal() = Sigma_RMI.diagonal();
     Sigma_RMI = Sigma_new;
-    CLOG(DEBUG, "lidar.odometry_preintegration") << std::endl << "Current covar:" << std::endl << Sigma_RMI;
   }
+
+  CLOG(DEBUG, "lidar.odometry_preintegration") << "Final preintegrated value: " << std::endl << RMI_C;
+  CLOG(DEBUG, "lidar.odometry_preintegration") << "Final preintegrated covar: " << std::endl << Sigma_RMI;
 
   // Save result
   if (!qdata.preintegrated_delta_gyro) {

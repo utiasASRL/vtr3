@@ -74,6 +74,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // steam
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   // success criteria
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
@@ -326,7 +327,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       trajectory->addPriorCostTerms(problem);
 
     // shared loss function
-    auto loss_func = L2LossFunc::MakeShared();
+    // auto loss_func = L2LossFunc::MakeShared();
+    auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
     // cost terms and noise model
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
@@ -379,16 +381,24 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto T_m_s_end = inverse(compose(T_s_r_gyro_var, T_r_m_end));
 
       // Cost Term
-      const auto &gyro = *qdata.preintegrated_delta_gyro;
+      const auto &gyro = -*qdata.preintegrated_delta_gyro;
       const auto &gyro_cov = *qdata.preintegrated_gyro_cov;
 
-      const auto loss_func = L2LossFunc::MakeShared();
+      const auto yaw_loss_func = L2LossFunc::MakeShared();
       const auto noise_model = StaticNoiseModel<3>::MakeShared(gyro_cov, NoiseType::COVARIANCE); // Eigen::Matrix<double, 3, 3>::Identity()*1e-3
       const auto error_func = p2p::GyroErrorEvaluator::MakeShared(gyro, T_m_s_start, T_m_s_end);
-      const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+      const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, yaw_loss_func);
       // CLOG(DEBUG, "lidar.odometry_icp") << "Adding total preintegrated gyro value of: " << gyro.transpose();
       // CLOG(DEBUG, "lidar.odometry_icp") << "Adding gyro covariance of: " << std::endl << gyro_cov;
       problem.addCostTerm(measurement_cost);
+
+      Eigen::Vector3d meas_vec = gyro;
+      const lgmath::so3::Rotation RMI_Y(meas_vec);
+      const lgmath::so3::Rotation RMI_X((T_m_s_start->value().C_ba().transpose() * 
+                                          T_m_s_end->value().C_ba()).eval());
+      CLOG(DEBUG, "lidar.odometry_icp") << "RMI_X: \n" << RMI_X.matrix();
+      CLOG(DEBUG, "lidar.odometry_icp") << "RMI_Y: \n" << RMI_Y.matrix();
+      CLOG(DEBUG, "lidar.odometry_icp") << "Gyro error: " << lgmath::so3::rot2vec((RMI_X.inverse() * RMI_Y).matrix()).transpose();
     }
 
     // optimize
@@ -400,7 +410,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     try {
       solver.optimize();
     } catch(const std::runtime_error& e) {
-      CLOG(WARNING, "lidar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
+      CLOG(ERROR, "lidar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
       solver_failed = true;
     }
 
