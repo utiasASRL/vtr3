@@ -347,7 +347,7 @@ void Navigator::radarCallback(
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
   if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
     CLOG(WARNING, "navigation")
-        << "Dropping old message because the queue is full.";
+        << "Radar: Dropping old message because the queue is full.";
     queue_.pop();
   }
 
@@ -394,7 +394,7 @@ void Navigator::gyroCallback(
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
   if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
     CLOG(WARNING, "navigation")
-        << "Dropping old message because the queue is full.";
+        << "Gyro: Dropping old message because the queue is full.";
     queue_.pop();
   }
 

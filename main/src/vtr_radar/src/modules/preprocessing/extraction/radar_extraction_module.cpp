@@ -114,7 +114,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   if(!qdata.radar_data)  //no online radar data yet check to see if this is a gyro message
   {
-    CLOG(DEBUG, "radar.pc_extractor") << "We have the gyro set it is possible we are running online pipeline";
+    // CLOG(DEBUG, "radar.pc_extractor") << "We have the gyro set it is possible we are running online pipeline";
     return;
   }
 

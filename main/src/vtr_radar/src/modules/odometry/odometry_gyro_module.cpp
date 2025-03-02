@@ -130,7 +130,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   double gyro_measurement = -1*(gyro_msg.angular_velocity.z- config_->gyro_bias); // here is wz and I applied a very simple bias correction
 
   // lets log the bias
-  CLOG(DEBUG, "radar.odometry_gyro") << "Gyro bias: " << config_->gyro_bias;
+  // CLOG(DEBUG, "radar.odometry_gyro") << "Gyro bias: " << config_->gyro_bias;
 
   const auto loss_func = L2LossFunc::MakeShared();
   const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->gyro_cov);
