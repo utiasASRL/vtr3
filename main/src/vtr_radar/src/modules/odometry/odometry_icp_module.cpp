@@ -89,8 +89,14 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->yaw_cauchy_k = node->declare_parameter<double>(param_prefix + ".yaw_cauchy_k", config->yaw_cauchy_k);
   config->yaw_meas_std = node->declare_parameter<double>(param_prefix + ".yaw_meas_std", config->yaw_meas_std);
   config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
-  config->p2pl_fwd_weight = node->declare_parameter<double>(param_prefix + ".p2pl_fwd_weight", 1.0);
   config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
+  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", std::vector<double>(3, 1.0));
+  if (w_icp.size() != 3) {
+    std::string err{"W_icp diagonal malformed. Must be 3 elements!"};
+    CLOG(ERROR, "radar.odometry_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->W_icp << w_icp[0], 0, 0, 0, w_icp[1], 0, 0, 0, w_icp[2];
 
   config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", config->preint_cov);
 
@@ -432,17 +438,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // noise model W = n * n.T (information matrix)
       Eigen::Matrix3d W = [&] {
         Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
-        if (config_->use_p2pl) {
-          // point to line
-          if (point_map[ind.second].normal_score > config_->normal_score_threshold) {
-            Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-            W = Eigen::Matrix3d((nrm * nrm.transpose()) + config_->p2pl_fwd_weight * Eigen::Matrix3d::Identity());
-            W(2, 2) = 1.0;
-          } else {
-            W(0, 0) = config_->p2pl_fwd_weight;
-          }
-        } else {
-          W(0, 0) = config_->p2pl_fwd_weight;
+        if (config_->use_p2pl && (point_map[ind.second].normal_score > config_->normal_score_threshold)) {
+          // point to plane
+          Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+          W = Eigen::Matrix3d(nrm * nrm.transpose());
+          W(2, 2) = 1.0;
+        }
+        else {
+          W = config_->W_icp;
         }
         return W;
       }();
@@ -566,6 +569,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
         const auto yaw_noise_model = StaticNoiseModel<1>::MakeShared(pow(config_->yaw_meas_std, 2) * Eigen::Matrix<double, 1, 1>::Identity());
         const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
+        // Negative bc sensor frame is upside down
         const auto yaw_err_func = p2p::YawErrorEvaluator::MakeShared(-yaw_meas, T_m_s_prev_eval, T_m_s_curr_eval);
 
         auto yaw_cost = WeightedLeastSqCostTerm<1>::MakeShared(yaw_err_func, yaw_noise_model, yaw_loss_func);
@@ -752,7 +756,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "radar.odometry_icp") << "  " << clock_str[i] << timer[i]->count();
   }
 
-  /// Outputs
+  // Outputs
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
   if (config_->use_trajectory_estimation) {
