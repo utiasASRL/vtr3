@@ -81,7 +81,7 @@ class OdometryICPModule : public tactic::BaseModule {
     double yaw_cauchy_k = 0.5;
     double yaw_meas_std = 0.1;
     bool use_p2pl = false;
-    double p2pl_fwd_weight = 1.0;
+    Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
     double normal_score_threshold = 0.0;
 
     /// Success criteria
