@@ -73,6 +73,10 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
   std::vector<double> azimuth_angles;
+  std::vector<bool> up_chirps;
+  std::vector<double> azimuth_vel;
+  Eigen::Vector2d vel_meas;
+  double yaw_meas = -1000.0;
 
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
@@ -85,7 +89,9 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   float cart_resolution = config_->cart_resolution;
 
   // Load scan, times, azimuths from scan
-  load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
+  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, azimuth_vel, fft_scan, vel_meas, yaw_meas);
+  qdata.yaw_meas.emplace(yaw_meas);
+  qdata.vel_meas.emplace(vel_meas);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
