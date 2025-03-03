@@ -71,11 +71,8 @@ void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
       azimuth_vel[i] = -1000.0;
     }
     
-<<<<<<< HEAD
+
     // For full metadata, the last 12 bytes contain fwd, side, and yaw measurements
-=======
-    // For paper 1, the last 12 bytes contain fwd, side, and yaw measurements
->>>>>>> (QoL) Changed metadata naming to be more clear
     if (vel_metadata && i == 0) {
       vel_meas(0) = *((float *)(byteArray + M - 12));
       vel_meas(1) = *((float *)(byteArray + M - 8));
