@@ -146,9 +146,7 @@ void NavtechExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Check if yaw meas and vel_meas passed in from the radar data
   qdata.yaw_meas.emplace(yaw_meas);
-  if (yaw_meas != -1000.0) {
-    qdata.vel_meas.emplace(vel_meas);
-  }
+  qdata.vel_meas.emplace(vel_meas);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
