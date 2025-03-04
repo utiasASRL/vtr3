@@ -564,7 +564,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         // so we want to feed the error term this difference, as well as the current and past sensor state variables
         const auto T_r_m_prev_eval = trajectory->getPoseInterpolator(Time(timestamp_odo));
         const auto T_m_s_prev_eval = inverse(compose(T_s_r_var, T_r_m_prev_eval));
-        const auto T_r_m_curr_eval = trajectory->getPoseInterpolator(Time(query_stamp));
+        const auto T_r_m_curr_eval = trajectory->getPoseInterpolator(scan_time);
         const auto T_m_s_curr_eval = inverse(compose(T_s_r_var, T_r_m_curr_eval));
 
         const auto yaw_noise_model = StaticNoiseModel<1>::MakeShared(pow(config_->yaw_meas_std, 2) * Eigen::Matrix<double, 1, 1>::Identity());
@@ -582,7 +582,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (config_->use_vel_meas) {
       if (yaw_meas != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
-        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(query_stamp));
+        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
         const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
 
         Eigen::Matrix<double, 2, 2> W_vel = Eigen::Matrix<double, 2, 2>::Identity();

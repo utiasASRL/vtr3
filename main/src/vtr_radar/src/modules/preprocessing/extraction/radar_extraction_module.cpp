@@ -216,6 +216,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat cartesian = qdata.radar_data->cartesian;
   std::vector<int64_t> azimuth_times = qdata.radar_data->azimuth_times;
   std::vector<double> azimuth_angles = qdata.radar_data->azimuth_angles;
+  std::vector<bool> up_chirps = qdata.radar_data->up_chirps;
   double radar_resolution = config_->radar_resolution;
   double cart_resolution = config_->cart_resolution;
 
@@ -232,6 +233,8 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   beta = config_->beta;
+
+  CLOG(DEBUG, "radar.pc_extractor") << "Starting radar point cloud extraction using detector: " << config_->detector;
 
   // Now based on the choice of the detector, we will run the detector accordingly
   if (config_->detector == "cen2018") {

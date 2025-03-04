@@ -38,6 +38,8 @@ namespace radar {
 struct RadarQueryCache : virtual public tactic::QueryCache {
   PTR_TYPEDEFS(RadarQueryCache);
 
+  tactic::Cache<std::string> seq_name;
+
   // radar input
   tactic::Cache<navtech_msgs::msg::RadarBScanMsg> scan_msg;  // from ROS
   tactic::Cache<cv::Mat> scan;                      // from cpp
