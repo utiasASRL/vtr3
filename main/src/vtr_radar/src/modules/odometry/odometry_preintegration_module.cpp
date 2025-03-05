@@ -33,6 +33,7 @@ auto OdometryPreintegrationModule::Config::fromROS(const rclcpp::Node::SharedPtr
                                         const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();// clang-format on
+  config->bias = node->declare_parameter<double>(param_prefix + ".bias", config->bias);
   return config;
 }
 
@@ -65,13 +66,23 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &current_time_stamp = *qdata.stamp;
   const auto &prev_gyro_msg = *qdata.prev_gyro_msg;
   const auto &prev_time_stamp = *qdata.stamp_end_pre_integration;
+  const auto C_s_r = qdata.T_s_r_gyro->C_ba();
 
   // Distance between current and last time
   Time prev_time(static_cast<int64_t>(prev_time_stamp)); // get previous odometry timestamp
   Time cur_time(static_cast<int64_t>(current_time_stamp));
   
   // Integrate last gyro measurement (we don't multiply by -1 here due to the frame convention in the icp module)
-  double delta_yaw = (cur_time - prev_time).seconds() *prev_gyro_msg.angular_velocity.z;
+
+  Eigen::Vector3d angular_velocity;
+  angular_velocity << prev_gyro_msg.angular_velocity.x, prev_gyro_msg.angular_velocity.y, prev_gyro_msg.angular_velocity.z;
+
+
+  CLOG(DEBUG, "radar.odometry_preintegration") << "Ang Before " << angular_velocity;
+  angular_velocity = C_s_r * angular_velocity;
+  CLOG(DEBUG, "radar.odometry_preintegration") << "Ang After " << angular_velocity;
+
+  double delta_yaw = (cur_time - prev_time).seconds() * (angular_velocity(2, 0) - config_->bias);
 
 
   CLOG(DEBUG, "radar.odometry_preintegration") << "Current delta yaw value: " << delta_yaw;

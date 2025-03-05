@@ -180,6 +180,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     timestamp_odo_new = *qdata.timestamp_odo;
   }
 
+  double start = *qdata.stamp_start_pre_integration / 1e9;
+
+  CLOG(DEBUG, "radar.odometry_icp") << "Estimation time delta " << (timestamp_odo_new / 1e9 - start) << " Last radar time " 
+                                    << (timestamp_odo / 1e9 - start) << " Current Scan Time " << (scan_stamp / 1e9 - start);
+
   CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
 
   /// Parameters
@@ -465,7 +470,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
 
       Time start_int_time(static_cast<int64_t>(start_stamp));
-      CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
+      Time end_int_time(static_cast<int64_t>(end_stamp));
+      // CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
+
+      // CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to preint_end: " << (end_int_time - start_int_time).seconds();
 
       // Transform into sensor frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;

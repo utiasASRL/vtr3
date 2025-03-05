@@ -36,7 +36,7 @@ auto OnlineRadarConversionModule::Config::fromROS(
   config->cartesian_maxr = node->declare_parameter<double>(param_prefix + ".cartesian_maxr", config->cartesian_maxr);
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
-  config->encoder_bin_size = node->declare_parameter<double>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
+  config->encoder_bin_size = node->declare_parameter<int>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
 
   // clang-format on
   return config;
@@ -69,9 +69,10 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   std::vector<double> azimuth_angles;
+  CLOG(DEBUG, "radar.online_converter")<< "Total encoder size: " << config_->encoder_bin_size << " bins";
+
   for (const auto& encoder_value : qdata.scan_msg->encoder_values) {
     // log encoder bin size
-    // CLOG(DEBUG, "radar.online_converter")<< "Total encoder size: " << config_->encoder_bin_size << " bins";
     azimuth_angles.emplace_back(static_cast<double>(encoder_value)/config_->encoder_bin_size*2*M_PI); //16000 is for RAS3 radar
   }
 

@@ -40,6 +40,8 @@ class OdometryPreintegrationModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
+    double bias = 0;
+
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };

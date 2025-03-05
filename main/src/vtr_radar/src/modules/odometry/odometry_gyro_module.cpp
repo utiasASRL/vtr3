@@ -113,7 +113,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   state_vars.emplace_back(T_r_m_var);
   state_vars.emplace_back(w_m_r_in_r_var);
 
-  auto w_m_s_in_s_var = compose_velocity(T_s_r_var,w_m_r_in_r_var);
+  auto w_m_s_in_s_var = compose_velocity(T_s_r_var, w_m_r_in_r_var);
 
   // initialize problem
   OptimizationProblem problem;
@@ -126,7 +126,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   trajectory->addPriorCostTerms(problem);
 
   // Lets define a velocity measurement cost term
-  double gyro_measurement = -1*gyro_msg.angular_velocity.z;
+  double gyro_measurement = -1*gyro_msg.angular_velocity.y;
 
   const auto loss_func = L2LossFunc::MakeShared();
   const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->gyro_cov);
