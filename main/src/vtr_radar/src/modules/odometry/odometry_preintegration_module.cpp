@@ -40,15 +40,22 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  CLOG(DEBUG, "radar.odometry_preintegration")
+      << "Running odometry preintegration module.";
+
   // Do nothing if qdata does not contain any gyro data (was populated by radar)
   // Also do nothing, if odometry has not been initialized (we will wait until radar did this)
   if(!qdata.gyro_msg || !qdata.sliding_map_odo || !qdata.stamp_end_pre_integration)
   {
+    CLOG(DEBUG, "radar.odometry_preintegration")
+        << "Cannot preintegrate due to missing data: " << !qdata.gyro_msg << " " << !qdata.sliding_map_odo << " " << !qdata.stamp_end_pre_integration;
     return;
   }
 
   if(!qdata.prev_gyro_msg)
   {
+    CLOG(DEBUG, "radar.odometry_preintegration")
+        << "First gyro message received. Cannot preintegrate yet.";
     // This is the first time we are every receiving gyro, we cannot preintegrate
     // Save current gyro message and update preintegration terms
     qdata.prev_gyro_msg.emplace(*qdata.gyro_msg);
