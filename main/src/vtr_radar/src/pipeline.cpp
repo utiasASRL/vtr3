@@ -33,8 +33,11 @@ auto RadarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   // modules
   if (!node->has_parameter(param_prefix + ".preprocessing"))config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
+  else node->get_parameter(param_prefix + ".preprocessing", config->preprocessing);
   if (!node->has_parameter(param_prefix + ".odometry")) config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
+  else node->get_parameter(param_prefix + ".odometry", config->odometry);
   if (!node->has_parameter(param_prefix + ".localization")) config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
+  else node->get_parameter(param_prefix + ".localization", config->localization);
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
