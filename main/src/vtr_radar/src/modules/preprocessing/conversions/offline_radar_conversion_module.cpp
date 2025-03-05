@@ -60,6 +60,8 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  if(!qdata.scan) return;
+
   /// Input
 #if false
   auto scan = cv_bridge::toCvCopy(qdata.scan_msg.ptr(), "mono8")->image;

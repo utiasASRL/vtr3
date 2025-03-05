@@ -188,6 +188,8 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  if(!qdata.radar_data) return;
+
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
@@ -197,12 +199,6 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     pointcloud_pub_ = qdata.node->create_publisher<PointCloudMsg>("raw_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
-  }
-
-  if(!qdata.radar_data)  //no online radar data yet check to see if this is a gyro message
-  {
-    CLOG(DEBUG, "radar.pc_extractor") << "We have the gyro set it is possible we are running online pipeline";
-    return;
   }
 
   /// Establish output beta and also the raw point cloud
