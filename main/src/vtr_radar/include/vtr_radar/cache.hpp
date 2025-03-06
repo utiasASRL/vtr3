@@ -49,6 +49,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<sensor_msgs::msg::Imu> gyro_msg;
   tactic::Cache<sensor_msgs::msg::Imu> prev_gyro_msg;
   tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
+  tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
 
   // preintegration values
   tactic::Cache<tactic::Timestamp> stamp_start_pre_integration;

@@ -99,6 +99,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->W_icp << w_icp[0], 0, 0, 0, w_icp[1], 0, 0, 0, w_icp[2];
 
   config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", config->preint_cov);
+  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
@@ -147,9 +148,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // clang-format on
 
     // This is the first odomety frame
-    // Initialize preintegration
-    qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
-    qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
     if(qdata.first_frame)
       *qdata.first_frame = true;
     else
@@ -511,7 +509,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(rv_error, vel_noise_model, rv_loss_func);
         }
       }
-
+// Only add cost terms one thread at a time
 #pragma omp critical(odo_icp_add_p2p_error_cost)
 {
       problem.addCostTerm(icp_cost);
@@ -522,20 +520,50 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 }
     }
 
+    // Add individual gyro cost terms if populated
+    if (qdata.gyro_msgs) {
+      // Load in transform between gyro and robot frame
+      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+
+      for (const auto &gyro_msg : *qdata.gyro_msgs) {
+        // Load in gyro measurement and timestamp
+        const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+        const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
+        const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
+
+        // Transform gyro measurement into robot frame
+        Eigen::VectorXd gyro_meas_g(6); // Create a 6x1 vector
+        gyro_meas_g << 0, 0, 0, gyro_meas(0), gyro_meas(1), gyro_meas(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r = (lgmath::se3::tranAd(T_s_r_gyro.matrix().inverse()) * gyro_meas_g).tail<3>();
+
+        // Interpolate velocity measurement at gyro stamp
+        auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
+
+        // Generate empty bias state
+        Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
+        const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
+        bias->locked() = true;  
+
+        const auto loss_func = L2LossFunc::MakeShared();
+        const auto noise_model = StaticNoiseModel<1>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 1, 1>::Identity());
+        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+
+        problem.addCostTerm(measurement_cost);
+      }
+    }
+
     //Add preintegration cost terms if the flag is set
-    if(qdata.preintegrated_delta_yaw)
-    {
+    if(qdata.preintegrated_delta_yaw) {
       const auto &start_stamp = *qdata.stamp_start_pre_integration;
       const auto &end_stamp = *qdata.stamp_end_pre_integration;
-
 
       // Get states at the times of the preintegration
       const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
       const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
 
       Time start_int_time(static_cast<int64_t>(start_stamp));
-      CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
-
+      Time end_int_time(static_cast<int64_t>(end_stamp));
       // Transform into sensor frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
       const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
@@ -547,15 +575,22 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // Cost Term 
       const auto &yaw = *qdata.preintegrated_delta_yaw;
 
-      const auto loss_func = L2LossFunc::MakeShared();
-      const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->preint_cov);
-      const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw,T_m_s_start,T_m_s_end);
-      const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+      if (step == 0) {
+        CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
+        CLOG(DEBUG, "radar.odometry_icp") << "DT preint_end to preint_start: " << (end_int_time - start_int_time).seconds();
+        CLOG(DEBUG, "radar.odometry_icp") << "Preint term from " << start_stamp << " to " << end_stamp;
+        CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
+        CLOG(DEBUG, "radar.odometry_icp") << "Compared to yaw meas: " << yaw_meas;
+      }
 
-      CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
+      const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
+      const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->preint_cov);
+      const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw, T_m_s_start, T_m_s_end);
+      const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, yaw_loss_func);
 
       problem.addCostTerm(measurement_cost);
     }
+
     // See if yaw_meas is available
     if (config_->use_yaw_meas) {
       if (yaw_meas != -1000.0) {
@@ -740,15 +775,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[6]->stop();
   }
-
-  if(qdata.preintegrated_delta_yaw)
-  {
-    //clear accumulated preintegration and reset variables for next interval
-    *qdata.stamp_end_pre_integration = timestamp_odo_new;
-    *qdata.stamp_start_pre_integration = timestamp_odo_new;
-    *qdata.preintegrated_delta_yaw = 0.0;
-  }
-  
 
   /// Dump timing info
   CLOG(DEBUG, "radar.odometry_icp") << "Dump timing info inside loop: ";

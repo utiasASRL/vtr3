@@ -55,6 +55,9 @@ class OdometryICPModule : public tactic::BaseModule {
 
     // preintegration weight
     double preint_cov = 0.1;
+    
+    // gyro weight
+    double gyro_cov = 1e-3;
 
     /// ICP parameters
     // number of threads for nearest neighbor search
