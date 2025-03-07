@@ -37,7 +37,7 @@ namespace radar {
 
 struct RadarQueryCache : virtual public tactic::QueryCache {
   PTR_TYPEDEFS(RadarQueryCache);
-
+  // metadata
   tactic::Cache<std::string> seq_name;
 
   // radar input
@@ -79,6 +79,9 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo_radar;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar;
   tactic::Cache<tactic::Timestamp> timestamp_odo_radar;
+
+  tactic::Cache<steam::traj::const_vel::Interface::Ptr> trajectory_prev;
+  tactic::Cache<steam::Covariance::Ptr> covariance_prev;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
