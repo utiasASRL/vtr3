@@ -18,9 +18,9 @@
 
       # path planner
       - path_planning
-      - path_planning.cbit
-      - path_planning.cbit_planner
-      - cbit.path_planning
+      # - path_planning.cbit
+      # - path_planning.cbit_planner
+      # - cbit.path_planning
       #- cbit_planner.path_planning
       #- cbit.debug
       - mpc.solver
@@ -56,14 +56,14 @@
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
 
-    robot_frame: w200_0066_base_link
+    robot_frame: base_link
     env_info_topic: env_info
-    lidar_frame: w200_0066_os_lidar
-    lidar_topic: /ouster/points
+    lidar_frame: RS128_link
+    lidar_topic: /rslidar128/points
     queue_size: 1
-    graph_map:
-      origin_lat: 43.7822
-      origin_lng: -79.4661
+    graph_projection:
+      origin_lat: 47.322101 # UTIAS: 43.78220
+      origin_lng: -71.147739 # UTIAS: -79.4661
       origin_theta: 1.3
       scale: 1.0
     tactic:
@@ -114,7 +114,7 @@
       submap_rotation_threshold: 30.0
     preprocessing:
       conversion:
-        type: lidar.ouster_converter
+        type: lidar.rs_converter
         visualize: false
         filter_warthog: true
         filter_z_min: -0.2
@@ -129,20 +129,20 @@
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
-        vertical_angle_res: 0.0061365 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
-        polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
+        vertical_angle_res: 0.0017 # vertical angle resolution in radians, min to 0.1 degree documented in the manual
+        polar_r_scale: 5.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
         r_scale: 4.0 # scale down point range by this value after taking log, whatever works
         h_scale: 2.0 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution when 5Hz spin frequence is ~0.7031 degree, so 0.7031 / 0.3516 = 2.00
 
-        num_sample1: 20000 # max number of sample after filtering based on planarity
+        num_sample1: 8000 # max number of sample after filtering based on planarity
         min_norm_score1: 0.95 # min planarity score
 
-        num_sample2: 20000 # max number of sample after filtering based on planarity
+        num_sample2: 8000 # max number of sample after filtering based on planarity
         min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
         min_normal_estimate_dist: 1.0 # minimum distance to estimate normal in meters
         max_normal_estimate_angle: 0.44 # must <1/2, this value will be timed by M_PI
 
-        cluster_num_sample: 20000 # maxnumber of sample after removing isolated points
+        cluster_num_sample: 8000 # maxnumber of sample after removing isolated points
 
         visualize: true
     odometry:

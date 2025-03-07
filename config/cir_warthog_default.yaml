@@ -7,7 +7,7 @@
       - navigation
       - radar.pipeline
       # - navigation.sensor_input
-      - radar.online_converter
+      #- radar.online_converter
       - radar.pc_extractor
       - radar.odometry_icp
       - radar.odometry_gyro
@@ -26,7 +26,7 @@
     radar_topic: /radar/b_scan_msg
     gyro_frame: MTi30_link #w200_0066_os_imu #navtech_base
     gyro_topic: /vn100/data_raw
-    queue_size: 10
+    queue_size: 60
     graph_projection:
       origin_lat: 47.322101 # UTIAS: 43.78220
       origin_lng: -71.147739 # UTIAS: -79.4661
@@ -65,8 +65,8 @@
         - filtering
       odometry:
         #- gyro # you can turn off gyro and preintegration here
-        #- preintegration
         - icp
+        - preintegration
         - mapping
         - vertex_test
         - memory
@@ -114,9 +114,9 @@
           threshold2: 0.0 # cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
           threshold3: 0.07
         modified_cacfar:
-          width: 137 # Old: 101, New: 41 # Elliot 101
+          width: 101 # Old: 101, New: 41 # Elliot 101
           guard: 7 # Old: 5, New: 2 # 5
-          threshold: 0.5 # Old: 0.2, New: 1.0 # was 0.7
+          threshold: 0.7 # Old: 0.2, New: 1.0 # was 0.7
           threshold2: 0.0 # Old: 4.0, New: 0.0 cfar: mult of mean, T = threshold * Z + threshold2 * mean + threshold3
           threshold3: 0.23 # Old: 0.0, New: 0.08 # was 0.23
         caso_cfar:
@@ -146,6 +146,8 @@
       gyro:
         type: radar.odometry_gyro
         traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
+        bias: -0.02751264625189735
+
         gyro_cov: 1e-7
 
         # steam parameters #TOTUNE
@@ -163,7 +165,7 @@
         use_trajectory_estimation: true
         traj_num_extra_states: 0
         traj_lock_prev_pose: true 
-        traj_lock_prev_vel: true
+        traj_lock_prev_vel: false
         traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
 
         # ICP parameters # TOTUNE
@@ -172,7 +174,7 @@
         initial_max_iter: 4 # 4
         initial_max_pairing_dist: 5.0 # 5.0
         initial_max_planar_dist: 5.0 # 5.0
-        refined_max_iter: 500 # 50
+        refined_max_iter: 20 # 50
         refined_max_pairing_dist: 5.0 # 5.0
         refined_max_planar_dist: 5.0 # 5.0
         averaging_num_steps: 5 # 5
@@ -180,7 +182,7 @@
         cauchy_k: 0.8
         
         #gyro preintegration
-        preint_cov: 1e-5
+        preint_cov: 1e-4 
 
         # steam parameters #TOTUNE
         verbose: false
@@ -243,7 +245,7 @@
         cauchy_k: 0.8
 
         # steam parameters #TOTUNE
-        verbose: true
+        verbose: false
         max_iterations: 3
 
         # threshold #TOTUNE

@@ -630,14 +630,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
     timer[6]->stop();
   }
-
-  if(qdata.preintegrated_delta_yaw)
-  {
-    //clear accumulated preintegration and reset variables for next interval
-    *qdata.stamp_end_pre_integration = timestamp_odo_new;
-    *qdata.stamp_start_pre_integration = timestamp_odo_new;
-    *qdata.preintegrated_delta_yaw = 0.0;
-  }
   
 
   /// Dump timing info

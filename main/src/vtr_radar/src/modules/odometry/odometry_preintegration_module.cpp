@@ -43,6 +43,13 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Do nothing if qdata does not contain any gyro data (was populated by radar)
   // Also do nothing, if odometry has not been initialized (we will wait until radar did this)
+  if(qdata.preintegrated_delta_yaw && qdata.radar_data)
+  {
+    //clear accumulated preintegration and reset variables for next interval
+    *qdata.stamp_start_pre_integration =  *qdata.stamp_end_pre_integration ;
+    *qdata.preintegrated_delta_yaw = 0.0;
+  }
+  
   if(!qdata.gyro_msg || !qdata.sliding_map_odo || !qdata.stamp_end_pre_integration)
   {
     return;
