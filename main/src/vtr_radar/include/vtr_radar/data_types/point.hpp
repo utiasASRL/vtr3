@@ -42,6 +42,7 @@ namespace radar {
       float rho; \
       float theta; \
       float phi; \
+      bool up_chirp; \
     }; \
     struct { \
       float dynamic_obs; \

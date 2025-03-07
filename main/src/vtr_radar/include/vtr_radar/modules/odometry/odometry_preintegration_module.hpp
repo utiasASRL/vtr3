@@ -58,6 +58,7 @@ class OdometryPreintegrationModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) override;
 
   Config::ConstPtr config_;
+  bool reset_preint_ = false;
 
   VTR_REGISTER_MODULE_DEC_TYPE(OdometryPreintegrationModule);
 };
