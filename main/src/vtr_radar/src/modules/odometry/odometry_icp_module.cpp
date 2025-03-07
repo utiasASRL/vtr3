@@ -64,6 +64,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
+  config->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config->use_prior);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -256,28 +257,40 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     // Set up priors
-    if (trajectory_prev != nullptr) {
-      const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(Time(first_time));
-      const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(Time(first_time));
-      const auto traj_T_r_m_cov = trajectory_prev->getCovariance(*covariance_prev, Time(first_time));
-      CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo pose: " << traj_T_r_m_odo->value();
-      CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo vel: " << traj_w_m_r_in_r_odo->value();
-      CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-      trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
+    if (config_->use_prior) {
+      if (trajectory_prev != nullptr) {
+        const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
+        const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
+        const auto traj_T_r_m_cov = trajectory_prev->getCovariance(*covariance_prev, first_time);
+        CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo pose: \n" << traj_T_r_m_odo->value();
+        CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo vel: " << traj_w_m_r_in_r_odo->value();
+        // CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo cov: \n" << traj_T_r_m_cov;
+        CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
+  
+        trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
+        // const auto new_cov = Eigen::Matrix<double, 6, 6>::Identity();
+        // trajectory->addPosePrior(Time(first_time), traj_T_r_m_odo->value(), new_cov);
+      } else {
+        const auto T_r_m_odo_prior = lgmath::se3::Transformation();
+        const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
+        const auto cov_prior = Eigen::Matrix<double, 12, 12>::Identity();
+  
+        trajectory->addStatePrior(Time(first_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
+      }
     } else {
-      // If we don't have a previous trajectory, we need to add the previous odometry state
-      auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-      auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-      if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
-      if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
-      trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-      state_vars.emplace_back(prev_T_r_m_var);
-      state_vars.emplace_back(prev_w_m_r_in_r_var);
-
-
-      CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
-      CLOG(DEBUG, "radar.odometry_icp") << "Previous odo vel: " << w_m_r_in_r_odo;
+        auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
+        auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+        if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
+        if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
+        trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
+        state_vars.emplace_back(prev_T_r_m_var);
+        state_vars.emplace_back(prev_w_m_r_in_r_var);
     }
+
+
+
+    CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
+    CLOG(DEBUG, "radar.odometry_icp") << "Previous odo vel: " << w_m_r_in_r_odo;
 
     // General radar odometry (at scan time)
     Time scan_time(static_cast<int64_t>(scan_stamp));
