@@ -180,7 +180,6 @@
         cauchy_k: 0.8
         
         #gyro preintegration
-        preint_cov: 1e-4 
         gyro_cov: 1e-4
 
         # steam parameters #TOTUNE

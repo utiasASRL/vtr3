@@ -191,18 +191,21 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "radar.odometry_icp") << "DT current scan to last scan: " << (scan_time - last_scan_time).seconds();
   CLOG(DEBUG, "radar.odometry_icp") << "DT odometry to current scan: " << (odo_time_general - scan_time).seconds();
 
-  auto timestamp_odo_new = *qdata.stamp;
+  const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
+  const auto first_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+  const auto last_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+  auto timestamp_odo_new = last_time;
 
   // Let's check if our odometry estimate already passed the time stamp of the radar scan
   // If this is the case, we want to estimate the odometry at this time, not at the time of the scan
   // This avoids jumping 'back' in time to the last radar scan, when we already extrapolated the state using gyro
   // Instead the radar scan is then incorporated as a past measurement to correct this extrapolated state
   // If the query stamp is more recent than the last odometry estimate, we proceed as usual
-  if(odo_time_general.seconds() > scan_time.seconds())
-  {
-    CLOG(DEBUG, "radar.odometry_icp") << "Last odometry and gyro preintegration update is more recent than radar scan.";
-    timestamp_odo_new = *qdata.timestamp_odo;
-  }
+  // if(odo_time_general.seconds() > scan_time.seconds())
+  // {
+  //   CLOG(DEBUG, "radar.odometry_icp") << "Last odometry and gyro preintegration update is more recent than radar scan.";
+  //   timestamp_odo_new = *qdata.timestamp_odo;
+  // }
 
   CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
 
@@ -232,9 +235,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
     // Set up problem timestamps
-    const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
-    const auto first_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
-    const auto last_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
     const int64_t num_states = config_->traj_num_extra_states + 2;
     const int64_t time_diff = (last_time - first_time) / (num_states - 1);
     Time prev_time(static_cast<int64_t>(timestamp_odo));
