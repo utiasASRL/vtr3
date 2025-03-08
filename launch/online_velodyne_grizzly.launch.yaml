@@ -5,7 +5,9 @@ environment:
   RMW_IMPLEMENTATION: rmw_fastrtps_cpp
   RMW_FASTRTPS_PUBLICATION_MODE: ASYNCHRONOUS
   #CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
-  # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+  #RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+  #ROS_DISCOVERY_SERVER: 192.168.131.1:11811;192.168.131.100:11811
+  #ROS_DOMAIN_ID: "7"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
 

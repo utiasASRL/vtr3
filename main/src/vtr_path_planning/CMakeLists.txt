@@ -82,11 +82,11 @@ ament_target_dependencies(${PROJECT_NAME}_mpc
 
 
 add_library(solve_unicycle_mpc SHARED src/mpc/unicycle_mpc_solver.cpp)
-add_dependencies(solve_unicycle_mpc generate_unicycle_header)
+#add_dependencies(solve_unicycle_mpc generate_unicycle_header)
 target_link_libraries(solve_unicycle_mpc casadi)
 
 add_library(solve_ackermann_mpc SHARED src/mpc/ackermann_mpc_solver.cpp)
-add_dependencies(solve_ackermann_mpc generate_ackermann_header)
+#add_dependencies(solve_ackermann_mpc generate_ackermann_header)
 target_link_libraries(solve_ackermann_mpc casadi)
 
 add_library(solve_unicycle_follower_mpc SHARED src/mpc/unicycle_mpc_solver_follower.cpp)
