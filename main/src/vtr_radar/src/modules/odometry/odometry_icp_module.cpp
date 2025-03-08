@@ -173,8 +173,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &beta = *qdata.beta;
-  const auto &yaw_meas = *qdata.yaw_meas;
-  const auto &vel_meas = *qdata.vel_meas;
   const auto &trajectory_prev = *qdata.trajectory_prev;
   const auto &covariance_prev = *qdata.covariance_prev;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
@@ -205,11 +203,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "radar.odometry_icp") << "Last odometry and gyro preintegration update is more recent than radar scan.";
     timestamp_odo_new = *qdata.timestamp_odo;
   }
-
-  double start = *qdata.stamp_start_pre_integration / 1e9;
-
-  CLOG(DEBUG, "radar.odometry_icp") << "Estimation time delta " << (timestamp_odo_new / 1e9 - start) << " Last radar time " 
-                                    << (timestamp_odo / 1e9 - start) << " Current Scan Time " << (scan_stamp / 1e9 - start);
 
   CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
 
@@ -625,7 +618,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         CLOG(DEBUG, "radar.odometry_icp") << "DT preint_end to preint_start: " << (end_int_time - start_int_time).seconds();
         CLOG(DEBUG, "radar.odometry_icp") << "Preint term from " << start_stamp << " to " << end_stamp;
         CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
-        CLOG(DEBUG, "radar.odometry_icp") << "Compared to yaw meas: " << yaw_meas;
+        // CLOG(DEBUG, "radar.odometry_icp") << "Compared to yaw meas: " << yaw_meas;
       }
 
       const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
@@ -638,6 +631,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // See if yaw_meas is available
     if (config_->use_yaw_meas) {
+      const auto &yaw_meas = *qdata.yaw_meas;
       if (yaw_meas != -1000.0) {
         // Add yaw measurement-based cost term
         // yaw_meas is the so(2) element of the change between the previous and current timestamp SO(2) orientation
@@ -660,6 +654,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     if (config_->use_vel_meas) {
+      const auto &vel_meas = *qdata.vel_meas;
+      const auto &yaw_meas = *qdata.yaw_meas;
+
       if (yaw_meas != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);

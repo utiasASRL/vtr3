@@ -62,10 +62,13 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
 
   cv::Mat cartesian;
   Cache<Timestamp> qstamp = qdata.stamp;
+  std::vector<bool> up_chirps;
+
 
   std::vector<int64_t> azimuth_times;
   for (const auto& time : qdata.scan_msg->timestamps) {
     azimuth_times.emplace_back(static_cast<int64_t>(time));
+    up_chirps.emplace_back(false);
   }
 
   std::vector<double> azimuth_angles;
@@ -94,7 +97,12 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.radar_data->cartesian = cartesian;
   qdata.radar_data->azimuth_times = azimuth_times;
   qdata.radar_data->azimuth_angles = azimuth_angles;
-                                   }
+  qdata.radar_data->up_chirps = up_chirps;
+
+
+
+
+}
                                 
 }  // namespace radar
 }  // namespace vtr

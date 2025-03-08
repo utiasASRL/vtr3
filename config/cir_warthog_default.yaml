@@ -15,22 +15,24 @@
       # - radar.localization_icp
       # - tactic
       # - tactic.pipeline
-      # - tactic.module
+      - tactic.module
       # - mpc.debug
       # - cbit.control
       #- mission.state_machine
       #- mission.server
-    robot_frame: base_link #w200_0066_base_link
+    robot_frame: base_link
     env_info_topic: env_info
-    radar_frame: radar_link # w200_0066_navtech_base #navtech_base
+    radar_frame: radar_link
     radar_topic: /radar/b_scan_msg
-    gyro_frame: MTi30_link #w200_0066_os_imu #navtech_base
+    gyro_frame: MTi30_link
     gyro_topic: /vn100/data_raw
-    queue_size: 60
+    gyro_bias: -0.02751264625189735
+
+    queue_size: 5
     graph_projection:
       origin_lat: 47.322101 # UTIAS: 43.78220
       origin_lng: -71.147739 # UTIAS: -79.4661
-      origin_theta: 1.3
+      origin_theta: 0.0
       scale: 1.0
     # Added Tactical Params
     tactic:
@@ -66,7 +68,6 @@
       odometry:
         #- gyro # you can turn off gyro and preintegration here
         - icp
-        - preintegration
         - mapping
         - vertex_test
         - memory
@@ -154,15 +155,12 @@
         verbose: false
         max_iterations: 3
         
-      preintegration:
-        type: radar.odometry_preintegration
-        bias: -0.02751264625189735
-
       icp:
         type: radar.odometry_icp
 
         # continuous time estimation
         use_trajectory_estimation: true
+        use_prior: true
         traj_num_extra_states: 0
         traj_lock_prev_pose: true 
         traj_lock_prev_vel: false
@@ -183,6 +181,7 @@
         
         #gyro preintegration
         preint_cov: 1e-4 
+        gyro_cov: 1e-4
 
         # steam parameters #TOTUNE
         verbose: false

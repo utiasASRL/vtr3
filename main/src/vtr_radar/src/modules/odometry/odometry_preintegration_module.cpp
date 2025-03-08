@@ -88,10 +88,6 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   angular_velocity << prev_gyro_msg.angular_velocity.x, prev_gyro_msg.angular_velocity.y, prev_gyro_msg.angular_velocity.z;
 
 
-  CLOG(DEBUG, "radar.odometry_preintegration") << "Ang Before " << angular_velocity;
-  angular_velocity = C_s_r * angular_velocity;
-  CLOG(DEBUG, "radar.odometry_preintegration") << "Ang After " << angular_velocity;
-
   double delta_yaw = (cur_time - prev_time).seconds() * (angular_velocity(2, 0) - config_->bias);
 
   // Set preintegrated value
