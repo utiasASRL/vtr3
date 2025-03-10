@@ -52,7 +52,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // motion compensation
   config->use_trajectory_estimation = node->declare_parameter<bool>(param_prefix + ".use_trajectory_estimation", config->use_trajectory_estimation);
   config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
-  config->use_yaw_meas = node->declare_parameter<bool>(param_prefix + ".use_yaw_meas", config->use_yaw_meas);
   config->use_vel_meas = node->declare_parameter<bool>(param_prefix + ".use_vel_meas", config->use_vel_meas);
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
   config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
@@ -65,6 +64,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
   config->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config->use_prior);
+  config->prior_bloat = node->declare_parameter<double>(param_prefix + ".prior_bloat", config->prior_bloat);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -261,7 +261,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       if (trajectory_prev != nullptr) {
         const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
         const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
-        const auto traj_T_r_m_cov = trajectory_prev->getCovariance(*covariance_prev, first_time);
+        const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
         CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo pose: \n" << traj_T_r_m_odo->value();
         CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo vel: " << traj_w_m_r_in_r_odo->value();
         // CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo cov: \n" << traj_T_r_m_cov;
@@ -273,7 +273,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       } else {
         const auto T_r_m_odo_prior = lgmath::se3::Transformation();
         const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
-        const auto cov_prior = Eigen::Matrix<double, 12, 12>::Identity();
+        const auto cov_prior = 1e-5 * Eigen::Matrix<double, 12, 12>::Identity();
   
         trajectory->addStatePrior(Time(first_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
       }
@@ -629,29 +629,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, yaw_loss_func);
 
       problem.addCostTerm(measurement_cost);
-    }
-
-    // See if yaw_meas is available
-    if (config_->use_yaw_meas) {
-      if (yaw_meas != -1000.0) {
-        // Add yaw measurement-based cost term
-        // yaw_meas is the so(2) element of the change between the previous and current timestamp SO(2) orientation
-        // so we want to feed the error term this difference, as well as the current and past sensor state variables
-        const auto T_r_m_prev_eval = trajectory->getPoseInterpolator(Time(timestamp_odo));
-        const auto T_m_s_prev_eval = inverse(compose(T_s_r_var, T_r_m_prev_eval));
-        const auto T_r_m_curr_eval = trajectory->getPoseInterpolator(scan_time);
-        const auto T_m_s_curr_eval = inverse(compose(T_s_r_var, T_r_m_curr_eval));
-
-        const auto yaw_noise_model = StaticNoiseModel<1>::MakeShared(pow(config_->yaw_meas_std, 2) * Eigen::Matrix<double, 1, 1>::Identity());
-        const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
-        // Negative bc sensor frame is upside down
-        const auto yaw_err_func = p2p::YawErrorEvaluator::MakeShared(-yaw_meas, T_m_s_prev_eval, T_m_s_curr_eval);
-
-        auto yaw_cost = WeightedLeastSqCostTerm<1>::MakeShared(yaw_err_func, yaw_noise_model, yaw_loss_func);
-        problem.addCostTerm(yaw_cost);
-      } else {
-        CLOG(ERROR, "radar.odometry_icp") << "Yaw measurement not available.";
-      }
     }
 
     if (config_->use_vel_meas) {
