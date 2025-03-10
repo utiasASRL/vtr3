@@ -1,4 +1,4 @@
-#include <vtr_logging/logging_init.hpp>  // Add this
+#include <vtr_logging/logging_init.hpp>  
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -9,12 +9,12 @@ int main(int argc, char** argv) {
   (void)argc;
   (void)argv;
   // Path to your graph folder
-  std::string graph_folder = "data/GraphFromAlec/graph"; // Replace with the actual path
+  std::string graph_folder = "data/GraphFromAlec/graph"; 
   // Load the pose graph
   using Graph = vtr::pose_graph::RCGraph;
   std::shared_ptr<Graph> graph;
   try {
-    graph = std::make_shared<Graph>(graph_folder); // Pass the required argument
+    graph = std::make_shared<Graph>(graph_folder); 
     LOG(INFO) << "Graph loaded successfully from: " << graph_folder;
   } catch (const std::exception& e) {
     LOG(ERROR) << "Error loading graph: " << e.what();

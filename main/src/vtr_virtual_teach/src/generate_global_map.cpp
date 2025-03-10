@@ -129,7 +129,7 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   }
 
   // Initialize global_pose with the first transformation
-  Eigen::Matrix4d global_pose = Eigen::Matrix4d::Identity();//transforms_with_timestamps.front().first; //Eigen::Matrix4d::Identity(); //global pose used to be initialized with identity!!!
+  Eigen::Matrix4d global_pose = Eigen::Matrix4d::Identity();
 
   std::vector<double> x_coords;
   std::vector<double> y_coords;
@@ -138,7 +138,7 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   for (size_t i = 1; i < transforms_with_timestamps.size(); i++) {
     const auto& [transform, timestamp] = transforms_with_timestamps[i];
     if (timestamp <= vertex_time) {     // Accumulate transforms up to and including the vertex timestamp
-      global_pose = transform * global_pose; //global_pose * transform.inverse();
+      global_pose = transform * global_pose; 
       x_coords.push_back(global_pose(0, 3)); 
       y_coords.push_back(global_pose(1, 3));
       z_coords.push_back(global_pose(2, 3));
@@ -172,11 +172,11 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/press/point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/grassy/point_cloud.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/press/nerf_gazebo_relative_transforms.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/grassy/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -189,7 +189,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/press/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/grassy/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
     Eigen::Matrix4d last_submap_pose = Eigen::Matrix4d::Identity();  // Initialize with identity
 
     // Parameters for the cylindrical filter
-    float cylinder_radius = 30.0;  
+    float cylinder_radius = 40.0;  //changed to 50 and 15 for grassy
     float cylinder_height = 20.0;   
 
     // Iterate through all vertices in the graph 
@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
         pcl::PointCloud<PointWithInfo>::Ptr converted_cloud(new pcl::PointCloud<PointWithInfo>());
         pcl::copyPointCloud(*cloud, *converted_cloud);
         pcl::PointCloud<PointWithInfo>::Ptr transformed_cloud(new pcl::PointCloud<PointWithInfo>());
-        pcl::transformPointCloudWithNormals(*converted_cloud, *transformed_cloud, absolute_pose); // MAKE SURE NORMALS ARE TRANSFORMED AS WELL
+        pcl::transformPointCloudWithNormals(*converted_cloud, *transformed_cloud, absolute_pose); 
         
         // Apply cylindrical filter extending upwards by 3/4 the height and downwards by 1/4 the height
         pcl::PointCloud<PointWithInfo>::Ptr cropped_cloud(new pcl::PointCloud<PointWithInfo>());
@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
         std::cout << "Cropped cloud size: " << cropped_cloud->size() << std::endl;
 
         // Create a submap and update it with the transformed point cloud
-        float voxel_size = 0.9;  // Adjust based on nerf point cloud - was 0.9, 0.5 0.05 - now trying 1.5 because ICP script previous did 1.0 but not using anymore
+        float voxel_size = 0.7; //chaged from 0.9 to 0.7 for grassy // Adjust based on nerf point cloud - was 0.9, 0.5 0.05 - now trying 1.5 because ICP script previous did 1.0 but not using anymore
         auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); 
         submap_odo->update(*cropped_cloud); 
 
@@ -309,7 +309,7 @@ int main(int argc, char **argv) {
       std::cout << "Using previous submap for vertex " << vertex_id << std::endl;
       
       // Compute the relative transform from the last submap to the current pose.
-      Eigen::Matrix4d relative_transform = current_pose * last_submap_pose.inverse();//last_submap_pose.inverse() * current_pose; // obtains transformation from last submap to current pose PROBLEM COULD BE HERE!!!
+      Eigen::Matrix4d relative_transform = current_pose * last_submap_pose.inverse();
       
       auto submap_ptr = std::make_shared<PointMapPointer>();
       submap_ptr->this_vid = vertex_id; 
