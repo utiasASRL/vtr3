@@ -415,6 +415,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool solver_failed = false;
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
+  if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
