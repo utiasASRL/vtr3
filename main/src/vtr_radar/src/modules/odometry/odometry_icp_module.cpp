@@ -20,8 +20,6 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
-#include "steam/evaluable/p2p/yaw_error_evaluator.hpp"
-
 namespace vtr {
 namespace radar {
 
@@ -90,6 +88,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->yaw_cauchy_k = node->declare_parameter<double>(param_prefix + ".yaw_cauchy_k", config->yaw_cauchy_k);
   config->yaw_meas_std = node->declare_parameter<double>(param_prefix + ".yaw_meas_std", config->yaw_meas_std);
   config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
+  config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
   config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
   const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", std::vector<double>(3, 1.0));
   if (w_icp.size() != 3) {
@@ -416,6 +415,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
   if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
+  if (qdata.preintegrated_delta_yaw) CLOG(DEBUG, "radar.odometry_icp") << "Preintegrated delta yaw is available.";
+  if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -504,10 +505,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
             const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
             const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
             const auto &up_chirp = query_points[ind.first].up_chirp;
+            const bool rm_ori = config_->remove_orientation;
             if (up_chirp) {
-              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta);
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
             } else {
-              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta);
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta, rm_ori);
             }
             
           } else {
@@ -586,9 +588,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
         bias->locked() = true;
         const auto loss_func = L2LossFunc::MakeShared();
-        const auto noise_model = StaticNoiseModel<1>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 1, 1>::Identity());
-        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+        const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
+        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
         problem.addCostTerm(measurement_cost);
       }
