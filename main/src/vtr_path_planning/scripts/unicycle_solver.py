@@ -7,12 +7,12 @@ from casadi import sin, cos, pi
 #Compile Time Constants (Could use params to set!)
 
 # Pose Covariance
-Q_x = 10
-Q_y = 10
+Q_x = 20
+Q_y = 20
 Q_theta = 5
 # Command Covariance
 R1 = 1.0 #0.1
-R2 = 10.0 #0.1
+R2 = 1.0 #0.1
 
 # Acceleration Cost Covariance
 Acc_R1 = 0.1
@@ -22,7 +22,7 @@ step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the angular velocity
-alpha = 0.0
+alpha = 0.4
 
 # state symbolic variables
 x = ca.SX.sym('x')

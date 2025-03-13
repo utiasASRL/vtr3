@@ -13,7 +13,7 @@ p_init_l = 5.45
 p_init_f = 0
 
 dist = 5.0
-dist_margin = 1.0
+dist_margin = 100.0
 
 v_max = 1.5
 v_min = -1.5
@@ -26,6 +26,8 @@ ang_acc_max = 0.5
 
 
 sim_time = 100      # simulation time
+
+euclidean_distance = False
 
 
 
@@ -162,6 +164,8 @@ if __name__ == '__main__':
     last_leader_rollout = None
     last_leader_vel_rollout = None
     u_l = None
+
+
     while (ca.norm_2(state_init_l - state_target) > 2e-1) and (mpc_iter * step_horizon < sim_time):
         t1 = time()
 
@@ -175,15 +179,27 @@ if __name__ == '__main__':
             state_init_f,    # current state
         )
 
+
         # follower waypoints
         for i in range(1, N+1):
             if last_leader_vel_rollout is None:
                 p_target_f = p_state_f + last_u_l[1] * step_horizon * i
             else:
-                if i < N:
-                    p_target_f = p_state_f + last_leader_vel_rollout[0,i] * step_horizon * i
+                if i < N-2:
+                    leader_position = np.array([float(last_leader_rollout[0, i+1]), float(last_leader_rollout[1, i+1])])
                 else:
-                    p_target_f = p_state_f + last_leader_vel_rollout[0,N-1] * step_horizon * i
+                    leader_position = np.array([float(last_leader_rollout[0, N]), float(last_leader_rollout[1, N])])
+
+                distances_to_leader = np.linalg.norm(path_mat[:, :2] - leader_position, axis=1)
+
+                if euclidean_distance == False:
+                    # Get closest point on reference path to last_leader_rollout[0, i+1], last_leader_rollout[1, i+1]
+                    closest_point = np.argmin(distances_to_leader)
+                    p_target_f = path_p[closest_point] - dist
+                else: # Find point on path that is dist away from leader (last_leader_rollout[0, i+1], last_leader_rollout[1, i+1]) in euclidean space
+                    closest_point = np.argmin(np.abs(distances_to_leader - dist))
+                    p_target_f = path_p[closest_point]
+                    
             p_idx_f = np.argmin(np.abs(path_p - p_target_f))
             args_f['p'] = ca.vertcat(args_f['p'],
                        ca.DM(path_mat[p_idx_f, :]))
