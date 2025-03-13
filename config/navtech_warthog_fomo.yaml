@@ -26,9 +26,9 @@
     env_info_topic: env_info
     radar_frame: radar_link # w200_0066_navtech_base 
     radar_topic: /radar/b_scan_msg # /radar_data/b_scan_msg
-    gyro_frame: w200_0066_os_imu #w200_0066_os_imu
-    gyro_topic: /ouster/imu
-    queue_size: 10
+    gyro_frame: MTi30_link #w200_0066_os_imu #navtech_base
+    gyro_topic: /vn100/data_raw
+    queue_size: 200
     graph_projection:
       origin_lat: 47.322053763 # UTIAS: 43.78220
       origin_lng: -71.147490359 # UTIAS: -79.4661
@@ -66,7 +66,7 @@
         - extraction
         - filtering
       odometry:
-        # - gyro # you can turn off gyro and preintegration here
+        - gyro # you can turn off gyro and preintegration here
         # - preintegration
         - icp
         - mapping
@@ -87,13 +87,17 @@
       extraction:
         type: radar.pc_extractor
         radar_resolution: 0.043810 # fomo # RAS3 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: cen2018 # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
-        minr: 1.0 # mininum detection distance
+        detector: kpeaks # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        minr: 5.0 # mininum detection distance
         maxr: 300.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
         range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
+        kpeaks:
+          kstrong: 4 # k-strongest per azimuth to retain was 12
+          threshold2: 0.0 # threshold for k-strongest (mult of mean)
+          threshold3: 0.25 # treshold for k-strongest (constant)
         kstrong:
           kstrong: 4 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
@@ -146,8 +150,9 @@
     odometry:
       gyro:
         type: radar.odometry_gyro
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
+        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001] # was 0.01
         gyro_cov: 1e-7
+        gyro_bias: 0.02751264625189735
 
         # steam parameters #TOTUNE
         verbose: false
@@ -155,6 +160,7 @@
         
       preintegration:
         type: radar.odometry_preintegration
+        gyro_bias: 0.02751264625189735
 
       icp:
         type: radar.odometry_icp
@@ -166,15 +172,15 @@
       #- grizzly_controller_tests.cbit
       #- ouster
         traj_lock_prev_vel: true
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
+        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01] # was 0.01
 
         # ICP parameters # TOTUNE
-        num_threads: 8 # 8
+        num_threads: 16 # 8
         first_num_steps: 2 # 2
         initial_max_iter: 4 # 4
         initial_max_pairing_dist: 5.0 # 5.0
         initial_max_planar_dist: 5.0 # 5.0
-        refined_max_iter: 500 # 50
+        refined_max_iter: 50 # 50
         refined_max_pairing_dist: 5.0 # 5.0
         refined_max_planar_dist: 5.0 # 5.0
         averaging_num_steps: 5 # 5
@@ -189,7 +195,7 @@
         max_iterations: 3
 
         # threshold #TOTUNE
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.40
 
         visualize: true
 
