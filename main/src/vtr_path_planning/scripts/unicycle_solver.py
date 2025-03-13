@@ -142,7 +142,7 @@ for k in range(1, N):
     g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
-
+#Corridor constraints
 for k in range(N):
     theta_k = P[n_states*(k+1) + 2]
     g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))

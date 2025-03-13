@@ -367,6 +367,22 @@ if __name__ == '__main__':
     plt.ylabel('Distance between leader and follower')
     plt.title('Distance over time between leader and follower')
 
+    # Plot distance over time between cat_states_l and cat_states_f on the path (distance on arclength not euclidean distance)
+    arc_distances = []
+    for i in range(cat_states_l.shape[2]):
+        leader_state = cat_states_l[:2, 0, i]
+        follower_state = cat_states_f[:2, 0, i]
+        closest_point_leader = np.argmin(np.linalg.norm(path_mat[:, :2] - leader_state.T, axis=1))
+        closest_point_follower = np.argmin(np.linalg.norm(path_mat[:, :2] - follower_state.T, axis=1))
+        arc_distance = np.abs(path_p[closest_point_leader] - path_p[closest_point_follower])
+        arc_distances.append(arc_distance)
+
+    plt.figure()
+    plt.plot(arc_distances)
+    plt.xlabel('Time step')
+    plt.ylabel('Arc Distance between leader and follower')
+    plt.title('Arc Distance over time between leader and follower')
+
     # plot path tracking error for each robot
     plt.figure()
     plt.plot(cat_states_l[0, 0, :], cat_states_l[1, 0, :], label='Leader')
