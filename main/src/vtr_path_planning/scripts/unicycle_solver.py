@@ -145,7 +145,7 @@ for k in range(1, N):
 #Corridor constraints
 for k in range(N):
     theta_k = P[n_states*(k+1) + 2]
-    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
+    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k+1] - P[n_states*(k+1): n_states*(k+1)+2]))
 
 #Acceleration constraints
 cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
