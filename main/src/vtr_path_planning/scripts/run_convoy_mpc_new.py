@@ -13,7 +13,7 @@ p_init_l = 5.45
 p_init_f = 0
 
 dist = 5.0
-dist_margin = 1.0
+dist_margin = 10.0
 
 v_max = 1.5
 v_min = -1.5

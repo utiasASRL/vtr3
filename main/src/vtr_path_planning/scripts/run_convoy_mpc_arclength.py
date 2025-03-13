@@ -27,7 +27,7 @@ ang_acc_max = 0.5
 
 sim_time = 100      # simulation time
 
-euclidean_distance = False
+euclidean_distance = True
 
 
 
@@ -184,6 +184,7 @@ if __name__ == '__main__':
         for i in range(1, N+1):
             if last_leader_vel_rollout is None:
                 p_target_f = p_state_f + last_u_l[1] * step_horizon * i
+                p_idx_f = np.argmin(np.abs(path_p - p_target_f))
             else:
                 if i < N-2:
                     leader_position = np.array([float(last_leader_rollout[0, i+1]), float(last_leader_rollout[1, i+1])])
@@ -196,11 +197,12 @@ if __name__ == '__main__':
                     # Get closest point on reference path to last_leader_rollout[0, i+1], last_leader_rollout[1, i+1]
                     closest_point = np.argmin(distances_to_leader)
                     p_target_f = path_p[closest_point] - dist
+                    p_idx_f = np.argmin(np.abs(path_p - p_target_f))
                 else: # Find point on path that is dist away from leader (last_leader_rollout[0, i+1], last_leader_rollout[1, i+1]) in euclidean space
-                    closest_point = np.argmin(np.abs(distances_to_leader - dist))
-                    p_target_f = path_p[closest_point]
-                    
-            p_idx_f = np.argmin(np.abs(path_p - p_target_f))
+                    closest_point_l = np.argmin(distances_to_leader)
+                    closest_point_f = np.argmin(np.abs(distances_to_leader[:closest_point_l] - dist))
+                    p_idx_f = closest_point_f
+            
             args_f['p'] = ca.vertcat(args_f['p'],
                        ca.DM(path_mat[p_idx_f, :]))
         
