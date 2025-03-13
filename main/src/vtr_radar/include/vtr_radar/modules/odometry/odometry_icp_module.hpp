@@ -77,6 +77,10 @@ class OdometryICPModule : public tactic::BaseModule {
 
     /// Success criteria
     float min_matched_ratio = 0.4;
+    float max_trans_vel_diff = 1000.0; // m/s
+    float max_rot_vel_diff = 1000.0; // m/s
+    float max_trans_diff = 1000.0; // m
+    float max_rot_diff = 1000.0; // rad
 
     bool visualize = false;
 

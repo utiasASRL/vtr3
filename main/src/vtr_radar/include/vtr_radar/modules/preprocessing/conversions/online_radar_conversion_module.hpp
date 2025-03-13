@@ -49,8 +49,6 @@ class OnlineRadarConversionModule : public tactic::BaseModule {
     // add an encoder bin size parameter
     double encoder_bin_size = 16000;
 
-    std::string chirp_type = "both";
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };

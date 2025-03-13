@@ -105,6 +105,12 @@ class BasePipeline {
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
 
+  double ema_preproc_runtime_ = 0;
+  double ema_odo_runtime_ = 0;
+  double ema_loc_runtime_ = 0;
+  constexpr static double ema_alpha_ = 0.5;
+
+
   /// factory handlers (note: local static variable constructed on first use)
  private:
   /** \brief a map from type_str trait to a constructor function */

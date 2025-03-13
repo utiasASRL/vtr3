@@ -98,7 +98,6 @@ void RadarPipeline::reset() {
   last_gyro_msg_ = nullptr;
   preint_delta_yaw_ = nullptr;
 
-
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -140,7 +139,6 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
 
-
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
     sliding_map_odo_ = qdata->sliding_map_odo.ptr();
@@ -154,11 +152,9 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
       w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr(); 
     }
-
   }
 
   // store the preintegration stuff
-
   if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
   if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
   if(qdata->prev_gyro_msg) last_gyro_msg_ = qdata->prev_gyro_msg.ptr();
@@ -236,7 +232,6 @@ void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
       CLOG(DEBUG, "radar.pipeline") << "Saved radar b_scan_img to vertex" << vertex;
     }
   }
-
 
   /// save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {

@@ -21,7 +21,7 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "vtr_lidar/cache.hpp"
-#include "vtr_lidar/modules/pointmap/intra_exp_merging_module.hpp"
+#include "vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 
 namespace vtr {
@@ -43,7 +43,7 @@ class DynamicDetectionModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // dependencies
-    std::string intra_exp_merging = IntraExpMergingModule::static_name;
+    std::string intra_exp_merging = IntraExpMergingModuleV2::static_name;
 
     double depth = 0;
 
