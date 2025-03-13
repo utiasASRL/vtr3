@@ -367,6 +367,43 @@ if __name__ == '__main__':
     plt.ylabel('Distance between leader and follower')
     plt.title('Distance over time between leader and follower')
 
+    # plot path tracking error for each robot
+    plt.figure()
+    plt.plot(cat_states_l[0, 0, :], cat_states_l[1, 0, :], label='Leader')
+    plt.plot(cat_states_f[0, 0, :], cat_states_f[1, 0, :], label='Follower')
+    plt.plot(path_x, path_y, label='Reference Path', linestyle='--')
+    plt.xlabel('X position')
+    plt.ylabel('Y position')
+    plt.title('Path Tracking')
+    plt.legend()
+
+    # Compute and plot signed path tracking error for each robot
+    leader_errors = []
+    follower_errors = []
+    for i in range(cat_states_l.shape[2]):
+        leader_state = cat_states_l[:2, 0, i]
+        follower_state = cat_states_f[:2, 0, i]
+        closest_point_leader = np.argmin(np.linalg.norm(path_mat[:, :2] - leader_state.T, axis=1))
+        closest_point_follower = np.argmin(np.linalg.norm(path_mat[:, :2] - follower_state.T, axis=1))
+        
+        leader_error_vector = path_mat[closest_point_leader, :2] - leader_state.T
+        follower_error_vector = path_mat[closest_point_follower, :2] - follower_state.T
+        
+        leader_error_sign = np.sign(np.cross(path_mat[closest_point_leader, :2], leader_error_vector))
+        follower_error_sign = np.sign(np.cross(path_mat[closest_point_follower, :2], follower_error_vector))
+        
+        leader_errors.append(leader_error_sign * np.linalg.norm(leader_error_vector))
+        follower_errors.append(follower_error_sign * np.linalg.norm(follower_error_vector))
+
+    plt.figure()
+    plt.plot(leader_errors, label='Leader Error')
+    plt.plot(follower_errors, label='Follower Error')
+    plt.xlabel('Time step')
+    plt.ylabel('Signed Tracking Error')
+    plt.title('Signed Path Tracking Error')
+    plt.legend()
+    plt.show()
+
 
     # simulate
     simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=False)
