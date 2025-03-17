@@ -77,6 +77,8 @@ void LidarPipeline::reset() {
   w_m_r_in_r_odo_ = nullptr;
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
+  trajectory_prev_ = nullptr;
+  covariance_prev_ = nullptr;
   // localization cached data
   submap_loc_ = nullptr;
 }
@@ -101,6 +103,8 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
+    qdata->trajectory_prev = trajectory_prev_;
+    qdata->covariance_prev = covariance_prev_;
   }
 
   for (const auto &module : odometry_)
@@ -112,6 +116,8 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+    trajectory_prev_ = qdata->trajectory_prev.ptr();
+    covariance_prev_ = qdata->covariance_prev.ptr();
   }
 }
 
