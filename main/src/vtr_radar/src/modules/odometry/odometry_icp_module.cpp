@@ -227,8 +227,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   steam::Covariance::Ptr covariance_curr = nullptr;
-  
   std::vector<StateVarBase::Ptr> state_vars;
+
   if (config_->use_trajectory_estimation) {
     trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
@@ -243,13 +243,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // Set up main state variables
     for (int i = 0; i < num_states; ++i) {
       Time knot_time(static_cast<int64_t>(first_time + i * time_diff));
-      //
       const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo);
       const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
       const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-      //
       const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-      //
       trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
@@ -261,14 +258,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
         const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
         const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
-        CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo pose: \n" << traj_T_r_m_odo->value();
-        CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo vel: " << traj_w_m_r_in_r_odo->value();
-        // CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo cov: \n" << traj_T_r_m_cov;
         CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-  
         trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
-        // const auto new_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        // trajectory->addPosePrior(Time(first_time), traj_T_r_m_odo->value(), new_cov);
       } else {
         const auto T_r_m_odo_prior = lgmath::se3::Transformation();
         const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
@@ -285,8 +276,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         state_vars.emplace_back(prev_T_r_m_var);
         state_vars.emplace_back(prev_w_m_r_in_r_var);
     }
-
-
 
     CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
     CLOG(DEBUG, "radar.odometry_icp") << "Previous odo vel: " << w_m_r_in_r_odo;
@@ -495,6 +484,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+      const bool rm_ori = config_->remove_orientation;
 
       auto icp_error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
         if (config_->use_trajectory_estimation) {
@@ -505,7 +495,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
             const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
             const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
             const auto &up_chirp = query_points[ind.first].up_chirp;
-            const bool rm_ori = config_->remove_orientation;
             if (up_chirp) {
               return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
             } else {
@@ -513,10 +502,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
             }
             
           } else {
-            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
+            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt, rm_ori);
           }
         } else {
-          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
+          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt, rm_ori);
         }
       }();
 
