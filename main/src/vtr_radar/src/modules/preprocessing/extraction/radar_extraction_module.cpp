@@ -104,7 +104,8 @@ auto RadarExtractionModule::Config::fromROS(
 
   config->kstrongest.kstrong = node->declare_parameter<int>(param_prefix + ".kstrongest.kstrong", config->kstrongest.kstrong);
   config->kstrongest.static_threshold = node->declare_parameter<double>(param_prefix + ".kstrongest.static_threshold", config->kstrongest.static_threshold);
-
+  
+  // kpeaks
   config->kpeaks.kstrong = node->declare_parameter<int>(param_prefix + ".kpeaks.kstrong", config->kpeaks.kstrong);
   config->kpeaks.threshold2 = node->declare_parameter<double>(param_prefix + ".kpeaks.threshold2", config->kpeaks.threshold2);
   config->kpeaks.threshold3 = node->declare_parameter<double>(param_prefix + ".kpeaks.threshold3", config->kpeaks.threshold3);
@@ -256,13 +257,6 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->minr, config_->maxr, config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
-  }else if (config_->detector == "cacfar") {
-    CACFAR detector = CACFAR<PointWithInfo>(
-        config_->cacfar.width, config_->cacfar.guard, config_->cacfar.threshold,
-        config_->cacfar.threshold2, config_->cacfar.threshold3, config_->minr,
-        config_->maxr, config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                 raw_point_cloud);
   } else if (config_->detector == "oscfar") {
     OSCFAR detector = OSCFAR<PointWithInfo>(
         config_->oscfar.width, config_->oscfar.guard, config_->oscfar.kstat,
@@ -287,8 +281,8 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   } else if (config_->detector == "modified_cacfar") {
     ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
         config_->modified_cacfar.width, config_->modified_cacfar.guard,
-        config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2, 
-        config_->modified_cacfar.threshold3, config_->minr, config_->maxr, 
+        config_->modified_cacfar.threshold, config_->modified_cacfar.threshold2,
+        config_->modified_cacfar.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
         #ifdef ENABLE_CUDA
           detector.cudaRun(fft_scan, radar_resolution, azimuth_times, azimuth_angles, raw_point_cloud);
@@ -296,15 +290,68 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         #else
           detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
-        #endif  
-  }else if(config_->detector == "caso_cfar"){
-    CASO_CFAR detector = CASO_CFAR<PointWithInfo>(
-        config_->caso_cfar.width, config_->caso_cfar.guard,
-        config_->caso_cfar.threshold, config_->minr, config_->maxr,
+        #endif 
+  }else if (config_->detector == "cfear_kstrong") {
+    CFEAR_KStrong detector = CFEAR_KStrong<PointWithInfo>(
+        config_->cfear_kstrong.width, config_->cfear_kstrong.guard,
+        config_->cfear_kstrong.kstrong, config_->cfear_kstrong.z_min,
+        config_->cfear_kstrong.r, config_->cfear_kstrong.f, config_->minr, config_->maxr,
+        config_->range_offset); 
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "bfar") {
+    BFAR detector = BFAR<PointWithInfo>(
+        config_->bfar.width, config_->bfar.guard,
+        config_->bfar.threshold,
+        config_->bfar.static_threshold, config_->minr, config_->maxr, 
         config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
-                 raw_point_cloud);  
-    }else {
+                 raw_point_cloud);
+  } else if (config_->detector == "cago_cfar") {
+    CAGO_CFAR detector = CAGO_CFAR<PointWithInfo>(
+        config_->cago_cfar.width, config_->cago_cfar.guard,
+        config_->cago_cfar.threshold, config_->minr, config_->maxr, 
+        config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "caso_cfar") {
+    CASO_CFAR detector = CASO_CFAR<PointWithInfo>(
+        config_->caso_cfar.width, config_->caso_cfar.guard,
+        config_->caso_cfar.threshold, config_->minr, config_->maxr, 
+        config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "is_cfar") {
+    IS_CFAR detector = IS_CFAR<PointWithInfo>(
+        config_->is_cfar.width, config_->is_cfar.guard,
+        config_->is_cfar.alpha_I, config_->is_cfar.N_TI,
+        config_->is_cfar.beta_I, config_->minr, config_->maxr, 
+        config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "vi_cfar") {
+    VI_CFAR detector = VI_CFAR<PointWithInfo>(
+        config_->vi_cfar.width, config_->vi_cfar.guard,
+        config_->vi_cfar.K_VI, config_->vi_cfar.K_MR,
+        config_->vi_cfar.C_N, config_->minr, config_->maxr, 
+        config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "msca_cfar") {
+    MSCA_CFAR detector = MSCA_CFAR<PointWithInfo>(
+        config_->msca_cfar.width, config_->msca_cfar.guard,
+        config_->msca_cfar.threshold, config_->msca_cfar.M,
+        config_->minr, config_->maxr, config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else if (config_->detector == "cen2019") {
+    Cen2019 detector = Cen2019<PointWithInfo>(
+        config_->cen2019.width, config_->cen2019.guard,
+        config_->cen2019.l_max, config_->minr, config_->maxr, 
+        config_->range_offset);
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+                 raw_point_cloud);
+  } else {
     CLOG(ERROR, "radar.pc_extractor")
         << "Unknown detector: " << config_->detector;
     throw std::runtime_error("Unknown detector: " + config_->detector);

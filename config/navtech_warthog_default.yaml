@@ -84,7 +84,7 @@
       extraction:
         type: radar.pc_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: modified_cacfar # kpeaks # choose detector \in (kstrongest, kpeaks, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
+        detector: kpeaks # choose detector \in (kstrongest, kpeaks, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
         minr: 2.0 # mininum detection distance
         maxr: 69.0 # maximum detection distance
         encoder_bin_size: 16000 # encoder bin size

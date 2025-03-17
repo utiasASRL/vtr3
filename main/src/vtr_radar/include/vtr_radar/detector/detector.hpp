@@ -75,7 +75,8 @@ class KPeaks : public Detector<PointT> {
   KPeaks(int kstrong, double threshold2, double threshold3, double minr,
              double maxr, double range_offset)
       : kstrong_(kstrong),
-        static_threshold_(static_threshold),
+        threshold2_(threshold2),
+        threshold3_(threshold3),
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset) {}
