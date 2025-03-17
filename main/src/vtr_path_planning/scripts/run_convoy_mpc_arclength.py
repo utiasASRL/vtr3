@@ -27,7 +27,7 @@ ang_acc_max = 0.5
 
 sim_time = 100      # simulation time
 
-euclidean_distance = True
+euclidean_distance = False
 
 
 
@@ -437,4 +437,4 @@ if __name__ == '__main__':
 
 
     # simulate
-    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=False)
+    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=True)

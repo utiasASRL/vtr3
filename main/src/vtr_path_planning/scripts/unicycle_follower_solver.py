@@ -162,8 +162,8 @@ for k in range(1, N):
 
 
 for k in range(N):
-    theta_k = follower_ref_poses[n_states*(k+1) + 2]
-    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k+1)] - follower_ref_poses[n_states*(k+1): n_states*(k+1)+2]))
+    theta_k = follower_ref_poses[n_states*(k) + 2]
+    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k+1)] - follower_ref_poses[n_states*(k): n_states*(k)+2]))
 
 
 for k in range(0, N):
