@@ -41,31 +41,42 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
-  // Do nothing if qdata does not contain any gyro data (was populated by radar)
-  // Also do nothing, if odometry has not been initialized (we will wait until radar did this)
-  if(!qdata.gyro_msg || !qdata.sliding_map_odo || !qdata.stamp_end_pre_integration)
-  {
+  // Skip frame and reset preint if query is for radar scan or if odometry has not been initialized (we will wait until radar did this)
+  if (qdata.radar_data || !qdata.sliding_map_odo) {
+    reset_preint_ = true;
     return;
   }
 
-  if(!qdata.prev_gyro_msg)
-  {
+  // Handle first-ever seen gyro message
+  if(!qdata.prev_gyro_msg) {
+    CLOG(DEBUG, "radar.odometry_preintegration") << "First gyro message received. Cannot preintegrate yet.";
     // This is the first time we are every receiving gyro, we cannot preintegrate
     // Save current gyro message and update preintegration terms
     qdata.prev_gyro_msg.emplace(*qdata.gyro_msg);
-    *qdata.stamp_end_pre_integration = *qdata.stamp;
-    *qdata.stamp_start_pre_integration = *qdata.stamp;
+    qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
+    qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
+    qdata.preintegrated_delta_yaw = 0.0;
+    reset_preint_ = false;
 
     return;
   }
 
-  CLOG(DEBUG, "radar.odometry_preintegration")
-      << "Retrieve input data and setup evaluators.";
+  if (reset_preint_) {
+    qdata.preintegrated_delta_yaw = 0.0;
+    // Set start time to the previous end time and end time to current stamp
+    *qdata.stamp_start_pre_integration = *qdata.stamp_end_pre_integration;
+    *qdata.stamp_end_pre_integration = *qdata.stamp;
+    reset_preint_ = false;
+  }
+
+  CLOG(DEBUG, "radar.odometry_preintegration") << "Retrieve input data and setup evaluators.";
+  CLOG(DEBUG, "radar.odometry_preintegration") << "stamp_start_pre_integration: " << *qdata.stamp_start_pre_integration;
+  CLOG(DEBUG, "radar.odometry_preintegration") << "stamp_end_pre_integration: " << *qdata.stamp_end_pre_integration;
 
   // Inputs
   const auto &current_time_stamp = *qdata.stamp;
-  const auto &prev_gyro_msg = *qdata.prev_gyro_msg;
   const auto &prev_time_stamp = *qdata.stamp_end_pre_integration;
+  const auto &prev_gyro_msg = *qdata.prev_gyro_msg;
 
   // Distance between current and last time
   Time prev_time(static_cast<int64_t>(prev_time_stamp)); // get previous odometry timestamp
@@ -77,38 +88,26 @@ void OdometryPreintegrationModule::run_(QueryCache &qdata0, OutputCache &,
   // lets log the bias
   CLOG(DEBUG, "radar.odometry_preintegration") << "Gyro bias: " << config_->gyro_bias;
 
+  // Set preintegrated value
+  double value = (qdata.preintegrated_delta_yaw) ? *qdata.preintegrated_delta_yaw : 0.0;
 
   CLOG(DEBUG, "radar.odometry_preintegration") << "Current delta yaw value: " << delta_yaw;
-
-  // Set preintegrated value
-  double value = 0;
-
-  // Check if we have a pre-integrated value, add it if so
-  if(qdata.preintegrated_delta_yaw) value += *qdata.preintegrated_delta_yaw;
-
   CLOG(DEBUG, "radar.odometry_preintegration") << "Old preintegrated yaw value: " << value;
 
   value += delta_yaw;
+
+  CLOG(DEBUG, "radar.odometry_preintegration") << "New preintegrated yaw value: " << value;
    
   if(!qdata.preintegrated_delta_yaw)
     qdata.preintegrated_delta_yaw.emplace(value);
   else
     *qdata.preintegrated_delta_yaw = value;
 
-
-
-  CLOG(DEBUG, "radar.odometry_preintegration") << "New preintegrated yaw value: " << value;
-
-
-
   // Set preintegration end time to current time
-
   *qdata.stamp_end_pre_integration = current_time_stamp;
 
   // Set prev gyro msg to the current message for the next preintegration
-
   *qdata.prev_gyro_msg = *qdata.gyro_msg;
-
 
   }
   // clang-format on

@@ -43,6 +43,8 @@ class OdometryICPModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // continuous-time estimation
+    bool use_prior = true;
+    double prior_bloat = 1.0;
     bool use_trajectory_estimation = false;
     int traj_num_extra_states = 0;
     bool traj_lock_prev_pose = false;
@@ -69,6 +71,10 @@ class OdometryICPModule : public tactic::BaseModule {
     // steam optimizer
     bool verbose = false;
     unsigned int max_iterations = 1;
+
+    // gyro weight
+    double gyro_cov = 1e-3;
+    bool remove_orientation = false;
 
     /// Success criteria
     float min_matched_ratio = 0.4;

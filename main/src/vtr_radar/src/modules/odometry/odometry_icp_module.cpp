@@ -20,8 +20,6 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
-#include "steam/evaluable/p2p/yaw_error_evaluator.hpp"
-
 namespace vtr {
 namespace radar {
 
@@ -51,6 +49,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   // motion compensation
   config->use_trajectory_estimation = node->declare_parameter<bool>(param_prefix + ".use_trajectory_estimation", config->use_trajectory_estimation);
+  config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
+  config->use_vel_meas = node->declare_parameter<bool>(param_prefix + ".use_vel_meas", config->use_vel_meas);
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
   config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
   config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
@@ -61,6 +61,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
+  config->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config->use_prior);
+  config->prior_bloat = node->declare_parameter<double>(param_prefix + ".prior_bloat", config->prior_bloat);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -79,8 +81,25 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->max_iterations);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
+  config->dopp_cauchy_k = node->declare_parameter<double>(param_prefix + ".dopp_cauchy_k", config->dopp_cauchy_k);
+  config->dopp_meas_std = node->declare_parameter<double>(param_prefix + ".dopp_meas_std", config->dopp_meas_std);
+  config->vel_fwd_std = node->declare_parameter<double>(param_prefix + ".vel_fwd_std", config->vel_fwd_std);
+  config->vel_side_std = node->declare_parameter<double>(param_prefix + ".vel_side_std", config->vel_side_std);
+  config->yaw_cauchy_k = node->declare_parameter<double>(param_prefix + ".yaw_cauchy_k", config->yaw_cauchy_k);
+  config->yaw_meas_std = node->declare_parameter<double>(param_prefix + ".yaw_meas_std", config->yaw_meas_std);
+  config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
+  config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
+  config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
+  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", std::vector<double>(3, 1.0));
+  if (w_icp.size() != 3) {
+    std::string err{"W_icp diagonal malformed. Must be 3 elements!"};
+    CLOG(ERROR, "radar.odometry_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->W_icp << w_icp[0], 0, 0, 0, w_icp[1], 0, 0, 0, w_icp[2];
 
   config->preint_cov = node->declare_parameter<double>(param_prefix + ".preint_cov", config->preint_cov);
+  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
@@ -124,14 +143,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.timestamp_odo_radar.emplace(*qdata.stamp);
     qdata.T_r_m_odo_radar.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo_radar.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    const_vel::Interface::Ptr trajectory = nullptr;
+    qdata.trajectory_prev.emplace(trajectory);
+    Covariance::Ptr covariance = nullptr;
+    qdata.covariance_prev.emplace(covariance);
+
     //
     *qdata.odo_success = true;
     // clang-format on
 
     // This is the first odomety frame
-    // Initialize preintegration
-    qdata.stamp_end_pre_integration.emplace(*qdata.stamp);
-    qdata.stamp_start_pre_integration.emplace(*qdata.stamp);
     if(qdata.first_frame)
       *qdata.first_frame = true;
     else
@@ -151,6 +172,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &beta = *qdata.beta;
+  const auto &yaw_meas = *qdata.yaw_meas;
+  const auto &vel_meas = *qdata.vel_meas;
+  const auto &trajectory_prev = *qdata.trajectory_prev;
+  const auto &covariance_prev = *qdata.covariance_prev;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
 
@@ -201,38 +226,60 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
+  steam::Covariance::Ptr covariance_curr = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
+
   if (config_->use_trajectory_estimation) {
     trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
-    /// last frame state
-    Time prev_time(static_cast<int64_t>(timestamp_odo));
-    auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-    auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-    if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
-    if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
-    trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-    state_vars.emplace_back(prev_T_r_m_var);
-    state_vars.emplace_back(prev_w_m_r_in_r_var);
-
+    // Set up problem timestamps
     const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
     const auto first_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
     const auto last_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
     const int64_t num_states = config_->traj_num_extra_states + 2;
     const int64_t time_diff = (last_time - first_time) / (num_states - 1);
+    Time prev_time(static_cast<int64_t>(timestamp_odo));
+
+    // Set up main state variables
     for (int i = 0; i < num_states; ++i) {
       Time knot_time(static_cast<int64_t>(first_time + i * time_diff));
-      //
       const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo);
       const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
       const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-      //
       const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-      //
       trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
     }
+
+    // Set up priors
+    if (config_->use_prior) {
+      if (trajectory_prev != nullptr) {
+        const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
+        const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
+        const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
+        CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
+        trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
+      } else {
+        const auto T_r_m_odo_prior = lgmath::se3::Transformation();
+        const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
+        const auto cov_prior = 1e-5 * Eigen::Matrix<double, 12, 12>::Identity();
+  
+        trajectory->addStatePrior(Time(first_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
+      }
+    } else {
+        auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
+        auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+        if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
+        if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
+        trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
+        state_vars.emplace_back(prev_T_r_m_var);
+        state_vars.emplace_back(prev_w_m_r_in_r_var);
+    }
+
+    CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
+    CLOG(DEBUG, "radar.odometry_icp") << "Previous odo vel: " << w_m_r_in_r_odo;
+
     // General radar odometry (at scan time)
     Time scan_time(static_cast<int64_t>(scan_stamp));
     T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
@@ -285,7 +332,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   kdtree->buildIndex();
 
   /// perform initial alignment
-  CLOG(DEBUG, "lidar.odometry_icp") << "Start initial alignment.";
+  CLOG(DEBUG, "radar.odometry_icp") << "Start initial alignment.";
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
   for (unsigned i = 0; i < query_points.size(); ++i) {
     aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
@@ -294,13 +341,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (unsigned i = 0; i < query_points.size(); ++i) {
       const auto &qry_time = query_points[i].timestamp;
+      const auto &up_chirp = query_points[i].up_chirp;
       const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
       const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
       const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
       const Eigen::Vector3f v_m_s_in_s = w_m_s_in_s.block<3, 1>(0, 0);
       Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
       abar.normalize();
-      aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+      // If up chirp azimuth, subtract Doppler shift
+      if (up_chirp) { 
+        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+      } else {
+        aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
+      }
     }
   }
   if (config_->use_trajectory_estimation) {
@@ -350,6 +403,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool solver_failed = false;
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
+  if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
+  if (qdata.preintegrated_delta_yaw) CLOG(DEBUG, "radar.odometry_icp") << "Preintegrated delta yaw is available.";
+  if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -404,32 +460,33 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // shared loss function
     // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
-    auto loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
+    auto icp_loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
     // cost terms and noise model
+    bool rv_cost_added = false;
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
       Eigen::Matrix3d W = [&] {
-        // point to line
-        // if (point_map[ind.second].normal_score > 0) {
-        //   Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-        //   return Eigen::Matrix3d((nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
-        // } else {
-        //   Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
-        //   W(2, 2) = 1e-5;
-        //   return W;
-        // }
-        /// point to point
         Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        if (config_->use_p2pl && (point_map[ind.second].normal_score > config_->normal_score_threshold)) {
+          // point to plane
+          Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+          W = Eigen::Matrix3d(nrm * nrm.transpose());
+          W(2, 2) = 1.0;
+        }
+        else {
+          W = config_->W_icp;
+        }
         return W;
       }();
-      auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
+      auto icp_noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+      const bool rm_ori = config_->remove_orientation;
 
-      auto error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
+      auto icp_error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
         if (config_->use_trajectory_estimation) {
           const auto &qry_time = query_points[ind.first].timestamp;
           const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
@@ -437,36 +494,108 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           if (beta != 0) {
             const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
             const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-            return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta);
+            const auto &up_chirp = query_points[ind.first].up_chirp;
+            if (up_chirp) {
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
+            } else {
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta, rm_ori);
+            }
+            
           } else {
-            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
+            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt, rm_ori);
           }
         } else {
-          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
+          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt, rm_ori);
         }
       }();
 
       // create cost term and add to problem
-      auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, icp_loss_func);
 
+      // process radial velocity measurement
+      auto rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(nullptr, nullptr, nullptr);
+      if (config_->use_radial_velocity) {
+        
+        if (query_points[ind.first].radial_velocity != -1000.0 && !rv_cost_added) {
+          // noise properties
+          Eigen::Matrix<double, 1, 1> meas_cov = pow(config_->dopp_meas_std, 2) * Eigen::Matrix<double, 1, 1>::Identity();
+          const auto vel_noise_model = StaticNoiseModel<1>::MakeShared(meas_cov);
+
+          // loss function
+          auto rv_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
+
+          // auto rv_error_func = [&]() -> Evaluable<double>::Ptr {
+          //   const auto &vel = query_points[ind.first].vel;
+          //   const auto &qry_time = query_points[ind.first].timestamp;
+          //   const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+          //   const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+
+          //   return p2p::radialVelError(w_m_s_in_s_intp_eval, qry_pt, vel);
+          // }();
+
+          const auto &vel = query_points[ind.first].radial_velocity;
+          const auto &qry_time = query_points[ind.first].timestamp;
+          const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+          const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+          const auto rv_error = p2p::RadialVelErrorEvaluator::MakeShared(w_m_s_in_s_intp_eval, qry_pt, -vel);
+          
+          rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(rv_error, vel_noise_model, rv_loss_func);
+        }
+      }
+// Only add cost terms one thread at a time
 #pragma omp critical(odo_icp_add_p2p_error_cost)
-      problem.addCostTerm(cost);
+{
+      problem.addCostTerm(icp_cost);
+      if (config_->use_radial_velocity && query_points[ind.first].radial_velocity != -1000.0 && !rv_cost_added) {
+        rv_cost_added = true;
+        problem.addCostTerm(rv_cost);
+      }
+}
+    }
+
+    // Add individual gyro cost terms if populated
+    if (qdata.gyro_msgs) {
+      // Load in transform between gyro and robot frame
+      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+
+      for (const auto &gyro_msg : *qdata.gyro_msgs) {
+        // Load in gyro measurement and timestamp
+        const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+        const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
+        const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
+
+        // Transform gyro measurement into robot frame
+        Eigen::VectorXd gyro_meas_g(6); // Create a 6x1 vector
+        gyro_meas_g << 0, 0, 0, gyro_meas(0), gyro_meas(1), gyro_meas(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r = (lgmath::se3::tranAd(T_s_r_gyro.matrix().inverse()) * gyro_meas_g).tail<3>();
+
+        // Interpolate velocity measurement at gyro stamp
+        auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
+
+        // Generate empty bias state
+        Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
+        const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
+        bias->locked() = true;
+        const auto loss_func = L2LossFunc::MakeShared();
+        const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
+        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+
+        problem.addCostTerm(measurement_cost);
+      }
     }
 
     //Add preintegration cost terms if the flag is set
-    if(qdata.preintegrated_delta_yaw)
-    {
+    if(qdata.preintegrated_delta_yaw) {
       const auto &start_stamp = *qdata.stamp_start_pre_integration;
       const auto &end_stamp = *qdata.stamp_end_pre_integration;
-
 
       // Get states at the times of the preintegration
       const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
       const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
 
       Time start_int_time(static_cast<int64_t>(start_stamp));
-      CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
-
+      Time end_int_time(static_cast<int64_t>(end_stamp));
       // Transform into sensor frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
       const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
@@ -478,15 +607,43 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // Cost Term 
       const auto &yaw = *qdata.preintegrated_delta_yaw;
 
-      const auto loss_func = L2LossFunc::MakeShared();
-      const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->preint_cov);
-      const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw,T_m_s_start,T_m_s_end);
-      const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+      if (step == 0) {
+        CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
+        CLOG(DEBUG, "radar.odometry_icp") << "DT preint_end to preint_start: " << (end_int_time - start_int_time).seconds();
+        CLOG(DEBUG, "radar.odometry_icp") << "Preint term from " << start_stamp << " to " << end_stamp;
+        CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
+        CLOG(DEBUG, "radar.odometry_icp") << "Compared to yaw meas: " << yaw_meas;
+      }
 
-      CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
+      const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
+      const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->preint_cov);
+      const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw, T_m_s_start, T_m_s_end);
+      const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, yaw_loss_func);
 
       problem.addCostTerm(measurement_cost);
     }
+
+    if (config_->use_vel_meas) {
+      if (yaw_meas != -1000.0) {
+        // Add fwd/side velocity measurement-based cost term
+        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
+        const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+
+        Eigen::Matrix<double, 2, 2> W_vel = Eigen::Matrix<double, 2, 2>::Identity();
+        W_vel.block<1, 1>(0, 0) *= pow(config_->vel_fwd_std, 2);
+        W_vel.block<1, 1>(1, 1) *= pow(config_->vel_side_std, 2);
+        const auto vel_noise_model = StaticNoiseModel<2>::MakeShared(W_vel);
+        const auto vel_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
+        // Minus sign because vel_meas is v_s_m_in_s, but we want v_m_s_in_s
+        const auto vel_err_func = p2p::VelErrorEvaluator::MakeShared(-vel_meas, w_m_s_in_s_intp_eval);
+
+        auto vel_cost = WeightedLeastSqCostTerm<2>::MakeShared(vel_err_func, vel_noise_model, vel_loss_func);
+        problem.addCostTerm(vel_cost);
+      } else {
+        CLOG(ERROR, "radar.odometry_icp") << "Velocity measurement not available.";
+      }
+    }
+    
 
     // optimize
     GaussNewtonSolver::Params params;
@@ -514,13 +671,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_points.size(); ++i) {
         const auto &qry_time = query_points[i].timestamp;
+        const auto &up_chirp = query_points[i].up_chirp;
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
         const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
         const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
         const Eigen::Vector3f v_m_s_in_s = w_m_s_in_s.block<3, 1>(0, 0);
         Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
         abar.normalize();
-        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+        if (up_chirp) {
+          aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+        } else {
+          aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
+        }
       }
     }
     if (config_->use_trajectory_estimation) {
@@ -603,6 +765,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
         T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
         T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
+        covariance_curr = std::make_shared<steam::Covariance>(solver);
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
         T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));
@@ -623,22 +786,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     timer[6]->stop();
   }
 
-  if(qdata.preintegrated_delta_yaw)
-  {
-    //clear accumulated preintegration and reset variables for next interval
-    *qdata.stamp_end_pre_integration = timestamp_odo_new;
-    *qdata.stamp_start_pre_integration = timestamp_odo_new;
-    *qdata.preintegrated_delta_yaw = 0.0;
-  }
-  
-
   /// Dump timing info
   CLOG(DEBUG, "radar.odometry_icp") << "Dump timing info inside loop: ";
   for (size_t i = 0; i < clock_str.size(); i++) {
     CLOG(DEBUG, "radar.odometry_icp") << "  " << clock_str[i] << timer[i]->count();
   }
 
-  /// Outputs
+  // Outputs
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
   if (config_->use_trajectory_estimation) {
@@ -731,18 +885,20 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_m_odo = T_r_m_eval_extp->value();
     *qdata.timestamp_odo = timestamp_odo_new;
 
-
-
-//#if 1
-//    CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-//    CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-//#endif
+#if 1
+   CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+   CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
-    if (config_->use_trajectory_estimation)
+    if (config_->use_trajectory_estimation) {
       *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+      *qdata.trajectory_prev= trajectory;
+      *qdata.covariance_prev = covariance_curr;
+    }
+
     //
     *qdata.odo_success = true;
     CLOG(DEBUG, "radar.odometry_icp") << "Odometry successful. T_r_m_icp: " << T_r_m_icp;

@@ -37,6 +37,8 @@ namespace radar {
 
 struct RadarQueryCache : virtual public tactic::QueryCache {
   PTR_TYPEDEFS(RadarQueryCache);
+  // metadata
+  tactic::Cache<std::string> seq_name;
 
   // radar input
   tactic::Cache<navtech_msgs::msg::RadarBScanMsg> scan_msg;  // from ROS
@@ -47,6 +49,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<sensor_msgs::msg::Imu> gyro_msg;
   tactic::Cache<sensor_msgs::msg::Imu> prev_gyro_msg;
   tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
+  tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
 
   // preintegration values
   tactic::Cache<tactic::Timestamp> stamp_start_pre_integration;
@@ -77,10 +80,17 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar;
   tactic::Cache<tactic::Timestamp> timestamp_odo_radar;
 
+  tactic::Cache<steam::traj::const_vel::Interface::Ptr> trajectory_prev;
+  tactic::Cache<steam::Covariance::Ptr> covariance_prev;
+
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
   tactic::Cache<const bool> submap_loc_changed;
   tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
+
+  // Doppler paper stuff
+  tactic::Cache<Eigen::Vector2d> vel_meas;
+  tactic::Cache<double> yaw_meas;
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {

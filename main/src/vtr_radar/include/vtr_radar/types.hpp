@@ -42,6 +42,9 @@ struct RadarData {
   /// The OpenCV image for the FFT scan
   cv::Mat fft_scan;
   cv::Mat cartesian;
+
+  // Chirp information
+  std::vector<bool> up_chirps;
 };
 
 }  // namespace radar

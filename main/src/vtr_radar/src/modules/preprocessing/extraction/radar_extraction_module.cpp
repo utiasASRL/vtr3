@@ -182,6 +182,7 @@ auto RadarExtractionModule::Config::fromROS(
   
   // Doppler stuff
   config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
+  config->upfront_range_corr = node->declare_parameter<bool>(param_prefix + ".upfront_range_corr", config->upfront_range_corr);
 
   // clang-format on
   return config;
@@ -192,6 +193,8 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  if(!qdata.radar_data) return;
+
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
@@ -201,12 +204,6 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     pointcloud_pub_ = qdata.node->create_publisher<PointCloudMsg>("raw_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
-  }
-
-  if(!qdata.radar_data)  //no online radar data yet check to see if this is a gyro message
-  {
-    // CLOG(DEBUG, "radar.pc_extractor") << "We have the gyro set it is possible we are running online pipeline";
-    return;
   }
 
   /// Establish output beta and also the raw point cloud
@@ -220,6 +217,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat cartesian = qdata.radar_data->cartesian;
   std::vector<int64_t> azimuth_times = qdata.radar_data->azimuth_times;
   std::vector<double> azimuth_angles = qdata.radar_data->azimuth_angles;
+  std::vector<bool> up_chirps = qdata.radar_data->up_chirps;
   double radar_resolution = config_->radar_resolution;
   double cart_resolution = config_->cart_resolution;
 
@@ -237,46 +235,48 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   beta = config_->beta;
 
+  CLOG(DEBUG, "radar.pc_extractor") << "Starting radar point cloud extraction using detector: " << config_->detector;
+
   // Now based on the choice of the detector, we will run the detector accordingly
   if (config_->detector == "cen2018") {
     Cen2018 detector = Cen2018<PointWithInfo>(
         config_->cen2018.zq, config_->cen2018.sigma, config_->minr,
         config_->maxr, config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "kpeaks") {
     KPeaks detector = KPeaks<PointWithInfo>(
         config_->kpeaks.kstrong, config_->kpeaks.threshold2,
         config_->kpeaks.threshold3, config_->minr, config_->maxr,
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "kstrongest") {
     KStrongest detector = KStrongest<PointWithInfo>(
         config_->kstrongest.kstrong, config_->kstrongest.static_threshold,
         config_->minr, config_->maxr, config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "oscfar") {
     OSCFAR detector = OSCFAR<PointWithInfo>(
         config_->oscfar.width, config_->oscfar.guard, config_->oscfar.kstat,
         config_->oscfar.threshold, config_->minr, config_->maxr,
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "tm_cfar") {
     TM_CFAR detector = TM_CFAR<PointWithInfo>(
         config_->tm_cfar.width, config_->tm_cfar.guard,
         config_->tm_cfar.threshold, config_->tm_cfar.N1,
         config_->tm_cfar.N2, config_->minr, config_->maxr, config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "cacfar") {
     CACFAR detector = CACFAR<PointWithInfo>(
         config_->cacfar.width, config_->cacfar.guard,
         config_->cacfar.threshold, config_->minr, config_->maxr, 
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "modified_cacfar") {
     ModifiedCACFAR detector = ModifiedCACFAR<PointWithInfo>(
@@ -288,7 +288,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
           detector.cudaRun(fft_scan, radar_resolution, azimuth_times, azimuth_angles, raw_point_cloud);
           CLOG(DEBUG, "radar.pc_extractor")<< "Sam: I am running the cuda version of the detector";
         #else
-          detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+          detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,up_chirps,
                  raw_point_cloud);
         #endif 
   }else if (config_->detector == "cfear_kstrong") {
@@ -297,7 +297,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->cfear_kstrong.kstrong, config_->cfear_kstrong.z_min,
         config_->cfear_kstrong.r, config_->cfear_kstrong.f, config_->minr, config_->maxr,
         config_->range_offset); 
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "bfar") {
     BFAR detector = BFAR<PointWithInfo>(
@@ -305,21 +305,21 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->bfar.threshold,
         config_->bfar.static_threshold, config_->minr, config_->maxr, 
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "cago_cfar") {
     CAGO_CFAR detector = CAGO_CFAR<PointWithInfo>(
         config_->cago_cfar.width, config_->cago_cfar.guard,
         config_->cago_cfar.threshold, config_->minr, config_->maxr, 
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "caso_cfar") {
     CASO_CFAR detector = CASO_CFAR<PointWithInfo>(
         config_->caso_cfar.width, config_->caso_cfar.guard,
         config_->caso_cfar.threshold, config_->minr, config_->maxr, 
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "is_cfar") {
     IS_CFAR detector = IS_CFAR<PointWithInfo>(
@@ -327,7 +327,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->is_cfar.alpha_I, config_->is_cfar.N_TI,
         config_->is_cfar.beta_I, config_->minr, config_->maxr, 
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "vi_cfar") {
     VI_CFAR detector = VI_CFAR<PointWithInfo>(
@@ -335,21 +335,21 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->vi_cfar.K_VI, config_->vi_cfar.K_MR,
         config_->vi_cfar.C_N, config_->minr, config_->maxr, 
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "msca_cfar") {
     MSCA_CFAR detector = MSCA_CFAR<PointWithInfo>(
         config_->msca_cfar.width, config_->msca_cfar.guard,
         config_->msca_cfar.threshold, config_->msca_cfar.M,
         config_->minr, config_->maxr, config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else if (config_->detector == "cen2019") {
     Cen2019 detector = Cen2019<PointWithInfo>(
         config_->cen2019.width, config_->cen2019.guard,
         config_->cen2019.l_max, config_->minr, config_->maxr, 
         config_->range_offset);
-    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
+    detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles, up_chirps,
                  raw_point_cloud);
   } else {
     CLOG(ERROR, "radar.pc_extractor")
@@ -357,6 +357,39 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     throw std::runtime_error("Unknown detector: " + config_->detector);
   }
 // #endif
+
+  // do upfront range correction if desired and radial velocity metadata present
+  if (config_->upfront_range_corr) {
+    bool all_pts_have_rv = true;
+    for (auto &point : raw_point_cloud) {
+      if (point.radial_velocity != -1000.0) {
+        if (point.up_chirp)
+          point.rho += point.radial_velocity * config_->beta;
+        else
+          point.rho -= point.radial_velocity * config_->beta;
+      } else {
+        all_pts_have_rv = false;
+      }
+    }
+
+    if (!all_pts_have_rv) {
+      CLOG(ERROR, "radar.navtech_extractor")
+          << "Not all points have radial velocity for upfront range "
+             "correction!!!!";
+    }
+
+    // If we did upfront correction, save the beta value
+    beta = 0.0;
+  }
+
+  // sort points into a canonical order, this helps to reduce randomness and improves
+  // reproducability while multithreading
+  std::sort(raw_point_cloud.begin(), raw_point_cloud.end(), [](PointWithInfo a, PointWithInfo b) {
+    if (a.timestamp == b.timestamp)
+      return a.rho < b.rho;
+    else
+      return a.timestamp < b.timestamp;
+  });
 
   if(config_->save_pointcloud_overlay){
     cv::Mat point_overlay = extract_indices_from_pointcloud(fft_scan, raw_point_cloud, azimuth_angles, radar_resolution, config_->range_offset);

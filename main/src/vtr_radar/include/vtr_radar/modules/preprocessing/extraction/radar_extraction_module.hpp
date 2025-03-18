@@ -151,7 +151,8 @@ class RadarExtractionModule : public tactic::BaseModule {
     double radar_resolution = 0.040308;
     double range_offset = -0.319910;
     double cart_resolution = 0.25;
-    double beta = 0.049;
+    double beta = 0.05;
+    bool upfront_range_corr = false;
 
     bool save_pointcloud_overlay = false;
     bool visualize = false;

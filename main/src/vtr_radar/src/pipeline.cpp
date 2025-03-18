@@ -35,9 +35,12 @@ auto RadarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
   // modules
-  config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
-  config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
-  config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
+  if (!node->has_parameter(param_prefix + ".preprocessing"))config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
+  else node->get_parameter(param_prefix + ".preprocessing", config->preprocessing);
+  if (!node->has_parameter(param_prefix + ".odometry")) config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
+  else node->get_parameter(param_prefix + ".odometry", config->odometry);
+  if (!node->has_parameter(param_prefix + ".localization")) config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
+  else node->get_parameter(param_prefix + ".localization", config->localization);
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
@@ -88,6 +91,8 @@ void RadarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
+  trajectory_prev_ = nullptr;
+  covariance_prev_ = nullptr;
 
   timestamp_odo_radar_ = nullptr;
   T_r_m_odo_radar_ = nullptr;
@@ -128,6 +133,9 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo_radar = timestamp_odo_radar_;
     qdata->T_r_m_odo_radar = T_r_m_odo_radar_;
     qdata->w_m_r_in_r_odo_radar = w_m_r_in_r_odo_radar_;
+
+    qdata->trajectory_prev = trajectory_prev_;
+    qdata->covariance_prev = covariance_prev_;
   }
 
   /// Carry over preintegration stuff
@@ -151,6 +159,8 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       timestamp_odo_radar_ = qdata->timestamp_odo_radar.ptr();
       T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
       w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr(); 
+      trajectory_prev_ = qdata->trajectory_prev.ptr();
+      covariance_prev_ = qdata->covariance_prev.ptr();
     }
   }
 
