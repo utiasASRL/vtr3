@@ -88,6 +88,7 @@ class KPeaks : public Detector<PointT> {
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
+           const std::vector<bool> &up_chirps, // added here for consistensy
            pcl::PointCloud<PointT> &pointcloud) override;
 
  private:
