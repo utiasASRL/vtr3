@@ -79,6 +79,8 @@ void RadarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
+  trajectory_prev_ = nullptr;
+  covariance_prev_ = nullptr;
 
   timestamp_odo_radar_ = nullptr;
   T_r_m_odo_radar_ = nullptr;

@@ -20,8 +20,6 @@
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
 
-#include "steam/evaluable/p2p/yaw_error_evaluator.hpp"
-
 namespace vtr {
 namespace radar {
 
@@ -90,6 +88,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->yaw_cauchy_k = node->declare_parameter<double>(param_prefix + ".yaw_cauchy_k", config->yaw_cauchy_k);
   config->yaw_meas_std = node->declare_parameter<double>(param_prefix + ".yaw_meas_std", config->yaw_meas_std);
   config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
+  config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
   config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
   const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", std::vector<double>(3, 1.0));
   if (w_icp.size() != 3) {
@@ -228,8 +227,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   steam::Covariance::Ptr covariance_curr = nullptr;
-  
   std::vector<StateVarBase::Ptr> state_vars;
+
   if (config_->use_trajectory_estimation) {
     trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
@@ -244,13 +243,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // Set up main state variables
     for (int i = 0; i < num_states; ++i) {
       Time knot_time(static_cast<int64_t>(first_time + i * time_diff));
-      //
       const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo);
       const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
       const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-      //
       const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-      //
       trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
@@ -262,14 +258,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
         const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
         const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
-        CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo pose: \n" << traj_T_r_m_odo->value();
-        CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo vel: " << traj_w_m_r_in_r_odo->value();
-        // CLOG(DEBUG, "radar.odometry_icp") << "Trajectory odo cov: \n" << traj_T_r_m_cov;
         CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-  
         trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
-        // const auto new_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        // trajectory->addPosePrior(Time(first_time), traj_T_r_m_odo->value(), new_cov);
       } else {
         const auto T_r_m_odo_prior = lgmath::se3::Transformation();
         const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
@@ -286,8 +276,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         state_vars.emplace_back(prev_T_r_m_var);
         state_vars.emplace_back(prev_w_m_r_in_r_var);
     }
-
-
 
     CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
     CLOG(DEBUG, "radar.odometry_icp") << "Previous odo vel: " << w_m_r_in_r_odo;
@@ -416,6 +404,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
   if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
+  if (qdata.preintegrated_delta_yaw) CLOG(DEBUG, "radar.odometry_icp") << "Preintegrated delta yaw is available.";
+  if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -494,6 +484,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+      const bool rm_ori = config_->remove_orientation;
 
       auto icp_error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
         if (config_->use_trajectory_estimation) {
@@ -505,16 +496,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
             const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
             const auto &up_chirp = query_points[ind.first].up_chirp;
             if (up_chirp) {
-              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta);
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
             } else {
-              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta);
+              return p2p::p2pErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta, rm_ori);
             }
             
           } else {
-            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
+            return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt, rm_ori);
           }
         } else {
-          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
+          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt, rm_ori);
         }
       }();
 
@@ -586,9 +577,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
         bias->locked() = true;
         const auto loss_func = L2LossFunc::MakeShared();
-        const auto noise_model = StaticNoiseModel<1>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 1, 1>::Identity());
-        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+        const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
+        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
         problem.addCostTerm(measurement_cost);
       }

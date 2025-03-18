@@ -102,6 +102,9 @@ class LidarPipeline : public tactic::BasePipeline {
   tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
   /** \brief transformation from latest submap vertex to robot */
   tactic::EdgeTransform T_sv_m_odo_ = tactic::EdgeTransform(true);
+  
+  std::shared_ptr<steam::traj::const_vel::Interface::Ptr> trajectory_prev_;
+  std::shared_ptr<steam::Covariance::Ptr> covariance_prev_;
 
   /// localization cached data
   /** \brief Current submap for localization */
