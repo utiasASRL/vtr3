@@ -121,7 +121,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
         pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
   }
 
-  CLOG(DEBUG, "lidar.preprocessing")
+  CLOG(DEBUG, "radar.preprocessing")
       << "linearity sampled point size: " << filtered_point_cloud->size();
 
   CLOG(DEBUG, "radar.preprocessing")

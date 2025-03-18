@@ -81,6 +81,10 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
   tactic::Cache<const bool> submap_loc_changed;
   tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
+
+  // Doppler paper stuff
+  tactic::Cache<Eigen::Vector2d> vel_meas;
+  tactic::Cache<double> yaw_meas;
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {
