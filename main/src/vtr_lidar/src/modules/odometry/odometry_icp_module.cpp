@@ -153,6 +153,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// trajectory smoothing
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval = nullptr;
+  lgmath::se3::Transformation T_r_m_eval_initial = lgmath::se3::Transformation();
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   steam::Covariance::Ptr covariance_curr = nullptr;
@@ -228,6 +229,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
   }
+  T_r_m_eval_initial = T_r_m_eval->value();
 
   /// compound transform for alignment (sensor to point map transform)
   const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
@@ -549,17 +551,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// Outputs
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
-  if (config_->use_trajectory_estimation) {
-    const auto &w_m_r_in_r_prev = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(timestamp_odo)))->evaluate().matrix();
+  if (config_->use_trajectory_estimation && trajectory_prev != nullptr) {
+    const auto &w_m_r_in_r_prev = trajectory_prev->getVelocityInterpolator(Time(static_cast<int64_t>(timestamp_odo)))->evaluate().matrix();
     const auto &w_m_r_in_r_new = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(query_stamp)))->evaluate().matrix();
     const auto vel_diff = w_m_r_in_r_new - w_m_r_in_r_prev;
     const auto vel_diff_norm = vel_diff.norm();
     const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
     const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
-    const auto T_r_m_prev = trajectory->getPoseInterpolator(timestamp_odo)->value();
     const auto T_r_m_query = T_r_m_eval->value();
-    const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
+    const auto diff_T = (T_r_m_query.inverse() * T_r_m_eval_initial).vec();
     const auto diff_T_trans = diff_T.head<3>().norm();
     const auto diff_T_rot = diff_T.tail<3>().norm();
     
