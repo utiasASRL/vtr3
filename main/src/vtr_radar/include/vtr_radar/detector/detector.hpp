@@ -40,6 +40,8 @@ class Detector {
   virtual void run(const cv::Mat &raw_scan, const float &res,
                    const std::vector<int64_t> &azimuth_times,
                    const std::vector<double> &azimuth_angles,
+                   const std::vector<bool> &up_chirps,
+                   const std::vector<double> &azimuth_vel,
                    pcl::PointCloud<PointT> &pointcloud) = 0;
 };
 
@@ -58,6 +60,8 @@ class KStrongest : public Detector<PointT> {
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
+           const std::vector<bool> &up_chirps,
+           const std::vector<double> &azimuth_vel,
            pcl::PointCloud<PointT> &pointcloud) override;
 
  private:
@@ -110,6 +114,8 @@ class Cen2018 : public Detector<PointT> {
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
+           const std::vector<bool> &up_chirps,
+           const std::vector<double> &azimuth_vel,
            pcl::PointCloud<PointT> &pointcloud) override;
 
  private:
@@ -136,6 +142,8 @@ class OSCFAR : public Detector<PointT> {
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
+           const std::vector<bool> &up_chirps,
+           const std::vector<double> &azimuth_vel,
            pcl::PointCloud<PointT> &pointcloud) override;
 
  private:
@@ -166,6 +174,8 @@ class TM_CFAR : public Detector<PointT> {
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
+           const std::vector<bool> &up_chirps,
+           const std::vector<double> &azimuth_vel,
            pcl::PointCloud<PointT> &pointcloud) override;
 
  private:
@@ -228,6 +238,8 @@ class ModifiedCACFAR : public Detector<PointT> {
   void run(const cv::Mat &raw_scan, const float &res,
            const std::vector<int64_t> &azimuth_times,
            const std::vector<double> &azimuth_angles,
+           const std::vector<bool> &up_chirps,
+           const std::vector<double> &azimuth_vel,
            pcl::PointCloud<PointT> &pointcloud) override;
 
   #ifdef ENABLE_CUDA
