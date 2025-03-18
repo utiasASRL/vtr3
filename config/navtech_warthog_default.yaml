@@ -26,6 +26,7 @@
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
+    gyro_bias: 0.003
     queue_size: 50
     graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -64,8 +65,8 @@
         - extraction
         - filtering
       odometry:
-        - gyro # you can turn off gyro and preintegration here
-        - preintegration
+        # - gyro # you can turn off gyro and preintegration here
+        # - preintegration
         - icp
         - mapping
         - vertex_test
@@ -145,25 +146,26 @@
         visualize: true
 
     odometry:
-      gyro:
-        type: radar.odometry_gyro
-        gyro_bias: 0.003 #0.003 #0.0041 # 0.0034 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01] # was 0.01 for yaw so I am really trusting the gyro more
-        gyro_cov: 1e-7
+      # gyro:
+      #   type: radar.odometry_gyro
+      #   gyro_bias: 0.003 #0.003 #0.0041 # 0.0034 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
+      #   traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01] # was 0.01 for yaw so I am really trusting the gyro more
+      #   gyro_cov: 1e-7
 
-        # steam parameters #TOTUNE
-        verbose: false
-        max_iterations: 3
+      #   # steam parameters #TOTUNE
+      #   verbose: false
+      #   max_iterations: 3
         
-      preintegration:
-        type: radar.odometry_preintegration
-        gyro_bias: 0.003 # 0.0041 # 0.0034 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
+      # preintegration:
+      #   type: radar.odometry_preintegration
+      #   gyro_bias: 0.003 # 0.0041 # 0.0034 # need to add gyro bias as a first step a naive way in which we can do this is to add a constant to the gyro reading (sam)
 
       icp:
         type: radar.odometry_icp
 
         # continuous time estimation
         use_trajectory_estimation: true
+        use_prior: true
         traj_num_extra_states: 0
         traj_lock_prev_pose: true      #- obstacle detection.cbit
         traj_lock_prev_vel: true
@@ -182,8 +184,8 @@
         huber_delta: 1.0 # 1.0
         cauchy_k: 0.2 # was 0.8
         
-        #gyro preintegration
-        preint_cov: 1e-7
+        # #gyro preintegration
+        # preint_cov: 1e-7
 
         # steam parameters #TOTUNE
         verbose: false

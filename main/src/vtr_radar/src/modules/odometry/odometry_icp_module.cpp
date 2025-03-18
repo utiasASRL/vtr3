@@ -172,8 +172,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &beta = *qdata.beta;
-  const auto &yaw_meas = *qdata.yaw_meas;
-  const auto &vel_meas = *qdata.vel_meas;
+
   const auto &trajectory_prev = *qdata.trajectory_prev;
   const auto &covariance_prev = *qdata.covariance_prev;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
@@ -612,7 +611,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         CLOG(DEBUG, "radar.odometry_icp") << "DT preint_end to preint_start: " << (end_int_time - start_int_time).seconds();
         CLOG(DEBUG, "radar.odometry_icp") << "Preint term from " << start_stamp << " to " << end_stamp;
         CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
-        CLOG(DEBUG, "radar.odometry_icp") << "Compared to yaw meas: " << yaw_meas;
+ 
       }
 
       const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
@@ -624,6 +623,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     if (config_->use_vel_meas) {
+      const auto &yaw_meas = *qdata.yaw_meas;
+      const auto &vel_meas = *qdata.vel_meas;
+      CLOG(DEBUG, "radar.odometry_icp") << "Compared to yaw meas: " << yaw_meas;
       if (yaw_meas != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
