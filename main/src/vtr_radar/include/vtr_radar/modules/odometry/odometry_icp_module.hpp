@@ -44,7 +44,6 @@ class OdometryICPModule : public tactic::BaseModule {
 
     // continuous-time estimation
     double prior_bloat = 1.0;
-    bool use_trajectory_estimation = false;
     bool use_radial_velocity = false;
     bool use_vel_meas = false;
     int traj_num_extra_states = 0;
