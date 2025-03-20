@@ -43,7 +43,6 @@ class OdometryICPModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // continuous-time estimation
-    bool use_prior = true;
     double prior_bloat = 1.0;
     bool use_trajectory_estimation = false;
     bool use_radial_velocity = false;

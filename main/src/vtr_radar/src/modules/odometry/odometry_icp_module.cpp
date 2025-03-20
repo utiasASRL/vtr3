@@ -61,7 +61,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
-  config->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config->use_prior);
   config->prior_bloat = node->declare_parameter<double>(param_prefix + ".prior_bloat", config->prior_bloat);
 
   // icp params
@@ -253,28 +252,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     // Set up priors
-    if (config_->use_prior) {
-      if (trajectory_prev != nullptr) {
-        const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
-        const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
-        const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
-        CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-        trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
-      } else {
-        const auto T_r_m_odo_prior = lgmath::se3::Transformation();
-        const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
-        const auto cov_prior = 1e-5 * Eigen::Matrix<double, 12, 12>::Identity();
-  
-        trajectory->addStatePrior(Time(first_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
-      }
+    if (trajectory_prev != nullptr) {
+      const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
+      const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
+      const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
+      CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
+      trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
     } else {
-        auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-        auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-        if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
-        if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
-        trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-        state_vars.emplace_back(prev_T_r_m_var);
-        state_vars.emplace_back(prev_w_m_r_in_r_var);
+      const auto T_r_m_odo_prior = lgmath::se3::Transformation();
+      const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
+      const auto cov_prior = 1e-5 * Eigen::Matrix<double, 12, 12>::Identity();
+
+      trajectory->addStatePrior(Time(first_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
     }
 
     CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
@@ -585,44 +574,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       }
     }
 
-    //Add preintegration cost terms if the flag is set
-    if(qdata.preintegrated_delta_yaw) {
-      const auto &start_stamp = *qdata.stamp_start_pre_integration;
-      const auto &end_stamp = *qdata.stamp_end_pre_integration;
-
-      // Get states at the times of the preintegration
-      const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
-      const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
-
-      Time start_int_time(static_cast<int64_t>(start_stamp));
-      Time end_int_time(static_cast<int64_t>(end_stamp));
-      // Transform into sensor frame
-      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
-      const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
-      T_s_r_gyro_var->locked() = true;
-
-      const auto T_m_s_start = inverse(compose(T_s_r_gyro_var, T_r_m_start));
-      const auto T_m_s_end = inverse(compose(T_s_r_gyro_var, T_r_m_end));
-
-      // Cost Term 
-      const auto &yaw = *qdata.preintegrated_delta_yaw;
-
-      if (step == 0) {
-        CLOG(DEBUG, "radar.odometry_icp") << "DT preint_start to last scan: " << (start_int_time - last_scan_time).seconds();
-        CLOG(DEBUG, "radar.odometry_icp") << "DT preint_end to preint_start: " << (end_int_time - start_int_time).seconds();
-        CLOG(DEBUG, "radar.odometry_icp") << "Preint term from " << start_stamp << " to " << end_stamp;
-        CLOG(DEBUG, "radar.odometry_icp") << "Adding total preintegrated yaw value of: " << yaw;
-        CLOG(DEBUG, "radar.odometry_icp") << "Compared to yaw meas: " << yaw_meas;
-      }
-
-      const auto yaw_loss_func = CauchyLossFunc::MakeShared(config_->yaw_cauchy_k);
-      const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>::Identity()*config_->preint_cov);
-      const auto error_func = p2p::YawErrorEvaluator::MakeShared(yaw, T_m_s_start, T_m_s_end);
-      const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, yaw_loss_func);
-
-      problem.addCostTerm(measurement_cost);
-    }
-
     if (config_->use_vel_meas) {
       if (yaw_meas != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
@@ -643,7 +594,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         CLOG(ERROR, "radar.odometry_icp") << "Velocity measurement not available.";
       }
     }
-    
 
     // optimize
     GaussNewtonSolver::Params params;
