@@ -9,11 +9,14 @@ from unicycle_follower_solver import solver as solver_follower
 
 
 # specs
-p_init_l = 5.45
+p_init_l = 15.0
 p_init_f = 0
 
-dist = 5.0
-dist_margin = 100.0
+dist = 15.0
+dist_margin = 100
+
+lower_dist_bound = 4.0
+upper_dist_bound = dist + dist_margin
 
 v_max = 1.5
 v_min = -1.5
@@ -46,8 +49,10 @@ def shift_timestep(step, t0, state_init, u, f, last_u):
 def DM2Arr(dm):
     return np.array(dm.full())
 
-path_x = np.linspace(0, 50, 10000)
-path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
+path_x = np.concatenate((np.linspace(0, 40, 5000), 40 + 1 * np.cos(np.linspace(np.pi/2, -np.pi/2, 500)), 40 - np.linspace(0, 40, 5000)))
+path_y = np.concatenate(( 5 + np.zeros(5000), 5 + 1 - 1 * np.sin(np.linspace(np.pi/2, -np.pi/2, 500)), 5 + 2 + np.zeros(5000)))
+
+
 #path_y[-1000:] = 0.5*path_x[-1000:]
 path_mat = np.zeros((np.size(path_x), 3))
 path_mat[:, 0] = path_x
@@ -103,8 +108,8 @@ ubg_l[n_states*(N+1):n_states*(N+1)+N] = 100
 lbg_f[n_states*(N+1):n_states*(N+1)+N] = -100
 ubg_f[n_states*(N+1):n_states*(N+1)+N] = 100
 
-lbg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist - dist_margin
-ubg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist + dist_margin
+lbg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = lower_dist_bound
+ubg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = upper_dist_bound
 
 
 #Acceleration constraints
