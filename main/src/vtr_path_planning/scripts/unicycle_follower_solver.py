@@ -14,6 +14,9 @@ Q_theta = 5
 R1 = 1.0 #0.1
 R2 = 1.0 #0.1
 
+# Distance Covariance
+Q_dist = 0.001
+
 # Acceleration Cost Covariance
 Acc_R1 = 0.1
 Acc_R2 = 0.5 #0.01
@@ -76,7 +79,7 @@ measured_velo = init_vel
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
 
-D = ca.DM(1)
+D = ca.DM(Q_dist)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
@@ -159,8 +162,8 @@ for k in range(1, N):
 
 
 for k in range(N):
-    theta_k = follower_ref_poses[n_states*k + 2]
-    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k)] - follower_ref_poses[n_states*k: n_states*k+2]))
+    theta_k = follower_ref_poses[n_states*(k) + 2]
+    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k+1)] - follower_ref_poses[n_states*(k): n_states*(k)+2]))
 
 
 for k in range(0, N):
