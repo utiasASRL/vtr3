@@ -178,9 +178,6 @@
         averaging_num_steps: 5 # 5
         huber_delta: 1.0 # 1.0
         cauchy_k: 0.8
-        
-        #gyro preintegration
-        preint_cov: 1e-7
 
         # steam parameters #TOTUNE
         verbose: false

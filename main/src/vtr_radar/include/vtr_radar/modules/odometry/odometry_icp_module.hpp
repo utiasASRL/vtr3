@@ -53,9 +53,6 @@ class OdometryICPModule : public tactic::BaseModule {
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
-    // preintegration weight
-    double preint_cov = 0.1;
-    
     // gyro weight
     double gyro_cov = 1e-3;
 
