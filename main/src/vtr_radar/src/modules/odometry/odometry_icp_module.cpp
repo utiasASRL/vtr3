@@ -134,13 +134,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.timestamp_odo_radar.emplace(*qdata.stamp);
     qdata.T_r_m_odo_radar.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo_radar.emplace(Eigen::Matrix<double, 6, 1>::Zero());
-    const_vel::Interface::Ptr trajectory = nullptr;
-    qdata.trajectory_prev.emplace(trajectory);
-    Covariance::Ptr covariance = nullptr;
-    qdata.covariance_prev.emplace(covariance);
     qdata.T_r_m_odo_prior.emplace(lgmath::se3::Transformation());
     qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
-    qdata.cov_prior.emplace(Eigen::Matrix<double, 12, 12>::Identity());
+    qdata.cov_prior.emplace(1e-5 * Eigen::Matrix<double, 12, 12>::Identity());
     // Set timestamp equal to the end of the first frame
     const auto &query_points = *qdata.preprocessed_point_cloud;
     const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
@@ -172,8 +168,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &beta = *qdata.beta;
   const auto &yaw_meas = *qdata.yaw_meas;
   const auto &vel_meas = *qdata.vel_meas;
-  const auto &trajectory_prev = *qdata.trajectory_prev;
-  const auto &covariance_prev = *qdata.covariance_prev;
   const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;
   const auto &timestamp_prior = *qdata.timestamp_prior;
   const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;
@@ -220,7 +214,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
-  steam::Covariance::Ptr covariance_curr = nullptr;
   Eigen::Matrix<double, 12, 12> cov_prior_new = cov_prior;
   std::vector<StateVarBase::Ptr> state_vars;
 
@@ -241,20 +234,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // Set up priors
-  if (trajectory_prev != nullptr) {
-    // const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(frame_start_time);
-    // const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(frame_start_time);
-    // const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, frame_start_time);
-    // trajectory->addStatePrior(Time(frame_start_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
-    CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-    trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
-  } else {
-    const auto T_r_m_odo_init = lgmath::se3::Transformation();
-    const auto w_m_r_in_r_odo_init = Eigen::Matrix<double, 6, 1>::Zero();
-    const auto cov_prior_init = 1e-5 * Eigen::Matrix<double, 12, 12>::Identity();
-
-    trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_init, w_m_r_in_r_odo_init, cov_prior_init);
-  }
+  CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
+  trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
 
   CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
   CLOG(DEBUG, "radar.odometry_icp") << "Previous odo vel: " << w_m_r_in_r_odo;
@@ -669,7 +650,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
       T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
-      covariance_curr = std::make_shared<steam::Covariance>(solver);
       cov_prior_new = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
       //
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
@@ -775,8 +755,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-    *qdata.trajectory_prev= trajectory;
-    *qdata.covariance_prev = covariance_curr;
     const auto variable_end = trajectory->get(Time(static_cast<int64_t>(frame_end_time)));
     *qdata.T_r_m_odo_prior = variable_end->pose()->evaluate();
     *qdata.w_m_r_in_r_odo_prior = variable_end->velocity()->evaluate();

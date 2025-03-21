@@ -79,8 +79,6 @@ void RadarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
-  trajectory_prev_ = nullptr;
-  covariance_prev_ = nullptr;
 
   timestamp_odo_radar_ = nullptr;
   T_r_m_odo_radar_ = nullptr;
@@ -132,8 +130,6 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
     qdata->cov_prior = cov_prior_;
     qdata->timestamp_prior = timestamp_prior_;
-    qdata->trajectory_prev = trajectory_prev_;
-    qdata->covariance_prev = covariance_prev_;
   }
 
   /// Carry over preintegration stuff
@@ -161,8 +157,6 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       timestamp_prior_ = qdata->timestamp_prior.ptr();
       w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
       cov_prior_ = qdata->cov_prior.ptr();
-      trajectory_prev_ = qdata->trajectory_prev.ptr();
-      covariance_prev_ = qdata->covariance_prev.ptr();
     }
   }
 

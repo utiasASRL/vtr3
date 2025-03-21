@@ -108,8 +108,6 @@ class RadarPipeline : public tactic::BasePipeline {
   std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_radar_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar_;
-  std::shared_ptr<steam::traj::const_vel::Interface::Ptr> trajectory_prev_;
-  std::shared_ptr<steam::Covariance::Ptr> covariance_prev_;
   std::shared_ptr<lgmath::se3::Transformation> T_r_m_odo_prior_;
   std::shared_ptr<int64_t> timestamp_prior_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior_;
