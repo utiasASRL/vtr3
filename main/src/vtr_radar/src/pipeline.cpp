@@ -86,6 +86,11 @@ void RadarPipeline::reset() {
   T_r_m_odo_radar_ = nullptr;
   w_m_r_in_r_odo_radar_ = nullptr;
 
+  T_r_m_odo_prior_ = nullptr;
+  w_m_r_in_r_odo_prior_ = nullptr;
+  cov_prior_ = nullptr;
+  timestamp_prior_ = nullptr;
+
   preint_start_time_ = nullptr;
   preint_end_time_ = nullptr;
   last_gyro_msg_ = nullptr;
@@ -122,6 +127,11 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->T_r_m_odo_radar = T_r_m_odo_radar_;
     qdata->w_m_r_in_r_odo_radar = w_m_r_in_r_odo_radar_;
 
+    // Prior stuff
+    qdata->T_r_m_odo_prior = T_r_m_odo_prior_;
+    qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
+    qdata->cov_prior = cov_prior_;
+    qdata->timestamp_prior = timestamp_prior_;
     qdata->trajectory_prev = trajectory_prev_;
     qdata->covariance_prev = covariance_prev_;
   }
@@ -147,6 +157,10 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       timestamp_odo_radar_ = qdata->timestamp_odo_radar.ptr();
       T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
       w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr(); 
+      T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
+      timestamp_prior_ = qdata->timestamp_prior.ptr();
+      w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
+      cov_prior_ = qdata->cov_prior.ptr();
       trajectory_prev_ = qdata->trajectory_prev.ptr();
       covariance_prev_ = qdata->covariance_prev.ptr();
     }
