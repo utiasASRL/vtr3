@@ -654,7 +654,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
       // Marginalize out all but last 2 states
       std::vector<StateVarBase::Ptr> state_vars_marg;
-      for (int i = 0; i < num_states - 2; ++i) {
+      for (int i = 0; i < num_states*2 - 2; ++i) {
         state_vars_marg.push_back(state_vars[i]);
       }
       problem.marginalizeVariable(state_vars_marg);
