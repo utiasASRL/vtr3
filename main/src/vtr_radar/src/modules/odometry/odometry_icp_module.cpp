@@ -652,8 +652,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
       T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
 
-      // Marginalize out the initial state ([0] is pose and [1] is velocity)
-      std::vector<StateVarBase::Ptr> state_vars_marg = {state_vars[0], state_vars[1]};
+      // Marginalize out all but last 2 states
+      std::vector<StateVarBase::Ptr> state_vars_marg;
+      for (int i = 0; i < num_states - 2; ++i) {
+        state_vars_marg.push_back(state_vars[i]);
+      }
       problem.marginalizeVariable(state_vars_marg);
       GaussNewtonSolver solver_marg(problem, params);
       solver_marg.optimize();
