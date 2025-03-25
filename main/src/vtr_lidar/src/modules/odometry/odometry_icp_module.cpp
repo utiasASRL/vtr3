@@ -50,8 +50,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // motion compensation
   config->use_trajectory_estimation = node->declare_parameter<bool>(param_prefix + ".use_trajectory_estimation", config->use_trajectory_estimation);
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
-  config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
-  config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
@@ -59,7 +57,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
-  config->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config->use_prior);
   config->prior_bloat = node->declare_parameter<double>(param_prefix + ".prior_bloat", config->prior_bloat);
 
   // icp params
@@ -183,30 +180,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     // Set up priors
-    if (config_->use_prior) {
-      if (trajectory_prev != nullptr) {
-        const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
-        const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
-        const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
-        CLOG(DEBUG, "lidar.odometry_icp") << "Adding prior to trajectory.";
-        trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
-      } else {
-        const auto T_r_m_odo_prior = lgmath::se3::Transformation();
-        const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
-        const auto cov_prior = 1e-5 * Eigen::Matrix<double, 12, 12>::Identity();
-  
-        trajectory->addStatePrior(Time(first_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
-      }
+    if (trajectory_prev != nullptr) {
+      const auto traj_T_r_m_odo = trajectory_prev->getPoseInterpolator(first_time);
+      const auto traj_w_m_r_in_r_odo = trajectory_prev->getVelocityInterpolator(first_time);
+      const auto traj_T_r_m_cov = config_->prior_bloat * trajectory_prev->getCovariance(*covariance_prev, first_time);
+      CLOG(DEBUG, "lidar.odometry_icp") << "Adding prior to trajectory.";
+      trajectory->addStatePrior(Time(first_time), traj_T_r_m_odo->value(), traj_w_m_r_in_r_odo->value(), traj_T_r_m_cov);
     } else {
-      // Use previous state to make problem observable (one needs to be locked)
-      // This is the old way of doing things and is inadvised
-      auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-      auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-      if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
-      if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
-      trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-      state_vars.emplace_back(prev_T_r_m_var);
-      state_vars.emplace_back(prev_w_m_r_in_r_var);
+      const auto T_r_m_odo_prior = lgmath::se3::Transformation();
+      const auto w_m_r_in_r_odo_prior = Eigen::Matrix<double, 6, 1>::Zero();
+      const auto cov_prior = 1e-5 * Eigen::Matrix<double, 12, 12>::Identity();
+
+      trajectory->addStatePrior(Time(first_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
     }
 
     Time query_time(static_cast<int64_t>(query_stamp));
@@ -517,9 +502,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // result
       if (config_->use_trajectory_estimation) {
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        /// \todo remove this if condition once steam allows for cov interp. between locked variables
-        if ((!config_->traj_lock_prev_pose) && (!config_->traj_lock_prev_vel))
-          T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
         T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
         covariance_curr = std::make_shared<steam::Covariance>(solver);
       } else {
