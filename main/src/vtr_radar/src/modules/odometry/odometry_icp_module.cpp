@@ -511,9 +511,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
         bias->locked() = true;
         const auto loss_func = L2LossFunc::MakeShared();
-        const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
-        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+        const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->gyro_cov));
+        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto measurement_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
 
         problem.addCostTerm(measurement_cost);
       }
