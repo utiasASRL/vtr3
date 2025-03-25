@@ -47,8 +47,6 @@ class OdometryICPModule : public tactic::BaseModule {
     bool use_radial_velocity = false;
     bool use_vel_meas = false;
     int traj_num_extra_states = 0;
-    bool traj_lock_prev_pose = false;
-    bool traj_lock_prev_vel = false;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
