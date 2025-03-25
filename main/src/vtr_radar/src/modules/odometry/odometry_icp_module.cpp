@@ -214,7 +214,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
-  Eigen::Matrix<double, 12, 12> cov_prior_new = cov_prior;
+  lgmath::se3::Transformation T_r_m_odo_prior_new; 
+  Eigen::Matrix<double, 6, 1> w_m_r_in_r_odo_prior_new;
+  Eigen::Matrix<double, 12, 12> cov_prior_new;
   std::vector<StateVarBase::Ptr> state_vars;
 
   trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
@@ -384,7 +386,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     timer[3]->start();
 
     // initialize problem
-    OptimizationProblem problem(config_->num_threads);
+    //OptimizationProblem problem(config_->num_threads);
+    SlidingWindowFilter problem(config_->num_threads);
 
     // add variables
     for (const auto &var : state_vars)
@@ -650,7 +653,17 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
       T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
-      cov_prior_new = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
+
+      // Marginalize out the initial state ([0] is pose and [1] is velocity)
+      std::vector<StateVarBase::Ptr> state_vars_marg = {state_vars[0], state_vars[1]};
+      problem.marginalizeVariable(state_vars_marg);
+      GaussNewtonSolver solver_marg(problem, params);
+      solver_marg.optimize();
+      Covariance covariance_marg(solver_marg);
+      T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
+      w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
+      cov_prior_new = trajectory->getCovariance(covariance_marg, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
+
       //
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
@@ -755,9 +768,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-    const auto variable_end = trajectory->get(Time(static_cast<int64_t>(frame_end_time)));
-    *qdata.T_r_m_odo_prior = variable_end->pose()->evaluate();
-    *qdata.w_m_r_in_r_odo_prior = variable_end->velocity()->evaluate();
+    *qdata.T_r_m_odo_prior = T_r_m_odo_prior_new;
+    *qdata.w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_new;
     *qdata.cov_prior = cov_prior_new;
     *qdata.timestamp_prior = frame_end_time;
 
