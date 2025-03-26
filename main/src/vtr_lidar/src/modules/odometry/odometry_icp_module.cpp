@@ -198,7 +198,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // Set up priors
     CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-    trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
+    trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, config_->prior_bloat * cov_prior);
 
     // Set up eval state at which results will be generated and at which pointcloud will get undistorted to
     T_r_m_eval = trajectory->getPoseInterpolator(query_time);

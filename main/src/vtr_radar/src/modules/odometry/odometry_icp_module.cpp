@@ -234,7 +234,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Set up priors
   CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-  trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
+  trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, config_->prior_bloat * cov_prior);
 
   // General radar odometry (at scan time)
   T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
@@ -755,8 +755,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.timestamp_odo = timestamp_odo_new;
 
 #if 1
-   CLOG(WARNING, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-   CLOG(WARNING, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+   CLOG(DEBUG, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+   CLOG(DEBUG, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
 #endif
     //
     /// \todo double check validity when no vertex has been created
