@@ -53,8 +53,11 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
-  tactic::Cache<steam::traj::const_vel::Interface::Ptr> trajectory_prev;
-  tactic::Cache<steam::Covariance::Ptr> covariance_prev;
+
+  tactic::Cache<lgmath::se3::Transformation> T_r_m_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 12, 12>> cov_prior;
+  tactic::Cache<int64_t> timestamp_prior;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;

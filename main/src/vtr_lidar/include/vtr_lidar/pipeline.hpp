@@ -103,8 +103,11 @@ class LidarPipeline : public tactic::BasePipeline {
   /** \brief transformation from latest submap vertex to robot */
   tactic::EdgeTransform T_sv_m_odo_ = tactic::EdgeTransform(true);
   
-  std::shared_ptr<steam::traj::const_vel::Interface::Ptr> trajectory_prev_;
-  std::shared_ptr<steam::Covariance::Ptr> covariance_prev_;
+  // Prior stuff
+  std::shared_ptr<lgmath::se3::Transformation> T_r_m_odo_prior_;
+  std::shared_ptr<int64_t> timestamp_prior_;
+  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior_;
+  std::shared_ptr<Eigen::Matrix<double, 12, 12>> cov_prior_;
 
   /// localization cached data
   /** \brief Current submap for localization */
