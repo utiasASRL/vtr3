@@ -235,9 +235,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
   trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
 
-  CLOG(DEBUG, "radar.odometry_icp") << "Previous odo pose: " << T_r_m_odo;
-  CLOG(DEBUG, "radar.odometry_icp") << "Previous odo vel: " << w_m_r_in_r_odo;
-
   // General radar odometry (at scan time)
   T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
   w_m_r_in_r_eval = trajectory->getVelocityInterpolator(scan_time);
@@ -720,7 +717,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable && !solver_failed) {
-    // undistort the preprocessed pointcloud
+    // undistort the preprocessed pointcloud to eval state (at query timestamp)
     const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
     aligned_mat = T_s_m * aligned_mat;
     aligned_norms_mat = T_s_m * aligned_norms_mat;
