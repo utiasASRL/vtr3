@@ -184,7 +184,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // Set up main state variables
     for (int i = 0; i < num_states; ++i) {
-      Time knot_time(static_cast<int64_t>(frame_start_time + i * time_diff));
+      // Load in explicit end_time in case there is small rounding issues
+      const int64_t knot_time_stamp = (i == num_states - 1) ? frame_end_time : frame_start_time + i * time_diff;
+      Time knot_time(static_cast<int64_t>(knot_time_stamp));
       const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo_prior);
       const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo_prior;
       const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);

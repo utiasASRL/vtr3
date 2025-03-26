@@ -186,7 +186,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto timestamp_odo_new = *qdata.stamp;
   Time scan_time(static_cast<int64_t>(scan_stamp));
   Time odo_time_general(static_cast<int64_t>(timestamp_odo_general));
-  Time prev_time(static_cast<int64_t>(timestamp_prior));
   const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
   //const auto frame_start_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
   const auto frame_start_time = timestamp_prior;
@@ -221,8 +220,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const int64_t num_states = config_->traj_num_extra_states + 2;
   const int64_t time_diff = (frame_end_time - frame_start_time) / (num_states - 1);
   for (int i = 0; i < num_states; ++i) {
-    Time knot_time(static_cast<int64_t>(frame_start_time + i * time_diff));
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo_prior);
+    // Load in explicit end_time in case there is small rounding issues
+    const int64_t knot_time_stamp = (i == num_states - 1) ? frame_end_time : frame_start_time + i * time_diff;
+    Time knot_time(static_cast<int64_t>(knot_time_stamp));
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - timestamp_prior).seconds() * w_m_r_in_r_odo_prior);
     const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo_prior;
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
     const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo_prior);
@@ -658,7 +659,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
       w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
       cov_prior_new = trajectory->getCovariance(covariance_marg, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
-
       //
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
