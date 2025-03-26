@@ -81,8 +81,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->dopp_meas_std = node->declare_parameter<double>(param_prefix + ".dopp_meas_std", config->dopp_meas_std);
   config->vel_fwd_std = node->declare_parameter<double>(param_prefix + ".vel_fwd_std", config->vel_fwd_std);
   config->vel_side_std = node->declare_parameter<double>(param_prefix + ".vel_side_std", config->vel_side_std);
-  config->yaw_cauchy_k = node->declare_parameter<double>(param_prefix + ".yaw_cauchy_k", config->yaw_cauchy_k);
-  config->yaw_meas_std = node->declare_parameter<double>(param_prefix + ".yaw_meas_std", config->yaw_meas_std);
   config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
   config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
   config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
@@ -164,7 +162,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &beta = *qdata.beta;
-  const auto &yaw_meas = *qdata.yaw_meas;
   const auto &vel_meas = *qdata.vel_meas;
   const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;
   const auto &timestamp_prior = *qdata.timestamp_prior;
@@ -518,7 +515,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     if (config_->use_vel_meas) {
-      if (yaw_meas != -1000.0) {
+      if (vel_meas != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
         const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
