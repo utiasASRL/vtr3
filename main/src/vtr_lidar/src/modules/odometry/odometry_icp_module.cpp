@@ -290,6 +290,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   
   CLOG(DEBUG, "lidar.odometry_icp") << "Start the ICP optimization loop.";
   if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
+  if (qdata.gyro_msgs && !config_->use_trajectory_estimation) {
+    CLOG(WARNING, "radar.odometry_icp") << "Gyro measurements are available but trajectory estimation is not enabled. Not using gyro info.";
+  }
   if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
@@ -408,8 +411,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
           problem.addCostTerm(measurement_cost);
         }
-      } else {
-        CLOG(WARNING, "radar.odometry_icp") << "Gyro measurements are available but trajectory estimation is not enabled. Not using gyro info.";
       }
     }
 
