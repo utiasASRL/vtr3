@@ -89,11 +89,6 @@ void RadarPipeline::reset() {
   cov_prior_ = nullptr;
   timestamp_prior_ = nullptr;
 
-  preint_start_time_ = nullptr;
-  preint_end_time_ = nullptr;
-  last_gyro_msg_ = nullptr;
-  preint_delta_yaw_ = nullptr;
-
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -132,12 +127,6 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_prior = timestamp_prior_;
   }
 
-  /// Carry over preintegration stuff
-  if(preint_start_time_ != nullptr) qdata->stamp_start_pre_integration = preint_start_time_;
-  if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
-  if(last_gyro_msg_ != nullptr) qdata->prev_gyro_msg = last_gyro_msg_;
-  if(preint_delta_yaw_ != nullptr) qdata->preintegrated_delta_yaw = preint_delta_yaw_;
-
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
 
@@ -159,12 +148,6 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       cov_prior_ = qdata->cov_prior.ptr();
     }
   }
-
-  // store the preintegration stuff
-  if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
-  if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
-  if(qdata->prev_gyro_msg) last_gyro_msg_ = qdata->prev_gyro_msg.ptr();
-  if(qdata->preintegrated_delta_yaw) preint_delta_yaw_ = qdata->preintegrated_delta_yaw.ptr();
 }
 
 void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,

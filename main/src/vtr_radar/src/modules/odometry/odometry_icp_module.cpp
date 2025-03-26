@@ -335,7 +335,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
   if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
-  if (qdata.preintegrated_delta_yaw) CLOG(DEBUG, "radar.odometry_icp") << "Preintegrated delta yaw is available.";
   if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
@@ -513,7 +512,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     if (config_->use_vel_meas) {
-      if (vel_meas != -1000.0) {
+      if (vel_meas[0] != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
         const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
@@ -647,7 +646,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
       T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
 
-      // Marginalize out all but last 2 states
+      // Marginalize out all but last 2 states for prior
       std::vector<StateVarBase::Ptr> state_vars_marg;
       for (int i = 0; i < num_states*2 - 2; ++i) {
         state_vars_marg.push_back(state_vars[i]);
