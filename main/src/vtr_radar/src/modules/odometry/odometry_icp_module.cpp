@@ -130,10 +130,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.timestamp_odo_radar.emplace(*qdata.stamp);
     qdata.T_r_m_odo_radar.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo_radar.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    // Initialize prior values
     qdata.T_r_m_odo_prior.emplace(lgmath::se3::Transformation());
     qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     qdata.cov_prior.emplace(1e-5 * Eigen::Matrix<double, 12, 12>::Identity());
-    // Set timestamp equal to the end of the first frame
+    // Initialize timestamp equal to the end of the first frame
     const auto &query_points = *qdata.preprocessed_point_cloud;
     const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
     qdata.timestamp_prior.emplace(std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp);
@@ -164,9 +165,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &beta = *qdata.beta;
   const auto &vel_meas = *qdata.vel_meas;
   const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;
-  const auto &timestamp_prior = *qdata.timestamp_prior;
   const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;
   const auto &cov_prior = *qdata.cov_prior;
+  const auto &timestamp_prior = *qdata.timestamp_prior;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
 
@@ -185,7 +186,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto timestamp_odo_new = *qdata.stamp;
   Time scan_time(static_cast<int64_t>(scan_stamp));
   Time odo_time_general(static_cast<int64_t>(timestamp_odo_general));
-  Time prev_time(static_cast<int64_t>(timestamp_odo));
+  Time prev_time(static_cast<int64_t>(timestamp_prior));
   const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
   //const auto frame_start_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
   const auto frame_start_time = timestamp_prior;
@@ -221,10 +222,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const int64_t time_diff = (frame_end_time - frame_start_time) / (num_states - 1);
   for (int i = 0; i < num_states; ++i) {
     Time knot_time(static_cast<int64_t>(frame_start_time + i * time_diff));
-    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo);
-    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+    const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo_prior);
+    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo_prior;
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-    const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
+    const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo_prior);
     trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
     state_vars.emplace_back(T_r_m_var);
     state_vars.emplace_back(w_m_r_in_r_var);
