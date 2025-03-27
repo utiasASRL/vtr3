@@ -34,10 +34,15 @@ BaseModule::~BaseModule() {
                             : 0) / 1e6
       << "\033[0m";
 
+  /// temporary, remove later
   static double total_time = 0;
-  total_time += (count_.load() > 0 ? timer_.count() / (double)count_.load() : 0);
+  total_time += timer_.count();
+  static int max_count = 0;
+  if (count_.load() > max_count) {
+    max_count = count_.load();
+  }
   CLOG(DEBUG, "tactic.module")
-      << "\033[1;31mTotal run time per frame: " << total_time / 1e6 << " ms\033[0m";
+      << "\033[1;31mTotal run time per frame: " << total_time / 1e6 / max_count << " ms\033[0m";
 }
 
 void BaseModule::run(QueryCache &qdata, OutputCache &output,

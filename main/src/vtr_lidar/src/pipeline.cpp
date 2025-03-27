@@ -32,19 +32,15 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
   // modules
-  config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
-  config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
-  config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
+  if (!node->has_parameter(param_prefix + ".preprocessing"))config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
+  if (!node->has_parameter(param_prefix + ".odometry")) config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
+  if (!node->has_parameter(param_prefix + ".localization")) config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
   //
   config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
   config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
-  // localization execution by interval
-  // preprocessing module initializes before tactic module, declare parameters here
-  config->use_loc_flag = node->declare_parameter<bool>("tactic.use_loc_flag", false);
-  config->loc_threshold = node->declare_parameter<int>("tactic.loc_threshold", 1);
   // clang-format on
   return config;
 }
@@ -80,12 +76,6 @@ void LidarPipeline::reset() {
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
   //
-  preint_start_time_ = nullptr;
-  preint_end_time_ = nullptr;
-  last_gyro_msg_ = nullptr;
-  preint_delta_gyro_ = nullptr;
-  preint_gyro_cov_ = nullptr;
-  //
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -96,27 +86,24 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
+  auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   /// check if we are using doppler odometry
-  bool has_doppler_odometry = false;
-  for (const auto &module : odometry_) {
-    if (module->name() == "lidar.odometry_doppler") {
-      has_doppler_odometry = true;
-      break;
-    }
-  }
+  bool doppler_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
+    return module->name() == "lidar.odometry_doppler";
+  });
+
+  CLOG(WARNING, "lidar.pipeline") << "Loc flag: " << *qdata->loc_flag;
 
   for (const auto &module : preprocessing_) {
-    if (config_->use_loc_flag &&
-        has_doppler_odometry &&
-        module->name() == "lidar.preprocessing" &&
-        frame_count % config_->loc_threshold != 0) {
-      CLOG(DEBUG, "lidar.pipeline") << "ATTN! Localization flag enabled: skipping preprocessing frame for localization.";
+    if (module->name() == "lidar.preprocessing" &&
+        doppler_odometry && !*qdata->loc_flag) {
+      // if we are using doppler odometry, always skip preprocessing unless localization flag is enabled for current frame
+      CLOG(DEBUG, "lidar.pipeline") << "Attention! Not localizing current frame, skip preprocessing.";
       continue;
     }
     module->run(*qdata0, *output0, graph, executor);
   }
-  frame_count += 1;
 }
 
 void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
@@ -133,28 +120,16 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
   }
 
-  /// carry over preintegration data
-  if(preint_start_time_ != nullptr) qdata->stamp_start_pre_integration = preint_start_time_;
-  if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
-  if(last_gyro_msg_ != nullptr) qdata->prev_gyro = last_gyro_msg_;
-  if(preint_delta_gyro_ != nullptr) qdata->preintegrated_delta_gyro = preint_delta_gyro_;
-  if(preint_gyro_cov_ != nullptr) qdata->preintegrated_gyro_cov = preint_gyro_cov_;
-
   /// check if we are using doppler odometry
-  bool has_doppler_odometry = false;
-  for (const auto &module : odometry_) {
-    if (module->name() == "lidar.odometry_doppler") {
-      has_doppler_odometry = true;
-      break;
-    }
-  }
+  bool doppler_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
+    return module->name() == "lidar.odometry_doppler";
+  });
 
   for (const auto &module : odometry_) {
-    if (config_->use_loc_flag &&
-        has_doppler_odometry &&
+    if (doppler_odometry &&
         module->name() == "lidar.odometry_map_maintenance_v2") {
-      // if we are using doppler odometry, skip map building
-      CLOG(DEBUG, "lidar.pipeline") << "ATTN! Localization flag enabled: skip map building.";
+      // if we are using doppler odometry, always skip map building
+      CLOG(DEBUG, "lidar.pipeline") << "Attention! Doppler odometry is being used, skip map building.";
       if (!qdata->sliding_map_odo) {
         CLOG(DEBUG, "lidar.pipeline") << "Initializing sliding map with default voxel size.";
         qdata->sliding_map_odo.emplace(0.2);
@@ -171,13 +146,6 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
   }
-
-  // store the preintegration data
-  if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
-  if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
-  if(qdata->prev_gyro) last_gyro_msg_ = qdata->prev_gyro.ptr();
-  if(qdata->preintegrated_delta_gyro) preint_delta_gyro_ = qdata->preintegrated_delta_gyro.ptr();
-  if(qdata->preintegrated_gyro_cov) preint_gyro_cov_ = qdata->preintegrated_gyro_cov.ptr();
 }
 
 void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,

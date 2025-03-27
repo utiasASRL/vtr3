@@ -48,8 +48,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.alpha = node->declare_parameter<double>(prefix+".chain.alpha", 0.25);
 
   /// localization execution by interval
-  config->use_loc_flag = node->get_parameter("tactic.use_loc_flag").as_bool();
-  config->loc_threshold = node->get_parameter("tactic.loc_threshold").as_int();
+  config->loc_threshold = node->declare_parameter<int>(prefix + ".loc_threshold", 1);
 
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
   config->save_odometry_vel_result = node->declare_parameter<bool>(prefix+".save_odometry_vel_result", false);
@@ -205,6 +204,10 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
   qdata->faulty_frame.emplace(false);
   first_frame_ = false;
 
+  // check if localization should be executed on current frame
+  qdata->loc_flag = (frame_count % config_->loc_threshold == 0);
+  frame_count += 1;
+
   // Preprocess incoming data, which always runs no matter what mode we are in.
   pipeline_->preprocess(qdata, output_, graph_, task_queue_);
 
@@ -289,7 +292,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -392,7 +395,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -487,7 +490,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -557,7 +560,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -640,7 +643,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
 
     auto msg = std::make_shared<TwistLM>(twist_msg, *qdata->stamp);
     graph_->write<geometry_msgs::msg::Twist>(
-      "odometry_vel_result", "geometry_msgs/msg/Twist",
+      "repeat_odometry_vel_result", "geometry_msgs/msg/Twist",
       msg);
   }
 
@@ -648,7 +651,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -816,7 +819,6 @@ bool Tactic::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
-    chain_->lostLocalization();
 
     return true;
   }
@@ -845,15 +847,8 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
 
-  if (config_->use_loc_flag) {
-    CLOG(DEBUG, "tactic") << "ATTN! using loc intervals";    
-    if (frame_count % config_->loc_threshold == 0) {
-      pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
-    }
-  } else {
+  if (qdata->loc_flag)
     pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
-  }
-  frame_count += 1;
 
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to localization vertex ("

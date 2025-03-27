@@ -74,10 +74,6 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
   config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
   config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
-  // localization execution by interval
-  config->use_loc_flag = node->get_parameter("tactic.use_loc_flag").as_bool();
-  config->loc_threshold = node->get_parameter("tactic.loc_threshold").as_int();
-
   //
   const auto p0_inv = node->declare_parameter<std::vector<double>>(param_prefix + ".P0inv", std::vector<double>());
   if (p0_inv.size() != 6) {
@@ -148,16 +144,14 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.doppler_preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &curr_gyro = *qdata.gyro;
-  const auto &first_frame_micro = *qdata.first_state_time;
-  const auto &next_state_micro = *qdata.next_state_time;
+  const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+  const auto &first_state_time = *qdata.first_state_time;
+  const auto &next_state_time = *qdata.next_state_time;
   const auto &timestamp_odo = *qdata.timestamp_odo; 
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-
-  bool loc_flag = (frame_count % config_->loc_threshold == 0);
+  bool loc_flag = *qdata.loc_flag;
   
-  /// Parameters
   // gyro noise
   gyro_invcov_ = *qdata.gyro_invcov;
   
@@ -177,7 +171,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   auto prev_T_r_m_odo = *qdata.T_r_m_odo; 
   auto prev_w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   // next state time
-  auto next_time = static_cast<int64_t>(next_state_micro);
+  auto next_time = static_cast<int64_t>(next_state_time);
 
   /// last frame state
   std::vector<SE3StateVar::Ptr> T_r_m_extp_vec;
@@ -217,10 +211,10 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   auto compare_times = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
   auto min_max_time = std::minmax_element(query_points.begin(), query_points.end(), compare_times);
-  auto first_frame_sec = first_frame_micro / 1e6;
 
-  auto query_time_sec = (query_time / 1e9) - (first_frame_micro / 1e6);       // curr state start time in [s] 
-  auto next_time_sec = (next_time / 1e9) - (first_frame_micro / 1e6);         // next state start time in [s]
+  auto query_time_sec = (query_time / 1e9) - (first_state_time / 1e9);       // curr state start time in [s] 
+  auto next_time_sec = (next_time / 1e9) - (first_state_time / 1e9);         // next state start time in [s]
+  auto first_time_sec = (first_state_time / 1e9);                            // first state start time in [s]
 
   timer[0]->start();
   // *********** RANSAC ***********
@@ -246,11 +240,13 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Vector3d rhs_gyro = Eigen::Vector3d::Zero();
 
   if (config_->ransac_gyro) {
-    if (curr_gyro.rows() > 1 && curr_gyro.cols() > 1) {
-      Eigen::Matrix3d R_sv = T_s_r.matrix().topLeftCorner<3, 3>();
+    int j = 0;
+    if (qdata.gyro_msgs) {
+      Eigen::Matrix3d R_sv = T_s_r_gyro.matrix().topLeftCorner<3, 3>();
       // loop over each gyro measurement
-      for (int j = 0; j < curr_gyro.rows(); ++j) {
-        double gy = (R_sv.transpose() * curr_gyro.row(j).rightCols<3>().transpose())(2); // rotate measurement to vehicle frame, extract z dim
+      for (const auto &gyro_msg : *qdata.gyro_msgs) {
+        const auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+        double gy = (R_sv.transpose() * -1.0 * curr_gyro)(2); // rotate measurement to vehicle frame, extract z dim
         double gyvar = (R_sv.transpose() * gyro_invcov_ * R_sv)(2, 2); // rotate covariance, extract z dim
         lhs_gyro(2, 2) += gyvar;
         rhs_gyro(2) += gy / gyvar;
@@ -376,7 +372,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     inlier_frame.push_back(query_points[i]);
     ransac_precompute_.row(k) = ransac_precompute_all.row(i);
     meas_precompute_[k] = meas_precompute_all[i];
-    alpha_precompute_[k] = std::min(1.0, std::max(0.0, (((query_points[i].timestamp / 1e9) - first_frame_sec - query_time_sec) / (next_time_sec - query_time_sec))));
+    alpha_precompute_[k] = std::min(1.0, std::max(0.0, (((query_points[i].timestamp / 1e9) - first_time_sec - query_time_sec) / (next_time_sec - query_time_sec))));
     malpha_precompute_[k] = std::max(0.0, 1.0 - alpha_precompute_[k]);
     ivariance_precompute_[k] = query_points[i].ivariance;
     ++k;
@@ -405,18 +401,22 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   lhs.bottomRightCorner<6, 6>() += config_->Qzinv;
 
   // IMU measurements
-  if (curr_gyro.rows() > 1 && curr_gyro.cols() > 1){  
+  if (qdata.gyro_msgs) {  
     Eigen::Matrix<double,3,6> Cgyro = Eigen::Matrix<double, 3, 6>::Zero();
-    Cgyro.rightCols<3>() = T_s_r.matrix().topLeftCorner<3, 3>();
+    Cgyro.rightCols<3>() = T_s_r_gyro.matrix().topLeftCorner<3, 3>();
     Eigen::Matrix<double,3,12> Ggyro = Eigen::Matrix<double, 3, 12>::Zero();
     // loop over each gyro measurement
-    for (int j = 0; j < curr_gyro.rows(); ++j) {
-      double alpha = std::min(1.0, std::max(0.0, (curr_gyro(j, 0) - query_time_sec)/(next_time_sec - query_time_sec))); // times in [s]
+    for (const auto &gyro_msg : *qdata.gyro_msgs) {
+      const auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+      const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
+      const auto gyro_stamp_sec = static_cast<int64_t>(gyro_stamp.seconds());
+
+      double alpha = std::min(1.0, std::max(0.0, (gyro_stamp_sec - query_time_sec)/(next_time_sec - query_time_sec))); // times in [s]
       Ggyro.leftCols<6>() = (1.0 - alpha)*Cgyro;
       Ggyro.rightCols<6>() = alpha*Cgyro;
 
       lhs += Ggyro.transpose() * gyro_invcov_ * Ggyro;
-      rhs += Ggyro.transpose() * gyro_invcov_ * (curr_gyro.row(j).rightCols<3>().transpose());
+      rhs += Ggyro.transpose() * gyro_invcov_ * (-1.0 * curr_gyro);
     }
   }
 
@@ -528,7 +528,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
       auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
  
-      if (config_->use_trajectory_estimation && (query_stamp != next_state_micro)) {
+      if (config_->use_trajectory_estimation && (query_stamp != next_state_time)) {
         Time knot_time(static_cast<int64_t>(query_stamp));
         const auto T_r_m_var = SE3StateVar::MakeShared(*qdata.T_r_m_odo);
         const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(*qdata.w_m_r_in_r_odo);

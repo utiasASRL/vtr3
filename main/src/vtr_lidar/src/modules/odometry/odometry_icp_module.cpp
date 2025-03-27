@@ -71,6 +71,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
+  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
   // steam
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
@@ -81,7 +82,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
   config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
   config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
-  //
+  // visualization
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -360,45 +361,37 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       problem.addCostTerm(cost);
     }
 
-    // Add gyro preintegration cost terms if the flag is set
-    if (qdata.preintegrated_delta_gyro) {
-      const auto &start_stamp = *qdata.stamp_start_pre_integration;
-      const auto &end_stamp = *qdata.stamp_end_pre_integration;
-      
-      // CLOG(DEBUG, "lidar.odometry_icp") << "start stamp: " << start_stamp;
-      // CLOG(DEBUG, "lidar.odometry_icp") << "end stamp  : " << end_stamp;
-
-      // Get states at the times of the preintegration
-      const auto T_r_m_start = trajectory->getPoseInterpolator(start_stamp); // use start of preintegration
-      const auto T_r_m_end = trajectory->getPoseInterpolator(end_stamp); // use end of preintegration (coincides with last gyro measurement and last gyro odometry)
-
-      // Transform into sensor frame
+    // Add individual gyro cost terms if populated
+    if (qdata.gyro_msgs) {
+      CLOG(DEBUG, "lidar.odometry_icp") << "Adding gyro cost terms.";
+      // Load in transform between gyro and robot frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
-      const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
-      T_s_r_gyro_var->locked() = true;
 
-      const auto T_m_s_start = inverse(compose(T_s_r_gyro_var, T_r_m_start));      
-      const auto T_m_s_end = inverse(compose(T_s_r_gyro_var, T_r_m_end));
+      for (const auto &gyro_msg : *qdata.gyro_msgs) {
+        // Load in gyro measurement and timestamp
+        const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+        const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
+        const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
-      // Cost Term
-      const auto &gyro = -*qdata.preintegrated_delta_gyro;
-      const auto &gyro_cov = *qdata.preintegrated_gyro_cov;
+        // Transform gyro measurement into robot frame
+        Eigen::VectorXd gyro_meas_g(6); // Create a 6x1 vector
+        gyro_meas_g << 0, 0, 0, gyro_meas(0), gyro_meas(1), gyro_meas(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r = (lgmath::se3::tranAd(T_s_r_gyro.matrix().inverse()) * gyro_meas_g).tail<3>();
 
-      const auto yaw_loss_func = L2LossFunc::MakeShared();
-      const auto noise_model = StaticNoiseModel<3>::MakeShared(gyro_cov, NoiseType::COVARIANCE); // Eigen::Matrix<double, 3, 3>::Identity()*1e-3
-      const auto error_func = p2p::GyroErrorEvaluator::MakeShared(gyro, T_m_s_start, T_m_s_end);
-      const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, yaw_loss_func);
-      // CLOG(DEBUG, "lidar.odometry_icp") << "Adding total preintegrated gyro value of: " << gyro.transpose();
-      // CLOG(DEBUG, "lidar.odometry_icp") << "Adding gyro covariance of: " << std::endl << gyro_cov;
-      problem.addCostTerm(measurement_cost);
+        // Interpolate velocity measurement at gyro stamp
+        auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
 
-      Eigen::Vector3d meas_vec = gyro;
-      const lgmath::so3::Rotation RMI_Y(meas_vec);
-      const lgmath::so3::Rotation RMI_X((T_m_s_start->value().C_ba().transpose() * 
-                                          T_m_s_end->value().C_ba()).eval());
-      CLOG(DEBUG, "lidar.odometry_icp") << "RMI_X: \n" << RMI_X.matrix();
-      CLOG(DEBUG, "lidar.odometry_icp") << "RMI_Y: \n" << RMI_Y.matrix();
-      CLOG(DEBUG, "lidar.odometry_icp") << "Gyro error: " << lgmath::so3::rot2vec((RMI_X.inverse() * RMI_Y).matrix()).transpose();
+        // Generate empty bias state
+        Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
+        const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
+        bias->locked() = true;
+        const auto loss_func = L2LossFunc::MakeShared();
+        const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
+        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+
+        problem.addCostTerm(measurement_cost);
+      }
     }
 
     // optimize
@@ -411,6 +404,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       solver.optimize();
     } catch(const std::runtime_error& e) {
       CLOG(ERROR, "lidar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
+      solver_failed = true;
+    } catch(const std::runtime_error& e) {
+      CLOG(WARNING, "lidar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
       solver_failed = true;
     }
 

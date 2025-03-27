@@ -51,7 +51,6 @@ class OdometryDopplerModule : public tactic::BaseModule {
         Eigen::Matrix<double, 6, 1>::Ones();
     //
     int num_threads = 4;
-    bool use_loc_flag = false;
     int loc_threshold = 1;
     
     // doppler odom parameters

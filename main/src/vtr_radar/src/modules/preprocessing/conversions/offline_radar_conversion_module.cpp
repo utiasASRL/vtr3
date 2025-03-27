@@ -19,8 +19,6 @@
  */
 #include "vtr_radar/modules/preprocessing/conversions/offline_radar_conversion_module.hpp"
 #include "cv_bridge/cv_bridge.h"
-
-#include "vtr_radar/detector/detector.hpp"
 #include "vtr_radar/utils/utils.hpp"
 
 namespace vtr {
@@ -49,17 +47,9 @@ auto OfflineRadarConversionModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->minr = node->declare_parameter<double>(param_prefix + ".minr", config->minr);
-  config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
-  config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
-
-
+  config->cartesian_maxr = node->declare_parameter<double>(param_prefix + ".cartesian_maxr", config->cartesian_maxr);
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
-
-  // Doppler stuff
-  config->beta = node->declare_parameter<double>(param_prefix + ".beta", config->beta);
-  config->chirp_type = node->declare_parameter<std::string>(param_prefix + ".chirp_type", config->chirp_type);
 
   // clang-format on
   return config;
@@ -70,6 +60,8 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  if(!qdata.scan) return;
+
   /// Input
 #if false
   auto scan = cv_bridge::toCvCopy(qdata.scan_msg.ptr(), "mono8")->image;
@@ -79,11 +71,13 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
 
   /// temp variables
-  cv::Mat scan_use;
   cv::Mat fft_scan;
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
   std::vector<double> azimuth_angles;
+  std::vector<bool> up_chirps;
+  Eigen::Vector2d vel_meas;
+  double yaw_meas = -1000.0;
 
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
@@ -95,46 +89,27 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
 #endif
   float cart_resolution = config_->cart_resolution;
 
-  // Downsample scan based on desired chirp type
-  if (config_->chirp_type == "up") {
-    // Choose only every second row, starting from row 0
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 0; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(j));
-      j++;
-    }
-  } else if (config_->chirp_type == "down") {
-    // Choose only every second row, starting from row 1
-    scan_use = cv::Mat::zeros(scan.rows / 2, scan.cols, cv::IMREAD_GRAYSCALE);
-    int j = 0;
-    for (int i = 1; i < scan.rows; i+=2) {
-      scan.row(i).copyTo(scan_use.row(i));
-      j++;
-    }
-  } else{
-    scan_use = scan;
-  }
-
   // Load scan, times, azimuths from scan
-  load_radar(scan_use, azimuth_times, azimuth_angles, fft_scan);
+  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, fft_scan, vel_meas, yaw_meas);
+  qdata.yaw_meas.emplace(yaw_meas);
+  qdata.vel_meas.emplace(vel_meas);
 
   // Convert to cartesian BEV image
-  int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
+  int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,
                            true, CV_32F);
-  CLOG(DEBUG, "radar.navtech_extractor")
+  CLOG(DEBUG, "radar.conversion")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;
 
-  CLOG(DEBUG, "radar.navtech_extractor") << "cartesian has " << cartesian.rows
+  CLOG(DEBUG, "radar.conversion") << "cartesian has " << cartesian.rows
                                          << " rows and " << cartesian.cols
                                          << " cols with resolution "
                                          << cart_resolution;
                                     
-  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
-  CLOG(DEBUG, "radar.navtech_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
+  CLOG(DEBUG, "radar.conversion") << "azimuth_angles has " << azimuth_angles.size() << " elements";
+  CLOG(DEBUG, "radar.conversion") << "azimuth_times has " << azimuth_times.size() << " elements";
 
   qdata.radar_data.emplace();
   /// store them to the cache
@@ -142,6 +117,7 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.radar_data->cartesian = cartesian;
   qdata.radar_data->azimuth_times = azimuth_times;
   qdata.radar_data->azimuth_angles = azimuth_angles;  
+  qdata.radar_data->up_chirps = up_chirps;
 
                                    }
 

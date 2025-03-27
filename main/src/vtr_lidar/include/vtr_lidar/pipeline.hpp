@@ -47,10 +47,6 @@ class LidarPipeline : public tactic::BasePipeline {
     bool save_raw_point_cloud = false;
     bool save_nn_point_cloud = false;
 
-    /** \brief Control localization execution */
-    bool use_loc_flag = false;
-    int loc_threshold = 1;
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
@@ -94,11 +90,6 @@ class LidarPipeline : public tactic::BasePipeline {
   std::vector<tactic::BaseModule::Ptr> odometry_;
   std::vector<tactic::BaseModule::Ptr> localization_;
 
-  /**
-   * \brief Track frame number, used to flag localization execution
-  */
-  int frame_count = 0;
-
   /// odometry cached data
   /** \brief current sliding map for odometry */
   std::shared_ptr<PointMap<PointWithInfo>> sliding_map_odo_;
@@ -115,14 +106,6 @@ class LidarPipeline : public tactic::BasePipeline {
   /// localization cached data
   /** \brief Current submap for localization */
   std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;
-
-  /// preintegration cached data
-  std::shared_ptr<tactic::Timestamp> preint_start_time_;
-  std::shared_ptr<tactic::Timestamp> preint_end_time_;
-  std::shared_ptr<const Eigen::Vector3d> last_gyro_msg_;
-  std::shared_ptr<Eigen::Vector3d> preint_delta_gyro_;
-  std::shared_ptr<Eigen::Matrix3d> preint_gyro_cov_;
-
   VTR_REGISTER_PIPELINE_DEC_TYPE(LidarPipeline);
 };
 

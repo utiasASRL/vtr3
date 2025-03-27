@@ -19,10 +19,8 @@
  */
 #include "vtr_radar/modules/preprocessing/conversions/online_radar_conversion_module.hpp"
 #include "cv_bridge/cv_bridge.h"
-#include "vtr_radar/detector/detector.hpp"
 #include "vtr_radar/utils/utils.hpp"
 #include <pcl/common/common.h>
-
 #include<vtr_radar/types.hpp>
 
 namespace vtr {
@@ -35,16 +33,11 @@ auto OnlineRadarConversionModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->minr = node->declare_parameter<double>(param_prefix + ".minr", config->minr);
-  config->maxr = node->declare_parameter<double>(param_prefix + ".maxr", config->maxr);
-  config->range_offset = node->declare_parameter<double>(param_prefix + ".range_offset", config->range_offset);
-  
+  config->cartesian_maxr = node->declare_parameter<double>(param_prefix + ".cartesian_maxr", config->cartesian_maxr);
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
+  config->encoder_bin_size = node->declare_parameter<int>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
 
-  // add a encoder bin size parameter
-  config->encoder_bin_size = node->declare_parameter<double>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
-  
   // clang-format on
   return config;
 }
@@ -69,16 +62,20 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
 
   cv::Mat cartesian;
   Cache<Timestamp> qstamp = qdata.stamp;
+  std::vector<bool> up_chirps;
+
 
   std::vector<int64_t> azimuth_times;
   for (const auto& time : qdata.scan_msg->timestamps) {
     azimuth_times.emplace_back(static_cast<int64_t>(time));
+    up_chirps.emplace_back(false);
   }
 
   std::vector<double> azimuth_angles;
+  CLOG(DEBUG, "radar.online_converter")<< "Total encoder size: " << config_->encoder_bin_size << " bins";
+
   for (const auto& encoder_value : qdata.scan_msg->encoder_values) {
     // log encoder bin size
-    // CLOG(DEBUG, "radar.online_converter")<< "Total encoder size: " << config_->encoder_bin_size << " bins";
     azimuth_angles.emplace_back(static_cast<double>(encoder_value)/config_->encoder_bin_size*2*M_PI); //16000 is for RAS3 radar
   }
 
@@ -87,7 +84,7 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   float cart_resolution = config_->cart_resolution;
 
   // Convert to cartesian BEV image
-  int cart_pixel_width = (2 * config_->maxr) / cart_resolution;
+  int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
 
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,
@@ -100,7 +97,12 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.radar_data->cartesian = cartesian;
   qdata.radar_data->azimuth_times = azimuth_times;
   qdata.radar_data->azimuth_angles = azimuth_angles;
-                                   }
+  qdata.radar_data->up_chirps = up_chirps;
+
+
+
+
+}
                                 
 }  // namespace radar
 }  // namespace vtr

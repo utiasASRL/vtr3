@@ -66,6 +66,8 @@ class OdometryICPModule : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
+    // gyro weight
+    double gyro_cov = 1e-3;
     // steam optimizer
     bool verbose = false;
     unsigned int max_iterations = 1;
