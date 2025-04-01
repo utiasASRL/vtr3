@@ -392,39 +392,51 @@ void Navigator::gyroCallback(
   // auto query_data = std::make_shared<radar::RadarQueryCache>();
 
   LockGuard lock(mutex_);
-  msg->angular_velocity.z -= gyro_bias_;
+  // for wx
+  msg->angular_velocity.x -= 0.0008;
+  msg->angular_velocity.y -= 0.006;
+  // for wz
+  msg->angular_velocity.z -= gyro_bias_; // we subtract the gyro bias right away
   gyro_msgs_.push_back(*msg);
 
+  // you can comment out below if you want to use the old gyro and preintegrtaion module
+
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  // if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
-  //   CLOG(WARNING, "navigation")
-  //       << "Dropping old gyro message because the queue is full.";
-  //   queue_.pop();
-  // }
+  // from here
+  if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
+    CLOG(WARNING, "navigation")
+        << "Dropping old gyro message because the queue is full.";
+    queue_.pop();
+  }
+
+  // Convert message to query_data format and store into query_data
+
+  auto query_data = std::make_shared<radar::RadarQueryCache>();
+  CLOG(DEBUG, "navigation") << " Sam: Created gyro query cache ";
+  // some modules require node for visualization
+  query_data->node = node_;
+
+  // set the timestamp
+  // Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
+  query_data->stamp.emplace(timestamp_gyro);
+
+  // add the current environment info
+  query_data->env_info.emplace(env_info_);
+
+  // put in the radar msg pointer into query data
+  query_data->gyro_msg = msg;
 
 
-  // // some modules require node for visualization
-  // query_data->node = node_;
-
-  // // set the timestamp
-  // // Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
-  // query_data->stamp.emplace(timestamp_gyro);
-
-  // // add the current environment info
-  // query_data->env_info.emplace(env_info_);
-
-  // // put in the radar msg pointer into query data
-  // query_data->gyro_msg = msg;
+  // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r_gyro.emplace(T_gyro_robot_);
+  query_data->T_s_r.emplace(T_radar_robot_);
 
 
-  // // fill in the vehicle to sensor transform and frame names
-  // query_data->T_s_r_gyro.emplace(T_gyro_robot_);
-  // query_data->T_s_r.emplace(T_radar_robot_);
+  // add to the queue and notify the processing thread
+  queue_.push(query_data);
+  cv_set_or_stop_.notify_one();
 
-
-  // // add to the queue and notify the processing thread
-  // queue_.push(query_data);
-  // cv_set_or_stop_.notify_one();
+  // to here
 }
 #endif
 
