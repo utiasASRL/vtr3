@@ -559,7 +559,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
       for (const auto &gyro_msg : *qdata.gyro_msgs) {
         // Load in gyro measurement and timestamp
-        const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+        // const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+        const auto gyro_meas = Eigen::Vector3d(0, 0, gyro_msg.angular_velocity.z); // sam: changed temporily to only use z-axis gyro measurement
         const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
         const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
