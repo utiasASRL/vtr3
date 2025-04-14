@@ -1,0 +1,3 @@
+[36m02:19:04.570 139993276162048 INFO [configure.cpp:47] [default] Logging to: example_log.txt
+[0m[36m02:19:04.570 139993276162048 INFO [configure.cpp:49] [default] Enabled loggers: [test]
+[0m

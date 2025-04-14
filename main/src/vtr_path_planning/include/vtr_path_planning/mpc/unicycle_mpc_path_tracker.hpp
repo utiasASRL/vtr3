@@ -89,7 +89,7 @@ class UnicycleMPCPathTracker : public BasePathPlanner {
   RobotState::Ptr robot_state_;
   Command computeCommand_(RobotState& robot_state);
 
-  VisualizationUtils::Ptr vis;  
+  VisualizationUtils::Ptr vis_;  
 
 
 };

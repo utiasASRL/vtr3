@@ -75,6 +75,9 @@ UnicycleMPCPathTracker::UnicycleMPCPathTracker(const Config::ConstPtr& config,
   {
     vel_history.push_back(applied_vel_);
   }
+
+  vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
+
 }
 
 
@@ -212,7 +215,7 @@ auto UnicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command
     return Command();
   }
 
-  vis->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
+  vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
 
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;

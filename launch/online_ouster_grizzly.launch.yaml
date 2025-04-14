@@ -4,10 +4,6 @@ session_name: vtr_online_velodyne_grizzly
 environment:
   CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.xml # custom dds configs
   RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
-  #CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
-  #RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-  #ROS_DISCOVERY_SERVER: 192.168.131.1:11811;192.168.131.100:11811
-  #ROS_DOMAIN_ID: "7"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
 
@@ -22,9 +18,11 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=hdl64_grizzly_default.yaml
+        base_params:=ouster_grizzly_default.yaml
         start_new_graph:=false
         use_sim_time:=false
+        namespace:=vtr
+        planner:=unicycle_mpc
 
   - window_name: vtr_gui
     layout: main-horizontal

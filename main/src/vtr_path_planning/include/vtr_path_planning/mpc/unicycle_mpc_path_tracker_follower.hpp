@@ -62,6 +62,7 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
     std::string leader_path_topic = "vtr/mpc_prediction";
 
     double following_offset = 0.5; //m
+    double distance_margin = 1.0;
 
     // Speed Scheduler
     double planar_curv_weight = 2.50;
@@ -121,7 +122,7 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   std::vector<Transformation> leaderRollout_;
   PathInterpolator::ConstPtr leaderPathInterp_; 
 
-  VisualizationUtils::Ptr vis;  
+  VisualizationUtils::Ptr vis_;  
 
 };
 

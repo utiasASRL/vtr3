@@ -13,7 +13,7 @@ p_init_l = 5.45
 p_init_f = 0
 
 dist = 5.0
-dist_margin = 0.01
+dist_margin = 2.0
 
 v_max = 1.5
 v_min = -1.5
@@ -369,4 +369,4 @@ if __name__ == '__main__':
 
 
     # simulate
-    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=False)
+    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=True)

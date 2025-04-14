@@ -76,7 +76,7 @@ measured_velo = init_vel
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
 
-D = ca.DM(1)
+D = ca.DM(200)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
