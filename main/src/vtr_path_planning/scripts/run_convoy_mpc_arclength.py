@@ -9,11 +9,14 @@ from unicycle_follower_solver import solver as solver_follower
 
 
 # specs
-p_init_l = 5.45
+p_init_l = 15.0
 p_init_f = 0
 
-dist = 5.0
-dist_margin = 2.0
+dist = 15.0
+dist_margin = 100
+
+lower_dist_bound = 4.0
+upper_dist_bound = dist + dist_margin
 
 v_max = 1.5
 v_min = -1.5
@@ -26,6 +29,8 @@ ang_acc_max = 0.5
 
 
 sim_time = 100      # simulation time
+
+euclidean_distance = False
 
 
 
@@ -44,8 +49,10 @@ def shift_timestep(step, t0, state_init, u, f, last_u):
 def DM2Arr(dm):
     return np.array(dm.full())
 
-path_x = np.linspace(0, 50, 10000)
-path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
+path_x = np.concatenate((np.linspace(0, 40, 5000), 40 + 1 * np.cos(np.linspace(np.pi/2, -np.pi/2, 500)), 40 - np.linspace(0, 40, 5000)))
+path_y = np.concatenate(( 5 + np.zeros(5000), 5 + 1 - 1 * np.sin(np.linspace(np.pi/2, -np.pi/2, 500)), 5 + 2 + np.zeros(5000)))
+
+
 #path_y[-1000:] = 0.5*path_x[-1000:]
 path_mat = np.zeros((np.size(path_x), 3))
 path_mat[:, 0] = path_x
@@ -101,8 +108,8 @@ ubg_l[n_states*(N+1):n_states*(N+1)+N] = 100
 lbg_f[n_states*(N+1):n_states*(N+1)+N] = -100
 ubg_f[n_states*(N+1):n_states*(N+1)+N] = 100
 
-lbg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist - dist_margin
-ubg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist + dist_margin
+lbg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = lower_dist_bound
+ubg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = upper_dist_bound
 
 
 #Acceleration constraints
@@ -162,6 +169,8 @@ if __name__ == '__main__':
     last_leader_rollout = None
     last_leader_vel_rollout = None
     u_l = None
+
+
     while (ca.norm_2(state_init_l - state_target) > 2e-1) and (mpc_iter * step_horizon < sim_time):
         t1 = time()
 
@@ -175,16 +184,30 @@ if __name__ == '__main__':
             state_init_f,    # current state
         )
 
+
         # follower waypoints
         for i in range(1, N+1):
             if last_leader_vel_rollout is None:
                 p_target_f = p_state_f + last_u_l[1] * step_horizon * i
+                p_idx_f = np.argmin(np.abs(path_p - p_target_f))
             else:
-                if i < N:
-                    p_target_f = p_state_f + last_leader_vel_rollout[0,i] * step_horizon * i
+                if i < N-2:
+                    leader_position = np.array([float(last_leader_rollout[0, i+1]), float(last_leader_rollout[1, i+1])])
                 else:
-                    p_target_f = p_state_f + last_leader_vel_rollout[0,N-1] * step_horizon * i
-            p_idx_f = np.argmin(np.abs(path_p - p_target_f))
+                    leader_position = np.array([float(last_leader_rollout[0, N]), float(last_leader_rollout[1, N])])
+
+                distances_to_leader = np.linalg.norm(path_mat[:, :2] - leader_position, axis=1)
+
+                if euclidean_distance == False:
+                    # Get closest point on reference path to last_leader_rollout[0, i+1], last_leader_rollout[1, i+1]
+                    closest_point = np.argmin(distances_to_leader)
+                    p_target_f = path_p[closest_point] - dist
+                    p_idx_f = np.argmin(np.abs(path_p - p_target_f))
+                else: # Find point on path that is dist away from leader (last_leader_rollout[0, i+1], last_leader_rollout[1, i+1]) in euclidean space
+                    closest_point_l = np.argmin(distances_to_leader)
+                    closest_point_f = np.argmin(np.abs(distances_to_leader[:closest_point_l] - dist))
+                    p_idx_f = closest_point_f
+            
             args_f['p'] = ca.vertcat(args_f['p'],
                        ca.DM(path_mat[p_idx_f, :]))
         

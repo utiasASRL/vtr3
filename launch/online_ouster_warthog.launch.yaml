@@ -20,7 +20,7 @@ windows:
         base_params:=ouster_warthog_default.yaml
         start_new_graph:=false
         use_sim_time:=false
-        planner:="cbit"
+        planner:="unicycle_mpc"
         model_dir:=${VTRROOT}/models
         
 

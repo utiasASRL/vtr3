@@ -14,6 +14,9 @@ Q_theta = 5
 R1 = 1.0 #0.1
 R2 = 1.0 #0.1
 
+# Distance Covariance
+Q_dist = 200
+
 # Acceleration Cost Covariance
 Acc_R1 = 0.1
 Acc_R2 = 0.5 #0.01
@@ -159,8 +162,8 @@ for k in range(1, N):
 
 
 for k in range(N):
-    theta_k = follower_ref_poses[n_states*k + 2]
-    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k)] - follower_ref_poses[n_states*k: n_states*k+2]))
+    theta_k = follower_ref_poses[n_states*(k) + 2]
+    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k+1)] - follower_ref_poses[n_states*(k): n_states*(k)+2]))
 
 
 for k in range(0, N):

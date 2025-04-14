@@ -49,16 +49,16 @@ ament_target_dependencies(${PROJECT_NAME}_base
 execute_process(COMMAND ${PYTHON_EXECUTABLE} scripts/export_mpc.py
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_custom_command(OUTPUT "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp"
-  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
-  DEPENDS "scripts/unicycle_solver.py")
+# add_custom_command(OUTPUT "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp"
+#   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
+#   DEPENDS "scripts/unicycle_solver.py")
 
 add_custom_target(generate_unicycle_header ALL
 DEPENDS "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp")
 
-add_custom_command(OUTPUT "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp"
-  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
-  DEPENDS "scripts/acker_cycle_solver.py")
+# add_custom_command(OUTPUT "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp"
+#   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
+#   DEPENDS "scripts/acker_cycle_solver.py")
 
 add_custom_target(generate_ackermann_header ALL
 DEPENDS "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp")
