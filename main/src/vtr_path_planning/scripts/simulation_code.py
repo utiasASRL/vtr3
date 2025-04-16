@@ -254,6 +254,7 @@ def simulate_path_tracking_convoy(cat_states_1, cat_controls_1, cat_states_2, ca
     max_scale = np.max(reference_path[:, :2]) + 2
     ax.set_xlim(left = min_scale, right = max_scale)
     ax.set_ylim(bottom = min_scale, top = max_scale)
+    ax.set_aspect('equal')
 
     # create lines:
     #   path for first set
