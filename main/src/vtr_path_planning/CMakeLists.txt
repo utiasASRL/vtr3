@@ -46,8 +46,12 @@ ament_target_dependencies(${PROJECT_NAME}_base
   vtr_path_planning_msgs
 )
 
+
+execute_process(COMMAND ${PYTHON_EXECUTABLE} scripts/export_unicycle.py
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_custom_command(OUTPUT "include/vtr_path_planning/mpc/mpc_solver.hpp"
-  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_unicycle.py"
+  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_unicycle.py"
   DEPENDS "scripts/unicycle_solver.py")
 
 add_custom_target(generate_header ALL
