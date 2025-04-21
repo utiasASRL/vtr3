@@ -38,7 +38,7 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
-  //
+  
   config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
   config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
   // clang-format on
@@ -75,9 +75,14 @@ void LidarPipeline::reset() {
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
-  //
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
+
+  T_r_m_odo_prior_ = nullptr;
+  w_m_r_in_r_odo_prior_ = nullptr;
+  cov_prior_ = nullptr;
+  timestamp_prior_ = nullptr;
+
   // localization cached data
   submap_loc_ = nullptr;
 }
@@ -92,8 +97,6 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
   bool doppler_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
     return module->name() == "lidar.odometry_doppler";
   });
-
-  CLOG(WARNING, "lidar.pipeline") << "Loc flag: " << *qdata->loc_flag;
 
   for (const auto &module : preprocessing_) {
     if (module->name() == "lidar.preprocessing" &&
@@ -118,6 +121,13 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
+
+    // Prior stuff
+    qdata->T_r_m_odo_prior = T_r_m_odo_prior_;
+    qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
+    qdata->cov_prior = cov_prior_;
+    qdata->timestamp_prior = timestamp_prior_;
+
   }
 
   /// check if we are using doppler odometry
@@ -139,12 +149,16 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     }
   }
 
-  /// store the current sliding map for odometry
+  // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
     sliding_map_odo_ = qdata->sliding_map_odo.ptr();
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+    T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
+    timestamp_prior_ = qdata->timestamp_prior.ptr();
+    w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
+    cov_prior_ = qdata->cov_prior.ptr();
   }
 }
 

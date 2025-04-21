@@ -43,10 +43,9 @@ class OdometryICPModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // continuous-time estimation
+    double prior_bloat = 1.0;
     bool use_trajectory_estimation = false;
     int traj_num_extra_states = 0;
-    bool traj_lock_prev_pose = false;
-    bool traj_lock_prev_vel = false;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
@@ -66,14 +65,14 @@ class OdometryICPModule : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
-    // gyro weight
-    double gyro_cov = 1e-3;
     // steam optimizer
     bool verbose = false;
     unsigned int max_iterations = 1;
-    double huber_delta = 1.0;
-    //
-    bool use_radial_velocity = true;
+
+    // gyro weight
+    double gyro_cov = 1e-3;
+    bool remove_orientation = false;
+
     /// Success criteria
     float min_matched_ratio = 0.4;
     float max_trans_vel_diff = 1000.0; // m/s

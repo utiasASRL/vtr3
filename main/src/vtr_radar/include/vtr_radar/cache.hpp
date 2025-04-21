@@ -51,11 +51,6 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
   tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
 
-  // preintegration values
-  tactic::Cache<tactic::Timestamp> stamp_start_pre_integration;
-  tactic::Cache<tactic::Timestamp> stamp_end_pre_integration;
-  tactic::Cache<float> preintegrated_delta_yaw;
-
   // radar raw data
   tactic::Cache<RadarData> radar_data;
 
@@ -80,8 +75,10 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar;
   tactic::Cache<tactic::Timestamp> timestamp_odo_radar;
 
-  tactic::Cache<steam::traj::const_vel::Interface::Ptr> trajectory_prev;
-  tactic::Cache<steam::Covariance::Ptr> covariance_prev;
+  tactic::Cache<lgmath::se3::Transformation> T_r_m_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 12, 12>> cov_prior;
+  tactic::Cache<int64_t> timestamp_prior;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;

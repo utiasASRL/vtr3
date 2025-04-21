@@ -40,12 +40,10 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const int64_t> first_state_time;
   tactic::Cache<const int64_t> next_state_time;
   
-  // to do: rework+remove these! temp keep for doppler odom. 
+  // doppler odometry
   tactic::Cache<const Eigen::Matrix3d> gyro_invcov; 
 
   // gyro input
-  tactic::Cache<sensor_msgs::msg::Imu> gyro_msg;
-  tactic::Cache<sensor_msgs::msg::Imu> prev_gyro_msg;
   tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
   tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
 
@@ -63,6 +61,11 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
+
+  tactic::Cache<lgmath::se3::Transformation> T_r_m_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 12, 12>> cov_prior;
+  tactic::Cache<int64_t> timestamp_prior;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;

@@ -50,8 +50,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // motion compensation
   config->use_trajectory_estimation = node->declare_parameter<bool>(param_prefix + ".use_trajectory_estimation", config->use_trajectory_estimation);
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
-  config->traj_lock_prev_pose = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_pose", config->traj_lock_prev_pose);
-  config->traj_lock_prev_vel = node->declare_parameter<bool>(param_prefix + ".traj_lock_prev_vel", config->traj_lock_prev_vel);
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
   if (qcd.size() != 6) {
     std::string err{"Qc diagonal malformed. Must be 6 elements!"};
@@ -59,6 +57,8 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
+  config->prior_bloat = node->declare_parameter<double>(param_prefix + ".prior_bloat", config->prior_bloat);
+
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
@@ -71,12 +71,14 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
+
   // steam
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
-  config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
-  // success criteria
+
+  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
+  config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
+
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
   config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
@@ -109,16 +111,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.timestamp_odo.emplace(*qdata.stamp);
     qdata.T_r_m_odo.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    // Initialize prior values
+    qdata.T_r_m_odo_prior.emplace(lgmath::se3::Transformation());
+    qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    qdata.cov_prior.emplace(1e-5 * Eigen::Matrix<double, 12, 12>::Identity());
+    // Initialize timestamp equal to the end of the first frame
+    const auto &query_points = *qdata.preprocessed_point_cloud;
+    const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
+    qdata.timestamp_prior.emplace(std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp);
+
     //
     *qdata.odo_success = true;
     // clang-format on
-
-    // This is the first odomety frame
-    if(qdata.first_frame)
-      *qdata.first_frame = true;
-    else
-      qdata.first_frame.emplace(true); // reset first frame - this is the first frame! Gyro could have run before though
-
     return;
   }
 
@@ -143,57 +147,68 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   float max_pair_d2 = max_pair_d * max_pair_d;
   KDTreeSearchParams search_params;
 
-  Time prev_time(static_cast<int64_t>(timestamp_odo));
-  Time query_time(static_cast<int64_t>(query_stamp));
-
   // clang-format off
   /// Create robot to sensor transform variable, fixed.
   const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
   T_s_r_var->locked() = true;
 
+  // Set up shared timestamps
+  Time query_time(static_cast<int64_t>(query_stamp));
+  int64_t frame_end_time;
+
   /// trajectory smoothing
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval = nullptr;
+  lgmath::se3::Transformation T_r_m_eval_initial = lgmath::se3::Transformation();
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
+  const int64_t num_states = config_->traj_num_extra_states + 2;
+  // Set up variables for new prior generation
+  lgmath::se3::Transformation T_r_m_odo_prior_new; 
+  Eigen::Matrix<double, 6, 1> w_m_r_in_r_odo_prior_new;
+  Eigen::Matrix<double, 12, 12> cov_prior_new;
+
   if (config_->use_trajectory_estimation) {
+    // Load in prior parameters
+    const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;
+    const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;
+    const auto &cov_prior = *qdata.cov_prior;
+    const auto &timestamp_prior = *qdata.timestamp_prior;
+
+    Time prev_time(static_cast<int64_t>(timestamp_prior));
     trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
-    /// last frame state
-    auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-    auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-    if (config_->traj_lock_prev_pose) prev_T_r_m_var->locked() = true;
-    if (config_->traj_lock_prev_vel) prev_w_m_r_in_r_var->locked() = true;
-    trajectory->add(prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
-    state_vars.emplace_back(prev_T_r_m_var);
-    state_vars.emplace_back(prev_w_m_r_in_r_var);
-
+    // Set up problem timestamps
     const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
-    const auto first_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
-    const auto last_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
-    const int64_t num_states = config_->traj_num_extra_states + 2;
-    const int64_t time_diff = (last_time - first_time) / (num_states - 1);
+    const auto frame_start_time = timestamp_prior;
+    frame_end_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+    const int64_t time_diff = (frame_end_time - frame_start_time) / (num_states - 1);
+
+    // Set up main state variables
     for (int i = 0; i < num_states; ++i) {
-      Time knot_time(static_cast<int64_t>(first_time + i * time_diff));
-      //
-      const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo);
-      const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo;
+      // Load in explicit end_time in case there is small rounding issues
+      const int64_t knot_time_stamp = (i == num_states - 1) ? frame_end_time : frame_start_time + i * time_diff;
+      Time knot_time(static_cast<int64_t>(knot_time_stamp));
+      const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - prev_time).seconds() * w_m_r_in_r_odo_prior);
+      const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo_prior;
       const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp);
-      //
-      const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-      //
+      const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo_prior);
       trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
       state_vars.emplace_back(T_r_m_var);
       state_vars.emplace_back(w_m_r_in_r_var);
     }
+
+    // Set up priors
+    CLOG(DEBUG, "lidar.odometry_icp") << "Adding prior to trajectory.";
+    trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, config_->prior_bloat * cov_prior);
+
+    // Set up eval state at which results will be generated and at which pointcloud will get undistorted to
     T_r_m_eval = trajectory->getPoseInterpolator(query_time);
     w_m_r_in_r_eval = trajectory->getVelocityInterpolator(query_time);
   } else {
-    //
+    Time prev_time(static_cast<int64_t>(timestamp_odo));
     if (prev_time == query_time) {
       CLOG(WARNING, "lidar.odometry") << "Skipping point cloud with duplicate stamp";
-      //CLOG(WARNING, "lidar.odometry") << "The prev_time was: "<< prev_time;
-      //CLOG(WARNING, "lidar.odometry") << "The query_time was: "<< query_time;
       *qdata.odo_success = false;
       return;
     }
@@ -204,6 +219,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     state_vars.emplace_back(T_r_m_var);
     T_r_m_eval = T_r_m_var;
   }
+  T_r_m_eval_initial = T_r_m_eval->value();
 
   /// compound transform for alignment (sensor to point map transform)
   const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
@@ -273,8 +289,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool refinement_stage = false;
   int refinement_step = 0;
   bool solver_failed = false;
-
+  
   CLOG(DEBUG, "lidar.odometry_icp") << "Start the ICP optimization loop.";
+  if (qdata.gyro_msgs) CLOG(DEBUG, "lidar.odometry_icp") << "Gyro messages are available.";
+  if (qdata.gyro_msgs && !config_->use_trajectory_estimation) {
+    CLOG(WARNING, "lidar.odometry_icp") << "Gyro measurements are available but trajectory estimation is not enabled. Not using gyro info.";
+  }
+  if (config_->remove_orientation) CLOG(DEBUG, "lidar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -317,7 +338,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     timer[3]->start();
 
     // initialize problem
-    OptimizationProblem problem(config_->num_threads);
+    SlidingWindowFilter problem(config_->num_threads);
 
     // add variables
     for (const auto &var : state_vars)
@@ -328,8 +349,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       trajectory->addPriorCostTerms(problem);
 
     // shared loss function
-    // auto loss_func = L2LossFunc::MakeShared();
-    auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
+    auto loss_func = L2LossFunc::MakeShared();
     // cost terms and noise model
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
@@ -342,15 +362,16 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+      const bool rm_ori = config_->remove_orientation;
 
       auto error_func = [&]() -> Evaluable<Eigen::Matrix<double, 3, 1>>::Ptr {
         if (config_->use_trajectory_estimation) {
           const auto &qry_time = query_points[ind.first].timestamp;
           const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
           const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-          return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt);
+          return p2p::p2pError(T_m_s_intp_eval, ref_pt, qry_pt, rm_ori);
         } else {
-          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
+          return p2p::p2pError(T_m_s_eval, ref_pt, qry_pt, rm_ori);
         }
       }();
 
@@ -363,34 +384,35 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // Add individual gyro cost terms if populated
     if (qdata.gyro_msgs) {
-      CLOG(DEBUG, "lidar.odometry_icp") << "Adding gyro cost terms.";
-      // Load in transform between gyro and robot frame
-      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+      if (config_->use_trajectory_estimation) {
+        // Load in transform between gyro and robot frame
+        const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
 
-      for (const auto &gyro_msg : *qdata.gyro_msgs) {
-        // Load in gyro measurement and timestamp
-        const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
-        const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
-        const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
+        for (const auto &gyro_msg : *qdata.gyro_msgs) {
+          // Load in gyro measurement and timestamp
+          const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+          const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
+          const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
-        // Transform gyro measurement into robot frame
-        Eigen::VectorXd gyro_meas_g(6); // Create a 6x1 vector
-        gyro_meas_g << 0, 0, 0, gyro_meas(0), gyro_meas(1), gyro_meas(2);
-        const Eigen::Matrix<double, 3, 1> gyro_meas_r = (lgmath::se3::tranAd(T_s_r_gyro.matrix().inverse()) * gyro_meas_g).tail<3>();
+          // Transform gyro measurement into robot frame
+          Eigen::VectorXd gyro_meas_g(6); // Create a 6x1 vector
+          gyro_meas_g << 0, 0, 0, gyro_meas(0), gyro_meas(1), gyro_meas(2);
+          const Eigen::Matrix<double, 3, 1> gyro_meas_r = (lgmath::se3::tranAd(T_s_r_gyro.matrix().inverse()) * gyro_meas_g).tail<3>();
 
-        // Interpolate velocity measurement at gyro stamp
-        auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
+          // Interpolate velocity measurement at gyro stamp
+          auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
 
-        // Generate empty bias state
-        Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
-        const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
-        bias->locked() = true;
-        const auto loss_func = L2LossFunc::MakeShared();
-        const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
-        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+          // Generate empty bias state
+          Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
+          const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
+          bias->locked() = true;
+          const auto loss_func = L2LossFunc::MakeShared();
+          const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
+          const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+          const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-        problem.addCostTerm(measurement_cost);
+          problem.addCostTerm(measurement_cost);
+        }
       }
     }
 
@@ -402,9 +424,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     GaussNewtonSolver solver(problem, params);
     try {
       solver.optimize();
-    } catch(const std::runtime_error& e) {
-      CLOG(ERROR, "lidar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
-      solver_failed = true;
     } catch(const std::runtime_error& e) {
       CLOG(WARNING, "lidar.odometry_icp") << "STEAM failed to solve, skipping frame. Error message: " << e.what();
       solver_failed = true;
@@ -493,10 +512,22 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // result
       if (config_->use_trajectory_estimation) {
         Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        /// \todo remove this if condition once steam allows for cov interp. between locked variables
-        if ((!config_->traj_lock_prev_pose) && (!config_->traj_lock_prev_vel))
-          T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+        T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
         T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
+
+        // Marginalize out all but last 2 states for prior
+        std::vector<StateVarBase::Ptr> state_vars_marg;
+        for (int i = 0; i < num_states*2 - 2; ++i) {
+          state_vars_marg.push_back(state_vars[i]);
+        }
+        problem.marginalizeVariable(state_vars_marg);
+        GaussNewtonSolver solver_marg(problem, params);
+        solver_marg.optimize();
+        Covariance covariance_marg(solver_marg);
+        T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
+        w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
+        cov_prior_new = trajectory->getCovariance(covariance_marg, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
+
       } else {
         const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
         T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));
@@ -527,16 +558,15 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
   if (config_->use_trajectory_estimation) {
-    const auto &w_m_r_in_r_prev = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(timestamp_odo)))->evaluate().matrix();
+    const auto &w_m_r_in_r_prev = *qdata.w_m_r_in_r_odo_prior;
     const auto &w_m_r_in_r_new = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(query_stamp)))->evaluate().matrix();
     const auto vel_diff = w_m_r_in_r_new - w_m_r_in_r_prev;
     const auto vel_diff_norm = vel_diff.norm();
     const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
     const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
-    const auto T_r_m_prev = trajectory->getPoseInterpolator(timestamp_odo)->value();
     const auto T_r_m_query = T_r_m_eval->value();
-    const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
+    const auto diff_T = (T_r_m_query.inverse() * T_r_m_eval_initial).vec();
     const auto diff_T_trans = diff_T.head<3>().norm();
     const auto diff_T_rot = diff_T.tail<3>().norm();
     
@@ -586,8 +616,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
     // store trajectory info
-    if (config_->use_trajectory_estimation)
+    if (config_->use_trajectory_estimation) {
       *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
+      *qdata.T_r_m_odo_prior = T_r_m_odo_prior_new;
+      *qdata.w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_new;
+      *qdata.cov_prior = cov_prior_new;
+      *qdata.timestamp_prior = frame_end_time;
+    }
     else {
       // finite diff approximation
       Time prev_time(static_cast<int64_t>(timestamp_odo));
@@ -602,11 +637,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.timestamp_odo = query_stamp;
     
     *qdata.odo_success = true;
-
-    CLOG(DEBUG, "lidar.odometry_icp") << "T_r_v_odo: " << *qdata.T_r_v_odo;
-    CLOG(DEBUG, "lidar.odometry_icp") << "w_v_r_in_r_odo: " << *qdata.w_v_r_in_r_odo;
-    CLOG(DEBUG, "lidar.odometry_icp") << "T_r_m_odo: " << *qdata.T_r_m_odo;
-
   } else {
     if (matched_points_ratio <= config_->min_matched_ratio) {
       CLOG(WARNING, "lidar.odometry_icp")

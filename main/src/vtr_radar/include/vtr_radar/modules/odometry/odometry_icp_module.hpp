@@ -43,20 +43,13 @@ class OdometryICPModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // continuous-time estimation
-    bool use_prior = true;
     double prior_bloat = 1.0;
-    bool use_trajectory_estimation = false;
     bool use_radial_velocity = false;
     bool use_vel_meas = false;
     int traj_num_extra_states = 0;
-    bool traj_lock_prev_pose = false;
-    bool traj_lock_prev_vel = false;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
         Eigen::Matrix<double, 6, 1>::Ones();
 
-    // preintegration weight
-    double preint_cov = 0.1;
-    
     // gyro weight
     double gyro_cov = 1e-3;
 
@@ -85,9 +78,8 @@ class OdometryICPModule : public tactic::BaseModule {
     double dopp_meas_std = 1.0;
     double vel_fwd_std = 0.1;
     double vel_side_std = 1.0;
-    double yaw_cauchy_k = 0.5;
-    double yaw_meas_std = 0.1;
     bool use_p2pl = false;
+    bool remove_orientation = false;
     Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
     double normal_score_threshold = 0.0;
 

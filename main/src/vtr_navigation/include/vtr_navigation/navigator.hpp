@@ -91,12 +91,15 @@ class Navigator {
   tactic::EdgeTransform T_radar_robot_;
   
   // gyro
+  using ImuMsg = sensor_msgs::msg::Imu;
   const std::string &gyro_frame() const { return gyro_frame_; }
   const tactic::EdgeTransform &T_gyro_robot() const { return T_gyro_robot_; }
-  void gyroCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
-  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr gyro_sub_;
+  void gyroCallback(const ImuMsg::SharedPtr msg);
+  rclcpp::Subscription<ImuMsg>::SharedPtr gyro_sub_;
   std::string gyro_frame_;
   tactic::EdgeTransform T_gyro_robot_;
+  std::vector<ImuMsg> gyro_msgs_;
+  double gyro_bias_ = 0.0;
 #endif
 
 #ifdef VTR_ENABLE_VISION
