@@ -18,7 +18,7 @@ def generate_launch_description():
         "package": 'vtr_navigation',
         "executable": 'vtr_navigation',
         "output": 'screen',
-        # "prefix": 'xterm -e gdb -ex run --args',
+        #"prefix": 'xterm -e gdb -ex run --args',
         #"prefix": 'valgrind --tool=callgrind',
     }
 

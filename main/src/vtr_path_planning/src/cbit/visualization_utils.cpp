@@ -301,7 +301,7 @@ void VisualizationUtils::visualize(
         for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
             auto& pose = poses.emplace_back();
             pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
-            pose.header.stamp = rclcpp::Time(stamp + i*dt);
+            pose.header.stamp = rclcpp::Time(stamp + i*dt*1e9);
         }
         mpc_path_pub_->publish(mpc_path);
     }

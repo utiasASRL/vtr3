@@ -15,7 +15,7 @@ R1 = 1.0 #0.1
 R2 = 1.0 #0.1
 
 # Distance Covariance
-Q_dist = 0.001
+Q_dist = 200
 
 # Acceleration Cost Covariance
 Acc_R1 = 0.1
@@ -79,7 +79,7 @@ measured_velo = init_vel
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
 
-D = ca.DM(Q_dist)
+D = ca.DM(200)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)

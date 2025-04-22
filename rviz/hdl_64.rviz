@@ -12,6 +12,8 @@ Panels:
         - /filtered scan1
         - /odometry path1/Shape1
         - /curr map loc1/Topic1
+        - /reference path1
+        - /planned path1
         - /planned path1/Offset1
         - /planned path (poses)1/Topic1
         - /change detection scan1
@@ -19,7 +21,7 @@ Panels:
         - /global path1/Offset1
         - /PointCloud21
       Splitter Ratio: 0.4507042169570923
-    Tree Height: 871
+    Tree Height: 1786
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -71,25 +73,55 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
+        base_footprint:
+          Value: true
+        base_footprint_bumper_part:
+          Value: true
         base_link:
           Value: true
         chassis_link:
           Value: true
         front_axle_link:
           Value: true
+        front_bumblebee:
+          Value: true
         front_left_wheel_link:
           Value: true
         front_right_wheel_link:
+          Value: true
+        front_xb3:
+          Value: true
+        honeycomb:
           Value: true
         imu_link:
           Value: true
         lidar:
           Value: false
+        loc vertex frame:
+          Value: true
+        loc vertex frame (offset):
+          Value: true
+        m600_base:
+          Value: true
+        microstrain:
+          Value: true
         navsat_link:
+          Value: true
+        odo vertex frame:
           Value: true
         odom:
           Value: true
+        os_imu:
+          Value: true
+        os_lidar:
+          Value: true
+        os_sensor:
+          Value: true
+        planning frame:
+          Value: true
         rear_antenna_link:
+          Value: true
+        rear_bumblebee:
           Value: true
         rear_left_wheel_link:
           Value: true
@@ -99,7 +131,13 @@ Visualization Manager:
           Value: true
         rear_sensor_plate_link:
           Value: true
+        rear_xb3:
+          Value: true
         robot:
+          Value: true
+        robot planning:
+          Value: true
+        robot planning (extrapolated) mpc:
           Value: true
         sensor_anchor_link:
           Value: true
@@ -116,8 +154,20 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          world (offset):
+          loc vertex frame:
             {}
+          odo vertex frame:
+            robot:
+              lidar:
+                {}
+          planning frame:
+            robot planning:
+              {}
+            robot planning (extrapolated) mpc:
+              {}
+          world (offset):
+            loc vertex frame (offset):
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -360,13 +410,13 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
-      Color: 255; 255; 0
-      Enabled: false
+      Color: 255; 170; 127
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 1
-      Line Style: Lines
-      Line Width: 0.029999999329447746
+      Line Style: Billboards
+      Line Width: 0.10000000149011612
       Name: reference path
       Offset:
         X: 0
@@ -383,18 +433,18 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /vtr/planning_path
-      Value: false
+        Value: /vtr_follower/mpc_prediction
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
       Color: 255; 255; 0
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 1
-      Line Style: Lines
-      Line Width: 0.029999999329447746
+      Line Style: Billboards
+      Line Width: 0.10000000149011612
       Name: planned path
       Offset:
         X: 0
@@ -411,8 +461,8 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /vtr/local_plan
-      Value: false
+        Value: /vtr/mpc_prediction
+      Value: true
     - Alpha: 1
       Arrow Length: 0.5
       Axes Length: 0.30000001192092896
@@ -1265,25 +1315,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 26.967164993286133
+      Distance: 21.623249053955078
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 0.3140283226966858
+        Y: 0.7358726859092712
+        Z: 0.2642797529697418
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7153981328010559
+      Pitch: 0.8953979015350342
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 0.4403983950614929
+      Yaw: 3.0303993225097656
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -1488,10 +1538,10 @@ Visualization Manager:
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1016
+  Height: 2032
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd000000040000000000000281000003a2fc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000003a2000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c0000003a2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003b000003a2000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d00650100000000000004500000000000000000000002eb000003a200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000002810000075efc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff000000f000fffffffb0000001200530065006c0065006300740069006f006e000000000000000253000000af00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c00610079007301000000690000075e0000017800fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c00000075efc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0056006900650077007301000000690000075e0000012300fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000046000fffffffb0000000800540069006d0065010000000000000450000000000000000000000a170000075e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -1500,6 +1550,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 1848
-  X: 72
-  Y: 27
+  Width: 3696
+  X: 144
+  Y: 54
