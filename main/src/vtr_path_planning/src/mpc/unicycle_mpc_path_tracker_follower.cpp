@@ -153,7 +153,7 @@ auto UnicycleMPCPathFollower::computeCommand(RobotState& robot_state) -> Command
   Command command;
   command.linear.x = saturated_vel(0);
   command.angular.z = saturated_vel(1);
-  prev_vel_stamp_ = now();
+  prev_vel_stamp_ = robot_state.node->get_clock()->now().nanoseconds();
   applied_vel_ = saturated_vel;
 
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
@@ -179,7 +179,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   }
 
   if (recentLeaderPath_ == nullptr) {
-    CLOG_EVERY_N(10000, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
+    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
     return Command();
   }
 
@@ -187,7 +187,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
 
   if (robot_state.node->get_clock()->now() - rclcpp::Time(recentLeaderPath_->header.stamp) > rclcpp::Duration(1, 0)) {
-    CLOG_EVERY_N(5000, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping";
+    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping";
     return Command();
   }
 
@@ -207,7 +207,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   auto curr_time = stamp;  // always in nanoseconds
 
   if (config_->extrapolate_robot_pose) {
-    curr_time = now();
+    curr_time = robot_state.node->get_clock()->now().nanoseconds();
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
     if (fabs(dt) > 0.25) { 
       CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"

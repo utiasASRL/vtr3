@@ -37,6 +37,9 @@ Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, do
 auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
 
+  auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
+  *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
+
   // MPC Configs:
   // SPEED SCHEDULER PARAMETERS
   config->planar_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.planar_curv_weight", config->planar_curv_weight);
@@ -100,7 +103,7 @@ auto UnicycleMPCPathTracker::computeCommand(RobotState& robot_state) -> Command 
   Command command;
   command.linear.x = saturated_vel(0);
   command.angular.z = saturated_vel(1);
-  prev_vel_stamp_ = now();
+  prev_vel_stamp_ = robot_state.node->get_clock()->now().nanoseconds();
   applied_vel_ = saturated_vel;
 
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
@@ -144,7 +147,7 @@ auto UnicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
   auto T_p_r_extp = T_p_r;
   if (config_->extrapolate_robot_pose) {
-    const auto curr_time = now();  // always in nanoseconds
+    const auto curr_time = robot_state.node->get_clock()->now().nanoseconds();  // always in nanoseconds
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
     if (fabs(dt) > 0.25) { 
       CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"

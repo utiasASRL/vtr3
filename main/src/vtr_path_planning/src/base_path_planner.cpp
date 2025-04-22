@@ -78,6 +78,7 @@ void BasePathPlanner::process() {
       waiting_ = true;
       cv_waiting_.notify_all();
       --thread_count_;
+      callback_->commandReceived(Command());
       CLOG(INFO, "path_planning") << "Stopping the base path planning thread.";
       cv_thread_finish_.notify_all();
       return;
