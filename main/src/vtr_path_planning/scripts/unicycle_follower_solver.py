@@ -79,7 +79,7 @@ measured_velo = init_vel
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
 
-D = ca.DM(200)
+D = ca.DM(Q_dist)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
@@ -200,4 +200,4 @@ opts = {
     'print_time': 0
 }
 
-solver = ca.nlpsol('solve_unicycle_mpc', 'ipopt', nlp_prob, opts)
+solver = ca.nlpsol('solve_unicycle_mpc', 'ipopt', nlp_prob, opts)	
