@@ -84,7 +84,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
   config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
   config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
-  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", std::vector<double>(3, 1.0));
+  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", {1.0, 1.0, 1.0});
   if (w_icp.size() != 3) {
     std::string err{"W_icp diagonal malformed. Must be 3 elements!"};
     CLOG(ERROR, "radar.odometry_icp") << err;
@@ -163,7 +163,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_radar; // use last data from radar scan msg (not gyro!)
   const auto &beta = *qdata.beta;
-  const auto &vel_meas = *qdata.vel_meas;
   const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;
   const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;
   const auto &cov_prior = *qdata.cov_prior;
@@ -191,6 +190,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto frame_start_time = timestamp_prior;
   const auto frame_end_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
 
+
+  CLOG(DEBUG, "radar.odometry_icp") << "Timestamps of concern frame stamp: " << (scan_stamp - timestamp_prior) /1e9 << " timestamp_end " << (frame_end_time - timestamp_prior) /1e9;
   // Let's check if our odometry estimate already passed the time stamp of the radar scan
   // If this is the case, we want to estimate the odometry at this time, not at the time of the scan
   // This avoids jumping 'back' in time to the last radar scan, when we already extrapolated the state using gyro
@@ -208,13 +209,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
   Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
-  const_vel::Interface::Ptr trajectory = nullptr;
+  const_vel::Interface::Ptr trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
   lgmath::se3::Transformation T_r_m_odo_prior_new; 
   Eigen::Matrix<double, 6, 1> w_m_r_in_r_odo_prior_new;
   Eigen::Matrix<double, 12, 12> cov_prior_new;
   std::vector<StateVarBase::Ptr> state_vars;
 
-  trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
 
   // Set up main state variables
   const int64_t num_states = config_->traj_num_extra_states + 2;
@@ -234,6 +234,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Set up priors
   CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
+
   trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, config_->prior_bloat * cov_prior);
 
   // General radar odometry (at scan time)
@@ -404,8 +405,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
           W = Eigen::Matrix3d(nrm * nrm.transpose());
           W(2, 2) = 1.0;
-        }
-        else {
+        } else {
           W = config_->W_icp;
         }
         return W;
@@ -513,6 +513,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     if (config_->use_vel_meas) {
+      const auto &vel_meas = *qdata.vel_meas;
       if (vel_meas[0] != -1000.0) {
         // Add fwd/side velocity measurement-based cost term
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
@@ -536,6 +537,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // optimize
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
+    params.reuse_previous_pattern = false;
     params.max_iterations = (unsigned int)config_->max_iterations;
 
     GaussNewtonSolver solver(problem, params);
