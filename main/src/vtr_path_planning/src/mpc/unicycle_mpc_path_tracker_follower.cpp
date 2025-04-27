@@ -43,28 +43,46 @@ PathInterpolator::PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path) {
 
 PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) const {
   auto up_it = path_info_.lower_bound(time);
+
+  CLOG(ERROR, "mpc.follower") << "Requested interpolation time " << time;
+  CLOG(ERROR, "mpc.follower") << "Found lower bound time " << up_it->first;
+
+  for (const auto& [key, value] : path_info_) {
+    CLOG(DEBUG, "mpc.follower") << "Leader path time: " << key;
+    CLOG(DEBUG, "mpc.follower") << "Leader path pose: " << tf_to_global(value);
+  }
+
   if (up_it == path_info_.begin()){
     CLOG(ERROR, "mpc.follower") << "Finding first element of map!";
     const Transformation T_w_p1 = up_it->second;
-    const auto t_1 = up_it->first;
+    const double t_1 = up_it->first;
     
     up_it--;
     const Transformation T_w_p0 = up_it->second;
-    const auto t_0 = up_it->first;
+    const double t_0 = up_it->first;
     CLOG(DEBUG, "mpc.follower") << "Time 1 " << t_1 << " Time 0 " << t_0;
 
     return T_w_p1;
   } else {
     const Transformation T_w_p1 = up_it->second;
-    const auto t_1 = up_it->first;
+    const double t_1 = up_it->first;
 
     up_it--;
     const Transformation T_w_p0 = up_it->second;
-    const auto t_0 = up_it->first;
+    const double t_0 = up_it->first;
 
-    const auto dt = t_1 - t_0;
+
+    CLOG(DEBUG, "mpc.follower") << "Pose 0 " << T_w_p0 << " Pose 1 " << T_w_p1;
+
+    const double dt = t_1 - t_0;
     try {
       auto xi_interp = (T_w_p0.inverse() * T_w_p1).vec() * ((time - t_0) / dt);
+      CLOG(DEBUG, "mpc.follower") << "delta trans " << (T_w_p0.inverse() * T_w_p1).vec();
+      CLOG(DEBUG, "mpc.follower") << "dt " << dt;
+      CLOG(DEBUG, "mpc.follower") << "time " << time;
+      CLOG(DEBUG, "mpc.follower") << "t_0 " << t_0;
+      CLOG(DEBUG, "mpc.follower") << "xi" << xi_interp;
+      CLOG(DEBUG, "mpc.follower") << "Interpolated pose " << T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
       return T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
     } catch (std::exception &e) {
       return T_w_p0;
@@ -202,6 +220,9 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   mpcConfig.VF = leader_vel_(0, 0);
 
 
+    CLOG(DEBUG, "mpc.follower") << "Leader forward vel " << leader_vel_(0, 0);
+
+
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
   auto T_p_r_extp = T_p_r;
   auto curr_time = stamp;  // always in nanoseconds
@@ -300,6 +321,11 @@ void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   using namespace vtr::common::conversions;
   
   recentLeaderPath_ = path;
+
+  for (const auto& pose : path->poses) {
+    const Transformation T_w_p = tfFromPoseMessage(pose.pose);
+    CLOG(DEBUG, "mpc.follower") << "Received Leader Rollout Poses: " << tf_to_global(T_w_p);
+  }
 
   //reconstruct velocity
   if (path->poses.size() > 1) {
