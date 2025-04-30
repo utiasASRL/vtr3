@@ -9,6 +9,7 @@ CMD ["/bin/bash"]
 #   --build-arg USERNAME=$(whoami) \
 #   --build-arg HOMEDIR=${HOME} \
 #   --build-arg CUDA_ARCH=${nvidia-smi --query-gpu=compute_cap --format=csv,noheader} .
+
 ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
@@ -19,7 +20,7 @@ RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
 
 # Default number of threads for make build
-ARG NUMPROC=12
+ARG NUMPROC=1 #12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -62,8 +63,6 @@ RUN mkdir -p ${HOMEDIR}/proj && cd ${HOMEDIR}/proj \
   && mkdir -p ${HOMEDIR}/proj/build && cd ${HOMEDIR}/proj/build \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
-
 
 ## Install ROS2
 # UTF-8
@@ -185,7 +184,6 @@ ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
 RUN apt install -q -y vim htop
-
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
