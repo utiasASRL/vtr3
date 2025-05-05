@@ -6,7 +6,7 @@
   <Domain Id="any">
     <General>
       <Interfaces>
-        <NetworkInterface name="enx0050b6b7f89c" priority="default"
+        <NetworkInterface name="enx3c18a0d533d2" priority="default"
         multicast="default" />
       </Interfaces>
       <AllowMulticast>default</AllowMulticast>
