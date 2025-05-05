@@ -208,6 +208,8 @@ if (pipeline->name() == "radar") {
   auto radar_qos = rclcpp::QoS(max_queue_size_);
   radar_qos.reliable();
   radar_sub_ = node_->create_subscription<navtech_msgs::msg::RadarBScanMsg>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
+}
+#endif
 
   // Subscribe to the imu topic 
   auto gyro_qos = rclcpp::QoS(max_queue_size_);
@@ -215,10 +217,6 @@ if (pipeline->name() == "radar") {
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
   gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
 
-
-
-}
-#endif
 
   /// This creates a thread to process the sensor input
   thread_count_ = 1;
@@ -319,7 +317,11 @@ void Navigator::lidarCallback(
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
 
+  query_data->gyro_msgs.emplace(gyro_msgs_);
+  gyro_msgs_.clear();
+
   // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r_gyro.emplace(T_gyro_robot_);
   query_data->T_s_r.emplace(T_lidar_robot_);
 
   // add to the queue and notify the processing thread
@@ -380,8 +382,11 @@ void Navigator::radarCallback(
   cv_set_or_stop_.notify_one();
 }
 
+#endif
+
+
 void Navigator::gyroCallback(
-    const sensor_msgs::msg::Imu::SharedPtr msg) {
+  const sensor_msgs::msg::Imu::SharedPtr msg) {
 
   // set the timestamp
   Timestamp timestamp_gyro = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
@@ -394,39 +399,7 @@ void Navigator::gyroCallback(
   LockGuard lock(mutex_);
   msg->angular_velocity.z -= gyro_bias_;
   gyro_msgs_.push_back(*msg);
-
-  // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  // if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
-  //   CLOG(WARNING, "navigation")
-  //       << "Dropping old gyro message because the queue is full.";
-  //   queue_.pop();
-  // }
-
-
-  // // some modules require node for visualization
-  // query_data->node = node_;
-
-  // // set the timestamp
-  // // Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
-  // query_data->stamp.emplace(timestamp_gyro);
-
-  // // add the current environment info
-  // query_data->env_info.emplace(env_info_);
-
-  // // put in the radar msg pointer into query data
-  // query_data->gyro_msg = msg;
-
-
-  // // fill in the vehicle to sensor transform and frame names
-  // query_data->T_s_r_gyro.emplace(T_gyro_robot_);
-  // query_data->T_s_r.emplace(T_radar_robot_);
-
-
-  // // add to the queue and notify the processing thread
-  // queue_.push(query_data);
-  // cv_set_or_stop_.notify_one();
 }
-#endif
 
 #ifdef VTR_ENABLE_VISION
 void Navigator::cameraCallback(
