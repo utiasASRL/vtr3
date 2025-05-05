@@ -63,6 +63,14 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
     CLOG(DEBUG, "mpc.follower") << "Time 1 " << t_1 << " Time 0 " << t_0;
 
     return T_w_p1;
+  } else if (up_it == path_info_.end()){ 
+    CLOG(ERROR, "mpc.follower") << "Finding last element of map!";
+
+    up_it--;
+    const Transformation T_w_p0 = up_it->second;
+    const double t_0 = up_it->first;
+
+    return T_w_p0;
   } else {
     const Transformation T_w_p1 = up_it->second;
     const double t_1 = up_it->first;
