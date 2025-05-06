@@ -20,6 +20,7 @@ find_package(vtr_storage REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(vtr_pose_graph_msgs REQUIRED)
 find_package(vtr_lidar REQUIRED)
+find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_lidar_msgs)
 find_package(Python3 REQUIRED COMPONENTS Development)
 
@@ -61,6 +62,7 @@ ament_target_dependencies(generate_global_map
   vtr_pose_graph
   vtr_tactic
   vtr_lidar_msgs
+  vtr_mission_planning
 )
 target_link_libraries(generate_global_map ${PCL_LIBRARIES} ${Python3_LIBRARIES})
 install(TARGETS generate_global_map DESTINATION lib/${PROJECT_NAME})

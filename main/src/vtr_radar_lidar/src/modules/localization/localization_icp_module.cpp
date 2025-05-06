@@ -106,7 +106,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
                                                 << T_v_r;
     T_r_v = T_v_r.inverse();
   }
-  // find points that are within the radar scan FOV
+  // find points that are within the radar scan FOV ######## WHAT I NEED TO LOOK AT 
   std::vector<int> indices;
   {
     const auto T_s_m = (T_s_r * T_r_v * T_v_m).matrix();

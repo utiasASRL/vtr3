@@ -239,7 +239,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
         config_->maxr, config_->range_offset);
     detector.run(fft_scan, radar_resolution, azimuth_times, azimuth_angles,
                  raw_point_cloud);
-  } else if (config_->detector == "kstrongest") {
+  } else if (config_->detector == "kstrongest") { //  ######## WE USE THIS NOW ##########
     KStrongest detector = KStrongest<PointWithInfo>(
         config_->kstrongest.kstrong, config_->kstrongest.static_threshold,
         config_->minr, config_->maxr, config_->range_offset);
