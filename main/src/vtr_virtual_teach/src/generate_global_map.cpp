@@ -14,9 +14,7 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/kdtree/kdtree_flann.h>
 #include <vtr_logging/logging_init.hpp>
-#include <vtr_tactic/modules/memory/graph_mem_manager_module.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>
 #include <vtr_pose_graph/serializable/rc_graph.hpp>
 #include <vtr_pose_graph/id/id.hpp>
@@ -26,15 +24,14 @@
 #include <vtr_pose_graph/index/edge_base.hpp>
 #include <vtr_pose_graph/index/vertex_base.hpp>
 #include <vtr_pose_graph/index/graph_base.hpp>
-#include <vtr_lidar/pipeline.hpp>
-#include <vtr_lidar/data_types/pointmap.hpp>
-#include <vtr_lidar/data_types/pointmap_pointer.hpp>
-#include <vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp>
-#include <vtr_lidar/data_types/point.hpp>
-#include <vtr_storage/stream/message.hpp>
-#include <vtr_tactic/modules/factory.hpp>
-#include <vtr_tactic/modules/memory/graph_mem_manager_module.hpp>
-
+#include "vtr_lidar/pipeline.hpp"
+#include "vtr_lidar/data_types/pointmap.hpp"
+#include "vtr_lidar/data_types/pointmap_pointer.hpp"
+#include "vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp"
+#include "vtr_lidar/data_types/point.hpp"
+#include "vtr_storage/stream/message.hpp"
+#include "vtr_tactic/modules/factory.hpp"
+#include "vtr_tactic/modules/memory/graph_mem_manager_module.hpp"
 
 // Use necessary namespaces
 namespace plt = matplotlibcpp;
@@ -155,26 +152,18 @@ Eigen::Matrix4d computeAbsolutePoseByTimestamp(
   return global_pose;
 }
 
-int main(int argc, char **argv)  {
+int main(int argc, char **argv) {  
   try {
-    // // Redirect std::cout to a log file
-    // std::ofstream log_file("output_log.txt");
-    // std::streambuf* cout_buf = std::cout.rdbuf();
-    // std::cout.rdbuf(log_file.rdbuf());
-    
-    constexpr bool use_radar = false;  // set true for radar cropping, false for lidar
+    // Redirect std::cout to a log file
+    std::ofstream log_file("output_log.txt");
+    std::streambuf* cout_buf = std::cout.rdbuf();
+    std::cout.rdbuf(log_file.rdbuf());
 
     // Initialize ROS2 node
     rclcpp::init(argc, argv);  
     auto node = std::make_shared<rclcpp::Node>("lidar_pipeline_node");
+
     auto config_ = vtr::lidar::LidarPipeline::Config::fromROS(node, "lidar_pipeline");
-    // Construct the map‐manager once, so it’s in scope below
-    auto mgr_cfg = GraphMemManagerModule::Config::fromROS(node, "graph_mem_manager");
-
-    std::shared_ptr<ModuleFactory> factory{};
-    // Build the module with (config, factory, name)
-    auto map_manager = std::make_shared<GraphMemManagerModule>(mgr_cfg, factory, "graph_mem_manager");
-
 
     // Configure logging
     std::string log_filename = "example_log.txt";
@@ -183,11 +172,11 @@ int main(int argc, char **argv)  {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers);
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/loop_closure_test/point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/mar19Grassy/point_cloud.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/loop_closure_test/nerf_gazebo_relative_transforms.csv";
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/mar19Grassy/nerf_gazebo_relative_transforms.csv";
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -200,7 +189,7 @@ int main(int argc, char **argv)  {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path = "/home/desiree/ASRL/vtr3/data/loop_closure_test/graph";
+    std::string graph_path = "/home/desiree/ASRL/vtr3/data/mar19Grassy/graph";
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -210,12 +199,8 @@ int main(int argc, char **argv)  {
     Eigen::Matrix4d last_submap_pose = Eigen::Matrix4d::Identity();  // Initialize with identity
 
     // Parameters for the cylindrical filter
-    float cylinder_radius = 40.0;  //changed to 50 and 15 for grassy
-    float lidar_cylinder_height = 30.0;   
-    float radar_cylinder_height = 0.1; 
-    float radar_height = 1.0; // Height of the radar sensor
-
-    float cylinder_height = use_radar ? radar_cylinder_height : lidar_cylinder_height; 
+    float cylinder_radius =60.0;  //changed to 50 and 15 for grassy
+    float cylinder_height = 30.0;   
 
     // Iterate through all vertices in the graph 
     for (auto it = loaded_graph->begin(0ul); it != loaded_graph->end(); ++it) {
@@ -279,83 +264,30 @@ int main(int argc, char **argv)  {
         pcl::PointCloud<PointWithInfo>::Ptr converted_cloud(new pcl::PointCloud<PointWithInfo>());
         pcl::copyPointCloud(*cloud, *converted_cloud);
         pcl::PointCloud<PointWithInfo>::Ptr transformed_cloud(new pcl::PointCloud<PointWithInfo>());
-        pcl::transformPointCloudWithNormals(*converted_cloud, *transformed_cloud, absolute_pose);
+        pcl::transformPointCloudWithNormals(*converted_cloud, *transformed_cloud, absolute_pose); 
+        
+        // Apply cylindrical filter extending upwards by 3/4 the height and downwards by 1/4 the height
         pcl::PointCloud<PointWithInfo>::Ptr cropped_cloud(new pcl::PointCloud<PointWithInfo>());
-
+        float lower_bound = -cylinder_height / 4.0;
+        float upper_bound = 3 * cylinder_height / 4.0;
         for (auto& point : *transformed_cloud) {
-          const float x = point.x, y = point.y, z = point.z;
-          const float distance_xy = std::sqrt(x*x + y*y);
-          
-          if (distance_xy <= cylinder_radius) {
-            if (use_radar) {
-              //build a KdTree over transformed cloud
-              pcl::KdTreeFLANN<PointWithInfo> kdtree(false);
-              kdtree.setInputCloud(transformed_cloud);
-            
-              PointWithInfo query_pt;
-              query_pt.x = 0;
-              query_pt.y = 0;
-              query_pt.z = 0;
-
-              //radius‐filter once: only look at points within cylinder_radius in XY
-              std::vector<int>  idxs;
-              std::vector<float> dists;
-              // search around (0,0,*) in the cloud’s frame
-              kdtree.radiusSearch(
-                query_pt, 
-                cylinder_radius,
-                idxs, dists);
-            
-              //initialize per-beam min-range
-              constexpr int NUM_BEAMS = 360; //how many beams?
-              std::vector<float> min_range(NUM_BEAMS, std::numeric_limits<float>::infinity());
-            
-              //ray-cast only over the filtered indices
-              for (int idx : idxs) {
-                const auto &pt = transformed_cloud->points[idx];
-                //z-gate to your radar plane
-                if (std::abs(pt.z - radar_height) > 0.5f * radar_cylinder_height) 
-                  continue;
-            
-                float r = std::hypot(pt.x, pt.y);
-                float phi = std::atan2(pt.y, pt.x);
-                if (phi < 0) phi += 2*M_PI;
-                int beam = int((phi/(2*M_PI)) * NUM_BEAMS);
-                min_range[beam] = std::min(min_range[beam], r);
-              }
-            
-              //collapse to 2D at radar_height
-              cropped_cloud->clear();
-              for (int b = 0; b < NUM_BEAMS; ++b) {
-                float r = min_range[b];
-                if (!std::isfinite(r)) continue;
-                float ang = 2*M_PI * (float(b)/float(NUM_BEAMS));
-                PointWithInfo hit;
-                hit.x = r * std::cos(ang);
-                hit.y = r * std::sin(ang);
-                hit.z = radar_height;
-                hit.normal_score = 1;
-                cropped_cloud->push_back(hit);
-              }
-            
-            } else {
-              // LiDAR: existing stuff from paper
-              float lower_z = -cylinder_height / 4.0;
-              float upper_z =  3 * cylinder_height / 4.0;
-              if (z >= lower_z && z <= upper_z) {
-                point.normal_score = 1;
-                cropped_cloud->push_back(point);
-              }
-            }
+          const float x = point.x;
+          const float y = point.y;
+          const float z = point.z;
+          const float distance_xy = std::sqrt(x * x + y * y);
+          if ((distance_xy <= cylinder_radius) && (z >= lower_bound) && (z <= upper_bound)) {
+            point.normal_score = 1; 
+            cropped_cloud->push_back(point);
           }
         }
+        
         //debugging
         std::cout << "Original cloud size: " << cloud->size() << std::endl;
         std::cout << "Transformed cloud size: " << transformed_cloud->size() << std::endl;
         std::cout << "Cropped cloud size: " << cropped_cloud->size() << std::endl;
 
         // Create a submap and update it with the transformed point cloud
-        float voxel_size = 0.9; //changed from 0.9 to 0.7 for grassy - paper was 0.9
+        float voxel_size = 0.7; //changed from 0.9 to 0.7 for grassy // Adjust based on nerf point cloud - was 0.9, 0.5 0.05 - now trying 1.5 because ICP script previous did 1.0 but not using anymore
         auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); 
         submap_odo->update(*cropped_cloud); 
 
@@ -394,61 +326,19 @@ int main(int argc, char **argv)  {
       
     }
 
-    //do loop-closure detection **outside** of the big loop:
-    std::vector<std::pair<VertexId, Eigen::Matrix4d>> poses;
-    // — extract every vertex’s absolute pose into `poses`
-    for (auto it = loaded_graph->begin(0ul); it != loaded_graph->end(); ++it) {
-      auto vid  = (*it).v()->id();
-      auto time = (*it).v()->vertexTime(); //vertex.v()->vertexTime();
-      auto T    = computeAbsolutePoseByTimestamp(matrices_with_timestamps, time); //      Eigen::Matrix4d current_pose = computeAbsolutePoseByTimestamp(matrices_with_timestamps, vertex_time);
-
-      poses.emplace_back(vid, T);
-    }
-
-    constexpr double LOOP_DIST_THRESH = 0.1;
-    for (size_t i = 0; i < poses.size(); ++i) {
-      auto [id_i, Ti] = poses[i];
-      for (size_t j = 0; j < i; ++j) {
-        auto [id_j, Tj] = poses[j];
-        if (std::abs(int(id_i) - int(id_j)) <= 1) continue;  // skip neighbors
-        double d = (Ti.block<3,1>(0,3) - Tj.block<3,1>(0,3)).norm();
-        if (d < LOOP_DIST_THRESH) {
-          std::cout << "Loop candidate: " << id_j << " ↔ " << id_i 
-                    << "  (d=" << d << " m) Accept? [y/n]: ";
-          char c; std::cin >> c;
-          if (c=='y'||c=='Y') {
-            // add the temporal edge
-            Eigen::Matrix4d Tj2i = Tj.inverse() * Ti;
-            EdgeTransform lc_tf(Tj2i);
-            lc_tf.setZeroCovariance();
-            loaded_graph->addEdge(id_j, id_i, EdgeType::Temporal, true, lc_tf);
-            
-            // run one global optimize
-            vtr::tactic::QueryCache   qcache;
-            auto                      ocache_ptr = std::make_shared<vtr::tactic::OutputCache>();
-            vtr::tactic::OutputCache& ocache     = *ocache_ptr;
-            auto executor = std::make_shared<vtr::tactic::TaskExecutor>(
-              ocache_ptr, loaded_graph, 1u, 1u, nullptr);
-            map_manager->run(qcache, ocache, loaded_graph, executor);
-            loaded_graph->save();
-            std::cout << "Loop closure added & graph re-optimized.\n";
-          }
-          goto next_i;  // only one closure per vertex i
-        }
-      }
-    next_i:;
-    }
-
-
 
     rclcpp::shutdown();
     
-    // // Restore std::cout to its original state before exiting
-    // std::cout.rdbuf(cout_buf);
-    // return 0;
+    // Restore std::cout to its original state before exiting
+    std::cout.rdbuf(cout_buf);
+    return 0;
 
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return -1;
   }
 }
+
+
+
+
