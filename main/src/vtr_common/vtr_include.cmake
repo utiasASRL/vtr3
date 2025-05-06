@@ -35,8 +35,7 @@ endif()
 #Set to VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR
 set(SelectedPipeline "$ENV{VTR_PIPELINE}")
 
-
-if(SelectedPipeline STREQUAL "LIDAR") ## STREQUAL was MATCHES - PR change alec made
+if(SelectedPipeline STREQUAL "LIDAR")
   add_definitions(-DVTR_ENABLE_LIDAR)
   set(VTR_ENABLE_LIDAR true)
 elseif(SelectedPipeline STREQUAL "RADAR")
