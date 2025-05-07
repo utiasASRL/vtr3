@@ -9,7 +9,7 @@
       # - navigation.sensor_input
       - radar.online_converter
       - radar.pc_extractor
-      # - radar.odometry_icp
+      - radar.odometry_icp
       # - radar.odometry_gyro
       # - radar.odometry_preintegration
       # - radar.localization_icp
@@ -26,6 +26,7 @@
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
+    gyro_bias: 0.0
     queue_size: 10
     graph_map:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -64,8 +65,8 @@
         - extraction
         - filtering
       odometry:
-        - gyro # you can turn off gyro and preintegration here
-        - preintegration
+        #        - preintegration
+#- gyro # you can turn off gyro and preintegration here
         - icp
         - mapping
         - vertex_test
@@ -150,10 +151,7 @@
         # steam parameters #TOTUNE
         verbose: false
         max_iterations: 3
-        
-      preintegration:
-        type: radar.odometry_preintegration
-
+    
       icp:
         type: radar.odometry_icp
 
@@ -167,7 +165,7 @@
         initial_max_iter: 4 # 4
         initial_max_pairing_dist: 5.0 # 5.0
         initial_max_planar_dist: 5.0 # 5.0
-        refined_max_iter: 500 # 50
+        refined_max_iter: 25
         refined_max_pairing_dist: 5.0 # 5.0
         refined_max_planar_dist: 5.0 # 5.0
         averaging_num_steps: 5 # 5
@@ -176,7 +174,8 @@
 
         # steam parameters #TOTUNE
         verbose: false
-        max_iterations: 3
+        max_iterations: 1
+
 
         # threshold #TOTUNE
         min_matched_ratio: 0.3
