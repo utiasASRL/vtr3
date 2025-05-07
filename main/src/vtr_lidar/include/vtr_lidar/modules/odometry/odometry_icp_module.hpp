@@ -43,7 +43,6 @@ class OdometryICPModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // continuous-time estimation
-    double prior_bloat = 1.0;
     bool use_trajectory_estimation = false;
     int traj_num_extra_states = 0;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =

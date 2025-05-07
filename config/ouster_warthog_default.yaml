@@ -150,7 +150,6 @@
         type: lidar.odometry_icp
 
         # continuous time estimation
-        prior_bloat: 1.0
         use_trajectory_estimation: false
         traj_num_extra_states: 0
         traj_qc_diag:
