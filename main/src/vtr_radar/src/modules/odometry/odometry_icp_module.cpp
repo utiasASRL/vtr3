@@ -48,7 +48,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
   // motion compensation
-  config->use_radial_velocity = node->declare_parameter<bool>(param_prefix + ".use_radial_velocity", config->use_radial_velocity);
   config->use_vel_meas = node->declare_parameter<bool>(param_prefix + ".use_vel_meas", config->use_vel_meas);
   config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
@@ -440,44 +439,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // create cost term and add to problem
       auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, icp_loss_func, "icp_cost");
 
-      // process radial velocity measurement
-      auto rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(nullptr, nullptr, nullptr);
-      if (config_->use_radial_velocity) {
-        
-        if (query_points[ind.first].radial_velocity != -1000.0 && !rv_cost_added) {
-          // noise properties
-          Eigen::Matrix<double, 1, 1> meas_cov = pow(config_->dopp_meas_std, 2) * Eigen::Matrix<double, 1, 1>::Identity();
-          const auto vel_noise_model = StaticNoiseModel<1>::MakeShared(meas_cov);
-
-          // loss function
-          auto rv_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
-
-          // auto rv_error_func = [&]() -> Evaluable<double>::Ptr {
-          //   const auto &vel = query_points[ind.first].vel;
-          //   const auto &qry_time = query_points[ind.first].timestamp;
-          //   const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-          //   const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-
-          //   return p2p::radialVelError(w_m_s_in_s_intp_eval, qry_pt, vel);
-          // }();
-
-          const auto &vel = query_points[ind.first].radial_velocity;
-          const auto &qry_time = query_points[ind.first].timestamp;
-          const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-          const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-          const auto rv_error = p2p::RadialVelErrorEvaluator::MakeShared(w_m_s_in_s_intp_eval, qry_pt, -vel);
-          
-          rv_cost = WeightedLeastSqCostTerm<1>::MakeShared(rv_error, vel_noise_model, rv_loss_func);
-        }
-      }
 // Only add cost terms one thread at a time
 #pragma omp critical(odo_icp_add_p2p_error_cost)
 {
       problem.addCostTerm(icp_cost);
-      if (config_->use_radial_velocity && query_points[ind.first].radial_velocity != -1000.0 && !rv_cost_added) {
-        rv_cost_added = true;
-        problem.addCostTerm(rv_cost);
-      }
 }
     }
 
