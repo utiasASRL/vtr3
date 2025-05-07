@@ -7,15 +7,15 @@ from casadi import sin, cos, pi
 #Compile Time Constants (Could use params to set!)
 
 # Pose Covariance
-Q_x = 20
-Q_y = 20
+Q_x = 200
+Q_y = 200
 Q_theta = 5
 # Command Covariance
 R1 = 1.0 #0.1
 R2 = 1.0 #0.1
 
 # Distance Covariance
-Q_dist = 50
+Q_dist = 500
 
 # Acceleration Cost Covariance
 Acc_R1 = 500
