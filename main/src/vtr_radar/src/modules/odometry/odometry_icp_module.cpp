@@ -214,7 +214,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix<double, 12, 12> cov_prior_new;
   std::vector<StateVarBase::Ptr> state_vars;
 
-
   // Set up main state variables
   const int64_t num_states = config_->traj_num_extra_states + 2;
   const int64_t time_diff = (frame_end_time - frame_start_time) / (num_states - 1);
@@ -437,12 +436,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       }();
 
       // create cost term and add to problem
-      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, icp_loss_func, "icp_cost");
+      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, icp_loss_func, "icp_cost" + std::to_string(ind.first));
 
 // Only add cost terms one thread at a time
 #pragma omp critical(odo_icp_add_p2p_error_cost)
 {
-      problem.addCostTerm(icp_cost);
+      // problem.addCostTerm(icp_cost);
 }
     }
 
@@ -454,6 +453,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto radial_velocity = azimuth_vel.radial_velocity;
         const auto dopp_time = azimuth_vel.timestamp;
         const auto azimuth = azimuth_vel.azimuth;
+        const auto azimuth_idx = azimuth_vel.azimuth_idx;
         const Eigen::Matrix<double, 1, 1> radial_velocity_vec = radial_velocity * Eigen::Matrix<double, 1, 1>::Ones();
 
         // Get velocity in radar frame
@@ -471,7 +471,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
         const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->dopp_meas_std));
         const auto error_func = imu::DopplerErrorEvaluatorSE2::MakeShared(w_m_s_in_s_intp_eval, bias, azimuth, radial_velocity_vec);
-        const auto doppler_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "doppler_cost");
+        const auto doppler_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "doppler_cost" + std::to_string(azimuth_idx));
         // Add cost term to problem
 #pragma omp critical(odo_icp_add_doppler_error_cost)
 {
@@ -506,7 +506,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto loss_func = L2LossFunc::MakeShared();
         const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->gyro_cov));
         const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost");
+        const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
 
         problem.addCostTerm(gyro_cost);
       }
@@ -528,7 +528,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto vel_err_func = p2p::VelErrorEvaluator::MakeShared(-vel_meas, w_m_s_in_s_intp_eval);
 
         auto vel_cost = WeightedLeastSqCostTerm<2>::MakeShared(vel_err_func, vel_noise_model, vel_loss_func, "vel_cost");
-        problem.addCostTerm(vel_cost);
+        // problem.addCostTerm(vel_cost);
       } else {
         CLOG(ERROR, "radar.odometry_icp") << "Velocity measurement not available.";
       }
