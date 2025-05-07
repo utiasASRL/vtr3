@@ -31,19 +31,18 @@ namespace vtr {
 namespace radar {
 
 /** \brief ICP for odometry. */
-class OdometryICPModule : public tactic::BaseModule {
+class OdometryDopplerModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.odometry_icp";
+  static constexpr auto static_name = "radar.odometry_doppler";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
     // continuous-time estimation
-    bool use_radial_velocity = false;
     bool use_vel_meas = false;
     int traj_num_extra_states = 0;
     Eigen::Matrix<double, 6, 1> traj_qc_diag =
@@ -96,7 +95,7 @@ class OdometryICPModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  OdometryICPModule(
+  OdometryDopplerModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -109,7 +108,7 @@ class OdometryICPModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(OdometryICPModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometryDopplerModule);
 };
 
 }  // namespace radar
