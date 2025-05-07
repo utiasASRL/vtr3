@@ -368,25 +368,24 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
         const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
-          // Transform gyro measurement into robot frame
-          Eigen::VectorXd gyro_meas_g(3); // Create a 6x1 vector
-          gyro_meas_g << gyro_meas(0), gyro_meas(1), gyro_meas(2);
-          const Eigen::Matrix<double, 3, 1> gyro_meas_r = T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
+        // Transform gyro measurement into robot frame
+        Eigen::VectorXd gyro_meas_g(3);
+        gyro_meas_g << gyro_meas(0), gyro_meas(1), gyro_meas(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r = T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
 
         // Interpolate velocity measurement at gyro stamp
         auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
 
-          // Generate empty bias state
-          Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
-          const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
-          bias->locked() = true;
-          const auto loss_func = L2LossFunc::MakeShared();
-          const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
-          const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-          const auto gyro_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+        // Generate empty bias state
+        Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
+        const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
+        bias->locked() = true;
+        const auto loss_func = L2LossFunc::MakeShared();
+        const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
+        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto gyro_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-          problem.addCostTerm(gyro_cost);
-        }
+        problem.addCostTerm(gyro_cost);
       }
     }
 
@@ -483,17 +482,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
       T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
 
-        // We are marginalizing out everything but the last two states. Therefore, our prior will just be equal to the final solution/cov
-        // on those two states.
-        T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
-        w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
-        cov_prior_new = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
-        cov_prior_new = 0.5 * (cov_prior_new + cov_prior_new.transpose());
-      } else {
-        const auto T_r_m_var = std::dynamic_pointer_cast<SE3StateVar>(state_vars.at(0));  // only 1 state to estimate
-        T_r_m_icp = EdgeTransform(T_r_m_var->value(), covariance.query(T_r_m_var));
-      }
-      //
+      // We are marginalizing out everything but the last two states. Therefore, our prior will just be equal to the final solution/cov
+      // on those two states.
+      T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
+      w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
+      cov_prior_new = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
+      cov_prior_new = 0.5 * (cov_prior_new + cov_prior_new.transpose());
+      
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
       CLOG(DEBUG, "lidar.odometry_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
