@@ -441,7 +441,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 // Only add cost terms one thread at a time
 #pragma omp critical(odo_icp_add_p2p_error_cost)
 {
-      // problem.addCostTerm(icp_cost);
+      problem.addCostTerm(icp_cost);
 }
     }
 
@@ -472,10 +472,20 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->dopp_meas_std));
         const auto error_func = imu::DopplerErrorEvaluatorSE2::MakeShared(w_m_s_in_s_intp_eval, bias, azimuth, radial_velocity_vec);
         const auto doppler_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "doppler_cost" + std::to_string(azimuth_idx));
+
+        // Also add zero vertical velocity error term. Problem becomes unstable without this (need to switch to SE(2)...)
+        const auto zero_vel_loss_func = L2LossFunc::MakeShared();
+        const auto zero_vel_noise_model = StaticNoiseModel<1>::MakeShared(1e-4 * Eigen::Matrix<double, 1, 1>::Identity());
+        Eigen::Matrix<double, 1, 6> D_vel = Eigen::Matrix<double, 1, 6>::Zero();
+        D_vel <<  0, 0, 1, 0, 0, 0;
+        const auto zero_vel_err_func = vspace::ForceZeroEvaluator<6, 1>::MakeShared(w_m_s_in_s_intp_eval, D_vel);
+        const auto vel_start_cost = WeightedLeastSqCostTerm<1>::MakeShared(zero_vel_err_func, zero_vel_noise_model, zero_vel_loss_func, "zero_vel_cost" + std::to_string(azimuth_idx));
+
         // Add cost term to problem
 #pragma omp critical(odo_icp_add_doppler_error_cost)
 {
         problem.addCostTerm(doppler_cost);
+        problem.addCostTerm(vel_start_cost);
 }
       }
     }
@@ -493,7 +503,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
         // Transform gyro measurement into robot frame
         Eigen::VectorXd gyro_meas_g(3);
-        gyro_meas_g << gyro_meas(0), gyro_meas(1), gyro_meas(2);
+        gyro_meas_g << 0, 0, gyro_meas(2);
         const Eigen::Matrix<double, 3, 1> gyro_meas_r =  T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
 
         // Interpolate velocity measurement at gyro stamp
@@ -504,9 +514,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
         bias->locked() = true;
         const auto loss_func = L2LossFunc::MakeShared();
-        const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->gyro_cov));
-        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
+        Eigen::Matrix<double, 3, 3> W_gyro = 1e-6 * Eigen::Matrix<double, 3, 3>::Identity();
+        W_gyro.coeffRef(2, 2) = config_->gyro_cov;
+        const auto noise_model = StaticNoiseModel<3>::MakeShared(W_gyro);
+        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto gyro_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
 
         problem.addCostTerm(gyro_cost);
       }
@@ -515,20 +527,21 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     if (config_->use_vel_meas) {
       const auto &vel_meas = *qdata.vel_meas;
       if (vel_meas[0] != -1000.0) {
-        // Add fwd/side velocity measurement-based cost term
+        // Get velocity measurements in sensor frame (zero out 3d components)
         const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
         const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
 
-        Eigen::Matrix<double, 2, 2> W_vel = Eigen::Matrix<double, 2, 2>::Identity();
+        Eigen::Matrix<double, 3, 3> W_vel = Eigen::Matrix<double, 3, 3>::Identity();
         W_vel.block<1, 1>(0, 0) *= pow(config_->vel_fwd_std, 2);
         W_vel.block<1, 1>(1, 1) *= pow(config_->vel_side_std, 2);
-        const auto vel_noise_model = StaticNoiseModel<2>::MakeShared(W_vel);
+        W_vel.block<1, 1>(2, 2) *= 1e-8;
+        const auto vel_noise_model = StaticNoiseModel<3>::MakeShared(W_vel);
         const auto vel_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
         // Minus sign because vel_meas is v_s_m_in_s, but we want v_m_s_in_s
         const auto vel_err_func = p2p::VelErrorEvaluator::MakeShared(-vel_meas, w_m_s_in_s_intp_eval);
 
-        auto vel_cost = WeightedLeastSqCostTerm<2>::MakeShared(vel_err_func, vel_noise_model, vel_loss_func, "vel_cost");
-        // problem.addCostTerm(vel_cost);
+        const auto vel_cost = WeightedLeastSqCostTerm<3>::MakeShared(vel_err_func, vel_noise_model, vel_loss_func, "vel_cost");
+        problem.addCostTerm(vel_cost);
       } else {
         CLOG(ERROR, "radar.odometry_icp") << "Velocity measurement not available.";
       }
