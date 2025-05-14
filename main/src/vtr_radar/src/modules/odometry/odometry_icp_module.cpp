@@ -380,7 +380,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     timer[3]->start();
 
     // initialize problem
-    OptimizationProblem problem(config_->num_threads);
+    SlidingWindowFilter problem(config_->num_threads);
 
     // add variables
     for (const auto &var : state_vars)
@@ -662,11 +662,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
       T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
 
-      // We are marginalizing out everything but the last two states. Therefore, our prior will just be equal to the final solution/cov
-      // on those two states.
+      // Marginalize out all but last 2 states for prior
+      std::vector<StateVarBase::Ptr> state_vars_marg;
+      for (int i = 0; i < num_states*2 - 2; ++i) {
+        state_vars_marg.push_back(state_vars[i]);
+      }
+      problem.marginalizeVariable(state_vars_marg);
+      params.max_iterations = 1; // Only one iteration for marginalization
+      GaussNewtonSolver solver_marg(problem, params);
+      solver_marg.optimize();
+      Covariance covariance_marg(solver_marg);
       T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
       w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
-      cov_prior_new = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
+      cov_prior_new = trajectory->getCovariance(covariance_marg, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
       cov_prior_new = 0.5 * (cov_prior_new + cov_prior_new.transpose());
 
       //
