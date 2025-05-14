@@ -82,21 +82,21 @@
     preprocessing:
       conversion:
         type: radar.online_converter
+        radar_resolution: 0.161231
+        encoder_bin_size: 16000 # encoder bin size
       extraction:
         type: radar.pc_extractor
-        radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
+        radar_resolution: 0.161231 # 0307827  # RAS3 0.161231 #0.044
         detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
-        minr: 1.0 # mininum detection distance
-        maxr: 69.0 # maximum detection distance
-        encoder_bin_size: 16000 # encoder bin size
+        minr: 2.0 # mininum detection distance
+        maxr: 80.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
         range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
-        kstrong:
-          kstrong: 4 # k-strongest per azimuth to retain was 12
-          threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.225 # treshold for k-strongest (constant)
+        kstrongest:
+          kstrong: 3 # k-strongest per azimuth to retain was 12
+          static_threshold: 0.4
         cen2018:
           zq: 2.5
           sigma: 8
@@ -138,26 +138,17 @@
         rho_scale: 1.0 # when finding neighbors, set rho to log(rho) / rho_scale
 
         num_sample_linearity: 5000 # max number of sample after filtering based on linearity
-        min_linearity_score: 0.2 # min linearity score (negative value means no filtering)
+        min_linearity_score: -1.0 # min linearity score (negative value means no filtering)
 
         visualize: true
 
     odometry:
-      gyro:
-        type: radar.odometry_gyro
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
-        gyro_cov: 1e-7
-
-        # steam parameters #TOTUNE
-        verbose: false
-        max_iterations: 3
-    
       icp:
         type: radar.odometry_icp
 
         # continuous time estimation
         traj_num_extra_states: 0
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
+        traj_qc_diag: [1.0, 0.001, 0.0001, 0.0001, 0.0001, 0.01]
 
         # ICP parameters # TOTUNE
         num_threads: 8 # 8
@@ -171,14 +162,15 @@
         averaging_num_steps: 5 # 5
         huber_delta: 1.0 # 1.0
         cauchy_k: 0.8
+        remove_orientation: false
 
         # steam parameters #TOTUNE
         verbose: false
         max_iterations: 1
-
+        gyro_cov: 1e-4
 
         # threshold #TOTUNE
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.0
 
         visualize: true
 
@@ -190,7 +182,7 @@
         crop_range_front: 80.0
         back_over_front_ratio: 1.0
 
-        point_life_time: 3.0
+        point_life_time: 5.0
 
         visualize: true
 
@@ -223,16 +215,16 @@
         initial_max_iter: 8 # 4
         initial_max_pairing_dist: 5.0 # 5.0
         initial_max_planar_dist: 5.0 # 5.0
-        refined_max_iter: 500 # 50
+        refined_max_iter: 25 # 50
         refined_max_pairing_dist: 5.0 # 5.0
         refined_max_planar_dist: 5.0 # 5.0
         averaging_num_steps: 5 # 5
         huber_delta: 1.0 # 1.0
-        cauchy_k: 0.8
+        cauchy_k: 1.0
 
         # steam parameters #TOTUNE
         verbose: false
-        max_iterations: 3
+        max_iterations: 1
 
         # threshold #TOTUNE
         min_matched_ratio: 0.3
