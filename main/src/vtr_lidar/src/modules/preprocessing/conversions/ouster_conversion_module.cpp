@@ -87,7 +87,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
   // iterators
   // clang-format off
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
-  sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg, "t");
+  sensor_msgs::PointCloud2ConstIterator<uint32_t> iter_time(*msg, "t");
   sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(*msg, "intensity");
 
   // clang-format on
@@ -106,7 +106,7 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
     //CLOG(DEBUG, "lidar.ouster_converter") << "Message Header Stamp (nanosec)" << (msg->header).stamp.nanosec;
 
 
-    point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time * 1e9);
+    point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time) + *qdata.stamp;
     //CLOG(DEBUG, "lidar.ouster_converter") << "First point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time * 1e9);
     //CLOG(DEBUG, "lidar.ouster_converter") << "Second point info - x: " << *iter_x << " y: " << *iter_y << " z: " << *iter_z << " timestamp: " << static_cast<int64_t>(*iter_time);
   }

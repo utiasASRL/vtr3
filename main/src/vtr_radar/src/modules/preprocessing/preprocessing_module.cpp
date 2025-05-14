@@ -54,17 +54,14 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
                                const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  if(!qdata.radar_data) return;
+
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("filtered_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
-  }
-
-  if(!qdata.radar_data)
-  {
-    return;
   }
 
   // Get input point cloud
@@ -121,7 +118,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
         pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
   }
 
-  CLOG(DEBUG, "lidar.preprocessing")
+  CLOG(DEBUG, "radar.preprocessing")
       << "linearity sampled point size: " << filtered_point_cloud->size();
 
   CLOG(DEBUG, "radar.preprocessing")

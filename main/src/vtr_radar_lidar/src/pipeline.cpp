@@ -32,9 +32,9 @@ auto RadarLidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   auto config = std::make_shared<Config>();
   // clang-format off
   // modules
-  config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
-  config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
-  config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
+  if (!node->has_parameter(param_prefix + ".preprocessing"))config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
+  if (!node->has_parameter(param_prefix + ".odometry")) config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
+  if (!node->has_parameter(param_prefix + ".localization")) config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
@@ -79,10 +79,10 @@ void RadarLidarPipeline::reset() {
   T_r_m_odo_radar_ = nullptr;
   w_m_r_in_r_odo_radar_ = nullptr;
 
-  preint_start_time_ = nullptr;
-  preint_end_time_ = nullptr;
-  last_gyro_msg_ = nullptr;
-  preint_delta_yaw_ = nullptr;
+  T_r_m_odo_prior_ = nullptr;
+  w_m_r_in_r_odo_prior_ = nullptr;
+  cov_prior_ = nullptr;
+  timestamp_prior_ = nullptr;
 
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
@@ -114,13 +114,13 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo_radar = timestamp_odo_radar_;
     qdata->T_r_m_odo_radar = T_r_m_odo_radar_;
     qdata->w_m_r_in_r_odo_radar = w_m_r_in_r_odo_radar_;
-  }
 
-  /// Carry over preintegration stuff
-  if(preint_start_time_ != nullptr) qdata->stamp_start_pre_integration = preint_start_time_;
-  if(preint_end_time_ != nullptr) qdata->stamp_end_pre_integration = preint_end_time_;
-  if(last_gyro_msg_ != nullptr) qdata->prev_gyro_msg = last_gyro_msg_;
-  if(preint_delta_yaw_ != nullptr) qdata->preintegrated_delta_yaw = preint_delta_yaw_;
+    // Prior stuff
+    qdata->T_r_m_odo_prior = T_r_m_odo_prior_;
+    qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
+    qdata->cov_prior = cov_prior_;
+    qdata->timestamp_prior = timestamp_prior_;
+  }
 
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
@@ -136,16 +136,13 @@ void RadarLidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     { 
       timestamp_odo_radar_ = qdata->timestamp_odo_radar.ptr();
       T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
-      w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr(); 
+      w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr();
+      T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
+      timestamp_prior_ = qdata->timestamp_prior.ptr();
+      w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
+      cov_prior_ = qdata->cov_prior.ptr();
     }
   }
-
-  // store the preintegration stuff
-
-  if(qdata->stamp_start_pre_integration) preint_start_time_ = qdata->stamp_start_pre_integration.ptr();
-  if(qdata->stamp_end_pre_integration) preint_end_time_ = qdata->stamp_end_pre_integration.ptr();
-  if(qdata->prev_gyro_msg) last_gyro_msg_ = qdata->prev_gyro_msg.ptr();
-  if(qdata->preintegrated_delta_yaw) preint_delta_yaw_ = qdata->preintegrated_delta_yaw.ptr();
 }
 
 void RadarLidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
