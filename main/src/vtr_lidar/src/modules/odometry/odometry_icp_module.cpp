@@ -57,7 +57,6 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
-  config->prior_bloat = node->declare_parameter<double>(param_prefix + ".prior_bloat", config->prior_bloat);
 
   // icp params
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
@@ -201,7 +200,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Set up priors
   CLOG(DEBUG, "lidar.odometry_icp") << "Adding prior to trajectory.";
-  trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, config_->prior_bloat * cov_prior);
+  trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior, w_m_r_in_r_odo_prior, cov_prior);
 
   // Set up eval state at which results will be generated and at which pointcloud will get undistorted to
   T_r_m_eval = trajectory->getPoseInterpolator(query_time);
@@ -274,9 +273,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool solver_failed = false;
   
   CLOG(DEBUG, "lidar.odometry_icp") << "Start the ICP optimization loop.";
-  if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
+  if (qdata.gyro_msgs) CLOG(DEBUG, "lidar.odometry_icp") << "Gyro messages are available.";
   
-  if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
+  if (config_->remove_orientation) CLOG(DEBUG, "lidar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -370,9 +369,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
         // Transform gyro measurement into robot frame
-        Eigen::VectorXd gyro_meas_g(6); // Create a 6x1 vector
-        gyro_meas_g << 0, 0, 0, gyro_meas(0), gyro_meas(1), gyro_meas(2);
-        const Eigen::Matrix<double, 3, 1> gyro_meas_r = (lgmath::se3::tranAd(T_s_r_gyro.matrix().inverse()) * gyro_meas_g).tail<3>();
+        Eigen::VectorXd gyro_meas_g(3);
+        gyro_meas_g << gyro_meas(0), gyro_meas(1), gyro_meas(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r = T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
 
         // Interpolate velocity measurement at gyro stamp
         auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
@@ -384,9 +383,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto loss_func = L2LossFunc::MakeShared();
         const auto noise_model = StaticNoiseModel<3>::MakeShared(config_->gyro_cov * Eigen::Matrix<double, 3, 3>::Identity());
         const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto measurement_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+        const auto gyro_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
-        problem.addCostTerm(measurement_cost);
+        problem.addCostTerm(gyro_cost);
       }
     }
 
@@ -489,13 +488,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         state_vars_marg.push_back(state_vars[i]);
       }
       problem.marginalizeVariable(state_vars_marg);
+      params.max_iterations = 1; // Only one iteration for marginalization
       GaussNewtonSolver solver_marg(problem, params);
       solver_marg.optimize();
       Covariance covariance_marg(solver_marg);
-      T_r_m_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
+      T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
       w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
       cov_prior_new = trajectory->getCovariance(covariance_marg, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
-
+      cov_prior_new = 0.5 * (cov_prior_new + cov_prior_new.transpose());
       
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //

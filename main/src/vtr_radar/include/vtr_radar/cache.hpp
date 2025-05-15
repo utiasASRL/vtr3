@@ -26,6 +26,7 @@
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
 
 #include "vtr_radar/data_types/point.hpp"
+#include "vtr_radar/data_types/azimuth.hpp"
 #include "vtr_radar/data_types/pointmap.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
@@ -88,6 +89,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   // Doppler paper stuff
   tactic::Cache<Eigen::Vector2d> vel_meas;
   tactic::Cache<double> yaw_meas;
+  tactic::Cache<DopplerScan> doppler_scan;
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {

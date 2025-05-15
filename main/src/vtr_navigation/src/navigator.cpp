@@ -139,7 +139,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 #ifdef VTR_ENABLE_LIDAR
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
+  gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
+  gyro_bias_ = node_->declare_parameter<double>("gyro_bias", gyro_bias_);
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));

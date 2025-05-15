@@ -153,7 +153,6 @@
         type: lidar.odometry_icp
 
         # continuous time estimation
-        prior_bloat: 1.0
         use_trajectory_estimation: false
         traj_num_extra_states: 0
         traj_qc_diag:
@@ -174,8 +173,9 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.85
+        min_matched_ratio: 0.0
         visualize: true
+        gyro_cov: 1e-3
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
