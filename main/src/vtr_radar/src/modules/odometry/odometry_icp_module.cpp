@@ -335,9 +335,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool solver_failed = false;
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
-  if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
-  if (qdata.doppler_scan) CLOG(DEBUG, "radar.odometry_icp") << "Doppler scan is available.";
-  if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
+  CLOG_IF(qdata.gyro_msgs, DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
+  CLOG_IF(qdata.doppler_scan, DEBUG, "radar.odometry_icp") << "Doppler scan is available.";
+  CLOG_IF(config_->remove_orientation, DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -702,35 +702,33 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   // Outputs
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
-  if (true) {
-    const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->evaluate().matrix();
-    const auto vel_diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
-    const auto vel_diff_norm = vel_diff.norm();
-    const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
-    const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
+  const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->evaluate().matrix();
+  const auto vel_diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
+  const auto vel_diff_norm = vel_diff.norm();
+  const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
+  const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
-    const auto T_r_m_prev = *qdata.T_r_m_odo;
-    const auto T_r_m_query = T_r_m_eval->value();
-    const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
-    const auto diff_T_trans = diff_T.head<3>().norm();
-    const auto diff_T_rot = diff_T.tail<3>().norm();
-    
-    CLOG(DEBUG, "radar.odometry_icp") << "Current transformation difference: " << diff_T.transpose();
-    CLOG(DEBUG, "radar.odometry_icp") << "Current velocity difference: " << vel_diff.transpose();
+  const auto T_r_m_prev = *qdata.T_r_m_odo;
+  const auto T_r_m_query = T_r_m_eval->value();
+  const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
+  const auto diff_T_trans = diff_T.head<3>().norm();
+  const auto diff_T_rot = diff_T.tail<3>().norm();
+  
+  CLOG(DEBUG, "radar.odometry_icp") << "Current transformation difference: " << diff_T.transpose();
+  CLOG(DEBUG, "radar.odometry_icp") << "Current velocity difference: " << vel_diff.transpose();
 
-    if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
-      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm << " translational velocity difference: " << trans_vel_diff_norm << " rotational velocity difference: " << rot_vel_diff_norm;
-      estimate_reasonable = false;
-    }
+  if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
+    CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm << " translational velocity difference: " << trans_vel_diff_norm << " rotational velocity difference: " << rot_vel_diff_norm;
+    estimate_reasonable = false;
+  }
 
-    if (diff_T_trans > config_->max_trans_diff) {
-      CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final translation is too large. Transform difference vector: " << diff_T.transpose();
-      estimate_reasonable = false;
-    }
-    if (diff_T_rot > config_->max_rot_diff) {
-      CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final rotation is too large. Transform difference vector: " << diff_T.transpose();
-      estimate_reasonable = false;
-    }
+  if (diff_T_trans > config_->max_trans_diff) {
+    CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final translation is too large. Transform difference vector: " << diff_T.transpose();
+    estimate_reasonable = false;
+  }
+  if (diff_T_rot > config_->max_rot_diff) {
+    CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final rotation is too large. Transform difference vector: " << diff_T.transpose();
+    estimate_reasonable = false;
   }
 
   if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable && !solver_failed) {
@@ -772,10 +770,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_m_odo = T_r_m_eval_extp->value();
     *qdata.timestamp_odo = timestamp_odo_new;
 
-#if 1
    CLOG(DEBUG, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
    CLOG(DEBUG, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
-#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();

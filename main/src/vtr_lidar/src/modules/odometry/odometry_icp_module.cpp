@@ -273,9 +273,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool solver_failed = false;
   
   CLOG(DEBUG, "lidar.odometry_icp") << "Start the ICP optimization loop.";
-  if (qdata.gyro_msgs) CLOG(DEBUG, "lidar.odometry_icp") << "Gyro messages are available.";
-  
-  if (config_->remove_orientation) CLOG(DEBUG, "lidar.odometry_icp") << "Removing ICP orientation contribution.";
+  CLOG_IF(qdata.gyro_msgs, DEBUG, "lidar.odometry_icp") << "Gyro messages are available.";
+  CLOG_IF(config_->remove_orientation, DEBUG, "lidar.odometry_icp") << "Removing ICP orientation contribution.";
+
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
