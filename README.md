@@ -5,8 +5,6 @@
 VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then closely repeat any part of the network. VT&amp;R3 is designed for easy adaptation to various sensors (camera, lidar, radar, GPS, etc) and robot combinations. So far, we have explored using VT&amp;R3 to perform teach and repeat navigation using a stereo camera, a lidar, or a combination of a stereo camera and GPS.
 
 
-
-
 ## Software Support
 This repository contains active support for the following feature
 * Multi-experience localization with a Stereo Camera
@@ -19,16 +17,17 @@ The supported pipelines are:
 * `LIDAR`
 * `VISION`
 * `RADAR`
-* `RADAR_LIDAR`
+* `RADAR-LIDAR`
   
-If the variable is unset, then all pipelines will be compiled and the user can select at run time through the config file parameter `pipeline.type` which pipeline to use.
+If the variable is unset, then all pipelines will be compiled, and the user can select at run time through the config file parameter `pipeline.type` which pipeline to use.
 
 The primary support version of VTR requires an NVidia Driver with Cuda capabilities.
 The current Dockerfile requires a CUDA driver capable of supporting 11.7.
 A GPU is required for all versions of the vision (camera) pipeline and features for LiDAR and RADAR that use PyTorch models for processing.
 
-If no GPU is available a CPU only version is available, but **only for LiDAR**.
+If no GPU is available, a CPU only version is available, but **only for LiDAR**.
 Note that the CPU version of TorchLib is installed for easier compilation but the models are unlikely to run fast enough on a CPU to be useful. 
+If you have no NVidia drivers, then you will need to add an empty file called `COLCON_IGNORE` in the folder `main/src/deps/gpusurf`. This will skip this compilation. 
 
 ## Reproducing Results of VT&amp;R3 Papers
 
