@@ -141,7 +141,7 @@ class GraphMap extends React.Component {
       // map center
       map_center: {lat: 43.78220, lng: -79.4661},
       /// whether the path selection will be the whole path (for annotation)
-      annotate_full: true,
+      annotate_full: false,
       in_select_mode: false,
     };
     this.fetchMapCenter()
