@@ -141,7 +141,7 @@ class GraphMap extends React.Component {
       // map center
       map_center: {lat: 43.78220, lng: -79.4661},
       /// whether the path selection will be the whole path (for annotation)
-      annotate_full: false,
+      annotate_full: true,
       in_select_mode: false,
     };
     this.fetchMapCenter()
@@ -951,7 +951,7 @@ class GraphMap extends React.Component {
   }
 
   /** @brief */
-  createSelector(selector, callback) {
+  createSelector(selector, callback, full_path) {
     // Initial position of the start, center and end markers based on current map.
     // Offset to start/end marker is ~10% of the screen diagonal in each direction.
     let map_bounds = this.map.getBounds();
@@ -972,18 +972,16 @@ class GraphMap extends React.Component {
     let interm_pos = { s: null, c: null, e: null };
 
     let getSelectedPath = () => {
-      if (!this.state.annotate_full) {
+      if (!full_path) {
         let paths = this.breadthFirstSearch(selector.vertex.c.id, [selector.vertex.s.id, selector.vertex.e.id]);
         paths[0].reverse();
         return paths[0].concat(paths[1].slice(1));
       }
       else {
-        let end_id = Math.max(...Array.from(this.id2vertex.keys()));
-        let paths = this.breadthFirstSearch(selector.vertex.c.id, [0, end_id]);
-        paths[0].reverse();
-        return paths[0].concat(paths[1].slice(1));
+        return [...this.id2vertex.keys()];
       }
     };
+
 
     let getRotationAngle = (p1, p2) => {
       let point1 = this.map.project(this.id2vertex.get(p1));
@@ -1125,7 +1123,7 @@ class GraphMap extends React.Component {
         }
       });
     };
-    this.createSelector(this.merge_selector, selectPathCallback);
+    this.createSelector(this.merge_selector, selectPathCallback, false);
   }
 
   finishMerge() {
@@ -1166,7 +1164,7 @@ class GraphMap extends React.Component {
         }
       });
     };
-    this.createSelector(this.annotate_route_selector, selectPathCallback);
+    this.createSelector(this.annotate_route_selector, selectPathCallback, this.state.annotate_full);
 
     this.annotateRouteZoomEnd = () => {
 
