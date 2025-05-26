@@ -62,6 +62,9 @@ class Tactic : public PipelineInterface, public TacticInterface {
     /** \brief Configuration for the localization chain */
     LocalizationChain::Config chain_config;
 
+    /** \brief Control localization execution */
+    int loc_threshold = 1;
+
     bool save_odometry_result = false;
     bool save_odometry_vel_result = false;
     bool save_localization_result = false;
@@ -132,6 +135,11 @@ class Tactic : public PipelineInterface, public TacticInterface {
    * \note Only change this variable when pipeline is locked.
    */
   bool first_frame_ = true;
+
+  /**
+   * \brief Track frame number, used to flag localization execution
+  */
+  int frame_count = 0;
 
   /**
    * \brief Current vertex id for odometry, only used by odometry thread

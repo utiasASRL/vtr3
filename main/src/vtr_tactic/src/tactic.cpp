@@ -47,6 +47,9 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
   config->chain_config.alpha = node->declare_parameter<double>(prefix+".chain.alpha", 0.25);
 
+  /// localization execution by interval
+  config->loc_threshold = node->declare_parameter<int>(prefix + ".loc_threshold", 1);
+
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
   config->save_odometry_vel_result = node->declare_parameter<bool>(prefix+".save_odometry_vel_result", false);
   config->save_localization_result = node->declare_parameter<bool>(prefix+".save_localization_result", false);
@@ -198,7 +201,12 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
   // Setup caches
   qdata->pipeline_mode.emplace(pipeline_mode_);
   qdata->first_frame.emplace(first_frame_);
+  qdata->faulty_frame.emplace(false);
   first_frame_ = false;
+
+  // check if localization should be executed on current frame
+  qdata->loc_flag = (frame_count % config_->loc_threshold == 0);
+  frame_count += 1;
 
   // Preprocess incoming data, which always runs no matter what mode we are in.
   pipeline_->preprocess(qdata, output_, graph_, task_queue_);
@@ -618,6 +626,27 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
       << *qdata->vid_odo << " (i.e., T_v_r odometry): "
       << (*qdata->T_r_v_odo).inverse().vec().transpose();
 
+  // save odometry velocity result
+  if (config_->save_odometry_vel_result) {
+    CLOG(DEBUG, "tactic") << "Saving odometry velocity result";
+    using TwistLM = storage::LockableMessage<geometry_msgs::msg::Twist>;
+    auto twist_msg = std::make_shared<geometry_msgs::msg::Twist>();
+
+    // Populate Twist message
+    auto vel = *qdata->w_v_r_in_r_odo;
+    twist_msg->linear.x = vel(0, 0);
+    twist_msg->linear.y = vel(1, 0);
+    twist_msg->linear.z = vel(2, 0);
+    twist_msg->angular.x = vel(3, 0);
+    twist_msg->angular.y = vel(4, 0);
+    twist_msg->angular.z = vel(5, 0);
+
+    auto msg = std::make_shared<TwistLM>(twist_msg, *qdata->stamp);
+    graph_->write<geometry_msgs::msg::Twist>(
+      "repeat_odometry_vel_result", "geometry_msgs/msg/Twist",
+      msg);
+  }
+
   // Rviz visualization
   if (config_->visualize) {
     const auto lock = chain_->guard();
@@ -817,7 +846,10 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
 
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
-  pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+
+  if (qdata->loc_flag)
+    pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to localization vertex ("
       << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "
@@ -867,7 +899,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
                                       *qdata->sid_loc, T_v_odo_loc, true,
                                       false);
 
-  // Correct keyfram pose (for visualization)
+  // Correct keyframe pose (for visualization)
   auto lock = chain_->guard();
   T_w_v_odo_ = chain_->T_start_petiole();
   T_w_v_loc_ = chain_->T_start_trunk();

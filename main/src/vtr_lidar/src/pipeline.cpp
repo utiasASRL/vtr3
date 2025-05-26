@@ -91,8 +91,22 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
-  for (const auto &module : preprocessing_)
+  auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
+
+  /// check if we are using doppler odometry
+  bool doppler_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
+    return module->name() == "lidar.odometry_doppler";
+  });
+
+  for (const auto &module : preprocessing_) {
+    if (module->name() == "lidar.preprocessing" &&
+        doppler_odometry && !*qdata->loc_flag) {
+      // if we are using doppler odometry, always skip preprocessing unless localization flag is enabled for current frame
+      CLOG(DEBUG, "lidar.pipeline") << "Attention! Not localizing current frame, skip preprocessing.";
+      continue;
+    }
     module->run(*qdata0, *output0, graph, executor);
+  }
 }
 
 void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
@@ -116,8 +130,24 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
   }
 
-  for (const auto &module : odometry_)
-    module->run(*qdata0, *output0, graph, executor);
+  /// check if we are using doppler odometry
+  bool doppler_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
+    return module->name() == "lidar.odometry_doppler";
+  });
+
+  for (const auto &module : odometry_) {
+    if (doppler_odometry &&
+        module->name() == "lidar.odometry_map_maintenance_v2") {
+      // if we are using doppler odometry, always skip map building
+      CLOG(DEBUG, "lidar.pipeline") << "Attention! Doppler odometry is being used, skip map building.";
+      if (!qdata->sliding_map_odo) {
+        CLOG(DEBUG, "lidar.pipeline") << "Initializing sliding map with default voxel size.";
+        qdata->sliding_map_odo.emplace(0.2);
+      }
+    } else {
+      module->run(*qdata0, *output0, graph, executor);
+    }
+  }
 
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {

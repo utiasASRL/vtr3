@@ -36,6 +36,22 @@ auto AevaConversionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
+void aevaCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
+  for (size_t i = 0; i < point_cloud.size(); i++) {
+    auto &p = point_cloud[i];
+    auto &pm1 = i > 0 ? point_cloud[i - 1] : point_cloud[i];
+
+    p.rho = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = atan2(p.y, p.x); // + M_PI / 2;
+
+    if (i > 0 && (p.phi - pm1.phi) > 1.5 * M_PI)
+      p.phi -= 2 * M_PI;
+    else if (i > 0 && (p.phi - pm1.phi) < -1.5 * M_PI)
+      p.phi += 2 * M_PI;
+  }
+}
+
 void AevaConversionModule::run_(QueryCache &qdata0, OutputCache &,
                                 const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
@@ -55,24 +71,23 @@ void AevaConversionModule::run_(QueryCache &qdata0, OutputCache &,
       std::make_shared<pcl::PointCloud<PointWithInfo>>(points.rows(), 1);
 
   for (size_t idx = 0; idx < (size_t)points.rows(); idx++) {
+    auto &point = point_cloud->at(idx);
     // cartesian coordinates
-    point_cloud->at(idx).x = points(idx, 0);
-    point_cloud->at(idx).y = points(idx, 1);
-    point_cloud->at(idx).z = points(idx, 2);
-
-    // radial velocity
-    point_cloud->at(idx).flex23 = points(idx, 4);
-
-    // pointwise timestamp
-    point_cloud->at(idx).timestamp = static_cast<int64_t>(points(idx, 5) * 1e9);
+    point.x = points(idx, 0);
+    point.y = points(idx, 1);
+    point.z = points(idx, 2);
+    //
+    point.radial_velocity = points(idx, 3);
+    point.intensity = points(idx, 4);
+    point.timestamp = static_cast<int64_t>(points(idx, 5));
+    // IDs
+    point.beam_id = points(idx, 6);
+    point.line_id = points(idx, 7);
+    point.face_id = points(idx, 8);
+    point.sensor_id = points(idx, 9);
   }
-
-  // Aeva has no polar coordinates, so compute them manually.
-  for (auto &p : *point_cloud) {
-    p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-    p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
-    p.phi = std::atan2(p.y, p.x);
-  }
+  
+  aevaCart2Pol(*point_cloud);
 
   // Output
   qdata.raw_point_cloud = point_cloud;

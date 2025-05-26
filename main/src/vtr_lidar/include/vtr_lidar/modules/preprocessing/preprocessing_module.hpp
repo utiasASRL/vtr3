@@ -56,6 +56,7 @@ class PreprocessingModule : public tactic::BaseModule {
     float min_normal_estimate_dist = 2.0;
     float max_normal_estimate_angle = 0.417;  // 5/12 original parameter value
     int cluster_num_sample = 100000;
+    int min_points_threshold = 0;
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
