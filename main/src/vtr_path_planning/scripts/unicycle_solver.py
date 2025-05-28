@@ -15,14 +15,14 @@ R1 = 1.0 #0.1
 R2 = 1.0 #0.1
 
 # Acceleration Cost Covariance
-Acc_R1 = 500
-Acc_R2 = 50 #0.01
+Acc_R1 = 50
+Acc_R2 = 5 #0.01
 
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the angular velocity
-alpha = 0.4
+alpha = 0.811
 
 # state symbolic variables
 x = ca.SX.sym('x')

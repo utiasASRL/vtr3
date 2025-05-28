@@ -81,6 +81,8 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
 
+    std::string waypoint_selection = "leader_vel";
+
     // Add unicycle model param
 
     // Misc

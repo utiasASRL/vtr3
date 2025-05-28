@@ -44,8 +44,8 @@ PathInterpolator::PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path) {
 PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) const {
   auto up_it = path_info_.lower_bound(time);
 
-  CLOG(ERROR, "mpc.follower") << "Requested interpolation time " << time;
-  CLOG(ERROR, "mpc.follower") << "Found lower bound time " << up_it->first;
+  CLOG(DEBUG, "mpc.follower") << "Requested interpolation time " << time;
+  CLOG(DEBUG, "mpc.follower") << "Found lower bound time " << up_it->first;
 
   for (const auto& [key, value] : path_info_) {
     CLOG(DEBUG, "mpc.follower") << "Leader path time: " << key;
@@ -80,17 +80,17 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
     const double t_0 = up_it->first;
 
 
-    CLOG(DEBUG, "mpc.follower") << "Pose 0 " << T_w_p0 << " Pose 1 " << T_w_p1;
+    //CLOG(DEBUG, "mpc.follower") << "Pose 0 " << T_w_p0 << " Pose 1 " << T_w_p1;
 
     const double dt = t_1 - t_0;
     try {
       auto xi_interp = (T_w_p0.inverse() * T_w_p1).vec() * ((time - t_0) / dt);
-      CLOG(DEBUG, "mpc.follower") << "delta trans " << (T_w_p0.inverse() * T_w_p1).vec();
-      CLOG(DEBUG, "mpc.follower") << "dt " << dt;
-      CLOG(DEBUG, "mpc.follower") << "time " << time;
-      CLOG(DEBUG, "mpc.follower") << "t_0 " << t_0;
-      CLOG(DEBUG, "mpc.follower") << "xi" << xi_interp;
-      CLOG(DEBUG, "mpc.follower") << "Interpolated pose " << T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
+      //CLOG(DEBUG, "mpc.follower") << "delta trans " << (T_w_p0.inverse() * T_w_p1).vec();
+      //CLOG(DEBUG, "mpc.follower") << "dt " << dt;
+      //CLOG(DEBUG, "mpc.follower") << "time " << time;
+      //CLOG(DEBUG, "mpc.follower") << "t_0 " << t_0;
+      //CLOG(DEBUG, "mpc.follower") << "xi" << xi_interp;
+      //CLOG(DEBUG, "mpc.follower") << "Interpolated pose " << T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
       return T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
     } catch (std::exception &e) {
       return T_w_p0;
@@ -108,6 +108,9 @@ auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& nod
   config->leader_path_topic = node->declare_parameter<std::string>(prefix + ".leader_path_topic", config->leader_path_topic);
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
   config->distance_margin = node->declare_parameter<double>(prefix + ".distance_margin", config->distance_margin);
+
+  // Waypoint selection
+  config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);
 
   // MPC Configs:
   // SPEED SCHEDULER PARAMETERS
@@ -129,6 +132,7 @@ auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& nod
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
+
 
   return config;
 }
@@ -256,27 +260,132 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 
   CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
-  double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
 
-  std::vector<double> p_rollout;
-  for(int j = 1; j < mpcConfig.N+1; j++){
-    p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
-  }
 
-  mpcConfig.follower_reference_poses.clear();
-  auto referenceInfo = generateHomotopyReference(p_rollout, chain);
-  for(const auto& Tf : referenceInfo.poses) {
-    mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-    CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
-  }
-
+  // Define Leader Waypoints
   mpcConfig.leader_reference_poses.clear();
+  std::vector<lgmath::se3::Transformation> leader_world_poses;
+  std::vector<double> leader_p_values;
   for (uint i = 0; i < mpcConfig.N; i++){
     const auto T_w_lp = leaderPathInterp_->at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
+    leader_world_poses.push_back(T_w_lp);
+    leader_p_values.push_back(findRobotP(T_w_lp, chain));
     CLOG(DEBUG, "mpc.follower") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
 
   }
+
+  // Define Follower Waypoints
+  
+  if(config_->waypoint_selection == "euclidean")   // Option 1: Use leader poses and find poses on the path that fulfill the distance constraint
+  {
+      CLOG(DEBUG, "mpc.follower") << "Choosing euclidean option for waypoint selection!";
+    mpcConfig.follower_reference_poses.clear();
+
+    // Run through all the leader poses we found
+    for (uint i = 0; i < leader_world_poses.size(); i++){
+      // Leader pose in world frame
+      auto T_w_l = leader_world_poses[i];
+
+      //Consider the path between the follower and leader (waypoints won't be spawned behind the follower)
+      double start_p = findRobotP(T_w_p * T_p_r_extp, chain);
+      double end_p = leader_p_values[i];
+
+      // Run through the path and find the pose that best fulfills the distance constraint
+      double best_distance = std::numeric_limits<double>::max();
+      lgmath::se3::Transformation best_pose;
+      for(double p = start_p; p < end_p; p += 0.02) {
+          lgmath::se3::Transformation pose = interpolatedPose(p,chain);
+          double dist = (pose.inverse() * T_w_l).r_ab_inb().norm();
+          if (fabs(dist - mpcConfig.distance) < best_distance) {
+            best_distance = fabs(dist - mpcConfig.distance);
+            best_pose = pose;
+          }
+        }
+        mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  best_pose));
+        CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose);
+    }
+  }
+  else if(config_->waypoint_selection == "euclideanv2")  // Option 2: Same as 2 but should be more efficient! (go along path only once)
+  {
+      CLOG(DEBUG, "mpc.follower") << "Choosing euclideanv2 option for waypoint selection!";
+    mpcConfig.follower_reference_poses.clear();
+
+    //Consider the path between the follower and leader's last pose (waypoints won't be spawned behind the follower)
+    double start_p = findRobotP(T_w_p * T_p_r_extp, chain);
+    double end_p = leader_p_values.back();
+
+    std::vector<double> best_distance(leader_world_poses.size(), std::numeric_limits<double>::max());
+    std::vector<lgmath::se3::Transformation> best_pose(leader_world_poses.size());
+
+    for(double p = start_p; p < end_p; p += 0.02) {
+      lgmath::se3::Transformation pose = interpolatedPose(p,chain);
+
+      // Given this interpolated pose, run through all the leader poses
+      for (uint i = 0; i < leader_world_poses.size(); i++){
+
+        // Check this pose if we are not already beyond it
+        if(p <= leader_p_values[i])
+        {  
+          // Leader pose in world frame
+          auto T_w_l = leader_world_poses[i];
+          double dist = (pose.inverse() * T_w_l).r_ab_inb().norm();
+          if (fabs(dist - mpcConfig.distance) < best_distance[i]) {
+            best_distance[i] = fabs(dist - mpcConfig.distance);
+            best_pose[i] = pose;
+          }
+        }
+
+      }
+
+      
+    }
+    for (uint i = 0; i < best_pose.size(); i++){
+        mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  best_pose[i]));
+        CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose[i]);
+    }
+  }
+  else if(config_->waypoint_selection == "arclength") // Option 3: Define the waypoints in terms of distance on the arclength of the path (not euclidean distance)
+  {
+      CLOG(DEBUG, "mpc.follower") << "Choosing arclength option for waypoint selection!";
+
+    // TODO: The p value is not really the arclength!
+
+    std::vector<double> p_values;
+    for(int i = 0; i < leader_p_values.size(); i++){
+      p_values.push_back(leader_p_values[i] - mpcConfig.distance);
+    }
+
+    mpcConfig.follower_reference_poses.clear();
+    auto referenceInfo = generateHomotopyReference(p_values, chain);
+    for(const auto& Tf : referenceInfo.poses) {
+      mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+      CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+    }
+
+  }
+  else // Default option: use velocity
+  {
+      CLOG(DEBUG, "mpc.follower") << "Choosing default option for waypoint selection!";
+    double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
+
+    std::vector<double> p_rollout;
+    for(int j = 1; j < mpcConfig.N+1; j++){
+      p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
+    }
+
+    mpcConfig.follower_reference_poses.clear();
+    auto referenceInfo = generateHomotopyReference(p_rollout, chain);
+    for(const auto& Tf : referenceInfo.poses) {
+      mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+      CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+    }
+
+  }
+  
+
+
+
   // mpcConfig.leader_reference_poses = mpcConfig.follower_reference_poses;
 
   // mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
@@ -332,7 +441,7 @@ void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
 
   for (const auto& pose : path->poses) {
     const Transformation T_w_p = tfFromPoseMessage(pose.pose);
-    CLOG(DEBUG, "mpc.follower") << "Received Leader Rollout Poses: " << tf_to_global(T_w_p);
+    //CLOG(DEBUG, "mpc.follower") << "Received Leader Rollout Poses: " << tf_to_global(T_w_p);
   }
 
   //reconstruct velocity
@@ -342,7 +451,7 @@ void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
     const auto dt = rclcpp::Time(path->poses[1].header.stamp) - rclcpp::Time(path->poses[0].header.stamp);
     auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
     leader_vel_ << vel(0, 0), vel(5, 0);
-    CLOG(DEBUG, "mpc.follower") << leader_vel_;
+    //CLOG(DEBUG, "mpc.follower") << leader_vel_;
   } 
 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
