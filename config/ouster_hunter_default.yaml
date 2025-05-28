@@ -129,7 +129,7 @@
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
-        vertical_angle_res: 0.0061365 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
+        vertical_angle_res: 0.012271 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
         r_scale: 4.0 # scale down point range by this value after taking log, whatever works
         h_scale: 2.0 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution when 5Hz spin frequence is ~0.7031 degree, so 0.7031 / 0.3516 = 2.00
@@ -366,7 +366,7 @@
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
-        vehicle_model: "ackermann"
+        vehicle_model: "unicycle"
         turning_radius: 1.4
 
         # Misc
