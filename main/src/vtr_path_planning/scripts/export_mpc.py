@@ -2,6 +2,7 @@
 
 from unicycle_solver import solver as uni_solver
 from acker_cycle_solver import solver as acker_solver
+from bicycle_solver_rw import solver as bi_solver
 import shutil
 import os
 
@@ -12,3 +13,7 @@ shutil.move('unicycle_mpc_solver.h', os.getenv("VTRSRC") + '/main/src/vtr_path_p
 acker_solver.generate_dependencies("ackermann_mpc_solver.cpp", {"cpp": True, "with_header": True})
 shutil.move('ackermann_mpc_solver.cpp', os.getenv("VTRSRC") + '/main/src/vtr_path_planning/src/mpc/ackermann_mpc_solver.cpp')
 shutil.move('ackermann_mpc_solver.h', os.getenv("VTRSRC") + '/main/src/vtr_path_planning/include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp')
+
+bi_solver.generate_dependencies("bicycle_mpc_solver.cpp", {"cpp": True, "with_header": True})
+shutil.move('bicycle_mpc_solver.cpp', os.getenv("VTRSRC") + '/main/src/vtr_path_planning/src/mpc/bicycle_mpc_solver.cpp')
+shutil.move('bicycle_mpc_solver.h', os.getenv("VTRSRC") + '/main/src/vtr_path_planning/include/vtr_path_planning/mpc/bicycle_mpc_solver.hpp')

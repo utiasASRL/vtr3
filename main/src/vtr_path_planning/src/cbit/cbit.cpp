@@ -109,9 +109,11 @@ CBIT::CBIT(const Config::ConstPtr& config,
     solver_ = std::make_shared<CasadiUnicycleMPC>(config->mpc_verbosity);
   else if (config->kinematic_model == "ackermann")
     solver_ = std::make_shared<CasadiAckermannMPC>(config->mpc_verbosity);
+  else if (config->kinematic_model == "bicycle")
+    solver_ = std::make_shared<CasadiBicycleMPC>(config->mpc_verbosity);
   else{
-    CLOG(ERROR, "cbit") << "Config parameter vehicle_model must be one of 'unicycle' or 'ackermann'";
-    throw std::invalid_argument("Config parameter vehicle_model must be one of 'unicycle' or 'ackermann'");
+    CLOG(ERROR, "cbit") << "Config parameter vehicle_model must be one of 'unicycle', 'ackermann' or 'bicycle'";
+    throw std::invalid_argument("Config parameter vehicle_model must be one of 'unicycle', 'ackermann' or 'bicycle'");
   }
 
   // Create visualizer and its corresponding pointer:
@@ -441,6 +443,19 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
       lgmath::se3::Transformation T0 = T_p_r_extp;
       mpcConfig->T0 = tf_to_global(T0);
+    }
+    else if (config_->kinematic_model == "bicycle"){
+      CasadiBicycleMPC::Config::Ptr mpcConfig = std::make_shared<CasadiBicycleMPC::Config>();;
+      mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+
+      // Initializations from config
+      
+      // Schedule speed based on path curvatures + other factors
+      // TODO refactor to accept the chain and use the curvature of the links
+      mpcConfig->VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
+
+      lgmath::se3::Transformation T0 = T_p_r_extp;
+      mpcConfig->T0 = tf_to_global(T0);
 
       std::vector<double> p_rollout;
       for(int j = 1; j < mpcConfig->N+1; j++){
@@ -448,14 +463,18 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       }
 
       referenceInfo = std::make_shared<PoseResultHomotopy>(generateHomotopyReference(p_rollout, chain));
+
       mpcConfig->reference_poses.clear();
+
       for(const auto& Tf : referenceInfo->poses) {
         mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
         CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
       }
+
+      mpcConfig->up_barrier_q = referenceInfo->barrier_q_max;
+      mpcConfig->low_barrier_q = referenceInfo->barrier_q_min;
       
       mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
-    
       baseMpcConfig = mpcConfig;
     }
    
