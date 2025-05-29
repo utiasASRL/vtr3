@@ -18,7 +18,12 @@
   <depend>vtr_storage</depend>
   <depend>vtr_tactic</depend>
   <depend>vtr_pose_graph</depend>
+  <depend>vtr_mission_planning</depend>
   <depend>vtr_pose_graph_msgs</depend>
+  <depend>vtr_lidar</depend>
+  <depend>vtr_radar_lidar</depend>
+
+
 
   <depend>boost</depend>
 

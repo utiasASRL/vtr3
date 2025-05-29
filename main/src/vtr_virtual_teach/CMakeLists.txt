@@ -6,8 +6,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(PCL 1.2 REQUIRED)
-
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -20,8 +18,12 @@ find_package(vtr_storage REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(vtr_pose_graph_msgs REQUIRED)
 find_package(vtr_lidar REQUIRED)
+find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_lidar_msgs)
+find_package(vtr_radar_lidar REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Development)
+find_package(PCL REQUIRED COMPONENTS common io filters)
+
 
 find_package(Boost REQUIRED COMPONENTS system chrono timer thread)
 
@@ -43,12 +45,12 @@ add_library(${PROJECT_NAME} ${SRC})
 ament_target_dependencies(${PROJECT_NAME}
   Boost
   lgmath steam
-  vtr_common vtr_logging vtr_storage vtr_pose_graph vtr_pose_graph_msgs vtr_lidar vtr_tactic vtr_lidar_msgs
+  vtr_common vtr_logging vtr_storage vtr_pose_graph vtr_pose_graph_msgs vtr_lidar vtr_tactic vtr_lidar_msgs vtr_radar_lidar
 )
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   lgmath steam
-  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs vtr_lidar vtr_tactic vtr_lidar_msgs
+  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs vtr_lidar vtr_tactic vtr_lidar_msgs vtr_radar_lidar
 )
 
 # Create the executable
@@ -61,6 +63,8 @@ ament_target_dependencies(generate_global_map
   vtr_pose_graph
   vtr_tactic
   vtr_lidar_msgs
+  vtr_mission_planning
+  vtr_radar_lidar
 )
 target_link_libraries(generate_global_map ${PCL_LIBRARIES} ${Python3_LIBRARIES})
 install(TARGETS generate_global_map DESTINATION lib/${PROJECT_NAME})
