@@ -26,7 +26,8 @@
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
-    gyro_bias: 0.0
+    gyro_bias:
+      z: 0.0
     queue_size: 10
     graph_map:
       origin_lat: 43.7822 # UTIAS: 43.78220
