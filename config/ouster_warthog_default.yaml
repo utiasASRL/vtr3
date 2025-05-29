@@ -62,7 +62,10 @@
     lidar_topic: /ouster/points
     gyro_frame: w200_0066_os_imu
     gyro_topic: /ouster/imu
-    gyro_bias: 0.0
+    gyro_bias:
+      x: 0.0
+      y: 0.0
+      z: 0.0
     queue_size: 1
     graph_map:
       origin_lat: 43.7822
