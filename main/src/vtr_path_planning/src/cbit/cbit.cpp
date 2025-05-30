@@ -113,12 +113,18 @@ CBIT::CBIT(const Config::ConstPtr& config,
   robot_state_ = robot_state;
   const auto node = robot_state->node.ptr();
 
-  if(config->kinematic_model == "unicycle")
+  if(config->kinematic_model == "unicycle"){
+    CLOG(INFO, "cbit.path_planning") << "Unicycle MPC selected";
     solver_ = std::make_shared<CasadiUnicycleMPC>(config->mpc_verbosity);
-  else if (config->kinematic_model == "ackermann")
+  }
+  else if (config->kinematic_model == "ackermann"){
+    CLOG(INFO, "cbit.path_planning") << "Ackermann MPC selected";
     solver_ = std::make_shared<CasadiAckermannMPC>(config->mpc_verbosity);
-  else if (config->kinematic_model == "bicycle")
+  }
+  else if (config->kinematic_model == "bicycle"){
+    CLOG(INFO, "cbit.path_planning") << "Bicycle MPC selected";
     solver_ = std::make_shared<CasadiBicycleMPC>(config->mpc_verbosity);
+  }
   else{
     CLOG(ERROR, "cbit") << "Config parameter vehicle_model must be one of 'unicycle', 'ackermann' or 'bicycle'";
     throw std::invalid_argument("Config parameter vehicle_model must be one of 'unicycle', 'ackermann' or 'bicycle'");
