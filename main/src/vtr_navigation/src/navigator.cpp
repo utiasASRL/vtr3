@@ -144,7 +144,7 @@ if (pipeline->name() == "lidar"){
     node_->declare_parameter<double>("gyro_bias.x", 0.0),
     node_->declare_parameter<double>("gyro_bias.y", 0.0),
     node_->declare_parameter<double>("gyro_bias.z", 0.0)};
-T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
+  T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
