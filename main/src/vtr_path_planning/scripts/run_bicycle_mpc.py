@@ -20,29 +20,26 @@ w_max = 0.384
 w_min = -0.384
 v_ref = 0.5*v_max
 
-# Tunable parameters
-L = 0.82
-
-# Pose Covariance
-Q_x = 10
-Q_y = 10
-Q_theta = 5
-
-# Command Covariance
-R1 = 1.0 #0.1
-R2 = 1.0 #0.1
-
-# Acceleration Cost Covariance
-Acc_R1 = 0.1
-Acc_R2 = 0.5 #0.01
-
-# The first order lag weighting for the steering angle
-alpha = 0.2
-
 lin_acc_max = 1.00
 ang_acc_max = 0.5
 
-sim_time = 100      # simulation time
+# Tunable parameters
+L = 0.82
+
+# State costs
+Q_x = 15
+Q_y = 15
+Q_theta = 5
+
+# Input costs
+R1 = 0.5 
+R2 = 0.5 
+
+# Acceleration Cost
+Acc_R1 = 0.1
+Acc_R2 = 1.5
+
+sim_time = 100      # simulation time in seconds
 
 
 state_init = ca.DM([x_init, y_init, theta_init])        # initial state

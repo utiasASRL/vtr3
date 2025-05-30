@@ -84,6 +84,13 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
+  config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
+  config->q_y = node->declare_parameter<double>(prefix + ".mpc.q_y", config->q_y);
+  config->q_th = node->declare_parameter<double>(prefix + ".mpc.q_th", config->q_th);
+  config->r1 = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
+  config->r2 = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
+  config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
+  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -447,6 +454,13 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     else if (config_->kinematic_model == "bicycle"){
       CasadiBicycleMPC::Config::Ptr mpcConfig = std::make_shared<CasadiBicycleMPC::Config>();;
       mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+      mpcConfig->Q_x     = config_->q_x;
+      mpcConfig->Q_y     = config_->q_y;
+      mpcConfig->Q_th    = config_->q_th;
+      mpcConfig->R1      = config_->r1;
+      mpcConfig->R2      = config_->r2;
+      mpcConfig->Acc_R1  = config_->racc1;
+      mpcConfig->Acc_R2  = config_->racc2;
 
       // Initializations from config
       

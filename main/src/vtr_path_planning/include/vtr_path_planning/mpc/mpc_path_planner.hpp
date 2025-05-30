@@ -137,7 +137,14 @@ public:
     std::vector<double> low_barrier_q;
     double VF = 0.0;
     DM vel_max{nControl, 1};
-    double turning_radius = 1; //m
+    // The below are passed to the Casadi solver as tunable parameters
+    double Q_x = 0.0;
+    double Q_y = 0.0;
+    double Q_th = 0.0;
+    double R1 = 0.0;
+    double R2 = 0.0;
+    double Acc_R1 = 0.0;
+    double Acc_R2 = 0.0;
   };
 
 

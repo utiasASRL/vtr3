@@ -116,6 +116,15 @@ class CBIT : public BasePathPlanner {
     double robot_angular_velocity_scale = 1.0;
     double turning_radius = 1.0;
 
+    // MPC Costs
+    double q_x = 0.0;
+    double q_y = 0.0;
+    double q_th = 0.0;
+    double r1 = 0.0;
+    double r2 = 0.0;
+    double racc2 = 0.0;
+    double racc1 = 0.0;
+
     // Add unicycle model param
     std::string kinematic_model = "unicycle"; //Options are unicycle and ackermann
 

@@ -71,10 +71,10 @@ measured_velo = P[-(n_controls+num_parameters):-num_parameters]
 Q_x = P[-num_parameters]
 Q_y = P[-num_parameters + 1]
 Q_theta = P[-num_parameters + 2]
-R1 = P[-num_parameters + 4]
-R2 = P[-num_parameters + 5]
-Acc_R1 = P[-num_parameters + 7]
-Acc_R2 = P[-num_parameters + 8]
+R1 = P[-num_parameters + 3]
+R2 = P[-num_parameters + 4]
+Acc_R1 = P[-num_parameters + 5]
+Acc_R2 = P[-num_parameters + 6]
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)

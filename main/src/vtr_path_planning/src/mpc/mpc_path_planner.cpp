@@ -222,12 +222,20 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
 
   arg["p"] = mpcConf.T0;
 
+
   for(int i = 0; i < mpcConf.N; i++) {
       arg["p"] = vertcat(arg["p"],
           mpcConf.reference_poses.at(i));
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.turning_radius));
+  // Now add the tunable costs
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_th));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.R1));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
 
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
