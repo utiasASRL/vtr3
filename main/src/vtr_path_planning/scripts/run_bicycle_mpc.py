@@ -14,9 +14,12 @@ theta_init = 0
 
 v_max = 1.5
 v_min = -1.5
-w_max = 0.5
-w_min = -0.5
+# Based on Hunter SE datasheet
+# Encodes the maximum input and a turning radius by extension
+w_max = 0.384
+w_min = -0.384
 v_ref = 0.5*v_max
+
 
 lin_acc_max = 1.00
 ang_acc_max = 0.5
@@ -83,8 +86,6 @@ ubg[n_states*(N+1):n_states*(N+1)+N] = 0.5
 # lbg[n_states*(N+1)+N+1::2] = -ang_acc_max * step_horizon
 # ubg[n_states*(N+1)+N+1::2] = ang_acc_max * step_horizon
 
-print(lbx.shape)
-
 args = {
     'lbg': lbg,
     'ubg': ubg,  
@@ -129,7 +130,7 @@ if __name__ == '__main__':
         
         args['p'] = ca.vertcat(args['p'],
                        ca.DM(last_u,))
-        
+
         u0 = ca.DM.zeros((n_controls, N))  # initial control
         X0 = ca.repmat(state_init, 1, N+1)         # initial state full
 

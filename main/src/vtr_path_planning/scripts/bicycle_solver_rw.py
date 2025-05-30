@@ -5,12 +5,16 @@ import casadi as ca
 from casadi import sin, cos, pi
 
 # MPC for a model of a bicycle with tracking about the rear wheels
+# Includes fixed first order lag and turning radius constraint
 
 #Compile Time Constants (Could use params to set!)
 
 # distance from centre of gravity to front and rear wheels, respectively
-l_f = 0.5
-l_r = 0.5
+# Based on the Hunter SE docs, for this formulation the actual centre of gravity
+# is irrelevant since we track n the rear wheel
+# TODO: Make L configurable
+l_f = 0.41
+l_r = 0.41
 L = l_r/l_f
 
 # Pose Covariance
@@ -29,13 +33,12 @@ Acc_R2 = 0.5 #0.01
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
-# The first order lag weighting for the angular velocity
+# The first order lag weighting for the steering angle
 alpha = 0.2
 
 # state symbolic variables
-# We state the bicycle kinematic model under the assumption we can set the steering angle, psi_f \
-# and the velocity, v, instantaneously. This reduces the number of states from 4 to 3. We may
-# revisit this assumption in the future after some experimentation.
+# We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states
+# from 4 to 3
 # In cartesian coordinates considering the centre of the gravity for the vehicle, we have the following states
 x = ca.SX.sym('x')
 y = ca.SX.sym('y')
@@ -67,7 +70,6 @@ X = ca.SX.sym('X', n_states, N + 1)
 # matrix containing all control actions over all time steps (each column is an action vector)
 U = ca.SX.sym('U', n_controls, N)
 
-# Currently we do not utilize the first order lag on the steering angle change
 last_v = ca.SX.sym('last_v')
 last_psi = ca.SX.sym('last_psi')
 last_controls = ca.vertcat(
@@ -88,10 +90,8 @@ R = ca.diagcat(R1, R2)
 #Acceleration weith matrix
 R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
-# beta is the slip angle, the angle between the velocity and heading.
-# A factor as we are considering the centre of gravity of the bicycle model as the tracking point
-
-RHS = ca.vertcat(v*cos(theta), v*sin(theta), v/L * ca.tan(psi))
+# Define kinematics of the systems
+RHS = ca.vertcat(v*cos(theta), v*sin(theta), v/L * ca.tan(alpha*last_psi + (1-alpha)*psi))
 motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
 
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
