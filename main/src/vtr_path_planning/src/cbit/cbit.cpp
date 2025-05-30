@@ -84,6 +84,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
+  // MPC COST PARAMETERS
   config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
   config->q_y = node->declare_parameter<double>(prefix + ".mpc.q_y", config->q_y);
   config->q_th = node->declare_parameter<double>(prefix + ".mpc.q_th", config->q_th);

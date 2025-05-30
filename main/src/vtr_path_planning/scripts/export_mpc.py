@@ -20,8 +20,6 @@ inc_path = os.path.join(os.getenv("VTRSRC"), 'main/src/vtr_path_planning/include
 if not os.path.exists(inc_path):
     os.mkdir(inc_path)
 
-
 gen_mv_mpc_cpp(uni_solver, 'unicycle', src_path, inc_path)
 gen_mv_mpc_cpp(acker_solver, 'ackermann', src_path, inc_path)
 gen_mv_mpc_cpp(bi_solver, 'bicycle', src_path, inc_path)
-

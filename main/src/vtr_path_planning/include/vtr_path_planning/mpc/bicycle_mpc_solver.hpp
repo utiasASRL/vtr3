@@ -54,7 +54,7 @@ extern "C" int nlp_f_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casadi_i
 #define nlp_f_SZ_ARG 2
 #define nlp_f_SZ_RES 1
 #define nlp_f_SZ_IW 0
-#define nlp_f_SZ_W 38
+#define nlp_f_SZ_W 40
 extern "C" int nlp_g(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_g_alloc_mem(void);
 extern "C" int nlp_g_init_mem(int mem);
@@ -96,7 +96,7 @@ extern "C" int nlp_grad_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casad
 #define nlp_grad_SZ_ARG 4
 #define nlp_grad_SZ_RES 4
 #define nlp_grad_SZ_IW 0
-#define nlp_grad_SZ_W 1042
+#define nlp_grad_SZ_W 1150
 extern "C" int nlp_grad_f(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_grad_f_alloc_mem(void);
 extern "C" int nlp_grad_f_init_mem(int mem);
@@ -117,7 +117,7 @@ extern "C" int nlp_grad_f_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, cas
 #define nlp_grad_f_SZ_ARG 2
 #define nlp_grad_f_SZ_RES 2
 #define nlp_grad_f_SZ_IW 0
-#define nlp_grad_f_SZ_W 395
+#define nlp_grad_f_SZ_W 415
 extern "C" int nlp_hess_l(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
 extern "C" int nlp_hess_l_alloc_mem(void);
 extern "C" int nlp_hess_l_init_mem(int mem);
