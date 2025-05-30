@@ -20,10 +20,27 @@ w_max = 0.384
 w_min = -0.384
 v_ref = 0.5*v_max
 
+# Tunable parameters
+L = 0.82
+
+# Pose Covariance
+Q_x = 10
+Q_y = 10
+Q_theta = 5
+
+# Command Covariance
+R1 = 1.0 #0.1
+R2 = 1.0 #0.1
+
+# Acceleration Cost Covariance
+Acc_R1 = 0.1
+Acc_R2 = 0.5 #0.01
+
+# The first order lag weighting for the steering angle
+alpha = 0.2
 
 lin_acc_max = 1.00
 ang_acc_max = 0.5
-
 
 sim_time = 100      # simulation time
 
@@ -80,12 +97,6 @@ ubg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints upper bound
 lbg[n_states*(N+1):n_states*(N+1)+N] = -0.5
 ubg[n_states*(N+1):n_states*(N+1)+N] = 0.5
 
-#Acceleration constraints
-# lbg[n_states*(N+1)+N::2] = -lin_acc_max * step_horizon
-# ubg[n_states*(N+1)+N::2] = lin_acc_max * step_horizon
-# lbg[n_states*(N+1)+N+1::2] = -ang_acc_max * step_horizon
-# ubg[n_states*(N+1)+N+1::2] = ang_acc_max * step_horizon
-
 args = {
     'lbg': lbg,
     'ubg': ubg,  
@@ -130,6 +141,34 @@ if __name__ == '__main__':
         
         args['p'] = ca.vertcat(args['p'],
                        ca.DM(last_u,))
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_x)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_y)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_theta)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(R1)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(R2)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Acc_R1)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Acc_R2)
+                )
 
         u0 = ca.DM.zeros((n_controls, N))  # initial control
         X0 = ca.repmat(state_init, 1, N+1)         # initial state full

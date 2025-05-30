@@ -5,30 +5,15 @@ import casadi as ca
 from casadi import sin, cos, pi
 
 # MPC for a model of a bicycle with tracking about the rear wheels
-# Includes fixed first order lag and turning radius constraint
-
-#Compile Time Constants (Could use params to set!)
+# Includes fixed first order lag
 
 # distance from centre of gravity to front and rear wheels, respectively
 # Based on the Hunter SE docs, for this formulation the actual centre of gravity
 # is irrelevant since we track n the rear wheel
-# TODO: Make L configurable
+# TODO: Look into if its possible to make this configurable
 l_f = 0.41
 l_r = 0.41
 L = l_r/l_f
-
-# Pose Covariance
-Q_x = 10
-Q_y = 10
-Q_theta = 5
-
-# Command Covariance
-R1 = 1.0 #0.1
-R2 = 1.0 #0.1
-
-# Acceleration Cost Covariance
-Acc_R1 = 0.1
-Acc_R2 = 0.5 #0.01
 
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
@@ -77,9 +62,19 @@ last_controls = ca.vertcat(
     last_psi
 )
 
-# column vector for storing initial state and target states + initial velocity
-P = ca.SX.sym('P', n_states * (N+1) + n_controls)
-measured_velo = P[-2:]
+# number of parameters we can change without recompiling
+num_parameters = 7
+# column vector for storing runtime information(paths, etc) 
+P = ca.SX.sym('P', n_states * (N+1) + n_controls + num_parameters)
+measured_velo = P[-(n_controls+num_parameters):-num_parameters]
+# TODO: Put this info into a config somewhere so this is easier to edit
+Q_x = P[-num_parameters]
+Q_y = P[-num_parameters + 1]
+Q_theta = P[-num_parameters + 2]
+R1 = P[-num_parameters + 4]
+R2 = P[-num_parameters + 5]
+Acc_R1 = P[-num_parameters + 7]
+Acc_R2 = P[-num_parameters + 8]
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
