@@ -80,7 +80,7 @@ const WAYPOINT_OPACITY = 0.9;
 /// selector constants
 const SELECTOR_CENTER_ICON = new L.Icon({
   iconUrl: SelectorCenterSVG,
-  iconSize: new L.Point(30, 30),
+  iconSize: new L.Point(60, 60),
 });
 const SELECTOR_END_ICON = new L.Icon({
   iconUrl: SelectorEndSVG,
@@ -141,7 +141,7 @@ class GraphMap extends React.Component {
       // map center
       map_center: {lat: 43.78220, lng: -79.4661},
       /// whether the path selection will be the whole path (for annotation)
-      annotate_full: false,
+      annotate_full: true,
       in_select_mode: false,
     };
     this.fetchMapCenter()
@@ -163,7 +163,7 @@ class GraphMap extends React.Component {
         draggable: false,
         icon: ROBOT_ICON,
         opacity: ROBOT_OPACITY,
-        pane: "graph",
+        pane: "tooltipPane",
         zIndexOffset: 200,
         rotationOrigin: "center",
         rotationAngle: 0,
@@ -175,13 +175,12 @@ class GraphMap extends React.Component {
         draggable: false,
         icon: TARGET_ICON,
         opacity: ROBOT_OPACITY,
-        pane: "graph",
+        pane: "tooltipPane",
         zIndexOffset: 300,
         rotationOrigin: "center",
         rotationAngle: 0,
       }),
     };
-    this.target_marker.marker.on("click", () => this.props.socket.emit("command/confirm_merge", {}));
 
     /// following route
     this.following_route_polyline = null;
@@ -213,15 +212,13 @@ class GraphMap extends React.Component {
     let wps_map = new Map(this.state.waypoints_map);
     return (
       <React.Fragment>
-        {Array.from(wps_map.keys()).map((key) =>
+        {Array.from(disp_wps_map.keys()).map((key) =>
           <Marker 
-            key={wps_map[key]}
+            key={disp_wps_map[key]}
             position={this.id2vertex.get(key)}
             draggable={false}
             icon={NEW_GOAL_WAYPOINT_ICON}
             opacity={WAYPOINT_OPACITY}
-            zIndexOffset={100}
-            pane={"graph"}
           >
             <Popup>
               <Card
@@ -289,8 +286,10 @@ class GraphMap extends React.Component {
                   color="secondary"
                   size="small"
                   onClick={() => {
-                    wps_map.delete(key);
+                    disp_wps_map.delete(key);
+                    wps_map.set(key, this.genDefaultWaypointName(key))
                     this.handleUpdateWaypoint(key, 1); /*REMOVE*/
+                    this.setState({display_waypoints_map: disp_wps_map, waypoints_map: wps_map});
                     if (this.state.new_goal_waypoints.includes(key)) this.setNewGoalWaypoints([]);
                   }}
                 >
@@ -499,17 +498,12 @@ class GraphMap extends React.Component {
       let best = this.getClosestVertex(e.latlng);
       if (best.target === null) return;
       this.setState((state) => {
-        if (!(state.waypoints_map.has(best.target.id))){
-          let disp_wps_map = new Map(state.display_waypoints_map);
-          let wps_map = new Map(state.waypoints_map);
+        let disp_wps_map = new Map(state.display_waypoints_map);
 
-          let new_wp_name = this.genDefaultWaypointName(best.target.id)
-          wps_map.set(best.target.id, new_wp_name);
-          disp_wps_map.set(best.target.id, new_wp_name);
-          this.handleUpdateWaypoint(best.target.id, 0, new_wp_name); /*ADD*/
+        disp_wps_map.set(best.target.id, state.waypoints_map.get(best.target.id));
+        this.handleUpdateWaypoint(best.target.id, 0, state.waypoints_map.get(best.target.id)); /*ADD*/
 
-          return { waypoints_map: wps_map, display_waypoints_map: disp_wps_map };
-        }
+        return {display_waypoints_map: disp_wps_map };
       });
       if (this.state.new_goal_type === "repeat") {
         this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
@@ -578,6 +572,7 @@ class GraphMap extends React.Component {
     // id2vertex and kdtree
     this.id2vertex = new Map();
     let wps_map = new Map();
+    let disp_wps_map = new Map(this.state.display_waypoints_map);
     graph.vertices.forEach((v) => {
       v.valueOf = () => v.id;
       v.distanceTo = L.LatLng.prototype.distanceTo;
@@ -585,9 +580,16 @@ class GraphMap extends React.Component {
       
       if (v.name !== ""){
         wps_map.set(v.id, v.name);
+
+        if (v.name !== this.genDefaultWaypointName(v.id)) {
+          disp_wps_map.set(v.id, v.name);
+        }
+      } else {
+        wps_map.set(v.id, this.genDefaultWaypointName(v.id));
       }
+
     });
-    this.setState({waypoints_map: wps_map, display_waypoints_map: wps_map});
+    this.setState({waypoints_map: wps_map, display_waypoints_map: disp_wps_map});
 
     this.kdtree = new kdTree(graph.vertices, (a, b) => b.distanceTo(a), ["lat", "lng"]);
     // fixed routes
@@ -949,7 +951,7 @@ class GraphMap extends React.Component {
   }
 
   /** @brief */
-  createSelector(selector, callback) {
+  createSelector(selector, callback, full_path) {
     // Initial position of the start, center and end markers based on current map.
     // Offset to start/end marker is ~10% of the screen diagonal in each direction.
     let map_bounds = this.map.getBounds();
@@ -970,18 +972,16 @@ class GraphMap extends React.Component {
     let interm_pos = { s: null, c: null, e: null };
 
     let getSelectedPath = () => {
-      if (!this.state.annotate_full) {
+      if (!full_path) {
         let paths = this.breadthFirstSearch(selector.vertex.c.id, [selector.vertex.s.id, selector.vertex.e.id]);
         paths[0].reverse();
         return paths[0].concat(paths[1].slice(1));
       }
       else {
-        let end_id = Math.max(...Array.from(this.id2vertex.keys()));
-        let paths = this.breadthFirstSearch(selector.vertex.c.id, [0, end_id]);
-        paths[0].reverse();
-        return paths[0].concat(paths[1].slice(1));
+        return [...this.id2vertex.keys()];
       }
     };
+
 
     let getRotationAngle = (p1, p2) => {
       let point1 = this.map.project(this.id2vertex.get(p1));
@@ -1046,8 +1046,8 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
       opacity: GRAPH_OPACITY,
-      zIndexOffset: 100,
-      pane: "graph",
+      pane: "tooltipPane",
+      zIndexOffset: 100
     });
     selector.marker.c.on("drag", (e) => handleDragC(e));
     selector.marker.c.on("dragend", () => handleDragEndC());
@@ -1064,8 +1064,8 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_START_ICON,
       opacity: GRAPH_OPACITY,
-      zIndexOffset: 200,
-      pane: "graph",
+      pane: "tooltipPane",
+      zIndexOffset: 100,
       rotationOrigin: "center",
       rotationAngle: selected_path.length > 1 ? getRotationAngle(selected_path[1], selected_path[0]) : 0,
     });
@@ -1077,8 +1077,8 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_END_ICON,
       opacity: GRAPH_OPACITY,
-      zIndexOffset: 200,
-      pane: "graph",
+      pane: "tooltipPane",
+      zIndexOffset: 100,
       rotationOrigin: "center",
       rotationAngle:
         selected_path.length > 1
@@ -1123,7 +1123,7 @@ class GraphMap extends React.Component {
         }
       });
     };
-    this.createSelector(this.merge_selector, selectPathCallback);
+    this.createSelector(this.merge_selector, selectPathCallback, false);
   }
 
   finishMerge() {
@@ -1164,7 +1164,7 @@ class GraphMap extends React.Component {
         }
       });
     };
-    this.createSelector(this.annotate_route_selector, selectPathCallback);
+    this.createSelector(this.annotate_route_selector, selectPathCallback, this.state.annotate_full);
 
     this.annotateRouteZoomEnd = () => {
 
@@ -1220,7 +1220,7 @@ class GraphMap extends React.Component {
     // Marker for translating the graph
     this.trans_marker = L.marker(trans_loc, {
       draggable: true,
-      zIndexOffset: 1000,
+      pane: "tooltipPane",
       icon: MOVE_GRAPH_TRANSLATION_ICON,
       opacity: MOVE_GRAPH_MARKER_OPACITY,
     });
@@ -1245,7 +1245,7 @@ class GraphMap extends React.Component {
     // Marker for rotating the graph
     this.rot_marker = L.marker(rot_loc, {
       draggable: true,
-      zIndexOffset: 1100,
+      pane: "tooltipPane",
       icon: MOVE_GRAPH_ROTATION_ICON,
       opacity: MOVE_GRAPH_MARKER_OPACITY,
     });
@@ -1254,7 +1254,7 @@ class GraphMap extends React.Component {
     // Marker for scaling the graph
     this.scale_marker = L.marker(scale_loc, {
       draggable: true,
-      zIndexOffset: 1200,
+      pane: "tooltipPane",
       icon: MOVE_GRAPH_SCALE_ICON,
       opacity: MOVE_GRAPH_MARKER_OPACITY,
     });
@@ -1511,7 +1511,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: ROBOT_ICON,
       opacity: MOVE_ROBOT_OPACITY,
-      pane: "graph",
+      pane: "tooltipPane",
       zIndexOffset: 100,
       rotationOrigin: "center",
       rotationAngle: 0,
