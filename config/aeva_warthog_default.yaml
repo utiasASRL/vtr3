@@ -62,7 +62,10 @@
     lidar_topic: /aeva/sensor/point_cloud
     gyro_frame: w200_0066_aeva_imu
     gyro_topic: /aeva/sensor/imu
-    gyro_bias: 0.0 #-0.05
+    gyro_bias:
+      x: 0.0
+      y: 0.0
+      z: 0.0
     queue_size: 1
     graph_map:
       origin_lat: 43.7822

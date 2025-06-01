@@ -140,7 +140,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  gyro_bias_ = node_->declare_parameter<double>("gyro_bias", gyro_bias_);
+  gyro_bias_ = {
+    node_->declare_parameter<double>("gyro_bias.x", 0.0),
+    node_->declare_parameter<double>("gyro_bias.y", 0.0),
+    node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform
@@ -191,7 +194,10 @@ if (pipeline->name() == "radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  gyro_bias_ = node_->declare_parameter<double>("gyro_bias", gyro_bias_);
+  gyro_bias_ = {
+      node_->declare_parameter<double>("gyro_bias.x", 0.0),
+      node_->declare_parameter<double>("gyro_bias.y", 0.0),
+      node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   // there are a radar and gyro frames
   T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
@@ -215,7 +221,7 @@ if (pipeline->name() == "radar") {
 #endif
 
   // Subscribe to the imu topic 
-  auto gyro_qos = rclcpp::QoS(max_queue_size_);
+  auto gyro_qos = rclcpp::QoS(100);
   gyro_qos.reliable();
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
   gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
@@ -400,7 +406,9 @@ void Navigator::gyroCallback(
   // auto query_data = std::make_shared<radar::RadarQueryCache>();
 
   LockGuard lock(mutex_);
-  msg->angular_velocity.z -= gyro_bias_;
+  msg->angular_velocity.x -= gyro_bias_[0];
+  msg->angular_velocity.y -= gyro_bias_[1];
+  msg->angular_velocity.z -= gyro_bias_[2];
   gyro_msgs_.push_back(*msg);
 }
 
