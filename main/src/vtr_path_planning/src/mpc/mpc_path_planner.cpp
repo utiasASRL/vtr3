@@ -64,8 +64,22 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPC::solve(const Config& mpcConf
   arg["p"] = mpcConf.T0;
 
   for(int i = 0; i < mpcConf.N; i++) {
+
+      auto pose_i = mpcConf.reference_poses.at(i);
+
+      if(mpcConf.repeat_flipped)
+      {
+        pose_i(2) += M_PI;
+        while (pose_i(2).scalar() > M_PI) {
+            pose_i(2) -= 2 * M_PI;
+        }
+        while (pose_i(2).scalar() < -M_PI) {
+            pose_i(2) += 2 * M_PI;
+        }
+      }
+
       arg["p"] = vertcat(arg["p"],
-          mpcConf.reference_poses.at(i));
+          pose_i);
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
 

@@ -42,6 +42,7 @@ public:
     std::vector<double> low_barrier_q;
     double VF = 0.0;
     DM vel_max{nControl, 1};
+    bool repeat_flipped = false;
   };
 
 

@@ -114,6 +114,7 @@ class CBIT : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
+    bool repeat_flipped = false;
 
     // Add unicycle model param
 

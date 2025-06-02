@@ -83,6 +83,8 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
 
+  config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
+
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
 
@@ -371,7 +373,8 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     // TODO refactor to accept the chain and use the curvature of the links
     mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
 
-  
+    mpcConfig.repeat_flipped = config_->repeat_flipped;
+
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
     // Removing for now. I'm not sure this is a good idea with noisy velocity estimates
     auto T_p_r_extp = T_p_r;
