@@ -336,6 +336,7 @@
         min_vel: 0.5
       follow_distance: 4.37
       distance_margin: 100.0
+      waypoint_selection: "leader_vel" # euclidean, euclideanv2, arclength
       leader_path_topic: /vtr/mpc_prediction
       mpc:
         # Controller Params
@@ -349,7 +350,7 @@
         lin_alpha: 0.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
-
+	
         vehicle_model: "unicycle"
 
         # Misc
