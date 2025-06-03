@@ -37,13 +37,6 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros
   tactic::Cache<const Eigen::MatrixXd> points;  // alternative input non-ros
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
-  tactic::Cache<const int64_t> first_state_time;
-  tactic::Cache<const int64_t> next_state_time;
-  
-  // doppler odometry
-  tactic::Cache<const Eigen::Matrix3d> gyro_invcov; 
-
-  // gyro input
   tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
   tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
 

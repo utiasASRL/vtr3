@@ -36,7 +36,7 @@ auto AevaConversionModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node
   return config;
 }
 
-void aevaCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
+void aevaCart2Polv2(pcl::PointCloud<PointWithInfo> &point_cloud) {
     for (size_t i = 0; i < point_cloud.size(); i++) {
       auto &p = point_cloud[i];
       auto &pm1 = i > 0 ? point_cloud[i - 1] : point_cloud[i];
@@ -67,33 +67,44 @@ void AevaConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   // Input
   const auto &msg = qdata.pointcloud_msg.ptr();
 
-  int64_t stamp_ns = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
-
   auto point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(msg->width * msg->height, 1);
+
+  CLOG(DEBUG, "lidar.aeva_converter_v2")
+      << "raw point cloud size: " << point_cloud->size()
+      << ", width: " << msg->width
+      << ", height: " << msg->height;
 
   // iterators
   // clang-format off
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
   sensor_msgs::PointCloud2ConstIterator<uint32_t> iter_time(*msg, "time_offset_ns");
   sensor_msgs::PointCloud2ConstIterator<float> iter_velocity(*msg, "velocity");
+  sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_intensty(*msg, "intensity");
+  sensor_msgs::PointCloud2ConstIterator<uint32_t> iter_flags(*msg, "point_flags_lsb");
   // clang-format on
 
   for (size_t idx = 0; iter_x != iter_x.end();
-       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_time, ++iter_velocity) {
+       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_time, ++iter_velocity, ++iter_intensty, ++iter_flags) {
     // cartesian coordinates
     point_cloud->at(idx).x = *iter_x;
     point_cloud->at(idx).y = *iter_y;
     point_cloud->at(idx).z = *iter_z;
-    point_cloud->at(idx).flex23 = *iter_velocity;
-
-    // pointwise timestamp
+    // radial velocity and intensity
+    point_cloud->at(idx).radial_velocity = *iter_velocity;
+    point_cloud->at(idx).intensity = *iter_intensty;
+    // pointwise timestamp [ns]
     point_cloud->at(idx).timestamp = static_cast<int64_t>(*iter_time) + *qdata.stamp;
+    // point flags
+    uint32_t point_flags = *iter_flags;
+    point_cloud->at(idx).line_id = ((point_flags >> 8) & 0xFF);
+    point_cloud->at(idx).beam_id = ((point_flags >> 16) & 0xF);
+    point_cloud->at(idx).face_id = ((point_flags >> 22) & 0xF);
   }
 
   auto filtered_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
 
   // Aeva has no polar coordinates, so compute them manually.
-  aevaCart2Pol(*filtered_point_cloud);
+  aevaCart2Polv2(*filtered_point_cloud);
 
   // Output
   qdata.raw_point_cloud = filtered_point_cloud;

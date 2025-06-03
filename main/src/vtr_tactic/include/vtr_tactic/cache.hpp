@@ -120,7 +120,6 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<const double> preproc_time;
   Cache<const PipelineMode> pipeline_mode;
   Cache<bool> first_frame;
-  Cache<bool> faulty_frame;
 
   // odometry and mapping - initialized in tactic, modified by pipeline
   Cache<VertexId> vid_odo;
@@ -138,6 +137,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<bool> loc_success;
   Cache<const double> loc_time;
   Cache<bool> loc_flag; // localization thresholding flag
+  Cache<bool> preproc_flag; // check if preprocessing and mapping should be run when localization is not performed
 
   // graph memory management cache args
   Cache<const VertexId> live_mem_async;

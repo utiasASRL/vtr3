@@ -88,7 +88,6 @@ auto PreprocessingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_normal_estimate_angle = node->declare_parameter<float>(param_prefix + ".max_normal_estimate_angle", config->max_normal_estimate_angle);
 
   config->cluster_num_sample = node->declare_parameter<int>(param_prefix + ".cluster_num_sample", config->cluster_num_sample);
-  config->min_points_threshold = node->declare_parameter<int>(param_prefix + ".min_points_threshold", config->min_points_threshold);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -118,13 +117,6 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "raw point cloud size: " << point_cloud->size();
-
-  // Check for minimum number of points
-  if (point_cloud->size() < config_->min_points_threshold) {
-    CLOG(WARNING, "lidar.preprocessing")
-        << "Point cloud size below threshold: " << point_cloud->size();
-    *qdata.faulty_frame = true;
-  }
 
   auto filtered_point_cloud =
       std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);

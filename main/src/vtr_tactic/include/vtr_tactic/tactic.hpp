@@ -64,6 +64,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
     /** \brief Control localization execution */
     int loc_threshold = 1;
+    bool skip_preproc_and_odom_mapping = false;
 
     bool save_odometry_result = false;
     bool save_odometry_vel_result = false;

@@ -201,11 +201,16 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
   // Setup caches
   qdata->pipeline_mode.emplace(pipeline_mode_);
   qdata->first_frame.emplace(first_frame_);
-  qdata->faulty_frame.emplace(false);
   first_frame_ = false;
 
+  // Setup caches
   // check if localization should be executed on current frame
   qdata->loc_flag = (frame_count % config_->loc_threshold == 0);
+  /// \note Skip preprocessing and mapping if the pipeline is not in a mode that
+  /// requires it. We only preprocess the frame when localization will be performed.
+  qdata->preproc_flag = true;
+  if (!qdata->loc_flag && config_->skip_preproc_and_odom_mapping)
+    qdata->preproc_flag = false;
   frame_count += 1;
 
   // Preprocess incoming data, which always runs no matter what mode we are in.

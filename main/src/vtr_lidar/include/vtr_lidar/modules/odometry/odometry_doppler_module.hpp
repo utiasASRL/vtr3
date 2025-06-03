@@ -63,6 +63,10 @@ class OdometryDopplerModule : public tactic::BaseModule {
     int integration_steps = 100;
     double zero_vel_tol = 0.03;
 
+    // gyro
+    Eigen::Matrix<double, 3, 3> gyro_invcov =
+        Eigen::Matrix<double, 3, 3>::Identity();
+
     // inverse covariances
     Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Identity(); 
     Eigen::Matrix<double, 6, 6> P0inv = Eigen::Matrix<double, 6, 6>::Identity();

@@ -67,6 +67,62 @@ EdgeTransform loadTransform(const std::string& source_frame,
         << " has been set to" << T_source_target;
     return T_source_target;
   }
+
+  // temporary - remove before merge
+  // hardcoded transformations for offline testing when robot transform tree is inaccessible
+  if (source_frame == "w200_0066_os_lidar") {
+    Eigen::Matrix4d T_source_target; // T_lidar_robot
+    T_source_target << -1,  0,  0,  0.025,
+                        0,  1,  0,  0.002,
+                        0,  0, -1,  0.84282,
+                        0,  0,  0,  1;
+    EdgeTransform T_source_target_(T_source_target);
+    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    CLOG(DEBUG, "navigation")
+        << "Transform from " << target_frame << " to " << source_frame
+        << " has been set to" << T_source_target_;
+    return T_source_target_;
+  }
+  if (source_frame == "w200_0066_aeva_lidar") {
+    Eigen::Matrix4d T_source_target; // T_aeva_robot
+    T_source_target <<
+          1.0, 0.0, 0.0, 0.1547045,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.66594232,
+          0.0, 0.0, 0.0, 1.0;
+    EdgeTransform T_source_target_(T_source_target);
+    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    CLOG(DEBUG, "navigation")
+        << "Transform from " << target_frame << " to " << source_frame
+        << " has been set to" << T_source_target_;
+    return T_source_target_;
+  }
+  if (source_frame == "w200_0066_aeva_imu") {
+    Eigen::Matrix4d T_imu_aeva_mat;
+    T_imu_aeva_mat << 1.0, 0.0, 0.0, -0.020,
+                      0.0, 1.0, 0.0, -0.023,
+                      0.0, 0.0, 1.0, 0.037,
+                      0.0, 0.0, 0.0, 1.0;
+    Eigen::Matrix4d T_aeva_robot;
+    // T_aeva_robot <<
+    //           0.9999815, -0.00596406, -0.00119223, 0.1547045,
+    //           0.00596214, 0.99998094, -0.00160355, -0.00346201,
+    //           0.00120177, 0.00159641, 0.999998, 0.66594232,
+    //           0.0, 0.0, 0.0, 1.0;
+    T_aeva_robot <<
+          1.0, 0.0, 0.0, 0.1547045,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.66594232,
+          0.0, 0.0, 0.0, 1.0;
+    Eigen::Matrix4d T_source_target = T_imu_aeva_mat * T_aeva_robot;
+    EdgeTransform T_source_target_(T_source_target);
+    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    CLOG(DEBUG, "navigation")
+        << "Transform from " << target_frame << " to " << source_frame
+        << " has been set to" << T_source_target_;
+    return T_source_target_;
+  }
+
   CLOG(WARNING, "navigation")
       << "Transform not found - source: " << source_frame
       << " target: " << target_frame << ". Default to identity.";

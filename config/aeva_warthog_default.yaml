@@ -44,7 +44,9 @@
       #- lidar.pipeline
       #- lidar.aeva_converter_v2
       #- lidar.preprocessing
-      - lidar.odometry_icp
+      - lidar.preprocessing_doppler
+      #- lidar.odometry_icp
+      - lidar.odometry_doppler
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
@@ -63,9 +65,9 @@
     gyro_frame: w200_0066_aeva_imu
     gyro_topic: /aeva/sensor/imu
     gyro_bias:
-      x: 0.0
-      y: 0.0
-      z: 0.0
+      x: -0.0114
+      y: -0.0071
+      z: -0.0047
     queue_size: 1
     graph_map:
       origin_lat: 43.7822
@@ -103,8 +105,10 @@
       preprocessing:
         - conversion
         - filtering
+        - doppler_filtering
       odometry:
-        - icp
+        #- icp
+        - doppler
         - mapping
         - vertex_test
         #- intra_exp_merging
@@ -126,7 +130,7 @@
 
       filtering:
         type: lidar.preprocessing
-        num_threads: 8
+        num_threads: 12
         crop_range: 40.0
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
@@ -147,6 +151,27 @@
         cluster_num_sample: 20000 # maxnumber of sample after removing isolated points
 
         visualize: true
+
+      doppler_filtering:
+        type: lidar.preprocessing_doppler
+        azimuth_res: 0.00349087         # vertical angle resolution in radians
+        azimuth_start: -0.994838        # -57 deg in rad         
+        azimuth_end: 1.09956            #  63 deg in rad
+        num_rows: 64                    # num of vertical scan lines
+        num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
+        min_dist: 5.0                   # meters
+        max_dist: 150.0                 # meters
+        #
+        root_path: "/home/katya/Documents/Data/sensor_config/warthog/warthog"  # point this to where we find the trained sensor model
+        model_name: "2025_06_02_15"
+        downsample_steps: 1             # after image projection 
+        bias_input_feat: ["range", "intensity", "medianrv"]
+        var_input_feat: ["intensity", "medianrv", "rv_var5"]
+        bias_polyorder: 3
+        var_polyorder: 2                # only one sensor
+
+        visualize: false
+
     odometry:
       icp:
         type: lidar.odometry_icp
@@ -175,6 +200,28 @@
         min_matched_ratio: 0.0
         visualize: true
         gyro_cov: 1e-3
+
+      doppler:
+        type: lidar.odometry_doppler
+        #
+        num_threads: 12
+        traj_qc_diag: [1.0, 0.1, 0.1, 0.1, 0.1, 1.0]
+        #
+        ransac_seed: 0
+        ransac_gyro: false
+        ransac_max_iter: 100
+        ransac_threshold: 0.4
+        prior_threshold: 3.0        # m/s
+        ransac_min_range: 5.0       # m
+        integration_steps: 100
+        zero_vel_tol: 0.03
+        # gyro_invcov: [1791.47259047, 2461.14467839, 69.4274250826]
+        gyro_invcov: [3399.88, 2463.06, 3551.39]
+        # prior
+        P0inv: [1e4, 1e4, 1e4, 1e6, 1e6, 1e6]
+        Qkinv: [124.097194, 852.430330017, 448.704299478, 1128.19639192, 1230.02908934, 11316.9459369]
+        Qzinv: [0.0, 100.0, 100.0, 33271.2755284, 20032.1558168, 0.0]
+
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
@@ -234,14 +281,14 @@
         initial_max_iter: 4
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
-        refined_max_iter: 50
+        refined_max_iter: 30
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.45
-        target_loc_time: 15.0
+        target_loc_time: 50.0
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0

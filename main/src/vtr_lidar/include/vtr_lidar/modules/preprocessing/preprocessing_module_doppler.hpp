@@ -42,10 +42,7 @@ class PreprocessingDopplerModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    int num_threads = 1;
-
     // DOPPLER
-    std::vector<bool> active_lidars;
     std::string root_path;
     std::string model_name;
     int downsample_steps = 1;
@@ -63,7 +60,6 @@ class PreprocessingDopplerModule : public tactic::BaseModule {
     double min_dist = 20.0;
     double max_dist = 150.0;
     //
-    mutable int median_sensorid = 0;
     mutable bool calc_median = false;
     mutable bool calc_pseudovar = false;
 

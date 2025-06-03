@@ -60,6 +60,17 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
+  //Check that
+  if(!*qdata.odo_success) {
+    CLOG(WARNING, "lidar.localization_icp") << "Odometry failed, skip localization";
+    return;
+  }
+
+  if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time && *qdata.pipeline_mode == tactic::PipelineMode::RepeatFollow) {
+    CLOG(WARNING, "lidar.localization_icp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
+    return;
+  }
+
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
@@ -84,8 +95,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// Create and add the T_robot_map variable, here m = vertex frame.
   const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
-
-  CLOG(DEBUG, "lidar.localization_icp") << "T_r_v_var: " << std::endl << T_r_v;
 
   /// use odometry as a prior
   WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
@@ -152,7 +161,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   float mean_dR = 0;
   Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
   bool refinement_stage = false;
-  bool converge_success = false;
   int refinement_step = 0;
 
   CLOG(DEBUG, "lidar.localization_icp") << "Start the ICP optimization loop.";
@@ -203,7 +211,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     problem.addStateVariable(T_r_v_var);
 
     // add prior cost terms
-    if (config_->use_pose_prior && *qdata.odo_success) problem.addCostTerm(prior_cost_term);
+    if (config_->use_pose_prior) problem.addCostTerm(prior_cost_term);
 
     // shared loss function
     auto loss_func = L2LossFunc::MakeShared();
@@ -313,11 +321,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
       T_r_v_icp = EdgeTransform(T_r_v_var->value(), covariance.query(T_r_v_var));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
-      converge_success = true;
       CLOG(DEBUG, "lidar.localization_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        converge_success = false;
         CLOG(WARNING, "lidar.localization_icp") << "ICP did not converge to the specified threshold.";
         if (!refinement_stage) {
           CLOG(WARNING, "lidar.localization_icp") << "ICP did not enter refinement stage at all.";
@@ -338,7 +344,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   if (matched_points_ratio > config_->min_matched_ratio) {
     // update map to robot transform
     *qdata.T_r_v_loc = T_r_v_icp;
-    CLOG(DEBUG, "lidar.localization_icp") << "T_r_v_icp: " << std::endl << T_r_v_icp;
     // set success
     *qdata.loc_success = true;
   } else {
@@ -348,13 +353,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // no update to map to robot transform
     // set success
     *qdata.loc_success = false;
-  }
-
-  if (!converge_success && 
-      *qdata.faulty_frame) {
-      CLOG(WARNING, "lidar.localization_icp")
-          << "ICP did not converge to the specified threshold on a sparse frame. Marked as failed.";
-      *qdata.loc_success = false;
   }
   // clang-format on
 }
