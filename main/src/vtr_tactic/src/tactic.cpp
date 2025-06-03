@@ -170,12 +170,12 @@ bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
   const auto T_leaf_target = chain_->T_leaf_trunk()*chain_->T_trunk_target(chain_->sequence().size() - 1);
   const auto translation = T_leaf_target.r_ba_ina().norm(); // lgmath bring to aang
-  // angle threshold of 15 degrees hardcoded for now
   const auto T_leaf_target_matrix = T_leaf_target.matrix();
   const auto angle = atan2(T_leaf_target_matrix(1, 0), T_leaf_target_matrix(0, 0));
+  const auto angle_180 = atan2(-T_leaf_target_matrix(1, 0), -T_leaf_target_matrix(0, 0));
 
   CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
-  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
+  if (chain_->trunkSequenceId() < chain_->sequence().size() - 2) {
     return false;
   }
 
@@ -183,7 +183,7 @@ bool Tactic::routeCompleted() const {
     return false;
   }
 
-  if (std::abs(angle) > config_->route_completion_angle_threshold) {
+  if ((std::abs(angle) > config_->route_completion_angle_threshold) && (std::abs(angle_180) > config_->route_completion_angle_threshold)) {
     return false;
   }
   
