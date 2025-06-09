@@ -60,6 +60,13 @@ add_custom_command(OUTPUT "include/vtr_path_planning/mpc/ackermann_mpc_solver.hp
 add_custom_target(generate_ackermann_header ALL
 DEPENDS "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp")
 
+add_custom_command(OUTPUT "include/vtr_path_planning/mpc/bicycle_mpc_solver.hpp"
+  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
+  DEPENDS "scripts/bicycle_solver_rw.py")
+
+add_custom_target(generate_bicycle_header ALL
+DEPENDS "include/vtr_path_planning/mpc/bicycle_mpc_solver.hpp")
+
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
 add_library(${PROJECT_NAME}_mpc ${SRC})
 target_link_libraries(${PROJECT_NAME}_mpc ${PROJECT_NAME}_base)
@@ -78,6 +85,10 @@ target_link_libraries(solve_unicycle_mpc casadi)
 add_library(solve_ackermann_mpc SHARED src/mpc/ackermann_mpc_solver.cpp)
 add_dependencies(solve_ackermann_mpc generate_ackermann_header)
 target_link_libraries(solve_ackermann_mpc casadi)
+
+add_library(solve_bicycle_mpc SHARED src/mpc/bicycle_mpc_solver.cpp)
+add_dependencies(solve_bicycle_mpc generate_bicycle_header)
+target_link_libraries(solve_bicycle_mpc casadi)
 
 find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})
@@ -113,6 +124,7 @@ install(
     ${PROJECT_NAME}_cbit
     solve_unicycle_mpc
     solve_ackermann_mpc
+    solve_bicycle_mpc
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
