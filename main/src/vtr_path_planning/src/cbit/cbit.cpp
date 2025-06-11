@@ -92,6 +92,9 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->r2 = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
   config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
   config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
+  config->q_f = node->declare_parameter<double>(prefix + ".mpc.q_f", config->q_f);
+  CLOG(INFO, "cbit.control") << "The config is: Q_x " << config->q_x << " q_y: " << config->q_y<< " q_th: " << config->q_th<< " r1: " << config->r1<< " r2: " << config->r2<< "acc_r1: " << config->racc1<< " acc_r2: " << config->racc2;
+
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -444,20 +447,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       
       mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
       baseMpcConfig = mpcConfig;
-    } else if (config_->kinematic_model == "ackermann") {
-      CasadiAckermannMPC::Config::Ptr mpcConfig = std::make_shared<CasadiAckermannMPC::Config>();
-      mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-      mpcConfig->turning_radius = config_->turning_radius;
-
-      // Initializations from config
-      
-      // Schedule speed based on path curvatures + other factors
-      // TODO refactor to accept the chain and use the curvature of the links
-      mpcConfig->VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
-
-      lgmath::se3::Transformation T0 = T_p_r_extp;
-      mpcConfig->T0 = tf_to_global(T0);
-    }
+    } 
     else if (config_->kinematic_model == "bicycle"){
       CasadiBicycleMPC::Config::Ptr mpcConfig = std::make_shared<CasadiBicycleMPC::Config>();;
       mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
@@ -468,6 +458,9 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       mpcConfig->R2      = config_->r2;
       mpcConfig->Acc_R1  = config_->racc1;
       mpcConfig->Acc_R2  = config_->racc2;
+      mpcConfig->lin_acc_max = config_->max_lin_acc;
+      mpcConfig->ang_acc_max = config_->max_ang_acc;
+      mpcConfig->Q_f = config_->q_f;
 
       // Initializations from config
       
@@ -487,9 +480,14 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
       mpcConfig->reference_poses.clear();
 
+      CLOG(DEBUG, "cbit.control") << "Robot State" << state_p;
+      CLOG(DEBUG, "cbit.control") << "Robot T0" << mpcConfig->T0;
+      CLOG(DEBUG, "cbit.control") << "Robot info 3" << T_w_p * T_p_r_extp;
+      CLOG(DEBUG, "cbit.control") << "Robot info 4" << tf_to_global(T_w_p.inverse() * T_p_r_extp);
+
       for(const auto& Tf : referenceInfo->poses) {
         mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-        CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+        CLOG(DEBUG, "cbit.control") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
       }
 
       mpcConfig->up_barrier_q = referenceInfo->barrier_q_max;
@@ -498,7 +496,36 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
       baseMpcConfig = mpcConfig;
     }
-   
+    else if (config_->kinematic_model == "ackermann") {
+      CasadiAckermannMPC::Config::Ptr mpcConfig = std::make_shared<CasadiAckermannMPC::Config>();
+      mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+      mpcConfig->turning_radius = config_->turning_radius;
+
+      // Initializations from config
+      
+      // Schedule speed based on path curvatures + other factors
+      // TODO refactor to accept the chain and use the curvature of the links
+      mpcConfig->VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
+
+      lgmath::se3::Transformation T0 = T_p_r_extp;
+      mpcConfig->T0 = tf_to_global(T0);
+
+      std::vector<double> p_rollout;
+      for(int j = 1; j < mpcConfig->N+1; j++){
+        p_rollout.push_back(state_p + j*mpcConfig->VF*mpcConfig->DT);
+      }
+
+      referenceInfo = std::make_shared<PoseResultHomotopy>(generateHomotopyReference(p_rollout, chain));
+      mpcConfig->reference_poses.clear();
+      for(const auto& Tf : referenceInfo->poses) {
+        mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+        CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+      }
+      
+      mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
+    
+      baseMpcConfig = mpcConfig;
+    }
 
     // Create and solve the casadi optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -516,6 +543,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
       const auto& mpc_vel_vec = mpc_res["vel"](casadi::Slice(), 0).get_elements();
+      CLOG(INFO, "cbit.control") <<  mpc_res["x"];
 
       command.linear.x = mpc_vel_vec[0];
       command.angular.z = mpc_vel_vec[1];

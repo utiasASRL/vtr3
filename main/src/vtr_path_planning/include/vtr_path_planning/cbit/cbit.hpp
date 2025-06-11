@@ -124,6 +124,7 @@ class CBIT : public BasePathPlanner {
     double r2 = 0.0;
     double racc2 = 0.0;
     double racc1 = 0.0;
+    double q_f = 0.0;
 
     // Add unicycle model param
     std::string kinematic_model = "unicycle"; //Options are unicycle and ackermann

@@ -4,40 +4,46 @@ import numpy as np
 import matplotlib.pyplot as plt
 from simulation_code import simulate_path_tracking
 
-from bicycle_solver_rw import solver, motion_model, alpha, N, step_horizon, n_states, n_controls
+from bicycle_solver_pt import solver, motion_model, alpha, N, step_horizon, n_states, n_controls
+
 
 
 # specs
-x_init = 0.5
-y_init = 0.2
-theta_init = 0
+x_init = 10.0
+y_init = 0.0
+theta_init = -np.pi/2
 
-v_max = 1.5
-v_min = -1.5
+v_max = 4.0
+v_min = 0.0
 # Based on Hunter SE datasheet
 # Encodes the maximum input and a turning radius by extension
-w_max = 0.384
-w_min = -0.384
+w_max = 0.461
+w_min = -0.461
 v_ref = 0.5*v_max
 
-lin_acc_max = 1.00
+lin_acc_max = 2.0
 ang_acc_max = 0.5
 
 # Tunable parameters
-L = 0.82
+L = 0.5
 
 # State costs
-Q_x = 15
+Q_x = 10
 Q_y = 15
-Q_theta = 5
+Q_theta = 3
 
 # Input costs
-R1 = 0.5 
-R2 = 0.5 
+R1 = 1.0 
+R2 = 0.1 
+
+Q_f = 5.0
 
 # Acceleration Cost
-Acc_R1 = 0.1
-Acc_R2 = 1.5
+Acc_R1 = 1.0
+Acc_R2 = 5
+
+configuration = {x_init, y_init, theta_init, v_max, v_min, w_max, w_min, v_ref, lin_acc_max, ang_acc_max, L,
+                Q_x, Q_y, Q_theta, R1, R2, Acc_R1, Acc_R2}
 
 sim_time = 100      # simulation time in seconds
 
@@ -59,10 +65,13 @@ def shift_timestep(step, t0, state_init, u, f, last_u):
 def DM2Arr(dm):
     return np.array(dm.full())
 
-path_x = np.linspace(0, 30, 10000)
-path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
+#path_x = np.linspace(0, 30, 10000)
+#path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
+path_x = np.linspace(0, -np.pi, 500)
+path_y = 5.0*np.sin(path_x)#0.5*path_x + np.sin(2*np.pi*path_x/10)
+path_x = 5.0*np.cos(path_x)
 path_mat = np.zeros((np.size(path_x), 3))
-path_mat[:, 0] = path_x
+path_mat[:, 0] = path_x + 5
 path_mat[:, 1] = path_y
 path_mat[:, 2] = np.arctan2(np.gradient(path_y), np.gradient(path_x))
 path_p = np.zeros_like(path_x)
@@ -87,12 +96,21 @@ lbx[n_states*(N+1)+1::2] = w_min                # v upper bound for all V
 ubx[n_states*(N+1)+1::2] = w_max                # v upper bound for all V
 
 #Motion Model Constraints
-lbg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints lower bound
-ubg = ca.DM.zeros((n_states*(N+1) + N, 1))  # constraints upper bound
+lbg = ca.DM.zeros((n_states*(N+1) + N + (N-1)*n_controls, 1))  # constraints lower bound
+ubg = ca.DM.zeros((n_states*(N+1) + N + (N-1)*n_controls, 1))  # constraints upper bound
 
 #Corridor Width constraints
-lbg[n_states*(N+1):n_states*(N+1)+N] = -0.5
-ubg[n_states*(N+1):n_states*(N+1)+N] = 0.5
+lbg[n_states*(N+1):n_states*(N+1)+N] = -1.5
+ubg[n_states*(N+1):n_states*(N+1)+N] = 1.5
+
+# Acceleration constraints
+lbg[n_states*(N+1)+N:-1] = -lin_acc_max*step_horizon
+ubg[n_states*(N+1)+N:-1] = lin_acc_max*step_horizon
+lbg[n_states*(N+1)+N+1:] = -ang_acc_max*step_horizon
+ubg[n_states*(N+1)+N+1:] = ang_acc_max*step_horizon
+
+
+
 
 args = {
     'lbg': lbg,
@@ -121,6 +139,7 @@ state_target = path_mat[-1, :]
 if __name__ == '__main__':
     main_loop = time()  # return time in sec
     p_state = 0
+    j = 0
     while (ca.norm_2(state_init - state_target) > 2e-1) and (mpc_iter * step_horizon < sim_time):
         t1 = time()
 
@@ -131,6 +150,7 @@ if __name__ == '__main__':
         for i in range(1, N+1):
             p_target = p_state + v_ref * step_horizon * i
             p_idx = np.argmin(np.abs(path_p - p_target))
+            #p_idx = i + j
             args['p'] = ca.vertcat(args['p'],
                        ca.DM(path_mat[p_idx, :]))
             
@@ -167,6 +187,10 @@ if __name__ == '__main__':
                        ca.DM(Acc_R2)
                 )
 
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_f)
+                )
+
         u0 = ca.DM.zeros((n_controls, N))  # initial control
         X0 = ca.repmat(state_init, 1, N+1)         # initial state full
 
@@ -191,9 +215,10 @@ if __name__ == '__main__':
 
 
         u = ca.reshape(sol['x'][n_states * (N + 1):], n_controls, N)
-        # print(u)
+        print(u)
         
         X0 = ca.reshape(sol['x'][: n_states * (N+1)], n_states, N+1)
+        print(X0)
 
         cat_states = np.dstack((
             cat_states,
@@ -234,6 +259,7 @@ if __name__ == '__main__':
         mpc_iter = mpc_iter + 1
         # if mpc_iter == 10:
         #     break
+        j+=1
 
 
     main_loop_time = time()
@@ -243,6 +269,8 @@ if __name__ == '__main__':
     print('Total time: ', main_loop_time - main_loop)
     print('avg iteration time: ', np.array(times).mean() * 1000, 'ms')
     print('final error: ', ss_error)
+    print(sol.keys())
+    print(sol['f'])
 
     plt.plot(cat_controls[0])
     plt.plot(cat_controls[1])

@@ -2,7 +2,7 @@
 
 from unicycle_solver import solver as uni_solver
 from acker_cycle_solver import solver as acker_solver
-from bicycle_solver_rw import solver as bi_solver
+from bicycle_solver_pt import solver as bi_solver
 import shutil
 import os
 

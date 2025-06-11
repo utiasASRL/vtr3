@@ -2,7 +2,7 @@ import sys
 sys.dont_write_bytecode = True
 
 import casadi as ca
-from casadi import sin, cos, pi
+from casadi import sin, cos, pi, tan
 
 # MPC for a model of a bicycle with tracking about the rear wheels
 # Includes fixed first order lag
@@ -11,15 +11,15 @@ from casadi import sin, cos, pi
 # Based on the Hunter SE docs, for this formulation the actual centre of gravity
 # is irrelevant since we track n the rear wheel
 # TODO: Look into if its possible to make this configurable
-l_f = 0.41
-l_r = 0.41
-L = l_r/l_f
+L = 0.54
 
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the steering angle
-alpha = 0.2
+alpha = 0.0
+
+alphav = 0.0
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states
@@ -63,7 +63,7 @@ last_controls = ca.vertcat(
 )
 
 # number of parameters we can change without recompiling
-num_parameters = 7
+num_parameters = 8
 # column vector for storing runtime information(paths, etc) 
 P = ca.SX.sym('P', n_states * (N+1) + n_controls + num_parameters)
 measured_velo = P[-(n_controls+num_parameters):-num_parameters]
@@ -75,6 +75,7 @@ R1 = P[-num_parameters + 3]
 R2 = P[-num_parameters + 4]
 Acc_R1 = P[-num_parameters + 5]
 Acc_R2 = P[-num_parameters + 6]
+Q_f = P[-num_parameters + 7]  # final state cost
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
@@ -86,7 +87,7 @@ R = ca.diagcat(R1, R2)
 R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
 # Define kinematics of the systems
-RHS = ca.vertcat(v*cos(theta), v*sin(theta), v/L * ca.tan(alpha*last_psi + (1-alpha)*psi))
+RHS = ca.vertcat(v*cos(theta), v*sin(theta), v/L * tan(alpha*last_psi + (1-alpha)*psi))
 motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
 
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
@@ -99,16 +100,22 @@ def so2_error(ref, current):
     rel_m = theta_to_so2(ref).T @ theta_to_so2(current)
     return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
+def calc_cost(ref, X, con, k, cost):
+    dx = X[0, k] - ref[n_states*(k+1)]
+    dy = X[1, k] - ref[n_states*(k+1)+1]
+    theta_ref = ref[n_states*(k+1)+2]
+    e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
+    e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
+    cost += Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2,k])**2 + con.T @ R @ con
+    return cost
+
 #for initial
 k = 0
 st = X[:, k]
 con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
-cost_fn = cost_fn \
-        + (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]).T @ Q @ (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]) \
-        + con.T @ R @ con \
-        + so2_error(P[n_states*(k+1) + 2], st_next[2]) * Q_theta * so2_error(P[n_states*(k+1) + 2], st_next[2])
+cost_fn = calc_cost(P, X, con, k+1, cost_fn)
 k1 = motion_model(st, con, last_vel)
 k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -118,13 +125,6 @@ st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
 g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
-def state_cost(st_next, P_next):
-
-    pass
-
-def control_cost(u_k, u_last):
-    pass
-
 # runge kutta
 for k in range(1, N):
     st = X[:, k]
@@ -132,11 +132,8 @@ for k in range(1, N):
 
     con = U[:, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
-    cost_fn = cost_fn \
-        + (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]).T @ Q @ (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]) \
-        + con.T @ R @ con \
-        + so2_error(P[n_states*(k+1) + 2], st_next[2]) * Q_theta * so2_error(P[n_states*(k+1) + 2], st_next[2])
 
+    cost_fn = calc_cost(P, X,con, k+1, cost_fn)
     k1 = motion_model(st, con, last_vel)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -154,9 +151,20 @@ for k in range(N):
 
 #Acceleration constraints
 cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
-for k in range(1, N):
+g = ca.vertcat(g, U[0, 0])
+g = ca.vertcat(g, U[1, 0])
+for k in range(1, N-1):
     cost_fn += (U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1])
+    #cost_fn += 0.1/(U[0, k]**2 + 1e-3)
+    # Add acceleration constraints
+    g = ca.vertcat(g, U[0, k] - U[0, k-1])
+    #g = ca.vertcat(g, U[0, k-1] - U[0, k])
+    # Angular acceleration constraints
+    g = ca.vertcat(g, U[1, k] - U[1, k-1])
+    #g = ca.vertcat(g, U[1, k-1] - U[1, k])
 
+# Terminal cost
+cost_fn = Q_f * calc_cost(P, X, con, N-1, cost_fn)
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1
