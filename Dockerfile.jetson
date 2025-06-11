@@ -179,6 +179,7 @@ RUN cd ${HOMEDIR}/.casadi \
 ENV PYTHONPATH=${PYTHONPATH}:/usr/local
 ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 
+RUN apt install -y ros-humble-rmw-zenoh-cpp
 
 ENV NVIDIA_DRIVER_CAPABILITIES="compute,utility,graphics"
 
