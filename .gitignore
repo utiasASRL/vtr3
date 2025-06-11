@@ -15,3 +15,7 @@ __pycache__/
 
 #vscode config
 .vscode/
+
+data/
+example_log.txt
+output_log.txt
