@@ -138,6 +138,10 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.timestamp_odo.emplace(*qdata.stamp);
     qdata.T_r_m_odo.emplace(EdgeTransform(identityMatrix, Eigen::Matrix<double, 6, 6>::Identity()));
     qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    // Initialize prior values
+    qdata.T_r_m_odo_prior.emplace(lgmath::se3::Transformation());
+    qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+    qdata.timestamp_prior.emplace(*qdata.stamp);
     //
     *qdata.odo_success = true;
     // clang-format on
@@ -163,6 +167,20 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
   bool loc_flag = *qdata.loc_flag;
 
+  // Load in prior parameters
+  const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;
+  const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;
+  const auto &timestamp_prior = *qdata.timestamp_prior;
+
+  // Set up variables for new prior generation
+  lgmath::se3::Transformation T_r_m_odo_prior_new; 
+  Eigen::Matrix<double, 6, 1> w_m_r_in_r_odo_prior_new;
+
+  if(query_stamp < timestamp_prior) { 
+    CLOG(WARNING, "lidar.odometry_doppler") << "Difference between the two stamps is " << (query_stamp - timestamp_prior) << " ns";
+    query_stamp = timestamp_prior;
+  } 
+
   // clang-format off
   /// Create robot to sensor transform variable, fixed.
   const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
@@ -171,24 +189,27 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   // adjoint
   adT_sv_top3rows_ = lgmath::se3::tranAd(T_s_r.matrix()).topRows<3>();
 
+  // set up timestamps
+  const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
+  int64_t frame_end_time;
+  frame_end_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+  const auto frame_start_time = timestamp_prior;
+  const int64_t time_diff = (frame_end_time - frame_start_time);
   // current state time
   auto query_time = static_cast<int64_t>(query_stamp);
   // save last frame state
-  auto prev_time = static_cast<int64_t>(timestamp_odo);
-  auto prev_T_r_m_odo = *qdata.T_r_m_odo; 
-  auto prev_w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-
-  /// last frame state
-  std::vector<SE3StateVar::Ptr> T_r_m_extp_vec;
-  std::vector<VSpaceStateVar<6>::Ptr> w_m_r_in_r_vec;
+  auto prev_time = static_cast<int64_t>(timestamp_prior);
+  auto prev_T_r_m_odo = *qdata.T_r_m_odo_prior; 
+  auto prev_w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_prior;
 
   const_vel::Interface::Ptr trajectory = nullptr;
   trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
   
-  Time t_prev_time(static_cast<int64_t>(timestamp_odo));
-  auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo);
-  auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
-  trajectory->add(t_prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var); 
+  // add previous state to trajectory
+  Time knot_time(static_cast<int64_t>(timestamp_prior));
+  auto prev_T_r_m_var = SE3StateVar::MakeShared(prev_T_r_m_odo);
+  auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(prev_w_m_r_in_r_odo);
+  trajectory->add(knot_time, prev_T_r_m_var, prev_w_m_r_in_r_var); 
 
   if (prev_time == query_time && frame_count > 0) {
     CLOG(WARNING, "lidar.odometry_doppler") << "Skipping point cloud with duplicate stamp";
@@ -209,18 +230,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   timer.emplace_back(std::make_unique<Stopwatch>(false));
 
   std::vector<double> total_time_timer(clock_str.size(), 0.0);
-
-  auto compare_times = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
-  auto min_max_time = std::minmax_element(query_points.begin(), query_points.end(), compare_times);
-
-  auto query_time_sec = query_time / 1e9;                      // curr state start time in [s] 
-  auto next_time_sec = min_max_time.second->timestamp / 1e9;   // next state start time in [s]
-
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Processing point cloud with stamp: " << query_stamp
-                                        << ", query time: " << query_time_sec
-                                        << ", next time: " << next_time_sec
-                                        << ", diff: " << (next_time_sec - query_time_sec)
-                                        << ", q_points[100].timestamp: " << (query_points[100].timestamp - query_stamp) / 1e9;
 
   timer[0]->start();
   // *********** RANSAC ***********
@@ -343,11 +352,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   pcl::PointCloud<PointWithInfo> points;
   if (max_inliers == 0) {
     CLOG(WARNING, "lidar.odometry_doppler") << "No inliers found in RANSAC.";
-    if (loc_flag) {
-      const auto &points = *qdata.preprocessed_point_cloud;
-    } else {
-      const auto &points = *qdata.doppler_preprocessed_point_cloud;
-    }
+    const auto &points = loc_flag ? *qdata.preprocessed_point_cloud : *qdata.doppler_preprocessed_point_cloud;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
@@ -355,7 +360,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
     *qdata.odo_success = false;
     frame_count++;
-    
     return;
   }
 
@@ -379,7 +383,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     inlier_frame.push_back(query_points[i]);
     ransac_precompute_.row(k) = ransac_precompute_all.row(i);
     meas_precompute_[k] = meas_precompute_all[i];
-    alpha_precompute_[k] = std::min(1.0, std::max(0.0, (((query_points[i].timestamp - query_stamp) / 1e9) / (next_time_sec - query_time_sec))));
+    double alpha = static_cast<double>(query_points[i].timestamp - prev_time) / static_cast<double>(frame_end_time - prev_time);
+    alpha_precompute_[k] = std::min(1.0, std::max(0.0, alpha));
     malpha_precompute_[k] = std::max(0.0, 1.0 - alpha_precompute_[k]);
     ivariance_precompute_[k] = query_points[i].ivariance;
     ++k;
@@ -416,15 +421,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     for (const auto &gyro_msg : *qdata.gyro_msgs) {
       const auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
       const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
-      const auto gyro_stamp_sec = gyro_stamp.seconds();
-
-      CLOG(DEBUG, "lidar.odometry_doppler") << "Processing gyro measurement at time: " << gyro_stamp_sec
-                                            << ", gyro nanoseconds: " << gyro_stamp.nanoseconds()
-                                            << ", query time: " << query_time
-                                            << ", diff: " << (gyro_stamp_sec - query_time_sec)
-                                            << ", alpha: " << (gyro_stamp_sec - query_time_sec)/(next_time_sec - query_time_sec);
-
-      double alpha = std::min(1.0, std::max(0.0, (gyro_stamp_sec - query_time_sec)/(next_time_sec - query_time_sec))); // times in [s]
+      const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
+      double alpha = std::min(1.0, std::max(0.0, static_cast<double>(gyro_stamp_time - prev_time) / static_cast<double>(frame_end_time - prev_time))); // times in [ns]
       Ggyro.leftCols<6>() = (1.0 - alpha)*Cgyro;
       Ggyro.rightCols<6>() = alpha*Cgyro;
 
@@ -485,7 +483,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   double dt = 0.1;
   if (frame_count > 0) {
     knot1 = prev_w_m_r_in_r_odo;
-    dt = (query_time - prev_time) / 1e9;
+    dt = (frame_end_time - prev_time) / 1e9;
   }
   Eigen::Matrix<double,6,1> knot2 = w_temp;
 
@@ -494,9 +492,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     knot1 = Eigen::Matrix<double,6,1>::Zero();
   if (std::fabs(knot2(0)) < config_->zero_vel_tol)
     knot2 = Eigen::Matrix<double,6,1>::Zero();
-
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Knot1: " << knot1.transpose();
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Knot2: " << knot2.transpose();
 
   // integrate between the knots
   double dtt = dt/static_cast<double>(config_->integration_steps);
@@ -517,8 +512,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   const auto T_r_m_eval = SE3StateVar::MakeShared(T_temp);
-  // compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
 
   // end num integrate
   timer[2]->stop();
@@ -528,13 +521,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   if (frame_count > 0 &&
       estimate_reasonable) {
 
-    *qdata.T_r_m_odo = T_r_m_eval->value();
-    *qdata.w_m_r_in_r_odo = w_temp;
-
-    // if (config_->estimate_gyro_bias && trans_vel_diff_norm < config_->bias_vel_threshold) {
-    //   // estimate gyro bias if we predict that the vehicle is stationary
-    //   // to do
-    // }
+    Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_query = nullptr;
+    Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_query = nullptr;
       
     if (loc_flag) {
       CLOG(DEBUG, "lidar.odometry_doppler") << "using VTR preprocessed point cloud";
@@ -547,9 +535,9 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
       auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
  
-      Time knot_time(static_cast<int64_t>(query_stamp));
-      const auto T_r_m_var = SE3StateVar::MakeShared(*qdata.T_r_m_odo);
-      const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(*qdata.w_m_r_in_r_odo);
+      Time knot_time(frame_end_time);
+      const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_eval->value());
+      const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_temp);
       trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
 
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -563,8 +551,17 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
         aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
       }
 
-      // undistort the preprocessed pointcloud
-      const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
+      CLOG(DEBUG, "lidar.odometry_doppler") << "aligned_points size: " << aligned_points.size();
+      
+      // interpolate state at query time
+      T_r_m_query = trajectory->getPoseInterpolator(Time(query_time));
+      w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
+
+      // compound transform for alignment (sensor to point map transform)
+      const auto T_m_s_query = inverse(compose(T_s_r_var, T_r_m_query));
+
+      // undistort the preprocessed pointclouds
+      const auto T_s_m = T_m_s_query->evaluate().matrix().inverse().cast<float>();
       aligned_mat = T_s_m * aligned_mat;
       aligned_norms_mat = T_s_m * aligned_norms_mat; 
 
@@ -579,12 +576,21 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       qdata.undistorted_point_cloud = undistorted_point_cloud;
     }
 
-    auto &sliding_map_odo = *qdata.sliding_map_odo;
-    EdgeTransform T_r_v_dop(T_r_m_eval->value(), Eigen::Matrix<double, 6, 6>::Identity());
-    *qdata.T_r_v_odo = T_r_v_dop * sliding_map_odo.T_vertex_this().inverse();
-    *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+    *qdata.T_r_m_odo = T_r_m_query->value();
+    *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
 
+    auto &sliding_map_odo = *qdata.sliding_map_odo;
+    Eigen::Matrix<double, 1, 6> cov;
+    cov << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;
+    EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, cov.asDiagonal() * Eigen::Matrix<double, 6, 6>::Identity());
+    *qdata.T_r_v_odo = T_r_m_dop * sliding_map_odo.T_vertex_this().inverse();
+    *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     *qdata.timestamp_odo = query_stamp;
+
+    *qdata.T_r_m_odo_prior = T_r_m_eval->value();
+    *qdata.w_m_r_in_r_odo_prior = w_temp;
+    *qdata.timestamp_prior = frame_end_time;
+
     *qdata.odo_success = true;
 
     CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_v_odo: " << *qdata.T_r_v_odo;
