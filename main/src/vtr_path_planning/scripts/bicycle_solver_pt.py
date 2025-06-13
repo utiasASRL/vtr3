@@ -14,7 +14,7 @@ from casadi import sin, cos, pi, tan
 L = 0.55
 
 step_horizon = 0.25  # time between steps in seconds
-N = 15           # number of look ahead steps
+N = 20           # number of look ahead steps
 
 # The first order lag weighting for the steering angle
 alpha = 0.0
@@ -115,7 +115,7 @@ st = X[:, k]
 con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
-cost_fn = calc_cost(P, X, con, k+1, cost_fn)
+cost_fn = calc_cost(P, X, con, k, cost_fn)
 k1 = motion_model(st, con, last_vel)
 k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -133,7 +133,7 @@ for k in range(1, N):
     con = U[:, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
 
-    cost_fn = calc_cost(P, X,con, k+1, cost_fn)
+    cost_fn = calc_cost(P, X,con, k, cost_fn)
     k1 = motion_model(st, con, last_vel)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -158,13 +158,11 @@ for k in range(1, N-1):
     #cost_fn += 0.1/(U[0, k]**2 + 1e-3)
     # Add acceleration constraints
     g = ca.vertcat(g, U[0, k] - U[0, k-1])
-    #g = ca.vertcat(g, U[0, k-1] - U[0, k])
     # Angular acceleration constraints
     g = ca.vertcat(g, U[1, k] - U[1, k-1])
-    #g = ca.vertcat(g, U[1, k-1] - U[1, k])
 
 # Terminal cost
-cost_fn = Q_f * calc_cost(P, X, con, N-1, cost_fn)
+cost_fn = calc_cost(P, X, con, N-1, cost_fn)
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1

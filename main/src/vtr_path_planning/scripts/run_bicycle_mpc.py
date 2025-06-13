@@ -9,34 +9,34 @@ from bicycle_solver_pt import solver, motion_model, alpha, N, step_horizon, n_st
 
 
 # specs
-x_init = 10.0
-y_init = 0.0
-theta_init = -np.pi/2
+x_init = 0.0
+y_init = 0.2
+theta_init = 0#-np.pi/2
 
 v_max = 4.0
 v_min = 0.0
 # Based on Hunter SE datasheet
 # Encodes the maximum input and a turning radius by extension
-w_max = 0.461
-w_min = -0.461
+w_max = 0.339
+w_min = -0.339
 v_ref = 0.5*v_max
 
 lin_acc_max = 2.0
-ang_acc_max = 0.5
+ang_acc_max = 0.85
 
 # Tunable parameters
-L = 0.5
+L = 0.55
 
 # State costs
-Q_x = 10
-Q_y = 15
-Q_theta = 3
+Q_x = 5
+Q_y = 5
+Q_theta = 0.5
 
 # Input costs
-R1 = 1.0 
-R2 = 0.1 
+R1 = 0.0 
+R2 = 0.0 
 
-Q_f = 5.0
+Q_f = 1.0
 
 # Acceleration Cost
 Acc_R1 = 1.0
@@ -65,19 +65,16 @@ def shift_timestep(step, t0, state_init, u, f, last_u):
 def DM2Arr(dm):
     return np.array(dm.full())
 
-#path_x = np.linspace(0, 30, 10000)
-#path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
-path_x = np.linspace(0, -np.pi, 500)
-path_y = 5.0*np.sin(path_x)#0.5*path_x + np.sin(2*np.pi*path_x/10)
-path_x = 5.0*np.cos(path_x)
+
+path_x = np.linspace(0, 30, 10000)
+path_y = 0.5*path_x + np.sin(2*np.pi*path_x/10)
 path_mat = np.zeros((np.size(path_x), 3))
-path_mat[:, 0] = path_x + 5
+path_mat[:, 0] = path_x
 path_mat[:, 1] = path_y
 path_mat[:, 2] = np.arctan2(np.gradient(path_y), np.gradient(path_x))
 path_p = np.zeros_like(path_x)
 for i in range(1, np.size(path_p)):
     path_p[i] = path_p[i-1] + np.hypot(path_x[i] - path_x[i-1], path_y[i] - path_y[i-1]) + 0.25*np.abs(path_mat[i, 2] - path_mat[i-1, 2])
-
 
 lbx = ca.DM.zeros((n_states*(N+1) + n_controls*N, 1))
 ubx = ca.DM.zeros((n_states*(N+1) + n_controls*N, 1))
@@ -104,10 +101,10 @@ lbg[n_states*(N+1):n_states*(N+1)+N] = -1.5
 ubg[n_states*(N+1):n_states*(N+1)+N] = 1.5
 
 # Acceleration constraints
-lbg[n_states*(N+1)+N:-1] = -lin_acc_max*step_horizon
-ubg[n_states*(N+1)+N:-1] = lin_acc_max*step_horizon
-lbg[n_states*(N+1)+N+1:] = -ang_acc_max*step_horizon
-ubg[n_states*(N+1)+N+1:] = ang_acc_max*step_horizon
+lbg[n_states*(N+1)+N:-1:2] = -lin_acc_max*step_horizon
+ubg[n_states*(N+1)+N:-1:2] = lin_acc_max*step_horizon
+lbg[n_states*(N+1)+N+1:-1:2] = -ang_acc_max*step_horizon
+ubg[n_states*(N+1)+N+1:-1:2] = ang_acc_max*step_horizon
 
 
 
@@ -147,12 +144,13 @@ if __name__ == '__main__':
             state_init,    # current state
         )
 
+
         for i in range(1, N+1):
             p_target = p_state + v_ref * step_horizon * i
             p_idx = np.argmin(np.abs(path_p - p_target))
-            #p_idx = i + j
             args['p'] = ca.vertcat(args['p'],
                        ca.DM(path_mat[p_idx, :]))
+            
             
         state_target = ca.DM(path_mat[p_idx, :])
         
@@ -215,10 +213,8 @@ if __name__ == '__main__':
 
 
         u = ca.reshape(sol['x'][n_states * (N + 1):], n_controls, N)
-        print(u)
         
         X0 = ca.reshape(sol['x'][: n_states * (N+1)], n_states, N+1)
-        print(X0)
 
         cat_states = np.dstack((
             cat_states,
@@ -242,7 +238,6 @@ if __name__ == '__main__':
         p_state = path_p[closest_idx]
 
 
-        # print(X0)
         X0 = ca.horzcat(
             X0[:, 1:],
             ca.reshape(X0[:, -1], -1, 1)
