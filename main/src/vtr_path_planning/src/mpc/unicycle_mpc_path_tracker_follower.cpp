@@ -95,7 +95,7 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
     } catch (std::exception &e) {
       return T_w_p0;
     }
-    }
+  }
 }
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
@@ -105,7 +105,8 @@ auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& nod
   auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
   *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
 
-  config->leader_path_topic = node->declare_parameter<std::string>(prefix + ".leader_path_topic", config->leader_path_topic);
+  // config->leader_path_topic = node->declare_parameter<std::string>(prefix + ".leader_path_topic", config->leader_path_topic);
+  config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
   config->distance_margin = node->declare_parameter<double>(prefix + ".distance_margin", config->distance_margin);
 
@@ -157,10 +158,19 @@ UnicycleMPCPathFollower::UnicycleMPCPathFollower(const Config::ConstPtr& config,
   vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
 
   using std::placeholders::_1;
-  CLOG(INFO, "mpc.follower") << config->leader_path_topic;
-  CLOG(INFO, "mpc.follower") << config->distance_margin;
+  const auto leader_path_topic = config_->leader_namespace + "/vtr/mpc_prediction";
+  const auto leader_graph_topic = config_->leader_namespace + "/vtr/graph_state_srv";
+  const auto leader_route_topic = config_->leader_namespace + "/vtr/following_route";
+  CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
+  CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
+  CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
+  CLOG(INFO, "mpc.follower") << "Target separation: " << config->distance_margin;
 
-  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(config->leader_path_topic, rclcpp::SystemDefaultsQoS(), std::bind(&UnicycleMPCPathFollower::onLeaderPath, this, _1));
+  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::SystemDefaultsQoS(), std::bind(&UnicycleMPCPathFollower::onLeaderPath, this, _1));
+  leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&UnicycleMPCPathFollower::onLeaderRoute, this, _1));
+
+  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
+  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
 }
 
 
@@ -232,7 +242,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   mpcConfig.VF = leader_vel_(0, 0);
 
 
-    CLOG(DEBUG, "mpc.follower") << "Leader forward vel " << leader_vel_(0, 0);
+  CLOG(DEBUG, "mpc.follower") << "Leader forward vel " << leader_vel_(0, 0);
 
 
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
@@ -267,11 +277,11 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   std::vector<lgmath::se3::Transformation> leader_world_poses;
   std::vector<double> leader_p_values;
   for (uint i = 0; i < mpcConfig.N; i++){
-    const auto T_w_lp = leaderPathInterp_->at(curr_time + (1+i) * mpcConfig.DT * 1e9);
+    const auto T_w_lp = T_fw_lw_ * leaderPathInterp_->at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
     leader_world_poses.push_back(T_w_lp);
     leader_p_values.push_back(findRobotP(T_w_lp, chain));
-    CLOG(DEBUG, "mpc.follower") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
+    CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
 
   }
 
@@ -303,7 +313,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
           }
         }
         mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  best_pose));
-        CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose);
+        CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose);
     }
   }
   else if(config_->waypoint_selection == "euclideanv2")  // Option 2: Same as 2 but should be more efficient! (go along path only once)
@@ -342,7 +352,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     }
     for (uint i = 0; i < best_pose.size(); i++){
         mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  best_pose[i]));
-        CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose[i]);
+        CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose[i]);
     }
   }
   else if(config_->waypoint_selection == "arclength") // Option 3: Define the waypoints in terms of distance on the arclength of the path (not euclidean distance)
@@ -360,13 +370,13 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     auto referenceInfo = generateHomotopyReference(p_values, chain);
     for(const auto& Tf : referenceInfo.poses) {
       mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-      CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+      CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
     }
 
   }
   else // Default option: use velocity
   {
-      CLOG(DEBUG, "mpc.follower") << "Choosing default option for waypoint selection!";
+      CLOG(DEBUG, "mpc.follower.target") << "Choosing default option for waypoint selection!";
     double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
 
     std::vector<double> p_rollout;
@@ -378,7 +388,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     auto referenceInfo = generateHomotopyReference(p_rollout, chain);
     for(const auto& Tf : referenceInfo.poses) {
       mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-      CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+      CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
     }
 
   }
@@ -439,10 +449,10 @@ void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   
   recentLeaderPath_ = path;
 
-  for (const auto& pose : path->poses) {
-    const Transformation T_w_p = tfFromPoseMessage(pose.pose);
-    //CLOG(DEBUG, "mpc.follower") << "Received Leader Rollout Poses: " << tf_to_global(T_w_p);
-  }
+  // for (const auto& pose : path->poses) {
+  //   const Transformation T_w_p = tfFromPoseMessage(pose.pose);
+  //   //CLOG(DEBUG, "mpc.follower") << "Received Leader Rollout Poses: " << tf_to_global(T_w_p);
+  // }
 
   //reconstruct velocity
   if (path->poses.size() > 1) {
@@ -451,11 +461,25 @@ void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
     const auto dt = rclcpp::Time(path->poses[1].header.stamp) - rclcpp::Time(path->poses[0].header.stamp);
     auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
     leader_vel_ << vel(0, 0), vel(5, 0);
-    //CLOG(DEBUG, "mpc.follower") << leader_vel_;
+    CLOG(DEBUG, "mpc.follower") << "Estimated leader velo: " << leader_vel_;
   } 
 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
+}
 
+void UnicycleMPCPathFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
+  if (route->ids.size() > 0 && route->ids.front() != leader_root_) { 
+
+    //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
+    // leaderGraphSrv_->async_send_request()
+
+    CLOG(INFO, "mpc.follower") << "Updated leader's root!";
+    leader_root_ = route->ids.front();
+    const auto follower_root = robot_state_->chain->sequence().front();
+    auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
+    
+    T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
+  }
 }
 
 }  // namespace path_planning

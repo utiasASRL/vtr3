@@ -17,6 +17,7 @@
 
   <depend>vtr_common</depend>
   <depend>vtr_path_planning_msgs</depend>
+  <depend>vtr_navigation_msgs</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_tactic</depend>
 

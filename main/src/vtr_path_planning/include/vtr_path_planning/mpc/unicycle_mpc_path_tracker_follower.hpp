@@ -29,6 +29,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <vtr_navigation_msgs/msg/graph_route.hpp>
+#include <vtr_navigation_msgs/srv/graph_state.hpp>
 
 namespace vtr {
 namespace path_planning {
@@ -52,6 +54,8 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   PTR_TYPEDEFS(UnicycleMPCPathFollower);
 
   using PathMsg = nav_msgs::msg::Path;
+  using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
+  using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using Transformation = lgmath::se3::Transformation;
   static constexpr auto static_name = "unicycle_mpc_follower";
 
@@ -59,7 +63,7 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   struct Config : public BasePathPlanner::Config {
     PTR_TYPEDEFS(Config);
 
-    std::string leader_path_topic = "vtr/mpc_prediction";
+    std::string leader_namespace = "leader";
 
     double following_offset = 0.5; //m
     double distance_margin = 1.0;
@@ -123,6 +127,14 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   Eigen::Vector2d leader_vel_;
   std::vector<Transformation> leaderRollout_;
   PathInterpolator::ConstPtr leaderPathInterp_; 
+
+  rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
+  void onLeaderRoute(const RouteMsg::SharedPtr route);
+  tactic::EdgeTransform T_fw_lw_;
+  tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
+
+  rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
+  rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
 
   VisualizationUtils::Ptr vis_;  
 
