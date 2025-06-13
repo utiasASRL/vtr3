@@ -62,7 +62,7 @@ DEPENDS "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp")
 
 add_custom_command(OUTPUT "include/vtr_path_planning/mpc/bicycle_mpc_solver.hpp"
   COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
-  DEPENDS "scripts/bicycle_solver_rw.py")
+  DEPENDS "scripts/bicycle_solver_pt.py")
 
 add_custom_target(generate_bicycle_header ALL
 DEPENDS "include/vtr_path_planning/mpc/bicycle_mpc_solver.hpp")
