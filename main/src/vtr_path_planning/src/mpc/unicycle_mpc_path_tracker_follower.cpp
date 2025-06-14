@@ -35,6 +35,8 @@ Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, do
 
 PathInterpolator::PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path) {
   using namespace vtr::common::conversions;
+  if (path->poses.size() == 0)
+    throw std::range_error("Path length cannot be 0 for interpolation!");
   
   for(const auto& pose : path->poses) {
     path_info_[rclcpp::Time(pose.header.stamp).nanoseconds()] = tfFromPoseMessage(pose.pose);
@@ -47,10 +49,10 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
   CLOG(DEBUG, "mpc.follower") << "Requested interpolation time " << time;
   CLOG(DEBUG, "mpc.follower") << "Found lower bound time " << up_it->first;
 
-  for (const auto& [key, value] : path_info_) {
-    CLOG(DEBUG, "mpc.follower") << "Leader path time: " << key;
-    CLOG(DEBUG, "mpc.follower") << "Leader path pose: " << tf_to_global(value);
-  }
+  // for (const auto& [key, value] : path_info_) {
+  //   CLOG(DEBUG, "mpc.follower") << "Leader path time: " << key;
+  //   CLOG(DEBUG, "mpc.follower") << "Leader path pose: " << tf_to_global(value);
+  // }
 
   if (up_it == path_info_.begin()){
     CLOG(ERROR, "mpc.follower") << "Finding first element of map!";
@@ -96,6 +98,10 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
       return T_w_p0;
     }
   }
+}
+
+tactic::Timestamp PathInterpolator::start() const {
+  return path_info_.begin()->first;
 }
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
@@ -276,8 +282,9 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   mpcConfig.leader_reference_poses.clear();
   std::vector<lgmath::se3::Transformation> leader_world_poses;
   std::vector<double> leader_p_values;
+  const auto leaderPath_copy = *leaderPathInterp_;
   for (uint i = 0; i < mpcConfig.N; i++){
-    const auto T_w_lp = T_fw_lw_ * leaderPathInterp_->at(curr_time + (1+i) * mpcConfig.DT * 1e9);
+    const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
     leader_world_poses.push_back(T_w_lp);
     leader_p_values.push_back(findRobotP(T_w_lp, chain));
@@ -436,6 +443,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   }
 
   vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
+  vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 
@@ -472,9 +480,8 @@ void UnicycleMPCPathFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
 
     //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
     // leaderGraphSrv_->async_send_request()
-
-    CLOG(INFO, "mpc.follower") << "Updated leader's root!";
     leader_root_ = route->ids.front();
+    CLOG(INFO, "mpc.follower") << "Updated leader's root to: " << leader_root_;
     const auto follower_root = robot_state_->chain->sequence().front();
     auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
     

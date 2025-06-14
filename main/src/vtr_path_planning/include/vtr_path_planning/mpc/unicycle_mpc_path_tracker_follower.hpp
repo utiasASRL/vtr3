@@ -44,6 +44,7 @@ public:
   PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path);
 
   Transformation at(tactic::Timestamp time) const;
+  tactic::Timestamp start() const;
 
 private:
   std::map<tactic::Timestamp, Transformation> path_info_;
