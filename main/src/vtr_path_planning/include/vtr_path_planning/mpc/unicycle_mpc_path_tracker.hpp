@@ -21,7 +21,7 @@
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_path_planning/base_path_planner.hpp>
-#include <vtr_path_planning/mpc/mpc_path_planner.hpp>
+#include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
 
 #include <vtr_path_planning/cbit/visualization_utils.hpp>

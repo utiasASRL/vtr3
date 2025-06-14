@@ -14,12 +14,11 @@
 
 /**
  * \file unicycle_mpc_path_tracker.hpp
- * \author Jordy Sehn, Alec Krawciw Autonomous Space Robotics Lab (ASRL)
+ * \author Alec Krawciw, Luka Antonyshyn Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <vtr_logging/logging.hpp>
-#include <vtr_common/conversions/ros_lgmath.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_path_planning/base_path_planner.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
@@ -27,47 +26,18 @@
 
 #include <vtr_path_planning/cbit/visualization_utils.hpp>
 
-#include <rclcpp/rclcpp.hpp>
-#include <nav_msgs/msg/path.hpp>
-#include <vtr_navigation_msgs/msg/graph_route.hpp>
-#include <vtr_navigation_msgs/srv/graph_state.hpp>
-
 namespace vtr {
 namespace path_planning {
 
-class PathInterpolator {
-public:
-  PTR_TYPEDEFS(PathInterpolator);
-  using Transformation = lgmath::se3::Transformation;
-
-
-  PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path);
-
-  Transformation at(tactic::Timestamp time) const;
-  tactic::Timestamp start() const;
-
-private:
-  std::map<tactic::Timestamp, Transformation> path_info_;
-};
-
-class UnicycleMPCPathFollower : public BasePathPlanner {
+class BicycleMPCPathTracker : public BasePathPlanner {
  public:
-  PTR_TYPEDEFS(UnicycleMPCPathFollower);
+  PTR_TYPEDEFS(BicycleMPCPathTracker);
 
-  using PathMsg = nav_msgs::msg::Path;
-  using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
-  using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
-  using Transformation = lgmath::se3::Transformation;
-  static constexpr auto static_name = "unicycle_mpc_follower";
+  static constexpr auto static_name = "bicycle_mpc";
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BasePathPlanner::Config {
     PTR_TYPEDEFS(Config);
-
-    std::string leader_namespace = "leader";
-
-    double following_offset = 0.5; //m
-    double distance_margin = 1.0;
 
     // Speed Scheduler
     double planar_curv_weight = 2.50;
@@ -85,10 +55,17 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
+    double turning_radius = 1.0;
 
-    std::string waypoint_selection = "leader_vel";
-
-    // Add unicycle model param
+    // MPC Costs
+    double q_x = 0.0;
+    double q_y = 0.0;
+    double q_th = 0.0;
+    double r1 = 0.0;
+    double r2 = 0.0;
+    double racc2 = 0.0;
+    double racc1 = 0.0;
+    double q_f = 0.0;
 
     // Misc
     int command_history_length = 100;
@@ -98,46 +75,31 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
                        const std::string& prefix = "path_planning");
   };
 
-  UnicycleMPCPathFollower(const Config::ConstPtr& config,
+  BicycleMPCPathTracker(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
-                 const tactic::GraphBase::Ptr& graph_,
+                 const tactic::GraphBase::Ptr& graph,
                  const Callback::Ptr& callback);
-  ~UnicycleMPCPathFollower() override;
+  ~BicycleMPCPathTracker() override;
 
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
 
  private: 
-  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(UnicycleMPCPathFollower);
+  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTracker);
 
   Config::ConstPtr config_;
-  CasadiUnicycleMPCFollower solver_;
+  CasadiBicycleMPC solver_;
 
   // Store the previously applied velocity and a sliding window history of MPC results
   Eigen::Vector2d applied_vel_;
   std::vector<Eigen::Vector2d> vel_history;
   tactic::Timestamp prev_vel_stamp_;
-  tactic::GraphBase::Ptr graph_;
   RobotState::Ptr robot_state_;
   Command computeCommand_(RobotState& robot_state);
 
-  PathMsg::SharedPtr recentLeaderPath_;
-  rclcpp::Subscription<PathMsg>::SharedPtr leaderRolloutSub_;
-  void onLeaderPath(const PathMsg::SharedPtr path);
-  Eigen::Vector2d leader_vel_;
-  std::vector<Transformation> leaderRollout_;
-  PathInterpolator::ConstPtr leaderPathInterp_; 
-
-  rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
-  void onLeaderRoute(const RouteMsg::SharedPtr route);
-  tactic::EdgeTransform T_fw_lw_;
-  tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
-
-  rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
-  rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
-
   VisualizationUtils::Ptr vis_;  
+
 
 };
 
