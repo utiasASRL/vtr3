@@ -52,7 +52,9 @@ struct PoseResultHomotopy
 PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
 PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain);
 lgmath::se3::Transformation interpolatedPose(double p, const tactic::LocalizationChain::Ptr chain);
-
+lgmath::se3::Transformation interpolatePoses(const double interp,
+                const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end);
+                
 using Segment = std::pair<unsigned, unsigned>;
 Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
 Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);

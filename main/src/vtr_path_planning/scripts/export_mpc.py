@@ -1,8 +1,10 @@
 #! /usr/bin/python3
 
 from unicycle_solver import solver as uni_solver
+from unicycle_follower_solver import solver as uni_solver_follower
 from acker_cycle_solver import solver as acker_solver
 from bicycle_solver_pt import solver as bi_solver
+from bicycle_follower_solver_pt import solver as bi_solver_follower
 import shutil
 import os
 
@@ -21,5 +23,7 @@ if not os.path.exists(inc_path):
     os.mkdir(inc_path)
 
 gen_mv_mpc_cpp(uni_solver, 'unicycle', src_path, inc_path)
+gen_mv_mpc_cpp(uni_solver_follower, 'unicycle_follower', src_path, inc_path)
 gen_mv_mpc_cpp(acker_solver, 'ackermann', src_path, inc_path)
 gen_mv_mpc_cpp(bi_solver, 'bicycle', src_path, inc_path)
+gen_mv_mpc_cpp(bi_solver_follower, 'bicycle_follower', src_path, inc_path)
