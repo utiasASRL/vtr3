@@ -19,8 +19,8 @@ R2 = 1.0 #0.1
 Q_dist = 500
 
 # Acceleration Cost Covariance
-Acc_R1 = 50
-Acc_R2 = 5 #0.01
+Acc_R1 = 10
+Acc_R2 = 1 #0.01
 
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
