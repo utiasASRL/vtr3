@@ -39,6 +39,34 @@
                     const std::vector<bool> &up_chirps,
                     pcl::PointCloud<PointT> &pointcloud) = 0;
  };
+
+ // added k-peaks detector here 
+template <class PointT>
+class KPeaks : public Detector<PointT> {
+ public:
+  KPeaks() = default;
+  KPeaks(int kstrong, double threshold2, double threshold3, double minr,
+             double maxr, double range_offset)
+      : kstrong_(kstrong),
+        threshold2_(threshold2),
+        threshold3_(threshold3),
+        minr_(minr),
+        maxr_(maxr),
+        range_offset_(range_offset) {}
+  void run(const cv::Mat &raw_scan, const float &res,
+           const std::vector<int64_t> &azimuth_times,
+           const std::vector<double> &azimuth_angles,
+           const std::vector<bool> &up_chirps,
+           pcl::PointCloud<PointT> &pointcloud) override;
+ private:
+  int kstrong_ = 10;
+  double threshold2_ = 0;
+  double threshold3_ = 0.22;
+  double minr_ = 1.0;
+  double maxr_ = 69.0;
+  double res_ = 0.040308 ;
+  double range_offset_ = -0.319910 ;
+};
  
  template <class PointT>
  class KStrongest : public Detector<PointT> {

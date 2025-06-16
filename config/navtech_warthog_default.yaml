@@ -83,18 +83,22 @@
     preprocessing:
       conversion:
         type: radar.online_converter
-        radar_resolution: 0.161231
+        radar_resolution: 0.040308
         encoder_bin_size: 16000 # encoder bin size
       extraction:
         type: radar.pc_extractor
-        radar_resolution: 0.161231 # 0307827  # RAS3 0.161231 #0.044
-        detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
+        detector: kpeaks #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 2.0 # mininum detection distance
-        maxr: 80.0 # maximum detection distance
+        maxr: 69.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
         range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
+        kpeaks:
+          kstrong: 4
+          threshold2: 0.0
+          threshold3: 0.25
         kstrongest:
           kstrong: 3 # k-strongest per azimuth to retain was 12
           static_threshold: 0.4
