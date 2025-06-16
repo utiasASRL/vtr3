@@ -22,6 +22,7 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
 find_package(vtr_path_planning_msgs REQUIRED)
+find_package(vtr_navigation_msgs REQUIRED)
 
 
 # # find python libraries
@@ -49,26 +50,19 @@ ament_target_dependencies(${PROJECT_NAME}_base
 execute_process(COMMAND ${PYTHON_EXECUTABLE} scripts/export_mpc.py
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-# add_custom_command(OUTPUT "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp"
-#   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
-#   DEPENDS "scripts/unicycle_solver.py")
 
-add_custom_target(generate_unicycle_header ALL
-DEPENDS "include/vtr_path_planning/mpc/unicycle_mpc_solver.hpp")
-
-# add_custom_command(OUTPUT "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp"
-#   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
-#   DEPENDS "scripts/acker_cycle_solver.py")
-
-add_custom_target(generate_ackermann_header ALL
-DEPENDS "include/vtr_path_planning/mpc/ackermann_mpc_solver.hpp")
-
-add_custom_command(OUTPUT "include/vtr_path_planning/mpc/unicycle_mpc_solver_follower.hpp"
+add_custom_command(OUTPUT "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
+                          "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver_follower.hpp"
+                          "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
-  DEPENDS "scripts/unicycle_follower_solver.py")
+  DEPENDS "scripts/unicycle_solver.py"
+          "scripts/unicycle_follower_solver.py"
+          "scripts/bicycle_solver_pt.py")
 
-add_custom_target(generate_unicycle_follower_header ALL
-DEPENDS "include/vtr_path_planning/mpc/unicycle_mpc_solver_follower.hpp")
+add_custom_target(generate_headers ALL
+DEPENDS "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
+        "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver_follower.hpp"
+        "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp")
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
 add_library(${PROJECT_NAME}_mpc ${SRC})
@@ -77,20 +71,20 @@ target_link_libraries(${PROJECT_NAME}_mpc casadi)
 ament_target_dependencies(${PROJECT_NAME}_mpc
   rclcpp tf2 tf2_ros tf2_eigen
   lgmath Python3 casadi
-  vtr_path_planning_msgs
+  vtr_path_planning_msgs vtr_navigation_msgs
 )
 
 
-add_library(solve_unicycle_mpc SHARED src/mpc/unicycle_mpc_solver.cpp)
-#add_dependencies(solve_unicycle_mpc generate_unicycle_header)
+add_library(solve_unicycle_mpc SHARED src/mpc/generated/unicycle_mpc_solver.cpp)
+add_dependencies(solve_unicycle_mpc generate_headers)
 target_link_libraries(solve_unicycle_mpc casadi)
 
-add_library(solve_ackermann_mpc SHARED src/mpc/ackermann_mpc_solver.cpp)
-#add_dependencies(solve_ackermann_mpc generate_ackermann_header)
-target_link_libraries(solve_ackermann_mpc casadi)
+add_library(solve_bicycle_mpc SHARED src/mpc/generated/bicycle_mpc_solver.cpp)
+add_dependencies(solve_bicycle_mpc generate_headers)
+target_link_libraries(solve_bicycle_mpc casadi)
 
-add_library(solve_unicycle_follower_mpc SHARED src/mpc/unicycle_mpc_solver_follower.cpp)
-add_dependencies(solve_unicycle_follower_mpc generate_unicycle_follower_header)
+add_library(solve_unicycle_follower_mpc SHARED src/mpc/generated/unicycle_mpc_solver_follower.cpp)
+add_dependencies(solve_unicycle_follower_mpc generate_headers)
 target_link_libraries(solve_unicycle_follower_mpc casadi)
 
 find_package(matplotlib_cpp REQUIRED)
@@ -105,14 +99,14 @@ target_link_libraries(${PROJECT_NAME}_cbit ${PYTHON_LIBRARIES})
 ament_target_dependencies(${PROJECT_NAME}_cbit
   rclcpp tf2 tf2_ros tf2_eigen Python3
   lgmath PythonLibs matplotlib_cpp
-  vtr_path_planning_msgs
+  vtr_path_planning_msgs vtr_navigation_msgs
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros tf2_eigen geometry_msgs matplotlib_cpp
   vtr_common vtr_logging vtr_tactic casadi
-  vtr_path_planning_msgs
+  vtr_path_planning_msgs vtr_navigation_msgs
 )
 
 install(
@@ -126,7 +120,7 @@ install(
     ${PROJECT_NAME}_mpc
     ${PROJECT_NAME}_cbit
     solve_unicycle_mpc
-    solve_ackermann_mpc
+    solve_bicycle_mpc
     solve_unicycle_follower_mpc
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib

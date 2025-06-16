@@ -59,6 +59,7 @@ Eigen::Matrix4d fromLngLatTheta(const double lng, const double lat,
 void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
                            const GraphPtr& graph) {
   graph_ = graph;
+  graph_state_.name = graph->filePath();
 
   // clang-format off
   /// Parameters: default to UTIAS campus, only for initialization

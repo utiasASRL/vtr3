@@ -4,7 +4,7 @@
 #include "vtr_logging/logging_init.hpp"
 
 #include "lgmath.hpp"
-#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+#include "vtr_path_planning/mpc/casadi_path_planners.hpp"
 #include "vtr_tactic/cache.hpp"
 
 using namespace ::testing;

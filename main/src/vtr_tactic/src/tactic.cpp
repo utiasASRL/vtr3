@@ -132,8 +132,8 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
                        << ", and initial Twig to Branch transform: "
                        << T_twig_branch.inverse().vec().transpose();
   //
+  callback_->pathUpdated(path);
   if (publish) {
-    callback_->pathUpdated(path);
     callback_->publishPathRviz(*chain_);
   }
 }
