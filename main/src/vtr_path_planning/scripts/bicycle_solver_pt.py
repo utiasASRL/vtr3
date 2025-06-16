@@ -14,12 +14,12 @@ from casadi import sin, cos, pi, tan
 L = 0.55
 
 step_horizon = 0.25  # time between steps in seconds
-N = 20           # number of look ahead steps
+N = 15           # number of look ahead steps
 
 # The first order lag weighting for the steering angle
 alpha = 0.0
 
-alphav = 0.0
+alphav = 0.3
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states
@@ -100,13 +100,13 @@ def so2_error(ref, current):
     rel_m = theta_to_so2(ref).T @ theta_to_so2(current)
     return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
-def calc_cost(ref, X, con, k, cost):
-    dx = X[0, k] - ref[n_states*(k+1)]
-    dy = X[1, k] - ref[n_states*(k+1)+1]
+def calc_cost(ref, X, con, k):
+    dx = X[0, k+1] - ref[n_states*(k+1)]
+    dy = X[1, k+1] - ref[n_states*(k+1)+1]
     theta_ref = ref[n_states*(k+1)+2]
     e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
     e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
-    cost += Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2,k])**2 + con.T @ R @ con
+    cost = Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2,k+1])**2 + con.T @ R @ con
     return cost
 
 #for initial
@@ -115,7 +115,7 @@ st = X[:, k]
 con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
-cost_fn = calc_cost(P, X, con, k, cost_fn)
+cost_fn += calc_cost(P, X, con, k)
 k1 = motion_model(st, con, last_vel)
 k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -133,7 +133,7 @@ for k in range(1, N):
     con = U[:, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
 
-    cost_fn = calc_cost(P, X,con, k, cost_fn)
+    cost_fn += calc_cost(P, X,con, k)
     k1 = motion_model(st, con, last_vel)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -162,7 +162,7 @@ for k in range(1, N-1):
     g = ca.vertcat(g, U[1, k] - U[1, k-1])
 
 # Terminal cost
-cost_fn = calc_cost(P, X, con, N-1, cost_fn)
+cost_fn += calc_cost(P, X, con, N-1)
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1

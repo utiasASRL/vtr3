@@ -12,7 +12,7 @@
       #- tactic
       #- tactic.pipeline
       #- tactic.eop
-      - tactic.module
+      #- tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
@@ -357,13 +357,13 @@
         # Controller Params
         extrapolate_robot_pose: false
         mpc_verbosity: false
-        forward_vel: 1.5
-        max_lin_vel: 1.5
-        max_ang_vel: 0.34
-        max_ang_acc: 0.89
-        ang_alpha: 0.811
+        forward_vel: 1.0
+        max_lin_vel: 2.0
+        max_ang_vel: 0.35
+        max_ang_acc: 1.25
+        ang_alpha: 0.0
         lin_alpha: 0.0
-        max_lin_acc: 1.0
+        max_lin_acc: 2.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
@@ -371,14 +371,14 @@
         turning_radius: 1.4
 
         # Tunable controller parameters(Currently only works for the Bicycle)
-        q_x: 10.0
-        q_y: 1.0
-        q_th: 3.0
+        q_x: 9.0
+        q_y: 4.0
+        q_th: 7.0
         r1: 0.1
-        r2: 0.1
+        r2: 0.0
         racc1: 0.1
-        racc2: 0.1
-        q_f:   1.0
+        racc2: 4.0
+        q_f:   1.0 # Multiplier for terminal cost
 
 
         # Misc
