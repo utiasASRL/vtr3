@@ -14,7 +14,7 @@
 
 /**
  * \file path_planning.hpp
- * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ * \author Jordy Sehn, Alec Krawciw Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -22,3 +22,5 @@
 #include "vtr_path_planning/stationary_planner.hpp"
 #include "vtr_path_planning/mpc/unicycle_mpc_path_tracker.hpp"
 #include "vtr_path_planning/mpc/unicycle_mpc_path_tracker_follower.hpp"
+#include "vtr_path_planning/mpc/bicycle_mpc_path_tracker.hpp"
+#include "vtr_path_planning/mpc/bicycle_mpc_path_tracker_follower.hpp"

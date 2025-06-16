@@ -142,7 +142,7 @@ for k in range(1, N):
 
 for k in range(N):
     theta_k = P[n_states*(k+1) + 2]
-    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k+1] - P[n_states*(k+1): n_states*(k+1)+2]))
+    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
 
 for k in range(N):
     g = ca.vertcat(g, U[0, k] / turning_r + U[1, k])

@@ -63,11 +63,12 @@ public:
         unsigned closest_node_idx);
 
     void publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt=0.25);
-
+    void publishLeaderRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt=0.25);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_path_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr leader_path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr robot_path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_l_;

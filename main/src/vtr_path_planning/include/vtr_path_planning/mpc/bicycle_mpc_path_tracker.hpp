@@ -14,7 +14,7 @@
 
 /**
  * \file unicycle_mpc_path_tracker.hpp
- * \author Jordy Sehn, Alec Krawciw Autonomous Space Robotics Lab (ASRL)
+ * \author Alec Krawciw, Luka Antonyshyn Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -29,11 +29,11 @@
 namespace vtr {
 namespace path_planning {
 
-class UnicycleMPCPathTracker : public BasePathPlanner {
+class BicycleMPCPathTracker : public BasePathPlanner {
  public:
-  PTR_TYPEDEFS(UnicycleMPCPathTracker);
+  PTR_TYPEDEFS(BicycleMPCPathTracker);
 
-  static constexpr auto static_name = "unicycle_mpc";
+  static constexpr auto static_name = "bicycle_mpc";
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BasePathPlanner::Config {
@@ -55,8 +55,17 @@ class UnicycleMPCPathTracker : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
+    double turning_radius = 1.0;
 
-    // Add unicycle model param
+    // MPC Costs
+    double q_x = 0.0;
+    double q_y = 0.0;
+    double q_th = 0.0;
+    double r1 = 0.0;
+    double r2 = 0.0;
+    double racc2 = 0.0;
+    double racc1 = 0.0;
+    double q_f = 0.0;
 
     // Misc
     int command_history_length = 100;
@@ -66,21 +75,21 @@ class UnicycleMPCPathTracker : public BasePathPlanner {
                        const std::string& prefix = "path_planning");
   };
 
-  UnicycleMPCPathTracker(const Config::ConstPtr& config,
+  BicycleMPCPathTracker(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
                  const tactic::GraphBase::Ptr& graph,
                  const Callback::Ptr& callback);
-  ~UnicycleMPCPathTracker() override;
+  ~BicycleMPCPathTracker() override;
 
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
 
  private: 
-  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(UnicycleMPCPathTracker);
+  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTracker);
 
   Config::ConstPtr config_;
-  CasadiUnicycleMPC solver_;
+  CasadiBicycleMPC solver_;
 
   // Store the previously applied velocity and a sliding window history of MPC results
   Eigen::Vector2d applied_vel_;

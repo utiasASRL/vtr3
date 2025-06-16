@@ -22,36 +22,27 @@
 #include <vtr_common/conversions/ros_lgmath.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_path_planning/base_path_planner.hpp>
-#include <vtr_path_planning/mpc/mpc_path_planner.hpp>
+#include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
+#include <vtr_path_planning/mpc/follower_common.hpp>
 
 #include <vtr_path_planning/cbit/visualization_utils.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <vtr_navigation_msgs/msg/graph_route.hpp>
+#include <vtr_navigation_msgs/srv/graph_state.hpp>
 
 namespace vtr {
 namespace path_planning {
-
-class PathInterpolator {
-public:
-  PTR_TYPEDEFS(PathInterpolator);
-  using Transformation = lgmath::se3::Transformation;
-
-
-  PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path);
-
-  Transformation at(tactic::Timestamp time) const;
-
-private:
-  std::map<tactic::Timestamp, Transformation> path_info_;
-};
 
 class UnicycleMPCPathFollower : public BasePathPlanner {
  public:
   PTR_TYPEDEFS(UnicycleMPCPathFollower);
 
   using PathMsg = nav_msgs::msg::Path;
+  using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
+  using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using Transformation = lgmath::se3::Transformation;
   static constexpr auto static_name = "unicycle_mpc_follower";
 
@@ -59,7 +50,7 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   struct Config : public BasePathPlanner::Config {
     PTR_TYPEDEFS(Config);
 
-    std::string leader_path_topic = "vtr/mpc_prediction";
+    std::string leader_namespace = "leader";
 
     double following_offset = 0.5; //m
     double distance_margin = 1.0;
@@ -123,6 +114,14 @@ class UnicycleMPCPathFollower : public BasePathPlanner {
   Eigen::Vector2d leader_vel_;
   std::vector<Transformation> leaderRollout_;
   PathInterpolator::ConstPtr leaderPathInterp_; 
+
+  rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
+  void onLeaderRoute(const RouteMsg::SharedPtr route);
+  tactic::EdgeTransform T_fw_lw_;
+  tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
+
+  rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
+  rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
 
   VisualizationUtils::Ptr vis_;  
 
