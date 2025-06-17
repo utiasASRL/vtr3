@@ -295,10 +295,10 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["lbg"].set(DM(-mpcConf.ang_acc_max*mpcConf.DT), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N+1, mpcConf.nStates*(mpcConf.N+1) +mpcConf.N + mpcConf.nControl*(mpcConf.N-1), 2));
   arg["ubg"].set(DM(mpcConf.ang_acc_max*mpcConf.DT), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N+1, mpcConf.nStates*(mpcConf.N+1) +mpcConf.N + mpcConf.nControl*(mpcConf.N-1), 2));
   // Set the first constraint based on the previous velocity and acceleration constraints
-  arg["lbg"].set(mpcConf.previous_vel(Slice(0)) - mpcConf.lin_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-  arg["lbg"].set(mpcConf.previous_vel(Slice(1)) - mpcConf.ang_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1));
-  arg["ubg"].set(mpcConf.previous_vel(Slice(0)) + mpcConf.lin_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-  arg["ubg"].set(mpcConf.previous_vel(Slice(1)) + mpcConf.ang_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1));
+  arg["lbg"].set(mpcConf.previous_vel(Slice(0)) - mpcConf.lin_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1));
+  arg["lbg"].set(mpcConf.previous_vel(Slice(1)) - mpcConf.ang_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 2));
+  arg["ubg"].set(mpcConf.previous_vel(Slice(0)) + mpcConf.lin_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1));
+  arg["ubg"].set(mpcConf.previous_vel(Slice(1)) + mpcConf.ang_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 2));
 
   arg["p"] = mpcConf.T0;
 
