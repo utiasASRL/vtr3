@@ -12,13 +12,13 @@ from casadi import sin, cos, pi, tan
 # Based on the Hunter SE docs, for this formulation the actual centre of gravity
 # is irrelevant since we track n the rear wheel
 # TODO: Look into if its possible to make this configurable
-L = 0.55
+
 
 step_horizon = 0.25  # time between steps in seconds
-N = 20           # number of look ahead steps
+N = 15          # number of look ahead steps
 
 # The first order lag weighting for the steering angle
-alpha = 0.0
+alpha = 0.6
 
 alphav = 0.0
 
@@ -79,10 +79,11 @@ Acc_R2 = ca.SX.sym('Acc_R2', 1)
 Q_f = ca.SX.sym('Q_f', 1)  # final state cost
 d = ca.SX.sym('d', 1)
 Q_dist = ca.SX.sym('Q_dist', 1)
+L = ca.SX.sym('wheel_base', 1)
 
 P = ca.vertcat(init_pose, follower_ref_poses, measured_velo,                # Base MPC
                 leader_ref_poses, d,                                      # Follower specific
-                Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f, Q_dist)    # Weights for tuning
+                L, Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f, Q_dist)    # Weights for tuning
 
 
 # state weights matrix (Q_X, Q_Y)
@@ -96,7 +97,7 @@ R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
 # Define kinematics of the systems
 RHS = ca.vertcat(v*cos(theta), v*sin(theta), v/L * tan(alpha*last_psi + (1-alpha)*psi))
-motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
+motion_model = ca.Function('motion_model', [states, controls, last_controls, L], [RHS])
 
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
 
@@ -125,12 +126,11 @@ con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
 cost_fn = calc_cost(P, X, con, k, cost_fn)
-k1 = motion_model(st, con, last_vel)
-k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
-k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
-k4 = motion_model(st + step_horizon * k3, con, last_vel)
+k1 = motion_model(st, con, last_vel, L)
+k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
+k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
+k4 = motion_model(st + step_horizon * k3, con, last_vel, L)
 st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-# st_next_int = motion_model(st, con)
 g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
 g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
@@ -143,12 +143,11 @@ for k in range(1, N):
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
 
     cost_fn = calc_cost(P, X, con, k, cost_fn)
-    k1 = motion_model(st, con, last_vel)
-    k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
-    k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
-    k4 = motion_model(st + step_horizon * k3, con, last_vel)
+    k1 = motion_model(st, con, last_vel, L)
+    k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
+    k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
+    k4 = motion_model(st + step_horizon * k3, con, last_vel, L)
     st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-    # st_next_int = motion_model(st, con)
 
     g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))

@@ -129,7 +129,7 @@
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
-        vertical_angle_res: 0.0061365 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
+        vertical_angle_res: 0.012271 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
         r_scale: 4.0 # scale down point range by this value after taking log, whatever works
         h_scale: 2.0 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution when 5Hz spin frequence is ~0.7031 degree, so 0.7031 / 0.3516 = 2.00
@@ -197,16 +197,6 @@
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
         visualize: true
-      dynamic_detection:
-        type: lidar.dynamic_detection
-        depth: 12.0
-
-        horizontal_resolution: 0.0122718 # 0.02042
-        vertical_resolution: 0.00613587 # 0.01326
-        max_num_observations: 2000
-        min_num_observations: 4
-        dynamic_threshold: 0.3
-        visualize: true
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
@@ -249,104 +239,14 @@
         size_x: 16.0
         size_y: 8.0
         visualize: true
-      change_detection_sync:
-        type: lidar.change_detection_v3
-        detection_range: 8.0
-        search_radius: 0.25
-
-        negprob_threshold: 0.015 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
-        use_prior: true
-        alpha0: 3.0
-        beta0: 0.03
-        use_support_filtering: true
-        support_radius: 0.25
-        support_variance: 0.05
-        support_threshold: 2.5
-
-        influence_distance: 0.6 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.9 # was 0.3 Jordy
-
-        # cost map
-        costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
-        resolution: 0.25
-        size_x: 16.0
-        size_y: 8.0
-        visualize: true
+    
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
         window_size: 3
-      obstacle_detection:
-        type: lidar.obstacle_detection
-        z_min: 0.5
-        z_max: 2.0
-        resolution: 0.6
-        size_x: 40.0
-        size_y: 20.0
-        run_async: true
-        visualize: true
-      ground_extraction:
-        type: lidar.ground_extraction
-        z_offset: 0.2
-        alpha: 0.035
-        tolerance: 0.25
-        Tm: 0.3
-        Tm_small: 0.1
-        Tb: 0.5
-        Trmse: 0.1
-        Tdprev: 1.0
-        rmin: 2.0
-        num_bins_small: 30.0
-        bin_size_small: 0.5
-        num_bins_large: 10.0
-        bin_size_large: 1.0
-        resolution: 0.6
-        size_x: 40.0
-        size_y: 20.0
-        run_async: true
-        visualize: true
-      terrain_assessment:
-        type: lidar.terrain_assessment
-        lookahead_distance: 15.0
-        corridor_width: 1.0
-        search_radius: 1.0
-        resolution: 0.5
-        size_x: 40.0
-        size_y: 20.0
-        run_online: false
-        run_async: true
-        visualize: true
-    
     path_planning:
-      type: cbit
+      type: bicycle_mpc
       control_period: 100 # ms
-      cbit:
-        obstacle_avoidance: false
-        obs_padding: 0.0
-        curv_to_euclid_discretization: 10
-        sliding_window_width: 12.0
-        sliding_window_freespace_padding: 0.5
-        corridor_resolution: 0.2
-        state_update_freq: 2.0
-        update_state: true
-        rand_seed: 1
-
-        # Planner Tuning Params
-        initial_samples: 400
-        batch_samples: 200
-        pre_seed_resolution: 0.5
-        alpha: 0.25
-        q_max: 2.5
-        frame_interval: 50
-        eta: 1.0
-        rad_m_exhange: 1.00
-        initial_exp_rad: 0.75
-        extrapolation: false
-        incremental_plotting: false
-        plotting: true
-      costmap:
-        costmap_filter_value: 0.01
-        costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
 
       speed_scheduler:
         planar_curv_weight: 0.0
@@ -358,16 +258,23 @@
         extrapolate_robot_pose: false
         mpc_verbosity: false
         forward_vel: 1.0
-        max_lin_vel: 1.5
-        max_ang_vel: 0.5
-        max_ang_acc: 5.0
-        ang_alpha: 0.811
+        max_lin_vel: 2.0 # Note: This is set to 2.0 in the driver code currently
+        max_ang_vel: 0.34
+        max_ang_acc: 0.88
+        ang_alpha: 0.0
         lin_alpha: 0.0
-        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        max_lin_acc: 2.0
 
-        vehicle_model: "ackermann"
+        vehicle_model: "bicycle"
         turning_radius: 1.4
+        wheelbase: 0.55
 
-        # Misc
-        command_history_length: 100
+        # Tunable controller parameters(Currently only works for the Bicycle)
+        q_x: 10.0
+        q_y: 4.0
+        q_th: 7.0
+        r1: 0.0
+        r2: 3.0
+        racc1: 4.0
+        racc2: 5.0
+        q_f:   1.0 # Multiplier for terminal cost

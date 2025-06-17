@@ -403,6 +403,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
           mpcConf.leader_reference_poses.at(i));
   }
   arg["p"] = vertcat(arg["p"], DM(mpcConf.distance));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.wheelbase));
   // Now add the tunable costs
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));

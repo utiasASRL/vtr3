@@ -65,6 +65,7 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
+  config->wheelbase = node->declare_parameter<double>(prefix + ".mpc.wheelbase", config->wheelbase);
   
   // MPC COST PARAMETERS
   config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
@@ -174,6 +175,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
   CasadiBicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+  mpcConfig.wheelbase = config_->wheelbase;
   mpcConfig.Q_x     = config_->q_x;
   mpcConfig.Q_y     = config_->q_y;
   mpcConfig.Q_th    = config_->q_th;
