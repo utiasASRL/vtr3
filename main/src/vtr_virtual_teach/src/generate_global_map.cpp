@@ -188,11 +188,11 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers); 
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/Pix4D/May23Dome/point_cloud.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/pix4dGrassyTests/grassy_test_1/ESTIMATEDpc.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/Pix4D/May23Dome/relative_transforms.csv"; 
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/pix4dGrassyTests/grassy_test_1/relative_transforms_2025_06_17_12_49_58_GrassyTest2Path.csv"; 
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/Pix4D/May23Dome/graph"; 
+    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/pix4dGrassyTests/grassy_test_1/graph"; 
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -540,3 +540,4 @@ int main(int argc, char **argv) {
 //     return -1;
 //   }
 // }
+
