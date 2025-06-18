@@ -1,0 +1,48 @@
+/**:
+  ros__parameters:
+    path_planning:
+      type: unicycle_mpc_follower
+      follow_distance: 3.0
+      distance_margin: 100.0
+      leader_namespace: /miss_scarlet
+      waypoint_selection: euclidean
+      mpc:
+      	q_dist: 500.0
+        wheelbase: 0.65
+    log_enabled:
+      #- navigation
+      #- navigation.graph_map_server
+      #- navigation.command
+        # tactic
+      #- tactic
+      #- tactic.pipeline
+      - tactic.module
+      #- tactic.module.live_mem_manager
+      #- tactic.module.graph_mem_manager
+      #- mission.state_machine
+      #- mission.server
+        # planner manager
+      #- cbit.control
+      #- cbit.debug
+      #- cbit.path_planning
+      #- cbit.obstacle_filtering
+      #- grizzly_controller_tests.cbit
+        # mpc
+      - mpc.speed_scheduler
+      - mpc.debug
+      - mpc.solver
+      - mpc.follower
+        # path planner
+      #- cbit_planner.path_planning
+        # pose graph
+      #- pose_graph
+        # lidar pipeline
+      #- lidar.pipeline
+      #- lidar.preprocessing
+      #- lidar.odometry_icp
+      #- lidar.odometry_map_maintenance
+      #- lidar.vertex_test
+      #- lidar.localization_map_recall
+      - lidar.localization_icp
+      #- lidar.intra_exp_merging
+      #- lidar.inter_exp_merging

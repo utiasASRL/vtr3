@@ -52,17 +52,20 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} scripts/export_mpc.py
 
 
 add_custom_command(OUTPUT "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
-                          "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver_follower.hpp"
+                          "include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
                           "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
+                          "include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
   DEPENDS "scripts/unicycle_solver.py"
           "scripts/unicycle_follower_solver.py"
-          "scripts/bicycle_solver_pt.py")
+          "scripts/bicycle_solver_pt.py"
+          "scripts/bicycle_follower_solver_pt.py")
 
 add_custom_target(generate_headers ALL
 DEPENDS "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
-        "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver_follower.hpp"
-        "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp")
+        "include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
+        "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
+        "include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp")
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
 add_library(${PROJECT_NAME}_mpc ${SRC})
@@ -78,14 +81,22 @@ ament_target_dependencies(${PROJECT_NAME}_mpc
 add_library(solve_unicycle_mpc SHARED src/mpc/generated/unicycle_mpc_solver.cpp)
 add_dependencies(solve_unicycle_mpc generate_headers)
 target_link_libraries(solve_unicycle_mpc casadi)
+target_compile_options(solve_unicycle_mpc PRIVATE -W)
 
 add_library(solve_bicycle_mpc SHARED src/mpc/generated/bicycle_mpc_solver.cpp)
 add_dependencies(solve_bicycle_mpc generate_headers)
 target_link_libraries(solve_bicycle_mpc casadi)
+target_compile_options(solve_bicycle_mpc PRIVATE -W)
 
-add_library(solve_unicycle_follower_mpc SHARED src/mpc/generated/unicycle_mpc_solver_follower.cpp)
+add_library(solve_unicycle_follower_mpc SHARED src/mpc/generated/unicycle_follower_mpc_solver.cpp)
 add_dependencies(solve_unicycle_follower_mpc generate_headers)
 target_link_libraries(solve_unicycle_follower_mpc casadi)
+target_compile_options(solve_unicycle_follower_mpc PRIVATE -W)
+
+add_library(solve_bicycle_follower_mpc SHARED src/mpc/generated/bicycle_follower_mpc_solver.cpp)
+add_dependencies(solve_bicycle_follower_mpc generate_headers)
+target_link_libraries(solve_bicycle_follower_mpc casadi)
+target_compile_options(solve_bicycle_follower_mpc PRIVATE  -W)
 
 find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})
@@ -122,6 +133,7 @@ install(
     solve_unicycle_mpc
     solve_bicycle_mpc
     solve_unicycle_follower_mpc
+    solve_bicycle_follower_mpc
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2025, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,18 +13,17 @@
 // limitations under the License.
 
 /**
- * \file unicycle_mpc_path_tracker_follower.cpp
- * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
+ * \file bicycle_mpc_path_tracker.cpp
+ * \author Luka Antonyshyn, Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 
-#include "vtr_path_planning/mpc/unicycle_mpc_path_tracker_follower.hpp"
+#include "vtr_path_planning/mpc/bicycle_mpc_path_tracker_follower.hpp"
 
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <vtr_path_planning/cbit/utils.hpp>
 
-namespace vtr {
-namespace path_planning {
+namespace vtr::path_planning {
 
 namespace {
 // Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
@@ -34,19 +33,11 @@ Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, do
 }
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
-auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
+auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
 
   auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
   *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
-
-  // config->leader_path_topic = node->declare_parameter<std::string>(prefix + ".leader_path_topic", config->leader_path_topic);
-  config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
-  config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
-  config->distance_margin = node->declare_parameter<double>(prefix + ".distance_margin", config->distance_margin);
-
-  // Waypoint selection
-  config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);
 
   // MPC Configs:
   // SPEED SCHEDULER PARAMETERS
@@ -54,6 +45,14 @@ auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& nod
   config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
   config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
   config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
+
+  // Follower params
+  config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
+  config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
+  config->distance_margin = node->declare_parameter<double>(prefix + ".distance_margin", config->distance_margin);
+
+  // Waypoint selection
+  config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);
 
   // CONTROLLER PARAMS
   config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
@@ -65,32 +64,46 @@ auto UnicycleMPCPathFollower::Config::fromROS(const rclcpp::Node::SharedPtr& nod
   config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+  config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
+  config->wheelbase = node->declare_parameter<double>(prefix + ".mpc.wheelbase", config->wheelbase);
+  
+  // MPC COST PARAMETERS
+  config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
+  config->q_y = node->declare_parameter<double>(prefix + ".mpc.q_y", config->q_y);
+  config->q_th = node->declare_parameter<double>(prefix + ".mpc.q_th", config->q_th);
+  config->r1 = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
+  config->r2 = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
+  config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
+  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
+  config->q_f = node->declare_parameter<double>(prefix + ".mpc.q_f", config->q_f);
+  config->q_dist = node->declare_parameter<double>(prefix + ".mpc.q_dist", config->q_dist);
+  CLOG(INFO, "cbit.control") << "The config is: Q_x " << config->q_x << " q_y: " << config->q_y<< " q_th: " << config->q_th<< " r1: " << config->r1<< " r2: " << config->r2<< "acc_r1: " << config->racc1<< " acc_r2: " << config->racc2;
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
-
 
   return config;
 }
 
 
 // Declare class as inherited from the BasePathPlanner
-UnicycleMPCPathFollower::UnicycleMPCPathFollower(const Config::ConstPtr& config,
+BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const tactic::GraphBase::Ptr& graph,
                                const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, graph, callback), config_(config), solver_{config_->mpc_verbosity}, robot_state_{robot_state}, graph_{graph} {
+    : BasePathPlanner(config, robot_state, graph, callback), config_(config), solver_{config_->mpc_verbosity}, graph_{graph}, robot_state_{robot_state} {
   applied_vel_ << 0,
                   0;
-  leader_vel_ << 0,
-                 0;
   vel_history.reserve(config_->command_history_length);
   for (int i = 0; i < config_->command_history_length; i++)
   {
     vel_history.push_back(applied_vel_);
   }
-  
+
   vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
+
+  CLOG(DEBUG, "mpc.follower") << "Choosing " << config_->waypoint_selection << " option for waypoint selection!";
+
 
   using std::placeholders::_1;
   const auto leader_path_topic = config_->leader_namespace + "/vtr/mpc_prediction";
@@ -101,17 +114,18 @@ UnicycleMPCPathFollower::UnicycleMPCPathFollower(const Config::ConstPtr& config,
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->distance_margin;
 
-  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::SystemDefaultsQoS(), std::bind(&UnicycleMPCPathFollower::onLeaderPath, this, _1));
-  leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&UnicycleMPCPathFollower::onLeaderRoute, this, _1));
+  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
+  leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderRoute, this, _1));
 
   leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
   followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
+
 }
 
 
-UnicycleMPCPathFollower::~UnicycleMPCPathFollower() {}
+BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
 
-auto UnicycleMPCPathFollower::computeCommand(RobotState& robot_state) -> Command {
+auto BicycleMPCPathTrackerFollower::computeCommand(RobotState& robot_state) -> Command {
   auto raw_command = computeCommand_(robot_state);
   
   Eigen::Vector2d output_vel = {raw_command.linear.x, raw_command.angular.z};
@@ -146,38 +160,39 @@ auto UnicycleMPCPathFollower::computeCommand(RobotState& robot_state) -> Command
 
 
 // Generate twist commands to track the planned local path (function is called at the control rate)
-auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Command {
+auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> Command {
   auto& chain = robot_state.chain.ptr();
   if (!chain->isLocalized()) {
     CLOG(WARNING, "cbit.control") << "Robot is not localized, commanding the robot to stop";
     return Command();
   }
 
-  if (recentLeaderPath_ == nullptr) {
-    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
-    return Command();
-  }
-
   // retrieve the transform info from the localization chain for the current robot state
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
-
-  if (robot_state.node->get_clock()->now() - rclcpp::Time(recentLeaderPath_->header.stamp) > rclcpp::Duration(1, 0)) {
-    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping";
-    return Command();
-  }
 
   // Store the current robot state in the robot state path so it can be visualized
   auto T_w_r = T_w_p * T_p_r;
 
-  CasadiUnicycleMPCFollower::Config mpcConfig;
+  CasadiBicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+  mpcConfig.wheelbase = config_->wheelbase;
+  mpcConfig.Q_x     = config_->q_x;
+  mpcConfig.Q_y     = config_->q_y;
+  mpcConfig.Q_th    = config_->q_th;
+  mpcConfig.R1      = config_->r1;
+  mpcConfig.R2      = config_->r2;
+  mpcConfig.Acc_R1  = config_->racc1;
+  mpcConfig.Acc_R2  = config_->racc2;
+  mpcConfig.lin_acc_max = config_->max_lin_acc;
+  mpcConfig.ang_acc_max = config_->max_ang_acc;
+  mpcConfig.Q_f = config_->q_f;
+  mpcConfig.Q_dist = config_->q_dist;
   mpcConfig.distance = config_->following_offset;
   mpcConfig.distance_margin = config_->distance_margin;
 
-  mpcConfig.VF = leader_vel_(0, 0);
-
-
-  CLOG(DEBUG, "mpc.follower") << "Leader forward vel " << leader_vel_(0, 0);
+  // Schedule speed based on path curvatures + other factors
+  // TODO refactor to accept the chain and use the curvature of the links
+  mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
 
 
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
@@ -185,7 +200,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   auto curr_time = stamp;  // always in nanoseconds
 
   if (config_->extrapolate_robot_pose) {
-    curr_time = robot_state.node->get_clock()->now().nanoseconds();
+    curr_time = robot_state.node->get_clock()->now().nanoseconds();  // always in nanoseconds
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
     if (fabs(dt) > 0.25) { 
       CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
@@ -205,8 +220,6 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 
   CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
-
-
   // Define Leader Waypoints
   mpcConfig.leader_reference_poses.clear();
   std::vector<lgmath::se3::Transformation> leader_world_poses;
@@ -221,118 +234,29 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 
   }
 
-  // Define Follower Waypoints
-  
-  if(config_->waypoint_selection == "euclidean")   // Option 1: Use leader poses and find poses on the path that fulfill the distance constraint
-  {
-      CLOG(DEBUG, "mpc.follower") << "Choosing euclidean option for waypoint selection!";
-    mpcConfig.follower_reference_poses.clear();
+  double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
 
-    // Run through all the leader poses we found
-    for (uint i = 0; i < leader_world_poses.size(); i++){
-      // Leader pose in world frame
-      auto T_w_l = leader_world_poses[i];
+  mpcConfig.reference_poses.clear();
+  auto referenceInfo = [&](){
+    if(config_->waypoint_selection == "euclidean") {
+      return generateFollowerReferencePosesEuclidean(leader_world_poses, leader_p_values, chain, state_p, mpcConfig.distance);
+    } else {
+      CLOG_IF(config_->waypoint_selection ==  "arclength", WARNING, "mpc.follower") << "Arclength not implemented yet for bicycle!";
 
-      //Consider the path between the follower and leader (waypoints won't be spawned behind the follower)
-      double start_p = findRobotP(T_w_p * T_p_r_extp, chain);
-      double end_p = leader_p_values[i];
-
-      // Run through the path and find the pose that best fulfills the distance constraint
-      double best_distance = std::numeric_limits<double>::max();
-      lgmath::se3::Transformation best_pose;
-      for(double p = start_p; p < end_p; p += 0.02) {
-          lgmath::se3::Transformation pose = interpolatedPose(p,chain);
-          double dist = (pose.inverse() * T_w_l).r_ab_inb().norm();
-          if (fabs(dist - mpcConfig.distance) < best_distance) {
-            best_distance = fabs(dist - mpcConfig.distance);
-            best_pose = pose;
-          }
-        }
-        mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  best_pose));
-        CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose);
-    }
-  }
-  else if(config_->waypoint_selection == "euclideanv2")  // Option 2: Same as 2 but should be more efficient! (go along path only once)
-  {
-      CLOG(DEBUG, "mpc.follower") << "Choosing euclideanv2 option for waypoint selection!";
-    mpcConfig.follower_reference_poses.clear();
-
-    //Consider the path between the follower and leader's last pose (waypoints won't be spawned behind the follower)
-    double start_p = findRobotP(T_w_p * T_p_r_extp, chain);
-    double end_p = leader_p_values.back();
-
-    std::vector<double> best_distance(leader_world_poses.size(), std::numeric_limits<double>::max());
-    std::vector<lgmath::se3::Transformation> best_pose(leader_world_poses.size());
-
-    for(double p = start_p; p < end_p; p += 0.02) {
-      lgmath::se3::Transformation pose = interpolatedPose(p,chain);
-
-      // Given this interpolated pose, run through all the leader poses
-      for (uint i = 0; i < leader_world_poses.size(); i++){
-
-        // Check this pose if we are not already beyond it
-        if(p <= leader_p_values[i])
-        {  
-          // Leader pose in world frame
-          auto T_w_l = leader_world_poses[i];
-          double dist = (pose.inverse() * T_w_l).r_ab_inb().norm();
-          if (fabs(dist - mpcConfig.distance) < best_distance[i]) {
-            best_distance[i] = fabs(dist - mpcConfig.distance);
-            best_pose[i] = pose;
-          }
-        }
-
+      std::vector<double> p_rollout;
+      for(int j = 1; j < mpcConfig.N+1; j++){
+        p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
       }
-
-      
+      return generateHomotopyReference(p_rollout, chain);
     }
-    for (uint i = 0; i < best_pose.size(); i++){
-        mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  best_pose[i]));
-        CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  best_pose[i]);
-    }
-  }
-  else if(config_->waypoint_selection == "arclength") // Option 3: Define the waypoints in terms of distance on the arclength of the path (not euclidean distance)
-  {
-      CLOG(DEBUG, "mpc.follower") << "Choosing arclength option for waypoint selection!";
-
-    // TODO: The p value is not really the arclength!
-
-    std::vector<double> p_values;
-    for(int i = 0; i < leader_p_values.size(); i++){
-      p_values.push_back(leader_p_values[i] - mpcConfig.distance);
-    }
-
-    mpcConfig.follower_reference_poses.clear();
-    auto referenceInfo = generateHomotopyReference(p_values, chain);
-    for(const auto& Tf : referenceInfo.poses) {
-      mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-      CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
-    }
-
-  }
-  else // Default option: use velocity
-  {
-      CLOG(DEBUG, "mpc.follower.target") << "Choosing default option for waypoint selection!";
-    double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
-
-    std::vector<double> p_rollout;
-    for(int j = 1; j < mpcConfig.N+1; j++){
-      p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
-    }
-
-    mpcConfig.follower_reference_poses.clear();
-    auto referenceInfo = generateHomotopyReference(p_rollout, chain);
-    for(const auto& Tf : referenceInfo.poses) {
-      mpcConfig.follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-      CLOG(DEBUG, "mpc.follower.target") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
-    }
-
-  }
+  }();
   
-
+  for(const auto& Tf : referenceInfo.poses) {
+    mpcConfig.reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+    CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+  }
   // mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
   // mpcConfig.low_barrier_q = referenceInfo.barrier_q_min;
-  
   mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
   
 
@@ -367,8 +291,8 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     return Command();
   }
 
-  vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
-  vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
+  vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
+
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 
@@ -377,7 +301,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 }
 
 
-void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
+void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   using namespace vtr::common::conversions;
   
   recentLeaderPath_ = path;
@@ -395,7 +319,7 @@ void UnicycleMPCPathFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
 }
 
-void UnicycleMPCPathFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
+void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
   if (route->ids.size() > 0 && route->ids.front() != leader_root_) { 
 
     //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
@@ -409,5 +333,4 @@ void UnicycleMPCPathFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
   }
 }
 
-}  // namespace path_planning
-}  // namespace vtr
+}  // namespace vtr::path_planning

@@ -169,8 +169,8 @@ public:
     // TODO add an automatic way to keep the code in sync
     static constexpr int nStates = 3;
     static constexpr int nControl = 2;
-    static constexpr double alpha = 0.0;
-    static constexpr int N = 20;
+    static constexpr double alpha = 0.6;
+    static constexpr int N = 15;
     static constexpr double DT = 0.25;
     DM previous_vel{nControl, 1};
     DM T0{nStates, 1};
@@ -179,6 +179,7 @@ public:
     std::vector<double> low_barrier_q;
     double VF = 0.0;
     DM vel_max{nControl, 1};
+    double wheelbase = 0.5;
     // The below are passed to the Casadi solver as tunable parameters
     double Q_x = 0.0;
     double Q_y = 0.0;
@@ -194,6 +195,37 @@ public:
 
 
   CasadiBicycleMPC(bool verbose=false, casadi::Dict iopt_config={ 
+    { "max_iter", 2000 }, 
+    { "acceptable_tol", 1e-8 } ,
+    {"acceptable_obj_change_tol", 1e-6}
+  });
+
+  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf);
+
+
+private:
+  casadi::Function solve_mpc;
+  std::map<std::string, casadi::DM> arg_;
+
+};
+
+
+class CasadiBicycleMPCFollower : public CasadiMPC {
+public:
+  PTR_TYPEDEFS(CasadiBicycleMPCFollower);
+  using DM = casadi::DM;
+
+  struct Config : public CasadiBicycleMPC::Config {
+    PTR_TYPEDEFS(Config);
+    
+    std::vector<DM> leader_reference_poses;
+    double distance = 0.5;
+    double distance_margin = 1.0;
+    double Q_dist = 1.0;
+  };
+
+
+  CasadiBicycleMPCFollower(bool verbose=false, casadi::Dict iopt_config={ 
     { "max_iter", 2000 }, 
     { "acceptable_tol", 1e-8 } ,
     {"acceptable_obj_change_tol", 1e-6}
