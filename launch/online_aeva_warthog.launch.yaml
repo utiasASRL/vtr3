@@ -1,9 +1,9 @@
 ## Online Lidar VTR3
-session_name: vtr_online_ouster_warthog
+session_name: vtr_online_aeva_warthog
 
 environment:
   ROS_DOMAIN_ID: "7"   # set this to a unique number when multiple ROS2 dependent system running on the same network
-  ROS_DISCOVERY_SERVER: "192.168.131.1:11811;localhost:11811"
+  ROS_DISCOVERY_SERVER: "192.168.131.1:11811;192.168.131.100:11811"  
 
 start_directory: ${VTRTEMP}
 suppress_history: false
@@ -17,7 +17,7 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=ouster_warthog_default.yaml
+        base_params:=aeva_warthog_default.yaml
         start_new_graph:=false
         use_sim_time:=false
         planner:="cbit"
@@ -39,4 +39,4 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/aeva.rviz

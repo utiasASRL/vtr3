@@ -54,9 +54,9 @@ EdgeTransform loadTransform(const std::string& source_frame,
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
   if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),
-                             tf2::durationFromSec(5))) {
+                             tf2::durationFromSec(2))) {
     auto tf_source_target = tf_buffer.lookupTransform(
-        source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(5));
+        source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(2));
     tf2::Stamped<tf2::Transform> tf2_source_target;
     tf2::fromMsg(tf_source_target, tf2_source_target);
     EdgeTransform T_source_target(
@@ -139,7 +139,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 #ifdef VTR_ENABLE_LIDAR
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
+  gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
+  gyro_bias_ = {
+    node_->declare_parameter<double>("gyro_bias.x", 0.0),
+    node_->declare_parameter<double>("gyro_bias.y", 0.0),
+    node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
@@ -188,6 +194,10 @@ if (pipeline->name() == "radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
+  gyro_bias_ = {
+      node_->declare_parameter<double>("gyro_bias.x", 0.0),
+      node_->declare_parameter<double>("gyro_bias.y", 0.0),
+      node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   // there are a radar and gyro frames
   T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
@@ -207,17 +217,15 @@ if (pipeline->name() == "radar") {
   auto radar_qos = rclcpp::QoS(max_queue_size_);
   radar_qos.reliable();
   radar_sub_ = node_->create_subscription<navtech_msgs::msg::RadarBScanMsg>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
+}
+#endif
 
   // Subscribe to the imu topic 
-  auto gyro_qos = rclcpp::QoS(max_queue_size_);
+  auto gyro_qos = rclcpp::QoS(100);
   gyro_qos.reliable();
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
   gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
 
-
-
-}
-#endif
 
   /// This creates a thread to process the sensor input
   thread_count_ = 1;
@@ -318,7 +326,11 @@ void Navigator::lidarCallback(
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
 
+  query_data->gyro_msgs.emplace(gyro_msgs_);
+  gyro_msgs_.clear();
+
   // fill in the vehicle to sensor transform and frame names
+  query_data->T_s_r_gyro.emplace(T_gyro_robot_);
   query_data->T_s_r.emplace(T_lidar_robot_);
 
   // add to the queue and notify the processing thread
@@ -365,6 +377,9 @@ void Navigator::radarCallback(
   // put in the radar msg pointer into query data
   query_data->scan_msg = msg;
 
+  query_data->gyro_msgs.emplace(gyro_msgs_);
+  gyro_msgs_.clear();
+
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r_gyro.emplace(T_gyro_robot_);
   query_data->T_s_r.emplace(T_radar_robot_);
@@ -376,8 +391,11 @@ void Navigator::radarCallback(
   cv_set_or_stop_.notify_one();
 }
 
+#endif
+
+
 void Navigator::gyroCallback(
-    const sensor_msgs::msg::Imu::SharedPtr msg) {
+  const sensor_msgs::msg::Imu::SharedPtr msg) {
 
   // set the timestamp
   Timestamp timestamp_gyro = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
@@ -385,46 +403,14 @@ void Navigator::gyroCallback(
   CLOG(DEBUG, "navigation") << "Received gyro data with stamp " << timestamp_gyro;
 
   // Convert message to query_data format and store into query_data
-  auto query_data = std::make_shared<radar::RadarQueryCache>();
-
-  CLOG(DEBUG, "navigation") << "In the callback: Created gyro query cache";
+  // auto query_data = std::make_shared<radar::RadarQueryCache>();
 
   LockGuard lock(mutex_);
-
-  // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
-    CLOG(WARNING, "navigation")
-        << "Dropping old message because the queue is full.";
-    queue_.pop();
-  }
-
-
-  // some modules require node for visualization
-  query_data->node = node_;
-
-  // set the timestamp
-  // Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
-  query_data->stamp.emplace(timestamp_gyro);
-
-  // add the current environment info
-  query_data->env_info.emplace(env_info_);
-
-  // put in the radar msg pointer into query data
-  query_data->gyro_msg = msg;
-
-
-  // fill in the vehicle to sensor transform and frame names
-  query_data->T_s_r_gyro.emplace(T_gyro_robot_);
-  query_data->T_s_r.emplace(T_radar_robot_);
-
-
-  // add to the queue and notify the processing thread
-  CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding gyro message to the queue";
-  queue_.push(query_data);
-  CLOG(DEBUG, "navigation") << "Sam: In the callback: Added gyro message to the queue";
-  cv_set_or_stop_.notify_one();
+  msg->angular_velocity.x -= gyro_bias_[0];
+  msg->angular_velocity.y -= gyro_bias_[1];
+  msg->angular_velocity.z -= gyro_bias_[2];
+  gyro_msgs_.push_back(*msg);
 }
-#endif
 
 #ifdef VTR_ENABLE_VISION
 void Navigator::cameraCallback(
