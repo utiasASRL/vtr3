@@ -65,6 +65,7 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
+  config->wheelbase = node->declare_parameter<double>(prefix + ".mpc.wheelbase", config->wheelbase);
   
   // MPC COST PARAMETERS
   config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
@@ -112,6 +113,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->distance_margin;
+  CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
   leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
   leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderRoute, this, _1));
@@ -165,6 +167,16 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     CLOG(WARNING, "cbit.control") << "Robot is not localized, commanding the robot to stop";
     return Command();
   }
+  
+  if (recentLeaderPath_ == nullptr) {
+    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
+    return Command();
+  }
+
+  if (robot_state.node->get_clock()->now() - rclcpp::Time(recentLeaderPath_->header.stamp) > rclcpp::Duration(1, 0)) {
+    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping";
+    return Command();
+  }
 
   // retrieve the transform info from the localization chain for the current robot state
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
@@ -174,6 +186,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
   CasadiBicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+  mpcConfig.wheelbase = config_->wheelbase;
   mpcConfig.Q_x     = config_->q_x;
   mpcConfig.Q_y     = config_->q_y;
   mpcConfig.Q_th    = config_->q_th;
@@ -218,11 +231,13 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
   CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
+
   // Define Leader Waypoints
   mpcConfig.leader_reference_poses.clear();
   std::vector<lgmath::se3::Transformation> leader_world_poses;
   std::vector<double> leader_p_values;
   const auto leaderPath_copy = *leaderPathInterp_;
+  CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" << T_fw_lw_ * leaderPath_copy.at(curr_time) * (T_w_p * T_p_r_extp).inverse();
   for (uint i = 0; i < mpcConfig.N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
@@ -318,7 +333,7 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
 }
 
 void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
-  if (route->ids.size() > 0 && route->ids.front() != leader_root_) { 
+  if (robot_state_->chain.valid() && route->ids.size() > 0 && route->ids.front() != leader_root_) { 
 
     //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
     // leaderGraphSrv_->async_send_request()
@@ -328,6 +343,8 @@ void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr rout
     auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
     
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
+    CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
+
   }
 }
 

@@ -405,7 +405,8 @@ void UnicycleMPCPathFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
     const auto follower_root = robot_state_->chain->sequence().front();
     auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
     
-    T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
+    T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));  
+    CLOG(DEBUG, "mpc.follower") << "Offset: \n" << T_fw_lw_;  
   }
 }
 

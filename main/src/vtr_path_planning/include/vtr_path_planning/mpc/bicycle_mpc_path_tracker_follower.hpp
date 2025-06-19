@@ -67,6 +67,7 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
     double turning_radius = 1.0;
+    double wheelbase = 0.5;
 
     // MPC Costs
     double q_x = 0.0;

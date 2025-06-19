@@ -67,7 +67,7 @@ DEPENDS "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
         "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
         "include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp")
 
-file(GLOB_RECURSE SRC src/mpc/*.cpp)
+file(GLOB_RECURSE SRC src/mpc/*.cpp EXCLUDE src/mpc/generated/*)
 add_library(${PROJECT_NAME}_mpc ${SRC})
 target_link_libraries(${PROJECT_NAME}_mpc ${PROJECT_NAME}_base)
 target_link_libraries(${PROJECT_NAME}_mpc casadi)
