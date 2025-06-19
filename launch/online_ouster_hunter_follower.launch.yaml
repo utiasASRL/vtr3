@@ -20,8 +20,9 @@ windows:
         base_params:=ouster_hunter_default.yaml
         start_new_graph:=false
         use_sim_time:=false
-        planner:="bicycle_mpc"
+        planner:="bicycle_mpc_follower"
         model_dir:=${VTRROOT}/models
+        overridde_params:=follower_params.yaml
         
 
   - window_name: vtr_gui
@@ -39,5 +40,5 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
+      - ros2 bag record /mr_green/cmd_vel /miss_scarlet/cmd_vel /mr_green/vtr/mpc_prediction /miss_scarlet/vtr/mpc_prediction /mr_green/vtr/odometry /miss_scarlet/vtr/odometry /mr_green/vtr/leader_mpc_prediction
 
