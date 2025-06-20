@@ -154,7 +154,7 @@
 
       doppler_filtering:
         type: lidar.preprocessing_doppler
-        azimuth_res: 0.00349087         # vertical angle resolution in radians
+        azimuth_res: 0.00698132         # vertical angle resolution in radians
         azimuth_start: -0.994838        # -57 deg in rad         
         azimuth_end: 1.09956            #  63 deg in rad
         num_rows: 64                    # num of vertical scan lines
@@ -162,8 +162,8 @@
         min_dist: 5.0                   # meters
         max_dist: 150.0                 # meters
         #
-        root_path: "/home/katya/Documents/Data/sensor_config/warthog/warthog"  # point this to where we find the trained sensor model
-        model_name: "2025_06_16_16"
+        root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
+        model_name: "comm"
         downsample_steps: 2             # after image projection 
         bias_input_feat: ["range", "intensity", "medianrv"]
         var_input_feat: ["intensity", "medianrv", "rv_var5"]
@@ -211,18 +211,16 @@
         ransac_gyro: true
         ransac_max_iter: 100
         ransac_threshold: 0.3
-        prior_threshold: 0.05        # m/s
+        prior_threshold: 0.5        # m/s
         ransac_min_range: 5.0       # m
         integration_steps: 100
         zero_vel_tol: 0.03
-        # gyro_invcov: [1791.47259047, 2461.14467839, 69.4274250826]
-        # gyro_invcov: [3399.88, 2463.06, 3551.39]
         gyro_invcov: [3397.786, 2461.6228, 3550.9717]
         # prior
         P0inv: [1e4, 1e4, 1e4, 1e6, 1e6, 1e6]
         Qkinv: [124.097194, 852.430330017, 448.704299478, 1128.19639192, 1230.02908934, 11316.9459369]
         Qzinv: [0.0, 100.0, 100.0, 33271.2755284, 20032.1558168, 0.0]
-        max_trans_vel_diff: 0.1
+        max_trans_vel_diff: 0.5
 
       mapping:
         type: lidar.odometry_map_maintenance_v2

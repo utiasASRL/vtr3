@@ -200,6 +200,11 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   auto prev_T_r_m_odo = *qdata.T_r_m_odo_prior; 
   auto prev_w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_prior;
 
+  CLOG(DEBUG, "lidar.odometry_doppler")
+      << "frame_end_time: " << frame_end_time
+      << ", query_time: " << query_time
+      << ", prev_time: " << prev_time;
+
   const_vel::Interface::Ptr trajectory = nullptr;
   trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
   
@@ -452,6 +457,9 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto vel_diff_norm = vel_diff.norm();
   const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
   const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
+
+  CLOG(DEBUG, "lidar.odometry_doppler") << "********Previous velocity estimate: " << prev_w_m_r_in_r_odo.transpose();
+  CLOG(DEBUG, "lidar.odometry_doppler") << "********Current velocity estimate: " << w_m_r_in_r_eval_.transpose();
 
   CLOG(DEBUG, "lidar.odometry_doppler") << "Current velocity difference: " << vel_diff.transpose();
   CLOG(DEBUG, "lidar.odometry_doppler") << "Current translational velocity difference: " << trans_vel_diff_norm;

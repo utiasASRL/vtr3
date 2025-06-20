@@ -93,9 +93,8 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
-  for (const auto &module : preprocessing_) {
+  for (const auto &module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
-  }
 }
 
 void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
@@ -119,9 +118,8 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
   }
 
-  for (const auto &module : odometry_) {
+  for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
-  }
 
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
