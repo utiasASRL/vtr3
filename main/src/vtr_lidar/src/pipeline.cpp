@@ -94,11 +94,6 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   for (const auto &module : preprocessing_) {
-    if (module->name() == "lidar.preprocessing" && !qdata->preproc_flag) {
-      // if we are using doppler odometry, always skip preprocessing unless localization flag is enabled for current frame
-      CLOG(DEBUG, "lidar.pipeline") << "Attention! Not localizing current frame, skip preprocessing.";
-      continue;
-    }
     module->run(*qdata0, *output0, graph, executor);
   }
 }
@@ -125,13 +120,7 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   }
 
   for (const auto &module : odometry_) {
-    if (module->name() == "lidar.odometry_map_maintenance_v2" && !qdata->preproc_flag) {
-      // initialize the sliding map with default voxel size
-      // this is done because qdata->sliding_map_odo is used for checks
-      if (!qdata->sliding_map_odo) qdata->sliding_map_odo.emplace(0.2);
-    } else {
-      module->run(*qdata0, *output0, graph, executor);
-    }
+    module->run(*qdata0, *output0, graph, executor);
   }
 
   // store the current sliding map for odometry

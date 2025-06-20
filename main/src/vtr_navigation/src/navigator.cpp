@@ -85,11 +85,18 @@ EdgeTransform loadTransform(const std::string& source_frame,
   }
   if (source_frame == "w200_0066_aeva_lidar") {
     Eigen::Matrix4d T_source_target; // T_aeva_robot
+
     T_source_target <<
           1.0, 0.0, 0.0, 0.1547045,
           0.0, 1.0, 0.0, 0.0,
           0.0, 0.0, 1.0, 0.66594232,
-          0.0, 0.0, 0.0, 1.0;
+          0.0, 0.0, 0.0, 1.0; // T_aeva_warthog
+
+    // T_source_target << 0.999831, 0.0183608, 0, -0.903033,
+    //                  -0.0183608, 0.999831, 0, -0.365661,
+    //                  0, 0, 1, -1.3468,
+    //                  0, 0, 0, 1; // T_aeva_boreas
+
     EdgeTransform T_source_target_(T_source_target);
     T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
     CLOG(DEBUG, "navigation")
@@ -115,6 +122,15 @@ EdgeTransform loadTransform(const std::string& source_frame,
           0.0, 0.0, 1.0, 0.66594232,
           0.0, 0.0, 0.0, 1.0;
     Eigen::Matrix4d T_source_target = T_imu_aeva_mat * T_aeva_robot;
+
+    // Eigen::Matrix4d T_imu_boreas;
+    // T_imu_boreas << 0.999831, 0.0183615, 0, -0.923031,
+    //                 -0.0183615, 0.999831, 0, -0.388673,
+    //                 0, 0, 1, -1.3098,
+    //                 0, 0, 0, 1;
+    // Eigen::Matrix4d T_source_target = T_imu_boreas;
+
+
     EdgeTransform T_source_target_(T_source_target);
     T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
     CLOG(DEBUG, "navigation")
