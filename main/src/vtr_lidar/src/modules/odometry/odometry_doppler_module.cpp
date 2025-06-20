@@ -450,7 +450,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &w_m_r_in_r_eval_ = w_temp;
   const auto vel_diff = w_m_r_in_r_eval_ - prev_w_m_r_in_r_odo;
   const auto vel_diff_norm = vel_diff.norm();
-  const auto trans_vel_diff_norm = vel_diff.head<2>().norm();
+  const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
   const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
   CLOG(DEBUG, "lidar.odometry_doppler") << "Current velocity difference: " << vel_diff.transpose();
