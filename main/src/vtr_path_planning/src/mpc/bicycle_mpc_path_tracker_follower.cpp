@@ -305,6 +305,8 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   }
 
   vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
+  vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
+  vis_->publishReferencePoses(referenceInfo.poses);
 
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
@@ -333,7 +335,7 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
 }
 
 void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
-  if (robot_state_->chain.valid() && route->ids.size() > 0 && route->ids.front() != leader_root_) { 
+  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route->ids.size() > 0 && route->ids.front() != leader_root_) { 
 
     //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
     // leaderGraphSrv_->async_send_request()

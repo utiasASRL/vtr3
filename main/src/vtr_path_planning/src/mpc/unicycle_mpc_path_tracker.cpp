@@ -219,6 +219,7 @@ auto UnicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command
   }
 
   vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
+  vis_->publishReferencePoses(referenceInfo.poses);
 
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;

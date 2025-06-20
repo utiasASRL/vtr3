@@ -15,12 +15,12 @@ from casadi import sin, cos, pi, tan
 
 
 step_horizon = 0.25  # time between steps in seconds
-N = 15          # number of look ahead steps
+N = 7          # number of look ahead steps
 
 # The first order lag weighting for the steering angle
-alpha = 0.6
+alpha = 0.8
 
-alphav = 0.0
+alphav = 0.8
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states
@@ -110,13 +110,13 @@ def so2_error(ref, current):
     return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
 def calc_cost(ref, X, con, k, cost):
-    dx = X[0, k] - follower_ref_poses[n_states*k]
-    dy = X[1, k] - follower_ref_poses[n_states*k + 1]
+    dx = X[0, k+1] - follower_ref_poses[n_states*k]
+    dy = X[1, k+1] - follower_ref_poses[n_states*k + 1]
     theta_ref = follower_ref_poses[n_states*k + 2]
     e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
     e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
-    cost += Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2,k])**2 + con.T @ R @ con
-    cost += Q_dist * (ca.norm_2((X[:2, k] - leader_ref_poses[n_states*k:n_states*(k+1)-1])) - d)**2
+    cost += Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
+    cost += Q_dist * (ca.norm_2((X[:2, k+1] - leader_ref_poses[n_states*k:n_states*k + 2])) - d)**2
     return cost
 
 #for initial

@@ -308,6 +308,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
           mpcConf.reference_poses.at(i));
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.wheelbase));
   // Now add the tunable costs
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));
@@ -361,6 +362,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
   arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   arg["lbx"].set(-mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   
+
   arg["lbg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl + mpcConf.N, 1);
   arg["ubg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl + mpcConf.N, 1);
 
