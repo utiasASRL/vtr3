@@ -115,7 +115,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->distance_margin;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
-  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
+  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
   leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderRoute, this, _1));
 
   leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);

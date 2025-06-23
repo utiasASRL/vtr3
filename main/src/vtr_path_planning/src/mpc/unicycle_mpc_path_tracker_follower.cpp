@@ -101,7 +101,7 @@ UnicycleMPCPathFollower::UnicycleMPCPathFollower(const Config::ConstPtr& config,
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->distance_margin;
 
-  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::SystemDefaultsQoS(), std::bind(&UnicycleMPCPathFollower::onLeaderPath, this, _1));
+  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&UnicycleMPCPathFollower::onLeaderPath, this, _1));
   leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&UnicycleMPCPathFollower::onLeaderRoute, this, _1));
 
   leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
