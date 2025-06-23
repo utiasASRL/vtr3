@@ -205,22 +205,22 @@
         type: lidar.odometry_doppler
         #
         num_threads: 12
-        traj_qc_diag: [1.0, 0.1, 0.1, 0.1, 0.1, 1.0]
+        traj_qc_diag: [1.0, 0.001, 0.001, 0.001, 0.001, 1.0]
         #
         ransac_seed: 0
         ransac_gyro: true
         ransac_max_iter: 100
-        ransac_threshold: 0.3
-        prior_threshold: 0.5        # m/s
+        ransac_threshold: 0.2
+        prior_threshold: 0.1        # m/s
         ransac_min_range: 5.0       # m
         integration_steps: 100
         zero_vel_tol: 0.03
-        gyro_invcov: [3397.786, 2461.6228, 3550.9717]
+        gyro_invcov: [30000.083766029, 20000.771471207, 50000.083910244] #[3397.786, 2461.6228, 3550.9717] # increase invcovariance
         # prior
         P0inv: [1e4, 1e4, 1e4, 1e6, 1e6, 1e6]
         Qkinv: [124.097194, 852.430330017, 448.704299478, 1128.19639192, 1230.02908934, 11316.9459369]
         Qzinv: [0.0, 100.0, 100.0, 33271.2755284, 20032.1558168, 0.0]
-        max_trans_vel_diff: 0.5
+        max_trans_vel_diff: 0.2
 
       mapping:
         type: lidar.odometry_map_maintenance_v2
