@@ -53,8 +53,7 @@ public:
         const std::vector<lgmath::se3::Transformation>& mpc_prediction,
         const std::vector<Eigen::Vector2d>& mpc_velocities,
         const std::vector<lgmath::se3::Transformation>& robot_prediction,
-        const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
-        const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
+        const std::vector<lgmath::se3::Transformation>& reference_pose_vec,
         const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
         const std::shared_ptr<CBITCorridor> corridor_ptr,
         const lgmath::se3::Transformation& T_w_p_interpolated_closest_to_robot,
@@ -64,6 +63,7 @@ public:
 
     void publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt=0.25);
     void publishLeaderRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt=0.25);
+    void publishReferencePoses(const std::vector<lgmath::se3::Transformation>& reference_pose_vec);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
@@ -73,8 +73,7 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_l_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr corridor_pub_r_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub_tracking_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub_homotopy_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub_;
     rclcpp::Publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>::SharedPtr path_info_for_external_navigation_pub_;
 };
 

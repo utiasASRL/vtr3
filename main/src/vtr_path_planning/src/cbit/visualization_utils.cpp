@@ -31,8 +31,7 @@ VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
     corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
     corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
-    ref_pose_pub_tracking_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_tracking", 10);
-    ref_pose_pub_homotopy_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_homotopy", 10);
+    ref_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array", 10);
     path_info_for_external_navigation_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>("path_info_for_external_navigation", 10);
 }
 
@@ -45,8 +44,7 @@ void VisualizationUtils::visualize(
     const std::vector<lgmath::se3::Transformation>& mpc_prediction,
     const std::vector<Eigen::Vector2d>& mpc_velocities,
     const std::vector<lgmath::se3::Transformation>& robot_prediction,
-    const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
-    const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
+    const std::vector<lgmath::se3::Transformation>& reference_pose_vec,
     const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
     const std::shared_ptr<CBITCorridor> corridor_ptr,
     const lgmath::se3::Transformation& T_w_p_interpolated_closest_to_robot,
@@ -261,34 +259,25 @@ void VisualizationUtils::visualize(
         corridor_pub_r_->publish(corridor_right);
     }
 
+    publishReferencePoses(reference_pose_vec);
+
+    
+    return;
+}
+
     // Attempting to Publish the reference poses used in the mpc optimization as a pose array
-    {
+    void VisualizationUtils::publishReferencePoses(const std::vector<lgmath::se3::Transformation>& ref_poses) {
+
         // create a PoseArray message
         geometry_msgs::msg::PoseArray pose_array_msg;
         pose_array_msg.header.frame_id = "world";
 
         // fill the PoseArray with some sample poses
-        for (size_t i = 0; i < tracking_pose_vec.size(); i++) {
-            auto T1 = tracking_pose_vec[i].matrix();
+        for (size_t i = 0; i < ref_poses.size(); i++) {
+            auto T1 = ref_poses[i].matrix();
             pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T1)));
         }
-        ref_pose_pub_tracking_->publish(pose_array_msg);
-    }
-
-        // Attempting to Publish the reference poses used in the mpc optimization as a pose array
-    {
-        // create a PoseArray message
-        geometry_msgs::msg::PoseArray pose_array_msg;
-        pose_array_msg.header.frame_id = "world";
-
-        // fill the PoseArray with some sample poses
-        for (size_t i = 0; i < homotopy_pose_vec.size(); i++) {
-            auto T2 = homotopy_pose_vec[i].matrix();
-            pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T2)));
-        }
-        ref_pose_pub_homotopy_->publish(pose_array_msg);
-    }
-    return;
+        ref_pose_pub_->publish(pose_array_msg);
     }
     
 

@@ -369,6 +369,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 
   vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
   vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
+  //TODO vis_->publishReferencePoses(referenceInfo.poses);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 
@@ -405,7 +406,8 @@ void UnicycleMPCPathFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
     const auto follower_root = robot_state_->chain->sequence().front();
     auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
     
-    T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
+    T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));  
+    CLOG(DEBUG, "mpc.follower") << "Offset: \n" << T_fw_lw_;  
   }
 }
 

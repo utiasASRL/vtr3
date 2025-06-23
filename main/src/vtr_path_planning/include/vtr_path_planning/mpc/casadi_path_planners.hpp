@@ -170,7 +170,7 @@ public:
     static constexpr int nStates = 3;
     static constexpr int nControl = 2;
     static constexpr double alpha = 0.6;
-    static constexpr int N = 15;
+    static constexpr int N = 7;
     static constexpr double DT = 0.25;
     DM previous_vel{nControl, 1};
     DM T0{nStates, 1};

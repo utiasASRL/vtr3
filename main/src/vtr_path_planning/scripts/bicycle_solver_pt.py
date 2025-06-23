@@ -7,19 +7,14 @@ from casadi import sin, cos, pi, tan
 # MPC for a model of a bicycle with tracking about the rear wheels
 # Includes fixed first order lag
 
-# distance from centre of gravity to front and rear wheels, respectively
-# Based on the Hunter SE docs, for this formulation the actual centre of gravity
-# is irrelevant since we track n the rear wheel
-# TODO: Look into if its possible to make this configurable
-L = 0.55
 
 step_horizon = 0.25  # time between steps in seconds
-N = 15           # number of look ahead steps
+N = 7           # number of look ahead steps
 
 # The first order lag weighting for the steering angle
-alpha = 0.6
+alpha = 0.8
 
-alphav = 0.0
+alpha_v = 0.0
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states
@@ -62,20 +57,40 @@ last_controls = ca.vertcat(
     last_psi
 )
 
-# number of parameters we can change without recompiling
-num_parameters = 8
+# # number of parameters we can change without recompiling
+# num_parameters = 8
+# # column vector for storing runtime information(paths, etc) 
+# P = ca.SX.sym('P', n_states * (N+1) + n_controls + num_parameters)
+# measured_velo = P[-(n_controls+num_parameters):-num_parameters]
+# # TODO: Put this info into a config somewhere so this is easier to edit
+# Q_x = P[-num_parameters]
+# Q_y = P[-num_parameters + 1]
+# Q_theta = P[-num_parameters + 2]
+# R1 = P[-num_parameters + 3]
+# R2 = P[-num_parameters + 4]
+# Acc_R1 = P[-num_parameters + 5]
+# Acc_R2 = P[-num_parameters + 6]
+# Q_f = P[-num_parameters + 7]  # final state cost
+
 # column vector for storing runtime information(paths, etc) 
-P = ca.SX.sym('P', n_states * (N+1) + n_controls + num_parameters)
-measured_velo = P[-(n_controls+num_parameters):-num_parameters]
-# TODO: Put this info into a config somewhere so this is easier to edit
-Q_x = P[-num_parameters]
-Q_y = P[-num_parameters + 1]
-Q_theta = P[-num_parameters + 2]
-R1 = P[-num_parameters + 3]
-R2 = P[-num_parameters + 4]
-Acc_R1 = P[-num_parameters + 5]
-Acc_R2 = P[-num_parameters + 6]
-Q_f = P[-num_parameters + 7]  # final state cost
+init_pose = ca.SX.sym('init_pose', n_states)
+ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
+measured_velo = ca.SX.sym('measured_velo', n_controls)
+
+Q_x = ca.SX.sym('Q_x', 1)
+Q_y = ca.SX.sym('Q_y', 1)
+Q_theta = ca.SX.sym('Q_theta', 1)
+R1 = ca.SX.sym('R1', 1)
+R2 = ca.SX.sym('R2', 1)
+Acc_R1 = ca.SX.sym('Acc_R1', 1)
+Acc_R2 = ca.SX.sym('Acc_R2', 1)
+Q_f = ca.SX.sym('Q_f', 1)  # final state cost
+L = ca.SX.sym('wheel_base', 1)
+
+P = ca.vertcat(init_pose, ref_poses, measured_velo,                # Base MPC
+                L, Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f)    # Weights for tuning
+
+
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
@@ -87,8 +102,10 @@ R = ca.diagcat(R1, R2)
 R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
 # Define kinematics of the systems
-RHS = ca.vertcat(v*cos(theta), v*sin(theta), v/L * tan(alpha*last_psi + (1-alpha)*psi))
-motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
+weighted_v = alpha_v*last_v + (1-alpha_v)*v
+weighted_psi = alpha*last_psi + (1-alpha)*psi
+RHS = ca.vertcat(weighted_v*cos(theta), weighted_v*sin(theta), weighted_v/L * tan(weighted_psi))
+motion_model = ca.Function('motion_model', [states, controls, last_controls, L], [RHS])
 
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
 
@@ -116,12 +133,11 @@ con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
 cost_fn += calc_cost(P, X, con, k)
-k1 = motion_model(st, con, last_vel)
-k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
-k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
-k4 = motion_model(st + step_horizon * k3, con, last_vel)
+k1 = motion_model(st, con, last_vel, L)
+k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
+k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
+k4 = motion_model(st + step_horizon * k3, con, last_vel, L)
 st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-# st_next_int = motion_model(st, con)
 g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
 g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
@@ -134,12 +150,11 @@ for k in range(1, N):
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
 
     cost_fn += calc_cost(P, X,con, k)
-    k1 = motion_model(st, con, last_vel)
-    k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
-    k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
-    k4 = motion_model(st + step_horizon * k3, con, last_vel)
+    k1 = motion_model(st, con, last_vel, L)
+    k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
+    k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
+    k4 = motion_model(st + step_horizon * k3, con, last_vel, L)
     st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-    # st_next_int = motion_model(st, con)
 
     g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))

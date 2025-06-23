@@ -1,13 +1,13 @@
 /**:
   ros__parameters:
     path_planning:
-      type: unicycle_mpc_follower
-      follow_distance: 3.0
+      type: bicycle_mpc_follower
+      follow_distance: 3.5
       distance_margin: 100.0
       leader_namespace: /miss_scarlet
       waypoint_selection: euclidean
       mpc:
-      	q_dist: 500.0
+        q_dist: 500.0
         wheelbase: 0.65
     log_enabled:
       #- navigation
@@ -22,7 +22,7 @@
       #- mission.state_machine
       #- mission.server
         # planner manager
-      #- cbit.control
+      - cbit.control
       #- cbit.debug
       #- cbit.path_planning
       #- cbit.obstacle_filtering

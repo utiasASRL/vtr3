@@ -22,7 +22,7 @@ windows:
         use_sim_time:=false
         planner:="bicycle_mpc_follower"
         model_dir:=${VTRROOT}/models
-        overridde_params:=follower_params.yaml
+        override_params:=follower_params.yaml
         
 
   - window_name: vtr_gui
