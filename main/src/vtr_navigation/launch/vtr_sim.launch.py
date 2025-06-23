@@ -38,9 +38,9 @@ def generate_launch_description():
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
               {
-                    "robot_frame": f"{robot_name}/base_link",
-                    "lidar_frame": f"{robot_name}/os_lidar",
-                    "lidar_topic": f"/{robot_name}/ouster/points",
+                    #"robot_frame": f"{robot_name}/base_link",
+                    #"lidar_frame": f"{robot_name}/os_lidar",
+                    #"lidar_topic": f"/{robot_name}/ouster/points",
                     "data_dir": LaunchConfiguration("data_dir"),
                     "model_dir": LaunchConfiguration("model_dir"),
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
