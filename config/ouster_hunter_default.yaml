@@ -22,7 +22,7 @@
       - path_planning.cbit_planner
       - cbit.path_planning
       #- cbit_planner.path_planning
-      #- cbit.debug
+      - cbit.debug
       - mpc.solver
       - mpc.speed_scheduler
       #- mpc.cost_function
@@ -252,12 +252,12 @@
         forward_vel: 0.75
         max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
         max_ang_vel: 0.34
-        max_ang_acc: 0.5
+        max_ang_acc: 0.89
         ang_alpha: 0.0
         lin_alpha: 0.0
         max_lin_acc: 2.0
         vehicle_model: "bicycle"
-        wheelbase: 0.65
+        wheelbase: 0.55
 
         # Tunable controller parameters(Currently only works for the Bicycle)
         q_x: 10.0
@@ -266,5 +266,5 @@
         r1: 0.0
         r2: 3.0
         racc1: 4.0
-        racc2: 10.0
+        racc2: 4.0
         q_f: 1.0 # Multiplier for terminal cost
