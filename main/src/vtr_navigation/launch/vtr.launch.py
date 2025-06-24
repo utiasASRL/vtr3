@@ -21,7 +21,7 @@ def generate_launch_description():
         "namespace": f'/{robot_name}/vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
-        #"remappings": [("command", f"/{robot_name}/cmd_vel")],
+        "remappings": [("command", f"/{robot_name}/cmd_vel")],
         #"prefix": 'xterm -e gdb -ex run --args',
         #"prefix": 'valgrind --tool=callgrind',
     }
