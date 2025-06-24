@@ -161,11 +161,6 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   // retrieve the transform info from the localization chain for the current robot state
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
 
-  if (robot_state.node->get_clock()->now() - rclcpp::Time(recentLeaderPath_->header.stamp) > rclcpp::Duration(1, 0)) {
-    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping";
-    return Command();
-  }
-
   // Store the current robot state in the robot state path so it can be visualized
   auto T_w_r = T_w_p * T_p_r;
 
@@ -198,6 +193,12 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
     CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
+  }
+
+
+  if (curr_time - rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds() > 1e9) {
+    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping";
+    return Command();
   }
 
   lgmath::se3::Transformation T0 = T_p_r_extp;
@@ -369,7 +370,6 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
 
   vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
   vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
-  //TODO vis_->publishReferencePoses(referenceInfo.poses);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 

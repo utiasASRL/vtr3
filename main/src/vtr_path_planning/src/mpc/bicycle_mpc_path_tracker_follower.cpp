@@ -172,14 +172,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     return Command();
   }
 
-  const auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp);
-  const auto delta_t = robot_state.node->now() - leader_path_time;
-  if (delta_t > rclcpp::Duration(1, 0)) {
-    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping\n Delay: "
-           << delta_t.seconds() << " Leader: " << leader_path_time.seconds();
-    return Command();
-  }
-
   // retrieve the transform info from the localization chain for the current robot state
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] = getChainInfo(*chain);
 
@@ -212,8 +204,8 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   auto T_p_r_extp = T_p_r;
   auto curr_time = stamp;  // always in nanoseconds
 
-  if (false && config_->extrapolate_robot_pose) {
-    curr_time = robot_state.node->get_clock()->now().nanoseconds();  // always in nanoseconds
+  if (config_->extrapolate_robot_pose) {
+    curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
     if (fabs(dt) > 0.25) { 
       CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
@@ -221,11 +213,18 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
       dt = 0;
     }
 
-    CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
     T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
     CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
+  }
+
+  const auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
+  const auto delta_t = curr_time - leader_path_time;
+  if (delta_t > 1e9) {
+    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping\n Delay: "
+           << delta_t / 1e9;
+    return Command();
   }
 
   lgmath::se3::Transformation T0 = T_p_r_extp;
@@ -306,10 +305,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     return Command();
   }
 
-  if(config_->extrapolate_robot_pose)
-    vis_->publishMPCRollout(mpc_poses, robot_state.node->now().nanoseconds(), mpcConfig.DT);
-  else
-    vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
+  vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
   vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
   vis_->publishReferencePoses(referenceInfo.poses);
 

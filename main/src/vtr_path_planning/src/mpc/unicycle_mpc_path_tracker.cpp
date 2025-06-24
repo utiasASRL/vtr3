@@ -145,9 +145,10 @@ auto UnicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command
 
 
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
+  auto curr_time = stamp;
   auto T_p_r_extp = T_p_r;
   if (config_->extrapolate_robot_pose) {
-    const auto curr_time = robot_state.node->get_clock()->now().nanoseconds();  // always in nanoseconds
+    curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
     if (fabs(dt) > 0.25) { 
       CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
@@ -218,7 +219,7 @@ auto UnicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command
     return Command();
   }
 
-  vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
+  vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
   vis_->publishReferencePoses(referenceInfo.poses);
 
 

@@ -165,17 +165,16 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
 
 
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
+  auto curr_time = stamp;
   auto T_p_r_extp = T_p_r;
-  if (false && config_->extrapolate_robot_pose) {
-    const auto curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
+  if (config_->extrapolate_robot_pose) {
+    curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
     if (fabs(dt) > 0.25) { 
       CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
             << "Ignoring extrapolation requestion. Check your time sync!";
       dt = 0;
     }
-
-    CLOG(DEBUG, "cbit.debug") << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose() << " dt: " << dt << std::endl;
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
     T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
@@ -238,10 +237,7 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
     return Command();
   }
 
-  if(config_->extrapolate_robot_pose)
-    vis_->publishMPCRollout(mpc_poses, robot_state.node->now().nanoseconds(), mpcConfig.DT);
-  else
-    vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig.DT);
+  vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
   vis_->publishReferencePoses(referenceInfo.poses);
 
 
