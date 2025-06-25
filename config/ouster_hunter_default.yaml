@@ -127,7 +127,7 @@
         num_threads: 4
         crop_range: 40.0
 
-        frame_voxel_size: 0.3 # grid subsampling voxel size
+        frame_voxel_size: 0.4 # grid subsampling voxel size
 
         vertical_angle_res: 0.012271 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
@@ -177,7 +177,7 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.4
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -192,7 +192,7 @@
         type: lidar.intra_exp_merging_v2
         depth: 6.0
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.4
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -200,7 +200,7 @@
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.4
         max_num_experiences: 128
         distance_threshold: 0.6
         planar_threshold: 0.2
@@ -266,5 +266,5 @@
         r1: 0.0
         r2: 3.0
         racc1: 4.0
-        racc2: 4.0
+        racc2: 5.0
         q_f: 1.0 # Multiplier for terminal cost

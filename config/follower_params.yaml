@@ -4,11 +4,11 @@
       type: bicycle_mpc_follower
       follow_distance: 3.5
       distance_margin: 100.0
-      leader_namespace: /miss_scarlet
+      leader_namespace: /mr_green
       waypoint_selection: euclidean
       mpc:
-        q_dist: 500.0
-        wheelbase: 0.65
+        q_dist: 0.0
+        wheelbase: 0.55
     log_enabled:
       #- navigation
       #- navigation.graph_map_server
