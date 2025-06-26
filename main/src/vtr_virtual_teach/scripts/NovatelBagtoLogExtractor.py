@@ -43,7 +43,7 @@ if __name__ == "__main__":
     # args = parse_args()
     cwd = os.getcwd()
     print(os.getcwd())
-    bag_name = "data/feb23RepeatsGPSDATA/dome/rosbag2_2025_02_25-18_29_53/rosbag2_2025_02_25-18_29_53_0.db3"
-    out_path = "data/feb23RepeatsGPSDATA/dome/rosbag2_2025_02_25-18_29_53/test"
+    bag_name = "/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/june17GPS/parking/rosbag2_2025_06_17-17_08_14_0.db3"
+    out_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/june17GPS/parking/rosbag2_2025_06_17-17_08_14_0EXTRACTED"
     raw_topic_id = get_topic_list(bag_name)
     topic_msg = get_topic_messages(bag_name, topic=raw_topic_id,outpath=out_path)

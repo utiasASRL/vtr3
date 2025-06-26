@@ -24,10 +24,10 @@
     env_info_topic: env_info
     radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
-    gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
-    gyro_topic: /ouster/imu
-    gyro_bias:
-      z: 0.0
+    #gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
+    #gyro_topic: /ouster/imu
+    #gyro_bias:
+    #  z: 0.0006577201
     queue_size: 10
     graph_map:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -83,12 +83,12 @@
     preprocessing:
       conversion:
         type: radar.online_converter
-        radar_resolution: 0.161231
+        radar_resolution: 0.044
         encoder_bin_size: 16000 # encoder bin size
       extraction:
         type: radar.pc_extractor
-        radar_resolution: 0.161231 # 0307827  # RAS3 0.161231 #0.044
-        detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        radar_resolution: 0.044 # 0307827  # RAS3 0.161231 #0.044
+        detector: modified_cacfar #kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 2.0 # mininum detection distance
         maxr: 80.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution

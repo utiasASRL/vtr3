@@ -63,9 +63,9 @@
     gyro_frame: w200_0066_os_imu
     gyro_topic: /ouster/imu
     gyro_bias:
-      x: 0.0
-      y: 0.0
-      z: 0.0
+      x: 	0.010540511262
+      y: -0.002565044629
+      z: 0.0006577201
     queue_size: 1
     graph_map:
       origin_lat: 43.7822
@@ -178,7 +178,7 @@
         max_iterations: 1
         min_matched_ratio: 0.0
         visualize: true
-        gyro_cov: 1e-3
+        gyro_cov: 1e-3 #LOWER = MORE WEIGHT ON GYRO - HIGHER IS MORE WEIGHT ON LIDAR -try 0.001 - was 1e-3
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
