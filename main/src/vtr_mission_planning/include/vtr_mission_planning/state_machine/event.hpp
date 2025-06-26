@@ -63,7 +63,7 @@ struct Event {
   using VertexId = tactic::VertexId;
 
   // Constructors for high level command events
-  static Event::Ptr StartIdle(const VertexId& vertex_id = VertexId::Invalid());
+  static Event::Ptr StartIdle(const VertexId& vertex_id = VertexId::Invalid(), const bool& reversed = false);
   static Event::Ptr StartTeach();
   static Event::Ptr StartMerge(const std::vector<VertexId>& match_window);
   static Event::Ptr StartRepeat(const std::list<VertexId>& waypoints);

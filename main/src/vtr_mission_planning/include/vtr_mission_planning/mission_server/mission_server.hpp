@@ -62,6 +62,7 @@ struct Command {
   CommandTarget target;
   VertexId vertex;
   std::vector<VertexId> path;
+  bool reversed = false;
 };
 
 /** \brief Template specialization to standardize the goal interface */
@@ -332,7 +333,7 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
   };
   switch (command.target) {
     case CommandTarget::Localize: {
-      state_machine->handle(Event::StartIdle(command.vertex));
+      state_machine->handle(Event::StartIdle(command.vertex, command.reversed));
       return;
     }
     case CommandTarget::StartMerge: {

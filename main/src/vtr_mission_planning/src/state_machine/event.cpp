@@ -68,9 +68,10 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
   return os;
 }
 
-Event::Ptr Event::StartIdle(const VertexId& v) {
+Event::Ptr Event::StartIdle(const VertexId& v, const bool& reversed) {
   const auto tmp = std::make_shared<Idle>();
   tmp->setVertexId(v);
+  tmp->setReversed(reversed);
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 

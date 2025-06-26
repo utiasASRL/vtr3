@@ -54,7 +54,7 @@ struct TestTactic : public StateMachine::Tactic {
   void addRun(bool) override { LOG(WARNING) << "Adding a new run"; }
   /// Called when finishing a teach/repeat
   void finishRun() override { LOG(WARNING) << "Finishing the current run"; }
-  void setTrunk(const tactic::VertexId&) override {}
+  void setTrunk(const tactic::VertexId&, const tactic::EdgeTransform&) override {}
   /// Called when trying to merge into existing path
   void connectToTrunk(const bool privileged) override {
     LOG(WARNING) << "Connecting to trunk with privileged " << privileged;

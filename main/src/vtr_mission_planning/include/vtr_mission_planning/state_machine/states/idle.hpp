@@ -39,9 +39,12 @@ class Idle : public BaseState {
 
   /** \brief Set the persistent loc id */
   void setVertexId(const VertexId &v) { vertex_id_ = v; }
+  void setReversed(const bool &r) { reversed_ = r; }
 
  private:
   VertexId vertex_id_ = VertexId::Invalid();
+  bool reversed_ = false;
+  const tactic::EdgeTransform T_180 = tactic::EdgeTransform(Eigen::Matrix3d(lgmath::so3::vec2rot({0, 0, M_PI})), Eigen::Vector3d::Zero());
 };
 
 }  // namespace mission_planning

@@ -257,6 +257,7 @@ class SocketVTRUI(VTRUI):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.LOCALIZE
     ros_command.vertex = int(data['vertex'])
+    ros_command.reversed = bool(data['reversed'])
     return super().move_robot(ros_command)
 
   def merge(self, data):

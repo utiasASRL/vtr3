@@ -49,7 +49,7 @@ class TacticInterface {
                        const EdgeTransform& T_twig_branch = EdgeTransform(true),
                        bool publish = false) = 0;
   /** \brief Set the current privileged vertex (topological localization) */
-  virtual void setTrunk(const VertexId& v = VertexId::Invalid()) = 0;
+  virtual void setTrunk(const VertexId& v = VertexId::Invalid(), const EdgeTransform& T_r_v = EdgeTransform(true)) = 0;
   /** \brief Add a new vertex, link it to the current trunk and branch */
   virtual void connectToTrunk(const bool privileged = false) = 0;
   /** \brief Get the current persistent localization (i.e. curr robot loc) */

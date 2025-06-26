@@ -90,7 +90,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   void setPath(const VertexId::Vector& path, const unsigned& trunk_sid = 0,
                const EdgeTransform& T_twig_branch = EdgeTransform(true),
                const bool publish = false) override;
-  void setTrunk(const VertexId& v = VertexId::Invalid()) override;
+  void setTrunk(const VertexId& v = VertexId::Invalid(), const EdgeTransform& T_r_v = EdgeTransform(true)) override;
   void connectToTrunk(const bool privileged = false) override;
   /// \note following queries can be called without pipeline locked
   Localization getPersistentLoc() const override;

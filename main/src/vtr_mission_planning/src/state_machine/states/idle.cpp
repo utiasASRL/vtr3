@@ -72,7 +72,10 @@ void Idle::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // resets the robot state
   /// \note target is always resetted while persistent loc is only resetted if
   /// vertex_id_ is valid
-  getTactic(state_machine)->setTrunk(vertex_id_);
+  if (reversed_)
+    getTactic(state_machine)->setTrunk(vertex_id_, T_180);
+  else
+    getTactic(state_machine)->setTrunk(vertex_id_);
 }
 
 }  // namespace mission_planning

@@ -133,10 +133,10 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   }
 }
 
-void Tactic::setTrunk(const VertexId& v) {
+void Tactic::setTrunk(const VertexId& v, const EdgeTransform& T_r_v) {
   CLOG(DEBUG, "tactic") << "Setting persistent loc vertex to " << v;
   RobotStateGuard lock(robot_state_mutex_);
-  if (v.isValid()) persistent_loc_ = Localization(v);
+  if (v.isValid()) persistent_loc_ = Localization(v, T_r_v);
   target_loc_ = Localization();
   callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }

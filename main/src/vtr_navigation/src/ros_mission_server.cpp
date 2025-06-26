@@ -78,6 +78,7 @@ void ROSMissionServer::handleCommand(
     case MissionCommandMsg::LOCALIZE:
       tmp.target = mission_planning::CommandTarget::Localize;
       tmp.vertex = command->vertex;
+      tmp.reversed = command->reversed;
       processCommand(tmp);
       return;
     case MissionCommandMsg::START_MERGE:

@@ -20,6 +20,7 @@ GoalHandle goal_handle
 
 ## LOCALIZE - specify the vertex to localize
 uint64 vertex
+bool reversed
 
 ## START_MERGE - specify the window to merge
 uint64[] window  # for START_MERGE
