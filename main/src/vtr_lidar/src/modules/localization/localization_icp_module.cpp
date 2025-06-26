@@ -98,7 +98,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// use odometry as a prior
   WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
-  if (config_->use_pose_prior && *qdata.odo_success) {
+  if (config_->use_pose_prior && *qdata.odo_success && output.chain->isLocalized()) {
     auto loss_func = L2LossFunc::MakeShared();
     auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
     auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
