@@ -18,8 +18,9 @@
 import React from "react";
 
 import { Box, Button } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
+import ArrowRight from "@mui/icons-material/ArrowRight";
 import CloseIcon from "@mui/icons-material/Close";
+import ArrowLeft from "@mui/icons-material/ArrowLeft";
 import AndroidIcon from "@mui/icons-material/Android";
 
 class MoveRobot extends React.Component {
@@ -40,9 +41,19 @@ class MoveRobot extends React.Component {
               disableElevation={true}
               variant={"contained"}
               size={"small"}
-              onClick={this.handleConfirm.bind(this)}
+              onClick={this.handleConfirm.bind(this, false)}
             >
-              <CheckIcon />
+              Forward <ArrowRight />
+            </Button>
+            <Button
+              sx={{ m: 0.25 }}
+              color={"secondary"}
+              disableElevation={true}
+              variant={"contained"}
+              size={"small"}
+              onClick={this.handleConfirm.bind(this, true)}
+            >
+              Backward <ArrowLeft />
             </Button>
             <Button
               sx={{ m: 0.25 }}
@@ -72,12 +83,12 @@ class MoveRobot extends React.Component {
     );
   }
 
-  handleConfirm() {
+  handleConfirm(direction) {
     this.setState(
       (state, props) => {
         console.debug("Confirmed move robot: ", props.moveRobotVertex);
         if (props.moveRobotVertex.id !== -1)
-          props.socket.emit("command/move_robot", { vertex: props.moveRobotVertex.id });
+          props.socket.emit("command/move_robot", { vertex: props.moveRobotVertex.id, reversed: direction});
       },
       () => this.props.onCancel()
     );
