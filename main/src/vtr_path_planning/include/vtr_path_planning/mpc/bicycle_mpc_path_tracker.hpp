@@ -67,6 +67,8 @@ class BicycleMPCPathTracker : public BasePathPlanner {
     double racc1 = 0.0;
     double q_f = 0.0;
 
+    bool repeat_flipped = false;
+
     // Misc
     int command_history_length = 100;
 

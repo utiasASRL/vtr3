@@ -257,7 +257,6 @@ CasadiBicycleMPC::CasadiBicycleMPC( bool verbose, casadi::Dict ipopt_opts){
   solve_mpc = nlpsol("solver", "ipopt", "libsolve_bicycle_mpc.so", opts);
 }
 
-
 std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Config& baseMpcConf) {
   using namespace casadi;
   const auto& mpcConf = dynamic_cast<const CasadiBicycleMPC::Config& >(baseMpcConf);
@@ -270,15 +269,22 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["ubx"].set(DM::inf(), true, Slice(0, mpcConf.nStates*(mpcConf.N+1)));
   
   // Velocity constraints
-  arg["ubx"].set(mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  if (_reversing){
+    arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+    arg["lbx"].set(-mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  }
+  else{
+    arg["ubx"].set(mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+    arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  }
+
   arg["ubx"].set(mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-  arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   arg["lbx"].set(-mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
 
   arg["lbg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, 1);
   arg["ubg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, 1);
 
-  if (false && mpcConf.up_barrier_q.size() > 0 && mpcConf.low_barrier_q.size() > 0) {
+  if (mpcConf.up_barrier_q.size() > 0 && mpcConf.low_barrier_q.size() > 0) {
     arg["ubg"].set(DM(mpcConf.up_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
     arg["lbg"].set(DM(mpcConf.low_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
   } else {
@@ -396,8 +402,19 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
 
 
   for(int i = 0; i < mpcConf.N; i++) {
+      auto pose_i = mpcConf.reference_poses.at(i);
+      if(mpcConf.repeat_flipped)
+      {
+        pose_i(2) += M_PI;
+        while (pose_i(2).scalar() > M_PI) {
+            pose_i(2) -= 2 * M_PI;
+        }
+        while (pose_i(2).scalar() < -M_PI) {
+            pose_i(2) += 2 * M_PI;
+        }
+      }
       arg["p"] = vertcat(arg["p"],
-          mpcConf.reference_poses.at(i));
+          pose_i);
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
   for(int i = 0; i < mpcConf.N; i++) {

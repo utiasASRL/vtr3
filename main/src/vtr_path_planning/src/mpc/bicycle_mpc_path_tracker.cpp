@@ -67,6 +67,7 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
   config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
   config->q_f = node->declare_parameter<double>(prefix + ".mpc.q_f", config->q_f);
+  config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
   CLOG(INFO, "cbit.control") << "The config is: Q_x " << config->q_x << " q_y: " << config->q_y<< " q_th: " << config->q_th<< " r1: " << config->r1<< " r2: " << config->r2<< "acc_r1: " << config->racc1<< " acc_r2: " << config->racc2;
 
 
@@ -159,6 +160,8 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
   mpcConfig.ang_acc_max = config_->max_ang_acc;
   mpcConfig.Q_f = config_->q_f;
 
+  mpcConfig.repeat_flipped = config_->repeat_flipped;
+
   // Schedule speed based on path curvatures + other factors
   // TODO refactor to accept the chain and use the curvature of the links
   mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
@@ -186,7 +189,10 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
 
   CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
-  double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
+  auto dirAndP = findRobotP(T_w_p * T_p_r_extp, chain);
+  auto dir = dirAndP.first;
+  double state_p = dirAndP.second;
+  bool isReverse = (dir == tactic::Direction::Backward);
 
   std::vector<double> p_rollout;
   for(int j = 1; j < mpcConfig.N+1; j++){
@@ -197,7 +203,6 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
   auto referenceInfo = generateHomotopyReference(p_rollout, chain);
   for(const auto& Tf : referenceInfo.poses) {
     mpcConfig.reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-    CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
   }
 
   mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
@@ -213,6 +218,7 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
   std::vector<Eigen::Vector2d> mpc_velocities;
   try {
     CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
+    solver_.setReversing(isReverse);
     auto mpc_res = solver_.solve(mpcConfig);
     
     for(int i = 0; i < mpc_res["pose"].columns(); i++) {

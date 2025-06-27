@@ -217,7 +217,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
     leader_world_poses.push_back(T_w_lp);
-    leader_p_values.push_back(findRobotP(T_w_lp, chain));
+    leader_p_values.push_back(findRobotP(T_w_lp, chain).second);
     CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
 
   }
@@ -235,7 +235,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
       auto T_w_l = leader_world_poses[i];
 
       //Consider the path between the follower and leader (waypoints won't be spawned behind the follower)
-      double start_p = findRobotP(T_w_p * T_p_r_extp, chain);
+      double start_p = findRobotP(T_w_p * T_p_r_extp, chain).second;
       double end_p = leader_p_values[i];
 
       // Run through the path and find the pose that best fulfills the distance constraint
@@ -259,7 +259,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
     mpcConfig.follower_reference_poses.clear();
 
     //Consider the path between the follower and leader's last pose (waypoints won't be spawned behind the follower)
-    double start_p = findRobotP(T_w_p * T_p_r_extp, chain);
+    double start_p = findRobotP(T_w_p * T_p_r_extp, chain).second;
     double end_p = leader_p_values.back();
 
     std::vector<double> best_distance(leader_world_poses.size(), std::numeric_limits<double>::max());
@@ -314,7 +314,7 @@ auto UnicycleMPCPathFollower::computeCommand_(RobotState& robot_state) -> Comman
   else // Default option: use velocity
   {
       CLOG(DEBUG, "mpc.follower.target") << "Choosing default option for waypoint selection!";
-    double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
+    double state_p = findRobotP(T_w_p * T_p_r_extp, chain).second;
 
     std::vector<double> p_rollout;
     for(int j = 1; j < mpcConfig.N+1; j++){

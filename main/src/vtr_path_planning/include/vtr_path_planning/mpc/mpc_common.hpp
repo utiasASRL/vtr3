@@ -55,14 +55,16 @@ lgmath::se3::Transformation interpolatedPose(double p, const tactic::Localizatio
 lgmath::se3::Transformation interpolatePoses(const double interp,
                 const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end);
                 
-using Segment = std::pair<unsigned, unsigned>;
+// Segment includes direction of the path(for controllers that need to know if we're reversing or not) and the segment indices
+using Segment = std::pair<tactic::Direction, std::pair<unsigned, unsigned>>;
 Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
 Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
 
 lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T_wr,
                 const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end,
-                 double& interp);
-double findRobotP(const lgmath::se3::Transformation& T_wr, tactic::LocalizationChain::Ptr chain);
+                double& interp);
+std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain);
+//double findRobotP(const lgmath::se3::Transformation& T_wr, tactic::LocalizationChain::Ptr chain);
 
 template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));

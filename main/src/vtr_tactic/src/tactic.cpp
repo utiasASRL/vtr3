@@ -95,7 +95,6 @@ void Tactic::addRun(const bool) {
   // re-initialize the pose records for visualization
   T_w_v_odo_ = EdgeTransform(true);
   T_w_v_loc_ = EdgeTransform(true);
-  T_m_w_ = EdgeTransform(true);
   // re-initialize the pipeline
   pipeline_->reset();
   //
@@ -118,11 +117,7 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   auto lock = chain_->guard();
   //
   chain_->setSequence(path);
-  if (path.size() > 0) {
-    chain_->expand();
-    auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front());
-    T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(VertexId(0, 0)), connected->end(), EdgeTransform(true));
-  }
+  if (path.size() > 0) chain_->expand();
   // used as initial guess for trunk
   chain_->resetTrunk(trunk_sid);
   // used as initial guess for localization
@@ -132,8 +127,8 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
                        << ", and initial Twig to Branch transform: "
                        << T_twig_branch.inverse().vec().transpose();
   //
-  callback_->pathUpdated(path);
   if (publish) {
+    callback_->pathUpdated(path);
     callback_->publishPathRviz(*chain_);
   }
 }
@@ -174,12 +169,13 @@ bool Tactic::passedSeqId(const uint64_t& sid) const {
 bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
   const auto T_leaf_target = chain_->T_leaf_trunk()*chain_->T_trunk_target(chain_->sequence().size() - 1);
-  const auto translation = abs(T_leaf_target.r_ba_ina()[0]);//.norm(); // lgmath bring to aang
+  const auto translation = T_leaf_target.r_ba_ina().norm(); // lgmath bring to aang
   const auto T_leaf_target_matrix = T_leaf_target.matrix();
   const auto angle = atan2(T_leaf_target_matrix(1, 0), T_leaf_target_matrix(0, 0));
+  const auto angle_180 = atan2(-T_leaf_target_matrix(1, 0), -T_leaf_target_matrix(0, 0));
 
   CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
-  if (chain_->trunkSequenceId() < (chain_->sequence().size() - 2)) {
+  if (chain_->trunkSequenceId() < chain_->sequence().size() - 2) {
     return false;
   }
 
@@ -187,7 +183,7 @@ bool Tactic::routeCompleted() const {
     return false;
   }
 
-  if (std::abs(angle) > config_->route_completion_angle_threshold) {
+  if ((std::abs(angle) > config_->route_completion_angle_threshold) && (std::abs(angle_180) > config_->route_completion_angle_threshold)) {
     return false;
   }
   
@@ -288,7 +284,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -391,7 +387,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -486,7 +482,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -556,7 +552,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -626,7 +622,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest

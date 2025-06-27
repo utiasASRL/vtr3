@@ -191,6 +191,38 @@ public:
     double lin_acc_max = 1.0; // m/s^2
     double ang_acc_max = 1.0;
     double Q_f = 0.0;
+    bool repeat_flipped = false; // If true, the MPC will repeat the reference poses with flipped angles
+    bool reversing = false;
+  };
+
+  struct ReversingConfig : public CasadiMPC::Config {
+    PTR_TYPEDEFS(Config);
+    // These values are defined the python code and exported
+    // TODO add an automatic way to keep the code in sync
+    static constexpr int nStates = 3;
+    static constexpr int nControl = 2;
+    static constexpr double alpha = 0.6;
+    static constexpr int N = 15;
+    static constexpr double DT = 0.25;
+    DM previous_vel{nControl, 1};
+    DM T0{nStates, 1};
+    std::vector<DM> reference_poses;
+    std::vector<double> up_barrier_q;
+    std::vector<double> low_barrier_q;
+    double VF = 0.0;
+    DM vel_max{nControl, 1};
+    double wheelbase = 0.5;
+    // The below are passed to the Casadi solver as tunable parameters
+    double Q_x = 0.0;
+    double Q_y = 0.0;
+    double Q_th = 0.0;
+    double R1 = 0.0;
+    double R2 = 0.0;
+    double Acc_R1 = 0.0;
+    double Acc_R2 = 0.0;
+    double lin_acc_max = 1.0; // m/s^2
+    double ang_acc_max = 1.0;
+    double Q_f = 0.0;
   };
 
 
@@ -200,12 +232,15 @@ public:
     {"acceptable_obj_change_tol", 1e-6}
   });
 
-  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf);
-
+  void setReversing(const bool isReversing) {
+    _reversing = isReversing;
+  }
+  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf); 
 
 private:
   casadi::Function solve_mpc;
   std::map<std::string, casadi::DM> arg_;
+  bool _reversing = false; 
 
 };
 

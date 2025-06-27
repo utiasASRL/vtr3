@@ -243,12 +243,14 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
     leader_world_poses.push_back(T_w_lp);
-    leader_p_values.push_back(findRobotP(T_w_lp, chain));
+    leader_p_values.push_back(findRobotP(T_w_lp, chain).second);
     CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
 
   }
 
-  double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
+  auto dirAndP = findRobotP(T_w_p * T_p_r_extp, chain);
+  auto dir = dirAndP.first;
+  double state_p = dirAndP.second;
 
   mpcConfig.reference_poses.clear();
   auto referenceInfo = [&](){

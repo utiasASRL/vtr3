@@ -84,6 +84,22 @@ struct Localization {
   bool localized;
 };
 
+enum class Direction : uint {
+  Forward = 0,  
+  Backward = 1, 
+  Unknown = 2 // Unknown, unimportant, uninitialized direction
+};
+
+/*struct Segment {
+  Direction dir = Direction::Unknown; 
+  std::pair<unsigned, unsigned> sid; // Start and end sequence ids of the segment
+
+  Segment() = default;
+  Segment(Direction d, std::pair<unsigned, unsigned> s) : dir(d), sid(s) {}
+  Segment(unsigned start_sid, unsigned end_sid)
+      : dir(Direction::Forward), sid(std::make_pair(start_sid, end_sid)) {}
+};
+*/
 }  // namespace tactic
 }  // namespace vtr
 

@@ -101,19 +101,34 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
       }
     }
 
+
+    // Assume forward at end of path
+    auto dir = tactic::Direction::Forward;
+
     //Handle end of path exceptions
     if(best_sid == 0)
-      return std::make_pair(best_sid, best_sid + 1);
+      return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
     if(best_sid == chain->size() - 1)
-      return std::make_pair(best_sid - 1, best_sid);
+      return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
 
     auto curr_dir = (chain->pose(best_sid).inverse() * T_wr).r_ab_inb();
     auto next_dir = (chain->pose(best_sid).inverse() * chain->pose(best_sid + 1)).r_ab_inb();
 
+    // Unit vector in the current segment heading direction in a 2D plane
+    auto unit_vec = Eigen::Vector2d(cos(lgmath::so3::rot2vec(chain->pose(best_sid).C_ba())(2)),
+                    sin(lgmath::so3::rot2vec(chain->pose(best_sid).C_ba())(2)) );
+    // Calculate the 2D vector from the current segment to the next
+    auto dir_vector = (chain->pose(best_sid + 1).r_ab_inb() - chain->pose(best_sid).r_ab_inb()).head<2>();
+
+    if (unit_vec.dot(dir_vector) < 0){
+      dir = tactic::Direction::Backward;
+    }
+    // return Segment(curr_dir, best_sid, best_sid + 1);
+
     if(curr_dir.dot(next_dir) > 0)
-      return std::make_pair(best_sid, best_sid + 1);
+      return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
     else
-      return std::make_pair(best_sid - 1, best_sid);
+      return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
   }
 
 Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
@@ -144,24 +159,27 @@ Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr 
       }
     }
 
+    auto dir = tactic::Direction::Unknown;
     //Handle end of path exceptions
     if(best_sid == 0)
-      return std::make_pair(best_sid, best_sid + 1);
+      return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
     if(best_sid == chain->size() - 1)
-      return std::make_pair(best_sid - 1, best_sid);
+      return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
 
-    if(p - chain->p(best_sid) > 0)
-      return std::make_pair(best_sid, best_sid + 1);
-    else
-      return std::make_pair(best_sid - 1, best_sid);
+    if(p - chain->p(best_sid) > 0){
+      return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
+    }
+    else{
+      return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
+    }
   }
 
-
-double findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
+std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
   double state_interp = 0;
   auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
-  auto path_ref = interpolatePath(T_wr, chain->pose(segment.first), chain->pose(segment.second), state_interp);
-  return chain->p(segment.first) + state_interp * (chain->p(segment.second) - chain->p(segment.first));
+  auto path_ref = interpolatePath(T_wr, chain->pose(segment.second.first), chain->pose(segment.second.second), state_interp);
+  //return std::make_pair(std::get<0>(segment), robot_p);
+  return std::make_pair(segment.first, chain->p(segment.second.first) + state_interp * (chain->p(segment.second.second) - chain->p(segment.second.first)));
 }
 
 lgmath::se3::Transformation interpolatePoses(const double interp,
@@ -227,7 +245,7 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Tran
 
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& T_wrk : rolled_out_poses) {
-      Segment closestSegment = findClosestSegment(T_wrk, chain, last_sid);
+      auto closestSegment = findClosestSegment(T_wrk, chain, last_sid).second;
       last_sid = closestSegment.first;
 
       double interp;
@@ -259,7 +277,7 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
 
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& p_target : rolled_out_p) {
-      Segment closestSegment = findClosestSegment(p_target, chain, last_sid);
+      auto closestSegment = findClosestSegment(p_target, chain, last_sid).second;
       last_sid = closestSegment.first;
 
       double interp = std::clamp((p_target - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
@@ -279,7 +297,7 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
 }
 
 lgmath::se3::Transformation interpolatedPose(double p, const tactic::LocalizationChain::Ptr chain) {
-  Segment closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
+  auto closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId()).second;
   double interp = std::clamp((p - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
   return interpolatePoses(interp, chain->pose(closestSegment.first), chain->pose(closestSegment.second));
 }
