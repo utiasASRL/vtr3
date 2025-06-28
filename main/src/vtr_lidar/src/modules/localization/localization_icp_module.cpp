@@ -211,7 +211,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     problem.addStateVariable(T_r_v_var);
 
     // add prior cost terms
-    if (config_->use_pose_prior) problem.addCostTerm(prior_cost_term);
+    if (prior_cost_term != nullptr) problem.addCostTerm(prior_cost_term);
 
     // shared loss function
     auto loss_func = L2LossFunc::MakeShared();
