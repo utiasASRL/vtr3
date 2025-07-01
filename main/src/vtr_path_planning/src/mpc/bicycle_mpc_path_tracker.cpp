@@ -170,11 +170,11 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
   if (config_->extrapolate_robot_pose) {
     curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
-    if (fabs(dt) > 0.25) { 
-      CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
-            << "Ignoring extrapolation requestion. Check your time sync!";
-      dt = 0;
-    }
+    // if (fabs(dt) > 0.25) { 
+    //   CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
+    //         << "Ignoring extrapolation requestion. Check your time sync!";
+    //   dt = 0;
+    // }
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
     T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
