@@ -70,6 +70,7 @@ Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
       callback_(callback) {
   //
   output_->chain = chain_;  // shared pointing to the same chain, no copy
+  output_->odometry_success.emplace(false);
   //
   pipeline_->initialize(output_, graph_);
 }
@@ -678,6 +679,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
+  *output_->odometry_success = *qdata->odo_success;
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
     /// maybe we can combine them at some point, but for now, consider leaving

@@ -151,6 +151,7 @@ struct OutputCache : std::enable_shared_from_this<OutputCache> {
 
   Cache<rclcpp::Node> node;
   Cache<LocalizationChain> chain;
+  Cache<bool> odometry_success;
 
   // Obstacle Costmap:
   std::mutex obsMapMutex;

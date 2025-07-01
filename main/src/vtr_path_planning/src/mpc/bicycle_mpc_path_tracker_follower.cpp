@@ -112,7 +112,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
-  CLOG(INFO, "mpc.follower") << "Target separation: " << config->distance_margin;
+  CLOG(INFO, "mpc.follower") << "Target separation: " << config->following_offset;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
   leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
@@ -206,8 +206,8 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
   if (config_->extrapolate_robot_pose) {
     curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
-    auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
-    if (fabs(dt) > 0.25) { 
+    auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.1;
+    if (fabs(dt) > 0.2) { 
       CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
             << "Ignoring extrapolation requestion. Check your time sync!";
       dt = 0;
@@ -245,7 +245,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     leader_world_poses.push_back(T_w_lp);
     leader_p_values.push_back(findRobotP(T_w_lp, chain));
     CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
-
   }
 
   double state_p = findRobotP(T_w_p * T_p_r_extp, chain);

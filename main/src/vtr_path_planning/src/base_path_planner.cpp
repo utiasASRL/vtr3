@@ -91,9 +91,13 @@ void BasePathPlanner::process() {
     const auto wait_until_time =
         std::chrono::steady_clock::now() +
         std::chrono::milliseconds(config_->control_period);
-    const auto command = computeCommand(*robot_state_);
-
-    callback_->commandReceived(command);
+    if (!*robot_state_->odometry_success) {
+      CLOG(WARNING, "path_planning") << "Stopping robot because odometry failed!";
+      callback_->commandReceived(Command());
+    } else {
+      const auto command = computeCommand(*robot_state_);
+      callback_->commandReceived(command);
+    }
     if (config_->control_period > 0 &&
         wait_until_time < std::chrono::steady_clock::now()) {
       const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(
