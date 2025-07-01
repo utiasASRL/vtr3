@@ -118,6 +118,7 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   std::vector<Eigen::Vector2d> vel_history;
   tactic::Timestamp prev_vel_stamp_;
   RobotState::Ptr robot_state_;
+  u_int32_t frame_delay_ = 0;
   Command computeCommand_(RobotState& robot_state);
 
 

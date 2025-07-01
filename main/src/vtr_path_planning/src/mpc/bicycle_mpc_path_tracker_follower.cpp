@@ -127,27 +127,37 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
 BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
 
 auto BicycleMPCPathTrackerFollower::computeCommand(RobotState& robot_state) -> Command {
-  auto raw_command = computeCommand_(robot_state);
   
-  Eigen::Vector2d output_vel = {raw_command.linear.x, raw_command.angular.z};
+  
+  
+  Eigen::Vector2d output_vel = Eigen::Vector2d::Zero();
+  
+  if (robot_state.chain->leaf_stamp() == prev_vel_stamp_) {
+    frame_delay_++;
+    if (frame_delay_ < 2) {
+      output_vel = applied_vel_;
+    } else {
+      CLOG(WARNING, "cbit.control") << "It appears that the sensor has stopped providing information at a rate that is satisfactory. Stopping.";
+    }
+  } else {
+    auto raw_command = computeCommand_(robot_state);
+    output_vel = {raw_command.linear.x, raw_command.angular.z};
+    frame_delay_ = 0;
+  }
 
   // Apply robot motor controller calibration scaling factors if applicable
   output_vel(0) = output_vel(0) * config_->robot_linear_velocity_scale;
   output_vel(1) = output_vel(1) * config_->robot_angular_velocity_scale;
 
-  // If required, saturate the output velocity commands based on the configuration limits
-  CLOG(DEBUG, "cbit.control") << "Saturating the velocity command if required";
-  Eigen::Vector2d saturated_vel = saturateVel(output_vel, config_->max_lin_vel, config_->max_ang_vel);
-  CLOG(INFO, "cbit.control") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
-  
   Command command;
-  command.linear.x = saturated_vel(0);
-  command.angular.z = saturated_vel(1);
-  applied_vel_ = saturated_vel;
+  command.linear.x = output_vel(0);
+  command.angular.z = output_vel(1);
+  applied_vel_ = output_vel;
 
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
   vel_history.erase(vel_history.begin());
   vel_history.push_back(applied_vel_);
+  prev_vel_stamp_ = robot_state.chain->leaf_stamp();
 
   CLOG(INFO, "cbit.control")
     << "Final control command: [" << command.linear.x << ", "
