@@ -47,9 +47,22 @@ CurvatureInfo CurvatureInfo::fromTransform(const lgmath::se3::Transformation& T)
   return {coc, roc};
 }
 
+tactic::Direction findDirection(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, const unsigned sid, const unsigned next_sid) {
+    auto unit_vec = Eigen::Vector2d(cos(lgmath::so3::rot2vec(T_wr.C_ba())(2)),
+                    sin(lgmath::so3::rot2vec(T_wr.C_ba())(2)) );
+    auto dir_vector = (chain->pose(next_sid).r_ab_inb() - chain->pose(sid).r_ab_inb()).head<2>();
+
+    tactic::Direction dir = tactic::Direction::Unknown;
+    if (unit_vec.dot(dir_vector) < 0){
+      dir = tactic::Direction::Backward;
+    }
+    else {
+      dir = tactic::Direction::Forward;
+    }
+    return dir;
+}
 
 Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
-
     double best_distance = std::numeric_limits<double>::max();
     double max_distance = -1.;
     unsigned best_sid = sid_start;
@@ -105,30 +118,57 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
     // Assume forward at end of path
     auto dir = tactic::Direction::Forward;
 
+    // Unit vector in the current heading direction in a 2D plane
+    auto unit_vec = Eigen::Vector2d(cos(lgmath::so3::rot2vec(T_wr.C_ba())(2)),
+                    sin(lgmath::so3::rot2vec(T_wr.C_ba())(2)) );
+    // Calculate the 2D vector from the current segment to the next
+    
+
     //Handle end of path exceptions
-    if(best_sid == 0)
+    if(best_sid == 0){
+      auto dir_vector = (chain->pose(best_sid + 1).r_ab_inb() - chain->pose(best_sid).r_ab_inb()).head<2>();
+      if (unit_vec.dot(dir_vector) < 0){
+        dir = tactic::Direction::Backward;
+      }
+      else {
+        dir = tactic::Direction::Forward;
+      }
       return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
-    if(best_sid == chain->size() - 1)
+    }
+    if(best_sid == chain->size() - 1){
+      auto dir_vector = (chain->pose(best_sid).r_ab_inb() - chain->pose(best_sid-1).r_ab_inb()).head<2>();
+      if (unit_vec.dot(dir_vector) < 0){
+        dir = tactic::Direction::Backward;
+      }
+      else {
+        dir = tactic::Direction::Forward;
+      }
       return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
+    }
 
     auto curr_dir = (chain->pose(best_sid).inverse() * T_wr).r_ab_inb();
     auto next_dir = (chain->pose(best_sid).inverse() * chain->pose(best_sid + 1)).r_ab_inb();
 
-    // Unit vector in the current segment heading direction in a 2D plane
-    auto unit_vec = Eigen::Vector2d(cos(lgmath::so3::rot2vec(chain->pose(best_sid).C_ba())(2)),
-                    sin(lgmath::so3::rot2vec(chain->pose(best_sid).C_ba())(2)) );
-    // Calculate the 2D vector from the current segment to the next
-    auto dir_vector = (chain->pose(best_sid + 1).r_ab_inb() - chain->pose(best_sid).r_ab_inb()).head<2>();
-
-    if (unit_vec.dot(dir_vector) < 0){
-      dir = tactic::Direction::Backward;
-    }
-    // return Segment(curr_dir, best_sid, best_sid + 1);
-
-    if(curr_dir.dot(next_dir) > 0)
+    if(curr_dir.dot(next_dir) > 0){
+      auto dir_vector = (chain->pose(best_sid + 1).r_ab_inb() - chain->pose(best_sid).r_ab_inb()).head<2>();
+      if (unit_vec.dot(dir_vector) < 0){
+        dir = tactic::Direction::Backward;
+      }
+      else {
+        dir = tactic::Direction::Forward;
+      }
       return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
-    else
+    }
+    else{
+      auto dir_vector = (chain->pose(best_sid).r_ab_inb() - chain->pose(best_sid-1).r_ab_inb()).head<2>();
+      if (unit_vec.dot(dir_vector) < 0){
+        dir = tactic::Direction::Backward;
+      }
+      else {
+        dir = tactic::Direction::Forward;
+      }
       return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
+    }
   }
 
 Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
@@ -178,7 +218,6 @@ std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformatio
   double state_interp = 0;
   auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
   auto path_ref = interpolatePath(T_wr, chain->pose(segment.second.first), chain->pose(segment.second.second), state_interp);
-  //return std::make_pair(std::get<0>(segment), robot_p);
   return std::make_pair(segment.first, chain->p(segment.second.first) + state_interp * (chain->p(segment.second.second) - chain->p(segment.second.first)));
 }
 
