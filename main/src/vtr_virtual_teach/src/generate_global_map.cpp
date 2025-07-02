@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
     float lidar_cylinder_height = 20.0; //lidar_cylinder_height = 30.0;   
     float radar_cylinder_height = 0.2; 
     float cylinder_height = use_radar ? radar_cylinder_height : lidar_cylinder_height; 
-    float voxel_size = use_radar ? 0.7f : 0.9f; // Set voxel size based on sensor type - lower number = more dense (better for radar???UPDATE 06/24: NOT NECESSARILY!!! was 0.2 for initial radar results - changing to 0.3 for actual first online test) - for paper used 0.9 for all lidar nerf maps
+    float voxel_size = use_radar ? 1.0f : 0.9f; // Set voxel size based on sensor type - lower number = more dense (better for radar???UPDATE 06/24: NOT NECESSARILY!!! was 0.2 for initial radar results - changing to 0.3 for actual first online test) - for paper used 0.9 for all lidar nerf maps
     
     // Iterate through all vertices in the graph 
     for (auto it = loaded_graph->begin(0ul); it != loaded_graph->end(); ++it) {
