@@ -109,8 +109,10 @@ auto RadarExtractionModule::Config::fromROS(
   config->kpeaks.kstrong = node->declare_parameter<int>(param_prefix + ".kpeaks.kstrong", config->kpeaks.kstrong);
   config->kpeaks.threshold2 = node->declare_parameter<double>(param_prefix + ".kpeaks.threshold2", config->kpeaks.threshold2);
   config->kpeaks.threshold3 = node->declare_parameter<double>(param_prefix + ".kpeaks.threshold3", config->kpeaks.threshold3);
-
-  config->cen2018.zq = node->declare_parameter<double>(param_prefix + ".cen2018.zq", config->cen2018.zq);
+// kpeaks
+  config->kpeaks.kstrong = node->declare_parameter<int>(param_prefix + ".kpeaks.kstrong", config->kpeaks.kstrong);
+  config->kpeaks.threshold2 = node->declare_parameter<double>(param_prefix + ".kpeaks.threshold2", config->kpeaks.threshold2);
+  config->kpeaks.threshold3 = node->declare_parameter<double>(param_prefix + ".kpeaks.threshold3", config->kpeaks.threshold3);declare_parameter<double>(param_prefix + ".cen2018.zq", config->cen2018.zq);
   config->cen2018.sigma = node->declare_parameter<int>(param_prefix + ".cen2018.sigma", config->cen2018.sigma);
 
   config->oscfar.width = node->declare_parameter<int>(param_prefix + ".oscfar.width", config->oscfar.width);

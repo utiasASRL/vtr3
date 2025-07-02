@@ -26,7 +26,7 @@
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu 
     gyro_topic: /ouster/imu
-    gyro_bias: 0.0034501251921976533 #0.0034133735691545593 #0.00341843357522571
+    gyro_bias: 0.001 #0.0034133735691545593 #0.00341843357522571
     queue_size: 100
     graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -84,10 +84,10 @@
         type: radar.online_converter
       extraction:
         type: radar.pc_extractor
-        radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 # low res mode: 0.161231309
+        radar_resolution: 0.153732181 #0.040308 # 0307827  # RAS3 0.161231 # low res mode: 0.161231309
         detector: kpeaks # choose detector \in (kstrongest, kpeaks, cen2018, cacfar, oscfar, modified_cacfar, caso_cfar)
         minr: 2.0 # mininum detection distance
-        maxr: 69.0 # maximum detection distance low res: 69 for 4hz
+        maxr: 263.0 #69.0 # maximum detection distance low res: 69 for 4hz
         encoder_bin_size: 16000 # encoder bin size
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
@@ -97,9 +97,9 @@
           kstrong: 5
           static_threshold: 0.25
         kpeaks:
-          kstrong: 4 # k-strongest per azimuth to retain was 12
+          kstrong: 3 # k-strongest per azimuth to retain was 12
           threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.25 # 0.25 # treshold for k-strongest (constant) 0.3 for 10 hz
+          threshold3: 0.3 # 0.25 # treshold for k-strongest (constant) 0.3 for 10 hz
         cen2018:
           zq: 2.5
           sigma: 8

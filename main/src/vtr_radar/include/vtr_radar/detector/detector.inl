@@ -153,7 +153,7 @@ void KPeaks<PointT>::run(const cv::Mat &raw_scan, const float &res,
                            / peak.second.size();
         
         PointT point;
-        point.rho = avg_j * res + static_cast<float>(range_offset_);
+        point.rho = (avg_j * res) + static_cast<float>(range_offset_); 
         point.phi = azimuth;
         point.theta = 0;
         point.timestamp = time;
