@@ -132,7 +132,6 @@ auto BicycleMPCPathTracker::computeCommand(RobotState& robot_state) -> Command {
   return command;
 }
 
-
 // Generate twist commands to track the planned local path (function is called at the control rate)
 auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   auto& chain = robot_state.chain.ptr();
@@ -208,9 +207,8 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
   mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
   mpcConfig.low_barrier_q = referenceInfo.barrier_q_min;
   
-  mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
+  mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), applied_vel_(1)};
   
-
   // Create and solve the casadi optimization problem
   std::vector<lgmath::se3::Transformation> mpc_poses;
   // return the computed velocity command for the first time step
