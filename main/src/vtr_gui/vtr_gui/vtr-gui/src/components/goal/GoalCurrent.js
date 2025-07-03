@@ -20,6 +20,7 @@ import React from "react";
 import { Button, Card, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import CheckIcon from "@mui/icons-material/Check";
 
 import Merge from "../tools/Merge";
 
@@ -54,6 +55,7 @@ class GoalCurrent extends React.Component {
               mergeIds={mergeIds}
             />
           ) : (
+            <span>
             <Button
               color={"secondary"}
               disableElevation={true}
@@ -64,6 +66,17 @@ class GoalCurrent extends React.Component {
             >
               Continue Teach
             </Button>
+            <Button
+            color={"secondary"}
+            disableElevation={true}
+            size="small"
+            startIcon={<CheckIcon />}
+            variant={"contained"}
+            onClick={() => this.props.socket.emit("command/confirm_merge", {})}
+            >
+            Accept Merge
+            </Button>
+            </span>
           ))}
         <Button
           sx={{ width: 100, m: 1 }}

@@ -35,19 +35,18 @@ endif()
 #Set to VTR_PIPELINE=VISION, LIDAR, RADAR, or RADAR-LIDAR
 set(SelectedPipeline "$ENV{VTR_PIPELINE}")
 
-
-if(SelectedPipeline MATCHES "LIDAR")
+if(SelectedPipeline STREQUAL "LIDAR")
   add_definitions(-DVTR_ENABLE_LIDAR)
   set(VTR_ENABLE_LIDAR true)
-elseif(SelectedPipeline MATCHES "RADAR")
+elseif(SelectedPipeline STREQUAL "RADAR")
   add_definitions(-DVTR_ENABLE_RADAR)
   set(VTR_ENABLE_RADAR true)
-elseif(SelectedPipeline MATCHES "RADAR-LIDAR")
+elseif(SelectedPipeline STREQUAL "RADAR-LIDAR")
   add_definitions(-DVTR_ENABLE_RADAR)
   set(VTR_ENABLE_RADAR true)
   add_definitions(-DVTR_ENABLE_LIDAR)
   set(VTR_ENABLE_LIDAR true)
-elseif(SelectedPipeline MATCHES "VISION")
+elseif(SelectedPipeline STREQUAL "VISION")
   ## GPUSURF enable/disable flag (used by vision pipeline only)
   # Note: currently assume that gpusurf is always available, because we have no
   # other options, so do not disable (i.e. comment out) this flag

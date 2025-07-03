@@ -1,0 +1,46 @@
+## Offline Lidar VTR3 (using datasets)
+session_name: vtr_offline_aeva_warthog
+
+environment:
+  CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
+  ROS_DOMAIN_ID: "7"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+
+start_directory: ${VTRTEMP}
+
+suppress_history: false
+
+windows:
+  - window_name: vtr_navigation_system
+    layout: main-vertical
+    shell_command_before:
+      - source /opt/ros/humble/setup.bash 
+        && source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
+
+    panes:
+      - >
+        ros2 launch vtr_navigation vtr.launch.py
+        base_params:=aeva_warthog_default.yaml
+        data_dir:=${VTRTEMP}/aeva
+        model_dir:=${VTRMODELS}
+        start_new_graph:=true
+        use_sim_time:=true
+        planner:="cbit"
+
+  - window_name: vtr_gui
+    layout: main-vertical
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 run vtr_gui socket_client  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_gui socket_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_gui web_server  --ros-args -r __ns:=/vtr
+      # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
+
+  - window_name: rviz2
+    layout: main-vertical
+    shell_command_before:
+      - source /opt/ros/humble/setup.bash
+    panes:
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/aeva.rviz
+      # - ros2 run rqt_reconfigure rqt_reconfigure
