@@ -57,6 +57,8 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
+  config->wheelbase = node->declare_parameter<double>(prefix + ".mpc.wheelbase", config->wheelbase);
+
   
   // MPC COST PARAMETERS
   config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
@@ -158,6 +160,7 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
   mpcConfig.lin_acc_max = config_->max_lin_acc;
   mpcConfig.ang_acc_max = config_->max_ang_acc;
   mpcConfig.Q_f = config_->q_f;
+  mpcConfig.wheelbase = config_->wheelbase;
 
   // Schedule speed based on path curvatures + other factors
   // TODO refactor to accept the chain and use the curvature of the links
