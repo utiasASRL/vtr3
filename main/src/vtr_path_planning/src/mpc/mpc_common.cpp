@@ -119,11 +119,6 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
     // Assume forward at end of path
     auto dir = tactic::Direction::Unknown;
 
-    // Unit vector in the current heading direction in a 2D plane
-    auto unit_vec = Eigen::Vector2d(cos(lgmath::so3::rot2vec(T_wr.C_ba())(2)),
-                    sin(lgmath::so3::rot2vec(T_wr.C_ba())(2)) );
-    // Calculate the 2D vector from the current segment to the next
-    
     //Handle end of path exceptions
     if(best_sid == 0){
       dir = findDirection(T_wr, chain, best_sid, best_sid + 1);
@@ -162,7 +157,6 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
     unsigned best_sid = sid_start;
     const unsigned end_sid = std::min(sid_start + 20 + 1,
                                     unsigned(chain->size()));
-    bool direction_switch = false;
 
     // Explicit casting to avoid numerical underflow when near the beginning of
     // the chain
@@ -185,7 +179,6 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
       
     }
 
-    auto dir = tactic::Direction::Unknown;
     //Handle end of path exceptions
     if(best_sid == 0)
       return tactic::SegmentInfo(best_sid, best_sid + 1);
@@ -301,6 +294,7 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
     unsigned last_sid = chain->trunkSequenceId();
     auto last_tf = chain->T_trunk_target(last_sid);
+    auto last_dir = last_tf.vec().head<3>();
 
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& p_target : rolled_out_p) {
@@ -318,28 +312,28 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
       barrier_q_max.push_back((1-interp) * width1 + interp * width2);
       barrier_q_min.push_back(-(1-interp) * width1 - interp * width2);
 
-      // Detect a direction switch, as this is not possible (it appears) in the p_rollout version of FindClosestSegment
+      // Detect a direction switch, as the switch may occur within a path segment. This gives us a better resolution
+      // For the actual path
       if (closestSegment.start_sid < chain->size() - 1) {
-        Eigen::Matrix<double, 6, 1> vec_prev_cur = last_tf.vec(); 
-        Eigen::Matrix<double, 6, 1> vec_cur_next = interpTf.vec();
-        // + means they are in the same direction (note the negative at the front
-        // to invert one of them)
-        double r_dot = vec_prev_cur.head<3>().dot(vec_cur_next.head<3>());
-        // + means they are in the same direction
-        double C_dot = vec_prev_cur.tail<3>().dot(vec_cur_next.tail<3>());
-        // combine the translation and rotation components using the angle weight
-        double T_dot = r_dot + 0.25 * C_dot;
-        // If this is negative, they are in the 'opposite direction', and we're at
+        Eigen::Matrix<double, 6, 1> vec_prev = last_tf.vec(); 
+        Eigen::Matrix<double, 6, 1> vec_curr = interpTf.vec();
+
+        // Get the translation component between our node and the last node
+        auto curr_dir = vec_curr.head<3>() - vec_prev.head<3>();
+
+        // Check if our last and current translations are in opposing directions
+        auto T_dot = curr_dir.dot(last_dir);
+        last_dir = curr_dir;
         // a cusp
         if (T_dot < 0) {
           CLOG(DEBUG, "cbit.debug") << "Direction switch ahead break";
           direction_switch = true;
+          tracking_reference_poses.pop_back();
           break;
         }
       }
       last_sid = closestSegment.start_sid;
       last_tf = interpTf;
-
     }
 
     if (direction_switch && tracking_reference_poses.size() != rolled_out_p.size()){

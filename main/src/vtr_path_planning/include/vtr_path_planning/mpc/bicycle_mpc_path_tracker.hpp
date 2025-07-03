@@ -102,7 +102,6 @@ class BicycleMPCPathTracker : public BasePathPlanner {
 
   VisualizationUtils::Ptr vis_;  
 
-
 };
 
 }  // namespace path_planning
