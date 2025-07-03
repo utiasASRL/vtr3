@@ -4,22 +4,20 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - navigation
+      #- navigation
       - radar.pipeline
       # - navigation.sensor_input
       - radar.online_converter
       - radar.pc_extractor
       - radar.odometry_icp
-      # - radar.odometry_gyro
-      # - radar.odometry_preintegration
-      # - radar.localization_icp
+      - radar.localization_icp
       # - tactic
       # - tactic.pipeline
-      # - tactic.module
+      - tactic.module
       # - mpc.debug
       # - cbit.control
-      - mission.state_machine
-      - mission.server
+      #- mission.state_machine
+      #- mission.server
     robot_frame: w200_0066_base_link #w200_0066_base_link
     env_info_topic: env_info
     radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
@@ -66,8 +64,6 @@
         - extraction
         - filtering
       odometry:
-        #        - preintegration
-#- gyro # you can turn off gyro and preintegration here
         - icp
         - mapping
         - vertex_test
@@ -83,11 +79,11 @@
     preprocessing:
       conversion:
         type: radar.online_converter
-        radar_resolution: 0.161231
+        radar_resolution: 0.044
         encoder_bin_size: 16000 # encoder bin size
       extraction:
         type: radar.pc_extractor
-        radar_resolution: 0.161231 # 0307827  # RAS3 0.161231 #0.044
+        radar_resolution: 0.044 # 0307827  # RAS3 0.161231 #0.044
         detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 2.0 # mininum detection distance
         maxr: 80.0 # maximum detection distance
@@ -96,8 +92,8 @@
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
         range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
         kstrongest:
-          kstrong: 3 # k-strongest per azimuth to retain was 12
-          static_threshold: 0.4
+          kstrong: 4 # k-strongest per azimuth to retain was 12
+          static_threshold: 0.3
         cen2018:
           zq: 2.5
           sigma: 8
