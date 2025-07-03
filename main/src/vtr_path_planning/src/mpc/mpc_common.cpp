@@ -162,6 +162,7 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
     unsigned best_sid = sid_start;
     const unsigned end_sid = std::min(sid_start + 20 + 1,
                                     unsigned(chain->size()));
+    bool direction_switch = false;
 
     // Explicit casting to avoid numerical underflow when near the beginning of
     // the chain
@@ -181,6 +182,7 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
         best_distance = distance;
         best_sid = unsigned(path_it);
       }
+      
     }
 
     auto dir = tactic::Direction::Unknown;
@@ -293,16 +295,17 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
     // Initialize vectors storing the barrier values:
     std::vector<double> barrier_q_max;
     std::vector<double> barrier_q_min;
+    // Flag to indicate we need to fill the back of the vector
+    bool direction_switch = false;
 
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
-
     unsigned last_sid = chain->trunkSequenceId();
+    auto last_tf = chain->T_trunk_target(last_sid);
 
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& p_target : rolled_out_p) {
       auto closestSegment = findClosestSegment(p_target, chain, last_sid);
-      last_sid = closestSegment.start_sid;
-
+      
       double interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
       auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
 
@@ -314,6 +317,39 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
       auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.end_sid));
       barrier_q_max.push_back((1-interp) * width1 + interp * width2);
       barrier_q_min.push_back(-(1-interp) * width1 - interp * width2);
+
+      // Detect a direction switch, as this is not possible (it appears) in the p_rollout version of FindClosestSegment
+      if (closestSegment.start_sid < chain->size() - 1) {
+        Eigen::Matrix<double, 6, 1> vec_prev_cur = last_tf.vec(); 
+        Eigen::Matrix<double, 6, 1> vec_cur_next = interpTf.vec();
+        // + means they are in the same direction (note the negative at the front
+        // to invert one of them)
+        double r_dot = vec_prev_cur.head<3>().dot(vec_cur_next.head<3>());
+        // + means they are in the same direction
+        double C_dot = vec_prev_cur.tail<3>().dot(vec_cur_next.tail<3>());
+        // combine the translation and rotation components using the angle weight
+        double T_dot = r_dot + 0.25 * C_dot;
+        // If this is negative, they are in the 'opposite direction', and we're at
+        // a cusp
+        if (T_dot < 0) {
+          CLOG(DEBUG, "cbit.debug") << "Direction switch ahead break";
+          direction_switch = true;
+          break;
+        }
+      }
+      last_sid = closestSegment.start_sid;
+      last_tf = interpTf;
+
+    }
+
+    if (direction_switch && tracking_reference_poses.size() != rolled_out_p.size()){
+      CLOG(INFO, "cbit.debug") << "Direction switch detected, but not all poses were filled. Filling the back of the vector with the last pose.";
+      // Fill the back of the vector with the last pose
+      for (size_t i = tracking_reference_poses.size(); i < rolled_out_p.size(); ++i) {
+        tracking_reference_poses.push_back(tracking_reference_poses.back());
+        barrier_q_max.push_back(barrier_q_max.back());
+        barrier_q_min.push_back(barrier_q_min.back());
+      }
     }
 
     return {tracking_reference_poses, barrier_q_max, barrier_q_min};
@@ -324,5 +360,4 @@ lgmath::se3::Transformation interpolatedPose(double p, const tactic::Localizatio
   double interp = std::clamp((p - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
   return interpolatePoses(interp, chain->pose(closestSegment.end_sid), chain->pose(closestSegment.end_sid));
 }
-
 }
