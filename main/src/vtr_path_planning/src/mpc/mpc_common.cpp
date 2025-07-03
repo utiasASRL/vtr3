@@ -68,7 +68,6 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
     unsigned best_sid = sid_start;
     const unsigned end_sid = std::min(sid_start + 20 + 1,
                                     unsigned(chain->size()));
-
     // Explicit casting to avoid numerical underflow when near the beginning of
     // the chain
     const unsigned begin_sid = unsigned(std::max(int(sid_start) - 5, 0));
@@ -116,7 +115,7 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
 
 
     // Assume forward at end of path
-    auto dir = tactic::Direction::Forward;
+    auto dir = tactic::Direction::Unknown;
 
     // Unit vector in the current heading direction in a 2D plane
     auto unit_vec = Eigen::Vector2d(cos(lgmath::so3::rot2vec(T_wr.C_ba())(2)),
@@ -126,23 +125,11 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
 
     //Handle end of path exceptions
     if(best_sid == 0){
-      auto dir_vector = (chain->pose(best_sid + 1).r_ab_inb() - chain->pose(best_sid).r_ab_inb()).head<2>();
-      if (unit_vec.dot(dir_vector) < 0){
-        dir = tactic::Direction::Backward;
-      }
-      else {
-        dir = tactic::Direction::Forward;
-      }
+      dir = findDirection(T_wr, chain, best_sid, best_sid + 1);
       return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
     }
     if(best_sid == chain->size() - 1){
-      auto dir_vector = (chain->pose(best_sid).r_ab_inb() - chain->pose(best_sid-1).r_ab_inb()).head<2>();
-      if (unit_vec.dot(dir_vector) < 0){
-        dir = tactic::Direction::Backward;
-      }
-      else {
-        dir = tactic::Direction::Forward;
-      }
+      dir = findDirection(T_wr, chain, best_sid - 1, best_sid);
       return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
     }
 
@@ -150,23 +137,11 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
     auto next_dir = (chain->pose(best_sid).inverse() * chain->pose(best_sid + 1)).r_ab_inb();
 
     if(curr_dir.dot(next_dir) > 0){
-      auto dir_vector = (chain->pose(best_sid + 1).r_ab_inb() - chain->pose(best_sid).r_ab_inb()).head<2>();
-      if (unit_vec.dot(dir_vector) < 0){
-        dir = tactic::Direction::Backward;
-      }
-      else {
-        dir = tactic::Direction::Forward;
-      }
+      dir = findDirection(T_wr, chain, best_sid, best_sid + 1);
       return std::make_pair(dir, std::make_pair(best_sid, best_sid + 1));
     }
-    else{
-      auto dir_vector = (chain->pose(best_sid).r_ab_inb() - chain->pose(best_sid-1).r_ab_inb()).head<2>();
-      if (unit_vec.dot(dir_vector) < 0){
-        dir = tactic::Direction::Backward;
-      }
-      else {
-        dir = tactic::Direction::Forward;
-      }
+    else {
+      dir = findDirection(T_wr, chain, best_sid - 1, best_sid);
       return std::make_pair(dir, std::make_pair(best_sid - 1, best_sid));
     }
   }
