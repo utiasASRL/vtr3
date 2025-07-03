@@ -90,16 +90,18 @@ enum class Direction : uint {
   Unknown = 2 // Unknown, unimportant, uninitialized direction
 };
 
-/*struct Segment {
+struct SegmentInfo {
   Direction dir = Direction::Unknown; 
-  std::pair<unsigned, unsigned> sid; // Start and end sequence ids of the segment
+  unsigned start_sid = 0;
+  unsigned end_sid = 0;   
+  bool direction_switch = false; 
 
-  Segment() = default;
-  Segment(Direction d, std::pair<unsigned, unsigned> s) : dir(d), sid(s) {}
-  Segment(unsigned start_sid, unsigned end_sid)
-      : dir(Direction::Forward), sid(std::make_pair(start_sid, end_sid)) {}
+  SegmentInfo(Direction d, const unsigned start_sid, const unsigned end_sid)
+      : dir(d), start_sid(start_sid), end_sid(end_sid) {}
+  SegmentInfo(const unsigned start_sid, const unsigned end_sid)
+      : dir(Direction::Unknown), start_sid(start_sid), end_sid(end_sid) {}
 };
-*/
+
 }  // namespace tactic
 }  // namespace vtr
 

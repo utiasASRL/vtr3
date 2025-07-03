@@ -103,10 +103,9 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
     std::vector<lgmath::se3::Transformation> best_pose(leader_world_poses.size());
 
     for(double p = robot_p; p < leader_p_values.back(); p += 0.02) {
-      Segment directionClosestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
-      auto closestSegment = directionClosestSegment.second;
-      double interp = std::clamp((p - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
-      lgmath::se3::Transformation pose = interpolatePoses(interp, chain->pose(closestSegment.first), chain->pose(closestSegment.second));
+      auto closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
+      double interp = std::clamp((p - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+      lgmath::se3::Transformation pose = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
 
       
       for (uint i = 0; i < leader_world_poses.size(); i++){
@@ -120,8 +119,8 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
           if (fabs(dist - target_distance) < best_distance[i]) {
             best_distance[i] = fabs(dist - target_distance);
             best_pose[i] = pose;
-            auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.first));
-            auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.second));
+            auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.start_sid));
+            auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.end_sid));
             best_width[i] = (1-interp) * width1 + interp * width2;
           }
         }
