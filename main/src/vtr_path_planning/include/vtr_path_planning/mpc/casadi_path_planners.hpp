@@ -29,6 +29,15 @@ class CasadiMPC {
 
     struct Config {
       PTR_TYPEDEFS(Config);
+      std::vector<casadi::DM> reference_poses;
+      std::vector<double> up_barrier_q;
+      std::vector<double> low_barrier_q;
+      static constexpr int nStates = 3;
+      static constexpr int nControl = 2;
+      static constexpr int N = 15;
+      casadi::DM T0{nStates, 1};
+      double VF = 0.0;
+      static constexpr double DT = 0.25;
 
       virtual ~Config() {};  // for polymorphism
     };
