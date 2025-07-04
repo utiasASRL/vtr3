@@ -77,7 +77,6 @@ class BaseMPCPathTracker : public BasePathPlanner {
   virtual casadi::DMDict callSolver(CasadiMPC::Config::Ptr config) {throw std::runtime_error("BaseMPCPathTracker::callSolver must be implemented in a subclass.");};
 
  private: 
-  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BaseMPCPathTracker);
 
   // Store the previously applied velocity and a sliding window history of MPC results
   Eigen::Vector2d applied_vel_;

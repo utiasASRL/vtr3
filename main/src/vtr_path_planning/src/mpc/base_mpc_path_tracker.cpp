@@ -24,14 +24,12 @@
 #include <vtr_path_planning/cbit/utils.hpp>
 
 namespace vtr::path_planning {
-
 namespace {
-Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim,
-                            double w_lim) {
-  return {std::clamp(applied_vel(0), -v_lim, v_lim),
-          std::clamp(applied_vel(1), -w_lim, w_lim)};
+// Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
+Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim) {
+  return {std::clamp(applied_vel(0), -v_lim, v_lim), std::clamp(applied_vel(1), -w_lim, w_lim)};
 }
-}  // namespace
+}
 
 // Subclasses must implement their own Config::fromROS.
 auto BaseMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr&, const std::string&) -> Ptr {
