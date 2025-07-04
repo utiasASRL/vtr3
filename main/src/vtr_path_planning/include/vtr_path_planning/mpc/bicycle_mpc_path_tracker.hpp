@@ -20,7 +20,7 @@
 
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/types.hpp>
-#include <vtr_path_planning/base_path_planner.hpp>
+#include <vtr_path_planning/mpc/base_mpc_path_tracker.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
 
@@ -29,7 +29,7 @@
 namespace vtr {
 namespace path_planning {
 
-class BicycleMPCPathTracker : public BasePathPlanner {
+class BicycleMPCPathTracker : public BaseMPCPathTracker {
  public:
   PTR_TYPEDEFS(BicycleMPCPathTracker);
 
@@ -79,29 +79,22 @@ class BicycleMPCPathTracker : public BasePathPlanner {
 
   BicycleMPCPathTracker(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
-                 const tactic::GraphBase::Ptr& graph,
+                 const tactic::GraphBase::Ptr& graphonfi,
                  const Callback::Ptr& callback);
+
   ~BicycleMPCPathTracker() override;
 
  protected:
-  void initializeRoute(RobotState& robot_state);
-  Command computeCommand(RobotState& robot_state) override;
+  virtual CasadiMPC::Config::Ptr loadMPCConfig(
+      const bool isReversing) override;
+
+  virtual casadi::DMDict callSolver(CasadiMPC::Config::Ptr config) override;
 
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTracker);
 
   Config::ConstPtr config_;
   CasadiBicycleMPC solver_;
-
-  // Store the previously applied velocity and a sliding window history of MPC results
-  Eigen::Vector2d applied_vel_;
-  std::vector<Eigen::Vector2d> vel_history;
-  tactic::Timestamp prev_vel_stamp_;
-  RobotState::Ptr robot_state_;
-  Command computeCommand_(RobotState& robot_state);
-
-  VisualizationUtils::Ptr vis_;  
-
 };
 
 }  // namespace path_planning
