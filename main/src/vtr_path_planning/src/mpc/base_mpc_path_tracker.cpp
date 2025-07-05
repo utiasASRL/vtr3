@@ -43,11 +43,15 @@ BaseMPCPathTracker::BaseMPCPathTracker(const Config::ConstPtr& config,
     : BasePathPlanner(config, robot_state, graph, callback),
       base_config_(config),
       robot_state_{robot_state} {
+
+  CLOG(DEBUG, "cbit.control") << "Constructed base tracker";
+  auto a  = base_config_->command_history_length;
   applied_vel_ << 0, 0;
   vel_history.reserve(base_config_->command_history_length);
   for (int i = 0; i < base_config_->command_history_length; i++) {
     vel_history.push_back(applied_vel_);
   }
+  CLOG(DEBUG, "cbit.control") << "Constructed base tracker";
 
   vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
 }
@@ -144,13 +148,13 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   bool isReverse = (dir == tactic::Direction::Backward);
 
   // This is the only step that varies between the MPC implementations
-  auto mpcConfig = loadMPCConfig(isReverse);
+  auto mpcConfig = loadMPCConfig(isReverse, w_p_r_in_r, applied_vel_);
 
   lgmath::se3::Transformation T0 = T_p_r_extp;
+  mpcConfig->T0 = tf_to_global(T0);
 
   CLOG(DEBUG, "cbit.control")
       << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
-  mpcConfig->T0 = tf_to_global(T0);
   // Schedule speed based on path curvatures + other factors
   // TODO refactor to accept the chain and use the curvature of the links
   mpcConfig->VF = ScheduleSpeed(
@@ -180,6 +184,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   try {
     CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
     auto mpc_res = callSolver(mpcConfig);
+    CLOG(INFO, "cbit.control") << "Solver called";
 
     for (int i = 0; i < mpc_res["pose"].columns(); i++) {
       const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();

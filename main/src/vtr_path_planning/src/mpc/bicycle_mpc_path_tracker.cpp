@@ -49,7 +49,6 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
-  config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
   
   // MPC COST PARAMETERS
   config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
@@ -75,14 +74,15 @@ BicycleMPCPathTracker::BicycleMPCPathTracker(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const tactic::GraphBase::Ptr& graph,
                                const Callback::Ptr& callback)
-    : BaseMPCPathTracker(std::dynamic_pointer_cast<BaseMPCPathTracker::Config const>(config), robot_state, graph, callback), 
+    : BaseMPCPathTracker(config, robot_state, graph, callback), 
     config_(config), 
     solver_{config_->mpc_verbosity} {
+      CLOG(DEBUG, "cbit.control") << "Constructed Bicycle tracker";
 }
 
 BicycleMPCPathTracker::~BicycleMPCPathTracker() {}
 
-CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversing) {
+CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
   auto mpc_config = std::make_shared<CasadiBicycleMPC::Config>();
 
   if (isReversing) {
@@ -90,7 +90,6 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversi
   }
 
   // Set the MPC parameters based on the configuration
-  mpc_config->wheelbase = config_->turning_radius;
   mpc_config->VF = config_->forward_vel;
   mpc_config->vel_max(0) = config_->max_lin_vel;
   mpc_config->vel_max(1) = config_->max_ang_vel;
@@ -104,6 +103,7 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversi
   mpc_config->Acc_R1 = config_->racc1;
   mpc_config->Acc_R2 = config_->racc2;
   mpc_config->Q_f = config_->q_f;
+  mpc_config->previous_vel = {-w_p_r_in_r(0, 0), applied_vel(1)};
 
   return mpc_config;
 }

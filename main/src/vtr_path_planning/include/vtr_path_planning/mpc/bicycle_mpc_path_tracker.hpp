@@ -36,26 +36,10 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
   static constexpr auto static_name = "bicycle_mpc";
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
-  struct Config : public BasePathPlanner::Config {
+  struct Config : public BaseMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
 
-    // Speed Scheduler
-    double planar_curv_weight = 2.50;
-    double profile_curv_weight = 0.5; 
-    double eop_weight = 1.0;
-    double min_vel = 0.5;  
 
-    // MPC Configs
-    bool extrapolate_robot_pose = true;
-    bool mpc_verbosity = false;
-    double forward_vel = 0.75;
-    double max_lin_vel = 1.25;
-    double max_ang_vel = 0.75;
-    double max_lin_acc = 10.0;
-    double max_ang_acc = 10.0;
-    double robot_linear_velocity_scale = 1.0;
-    double robot_angular_velocity_scale = 1.0;
-    double turning_radius = 1.0;
 
     // MPC Costs
     double q_x = 0.0;
@@ -69,8 +53,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
 
     bool repeat_flipped = false;
 
-    // Misc
-    int command_history_length = 100;
 
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
@@ -79,14 +61,14 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
 
   BicycleMPCPathTracker(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
-                 const tactic::GraphBase::Ptr& graphonfi,
+                 const tactic::GraphBase::Ptr& graph,
                  const Callback::Ptr& callback);
 
   ~BicycleMPCPathTracker() override;
 
  protected:
   virtual CasadiMPC::Config::Ptr loadMPCConfig(
-      const bool isReversing) override;
+      const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
 
   virtual casadi::DMDict callSolver(CasadiMPC::Config::Ptr config) override;
 
