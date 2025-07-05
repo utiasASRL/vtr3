@@ -35,14 +35,17 @@ class CasadiMPC {
       std::vector<casadi::DM> reference_poses;
       std::vector<double> up_barrier_q;
       std::vector<double> low_barrier_q;
-      static constexpr int nStates;
-      static constexpr int nControl;
-      static constexpr int N;
+      int nStates;
+      int nControl;
+      int N;
       double VF = 0.0;
-      static constexpr double DT;
+      DM T0{nStates, 1};
+      double DT;
       DM vel_max{nControl, 1};
+      DM previous_vel{nControl, 1};
 
-      Config(nStates = 3, nControl = 2, N = 15, DT = 0.25)
+
+      Config(const int States = 3, const int nControl = 2, const int N = 15, const double DT = 0.25)
           : nStates(nStates), nControl(nControl), N(N), DT(DT) {
       };
 
@@ -58,6 +61,10 @@ public:
 
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
+    double alpha = 0.0; // used for the unicycle model
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
@@ -85,6 +92,10 @@ public:
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     double turning_radius = 1; //m
+
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
@@ -111,8 +122,13 @@ public:
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
+    std::vector<DM> follower_reference_poses;
+    std::vector<DM> leader_reference_poses;
     double distance = 0.5;
     double distance_margin = 1.0;
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
@@ -139,7 +155,6 @@ public:
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
-    DM previous_vel{nControl, 1};
     double wheelbase = 0.55;
     // The below are passed to the Casadi solver as tunable parameters
     double Q_x = 0.0;
@@ -153,6 +168,11 @@ public:
     double ang_acc_max = 1.0;
     double Q_f = 0.0;
     bool reversing = false;
+    bool repeat_flipped = false;
+
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
   struct ReversingConfig : public CasadiMPC::Config {
@@ -171,6 +191,11 @@ public:
     double lin_acc_max = 1.0; // m/s^2
     double ang_acc_max = 1.0;
     double Q_f = 0.0;
+
+
+    ReversingConfig(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
@@ -205,6 +230,10 @@ public:
     double distance = 0.5;
     double distance_margin = 1.0;
     double Q_dist = 1.0;
+
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiBicycleMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
