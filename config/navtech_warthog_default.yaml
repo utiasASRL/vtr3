@@ -4,22 +4,20 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - navigation
+      #- navigation
       - radar.pipeline
       # - navigation.sensor_input
       - radar.online_converter
       - radar.pc_extractor
       - radar.odometry_icp
-      # - radar.odometry_gyro
-      # - radar.odometry_preintegration
-      # - radar.localization_icp
+      - radar.localization_icp
       # - tactic
       # - tactic.pipeline
-      # - tactic.module
+      - tactic.module
       # - mpc.debug
       # - cbit.control
-      - mission.state_machine
-      - mission.server
+      #- mission.state_machine
+      #- mission.server
     robot_frame: w200_0066_base_link #w200_0066_base_link
     env_info_topic: env_info
     radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
@@ -66,8 +64,6 @@
         - extraction
         - filtering
       odometry:
-        #        - preintegration
-#- gyro # you can turn off gyro and preintegration here
         - icp
         - mapping
         - vertex_test
@@ -100,8 +96,8 @@
           threshold2: 0.0
           threshold3: 0.25
         kstrongest:
-          kstrong: 3 # k-strongest per azimuth to retain was 12
-          static_threshold: 0.4
+          kstrong: 4 # k-strongest per azimuth to retain was 12
+          static_threshold: 0.3
         cen2018:
           zq: 2.5
           sigma: 8
