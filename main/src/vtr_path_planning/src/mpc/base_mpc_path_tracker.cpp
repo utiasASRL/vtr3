@@ -44,14 +44,11 @@ BaseMPCPathTracker::BaseMPCPathTracker(const Config::ConstPtr& config,
       base_config_(config),
       robot_state_{robot_state} {
 
-  CLOG(DEBUG, "cbit.control") << "Constructed base tracker";
-  auto a  = base_config_->command_history_length;
   applied_vel_ << 0, 0;
   vel_history.reserve(base_config_->command_history_length);
   for (int i = 0; i < base_config_->command_history_length; i++) {
     vel_history.push_back(applied_vel_);
   }
-  CLOG(DEBUG, "cbit.control") << "Constructed base tracker";
 
   vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
 }

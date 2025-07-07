@@ -39,8 +39,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
   struct Config : public BaseMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
 
-
-
     // MPC Costs
     double q_x = 0.0;
     double q_y = 0.0;
@@ -52,8 +50,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     double q_f = 0.0;
 
     bool repeat_flipped = false;
-
-
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
