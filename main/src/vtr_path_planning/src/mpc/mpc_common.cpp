@@ -329,6 +329,8 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
           CLOG(DEBUG, "cbit.debug") << "Direction switch ahead break";
           direction_switch = true;
           tracking_reference_poses.pop_back();
+          barrier_q_max.pop_back();
+          barrier_q_min.pop_back();
           break;
         }
       }
