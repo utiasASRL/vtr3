@@ -73,8 +73,8 @@ class BaseMPCPathTracker : public BasePathPlanner {
  protected:
   void initializeRoute(RobotState& robot_state);
   Command computeCommand(RobotState& robot_state) override;
-  virtual CasadiMPC::Config::Ptr loadMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {throw std::runtime_error("BaseMPCPathTracker::loadConfig must be implemented in a subclass.");};
-  virtual casadi::DMDict callSolver(CasadiMPC::Config::Ptr config) {throw std::runtime_error("BaseMPCPathTracker::callSolver must be implemented in a subclass.");};
+  virtual CasadiMPC::Config::Ptr loadMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel)=0;
+  virtual casadi::DMDict callSolver(CasadiMPC::Config::Ptr config) =0;
 
  private: 
 
