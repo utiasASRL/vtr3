@@ -160,8 +160,8 @@ public:
     // TODO add an automatic way to keep the code in sync
     double wheelbase = 0.55;
     // The below are passed to the Casadi solver as tunable parameters
-    double Q_x = 0.0;
-    double Q_y = 0.0;
+    double Q_lat = 0.0;
+    double Q_lon = 0.0;
     double Q_th = 0.0;
     double R1 = 0.0;
     double R2 = 0.0;
@@ -184,9 +184,6 @@ public:
     {"acceptable_obj_change_tol", 1e-6}
   });
 
-  void setReversing(const bool isReversing) {
-    _reversing = isReversing;
-  }
   std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf); 
 
 private:

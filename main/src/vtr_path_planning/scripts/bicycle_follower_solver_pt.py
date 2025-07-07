@@ -69,8 +69,8 @@ follower_ref_poses = ca.SX.sym('ref_poses_f', n_states*N)
 leader_ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
 measured_velo = ca.SX.sym('measured_velo', n_controls)
 
-Q_x = ca.SX.sym('Q_x', 1)
-Q_y = ca.SX.sym('Q_y', 1)
+Q_lat = ca.SX.sym('Q_lat', 1)
+Q_lon = ca.SX.sym('Q_lat', 1)
 Q_theta = ca.SX.sym('Q_theta', 1)
 R1 = ca.SX.sym('R1', 1)
 R2 = ca.SX.sym('R2', 1)
@@ -83,11 +83,11 @@ L = ca.SX.sym('wheel_base', 1)
 
 P = ca.vertcat(init_pose, follower_ref_poses, measured_velo,                # Base MPC
                 leader_ref_poses, d,                                      # Follower specific
-                L, Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f, Q_dist)    # Weights for tuning
+                L, Q_lat, Q_lon, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f, Q_dist)    # Weights for tuning
 
 
-# state weights matrix (Q_X, Q_Y)
-Q = ca.diagcat(Q_x, Q_y)
+# state weights matrix (Q_lat, Q_lon)
+Q = ca.diagcat(Q_lat, Q_lon)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
@@ -115,7 +115,7 @@ def calc_cost(ref, X, con, k, cost):
     theta_ref = follower_ref_poses[n_states*k + 2]
     e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
     e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
-    cost += Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
+    cost += Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
     cost += Q_dist * (ca.norm_2((X[:2, k+1] - leader_ref_poses[n_states*k:n_states*k + 2])) - d)**2
     return cost
 

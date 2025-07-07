@@ -40,14 +40,24 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     PTR_TYPEDEFS(Config);
 
     // MPC Costs
-    double q_x = 0.0;
-    double q_y = 0.0;
-    double q_th = 0.0;
-    double r1 = 0.0;
-    double r2 = 0.0;
-    double racc2 = 0.0;
-    double racc1 = 0.0;
-    double q_f = 0.0;
+    double f_q_lat = 0.0;
+    double f_q_lon = 0.0;
+    double f_q_th = 0.0;
+    double f_r1 = 0.0;
+    double f_r2 = 0.0;
+    double f_racc2 = 0.0;
+    double f_racc1 = 0.0;
+    double f_q_f = 0.0;
+
+    // MPC Costs
+    double r_q_lat = 0.0;
+    double r_q_lon = 0.0;
+    double r_q_th = 0.0;
+    double r_r1 = 0.0;
+    double r_r2 = 0.0;
+    double r_racc2 = 0.0;
+    double r_racc1 = 0.0;
+    double r_q_f = 0.0;
 
     bool repeat_flipped = false;
 

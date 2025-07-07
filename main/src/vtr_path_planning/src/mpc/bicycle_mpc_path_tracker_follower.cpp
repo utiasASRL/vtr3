@@ -68,16 +68,15 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
   config->wheelbase = node->declare_parameter<double>(prefix + ".mpc.wheelbase", config->wheelbase);
   
   // MPC COST PARAMETERS
-  config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
-  config->q_y = node->declare_parameter<double>(prefix + ".mpc.q_y", config->q_y);
-  config->q_th = node->declare_parameter<double>(prefix + ".mpc.q_th", config->q_th);
-  config->r1 = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
-  config->r2 = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
-  config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
-  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
-  config->q_f = node->declare_parameter<double>(prefix + ".mpc.q_f", config->q_f);
-  config->q_dist = node->declare_parameter<double>(prefix + ".mpc.q_dist", config->q_dist);
-  CLOG(INFO, "cbit.control") << "The config is: Q_x " << config->q_x << " q_y: " << config->q_y<< " q_th: " << config->q_th<< " r1: " << config->r1<< " r2: " << config->r2<< "acc_r1: " << config->racc1<< " acc_r2: " << config->racc2;
+  config->q_lat = node->declare_parameter<double>(prefix + ".mpc.forward.q_lat", config->q_lat);
+  config->q_lat = node->declare_parameter<double>(prefix + ".mpc.forward.q_on", config->q_lon);
+  config->q_th = node->declare_parameter<double>(prefix + ".mpc.forward.q_th", config->q_th);
+  config->r1 = node->declare_parameter<double>(prefix + ".mpc.forward.r1", config->r1);
+  config->r2 = node->declare_parameter<double>(prefix + ".mpc.forward.r2", config->r2);
+  config->racc1 = node->declare_parameter<double>(prefix + ".mpc.forward.racc1", config->racc1);
+  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.forward.racc2", config->racc2);
+  config->q_f = node->declare_parameter<double>(prefix + ".mpc.forward.q_f", config->q_f);
+  config->q_dist = node->declare_parameter<double>(prefix + ".mpc.forward.q_dist", config->q_dist);
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -181,8 +180,8 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   CasadiBicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
   mpcConfig.wheelbase = config_->wheelbase;
-  mpcConfig.Q_x     = config_->q_x;
-  mpcConfig.Q_y     = config_->q_y;
+  mpcConfig.Q_lat     = config_->q_lat;
+  mpcConfig.Q_lon     = config_->q_lon;
   mpcConfig.Q_th    = config_->q_th;
   mpcConfig.R1      = config_->r1;
   mpcConfig.R2      = config_->r2;

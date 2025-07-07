@@ -70,8 +70,8 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
     double wheelbase = 0.5;
 
     // MPC Costs
-    double q_x = 0.0;
-    double q_y = 0.0;
+    double q_lat = 0.0;
+    double q_lon = 0.0;
     double q_th = 0.0;
     double r1 = 0.0;
     double r2 = 0.0;

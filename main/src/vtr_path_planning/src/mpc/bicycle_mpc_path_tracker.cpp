@@ -49,19 +49,28 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+  config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
   
   // MPC COST PARAMETERS
-  config->q_x = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
-  config->q_y = node->declare_parameter<double>(prefix + ".mpc.q_y", config->q_y);
-  config->q_th = node->declare_parameter<double>(prefix + ".mpc.q_th", config->q_th);
-  config->r1 = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
-  config->r2 = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
-  config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
-  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
-  config->q_f = node->declare_parameter<double>(prefix + ".mpc.q_f", config->q_f);
-  config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
-  CLOG(INFO, "cbit.control") << "The config is: Q_x " << config->q_x << " q_y: " << config->q_y<< " q_th: " << config->q_th<< " r1: " << config->r1<< " r2: " << config->r2<< "acc_r1: " << config->racc1<< " acc_r2: " << config->racc2;
+  // We have one set for reverse, and one for forward, driving
+  config->f_q_lat = node->declare_parameter<double>(prefix + ".mpc.forward.q_x", config->f_q_lat);
+  config->f_q_lon = node->declare_parameter<double>(prefix + ".mpc.forward.q_y", config->f_q_lon);
+  config->f_q_th = node->declare_parameter<double>(prefix + ".mpc.forward.q_th", config->f_q_th);
+  config->f_r1 = node->declare_parameter<double>(prefix + ".mpc.forward.r1", config->f_r1);
+  config->f_r2 = node->declare_parameter<double>(prefix + ".mpc.forward.r2", config->f_r2);
+  config->f_racc1 = node->declare_parameter<double>(prefix + ".mpc.forward.racc1", config->f_racc1);
+  config->f_racc2 = node->declare_parameter<double>(prefix + ".mpc.forward.racc2", config->f_racc2);
+  config->f_q_f = node->declare_parameter<double>(prefix + ".mpc.forward.q_f", config->f_q_f);
 
+  // We have one set for reverse, and one for forward, driving
+  config->r_q_lat = node->declare_parameter<double>(prefix + ".mpc.backward.q_x", config->r_q_lat);
+  config->r_q_lon = node->declare_parameter<double>(prefix + ".mpc.backward.q_y", config->r_q_lon);
+  config->r_q_th = node->declare_parameter<double>(prefix + ".mpc.backward.q_th", config->r_q_th);
+  config->r_r1 = node->declare_parameter<double>(prefix + ".mpc.backward.r1", config->r_r1);
+  config->r_r2 = node->declare_parameter<double>(prefix + ".mpc.backward.r2", config->r_r2);
+  config->r_racc1 = node->declare_parameter<double>(prefix + ".mpc.backward.racc1", config->r_racc1);
+  config->r_racc2 = node->declare_parameter<double>(prefix + ".mpc.backward.racc2", config->r_racc2);
+  config->r_q_f = node->declare_parameter<double>(prefix + ".mpc.backward.q_f", config->r_q_f);
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -85,25 +94,37 @@ BicycleMPCPathTracker::~BicycleMPCPathTracker() {}
 CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
   auto mpc_config = std::make_shared<CasadiBicycleMPC::Config>();
 
-  if (isReversing) {
-    solver_.setReversing(true);
-  }
-
   // Set the MPC parameters based on the configuration
   mpc_config->VF = config_->forward_vel;
   mpc_config->vel_max(0) = config_->max_lin_vel;
   mpc_config->vel_max(1) = config_->max_ang_vel;
-
-  // Set the MPC costs
-  mpc_config->Q_x = config_->q_x;
-  mpc_config->Q_y = config_->q_y;
-  mpc_config->Q_th = config_->q_th;
-  mpc_config->R1 = config_->r1;
-  mpc_config->R2 = config_->r2;
-  mpc_config->Acc_R1 = config_->racc1;
-  mpc_config->Acc_R2 = config_->racc2;
-  mpc_config->Q_f = config_->q_f;
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), applied_vel(1)};
+
+  if (isReversing) {
+    // Set the MPC costs
+    mpc_config->Q_lat = config_->r_q_lat;
+    mpc_config->Q_lon = config_->r_q_lon;
+    mpc_config->Q_th = config_->r_q_th;
+    mpc_config->R1 = config_->r_r1;
+    mpc_config->R2 = config_->r_r2;
+    mpc_config->Acc_R1 = config_->r_racc1;
+    mpc_config->Acc_R2 = config_->r_racc2;
+    mpc_config->Q_f = config_->r_q_f;
+    mpc_config->reversing = true;
+  }
+  else {
+    // Set the MPC costs
+    mpc_config->Q_lat = config_->f_q_lat;
+    mpc_config->Q_lon = config_->f_q_lon;
+    mpc_config->Q_th = config_->f_q_th;
+    mpc_config->R1 = config_->f_r1;
+    mpc_config->R2 = config_->f_r2;
+    mpc_config->Acc_R1 = config_->f_racc1;
+    mpc_config->Acc_R2 = config_->f_racc2;
+    mpc_config->Q_f = config_->f_q_f;
+    mpc_config->reversing = false;
+
+  }
 
   return mpc_config;
 }

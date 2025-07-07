@@ -269,7 +269,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["ubx"].set(DM::inf(), true, Slice(0, mpcConf.nStates*(mpcConf.N+1)));
   
   // Velocity constraints
-  if (_reversing){
+  if (mpcConf.reversing){
     arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
     arg["lbx"].set(-mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   }
@@ -316,8 +316,8 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
   arg["p"] = vertcat(arg["p"], DM(mpcConf.wheelbase));
   // Now add the tunable costs
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lat));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lon));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_th));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
@@ -424,8 +424,8 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
   arg["p"] = vertcat(arg["p"], DM(mpcConf.distance));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.wheelbase));
   // Now add the tunable costs
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lat));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lon));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_th));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
