@@ -39,14 +39,17 @@ class CasadiMPC {
       int nControl;
       int N;
       double VF = 0.0;
-      DM T0{nStates, 1};
+      DM T0;
       double DT;
-      DM vel_max{nControl, 1};
-      DM previous_vel{nControl, 1};
+      DM vel_max;
+      DM previous_vel;
 
 
-      Config(const int States = 3, const int nControl = 2, const int N = 15, const double DT = 0.25)
+      Config(const int nStates = 3, const int nControl = 2, const int N = 15, const double DT = 0.25)
           : nStates(nStates), nControl(nControl), N(N), DT(DT) {
+            T0 = DM::zeros(nStates, 1);
+            vel_max = DM::zeros(nControl, 1);
+            previous_vel = DM::zeros(nControl, 1);
       };
 
       virtual ~Config() {};  // for polymorphism
@@ -174,30 +177,6 @@ public:
         : CasadiMPC::Config(nStates, nControl, N, DT) {
     };
   };
-
-  struct ReversingConfig : public CasadiMPC::Config {
-    PTR_TYPEDEFS(Config);
-    // These values are defined the python code and exported
-    // TODO add an automatic way to keep the code in sync
-    double wheelbase = 0.5;
-    // The below are passed to the Casadi solver as tunable parameters
-    double Q_x = 0.0;
-    double Q_y = 0.0;
-    double Q_th = 0.0;
-    double R1 = 0.0;
-    double R2 = 0.0;
-    double Acc_R1 = 0.0;
-    double Acc_R2 = 0.0;
-    double lin_acc_max = 1.0; // m/s^2
-    double ang_acc_max = 1.0;
-    double Q_f = 0.0;
-
-
-    ReversingConfig(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
-        : CasadiMPC::Config(nStates, nControl, N, DT) {
-    };
-  };
-
 
   CasadiBicycleMPC(bool verbose=false, casadi::Dict iopt_config={ 
     { "max_iter", 2000 }, 
