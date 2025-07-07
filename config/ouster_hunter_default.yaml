@@ -260,11 +260,21 @@
         wheelbase: 0.55
 
         # Tunable controller parameters(Currently only works for the Bicycle)
-        q_x: 10.0
-        q_y: 4.0
-        q_th: 7.0
-        r1: 0.0
-        r2: 3.0
-        racc1: 4.0
-        racc2: 5.0
-        q_f: 1.0 # Multiplier for terminal cost
+        forward:
+          q_lat: 10.0
+          q_lon: 4.0
+          q_th: 7.0
+          r1: 0.0
+          r2: 3.0
+          racc1: 4.0
+          racc2: 5.0
+          q_f: 1.0 # Multiplier for terminal cost
+        reverse:
+          q_lat: 10.0
+          q_lon: 4.0
+          q_th: 7.0
+          r1: 0.0
+          r2: 3.0
+          racc1: 4.0
+          racc2: 5.0
+          q_f: 1.0 # Multiplier for terminal cost
