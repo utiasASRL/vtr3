@@ -63,14 +63,14 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->f_q_f = node->declare_parameter<double>(prefix + ".mpc.forward.q_f", config->f_q_f);
 
   // We have one set for reverse, and one for forward, driving
-  config->r_q_lat = node->declare_parameter<double>(prefix + ".mpc.backward.q_lat", config->r_q_lat);
-  config->r_q_lon = node->declare_parameter<double>(prefix + ".mpc.backward.q_lon", config->r_q_lon);
-  config->r_q_th = node->declare_parameter<double>(prefix + ".mpc.backward.q_th", config->r_q_th);
-  config->r_r1 = node->declare_parameter<double>(prefix + ".mpc.backward.r1", config->r_r1);
-  config->r_r2 = node->declare_parameter<double>(prefix + ".mpc.backward.r2", config->r_r2);
-  config->r_racc1 = node->declare_parameter<double>(prefix + ".mpc.backward.racc1", config->r_racc1);
-  config->r_racc2 = node->declare_parameter<double>(prefix + ".mpc.backward.racc2", config->r_racc2);
-  config->r_q_f = node->declare_parameter<double>(prefix + ".mpc.backward.q_f", config->r_q_f);
+  config->r_q_lat = node->declare_parameter<double>(prefix + ".mpc.reverse.q_lat", config->r_q_lat);
+  config->r_q_lon = node->declare_parameter<double>(prefix + ".mpc.reverse.q_lon", config->r_q_lon);
+  config->r_q_th = node->declare_parameter<double>(prefix + ".mpc.reverse.q_th", config->r_q_th);
+  config->r_r1 = node->declare_parameter<double>(prefix + ".mpc.reverse.r1", config->r_r1);
+  config->r_r2 = node->declare_parameter<double>(prefix + ".mpc.reverse.r2", config->r_r2);
+  config->r_racc1 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc1", config->r_racc1);
+  config->r_racc2 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc2", config->r_racc2);
+  config->r_q_f = node->declare_parameter<double>(prefix + ".mpc.reverse.q_f", config->r_q_f);
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -123,7 +123,6 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversi
     mpc_config->Acc_R2 = config_->f_racc2;
     mpc_config->Q_f = config_->f_q_f;
     mpc_config->reversing = false;
-
   }
 
   return mpc_config;
