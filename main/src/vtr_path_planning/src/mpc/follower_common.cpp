@@ -136,5 +136,4 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
   return follower_reference;
 }
 
-
 } // namespace vtr::path_planning
