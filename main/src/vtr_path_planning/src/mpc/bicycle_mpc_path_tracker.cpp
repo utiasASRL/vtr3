@@ -61,6 +61,15 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->f_racc1 = node->declare_parameter<double>(prefix + ".mpc.forward.racc1", config->f_racc1);
   config->f_racc2 = node->declare_parameter<double>(prefix + ".mpc.forward.racc2", config->f_racc2);
   config->f_q_f = node->declare_parameter<double>(prefix + ".mpc.forward.q_f", config->f_q_f);
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
+      << "q_lat: " << config->f_q_lat
+      << ", q_lon: " << config->f_q_lon
+      << ", q_th: " << config->f_q_th
+      << ", r1: " << config->f_r1
+      << ", r2: " << config->f_r2
+      << ", racc1: " << config->f_racc1
+      << ", racc2: " << config->f_racc2
+      << ", q_f: " << config->f_q_f;
 
   // We have one set for reverse, and one for forward, driving
   config->r_q_lat = node->declare_parameter<double>(prefix + ".mpc.reverse.q_lat", config->r_q_lat);
@@ -71,6 +80,15 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->r_racc1 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc1", config->r_racc1);
   config->r_racc2 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc2", config->r_racc2);
   config->r_q_f = node->declare_parameter<double>(prefix + ".mpc.reverse.q_f", config->r_q_f);
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse costs: "
+      << "q_lat: " << config->r_q_lat
+      << ", q_lon: " << config->r_q_lon
+      << ", q_th: " << config->r_q_th
+      << ", r1: " << config->r_r1
+      << ", r2: " << config->r_r2
+      << ", racc1: " << config->r_racc1
+      << ", racc2: " << config->r_racc2
+      << ", q_f: " << config->r_q_f;
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);

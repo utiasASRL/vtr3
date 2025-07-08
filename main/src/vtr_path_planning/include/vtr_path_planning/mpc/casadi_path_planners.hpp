@@ -43,7 +43,7 @@ class CasadiMPC {
       double DT;
       DM vel_max;
       DM previous_vel;
-
+      std::vector<DM> cost_weights;
 
       Config(const int nStates = 3, const int nControl = 2, const int N = 15, const double DT = 0.25)
           : nStates(nStates), nControl(nControl), N(N), DT(DT) {

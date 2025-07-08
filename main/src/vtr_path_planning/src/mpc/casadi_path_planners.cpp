@@ -74,6 +74,7 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPC::solve(const CasadiMPC::Conf
           mpcConf.reference_poses.at(i));
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
+  
 
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
@@ -314,6 +315,12 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
           mpcConf.reference_poses.at(i));
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
+
+  for(int i = 0; i < mpcConf.N; i++) {
+      arg["p"] = vertcat(arg["p"],
+          mpcConf.cost_weights.at(i));
+  }
+
   arg["p"] = vertcat(arg["p"], DM(mpcConf.wheelbase));
   // Now add the tunable costs
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lat));
