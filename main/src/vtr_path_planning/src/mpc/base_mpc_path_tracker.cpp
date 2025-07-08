@@ -165,15 +165,34 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   }
 
   mpcConfig->reference_poses.clear();
-  auto referenceInfo = generateHomotopyReference(p_rollout, chain);
+  auto referenceInfo = generateHomotopyReference(p_rollout, chain, T_w_p*T_p_r_extp);
   for (const auto& Tf : referenceInfo.poses) {
     mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() * Tf));
+  }
+
+  // Detect end of path and set the corresponding cost weight vector element to zero
+  mpcConfig->cost_weights.clear();
+  mpcConfig->cost_weights.push_back(1.0);
+  auto last_pose = (T_w_p.inverse()*referenceInfo.poses[0]).vec();
+  int end_ind = -1;
+  auto weighting = 1.0;
+  for (int i = 1; i < mpcConfig->N; i++) {
+    auto curr_pose = (T_w_p.inverse() * referenceInfo.poses[i]).vec();
+    auto dist = (curr_pose - last_pose).norm();
+    if (end_ind < 0 && dist < base_config_->end_of_path_distance_threshold) {
+      end_ind = i;
+      weighting = (float) end_ind / mpcConfig->N;
+      CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
+    }
+      
+    mpcConfig->cost_weights.push_back(weighting);
+    last_pose = curr_pose;
   }
 
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
   mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
 
-  // Create and solve the casadi optimization problem
+  // Create and solve theccasadi optimization problem
   std::vector<lgmath::se3::Transformation> mpc_poses;
   // return the computed velocity command for the first time step
   Command command;

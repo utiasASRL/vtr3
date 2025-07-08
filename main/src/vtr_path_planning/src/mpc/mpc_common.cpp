@@ -176,6 +176,8 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
         best_distance = distance;
         best_sid = unsigned(path_it);
       }
+
+
       
     }
 
@@ -293,15 +295,96 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
 
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
     unsigned last_sid = chain->trunkSequenceId();
-    auto last_tf = chain->T_trunk_target(last_sid);
-    auto last_dir = last_tf.vec().head<3>();
-
+    // Use pose the first pose as the initial last pose
+    auto closestSegment = findClosestSegment(rolled_out_p.at(0), chain, last_sid);
+    
+    double interp = std::clamp((rolled_out_p.at(0) - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+    auto last_tf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
+    auto last_dir = last_tf.vec().head<2>();
+    
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& p_target : rolled_out_p) {
-      auto closestSegment = findClosestSegment(p_target, chain, last_sid);
-      
-      double interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+      closestSegment = findClosestSegment(p_target, chain, last_sid);
+
+      interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
       auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
+      CLOG(DEBUG, "cbit.debug") << "Interpolated pose at p_target: " << p_target << " is " << interpTf.vec();
+
+      // add to measurement vector
+      tracking_reference_poses.push_back(interpTf);
+
+      // Find the corresponding left and right barrier q values to pass to the mpc
+      auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.start_sid));
+      auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.end_sid));
+      barrier_q_max.push_back((1-interp) * width1 + interp * width2);
+      barrier_q_min.push_back(-(1-interp) * width1 - interp * width2);
+
+
+      // Detect a direction switch, as the switch may occur within a path segment. This lets us cut the path short 
+      if (closestSegment.start_sid < chain->size() - 1) {
+        Eigen::Matrix<double, 6, 1> vec_prev = last_tf.vec(); 
+        Eigen::Matrix<double, 6, 1> vec_curr = interpTf.vec();
+
+        // Get the translation component between our node and the last node
+        auto curr_dir = vec_curr.head<2>() - vec_prev.head<2>();
+
+        // Check if our last and current translations are in opposing directions
+        auto T_dot = curr_dir.dot(last_dir);
+        last_dir = curr_dir;
+        // a cusp
+        if (T_dot < 0.0) {
+          direction_switch = true;
+          tracking_reference_poses.pop_back();
+          barrier_q_max.pop_back();
+          barrier_q_min.pop_back();
+          break;
+        }
+      }
+      last_sid = closestSegment.start_sid;
+    }
+
+    if (direction_switch && tracking_reference_poses.size() != rolled_out_p.size()){
+      CLOG(INFO, "cbit.debug") << "Direction switch detected, but not all poses were filled. Filling the back of the vector with the last pose.";
+      // Fill the back of the vector with the last pose
+      for (size_t i = tracking_reference_poses.size(); i < rolled_out_p.size(); ++i) {
+        tracking_reference_poses.push_back(tracking_reference_poses.back());
+        barrier_q_max.push_back(barrier_q_max.back());
+        barrier_q_min.push_back(barrier_q_min.back());
+      }
+    }
+
+    return {tracking_reference_poses, barrier_q_max, barrier_q_min};
+}
+
+// For generating VT&R teach path poses used in the corridor mpc (new version which directly uses the interpolated p measurements from the cbit path trajectory tracking)
+PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain, const lgmath::se3::Transformation& T_wp) {
+
+    // Initialize vectors storing the barrier values:
+    std::vector<double> barrier_q_max;
+    std::vector<double> barrier_q_min;
+    // Flag to indicate we need to fill the back of the vector
+    bool direction_switch = false;
+
+    std::vector<lgmath::se3::Transformation> tracking_reference_poses;
+    unsigned last_sid = chain->trunkSequenceId();
+
+    // set te first direction to zero, as we know our first step will never be over a direction switch
+    auto last_dir = Eigen::Vector2d(0,0);//cos(lgmath::so3::rot2vec(T_wp.C_ba())(2)),
+                    //sin(lgmath::so3::rot2vec(T_wp.C_ba())(2)) );
+
+    // Use pose the first pose as the initial last pose
+    auto closestSegment = findClosestSegment(rolled_out_p.at(0), chain, last_sid);
+    
+    double interp = std::clamp((rolled_out_p.at(0) - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+    auto last_tf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
+    
+    // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
+    for (const auto& p_target : rolled_out_p) {
+      closestSegment = findClosestSegment(p_target, chain, last_sid);
+      
+      interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+      auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
+      CLOG(DEBUG, "cbit.debug") << "Interpolated pose at p_target: " << p_target << " is " << interpTf.vec();
 
       // add to measurement vector
       tracking_reference_poses.push_back(interpTf);
@@ -315,18 +398,19 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
       // Detect a direction switch, as the switch may occur within a path segment. This gives us a better resolution
       // For the actual path
       if (closestSegment.start_sid < chain->size() - 1) {
-        Eigen::Matrix<double, 6, 1> vec_prev = last_tf.vec(); 
-        Eigen::Matrix<double, 6, 1> vec_curr = interpTf.vec();
+        // Translate the path vectors into the world frame
+        // Otherwise, they may change around 2pi, causing a false detection
+        Eigen::Matrix<double, 6, 1> vec_prev = (T_wp.inverse()*last_tf).vec(); 
+        Eigen::Matrix<double, 6, 1> vec_curr = (T_wp.inverse()*interpTf).vec();
 
         // Get the translation component between our node and the last node
-        auto curr_dir = vec_curr.head<3>() - vec_prev.head<3>();
+        auto curr_dir = vec_curr.head<2>() - vec_prev.head<2>();
 
         // Check if our last and current translations are in opposing directions
         auto T_dot = curr_dir.dot(last_dir);
         last_dir = curr_dir;
         // a cusp
-        if (T_dot < 0) {
-          CLOG(DEBUG, "cbit.debug") << "Direction switch ahead break";
+        if (T_dot < 0.0) {
           direction_switch = true;
           tracking_reference_poses.pop_back();
           barrier_q_max.pop_back();
@@ -347,6 +431,8 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
         barrier_q_min.push_back(barrier_q_min.back());
       }
     }
+
+
 
     return {tracking_reference_poses, barrier_q_max, barrier_q_min};
 }
