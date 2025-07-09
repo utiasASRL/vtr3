@@ -63,7 +63,7 @@
     gyro_frame: w200_0066_os_imu
     gyro_topic: /ouster/imu
     gyro_bias:
-      x: 	0.010540511262
+      x: 0.010540511262
       y: -0.002565044629
       z: 0.0006577201
     queue_size: 1

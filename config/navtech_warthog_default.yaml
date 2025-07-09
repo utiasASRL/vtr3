@@ -10,9 +10,9 @@
       - radar.online_converter
       - radar.pc_extractor
       - radar.odometry_icp
-      # - radar.odometry_gyro
+      - radar.odometry_gyro
       # - radar.odometry_preintegration
-      # - radar.localization_icp
+      - radar.localization_icp
       # - tactic
       # - tactic.pipeline
       # - tactic.module
@@ -24,10 +24,10 @@
     env_info_topic: env_info
     radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
-    #gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
-    #gyro_topic: /ouster/imu
-    #gyro_bias:
-    #  z: 0.0006577201
+    gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
+    gyro_topic: /ouster/imu
+    gyro_bias:
+      z: 0.0006577201
     queue_size: 10
     graph_map:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -96,7 +96,7 @@
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
         range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
         kstrongest:
-          kstrong: 3 # k-strongest per azimuth to retain was 12
+          kstrong: 4 # k-strongest per azimuth to retain was 12
           static_threshold: 0.4
         cen2018:
           zq: 2.5
@@ -228,7 +228,7 @@
         max_iterations: 1
 
         # threshold #TOTUNE
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.0
 
       memory:
         type: "graph_mem_manager"

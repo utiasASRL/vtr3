@@ -166,14 +166,12 @@ int main(int argc, char **argv) {
 
     auto config_ = vtr::lidar::LidarPipeline::Config::fromROS(node, "lidar_pipeline");
 
-    //auto radar_cfg = vtr::radar_lidar::LocalizationICPModule::Config::fromROS(node, "radar_localization");
-
     std::vector<double> Tsr_flat = node->declare_parameter<std::vector<double>>(
-        "radar_localization.T_s_r",
-        {  // sensor (navtech_base) → robot (base_link) mount transform from TF log
+        "radar_localization.T_s_r", // _desitination_source (Tim's Convention) ie ps = Tsr*pr (have pr want ps), Tab brings point in b frame to a frame
+        {  // robot (base_link) to sensor (navtech_base)  mount transform from TF log - verified correct by desi and hunter with matlab July 9th
           1.0,  0.0,            0.0,           -0.025,
           0.0, -1.0,   -1.22465e-16,           -0.002,
-          0.0,  1.22465e-16,   -1.0,             1.5,//1.032
+          0.0,  1.22465e-16,   -1.0,            1.5,
           0.0,  0.0,            0.0,             1.0
         });
     Eigen::Matrix4d T_s_r;
@@ -188,11 +186,11 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers); 
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/Pix4dMay23DomeTests/pix4d_test_2/NEW_ESTIMATEDpc.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_6/NEW_ESTIMATEDpc.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualLidar/Pix4dMay23DomeTests/pix4d_test_2/relative_transforms_2025_06_12_15_07_48_Pix4D_Dome_Path_Test.csv"; 
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_6/relative_transforms_2025_06_12_15_07_48_Pix4D_Dome_Path_Test.csv"; 
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -205,7 +203,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_4/graph"; 
+    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_6/graph"; 
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -215,11 +213,11 @@ int main(int argc, char **argv) {
     Eigen::Matrix4d last_submap_pose = Eigen::Matrix4d::Identity();  // Initialize with identity
 
     // Parameters for the cylindrical filter
-    float cylinder_radius = 30.0;  //changed to 50 and 15 for grassy - was 30 for paper
+    float cylinder_radius = 30.0;  //changed to 50 and 15 for grassy testing with nerf in feb - was 30 for paper
     float lidar_cylinder_height = 20.0; //lidar_cylinder_height = 30.0;   
     float radar_cylinder_height = 0.2; 
     float cylinder_height = use_radar ? radar_cylinder_height : lidar_cylinder_height; 
-    float voxel_size = use_radar ? 1.0f : 0.9f; // Set voxel size based on sensor type - lower number = more dense (better for radar???UPDATE 06/24: NOT NECESSARILY!!! was 0.2 for initial radar results - changing to 0.3 for actual first online test) - for paper used 0.9 for all lidar nerf maps
+    float voxel_size = use_radar ? 1.0f : 0.9f; // Set voxel size based on sensor type - lower number = more dense - for paper used 0.9 for all lidar nerf maps
     
     // Iterate through all vertices in the graph 
     for (auto it = loaded_graph->begin(0ul); it != loaded_graph->end(); ++it) {
@@ -249,7 +247,7 @@ int main(int argc, char **argv) {
           createNewSubmap = true;
       } else {
           // Compute transformation from current robot position to last submap vertex
-          const auto T_sv_r = last_submap_pose * current_pose.inverse(); // Equivalent to T_sv_m_odo_ * T_r_m_odo_->inverse()
+          const auto T_sv_r = last_submap_pose * current_pose.inverse(); 
        
           // Extract translation component (3D distance)
           Eigen::Vector3d translation = T_sv_r.block<3,1>(0,3);  
@@ -282,93 +280,47 @@ int main(int argc, char **argv) {
         pcl::PointCloud<PointWithInfo>::Ptr transformed_cloud(new pcl::PointCloud<PointWithInfo>());
         pcl::transformPointCloudWithNormals(*converted_cloud, *transformed_cloud, absolute_pose);
         pcl::PointCloud<PointWithInfo>::Ptr cropped_cloud(new pcl::PointCloud<PointWithInfo>());
-     
-        if (use_radar) {
-        //   // 1) Assemble the full sensor→map transform:
-        //   //    robot frame ≡ vertex frame ⇒ T_r_v = I
-        //   Eigen::Matrix4d T_r_v = Eigen::Matrix4d::Identity();
-        //   Eigen::Matrix4d T_v_m = current_pose;              // vertex→map
-        //   Eigen::Matrix4f T_s_m =                            // sensor→map
-        //     (T_s_r * T_r_v * T_v_m).cast<float>();
-     
-        //   // 2) Split into rotation + translation
-        //   Eigen::Matrix4f T_r_s = T_s_r.cast<float>();           // robot → sensor
-        //   Eigen::Matrix3f C_r_s = T_r_s.block<3,3>(0,0);         // rotation
-        //   Eigen::Vector3f t_r_s = T_r_s.block<3,1>(0,3);         // translation (including your 1.032 m mast height)
-        //   float half_z_gate = 0.5f * cylinder_height;      // half of your vertical FOV
-
-        //   // 3) Grab exactly the same thresholds your ICP module uses:
-        //   //nst float ele_th = radar_cfg->elevation_threshold;
-        //   //nst float nrm_th = radar_cfg->normal_threshold;
-     
-        //   // 4) Elevation + normal gating loop
-        //   std::vector<int> indices;
-        //   indices.reserve(transformed_cloud->size());
-        //   for (int i = 0; i < (int)transformed_cloud->size(); ++i) {
-        //     const auto &pt = transformed_cloud->points[i];
-        //     // 1) robot→sensor
-        //     Eigen::Vector3f p_s = C_r_s * Eigen::Vector3f(pt.x, pt.y, pt.z)
-        //                         + t_r_s;
-        //     // 2) radius gate in sensor frame
-        //     float dxy = std::hypot(p_s.x(), p_s.y());
-        //     if (dxy > cylinder_radius) continue;
-        //     // 3) vertical gate around the radar boresight
-        //     if (std::abs(p_s.z()) > half_z_gate) continue;
-        //     // 4) normal gate
-        //     Eigen::Vector3f n_s = C_r_s * Eigen::Vector3f(pt.normal_x,
-        //                                                   pt.normal_y,
-        //                                                   pt.normal_z);
-        //     //if (std::abs(n_s.z()) > radar_cfg->normal_threshold) continue;
-        //     if (std::abs(n_s.z()) > 0.5) continue;
-        //     //point.normal_score = 1; 
-        //     //cropped_cloud->push_back(point); //indices.push_back(i);
-        //     indices.push_back(i);
-        //   }
-        //   pcl::copyPointCloud(*transformed_cloud, indices, *cropped_cloud);
-        //
-      
-          constexpr float kRadarMaxRange  = 20.0f;          // metres
-          constexpr float kRadarConeDeg   = 2.0f;           // half-angle
+        
+        // RADAR:
+        if (use_radar) {      
+          constexpr float kRadarMaxRange  = 40.0f;                       // metres
+          constexpr float kRadarConeDeg   = 2.0f;                        // half-angle
           constexpr float kConeTan        = std::tan(kRadarConeDeg * M_PI / 180.0);
 
-          // 1) Assemble the full sensor→map transform:
-          //    robot frame ≡ vertex frame ⇒ T_r_v = I
-          Eigen::Matrix4d T_r_v = Eigen::Matrix4d::Identity();
-          Eigen::Matrix4d T_v_m = current_pose;              // vertex→map
-          Eigen::Matrix4f T_s_m =                            // sensor→map
-            (T_s_r * T_r_v * T_v_m).cast<float>();
+          // Assemble the full sensor to map transform:
+          Eigen::Matrix4d T_r_v = Eigen::Matrix4d::Identity();           // vertex to robot
+          Eigen::Matrix4d T_v_m = current_pose;                          // map to vertex
      
-          // 2) Split into rotation + translation
-          Eigen::Matrix4f T_r_s = T_s_r.cast<float>();           // robot → sensor
-          Eigen::Matrix3f C_r_s = T_r_s.block<3,3>(0,0);         // rotation
-          Eigen::Vector3f t_r_s = T_r_s.block<3,1>(0,3);         // translation (including your 1.032 m mast height)
+          // Split into rotation + translation
+          Eigen::Matrix4f T_s_r_temp = T_s_r.cast<float>();              // robot to sensor
+          Eigen::Matrix3f C_s_r = T_s_r_temp.block<3,3>(0,0);            // rotation
+          Eigen::Vector3f t_s_r = T_s_r_temp.block<3,1>(0,3);            // translation (1.032 m mast height)
 
-          /* 2. Elevation-and-range gate */
+          // Elevation-and-range gate
           std::vector<int> indices;
           indices.reserve(transformed_cloud->size());
 
           for (int i = 0; i < static_cast<int>(transformed_cloud->size()); ++i) {
             const auto& pt = transformed_cloud->points[i];
 
-            /* robot→sensor frame */
-            Eigen::Vector3f p_s = C_r_s * Eigen::Vector3f(pt.x, pt.y, pt.z) + t_r_s;
-            //Eigen::Vector3f p_s = Eigen::Vector3f(pt.x, pt.y, pt.z);
+            // robot to sensor frame 
+            Eigen::Vector3f p_s = C_s_r * Eigen::Vector3f(pt.x, pt.y, pt.z) + t_s_r;
 
-            float r_xy   = std::hypot(p_s.x(), p_s.y());          // horizontal range
-            if (r_xy > kRadarMaxRange)            continue;       // outside 20 m circle
-            if (std::abs(p_s.z()) > r_xy * kConeTan) continue;    // outside ±2 deg cone
+            float r_xy   = std::hypot(p_s.x(), p_s.y());                 // horizontal range
+            if (r_xy > kRadarMaxRange)            continue;              // outside 20 m circle
+            if (std::abs(p_s.z()) > r_xy * kConeTan) continue;           // outside ±2 deg cone
 
-            indices.push_back(i);                                 // keep the point
+            indices.push_back(i);                                         // keep the point
           }
 
           pcl::copyPointCloud(*transformed_cloud, indices, *cropped_cloud);
 
-          /* 3. Flatten to the radar image plane (Z = 0) */
+          //  Flatten to the radar image plane
           for (auto& pt : *cropped_cloud)
-            pt.z = -1.5f;
+            pt.z = 1; 
 
         } else {
-          // LiDAR: existing stuff from paper
+          // LiDAR: 
           for (auto& point : *transformed_cloud) {
             const float x = point.x, y = point.y, z = point.z;
             const float distance_xy = std::sqrt(x*x + y*y);
@@ -386,7 +338,6 @@ int main(int argc, char **argv) {
         std::cout << "Cropped cloud size: " << cropped_cloud->size() << std::endl;
      
         // Create a submap and update it with the transformed point cloud
-        //float voxel_size = 0.9; //changed from 0.9 to 0.7 for grassy - paper was 0.9
         auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(voxel_size); 
         submap_odo->update(*cropped_cloud); 
    
