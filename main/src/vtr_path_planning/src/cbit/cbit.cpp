@@ -416,40 +416,50 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
    
 
-    // Create and solve the casadi optimization problem
+
+    bool do_mpc = false;
+    Command command; // return the computed velocity command for the first time step
     std::vector<lgmath::se3::Transformation> mpc_poses;
-    // return the computed velocity command for the first time step
-    Command command;
-    std::vector<Eigen::Vector2d> mpc_velocities;
-    try {
-      CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
-      auto mpc_res = solver_.solve(mpcConfig);
-      
-      for(int i = 0; i < mpc_res["pose"].columns(); i++) {
-        const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
-        mpc_poses.push_back(T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2]));
+    std::vector<Eigen::Vector2d>        mpc_velocities;
+    if(do_mpc){
+      // Create and solve the casadi optimization problem
+      try {
+        CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
+        auto mpc_res = solver_.solve(mpcConfig);
+        
+        for(int i = 0; i < mpc_res["pose"].columns(); i++) {
+          const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
+          mpc_poses.push_back(T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2]));
+        }
+
+        CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
+        const auto& mpc_vel_vec = mpc_res["vel"](casadi::Slice(), 0).get_elements();
+
+        command.linear.x = mpc_vel_vec[0];
+        command.angular.z = mpc_vel_vec[1];
+
+        // Get all the mpc velocities 
+        for (int i = 0; i < mpc_res["vel"].columns(); i++) {
+          const auto& vel_i = mpc_res["vel"](casadi::Slice(), i).get_elements();
+          mpc_velocities.emplace_back(vel_i[0], vel_i[1]);
+        }
+
+      } catch(std::exception &e) {
+        CLOG(WARNING, "cbit.control") << "casadi failed! " << e.what() << " Commanding to Stop the Vehicle";
+        return Command();
       }
 
-      CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
-      const auto& mpc_vel_vec = mpc_res["vel"](casadi::Slice(), 0).get_elements();
 
-      command.linear.x = mpc_vel_vec[0];
-      command.angular.z = mpc_vel_vec[1];
+      CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
 
-      // Get all the mpc velocities 
-      for (int i = 0; i < mpc_res["vel"].columns(); i++) {
-        const auto& vel_i = mpc_res["vel"](casadi::Slice(), i).get_elements();
-        mpc_velocities.emplace_back(vel_i[0], vel_i[1]);
-      }
-
-    } catch(std::exception &e) {
-      CLOG(WARNING, "cbit.control") << "casadi failed! " << e.what() << " Commanding to Stop the Vehicle";
-      return Command();
+    } else {
+      CLOG(INFO, "cbit.control") << "Not using MPC; returning a zero command and empty MPC trajectories";
+      // leave mpc_poses and mpc_velocities empty
+      command.linear.x = 0;
+      command.angular.z = 0;
+      // VTR_PIPELINE=LIDAR colcon build --symlink-install
     }
-
-
-    CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x << " The angular vel is: " << command.angular.z;
-
+    
     // grab elements for visualization
     lgmath::se3::Transformation T_w_p_interpolated_closest_to_robot = interpolatedPose(state_p, chain);
 

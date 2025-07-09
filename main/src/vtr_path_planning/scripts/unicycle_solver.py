@@ -7,8 +7,8 @@ from casadi import sin, cos, pi
 #Compile Time Constants (Could use params to set!)
 
 # Pose Covariance
-Q_x = 10
-Q_y = 10
+Q_x = 2
+Q_y = 2
 Q_theta = 1
 # Command Covariance
 R1 = 1.0 #0.1

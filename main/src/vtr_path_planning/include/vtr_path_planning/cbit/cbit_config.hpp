@@ -62,7 +62,7 @@ class CBITConfig {
         double min_vel = 0.5; 
 
         // MPC Configs 
-        int horizon_steps = 10;
+        int horizon_steps = 10; 
         double horizon_step_size = 0.5;
         double forward_vel = 0.75;
         double max_lin_vel = 1.25;
