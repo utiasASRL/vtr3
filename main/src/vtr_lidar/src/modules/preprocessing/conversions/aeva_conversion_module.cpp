@@ -64,7 +64,7 @@ void AevaConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).flex23 = points(idx, 4);
 
     // pointwise timestamp
-    point_cloud->at(idx).timestamp = static_cast<int64_t>(points(idx, 5) * 1e9);
+    point_cloud->at(idx).timestamp = static_cast<int64_t>(points(idx, 5));
   }
 
   // Aeva has no polar coordinates, so compute them manually.

@@ -47,6 +47,9 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
   config->chain_config.alpha = node->declare_parameter<double>(prefix+".chain.alpha", 0.25);
 
+  /// localization execution by interval
+  config->loc_threshold = node->declare_parameter<int>(prefix + ".loc_threshold", 1);
+
   config->save_odometry_result = node->declare_parameter<bool>(prefix+".save_odometry_result", false);
   config->save_odometry_vel_result = node->declare_parameter<bool>(prefix+".save_odometry_vel_result", false);
   config->save_localization_result = node->declare_parameter<bool>(prefix+".save_localization_result", false);
@@ -199,6 +202,14 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
   qdata->pipeline_mode.emplace(pipeline_mode_);
   qdata->first_frame.emplace(first_frame_);
   first_frame_ = false;
+
+  // check if localization should be executed on current frame
+  qdata->loc_flag = (frame_count % config_->loc_threshold == 0);
+  frame_count += 1;
+
+  CLOG(DEBUG, "tactic") << "Frame count: " << frame_count
+                        << ", loc_flag: " << std::boolalpha
+                        << *qdata->loc_flag;
 
   // Preprocess incoming data, which always runs no matter what mode we are in.
   pipeline_->preprocess(qdata, output_, graph_, task_queue_);
@@ -817,8 +828,11 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
 
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
-  pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
-  CLOG(DEBUG, "tactic")
+  
+  if (*qdata->loc_flag)
+    pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+
+    CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to localization vertex ("
       << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "
       << (*qdata->T_r_v_loc).inverse().vec().transpose();

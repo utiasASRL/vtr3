@@ -136,6 +136,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<EdgeTransform> T_r_v_loc;
   Cache<bool> loc_success;
   Cache<const double> loc_time;
+  Cache<bool> loc_flag;  // whether localization should be executed on this frame
 
   // graph memory management cache args
   Cache<const VertexId> live_mem_async;
