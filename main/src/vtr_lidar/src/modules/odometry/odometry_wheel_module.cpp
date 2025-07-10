@@ -83,6 +83,13 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "lidar.odometry_wheel") << "current theta: " << current_theta;
 
   CLOG(DEBUG, "lidar.odometry_wheel") << "Retrieve input data and setup evaluators.";
+
+  if (!qdata.gyro_msgs || !qdata.wheel_meas) {
+    CLOG_IF(!qdata.gyro_msgs, "lidar.odometry_wheel") << "No gyro messages provided, cannot run wheel odometry.";
+    CLOG_IF(!qdata.wheel_meas, "lidar.odometry_wheel") << "No wheel measurements provided, cannot run wheel odometry.";
+    *qdata.odo_success = false;
+    return;
+  }
  
   // Inputs
   const auto &query_stamp = *qdata.stamp;
@@ -101,41 +108,13 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     min_bias_init_count = config_->min_time_bias_count;
   }
 
-  // const auto T_wheel_imu = T_s_r_wheel * T_s_r_gyro.inverse();
-
-  Eigen::Matrix4d T_applanix_imu;
-  T_applanix_imu << 0, -1,  0, 0,
-                   -1,  0,  0, 0,
-                    0,  0, -1, 0,
-                    0,  0,  0, 1; // fine
-
-
-  Eigen::Matrix4d T_wheel_app_mat; // from Cedric
-  T_wheel_app_mat << 0.99957248, -0.02923801, 0.0, 0.80880342,
-                     0.02923801, 0.99957248, 0.0, 0.46707216,
-                     0.0, 0.0, 1.0, 1.8,
-                     0.0, 0.0, 0.0, 1.0;
-
-  EdgeTransform T_wheel_imu(Eigen::Matrix4d(T_wheel_app_mat * T_applanix_imu), Eigen::Matrix<double, 6, 6>::Zero());
-
-  Eigen::Matrix4d T_axel_applanix;
-  T_axel_applanix << 0.0299955, 0.99955003, 0, 0.51,
-                    -0.99955003, 0.0299955, 0, 0.0,
-                     0, 0, 1, 1.45,
-                     0, 0, 0, 1;   
-
-
-  Eigen::Matrix4d yfwd2xfwd;
-  yfwd2xfwd << 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
-
-  Eigen::Matrix4d T_wheel_robot_mat = yfwd2xfwd * T_wheel_app_mat * T_axel_applanix.inverse();
-  EdgeTransform T_wheel_robot(T_wheel_robot_mat, Eigen::Matrix<double, 6, 6>::Zero());
+  const auto T_wheel_imu = T_s_r_wheel * T_s_r_gyro.inverse();
 
   // clang-format off
   /// Create robot to sensor transform variable, fixed.
   const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
   T_s_r_var->locked() = true;
-  const auto T_s_r_wh_var = SE3StateVar::MakeShared(T_wheel_robot);
+  const auto T_s_r_wh_var = SE3StateVar::MakeShared(T_s_r_wheel);
   T_s_r_wh_var->locked() = true;
   const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
   T_s_r_gyro_var->locked() = true;
@@ -165,10 +144,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   const rclcpp::Time query_time(query_stamp);
   const rclcpp::Time gyro_time(gyro_msgs.front().header.stamp);
   const rclcpp::Time wheel_time(wheel_meas.front().first);
-  double curr_time = std::min({query_time.seconds(), gyro_time.seconds(), wheel_time.seconds()});
-
-  Eigen::Vector3d test = Eigen::Vector3d(0.85, 0.15, -1.1);
-  CLOG(DEBUG, "lidar.odometry_wheel") << "Test vector: " << lgmath::so3::vec2rot(test);
+  auto curr_time = std::min({query_time.seconds(), gyro_time.seconds(), wheel_time.seconds()});
 
   int ptr_ang = 0;
   int ptr_pulse = 0;
@@ -217,18 +193,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
         gyro_msgs[ptr_ang + 1].angular_velocity.y,
         gyro_msgs[ptr_ang + 1].angular_velocity.z);
 
-    CLOG(DEBUG, "lidar.odometry_wheel") << "curr_gyro_wheel: "
-                                        << curr_gyro_meas.transpose();
-    CLOG(DEBUG, "lidar.odometry_wheel") << "next_gyro_wheel: "
-                                        << curr_gyro_meas.transpose();
-
     auto curr_gyro_wheel = T_wheel_imu.matrix().block<3, 3>(0, 0) * curr_gyro_meas;
     auto next_gyro_wheel = T_wheel_imu.matrix().block<3, 3>(0, 0) * next_gyro_meas;
-
-    CLOG(DEBUG, "lidar.odometry_wheel") << "curr_gyro_wheel: "
-                      << curr_gyro_wheel.transpose();
-    CLOG(DEBUG, "lidar.odometry_wheel") << "next_gyro_wheel: "
-                      << next_gyro_wheel.transpose();
 
     // Write curr_gyro_wheel to a file (append mode)
     static std::ofstream gyro_file("/home/katya/ASRL/curr_gyro_wheel.txt", std::ios::app);
@@ -321,26 +287,24 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
       T_est = EdgeTransform(trans, Eigen::Matrix<double, 6, 6>::Identity());
       CLOG(DEBUG, "lidar.odometry_wheel") << "Scan: " << frame_count + 1 << " / "
                                           << " Dist: " << std::round(total_dist)
-                                          << " Bias: " << std::scientific << gyro_bias
-                                          << " Max bias (abs): " << std::scientific << max_bias;
-      trans = (trans * T_wheel_app_mat).inverse(); // T_wheel_map
-      // Write curr_gyro_wheel to a file (append mode)
-      static std::ofstream pose_file("/home/katya/ASRL/trans.txt", std::ios::app);
-      if (pose_file.is_open()) {
-        pose_file << timestamps[i+1] / 1000;
-        for (int row = 0; row < 3; ++row) {
-          for (int col = 0; col < 4; ++col) {
-            pose_file << " " << trans(row, col);
-          }
-        }
-        pose_file << std::endl;
-      }
+                                          << " Bias: " << gyro_bias.transpose();
       
     } 
 
     curr_time = next_time;
-    if (curr_time >= next_wheel_time.seconds()) ptr_pulse++;
-    if (curr_time >= next_gyro_time.seconds()) ptr_ang++;
+    if (curr_time >= next_wheel_time.seconds() && ptr_pulse < wheel_meas.size() - 2) {
+      ptr_pulse++;
+    }
+    if (curr_time >= next_gyro_time.seconds() && ptr_ang < gyro_msgs.size() - 2) {
+      ptr_ang++;
+    }
+
+    CLOG(DEBUG, "lidar.odometry_wheel") << "ptr_ang: " << ptr_ang
+                                        << " ptr_pulse: " << ptr_pulse
+                                        << " curr_time: " << timestamps[i]
+                                        << " next_time: " << timestamps[i+1]
+                                        << " gyro time: " << curr_gyro_time.nanoseconds()
+                                        << " wheel time: " << curr_wheel_time.nanoseconds();
   } // end estimation loop
 
   // save the last gyro message and wheel measurement
@@ -350,29 +314,18 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "lidar.odometry_wheel") << "last gyro time: "
                                       << static_cast<int64_t>(rclcpp::Time(last_gyro_msg.header.stamp).nanoseconds())
                                       << " last wheel time: "
-                                      << static_cast<int64_t>(last_wheel_meas.first.nanoseconds());
-
-  // // transform estimated pose to map frame
-  // // at scan time
-  // const auto T_m_s_wheel = SE3StateVar::MakeShared(T_est); // T_map_wheel
-  // auto T_r_m_eval = inverse(compose(T_m_s_wheel, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
-  // // at first time
-  // const auto T_m_s_wheel_first = SE3StateVar::MakeShared(T_begin); // T_map_wheel
-  // auto T_r_m_eval_first = inverse(compose(T_m_s_wheel_first, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
-  // // at last time
-  // const auto T_m_s_wheel_end = SE3StateVar::MakeShared(T_end); // T_map_wheel
-  // auto T_r_m_eval_end = inverse(compose(T_m_s_wheel_end, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
+                                      << static_cast<int64_t>(rclcpp::Time(last_wheel_meas.first).nanoseconds());
 
   // transform estimated pose to map frame
   // at scan time
   const auto T_m_s_wheel = SE3StateVar::MakeShared(T_est); // T_map_wheel
-  auto T_r_m_eval = inverse(T_m_s_wheel); // T_wheel_map
+  auto T_r_m_eval = inverse(compose(T_m_s_wheel, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
   // at first time
   const auto T_m_s_wheel_first = SE3StateVar::MakeShared(T_begin); // T_map_wheel
-  auto T_r_m_eval_first = inverse(T_m_s_wheel_first); // T_wheel_map
+  auto T_r_m_eval_first = inverse(compose(T_m_s_wheel_first, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
   // at last time
   const auto T_m_s_wheel_end = SE3StateVar::MakeShared(T_end); // T_map_wheel
-  auto T_r_m_eval_end = inverse(T_m_s_wheel_end); // T_wheel_map
+  auto T_r_m_eval_end = inverse(compose(T_m_s_wheel_end, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
   
   *qdata.T_r_m_odo = T_r_m_eval->value();
   *qdata.timestamp_odo = query_stamp;
