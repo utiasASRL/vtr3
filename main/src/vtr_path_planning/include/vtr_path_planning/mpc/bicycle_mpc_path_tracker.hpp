@@ -59,6 +59,9 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     double r_racc1 = 0.0;
     double r_q_f = 0.0;
 
+    double alpha = 0.6;
+
+
     int failure_threshold = 5;
     int recovery_steps = 15;
 
@@ -86,6 +89,7 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
 
   int failure_count = 0;
   int success_count = 0;
+  double previous_psi = 0.0;
 
   Config::ConstPtr config_;
   CasadiBicycleMPC solver_;

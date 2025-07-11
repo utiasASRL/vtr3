@@ -119,7 +119,8 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversi
   mpc_config->VF = config_->forward_vel;
   mpc_config->vel_max(0) = config_->max_lin_vel;
   mpc_config->vel_max(1) = config_->max_ang_vel;
-  mpc_config->previous_vel = {-w_p_r_in_r(0, 0), applied_vel(1)};
+  auto current_psi = applied_vel(1)*config_->alpha + (1.0 - config_->alpha) * previous_psi;
+  mpc_config->previous_vel = {w_p_r_in_r(0, 0), current_psi};
 
   if (isReversing) {
     // Set the MPC costs
@@ -179,7 +180,11 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversi
           throw e;
       
       failure_count += 1;
-      success_count = 0;
+      // Only reset succes count if we are not actively trying to recover
+      // If we are failing consistently when recovering, we should just keep trying.
+      if (failure_count <= config_->failure_threshold){
+          success_count = 0;
+      }
   }
   return result;
 }
