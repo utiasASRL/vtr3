@@ -5,7 +5,6 @@
     log_debug: true
     log_enabled:
       #- navigation
-      # - radar.pipeline
       # - navigation.sensor_input
       - radar.online_converter
       - radar.pc_extractor
@@ -13,7 +12,7 @@
       - radar.localization_icp
       # - tactic
       # - tactic.pipeline
-      # - tactic.module
+      - tactic.module
       # - mpc.debug
       # - cbit.control
       #- mission.state_machine
