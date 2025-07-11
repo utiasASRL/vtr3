@@ -79,10 +79,8 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
 
       // Calculate the distance
       double distance = (T_wr.inverse() * chain->pose(path_it)).r_ab_inb().norm();
-      // CLOG(DEBUG, "mpc.cost_function") << "Dist: " << distance << " sid: " << unsigned(path_it);
 
       // Record the best distance
-      max_distance = std::max(distance, max_distance);
       if (distance < best_distance) {
         best_distance = distance;
         best_sid = unsigned(path_it);
@@ -102,10 +100,9 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
         // If this is negative, they are in the 'opposite direction', and we're at
         // a cusp
         if (T_dot < 0) {
-          if (unsigned(path_it) <= sid_start) {
+          if (unsigned(path_it) < sid_start) {
             CLOG(DEBUG, "cbit.debug") << "Direction switch behind reset";
             best_distance = std::numeric_limits<double>::max();
-            max_distance = -1.;
           } else {
             CLOG(DEBUG, "cbit.debug") << "Direction switch ahead break";
             direction_switch = true;
@@ -114,7 +111,6 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
         }
       }
     }
-
 
     // Assume forward at end of path
     auto dir = tactic::Direction::Unknown;
@@ -168,7 +164,6 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
 
       // Calculate the distance
       double distance = abs(p - chain->p(path_it));
-      // CLOG(DEBUG, "mpc.cost_function") << "Dist: " << distance << " sid: " << unsigned(path_it);
 
       // Record the best distance
       max_distance = std::max(distance, max_distance);
@@ -176,9 +171,6 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
         best_distance = distance;
         best_sid = unsigned(path_it);
       }
-
-
-      
     }
 
     //Handle end of path exceptions
@@ -290,25 +282,16 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
     // Initialize vectors storing the barrier values:
     std::vector<double> barrier_q_max;
     std::vector<double> barrier_q_min;
-    // Flag to indicate we need to fill the back of the vector
-    bool direction_switch = false;
 
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
     unsigned last_sid = chain->trunkSequenceId();
-    // Use pose the first pose as the initial last pose
-    auto closestSegment = findClosestSegment(rolled_out_p.at(0), chain, last_sid);
-    
-    double interp = std::clamp((rolled_out_p.at(0) - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
-    auto last_tf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
-    auto last_dir = last_tf.vec().head<2>();
     
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& p_target : rolled_out_p) {
-      closestSegment = findClosestSegment(p_target, chain, last_sid);
+      auto closestSegment = findClosestSegment(p_target, chain, last_sid);
 
-      interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+      auto interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
       auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
-      CLOG(DEBUG, "cbit.debug") << "Interpolated pose at p_target: " << p_target << " is " << interpTf.vec();
 
       // add to measurement vector
       tracking_reference_poses.push_back(interpTf);
@@ -319,38 +302,7 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
       barrier_q_max.push_back((1-interp) * width1 + interp * width2);
       barrier_q_min.push_back(-(1-interp) * width1 - interp * width2);
 
-
-      // Detect a direction switch, as the switch may occur within a path segment. This lets us cut the path short 
-      if (closestSegment.start_sid < chain->size() - 1) {
-        Eigen::Matrix<double, 6, 1> vec_prev = last_tf.vec(); 
-        Eigen::Matrix<double, 6, 1> vec_curr = interpTf.vec();
-
-        // Get the translation component between our node and the last node
-        auto curr_dir = vec_curr.head<2>() - vec_prev.head<2>();
-
-        // Check if our last and current translations are in opposing directions
-        auto T_dot = curr_dir.dot(last_dir);
-        last_dir = curr_dir;
-        // a cusp
-        if (T_dot < 0.0) {
-          direction_switch = true;
-          tracking_reference_poses.pop_back();
-          barrier_q_max.pop_back();
-          barrier_q_min.pop_back();
-          break;
-        }
-      }
       last_sid = closestSegment.start_sid;
-    }
-
-    if (direction_switch && tracking_reference_poses.size() != rolled_out_p.size()){
-      CLOG(INFO, "cbit.debug") << "Direction switch detected, but not all poses were filled. Filling the back of the vector with the last pose.";
-      // Fill the back of the vector with the last pose
-      for (size_t i = tracking_reference_poses.size(); i < rolled_out_p.size(); ++i) {
-        tracking_reference_poses.push_back(tracking_reference_poses.back());
-        barrier_q_max.push_back(barrier_q_max.back());
-        barrier_q_min.push_back(barrier_q_min.back());
-      }
     }
 
     return {tracking_reference_poses, barrier_q_max, barrier_q_min};
@@ -368,13 +320,11 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
     unsigned last_sid = chain->trunkSequenceId();
 
-    // set te first direction to zero, as we know our first step will never be over a direction switch
-    auto last_dir = Eigen::Vector2d(0,0);//cos(lgmath::so3::rot2vec(T_wp.C_ba())(2)),
-                    //sin(lgmath::so3::rot2vec(T_wp.C_ba())(2)) );
+    // Set the first direction to zero, as we know our first step will never be over a direction switch
+    auto last_dir = Eigen::Vector2d(0,0);
 
-    // Use pose the first pose as the initial last pose
+    // Use the first pose as the initial last pose
     auto closestSegment = findClosestSegment(rolled_out_p.at(0), chain, last_sid);
-    
     double interp = std::clamp((rolled_out_p.at(0) - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
     auto last_tf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
     
@@ -384,7 +334,6 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
       
       interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
       auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
-      CLOG(DEBUG, "cbit.debug") << "Interpolated pose at p_target: " << p_target << " is " << interpTf.vec();
 
       // add to measurement vector
       tracking_reference_poses.push_back(interpTf);
@@ -399,7 +348,7 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
       // For the actual path
       if (closestSegment.start_sid < chain->size() - 1) {
         // Translate the path vectors into the world frame
-        // Otherwise, they may change around 2pi, causing a false detection
+        // Otherwise, they may change around pi orientation, causing a false detection
         Eigen::Matrix<double, 6, 1> vec_prev = (T_wp.inverse()*last_tf).vec(); 
         Eigen::Matrix<double, 6, 1> vec_curr = (T_wp.inverse()*interpTf).vec();
 
@@ -431,8 +380,6 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
         barrier_q_min.push_back(barrier_q_min.back());
       }
     }
-
-
 
     return {tracking_reference_poses, barrier_q_max, barrier_q_min};
 }

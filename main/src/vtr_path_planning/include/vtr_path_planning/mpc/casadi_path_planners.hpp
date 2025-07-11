@@ -43,6 +43,7 @@ class CasadiMPC {
       double DT;
       DM vel_max;
       DM previous_vel;
+      bool recovery = false;
       std::vector<DM> cost_weights;
 
       Config(const int nStates = 3, const int nControl = 2, const int N = 15, const double DT = 0.25)
@@ -52,7 +53,7 @@ class CasadiMPC {
             previous_vel = DM::zeros(nControl, 1);
       };
 
-      virtual ~Config() {};  // for polymorphism
+      virtual ~Config() {}; 
     };
     virtual ~CasadiMPC() {};
     virtual std::map<std::string, casadi::DM> solve(const Config& mpcConf) = 0;

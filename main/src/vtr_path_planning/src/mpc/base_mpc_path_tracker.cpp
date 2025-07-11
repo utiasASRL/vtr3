@@ -198,9 +198,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   Command command;
   std::vector<Eigen::Vector2d> mpc_velocities;
   try {
-    CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
     auto mpc_res = callSolver(mpcConfig);
-    CLOG(INFO, "cbit.control") << "Solver called";
 
     for (int i = 0; i < mpc_res["pose"].columns(); i++) {
       const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();

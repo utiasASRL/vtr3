@@ -38,7 +38,7 @@
       - mission.state_machine
 
         # pose graph
-      #- pose_graph
+      - pose_graph
 
         # lidar pipeline
       #- lidar.pipeline
@@ -78,8 +78,8 @@
       route_completion_angle_threshold: 0.1
 
       chain:
-        min_cusp_distance: 0.5
-        angle_weight: 0.0
+        min_cusp_distance: 0.1
+        angle_weight: 1.0
         search_depth: 5
         search_back_depth: 10
         distance_warning: 5.0
@@ -258,6 +258,8 @@
         max_lin_acc: 2.0
         vehicle_model: "bicycle"
         wheelbase: 0.55
+        recovery_steps: 15
+        failure_threshold: 5
 
         # Tunable controller parameters(Currently only works for the Bicycle)
         forward:

@@ -59,6 +59,9 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     double r_racc1 = 0.0;
     double r_q_f = 0.0;
 
+    int failure_threshold = 5;
+    int recovery_steps = 15;
+
     bool repeat_flipped = false;
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
@@ -76,10 +79,13 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
   virtual CasadiMPC::Config::Ptr loadMPCConfig(
       const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
 
-  virtual casadi::DMDict callSolver(CasadiMPC::Config::Ptr config) override;
+  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
 
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTracker);
+
+  int failure_count = 0;
+  int success_count = 0;
 
   Config::ConstPtr config_;
   CasadiBicycleMPC solver_;
