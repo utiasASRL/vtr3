@@ -288,13 +288,13 @@ int main(int argc, char **argv) {
           constexpr float kRadarMaxRange  = 40.0f;                       // metres
           constexpr float kRadarConeDeg   = 2.0f;                        // half-angle
           constexpr float kConeTan        = std::tan(kRadarConeDeg * M_PI / 180.0);
-          constexpr float kAzRes           = 0.015707963267948967f * 2;      // ≈ 0.9 rad
+          constexpr float kAzRes           = 0.015707963267948967f * 2;      // approx 0.9 rad
           constexpr float kShadowMargin    = 0.30f;                      // keep pts within +30 cm
           const     int   kNumBins         = static_cast<int>(
                                               std::ceil(2.0f * M_PI / kAzRes));
 
-          constexpr int   kSideBins       = 2;      // look ±2 bins  (≈ 2 × kAzRes  wide)
-          constexpr float kSideMargin     = 0.07f;  // keep pts within +7 cm of *any* neighbour min-range
+          constexpr int   kSideBins       = 2;      // look +/-2 bins  (approx 2 × kAzRes  wide)
+          constexpr float kSideMargin     = 0.07f;  // keep pts within +7 cm of any neighbour min-range
 
           // Assemble the full sensor to map transform:
           Eigen::Matrix4d T_r_v = Eigen::Matrix4d::Identity();           // vertex to robot
@@ -305,30 +305,28 @@ int main(int argc, char **argv) {
           Eigen::Matrix3f C_s_r = T_s_r_temp.block<3,3>(0,0);            // rotation
           Eigen::Vector3f t_s_r = T_s_r_temp.block<3,1>(0,3);            // translation (1.032 m mast height)
 
-          // 1) First pass – compute the minimum range observed in each azimuth bin
+          // First pass – compute the minimum range observed in each azimuth bin
           std::vector<float> min_range(kNumBins,
                                       std::numeric_limits<float>::max());
 
           for (std::size_t i = 0; i < transformed_cloud->size(); ++i) {
             const auto& pt = transformed_cloud->points[i];
 
-            // -------------------------------------------------------------
-            // Bring point into sensor frame (robot→sensor transform T_s_r)
-            // -------------------------------------------------------------
+            // Bring point into sensor frame (robot to sensor transform T_s_r)
             Eigen::Vector3f p_s = C_s_r * Eigen::Vector3f(pt.x, pt.y, pt.z) + t_s_r;
 
             float r_xy = std::hypot(p_s.x(), p_s.y());
             if (r_xy > kRadarMaxRange)                     continue;           // out of range
             if (std::abs(p_s.z()) > r_xy * kConeTan)       continue;           // outside cone
 
-            float az = std::atan2(p_s.y(), p_s.x());                           // –π‥π
+            float az = std::atan2(p_s.y(), p_s.x());                           // –pi..pi
             int   bin = static_cast<int>((az + static_cast<float>(M_PI)) / kAzRes);
             bin = std::min(std::max(bin, 0), kNumBins - 1);                    // clamp
 
             if (r_xy < min_range[bin])        min_range[bin] = r_xy;           // update
           }
 
-          // 2) Second pass – keep only points that are very close to the first return
+          // Second pass – keep only points that are very close to the first return
           std::vector<int> keep_indices;
           keep_indices.reserve(transformed_cloud->size());
 
@@ -370,17 +368,15 @@ int main(int argc, char **argv) {
           for (const int idx : keep_indices) {
             const auto& pt = transformed_cloud->points[idx];
 
-            // ------- map/vertex frame → sensor frame
+            // map/vertex frame to sensor frame
             Eigen::Vector3f p_s = C_s_r * Eigen::Vector3f(pt.x, pt.y, pt.z) + t_s_r;
             float z_s           = p_s.z();                                 // retain height until flatten
 
-            // --- polar decomp
+            // polar decomp
             float r   = std::hypot(p_s.x(), p_s.y());
             float th  = std::atan2(p_s.y(), p_s.x());
 
-            // ----------------------------------------------------------------
-            // (a) base hit with Gaussian jitter
-            // ----------------------------------------------------------------
+            // base hit with Gaussian jitter
             float r_j  = std::max(0.01f, r  + n_r(rng));                   // keep r > 0
             float th_j = th + n_th(rng);
 
@@ -401,9 +397,7 @@ int main(int argc, char **argv) {
 
             make_point(r_j, th_j);
 
-            // ----------------------------------------------------------------
-            // (b) forward echo streak (geometric decay)
-            // ----------------------------------------------------------------
+            // forward echo streak (geometric decay)
             float keep_prob = std::exp(-1.0f / static_cast<float>(kLmean));
             int   echo_cnt  = 0;
             float th_step   = kAzRes;          // forward direction of rotation
@@ -416,7 +410,7 @@ int main(int argc, char **argv) {
               th_echo += th_step;
               r_echo  += n_r(rng);             // small extra range jitter
 
-              // wrap az to [-π,π] so binning stays sane later if needed
+              // wrap az to [-pi,pi] so binning stays sane later if needed
               if (th_echo >  M_PI) th_echo -= 2.0f * M_PI;
 
               make_point(r_echo, th_echo);
