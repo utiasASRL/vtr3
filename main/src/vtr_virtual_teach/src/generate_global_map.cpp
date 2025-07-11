@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_NewCroppingTest/graph"; 
+    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_NewCroppingTest_tryagaintorepeatbestsettingsofar/graph"; 
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -357,7 +357,7 @@ int main(int argc, char **argv) {
           // 3)  Build jittered + streaked cloud
           constexpr float kSigmaR   = 0.04f;        // 4 cm range noise
           constexpr float kSigmaTh  = 0.001f;       // 1 mrad azimuth noise
-          constexpr int   kLmean    = 4; //5           // mean streak length (bins)
+          constexpr int   kLmean    = 2; //5           // mean streak length (bins)
 
           std::mt19937                     rng{static_cast<uint32_t>(vertex_time)};
           std::normal_distribution<float>  n_r (0.0f, kSigmaR);
@@ -394,7 +394,7 @@ int main(int argc, char **argv) {
               PointWithInfo q;
               q.x = pv_new.x();
               q.y = pv_new.y();
-              q.z = 1.0f;              // flatten to image plane
+              q.z = 1.0f;              // flatten to radar plane
               q.normal_score = 1.0f;
               cropped_cloud->push_back(q);
             };

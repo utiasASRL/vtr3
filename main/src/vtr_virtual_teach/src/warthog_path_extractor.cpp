@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
   (void)argc;
   (void)argv;
   // Path to your graph folder
-  std::string graph_folder = "data/GraphFromAlec/graph"; 
+  std::string graph_folder = "data/Experiment2/lidar/dome_teach/graph"; 
   // Load the pose graph
   using Graph = vtr::pose_graph::RCGraph;
   std::shared_ptr<Graph> graph;

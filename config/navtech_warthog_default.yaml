@@ -84,7 +84,7 @@
       extraction:
         type: radar.pc_extractor
         radar_resolution: 0.044 # 0307827  # RAS3 0.161231 #0.044
-        detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        detector: modified_cacfar #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
         minr: 2.0 # mininum detection distance
         maxr: 80.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution

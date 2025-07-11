@@ -22,7 +22,7 @@ windows:
         use_sim_time:=true
         planner:="stationary"
         model_dir:=${VTRROOT}/models
-        data_dir:=${VTRTEMP}/radar/$(date '+%F')/$(date '+%F')
+        data_dir:=${VTRTEMP}/radar/$(date '+%Y-%m-%d_%H-%M-%S')
 
       #- htop # monitor hardware usage
 
