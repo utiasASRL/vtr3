@@ -78,6 +78,10 @@ class BaseMPCPathTracker : public BasePathPlanner {
   Command computeCommand(RobotState& robot_state) override;
   virtual CasadiMPC::Config::Ptr loadMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel)=0;
   virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) =0;
+  virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
+                           const lgmath::se3::Transformation& T_p_r_extp,
+                           const double state_p,
+                          RobotState& robot_state);
 
  private: 
 
@@ -90,7 +94,6 @@ class BaseMPCPathTracker : public BasePathPlanner {
   Command computeCommand_(RobotState& robot_state);
 
   VisualizationUtils::Ptr vis_;  
-
 
 };
 

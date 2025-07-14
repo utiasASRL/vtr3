@@ -159,38 +159,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
       {base_config_->forward_vel, base_config_->min_vel, base_config_->planar_curv_weight,
        base_config_->profile_curv_weight, base_config_->eop_weight, 7});
 
-  std::vector<double> p_rollout;
-  for (int j = 1; j < mpcConfig->N + 1; j++) {
-    p_rollout.push_back(state_p + j * mpcConfig->VF * mpcConfig->DT);
-  }
-
-  mpcConfig->reference_poses.clear();
-  auto referenceInfo = generateHomotopyReference(p_rollout, chain, T_w_p*T_p_r_extp);
-  for (const auto& Tf : referenceInfo.poses) {
-    mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() * Tf));
-  }
-
-  // Detect end of path and set the corresponding cost weight vector element to zero
-  mpcConfig->cost_weights.clear();
-  mpcConfig->cost_weights.push_back(1.0);
-  auto last_pose = (T_w_p.inverse()*referenceInfo.poses[0]).vec();
-  int end_ind = -1;
-  auto weighting = 1.0;
-  for (int i = 1; i < mpcConfig->N; i++) {
-    auto curr_pose = (T_w_p.inverse() * referenceInfo.poses[i]).vec();
-    auto dist = (curr_pose - last_pose).norm();
-    if (end_ind < 0 && dist < base_config_->end_of_path_distance_threshold) {
-      end_ind = i;
-      weighting = (float) end_ind / mpcConfig->N;
-      CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
-    }
-      
-    mpcConfig->cost_weights.push_back(weighting);
-    last_pose = curr_pose;
-  }
-
-  mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
-  mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
+  loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state);
 
   // Create and solve theccasadi optimization problem
   std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -234,4 +203,43 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   return command;
 }
 
+void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
+                         const lgmath::se3::Transformation& T_p_r_extp,
+                         const double state_p,
+                         RobotState& robot_state) {
+
+  auto& chain = robot_state.chain.ptr();
+  std::vector<double> p_rollout;
+  for (int j = 1; j < mpcConfig->N + 1; j++) {
+    p_rollout.push_back(state_p + j * mpcConfig->VF * mpcConfig->DT);
+  }
+
+  mpcConfig->reference_poses.clear();
+  auto referenceInfo = generateHomotopyReference(p_rollout, chain, T_w_p*T_p_r_extp);
+  for (const auto& Tf : referenceInfo.poses) {
+    mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() * Tf));
+  }
+
+  // Detect end of path and set the corresponding cost weight vector element to zero
+  mpcConfig->cost_weights.clear();
+  mpcConfig->cost_weights.push_back(1.0);
+  auto last_pose = (T_w_p.inverse()*referenceInfo.poses[0]).vec();
+  int end_ind = -1;
+  auto weighting = 1.0;
+  for (int i = 1; i < mpcConfig->N; i++) {
+    auto curr_pose = (T_w_p.inverse() * referenceInfo.poses[i]).vec();
+    auto dist = (curr_pose - last_pose).norm();
+    if (end_ind < 0 && dist < base_config_->end_of_path_distance_threshold) {
+      end_ind = i;
+      weighting = (float) end_ind / mpcConfig->N;
+      CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
+    }
+      
+    mpcConfig->cost_weights.push_back(weighting);
+    last_pose = curr_pose;
+  }
+
+  mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
+  mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
+}
 }  // namespace vtr::path_planning
