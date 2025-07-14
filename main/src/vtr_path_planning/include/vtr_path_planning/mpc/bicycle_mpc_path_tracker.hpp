@@ -89,8 +89,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
 
   int failure_count = 0;
   int success_count = 0;
-  double previous_psi = 0.0;
-
   Config::ConstPtr config_;
   CasadiBicycleMPC solver_;
 };
