@@ -188,11 +188,11 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers); 
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_6/NEW_ESTIMATEDpc.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/new_path_new_cropping_tests/test1_what_worked_the_first_time/NEW_ESTIMATEDpc.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_6/relative_transforms_2025_06_12_15_07_48_Pix4D_Dome_Path_Test.csv"; 
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/new_path_new_cropping_tests_final_best/relative_transforms_2025_06_12_15_09_41_Pix4D_Dome_Path_Loop.csv"; 
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/pix4d_test_NewCroppingTest_tryagaintorepeatbestsettingsofar/graph"; 
+    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/new_path_new_cropping_tests_final_best/domeLoop/graph"; 
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
     float lidar_cylinder_height = 20.0; //lidar_cylinder_height = 30.0;   
     float radar_cylinder_height = 0.1; //0.2
     float cylinder_height = use_radar ? radar_cylinder_height : lidar_cylinder_height; 
-    float voxel_size = use_radar ? 2.0f : 0.9f; // Set voxel size based on sensor type - lower number = more dense - for paper used 0.9 for all lidar nerf maps - current radar tests use 1.0
+    float voxel_size = use_radar ? 1.7f : 0.9f; // Set voxel size based on sensor type - lower number = more dense - for paper used 0.9 for all lidar nerf maps - current radar tests use 1.0
     
     // Iterate through all vertices in the graph 
     for (auto it = loaded_graph->begin(0ul); it != loaded_graph->end(); ++it) {
@@ -285,16 +285,16 @@ int main(int argc, char **argv) {
         
         // RADAR:
         if (use_radar) {      
-          constexpr float kRadarMaxRange  = 40.0f;                       // metres
-          constexpr float kRadarConeDeg   = 2.0f;                        // half-angle
-          constexpr float kConeTan        = std::tan(kRadarConeDeg * M_PI / 180.0);
-          constexpr float kAzRes           = 0.015707963267948967f * 2;      // approx 0.9 rad
-          constexpr float kShadowMargin    = 0.30f;                      // keep pts within +30 cm
+          constexpr float kRadarMaxRange  = 40.0f;                       // metres // current best is 40
+          constexpr float kRadarConeDeg   = 2.0f;                        // half-angle 
+          constexpr float kConeTan        = std::tan(kRadarConeDeg * M_PI / 180.0); 
+          constexpr float kAzRes           = 0.015707963267948967f;      // approx 0.9 rad // current best is *2 (TRY *1, *0.5, *1.5)
+          constexpr float kShadowMargin    = 0.1f;                      // keep pts within +30 cm // current best is 0.30 (TRY 0.20, 0.10)
           const     int   kNumBins         = static_cast<int>(
                                               std::ceil(2.0f * M_PI / kAzRes));
 
-          constexpr int   kSideBins       = 2;      // look +/-2 bins  (approx 2 × kAzRes  wide)
-          constexpr float kSideMargin     = 0.07f;  // keep pts within +7 cm of any neighbour min-range
+          constexpr int   kSideBins       = 3;      // look +/-2 bins  (approx 2 × kAzRes  wide) // current best is 2
+          constexpr float kSideMargin     = 0.07f;  // keep pts within +7 cm of any neighbour min-range // current best is 0.07
 
           // Assemble the full sensor to map transform:
           Eigen::Matrix4d T_r_v = Eigen::Matrix4d::Identity();           // vertex to robot
@@ -312,14 +312,13 @@ int main(int argc, char **argv) {
           for (std::size_t i = 0; i < transformed_cloud->size(); ++i) {
             const auto& pt = transformed_cloud->points[i];
 
-            // Bring point into sensor frame (robot to sensor transform T_s_r)
             Eigen::Vector3f p_s = C_s_r * Eigen::Vector3f(pt.x, pt.y, pt.z) + t_s_r;
 
             float r_xy = std::hypot(p_s.x(), p_s.y());
             if (r_xy > kRadarMaxRange)                     continue;           // out of range
             if (std::abs(p_s.z()) > r_xy * kConeTan)       continue;           // outside cone
 
-            float az = std::atan2(p_s.y(), p_s.x());                           // –pi..pi
+            float az = std::atan2(p_s.y(), p_s.x());                           // –pi‥pi
             int   bin = static_cast<int>((az + static_cast<float>(M_PI)) / kAzRes);
             bin = std::min(std::max(bin, 0), kNumBins - 1);                    // clamp
 
@@ -345,17 +344,10 @@ int main(int argc, char **argv) {
             if (r_xy <= min_range[bin] + kShadowMargin)    keep_indices.push_back(i);
           }
 
-          // // Extract the kept points
-          // pcl::copyPointCloud(*transformed_cloud, keep_indices, *cropped_cloud);
-
-          // // Flatten to the radar image plane (z = constant)
-          // for (auto& pt : *cropped_cloud) pt.z = 1.0f; 
-
-
-          // 3)  Build jittered + streaked cloud
-          constexpr float kSigmaR   = 0.04f;        // 4 cm range noise
-          constexpr float kSigmaTh  = 0.001f;       // 1 mrad azimuth noise
-          constexpr int   kLmean    = 2; //5           // mean streak length (bins)
+          // Build jittered + streaked cloud
+          constexpr float kSigmaR   = 0.044f;        // 4 cm range noise // current best is 0.04
+          constexpr float kSigmaTh  = 0.001f;       // 1 mrad azimuth noise // current best is 0.001
+          constexpr int   kLmean    = 2; //5           // mean streak length (bins) // current best is 2
 
           std::mt19937                     rng{static_cast<uint32_t>(vertex_time)};
           std::normal_distribution<float>  n_r (0.0f, kSigmaR);
@@ -384,7 +376,7 @@ int main(int argc, char **argv) {
               Eigen::Vector3f ps_new(r_p * std::cos(th_p),
                                     r_p * std::sin(th_p),
                                     z_s);                                 // still sensor frame
-              // sensor → vertex/map
+              // sensor to vertex/map
               Eigen::Vector3f pv_new = C_s_r.transpose() * (ps_new - t_s_r);
 
               PointWithInfo q;
@@ -417,8 +409,6 @@ int main(int argc, char **argv) {
               keep_prob *= std::exp(-1.0f / static_cast<float>(kLmean));  // geometric decay
             }
           }
-
-
 
         } else {
           // LiDAR: 
