@@ -100,7 +100,7 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
         // If this is negative, they are in the 'opposite direction', and we're at
         // a cusp
         if (T_dot < 0) {
-          if (unsigned(path_it) < sid_start) {
+          if (unsigned(path_it) <= sid_start) {
             CLOG(DEBUG, "cbit.debug") << "Direction switch behind reset";
             best_distance = std::numeric_limits<double>::max();
           } else {
