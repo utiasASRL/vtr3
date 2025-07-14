@@ -283,10 +283,9 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   }
 
   // Set velocity constraint to zero once we've reached the end of the path
-  if (mpcConf.eop_index >= 0){
-    arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1 + mpcConf.eop_index), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-    arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1 + mpcConf.eop_index), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-
+  if (mpcConf.eop_index > 0){
+    arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+    arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   }
 
   arg["ubx"].set(mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
@@ -309,7 +308,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   }
 
   arg["x0"] = reshape(repmat(mpcConf.T0, 1, mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1), 1);
-  arg["x0"] = vertcat(arg["x0"], DM::zeros(mpcConf.nControl* mpcConf.N, 1));
+  arg["x0"] = vertcat(arg["x0"], DM::zeros(mpcConf.nControl * mpcConf.N, 1));
 
   // Acceleration constraints
   // Assume equal forward and backward acceleration
