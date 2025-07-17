@@ -248,7 +248,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   std::vector<lgmath::se3::Transformation> leader_world_poses;
   std::vector<double> leader_p_values;
   const auto leaderPath_copy = *leaderPathInterp_;
-  CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" << T_fw_lw_ * leaderPath_copy.at(curr_time) * (T_w_p * T_p_r_extp).inverse();
+  CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  (T_w_p * T_p_r_extp).inverse() * T_fw_lw_ * leaderPath_copy.at(curr_time);
   for (uint i = 0; i < mpcConfig.N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
