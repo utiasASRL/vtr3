@@ -194,6 +194,17 @@ std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformatio
   return std::make_pair(segment.dir, chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid)));
 }
 
+tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
+  double state_interp = 0;
+  auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
+  auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
+  tactic::SegmentInfo segment_info;
+  segment_info.start_p = chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid));
+  segment_info.dir = segment.dir;
+  segment_info.direction_switch = segment.direction_switch;
+  return segment_info;
+}
+
 lgmath::se3::Transformation interpolatePoses(const double interp,
                 const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end) {
   const lgmath::se3::Transformation edge = seq_start.inverse() * seq_end;

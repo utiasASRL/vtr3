@@ -138,11 +138,12 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:" << T_p_r_extp;
   }
 
-  auto dirAndP = findRobotP(T_w_p * T_p_r_extp, chain);
+  auto segment_info = findRobotSegmentInfo(T_w_p * T_p_r_extp, chain);
 
-  auto dir = dirAndP.first;
-  double state_p = dirAndP.second;
+  auto dir = segment_info.dir;
+  double state_p = segment_info.start_p;
   bool isReverse = (dir == tactic::Direction::Backward);
+  bool dir_switch = segment_info.direction_switch;
 
   // This is the only step that varies between the MPC implementations
   auto mpcConfig = loadMPCConfig(isReverse, w_p_r_in_r, applied_vel_);
@@ -157,7 +158,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   mpcConfig->VF = ScheduleSpeed(
       chain,
       {base_config_->forward_vel, base_config_->min_vel, base_config_->planar_curv_weight,
-       base_config_->profile_curv_weight, base_config_->eop_weight, 7});
+       base_config_->profile_curv_weight, base_config_->eop_weight, 7}, dir_switch);
 
   loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state);
 
@@ -193,8 +194,6 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     return Command();
   }
 
-
-
   vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig->DT);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x
@@ -218,6 +217,8 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
   auto referenceInfo = generateHomotopyReference(p_rollout, chain, T_w_p*T_p_r_extp);
   for (const auto& Tf : referenceInfo.poses) {
     mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() * Tf));
+    CLOG(DEBUG, "cbit.control")
+        << "Adding reference pose: " << tf_to_global(T_w_p.inverse() * Tf);
   }
 
   // Detect end of path and set the corresponding cost weight vector element to zero
@@ -231,7 +232,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     auto dist = (curr_pose - last_pose).norm();
     if (end_ind < 0 && dist < base_config_->end_of_path_distance_threshold) {
       end_ind = i;
-      weighting = (float) end_ind / mpcConfig->N;
+      weighting = 0;//(float) end_ind / mpcConfig->N;
       CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
     }
       

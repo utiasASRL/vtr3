@@ -37,5 +37,6 @@ struct SpeedSchedConfig {
 };
 
 double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params);
+double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params, bool direction_switch);
   
 } // namespace vtr::path_planning

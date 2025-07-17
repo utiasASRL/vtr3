@@ -63,6 +63,8 @@ lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T
                 const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end,
                 double& interp);
 std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain);
+tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain);
+
 
 template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));

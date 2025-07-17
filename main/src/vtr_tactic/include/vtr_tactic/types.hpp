@@ -95,7 +95,9 @@ struct SegmentInfo {
   unsigned start_sid = 0;
   unsigned end_sid = 0;   
   bool direction_switch = false; 
+  double start_p = 0.0; // start p coordinate of the segment
 
+  SegmentInfo() = default;
   SegmentInfo(Direction d, const unsigned start_sid, const unsigned end_sid)
       : dir(d), start_sid(start_sid), end_sid(end_sid) {}
   SegmentInfo(const unsigned start_sid, const unsigned end_sid)

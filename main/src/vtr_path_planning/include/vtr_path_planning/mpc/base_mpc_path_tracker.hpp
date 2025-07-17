@@ -57,7 +57,7 @@ class BaseMPCPathTracker : public BasePathPlanner {
     double robot_angular_velocity_scale = 1.0;
 
     // Detection threshold to set MPC weights to zero
-    double end_of_path_distance_threshold = 0.01;
+    double end_of_path_distance_threshold = 0.005;
 
     // Misc
     int command_history_length = 100;
