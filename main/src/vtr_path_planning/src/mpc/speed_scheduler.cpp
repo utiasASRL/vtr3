@@ -90,7 +90,7 @@ namespace vtr::path_planning
     VF_XY = std::max(params.min_vel, params.target_vel / (1 + (avg_curvature * avg_curvature * params.planar_curv_weight)));
     
     // Take the minimum of all candidate (positive) scheduled speeds (Lowest allowed scheduled velocity is 0.5m/s, should be left this way)
-    double VF = std::min({VF_EOP, VF_SOP, VF_XY});
+    double VF = std::min({VF_EOP, VF_SOP, VF_XY, VF_DS});
     CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_EOP SPEED IS:  " << VF_EOP;
     CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_SOP SPEED IS:  " << VF_SOP;
     CLOG(DEBUG, "mpc.speed_scheduler") << "THE VF_DS SPEED IS:  " << VF_DS;
