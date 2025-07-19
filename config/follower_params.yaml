@@ -3,13 +3,13 @@
     path_planning:
       type: bicycle_mpc_follower
       follow_distance: 1.5
-      distance_margin: 50.0
+      distance_margin: 0.25
       leader_namespace: /miss_scarlet
       waypoint_selection: leader_vel
       mpc:
-        q_dist: 50.0
+        q_dist: 5.0
         q_y: 0.0
-        q_x: 20.0
+        q_x: 10.0
         wheelbase: 0.65
     log_enabled:
       #- navigation

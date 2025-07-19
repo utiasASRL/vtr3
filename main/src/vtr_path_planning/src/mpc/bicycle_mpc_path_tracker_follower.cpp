@@ -140,6 +140,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand(RobotState& robot_state) -> C
       CLOG(WARNING, "cbit.control") << "It appears that the sensor has stopped providing information at a rate that is satisfactory. Stopping.";
     }
   } else {
+    prev_vel_stamp_ = robot_state.chain->leaf_stamp();
     auto raw_command = computeCommand_(robot_state);
     output_vel = {raw_command.linear.x, raw_command.angular.z};
     frame_delay_ = 0;
@@ -157,7 +158,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand(RobotState& robot_state) -> C
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
   vel_history.erase(vel_history.begin());
   vel_history.push_back(applied_vel_);
-  prev_vel_stamp_ = robot_state.chain->leaf_stamp();
 
   CLOG(INFO, "cbit.control")
     << "Final control command: [" << command.linear.x << ", "
@@ -337,6 +337,11 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
 void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   using namespace vtr::common::conversions;
+
+  if(recentLeaderPath_ != nullptr) {
+    path->poses.insert(path->poses.begin(), lastRobotPose_); 
+    lastRobotPose_ = path->poses[1];
+  }
   
   recentLeaderPath_ = path;
 
