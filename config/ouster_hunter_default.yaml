@@ -255,7 +255,7 @@
         max_ang_acc: 0.89
         ang_alpha: 0.0
         lin_alpha: 0.0
-        max_lin_acc: 2.0
+        max_lin_acc: 0.5
         vehicle_model: "bicycle"
         wheelbase: 0.55
         recovery_steps: 15

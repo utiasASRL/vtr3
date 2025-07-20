@@ -12,9 +12,9 @@ step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the steering angle
-alpha = 0.6
+alpha = 0.8
 
-alpha_v = 0.0
+alpha_v = 0.4
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states
@@ -156,7 +156,6 @@ g = ca.vertcat(g, U[0, 0])
 g = ca.vertcat(g, U[1, 0])
 for k in range(1, N-1):
     cost_fn += cost_weights[k]*((U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1]))
-    #cost_fn += 0.1/(U[0, k]**2 + 1e-3)
     # Add acceleration constraints
     g = ca.vertcat(g, U[0, k] - U[0, k-1])
     # Angular acceleration constraints
