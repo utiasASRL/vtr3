@@ -86,6 +86,8 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->P0inv = Eigen::DiagonalMatrix<double, 6>(p0_inv[0], p0_inv[1], p0_inv[2], p0_inv[3], p0_inv[4], p0_inv[5]);
+  config->P0    = Eigen::DiagonalMatrix<double, 6>(1.0 / p0_inv[0], 1.0 / p0_inv[1], 1.0 / p0_inv[2],
+                                                   1.0 / p0_inv[3], 1.0 / p0_inv[4], 1.0 / p0_inv[5]);
 
   const auto qz_inv = node->declare_parameter<std::vector<double>>(param_prefix + ".Qzinv", std::vector<double>());
   if (qz_inv.size() != 6) {
@@ -511,11 +513,11 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix4d T_21 = Eigen::Matrix4d::Identity(); 
   // cov of T_integrated, start from T_k
   if (frame_count == 0) {
-    cov_T_k = config_->P0inv.inverse();
+    cov_T_k = config_->P0;
   } 
-  Eigen::Matrix<double, 6, 6> P_int = cov_T_k;
+  Eigen::Matrix<double,6,6> P_int = cov_T_k;
 
-  Eigen::Matrix<double, 6, 6> P_T_tau = Eigen::Matrix<double, 6, 6>::Zero();
+  Eigen::Matrix<double,6,6> P_T_tau = Eigen::Matrix<double,6,6>::Zero();
 
   for (int s = 1; s <= config_->integration_steps; ++s) {
     double t = s*dtt;     // tau - t_k
@@ -530,8 +532,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     // P_T_tau = dt^2 J * cov_interp * J^T + Ad(phi^) * P_int * Ad(phi^)^T   
     Eigen::Matrix<double,6,1> phi_interp = dtt * vinterp; // phi = v * dt    
     Eigen::Matrix<double,6,6> J_left = lgmath::se3::vec2jac(phi_interp);  // left Jacobian of phi_interp
-    Eigen::Matrix<double, 4, 4> phi_matrix = lgmath::se3::vec2tran(phi_interp);
-    P_T_tau += dtt * dtt * J_left * cov_interp * J_left.transpose() + 
+    Eigen::Matrix<double,4,4> phi_matrix = lgmath::se3::vec2tran(phi_interp);
+    P_T_tau = dtt * dtt * J_left * cov_interp * J_left.transpose() + 
                lgmath::se3::tranAd(phi_matrix) * P_int * lgmath::se3::tranAd(phi_matrix).transpose();                                 
     // update the integrated covariance P_int for next iteration
     P_int = P_T_tau;
