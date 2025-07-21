@@ -4,7 +4,7 @@
     log_debug: true
     log_enabled:
         # navigator
-      - navigation
+      #- navigation
       #- navigation.graph_map_server
       #- navigation.command
     
@@ -23,8 +23,8 @@
       - cbit.path_planning
       #- cbit_planner.path_planning
       #- cbit.debug
-      - mpc.solver
-      - mpc.speed_scheduler
+      #- mpc.solver
+      #- mpc.speed_scheduler
       #- mpc.cost_function
       #- mpc.cbit
       #- mpc.debug
@@ -44,7 +44,7 @@
       #- lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
-      #- lidar.odometry_icp
+      - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
@@ -60,6 +60,12 @@
     env_info_topic: env_info
     lidar_frame: w200_0066_os_lidar
     lidar_topic: /ouster/points
+    gyro_frame: w200_0066_os_imu
+    gyro_topic: /ouster/imu
+    gyro_bias:
+      x: 0.0
+      y: 0.0
+      z: 0.0
     queue_size: 1
     graph_map:
       origin_lat: 43.7822
@@ -152,8 +158,6 @@
         # continuous time estimation
         use_trajectory_estimation: false
         traj_num_extra_states: 0
-        traj_lock_prev_pose: false
-        traj_lock_prev_vel: false
         traj_qc_diag:
           - 1.0
           - 0.1
@@ -172,8 +176,9 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.85
+        min_matched_ratio: 0.0
         visualize: true
+        gyro_cov: 1e-3
       mapping:
         type: lidar.odometry_map_maintenance_v2
 

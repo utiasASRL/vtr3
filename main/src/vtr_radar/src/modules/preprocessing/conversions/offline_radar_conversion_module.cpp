@@ -60,6 +60,8 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  if(!qdata.scan) return;
+
   /// Input
 #if false
   auto scan = cv_bridge::toCvCopy(qdata.scan_msg.ptr(), "mono8")->image;
@@ -73,6 +75,9 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   cv::Mat cartesian;
   std::vector<int64_t> azimuth_times;
   std::vector<double> azimuth_angles;
+  std::vector<bool> up_chirps;
+  Eigen::Vector2d vel_meas;
+  double yaw_meas = -1000.0;
 
   /// \note for now we retrieve radar resolution from load_radar function
 #if false
@@ -85,24 +90,26 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   float cart_resolution = config_->cart_resolution;
 
   // Load scan, times, azimuths from scan
-  load_radar(scan, azimuth_times, azimuth_angles, fft_scan);
+  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, fft_scan, vel_meas, yaw_meas);
+  qdata.yaw_meas.emplace(yaw_meas);
+  qdata.vel_meas.emplace(vel_meas);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
   radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
                            radar_resolution, cart_resolution, cart_pixel_width,
                            true, CV_32F);
-  CLOG(DEBUG, "radar.pc_extractor")
+  CLOG(DEBUG, "radar.conversion")
       << "fft_scan has " << fft_scan.rows << " rows and " << fft_scan.cols
       << " cols with resolution " << radar_resolution;
 
-  CLOG(DEBUG, "radar.pc_extractor") << "cartesian has " << cartesian.rows
+  CLOG(DEBUG, "radar.conversion") << "cartesian has " << cartesian.rows
                                          << " rows and " << cartesian.cols
                                          << " cols with resolution "
                                          << cart_resolution;
                                     
-  CLOG(DEBUG, "radar.pc_extractor") << "azimuth_angles has " << azimuth_angles.size() << " elements";
-  CLOG(DEBUG, "radar.pc_extractor") << "azimuth_times has " << azimuth_times.size() << " elements";
+  CLOG(DEBUG, "radar.conversion") << "azimuth_angles has " << azimuth_angles.size() << " elements";
+  CLOG(DEBUG, "radar.conversion") << "azimuth_times has " << azimuth_times.size() << " elements";
 
   qdata.radar_data.emplace();
   /// store them to the cache
@@ -110,6 +117,7 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.radar_data->cartesian = cartesian;
   qdata.radar_data->azimuth_times = azimuth_times;
   qdata.radar_data->azimuth_angles = azimuth_angles;  
+  qdata.radar_data->up_chirps = up_chirps;
 
                                    }
 

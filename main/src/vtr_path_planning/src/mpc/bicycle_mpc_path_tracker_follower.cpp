@@ -111,7 +111,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
-  CLOG(INFO, "mpc.follower") << "Target separation: " << config->distance_margin;
+  CLOG(INFO, "mpc.follower") << "Target separation: " << config->following_offset;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
   leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
@@ -126,27 +126,37 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
 BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
 
 auto BicycleMPCPathTrackerFollower::computeCommand(RobotState& robot_state) -> Command {
-  auto raw_command = computeCommand_(robot_state);
   
-  Eigen::Vector2d output_vel = {raw_command.linear.x, raw_command.angular.z};
+  
+  
+  Eigen::Vector2d output_vel = Eigen::Vector2d::Zero();
+  
+  if (robot_state.chain->leaf_stamp() == prev_vel_stamp_) {
+    frame_delay_++;
+    if (frame_delay_ < 2) {
+      output_vel = applied_vel_;
+    } else {
+      CLOG(WARNING, "cbit.control") << "It appears that the sensor has stopped providing information at a rate that is satisfactory. Stopping.";
+    }
+  } else {
+    auto raw_command = computeCommand_(robot_state);
+    output_vel = {raw_command.linear.x, raw_command.angular.z};
+    frame_delay_ = 0;
+  }
 
   // Apply robot motor controller calibration scaling factors if applicable
   output_vel(0) = output_vel(0) * config_->robot_linear_velocity_scale;
   output_vel(1) = output_vel(1) * config_->robot_angular_velocity_scale;
 
-  // If required, saturate the output velocity commands based on the configuration limits
-  CLOG(DEBUG, "cbit.control") << "Saturating the velocity command if required";
-  Eigen::Vector2d saturated_vel = saturateVel(output_vel, config_->max_lin_vel, config_->max_ang_vel);
-  CLOG(INFO, "cbit.control") << "The Saturated linear velocity is:  " << saturated_vel(0) << " The angular vel is: " << saturated_vel(1);
-  
   Command command;
-  command.linear.x = saturated_vel(0);
-  command.angular.z = saturated_vel(1);
-  applied_vel_ = saturated_vel;
+  command.linear.x = output_vel(0);
+  command.angular.z = output_vel(1);
+  applied_vel_ = output_vel;
 
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
   vel_history.erase(vel_history.begin());
   vel_history.push_back(applied_vel_);
+  prev_vel_stamp_ = robot_state.chain->leaf_stamp();
 
   CLOG(INFO, "cbit.control")
     << "Final control command: [" << command.linear.x << ", "
@@ -205,12 +215,12 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
   if (config_->extrapolate_robot_pose) {
     curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
-    auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
-    if (fabs(dt) > 0.25) { 
-      CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
-            << "Ignoring extrapolation requestion. Check your time sync!";
-      dt = 0;
-    }
+    auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.1;
+    // if (fabs(dt) > 0.2) { 
+    //   CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
+    //         << "Ignoring extrapolation requestion. Check your time sync!";
+    //   dt = 0;
+    // }
 
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
     T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
@@ -244,7 +254,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     leader_world_poses.push_back(T_w_lp);
     leader_p_values.push_back(findRobotP(T_w_lp, chain).second);
     CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
-
   }
 
   auto dirAndP = findRobotP(T_w_p * T_p_r_extp, chain);

@@ -42,9 +42,9 @@
 
         # lidar pipeline
       #- lidar.pipeline
-      #- lidar.preprocessing
+      - lidar.preprocessing
       #- lidar.ouster_converter
-      #- lidar.odometry_icp
+      - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
@@ -60,7 +60,13 @@
     env_info_topic: env_info
     lidar_frame: os_lidar
     lidar_topic: /ouster/points
+    imu_frame: os_imu
+    imu_topic: /ouster/imu
     queue_size: 1
+    gyro_bias:
+      x: -0.004618
+      y: -0.010622
+      z: -0.003973
     graph_map:
       origin_lat: 43.7822
       origin_lng: -79.4661
@@ -127,7 +133,7 @@
         num_threads: 4
         crop_range: 40.0
 
-        frame_voxel_size: 0.4 # grid subsampling voxel size
+        frame_voxel_size: 0.3 # grid subsampling voxel size
 
         vertical_angle_res: 0.012271 # vertical angle resolution in radians, equal to 0.3516 degree documented in the manual
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
@@ -173,11 +179,12 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.85
+        gyro_cov: 1e-3
         visualize: true
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.4
+        map_voxel_size: 0.3
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -192,7 +199,7 @@
         type: lidar.intra_exp_merging_v2
         depth: 6.0
 
-        map_voxel_size: 0.4
+        map_voxel_size: 0.3
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -200,7 +207,7 @@
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
-        map_voxel_size: 0.4
+        map_voxel_size: 0.3
         max_num_experiences: 128
         distance_threshold: 0.6
         planar_threshold: 0.2
@@ -247,7 +254,7 @@
         min_vel: 0.5
       mpc:
         # Controller Params
-        extrapolate_robot_pose: false
+        extrapolate_robot_pose: true
         mpc_verbosity: false
         forward_vel: 0.75
         max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently

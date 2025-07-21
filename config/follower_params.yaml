@@ -5,9 +5,11 @@
       follow_distance: 3.5
       distance_margin: 100.0
       leader_namespace: /mr_green
-      waypoint_selection: euclidean
+      waypoint_selection: leader_vel
       mpc:
-        q_dist: 0.0
+        q_dist: 20.0
+        q_y: 0.0
+        q_x: 5.0
         wheelbase: 0.55
     log_enabled:
       #- navigation
@@ -25,8 +27,6 @@
       - cbit.control
       #- cbit.debug
       #- cbit.path_planning
-      #- cbit.obstacle_filtering
-      #- grizzly_controller_tests.cbit
         # mpc
       - mpc.speed_scheduler
       - mpc.debug
@@ -39,7 +39,7 @@
         # lidar pipeline
       #- lidar.pipeline
       #- lidar.preprocessing
-      #- lidar.odometry_icp
+      - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall

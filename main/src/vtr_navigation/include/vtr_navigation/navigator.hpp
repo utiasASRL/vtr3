@@ -39,8 +39,11 @@
 
 #ifdef VTR_ENABLE_RADAR
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
-#include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#endif
+
+#if defined(VTR_ENABLE_RADAR ) || defined(VTR_ENABLE_LIDAR)
+#include "sensor_msgs/msg/imu.hpp"
 #endif
 
 namespace vtr {
@@ -89,14 +92,19 @@ class Navigator {
   rclcpp::Subscription<navtech_msgs::msg::RadarBScanMsg>::SharedPtr radar_sub_;
   std::string radar_frame_;
   tactic::EdgeTransform T_radar_robot_;
-  
+#endif
+ 
+#if defined(VTR_ENABLE_RADAR ) || defined(VTR_ENABLE_LIDAR)
   // gyro
+  using ImuMsg = sensor_msgs::msg::Imu;
   const std::string &gyro_frame() const { return gyro_frame_; }
   const tactic::EdgeTransform &T_gyro_robot() const { return T_gyro_robot_; }
-  void gyroCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
-  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr gyro_sub_;
+  void gyroCallback(const ImuMsg::SharedPtr msg);
+  rclcpp::Subscription<ImuMsg>::SharedPtr gyro_sub_;
   std::string gyro_frame_;
   tactic::EdgeTransform T_gyro_robot_;
+  std::vector<ImuMsg> gyro_msgs_;
+  std::array<double, 3> gyro_bias_ = {0.0, 0.0, 0.0};
 #endif
 
 #ifdef VTR_ENABLE_VISION

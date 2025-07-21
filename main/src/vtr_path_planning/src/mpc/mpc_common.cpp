@@ -241,12 +241,12 @@ lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T
 
   // interp = std::clamp(interp, 0.0, 1.0);
   if (abs(interp) - std::clamp(interp, 0.0, 1.0) > 0.001) {
-    CLOG(WARNING, "test") << "Extrapolating beyond path segment. Interp " << interp;
-    CLOG(DEBUG, "test") << "CoC is " << coc << " RoC is " << roc;
-    CLOG(DEBUG, "test") << "Position is " << T_wr.matrix();
-    CLOG(DEBUG, "test") << "Start is " << seq_start.matrix();
-    CLOG(DEBUG, "test") << "End is " << seq_end.matrix();
-    CLOG(DEBUG, "test") << "Center is " << coc_h.head<3>();
+    CLOG(WARNING, "mpc.debug") << "Extrapolating beyond path segment. Interp " << interp;
+    CLOG(DEBUG, "mpc.debug") << "CoC is " << coc << " RoC is " << roc;
+    CLOG(DEBUG, "mpc.debug") << "Position is " << T_wr.matrix();
+    CLOG(DEBUG, "mpc.debug") << "Start is " << seq_start.matrix();
+    CLOG(DEBUG, "mpc.debug") << "End is " << seq_end.matrix();
+    CLOG(DEBUG, "mpc.debug") << "Center is " << coc_h.head<3>();
   }
   if (std::isnan(interp)) { 
     throw std::runtime_error("ERROR NAN FOUND!!!!!");
