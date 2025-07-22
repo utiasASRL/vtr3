@@ -5,7 +5,7 @@
     log_debug: true
     log_enabled:
       #- navigation
-      # - radar.pipeline
+      - radar.pipeline
       # - navigation.sensor_input
       - radar.online_converter
       - radar.pc_extractor
@@ -27,7 +27,7 @@
     gyro_bias: 
       z: 0.004203267148472062 # 0.004203267148472062
     queue_size: 100
-    graph_map:
+    graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220
       origin_lng: -79.4661 # UTIAS: -79.4661
       origin_theta: 1.3
@@ -135,7 +135,7 @@
         frame_voxel_size: 1.0
 
         window_size: 3.0 # number of neighboring azimuths used to compute line normal
-        aximuth_res: 0.015707963267948967 # azimuth resolution in radians (0.1 in degree), giveng M=400 2pi/400 = 0.015707963267948967
+        azimuth_res: 0.015707963267948967 # azimuth resolution in radians (0.1 in degree), giveng M=400 2pi/400 = 0.015707963267948967
         rho_scale: 1.0 # when finding neighbors, set rho to log(rho) / rho_scale
 
         num_sample_linearity: 5000 # max number of sample after filtering based on linearity
