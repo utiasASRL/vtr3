@@ -46,3 +46,16 @@
       - lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
+      - lidar.leader_locator
+    pipeline:
+      preprocessing:
+        - conversion
+        - filtering
+        - locate_leader
+    preprocessing:
+      locate_leader:
+        type: lidar.leader_locator
+        maximum_distance: 5.0
+        minimum_distance: 0.0
+        intensity_threshold: 10000.0
+    

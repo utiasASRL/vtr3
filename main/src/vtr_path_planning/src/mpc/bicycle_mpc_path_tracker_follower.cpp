@@ -324,7 +324,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   }
 
   vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
-  vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
+  vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig.DT);
   vis_->publishReferencePoses(referenceInfo.poses);
 
 
