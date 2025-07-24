@@ -3,38 +3,48 @@
     log_to_file: true
     log_debug: true
     log_enabled:
+        # navigator
       - navigation
       #- navigation.graph_map_server
       #- navigation.command
+    
         # tactic
       #- tactic
       #- tactic.pipeline
-      - tactic.module # GOOD speed on to check
+      #- tactic.eop
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
-      #- mission.state_machine
-      - mission.server
-      # - navigator
-        # planner manager
+
+      # path planner
+      - path_planning
+      - path_planning.cbit
+      - path_planning.cbit_planner
+      - cbit.path_planning
+      #- cbit_planner.path_planning
+      #- cbit.debug
+      - mpc.solver
+      - mpc.speed_scheduler
+      #- mpc.cost_function
+      #- mpc.cbit
+      #- mpc.debug
       - cbit.control
-      # - cbit.debug
-      # - cbit.path_planning
-      # - cbit.visualization
-      #- cbit.obstacle_filtering
+      #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
-        # mpc
-      # - mpc.speed_scheduler
-      # - mpc.debug
-      #- mpc.solver
-        # path planner
-      # - cbit_planner.path_planning
+      #- ouster
+        
+        # mission planner
+      #- mission.server
+      - mission.state_machine
+
         # pose graph
       #- pose_graph
+
         # lidar pipeline
       #- lidar.pipeline
-      #- lidar.honeycomb_converter
-      # - lidar.preprocessing
-      #- lidar.odometry_icp
+      #- lidar.aeva_converter_v2
+      #- lidar.preprocessing
+      - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
@@ -45,36 +55,43 @@
       #- lidar.ground_extraction
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
-    # control frame from the urdf
-    robot_frame: os_sensor #base_link
+
+    robot_frame: w200_0066_base_link
     env_info_topic: env_info
-    lidar_frame: os_lidar
-    lidar_topic: /ouster/points
-    graph_projection:
+    lidar_frame: w200_0066_aeva_lidar
+    lidar_topic: /aeva/sensor/point_cloud
+    gyro_frame: w200_0066_aeva_imu
+    gyro_topic: /aeva/sensor/imu
+    gyro_bias:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    queue_size: 1
+    graph_map:
       origin_lat: 43.7822
       origin_lng: -79.4661
       origin_theta: 1.3
       scale: 1.0
-      gps_topic: "/novatel/fix"
     tactic:
       enable_parallelization: true
       preprocessing_skippable: false
       odometry_mapping_skippable: false
-      localization_skippable: false
+      localization_skippable: true
       task_queue_num_threads: 1
       task_queue_size: -1
-      
-      route_completion_translation_threshold: 0.3 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
-      route_completion_angle_threshold: 0.5 #0.26
+
+      route_completion_translation_threshold: 0.2
+      route_completion_angle_threshold: 0.1
 
       chain:
-        min_cusp_distance: 1.5
-        angle_weight: 0.25
+        min_cusp_distance: 0.5
+        angle_weight: 1.0
         search_depth: 5
-        search_back_depth: 5
+        search_back_depth: 10
         distance_warning: 5.0
-        alpha: 0.25 # the one in genreate_pq is not used.
+        alpha: 1.0
       save_odometry_result: true
+      save_odometry_vel_result: true
       save_localization_result: true
       visualize: true
       rviz_loc_path_offset:
@@ -90,50 +107,46 @@
         - icp
         - mapping
         - vertex_test
-        # - intra_exp_merging
-        # - dynamic_detection
-        # - inter_exp_merging
+        #- intra_exp_merging
+        #- dynamic_detection
+        #- inter_exp_merging
         - memory
       localization:
         - recall
         - icp
-        - safe_corridor
-        # - change_detection_sync
+        #- safe_corridor
+        #- change_detection_sync
         - memory
-      submap_translation_threshold: 0.275 
-      submap_rotation_threshold: 15.0
+      submap_translation_threshold: 1.5
+      submap_rotation_threshold: 30.0
     preprocessing:
       conversion:
-        type: lidar.ouster_converter
-        visualize: false # JH: could add additional filters here?
-        filter_warthog: true # look at code: need to be true to filter
-        filter_z_min: -0.5
-        filter_z_max: 2.5
-        filter_radius: 0.5 # was 0.2
+        type: lidar.aeva_converter_v2
+        visualize: false
 
       filtering:
-        type:  lidar.preprocessing #lidar.preprocessing_v2
+        type: lidar.preprocessing
         num_threads: 8
-        crop_range: 20.0
+        crop_range: 40.0
 
-        frame_voxel_size: 0.3 #0.3 # grid subsampling voxel size
+        frame_voxel_size: 0.3 # grid subsampling voxel size
 
-        vertical_angle_res: 0.0122718463 # (pi/2)/128 for OS0 128
+        vertical_angle_res: 0.00698132 # vertical angle resolution in radians
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
-        r_scale: 2.5 # scale down point range by this value after taking log, whatever works
-        h_scale: 0.5 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution is 360/1024 ~= 0.3516 degree, so 0.3516 / (90/128) = 0.5
+        r_scale: 4.0 # scale down point range by this value after taking log, whatever works
+        h_scale: 2.0 #0.125 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution
 
-        num_sample1: 2500 #12500 # max number of sample after filtering based on planarity
+        num_sample1: 20000 # max number of sample after filtering based on planarity
         min_norm_score1: 0.95 # min planarity score
 
-        num_sample2: 2500 #12500 # max number of sample after filtering based on planarity
+        num_sample2: 20000 # max number of sample after filtering based on planarity
         min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
         min_normal_estimate_dist: 1.0 # minimum distance to estimate normal in meters
         max_normal_estimate_angle: 0.44 # must <1/2, this value will be timed by M_PI
 
-        cluster_num_sample: 2500 #12500 # maxnumber of sample after removing isolated points
+        cluster_num_sample: 20000 # maxnumber of sample after removing isolated points
 
-        visualize: false
+        visualize: true
     odometry:
       icp:
         type: lidar.odometry_icp
@@ -159,12 +172,13 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.5
-        visualize: false
+        min_matched_ratio: 0.0
+        visualize: true
+        gyro_cov: 1e-3
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.25
+        map_voxel_size: 0.3
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -173,8 +187,8 @@
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 0.3 # JH: Alec mentioned something about if this is too small, weird things will happen
-        max_rotation: 15.0
+        max_translation: 0.30
+        max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
         depth: 6.0
@@ -183,27 +197,27 @@
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
-        visualize: false
+        visualize: true
       dynamic_detection:
         type: lidar.dynamic_detection
         depth: 12.0
 
-        horizontal_resolution: 0.00613592315  # 2pi / 1024
-        vertical_resolution: 0.0122718463  # pi/2 / 128
-        max_num_observations: 10000
+        horizontal_resolution: 0.0008726646
+        vertical_resolution: 0.00698132
+        max_num_observations: 2000
         min_num_observations: 4
         dynamic_threshold: 0.3
-        visualize: false
+        visualize: true
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
-        map_voxel_size: 0.25
+        map_voxel_size: 0.3
         max_num_experiences: 128
         distance_threshold: 0.6
         planar_threshold: 0.2
         normal_threshold: 0.8
         dynamic_obs_threshold: 1
-        visualize: false
+        visualize: true
       memory:
         type: live_mem_manager
         window_size: 5
@@ -211,7 +225,7 @@
       recall:
         type: lidar.localization_map_recall
         map_version: pointmap
-        visualize: false
+        visualize: true
       icp:
         type: lidar.localization_icp
         use_pose_prior: true
@@ -226,22 +240,23 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.45
+        target_loc_time: 15.0
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0
-        corridor_width: 0.5
+        corridor_width: 3.5
         influence_distance: 1.0
         resolution: 0.25
         size_x: 16.0
         size_y: 8.0
-        visualize: false
+        visualize: true
       change_detection_sync:
         type: lidar.change_detection_v3
         detection_range: 8.0
         search_radius: 0.25
 
-        negprob_threshold: 0.25 # was 0.015 # -1.86 without prior, 0.015 with prior
+        negprob_threshold: 0.015 # was 0.015 # -1.86 without prior, 0.015 with prior # Jordy: I found I needed to bump this up abit (approx 0.075+) to reduce false positives
         use_prior: true
         alpha0: 3.0
         beta0: 0.03
@@ -250,47 +265,28 @@
         support_variance: 0.05
         support_threshold: 2.5
 
-        influence_distance: 0.5 # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
-        minimum_distance: 0.8
+        influence_distance: 0.6 # was 0.5 Jordy # Note that the total distance where grid cells have values > 0 is min dist + influence dist, not influence dist!
+        minimum_distance: 0.9 # was 0.3 Jordy
 
         # cost map
-        costmap_history_size: 15 # Keep between 3 and 30, used for temporal filtering
+        costmap_history_size: 15 # Keep between 3 and 20, used for temporal filtering
         resolution: 0.25
         size_x: 16.0
         size_y: 8.0
-        visualize: false
-      change_detection:
-        type: lidar.change_detection_v2
-        detection_range: 8
-        search_radius: 0.25
-        negprob_threshold: 0.1
-        use_prior: true
-        alpha0: 3.0
-        beta0: 0.03
-        use_support_filtering: true
-        support_radius: 0.25
-        support_variance: 0.05
-        support_threshold: 2.5
-        resolution: 0.5
-        size_x: 16.0
-        size_y: 8.0
-        run_online: false
-        run_async: true
-        visualize: false
-        save_module_result: false
+        visualize: true
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
         window_size: 3
       obstacle_detection:
         type: lidar.obstacle_detection
-        z_min: 0.5 
+        z_min: 0.5
         z_max: 2.0
         resolution: 0.6
         size_x: 40.0
         size_y: 20.0
         run_async: true
-        visualize: false
+        visualize: true
       ground_extraction:
         type: lidar.ground_extraction
         z_offset: 0.2
@@ -310,7 +306,7 @@
         size_x: 40.0
         size_y: 20.0
         run_async: true
-        visualize: false
+        visualize: true
       terrain_assessment:
         type: lidar.terrain_assessment
         lookahead_distance: 15.0
@@ -321,8 +317,8 @@
         size_y: 20.0
         run_online: false
         run_async: true
-        visualize: false
-
+        visualize: true
+    
     path_planning:
       type: cbit
       control_period: 100 # ms
@@ -344,52 +340,35 @@
         alpha: 0.25
         q_max: 2.5
         frame_interval: 50
-        iter_max: 10000000
         eta: 1.0
         rad_m_exhange: 1.00
-        initial_exp_rad: 1.00
+        initial_exp_rad: 0.75
         extrapolation: false
         incremental_plotting: false
         plotting: true
       costmap:
         costmap_filter_value: 0.01
-        costmap_history: 15 
+        costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
 
       speed_scheduler:
-        planar_curv_weight: 2.50
-        profile_curv_weight: 0.5 
+        planar_curv_weight: 0.0
+        profile_curv_weight: 0.0 
         eop_weight: 1.0
-        min_vel: 1.2 #0.5
-
+        min_vel: 0.5
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
+        extrapolate_robot_pose: false
         mpc_verbosity: false
-        homotopy_guided_mpc: false
-        horizon_steps: 20
-        horizon_step_size: 0.25 # JH: I think this is planning time step which I need to be 0.25s for DRL model.
-        forward_vel: 0.75
-        max_lin_vel: 1.1 #1.0
-        max_ang_vel: 1.0
+        forward_vel: 1.0
+        max_lin_vel: 1.5
+        max_ang_vel: 0.5
+        max_ang_acc: 5.0
+        ang_alpha: 0.811
+        lin_alpha: 0.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
-
-        # JH: I think Alec changed this to just rollout which removes kinematic constraints as part of optimization
-        # Cost Function Covariance Matrices
-        pose_error_cov: [10.0, 10.0, 100.0, 100.0, 100.0, 20.0]
-        vel_error_cov: [20.0, 30.0]
-        acc_error_cov: [20.0, 20.0]
-        kin_error_cov: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-        lat_error_cov: [2.0]
-
-        # Cost Function Weights
-        pose_error_weight: 1.0
-        vel_error_weight: 1.5
-        acc_error_weight: 1.5
-        kin_error_weight: 1.0
-        lat_error_weight: 0.01
 
         # Misc
         command_history_length: 100

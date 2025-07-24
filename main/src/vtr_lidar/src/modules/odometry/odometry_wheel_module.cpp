@@ -25,16 +25,16 @@ namespace lidar {
 
 namespace {
 
-  template <class PointT>
-  void cart2pol(pcl::PointCloud<PointT> &point_cloud) {
-    for (auto &p : point_cloud) {
-      p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-      p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
-      p.phi = std::atan2(p.y, p.x);
-    }
+template <class PointT>
+void cart2pol(pcl::PointCloud<PointT> &point_cloud) {
+  for (auto &p : point_cloud) {
+    p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = std::atan2(p.y, p.x);
   }
-  
-  }  // namespace
+}
+
+}  // namespace
 
 using namespace tactic;
 using namespace steam;
@@ -80,17 +80,12 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     frame_count = 0;
   }
 
-  CLOG(DEBUG, "lidar.odometry_wheel") << "current theta: " << current_theta;
-
-  CLOG(DEBUG, "lidar.odometry_wheel") << "Retrieve input data and setup evaluators.";
-
-  if (!qdata.gyro_msgs || !qdata.wheel_meas) {
-    CLOG_IF(!qdata.gyro_msgs, "lidar.odometry_wheel") << "No gyro messages provided, cannot run wheel odometry.";
-    CLOG_IF(!qdata.wheel_meas, "lidar.odometry_wheel") << "No wheel measurements provided, cannot run wheel odometry.";
-    *qdata.odo_success = false;
+  if (!qdata.gyro_msgs) {
+    CLOG(WARNING, "lidar.odometry_wheel") << "No gyro messages found, cannot run odometry.";
+    frame_count++;
     return;
   }
- 
+
   // Inputs
   const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
@@ -118,17 +113,23 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   T_s_r_wh_var->locked() = true;
   const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
   T_s_r_gyro_var->locked() = true;
- 
-
-  CLOG(DEBUG, "lidar.odometry_wheel") << "T_wheel_imu: " << T_wheel_imu;
-  CLOG(DEBUG, "lidar.odometry_wheel") << "T_s_r_wheel: " << T_s_r_wheel;
-  CLOG(DEBUG, "lidar.odometry_wheel") << "T_s_r_gyro: " << T_s_r_gyro;
 
   auto &gyro_msgs = *qdata.gyro_msgs;
   auto &wheel_meas = *qdata.wheel_meas;
+
+  int ptr_ang = 0;
+  int ptr_pulse = 0;
   if (frame_count > 0) {
-    gyro_msgs.insert(gyro_msgs.begin(), last_gyro_msg);
-    wheel_meas.insert(wheel_meas.begin(), last_wheel_meas);
+    // Advance ptr_ang until gyro_msgs[ptr_ang].header.stamp matches last_gyro_stamp
+    while (ptr_ang + 1 < gyro_msgs.size() &&
+      rclcpp::Time(gyro_msgs[ptr_ang].header.stamp).nanoseconds() < rclcpp::Time(last_gyro_stamp).nanoseconds()) {
+      ptr_ang++;
+    }
+    // Advance ptr_pulse until wheel_meas[ptr_pulse].first matches last_wheel_stamp
+    while (ptr_pulse + 1 < wheel_meas.size() &&
+      wheel_meas[ptr_pulse].first.nanoseconds() < rclcpp::Time(last_wheel_stamp).nanoseconds()) {
+      ptr_pulse++;
+    }
   }
 
   // initialize trajectory
@@ -144,24 +145,18 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   const rclcpp::Time query_time(query_stamp);
   const rclcpp::Time gyro_time(gyro_msgs.front().header.stamp);
   const rclcpp::Time wheel_time(wheel_meas.front().first);
-  auto curr_time = std::min({query_time.seconds(), gyro_time.seconds(), wheel_time.seconds()});
 
-  int ptr_ang = 0;
-  int ptr_pulse = 0;
   Eigen::Vector3d delta_pos;
 
   EdgeTransform T_est; // estimated pose at stamp time
   EdgeTransform T_begin; // first estimated pose
   EdgeTransform T_end; // last estimated pose
-  Time first_time;
-  Time last_time;
 
   // save unique measurement times
   std::vector<int64_t> timestamps;
   for (const auto &gyro_msg : gyro_msgs) {
     timestamps.push_back(static_cast<int64_t>(rclcpp::Time(gyro_msg.header.stamp).nanoseconds()));
   }
-  
   for (const auto &wheel_set : wheel_meas) {
     timestamps.push_back(static_cast<int64_t>(wheel_set.first.nanoseconds()));
   }
@@ -169,19 +164,50 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   std::sort(timestamps.begin(), timestamps.end());
   timestamps.erase(std::unique(timestamps.begin(), timestamps.end()), timestamps.end());
 
-  CLOG(DEBUG, "lidar.odometry_wheel") << "Timestamps: " << timestamps.size() << " unique timestamps";
-  for (const auto &t : timestamps) {
-    CLOG(DEBUG, "lidar.odometry_wheel") << "Timestamp: " << t;
-  }
+  rclcpp::Time curr_time(timestamps[0]);
+  rclcpp::Time next_time(timestamps[1]);
+
+  rclcpp::Time curr_gyro_time(gyro_msgs[ptr_ang].header.stamp);
+  rclcpp::Time curr_wheel_time(wheel_meas[ptr_pulse].first);
+  rclcpp::Time next_gyro_time(gyro_msgs[ptr_ang + 1].header.stamp);
+  rclcpp::Time next_wheel_time(wheel_meas[ptr_pulse + 1].first);
+
+  const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
+  int64_t first_pt_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+  int64_t last_pt_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+
+  // Find the largest timestamp less than last_pt_time
+  auto it = std::lower_bound(timestamps.begin(), timestamps.end(), last_pt_time);
+  int64_t last_timestamp = (it == timestamps.begin()) ? *it : *(it - 1);
+
+  Time first_time(static_cast<int64_t>(next_est_stamp));
+  Time last_time(static_cast<int64_t>(last_timestamp));
+
+
+  CLOG(DEBUG, "lidar.odometry_wheel") << std::endl
+      << "first_pt_time : " << first_pt_time << std::endl
+      << "next_est_stamp: " << next_est_stamp << std::endl
+      << "last_pt_time  : " << last_pt_time << std::endl
+      << "last_timestamp: " << last_timestamp << std::endl;
 
   // estimation loop
   for (int i = 0; i < timestamps.size()-1; ++i) {
-    const rclcpp::Time curr_gyro_time(gyro_msgs[ptr_ang].header.stamp);
-    const rclcpp::Time curr_wheel_time(wheel_meas[ptr_pulse].first);
-    const rclcpp::Time next_gyro_time(gyro_msgs[ptr_ang+1].header.stamp);
-    const rclcpp::Time next_wheel_time(wheel_meas[ptr_pulse+1].first);
+    if (timestamps[i] > last_pt_time) continue;
 
-    const auto next_time = rclcpp::Time(timestamps[i+1]).seconds();
+    // get the current and next timestamps
+    curr_time = rclcpp::Time(timestamps[i]);
+    next_time = rclcpp::Time(timestamps[i+1]);
+    //
+    curr_gyro_time = rclcpp::Time(gyro_msgs[ptr_ang].header.stamp);
+    curr_wheel_time = wheel_meas[ptr_pulse].first;
+    next_gyro_time = rclcpp::Time(gyro_msgs[ptr_ang + 1].header.stamp);
+    next_wheel_time = wheel_meas[ptr_pulse + 1].first;
+
+    if (timestamps[i] < next_est_stamp){
+      if (next_time.seconds() >= next_gyro_time.seconds()) ptr_ang++;
+      if (next_time.seconds() >= next_wheel_time.seconds()) ptr_pulse++;
+      continue;
+    }
 
     Eigen::Vector3d curr_gyro_meas = Eigen::Vector3d(
         gyro_msgs[ptr_ang].angular_velocity.x,
@@ -193,21 +219,13 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
         gyro_msgs[ptr_ang + 1].angular_velocity.y,
         gyro_msgs[ptr_ang + 1].angular_velocity.z);
 
-    auto curr_gyro_wheel = T_wheel_imu.matrix().block<3, 3>(0, 0) * curr_gyro_meas;
-    auto next_gyro_wheel = T_wheel_imu.matrix().block<3, 3>(0, 0) * next_gyro_meas;
+    Eigen::Vector3d curr_gyro_wheel = T_wheel_imu.matrix().block<3, 3>(0, 0).cast<double>() * curr_gyro_meas;
+    Eigen::Vector3d next_gyro_wheel = T_wheel_imu.matrix().block<3, 3>(0, 0).cast<double>() * next_gyro_meas;
 
-    // Write curr_gyro_wheel to a file (append mode)
-    static std::ofstream gyro_file("/home/katya/ASRL/curr_gyro_wheel.txt", std::ios::app);
-    if (gyro_file.is_open()) {
-      gyro_file << gyro_msgs[ptr_ang].header.stamp.sec << "." << std::setfill('0') << std::setw(9)
-          << gyro_msgs[ptr_ang].header.stamp.nanosec << " "
-          << curr_gyro_wheel.transpose() << std::endl;
-    }
+    const int diff_pulse_count = wheel_meas[ptr_pulse+1].second - wheel_meas[ptr_pulse].second;
 
-    const auto diff_pulse_count = wheel_meas[ptr_pulse+1].second - wheel_meas[ptr_pulse].second;
-
-    double t0_ang = curr_time - curr_gyro_time.seconds();
-    double t1_ang = next_time - curr_gyro_time.seconds();
+    double t0_ang = curr_time.seconds() - curr_gyro_time.seconds();
+    double t1_ang = next_time.seconds() - curr_gyro_time.seconds();
     auto diff_ang_vel = next_gyro_wheel - curr_gyro_wheel;
     double diff_ang_vel_time = next_gyro_time.seconds() - curr_gyro_time.seconds();
     double t_mid = (t0_ang + t1_ang) / 2;    
@@ -221,26 +239,27 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
     if (bias_init) mean_ang_vel -= gyro_bias;
 
-    Eigen::Vector3d ang = mean_ang_vel * (next_time - curr_time);
+    Eigen::Vector3d ang = mean_ang_vel * (next_time.seconds() - curr_time.seconds());
 
     if (diff_pulse_count != 0) {
-      auto diff_pulse_time = next_wheel_time.seconds() - curr_wheel_time.seconds();
+      double diff_pulse_time = next_wheel_time.seconds() - curr_wheel_time.seconds();
 
-      auto t0_pulse = curr_time - curr_wheel_time.seconds();
-      auto t1_pulse = next_time - curr_wheel_time.seconds();
+      double t0_pulse = curr_time.seconds() - curr_wheel_time.seconds();
+      double t1_pulse = next_time.seconds() - curr_wheel_time.seconds();
       auto dist = (t1_pulse - t0_pulse) * diff_pulse_count / diff_pulse_time;
       dist = dist * config_->wheel_parameter;
       
       total_dist += dist;
 
-      delta_pos = current_theta * Eigen::Vector3d(0, dist, 0); // check this
+      delta_pos = current_theta * Eigen::Vector3d(dist, 0, 0); // check this
       
     } else {
-      delta_pos << 0, 0, 0;
+      delta_pos = Eigen::Vector3d::Zero();
 
       if (!config_->potentially_slipping) ang = Eigen::Vector3d::Zero();
-
-      if (config_->estimate_bias) {
+      
+      int64_t gyro_time_ns = static_cast<int64_t>(curr_gyro_time.nanoseconds());
+      if (config_->estimate_bias && last_bias_time < gyro_time_ns) {
         if (bias_init) {
           auto gyro_data = (curr_gyro_wheel + next_gyro_wheel) / 2;
           if (gyro_data.norm() < 2 * gyro_bias.norm()) {
@@ -255,6 +274,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
             gyro_bias /= bias_counter;
           }
         }
+        last_bias_time = gyro_time_ns;
       }
     }
 
@@ -262,8 +282,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     current_theta = current_theta * lgmath::so3::vec2rot(ang); // update orientation
 
     // save first estimated pose
-    if (i == 0) {
-      first_time = Time(static_cast<int64_t>(timestamps[i+1]));
+    if (i == next_est_stamp) {
       Eigen::Matrix4d first_trans = Eigen::Matrix4d::Identity();
       first_trans.block<3, 3>(0, 0) = current_theta;
       first_trans.block<3, 1>(0, 3) << current_p.x(), current_p.y(), current_p.z(); // T_m_wheel
@@ -271,8 +290,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     // save last estimated pose
-    if (i == timestamps.size() - 2) {
-      last_time = Time(static_cast<int64_t>(timestamps[i + 1]));
+    if (i == last_timestamp) {
       Eigen::Matrix4d last_trans = Eigen::Matrix4d::Identity();
       last_trans.block<3, 3>(0, 0) = current_theta;
       last_trans.block<3, 1>(0, 3) << current_p.x(), current_p.y(), current_p.z(); // T_m_wheel
@@ -280,41 +298,24 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     // save estimated pose at scan time
-    if (next_time == query_time.seconds()) {
+    if (next_time.seconds() == query_time.seconds()) {
       Eigen::Matrix4d trans = Eigen::Matrix4d::Identity();
       trans.block<3, 3>(0, 0) = current_theta;
       trans.block<3, 1>(0, 3) << current_p.x(), current_p.y(), current_p.z(); // T_m_wheel
       T_est = EdgeTransform(trans, Eigen::Matrix<double, 6, 6>::Identity());
-      CLOG(DEBUG, "lidar.odometry_wheel") << "Scan: " << frame_count + 1 << " / "
-                                          << " Dist: " << std::round(total_dist)
-                                          << " Bias: " << gyro_bias.transpose();
-      
-    } 
+    }
 
-    curr_time = next_time;
-    if (curr_time >= next_wheel_time.seconds() && ptr_pulse < wheel_meas.size() - 2) {
+    if (next_time.seconds() >= next_wheel_time.seconds())
       ptr_pulse++;
-    }
-    if (curr_time >= next_gyro_time.seconds() && ptr_ang < gyro_msgs.size() - 2) {
+
+    if (next_time.seconds() >= next_gyro_time.seconds())
       ptr_ang++;
-    }
 
-    CLOG(DEBUG, "lidar.odometry_wheel") << "ptr_ang: " << ptr_ang
-                                        << " ptr_pulse: " << ptr_pulse
-                                        << " curr_time: " << timestamps[i]
-                                        << " next_time: " << timestamps[i+1]
-                                        << " gyro time: " << curr_gyro_time.nanoseconds()
-                                        << " wheel time: " << curr_wheel_time.nanoseconds();
-  } // end estimation loop
+  } // end estimation loop 
 
-  // save the last gyro message and wheel measurement
-  last_gyro_msg = gyro_msgs[ptr_ang];
-  last_wheel_meas = wheel_meas[ptr_pulse];
-
-  CLOG(DEBUG, "lidar.odometry_wheel") << "last gyro time: "
-                                      << static_cast<int64_t>(rclcpp::Time(last_gyro_msg.header.stamp).nanoseconds())
-                                      << " last wheel time: "
-                                      << static_cast<int64_t>(rclcpp::Time(last_wheel_meas.first).nanoseconds());
+  next_est_stamp = next_time.nanoseconds();
+  last_gyro_stamp = curr_gyro_time.nanoseconds();
+  last_wheel_stamp = curr_wheel_time.nanoseconds();
 
   // transform estimated pose to map frame
   // at scan time
@@ -326,18 +327,19 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   // at last time
   const auto T_m_s_wheel_end = SE3StateVar::MakeShared(T_end); // T_map_wheel
   auto T_r_m_eval_end = inverse(compose(T_m_s_wheel_end, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
-  
+
   *qdata.T_r_m_odo = T_r_m_eval->value();
   *qdata.timestamp_odo = query_stamp;
 
-  CLOG(DEBUG, "lidar.odometry_wheel") << "T_est: " << T_est.matrix();
-  CLOG(DEBUG, "lidar.odometry_wheel") << "T_r_m_eval: " << T_r_m_eval->value();
-
   if (frame_count > 0) {
     // finite diff approximation for velocity
-    auto vel = (T_r_m_eval_end->value() * T_r_m_eval_first->value().inverse()).vec() / (last_time - first_time).seconds();
-    *qdata.w_m_r_in_r_odo = vel;
-    
+    *qdata.w_m_r_in_r_odo = (T_r_m_eval_end->value() * T_r_m_eval_first->value().inverse()).vec() / ((last_pt_time - first_pt_time) / 1e9);
+
+    CLOG(DEBUG, "lidar.odometry_wheel")
+        << "last_timestamp: " << last_pt_time
+        << " next_est_stamp: " << first_pt_time
+        << " last-first time: " << (last_pt_time - first_pt_time) / 1e9;
+
     auto &sliding_map_odo = *qdata.sliding_map_odo;
     EdgeTransform T_r_m(T_r_m_eval->value(), Eigen::Matrix<double, 6, 6>::Identity());
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
@@ -362,7 +364,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
       const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
       const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
       const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
-              
       aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
       aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
     }
@@ -375,6 +376,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
     qdata.undistorted_point_cloud = undistorted_point_cloud;
+
+    CLOG(DEBUG, "lidar.odometry_wheel") << "Undistorted point cloud size: " << qdata.undistorted_point_cloud->size();
 
   }
   

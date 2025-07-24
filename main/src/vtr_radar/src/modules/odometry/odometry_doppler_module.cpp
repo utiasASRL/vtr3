@@ -16,9 +16,10 @@
  * \file odometry_icp_module.cpp
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
+#include "vtr_radar/modules/odometry/odometry_doppler_module.hpp"
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
+
 
 namespace vtr {
 namespace radar {
@@ -42,8 +43,8 @@ using namespace steam::se3;
 using namespace steam::traj;
 using namespace steam::vspace;
 
-auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
-                                        const std::string &param_prefix)
+auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+  const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
@@ -82,7 +83,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
   config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
   config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
-  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", {1.0, 1.0, 1.0});
+  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", std::vector<double>(3, 1.0));
   if (w_icp.size() != 3) {
     std::string err{"W_icp diagonal malformed. Must be 3 elements!"};
     CLOG(ERROR, "radar.odometry_icp") << err;
@@ -103,7 +104,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
+void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
@@ -189,8 +190,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto frame_start_time = timestamp_prior;
   const auto frame_end_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
 
-
-  CLOG(DEBUG, "radar.odometry_icp") << "Timestamps of concern frame stamp: " << (scan_stamp - timestamp_prior) /1e9 << " timestamp_end " << (frame_end_time - timestamp_prior) /1e9;
   // Let's check if our odometry estimate already passed the time stamp of the radar scan
   // If this is the case, we want to estimate the odometry at this time, not at the time of the scan
   // This avoids jumping 'back' in time to the last radar scan, when we already extrapolated the state using gyro
@@ -223,10 +222,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     Time knot_time(static_cast<int64_t>(knot_time_stamp));
     const Eigen::Matrix<double,6,1> xi_m_r_in_r_odo((knot_time - timestamp_prior).seconds() * w_m_r_in_r_odo_prior);
     const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo_prior;
+    // Set up state variables
     const std::string T_r_m_var_name = "T_r_m_" + std::to_string(i);
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_extp, T_r_m_var_name);
     const std::string w_m_r_in_r_var_name = "w_m_r_in_r_" + std::to_string(i);
     const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo_prior, w_m_r_in_r_var_name);
+    // Add variables
     trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
     state_vars.emplace_back(T_r_m_var);
     state_vars.emplace_back(w_m_r_in_r_var);
@@ -335,9 +336,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   bool solver_failed = false;
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start the ICP optimization loop.";
-  CLOG_IF(qdata.gyro_msgs, DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
-  CLOG_IF(qdata.doppler_scan, DEBUG, "radar.odometry_icp") << "Doppler scan is available.";
-  CLOG_IF(config_->remove_orientation, DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
+  if (qdata.gyro_msgs) CLOG(DEBUG, "radar.odometry_icp") << "Gyro messages are available.";
+  if (qdata.doppler_scan) CLOG(DEBUG, "radar.odometry_icp") << "Doppler scan is available.";
+  if (config_->remove_orientation) CLOG(DEBUG, "radar.odometry_icp") << "Removing ICP orientation contribution.";
   for (int step = 0;; step++) {
     /// sample points
     timer[0]->start();
@@ -380,7 +381,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     timer[3]->start();
 
     // initialize problem
-    SlidingWindowFilter problem(config_->num_threads);
+    OptimizationProblem problem(config_->num_threads);
 
     // add variables
     for (const auto &var : state_vars)
@@ -404,7 +405,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
           W = Eigen::Matrix3d(nrm * nrm.transpose());
           W(2, 2) = 1.0;
-        } else {
+        }
+        else {
           W = config_->W_icp;
         }
         return W;
@@ -436,12 +438,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       }();
 
       // create cost term and add to problem
-      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, icp_loss_func, "icp_cost" + std::to_string(ind.first));
+      auto icp_cost = WeightedLeastSqCostTerm<3>::MakeShared(icp_error_func, icp_noise_model, icp_loss_func, "icp_cost_" + std::to_string(ind.first));
 
 // Only add cost terms one thread at a time
 #pragma omp critical(odo_icp_add_p2p_error_cost)
 {
-      problem.addCostTerm(icp_cost);
+      // problem.addCostTerm(icp_cost);
 }
     }
 
@@ -471,21 +473,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
         const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->dopp_meas_std));
         const auto error_func = imu::DopplerErrorEvaluatorSE2::MakeShared(w_m_s_in_s_intp_eval, bias, azimuth, radial_velocity_vec);
-        const auto doppler_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "doppler_cost" + std::to_string(azimuth_idx));
-
-        // Also add zero vertical velocity error term. Problem becomes unstable without this (need to switch to SE(2)...)
-        const auto zero_vel_loss_func = L2LossFunc::MakeShared();
-        const auto zero_vel_noise_model = StaticNoiseModel<1>::MakeShared(1e-4 * Eigen::Matrix<double, 1, 1>::Identity());
-        Eigen::Matrix<double, 1, 6> D_vel = Eigen::Matrix<double, 1, 6>::Zero();
-        D_vel <<  0, 0, 1, 0, 0, 0;
-        const auto zero_vel_err_func = vspace::ForceZeroEvaluator<6, 1>::MakeShared(w_m_s_in_s_intp_eval, D_vel);
-        const auto vel_start_cost = WeightedLeastSqCostTerm<1>::MakeShared(zero_vel_err_func, zero_vel_noise_model, zero_vel_loss_func, "zero_vel_cost" + std::to_string(azimuth_idx));
-
+        const auto doppler_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "doppler_cost_" + std::to_string(azimuth_idx));
         // Add cost term to problem
 #pragma omp critical(odo_icp_add_doppler_error_cost)
 {
-        problem.addCostTerm(doppler_cost);
-        problem.addCostTerm(vel_start_cost);
+        // problem.addCostTerm(doppler_cost);
 }
       }
     }
@@ -502,9 +494,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
         // Transform gyro measurement into robot frame
-        Eigen::VectorXd gyro_meas_g(3);
-        gyro_meas_g << 0, 0, gyro_meas(2);
-        const Eigen::Matrix<double, 3, 1> gyro_meas_r =  T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
+        Eigen::VectorXd gyro_meas_g(3); // Create a 6x1 vector
+        gyro_meas_g << gyro_meas(0), gyro_meas(1), gyro_meas(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r = T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
 
         // Interpolate velocity measurement at gyro stamp
         auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
@@ -514,43 +506,18 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
         bias->locked() = true;
         const auto loss_func = L2LossFunc::MakeShared();
-        Eigen::Matrix<double, 3, 3> W_gyro = 1e-6 * Eigen::Matrix<double, 3, 3>::Identity();
-        W_gyro.coeffRef(2, 2) = config_->gyro_cov;
-        const auto noise_model = StaticNoiseModel<3>::MakeShared(W_gyro);
-        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto gyro_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
+        const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->gyro_cov));
+        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost_" + std::to_string(gyro_stamp_time));
 
-        problem.addCostTerm(gyro_cost);
+        // problem.addCostTerm(gyro_cost);
       }
     }
 
-    if (config_->use_vel_meas) {
-      const auto &vel_meas = *qdata.vel_meas;
-      if (vel_meas[0] != -1000.0) {
-        // Get velocity measurements in sensor frame (zero out 3d components)
-        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
-        const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-
-        Eigen::Matrix<double, 3, 3> W_vel = Eigen::Matrix<double, 3, 3>::Identity();
-        W_vel.block<1, 1>(0, 0) *= pow(config_->vel_fwd_std, 2);
-        W_vel.block<1, 1>(1, 1) *= pow(config_->vel_side_std, 2);
-        W_vel.block<1, 1>(2, 2) *= 1e-8;
-        const auto vel_noise_model = StaticNoiseModel<3>::MakeShared(W_vel);
-        const auto vel_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
-        // Minus sign because vel_meas is v_s_m_in_s, but we want v_m_s_in_s
-        const auto vel_err_func = p2p::VelErrorEvaluator::MakeShared(-vel_meas, w_m_s_in_s_intp_eval);
-
-        const auto vel_cost = WeightedLeastSqCostTerm<3>::MakeShared(vel_err_func, vel_noise_model, vel_loss_func, "vel_cost");
-        problem.addCostTerm(vel_cost);
-      } else {
-        CLOG(ERROR, "radar.odometry_icp") << "Velocity measurement not available.";
-      }
-    }
 
     // optimize
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
-    params.reuse_previous_pattern = false;
     params.max_iterations = (unsigned int)config_->max_iterations;
 
     GaussNewtonSolver solver(problem, params);
@@ -662,19 +629,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<6, 6>(0, 0);
       T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value(), T_r_m_cov);
 
-      // Marginalize out all but last 2 states for prior
-      std::vector<StateVarBase::Ptr> state_vars_marg;
-      for (int i = 0; i < num_states*2 - 2; ++i) {
-        state_vars_marg.push_back(state_vars[i]);
-      }
-      problem.marginalizeVariable(state_vars_marg);
-      params.max_iterations = 1; // Only one iteration for marginalization
-      GaussNewtonSolver solver_marg(problem, params);
-      solver_marg.optimize();
-      Covariance covariance_marg(solver_marg);
+      // We are marginalizing out everything but the last two states. Therefore, our prior will just be equal to the final solution/cov
+      // on those two states.
       T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
       w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
-      cov_prior_new = trajectory->getCovariance(covariance_marg, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
+      cov_prior_new = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(frame_end_time))).block<12, 12>(0, 0);
       cov_prior_new = 0.5 * (cov_prior_new + cov_prior_new.transpose());
 
       //
@@ -702,33 +661,35 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   // Outputs
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
-  const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->evaluate().matrix();
-  const auto vel_diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
-  const auto vel_diff_norm = vel_diff.norm();
-  const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
-  const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
+  if (true) {
+    const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->evaluate().matrix();
+    const auto vel_diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo;
+    const auto vel_diff_norm = vel_diff.norm();
+    const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
+    const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
-  const auto T_r_m_prev = *qdata.T_r_m_odo;
-  const auto T_r_m_query = T_r_m_eval->value();
-  const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
-  const auto diff_T_trans = diff_T.head<3>().norm();
-  const auto diff_T_rot = diff_T.tail<3>().norm();
-  
-  CLOG(DEBUG, "radar.odometry_icp") << "Current transformation difference: " << diff_T.transpose();
-  CLOG(DEBUG, "radar.odometry_icp") << "Current velocity difference: " << vel_diff.transpose();
+    const auto T_r_m_prev = *qdata.T_r_m_odo;
+    const auto T_r_m_query = T_r_m_eval->value();
+    const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
+    const auto diff_T_trans = diff_T.head<3>().norm();
+    const auto diff_T_rot = diff_T.tail<3>().norm();
+    
+    CLOG(DEBUG, "radar.odometry_icp") << "Current transformation difference: " << diff_T.transpose();
+    CLOG(DEBUG, "radar.odometry_icp") << "Current velocity difference: " << vel_diff.transpose();
 
-  if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
-    CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm << " translational velocity difference: " << trans_vel_diff_norm << " rotational velocity difference: " << rot_vel_diff_norm;
-    estimate_reasonable = false;
-  }
+    if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
+      CLOG(WARNING, "radar.odometry_icp") << "Velocity difference between initial and final is too large: " << vel_diff_norm << " translational velocity difference: " << trans_vel_diff_norm << " rotational velocity difference: " << rot_vel_diff_norm;
+      estimate_reasonable = false;
+    }
 
-  if (diff_T_trans > config_->max_trans_diff) {
-    CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final translation is too large. Transform difference vector: " << diff_T.transpose();
-    estimate_reasonable = false;
-  }
-  if (diff_T_rot > config_->max_rot_diff) {
-    CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final rotation is too large. Transform difference vector: " << diff_T.transpose();
-    estimate_reasonable = false;
+    if (diff_T_trans > config_->max_trans_diff) {
+      CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final translation is too large. Transform difference vector: " << diff_T.transpose();
+      estimate_reasonable = false;
+    }
+    if (diff_T_rot > config_->max_rot_diff) {
+      CLOG(WARNING, "radar.odometry_icp") << "Transformation difference between initial and final rotation is too large. Transform difference vector: " << diff_T.transpose();
+      estimate_reasonable = false;
+    }
   }
 
   if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable && !solver_failed) {
@@ -770,8 +731,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_m_odo = T_r_m_eval_extp->value();
     *qdata.timestamp_odo = timestamp_odo_new;
 
-    CLOG(DEBUG, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
-    CLOG(DEBUG, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+#if 1
+   CLOG(DEBUG, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
+   CLOG(DEBUG, "radar.odometry_icp") << "w_m_r_in_r is: " << qdata.w_m_r_in_r_odo->transpose();
+#endif
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
