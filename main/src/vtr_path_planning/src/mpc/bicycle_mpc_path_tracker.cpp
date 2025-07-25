@@ -26,33 +26,13 @@
 namespace vtr::path_planning {
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
-auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
-  auto config = std::make_shared<Config>();
 
-  auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
-  *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
-
-  // MPC Configs:
-  // SPEED SCHEDULER PARAMETERS
-  config->planar_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.planar_curv_weight", config->planar_curv_weight);
-  config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
-  config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
-  config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
-
-  // CONTROLLER PARAMS
-  config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
-  config->mpc_verbosity = node->declare_parameter<bool>(prefix + ".mpc.mpc_verbosity", config->mpc_verbosity);
-  config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
-  config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
-  config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
-  config->max_lin_acc = node->declare_parameter<double>(prefix + ".mpc.max_lin_acc", config->max_lin_acc);
-  config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
-  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
-  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
-  config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
-
+auto BicycleMPCPathTracker::Config::loadConfig(BicycleMPCPathTracker::Config::Ptr config, 
+		           const rclcpp::Node::SharedPtr& node,
+                           const std::string& prefix)->void{
   config->failure_threshold = node->declare_parameter<int>(prefix + ".mpc.failure_threshold", config->failure_threshold);
   config->recovery_steps = node->declare_parameter<int>(prefix + ".mpc.recovery_steps", config->recovery_steps);
+  config->wheelbase = node->declare_parameter<double>(prefix + ".mpc.wheelbase", config->wheelbase);
   
   // MPC COST PARAMETERS
   // We have one set for reverse, and one for forward, driving
@@ -64,15 +44,6 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->f_racc1 = node->declare_parameter<double>(prefix + ".mpc.forward.racc1", config->f_racc1);
   config->f_racc2 = node->declare_parameter<double>(prefix + ".mpc.forward.racc2", config->f_racc2);
   config->f_q_f = node->declare_parameter<double>(prefix + ".mpc.forward.q_f", config->f_q_f);
-  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
-      << "q_lat: " << config->f_q_lat
-      << ", q_lon: " << config->f_q_lon
-      << ", q_th: " << config->f_q_th
-      << ", r1: " << config->f_r1
-      << ", r2: " << config->f_r2
-      << ", racc1: " << config->f_racc1
-      << ", racc2: " << config->f_racc2
-      << ", q_f: " << config->f_q_f;
 
   // We have one set for reverse, and one for forward, driving
   config->r_q_lat = node->declare_parameter<double>(prefix + ".mpc.reverse.q_lat", config->r_q_lat);
@@ -83,6 +54,26 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->r_racc1 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc1", config->r_racc1);
   config->r_racc2 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc2", config->r_racc2);
   config->r_q_f = node->declare_parameter<double>(prefix + ".mpc.reverse.q_f", config->r_q_f);
+
+  // MISC
+  config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
+}
+
+auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
+  auto config = std::make_shared<Config>();
+  BaseMPCPathTracker::Config::loadConfig(config, node, prefix);
+  loadConfig(config, node, prefix);
+
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
+      << "q_lat: " << config->f_q_lat
+      << ", q_lon: " << config->f_q_lon
+      << ", q_th: " << config->f_q_th
+      << ", r1: " << config->f_r1
+      << ", r2: " << config->f_r2
+      << ", racc1: " << config->f_racc1
+      << ", racc2: " << config->f_racc2
+      << ", q_f: " << config->f_q_f;
+
   CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse costs: "
       << "q_lat: " << config->r_q_lat
       << ", q_lon: " << config->r_q_lon
@@ -92,9 +83,6 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
       << ", racc1: " << config->r_racc1
       << ", racc2: " << config->r_racc2
       << ", q_f: " << config->r_q_f;
-
-  // MISC
-  config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
 
   return config;
 }

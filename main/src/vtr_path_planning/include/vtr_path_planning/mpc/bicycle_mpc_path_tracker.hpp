@@ -61,11 +61,14 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
 
     double alpha = 0.6;
 
-
     int failure_threshold = 5;
     int recovery_steps = 15;
 
-    bool repeat_flipped = false;
+    double wheelbase = 0.55;
+
+    static void loadConfig(Config::Ptr config,  
+		           const rclcpp::Node::SharedPtr& node,
+                           const std::string& prefix = "path_planning");
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");

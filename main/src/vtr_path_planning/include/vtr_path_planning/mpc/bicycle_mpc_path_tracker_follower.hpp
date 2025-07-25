@@ -22,6 +22,7 @@
 #include <vtr_tactic/types.hpp>
 #include <vtr_common/conversions/ros_lgmath.hpp>
 #include <vtr_path_planning/base_path_planner.hpp>
+#include <vtr_path_planning/mpc/bicycle_mpc_path_tracker.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
 #include <vtr_path_planning/mpc/follower_common.hpp>
@@ -47,49 +48,24 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   using Transformation = lgmath::se3::Transformation;
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
-  struct Config : public BasePathPlanner::Config {
+  struct Config : public BicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
-
-    // Speed Scheduler
-    double planar_curv_weight = 2.50;
-    double profile_curv_weight = 0.5; 
-    double eop_weight = 1.0;
-    double min_vel = 0.5;  
-
-    // MPC Configs
-    bool extrapolate_robot_pose = true;
-    bool mpc_verbosity = false;
-    double forward_vel = 0.75;
-    double max_lin_vel = 1.25;
-    double max_ang_vel = 0.75;
-    double max_lin_acc = 10.0;
-    double max_ang_acc = 10.0;
-    double robot_linear_velocity_scale = 1.0;
-    double robot_angular_velocity_scale = 1.0;
-    double turning_radius = 1.0;
     double wheelbase = 0.5;
-
-    // MPC Costs
-    double q_lat = 0.0;
-    double q_lon = 0.0;
-    double q_th = 0.0;
-    double r1 = 0.0;
-    double r2 = 0.0;
-    double racc2 = 0.0;
-    double racc1 = 0.0;
-    double q_f = 0.0;
-
     
     std::string leader_namespace = "leader";
     std::string waypoint_selection = "leader_vel";
 
     double following_offset = 0.5; //m
     double distance_margin = 1.0;
-    double q_dist = 1.0;
+    double f_q_dist = 1.0;
+    double r_q_dist = 1.0;
 
     // Misc
     int command_history_length = 100;
 
+    static void loadConfig(Config::Ptr config,  
+		           const rclcpp::Node::SharedPtr& node,
+                           const std::string& prefix = "path_planning");
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");

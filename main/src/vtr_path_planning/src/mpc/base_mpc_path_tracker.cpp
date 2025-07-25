@@ -31,9 +31,35 @@ Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, do
 }
 }
 
+auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr config, 
+		           const rclcpp::Node::SharedPtr& node,
+                           const std::string& prefix)->void{
+  // MPC Configs:
+  // SPEED SCHEDULER PARAMETERS
+  config->planar_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.planar_curv_weight", config->planar_curv_weight);
+  config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
+  config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
+  config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
+
+  // CONTROLLER PARAMS
+  config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
+  config->mpc_verbosity = node->declare_parameter<bool>(prefix + ".mpc.mpc_verbosity", config->mpc_verbosity);
+  config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
+  config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
+  config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
+  config->max_lin_acc = node->declare_parameter<double>(prefix + ".mpc.max_lin_acc", config->max_lin_acc);
+  config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
+  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
+  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
+  config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
+}
+
 // Subclasses must implement their own Config::fromROS.
-auto BaseMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr&, const std::string&) -> Ptr {
-  throw std::runtime_error("BaseMPCPathTracker::Config::fromROS must be implemented in a subclass.");
+auto BaseMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
+  auto config = std::make_shared<Config>();
+  loadConfig(config, node, prefix);
+
+  return config;
 }
 
 BaseMPCPathTracker::BaseMPCPathTracker(const Config::ConstPtr& config,

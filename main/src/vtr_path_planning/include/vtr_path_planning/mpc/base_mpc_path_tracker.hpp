@@ -55,12 +55,17 @@ class BaseMPCPathTracker : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
+    bool repeat_flipped = false;
 
     // Detection threshold to set MPC weights to zero
     double end_of_path_distance_threshold = 0.01;
 
     // Misc
     int command_history_length = 100;
+
+    static void loadConfig(Config::Ptr config,  
+		           const rclcpp::Node::SharedPtr& node,
+                           const std::string& prefix = "path_planning");
 
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
@@ -75,13 +80,13 @@ class BaseMPCPathTracker : public BasePathPlanner {
 
  protected:
   void initializeRoute(RobotState& robot_state);
-  Command computeCommand(RobotState& robot_state) override;
+  virtual Command computeCommand(RobotState& robot_state) override;
   virtual CasadiMPC::Config::Ptr loadMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel)=0;
   virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) =0;
   virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                            const lgmath::se3::Transformation& T_p_r_extp,
                            const double state_p,
-                          RobotState& robot_state);
+                           RobotState& robot_state);
 
  private: 
 

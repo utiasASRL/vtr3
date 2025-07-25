@@ -32,20 +32,9 @@ Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, do
 }
 }
 
-// Configure the class as a ROS2 node, get configurations from the ros parameter server
-auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
-  auto config = std::make_shared<Config>();
-
-  auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
-  *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
-
-  // MPC Configs:
-  // SPEED SCHEDULER PARAMETERS
-  config->planar_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.planar_curv_weight", config->planar_curv_weight);
-  config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
-  config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
-  config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
-
+auto BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFollower::Config::Ptr config, 
+		           const rclcpp::Node::SharedPtr& node,
+                           const std::string& prefix)->void{
   // Follower params
   config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
@@ -53,33 +42,36 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
 
   // Waypoint selection
   config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);
+}
 
-  // CONTROLLER PARAMS
-  config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
-  config->mpc_verbosity = node->declare_parameter<bool>(prefix + ".mpc.mpc_verbosity", config->mpc_verbosity);
-  config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
-  config->max_lin_vel = node->declare_parameter<double>(prefix + ".mpc.max_lin_vel", config->max_lin_vel);
-  config->max_ang_vel = node->declare_parameter<double>(prefix + ".mpc.max_ang_vel", config->max_ang_vel);
-  config->max_lin_acc = node->declare_parameter<double>(prefix + ".mpc.max_lin_acc", config->max_lin_acc);
-  config->max_ang_acc = node->declare_parameter<double>(prefix + ".mpc.max_ang_acc", config->max_ang_acc);
-  config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
-  config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
-  config->turning_radius = node->declare_parameter<double>(prefix + ".mpc.turning_radius", config->turning_radius);
-  config->wheelbase = node->declare_parameter<double>(prefix + ".mpc.wheelbase", config->wheelbase);
-  
-  // MPC COST PARAMETERS
-  config->q_lat = node->declare_parameter<double>(prefix + ".mpc.forward.q_lat", config->q_lat);
-  config->q_lat = node->declare_parameter<double>(prefix + ".mpc.forward.q_on", config->q_lon);
-  config->q_th = node->declare_parameter<double>(prefix + ".mpc.forward.q_th", config->q_th);
-  config->r1 = node->declare_parameter<double>(prefix + ".mpc.forward.r1", config->r1);
-  config->r2 = node->declare_parameter<double>(prefix + ".mpc.forward.r2", config->r2);
-  config->racc1 = node->declare_parameter<double>(prefix + ".mpc.forward.racc1", config->racc1);
-  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.forward.racc2", config->racc2);
-  config->q_f = node->declare_parameter<double>(prefix + ".mpc.forward.q_f", config->q_f);
-  config->q_dist = node->declare_parameter<double>(prefix + ".mpc.forward.q_dist", config->q_dist);
+// Configure the class as a ROS2 node, get configurations from the ros parameter server
+auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
+  auto config = std::make_shared<Config>();
+  BaseMPCPathTracker::Config::loadConfig(config, node, prefix);
+  BicycleMPCPathTracker::Config::loadConfig(config, node, prefix);
+  loadConfig(config, node, prefix);
 
-  // MISC
-  config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
+      << "q_lat: " << config->f_q_lat
+      << ", q_lon: " << config->f_q_lon
+      << ", q_th: " << config->f_q_th
+      << ", r1: " << config->f_r1
+      << ", r2: " << config->f_r2
+      << ", racc1: " << config->f_racc1
+      << ", racc2: " << config->f_racc2
+      << ", q_f: " << config->f_q_f 
+      << ", q_dist: " << config->f_q_dist;
+
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse costs: "
+      << "q_lat: " << config->r_q_lat
+      << ", q_lon: " << config->r_q_lon
+      << ", q_th: " << config->r_q_th
+      << ", r1: " << config->r_r1
+      << ", r2: " << config->r_r2
+      << ", racc1: " << config->r_racc1
+      << ", racc2: " << config->r_racc2
+      << ", q_f: " << config->r_q_f
+      << ", q_dist: " << config->r_q_dist;
 
   return config;
 }
@@ -190,17 +182,17 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   CasadiBicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
   mpcConfig.wheelbase = config_->wheelbase;
-  mpcConfig.Q_lat     = config_->q_lat;
-  mpcConfig.Q_lon     = config_->q_lon;
-  mpcConfig.Q_th    = config_->q_th;
-  mpcConfig.R1      = config_->r1;
-  mpcConfig.R2      = config_->r2;
-  mpcConfig.Acc_R1  = config_->racc1;
-  mpcConfig.Acc_R2  = config_->racc2;
+  mpcConfig.Q_lat     = config_->f_q_lat;
+  mpcConfig.Q_lon     = config_->f_q_lon;
+  mpcConfig.Q_th    = config_->f_q_th;
+  mpcConfig.R1      = config_->f_r1;
+  mpcConfig.R2      = config_->f_r2;
+  mpcConfig.Acc_R1  = config_->f_racc1;
+  mpcConfig.Acc_R2  = config_->f_racc2;
   mpcConfig.lin_acc_max = config_->max_lin_acc;
   mpcConfig.ang_acc_max = config_->max_ang_acc;
-  mpcConfig.Q_f = config_->q_f;
-  mpcConfig.Q_dist = config_->q_dist;
+  mpcConfig.Q_f = config_->f_q_f;
+  mpcConfig.Q_dist = config_->f_q_dist;
   mpcConfig.distance = config_->following_offset;
   mpcConfig.distance_margin = config_->distance_margin;
 
