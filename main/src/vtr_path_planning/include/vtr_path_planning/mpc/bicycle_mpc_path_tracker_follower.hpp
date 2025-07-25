@@ -43,6 +43,7 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   static constexpr auto static_name = "bicycle_mpc_follower";
 
   using PathMsg = nav_msgs::msg::Path;
+  using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using Transformation = lgmath::se3::Transformation;
@@ -104,6 +105,7 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   Eigen::Vector2d leader_vel_;
   std::vector<Transformation> leaderRollout_;
   PathInterpolator::ConstPtr leaderPathInterp_; 
+  PoseStampedMsg lastRobotPose_;
 
   rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
   void onLeaderRoute(const RouteMsg::SharedPtr route);

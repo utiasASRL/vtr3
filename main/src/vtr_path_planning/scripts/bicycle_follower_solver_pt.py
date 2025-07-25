@@ -172,7 +172,7 @@ for k in range(1, N-1):
 #Following constraints
 for k in range(0, N):
     st_next = X[:, k+1]
-    g = ca.vertcat(g,ca.norm_2((st_next[:2] - leader_ref_poses[n_states*(k):n_states*(k+1)-1])))
+    g = ca.vertcat(g,ca.norm_2((st_next[:2] - leader_ref_poses[n_states*k:n_states*k + 2])))
 
 # Terminal cost
 cost_fn = calc_cost(P, X, con, N-1, cost_fn)

@@ -131,6 +131,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand(RobotState& robot_state) -> C
       CLOG(WARNING, "cbit.control") << "It appears that the sensor has stopped providing information at a rate that is satisfactory. Stopping.";
     }
   } else {
+    prev_vel_stamp_ = robot_state.chain->leaf_stamp();
     auto raw_command = computeCommand_(robot_state);
     output_vel = {raw_command.linear.x, raw_command.angular.z};
     frame_delay_ = 0;
@@ -148,7 +149,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand(RobotState& robot_state) -> C
   // Store the result in memory so we can use previous state values to re-initialize and extrapolate the robot pose in subsequent iterations
   vel_history.erase(vel_history.begin());
   vel_history.push_back(applied_vel_);
-  prev_vel_stamp_ = robot_state.chain->leaf_stamp();
 
   CLOG(INFO, "cbit.control")
     << "Final control command: [" << command.linear.x << ", "
@@ -207,7 +207,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
   if (config_->extrapolate_robot_pose) {
     curr_time = robot_state.node->now().nanoseconds();  // always in nanoseconds
-    auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.1;
+    auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
     // if (fabs(dt) > 0.2) { 
     //   CLOG(WARNING, "cbit") << "Pose extrapolation was requested but the time delta is " << dt << "s.\n"
     //         << "Ignoring extrapolation requestion. Check your time sync!";
@@ -216,8 +216,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
     Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
     T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
-
-    CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
   }
 
   const auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
@@ -239,7 +237,18 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   std::vector<lgmath::se3::Transformation> leader_world_poses;
   std::vector<double> leader_p_values;
   const auto leaderPath_copy = *leaderPathInterp_;
-  CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" << T_fw_lw_ * leaderPath_copy.at(curr_time) * (T_w_p * T_p_r_extp).inverse();
+  const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_fw_lw_ * leaderPath_copy.at(curr_time);
+  CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  T_f_l;
+  const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
+  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
+  CLOG(DEBUG, "mpc.follower") << "Dist to leader:\n" << dist.head<2>().norm();
+
+  if (dist.norm() > 2.0) {
+    CLOG(DEBUG, "mpc.follower") << "Current Leader Pose\n" << leaderPath_copy.at(curr_time);
+    CLOG(DEBUG, "mpc.follower") << "Current Follower Path Loc\n" << T_w_p;
+    CLOG(DEBUG, "mpc.follower") << "New extrapolated pose:\n"  << T_p_r_extp;
+  }
+  
   for (uint i = 0; i < mpcConfig.N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
@@ -308,7 +317,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   }
 
   vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
-  vis_->publishLeaderRollout(leader_world_poses, leaderPath_copy.start(), mpcConfig.DT);
+  vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig.DT);
   vis_->publishReferencePoses(referenceInfo.poses);
 
 
@@ -321,6 +330,11 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
 void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   using namespace vtr::common::conversions;
+
+  if(recentLeaderPath_ != nullptr) {
+    path->poses.insert(path->poses.begin(), lastRobotPose_); 
+    lastRobotPose_ = path->poses[1];
+  }
   
   recentLeaderPath_ = path;
 
@@ -345,6 +359,8 @@ void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr rout
     leader_root_ = route->ids.front();
     CLOG(INFO, "mpc.follower") << "Updated leader's root to: " << leader_root_;
     const auto follower_root = robot_state_->chain->sequence().front();
+    CLOG(INFO, "mpc.follower") << "Follower's root to: " << follower_root;
+
     auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
     
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    

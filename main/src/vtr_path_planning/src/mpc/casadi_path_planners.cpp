@@ -416,8 +416,8 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
   arg["ubg"].set(mpcConf.previous_vel(Slice(0)) + mpcConf.lin_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1));
   arg["ubg"].set(mpcConf.previous_vel(Slice(1)) + mpcConf.ang_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 2));
 
-  arg["lbg"].set(DM(-mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N + (mpcConf.N-1)*mpcConf.nControl));
-  arg["ubg"].set(DM(mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N + (mpcConf.N-1)*mpcConf.nControl));
+  arg["lbg"].set(DM(mpcConf.distance - mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N + (mpcConf.N-1)*mpcConf.nControl));
+  arg["ubg"].set(DM(mpcConf.distance + mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N + (mpcConf.N-1)*mpcConf.nControl));
 
 
   arg["p"] = mpcConf.T0;

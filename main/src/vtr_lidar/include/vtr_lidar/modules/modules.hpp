@@ -41,6 +41,7 @@
 #include "vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp"
 
 #include "vtr_lidar/modules/planning/change_detection_module_v3.hpp"
+#include "vtr_lidar/modules/planning/leader_locator_module.hpp"
 // #include "vtr_lidar/modules/planning/ground_extraction_module.hpp"
 // #include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
 // #include "vtr_lidar/modules/planning/safe_corridor_module.hpp"
