@@ -299,7 +299,7 @@ void VisualizationUtils::visualize(
     void VisualizationUtils::publishMPCRollout(const std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>>& mpc_prediction) {
         nav_msgs::msg::Path mpc_path;
         mpc_path.header.frame_id = "world";
-        mpc_path.header.stamp = rclcpp::Time(mpc_prediction.front().first);
+        mpc_path.header.stamp = rclcpp::Time(mpc_prediction[1].first);
         auto& poses = mpc_path.poses;
 
         // intermediate states
