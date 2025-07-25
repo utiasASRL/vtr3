@@ -296,7 +296,8 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   
 
   // Create and solve the casadi optimization problem
-  std::vector<lgmath::se3::Transformation> mpc_poses;
+  std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>> mpc_poses;
+  mpc_poses.push_back(std::make_pair(stamp, T_w_p*T_p_r));
   // return the computed velocity command for the first time step
   Command command;
   std::vector<Eigen::Vector2d> mpc_velocities;
@@ -306,7 +307,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     
     for(int i = 0; i < mpc_res["pose"].columns(); i++) {
       const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
-      mpc_poses.push_back(T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2]));
+      mpc_poses.push_back(std::make_pair(curr_time + i*mpcConfig.DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
     }
 
     CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
@@ -326,7 +327,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     return Command();
   }
 
-  vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig.DT);
+  vis_->publishMPCRollout(mpc_poses);
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig.DT);
   vis_->publishReferencePoses(referenceInfo.poses);
 
@@ -341,10 +342,10 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   using namespace vtr::common::conversions;
 
-  if(recentLeaderPath_ != nullptr) {
-    path->poses.insert(path->poses.begin(), lastRobotPose_); 
-    lastRobotPose_ = path->poses[1];
-  }
+  // if(recentLeaderPath_ != nullptr) {
+  //   path->poses.insert(path->poses.begin(), lastRobotPose_); 
+  //   lastRobotPose_ = path->poses[1];
+  // }
   
   recentLeaderPath_ = path;
 

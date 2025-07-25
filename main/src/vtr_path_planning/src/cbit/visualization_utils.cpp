@@ -296,6 +296,21 @@ void VisualizationUtils::visualize(
         mpc_path_pub_->publish(mpc_path);
     }
 
+    void VisualizationUtils::publishMPCRollout(const std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>>& mpc_prediction) {
+        nav_msgs::msg::Path mpc_path;
+        mpc_path.header.frame_id = "world";
+        mpc_path.header.stamp = rclcpp::Time(mpc_prediction.front().first);
+        auto& poses = mpc_path.poses;
+
+        // intermediate states
+        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
+            auto& pose = poses.emplace_back();
+            pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].second.matrix()));
+            pose.header.stamp = rclcpp::Time(mpc_prediction[i].first);
+        }
+        mpc_path_pub_->publish(mpc_path);
+    }
+
     void VisualizationUtils::publishLeaderRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
         nav_msgs::msg::Path mpc_path;
         mpc_path.header.frame_id = "world";
