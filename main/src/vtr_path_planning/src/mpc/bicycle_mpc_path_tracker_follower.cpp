@@ -262,7 +262,10 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
     leader_world_poses.push_back(T_w_lp);
-    leader_p_values.push_back(findRobotP(T_w_lp, chain));
+    if (config_->waypoint_selection == "euclidean") {
+      CLOG(DEBUG, "mpc.follower") << "Finding p value for leader";
+      leader_p_values.push_back(findRobotP(T_w_lp, chain));
+    }
     CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
   }
 

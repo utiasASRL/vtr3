@@ -12,7 +12,7 @@ step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the steering angle
-alpha = 0.6
+alpha = 0.7
 
 alpha_v = 0.0
 
