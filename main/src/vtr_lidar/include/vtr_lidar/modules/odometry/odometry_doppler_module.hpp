@@ -64,7 +64,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
     double zero_vel_tol = 0.03;
 
     // gyro
-    Eigen::Matrix<double, 3, 3> gyro_invcov =
+    Eigen::Matrix<double, 3, 3> gyro_cov =
         Eigen::Matrix<double, 3, 3>::Identity();
 
     // inverse covariances
@@ -102,9 +102,6 @@ class OdometryDopplerModule : public tactic::BaseModule {
   // save linear system
   Eigen::Matrix<double, 6, 6> last_lhs_;
   Eigen::Matrix<double, 6, 1> last_rhs_;
-
-  // gyro inverse covariance
-  Eigen::Matrix3d gyro_invcov_;
 
   void run_(tactic::QueryCache &qdata, 
             tactic::OutputCache &output,

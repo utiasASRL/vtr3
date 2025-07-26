@@ -68,13 +68,13 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->integration_steps = node->declare_parameter<int>(param_prefix + ".integration_steps", config->integration_steps);
   config->zero_vel_tol = node->declare_parameter<double>(param_prefix + ".zero_vel_tol", config->zero_vel_tol);
   //
-  const auto gyro_invcov_vec = node->declare_parameter<std::vector<double>>(param_prefix + ".gyro_invcov", std::vector<double>());
-  if (gyro_invcov_vec.size() != 3) {
-    std::string err{"Gyro inverse covariance malformed. Must be 3 elements!"};
+  const auto gyro_cov_vec = node->declare_parameter<std::vector<double>>(param_prefix + ".gyro_cov", std::vector<double>());
+  if (gyro_cov_vec.size() != 3) {
+    std::string err{"Gyro covariance malformed. Must be 3 elements!"};
     CLOG(ERROR, "lidar.odometry_doppler") << err;
     throw std::invalid_argument{err};
   }
-  config->gyro_invcov = Eigen::DiagonalMatrix<double, 3>(gyro_invcov_vec[0], gyro_invcov_vec[1], gyro_invcov_vec[2]);
+  config->gyro_cov = Eigen::DiagonalMatrix<double, 3>(gyro_cov_vec[0], gyro_cov_vec[1], gyro_cov_vec[2]);
   //
   config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
   config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
@@ -265,7 +265,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       for (const auto &gyro_msg : *qdata.gyro_msgs) {
         const auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
         double gy = (R_sv.transpose() * -1.0 * curr_gyro)(2); // rotate measurement to vehicle frame, extract z dim
-        double gyvar = (R_sv.transpose() * config_->gyro_invcov * R_sv)(2, 2); // rotate covariance, extract z dim
+        double gyvar = (R_sv.transpose() * config_->gyro_cov.inverse() * R_sv)(2, 2); // rotate covariance, extract z dim
         lhs_gyro(2, 2) += gyvar;
         rhs_gyro(2) += gy / gyvar;
       }
@@ -428,8 +428,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       Ggyro.leftCols<6>() = (1.0 - alpha)*Cgyro;
       Ggyro.rightCols<6>() = alpha*Cgyro;
 
-      lhs += Ggyro.transpose() * config_->gyro_invcov * Ggyro;
-      rhs += Ggyro.transpose() * config_->gyro_invcov * (-1.0 * curr_gyro);
+      lhs += Ggyro.transpose() * config_->gyro_cov.inverse() * Ggyro;
+      rhs += Ggyro.transpose() * config_->gyro_cov.inverse() * (-1.0 * curr_gyro);
     }
   }
 

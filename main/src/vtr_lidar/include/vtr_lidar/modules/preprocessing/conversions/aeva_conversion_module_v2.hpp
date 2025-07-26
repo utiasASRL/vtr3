@@ -37,6 +37,9 @@ class AevaConversionModuleV2 : public tactic::BaseModule {
   struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
+    bool filter_z = false;  // Whether to filter points based on z threshold
+    double z_threshold = 1000.0;  // meters, threshold for filtering points
+  
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

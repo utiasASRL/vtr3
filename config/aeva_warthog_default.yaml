@@ -65,9 +65,9 @@
     gyro_frame: w200_0066_aeva_imu
     gyro_topic: /aeva/sensor/imu
     gyro_bias:
-      x: -0.0114
+      x: -0.0115
       y: -0.0071
-      z: -0.0047
+      z: -0.0049
     queue_size: 1
     graph_map:
       origin_lat: 43.7822
@@ -135,7 +135,7 @@
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
-        vertical_angle_res: 0.00698132 # vertical angle resolution in radians
+        vertical_angle_res: 0.00349066 # vertical angle resolution in radians
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
         r_scale: 4.0 # scale down point range by this value after taking log, whatever works
         h_scale: 2.0 #0.125 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution
@@ -154,7 +154,7 @@
 
       doppler_filtering:
         type: lidar.preprocessing_doppler
-        azimuth_res: 0.00698132         # vertical angle resolution in radians
+        azimuth_res: 0.00349066         # vertical angle resolution in radians
         azimuth_start: -0.994838        # -57 deg in rad         
         azimuth_end: 1.09956            #  63 deg in rad
         num_rows: 64                    # num of vertical scan lines
@@ -211,16 +211,17 @@
         ransac_gyro: true
         ransac_max_iter: 100
         ransac_threshold: 0.2
-        prior_threshold: 0.1        # m/s
+        prior_threshold: 0.5        # m/s
         ransac_min_range: 5.0       # m
         integration_steps: 100
         zero_vel_tol: 0.03
-        gyro_invcov: [30000.083766029, 20000.771471207, 50000.083910244] #[3397.786, 2461.6228, 3550.9717] # increase invcovariance
+        # gyro_cov: [3e-05, 5e-05, 2e-05]
+        gyro_cov: [1.43918122e-04,1.65332526e-04,4.68710201e-05]
         # prior
         P0inv: [1e4, 1e4, 1e4, 1e6, 1e6, 1e6]
         Qkinv: [124.097194, 852.430330017, 448.704299478, 1128.19639192, 1230.02908934, 11316.9459369]
         Qzinv: [0.0, 100.0, 100.0, 33271.2755284, 20032.1558168, 0.0]
-        max_trans_vel_diff: 0.2
+        max_trans_vel_diff: 0.5
 
       mapping:
         type: lidar.odometry_map_maintenance_v2

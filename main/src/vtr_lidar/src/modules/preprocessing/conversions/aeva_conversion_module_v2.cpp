@@ -31,6 +31,9 @@ auto AevaConversionModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
+  config->filter_z = node->declare_parameter<bool>(param_prefix + ".filter_z", config->filter_z);
+  config->z_threshold = node->declare_parameter<bool>(param_prefix + ".z_threshold", config->z_threshold);
+
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -83,8 +86,11 @@ void AevaConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   sensor_msgs::PointCloud2ConstIterator<uint32_t> iter_flags(*msg, "point_flags_lsb");
   // clang-format on
 
-  for (size_t idx = 0; iter_x != iter_x.end();
-       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_time, ++iter_velocity, ++iter_intensty, ++iter_flags) {
+  size_t idx = 0;
+  for (; iter_x != iter_x.end();
+       ++iter_x, ++iter_y, ++iter_z, ++iter_time, ++iter_velocity, ++iter_intensty, ++iter_flags) {
+    if (*iter_z > config_->z_threshold && config_->filter_z)
+      continue;
     // cartesian coordinates
     point_cloud->at(idx).x = *iter_x;
     point_cloud->at(idx).y = *iter_y;
@@ -99,7 +105,9 @@ void AevaConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).line_id = ((point_flags >> 8) & 0xFF);
     point_cloud->at(idx).beam_id = ((point_flags >> 16) & 0xF);
     point_cloud->at(idx).face_id = ((point_flags >> 22) & 0xF);
+    ++idx;
   }
+  point_cloud->resize(idx);
 
   auto filtered_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
 
