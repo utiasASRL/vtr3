@@ -179,6 +179,7 @@ public:
     std::vector<double> low_barrier_q;
     double VF = 0.0;
     DM vel_max{nControl, 1};
+    DM vel_min{nControl, 1};
     double wheelbase = 0.5;
     // The below are passed to the Casadi solver as tunable parameters
     double Q_x = 0.0;

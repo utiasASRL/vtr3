@@ -31,6 +31,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
 #include <vtr_navigation_msgs/srv/graph_state.hpp>
+#include "std_msgs/msg/float32.hpp"
 
 namespace vtr {
 namespace path_planning {
@@ -46,16 +47,11 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using Transformation = lgmath::se3::Transformation;
+  using FloatMsg = std_msgs::msg::Float32;
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BasePathPlanner::Config {
     PTR_TYPEDEFS(Config);
-
-    // Speed Scheduler
-    double planar_curv_weight = 2.50;
-    double profile_curv_weight = 0.5; 
-    double eop_weight = 1.0;
-    double min_vel = 0.5;  
 
     // MPC Configs
     bool extrapolate_robot_pose = true;
@@ -80,8 +76,15 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
     double racc1 = 0.0;
     double q_f = 0.0;
 
+    //Distane PID Gains
+    double kp = 1.0;
+    double kd = 0.0;
+    double ki = 0.0;
+
     
     std::string leader_namespace = "leader";
+    
+    // Options: leader_vel euclidean external_dist
     std::string waypoint_selection = "leader_vel";
 
     double following_offset = 0.5; //m
@@ -138,6 +141,12 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
 
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
+
+  FloatMsg::SharedPtr recentLeaderDist_;
+  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
+  void onLeaderDist(const FloatMsg::SharedPtr distance);
+  float lastError_ = 0;
+  float errorIntegrator = 0;
 
   VisualizationUtils::Ptr vis_;  
 

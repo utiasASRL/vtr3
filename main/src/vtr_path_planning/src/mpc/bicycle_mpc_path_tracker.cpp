@@ -150,6 +150,7 @@ auto BicycleMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command 
 
   CasadiBicycleMPC::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+  mpcConfig.vel_min = {0, -config_->max_ang_vel};
   mpcConfig.Q_x     = config_->q_x;
   mpcConfig.Q_y     = config_->q_y;
   mpcConfig.Q_th    = config_->q_th;

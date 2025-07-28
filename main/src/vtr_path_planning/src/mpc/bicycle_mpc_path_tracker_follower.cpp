@@ -40,11 +40,10 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
   *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
 
   // MPC Configs:
-  // SPEED SCHEDULER PARAMETERS
-  config->planar_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.planar_curv_weight", config->planar_curv_weight);
-  config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
-  config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
-  config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
+  // PID PARAMETERS
+  config->kp = node->declare_parameter<double>(prefix + ".longitudinal_control.kp", config->kp);
+  config->ki = node->declare_parameter<double>(prefix + ".longitudinal_control.ki", config->ki);
+  config->kd = node->declare_parameter<double>(prefix + ".longitudinal_control.kd", config->kd);
 
   // Follower params
   config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
@@ -121,6 +120,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
   followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
 
+  leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
 
 
@@ -190,6 +190,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
   CasadiBicycleMPCFollower::Config mpcConfig;
   mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+  mpcConfig.vel_min = {0, -config_->max_ang_vel};
   mpcConfig.wheelbase = config_->wheelbase;
   mpcConfig.Q_x     = config_->q_x;
   mpcConfig.Q_y     = config_->q_y;
@@ -204,11 +205,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   mpcConfig.Q_dist = config_->q_dist;
   mpcConfig.distance = config_->following_offset;
   mpcConfig.distance_margin = config_->distance_margin;
-
-  // Schedule speed based on path curvatures + other factors
-  // TODO refactor to accept the chain and use the curvature of the links
-  mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
-
 
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
   auto T_p_r_extp = T_p_r;
@@ -234,6 +230,21 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
            << delta_t / 1e9;
     return Command();
   }
+
+  mpcConfig.VF = leader_vel_(0);
+  if (config_->waypoint_selection == "external_dist") {
+    const float distance = recentLeaderDist_->data;
+    const double error = distance - config_->following_offset;
+    errorIntegrator += error;
+    mpcConfig.VF = config_->kp * error + config_->ki * errorIntegrator; + config_->kd * (error - lastError_);
+    lastError_ = error;
+    CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig.VF;
+
+    mpcConfig.vel_max = {mpcConfig.VF, config_->max_ang_vel};
+    mpcConfig.vel_min = {mpcConfig.VF, -config_->max_ang_vel};
+    mpcConfig.lin_acc_max = 1000;
+  }
+
 
   lgmath::se3::Transformation T0 = T_p_r_extp;
   mpcConfig.T0 = tf_to_global(T0);
@@ -341,11 +352,6 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
 
 void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   using namespace vtr::common::conversions;
-
-  // if(recentLeaderPath_ != nullptr) {
-  //   path->poses.insert(path->poses.begin(), lastRobotPose_); 
-  //   lastRobotPose_ = path->poses[1];
-  // }
   
   recentLeaderPath_ = path;
 
@@ -383,6 +389,10 @@ void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr rout
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
 
   }
+}
+
+void BicycleMPCPathTrackerFollower::onLeaderDist(const FloatMsg::SharedPtr distance) {
+  recentLeaderDist_ = distance;
 }
 
 }  // namespace vtr::path_planning

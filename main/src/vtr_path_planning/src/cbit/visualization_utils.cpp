@@ -25,9 +25,9 @@ namespace path_planning {
 
 VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
-    mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", 10);
+    mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
     leader_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("leader_mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
-    robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", rclcpp::QoS(1).best_effort().durability_volatile());
+    robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
     path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
     corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
     corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
