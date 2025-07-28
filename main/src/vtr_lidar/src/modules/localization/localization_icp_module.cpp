@@ -48,7 +48,6 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
-  config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
