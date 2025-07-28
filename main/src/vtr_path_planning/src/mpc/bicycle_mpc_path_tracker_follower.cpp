@@ -355,7 +355,12 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
     const Transformation T_w_p1 =  tfFromPoseMessage(path->poses[1].pose);
     const auto dt = rclcpp::Time(path->poses[1].header.stamp) - rclcpp::Time(path->poses[0].header.stamp);
     auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
-    leader_vel_ << vel(0, 0), vel(5, 0);
+    if (vel(0, 0) > 1.0) {
+      CLOG(WARNING, "mpc.follower") << "Erroneous velocity " << vel << " capped to nominal forward speed. DT=" << dt.seconds();
+      leader_vel_ << config_->forward_vel, 0.0;
+    } else {
+      leader_vel_ << vel(0, 0), vel(5, 0);
+    }
     CLOG(DEBUG, "mpc.follower") << "Estimated leader velo: " << leader_vel_;
   } 
 
