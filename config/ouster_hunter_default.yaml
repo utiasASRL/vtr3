@@ -118,6 +118,8 @@
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
+      target_loc_time: 20.0
+
     preprocessing:
       conversion:
         type: lidar.ouster_converter
@@ -237,7 +239,6 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.45
-        target_loc_time: 15.0
     
       memory:
         type: graph_mem_manager
