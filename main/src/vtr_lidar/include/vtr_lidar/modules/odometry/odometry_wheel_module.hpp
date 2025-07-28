@@ -74,11 +74,16 @@ class OdometryWheelModule : public tactic::BaseModule {
   double total_dist = 0.0;
   double max_bias = 0.0;
 
-  sensor_msgs::msg::Imu last_gyro_msg;
+  std::vector<sensor_msgs::msg::Imu> last_gyro_msg;
   std::pair<rclcpp::Time, double> last_wheel_meas;
+  
+  int64_t last_bias_time = 0;
+  int64_t next_est_stamp = 0;
+  int64_t last_gyro_stamp = 0;
+  int64_t last_wheel_stamp = 0;
 
   Eigen::Vector3d current_p = Eigen::Vector3d::Zero();
-  Eigen::Matrix3d current_theta = lgmath::so3::vec2rot(Eigen::Vector3d(0, 0, M_PI/2));
+  Eigen::Matrix3d current_theta = lgmath::so3::vec2rot(Eigen::Vector3d(0, 0, 0));
 
 
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,

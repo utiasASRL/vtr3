@@ -832,10 +832,10 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   if (*qdata->loc_flag)
     pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
 
-    CLOG(DEBUG, "tactic")
-      << "Estimated transformation from robot to localization vertex ("
-      << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "
-      << (*qdata->T_r_v_loc).inverse().vec().transpose();
+  CLOG(DEBUG, "tactic")
+    << "Estimated transformation from robot to localization vertex ("
+    << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "
+    << (*qdata->T_r_v_loc).inverse().vec().transpose();
 
   // save localization result
   if (config_->save_localization_result) {

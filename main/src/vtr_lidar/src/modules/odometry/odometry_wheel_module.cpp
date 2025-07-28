@@ -80,8 +80,9 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     frame_count = 0;
   }
 
-  if (!qdata.gyro_msgs) {
-    CLOG(WARNING, "lidar.odometry_wheel") << "No gyro messages found, cannot run odometry.";
+  if (!qdata.gyro_msgs || !qdata.wheel_meas) {
+    CLOG_IF(!qdata.gyro_msgs, WARNING, "lidar.odometry_wheel") << "No gyro messages found, cannot run odometry.";
+    CLOG_IF(!qdata.wheel_meas, WARNING, "lidar.odometry_wheel") << "No wheel messages found, cannot run odometry.";
     frame_count++;
     return;
   }
@@ -95,6 +96,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &timestamp_odo = *qdata.timestamp_odo;
   const auto &T_r_m_odo = *qdata.T_r_m_odo;
   const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+  auto &gyro_msgs = *qdata.gyro_msgs;
+  auto &wheel_meas = *qdata.wheel_meas;
 
   double bias_alpha;
   double min_bias_init_count;
@@ -106,16 +109,13 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   const auto T_wheel_imu = T_s_r_wheel * T_s_r_gyro.inverse();
 
   // clang-format off
-  /// Create robot to sensor transform variable, fixed.
+  // Create robot to sensor transform variable, fixed.
   const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
   T_s_r_var->locked() = true;
   const auto T_s_r_wh_var = SE3StateVar::MakeShared(T_s_r_wheel);
   T_s_r_wh_var->locked() = true;
   const auto T_s_r_gyro_var = SE3StateVar::MakeShared(T_s_r_gyro);
   T_s_r_gyro_var->locked() = true;
-
-  auto &gyro_msgs = *qdata.gyro_msgs;
-  auto &wheel_meas = *qdata.wheel_meas;
 
   int ptr_ang = 0;
   int ptr_pulse = 0;
@@ -132,7 +132,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     }
   }
 
-  // initialize trajectory
+  // Initialize trajectory
   const_vel::Interface::Ptr trajectory = nullptr;
   trajectory = const_vel::Interface::MakeShared();
 
@@ -142,18 +142,18 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo);
   trajectory->add(t_prev_time, prev_T_r_m_var, prev_w_m_r_in_r_var); 
 
-  const rclcpp::Time query_time(query_stamp);
-  const rclcpp::Time gyro_time(gyro_msgs.front().header.stamp);
-  const rclcpp::Time wheel_time(wheel_meas.front().first);
-
+  // Initialize variables for odometry estimation
+  double dist = 0.0;
   Eigen::Vector3d delta_pos;
 
+  // Initialize poses we add to the trajectory
   EdgeTransform T_est; // estimated pose at stamp time
-  EdgeTransform T_begin; // first estimated pose
-  EdgeTransform T_end; // last estimated pose
+  EdgeTransform T_first; // first estimated pose
+  EdgeTransform T_last; // last estimated pose
 
-  // save unique measurement times
+  // Save unique measurement times
   std::vector<int64_t> timestamps;
+  const rclcpp::Time query_time(query_stamp);
   for (const auto &gyro_msg : gyro_msgs) {
     timestamps.push_back(static_cast<int64_t>(rclcpp::Time(gyro_msg.header.stamp).nanoseconds()));
   }
@@ -164,9 +164,16 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   std::sort(timestamps.begin(), timestamps.end());
   timestamps.erase(std::unique(timestamps.begin(), timestamps.end()), timestamps.end());
 
+  //log the timestamps
+  CLOG(INFO, "lidar.odometry_wheel") << "Timestamps: ";
+  for (const auto &ts : timestamps) {
+    CLOG(INFO, "lidar.odometry_wheel") << rclcpp::Time(ts).nanoseconds();
+  }
+
+  // Initialize current and next timestamps
   rclcpp::Time curr_time(timestamps[0]);
   rclcpp::Time next_time(timestamps[1]);
-
+  //
   rclcpp::Time curr_gyro_time(gyro_msgs[ptr_ang].header.stamp);
   rclcpp::Time curr_wheel_time(wheel_meas[ptr_pulse].first);
   rclcpp::Time next_gyro_time(gyro_msgs[ptr_ang + 1].header.stamp);
@@ -183,12 +190,14 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   Time first_time(static_cast<int64_t>(next_est_stamp));
   Time last_time(static_cast<int64_t>(last_timestamp));
 
-
-  CLOG(DEBUG, "lidar.odometry_wheel") << std::endl
-      << "first_pt_time : " << first_pt_time << std::endl
-      << "next_est_stamp: " << next_est_stamp << std::endl
-      << "last_pt_time  : " << last_pt_time << std::endl
-      << "last_timestamp: " << last_timestamp << std::endl;
+  // Initialize variables for velocity estimation
+  double delta_time = 0.0;
+  Eigen::Vector3d linear_velocity = Eigen::Vector3d::Zero();
+  Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();
+  //
+  Eigen::Matrix<double, 6, 1> w_first;
+  Eigen::Matrix<double, 6, 1> w_query;
+  Eigen::Matrix<double, 6, 1> w_last;
 
   // estimation loop
   for (int i = 0; i < timestamps.size()-1; ++i) {
@@ -246,7 +255,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
       double t0_pulse = curr_time.seconds() - curr_wheel_time.seconds();
       double t1_pulse = next_time.seconds() - curr_wheel_time.seconds();
-      auto dist = (t1_pulse - t0_pulse) * diff_pulse_count / diff_pulse_time;
+      dist = (t1_pulse - t0_pulse) * diff_pulse_count / diff_pulse_time;
       dist = dist * config_->wheel_parameter;
       
       total_dist += dist;
@@ -281,35 +290,46 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     current_p += delta_pos;
     current_theta = current_theta * lgmath::so3::vec2rot(ang); // update orientation
 
+    delta_time += next_time.seconds() - curr_time.seconds();
+    linear_velocity += Eigen::Vector3d(dist, 0, 0);
+    angular_velocity += ang;
+
     // save first estimated pose
-    if (i == next_est_stamp) {
+    if (timestamps[i] == next_est_stamp) {
       Eigen::Matrix4d first_trans = Eigen::Matrix4d::Identity();
       first_trans.block<3, 3>(0, 0) = current_theta;
       first_trans.block<3, 1>(0, 3) << current_p.x(), current_p.y(), current_p.z(); // T_m_wheel
-      T_begin = EdgeTransform(first_trans, Eigen::Matrix<double, 6, 6>::Identity());
+      T_first = EdgeTransform(first_trans, Eigen::Matrix<double, 6, 6>::Identity());
+
+      w_first.block<3, 1>(0, 0) = linear_velocity / delta_time;
+      w_first.block<3, 1>(3, 0) = angular_velocity / delta_time;
     }
 
-    // save last estimated pose
-    if (i == last_timestamp) {
-      Eigen::Matrix4d last_trans = Eigen::Matrix4d::Identity();
-      last_trans.block<3, 3>(0, 0) = current_theta;
-      last_trans.block<3, 1>(0, 3) << current_p.x(), current_p.y(), current_p.z(); // T_m_wheel
-      T_end = EdgeTransform(last_trans, Eigen::Matrix<double, 6, 6>::Identity());
-    }
-
-    // save estimated pose at scan time
+   // save estimated pose at scan time
     if (next_time.seconds() == query_time.seconds()) {
       Eigen::Matrix4d trans = Eigen::Matrix4d::Identity();
       trans.block<3, 3>(0, 0) = current_theta;
       trans.block<3, 1>(0, 3) << current_p.x(), current_p.y(), current_p.z(); // T_m_wheel
       T_est = EdgeTransform(trans, Eigen::Matrix<double, 6, 6>::Identity());
+
+      w_query.block<3, 1>(0, 0) = linear_velocity / delta_time;
+      w_query.block<3, 1>(3, 0) = angular_velocity / delta_time;
     }
 
-    if (next_time.seconds() >= next_wheel_time.seconds())
-      ptr_pulse++;
+    // save last estimated pose
+    if (timestamps[i] == last_timestamp) {
+      Eigen::Matrix4d last_trans = Eigen::Matrix4d::Identity();
+      last_trans.block<3, 3>(0, 0) = current_theta;
+      last_trans.block<3, 1>(0, 3) << current_p.x(), current_p.y(), current_p.z(); // T_m_wheel
+      T_last = EdgeTransform(last_trans, Eigen::Matrix<double, 6, 6>::Identity());
 
-    if (next_time.seconds() >= next_gyro_time.seconds())
-      ptr_ang++;
+      w_last.block<3, 1>(0, 0) = linear_velocity / delta_time;
+      w_last.block<3, 1>(3, 0) = angular_velocity / delta_time;
+    }
+
+    if (next_time.seconds() >= next_wheel_time.seconds()) ptr_pulse++;
+
+    if (next_time.seconds() >= next_gyro_time.seconds()) ptr_ang++;
 
   } // end estimation loop 
 
@@ -318,27 +338,25 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   last_wheel_stamp = curr_wheel_time.nanoseconds();
 
   // transform estimated pose to map frame
+  // at first time
+  const auto T_m_s_wheel_first = SE3StateVar::MakeShared(T_first); // T_map_wheel
+  auto T_r_m_eval_first = inverse(compose(T_m_s_wheel_first, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
   // at scan time
   const auto T_m_s_wheel = SE3StateVar::MakeShared(T_est); // T_map_wheel
   auto T_r_m_eval = inverse(compose(T_m_s_wheel, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
-  // at first time
-  const auto T_m_s_wheel_first = SE3StateVar::MakeShared(T_begin); // T_map_wheel
-  auto T_r_m_eval_first = inverse(compose(T_m_s_wheel_first, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
   // at last time
-  const auto T_m_s_wheel_end = SE3StateVar::MakeShared(T_end); // T_map_wheel
-  auto T_r_m_eval_end = inverse(compose(T_m_s_wheel_end, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
+  const auto T_m_s_wheel_last = SE3StateVar::MakeShared(T_last); // T_map_wheel
+  auto T_r_m_eval_last = inverse(compose(T_m_s_wheel_last, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
 
   *qdata.T_r_m_odo = T_r_m_eval->value();
   *qdata.timestamp_odo = query_stamp;
 
   if (frame_count > 0) {
-    // finite diff approximation for velocity
-    *qdata.w_m_r_in_r_odo = (T_r_m_eval_end->value() * T_r_m_eval_first->value().inverse()).vec() / ((last_pt_time - first_pt_time) / 1e9);
+    auto vel_first = compose_velocity(SE3StateVar::MakeShared(T_s_r_wheel.inverse()), VSpaceStateVar<6>::MakeShared(-w_first));
+    auto vel_query = compose_velocity(SE3StateVar::MakeShared(T_s_r_wheel.inverse()), VSpaceStateVar<6>::MakeShared(-w_query));
+    auto vel_last = compose_velocity(SE3StateVar::MakeShared(T_s_r_wheel.inverse()), VSpaceStateVar<6>::MakeShared(-w_last));
 
-    CLOG(DEBUG, "lidar.odometry_wheel")
-        << "last_timestamp: " << last_pt_time
-        << " next_est_stamp: " << first_pt_time
-        << " last-first time: " << (last_pt_time - first_pt_time) / 1e9;
+    *qdata.w_m_r_in_r_odo = vel_query->value();
 
     auto &sliding_map_odo = *qdata.sliding_map_odo;
     EdgeTransform T_r_m(T_r_m_eval->value(), Eigen::Matrix<double, 6, 6>::Identity());
@@ -355,8 +373,9 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
     auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-    const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(*qdata.w_m_r_in_r_odo);
-    trajectory->add(last_time, T_r_m_eval_end, w_m_r_in_r_var);
+    trajectory->add(first_time, T_r_m_eval_first, VSpaceStateVar<6>::MakeShared(vel_first->value()));   // add first pose to trajectory
+    trajectory->add(Time(query_stamp), T_r_m_eval, VSpaceStateVar<6>::MakeShared(vel_query->value()));  // add query pose to trajectory
+    trajectory->add(last_time, T_r_m_eval_last, VSpaceStateVar<6>::MakeShared(vel_last->value()));      // add last pose to trajectory
 
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (unsigned i = 0; i < query_points.size(); i++) {
