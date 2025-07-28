@@ -236,7 +236,7 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
     const float distance = recentLeaderDist_->data;
     const double error = distance - config_->following_offset;
     errorIntegrator += error;
-    mpcConfig.VF = config_->kp * error + config_->ki * errorIntegrator; + config_->kd * (error - lastError_);
+    mpcConfig.VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_);
     lastError_ = error;
     CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig.VF;
 
