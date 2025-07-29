@@ -154,19 +154,19 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::getMPCConfig(const bool isReversin
   return mpc_config;
 }
 
-  std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
-    std::map<std::string, casadi::DM> result;
+std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
+  std::map<std::string, casadi::DM> result;
 
-    try {
-      CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
-      result = solver_.solve(*config);
-      CLOG(INFO, "cbit.control") << "Solver called";
-      success_count += 1;
-      if(success_count > config_->recovery_steps){
-          failure_count = 0;
-      }
-      
-    } catch (std::exception& e) {
+  try {
+    CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
+    result = solver_.solve(*config);
+    CLOG(INFO, "cbit.control") << "Solver called";
+    success_count += 1;
+    if(success_count > config_->recovery_steps){
+        failure_count = 0;
+    }
+    
+  } catch (std::exception& e) {
       CLOG(WARNING, "cbit.control")
           << "casadi failed! " << e.what() << ". Incrementing failure count. Current count: " << failure_count;
       failure_count += 1;

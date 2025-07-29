@@ -131,6 +131,11 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
                          const double state_p,
                          RobotState& robot_state,
                          const tactic::Timestamp& curr_time) {
+
+  if (recentLeaderPath_ == nullptr) {
+    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
+    return;
+  }
   auto follower_mpc_config = std::dynamic_pointer_cast<CasadiBicycleMPCFollower::Config>(mpcConfig);
   
   auto& chain = robot_state.chain.ptr();
@@ -246,6 +251,26 @@ void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr rout
   else{
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
   }
+}
+
+std::map<std::string, casadi::DM> BicycleMPCPathTrackerFollower::callSolver(CasadiMPC::Config::Ptr config) {
+  std::map<std::string, casadi::DM> result;
+
+  if (recentLeaderPath_ == nullptr) {
+    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
+    throw std::runtime_error("Follower has received no path from the leader yet. Stopping");
+  }
+
+  try {
+    CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
+    result = solver_.solve(*config);
+    CLOG(INFO, "cbit.control") << "Solver called";
+  } catch (std::exception& e) {
+      CLOG(WARNING, "cbit.control")
+          << "casadi failed! " << e.what();
+      throw e;
+  }
+  return result;
 }
 
 }  // namespace vtr::path_planning

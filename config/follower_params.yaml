@@ -7,7 +7,7 @@
       leader_namespace: /miss_scarlet
       waypoint_selection: leader_vel
       mpc:
-        q_dist: 5.0
+        q_dist: 50.0
         q_y: 0.0
         q_x: 10.0
         wheelbase: 0.65

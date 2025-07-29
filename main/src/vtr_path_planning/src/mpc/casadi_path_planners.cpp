@@ -385,10 +385,27 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
   arg["ubx"].set(DM::inf(), true, Slice(0, mpcConf.nStates*(mpcConf.N+1)));
   
   // Velocity constraints
-  arg["ubx"].set(mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   arg["ubx"].set(mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-  arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   arg["lbx"].set(-mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+
+  if (mpcConf.recovery){
+    arg["ubx"].set(mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+    arg["lbx"].set(-mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  }
+  else if (mpcConf.reversing) {
+    arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+    arg["lbx"].set(-mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  }
+  else{
+    arg["ubx"].set(mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+    arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  }
+
+  // Set velocity constraint to zero once we've reached the end of the path
+  if (mpcConf.eop_index >= 0){
+    arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+    arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  }
   
 
   arg["lbg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl + mpcConf.N, 1);
@@ -438,6 +455,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
       arg["p"] = vertcat(arg["p"],
           pose_i);
   }
+
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
   for(int i = 0; i < mpcConf.N; i++) {
       arg["p"] = vertcat(arg["p"],
