@@ -142,7 +142,7 @@
         r_scale: 4.0 # scale down point range by this value after taking log, whatever works
         h_scale: 2.0 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution when 5Hz spin frequence is ~0.7031 degree, so 0.7031 / 0.3516 = 2.00
 
-        num_sample1: 20000 # max number of sample after filtering based on planarity
+        num_sample1: 3000 # max number of sample after filtering based on planarity
         min_norm_score1: 0.95 # min planarity score
 
         num_sample2: 20000 # max number of sample after filtering based on planarity

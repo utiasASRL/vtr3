@@ -139,7 +139,7 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
-  if (*qdata->loc_time > config_->target_loc_time && *qdata->pipeline_mode != tactic::PipelineMode::RepeatFollow) {
+  if (*qdata->loc_time > config_->target_loc_time && *qdata->pipeline_mode == tactic::PipelineMode::RepeatFollow) {
     CLOG(WARNING, "lidar.pipeline") << "Skipping localization to save on compute EMA=" << *qdata->loc_time;
     return;
   }

@@ -63,6 +63,7 @@ void BasePathPlanner::stop() {
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
   CLOG(INFO, "path_planning") << "Starting the base path planning thread.";
+  auto wait_until_time = std::chrono::steady_clock::now();
   while (true) {
     UniqueLock lock(mutex_);
     cv_terminate_or_state_changed_.wait(lock, [this] {
@@ -87,10 +88,9 @@ void BasePathPlanner::process() {
     /// \note command computation should not require the lock, and this is
     /// required to give other threads a chance to acquire the lock
     lock.unlock();
-    //
-    const auto wait_until_time =
-        std::chrono::steady_clock::now() +
-        std::chrono::milliseconds(config_->control_period);
+    
+    wait_until_time += std::chrono::milliseconds(config_->control_period);
+
     if (!*robot_state_->odometry_success) {
       CLOG(WARNING, "path_planning") << "Stopping robot because odometry failed!";
       callback_->commandReceived(Command());
@@ -107,7 +107,8 @@ void BasePathPlanner::process() {
           << "Command computation takes " << (dt + config_->control_period)
           << "ms, which is longer than the control period of "
           << config_->control_period << "ms.";
-    }
+      wait_until_time = std::chrono::steady_clock::now();
+    } 
     std::this_thread::sleep_until(wait_until_time);
   }
 }
