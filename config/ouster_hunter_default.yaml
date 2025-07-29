@@ -12,19 +12,19 @@
       #- tactic
       #- tactic.pipeline
       #- tactic.eop
-      #- tactic.module
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
       # path planner
-      - path_planning
-      - path_planning.cbit
-      - path_planning.cbit_planner
-      - cbit.path_planning
+      #- path_planning
+      #- path_planning.cbit
+      #- path_planning.cbit_planner
+      #- cbit.path_planning
       #- cbit_planner.path_planning
-      - cbit.debug
-      - mpc.solver
-      - mpc.speed_scheduler
+      #- cbit.debug
+      #- mpc.solver
+      #- mpc.speed_scheduler
       #- mpc.cost_function
       #- mpc.cbit
       #- mpc.debug
@@ -35,7 +35,7 @@
         
         # mission planner
       #- mission.server
-      - mission.state_machine
+      #- mission.state_machine
 
         # pose graph
       #- pose_graph
@@ -48,7 +48,7 @@
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
-      #- lidar.localization_icp
+      - lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging
