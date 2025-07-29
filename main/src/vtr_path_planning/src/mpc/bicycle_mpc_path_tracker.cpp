@@ -154,6 +154,10 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::getMPCConfig(const bool isReversin
   return mpc_config;
 }
 
+bool BicycleMPCPathTracker::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& ){
+  return true;
+}
+
 std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
   std::map<std::string, casadi::DM> result;
 

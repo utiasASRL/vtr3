@@ -38,7 +38,9 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // submap creation thresholds
   config->submap_translation_threshold = node->declare_parameter<double>(param_prefix + ".submap_translation_threshold", config->submap_translation_threshold);
   config->submap_rotation_threshold = node->declare_parameter<double>(param_prefix + ".submap_rotation_threshold", config->submap_rotation_threshold);
-  
+  config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
+
+
   config->save_raw_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_raw_point_cloud", config->save_raw_point_cloud);
   config->save_nn_point_cloud = node->declare_parameter<bool>(param_prefix + ".save_nn_point_cloud", config->save_nn_point_cloud);
   // clang-format on
@@ -137,6 +139,11 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
+  if (*qdata->loc_time > config_->target_loc_time && *qdata->pipeline_mode == tactic::PipelineMode::RepeatFollow) {
+    CLOG(WARNING, "lidar.pipeline") << "Skipping localization to save on compute EMA=" << *qdata->loc_time;
+    return;
+  }
+
 
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;

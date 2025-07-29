@@ -32,9 +32,9 @@ PathInterpolator::PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path) {
 }
 
 PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) const {
-  auto up_it = path_info_.lower_bound(time);
-
   CLOG(DEBUG, "mpc.follower") << "Requested interpolation time " << time;
+
+  auto up_it = path_info_.lower_bound(time);
   CLOG(DEBUG, "mpc.follower") << "Found lower bound time " << up_it->first;
 
   if (up_it == path_info_.begin()){

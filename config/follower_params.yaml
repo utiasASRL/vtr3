@@ -3,7 +3,7 @@
     path_planning:
       type: bicycle_mpc_follower
       follow_distance: 1.5
-      distance_margin: 0.25
+      distance_margin: 0.5
       leader_namespace: /miss_scarlet
       waypoint_selection: leader_vel
       mpc:

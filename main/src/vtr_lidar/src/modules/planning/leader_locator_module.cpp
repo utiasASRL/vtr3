@@ -51,6 +51,11 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
   const auto &T_s_r = *qdata.T_s_r;
   const auto &points = *qdata.raw_point_cloud;
 
+  if (!publisher_initialized_) {
+    distance_pub_ = qdata.node->create_publisher<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile());
+    publisher_initialized_ = true;
+  }
+
   // clang-format off
 
   // filter out points that are too far away or too close
@@ -109,8 +114,11 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, static_name) << "Centroid \n" << centroid;
   CLOG(DEBUG, static_name) << "Leader position \n" << leader_in_follower;
 
-  CLOG(INFO, static_name) << "Leader lidar distance: " << leader_in_follower.head<2>().norm() << " at stamp " << stamp;
-
+  const float leader_dist = leader_in_follower.head<2>().norm();
+  CLOG(INFO, static_name) << "Leader lidar distance: " << leader_dist << " at stamp " << stamp;
+  FloatMsg dist_msg;
+  dist_msg.data = leader_dist;
+  distance_pub_->publish(dist_msg);
 }
 
 }  // namespace lidar
