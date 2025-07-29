@@ -82,10 +82,12 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
   ~BicycleMPCPathTracker() override;
 
  protected:
-  virtual CasadiMPC::Config::Ptr loadMPCConfig(
-      const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
-
   virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
+  void loadMPCConfig(
+      CasadiBicycleMPC::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+
+  virtual CasadiMPC::Config::Ptr getMPCConfig(
+      const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
 
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTracker);

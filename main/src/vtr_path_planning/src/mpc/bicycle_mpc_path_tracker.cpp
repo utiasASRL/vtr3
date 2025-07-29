@@ -100,14 +100,14 @@ BicycleMPCPathTracker::BicycleMPCPathTracker(const Config::ConstPtr& config,
 
 BicycleMPCPathTracker::~BicycleMPCPathTracker() {}
 
-CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
-  auto mpc_config = std::make_shared<CasadiBicycleMPC::Config>();
-
+void BicycleMPCPathTracker::loadMPCConfig(
+    CasadiBicycleMPC::Config::Ptr mpc_config, const bool isReversing, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
   // Set the MPC parameters based on the configuration
   mpc_config->VF = config_->forward_vel;
   mpc_config->vel_max(0) = config_->max_lin_vel;
   mpc_config->vel_max(1) = config_->max_ang_vel;
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), applied_vel(1)};
+  mpc_config->wheelbase = config_->wheelbase;
 
   if (isReversing) {
     // Set the MPC costs
@@ -145,9 +145,14 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::loadMPCConfig(const bool isReversi
       mpc_config->Acc_R2 = 0.0;
       mpc_config->Q_f = 0.0;
     }
+}
 
-    return mpc_config;
-  }
+CasadiMPC::Config::Ptr BicycleMPCPathTracker::getMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
+  auto mpc_config = std::make_shared<CasadiBicycleMPC::Config>();
+  loadMPCConfig(mpc_config, isReversing, w_p_r_in_r, applied_vel);
+
+  return mpc_config;
+}
 
   std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
     std::map<std::string, casadi::DM> result;

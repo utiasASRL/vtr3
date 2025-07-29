@@ -422,11 +422,11 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
 
   arg["p"] = mpcConf.T0;
 
-
   for(int i = 0; i < mpcConf.N; i++) {
       auto pose_i = mpcConf.reference_poses.at(i);
       if(mpcConf.repeat_flipped)
       {
+        CLOG(INFO, "mpc.solver") << "Flipping pose " << i << " for follower MPC";
         pose_i(2) += M_PI;
         while (pose_i(2).scalar() > M_PI) {
             pose_i(2) -= 2 * M_PI;

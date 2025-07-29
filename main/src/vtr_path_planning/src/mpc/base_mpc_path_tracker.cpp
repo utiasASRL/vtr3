@@ -142,11 +142,14 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 
   // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
   auto T_p_r_extp = T_p_r;
+  auto curr_time = stamp;
   if (base_config_->extrapolate_robot_pose) {
     const auto curr_time = robot_state.node->get_clock()
                                ->now()
                                .nanoseconds();  // always in nanoseconds
+                               
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
+    /*
     if (fabs(dt) > 0.25) {
       CLOG(WARNING, "cbit")
           << "Pose extrapolation was requested but the time delta is " << dt
@@ -154,6 +157,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
           << "Ignoring extrapolation requestion. Check your time sync!";
       dt = 0;
     }
+    */
 
     CLOG(DEBUG, "cbit.debug")
         << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose()
@@ -171,9 +175,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   bool isReverse = (dir == tactic::Direction::Backward);
   bool dir_switch = segment_info.direction_switch;
 
-  // This is the only step that varies between the MPC implementations
-  auto mpcConfig = loadMPCConfig(isReverse, w_p_r_in_r, applied_vel_);
-
+  auto mpcConfig = getMPCConfig(isReverse, w_p_r_in_r, applied_vel_);
   lgmath::se3::Transformation T0 = T_p_r_extp;
   mpcConfig->T0 = tf_to_global(T0);
 
@@ -186,9 +188,9 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
       {base_config_->forward_vel, base_config_->min_vel, base_config_->planar_curv_weight,
        base_config_->profile_curv_weight, base_config_->eop_weight, 7}, dir_switch);
 
-  loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state);
+  loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, curr_time);
 
-  // Create and solve theccasadi optimization problem
+  // Create and solve the casadi optimization problem
   std::vector<lgmath::se3::Transformation> mpc_poses;
   // return the computed velocity command for the first time step
   Command command;
@@ -212,6 +214,8 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     for (int i = 0; i < mpc_res["vel"].columns(); i++) {
       const auto& vel_i = mpc_res["vel"](casadi::Slice(), i).get_elements();
       mpc_velocities.emplace_back(vel_i[0], vel_i[1]);
+      CLOG(DEBUG, "cbit.control")
+          << "MPC velocity at step " << i << ": " << mpc_velocities.back().transpose();
     }
   
   } catch (std::exception& e) {
@@ -220,7 +224,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     return Command();
   }
 
-  vis_->publishMPCRollout(mpc_poses, stamp, mpcConfig->DT);
+  vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig->DT);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x
                              << " The angular vel is: " << command.angular.z;
@@ -231,7 +235,8 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                          const lgmath::se3::Transformation& T_p_r_extp,
                          const double state_p,
-                         RobotState& robot_state) {
+                         RobotState& robot_state,
+                         const tactic::Timestamp& curr_time) {
 
   auto& chain = robot_state.chain.ptr();
   std::vector<double> p_rollout;
@@ -262,6 +267,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
       CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
     }
       
+    vis_->publishReferencePoses(referenceInfo.poses);
     mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
   }

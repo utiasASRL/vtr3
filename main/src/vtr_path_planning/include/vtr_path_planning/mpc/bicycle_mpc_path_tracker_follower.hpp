@@ -21,7 +21,6 @@
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_common/conversions/ros_lgmath.hpp>
-#include <vtr_path_planning/base_path_planner.hpp>
 #include <vtr_path_planning/mpc/bicycle_mpc_path_tracker.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
@@ -36,7 +35,7 @@
 namespace vtr {
 namespace path_planning {
 
-class BicycleMPCPathTrackerFollower : public BasePathPlanner {
+class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
  public:
   PTR_TYPEDEFS(BicycleMPCPathTrackerFollower);
 
@@ -51,8 +50,6 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
-    double wheelbase = 0.5;
-    
     std::string leader_namespace = "leader";
     std::string waypoint_selection = "leader_vel";
 
@@ -80,8 +77,18 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
 
  protected:
   void initializeRoute(RobotState& robot_state);
-  Command computeCommand(RobotState& robot_state) override;
 
+  void loadMPCConfig(
+      CasadiBicycleMPCFollower::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+  CasadiMPC::Config::Ptr getMPCConfig(
+      const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
+
+  virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
+                           const lgmath::se3::Transformation& T_p_r_extp,
+                           const double state_p,
+                           RobotState& robot_state,
+                           const tactic::Timestamp& curr_time) override;
+  
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTrackerFollower);
 
@@ -96,7 +103,6 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   tactic::Timestamp prev_vel_stamp_;
   RobotState::Ptr robot_state_;
   u_int32_t frame_delay_ = 0;
-  Command computeCommand_(RobotState& robot_state);
 
 
   PathMsg::SharedPtr recentLeaderPath_;
