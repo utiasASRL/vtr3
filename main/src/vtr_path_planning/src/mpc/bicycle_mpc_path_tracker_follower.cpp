@@ -127,7 +127,7 @@ CasadiMPC::Config::Ptr BicycleMPCPathTrackerFollower::getMPCConfig(const bool is
   return mpcConfig;
 }
 
-bool BicycleMPCPathTrackerFollower:: isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) {
+bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time){
   if (recentLeaderPath_ == nullptr) {
     CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
     return false;
