@@ -40,8 +40,8 @@ void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFoll
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
   config->distance_margin = node->declare_parameter<double>(prefix + ".distance_margin", config->distance_margin);
 
-  config->f_q_dist = node->declare_parameter<double>(prefix + ".forward.q_dist", config->f_q_dist);
-  config->r_q_dist = node->declare_parameter<double>(prefix + ".reverse.q_dist", config->r_q_dist);
+  config->f_q_dist = node->declare_parameter<double>(prefix + ".mpc.forward.q_dist", config->f_q_dist);
+  config->r_q_dist = node->declare_parameter<double>(prefix + ".mpc.reverse.q_dist", config->r_q_dist);
 
   // Waypoint selection
   config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);

@@ -145,11 +145,10 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   auto T_p_r_extp = T_p_r;
   auto curr_time = stamp;
   if (base_config_->extrapolate_robot_pose) {
-    const auto curr_time = robot_state.node->get_clock()
-                               ->now()
-                               .nanoseconds();  // always in nanoseconds
+    curr_time = robot_state.node->get_clock()
+                               ->now().nanoseconds();  // always in nanoseconds
                                
-    auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
+    auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
     /*
     if (fabs(dt) > 0.25) {
       CLOG(WARNING, "cbit")
