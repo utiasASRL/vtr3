@@ -4,15 +4,15 @@
     log_debug: true
     log_enabled:
         # navigator
-      - navigation
-      - navigation.graph_map_server
+        #- navigation
+        #- navigation.graph_map_server
       #- navigation.command
     
         # tactic
       #- tactic
       #- tactic.pipeline
       #- tactic.eop
-      #- tactic.module
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
@@ -35,7 +35,7 @@
         
         # mission planner
       #- mission.server
-      - mission.state_machine
+      #- mission.state_machine
 
         # pose graph
       #- pose_graph
@@ -225,71 +225,51 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.45
-      safe_corridor:
-        type: lidar.safe_corridor
-        lookahead_distance: 5.0
-        corridor_width: 3.5
-        influence_distance: 1.0
-        resolution: 0.25
-        size_x: 16.0
-        size_y: 8.0
-        visualize: true
+
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
         window_size: 3
     
     path_planning:
-      type: cbit
-      control_period: 100 # ms
-      cbit:
-        obstacle_avoidance: false
-        obs_padding: 0.0
-        curv_to_euclid_discretization: 10
-        sliding_window_width: 12.0
-        sliding_window_freespace_padding: 0.5
-        corridor_resolution: 0.2
-        state_update_freq: 2.0
-        update_state: true
-        rand_seed: 1
-
-        # Planner Tuning Params
-        initial_samples: 400
-        batch_samples: 200
-        pre_seed_resolution: 0.5
-        alpha: 0.25
-        q_max: 2.5
-        frame_interval: 50
-        eta: 1.0
-        rad_m_exhange: 1.00
-        initial_exp_rad: 0.75
-        extrapolation: false
-        incremental_plotting: false
-        plotting: true
-      costmap:
-        costmap_filter_value: 0.01
-        costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
-
+      type: bicycle_mpc
+      control_period: 100
       speed_scheduler:
         planar_curv_weight: 0.0
         profile_curv_weight: 0.0 
         eop_weight: 1.0
-        min_vel: 0.4
+        min_vel: 0.3
+
       mpc:
         # Controller Params
-        extrapolate_robot_pose: false
+        extrapolate_robot_pose: true
         mpc_verbosity: false
         forward_vel: 0.5
-        max_lin_vel: 1.0
-        max_ang_vel: 0.5
-        max_ang_acc: 5.0
-        ang_alpha: 0.811
-        lin_alpha: 0.0
-        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+        max_lin_vel: 0.75
+        max_ang_vel: 0.52
+        max_ang_acc: 0.35
+        max_lin_acc: 0.5
+        vehicle_model: "bicycle"
+        wheelbase: 1.83
+        recovery_steps: 15
+        failure_threshold: 5
 
-        vehicle_model: "unicycle"
-        turning_radius: 1.0
-
-        # Misc
-        command_history_length: 100
+        # Tunable controller parameters(Currently only works for the Bicycle)
+        forward:
+          q_lat: 10.0
+          q_lon: 4.0
+          q_th: 7.0
+          r1: 0.0
+          r2: 3.0
+          racc1: 4.0
+          racc2: 5.0
+          q_f: 1.0 # Multiplier for terminal cost
+        reverse:
+          q_lat: 10.0
+          q_lon: 3.0
+          q_th: 7.0
+          r1: 0.1
+          r2: 1.0
+          racc1: 2.0
+          racc2: 3.5
+          q_f: 1.0 # Multiplier for terminal cost

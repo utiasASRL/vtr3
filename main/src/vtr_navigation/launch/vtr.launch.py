@@ -18,10 +18,10 @@ def generate_launch_description():
 
     commonNodeArgs = {
         "package": 'vtr_navigation',
-        "namespace": f'/{robot_name}/vtr',
+        "namespace": 'vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
-        "remappings": [("command", f"/{robot_name}/cmd_vel")],
+        # "remappings": [("command", f"/{robot_name}/cmd_vel")],
         #"prefix": 'xterm -e gdb -ex run --args',
         #"prefix": 'valgrind --tool=callgrind',
     }
@@ -38,11 +38,11 @@ def generate_launch_description():
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
               {
-                    "robot_frame": f"{robot_name}/base_link",
-                    "lidar_frame": f"{robot_name}/os_lidar",
-                    "lidar_topic": f"/{robot_name}/ouster/points",
+                    # "robot_frame": f"{robot_name}/base_link",
+                    # "lidar_frame": f"{robot_name}/os_lidar",
+                    # "lidar_topic": f"/{robot_name}/ouster/points",
                     #"gyro_topic": f"/{robot_name}/ouster/imu",
-                    "gyro_frame": f"{robot_name}/os_imu",
+                    # "gyro_frame": f"{robot_name}/os_imu",
                     "data_dir": LaunchConfiguration("data_dir"),
                     "model_dir": LaunchConfiguration("model_dir"),
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
@@ -58,11 +58,11 @@ def generate_launch_description():
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
                 PathJoinSubstitution((temp_dir, "setup_params.yaml")),
                 {                    
-                    "robot_frame": f"{robot_name}/base_link",
-                    "lidar_frame": f"{robot_name}/os_lidar",
-                    "lidar_topic": f"/{robot_name}/ouster/points",
+                    # "robot_frame": f"{robot_name}/base_link",
+                    # "lidar_frame": f"{robot_name}/os_lidar",
+                    # "lidar_topic": f"/{robot_name}/ouster/points",
                     #"gyro_topic": f"/{robot_name}/ouster/imu",
-                    "gyro_frame": f"{robot_name}/os_imu",
+                    # "gyro_frame": f"{robot_name}/os_imu",
                     "model_dir": LaunchConfiguration("model_dir"),
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
