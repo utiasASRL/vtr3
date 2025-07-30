@@ -57,6 +57,8 @@ auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr conf
 // Subclasses must implement their own Config::fromROS.
 auto BaseMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
+  auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
+  *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
   return config;

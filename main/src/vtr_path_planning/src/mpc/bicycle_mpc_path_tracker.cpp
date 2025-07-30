@@ -61,7 +61,9 @@ auto BicycleMPCPathTracker::Config::loadConfig(BicycleMPCPathTracker::Config::Pt
 
 auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
-  BaseMPCPathTracker::Config::loadConfig(config, node, prefix);
+
+  auto base_config = std::static_pointer_cast<BaseMPCPathTracker::Config>(config);
+  *base_config =  *BaseMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
   CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "

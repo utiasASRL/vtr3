@@ -4,7 +4,7 @@
     log_debug: true
     log_enabled:
         # navigator
-      - navigation
+      #- navigation
       #- navigation.graph_map_server
       #- navigation.command
     
@@ -28,7 +28,7 @@
       #- mpc.cost_function
       #- mpc.cbit
       #- mpc.debug
-      - cbit.control
+      #- cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
@@ -38,7 +38,7 @@
       #- mission.state_machine
 
         # pose graph
-      - pose_graph
+      #- pose_graph
 
         # lidar pipeline
       #- lidar.pipeline

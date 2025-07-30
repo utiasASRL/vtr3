@@ -50,30 +50,14 @@ void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFoll
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
-  BaseMPCPathTracker::Config::loadConfig(config, node, prefix);
-  BicycleMPCPathTracker::Config::loadConfig(config, node, prefix);
+  auto base_config = std::static_pointer_cast<BicycleMPCPathTracker::Config>(config);
+  *base_config =  *BicycleMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
-  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
-      << "q_lat: " << config->f_q_lat
-      << ", q_lon: " << config->f_q_lon
-      << ", q_th: " << config->f_q_th
-      << ", r1: " << config->f_r1
-      << ", r2: " << config->f_r2
-      << ", racc1: " << config->f_racc1
-      << ", racc2: " << config->f_racc2
-      << ", q_f: " << config->f_q_f 
+  CLOG(DEBUG, "cbit.control") << "Bicycle Tracker MPC forward costs: "
       << ", q_dist: " << config->f_q_dist;
 
-  CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse costs: "
-      << "q_lat: " << config->r_q_lat
-      << ", q_lon: " << config->r_q_lon
-      << ", q_th: " << config->r_q_th
-      << ", r1: " << config->r_r1
-      << ", r2: " << config->r_r2
-      << ", racc1: " << config->r_racc1
-      << ", racc2: " << config->r_racc2
-      << ", q_f: " << config->r_q_f
+  CLOG(DEBUG, "cbit.control") << "Bicycle Tracker MPC reverse costs: "
       << ", q_dist: " << config->r_q_dist;
 
   return config;
@@ -156,7 +140,10 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   auto& chain = robot_state.chain.ptr();
   follower_mpc_config->leader_reference_poses.clear();
 
-  mpcConfig->VF = leader_vel_(0);
+  // mpcConfig->VF = abs(leader_vel_(0));
+  if (follower_mpc_config->reversing) {
+    CLOG(DEBUG, "mpc.follower") << "Reversing!";
+  }
   if (config_->waypoint_selection == "external_dist") {
     const float distance = recentLeaderDist_->data;
     const double error = distance - config_->following_offset;
