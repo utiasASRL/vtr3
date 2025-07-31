@@ -57,6 +57,8 @@ auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr conf
 // Subclasses must implement their own Config::fromROS.
 auto BaseMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
+  auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
+  *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
   return config;
@@ -131,6 +133,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     return Command();
   }
 
+
   // retrieve the transform info from the localization chain for the current
   // robot state
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] =
@@ -144,11 +147,10 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   auto T_p_r_extp = T_p_r;
   auto curr_time = stamp;
   if (base_config_->extrapolate_robot_pose) {
-    const auto curr_time = robot_state.node->get_clock()
-                               ->now()
-                               .nanoseconds();  // always in nanoseconds
+    curr_time = robot_state.node->get_clock()
+                               ->now().nanoseconds();  // always in nanoseconds
                                
-    auto dt = static_cast<double>(curr_time - stamp) * 1e-9 - 0.05;
+    auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
     /*
     if (fabs(dt) > 0.25) {
       CLOG(WARNING, "cbit")
@@ -176,6 +178,11 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   bool dir_switch = segment_info.direction_switch;
 
   auto mpcConfig = getMPCConfig(isReverse, w_p_r_in_r, applied_vel_);
+
+  if (!isMPCStateValid(mpcConfig, curr_time)){
+    return Command();
+  }
+
   lgmath::se3::Transformation T0 = T_p_r_extp;
   mpcConfig->T0 = tf_to_global(T0);
 
@@ -191,7 +198,8 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, curr_time);
 
   // Create and solve the casadi optimization problem
-  std::vector<lgmath::se3::Transformation> mpc_poses;
+  std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>> mpc_poses;
+  mpc_poses.push_back(std::make_pair(stamp, T_w_p*T_p_r));
   // return the computed velocity command for the first time step
   Command command;
   std::vector<Eigen::Vector2d> mpc_velocities;
@@ -200,8 +208,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 
     for (int i = 0; i < mpc_res["pose"].columns(); i++) {
       const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
-      mpc_poses.push_back(T_w_p *
-                          tf_from_global(pose_i[0], pose_i[1], pose_i[2]));
+      mpc_poses.push_back(std::make_pair(curr_time + i*mpcConfig->DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
     }
   
     CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
@@ -224,7 +231,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     return Command();
   }
 
-  vis_->publishMPCRollout(mpc_poses, curr_time, mpcConfig->DT);
+  vis_->publishMPCRollout(mpc_poses);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x
                              << " The angular vel is: " << command.angular.z;
@@ -236,7 +243,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
                          const lgmath::se3::Transformation& T_p_r_extp,
                          const double state_p,
                          RobotState& robot_state,
-                         const tactic::Timestamp& curr_time) {
+                         const tactic::Timestamp& ) {
 
   auto& chain = robot_state.chain.ptr();
   std::vector<double> p_rollout;

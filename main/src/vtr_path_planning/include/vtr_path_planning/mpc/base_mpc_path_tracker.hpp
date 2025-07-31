@@ -81,10 +81,11 @@ class BaseMPCPathTracker : public BasePathPlanner {
  protected:
   void initializeRoute(RobotState& robot_state);
   virtual Command computeCommand(RobotState& robot_state) override;
+  virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) = 0;
   virtual CasadiMPC::Config::Ptr getMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel)=0;
-  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) =0;
+  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) = 0;
   virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
-                           const lgmath::se3::Transformation& T_p_r_extp,
+                            const lgmath::se3::Transformation& T_p_r_extp,
                            const double state_p,
                            RobotState& robot_state, 
                            const tactic::Timestamp& curr_time);

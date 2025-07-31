@@ -31,6 +31,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
 #include <vtr_navigation_msgs/srv/graph_state.hpp>
+#include "std_msgs/msg/float32.hpp"
 
 namespace vtr {
 namespace path_planning {
@@ -46,17 +47,25 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using Transformation = lgmath::se3::Transformation;
+  using FloatMsg = std_msgs::msg::Float32;
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
     std::string leader_namespace = "leader";
+    
+    // Options: leader_vel euclidean external_dist
     std::string waypoint_selection = "leader_vel";
 
     double following_offset = 0.5; //m
     double distance_margin = 1.0;
     double f_q_dist = 1.0;
     double r_q_dist = 1.0;
+
+    //Distance PID Gains
+    double kp = 1.0;
+    double kd = 0.0;
+    double ki = 0.0;
 
     // Misc
     int command_history_length = 100;
@@ -83,6 +92,8 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
 
   CasadiMPC::Config::Ptr getMPCConfig(
       const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
+  
+  virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
 
   virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                            const lgmath::se3::Transformation& T_p_r_extp,
@@ -114,6 +125,12 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
 
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
+
+  FloatMsg::SharedPtr recentLeaderDist_;
+  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
+  void onLeaderDist(const FloatMsg::SharedPtr distance);
+  float lastError_ = 0;
+  float errorIntegrator = 0;
 
   VisualizationUtils::Ptr vis_;  
 

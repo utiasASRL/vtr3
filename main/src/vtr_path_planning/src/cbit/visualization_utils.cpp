@@ -25,9 +25,9 @@ namespace path_planning {
 
 VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
-    mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", 10);
+    mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
     leader_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("leader_mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
-    robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", rclcpp::QoS(1).best_effort().durability_volatile());
+    robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
     path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
     corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
     corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
@@ -292,6 +292,21 @@ void VisualizationUtils::visualize(
             auto& pose = poses.emplace_back();
             pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
             pose.header.stamp = rclcpp::Time(stamp + i*dt*1e9);
+        }
+        mpc_path_pub_->publish(mpc_path);
+    }
+
+    void VisualizationUtils::publishMPCRollout(const std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>>& mpc_prediction) {
+        nav_msgs::msg::Path mpc_path;
+        mpc_path.header.frame_id = "world";
+        mpc_path.header.stamp = rclcpp::Time(mpc_prediction[1].first);
+        auto& poses = mpc_path.poses;
+
+        // intermediate states
+        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
+            auto& pose = poses.emplace_back();
+            pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].second.matrix()));
+            pose.header.stamp = rclcpp::Time(mpc_prediction[i].first);
         }
         mpc_path_pub_->publish(mpc_path);
     }

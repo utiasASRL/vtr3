@@ -85,7 +85,7 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
   virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
   void loadMPCConfig(
       CasadiBicycleMPC::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
-
+  virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
   virtual CasadiMPC::Config::Ptr getMPCConfig(
       const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
 

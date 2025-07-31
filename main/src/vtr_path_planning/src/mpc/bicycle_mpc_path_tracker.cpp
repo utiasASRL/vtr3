@@ -61,7 +61,9 @@ auto BicycleMPCPathTracker::Config::loadConfig(BicycleMPCPathTracker::Config::Pt
 
 auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
-  BaseMPCPathTracker::Config::loadConfig(config, node, prefix);
+
+  auto base_config = std::static_pointer_cast<BaseMPCPathTracker::Config>(config);
+  *base_config =  *BaseMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
   CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
@@ -140,6 +142,10 @@ CasadiMPC::Config::Ptr BicycleMPCPathTracker::getMPCConfig(const bool isReversin
   auto mpc_config = std::make_shared<CasadiBicycleMPC::Config>();
   loadMPCConfig(mpc_config, isReversing, w_p_r_in_r, applied_vel);
   return mpc_config;
+}
+
+bool BicycleMPCPathTracker::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& ){
+  return true;
 }
 
 std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
