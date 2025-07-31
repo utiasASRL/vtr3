@@ -47,15 +47,28 @@ CurvatureInfo CurvatureInfo::fromTransform(const lgmath::se3::Transformation& T)
   return {coc, roc};
 }
 
+tactic::Direction findDirection(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, const unsigned sid, const unsigned next_sid) {
+    auto unit_vec = Eigen::Vector2d(cos(lgmath::so3::rot2vec(T_wr.C_ba())(2)),
+                    sin(lgmath::so3::rot2vec(T_wr.C_ba())(2)) );
+    auto dir_vector = (chain->pose(next_sid).r_ab_inb() - chain->pose(sid).r_ab_inb()).head<2>();
 
-Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
+    tactic::Direction dir = tactic::Direction::Unknown;
+    if (unit_vec.dot(dir_vector) < 0){
+      dir = tactic::Direction::Backward;
+    }
+    else {
+      dir = tactic::Direction::Forward;
+    }
+    return dir;
+}
 
+tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
     double best_distance = std::numeric_limits<double>::max();
     double max_distance = -1.;
     unsigned best_sid = sid_start;
     const unsigned end_sid = std::min(sid_start + 20 + 1,
                                     unsigned(chain->size()));
-
+    bool direction_switch = false;
     // Explicit casting to avoid numerical underflow when near the beginning of
     // the chain
     const unsigned begin_sid = unsigned(std::max(int(sid_start) - 5, 0));
@@ -66,10 +79,8 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
 
       // Calculate the distance
       double distance = (T_wr.inverse() * chain->pose(path_it)).r_ab_inb().norm();
-      // CLOG(DEBUG, "mpc.cost_function") << "Dist: " << distance << " sid: " << unsigned(path_it);
 
       // Record the best distance
-      max_distance = std::max(distance, max_distance);
       if (distance < best_distance) {
         best_distance = distance;
         best_sid = unsigned(path_it);
@@ -92,31 +103,50 @@ Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic
           if (unsigned(path_it) <= sid_start) {
             CLOG(DEBUG, "cbit.debug") << "Direction switch behind reset";
             best_distance = std::numeric_limits<double>::max();
-            max_distance = -1.;
           } else {
             CLOG(DEBUG, "cbit.debug") << "Direction switch ahead break";
+            direction_switch = true;
             break;
           }
         }
       }
     }
 
+    // Assume forward at end of path
+    auto dir = tactic::Direction::Unknown;
+
     //Handle end of path exceptions
-    if(best_sid == 0)
-      return std::make_pair(best_sid, best_sid + 1);
-    if(best_sid == chain->size() - 1)
-      return std::make_pair(best_sid - 1, best_sid);
+    if(best_sid == 0){
+      dir = findDirection(T_wr, chain, best_sid, best_sid + 1);
+      auto seg_info = tactic::SegmentInfo(dir, best_sid, best_sid + 1); 
+      seg_info.direction_switch = direction_switch;
+      return seg_info;
+    }
+    if(best_sid == chain->size() - 1){
+      dir = findDirection(T_wr, chain, best_sid - 1, best_sid);
+      auto seg_info = tactic::SegmentInfo(dir, best_sid-1, best_sid); 
+      seg_info.direction_switch = direction_switch;
+      return seg_info;
+    }
 
     auto curr_dir = (chain->pose(best_sid).inverse() * T_wr).r_ab_inb();
     auto next_dir = (chain->pose(best_sid).inverse() * chain->pose(best_sid + 1)).r_ab_inb();
 
-    if(curr_dir.dot(next_dir) > 0)
-      return std::make_pair(best_sid, best_sid + 1);
-    else
-      return std::make_pair(best_sid - 1, best_sid);
+    if(curr_dir.dot(next_dir) > 0){
+      dir = findDirection(T_wr, chain, best_sid, best_sid + 1);
+      auto seg_info = tactic::SegmentInfo(dir, best_sid, best_sid + 1); 
+      seg_info.direction_switch = direction_switch;
+      return seg_info;
+    }
+    else {
+      dir = findDirection(T_wr, chain, best_sid - 1, best_sid);
+      auto seg_info = tactic::SegmentInfo(dir, best_sid-1, best_sid); 
+      seg_info.direction_switch = direction_switch;
+      return seg_info;
+    }
   }
 
-Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
+tactic::SegmentInfo findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
 
     double best_distance = std::numeric_limits<double>::max();
     double max_distance = -1.;
@@ -134,7 +164,6 @@ Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr 
 
       // Calculate the distance
       double distance = abs(p - chain->p(path_it));
-      // CLOG(DEBUG, "mpc.cost_function") << "Dist: " << distance << " sid: " << unsigned(path_it);
 
       // Record the best distance
       max_distance = std::max(distance, max_distance);
@@ -146,22 +175,34 @@ Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr 
 
     //Handle end of path exceptions
     if(best_sid == 0)
-      return std::make_pair(best_sid, best_sid + 1);
+      return tactic::SegmentInfo(best_sid, best_sid + 1);
     if(best_sid == chain->size() - 1)
-      return std::make_pair(best_sid - 1, best_sid);
+      return tactic::SegmentInfo(best_sid - 1, best_sid);
 
-    if(p - chain->p(best_sid) > 0)
-      return std::make_pair(best_sid, best_sid + 1);
-    else
-      return std::make_pair(best_sid - 1, best_sid);
+    if(p - chain->p(best_sid) > 0){
+      return tactic::SegmentInfo(best_sid, best_sid + 1);
+    }
+    else{
+      return tactic::SegmentInfo(best_sid - 1, best_sid);
+    }
   }
 
-
-double findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
+std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
   double state_interp = 0;
   auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
-  auto path_ref = interpolatePath(T_wr, chain->pose(segment.first), chain->pose(segment.second), state_interp);
-  return chain->p(segment.first) + state_interp * (chain->p(segment.second) - chain->p(segment.first));
+  auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
+  return std::make_pair(segment.dir, chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid)));
+}
+
+tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
+  double state_interp = 0;
+  auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
+  auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
+  tactic::SegmentInfo segment_info;
+  segment_info.start_p = chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid));
+  segment_info.dir = segment.dir;
+  segment_info.direction_switch = segment.direction_switch;
+  return segment_info;
 }
 
 lgmath::se3::Transformation interpolatePoses(const double interp,
@@ -227,18 +268,18 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Tran
 
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& T_wrk : rolled_out_poses) {
-      Segment closestSegment = findClosestSegment(T_wrk, chain, last_sid);
-      last_sid = closestSegment.first;
+      auto closestSegment = findClosestSegment(T_wrk, chain, last_sid);
+      last_sid = closestSegment.start_sid;
 
       double interp;
-      auto interpTf = interpolatePath(T_wrk, chain->pose(closestSegment.first), chain->pose(closestSegment.second), interp);
+      auto interpTf = interpolatePath(T_wrk, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid), interp);
 
       // add to measurement vector
       tracking_reference_poses.push_back(interpTf);
 
       // Find the corresponding left and right barrier q values to pass to the mpc
-      auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.first));
-      auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.second));
+      auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.start_sid));
+      auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.end_sid));
       barrier_q_left.push_back((1-interp) * width1 + interp * width2);
       barrier_q_right.push_back((1-interp) * width1 + interp * width2);
     }
@@ -254,34 +295,109 @@ PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_o
     std::vector<double> barrier_q_min;
 
     std::vector<lgmath::se3::Transformation> tracking_reference_poses;
-
     unsigned last_sid = chain->trunkSequenceId();
-
+    
     // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
     for (const auto& p_target : rolled_out_p) {
-      Segment closestSegment = findClosestSegment(p_target, chain, last_sid);
-      last_sid = closestSegment.first;
+      auto closestSegment = findClosestSegment(p_target, chain, last_sid);
 
-      double interp = std::clamp((p_target - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
-      auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.first), chain->pose(closestSegment.second));
+      auto interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+      auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
 
       // add to measurement vector
       tracking_reference_poses.push_back(interpTf);
 
       // Find the corresponding left and right barrier q values to pass to the mpc
-      auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.first));
-      auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.second));
+      auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.start_sid));
+      auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.end_sid));
       barrier_q_max.push_back((1-interp) * width1 + interp * width2);
       barrier_q_min.push_back(-(1-interp) * width1 - interp * width2);
+
+      last_sid = closestSegment.start_sid;
+    }
+
+    return {tracking_reference_poses, barrier_q_max, barrier_q_min};
+}
+
+// For generating VT&R teach path poses used in the corridor mpc (new version which directly uses the interpolated p measurements from the cbit path trajectory tracking)
+PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain, const lgmath::se3::Transformation& T_wp) {
+
+    // Initialize vectors storing the barrier values:
+    std::vector<double> barrier_q_max;
+    std::vector<double> barrier_q_min;
+    // Flag to indicate we need to fill the back of the vector
+    bool direction_switch = false;
+
+    std::vector<lgmath::se3::Transformation> tracking_reference_poses;
+    unsigned last_sid = chain->trunkSequenceId();
+
+    // Set the first direction to zero, as we know our first step will never be over a direction switch
+    auto last_dir = Eigen::Vector2d(0,0);
+
+    // Use the first pose as the initial last pose
+    auto closestSegment = findClosestSegment(rolled_out_p.at(0), chain, last_sid);
+    double interp = std::clamp((rolled_out_p.at(0) - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+    auto last_tf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
+    
+    // Iterate through the interpolated p_measurements and make interpolate euclidean poses from the teach path
+    for (const auto& p_target : rolled_out_p) {
+      closestSegment = findClosestSegment(p_target, chain, last_sid);
+      
+      interp = std::clamp((p_target - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+      auto interpTf = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
+
+      // add to measurement vector
+      tracking_reference_poses.push_back(interpTf);
+
+      // Find the corresponding left and right barrier q values to pass to the mpc
+      auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.start_sid));
+      auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.end_sid));
+      barrier_q_max.push_back((1-interp) * width1 + interp * width2);
+      barrier_q_min.push_back(-(1-interp) * width1 - interp * width2);
+
+      // Detect a direction switch, as the switch may occur within a path segment. This gives us a better resolution
+      // For the actual path
+      if (closestSegment.start_sid < chain->size() - 1) {
+        // Translate the path vectors into the world frame
+        // Otherwise, they may change around pi orientation, causing a false detection
+        Eigen::Matrix<double, 6, 1> vec_prev = (T_wp.inverse()*last_tf).vec(); 
+        Eigen::Matrix<double, 6, 1> vec_curr = (T_wp.inverse()*interpTf).vec();
+
+        // Get the translation component between our node and the last node
+        auto curr_dir = vec_curr.head<2>() - vec_prev.head<2>();
+
+        // Check if our last and current translations are in opposing directions
+        auto T_dot = curr_dir.dot(last_dir);
+        last_dir = curr_dir;
+        // a cusp
+        if (T_dot < 0.0) {
+          direction_switch = true;
+          tracking_reference_poses.pop_back();
+          barrier_q_max.pop_back();
+          barrier_q_min.pop_back();
+          break;
+        }
+      }
+      last_sid = closestSegment.start_sid;
+      last_tf = interpTf;
+    }
+
+    if (direction_switch && tracking_reference_poses.size() != rolled_out_p.size()){
+      CLOG(INFO, "cbit.debug") << "Direction switch detected, but not all poses were filled. Filling the back of the vector with the last pose.";
+      // Fill the back of the vector with the last pose
+      for (size_t i = tracking_reference_poses.size(); i < rolled_out_p.size(); ++i) {
+        tracking_reference_poses.push_back(tracking_reference_poses.back());
+        barrier_q_max.push_back(barrier_q_max.back());
+        barrier_q_min.push_back(barrier_q_min.back());
+      }
     }
 
     return {tracking_reference_poses, barrier_q_max, barrier_q_min};
 }
 
 lgmath::se3::Transformation interpolatedPose(double p, const tactic::LocalizationChain::Ptr chain) {
-  Segment closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
-  double interp = std::clamp((p - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
-  return interpolatePoses(interp, chain->pose(closestSegment.first), chain->pose(closestSegment.second));
+  auto closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
+  double interp = std::clamp((p - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
+  return interpolatePoses(interp, chain->pose(closestSegment.end_sid), chain->pose(closestSegment.end_sid));
 }
-
 }

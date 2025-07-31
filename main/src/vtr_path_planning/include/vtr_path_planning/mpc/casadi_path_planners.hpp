@@ -22,15 +22,38 @@
 #include <vtr_path_planning/mpc/mpc_common.hpp>
 
 namespace vtr::path_planning {
+using DM = casadi::DM;
 
 class CasadiMPC {
   public:
     PTR_TYPEDEFS(CasadiMPC);
 
     struct Config {
+      // For our purposes, we will never need less than this to set up an MPC problem
+      // Everything else should be set by the derived structs
       PTR_TYPEDEFS(Config);
+      std::vector<casadi::DM> reference_poses;
+      std::vector<double> up_barrier_q;
+      std::vector<double> low_barrier_q;
+      int nStates;
+      int nControl;
+      int N;
+      double VF = 0.0;
+      DM T0;
+      double DT;
+      DM vel_max;
+      DM previous_vel;
+      std::vector<DM> cost_weights;
+      int eop_index = -1; // index of the end of path in the reference poses
 
-      virtual ~Config() {};  // for polymorphism
+      Config(const int nStates = 3, const int nControl = 2, const int N = 15, const double DT = 0.25)
+          : nStates(nStates), nControl(nControl), N(N), DT(DT) {
+            T0 = DM::zeros(nStates, 1);
+            vel_max = DM::zeros(nControl, 1);
+            previous_vel = DM::zeros(nControl, 1);
+      };
+
+      virtual ~Config() {}; 
     };
     virtual ~CasadiMPC() {};
     virtual std::map<std::string, casadi::DM> solve(const Config& mpcConf) = 0;
@@ -39,24 +62,13 @@ class CasadiMPC {
 class CasadiUnicycleMPC : public CasadiMPC {
 public:
   PTR_TYPEDEFS(CasadiUnicycleMPC);
-  using DM = casadi::DM;
 
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
-    // These values are defined the python code and exported
-    // TODO add an automatic way to keep the code in sync
-    static constexpr int nStates = 3;
-    static constexpr int nControl = 2;
-    static constexpr double alpha = 0.2;
-    static constexpr int N = 15;
-    static constexpr double DT = 0.25;
-    DM previous_vel{nControl, 1};
-    DM T0{nStates, 1};
-    std::vector<DM> reference_poses;
-    std::vector<double> up_barrier_q;
-    std::vector<double> low_barrier_q;
-    double VF = 0.0;
-    DM vel_max{nControl, 1};
+    double alpha = 0.0; // used for the unicycle model
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
@@ -79,25 +91,15 @@ private:
 class CasadiAckermannMPC : public CasadiMPC {
 public:
   PTR_TYPEDEFS(CasadiAckermannMPC);
-  using DM = casadi::DM;
 
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
-    // TODO add an automatic way to keep the code in sync
-    static constexpr int nStates = 3;
-    static constexpr int nControl = 2;
-    static constexpr double alpha = 0.0;
-    static constexpr int N = 15;
-    static constexpr double DT = 0.25;
-    DM previous_vel{nControl, 1};
-    DM T0{nStates, 1};
-    std::vector<DM> reference_poses;
-    std::vector<double> up_barrier_q;
-    std::vector<double> low_barrier_q;
-    double VF = 0.0;
-    DM vel_max{nControl, 1};
     double turning_radius = 1; //m
+
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
@@ -119,27 +121,18 @@ private:
 class CasadiUnicycleMPCFollower : public CasadiMPC {
 public:
   PTR_TYPEDEFS(CasadiUnicycleMPCFollower);
-  using DM = casadi::DM;
 
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
-    static constexpr int nStates = 3;
-    static constexpr int nControl = 2;
-    static constexpr double alpha = 0.2;
-    static constexpr int N = 15;
-    static constexpr double DT = 0.25;
-    DM previous_vel{nControl, 1};
-    DM T0{nStates, 1};
-    std::vector<DM> leader_reference_poses;
     std::vector<DM> follower_reference_poses;
-    std::vector<double> up_barrier_q;
-    std::vector<double> low_barrier_q;
-    double VF = 0.0;
+    std::vector<DM> leader_reference_poses;
     double distance = 0.5;
     double distance_margin = 1.0;
-    DM vel_max{nControl, 1};
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 
@@ -161,28 +154,15 @@ private:
 class CasadiBicycleMPC : public CasadiMPC {
 public:
   PTR_TYPEDEFS(CasadiBicycleMPC);
-  using DM = casadi::DM;
 
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
-    static constexpr int nStates = 3;
-    static constexpr int nControl = 2;
-    static constexpr double alpha = 0.6;
-    static constexpr int N = 15;
-    static constexpr double DT = 0.25;
-    DM previous_vel{nControl, 1};
-    DM T0{nStates, 1};
-    std::vector<DM> reference_poses;
-    std::vector<double> up_barrier_q;
-    std::vector<double> low_barrier_q;
-    double VF = 0.0;
-    DM vel_max{nControl, 1};
-    double wheelbase = 0.5;
+    double wheelbase = 0.55;
     // The below are passed to the Casadi solver as tunable parameters
-    double Q_x = 0.0;
-    double Q_y = 0.0;
+    double Q_lat = 0.0;
+    double Q_lon = 0.0;
     double Q_th = 0.0;
     double R1 = 0.0;
     double R2 = 0.0;
@@ -191,8 +171,16 @@ public:
     double lin_acc_max = 1.0; // m/s^2
     double ang_acc_max = 1.0;
     double Q_f = 0.0;
-  };
+    bool reversing = false;
+    bool repeat_flipped = false;
+    bool recovery = false; 
 
+
+
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiMPC::Config(nStates, nControl, N, DT) {
+    };
+  };
 
   CasadiBicycleMPC(bool verbose=false, casadi::Dict iopt_config={ 
     { "max_iter", 2000 }, 
@@ -200,12 +188,12 @@ public:
     {"acceptable_obj_change_tol", 1e-6}
   });
 
-  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf);
-
+  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf); 
 
 private:
   casadi::Function solve_mpc;
   std::map<std::string, casadi::DM> arg_;
+  bool _reversing = false; 
 
 };
 
@@ -213,7 +201,7 @@ private:
 class CasadiBicycleMPCFollower : public CasadiMPC {
 public:
   PTR_TYPEDEFS(CasadiBicycleMPCFollower);
-  using DM = casadi::DM;
+  
 
   struct Config : public CasadiBicycleMPC::Config {
     PTR_TYPEDEFS(Config);
@@ -222,6 +210,10 @@ public:
     double distance = 0.5;
     double distance_margin = 1.0;
     double Q_dist = 1.0;
+
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiBicycleMPC::Config(nStates, nControl, N, DT) {
+    };
   };
 
 

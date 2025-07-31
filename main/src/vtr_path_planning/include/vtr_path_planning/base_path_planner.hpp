@@ -80,6 +80,9 @@ class BasePathPlanner : public PathPlannerInterface {
 
     virtual ~Config() = default;
 
+    static void loadBaseConfig(Config::Ptr config, const rclcpp::Node::SharedPtr& node,
+                       const std::string& prefix = "path_planning");
+
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
   };

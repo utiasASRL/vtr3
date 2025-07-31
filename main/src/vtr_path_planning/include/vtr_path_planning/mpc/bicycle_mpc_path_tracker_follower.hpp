@@ -21,7 +21,7 @@
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_common/conversions/ros_lgmath.hpp>
-#include <vtr_path_planning/base_path_planner.hpp>
+#include <vtr_path_planning/mpc/bicycle_mpc_path_tracker.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
 #include <vtr_path_planning/mpc/follower_common.hpp>
@@ -31,65 +31,48 @@
 #include <rclcpp/rclcpp.hpp>
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
 #include <vtr_navigation_msgs/srv/graph_state.hpp>
+#include "std_msgs/msg/float32.hpp"
 
 namespace vtr {
 namespace path_planning {
 
-class BicycleMPCPathTrackerFollower : public BasePathPlanner {
+class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
  public:
   PTR_TYPEDEFS(BicycleMPCPathTrackerFollower);
 
   static constexpr auto static_name = "bicycle_mpc_follower";
 
   using PathMsg = nav_msgs::msg::Path;
+  using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using Transformation = lgmath::se3::Transformation;
+  using FloatMsg = std_msgs::msg::Float32;
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
-  struct Config : public BasePathPlanner::Config {
+  struct Config : public BicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
-
-    // Speed Scheduler
-    double planar_curv_weight = 2.50;
-    double profile_curv_weight = 0.5; 
-    double eop_weight = 1.0;
-    double min_vel = 0.5;  
-
-    // MPC Configs
-    bool extrapolate_robot_pose = true;
-    bool mpc_verbosity = false;
-    double forward_vel = 0.75;
-    double max_lin_vel = 1.25;
-    double max_ang_vel = 0.75;
-    double max_lin_acc = 10.0;
-    double max_ang_acc = 10.0;
-    double robot_linear_velocity_scale = 1.0;
-    double robot_angular_velocity_scale = 1.0;
-    double turning_radius = 1.0;
-    double wheelbase = 0.5;
-
-    // MPC Costs
-    double q_x = 0.0;
-    double q_y = 0.0;
-    double q_th = 0.0;
-    double r1 = 0.0;
-    double r2 = 0.0;
-    double racc2 = 0.0;
-    double racc1 = 0.0;
-    double q_f = 0.0;
-
-    
     std::string leader_namespace = "leader";
+    
+    // Options: leader_vel euclidean external_dist
     std::string waypoint_selection = "leader_vel";
 
     double following_offset = 0.5; //m
     double distance_margin = 1.0;
-    double q_dist = 1.0;
+    double f_q_dist = 1.0;
+    double r_q_dist = 1.0;
+
+    //Distance PID Gains
+    double kp = 1.0;
+    double kd = 0.0;
+    double ki = 0.0;
 
     // Misc
     int command_history_length = 100;
 
+    static void loadConfig(Config::Ptr config,  
+		           const rclcpp::Node::SharedPtr& node,
+                           const std::string& prefix = "path_planning");
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
@@ -103,8 +86,22 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
 
  protected:
   void initializeRoute(RobotState& robot_state);
-  Command computeCommand(RobotState& robot_state) override;
 
+  void loadMPCConfig(
+      CasadiBicycleMPCFollower::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+  CasadiMPC::Config::Ptr getMPCConfig(
+      const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
+  
+  virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
+
+  virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
+                           const lgmath::se3::Transformation& T_p_r_extp,
+                           const double state_p,
+                           RobotState& robot_state,
+                           const tactic::Timestamp& curr_time) override;
+
+  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
+  
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTrackerFollower);
 
@@ -119,7 +116,6 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   tactic::Timestamp prev_vel_stamp_;
   RobotState::Ptr robot_state_;
   u_int32_t frame_delay_ = 0;
-  Command computeCommand_(RobotState& robot_state);
 
 
   PathMsg::SharedPtr recentLeaderPath_;
@@ -128,6 +124,7 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
   Eigen::Vector2d leader_vel_;
   std::vector<Transformation> leaderRollout_;
   PathInterpolator::ConstPtr leaderPathInterp_; 
+  PoseStampedMsg lastRobotPose_;
 
   rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
   void onLeaderRoute(const RouteMsg::SharedPtr route);
@@ -136,6 +133,12 @@ class BicycleMPCPathTrackerFollower : public BasePathPlanner {
 
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
+
+  FloatMsg::SharedPtr recentLeaderDist_;
+  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
+  void onLeaderDist(const FloatMsg::SharedPtr distance);
+  float lastError_ = 0;
+  float errorIntegrator = 0;
 
   VisualizationUtils::Ptr vis_;  
 

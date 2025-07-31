@@ -84,6 +84,26 @@ struct Localization {
   bool localized;
 };
 
+enum class Direction : uint {
+  Forward = 0,  
+  Backward = 1, 
+  Unknown = 2 // Unknown, unimportant, uninitialized direction
+};
+
+struct SegmentInfo {
+  Direction dir = Direction::Unknown; 
+  unsigned start_sid = 0;
+  unsigned end_sid = 0;   
+  bool direction_switch = false; 
+  double start_p = 0.0; 
+
+  SegmentInfo() = default;
+  SegmentInfo(Direction d, const unsigned start_sid, const unsigned end_sid)
+      : dir(d), start_sid(start_sid), end_sid(end_sid) {}
+  SegmentInfo(const unsigned start_sid, const unsigned end_sid)
+      : dir(Direction::Unknown), start_sid(start_sid), end_sid(end_sid) {}
+};
+
 }  // namespace tactic
 }  // namespace vtr
 

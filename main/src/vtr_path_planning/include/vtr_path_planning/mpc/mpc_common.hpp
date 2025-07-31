@@ -51,18 +51,20 @@ struct PoseResultHomotopy
 // Helper function for generating reference measurements poses from a discrete path to use for tracking the path at a desired forward velocity
 PoseResultHomotopy generateHomotopyReference(const std::vector<lgmath::se3::Transformation> &rolled_out_poses, tactic::LocalizationChain::Ptr);
 PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain);
+PoseResultHomotopy generateHomotopyReference(const std::vector<double>& rolled_out_p, tactic::LocalizationChain::Ptr chain, const lgmath::se3::Transformation& T_wr);
 lgmath::se3::Transformation interpolatedPose(double p, const tactic::LocalizationChain::Ptr chain);
 lgmath::se3::Transformation interpolatePoses(const double interp,
                 const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end);
                 
-using Segment = std::pair<unsigned, unsigned>;
-Segment findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
-Segment findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
+tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
+tactic::SegmentInfo findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start=0);
 
 lgmath::se3::Transformation interpolatePath(const lgmath::se3::Transformation& T_wr,
                 const lgmath::se3::Transformation& seq_start, const lgmath::se3::Transformation& seq_end,
-                 double& interp);
-double findRobotP(const lgmath::se3::Transformation& T_wr, tactic::LocalizationChain::Ptr chain);
+                double& interp);
+std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain);
+tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain);
+
 
 template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));

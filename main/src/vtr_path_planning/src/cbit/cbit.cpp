@@ -392,7 +392,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     }
     CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
-    double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
+    double state_p = findRobotP(T_w_p * T_p_r_extp, chain).second;
     std::shared_ptr<PoseResultHomotopy> referenceInfo;
 
     CasadiMPC::Config::Ptr baseMpcConfig;

@@ -2,15 +2,20 @@
   ros__parameters:
     path_planning:
       type: bicycle_mpc_follower
-      follow_distance: 3.5
-      distance_margin: 100.0
-      leader_namespace: /mr_green
+      follow_distance: 1.5
+      distance_margin: 10.0
+      leader_namespace: /miss_scarlet
       waypoint_selection: leader_vel
       mpc:
-        q_dist: 20.0
-        q_y: 0.0
-        q_x: 5.0
-        wheelbase: 0.55
+        forward:
+          q_dist: 50.0
+          q_lon: 0.0
+          q_lat: 10.0
+        reverse:
+          q_dist: 50.0
+          q_lon: 0.0
+          q_lat: 10.0
+        wheelbase: 0.65
     log_enabled:
       #- navigation
       #- navigation.graph_map_server
@@ -46,3 +51,16 @@
       - lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
+      - lidar.leader_locator
+    pipeline:
+      preprocessing:
+        - conversion
+        - filtering
+        - locate_leader
+    preprocessing:
+      locate_leader:
+        type: lidar.leader_locator
+        maximum_distance: 5.0
+        minimum_distance: 0.0
+        intensity_threshold: 10000.0
+    

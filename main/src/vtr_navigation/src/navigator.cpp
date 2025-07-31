@@ -308,7 +308,7 @@ void Navigator::lidarCallback(
   LockGuard lock(mutex_);
 
   /// Discard old frames if our queue is too big
-  if (queue_.size() > max_queue_size_) {
+  if (queue_.size() >= max_queue_size_) {
     CLOG(WARNING, "navigation")
         << "Dropping pointcloud message " << *queue_.front()->stamp << " because the queue is full.";
     queue_.pop();
@@ -357,7 +357,7 @@ void Navigator::radarCallback(
   LockGuard lock(mutex_);
 
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
+  if (queue_.size() >= max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
     CLOG(WARNING, "navigation")
         << "Dropping old message because the queue is full.";
     queue_.pop();
@@ -419,7 +419,7 @@ void Navigator::cameraCallback(
   CLOG(DEBUG, "navigation") << "Received an image.";
 
   /// Discard old frames if our queue is too big
-  if (queue_.size() > max_queue_size_) {
+  if (queue_.size() >= max_queue_size_) {
     CLOG(WARNING, "navigation")
         << "Dropping old image " << *queue_.front()->stamp << " because the queue is full.";
     queue_.pop();

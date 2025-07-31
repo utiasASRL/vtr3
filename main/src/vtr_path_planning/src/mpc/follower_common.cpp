@@ -32,22 +32,22 @@ PathInterpolator::PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path) {
 }
 
 PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) const {
-  auto up_it = path_info_.lower_bound(time);
-
   CLOG(DEBUG, "mpc.follower") << "Requested interpolation time " << time;
+
+  auto up_it = path_info_.lower_bound(time);
   CLOG(DEBUG, "mpc.follower") << "Found lower bound time " << up_it->first;
 
   if (up_it == path_info_.begin()){
     CLOG(ERROR, "mpc.follower") << "Finding first element of map!";
-    const Transformation T_w_p1 = up_it->second;
-    const double t_1 = up_it->first;
-    
-    up_it--;
     const Transformation T_w_p0 = up_it->second;
     const double t_0 = up_it->first;
-    CLOG(DEBUG, "mpc.follower") << "Time 1 " << t_1 << " Time 0 " << t_0;
+    
+    up_it++;
+    const Transformation T_w_p1 = up_it->second;
+    const double t_1 = up_it->first;
+    // CLOG(DEBUG, "mpc.follower") << "Time 1 " << t_1 << " Time 0 " << t_0;
 
-    return T_w_p1;
+    // return T_w_p1;
   } else if (up_it == path_info_.end()){ 
     CLOG(ERROR, "mpc.follower") << "Finding last element of map!";
 
@@ -56,31 +56,33 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
     const double t_0 = up_it->first;
 
     return T_w_p0;
-  } else {
-    const Transformation T_w_p1 = up_it->second;
-    const double t_1 = up_it->first;
-
-    up_it--;
-    const Transformation T_w_p0 = up_it->second;
-    const double t_0 = up_it->first;
-
-
-    //CLOG(DEBUG, "mpc.follower") << "Pose 0 " << T_w_p0 << " Pose 1 " << T_w_p1;
-
-    const double dt = t_1 - t_0;
-    try {
-      auto xi_interp = (T_w_p0.inverse() * T_w_p1).vec() * ((time - t_0) / dt);
-      //CLOG(DEBUG, "mpc.follower") << "delta trans " << (T_w_p0.inverse() * T_w_p1).vec();
-      //CLOG(DEBUG, "mpc.follower") << "dt " << dt;
-      //CLOG(DEBUG, "mpc.follower") << "time " << time;
-      //CLOG(DEBUG, "mpc.follower") << "t_0 " << t_0;
-      //CLOG(DEBUG, "mpc.follower") << "xi" << xi_interp;
-      //CLOG(DEBUG, "mpc.follower") << "Interpolated pose " << T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
-      return T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
-    } catch (std::exception &e) {
-      return T_w_p0;
-    }
   }
+  
+  const Transformation T_w_p1 = up_it->second;
+  const double t_1 = up_it->first;
+
+  up_it--;
+  const Transformation T_w_p0 = up_it->second;
+  const double t_0 = up_it->first;
+
+  const double dt = t_1 - t_0;
+  if (abs(dt) > 1e9) {
+    CLOG(WARNING, "mpc.follower") << "Ignoring interpolation due to long delta t!";
+    return T_w_p0;
+  }
+  try {
+    auto xi_interp = (T_w_p0.inverse() * T_w_p1).vec() * ((time - t_0) / dt);
+    //CLOG(DEBUG, "mpc.follower") << "delta trans " << (T_w_p0.inverse() * T_w_p1).vec();
+    //CLOG(DEBUG, "mpc.follower") << "dt " << dt;
+    //CLOG(DEBUG, "mpc.follower") << "time " << time;
+    //CLOG(DEBUG, "mpc.follower") << "t_0 " << t_0;
+    //CLOG(DEBUG, "mpc.follower") << "xi" << xi_interp;
+    //CLOG(DEBUG, "mpc.follower") << "Interpolated pose " << T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
+    return T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
+  } catch (std::exception &e) {
+    return T_w_p0;
+  }
+  
 }
 
 tactic::Timestamp PathInterpolator::start() const {
@@ -126,6 +128,5 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
 
   return follower_reference;
 }
-
 
 } // namespace vtr::path_planning

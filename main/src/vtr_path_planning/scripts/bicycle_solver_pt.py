@@ -12,9 +12,9 @@ step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
 # The first order lag weighting for the steering angle
-alpha = 0.6
+alpha = 0.8
 
-alpha_v = 0.0
+alpha_v = 0.4
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states
@@ -57,28 +57,14 @@ last_controls = ca.vertcat(
     last_psi
 )
 
-# # number of parameters we can change without recompiling
-# num_parameters = 8
-# # column vector for storing runtime information(paths, etc) 
-# P = ca.SX.sym('P', n_states * (N+1) + n_controls + num_parameters)
-# measured_velo = P[-(n_controls+num_parameters):-num_parameters]
-# # TODO: Put this info into a config somewhere so this is easier to edit
-# Q_x = P[-num_parameters]
-# Q_y = P[-num_parameters + 1]
-# Q_theta = P[-num_parameters + 2]
-# R1 = P[-num_parameters + 3]
-# R2 = P[-num_parameters + 4]
-# Acc_R1 = P[-num_parameters + 5]
-# Acc_R2 = P[-num_parameters + 6]
-# Q_f = P[-num_parameters + 7]  # final state cost
-
 # column vector for storing runtime information(paths, etc) 
 init_pose = ca.SX.sym('init_pose', n_states)
 ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
 measured_velo = ca.SX.sym('measured_velo', n_controls)
+cost_weights = ca.SX.sym('cost_weighting', N)  # weight for the cost function at each timestep
 
-Q_x = ca.SX.sym('Q_x', 1)
-Q_y = ca.SX.sym('Q_y', 1)
+Q_lat = ca.SX.sym('Q_lat', 1)
+Q_lon = ca.SX.sym('Q_lon', 1)
 Q_theta = ca.SX.sym('Q_theta', 1)
 R1 = ca.SX.sym('R1', 1)
 R2 = ca.SX.sym('R2', 1)
@@ -87,13 +73,13 @@ Acc_R2 = ca.SX.sym('Acc_R2', 1)
 Q_f = ca.SX.sym('Q_f', 1)  # final state cost
 L = ca.SX.sym('wheel_base', 1)
 
-P = ca.vertcat(init_pose, ref_poses, measured_velo,                # Base MPC
-                L, Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f)    # Weights for tuning
+P = ca.vertcat(init_pose, ref_poses, measured_velo, cost_weights,               # Base MPC
+                L, Q_lat, Q_lon, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f)    # Weights for tuning
 
 
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
-Q = ca.diagcat(Q_x, Q_y)
+Q = ca.diagcat(Q_lat, Q_lon)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
@@ -117,13 +103,13 @@ def so2_error(ref, current):
     rel_m = theta_to_so2(ref).T @ theta_to_so2(current)
     return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
-def calc_cost(ref, X, con, k):
+def calc_cost(ref, X, con, k, cost_weight):
     dx = X[0, k+1] - ref[n_states*(k+1)]
     dy = X[1, k+1] - ref[n_states*(k+1)+1]
     theta_ref = ref[n_states*(k+1)+2]
     e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
     e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
-    cost = Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2,k+1])**2 + con.T @ R @ con
+    cost = cost_weight*(Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, X[2,k+1])**2 + con.T @ R @ con)
     return cost
 
 #for initial
@@ -132,7 +118,7 @@ st = X[:, k]
 con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
-cost_fn += calc_cost(P, X, con, k)
+cost_fn += calc_cost(P, X, con, k, cost_weights[k])
 k1 = motion_model(st, con, last_vel, L)
 k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
@@ -149,7 +135,7 @@ for k in range(1, N):
     con = U[:, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
 
-    cost_fn += calc_cost(P, X,con, k)
+    cost_fn += calc_cost(P, X,con, k, cost_weights[k])
     k1 = motion_model(st, con, last_vel, L)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
@@ -165,19 +151,18 @@ for k in range(N):
     g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
 
 #Acceleration constraints
-cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
+cost_fn += cost_weights[0]*((U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo))
 g = ca.vertcat(g, U[0, 0])
 g = ca.vertcat(g, U[1, 0])
 for k in range(1, N-1):
-    cost_fn += (U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1])
-    #cost_fn += 0.1/(U[0, k]**2 + 1e-3)
+    cost_fn += cost_weights[k]*((U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1]))
     # Add acceleration constraints
     g = ca.vertcat(g, U[0, k] - U[0, k-1])
     # Angular acceleration constraints
     g = ca.vertcat(g, U[1, k] - U[1, k-1])
 
 # Terminal cost
-cost_fn += calc_cost(P, X, con, N-1)
+cost_fn += calc_cost(P, X, con, N-1, cost_weights[N-1])
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1
