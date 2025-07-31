@@ -113,7 +113,7 @@ void BicycleMPCPathTracker::loadMPCConfig(
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), applied_vel(1)};
   mpc_config->wheelbase = config_->wheelbase;
 
-  // Set the MPC costs base on if we're reversing or not
+  // Set the MPC costs based on if we're reversing or not
   mpc_config->Q_lat = isReversing ? config_->r_q_lat : config_->f_q_lat;
   mpc_config->Q_lon = isReversing ? config_->r_q_lon : config_->f_q_lon;
   mpc_config->Q_th = isReversing ? config_->r_q_th : config_->f_q_th;
@@ -130,6 +130,7 @@ void BicycleMPCPathTracker::loadMPCConfig(
     mpc_config->Q_lon = 1.0;
     // TODO: make these parameters configurable
     mpc_config->vel_max(0) = 0.5*config_->max_lin_vel;
+    mpc_config->vel_min(0) = -0.5*config_->max_lin_vel;
     mpc_config->R1 = 0.0;
     mpc_config->R2 = 0.0;
     mpc_config->Acc_R1 = 0.0;
@@ -159,7 +160,6 @@ std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::C
     if(success_count > config_->recovery_steps){
         failure_count = 0;
     }
-    
   } catch (std::exception& e) {
       CLOG(WARNING, "cbit.control")
           << "casadi failed! " << e.what() << ". Incrementing failure count. Current count: " << failure_count;
