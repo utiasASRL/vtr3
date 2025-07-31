@@ -89,6 +89,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
 
   void loadMPCConfig(
       CasadiBicycleMPCFollower::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+
   CasadiMPC::Config::Ptr getMPCConfig(
       const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
   
@@ -100,8 +101,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
                            RobotState& robot_state,
                            const tactic::Timestamp& curr_time) override;
 
-  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
-  
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTrackerFollower);
 
@@ -109,14 +108,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   CasadiBicycleMPCFollower solver_;
   tactic::GraphBase::Ptr graph_;
 
-
-  // Store the previously applied velocity and a sliding window history of MPC results
-  Eigen::Vector2d applied_vel_;
-  std::vector<Eigen::Vector2d> vel_history;
-  tactic::Timestamp prev_vel_stamp_;
   RobotState::Ptr robot_state_;
-  u_int32_t frame_delay_ = 0;
-
 
   PathMsg::SharedPtr recentLeaderPath_;
   rclcpp::Subscription<PathMsg>::SharedPtr leaderRolloutSub_;

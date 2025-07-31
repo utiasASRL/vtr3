@@ -63,7 +63,6 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
   return config;
 }
 
-
 // Declare class as inherited from the BasePathPlanner
 BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
@@ -218,6 +217,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       
     mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
+
   }
   vis_->publishReferencePoses(referenceInfo.poses);
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig->DT);
@@ -269,21 +269,6 @@ void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr rout
   else{
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
   }
-}
-
-std::map<std::string, casadi::DM> BicycleMPCPathTrackerFollower::callSolver(CasadiMPC::Config::Ptr config) {
-  std::map<std::string, casadi::DM> result;
-
-  try {
-    CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
-    result = solver_.solve(*config);
-    CLOG(INFO, "cbit.control") << "Solver called";
-  } catch (std::exception& e) {
-      CLOG(WARNING, "cbit.control")
-          << "casadi failed! " << e.what();
-      throw e;
-  }
-  return result;
 }
 
 void BicycleMPCPathTrackerFollower::onLeaderDist(const FloatMsg::SharedPtr distance) {

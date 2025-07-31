@@ -106,53 +106,42 @@ void BicycleMPCPathTracker::loadMPCConfig(
     CasadiBicycleMPC::Config::Ptr mpc_config, const bool isReversing, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
   // Set the MPC parameters based on the configuration
   mpc_config->VF = config_->forward_vel;
-  mpc_config->vel_max(0) = config_->max_lin_vel;
+  mpc_config->vel_max(0) = isReversing ? 0.0 : config_->max_lin_vel;
+  mpc_config->vel_min(0) = isReversing ? -config_->max_lin_vel : 0.0;
   mpc_config->vel_max(1) = config_->max_ang_vel;
+  mpc_config->vel_min(1) = -config_->max_ang_vel;
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), applied_vel(1)};
   mpc_config->wheelbase = config_->wheelbase;
 
-  if (isReversing) {
-    // Set the MPC costs
-    mpc_config->Q_lat = config_->r_q_lat;
-    mpc_config->Q_lon = config_->r_q_lon;
-    mpc_config->Q_th = config_->r_q_th;
-    mpc_config->R1 = config_->r_r1;
-    mpc_config->R2 = config_->r_r2;
-    mpc_config->Acc_R1 = config_->r_racc1;
-    mpc_config->Acc_R2 = config_->r_racc2;
-    mpc_config->Q_f = config_->r_q_f;
-    mpc_config->reversing = true;
+  // Set the MPC costs based on if we're reversing or not
+  mpc_config->Q_lat = isReversing ? config_->r_q_lat : config_->f_q_lat;
+  mpc_config->Q_lon = isReversing ? config_->r_q_lon : config_->f_q_lon;
+  mpc_config->Q_th = isReversing ? config_->r_q_th : config_->f_q_th;
+  mpc_config->R1 = isReversing ? config_->r_r1 : config_->f_r1; 
+  mpc_config->R2 = isReversing ? config_->r_r2 : config_->f_r2;
+  mpc_config->Acc_R1 = isReversing ? config_->r_racc1 : config_->f_racc1;
+  mpc_config->Acc_R2 = isReversing ? config_->r_racc2 : config_->f_racc2; 
+  mpc_config->Q_f = isReversing ? config_->r_q_f : config_->f_q_f;
+
+  if (failure_count >= config_->failure_threshold) {
+    CLOG(WARNING, "cbit.control") << "Failure count exceeded threshold. Enabling recovery mode.";
+    mpc_config->recovery = true;
+    // If we're recovering, the only thing that matters is getting back to the path
+    mpc_config->Q_lon = 1.0;
+    // TODO: make these parameters configurable
+    mpc_config->vel_max(0) = 0.5*config_->max_lin_vel;
+    mpc_config->vel_min(0) = -0.5*config_->max_lin_vel;
+    mpc_config->R1 = 0.0;
+    mpc_config->R2 = 0.0;
+    mpc_config->Acc_R1 = 0.0;
+    mpc_config->Acc_R2 = 0.0;
+    mpc_config->Q_f = 0.0;
   }
-  else {
-    // Set the MPC costs
-    mpc_config->Q_lat = config_->f_q_lat;
-    mpc_config->Q_lon = config_->f_q_lon;
-    mpc_config->Q_th = config_->f_q_th;
-    mpc_config->R1 = config_->f_r1;
-    mpc_config->R2 = config_->f_r2;
-    mpc_config->Acc_R1 = config_->f_racc1;
-    mpc_config->Acc_R2 = config_->f_racc2;
-    mpc_config->Q_f = config_->f_q_f;
-    mpc_config->reversing = false;
-    }
-    
-    if (failure_count >= config_->failure_threshold) {
-      CLOG(WARNING, "cbit.control") << "Failure count exceeded threshold. Enabling recovery mode.";
-      mpc_config->recovery = true;
-      // If we're recovering, the only thing that matters is getting back to the path
-      mpc_config->Q_lon = 0.0;;
-      mpc_config->R1 = 0.0;
-      mpc_config->R2 = 0.0;
-      mpc_config->Acc_R1 = 0.0;
-      mpc_config->Acc_R2 = 0.0;
-      mpc_config->Q_f = 0.0;
-    }
 }
 
 CasadiMPC::Config::Ptr BicycleMPCPathTracker::getMPCConfig(const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
   auto mpc_config = std::make_shared<CasadiBicycleMPC::Config>();
   loadMPCConfig(mpc_config, isReversing, w_p_r_in_r, applied_vel);
-
   return mpc_config;
 }
 
@@ -171,12 +160,11 @@ std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::C
     if(success_count > config_->recovery_steps){
         failure_count = 0;
     }
-    
   } catch (std::exception& e) {
       CLOG(WARNING, "cbit.control")
           << "casadi failed! " << e.what() << ". Incrementing failure count. Current count: " << failure_count;
       failure_count += 1;
-      // Only reset succes count if we are not actively trying to recover
+      // Only reset success count if we are not actively trying to recover
       // If we are failing consistently when recovering, we should just keep trying.
       if (failure_count < config_->failure_threshold){
           success_count = 0;
