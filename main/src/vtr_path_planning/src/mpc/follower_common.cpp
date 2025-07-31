@@ -93,7 +93,7 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
 
   for(double p = robot_p; p < final_leader_p_value; p += 0.02) {
     tactic::SegmentInfo closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
-    double interp = std::clamp((p - closestSegment.start_p) / (chain->p(closestSegment.end_sid) - closestSegment.start_p), 0.0, 1.0);
+    double interp = std::clamp((p - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
     lgmath::se3::Transformation pose = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
 
     

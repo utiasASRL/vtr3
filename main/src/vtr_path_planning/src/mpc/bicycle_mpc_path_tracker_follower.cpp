@@ -140,9 +140,6 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   follower_mpc_config->leader_reference_poses.clear();
 
   mpcConfig->VF = abs(leader_vel_(0));
-  if (follower_mpc_config->reversing) {
-    CLOG(DEBUG, "mpc.follower") << "Reversing!";
-  }
   if (config_->waypoint_selection == "external_dist") {
     const float distance = recentLeaderDist_->data;
     const double error = distance - config_->following_offset;
@@ -164,12 +161,6 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
   CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
   CLOG(DEBUG, "mpc.follower") << "Dist to leader:\n" << dist.head<2>().norm();
-
-  if (dist.norm() > 1.0) {
-    CLOG(DEBUG, "mpc.follower") << "Current Leader Pose\n" << leaderPath_copy.at(curr_time);
-    CLOG(DEBUG, "mpc.follower") << "Current Follower Path Loc\n" << T_w_p;
-    CLOG(DEBUG, "mpc.follower") << "New extrapolated pose:\n"  << T_p_r_extp;
-  }
   
   for (int i = 0; i < mpcConfig->N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
