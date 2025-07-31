@@ -88,6 +88,7 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
   // Run through the path and find the pose that best fulfills the distance constraint
   std::vector<double> best_distance(leader_world_poses.size(), std::numeric_limits<double>::max());
   std::vector<double> best_width(leader_world_poses.size(), std::numeric_limits<double>::max());
+  std::vector<int> leader_pose_done(leader_world_poses.size(), 0);
   std::vector<lgmath::se3::Transformation> best_pose(leader_world_poses.size());
 
   for(double p = robot_p; p < final_leader_p_value; p += 0.02) {
@@ -99,6 +100,8 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
     for (uint i = 0; i < leader_world_poses.size(); i++){
 
       // Check this pose if we are not already beyond it
+      if(leader_pose_done[i] == 0)
+      {
         // Leader pose in world frame
         auto T_w_l = leader_world_poses[i];
         double dist = (pose.inverse() * T_w_l).r_ab_inb().norm();
@@ -109,6 +112,11 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
           auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.end_sid));
           best_width[i] = (1-interp) * width1 + interp * width2;
         }
+        if (dist < 0.10) {
+          // We are close enough to the leader pose, we can stop checking further
+          leader_pose_done[i] = 1;
+        }
+      }
 
     }
   }
