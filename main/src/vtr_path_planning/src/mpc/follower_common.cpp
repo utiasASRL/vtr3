@@ -88,51 +88,42 @@ tactic::Timestamp PathInterpolator::start() const {
 }
 
 
-PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& leader_world_poses, const std::vector<double> leader_p_values, const tactic::LocalizationChain::Ptr chain, double robot_p, double target_distance) {
+PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& leader_world_poses, const double final_leader_p_value, const tactic::LocalizationChain::Ptr chain, double robot_p, double target_distance) {
   PoseResultHomotopy follower_reference;
   
-  // Run through all the leader poses we found
-  for (uint i = 0; i < leader_world_poses.size(); i++){
-    // Leader pose in world frame
-    auto T_w_l = leader_world_poses[i];
+  // Run through the path and find the pose that best fulfills the distance constraint
+  std::vector<double> best_distance(leader_world_poses.size(), std::numeric_limits<double>::max());
+  std::vector<double> best_width(leader_world_poses.size(), std::numeric_limits<double>::max());
+  std::vector<lgmath::se3::Transformation> best_pose(leader_world_poses.size());
 
-    // Run through the path and find the pose that best fulfills the distance constraint
+  for(double p = robot_p; p < final_leader_p_value; p += 0.02) {
+    Segment closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
+    double interp = std::clamp((p - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
+    lgmath::se3::Transformation pose = interpolatePoses(interp, chain->pose(closestSegment.first), chain->pose(closestSegment.second));
+
     
-    std::vector<double> best_distance(leader_world_poses.size(), std::numeric_limits<double>::max());
-    std::vector<double> best_width(leader_world_poses.size(), std::numeric_limits<double>::max());
-    std::vector<lgmath::se3::Transformation> best_pose(leader_world_poses.size());
+    for (uint i = 0; i < leader_world_poses.size(); i++){
 
-    for(double p = robot_p; p < leader_p_values.back(); p += 0.02) {
-      Segment closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
-      double interp = std::clamp((p - chain->p(closestSegment.first)) / (chain->p(closestSegment.second) - chain->p(closestSegment.first)), 0.0, 1.0);
-      lgmath::se3::Transformation pose = interpolatePoses(interp, chain->pose(closestSegment.first), chain->pose(closestSegment.second));
-
-      
-      for (uint i = 0; i < leader_world_poses.size(); i++){
-
-        // Check this pose if we are not already beyond it
-        if(p <= leader_p_values[i])
-        {  
-          // Leader pose in world frame
-          auto T_w_l = leader_world_poses[i];
-          double dist = (pose.inverse() * T_w_l).r_ab_inb().norm();
-          if (fabs(dist - target_distance) < best_distance[i]) {
-            best_distance[i] = fabs(dist - target_distance);
-            best_pose[i] = pose;
-            auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.first));
-            auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.second));
-            best_width[i] = (1-interp) * width1 + interp * width2;
-          }
+      // Check this pose if we are not already beyond it
+        // Leader pose in world frame
+        auto T_w_l = leader_world_poses[i];
+        double dist = (pose.inverse() * T_w_l).r_ab_inb().norm();
+        if (fabs(dist - target_distance) < best_distance[i]) {
+          best_distance[i] = fabs(dist - target_distance);
+          best_pose[i] = pose;
+          auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.first));
+          auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(closestSegment.second));
+          best_width[i] = (1-interp) * width1 + interp * width2;
         }
 
-      }
-    }
-    follower_reference.poses = best_pose;
-    for (const auto& width : best_width){
-      follower_reference.barrier_q_min.push_back(-width);
-      follower_reference.barrier_q_max.push_back(width);
     }
   }
+  follower_reference.poses = best_pose;
+  for (const auto& width : best_width){
+    follower_reference.barrier_q_min.push_back(-width);
+    follower_reference.barrier_q_max.push_back(width);
+  }
+
   return follower_reference;
 }
 

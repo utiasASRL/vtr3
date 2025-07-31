@@ -246,23 +246,23 @@ auto BicycleMPCPathTrackerFollower::computeCommand_(RobotState& robot_state) -> 
   // Define Leader Waypoints
   mpcConfig.leader_reference_poses.clear();
   std::vector<lgmath::se3::Transformation> leader_world_poses;
-  std::vector<double> leader_p_values;
   const auto leaderPath_copy = *leaderPathInterp_;
   CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" << T_fw_lw_ * leaderPath_copy.at(curr_time) * (T_w_p * T_p_r_extp).inverse();
   for (uint i = 0; i < mpcConfig.N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig.DT * 1e9);
     mpcConfig.leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
     leader_world_poses.push_back(T_w_lp);
-    leader_p_values.push_back(findRobotP(T_w_lp, chain));
     CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
   }
+
+  double final_leader_p_value = findRobotP(leader_world_poses.back(), chain);
 
   double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
 
   mpcConfig.reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      return generateFollowerReferencePosesEuclidean(leader_world_poses, leader_p_values, chain, state_p, mpcConfig.distance);
+      return generateFollowerReferencePosesEuclidean(leader_world_poses, final_leader_p_value, chain, state_p, mpcConfig.distance);
     } else {
       CLOG_IF(config_->waypoint_selection ==  "arclength", WARNING, "mpc.follower") << "Arclength not implemented yet for bicycle!";
 
