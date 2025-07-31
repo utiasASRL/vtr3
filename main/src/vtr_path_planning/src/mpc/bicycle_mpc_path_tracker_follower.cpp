@@ -226,6 +226,21 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
 }
 
+std::map<std::string, casadi::DM> BicycleMPCPathTrackerFollower::callSolver(CasadiMPC::Config::Ptr config) {
+  std::map<std::string, casadi::DM> result;
+
+  try {
+    CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
+    result = solver_.solve(*config);
+  } catch (std::exception& e) {
+      CLOG(WARNING, "cbit.control")
+          << "casadi failed! " << e.what();
+
+      throw e;
+  }
+  return result;
+}
+
 void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) {
   using namespace vtr::common::conversions;
   
