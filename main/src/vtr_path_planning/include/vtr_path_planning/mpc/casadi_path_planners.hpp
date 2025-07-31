@@ -51,6 +51,7 @@ class CasadiMPC {
           : nStates(nStates), nControl(nControl), N(N), DT(DT) {
             T0 = DM::zeros(nStates, 1);
             vel_max = DM::zeros(nControl, 1);
+            vel_min = DM::zeros(nControl, 1);
             previous_vel = DM::zeros(nControl, 1);
       };
 

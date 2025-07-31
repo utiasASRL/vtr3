@@ -275,8 +275,8 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     }
     else if (end_ind > 1 && dist > base_config_->end_of_path_distance_threshold) {
       weighting = 1.0;
-      for (int i = 0; i < mpcConfig->N; i++) {
-        mpcConfig->cost_weights[i] = weighting;
+      for (int j = 0; j < i; j++) {
+        mpcConfig->cost_weights[j] = weighting;
       }
       end_ind = -1;
       CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
