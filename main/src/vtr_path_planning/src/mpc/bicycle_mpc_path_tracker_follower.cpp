@@ -180,13 +180,11 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   }
 
 
-  double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
-
-  mpcConfig.reference_poses.clear();
+  mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      double final_leader_p_value = findRobotP(leader_world_poses.back(), chain);
-      return generateFollowerReferencePosesEuclidean(leader_world_poses, final_leader_p_value, chain, state_p, mpcConfig.distance);
+      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain);
+      return generateFollowerReferencePosesEuclidean(leader_world_poses, final_leader_p_value, chain, state_p, follower_mpc_config->distance);
     } else {
       CLOG_IF(config_->waypoint_selection ==  "arclength", WARNING, "mpc.follower") << "Arclength not implemented yet for bicycle!";
 
