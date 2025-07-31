@@ -55,9 +55,11 @@ tactic::Direction findDirection(const lgmath::se3::Transformation& T_wr, const t
     tactic::Direction dir = tactic::Direction::Unknown;
     if (unit_vec.dot(dir_vector) < 0){
       dir = tactic::Direction::Backward;
+      CLOG(DEBUG, "cbit.debug") << "Direction is backward";
     }
     else {
       dir = tactic::Direction::Forward;
+      CLOG(DEBUG, "cbit.debug") << "Direction is forward";
     }
     return dir;
 }

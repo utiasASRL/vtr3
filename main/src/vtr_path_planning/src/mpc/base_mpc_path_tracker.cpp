@@ -266,7 +266,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
       weighting = (float) end_ind / mpcConfig->N;
       CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
     }
-    elif (end_ind > 1) {
+    else if (end_ind > 1) {
       weighting = 1.0;
       for (int i = end_ind; i < mpcConfig->N; i++) {
         mpcConfig->cost_weights[i] = weighting;
