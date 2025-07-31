@@ -140,7 +140,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   auto& chain = robot_state.chain.ptr();
   follower_mpc_config->leader_reference_poses.clear();
 
-  // mpcConfig->VF = abs(leader_vel_(0));
+  mpcConfig->VF = abs(leader_vel_(0));
   if (follower_mpc_config->reversing) {
     CLOG(DEBUG, "mpc.follower") << "Reversing!";
   }
