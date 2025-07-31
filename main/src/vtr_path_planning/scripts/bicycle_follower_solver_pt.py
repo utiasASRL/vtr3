@@ -163,7 +163,6 @@ g = ca.vertcat(g, U[0, 0])
 g = ca.vertcat(g, U[1, 0])
 for k in range(1, N-1):
     cost_fn += (U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1])
-    #cost_fn += 0.1/(U[0, k]**2 + 1e-3)
     # Add acceleration constraints
     g = ca.vertcat(g, U[0, k] - U[0, k-1])
     # Angular acceleration constraints

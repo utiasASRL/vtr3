@@ -42,6 +42,7 @@ class CasadiMPC {
       DM T0;
       double DT;
       DM vel_max;
+      DM vel_min;
       DM previous_vel;
       std::vector<DM> cost_weights;
       int eop_index = -1; // index of the end of path in the reference poses
@@ -50,6 +51,7 @@ class CasadiMPC {
           : nStates(nStates), nControl(nControl), N(N), DT(DT) {
             T0 = DM::zeros(nStates, 1);
             vel_max = DM::zeros(nControl, 1);
+            vel_min = DM::zeros(nControl, 1);
             previous_vel = DM::zeros(nControl, 1);
       };
 
@@ -171,10 +173,8 @@ public:
     double lin_acc_max = 1.0; // m/s^2
     double ang_acc_max = 1.0;
     double Q_f = 0.0;
-    bool reversing = false;
     bool repeat_flipped = false;
     bool recovery = false; 
-
 
 
     Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
