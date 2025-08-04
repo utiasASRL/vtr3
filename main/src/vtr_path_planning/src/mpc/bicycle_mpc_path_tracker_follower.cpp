@@ -143,14 +143,17 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   if (config_->waypoint_selection == "external_dist") {
     const float distance = recentLeaderDist_->data;
     const double error = distance - config_->following_offset;
-    errorIntegrator += error;
-    mpcConfig->VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_);
+    if (abs(chain->leaf_velocity()(0)) > 0.1)
+      errorIntegrator += error * config_->control_period / 1000.0;
+    else
+      errorIntegrator = 0;
+    mpcConfig->VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_) / ((float)config_->control_period / 1000.0);
     lastError_ = error;
     CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig->VF;
 
     //TODO revert to max and min
-    // mpcConfig->vel_max = {mpcConfig.VF, config_->max_ang_vel};
-    // mpcConfig->vel_min = {mpcConfig.VF, -config_->max_ang_vel};
+    mpcConfig->vel_max = {mpcConfig->VF, config_->max_ang_vel};
+    mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
     follower_mpc_config->lin_acc_max = 1000;
   }
 
@@ -166,7 +169,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
     follower_mpc_config->leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
     leader_world_poses.push_back(T_w_lp);
-    CLOG(DEBUG, "mpc.follower.target") << "Leader Target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
+    CLOG(DEBUG, "mpc.follower.target") << "Leader target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
   }
 
 
@@ -188,7 +191,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   
   for(const auto& Tf : referenceInfo.poses) {
     mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-    CLOG(DEBUG, "mpc.follower") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+    CLOG(DEBUG, "mpc.follower.target") << "Own target " << tf_to_global(T_w_p.inverse() *  Tf);
   }
 
   // Detect end of path and set the corresponding cost weight vector element to zero
