@@ -9,8 +9,8 @@ from unicycle_follower_solver import solver as solver_follower
 
 
 # specs
-p_init_l = 5.45
-p_init_f = 0
+p_init_l = 0
+p_init_f = 5.45
 
 dist = 5.0
 dist_margin = 2.0
