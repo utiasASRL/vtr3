@@ -270,7 +270,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     auto dist = (curr_pose - last_pose).norm();
     if (end_ind < 0 && dist < base_config_->end_of_path_distance_threshold) {
       end_ind = i-1;
-      weighting = (float) end_ind / mpcConfig->N;
+      weighting = (float)  1.0 / (mpcConfig->N - end_ind);
       CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
     }
     else if (end_ind >= 0 && dist > base_config_->end_of_path_distance_threshold) {
