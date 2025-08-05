@@ -60,12 +60,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  //Check that
-  if(!*qdata.odo_success) {
-    CLOG(WARNING, "lidar.localization_icp") << "Odometry failed, skip localization";
-    return;
-  }
-
   if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time && *qdata.pipeline_mode == tactic::PipelineMode::RepeatFollow) {
     CLOG(WARNING, "lidar.localization_icp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
     return;
@@ -211,7 +205,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     problem.addStateVariable(T_r_v_var);
 
     // add prior cost terms
-    if (prior_cost_term != nullptr) problem.addCostTerm(prior_cost_term);
+    if (prior_cost_term != nullptr && *qdata.odo_success) problem.addCostTerm(prior_cost_term);
 
     // shared loss function
     auto loss_func = L2LossFunc::MakeShared();
