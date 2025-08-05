@@ -104,7 +104,7 @@ class Navigator {
   std::string gyro_frame_;
   tactic::EdgeTransform T_gyro_robot_;
   std::vector<ImuMsg> gyro_msgs_;
-  std::array<double, 3> gyro_bias_ = {0.0, 0.0, 0.0};
+  Eigen::Vector3d gyro_bias_ = Eigen::Vector3d::Zero();
 #endif
 
 #ifdef VTR_ENABLE_VISION

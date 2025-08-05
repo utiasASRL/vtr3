@@ -50,7 +50,8 @@
       #- lidar.odometry_map_maintenance
       - lidar.vertex_test
       - lidar.localization_map_recall
-      #- lidar.localization_icp
+      - lidar.localization_icp
+      - lidar.localization_geo_aware_icp
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging
@@ -117,7 +118,8 @@
         - memory
       localization:
         - recall
-        - icp
+        #- icp
+        - geo_aware_icp
         #- safe_corridor
         #- change_detection_sync
         - memory
@@ -131,7 +133,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 12
-        crop_range: 60.0
+        crop_range: 10.0
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
@@ -159,8 +161,8 @@
         azimuth_end: 1.09956            #  63 deg in rad
         num_rows: 64                    # num of vertical scan lines
         num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
-        min_dist: 5.0                   # meters
-        max_dist: 150.0                 # meters
+        min_dist: 0.0                   # meters
+        max_dist: 10.0                 # meters
         #
         root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
         model_name: "comm"
@@ -228,7 +230,7 @@
 
         map_voxel_size: 0.3
 
-        crop_range_front: 60.0
+        crop_range_front: 10.0
         back_over_front_ratio: 0.5
         point_life_time: 20.0
         visualize: true
@@ -243,7 +245,7 @@
 
         map_voxel_size: 0.3
 
-        crop_range_front: 40.0
+        crop_range_front: 10.0
         back_over_front_ratio: 0.5
         visualize: true
       dynamic_detection:
@@ -290,6 +292,23 @@
         max_iterations: 1
         min_matched_ratio: 0.45
         target_loc_time: 100.0
+      geo_aware_icp:
+        type: lidar.localization_geo_aware_icp
+        use_pose_prior: true
+        num_threads: 8
+        first_num_steps: 2
+        initial_max_iter: 4
+        initial_max_pairing_dist: 1.5
+        initial_max_planar_dist: 1.0
+        refined_max_iter: 50
+        refined_max_pairing_dist: 1.0
+        refined_max_planar_dist: 0.3
+        averaging_num_steps: 2
+        verbose: false
+        max_iterations: 1
+        min_matched_ratio: 0.45
+        target_loc_time: 100.0
+        dratio_threshold: 0.75
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0
