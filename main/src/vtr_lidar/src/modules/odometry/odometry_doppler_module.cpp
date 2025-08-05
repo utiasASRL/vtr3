@@ -68,13 +68,13 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->integration_steps = node->declare_parameter<int>(param_prefix + ".integration_steps", config->integration_steps);
   config->zero_vel_tol = node->declare_parameter<double>(param_prefix + ".zero_vel_tol", config->zero_vel_tol);
   //
-  const auto gyro_cov_vec = node->declare_parameter<std::vector<double>>(param_prefix + ".gyro_cov", std::vector<double>());
-  if (gyro_cov_vec.size() != 3) {
-    std::string err{"Gyro covariance malformed. Must be 3 elements!"};
+  const auto gyro_invcov_vec = node->declare_parameter<std::vector<double>>(param_prefix + ".gyro_invcov", std::vector<double>());
+  if (gyro_invcov_vec.size() != 3) {
+    std::string err{"Gyro inverse covariance malformed. Must be 3 elements!"};
     CLOG(ERROR, "lidar.odometry_doppler") << err;
     throw std::invalid_argument{err};
   }
-  config->gyro_cov = Eigen::DiagonalMatrix<double, 3>(gyro_cov_vec[0], gyro_cov_vec[1], gyro_cov_vec[2]);
+  config->gyro_invcov = Eigen::DiagonalMatrix<double, 3>(gyro_invcov_vec[0], gyro_invcov_vec[1], gyro_invcov_vec[2]);
   //
   config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
   config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
@@ -86,6 +86,8 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->P0inv = Eigen::DiagonalMatrix<double, 6>(p0_inv[0], p0_inv[1], p0_inv[2], p0_inv[3], p0_inv[4], p0_inv[5]);
+  config->P0    = Eigen::DiagonalMatrix<double, 6>(1.0 / p0_inv[0], 1.0 / p0_inv[1], 1.0 / p0_inv[2],
+                                                   1.0 / p0_inv[3], 1.0 / p0_inv[4], 1.0 / p0_inv[5]);
 
   const auto qz_inv = node->declare_parameter<std::vector<double>>(param_prefix + ".Qzinv", std::vector<double>());
   if (qz_inv.size() != 6) {
@@ -159,17 +161,17 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Inputs
   auto &query_stamp = *qdata.stamp;
-  const auto &query_points = *qdata.doppler_preprocessed_point_cloud;
-  const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
-  const auto &timestamp_odo = *qdata.timestamp_odo; 
-  const auto &T_r_m_odo = *qdata.T_r_m_odo;
-  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+  const auto &query_points = *qdata.doppler_preprocessed_point_cloud; // point cloud after preprocess
+  const auto &T_s_r = *qdata.T_s_r;                   // external calib, T from robot to lidar
+  const auto &T_s_r_gyro = *qdata.T_s_r_gyro;         // external calib, T from robot to gyro
+  const auto &timestamp_odo = *qdata.timestamp_odo;   // odom timestamp (the same as prev_time?)
+  const auto &T_r_m_odo = *qdata.T_r_m_odo;           // T from submap to robot
+  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo; // body centric velocity (state)
 
   // Load in prior parameters
-  const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;
-  const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;
-  const auto &timestamp_prior = *qdata.timestamp_prior;
+  const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;  // T prior, from submap to robot
+  const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;  // body centric velocity prior (prior state)
+  const auto &timestamp_prior = *qdata.timestamp_prior;  // timestamp of the prior 
 
   // Set up variables for new prior generation
   lgmath::se3::Transformation T_r_m_odo_prior_new; 
@@ -207,12 +209,14 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   const_vel::Interface::Ptr trajectory = nullptr;
   trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
+  // set the matrix version of Qc_diag
+  Qc = config_->traj_qc_diag.asDiagonal();
   
   // add previous state to trajectory
   Time knot_time(static_cast<int64_t>(timestamp_prior));
   auto prev_T_r_m_var = SE3StateVar::MakeShared(prev_T_r_m_odo);
   auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(prev_w_m_r_in_r_odo);
-  trajectory->add(knot_time, prev_T_r_m_var, prev_w_m_r_in_r_var); 
+  trajectory->add(knot_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
 
   if (prev_time == query_time && frame_count > 0) {
     CLOG(WARNING, "lidar.odometry_doppler") << "Skipping point cloud with duplicate stamp";
@@ -265,7 +269,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       for (const auto &gyro_msg : *qdata.gyro_msgs) {
         const auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
         double gy = (R_sv.transpose() * -1.0 * curr_gyro)(2); // rotate measurement to vehicle frame, extract z dim
-        double gyvar = (R_sv.transpose() * config_->gyro_cov.inverse() * R_sv)(2, 2); // rotate covariance, extract z dim
+        double gyvar = (R_sv.transpose() * config_->gyro_invcov * R_sv)(2, 2); // rotate covariance, extract z dim
         lhs_gyro(2, 2) += gyvar;
         rhs_gyro(2) += gy / gyvar;
       }
@@ -385,6 +389,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     inlier_frame.push_back(query_points[i]);
     ransac_precompute_.row(k) = ransac_precompute_all.row(i);
     meas_precompute_[k] = meas_precompute_all[i];
+    // [NOTE] be careful with the alpha calculation, this param. serves for lidar points and velocity interpolation
+    // [NOTE] each lidar point has its own timestamp, it is decoded from ros msg in "aeva_conversion_module"
     double alpha = static_cast<double>(query_points[i].timestamp - prev_time) / static_cast<double>(frame_end_time - prev_time);
     alpha_precompute_[k] = std::min(1.0, std::max(0.0, alpha));
     malpha_precompute_[k] = std::max(0.0, 1.0 - alpha_precompute_[k]);
@@ -428,12 +434,14 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       Ggyro.leftCols<6>() = (1.0 - alpha)*Cgyro;
       Ggyro.rightCols<6>() = alpha*Cgyro;
 
-      lhs += Ggyro.transpose() * config_->gyro_cov.inverse() * Ggyro;
-      rhs += Ggyro.transpose() * config_->gyro_cov.inverse() * (-1.0 * curr_gyro);
+      lhs += Ggyro.transpose() * config_->gyro_invcov * Ggyro;
+      rhs += Ggyro.transpose() * config_->gyro_invcov * (-1.0 * curr_gyro);
     }
   }
 
   // doppler measurements
+  // [NOTE] we interpolate the body-centric velocity for each lidar point
+  // the lidar points are matched to the interpolated velocity which is reflected in the G matrix (Jacobian)
   Eigen::Matrix<double, Eigen::Dynamic, 12> G(inlier_frame.size(), 12); // N x 12
   G.leftCols<6>() = ransac_precompute_.array().colwise() * malpha_precompute_.array();
   G.rightCols<6>() = ransac_precompute_.array().colwise() * alpha_precompute_.array();
@@ -477,6 +485,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     // estimate is reasonable, save current estimate
     last_lhs_ = lhs_new;
     last_rhs_ = rhs_new;
+    // keep the Hessian matrix (LHS) for covariance calculation
+    cov_k_k1 = lhs.inverse();
   }
 
   timer[2]->start();
@@ -501,11 +511,34 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   // integrate between the knots
   double dtt = dt/static_cast<double>(config_->integration_steps);
   Eigen::Matrix4d T_21 = Eigen::Matrix4d::Identity(); 
+  // cov of T_integrated, start from T_k
+  if (frame_count == 0) {
+    cov_T_k = config_->P0;
+  } 
+  Eigen::Matrix<double,6,6> P_int = cov_T_k;
+
+  Eigen::Matrix<double,6,6> P_T_tau = Eigen::Matrix<double,6,6>::Zero();
+
   for (int s = 1; s <= config_->integration_steps; ++s) {
-    double t = s*dtt;
-    double alpha = t/dt;
+    double t = s*dtt;     // tau - t_k
+    double alpha = t/dt;  // (tau - t_k) / (t_k+1 - t_k)
     Eigen::Matrix<double,6,1> vinterp = (1.0-alpha)*knot1 + alpha*knot2;
-    T_21 = lgmath::se3::vec2tran(dtt*vinterp)*T_21;
+    // interp cov
+    Eigen::Matrix<double,6,6> cov_interp = (1.0-alpha) * (1.0-alpha) * cov_k_k1.topLeftCorner<6,6>() + 
+                                           alpha * (1.0-alpha)* (cov_k_k1.topRightCorner<6,6>() + cov_k_k1.bottomLeftCorner<6,6>()) +
+                                           alpha * alpha * cov_k_k1.bottomRightCorner<6,6>() +
+                                           (1.0-alpha) * t * Qc;
+    // update the integrated P_T_tau
+    // P_T_tau = dt^2 J * cov_interp * J^T + Ad(phi^) * P_int * Ad(phi^)^T   
+    Eigen::Matrix<double,6,1> phi_interp = dtt * vinterp; // phi = v * dt    
+    Eigen::Matrix<double,6,6> J_left = lgmath::se3::vec2jac(phi_interp);  // left Jacobian of phi_interp
+    Eigen::Matrix<double,4,4> phi_matrix = lgmath::se3::vec2tran(phi_interp);
+    P_T_tau = dtt * dtt * J_left * cov_interp * J_left.transpose() + 
+               lgmath::se3::tranAd(phi_matrix) * P_int * lgmath::se3::tranAd(phi_matrix).transpose();                                 
+    // update the integrated covariance P_int for next iteration
+    P_int = P_T_tau;
+    // update the integrated transform
+    T_21 = lgmath::se3::vec2tran(phi_interp)*T_21;
   }
 
   EdgeTransform T_temp;
@@ -516,10 +549,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     T_temp = EdgeTransform(T_21 * prev_T_r_m_odo, Eigen::Matrix<double, 6, 6>::Identity());
   }
 
+  // save the covariance matrix for the current frame
+  cov_T_k = P_int;
+
   // Eigen::Matrix4d T_temp_xy = Eigen::Matrix4d::Identity();
   // T_temp_xy(0, 3) = T_temp.matrix()(0, 3);
   // T_temp_xy(1, 3) = T_temp.matrix()(1, 3);
-
 
   CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_eval: " << T_temp.matrix();
   CLOG(DEBUG, "lidar.odometry_doppler") << "w_m_r_in_r_eval: " << w_temp.transpose();
@@ -585,9 +620,15 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
 
     auto &sliding_map_odo = *qdata.sliding_map_odo;
-    Eigen::Matrix<double, 1, 6> cov;
-    cov << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;
-    EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, cov.asDiagonal() * Eigen::Matrix<double, 6, 6>::Identity());
+
+    // // --- old way 
+    // Eigen::Matrix<double, 1, 6> cov;
+    // cov << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;
+    // EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, cov.asDiagonal() * Eigen::Matrix<double, 6, 6>::Identity());
+
+    // compute the right cov_T_k, also stored for later use
+    EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, cov_T_k);
+
     *qdata.T_r_v_odo = T_r_m_dop * sliding_map_odo.T_vertex_this().inverse();
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     *qdata.timestamp_odo = query_stamp;
