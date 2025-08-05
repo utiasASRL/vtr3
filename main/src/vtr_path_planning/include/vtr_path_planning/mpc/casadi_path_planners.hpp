@@ -202,4 +202,42 @@ private:
 
 };
 
+
+class CasadiBicycleMPCJoint : public CasadiMPC {
+public:
+  PTR_TYPEDEFS(CasadiBicycleMPCJoint);
+  
+
+  struct Config : public CasadiBicycleMPC::Config {
+    PTR_TYPEDEFS(Config);
+    
+    std::vector<DM> leader_reference_poses;
+    double distance = 0.5;
+    double distance_margin = 1.0;
+    double Q_dist = 1.0;
+
+    DM T0_leader;
+    DM previous_vel_leader;
+
+    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
+        : CasadiBicycleMPC::Config(nStates, nControl, N, DT) {
+    };
+  };
+
+
+  CasadiBicycleMPCJoint(bool verbose=false, casadi::Dict iopt_config={ 
+    { "max_iter", 2000 }, 
+    { "acceptable_tol", 1e-8 } ,
+    {"acceptable_obj_change_tol", 1e-6}
+  });
+
+  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf);
+
+
+private:
+  casadi::Function solve_mpc;
+  std::map<std::string, casadi::DM> arg_;
+
+};
+
 } //namespace vtr::path_planning
