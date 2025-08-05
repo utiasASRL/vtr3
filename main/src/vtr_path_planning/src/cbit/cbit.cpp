@@ -108,11 +108,9 @@ CBIT::CBIT(const Config::ConstPtr& config,
 
   if(config->kinematic_model == "unicycle")
     solver_ = std::make_shared<CasadiUnicycleMPC>(config->mpc_verbosity);
-  else if (config->kinematic_model == "ackermann")
-    solver_ = std::make_shared<CasadiAckermannMPC>(config->mpc_verbosity);
   else{
-    CLOG(ERROR, "cbit") << "Config parameter vehicle_model must be one of 'unicycle' or 'ackermann'";
-    throw std::invalid_argument("Config parameter vehicle_model must be one of 'unicycle' or 'ackermann'");
+    CLOG(ERROR, "cbit") << "Config parameter vehicle_model must be one of 'unicycle'";
+    throw std::invalid_argument("Config parameter vehicle_model must be one of 'unicycle'");
   }
 
   // Create visualizer and its corresponding pointer:
@@ -429,37 +427,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       
       mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
       baseMpcConfig = mpcConfig;
-    } else if (config_->kinematic_model == "ackermann") {
-      CasadiAckermannMPC::Config::Ptr mpcConfig = std::make_shared<CasadiAckermannMPC::Config>();
-      mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-      mpcConfig->turning_radius = config_->turning_radius;
-
-      // Initializations from config
-      
-      // Schedule speed based on path curvatures + other factors
-      // TODO refactor to accept the chain and use the curvature of the links
-      mpcConfig->VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
-
-      lgmath::se3::Transformation T0 = T_p_r_extp;
-      mpcConfig->T0 = tf_to_global(T0);
-
-      std::vector<double> p_rollout;
-      for(int j = 1; j < mpcConfig->N+1; j++){
-        p_rollout.push_back(state_p + j*mpcConfig->VF*mpcConfig->DT);
-      }
-
-      referenceInfo = std::make_shared<PoseResultHomotopy>(generateHomotopyReference(p_rollout, chain));
-      mpcConfig->reference_poses.clear();
-      for(const auto& Tf : referenceInfo->poses) {
-        mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-        CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
-      }
-      
-      mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
-    
-      baseMpcConfig = mpcConfig;
     }
-   
 
     // Create and solve the casadi optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;

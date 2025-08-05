@@ -36,11 +36,11 @@
 namespace vtr {
 namespace path_planning {
 
-class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
+class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
  public:
-  PTR_TYPEDEFS(BicycleMPCPathTrackerFollower);
+  PTR_TYPEDEFS(BicycleMPCJointPathTracker);
 
-  static constexpr auto static_name = "bicycle_mpc_follower";
+  static constexpr auto static_name = "bicycle_mpc_joint";
 
   using PathMsg = nav_msgs::msg::Path;
   using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
@@ -62,11 +62,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     double f_q_dist = 1.0;
     double r_q_dist = 1.0;
 
-    //Distance PID Gains
-    double kp = 1.0;
-    double kd = 0.0;
-    double ki = 0.0;
-
     // Misc
     int command_history_length = 100;
 
@@ -78,17 +73,17 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
                        const std::string& prefix = "path_planning");
   };
 
-  BicycleMPCPathTrackerFollower(const Config::ConstPtr& config,
+  BicycleMPCJointPathTracker(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
                  const tactic::GraphBase::Ptr& graph,
                  const Callback::Ptr& callback);
-  ~BicycleMPCPathTrackerFollower() override;
+  ~BicycleMPCJointPathTracker() override;
 
  protected:
   void initializeRoute(RobotState& robot_state);
 
   void loadMPCConfig(
-      CasadiBicycleMPCFollower::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+      CasadiBicycleMPCJoint::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
 
   CasadiMPC::Config::Ptr getMPCConfig(
       const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
@@ -104,21 +99,13 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
 
  private: 
-  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTrackerFollower);
+  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCJointPathTracker);
 
   Config::ConstPtr config_;
-  CasadiBicycleMPCFollower solver_;
+  CasadiBicycleMPCJoint solver_;
   tactic::GraphBase::Ptr graph_;
 
   RobotState::Ptr robot_state_;
-
-  PathMsg::SharedPtr recentLeaderPath_;
-  rclcpp::Subscription<PathMsg>::SharedPtr leaderRolloutSub_;
-  void onLeaderPath(const PathMsg::SharedPtr path);
-  Eigen::Vector2d leader_vel_;
-  std::vector<Transformation> leaderRollout_;
-  PathInterpolator::ConstPtr leaderPathInterp_; 
-  PoseStampedMsg lastRobotPose_;
 
   rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
   void onLeaderRoute(const RouteMsg::SharedPtr route);
@@ -128,11 +115,8 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
 
-  FloatMsg::SharedPtr recentLeaderDist_;
-  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
-  void onLeaderDist(const FloatMsg::SharedPtr distance);
-  float lastError_ = 0;
-  float errorIntegrator = 0;
+
+  rclcpp::Publisher<Command>::SharedPtr leaderCommandPub_;
 
   VisualizationUtils::Ptr vis_;  
 

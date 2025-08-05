@@ -8,12 +8,6 @@ from casadi import sin, cos, pi, tan
 # Following a lead vehicle.
 # Includes fixed first order lag
 
-# distance from centre of gravity to front and rear wheels, respectively
-# Based on the Hunter SE docs, for this formulation the actual centre of gravity
-# is irrelevant since we track n the rear wheel
-# TODO: Look into if its possible to make this configurable
-
-
 step_horizon = 0.25  # time between steps in seconds
 N = 15          # number of look ahead steps
 

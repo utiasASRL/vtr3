@@ -5,7 +5,7 @@
       follow_distance: 1.5
       distance_margin: 10.0
       leader_namespace: /miss_scarlet
-      waypoint_selection: euclidean
+      waypoint_selection: external_dist
       mpc:
         # forward:
         #   q_dist: 50.0
@@ -16,6 +16,10 @@
         #   q_lon: 0.0
         #   q_lat: 10.0
         wheelbase: 0.65
+      longitudinal_control:
+        kp: 2.0
+        ki: 0.5
+        kd: 0.0
     log_enabled:
       #- navigation
       #- navigation.graph_map_server
@@ -37,7 +41,8 @@
       - mpc.debug
       - mpc.solver
       - mpc.follower
-      - mpc.follower.target
+      #- mpc.follower.target
+      - mpc.follower.pid
         # path planner
       #- cbit_planner.path_planning
         # pose graph
