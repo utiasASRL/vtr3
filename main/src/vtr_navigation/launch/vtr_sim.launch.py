@@ -56,9 +56,9 @@ def generate_launch_description():
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
                 PathJoinSubstitution((temp_dir, "setup_params.yaml")),
                 {                    
-                    "robot_frame": f"{robot_name}/base_link",
-                    "lidar_frame": f"{robot_name}/os_lidar",
-                    "lidar_topic": f"/{robot_name}/ouster/points",
+                    #"robot_frame": f"{robot_name}/base_link",
+                    #"lidar_frame": f"{robot_name}/os_lidar",
+                    #"lidar_topic": f"/{robot_name}/ouster/points",
                     "model_dir": LaunchConfiguration("model_dir"),
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
