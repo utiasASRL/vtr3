@@ -8,12 +8,6 @@ from casadi import sin, cos, pi, tan
 # Following a lead vehicle.
 # Includes fixed first order lag
 
-# distance from centre of gravity to front and rear wheels, respectively
-# Based on the Hunter SE docs, for this formulation the actual centre of gravity
-# is irrelevant since we track n the rear wheel
-# TODO: Look into if its possible to make this configurable
-
-
 step_horizon = 0.25  # time between steps in seconds
 N = 15          # number of look ahead steps
 
@@ -163,7 +157,6 @@ g = ca.vertcat(g, U[0, 0])
 g = ca.vertcat(g, U[1, 0])
 for k in range(1, N-1):
     cost_fn += (U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1])
-    #cost_fn += 0.1/(U[0, k]**2 + 1e-3)
     # Add acceleration constraints
     g = ca.vertcat(g, U[0, k] - U[0, k-1])
     # Angular acceleration constraints

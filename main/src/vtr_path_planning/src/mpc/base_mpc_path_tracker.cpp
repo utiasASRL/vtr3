@@ -270,15 +270,23 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     auto dist = (curr_pose - last_pose).norm();
     if (end_ind < 0 && dist < base_config_->end_of_path_distance_threshold) {
       end_ind = i-1;
-      weighting = (float) end_ind / mpcConfig->N;
+      weighting = (float)  1.0 / (mpcConfig->N - end_ind);
       CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
     }
-      
-    vis_->publishReferencePoses(referenceInfo.poses);
+    else if (end_ind >= 0 && dist > base_config_->end_of_path_distance_threshold) {
+      weighting = 1.0;
+      for (int j = 0; j < i; j++) {
+        mpcConfig->cost_weights[j] = weighting;
+      }
+      end_ind = -1;
+      CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
+    }
+
     mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
   }
 
+  vis_->publishReferencePoses(referenceInfo.poses);
   mpcConfig->eop_index = end_ind;
 
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
