@@ -19,7 +19,8 @@
 #pragma once
 
 #include <casadi/casadi.hpp>
-#include <vtr_path_planning/mpc/mpc_common.hpp>
+#include <vtr_logging/logging.hpp>
+#include <vtr_common/utils/macros.hpp>
 
 namespace vtr::path_planning {
 using DM = casadi::DM;

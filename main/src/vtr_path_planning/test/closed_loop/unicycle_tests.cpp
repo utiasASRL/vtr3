@@ -5,6 +5,7 @@
 
 #include "lgmath.hpp"
 #include "vtr_path_planning/mpc/casadi_path_planners.hpp"
+#include "vtr_path_planning/mpc/mpc_common.hpp"
 #include "vtr_tactic/cache.hpp"
 
 using namespace ::testing;

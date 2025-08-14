@@ -168,14 +168,6 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   return output;
 }
 
-
-std::vector<double> tf_to_global(const lgmath::se3::Transformation& T) {
-  auto aang = lgmath::so3::rot2vec(T.C_ba());
-  return {T.r_ab_inb()[0], T.r_ab_inb()[1], aang[2]};
-}
-
-
-
 CasadiBicycleMPC::CasadiBicycleMPC( bool verbose, casadi::Dict ipopt_opts){
   casadi::Dict opts;
   if (!verbose) { 
