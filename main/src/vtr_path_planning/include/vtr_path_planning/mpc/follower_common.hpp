@@ -46,5 +46,6 @@ private:
 };
 
 PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& leader_world_poses, const double final_leader_p_value, const tactic::LocalizationChain::Ptr chain, double robot_p, double distance_target);
+PoseResultHomotopy generateFollowerReferencePosesArclength(const TransformList& leader_world_poses, const double final_leader_p_value, const tactic::LocalizationChain::Ptr chain, double robot_p, double distance_target);
 
 } // namespace vtr::path_planning

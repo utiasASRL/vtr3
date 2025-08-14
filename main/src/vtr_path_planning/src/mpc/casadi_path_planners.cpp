@@ -199,7 +199,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   }
 
   // Set velocity constraint to zero once we've reached the end of the path
-  if (mpcConf.eop_index >= 0){
+  if (mpcConf.eop_index >= 0 && !mpcConf.recovery){
     arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
     arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   }
