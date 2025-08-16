@@ -450,8 +450,8 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCJoint::solve(const CasadiMPC::
   arg["lbg"].set(mpcConf.previous_vel_follower(Slice(1)) - mpcConf.ang_acc_max*mpcConf.DT, true, Slice(2*mpcConf.nStates*(mpcConf.N+1) + 3, 2*mpcConf.nStates*(mpcConf.N+1) + 4));
   arg["ubg"].set(mpcConf.previous_vel(Slice(0)) + mpcConf.lin_acc_max*mpcConf.DT, true, Slice(2*mpcConf.nStates*(mpcConf.N+1), 2*mpcConf.nStates*(mpcConf.N+1) + 1));
   arg["ubg"].set(mpcConf.previous_vel(Slice(1)) + mpcConf.ang_acc_max*mpcConf.DT, true, Slice(2*mpcConf.nStates*(mpcConf.N+1) + 1, 2*mpcConf.nStates*(mpcConf.N+1) + 2));
-  arg["ubg"].set(mpcConf.previous_vel_follower(Slice(0)) + mpcConf.lin_acc_max*mpcConf.DT, true, Slice(2*mpcConf.nStates*(mpcConf.N+1), 2*mpcConf.nStates*(mpcConf.N+1) + 1));
-  arg["ubg"].set(mpcConf.previous_vel_follower(Slice(1)) + mpcConf.ang_acc_max*mpcConf.DT, true, Slice(2*mpcConf.nStates*(mpcConf.N+1) + 1, 2*mpcConf.nStates*(mpcConf.N+1) + 2));
+  arg["ubg"].set(mpcConf.previous_vel_follower(Slice(0)) + mpcConf.lin_acc_max*mpcConf.DT, true, Slice(2*mpcConf.nStates*(mpcConf.N+1) + 2, 2*mpcConf.nStates*(mpcConf.N+1) + 3));
+  arg["ubg"].set(mpcConf.previous_vel_follower(Slice(1)) + mpcConf.ang_acc_max*mpcConf.DT, true, Slice(2*mpcConf.nStates*(mpcConf.N+1) + 3, 2*mpcConf.nStates*(mpcConf.N+1) + 4));
 
   arg["lbg"].set(DM(mpcConf.distance - mpcConf.distance_margin), true, Slice(2*mpcConf.nStates*(mpcConf.N+1) + 2*(mpcConf.N-1)*mpcConf.nControl, 2*mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 2*(mpcConf.N-1)*mpcConf.nControl));
   arg["ubg"].set(DM(mpcConf.distance + mpcConf.distance_margin), true, Slice(2*mpcConf.nStates*(mpcConf.N+1) + 2*(mpcConf.N-1)*mpcConf.nControl, 2*mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 2*(mpcConf.N-1)*mpcConf.nControl));
