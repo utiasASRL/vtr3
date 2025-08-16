@@ -433,8 +433,8 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCJoint::solve(const CasadiMPC::
   //   arg["ubg"].set(DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
   //   arg["lbg"].set(-DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
   // }
-  arg["x0"] = reshape(repmat(mpcConf.T0, 1, mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1), 1);
-  arg["x0"] = vertcat(arg["x0"], DM::zeros(mpcConf.nControl* mpcConf.N, 1));
+  arg["x0"] = reshape(repmat(mpcConf.T0, 1, 2*(mpcConf.N+1)), 2*mpcConf.nStates*(mpcConf.N+1), 1);
+  arg["x0"] = vertcat(arg["x0"], DM::zeros(2 * mpcConf.nControl* mpcConf.N, 1));
 
   // Acceleration constraints
   // Assume equal forward and backward acceleration
