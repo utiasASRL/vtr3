@@ -67,6 +67,7 @@ BicycleMPCJointPathTracker::BicycleMPCJointPathTracker(const Config::ConstPtr& c
     : BicycleMPCPathTracker(config, robot_state, graph, callback), config_(config), solver_{config_->mpc_verbosity}, graph_{graph}, robot_state_{robot_state} {
 
   vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
+  lastFollowerCommand_ << 0, 0;
 
   CLOG(DEBUG, "mpc.follower") << "Choosing " << config_->waypoint_selection << " option for waypoint selection!";
 
@@ -141,6 +142,9 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
     T_w_f_extp = T_w_f_extp * tactic::EdgeTransform(xi_p_r_in_r);
   }
 
+  joint_mpc_config->T0_follower = tf_to_global(T_w_f_extp);
+  joint_mpc_config->previous_vel_follower = {follower_vel_(0), lastFollowerCommand_(1)};
+
   const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_f_extp;
   CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  T_f_l;
   const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
@@ -194,6 +198,7 @@ std::map<std::string, casadi::DM> BicycleMPCJointPathTracker::callSolver(CasadiM
   Command followerCommand;
   followerCommand.linear.x = mpc_vel_vec[0];
   followerCommand.angular.z = mpc_vel_vec[1];
+  lastFollowerCommand_ << mpc_vel_vec[0], mpc_vel_vec[1];
 
   // // Get all the mpc velocities
   // for (int i = 0; i < result["vel"].columns(); i++) {

@@ -125,6 +125,7 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
 
 
   rclcpp::Publisher<Command>::SharedPtr followerCommandPub_;
+  Eigen::Vector2d lastFollowerCommand_;
 
   VisualizationUtils::Ptr vis_;  
 
