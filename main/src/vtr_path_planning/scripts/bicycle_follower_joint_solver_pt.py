@@ -131,8 +131,7 @@ motion_model_f = ca.Function('motion_model_follower', [follower_states, follower
 theta_to_so2 = ca.Function('theta2rotm', [theta_l], [rot_2d_z])
 
 cost_fn = 0  # cost function
-g = X[:n_states, 0] - init_pose_leader  # constraints in the equation
-g = X[n_states:, 0] - init_pose_follower  # constraints in the equation
+g = X[:, 0] - ca.vertcat(init_pose_leader, init_pose_follower)  # constraints in the equation
 
 
 def so2_error(ref, current):
@@ -146,7 +145,6 @@ def calc_cost(ref, X, con, k, cost):
     e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
     e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
     cost += Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
-    cost += Q_dist * (ca.norm_2((X[:2, k+1] - leader_ref_poses[n_states*k:n_states*k + 2])) - d)**2
     return cost
 
 def calc_state_cost(state, ref_pose):
@@ -241,6 +239,8 @@ for k in range(1, N-1):
 for k in range(0, N):
     leader_st_next = X[:n_states, k+1]
     follower_st_next = X[n_states:, k+1]
+    cost_fn += Q_dist * ca.norm_2((leader_st_next[:2] - follower_st_next[:2]))**2
+
     g = ca.vertcat(g, ca.norm_2((leader_st_next[:2] - follower_st_next[:2])))
 
 # Terminal cost
