@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file unicycle_mpc_path_tracker.hpp
+ * \file bicycle_mpc_path_tracker_joint.hpp
  * \author Alec Krawciw, Luka Antonyshyn Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -32,6 +32,7 @@
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
 #include <vtr_navigation_msgs/srv/graph_state.hpp>
 #include "std_msgs/msg/float32.hpp"
+#include <nav_msgs/msg/odometry.hpp>
 
 namespace vtr {
 namespace path_planning {
@@ -48,14 +49,14 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using Transformation = lgmath::se3::Transformation;
   using FloatMsg = std_msgs::msg::Float32;
+  using OdomMsg = nav_msgs::msg::Odometry;
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
-    std::string leader_namespace = "leader";
+    std::string follower_namespace = "follower";
     
-    // Options: leader_vel euclidean external_dist
-    std::string waypoint_selection = "leader_vel";
+    std::string waypoint_selection = "euclidean";
 
     double following_offset = 0.5; //m
     double distance_margin = 1.0;
@@ -107,16 +108,23 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
 
   RobotState::Ptr robot_state_;
 
-  rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
-  void onLeaderRoute(const RouteMsg::SharedPtr route);
-  tactic::EdgeTransform T_fw_lw_;
-  tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
+  rclcpp::Subscription<RouteMsg>::SharedPtr followerRouteSub_;
+  void onFollowerRoute(const RouteMsg::SharedPtr route);
+  tactic::EdgeTransform T_lw_fw_;
+  tactic::VertexId follower_root_ = tactic::VertexId::Invalid();
+
+  rclcpp::Subscription<OdomMsg>::SharedPtr followerOdomSub_;
+  void onFollowerOdom(const OdomMsg::SharedPtr follower_pose);
+  tactic::EdgeTransform T_fw_f_;
+  Eigen::Vector2d follower_vel_;
+  tactic::Timestamp follower_stamp_;
+
 
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
 
 
-  rclcpp::Publisher<Command>::SharedPtr leaderCommandPub_;
+  rclcpp::Publisher<Command>::SharedPtr followerCommandPub_;
 
   VisualizationUtils::Ptr vis_;  
 

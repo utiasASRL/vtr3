@@ -212,13 +212,13 @@ public:
   struct Config : public CasadiBicycleMPC::Config {
     PTR_TYPEDEFS(Config);
     
-    std::vector<DM> leader_reference_poses;
+    std::vector<DM> follower_reference_poses;
     double distance = 0.5;
     double distance_margin = 1.0;
     double Q_dist = 1.0;
 
-    DM T0_leader;
-    DM previous_vel_leader;
+    DM T0_follower;
+    DM previous_vel_follower;
 
     Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
         : CasadiBicycleMPC::Config(nStates, nControl, N, DT) {

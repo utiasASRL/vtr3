@@ -1,0 +1,45 @@
+/**:
+  ros__parameters:
+    path_planning:
+      type: bicycle_mpc_joint
+      follow_distance: 1.5
+      distance_margin: 10.0
+      follower_namespace: /mr_green
+      waypoint_selection: euclidean
+    log_enabled:
+      #- navigation
+      #- navigation.graph_map_server
+      #- navigation.command
+        # tactic
+      #- tactic
+      #- tactic.pipeline
+      - tactic.module
+      #- tactic.module.live_mem_manager
+      #- tactic.module.graph_mem_manager
+      #- mission.state_machine
+      #- mission.server
+        # planner manager
+      - cbit.control
+      #- cbit.debug
+      #- cbit.path_planning
+        # mpc
+      - mpc.speed_scheduler
+      - mpc.debug
+      - mpc.solver
+      - mpc.follower
+      #- mpc.follower.target
+        # path planner
+      #- cbit_planner.path_planning
+        # pose graph
+      #- pose_graph
+        # lidar pipeline
+      #- lidar.pipeline
+      #- lidar.preprocessing
+      - lidar.odometry_icp
+      #- lidar.odometry_map_maintenance
+      #- lidar.vertex_test
+      #- lidar.localization_map_recall
+      - lidar.localization_icp
+      #- lidar.intra_exp_merging
+      #- lidar.inter_exp_merging
+    
