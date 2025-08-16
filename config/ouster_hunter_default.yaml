@@ -265,7 +265,7 @@
         lin_alpha: 0.0
         max_lin_acc: 0.5
         vehicle_model: "bicycle"
-        wheelbase: 0.55
+        wheelbase: 0.65
         recovery_steps: 15
         failure_threshold: 5
 

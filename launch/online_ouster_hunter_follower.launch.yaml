@@ -40,5 +40,5 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 bag record /mr_green/cmd_vel /miss_scarlet/cmd_vel /mr_green/vtr/mpc_prediction /miss_scarlet/vtr/mpc_prediction /mr_green/vtr/odometry /miss_scarlet/vtr/odometry /mr_green/vtr/leader_mpc_prediction /miss_scarlet/vtr/leader_mpc_prediction /mr_green/vtr/mpc_ref_pose_array /miss_scarlet/vtr/mpc_ref_pose_array
+      - ros2 bag record /prof_plum/cmd_vel /mr_green/cmd_vel /miss_scarlet/cmd_vel /mr_green/vtr/mpc_prediction /miss_scarlet/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction /mr_green/vtr/odometry /miss_scarlet/vtr/odometry /prof_plum/vtr/odometry /mr_green/vtr/leader_mpc_prediction /miss_scarlet/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction /mr_green/vtr/mpc_ref_pose_array /miss_scarlet/vtr/mpc_ref_pose_array /prof_plum/vtr/mpc_ref_pose_array
 

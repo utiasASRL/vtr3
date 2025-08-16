@@ -4,17 +4,17 @@
       type: bicycle_mpc_follower
       follow_distance: 1.5
       distance_margin: 10.0
-      leader_namespace: /miss_scarlet
-      waypoint_selection: external_dist
+      leader_namespace: /prof_plum
+      waypoint_selection: euclidean
       mpc:
-        # forward:
-        #   q_dist: 50.0
-        #   q_lon: 0.0
-        #   q_lat: 10.0
-        # reverse:
-        #   q_dist: 50.0
-        #   q_lon: 0.0
-        #   q_lat: 10.0
+        #forward:
+          #q_dist: 50.0
+          #q_lon: 0.0
+          #q_lat: 10.0
+        #reverse:
+        #  q_dist: 50.0
+        #  q_lon: 0.0
+        #  q_lat: 10.0
         wheelbase: 0.65
       longitudinal_control:
         kp: 2.0
