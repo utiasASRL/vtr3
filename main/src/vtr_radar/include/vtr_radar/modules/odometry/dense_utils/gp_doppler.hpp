@@ -12,6 +12,10 @@
 #include "motion_models.hpp" // might need the full path
 #include "utils.hpp"
 
+
+namespace vtr {
+namespace radar {
+
 using OptionalTensor = std::optional<torch::Tensor>;
 
 double inline maxAngVel(const torch::Tensor& vel) {
@@ -151,3 +155,6 @@ private:
     double ang_vel_bias_;
     torch::Tensor odd_img_, even_img_;
 };
+
+}  // namespace radar
+}  // namespace vtr

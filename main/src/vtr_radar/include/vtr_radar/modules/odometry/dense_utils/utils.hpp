@@ -6,12 +6,14 @@
 #include <Eigen/Dense>
 #include <filesystem>
 #include <string>
-namespace fs = std::filesystem;
 
+namespace vtr {
+namespace radar {
+    namespace fs = std::filesystem;
 
-// Represents a single radar frame, with paths to its data
-struct RadarFrame {
-    std::string sensor_root;  // e.g., "/path/to/session"
+    // Represents a single radar frame, with paths to its data
+    struct RadarFrame {
+        std::string sensor_root;  // e.g., "/path/to/session"
     std::string frame;        // e.g., "000000.png"
 };
 
@@ -36,6 +38,9 @@ namespace utils {
 
     RadarData loadRadarData(
         const fs::path &filename,
-        int encoder_size = 5600,
+        int encoder_size = 16000,
         int min_id = 0);
 }
+
+}  // namespace radar
+}  // namespace vtr

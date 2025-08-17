@@ -8,9 +8,10 @@
       - radar.pipeline
       # - navigation.sensor_input
       - radar.online_converter
-      - radar.pc_extractor
-      - radar.odometry_icp
-      - radar.localization_icp
+      - radar.odometry_dense
+      # - radar.pc_extractor
+      # - radar.odometry_icp
+      # - radar.localization_icp
       # - tactic
       # - tactic.pipeline
       # - tactic.module
@@ -101,7 +102,6 @@
           optimisation_first_step: 0.1
           vy_bias_prior: 0.0
           estimate_doppler_vy_bias: false
-          start_idx: 1
           use_gyro: true
           T_axle_radar: [[1.000, 0.000, 0.000, 0.025],
                 [0.000, -1.000 , 0.000, -0.002],
@@ -112,6 +112,16 @@
           lengthscale_az: 2.0
           lengthscale_range: 4.0
           sz: 0.6
+        radar:
+          radar_resolution: 0.040308
+          encoder_bin_size: 16000 # encoder bin size
+          ft: 76.04E9
+          meas_freq: 1600.0
+          del_f: 893.0E6
+          beta_corr_fact: 0.944
+          doppler_enabled: false
+          chirp_up: true # Ignored if doppler_enabled is true (the true/false might be inverted)
+          range_offset: 0.00
         imu:
           min_time_bias_init: 2.0
           type: 'ouster'

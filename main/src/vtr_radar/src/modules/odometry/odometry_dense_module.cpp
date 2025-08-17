@@ -1,4 +1,4 @@
-// This module essentially just do radar_gp_state_estimation.cpp but populate the qdata in the end 
+// This module essentially just do radar_gp_state_estimation.cpp but populate the qdata in the end for the correct values
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -19,19 +19,22 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
     auto config = std::make_shared<Config>();
     // clang-format off
-    // motion compensation
-    config->use_vel_meas = node->declare_parameter<bool>(param_prefix + ".use_vel_meas", config->use_vel_meas);
-
-
-
+    CLOG(INFO, "radar.odometry_dense") << "Loading dense odometry parameters";
+    // I want to know what param_prefix is
+    CLOG(INFO, "radar.odometry_dense") << "Param prefix is: " << param_prefix;
+    config->doppler_cost = node->declare_parameter<bool>(param_prefix + ".estimation" + ".doppler_cost", config->doppler_cost);
+    // lets log this
+    CLOG(INFO, "radar.odometry_dense") << "The config param: doppler_cost is: " << config->doppler_cost;
     
+
+
     return config;
 
 
 
     }
 
-   void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &,
+void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
