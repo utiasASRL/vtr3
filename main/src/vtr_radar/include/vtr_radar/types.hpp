@@ -36,6 +36,9 @@ struct RadarData {
  /// The radar azimuth timestamps (ns epoch time)
   std::vector<int64_t> azimuth_times;
 
+  // need to include uint64 named timestamp just one timestamp of the scan
+  uint64_t timestamp;
+
   /// The radar azimuth angles
   std::vector<double> azimuth_angles;
 

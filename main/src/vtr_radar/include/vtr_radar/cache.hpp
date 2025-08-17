@@ -90,6 +90,10 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<Eigen::Vector2d> vel_meas;
   tactic::Cache<double> yaw_meas;
   tactic::Cache<DopplerScan> doppler_scan;
+
+  // Need to include fields that stores the dro odometry stuff
+  // first the conversion will have the boreas format of the scan plus timestamps and such 
+
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {

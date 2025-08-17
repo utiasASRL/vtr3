@@ -369,6 +369,7 @@ void Navigator::radarCallback(
 
   // set the timestamp
   // Timestamp timestamp = msg_r->header.stamp.sec * 1e9 + msg_r->header.stamp.nanosec;
+  // TODO make the timestamp of the radar the end of the scan currently it is the middle of the scan
   query_data->stamp.emplace(timestamp_radar);
 
   // add the current environment info
