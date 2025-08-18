@@ -109,6 +109,17 @@ CasadiMPC::Config::Ptr BicycleMPCJointPathTracker::getMPCConfig(const bool isRev
 }
 
 bool BicycleMPCJointPathTracker::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& curr_time){
+  if (follower_stamp_ == 0) {
+    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Leader has received no odom info from the follower yet. Stopping";
+    return false;
+  }
+
+  const auto delta_t = curr_time - follower_stamp_;
+  if (delta_t > 1e9) {
+    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Leader has received no path from the follower in more than 1 second. Stopping\n Delay: "
+           << delta_t / 1e9;
+    return false;
+  }
   return true;
 }
 
@@ -136,7 +147,7 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
     Eigen::Vector<double, 6> w_p_r_in_r;
     w_p_r_in_r << -follower_vel_(0), 0, 0, 0, 0, -follower_vel_(1);
     CLOG(DEBUG, "mpc.follower")
-        << "Robot velocity Used for Follower Extrapolation: " << -w_p_r_in_r.transpose()
+        << "Robot velocity Used for Follower Extrapolation: " << -w_p_r_in_r;
         << " dt: " << dt << std::endl;
     Eigen::Vector<double, 6> xi_p_r_in_r(-dt * w_p_r_in_r);
     T_w_f_extp = T_w_f_extp * tactic::EdgeTransform(xi_p_r_in_r);
@@ -238,6 +249,7 @@ void BicycleMPCJointPathTracker::onFollowerOdom(const OdomMsg::SharedPtr leader_
   T_fw_f_ = tfFromPoseMessage(leader_pose->pose.pose);
   follower_vel_ << leader_pose->twist.twist.linear.x, leader_pose->twist.twist.angular.z;
   follower_stamp_ = rclcpp::Time(leader_pose->header.stamp).nanoseconds();
+  CLOG(DEBUG, "mpc.follower") << "Received odom from follower at time " << rclcpp::Time(leader_pose->header.stamp).seconds();
 }
 
 

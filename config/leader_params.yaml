@@ -27,7 +27,7 @@
       - mpc.debug
       - mpc.solver
       - mpc.follower
-      #- mpc.follower.target
+      - mpc.follower.target
         # path planner
       #- cbit_planner.path_planning
         # pose graph
