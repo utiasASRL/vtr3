@@ -1,9 +1,6 @@
-from time import time
 import casadi as ca
-import numpy as np
-import matplotlib.pyplot as plt
 
-from bicycle_follower_joint_solver_pt import solver, alpha, N, step_horizon, n_states, n_controls
+from bicycle_follower_joint_solver_pt import solver, N, step_horizon, n_states, n_controls
 
 
 # specs
