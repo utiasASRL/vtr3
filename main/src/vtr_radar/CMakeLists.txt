@@ -31,6 +31,15 @@ find_package(vtr_radar_msgs REQUIRED)
 
 find_package(navtech_msgs REQUIRED)
 
+
+# ## dense radar added dependency
+# ## need to add libtorch here
+find_package(Torch REQUIRED)
+
+## also specify cuda path????
+
+
+
 if(DEFINED VTR_ENABLE_RADAR)
 
 ## C++ Libraries

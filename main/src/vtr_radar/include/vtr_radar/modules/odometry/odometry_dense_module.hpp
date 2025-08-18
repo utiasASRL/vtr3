@@ -13,11 +13,10 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module.hpp
- * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \file odometry_dense_module.hpp
+ * \author 
  */
 #pragma once
-#include "sensor_msgs/msg/point_cloud2.hpp"
 #include "steam.hpp"
 #include "vtr_radar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
@@ -26,8 +25,8 @@
 namespace vtr {
 namespace radar {
 
-/** \brief ICP for odometry. */
-class OdometryICPModule : public tactic::BaseModule {
+/** \brief Dense Image for odometry. */
+class OdometryDenseModule : public tactic::BaseModule {
  public:
 
   /** \brief Static module identifier. */
@@ -40,7 +39,7 @@ class OdometryICPModule : public tactic::BaseModule {
     // estimation
     bool doppler_cost = false;
     bool direct_cost = true;
-    std::string motion_model = 'const_body_vel_gyro';
+    std::string motion_model = "const_body_vel_gyro";
     bool gyro_bias_estimation = true;
     bool estimate_gyro_bias = true;
     float max_acceleration = 12.0;
@@ -51,9 +50,9 @@ class OdometryICPModule : public tactic::BaseModule {
     float ang_vel_bias = 0.0;
 
     // gp 
-    float lengthscale_az = 2.0
+    float lengthscale_az = 2.0;
     float lenthscale_range = 4.0;
-    float sz = 0.6
+    float sz = 0.6;
 
     // radar
     float ft = 76.04E9;

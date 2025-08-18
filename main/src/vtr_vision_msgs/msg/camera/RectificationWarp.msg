@@ -1,7 +1,0 @@
-uint64[] left_rectification_matrix_rows
-uint64[] left_rectification_matrix_cols
-uint64[] right_rectification_matrix_rows
-uint64[] right_rectification_matrix_cols
-float32 optical_center_row
-float32 optical_center_col
-float32 focal_length

@@ -1,9 +1,0 @@
-vtr_vision_msgs/TimeStamp stamp
-int32 height
-int32 width
-string encoding
-int32 depth
-int32 step
-uint8[] data
-bool is_bigendian
-string name

@@ -28,7 +28,7 @@ find_package(vtr_torch REQUIRED)
 find_package(vtr_radar_lidar REQUIRED)
 find_package(vtr_lidar REQUIRED)
 find_package(vtr_radar REQUIRED)
-find_package(vtr_vision REQUIRED)
+# find_package(vtr_vision REQUIRED)
 
 
 ## C++ Libraries
@@ -76,7 +76,7 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
-  vtr_radar_lidar vtr_radar vtr_lidar vtr_vision
+  vtr_radar_lidar vtr_radar vtr_lidar 
 )
 
 target_link_libraries(${PROJECT_NAME}_navigator
@@ -100,14 +100,14 @@ if(DEFINED VTR_ENABLE_LIDAR)
     vtr_lidar
     PROJ
   )
-elseif(DEFINED VTR_ENABLE_VISION)
-  ament_export_dependencies(
-    rclcpp tf2 tf2_ros
-    vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
-    vtr_navigation_msgs
-    vtr_vision
-    PROJ
-  )
+# elseif(DEFINED VTR_ENABLE_VISION)
+#   ament_export_dependencies(
+#     rclcpp tf2 tf2_ros
+#     vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+#     vtr_navigation_msgs
+#     vtr_vision
+#     PROJ
+#   )
 endif()
 
 

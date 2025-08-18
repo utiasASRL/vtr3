@@ -68,7 +68,7 @@
       #   - vertex_test
       #   - memory
       # localization: 
-      #   - recall
+        # - recall
       #   - icp
       #   - memory
       submap_translation_threshold: 1.5
@@ -103,11 +103,7 @@
           vy_bias_prior: 0.0
           estimate_doppler_vy_bias: false
           use_gyro: true
-          T_axle_radar: [[1.000, 0.000, 0.000, 0.025],
-                [0.000, -1.000 , 0.000, -0.002],
-                [0.000 ,0.000, -1.000 , 1.032],
-                [0.000 , 0.000 ,0.000, 1.000]]
-          ang_vel_bias: 0.0
+
         gp:
           lengthscale_az: 2.0
           lengthscale_range: 4.0
@@ -138,60 +134,60 @@
 
         visualize: true
 
-      mapping:
-        type: radar.odometry_map_maintenance
+      # mapping:
+      #   type: radar.odometry_map_maintenance
 
-        map_voxel_size: 0.5
+      #   map_voxel_size: 0.5
 
-        crop_range_front: 80.0
-        back_over_front_ratio: 1.0
+      #   crop_range_front: 80.0
+      #   back_over_front_ratio: 1.0
 
-        point_life_time: 5.0
+      #   point_life_time: 5.0
 
-        visualize: true
+      #   visualize: true
 
-      vertex_test:
-        type: radar.vertex_test
+      # vertex_test:
+      #   type: radar.vertex_test
 
-        max_translation: 0.2
-        max_rotation: 10.0
+      #   max_translation: 0.2
+      #   max_rotation: 10.0
 
-      memory:
-        type: "live_mem_manager"
+      # memory:
+      #   type: "live_mem_manager"
 
-        window_size: 5 # unload data older than this many keyframes
+      #   window_size: 5 # unload data older than this many keyframes
 
-    localization:
-      recall:
-        type: radar.localization_map_recall
+    # localization:
+    #   recall:
+    #     type: radar.localization_map_recall
 
-        map_version: "pointmap"
+    #     map_version: "pointmap"
 
-        visualize: true
+    #     visualize: true
 
-      icp:
-        type: radar.localization_icp
+    #   icp:
+    #     type: radar.localization_icp
 
-        use_pose_prior: true
-        # ICP parameters #TO TUNE
-        num_threads: 10 # 8
-        first_num_steps: 4 # 2
-        initial_max_iter: 8 # 4
-        initial_max_pairing_dist: 1.5 # 5.0
-        initial_max_planar_dist: 1.0 # 5.0
-        refined_max_iter: 50 # 50
-        refined_max_pairing_dist: 1.0 # 5.0
-        refined_max_planar_dist: 0.3 # 5.0
-        averaging_num_steps: 5 # 5
-        huber_delta: 1.0 # 1.0
-        cauchy_k: 0.2
+    #     use_pose_prior: true
+    #     # ICP parameters #TO TUNE
+    #     num_threads: 10 # 8
+    #     first_num_steps: 4 # 2
+    #     initial_max_iter: 8 # 4
+    #     initial_max_pairing_dist: 1.5 # 5.0
+    #     initial_max_planar_dist: 1.0 # 5.0
+    #     refined_max_iter: 50 # 50
+    #     refined_max_pairing_dist: 1.0 # 5.0
+    #     refined_max_planar_dist: 0.3 # 5.0
+    #     averaging_num_steps: 5 # 5
+    #     huber_delta: 1.0 # 1.0
+    #     cauchy_k: 0.2
 
-        # steam parameters #TOTUNE
-        verbose: false
-        max_iterations: 3
+    #     # steam parameters #TOTUNE
+    #     verbose: false
+    #     max_iterations: 3
 
-        # threshold #TOTUNE
-        min_matched_ratio: 0.30
+    #     # threshold #TOTUNE
+    #     min_matched_ratio: 0.30
 
       memory:
         type: "graph_mem_manager"

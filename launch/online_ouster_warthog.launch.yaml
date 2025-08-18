@@ -1,9 +1,9 @@
 ## Online Lidar VTR3
 session_name: vtr_online_ouster_warthog
 
-environment:
-  ROS_DOMAIN_ID: "7"   # set this to a unique number when multiple ROS2 dependent system running on the same network
-  ROS_DISCOVERY_SERVER: "192.168.131.1:11811;localhost:11811"
+# environment:
+#   ROS_DOMAIN_ID: "7"   # set this to a unique number when multiple ROS2 dependent system running on the same network
+#   ROS_DISCOVERY_SERVER: "192.168.131.1:11811;localhost:11811"
 
 start_directory: ${VTRTEMP}
 suppress_history: false

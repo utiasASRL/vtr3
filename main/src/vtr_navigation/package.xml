@@ -26,7 +26,6 @@
   <depend>vtr_torch</depend>
 
   <depend>vtr_lidar</depend>
-  <depend>vtr_vision</depend>
   <depend>vtr_radar</depend>
   <depend>vtr_radar_lidar</depend>
 
