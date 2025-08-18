@@ -147,7 +147,7 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
     Eigen::Vector<double, 6> w_p_r_in_r;
     w_p_r_in_r << -follower_vel_(0), 0, 0, 0, 0, -follower_vel_(1);
     CLOG(DEBUG, "mpc.follower")
-        << "Robot velocity Used for Follower Extrapolation: " << -w_p_r_in_r;
+        << "Robot velocity Used for Follower Extrapolation: " << -w_p_r_in_r
         << " dt: " << dt << std::endl;
     Eigen::Vector<double, 6> xi_p_r_in_r(-dt * w_p_r_in_r);
     T_w_f_extp = T_w_f_extp * tactic::EdgeTransform(xi_p_r_in_r);
