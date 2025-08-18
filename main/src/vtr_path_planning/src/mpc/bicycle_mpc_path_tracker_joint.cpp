@@ -153,8 +153,11 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
     T_w_f_extp = T_w_f_extp * tactic::EdgeTransform(xi_p_r_in_r);
   }
 
-  joint_mpc_config->T0_follower = tf_to_global(T_w_f_extp);
+  joint_mpc_config->T0_follower = tf_to_global(T_w_p.inverse() * T_w_f_extp);
   joint_mpc_config->previous_vel_follower = {follower_vel_(0), lastFollowerCommand_(1)};
+
+  CLOG(DEBUG, "mpc.follower") << "Follower location: " << joint_mpc_config->T0_follower;
+
 
   const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_f_extp;
   CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  T_f_l;
