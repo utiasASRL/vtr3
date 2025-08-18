@@ -439,8 +439,8 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCJoint::solve(const CasadiMPC::
   // Acceleration constraints
   // Assume equal forward and backward acceleration
   arg["lbg"].set(DM(-mpcConf.lin_acc_max*mpcConf.DT), true, Slice(2*mpcConf.nStates*(mpcConf.N+1), 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*(mpcConf.N-1), 2));
-  arg["ubg"].set(DM(mpcConf.lin_acc_max*mpcConf.DT), true, Slice(2*mpcConf.nStates*(mpcConf.N+1)+1, 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*(mpcConf.N-1), 2));
-  arg["lbg"].set(DM(-mpcConf.ang_acc_max*mpcConf.DT), true, Slice(2*mpcConf.nStates*(mpcConf.N+1), 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*(mpcConf.N-1), 2));
+  arg["ubg"].set(DM(mpcConf.lin_acc_max*mpcConf.DT), true, Slice(2*mpcConf.nStates*(mpcConf.N+1), 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*(mpcConf.N-1), 2));
+  arg["lbg"].set(DM(-mpcConf.ang_acc_max*mpcConf.DT), true, Slice(2*mpcConf.nStates*(mpcConf.N+1)+1, 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*(mpcConf.N-1), 2));
   arg["ubg"].set(DM(mpcConf.ang_acc_max*mpcConf.DT), true, Slice(2*mpcConf.nStates*(mpcConf.N+1)+1, 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*(mpcConf.N-1), 2));
 
   // Set the first constraint based on the previous velocity and acceleration constraints
