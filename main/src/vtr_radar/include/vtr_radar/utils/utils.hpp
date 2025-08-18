@@ -22,6 +22,12 @@
 
 #include "vtr_radar/data_types/point.hpp"
 
+// sam added new helper function for dense
+#include <string>
+#include <opencv2/opencv.hpp>
+#include <torch/torch.h>
+#include <Eigen/Dense>
+
 namespace vtr {
 namespace radar {
 
@@ -41,7 +47,14 @@ void radar_polar_to_cartesian(const cv::Mat &fft_data,
                               const int cart_pixel_width,
                               const bool interpolate_crossover,
                               const int output_type = CV_8UC1);
+
 // clang-format on
+// sam add new helper functions for dense radar (maybe later)
+// torch::Tensor dopplerUpDown(const RadarFrame& rf);
+// bool checkChirp(const RadarFrame& rf);
+torch::Tensor applyGaussianBlur2D(const torch::Tensor& input, int kx, int ky, double sx, double sy);
+
+// sam end
 
 }  // namespace radar
 }  // namespace vtr

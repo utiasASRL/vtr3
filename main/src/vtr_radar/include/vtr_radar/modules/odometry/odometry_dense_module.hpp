@@ -21,6 +21,8 @@
 #include "vtr_radar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
+// #include "vtr_radar/modules/odometry/dense_utils/motion_models.hpp"
+// #include "vtr_radar/modules/odometry/dense_utils/gp_doppler.hpp"
 
 namespace vtr {
 namespace radar {
@@ -42,7 +44,7 @@ class OdometryDenseModule : public tactic::BaseModule {
     std::string motion_model = "const_body_vel_gyro";
     bool gyro_bias_estimation = true;
     bool estimate_gyro_bias = true;
-    float max_acceleration = 12.0;
+    float max_acceleration = 2.0;
     float optimization_first_step = 0.1;
     float vy_bias_prior = 0.0;
     bool estimate_doppler_vy_bias = false;
@@ -51,7 +53,7 @@ class OdometryDenseModule : public tactic::BaseModule {
 
     // gp 
     float lengthscale_az = 2.0;
-    float lenthscale_range = 4.0;
+    float lengthscale_range = 4.0;
     float sz = 0.6;
 
     // radar
@@ -62,6 +64,7 @@ class OdometryDenseModule : public tactic::BaseModule {
     bool doppler_enabled = false;
     bool chirp_up = true;  // Ignored if doppler_enabled is true (the true/false might be inverted)
     float range_offset = 0.00;
+    float radar_resolution = 0.040308;  // meters per pixel
 
     // direct
     float min_range = 4.0;

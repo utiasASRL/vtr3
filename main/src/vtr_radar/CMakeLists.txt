@@ -32,12 +32,13 @@ find_package(vtr_radar_msgs REQUIRED)
 find_package(navtech_msgs REQUIRED)
 
 
-# ## dense radar added dependency
+# ## sam added dense radar added dependency
 # ## need to add libtorch here
 find_package(Torch REQUIRED)
+# Optional: if you need Torch's suggested flags
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-## also specify cuda path????
-
+# sam end
 
 
 if(DEFINED VTR_ENABLE_RADAR)
@@ -54,12 +55,17 @@ file(GLOB_RECURSE COMPONENTS_SRC
   src/utils/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
+# sam added here for torch
+target_link_libraries(${PROJECT_NAME}_components
+  ${TORCH_LIBRARIES}
+)
+# sam end
 ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
   nav_msgs
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_radar_msgs
+  vtr_common vtr_logging vtr_tactic vtr_radar_msgs 
 )
 
 # pipelines and modules
@@ -68,7 +74,13 @@ file(GLOB_RECURSE PIPELINE_SRC
   src/pipeline.cpp
 )
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
-target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
+# sam changed here
+target_link_libraries(${PROJECT_NAME}_pipeline
+  ${PROJECT_NAME}_components
+  ${TORCH_LIBRARIES} 
+)
+# sam end changes
+
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
@@ -85,6 +97,9 @@ ament_export_dependencies(
   lgmath steam
   vtr_common vtr_logging vtr_tactic vtr_radar_msgs navtech_msgs
 )
+# sam added torch
+ament_export_dependencies(Torch)
+# sam end
 
 install(
   DIRECTORY include/
