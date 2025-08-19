@@ -257,6 +257,31 @@ void LocalizationGEOModule::run_(QueryCache &qdata0, OutputCache &output,
 
       // store cost term data (thread-local)
       costs_private[tid].emplace_back(error_func, noise_model, nrm);
+
+      // create cost term and add to problem
+      // auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+
+      // // --- noise model for point to plane (scalar error)
+      // if (point_map[ind.second].normal_score <= 0.0) continue;
+      // Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+      
+      // // For point-to-plane, we have a scalar error, so 1x1 information matrix
+      // Eigen::Matrix<double, 1, 1> W_scalar;
+      // W_scalar(0, 0) = point_map[ind.second].normal_score;  // Use normal score as information weight
+      // auto noise_model = StaticNoiseModel<1>::MakeShared(W_scalar, NoiseType::INFORMATION);
+
+      // // query and reference point
+      // const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+      // const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+
+      // // point-to-plane error evaluator
+      // const auto error_func = p2p::p2planeError(T_m_s_eval, ref_pt, qry_pt, nrm);
+
+      // // create cost term and add to problem (note: p2plane returns 1x1, not 3x1)
+      // auto cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
+
+// #pragma omp critical(loc_icp_add_p2p_error_cost)
+      // problem.addCostTerm(cost);
     }
 
     // (1) Merge thread-local data, scatter matrix and private costs
