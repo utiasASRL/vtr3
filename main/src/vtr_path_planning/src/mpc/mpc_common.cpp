@@ -30,6 +30,11 @@ tactic::EdgeTransform tf_from_global(double x, double y,
     return tactic::EdgeTransform(rotm, -rotm.transpose() * final_pose);
 }
 
+std::vector<double> tf_to_global(const lgmath::se3::Transformation& T) {
+  auto aang = lgmath::so3::rot2vec(T.C_ba());
+  return {T.r_ab_inb()[0], T.r_ab_inb()[1], aang[2]};
+}
+
 CurvatureInfo CurvatureInfo::fromTransform(const lgmath::se3::Transformation& T) {
   // Note that this is only along a relative path with an origin at 0,0
   // Using the base tf is still required to move into the world frame

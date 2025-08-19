@@ -151,16 +151,6 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
                                ->now().nanoseconds();  // always in nanoseconds
                                
     auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
-    /*
-    if (fabs(dt) > 0.25) {
-      CLOG(WARNING, "cbit")
-          << "Pose extrapolation was requested but the time delta is " << dt
-          << "s.\n"
-          << "Ignoring extrapolation requestion. Check your time sync!";
-      dt = 0;
-    }
-    */
-
     CLOG(DEBUG, "cbit.debug")
         << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose()
         << " dt: " << dt << std::endl;

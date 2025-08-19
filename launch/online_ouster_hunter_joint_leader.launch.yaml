@@ -20,9 +20,9 @@ windows:
         base_params:=ouster_hunter_default.yaml
         start_new_graph:=false
         use_sim_time:=false
-        planner:="bicycle_mpc_follower"
+        planner:="bicycle_mpc_joint"
         model_dir:=${VTRROOT}/models
-        override_params:=follower_params.yaml
+        override_params:=leader_params.yaml
         
 
   - window_name: vtr_gui

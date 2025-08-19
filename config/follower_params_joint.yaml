@@ -1,0 +1,23 @@
+/**:
+  ros__parameters:
+    command_topic: disabled
+    path_planning:
+      type: stationary
+      
+    log_enabled:
+      - tactic.module
+      - lidar.odometry_icp
+      - lidar.localization_icp
+      - lidar.leader_locator
+    pipeline:
+      preprocessing:
+        - conversion
+        - filtering
+        - locate_leader
+    preprocessing:
+      locate_leader:
+        type: lidar.leader_locator
+        maximum_distance: 5.0
+        minimum_distance: 0.0
+        intensity_threshold: 10000.0
+    

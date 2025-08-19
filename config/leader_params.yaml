@@ -1,25 +1,11 @@
 /**:
   ros__parameters:
     path_planning:
-      type: bicycle_mpc_follower
+      type: bicycle_mpc_joint
       follow_distance: 1.5
       distance_margin: 10.0
-      leader_namespace: /prof_plum
+      follower_namespace: /mr_green
       waypoint_selection: euclidean
-      mpc:
-        #forward:
-          #q_dist: 50.0
-          #q_lon: 0.0
-          #q_lat: 10.0
-        #reverse:
-        #  q_dist: 50.0
-        #  q_lon: 0.0
-        #  q_lat: 10.0
-        wheelbase: 0.65
-      longitudinal_control:
-        kp: 2.0
-        ki: 0.5
-        kd: 0.0
     log_enabled:
       #- navigation
       #- navigation.graph_map_server
@@ -42,7 +28,6 @@
       - mpc.solver
       - mpc.follower
       #- mpc.follower.target
-      - mpc.follower.pid
         # path planner
       #- cbit_planner.path_planning
         # pose graph
@@ -57,16 +42,4 @@
       - lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
-      - lidar.leader_locator
-    pipeline:
-      preprocessing:
-        - conversion
-        - filtering
-        - locate_leader
-    preprocessing:
-      locate_leader:
-        type: lidar.leader_locator
-        maximum_distance: 5.0
-        minimum_distance: 0.0
-        intensity_threshold: 10000.0
     
