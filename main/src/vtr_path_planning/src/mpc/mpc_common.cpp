@@ -68,7 +68,7 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
     double best_distance = std::numeric_limits<double>::max();
     double max_distance = -1.;
     unsigned best_sid = sid_start;
-    const unsigned end_sid = std::min(sid_start + 20 + 1,
+    const unsigned end_sid = std::min(sid_start + 200 + 1,
                                     unsigned(chain->size()));
     bool direction_switch = false;
     // Explicit casting to avoid numerical underflow when near the beginning of
@@ -153,7 +153,7 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
     double best_distance = std::numeric_limits<double>::max();
     double max_distance = -1.;
     unsigned best_sid = sid_start;
-    const unsigned end_sid = std::min(sid_start + 20 + 1,
+    const unsigned end_sid = std::min(sid_start + 200 + 1,
                                     unsigned(chain->size()));
 
     // Explicit casting to avoid numerical underflow when near the beginning of
