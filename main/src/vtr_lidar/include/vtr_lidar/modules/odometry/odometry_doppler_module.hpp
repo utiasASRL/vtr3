@@ -64,7 +64,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
     double zero_vel_tol = 0.03;
 
     // gyro
-    Eigen::Matrix<double, 3, 3> gyro_invcov =
+    Eigen::Matrix<double, 3, 3> gyro_cov =
         Eigen::Matrix<double, 3, 3>::Identity();
 
     // inverse covariances
