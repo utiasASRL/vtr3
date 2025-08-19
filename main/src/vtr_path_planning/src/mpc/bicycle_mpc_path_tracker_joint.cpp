@@ -145,7 +145,7 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
   if (config_->extrapolate_robot_pose) {
     auto dt = static_cast<double>(curr_time - follower_stamp_) * 1e-9;
     Eigen::Vector<double, 6> w_p_r_in_r;
-    w_p_r_in_r << -follower_vel_(0), 0, 0, 0, 0, -follower_vel_(1);
+    w_p_r_in_r << follower_vel_(0), 0, 0, 0, 0, follower_vel_(1);
     CLOG(DEBUG, "mpc.follower")
         << "Robot velocity Used for Follower Extrapolation: " << -w_p_r_in_r
         << " dt: " << dt << std::endl;
