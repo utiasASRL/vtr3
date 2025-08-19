@@ -154,7 +154,7 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
   }
 
   joint_mpc_config->T0_follower = tf_to_global(T_w_p.inverse() * T_w_f_extp);
-  joint_mpc_config->previous_vel_follower = {follower_vel_(0), lastFollowerCommand_(1)};
+  joint_mpc_config->previous_vel_follower = {-follower_vel_(0), lastFollowerCommand_(1)};
 
   CLOG(DEBUG, "mpc.follower") << "Leader location: " << joint_mpc_config->T0;
   CLOG(DEBUG, "mpc.follower") << "Follower location: " << joint_mpc_config->T0_follower;
