@@ -28,9 +28,8 @@
 #include "vtr_radar/modules/odometry/odometry_doppler_module.hpp"
 // dense radar modules
 #include "vtr_radar/modules/odometry/odometry_dense_module.hpp"
-// #include "vtr_radar/modules/odometry/dense_utils/motion_models.hpp"
-// #include "vtr_radar/modules/odometry/dense_utils/gp_doppler.hpp"
-// #include "vtr_radar/modules/odometry/dense_utils/utils.hpp"
+
+// maybe a map matainence module
 //dense module end
 
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"

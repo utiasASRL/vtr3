@@ -8,7 +8,7 @@
 #include "yaml-cpp/yaml.h"
 #include "vtr_radar/modules/odometry/odometry_dense_module.hpp"
 // #include "vtr_radar/modules/odometry/dense_utils/motion_models.hpp"
-// #include "vtr_radar/modules/odometry/dense_utils/gp_doppler.hpp"
+#include "vtr_radar/modules/odometry/dense_utils/gp_doppler.hpp"
 
 
 namespace vtr {
@@ -102,13 +102,14 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: local_map_update_alpha is: " << config->local_map_update_alpha;
 
 
-
     return config;
 
     }
 
 void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
+
+  CLOG(DEBUG, "radar.odometry_dense") << "Running dense odometry module";
 
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
   if(!qdata.radar_data)
@@ -121,8 +122,8 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
   if (!qdata.sliding_map_odo) {
     // Initialize all variables
     CLOG(INFO, "radar.odometry_dense") << "First frame, simply return.";
+
     // clang-format off
-    // undistorted preprocessed point cloud
     //
     // qdata.timestamp_odo.emplace(*qdata.stamp);
     // qdata.T_r_m_odo.emplace(EdgeTransform(true));
@@ -136,6 +137,10 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     // qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     
     // Initialize timestamp equal to the end of the first frame
+
+    // intialize the gp_doppler GP stateEstimator object and pass in the config 
+    auto state_estimator = GPStateEstimator(config_);
+    CLOG(DEBUG, "radar.odometry_dense") << "Initialized GPStateEstimator";
    
     *qdata.odo_success = true;
     // clang-format on
@@ -149,9 +154,7 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     return;
   }
 
-
-
-
+  // here is the game plan: I will intialize the gpstateestimator with the config above and radar resolution
 
   // I need to convert the tensor to torch tensor qdata.radar_data
   // auto radar_tensor = torch::from_blob(qdata.radar_data->data(), {1, 1, 1, 1}, torch::kFloat32);

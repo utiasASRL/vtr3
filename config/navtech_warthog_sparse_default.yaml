@@ -65,13 +65,13 @@
         - filtering
       odometry:
         - icp
-        - mapping
-        - vertex_test
-        - memory
-      localization: 
-        - recall
-        - icp
-        - memory
+      #   - mapping
+      #   - vertex_test
+      #   - memory
+      # localization: 
+      #   - recall
+      #   - icp
+      #   - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
       save_raw_point_cloud: true

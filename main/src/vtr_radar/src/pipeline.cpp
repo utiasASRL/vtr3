@@ -58,8 +58,11 @@ RadarPipeline::RadarPipeline(
   for (auto module : config_->preprocessing)
     preprocessing_.push_back(factory()->get("preprocessing." + module));
   // odometry
-  for (auto module : config_->odometry)
+  for (auto module : config_->odometry) {
     odometry_.push_back(factory()->get("odometry." + module));
+    // I want to print out the odometry modules
+    CLOG(DEBUG, "radar.pipeline") << "Loaded odometry module: " << module;
+  }
   // localization
   for (auto module : config_->localization)
     localization_.push_back(factory()->get("localization." + module));
@@ -108,6 +111,8 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
                                  const Graph::Ptr &graph,
                                  const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
+
+  CLOG(DEBUG, "radar.pipeline") << "Running odometry module";
 
   /// set the current sliding map for odometry
   if (sliding_map_odo_ != nullptr) {
