@@ -27,6 +27,7 @@
 
 // opencv definitions
 #include <opencv2/core/core.hpp>
+#include <torch/torch.h>
 
 
 namespace vtr {
@@ -48,6 +49,13 @@ struct RadarData {
 
   // Chirp information
   std::vector<bool> up_chirps;
+};
+
+struct RadarDataTorch {
+  torch::Tensor timestamps;  // float64 tensor of shape (H)
+  torch::Tensor azimuths;    // float32 tensor of shape (H)
+  torch::Tensor polar;       // float32 tensor of shape (H, W')
+  double timestamp;          // one scan timestamp
 };
 
 }  // namespace radar

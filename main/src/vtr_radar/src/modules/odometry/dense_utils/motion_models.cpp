@@ -95,12 +95,12 @@ void ConstBodyVelGyro::setGyroData(const torch::Tensor& gyro_time, const torch::
     coeff_ = (gyro_yaw_.slice(0, 1) - gyro_yaw_.slice(0, 0, -1)) / dt;
     // I wanted to see if indexing using -1 is the same as using the last element
     auto coeff_last = coeff_.index({coeff_.size(0) - 1}).unsqueeze(0);
-    std::cout << "Sam: Comparing coeff_last with coeff_[-1]: " << coeff_last << " " << coeff_[-1].unsqueeze(0) << std::endl;
+    // std::cout << "Sam: Comparing coeff_last with coeff_[-1]: " << coeff_last << " " << coeff_[-1].unsqueeze(0) << std::endl;
     coeff_ = torch::cat({coeff_, coeff_[-1].unsqueeze(0)}, 0);
     // I want to print the same for offset_
     offset_ = gyro_yaw_.slice(0, 0, -1) - coeff_.slice(0, 0, -1) * gyro_time_.slice(0, 0, -1);
     auto offset_last = offset_.index({offset_.size(0) - 1}).unsqueeze(0);
-    std::cout << "Sam: Comparing offset_last with offset_[-1]: " << offset_last << " " << offset_[-1].unsqueeze(0) << std::endl;
+    // std::cout << "Sam: Comparing offset_last with offset_[-1]: " << offset_last << " " << offset_[-1].unsqueeze(0) << std::endl;
     offset_ = torch::cat({offset_, offset_[-1].unsqueeze(0)}, 0);
 
     initialised_ = true;

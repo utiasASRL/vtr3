@@ -19,6 +19,7 @@
  */
 
 #include "vtr_radar/utils/utils.hpp"
+#include "vtr_radar/types.hpp"
 
 namespace vtr {
 namespace radar {
@@ -244,6 +245,45 @@ torch::Tensor applyGaussianBlur2D(const torch::Tensor& input, int kx, int ky, do
     conv->to(input.device());
     return conv->forward(input);
 }
+
+RadarDataTorch toTorch(const RadarData& src, const torch::Device& device) {
+  RadarDataTorch dst;
+
+  // 1. Convert timestamps: vector<int64_t> (ns) -> microseconds -> tensor (float64)
+  std::vector<double> timestamps_us;
+  timestamps_us.reserve(src.azimuth_times.size());
+  for (auto ns : src.azimuth_times) {
+    timestamps_us.push_back(static_cast<double>(ns) / 1e3);  // ns -> us
+  }
+  dst.timestamps = torch::from_blob(
+      timestamps_us.data(),
+      {(long)timestamps_us.size()},
+      torch::TensorOptions().dtype(torch::kFloat64).device(torch::kCPU) // must start CPU
+  ).clone().to(device);  // clone to own memory, then move to device
+
+  // 2. Azimuths: vector<double> -> tensor (float32)
+  dst.azimuths = torch::from_blob(
+      (void*)src.azimuth_angles.data(),
+      {(long)src.azimuth_angles.size()},
+      torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCPU)
+  ).clone().to(device);
+
+  // 3. FFT scan cv::Mat -> tensor (float32, H x W')
+  cv::Mat fft_float;
+  src.fft_scan.convertTo(fft_float, CV_32F);
+  dst.polar = torch::from_blob(
+      fft_float.data,
+      {fft_float.rows, fft_float.cols},
+      torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCPU)
+  ).clone().to(device);
+
+  // // 4. Single timestamp: ns -> s
+  // dst.timestamp = static_cast<double>(src.timestamp) / 1e9;
+
+  return dst;
+}
+
+
 
 }  // namespace radar
 }  // namespace vtr

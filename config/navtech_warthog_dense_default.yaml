@@ -7,9 +7,9 @@
       #- navigation
       - radar.pipeline
       # - navigation.sensor_input
-      - radar.online_converter
+      # - radar.online_converter
       - radar.odometry_dense
-      - radar.gp_doppler
+      # - radar.gp_doppler
       # - radar.pc_extractor
       # - radar.odometry_icp
       # - radar.localization_icp

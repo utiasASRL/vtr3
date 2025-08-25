@@ -8,6 +8,8 @@
 #include "yaml-cpp/yaml.h"
 #include "vtr_radar/modules/odometry/odometry_dense_module.hpp"
 #include "vtr_radar/modules/odometry/dense_utils/gp_doppler.hpp"
+#include "vtr_radar/types.hpp"
+#include "vtr_radar/utils/utils.hpp"
 
 
 namespace vtr {
@@ -127,15 +129,15 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
-
-  CLOG(DEBUG, "radar.odometry_dense") << "Running dense odometry module";
-
+  // frame index
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
   if(!qdata.radar_data)
   {
     CLOG(WARNING, "radar.odometry_dense") << "No radar data available";
     return;
   }
+
+  CLOG(DEBUG, "radar.odometry_dense") << "-----------------------------------------Running dense odometry module with frame idx: " << frame_idx;
 
   // do what we do for the first frame, nitic that for first frame there is no gyro msgs
   if (!initialized) { //change it later
@@ -161,7 +163,7 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     if (!state_estimator_) {
       state_estimator_ = std::make_shared<GPStateEstimator>(config_);
     }
-    CLOG(DEBUG, "radar.odometry_dense") << "Initialized GPStateEstimator";
+    CLOG(DEBUG, "radar.odometry_dense") << "0.Initialized GPStateEstimator";
    
     *qdata.odo_success = true;
     // clang-format on
@@ -173,13 +175,17 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     else
       qdata.first_frame.emplace(true); // reset first frame - this is the first frame! Gyro could have run before though
 
+    frame_idx++;
     return; // return later
   }
 
   CLOG(DEBUG, "radar.odometry_dense")
-      << "Retrieve input data and setup GPStateEstimator.";
+      << "1. ------------------ Retrieve input radar data and to set up GPStateEstimator. ------------------ ";
 
   // here is the game plan: I will intialize the gpstateestimator with the config above and radar resolution
+  // need a radar data frame index
+  // as well as imu times
+  // beginning radar time stamps and ending radar time stamps
   // input
   const auto &T_s_r = *qdata.T_s_r; // radar to baselink transform
   const auto &radar_data = *qdata.radar_data; // radar data
@@ -187,32 +193,133 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
   const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
   T_s_r_var->locked() = true;
 
+  int64_t frame_start = radar_data.azimuth_times.front();// convert to microsecs
+  int64_t frame_end = radar_data.azimuth_times.back(); // convert to microsecs
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar frame start time: " << frame_start;
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar frame end time: " << frame_end;
+  double duration = frame_end - frame_start;
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar frame duration: " << duration;
+
+  // now go find the imu data corrsonpond to those radar 
+
   // auto &sliding_map_odo = *qdata.sliding_map_odo;
 
   torch::Device device = state_estimator_->getDevice();
-
   // print which device I am running it on here
   std::cout << "Sam: Running on device: " << device << std::endl;
 
+  // learn from odometry icp and do a timer
+  using Stopwatch = common::timing::Stopwatch<>;
+  std::vector<std::unique_ptr<Stopwatch>> timer;
+  std::vector<std::string> clock_str;
+  clock_str.push_back("Dense odometry step ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
 
-  // need to have a local map here
-  // &local_dense_map == sliding_map_odo.local_map()
+  // gyrooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+  // need to set imu data first
+  // we need to construct an array for the imu vector or tensor....
+  CLOG_IF(qdata.gyro_msgs, DEBUG, "radar.odometry_dense") << "2. ------------------ Gyro messages are available so we process here ------------------ ";
+  if(qdata.gyro_msgs){
+    const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+    // I want to print the first and last gyro timestamps
+    const auto &first_gyro_msg = qdata.gyro_msgs->front();
+    const auto &last_gyro_msg = qdata.gyro_msgs->back();
 
+    int64_t first_gyro_time = first_gyro_msg.header.stamp.sec*1e9 + first_gyro_msg.header.stamp.nanosec;
+    int64_t last_gyro_time = last_gyro_msg.header.stamp.sec*1e9 + last_gyro_msg.header.stamp.nanosec;
+    int64_t gyro_duration = last_gyro_time - first_gyro_time;
 
+    CLOG(DEBUG, "radar.odometry_dense") << "First gyro timestamp in nano: " << first_gyro_time;
+    CLOG(DEBUG, "radar.odometry_dense") << "Last gyro timestamp in nano: " << last_gyro_time;
+    CLOG(DEBUG, "radar.odometry_dense") << "Gyro duration in nano: " << gyro_duration;
 
+     // we need to make sure imu times spread more than the radar scan time frames
+    if (qdata.gyro_msgs && ((first_gyro_time > frame_start) || (last_gyro_time < frame_end))) {
+        CLOG(ERROR, "radar.odometry_dense") << "Skipping frame: IMU messages are not properly aligned with radar scan, as it does not cover the entirity of the radar scan.";
+        return;
+        // I can pad the imu with same data-> use the same as the radar gyro 
+    }
 
-  // I need to convert the tensor to torch tensor qdata.radar_data
-  // auto radar_tensor = torch::from_blob(qdata.radar_data->data(), {1, 1, 1, 1}, torch::kFloat32);
+    // if it does not return, we are in the clear as the gyro msg duration covers the radar scan duration
 
-  // I want to see the gyro msg size
-  // the brain of the code goes here I need gyro data as well how do I approach this
+    float gyro_bias = 0.0;
+    int gyro_bias_counter = 0;
+    bool gyro_bias_initialised = false;
+    bool previous_vel_null = false;
+    std::vector<double> imu_time;
+    std::vector<double> imu_yaw;
+    for (const auto &gyro_msg : *qdata.gyro_msgs) {
+        // Load in gyro measurement and timestamp
+        const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+        const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
+
+        imu_time.push_back(gyro_stamp.nanoseconds() * 1e-9); // in seconds for some reason
+        // CLOG(DEBUG, "radar.odometry_dense") << "Adding gyro timestamp in microseconds: " << imu_time.back();
+       
+        // Transform gyro measurement into robot frame
+        Eigen::VectorXd gyro_meas_g(3);
+        gyro_meas_g << 0, 0, gyro_meas(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_robot =  T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g; // in the robot frame
+        // we need it in the radar frame tbh
+        const Eigen::Matrix<double, 3, 1> gyro_meas_radar = T_s_r.matrix().block<3, 3>(0, 0) * gyro_meas_robot; //T_radar_robot * gyro_in_robot
+        // I need the yaw member
+        imu_yaw.push_back(gyro_meas_radar(2));
+        // CLOG(DEBUG, "radar.odometry_dense") << "Gyro measurement in radar frame: " << gyro_meas_radar.transpose();
+      }
+      // Pass IMU data into the state estimator I want to log the shape of imu_time and imu_yaw
+      CLOG(DEBUG, "radar.odometry_dense") << "IMU time vector shape: " << imu_time.size();
+      CLOG(DEBUG, "radar.odometry_dense") << "IMU yaw vector shape: " << imu_yaw.size();
+      CLOG(DEBUG, "radar.odometry_dense") << "Finished processing and setting gyro messages.";
+      state_estimator_->setGyroData(imu_time, imu_yaw);
+  }
+
+  // // radarrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
+  // prepare the radar torch tensors for OdoemtryStep note that all these tensor have timestamps in microsecs
+  CLOG(DEBUG, "radar.odometry_dense") << "3. ------------------ Converting radar data to torch tensors ---------------------------- " ;
+  auto radar_torch = toTorch(radar_data, device);
+  // I want to log the shape of its field
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch azimuths shape: " << radar_torch.azimuths.sizes();
+  // is it in cuda? check
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch azimuths device: " << radar_torch.azimuths.device();
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps shape: " << radar_torch.timestamps.sizes();
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps device: " << radar_torch.timestamps.device();
+  // can i print a few timestamps they are on cuda
+  // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps (first 5): " << radar_torch.timestamps.slice(/*dim=*/0, /*start=*/0, /*end=*/5);
+
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar shape: " << radar_torch.polar.sizes();
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar device: " << radar_torch.polar.device();
+  // // and printout the timestamp of the scan
+  // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamp: " << radar_torch.timestamp;
+  // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamp device: " << radar_torch.timestamp.device();
+
   
+  // Run odometry so this is the odometry step call I need to check all the input before that
+    CLOG(DEBUG, "radar.odometry_dense") << "4. ------------------ Call Odometry step and log the output state ---------------------------- " ;
+    timer[0]->start();
+    auto state = state_estimator_->odometryStep(
+        radar_torch.polar,
+        radar_torch.azimuths,
+        radar_torch.timestamps,
+        config_->chirp_up
+    );
+    timer[0]->stop();
+    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state: " << state;
 
-  // i intialize the state_estimator and then set the data and get the output and set vtr qdata variable
-  // so i need to import the gp_doppler class and pass in the config_
 
    CLOG(DEBUG, "radar.odometry_dense") << "Finished odometry step and exiting Odometry dense module: ";
+   frame_idx++;
 
+  /// Dump timing info
+  CLOG(DEBUG, "radar.odometry_dense") << "Dump timing info inside loop: ";
+  for (size_t i = 0; i < clock_str.size(); i++) {
+    CLOG(DEBUG, "radar.odometry_dense") << "  " << clock_str[i] << timer[i]->count();
+  }
+
+
+    // need to have a local map here
+  // &local_dense_map == sliding_map_odo.local_map()
+
+  // save result in q data
   return;
 
 

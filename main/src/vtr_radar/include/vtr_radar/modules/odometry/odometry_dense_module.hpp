@@ -94,6 +94,7 @@ class OdometryDenseModule : public tactic::BaseModule {
   // GPStateEstimator state_estimator_;
   std::shared_ptr<GPStateEstimator> state_estimator_;
   bool initialized = false;
+  int frame_idx = 0;
 
   VTR_REGISTER_MODULE_DEC_TYPE(OdometryDenseModule);
 };

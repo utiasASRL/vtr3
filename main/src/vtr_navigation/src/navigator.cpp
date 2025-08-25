@@ -379,7 +379,10 @@ void Navigator::radarCallback(
   query_data->scan_msg = msg;
 
   query_data->gyro_msgs.emplace(gyro_msgs_);
-  gyro_msgs_.clear();
+  // here only clears it if the gyro_msgs grow too large, we should be good
+  if (gyro_msgs_.size() > 2000) {
+    gyro_msgs_.clear();
+  }
 
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r_gyro.emplace(T_gyro_robot_);
