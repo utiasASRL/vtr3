@@ -127,22 +127,22 @@ private:
     torch::nn::Conv2d beta_smooth_torch_conv_ = nullptr;
     torch::nn::Conv2d beta_interp_torch_conv_ = nullptr;
 
-//     // Sparse data for direct cost
-//     torch::Tensor polar_intensity_sparse_;
-//     torch::Tensor direct_az_ids_sparse_, direct_r_ids_sparse_, direct_r_sparse_;
-//     torch::Tensor mask_direct_even_, mask_direct_odd_;
-//     int direct_nb_non_zero_;
-//     torch::Tensor direct_r_ids_even_, direct_r_ids_odd_;
-//     torch::Tensor direct_r_even_, direct_r_odd_;
-//     torch::Tensor direct_az_ids_even_, direct_az_ids_odd_;
+    // Sparse data for direct cost
+    torch::Tensor polar_intensity_sparse_;
+    torch::Tensor direct_az_ids_sparse_, direct_r_ids_sparse_, direct_r_sparse_;
+    torch::Tensor mask_direct_even_, mask_direct_odd_;
+    int direct_nb_non_zero_;
+    torch::Tensor direct_r_ids_even_, direct_r_ids_odd_;
+    torch::Tensor direct_r_even_, direct_r_odd_;
+    torch::Tensor direct_az_ids_even_, direct_az_ids_odd_;
 
-//     // Sparse data for doppler cost
-//     torch::Tensor doppler_az_ids_sparse_, doppler_bin_vec_sparse_;
+    // Sparse data for doppler cost
+    torch::Tensor doppler_az_ids_sparse_, doppler_bin_vec_sparse_;
 
 //     // GP parameters
-//     int size_az_, size_range_;
-//     torch::Tensor beta_smooth_, beta_interp_;
-//     torch::Tensor X_smooth_, X_interp_;
+    int size_az_, size_range_;
+    torch::Tensor beta_smooth_, beta_interp_;
+    torch::Tensor X_smooth_, X_interp_;
 
 //     // Doppler or direct cost flags
     bool pose_estimation_;

@@ -38,7 +38,7 @@ class OdometryDenseModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    // estimation
+    // estimation //may need to change float to double
     bool doppler_cost = false;
     bool direct_cost = true;
     std::string motion_model = "const_body_vel_gyro";
@@ -46,7 +46,7 @@ class OdometryDenseModule : public tactic::BaseModule {
     bool estimate_gyro_bias = true;
     float max_acceleration = 2.0;
     float optimization_first_step = 0.1;
-    float vy_bias_prior = 0.0;
+    double vy_bias_prior = 0.0;
     bool estimate_doppler_vy_bias = false;
     bool use_gyro = true;
     float ang_vel_bias = 0.0;
@@ -54,24 +54,24 @@ class OdometryDenseModule : public tactic::BaseModule {
     // gp 
     float lengthscale_az = 2.0;
     float lengthscale_range = 4.0;
-    float sz = 0.6;
+    double sz = 0.6;
 
     // radar
-    float ft = 76.04E9;
-    float meas_freq = 1600.0;
-    float del_f = 893.0E6;
-    float beta_corr_fact = 0.944;
+    double ft = 76.04E9;
+    double meas_freq = 1600.0;
+    double del_f = 893.0E6;
+    double beta_corr_fact = 0.944;
     bool doppler_enabled = false;
     bool chirp_up = true;  // Ignored if doppler_enabled is true (the true/false might be inverted)
-    float range_offset = 0.00;
-    float radar_resolution = 0.040308;  // meters per pixel
+    double range_offset = 0.00;
+    double radar_resolution = 0.040308;  // meters per pixel
 
     // direct
     float min_range = 4.0;
     float max_range = 68.0;  //30.0
-    float max_local_map_range = 100.0;  //100.0
-    float local_map_res = 0.05;  //0.1
-    float local_map_update_alpha = 0.1;  // The local map is updated as (1-alpha)*prev_map + alpha*current_scan
+    double max_local_map_range = 100.0;  //100.0
+    double local_map_res = 0.05;  //0.1
+    double local_map_update_alpha = 0.1;  // The local map is updated as (1-alpha)*prev_map + alpha*current_scan
 
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

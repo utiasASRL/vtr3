@@ -52,6 +52,7 @@ void radar_polar_to_cartesian(const cv::Mat &fft_data,
 // sam add new helper functions for dense radar (maybe later)
 // torch::Tensor dopplerUpDown(const RadarFrame& rf);
 // bool checkChirp(const RadarFrame& rf);
+torch::Tensor getGaussianKernel2D(int ksize_x, int ksize_y, double sigma_x, double sigma_y, torch::Device device);
 torch::Tensor applyGaussianBlur2D(const torch::Tensor& input, int kx, int ky, double sx, double sy);
 
 // sam end

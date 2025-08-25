@@ -7,7 +7,6 @@
 #include <opencv2/opencv.hpp>
 #include "yaml-cpp/yaml.h"
 #include "vtr_radar/modules/odometry/odometry_dense_module.hpp"
-// #include "vtr_radar/modules/odometry/dense_utils/motion_models.hpp"
 #include "vtr_radar/modules/odometry/dense_utils/gp_doppler.hpp"
 
 
@@ -48,7 +47,7 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     config->optimization_first_step = node->declare_parameter<float>(param_prefix + ".estimation" + ".optimization_first_step", config->optimization_first_step);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: optimization_first_step is: " << config->optimization_first_step;
     // vy_bias_prior
-    config->vy_bias_prior = node->declare_parameter<float>(param_prefix + ".estimation" + ".vy_bias_prior", config->vy_bias_prior);
+    config->vy_bias_prior = node->declare_parameter<double>(param_prefix + ".estimation" + ".vy_bias_prior", config->vy_bias_prior);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: vy_bias_prior is: " << config->vy_bias_prior;
     // boolean flag estimate_doppler_vy_bias
     config->estimate_doppler_vy_bias = node->declare_parameter<bool>(param_prefix + ".estimation" + ".estimate_doppler_vy_bias", config->estimate_doppler_vy_bias);
@@ -68,13 +67,16 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     // float lengthscale_range
     config->lengthscale_range = node->declare_parameter<float>(param_prefix + ".gp" + ".lengthscale_range", config->lengthscale_range);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: lengthscale_range is: " << config->lengthscale_range;
+    // sz
+    config->sz = node->declare_parameter<double>(param_prefix + ".gp" + ".sz", config->sz);
+    CLOG(DEBUG, "radar.odometry_dense") << "The config param: sz is: " << config->sz;
 
     // 3. radar
     // radar resolution
-    config->radar_resolution = node->declare_parameter<float>(param_prefix + ".radar" + ".radar_resolution", config->radar_resolution);
+    config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar" + ".radar_resolution", config->radar_resolution);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: radar_resolution is: " << config->radar_resolution;
     // radar range offset
-    config->range_offset = node->declare_parameter<float>(param_prefix + ".radar" + ".range_offset", config->range_offset);
+    config->range_offset = node->declare_parameter<double>(param_prefix + ".radar" + ".range_offset", config->range_offset);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: range_offset is: " << config->range_offset;
     // boolean flag doppler_enabled
     config->doppler_enabled = node->declare_parameter<bool>(param_prefix + ".radar" + ".doppler_enabled", config->doppler_enabled);
@@ -82,7 +84,18 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     // boolean flag chirp_up
     config->chirp_up = node->declare_parameter<bool>(param_prefix + ".radar" + ".chirp_up", config->chirp_up);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: chirp_up is: " << config->chirp_up;
-
+    // ft parameter
+    config->ft = node->declare_parameter<double>(param_prefix + ".radar" + ".ft", config->ft);
+    CLOG(DEBUG, "radar.odometry_dense") << "The config param: ft is: " << config->ft;
+    // meas_freq parameter
+    config->meas_freq = node->declare_parameter<double>(param_prefix + ".radar" + ".meas_freq", config->meas_freq);
+    CLOG(DEBUG, "radar.odometry_dense") << "The config param: meas_freq is: " << config->meas_freq;
+    // del_f parameter
+    config->del_f = node->declare_parameter<double>(param_prefix + ".radar" + ".del_f", config->del_f);
+    CLOG(DEBUG, "radar.odometry_dense") << "The config param: del_f is: " << config->del_f;
+    // beta_corr_fact parameter
+    config->beta_corr_fact = node->declare_parameter<double>(param_prefix + ".radar" + ".beta_corr_fact", config->beta_corr_fact);
+    CLOG(DEBUG, "radar.odometry_dense") << "The config param: beta_corr_fact is: " << config->beta_corr_fact;
 
     // 4. direct
     // min_range
@@ -92,13 +105,13 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     config->max_range = node->declare_parameter<float>(param_prefix + ".direct" + ".max_range", config->max_range);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: max_range is: " << config->max_range;
     // max_local_map_range
-    config->max_local_map_range = node->declare_parameter<float>(param_prefix + ".direct" + ".max_local_map_range", config->max_local_map_range);
+    config->max_local_map_range = node->declare_parameter<double>(param_prefix + ".direct" + ".max_local_map_range", config->max_local_map_range);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: max_local_map_range is: " << config->max_local_map_range;
     // local_map_resolution
-    config->local_map_res = node->declare_parameter<float>(param_prefix + ".direct" + ".local_map_res", config->local_map_res);
+    config->local_map_res = node->declare_parameter<double>(param_prefix + ".direct" + ".local_map_res", config->local_map_res);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: local_map_res is: " << config->local_map_res;
     // local_map_update_alpha
-    config->local_map_update_alpha = node->declare_parameter<float>(param_prefix + ".direct" + ".local_map_update_alpha", config->local_map_update_alpha);
+    config->local_map_update_alpha = node->declare_parameter<double>(param_prefix + ".direct" + ".local_map_update_alpha", config->local_map_update_alpha);
     CLOG(DEBUG, "radar.odometry_dense") << "The config param: local_map_update_alpha is: " << config->local_map_update_alpha;
 
 
