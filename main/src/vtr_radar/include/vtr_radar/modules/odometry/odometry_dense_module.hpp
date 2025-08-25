@@ -22,10 +22,12 @@
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 // #include "vtr_radar/modules/odometry/dense_utils/motion_models.hpp"
-// #include "vtr_radar/modules/odometry/dense_utils/gp_doppler.hpp"
 
 namespace vtr {
 namespace radar {
+
+
+class GPStateEstimator;   // <- no include here
 
 /** \brief Dense Image for odometry. */
 class OdometryDenseModule : public tactic::BaseModule {
@@ -73,7 +75,6 @@ class OdometryDenseModule : public tactic::BaseModule {
     double local_map_res = 0.05;  //0.1
     double local_map_update_alpha = 0.1;  // The local map is updated as (1-alpha)*prev_map + alpha*current_scan
 
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
@@ -90,6 +91,9 @@ class OdometryDenseModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) override;
 
   Config::ConstPtr config_;
+  // GPStateEstimator state_estimator_;
+  std::shared_ptr<GPStateEstimator> state_estimator_;
+  bool initialized = false;
 
   VTR_REGISTER_MODULE_DEC_TYPE(OdometryDenseModule);
 };

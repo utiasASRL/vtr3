@@ -14,6 +14,11 @@ namespace vtr {
 namespace radar {
 
 using namespace tactic;
+using namespace steam;
+using namespace steam::se3;
+using namespace steam::traj;
+using namespace steam::vspace;
+// using vtr::radar::GPStateEstimator;
 
 auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string &param_prefix)
@@ -122,6 +127,7 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+
   CLOG(DEBUG, "radar.odometry_dense") << "Running dense odometry module";
 
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
@@ -131,8 +137,8 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     return;
   }
 
-  // do what we do for the first frame
-  if (!qdata.sliding_map_odo) {
+  // do what we do for the first frame, nitic that for first frame there is no gyro msgs
+  if (!initialized) { //change it later
     // Initialize all variables
     CLOG(INFO, "radar.odometry_dense") << "First frame, simply return.";
 
@@ -152,36 +158,66 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     // Initialize timestamp equal to the end of the first frame
 
     // intialize the gp_doppler GP stateEstimator object and pass in the config 
-    auto state_estimator = GPStateEstimator(config_);
+    if (!state_estimator_) {
+      state_estimator_ = std::make_shared<GPStateEstimator>(config_);
+    }
     CLOG(DEBUG, "radar.odometry_dense") << "Initialized GPStateEstimator";
    
     *qdata.odo_success = true;
     // clang-format on
 
+    initialized = true;
     // This is the first odomety frame
     if(qdata.first_frame)
       *qdata.first_frame = true;
     else
       qdata.first_frame.emplace(true); // reset first frame - this is the first frame! Gyro could have run before though
 
-    return;
+    return; // return later
   }
 
+  CLOG(DEBUG, "radar.odometry_dense")
+      << "Retrieve input data and setup GPStateEstimator.";
+
   // here is the game plan: I will intialize the gpstateestimator with the config above and radar resolution
+  // input
+  const auto &T_s_r = *qdata.T_s_r; // radar to baselink transform
+  const auto &radar_data = *qdata.radar_data; // radar data
+  // Create robot to sensor transform variable, fixed.
+  const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r);
+  T_s_r_var->locked() = true;
+
+  // auto &sliding_map_odo = *qdata.sliding_map_odo;
+
+  torch::Device device = state_estimator_->getDevice();
+
+  // print which device I am running it on here
+  std::cout << "Sam: Running on device: " << device << std::endl;
+
+
+  // need to have a local map here
+  // &local_dense_map == sliding_map_odo.local_map()
+
+
+
 
   // I need to convert the tensor to torch tensor qdata.radar_data
   // auto radar_tensor = torch::from_blob(qdata.radar_data->data(), {1, 1, 1, 1}, torch::kFloat32);
 
   // I want to see the gyro msg size
+  // the brain of the code goes here I need gyro data as well how do I approach this
+  
 
   // i intialize the state_estimator and then set the data and get the output and set vtr qdata variable
   // so i need to import the gp_doppler class and pass in the config_
 
-   CLOG(DEBUG, "radar.odometry_dense") << "The config param: doppler_cost is: " << config_->doppler_cost;
+   CLOG(DEBUG, "radar.odometry_dense") << "Finished odometry step and exiting Odometry dense module: ";
 
   return;
 
-  // the brain of the code goes here I need gyro data as well how do I approach this
+
+
+  // need to check the result and store them in vtr as a lgmath::se3::Transformation
 
 }
 
