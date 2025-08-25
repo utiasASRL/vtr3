@@ -769,7 +769,9 @@ void GPStateEstimator::moveLocalMap(const torch::Tensor& pos, const torch::Tenso
 torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, const torch::Tensor& azimuths, const torch::Tensor& timestamps, bool chirp_up) 
 {
     torch::NoGradGuard no_grad;
-    
+
+    CLOG(DEBUG, "radar.gp_doppler") << "****** I am in the odometry step and the step counter is: **************" << step_counter_;
+
     chirp_up_ = chirp_up;
 
     double last_scan_time;
@@ -975,25 +977,25 @@ torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, c
     }
 
     // visualization
-    // auto polar_intensity_cpu = polar_intensity_.detach().cpu().to(torch::kFloat32);
-    // auto polar_intensity_cv = tensorToMat(polar_intensity_cpu);
-    // // auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
-    // cv::resize(polar_intensity_cv, polar_intensity_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
+    auto polar_intensity_cpu = polar_intensity_.detach().cpu().to(torch::kFloat32);
+    auto polar_intensity_cv = tensorToMat(polar_intensity_cpu);
+    // auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
+    cv::resize(polar_intensity_cv, polar_intensity_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
     
-    // cv::namedWindow("polar_intensity_cv", cv::WINDOW_AUTOSIZE);
-    // cv::imshow("polar_intensity_cv", polar_intensity_cv);
+    cv::namedWindow("polar_intensity_cv", cv::WINDOW_AUTOSIZE);
+    cv::imshow("polar_intensity_cv", polar_intensity_cv);
     
     
     // cv::waitKey(0);
     // cv::destroyAllWindows();
     // if (step_counter_ > 0) {
-        //     auto local_map_blurred_cpu = local_map_blurred_.detach().cpu().to(torch::kFloat32);
-        //     auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
-        //     cv::resize(local_map_blurred_cv, local_map_blurred_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
-        //     cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
-        //     cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
-        //     cv::waitKey(0);
-        // }
+    //         auto local_map_blurred_cpu = local_map_blurred_.detach().cpu().to(torch::kFloat32);
+    //         auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
+    //         cv::resize(local_map_blurred_cv, local_map_blurred_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
+    //         cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
+    //         cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
+    //         cv::waitKey(0);
+    //     }
         //     cv::destroyWindow("local_map_blurred_cv");
         // }
         // cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
