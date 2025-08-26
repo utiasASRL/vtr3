@@ -982,8 +982,8 @@ torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, c
     // auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
     cv::resize(polar_intensity_cv, polar_intensity_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
     
-    cv::namedWindow("polar_intensity_cv", cv::WINDOW_AUTOSIZE);
-    cv::imshow("polar_intensity_cv", polar_intensity_cv);
+    // cv::namedWindow("polar_intensity_cv", cv::WINDOW_AUTOSIZE);
+    // cv::imshow("polar_intensity_cv", polar_intensity_cv);
     
     
     // cv::waitKey(0);

@@ -170,6 +170,11 @@ void ConstBodyVelGyro::setTime(const torch::Tensor& time, const double& t0) // y
     R_integral_.slice(0, 1).select(1, 1).select(1, 0) = cumulative_sin_r;
     R_integral_.slice(0, 1).select(1, 1).select(1, 1) = cumulative_cos_r;
 
+    // i want to print what R_integral is
+    // what is the size of R_integral_
+    // std::cout << "Sam: R_integral_: " << R_integral_ << std::endl;
+    // std::cout << "Sam: R_integral_ size: " << R_integral_.sizes() << std::endl;
+
     return;
 }
 

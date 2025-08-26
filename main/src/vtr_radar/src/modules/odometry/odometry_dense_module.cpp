@@ -233,10 +233,12 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     CLOG(DEBUG, "radar.odometry_dense") << "Last gyro timestamp in nano: " << last_gyro_time;
     CLOG(DEBUG, "radar.odometry_dense") << "Gyro duration in nano: " << gyro_duration;
 
-     // we need to make sure imu times spread more than the radar scan time frames
+    bool pad_gyro_msg = false;
+     // we need to make sure imu times spread more than the radar scan time frames otherwise we pad the gyro msgs
     if (qdata.gyro_msgs && ((first_gyro_time > frame_start) || (last_gyro_time < frame_end))) {
-        CLOG(ERROR, "radar.odometry_dense") << "Skipping frame: IMU messages are not properly aligned with radar scan, as it does not cover the entirity of the radar scan.";
-        return;
+        CLOG(WARNING, "radar.odometry_dense") << "Skipping frame: IMU messages are not properly aligned with radar scan, as it does not cover the entirity of the radar scan.";
+        pad_gyro_msg = true;
+        // return;
         // I can pad the imu with same data-> use the same as the radar gyro 
     }
 
@@ -266,6 +268,14 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
         imu_yaw.push_back(gyro_meas_radar(2));
         // CLOG(DEBUG, "radar.odometry_dense") << "Gyro measurement in radar frame: " << gyro_meas_radar.transpose();
       }
+      // if padding is needed, do it here
+      if (pad_gyro_msg) {
+          // Pad the IMU messages with the last known values with the last radar azimuth time
+          CLOG(WARNING, "radar.odometry_dense") << "Padding IMU messages with last known values!!!!!!!!!!!!!!!!";
+          imu_time.push_back(frame_end*1e-9); // in seconds
+          imu_yaw.push_back(imu_yaw.back()); // last known value
+      }
+
       // Pass IMU data into the state estimator I want to log the shape of imu_time and imu_yaw
       CLOG(DEBUG, "radar.odometry_dense") << "IMU time vector shape: " << imu_time.size();
       CLOG(DEBUG, "radar.odometry_dense") << "IMU yaw vector shape: " << imu_yaw.size();
@@ -282,12 +292,14 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
   // is it in cuda? check
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch azimuths device: " << radar_torch.azimuths.device();
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps shape: " << radar_torch.timestamps.sizes();
-  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps device: " << radar_torch.timestamps.device();
+  // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps device: " << radar_torch.timestamps.device();
   // can i print a few timestamps they are on cuda
   // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps (first 5): " << radar_torch.timestamps.slice(/*dim=*/0, /*start=*/0, /*end=*/5);
 
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar shape: " << radar_torch.polar.sizes();
-  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar device: " << radar_torch.polar.device();
+  // I also like to know the type of the polar image like is it float?
+  CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar type: " << radar_torch.polar.dtype();
+  // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar device: " << radar_torch.polar.device();
   // // and printout the timestamp of the scan
   // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamp: " << radar_torch.timestamp;
   // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamp device: " << radar_torch.timestamp.device();
@@ -303,8 +315,14 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
         config_->chirp_up
     );
     timer[0]->stop();
-    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state: " << state;
-
+    // the state here is a torch tensor we can log the size
+    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state size: " << state.sizes();
+    // I also like to know the type of the state tensor
+    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state type: " << state.dtype();
+    // also the contents it is a [2] tensor vx,vy and I want to print them one at a time
+    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: vx: " << state.index({0});
+    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: vy: " << state.index({1});
+    // CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: wz: " << state.index({2});
 
    CLOG(DEBUG, "radar.odometry_dense") << "Finished odometry step and exiting Odometry dense module: ";
    frame_idx++;

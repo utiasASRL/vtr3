@@ -265,7 +265,7 @@ RadarDataTorch toTorch(const RadarData& src, const torch::Device& device) {
   dst.azimuths = torch::from_blob(
       (void*)src.azimuth_angles.data(),
       {(long)src.azimuth_angles.size()},
-      torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCPU)
+      torch::TensorOptions().dtype(torch::kFloat64).device(torch::kCPU)
   ).clone().to(device);
 
   // 3. FFT scan cv::Mat -> tensor (float32, H x W')
