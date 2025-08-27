@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+
+# Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import logging
+import flask
+import flask_socketio
+
+from vtr_navigation.multi_robot_vtr_ui_builder import build_remote
+
+
+# socket io server address and port
+SOCKET_ADDRESS = '0.0.0.0'
+SOCKET_PORT = 5201
+
+logger = logging.getLogger('SocketServer')
+logger.setLevel(logging.INFO)
+hd = logging.StreamHandler()
+fm = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+hd.setFormatter(fm)
+logger.addHandler(hd)
+
+app = flask.Flask(__name__)
+app.config['DEBUG'] = True
+app.secret_key = 'asecretekey'
+
+app.logger.setLevel(logging.ERROR)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+socketio = flask_socketio.SocketIO(app,
+                                   logger=False,
+                                   engineio_logger=False,
+                                   ping_interval=1,
+                                   ping_timeout=2,
+                                   cors_allowed_origins="*")
+
+
+@app.route('/')
+def main():
+  return "This is a socket-only API server."
+
+
+@socketio.on('connect')
+def on_connect():
+  logger.info('Client connected!')
+
+
+@socketio.on('disconnect')
+def on_disconnect():
+  logger.info('Client disconnected!')
+
+
+##### VTR specific calls #####
+
+
+@socketio.on('command/set_pause')
+def handle_set_pause(data):
+  logger.info('Received set pause command', data)
+  build_remote().set_pause(data)
+
+
+@socketio.on('command/add_goal')
+def handle_add_goal(data):
+  logger.info('Received add goal command', data)
+  build_remote().add_goal(data)
+
+
+@socketio.on('command/cancel_goal')
+def handle_cancel_goal(data):
+  logger.info('Received cancel goal command', data)
+  build_remote().cancel_goal(data)
+
+
+@socketio.on('command/begin_goals')
+def handle_begin_goals():
+  logger.info('Received begin goals command')
+  build_remote().begin_goals()
+
+@socketio.on('command/update_waypoint')
+def handle_update_waypoint(data):
+  logger.info('Received update waypoint command', data)
+  build_remote().update_waypoint(data)
+
+
+@socketio.on('command/annotate_route')
+def handle_annotate_route(data):
+  logger.info('Received annotate route command', data)
+  build_remote().annotate_route(data)
+
+
+@socketio.on('command/move_graph')
+def handle_move_graph(data):
+  logger.info('Received move graph command', data)
+  build_remote().move_graph(data)
+
+
+@socketio.on('command/move_robot/<robot_id>')
+def handle_move_robot(data, robot_id):
+  logger.info('Received move robot command', data)
+  build_remote().move_robot(data, robot_id)
+
+
+@socketio.on('command/change_env_info')
+def handle_change_env_info(data):
+  logger.info('Received change env info command', data)
+  build_remote().change_env_info(data)
+
+
+@socketio.on('notification/server_state')
+def handle_server_state(json):
+  logger.info('Broadcasting server state')
+  server_state = json['server_state']
+  robot_id = json['robot_id']
+  socketio.emit(u"mission/server_state/" + robot_id, server_state)
+
+
+@socketio.on('notification/graph_state')
+def handle_graph_state(json):
+  logger.info('Broadcasting graph state')
+  graph_state = json['graph_state']
+  socketio.emit(u"graph/state", graph_state)
+
+@socketio.on('notification/graph_update')
+def handle_graph_update(json):
+  logger.info('Broadcasting graph update')
+  graph_update = json['graph_update']
+  socketio.emit(u"graph/update", graph_update)
+
+
+@socketio.on('notification/robot_state')
+def handle_robot_state(json):
+  logger.info('Broadcasting robot state')
+  robot_state = json['robot_state']
+  robot_id = json['robot_id']
+  socketio.emit(u"robot/state/"+robot_id, robot_state)
+
+
+@socketio.on('notification/following_route')
+def handle_following_route(json):
+  logger.info('Broadcasting following route')
+  following_route = json['following_route']
+  robot_id = json['robot_id']
+  socketio.emit(u"following_route/" + robot_id, following_route)
+
+
+@socketio.on('notification/task_queue_update')
+def handle_task_queue_update(json):
+  logger.info('Broadcasting task queue update')
+  task_queue_update = json['task_queue_update']
+  socketio.emit(u"task_queue/update", task_queue_update)
+
+
+def main():
+  logger.info("Launching the socket server.")
+  socketio.run(app, host=SOCKET_ADDRESS, port=SOCKET_PORT, use_reloader=False)
+
+
+if __name__ == '__main__':
+  main()

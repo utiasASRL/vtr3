@@ -21,6 +21,7 @@ SETUP_DIR = os.getenv('VTRTEMP')
 DEFAULT_DIR = os.getenv('VTRTEMP')
 
 def confirm_setup(data):
+    print(f"Confirming setup with data: {data}")
     if not data["data_dir"].startswith(DEFAULT_DIR+os.sep):
         return False
 
@@ -32,9 +33,11 @@ def confirm_setup(data):
     return True
 
 def get_default_dir():
+    print(f"Using default directory: {DEFAULT_DIR}")
     return DEFAULT_DIR
 
 def get_available_subdirs(dir_path=DEFAULT_DIR):
+    print(f"Searching for available subdirectories in {dir_path}")
     this_level_subdirs = [subdir for subdir in os.listdir(dir_path) if osp.isdir(osp.join(dir_path, subdir))]
     available_subdirs = []
     for subdir in this_level_subdirs:
