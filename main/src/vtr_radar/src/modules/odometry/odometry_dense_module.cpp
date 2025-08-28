@@ -266,7 +266,10 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
         const Eigen::Matrix<double, 3, 1> gyro_meas_radar = T_s_r.matrix().block<3, 3>(0, 0) * gyro_meas_robot; //T_radar_robot * gyro_in_robot
         // I need the yaw member
         imu_yaw.push_back(gyro_meas_radar(2));
+        // print out the gyro yaw values
         // CLOG(DEBUG, "radar.odometry_dense") << "Gyro measurement in radar frame: " << gyro_meas_radar.transpose();
+        // and also the third element just so I am correct in yaw
+        CLOG(DEBUG, "radar.odometry_dense") << "Gyro yaw in radar frame: " << imu_yaw.back();
       }
       // if padding is needed, do it here
       if (pad_gyro_msg) {
