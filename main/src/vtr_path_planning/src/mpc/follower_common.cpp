@@ -118,6 +118,10 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
       }
     }
   }
+
+  for (const auto& b_d : best_distance){
+    CLOG_IF(abs(b_d) > 0.05, WARNING, "mpc.follower") << "Follower reference pose was more than 5 cm from the euclidean target";
+  }
   follower_reference.poses = best_pose;
   for (const auto& width : best_width){
     follower_reference.barrier_q_min.push_back(-width);

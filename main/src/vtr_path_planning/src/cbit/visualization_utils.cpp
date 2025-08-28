@@ -307,6 +307,7 @@ void VisualizationUtils::visualize(
             auto& pose = poses.emplace_back();
             pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].second.matrix()));
             pose.header.stamp = rclcpp::Time(mpc_prediction[i].first);
+            pose.header.frame_id = "world";
         }
         mpc_path_pub_->publish(mpc_path);
     }
@@ -322,6 +323,7 @@ void VisualizationUtils::visualize(
             auto& pose = poses.emplace_back();
             pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
             pose.header.stamp = rclcpp::Time(stamp + i*dt*1e9);
+            pose.header.frame_id = "world";
         }
         leader_path_pub_->publish(mpc_path);
     }
