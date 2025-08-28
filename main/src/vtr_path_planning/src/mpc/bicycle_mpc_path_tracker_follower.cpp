@@ -176,8 +176,13 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain);
-      return generateFollowerReferencePosesEuclidean(leader_world_poses, final_leader_p_value, chain, state_p, follower_mpc_config->distance);
+      const auto final_leader_p_value = findRobotP(leader_world_poses.back(), chain).second;
+      const auto initial_leader_p_value = findRobotP(leader_world_poses.front(), chain).second;
+      std::vector<double> max_p_vals;
+      for (float i = 0; i < leader_world_poses.size(); i++) {
+        max_p_vals.push_back(initial_leader_p_value + i / (leader_world_poses.size() - 1) * (final_leader_p_value - initial_leader_p_value));
+      }
+      return generateFollowerReferencePosesEuclidean(leader_world_poses, max_p_vals, chain, state_p, follower_mpc_config->distance);
     }
     else if (config_->waypoint_selection == "arclength") {
       const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain);
