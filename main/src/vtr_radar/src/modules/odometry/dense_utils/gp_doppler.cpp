@@ -858,7 +858,16 @@ torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, c
                 
                 polar_target = torch::cat({polar_target, polar_target.index({0}).unsqueeze(0)}, 0);
                 auto local_map_update = bilinearInterpolation(polar_target, temp_polar).first.to(torch::kFloat32);
-                
+                auto local_map_update_cpu = local_map_update.detach().cpu().to(torch::kFloat32);
+
+                auto local_map_update_cv = tensorToMat(local_map_update_cpu);
+
+                cv::resize(local_map_update_cv, local_map_update_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
+                cv::namedWindow("local_map_update_cv", cv::WINDOW_AUTOSIZE);
+                cv::imshow("local_map_update_cv", local_map_update_cv);
+
+                cv::waitKey(0);
+
                 if (step_counter_ == 1) 
                 {   
                     local_map_.index_put_({local_map_mask_}, local_map_update.index({local_map_mask_}));
@@ -988,20 +997,20 @@ torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, c
     
     // cv::waitKey(0);
     // cv::destroyAllWindows();
-    // if (step_counter_ > 0) {
-    //         auto local_map_blurred_cpu = local_map_blurred_.detach().cpu().to(torch::kFloat32);
-    //         auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
-    //         cv::resize(local_map_blurred_cv, local_map_blurred_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
-    //         cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
-    //         cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
-    //         cv::waitKey(0);
-    //     }
+    if (step_counter_ > 0) {
+            auto local_map_blurred_cpu = local_map_blurred_.detach().cpu().to(torch::kFloat32);
+            auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
+            cv::resize(local_map_blurred_cv, local_map_blurred_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
+            cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
+            cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
+            cv::waitKey(0);
+        }
         //     cv::destroyWindow("local_map_blurred_cv");
         // }
         // cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
         // cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
         // cv::waitKey(0);
-        // cv::destroyWindow("local_map_blurred_cv");
+        cv::destroyWindow("local_map_blurred_cv");
         
     auto result = solve(state_init_, 250, 1e-6, 1e-5);
 

@@ -246,7 +246,7 @@ torch::Tensor applyGaussianBlur2D(const torch::Tensor& input, int kx, int ky, do
     return conv->forward(input);
 }
 
-RadarDataTorch toTorch(const RadarData& src, const torch::Device& device) {
+RadarDataTorch toTorch(const RadarData& src, const torch::Device& device, int min_id) {
   RadarDataTorch dst;
 
   // 1. Convert timestamps: vector<int64_t> (ns) -> microseconds -> tensor (float64)
@@ -279,6 +279,8 @@ RadarDataTorch toTorch(const RadarData& src, const torch::Device& device) {
 
   // // 4. Single timestamp: ns -> s
   // dst.timestamp = static_cast<double>(src.timestamp) / 1e9;
+    // remove the mid id which corresponds to the first couple of cols of polar image
+  dst.polar.index_put_({torch::indexing::Slice(), torch::indexing::Slice(0, min_id)}, torch::zeros({400, min_id}, torch::TensorOptions().dtype(torch::kFloat64)));
 
   return dst;
 }

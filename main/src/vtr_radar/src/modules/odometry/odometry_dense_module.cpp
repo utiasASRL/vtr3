@@ -243,7 +243,6 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     }
 
     // if it does not return, we are in the clear as the gyro msg duration covers the radar scan duration
-
     float gyro_bias = 0.0;
     int gyro_bias_counter = 0;
     bool gyro_bias_initialised = false;
@@ -269,7 +268,7 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
         // print out the gyro yaw values
         // CLOG(DEBUG, "radar.odometry_dense") << "Gyro measurement in radar frame: " << gyro_meas_radar.transpose();
         // and also the third element just so I am correct in yaw
-        CLOG(DEBUG, "radar.odometry_dense") << "Gyro yaw in radar frame: " << imu_yaw.back();
+        // CLOG(DEBUG, "radar.odometry_dense") << "Gyro yaw in radar frame: " << imu_yaw.back();
       }
       // if padding is needed, do it here
       if (pad_gyro_msg) {
@@ -283,13 +282,17 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
       CLOG(DEBUG, "radar.odometry_dense") << "IMU time vector shape: " << imu_time.size();
       CLOG(DEBUG, "radar.odometry_dense") << "IMU yaw vector shape: " << imu_yaw.size();
       CLOG(DEBUG, "radar.odometry_dense") << "Finished processing and setting gyro messages.";
-      state_estimator_->setGyroData(imu_time, imu_yaw);
+      state_estimator_->setGyroData(imu_time, imu_yaw); // we can zero out the gyro to focus on images
   }
 
   // // radarrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
   // prepare the radar torch tensors for OdoemtryStep note that all these tensor have timestamps in microsecs
   CLOG(DEBUG, "radar.odometry_dense") << "3. ------------------ Converting radar data to torch tensors ---------------------------- " ;
-  auto radar_torch = toTorch(radar_data, device);
+
+    // remove the mid id which corresponds to the first couple of cols of polar image
+  int min_id = static_cast<int>(std::round(config_->min_range / config_->radar_resolution));
+  auto radar_torch = toTorch(radar_data, device, min_id);
+
   // I want to log the shape of its field
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch azimuths shape: " << radar_torch.azimuths.sizes();
   // is it in cuda? check
@@ -302,12 +305,11 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar shape: " << radar_torch.polar.sizes();
   // I also like to know the type of the polar image like is it float?
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar type: " << radar_torch.polar.dtype();
-  // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch polar device: " << radar_torch.polar.device();
   // // and printout the timestamp of the scan
   // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamp: " << radar_torch.timestamp;
   // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamp device: " << radar_torch.timestamp.device();
+  // controlled input -> control output
 
-  
   // Run odometry so this is the odometry step call I need to check all the input before that
     CLOG(DEBUG, "radar.odometry_dense") << "4. ------------------ Call Odometry step and log the output state ---------------------------- " ;
     timer[0]->start();
@@ -325,7 +327,7 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
     // also the contents it is a [2] tensor vx,vy and I want to print them one at a time
     CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: vx: " << state.index({0});
     CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: vy: " << state.index({1});
-    // CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: wz: " << state.index({2});
+    // why is there no wz? just the integration of gyro
 
    CLOG(DEBUG, "radar.odometry_dense") << "Finished odometry step and exiting Odometry dense module: ";
    frame_idx++;
@@ -339,6 +341,8 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
 
     // need to have a local map here
   // &local_dense_map == sliding_map_odo.local_map()
+  // one is pose and the other is velocity
+
 
   // save result in q data
   return;
