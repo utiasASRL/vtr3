@@ -112,8 +112,7 @@ def get_tile(s, x, y, z):
 ##### VTR specific calls #####
 @app.route('/vtr/graph/')
 def get_graph_state():
-    mgr = build_remote()
-    graph_state = mgr.get_graph_state()
+    graph_state = build_remote().get_graph_state()
     return flask.jsonify(graph_state)
 
 @app.route('/vtr/additional_data')
@@ -145,7 +144,7 @@ def get_server_state(robot_id):
 
 @app.route('/vtr/task_queue/')
 def get_task_queue_state():
-    task_queue_state = mgr.get_task_queue_state()
+    task_queue_state = build_remote().get_task_queue_state()
     return flask.jsonify(task_queue_state)
 
 @app.route('/vtr/map_info')
