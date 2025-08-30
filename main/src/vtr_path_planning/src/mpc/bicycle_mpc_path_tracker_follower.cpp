@@ -224,8 +224,9 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       end_ind = -1;
       CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
     }
-      
-    mpcConfig->cost_weights.push_back(weighting);
+    
+    if (config_->waypoint_selection != "external_dist")
+      mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
 
   }

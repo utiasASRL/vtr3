@@ -5,16 +5,16 @@
       follow_distance: 1.5
       distance_margin: 0.3
       leader_namespace: /prof_plum
-      waypoint_selection: euclidean
+      waypoint_selection: external_dist
       mpc:
-        forward:
-          q_dist: 100.0
-          racc1: 15.0
+        #forward:
+        #  q_dist: 100.0
+        #  racc1: 15.0
           #q_lon: 0.0
           #q_lat: 10.0
-        reverse:
-          q_dist: 100.0
-          racc1: 15.0
+        #reverse:
+        #  q_dist: 100.0
+        #  racc1: 15.0
         #  q_lat: 10.0
         wheelbase: 0.65
       longitudinal_control:
@@ -70,4 +70,5 @@
         maximum_distance: 5.0
         minimum_distance: 0.0
         intensity_threshold: 10000.0
+        publish: false
     
