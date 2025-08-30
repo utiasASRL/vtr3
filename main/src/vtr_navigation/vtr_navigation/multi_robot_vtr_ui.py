@@ -84,33 +84,33 @@ class MultiRobotVTRUI(ROSManager):
       while not self._graph_state_cli[robot_id].wait_for_service(timeout_sec=1.0):
         vtr_ui_logger.info("Waiting for graph_state_srv service for robot " + robot_id)
       self._graph_state_sub[robot_id] = self.create_subscription(GraphState, namespace + 'graph_state', 
-                                                                  lambda data: self.graph_state_callback(data, robot_id), 10)
+                                                                      (lambda rid: (lambda data: self.graph_state_callback(data, rid)))(robot_id), 10)
       self._graph_update_sub[robot_id] = self.create_subscription(GraphUpdate, namespace + 'graph_update', 
-                                                                  lambda data: self.graph_update_callback(data, robot_id), 10)
+                                                                      (lambda rid: (lambda data: self.graph_update_callback(data, rid)))(robot_id), 10)
       
       self._robot_state_cli[robot_id] = self.create_client(RobotStateSrv, namespace + "robot_state_srv")
       while not self._robot_state_cli[robot_id].wait_for_service(timeout_sec=1.0):
         vtr_ui_logger.info("Waiting for robot_state_srv service for robot " + robot_id)
       self._robot_state_sub[robot_id] = self.create_subscription(RobotState, namespace + 'robot_state', 
-                                                                  lambda data: self.robot_state_callback(data, robot_id), 10)
+                                                                      (lambda rid: (lambda data: self.robot_state_callback(data, rid)))(robot_id), 10)
 
       # route being followed
       self._following_route_cli[robot_id] = self.create_client(FollowingRouteSrv, namespace + "following_route_srv")
       while not self._following_route_cli[robot_id].wait_for_service(timeout_sec=1.0):
         vtr_ui_logger.info("Waiting for following_route_srv service for robot " + robot_id)
       self._following_route_sub[robot_id] = self.create_subscription(GraphRoute, namespace + 'following_route', 
-                                                                  lambda data: self.following_route_callback(data, robot_id), 10)
+                                                                      (lambda rid: (lambda data: self.following_route_callback(data, rid)))(robot_id), 10)
       # mission command
       self._mission_command_pub[robot_id] = self.create_publisher(MissionCommand, namespace + 'mission_command', 1)
       self._server_state_sub[robot_id] = self.create_subscription(ServerState, namespace + 'server_state', 
-                                                                  lambda data: self.server_state_callback(data, robot_id), 10)
+                                                                      (lambda rid: (lambda data: self.server_state_callback(data, rid)))(robot_id), 10)
       self._server_state_cli[robot_id] = self.create_client(ServerStateSrv, namespace + "server_state_srv")
       while not self._server_state_cli[robot_id].wait_for_service(timeout_sec=1.0):
         vtr_ui_logger.info("Waiting for server_state_srv service for robot " + robot_id)
 
       # task queue
       self._task_queue_update_sub[robot_id] = self.create_subscription(TaskQueueUpdate, namespace + 'task_queue_update',
-                                                                  lambda data: self.task_queue_update_callback(data, robot_id), 10)
+                                                                      (lambda rid: (lambda data: self.task_queue_update_callback(data, rid)))(robot_id), 10)
       self._task_queue_state_cli[robot_id] = self.create_client(TaskQueueStateSrv, namespace + "task_queue_state_srv")
       while not self._task_queue_state_cli[robot_id].wait_for_service(timeout_sec=1.0):
         vtr_ui_logger.info("Waiting for task_queue_state_srv service for robot " + robot_id)
@@ -161,6 +161,7 @@ class MultiRobotVTRUI(ROSManager):
 
   @ROSManager.on_ros
   def robot_state_callback(self, robot_state, robot_id):
+    print(f"[MultiRobotVTRUI] robot_state_callback called for {robot_id}")
     self.notify("robot_state", robot_state=robot_state, robot_id=robot_id)
 
   @ROSManager.on_ros
