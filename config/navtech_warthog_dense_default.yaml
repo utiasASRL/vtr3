@@ -81,13 +81,13 @@
         type: radar.online_converter
         radar_resolution: 0.040308
         encoder_bin_size: 16000 # encoder bin size
-        ft: 76.04E9
-        meas_freq: 1600.0
-        del_f: 893.0E6
-        beta_corr_fact: 0.944
-        doppler_enabled: false
-        chirp_up: true # Ignored if doppler_enabled is true (the true/false might be inverted)
-        range_offset: 0.00
+        # ft: 76.04E9
+        # meas_freq: 1600.0
+        # del_f: 893.0E6
+        # beta_corr_fact: 0.944
+        # doppler_enabled: false
+        # chirp_up: true # Ignored if doppler_enabled is true (the true/false might be inverted)
+        # range_offset: 0.00
 
     odometry:
       dense:

@@ -129,6 +129,8 @@ auto OdometryDenseModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
+  bool VISUALIZE = true;
+
   // frame index
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
   if(!qdata.radar_data)
@@ -231,7 +233,7 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
 
     CLOG(DEBUG, "radar.odometry_dense") << "First gyro timestamp in nano: " << first_gyro_time;
     CLOG(DEBUG, "radar.odometry_dense") << "Last gyro timestamp in nano: " << last_gyro_time;
-    CLOG(DEBUG, "radar.odometry_dense") << "Gyro duration in nano: " << gyro_duration;
+    CLOG(DEBUG, "radar.odometry_dense") << "Gyro duration in secs: " << gyro_duration/1e9;
 
     bool pad_gyro_msg = false;
      // we need to make sure imu times spread more than the radar scan time frames otherwise we pad the gyro msgs
@@ -254,7 +256,9 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
         const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
         const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
 
-        imu_time.push_back(gyro_stamp.nanoseconds() * 1e-9); // in seconds for some reason
+        const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
+
+        imu_time.push_back(gyro_stamp_time * 1e-9); // in seconds for some reason
         // CLOG(DEBUG, "radar.odometry_dense") << "Adding gyro timestamp in microseconds: " << imu_time.back();
        
         // Transform gyro measurement into robot frame
@@ -273,15 +277,25 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
       // if padding is needed, do it here
       if (pad_gyro_msg) {
           // Pad the IMU messages with the last known values with the last radar azimuth time
-          CLOG(WARNING, "radar.odometry_dense") << "Padding IMU messages with last known values!!!!!!!!!!!!!!!!";
+          CLOG(WARNING, "radar.odometry_dense") << "Padding IMU messages with last known values!";
           imu_time.push_back(frame_end*1e-9); // in seconds
           imu_yaw.push_back(imu_yaw.back()); // last known value
+
+          // // also in the front as well
+          // imu_time.push_back(frame_start*1e-9); // in seconds
+          // imu_yaw.push_back(imu_yaw.front()); // first known value
       }
 
       // Pass IMU data into the state estimator I want to log the shape of imu_time and imu_yaw
       CLOG(DEBUG, "radar.odometry_dense") << "IMU time vector shape: " << imu_time.size();
       CLOG(DEBUG, "radar.odometry_dense") << "IMU yaw vector shape: " << imu_yaw.size();
+      // imu_yaw mean is
+      if (!imu_yaw.empty()) {
+          double imu_yaw_mean = std::accumulate(imu_yaw.begin(), imu_yaw.end(), 0.0) / imu_yaw.size();
+          CLOG(DEBUG, "radar.odometry_dense") << "IMU yaw vector mean: " << imu_yaw_mean;
+      }
       CLOG(DEBUG, "radar.odometry_dense") << "Finished processing and setting gyro messages.";
+
       state_estimator_->setGyroData(imu_time, imu_yaw); // we can zero out the gyro to focus on images
   }
 
@@ -295,7 +309,6 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
 
   // I want to log the shape of its field
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch azimuths shape: " << radar_torch.azimuths.sizes();
-  // is it in cuda? check
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch azimuths device: " << radar_torch.azimuths.device();
   CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps shape: " << radar_torch.timestamps.sizes();
   // CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch timestamps device: " << radar_torch.timestamps.device();
@@ -311,6 +324,20 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
   // controlled input -> control output
 
   // Run odometry so this is the odometry step call I need to check all the input before that
+    if (VISUALIZE) {
+      auto polar_intensity_cpu = radar_torch.polar.to(torch::kCPU);
+      auto polar_azimuths_cpu = radar_torch.azimuths.to(torch::kCPU);
+      auto polar_timestamps_cpu = radar_torch.timestamps.to(torch::kCPU);
+
+      // duration is equal to the last subtracts first
+      auto duration = polar_timestamps_cpu.index({-1}) - polar_timestamps_cpu.index({0});
+      CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch duration: " << duration;
+
+      // azimuth difference is last subtracts first
+      auto azimuth_diff = polar_azimuths_cpu.index({-1}) - polar_azimuths_cpu.index({0});
+      CLOG(DEBUG, "radar.odometry_dense") << "Radar data torch azimuth difference: " << azimuth_diff;
+
+    }
     CLOG(DEBUG, "radar.odometry_dense") << "4. ------------------ Call Odometry step and log the output state ---------------------------- " ;
     timer[0]->start();
     auto state = state_estimator_->odometryStep(
@@ -320,17 +347,14 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
         config_->chirp_up
     );
     timer[0]->stop();
-    // the state here is a torch tensor we can log the size
-    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state size: " << state.sizes();
-    // I also like to know the type of the state tensor
-    CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state type: " << state.dtype();
+    // // the state here is a torch tensor we can log the size
+    // CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state size: " << state.sizes();
+    // // I also like to know the type of the state tensor
+    // CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state type: " << state.dtype();
     // also the contents it is a [2] tensor vx,vy and I want to print them one at a time
     CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: vx: " << state.index({0});
     CLOG(DEBUG, "radar.odometry_dense") << "Sam!!!!! Odometry step output state contents: vy: " << state.index({1});
-    // why is there no wz? just the integration of gyro
-
-   CLOG(DEBUG, "radar.odometry_dense") << "Finished odometry step and exiting Odometry dense module: ";
-   frame_idx++;
+    // why is there no wz? bc just the integration of gyro
 
   /// Dump timing info
   CLOG(DEBUG, "radar.odometry_dense") << "Dump timing info inside loop: ";
@@ -339,19 +363,62 @@ void OdometryDenseModule::run_(QueryCache &qdata0, OutputCache &, const Graph::P
   }
 
 
+  // after the odometry step
+   // Extract 2D velocity
+      auto vel_tensor = state.index({torch::indexing::Slice(torch::indexing::None,2)}).to(torch::kCPU);
+      Eigen::Vector2d velocity{
+          vel_tensor[0].item<double>(),
+          vel_tensor[1].item<double>()
+      };
+
+
     // need to have a local map here
   // &local_dense_map == sliding_map_odo.local_map()
   // one is pose and the other is velocity
+  CLOG(DEBUG, "radar.odometry_dense") << "5. ------------------ Get the transformation matrix from the odometry state ---------------------------- " ;
+  auto [pos, rot] = state_estimator_->getAzPosRot(); // get the transform 
 
+  if ( pos.has_value() && rot.has_value()) {
+      auto current_pos = pos.value();
+      auto current_rot = rot.value();
+
+      // Eigen::MatrixXd current_pos_eig = Eigen::Map<Eigen::MatrixXd>(current_pos.squeeze().to(torch::kCPU).data_ptr<double>(), current_pos.size(0), current_pos.size(1));
+      // Eigen::VectorXd current_rot_eig = Eigen::Map<Eigen::VectorXd>(current_rot.squeeze().to(torch::kCPU).data_ptr<double>(), current_rot.size(0));
+
+      double radar_timestamp_sec = radar_data.timestamp/1e-9; // in secs
+      double min_diff = std::numeric_limits<double>::max();
+      int mid_id = 0;
+      for (int idx = 0; idx < radar_torch.timestamps.size(0); ++idx) {
+          double diff = std::abs(radar_torch.timestamps[idx].item<double>() * 1e-6 - radar_timestamp_sec);
+          if (diff < min_diff) {
+              min_diff = diff;
+              mid_id = idx;
+          }
+      }
+
+      // Create transformation matrix
+      Eigen::Matrix4d trans_mat = Eigen::Matrix4d::Identity();
+      double cos_theta = std::cos(current_rot[mid_id].item<double>());
+      double sin_theta = std::sin(current_rot[mid_id].item<double>());
+      trans_mat(0, 0) = cos_theta;
+      trans_mat(0, 1) = -sin_theta;
+      trans_mat(1, 0) = sin_theta;
+      trans_mat(1, 1) = cos_theta;
+      trans_mat(0, 3) = current_pos[mid_id][0].item<double>();
+      trans_mat(1, 3) = current_pos[mid_id][1].item<double>();
 
   // save result in q data
+      CLOG(DEBUG, "radar.odometry_dense") << "odometry result: x:" << trans_mat(0, 3) << " y:" << trans_mat(1, 3);
+  }
+
+
+  CLOG(DEBUG, "radar.odometry_dense") << "Finished odometry step and exiting Odometry dense module: Bye bye!";
+  frame_idx++;
   return;
 
-
-
-  // need to check the result and store them in vtr as a lgmath::se3::Transformation
+    
 
 }
 
 }  // namespace radar
-}  // namespace vtr
+}  // namespace vtradar_data.timestamp;
