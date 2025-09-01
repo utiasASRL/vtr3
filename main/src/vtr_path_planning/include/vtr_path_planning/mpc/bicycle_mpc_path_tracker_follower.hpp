@@ -134,8 +134,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   float lastError_ = 0;
   float errorIntegrator = 0;
 
-  VisualizationUtils::Ptr vis_;  
-
 
 };
 

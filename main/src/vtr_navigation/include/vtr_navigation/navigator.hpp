@@ -82,6 +82,7 @@ class Navigator {
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub_;
   std::string lidar_frame_;
   tactic::EdgeTransform T_lidar_robot_;
+  int timestamp_offset_ = 0;
 #endif
 
 #ifdef VTR_ENABLE_RADAR 

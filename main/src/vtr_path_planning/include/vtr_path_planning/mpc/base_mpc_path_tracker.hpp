@@ -90,6 +90,7 @@ class BaseMPCPathTracker : public BasePathPlanner {
                            RobotState& robot_state, 
                            const tactic::Timestamp& curr_time);
 
+  VisualizationUtils::Ptr vis_;  
 
  private: 
 
@@ -101,7 +102,6 @@ class BaseMPCPathTracker : public BasePathPlanner {
   RobotState::Ptr robot_state_;
   Command computeCommand_(RobotState& robot_state);
 
-  VisualizationUtils::Ptr vis_;  
 
 };
 

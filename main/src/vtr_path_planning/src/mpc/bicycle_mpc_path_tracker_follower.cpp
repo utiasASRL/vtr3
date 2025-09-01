@@ -159,11 +159,11 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
 
   std::vector<lgmath::se3::Transformation> leader_world_poses;
   const auto leaderPath_copy = *leaderPathInterp_;
-  const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_fw_lw_ * leaderPath_copy.at(curr_time);
-  CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  T_f_l;
+  const auto T_w_l = T_fw_lw_ * leaderPath_copy.at(curr_time);
+  const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_l;
   const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
   CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
-  CLOG(DEBUG, "mpc.follower") << "Dist to leader:\n" << dist.head<2>().norm();
+  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << dist.head<2>().norm() << " at stamp " << curr_time;
   
   for (int i = 0; i < mpcConfig->N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
@@ -225,6 +225,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
 
   }
   vis_->publishReferencePoses(referenceInfo.poses);
+  leader_world_poses.insert(leader_world_poses.begin(), T_w_l );
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig->DT);
 
   mpcConfig->eop_index = end_ind;
