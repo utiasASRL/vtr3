@@ -4,7 +4,7 @@ session_name: vtr_online_ouster_hunter
 environment:
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
   ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
-  FOLLOWER_HOST: green-jetson
+  FOLLOWER_HOST: 192.168.2.42 # green-jetson NOTE: Hostnames do not work currently, so I am using IP until I can figure out why
   FOLLOWER_ROS_NS: mr_green
 
 start_directory: ${VTRTEMP}

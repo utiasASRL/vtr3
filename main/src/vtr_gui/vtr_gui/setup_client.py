@@ -24,10 +24,6 @@ import time
 import rclpy
 from rclpy.node import Node
 
-
-# TODO: Make this configurable
-
-
 logger = logging.getLogger('setupclient')
 
 logger.setLevel(logging.INFO)
@@ -41,7 +37,7 @@ class SetupClient(Node):
     super().__init__('setup_client')
     self.declare_parameter('ip_address', '0.0.0.0')
     self.declare_parameter('port', 5202)
-    self.declare_parameter('is_sim', False)
+    self.declare_parameter('is_sim', False) # Simulation needs to handle different data dirs, so we assume a naming scheme
     self.declare_parameter('robot_index', 2) # One indexed in naming currently, so at min, client is 2
     self.is_sim = self.get_parameter('is_sim').value
     self.SOCKET_ADDRESS = self.get_parameter('ip_address').value
