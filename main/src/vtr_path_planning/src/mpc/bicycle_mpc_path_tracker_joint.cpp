@@ -171,7 +171,12 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
       const auto final_leader_p_value = state_p + mpcConfig->N * mpcConfig->VF * mpcConfig->DT;
-      return generateFollowerReferencePosesEuclidean(leader_world_poses, final_leader_p_value, chain, follower_state_p, joint_mpc_config->distance);
+      const auto initial_leader_p_value = state_p;
+      std::vector<double> max_p_vals;
+      for (float i = 0; i < leader_world_poses.size(); i++) {
+        max_p_vals.push_back(initial_leader_p_value + i / (leader_world_poses.size() - 1) * (final_leader_p_value - initial_leader_p_value));
+      }
+      return generateFollowerReferencePosesEuclidean(leader_world_poses, max_p_vals, chain, follower_state_p, joint_mpc_config->distance);
     } else {
       CLOG_IF(config_->waypoint_selection ==  "arclength", WARNING, "mpc.follower") << "Arclength not implemented yet for bicycle!";
 

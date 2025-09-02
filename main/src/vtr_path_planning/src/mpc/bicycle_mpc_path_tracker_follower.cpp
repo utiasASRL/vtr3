@@ -139,9 +139,17 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   auto& chain = robot_state.chain.ptr();
   follower_mpc_config->leader_reference_poses.clear();
 
+  std::vector<lgmath::se3::Transformation> leader_world_poses;
+  const auto leaderPath_copy = *leaderPathInterp_;
+  const auto T_w_l = T_fw_lw_ * leaderPath_copy.at(curr_time);
+  const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_l;
+  const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
+  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
+  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << dist.head<2>().norm() << " at stamp " << curr_time;
+
   mpcConfig->VF = abs(leader_vel_(0));
   if (config_->waypoint_selection == "external_dist") {
-    const float distance = recentLeaderDist_->data;
+    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : dist.head<2>().norm();
     const double error = distance - config_->following_offset;
     if (abs(chain->leaf_velocity()(0)) > 0.1)
       errorIntegrator += error * config_->control_period / 1000.0;
@@ -156,14 +164,6 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
     follower_mpc_config->lin_acc_max = 1000;
   }
-
-  std::vector<lgmath::se3::Transformation> leader_world_poses;
-  const auto leaderPath_copy = *leaderPathInterp_;
-  const auto T_w_l = T_fw_lw_ * leaderPath_copy.at(curr_time);
-  const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_l;
-  const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
-  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
-  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << dist.head<2>().norm() << " at stamp " << curr_time;
   
   for (int i = 0; i < mpcConfig->N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
@@ -176,8 +176,13 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain);
-      return generateFollowerReferencePosesEuclidean(leader_world_poses, final_leader_p_value, chain, state_p, follower_mpc_config->distance);
+      const auto final_leader_p_value = findRobotP(leader_world_poses.back(), chain).second;
+      const auto initial_leader_p_value = findRobotP(leader_world_poses.front(), chain).second;
+      std::vector<double> max_p_vals;
+      for (float i = 0; i < leader_world_poses.size(); i++) {
+        max_p_vals.push_back(initial_leader_p_value + i / (leader_world_poses.size() - 1) * (final_leader_p_value - initial_leader_p_value));
+      }
+      return generateFollowerReferencePosesEuclidean(leader_world_poses, max_p_vals, chain, state_p, follower_mpc_config->distance);
     }
     else if (config_->waypoint_selection == "arclength") {
       const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain);
@@ -219,8 +224,9 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       end_ind = -1;
       CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
     }
-      
-    mpcConfig->cost_weights.push_back(weighting);
+    
+    if (config_->waypoint_selection != "external_dist")
+      mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
 
   }

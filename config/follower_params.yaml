@@ -3,21 +3,22 @@
     path_planning:
       type: bicycle_mpc_follower
       follow_distance: 1.5
-      distance_margin: 10.0
+      distance_margin: 0.3
       leader_namespace: /prof_plum
-      waypoint_selection: euclidean
+      waypoint_selection: external_dist
       mpc:
         #forward:
-          #q_dist: 50.0
+        #  q_dist: 100.0
+        #  racc1: 15.0
           #q_lon: 0.0
           #q_lat: 10.0
         #reverse:
-        #  q_dist: 50.0
-        #  q_lon: 0.0
+        #  q_dist: 100.0
+        #  racc1: 15.0
         #  q_lat: 10.0
         wheelbase: 0.65
       longitudinal_control:
-        kp: 2.0
+        kp: 1.0
         ki: 0.5
         kd: 0.0
     log_enabled:
@@ -69,4 +70,5 @@
         maximum_distance: 5.0
         minimum_distance: 0.0
         intensity_threshold: 10000.0
+        publish: false
     
