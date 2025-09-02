@@ -18,6 +18,7 @@ import rclpy
 from rclpy.node import Node
 from vtr_navigation_msgs.msg import MissionCommand, ServerState, GraphState
 from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
+import time
 
 ## TODO: This probably belongs elsewhere, maybe we move it and future multirobot stuff to vtr_multirobot?
 
@@ -27,6 +28,8 @@ class ConvoyManager(Node):
     self.declare_parameter('robots', ["r1"])
     self.declare_parameter('path_planning.follow_distance', 2.0)
     self.declare_parameter('odometry.mapping.map_voxel_size', 0.3)
+    self._follow_distance = self.get_parameter('path_planning.follow_distance').value
+    self._map_size= self.get_parameter('odometry.mapping.map_voxel_size').value
 
 
     self._robots = self.get_parameter('robots').value 
@@ -56,15 +59,21 @@ class ConvoyManager(Node):
 
   def _localize_all(self,):
     self.get_logger().info("Setup complete notification received")
+    
+    # Appears we need to wait after services are set up for the GUI to setup. I didn't see an
+    # obvious callback or signal so just wait a bit
+    time.sleep(1.0)
     # Iterate through robots and send a move robot command for each 
     for i in range(len(self._robots)):
       robot_id = self._robots[i]
       msg = MissionCommand()
       msg.type = MissionCommand.LOCALIZE
       # Map voxel size or mapping max_translation should be used here
-      #sid = (len(self._robots) - i - 1) * self._follow_distance // self._map_size
+      sid = (len(self._robots) - i - 1) * self._follow_distance // self._map_size
+      msg.vertex = int(sid)
       self._mission_command_pubs[robot_id].publish(msg)
-      #self.get_logger().info(f"Published localize command to {robot_id} with sid {sid}")
+      self.get_logger().info(f"Published localize command to {robot_id} with sid {sid}")
+    
 
   def server_state_callback(msg, rid):
     # If any robot completes, send finish command to all robots
