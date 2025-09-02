@@ -20,6 +20,9 @@ import os
 
 import vtr_navigation.vtr_setup as vtr_setup
 import socketio
+import time
+import rclpy
+from rclpy.node import Node
 
 
 # TODO: Make this configurable
@@ -33,42 +36,19 @@ fm = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 hd.setFormatter(fm)
 logger.addHandler(hd)
 
-class SetupClient:
+class SetupClient(Node):
   def __init__(self, SOCKET_ADDRESS='0.0.0.0', SOCKET_PORT=5202):
-    self.SOCKET_ADDRESS = SOCKET_ADDRESS
-    self.SOCKET_PORT = SOCKET_PORT  
+    super().__init__('setup_client')
+    self.declare_parameter('ip_address', '0.0.0.0')
+    self.declare_parameter('port', 5202)
+    self.declare_parameter('is_sim', False)
+    self.declare_parameter('robot_index', 2) # One indexed in naming currently, so at min, client is 2
+    self.is_sim = self.get_parameter('is_sim').value
+    self.SOCKET_ADDRESS = self.get_parameter('ip_address').value
+    self.SOCKET_PORT = self.get_parameter('port').value
+    logger.info(f"Setup client connecting to {self.SOCKET_ADDRESS}:{self.SOCKET_PORT}")
     self.shutdown = False
-    self._socketio = socketio.Client(logger=True, engineio_logger=True)
-  
-
-  def on_connect(self,):
-    logger.info('Client connected!')
-
-  def on_disconnect(self, reason=None, ):
-    logger.info('Client disconnected!')
-    os._exit(0)
-
-  ##### Setup specific calls #####
-
-  def handle_confirm_setup(self, data):
-    logger.info('Received setup parameters', data)
-    # TEMP for local data
-    data['data_dir'] += "_2"
-    if vtr_setup.confirm_setup(data):
-      logger.info('Setup complete')
-      self.shutdown = True
-    else:
-      logger.info('Setup invalid')
-
-
-  def handle_kill_setup_client(self, ):
-    self.shutdown = True
-    logger.info('Shutting down setup client')
-    os._exit(0)
-
-
-  def run(self, ):
-    logger.info("Launching the setup client.")
+    self._socketio = socketio.Client(logger=False, engineio_logger=False)
 
     while True:
       try:
@@ -81,16 +61,44 @@ class SetupClient:
     self._socketio.on('disconnect', self.on_disconnect)
     self._socketio.on('command/confirm_setup_transfer', self.handle_confirm_setup)
     self._socketio.on('command/kill_setup_client', self.handle_kill_setup_client)
-    while True:
-      self._socketio.wait()
-      if self.shutdown:
-        self._socketio.disconnect()
-        break
-    
+  
+
+  def on_connect(self,):
+    logger.info('Client connected!')
+
+  def on_disconnect(self, reason=None, ):
+    logger.info('Client disconnected!')
+    self.shutdown = True
+
+  ##### Setup specific calls #####
+
+  def handle_confirm_setup(self, data):
+    logger.info('Received setup parameters', data)
+    # TEMP for local data
+    data['data_dir'] 
+    if self.is_sim:
+      data['data_dir']+= "_" + self.get_parameter('robot_index').value.__str__()
+      # This, for some reason, prevents the GUI from updating the default pose graph route
+      time.sleep(1.0)
+    if vtr_setup.confirm_setup(data):
+      logger.info('Setup complete')
+      self.shutdown = True
+    else:
+      logger.info('Setup invalid')
+
+
+  def handle_kill_setup_client(self, ):
+    self.shutdown = True
+    logger.info('Shutting down setup client')
+    os._exit(0)
 
 def main():
-  setup_client = SetupClient()
-  setup_client.run()  
+  rclpy.init()
+  setup_client = SetupClient()  # ROS process start is non-blocking
+  while rclpy.ok() and not setup_client.shutdown:
+    rclpy.spin_once(setup_client, timeout_sec=1.0)
+  setup_client.destroy_node()
+  rclpy.shutdown()
 
 if __name__ == '__main__':
   setup_client = SetupClient()
