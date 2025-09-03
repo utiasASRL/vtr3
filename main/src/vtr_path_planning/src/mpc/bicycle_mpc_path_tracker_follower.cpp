@@ -151,11 +151,15 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   if (config_->waypoint_selection == "external_dist") {
     const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : dist.head<2>().norm();
     const double error = distance - config_->following_offset;
-    if (abs(chain->leaf_velocity()(0)) > 0.1)
+    if (abs(chain->leaf_velocity()(0)) > 0.05)
       errorIntegrator += error * config_->control_period / 1000.0;
     else
       errorIntegrator = 0;
+
     mpcConfig->VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_) / ((float)config_->control_period / 1000.0);
+    if (abs(mpcConfig->VF) > config_->max_lin_vel)
+      mpcConfig->VF = sgn(mpcConfig->VF) * config_->max_lin_vel;
+    
     lastError_ = error;
     CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig->VF;
 
@@ -164,6 +168,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
     follower_mpc_config->lin_acc_max = 1000;
     follower_mpc_config->distance_margin = 1000;
+    follower_mpc_config->Q_dist = 0;
   }
   
   for (int i = 0; i < mpcConfig->N; i++){
