@@ -33,7 +33,7 @@ windows:
       - ros2 run vtr_gui multi_robot_socket_client --ros-args -p robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"]
       - ros2 run vtr_gui multi_robot_socket_server --ros-args -p robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"]
       - ros2 run vtr_gui multi_robot_web_server --ros-args -p robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"]
-      - ros2 launch vtr_gui convoy_manager.launch.yaml
+      - ros2 launch vtr_multi_robot convoy_manager.launch.py
         base_params:=ouster_hunter_default.yaml
         robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"] # Figure out how to easily make this configurable
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
