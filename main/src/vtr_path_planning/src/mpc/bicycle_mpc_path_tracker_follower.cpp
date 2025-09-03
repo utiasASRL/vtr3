@@ -163,6 +163,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     mpcConfig->vel_max = {mpcConfig->VF, config_->max_ang_vel};
     mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
     follower_mpc_config->lin_acc_max = 1000;
+    follower_mpc_config->distance_margin = 1000;
   }
   
   for (int i = 0; i < mpcConfig->N; i++){
