@@ -77,7 +77,7 @@ class ConvoyManager(Node):
 
   def server_state_callback(self, msg, rid):
     # If any robot completes, send finish command to all robots
-    if msg.state == ServerState.FINISHING:
+    if msg.current_goal_state == ServerState.FINISHING:
       mission_cmd = MissionCommand()
       mission_cmd.header.stamp = rospy.Time.now()
       mission_cmd.type = MissionCommand.FINISH
