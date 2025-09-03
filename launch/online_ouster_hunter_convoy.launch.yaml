@@ -42,7 +42,6 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - ssh indro@$FOLLOWER_HOST # Figure out how to make this configurable
-      - source ~/.bashrc
       - docker start vtr3
     panes:
       - docker exec -it vtr3 tmuxp load $VTRROOT/hunter/launch/ouster.launch.yaml

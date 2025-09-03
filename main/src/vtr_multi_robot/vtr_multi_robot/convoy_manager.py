@@ -75,7 +75,7 @@ class ConvoyManager(Node):
       self.get_logger().info(f"Published localize command to {robot_id} with sid {sid}")
     
 
-  def server_state_callback(msg, rid):
+  def server_state_callback(self, msg, rid):
     # If any robot completes, send finish command to all robots
     if msg.state == ServerState.FINISHING:
       mission_cmd = MissionCommand()
