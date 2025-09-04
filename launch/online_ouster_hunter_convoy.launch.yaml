@@ -41,10 +41,13 @@ windows:
   - window_name: follower_vtr
     layout: main-horizontal
     shell_command_before:
+      - "tmux set-hook -g session-closed 'run-shell \"ssh indro@192.168.2.42 pkill -TERM -f vtr_navigation\"'" # NOTE: There may be a better way to do this, but this works and is roughly equivalent to just exiting through an interrupt
       - ssh indro@$FOLLOWER_HOST # Figure out how to make this configurable
-      - docker exec -it vtr3
+      - docker exec -it vtr3 bash
       - source ${VTRSRC}/main/install/setup.bash
-      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr -p ip_address:=192.168.3.42 # TODO: Set IP as a cmd line arg, so we can do this from ssh?
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr -p ip_address:=192.168.3.42 # NOTE: This will drop to the follower robot name 
+      - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+      - export ZENOH_ROUTER_CONFIG_URI=$VTRROOT/hunter/hunter2_zenoh.json5
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
@@ -60,8 +63,10 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - ssh indro@$FOLLOWER_HOST # Figure out how to make this configurable
+      - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+      - export ZENOH_ROUTER_CONFIG_URI=$VTRROOT/hunter/hunter2_zenoh.json5
     panes:
-      - docker exec -it vtr3 tmuxp load $VTRSRC/launch/online_ouster_hunter_follower.launch.yaml
+      - docker exec -it vtr3 tmuxp load $VTRROOT/hunter/launch/ouster.launch.yaml
 
   - window_name: rosbag
     layout: main-horizontal
