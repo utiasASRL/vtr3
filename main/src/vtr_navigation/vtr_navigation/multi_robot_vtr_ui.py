@@ -172,7 +172,6 @@ class MultiRobotVTRUI(ROSManager):
     #  vtr_ui_logger.info("Base Class: Waiting for map_info_srv service for robot " + next(iter(self._robot_ids)))
     service = self._map_info_cli#[self._robot_ids[0]]
 
-    print(service)
     res = service.call(MapInfoSrv.Request()) 
     print(f"[MultiRobotVTRUI] Map info: {res}")
     return res.map_info 
@@ -221,7 +220,10 @@ class MultiRobotVTRUI(ROSManager):
 
   @ROSManager.on_ros
   def cancel_goal(self, msg):
+    vtr_ui_logger.info("[MultiRobotVTRUI]: Cancelling goal for all robots")
     for robot_id in self._robot_ids:
+      name = self._mission_command_pub[robot_id].topic_name
+      print(f"[MultiRobotVTRUI]Cancelling goal for robot {robot_id} on topic {name}")
       self._mission_command_pub[robot_id].publish(msg)
   
   @ROSManager.on_ros
