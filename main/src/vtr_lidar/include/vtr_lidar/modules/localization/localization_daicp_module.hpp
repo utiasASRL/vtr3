@@ -64,58 +64,11 @@ class LocalizationDAICPModule : public tactic::BaseModule {
         : tactic::BaseModule(module_factory, name), config_(config) {}
 
     private:
-        
-        Config::ConstPtr config_;
-
         void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
                   const tactic::Graph::Ptr &graph,
                   const tactic::TaskExecutor::Ptr &executor) override;
-
-        ////// Helper functions
-        Eigen::VectorXd computeP2PlaneJacobian(
-            const Eigen::Vector3d& source_point, 
-            const Eigen::Vector3d& target_normal);
-            
-        void constructWellConditionedDirections(
-            const Eigen::VectorXd& eigenvalues,
-            const Eigen::MatrixXd& eigenvectors,
-            double eigenvalue_threshold,
-            Eigen::MatrixXd& V,
-            Eigen::MatrixXd& Vf);
-        
-        Eigen::VectorXd computeUpdateStep(
-            const Eigen::MatrixXd& A,
-            const Eigen::VectorXd& b,
-            const Eigen::MatrixXd& V,
-            const Eigen::MatrixXd& Vf);
-
-        bool computeEigenvalueDecomposition(
-            const Eigen::MatrixXd& AtA,
-            Eigen::VectorXd& eigenvalues,
-            Eigen::MatrixXd& eigenvectors);      
-              
-        double computeThreshold(const Eigen::VectorXd& eigenvalues);
-
-        bool linearizeOptimizationProblem(
-            const std::vector<std::pair<size_t, size_t>>& sample_inds,
-            const Eigen::Matrix4Xf& query_mat,
-            const Eigen::Matrix4Xf& map_mat,
-            const Eigen::Matrix4Xf& map_normals_mat,
-            steam::se3::SE3StateVar::Ptr T_var,
-            Eigen::MatrixXd& A,
-            Eigen::VectorXd& b);
-
-        bool daGaussNewtonP2Plane(
-            const std::vector<std::pair<size_t, size_t>>& sample_inds,
-            const Eigen::Matrix4Xf& query_mat,
-            const Eigen::Matrix4Xf& map_mat,
-            const Eigen::Matrix4Xf& map_normals_mat,
-            steam::se3::SE3StateVar::Ptr T_var,
-            int max_gn_iter,
-            double inner_tolerance);
-        ///// 
-
-        lgmath::se3::Transformation paramsToTransformationMatrix(const Eigen::VectorXd& params);
+                  
+        Config::ConstPtr config_;
 
         VTR_REGISTER_MODULE_DEC_TYPE(LocalizationDAICPModule);
 };
