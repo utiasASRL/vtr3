@@ -51,7 +51,7 @@
       - lidar.vertex_test
       - lidar.localization_map_recall
       - lidar.localization_icp
-      - lidar.localization_geo_aware_icp
+      - lidar.localization_daicp
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging
@@ -112,16 +112,16 @@
         - doppler
         - mapping
         - vertex_test
-        #- intra_exp_merging
-        #- dynamic_detection
-        #- inter_exp_merging
+        # - intra_exp_merging
+        # - dynamic_detection
+        # - inter_exp_merging
         - memory
       localization:
         - recall
-        #- icp
-        - geo_aware_icp
-        #- safe_corridor
-        #- change_detection_sync
+        # - icp
+        - daicp
+        # - safe_corridor
+        # - change_detection_sync
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
@@ -164,7 +164,8 @@
         min_dist: 0.0                   # meters
         max_dist: 10.0                 # meters
         #
-        root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
+        # root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
+        root_path: "/home/wenda/ASRL/vtr3/aeva_config"
         model_name: "comm"
         downsample_steps: 2             # after image projection 
         bias_input_feat: ["range", "intensity", "medianrv"]
@@ -292,8 +293,8 @@
         max_iterations: 1
         min_matched_ratio: 0.45
         target_loc_time: 100.0
-      geo_aware_icp:
-        type: lidar.localization_geo_aware_icp
+      daicp:
+        type: lidar.localization_daicp
         use_pose_prior: true
         num_threads: 8
         first_num_steps: 2
@@ -308,7 +309,6 @@
         max_iterations: 1
         min_matched_ratio: 0.45
         target_loc_time: 100.0
-        dratio_threshold: 0.75
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0

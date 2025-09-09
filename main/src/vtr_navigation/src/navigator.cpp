@@ -332,8 +332,11 @@ if (pipeline->name() == "radar") {
   gyro_qos.reliable();
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
 
-  // compute gyro bias
-  gyro_bias_ = loadGyroBias(gyro_topic);
+  // --- compute gyro bias
+  // gyro_bias_ = loadGyroBias(gyro_topic);
+
+  gyro_bias_ <<  -0.0112731, -0.00725823, -0.00593503;
+
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 
   std::cout << "############################ gyro bias : " << gyro_bias_.transpose() << "############################" << std::endl;
