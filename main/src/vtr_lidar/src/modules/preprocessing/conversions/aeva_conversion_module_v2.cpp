@@ -103,7 +103,6 @@ void AevaConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
     // point flags
     uint32_t point_flags = *iter_flags;
     point_cloud->at(idx).line_id = ((point_flags >> 8) & 0xFF);
-    point_cloud->at(idx).beam_id = ((point_flags >> 16) & 0xF);
     point_cloud->at(idx).face_id = ((point_flags >> 22) & 0xF);
     ++idx;
   }

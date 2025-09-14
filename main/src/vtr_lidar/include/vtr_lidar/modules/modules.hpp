@@ -30,7 +30,6 @@
 #include "vtr_lidar/modules/preprocessing/preprocessing_module_doppler.hpp"
 
 #include "vtr_lidar/modules/odometry/odometry_doppler_module.hpp"
-#include "vtr_lidar/modules/odometry/odometry_doppler_bias_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module_v2.hpp"
 #include "vtr_lidar/modules/odometry/vertex_test_module.hpp"

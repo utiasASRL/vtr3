@@ -102,6 +102,7 @@ class LidarPipeline : public tactic::BasePipeline {
   tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
   /** \brief transformation from latest submap vertex to robot */
   tactic::EdgeTransform T_sv_m_odo_ = tactic::EdgeTransform(true);
+  std::shared_ptr<Eigen::Vector3d> gyro_bias_;
   
   // Prior stuff
   std::shared_ptr<lgmath::se3::Transformation> T_r_m_odo_prior_;

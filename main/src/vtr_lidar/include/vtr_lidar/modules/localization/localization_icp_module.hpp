@@ -61,6 +61,9 @@ class LocalizationICPModule : public tactic::BaseModule {
     bool verbose = false;
     unsigned int max_iterations = 1;
 
+    bool calc_gy_bias = false;
+    float calc_gy_bias_thresh = 1.0;
+
     /// Success criteria
     float min_matched_ratio = 0.4;
 
@@ -79,6 +82,10 @@ class LocalizationICPModule : public tactic::BaseModule {
       : tactic::BaseModule(module_factory, name), config_(config) {}
 
  private:
+
+  int64_t timestamp_prev_ = 0;
+  Eigen::Matrix4d T_r_v_loc_prev_ = Eigen::Matrix4d::Identity();
+
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;

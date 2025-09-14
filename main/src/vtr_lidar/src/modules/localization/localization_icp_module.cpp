@@ -50,6 +50,9 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
 
+  config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
+  config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
+
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
   return config;
@@ -74,6 +77,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
+  CLOG(WARNING, "lidar.localization_icp") << "Localization ICP input: T_r_v (prior): \n"
+                                         << T_r_v.matrix();
   /// Parameters
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
@@ -166,7 +171,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
     timer[0]->stop();
 
-    /// find nearest neigbors and distances
+    /// find nearest neighbours and distances
     timer[1]->start();
     std::vector<float> nn_dists(sample_inds.size());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -340,6 +345,45 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     *qdata.T_r_v_loc = T_r_v_icp;
     // set success
     *qdata.loc_success = true;
+
+    // Gyroscope bias estimation
+    if (config_->calc_gy_bias && qdata.gyro_msgs) {
+      const auto &query_stamp = *qdata.stamp;
+      Eigen::Matrix4d T_r_v_loc = T_r_v_icp.matrix();
+      double dt = (query_stamp - timestamp_prev_) * 1e-9;
+
+      if (timestamp_prev_ == 0) {
+        timestamp_prev_ = query_stamp;
+        T_r_v_loc_prev_ = T_r_v_loc;
+        return;
+      }
+      
+      // check if enough time has passed
+      if (dt < config_->calc_gy_bias_thresh) {
+        CLOG(DEBUG, "lidar.localization_icp") << "Not enough motion since last update. Skip gyro bias estimation.";
+        return;
+      }
+
+      Eigen::Matrix<double, 6, 1> phi = lgmath::se3::tran2vec(T_r_v_loc * T_r_v_loc_prev_.inverse());
+      Eigen::Matrix<double, 6, 1> varpi_hat = phi / dt;
+
+      Eigen::Vector3d w_hat = varpi_hat.tail<3>();
+      
+      Eigen::Vector3d gyro_avg = Eigen::Vector3d::Zero();
+      for (const auto& msg : *qdata.gyro_msgs) {
+        gyro_avg += Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
+      }
+      gyro_avg /= (double)qdata.gyro_msgs->size();
+
+      Eigen::Vector3d gyro_bias_update = gyro_avg - w_hat;
+
+      // update cache
+      *qdata.gyro_bias = 0.8*(*qdata.gyro_bias) + 0.2*gyro_bias_update;
+      CLOG(DEBUG, "lidar.localization_icp") << "Estimated gyro bias: " << (*qdata.gyro_bias).transpose();
+      timestamp_prev_ = query_stamp;
+      T_r_v_loc_prev_ = T_r_v_loc;
+    }
+
   } else {
     CLOG(WARNING, "lidar.localization_icp")
         << "Matched points ratio " << matched_points_ratio

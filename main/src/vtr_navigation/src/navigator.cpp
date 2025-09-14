@@ -92,11 +92,6 @@ EdgeTransform loadTransform(const std::string& source_frame,
           0.0, 0.0, 1.0, 0.66594232,
           0.0, 0.0, 0.0, 1.0; // T_aeva_warthog
 
-    // T_source_target << 0.999831, 0.0183608, 0, -0.903033,
-    //                  -0.0183608, 0.999831, 0, -0.365661,
-    //                  0, 0, 1, -1.3468,
-    //                  0, 0, 0, 1; // T_aeva_boreas
-
     EdgeTransform T_source_target_(T_source_target);
     T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
     CLOG(DEBUG, "navigation")
@@ -110,26 +105,15 @@ EdgeTransform loadTransform(const std::string& source_frame,
                       0.0, 1.0, 0.0, 0.023,
                       0.0, 0.0, 1.0, -0.037,
                       0.0, 0.0, 0.0, 1.0;
+
     Eigen::Matrix4d T_aeva_robot;
-    // T_aeva_robot <<
-    //           0.9999815, -0.00596406, -0.00119223, 0.1547045,
-    //           0.00596214, 0.99998094, -0.00160355, -0.00346201,
-    //           0.00120177, 0.00159641, 0.999998, 0.66594232,
-    //           0.0, 0.0, 0.0, 1.0;
     T_aeva_robot <<
           1.0, 0.0, 0.0, 0.1547045,
           0.0, 1.0, 0.0, 0.0,
           0.0, 0.0, 1.0, 0.66594232,
           0.0, 0.0, 0.0, 1.0;
+
     Eigen::Matrix4d T_source_target = T_imu_aeva_mat * T_aeva_robot;
-
-    // Eigen::Matrix4d T_imu_boreas;
-    // T_imu_boreas << 0.999831, 0.0183615, 0, -0.923031,
-    //                 -0.0183615, 0.999831, 0, -0.388673,
-    //                 0, 0, 1, -1.3098,
-    //                 0, 0, 0, 1;
-    // Eigen::Matrix4d T_source_target = T_imu_boreas;
-
 
     EdgeTransform T_source_target_(T_source_target);
     T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
@@ -152,7 +136,7 @@ Eigen::Vector3d loadGyroBias(const std::string& temp_gyro_topic) {
   std::mutex mtx;
 
   // Create a temporary node for spinning
-  auto temp_node = rclcpp::Node::make_shared("gyro_bias_loader_temp_node");
+  auto temp_node = rclcpp::Node::make_shared("gyro_bias_loader_node");
 
   auto gyro_sub = temp_node->create_subscription<sensor_msgs::msg::Imu>(
     temp_gyro_topic, rclcpp::QoS(100).reliable(),
@@ -248,10 +232,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  // gyro_bias_ = {
-  //   node_->declare_parameter<double>("gyro_bias.x", 0.0),
-  //   node_->declare_parameter<double>("gyro_bias.y", 0.0),
-  //   node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform
@@ -302,10 +282,6 @@ if (pipeline->name() == "radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  // gyro_bias_ = {
-  //     node_->declare_parameter<double>("gyro_bias.x", 0.0),
-  //     node_->declare_parameter<double>("gyro_bias.y", 0.0),
-  //     node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   // there are a radar and gyro frames
   T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
@@ -333,7 +309,8 @@ if (pipeline->name() == "radar") {
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
 
   // compute gyro bias
-  gyro_bias_ = loadGyroBias(gyro_topic);
+  // gyro_bias_ = loadGyroBias(gyro_topic);
+  gyro_bias_ = Eigen::Vector3d(-0.0115121, -0.00701742, -0.00503122); // temp hardcoded value for offline testing
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 
   std::cout << "############################ gyro bias : " << gyro_bias_.transpose() << "############################" << std::endl;
@@ -440,6 +417,7 @@ void Navigator::lidarCallback(
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
 
+  query_data->init_gyro_bias.emplace(gyro_bias_); // katya to do: need better way to initialize gyro_bias
   query_data->gyro_msgs.emplace(gyro_msgs_);
   gyro_msgs_.clear();
 
@@ -513,16 +491,9 @@ void Navigator::gyroCallback(
 
   // set the timestamp
   Timestamp timestamp_gyro = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
-
   CLOG(DEBUG, "navigation") << "Received gyro data with stamp " << timestamp_gyro;
 
-  // Convert message to query_data format and store into query_data
-  // auto query_data = std::make_shared<radar::RadarQueryCache>();
-
   LockGuard lock(mutex_);
-  msg->angular_velocity.x -= gyro_bias_.x();
-  msg->angular_velocity.y -= gyro_bias_.y();
-  msg->angular_velocity.z -= gyro_bias_.z();
   gyro_msgs_.push_back(*msg);
 }
 

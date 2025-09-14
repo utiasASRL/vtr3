@@ -39,6 +39,8 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
   tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
   tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
+  tactic::Cache<Eigen::Vector3d> gyro_bias;
+  tactic::Cache<Eigen::Vector3d> init_gyro_bias; // katya to do: need better way to initialize gyro_bias
 
   // preprocessing
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;

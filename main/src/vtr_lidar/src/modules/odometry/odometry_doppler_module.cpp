@@ -57,8 +57,6 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2], qcd[3], qcd[4], qcd[5];
   // 
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
-  // config->estimate_gyro_bias = node->declare_parameter<bool>(param_prefix + ".estimate_gyro_bias", config->estimate_gyro_bias);
-  // config->bias_vel_threshold = node->declare_parameter<double>(param_prefix + ".bias_vel_threshold", config->bias_vel_threshold);
   config->ransac_seed = node->declare_parameter<long int>(param_prefix + ".ransac_seed", config->ransac_seed);
   config->ransac_gyro = node->declare_parameter<bool>(param_prefix + ".ransac_gyro", config->ransac_gyro);
   config->ransac_max_iter = node->declare_parameter<int>(param_prefix + ".ransac_max_iter", config->ransac_max_iter);
@@ -164,20 +162,36 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_points = *qdata.doppler_preprocessed_point_cloud; // point cloud after preprocess
   const auto &T_s_r = *qdata.T_s_r;                   // external calib, T from robot to lidar
   const auto &T_s_r_gyro = *qdata.T_s_r_gyro;         // external calib, T from robot to gyro
-  const auto &timestamp_odo = *qdata.timestamp_odo;   // odom timestamp (the same as prev_time?)
-  const auto &T_r_m_odo = *qdata.T_r_m_odo;           // T from submap to robot
-  const auto &w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo; // body centric velocity (state)
+  
+  // katya to do: need better way to initialize gyro_bias
+  // currently have initialization from navigator in a separate cache, but want both init + online est to be stored in gyro_bias cache
+  if (!qdata.gyro_bias) {
+    CLOG(WARNING, "lidar.odometry_doppler") << "Gyro bias not initialized, using initial bias.";
+    if (qdata.init_gyro_bias) {
+      qdata.gyro_bias.emplace(*qdata.init_gyro_bias);
+      CLOG(INFO, "lidar.odometry_doppler") << "Gyro bias initialized to: " << qdata.gyro_bias->transpose();
+    }
+    else {
+      std::string err{"Gyro bias not initialized."};
+      CLOG(ERROR, "lidar.odometry_doppler") << err;
+      throw std::runtime_error{err};
+    }
+  } 
+  const auto &gyro_bias = *qdata.gyro_bias;           // gyro bias
+
+  CLOG(DEBUG, "lidar.odometry_doppler")
+      << "Gyro bias: " << gyro_bias.transpose();
 
   // Load in prior parameters
-  const auto &T_r_m_odo_prior = *qdata.T_r_m_odo_prior;  // T prior, from submap to robot
-  const auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;  // body centric velocity prior (prior state)
+  const auto &prev_T_r_m_odo = *qdata.T_r_m_odo_prior;  // T prior, from submap to robot
+  const auto &prev_w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_prior;  // body centric velocity prior (prior state)
   const auto &timestamp_prior = *qdata.timestamp_prior;  // timestamp of the prior 
 
   // Set up variables for new prior generation
   lgmath::se3::Transformation T_r_m_odo_prior_new; 
   Eigen::Matrix<double, 6, 1> w_m_r_in_r_odo_prior_new;
 
-  if(query_stamp < timestamp_prior) { 
+  if (query_stamp < timestamp_prior) { 
     CLOG(WARNING, "lidar.odometry_doppler") << "Query stamp: " << query_stamp << " is earlier than prior stamp: " << timestamp_prior;
     CLOG(WARNING, "lidar.odometry_doppler") << "Difference between the two stamps is " << (query_stamp - timestamp_prior) << " ns";
     query_stamp = timestamp_prior;
@@ -197,15 +211,13 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   frame_end_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
   // current state time
   auto query_time = static_cast<int64_t>(query_stamp);
-  // save last frame state
+  // last state time
   auto prev_time = static_cast<int64_t>(timestamp_prior);
-  auto prev_T_r_m_odo = *qdata.T_r_m_odo_prior; 
-  auto prev_w_m_r_in_r_odo = *qdata.w_m_r_in_r_odo_prior;
 
   CLOG(DEBUG, "lidar.odometry_doppler")
       << "frame_end_time: " << frame_end_time
-      << ", query_time: " << query_time
-      << ", prev_time: " << prev_time;
+      << ", query_time: "   << query_time
+      << ", prev_time: "    << prev_time;
 
   const_vel::Interface::Ptr trajectory = nullptr;
   trajectory = const_vel::Interface::MakeShared(config_->traj_qc_diag);
@@ -261,18 +273,16 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix3d lhs_gyro = Eigen::Matrix3d::Zero();
   Eigen::Vector3d rhs_gyro = Eigen::Vector3d::Zero();
 
-  if (config_->ransac_gyro) {
-    int j = 0;
-    if (qdata.gyro_msgs) {
-      Eigen::Matrix3d R_sv = T_s_r_gyro.matrix().topLeftCorner<3, 3>();
-      // loop over each gyro measurement
-      for (const auto &gyro_msg : *qdata.gyro_msgs) {
-        const auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
-        double gy = (R_sv.transpose() * -1.0 * curr_gyro)(2); // rotate measurement to vehicle frame, extract z dim
-        double gyvar = (R_sv.transpose() * config_->gyro_cov.inverse() * R_sv)(2, 2); // rotate covariance, extract z dim
-        lhs_gyro(2, 2) += gyvar;
-        rhs_gyro(2) += gy / gyvar;
-      }
+  if (qdata.gyro_msgs && config_->ransac_gyro) {
+    Eigen::Matrix3d R_sv = T_s_r_gyro.matrix().topLeftCorner<3, 3>();
+    // loop over each gyro measurement
+    for (const auto &gyro_msg : *qdata.gyro_msgs) {
+      auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+      curr_gyro -= gyro_bias;
+      double gy = (R_sv.transpose() * -1.0 * curr_gyro)(2); // rotate measurement to vehicle frame, extract z dim
+      double gyvar = (R_sv.transpose() * config_->gyro_cov.inverse() * R_sv)(2, 2); // rotate covariance, extract z dim
+      lhs_gyro(2, 2) += gyvar;
+      rhs_gyro(2) += gy / gyvar;
     }
   }
 
@@ -427,7 +437,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Matrix<double,3,12> Ggyro = Eigen::Matrix<double, 3, 12>::Zero();
     // loop over each gyro measurement
     for (const auto &gyro_msg : *qdata.gyro_msgs) {
-      const auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+      auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+      curr_gyro -= gyro_bias;
       const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
       const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
       double alpha = std::min(1.0, std::max(0.0, static_cast<double>(gyro_stamp_time - prev_time) / static_cast<double>(frame_end_time - prev_time))); // times in [ns]
@@ -491,8 +502,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   timer[2]->start();
   // *********** NUM INTEGRATE ***********
-  const Eigen::Matrix<double, 6, 6>& zeroMatrix = Eigen::Matrix<double, 6, 6>::Zero();
-  const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();  
+  const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();
+
   // get velocity knots
   Eigen::Matrix<double,6,1> knot1 = Eigen::Matrix<double,6,1>::Zero();
   double dt = 0.1;
@@ -551,10 +562,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   // save the covariance matrix for the current frame
   cov_T_k = P_int;
-
-  // Eigen::Matrix4d T_temp_xy = Eigen::Matrix4d::Identity();
-  // T_temp_xy(0, 3) = T_temp.matrix()(0, 3);
-  // T_temp_xy(1, 3) = T_temp.matrix()(1, 3);
 
   CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_eval: " << T_temp.matrix();
   CLOG(DEBUG, "lidar.odometry_doppler") << "w_m_r_in_r_eval: " << w_temp.transpose();
@@ -620,11 +627,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
 
     auto &sliding_map_odo = *qdata.sliding_map_odo;
-
-    // // --- old way 
-    // Eigen::Matrix<double, 1, 6> cov;
-    // cov << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;
-    // EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, cov.asDiagonal() * Eigen::Matrix<double, 6, 6>::Identity());
 
     // compute the right cov_T_k, also stored for later use
     EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, cov_T_k);

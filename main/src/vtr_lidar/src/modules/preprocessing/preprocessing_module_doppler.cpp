@@ -125,19 +125,16 @@ void PreprocessingDopplerModule::initImgWeight(bool set_dims, const Config::Cons
   unsigned float_offset = 4;
   auto getFloatFromByteArray = [](char *byteArray, unsigned index) -> float { return *((float *)(byteArray + index)); };
 
-  for (size_t sensor = 0; sensor < dims(0); ++sensor) {
-    for (size_t row = 0; row < dims(1); ++row) {
-      for (size_t col = 0; col < dims(2); ++col) {
-        for (size_t face = 0; face < dims(3); ++face) {
-          for (size_t d = 0; d < dims(4); ++d) {  
-            int offset = d + dims(4)*face + dims(4)*dims(3)*col 
-              + dims(4)*dims(3)*dims(2)*row + dims(4)*dims(3)*dims(2)*dims(1)*sensor;
-            weights[sensor][face][row][col](d) = getFloatFromByteArray(buffer.data(), offset * float_offset);
-          } // d
-        } // face
-      } // col
-    } // row
-  } // sensor
+  for (size_t row = 0; row < dims(1); ++row) {
+    for (size_t col = 0; col < dims(2); ++col) {
+      for (size_t face = 0; face < dims(3); ++face) {
+        for (size_t d = 0; d < dims(4); ++d) {  
+          int offset = d + dims(4)*face + dims(4)*dims(3)*col + dims(4)*dims(3)*dims(2)*row;
+          weights[0][face][row][col](d) = getFloatFromByteArray(buffer.data(), offset * float_offset);
+        } // d
+      } // face
+    } // col
+  } // row
 }
 
 void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const PointWithInfo& point, 
@@ -151,13 +148,10 @@ void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const Point
       val = scaleValue(point.rho, config_->min_dist, config_->max_dist);  // note: range is calculated in preprocess function of DopplerFilter
     else if (feat_string[i] == "intensity")
       val = scaleValue(point.intensity, -70.0, 0.0);
-    else if (feat_string[i] == "medianrv") {
+    else if (feat_string[i] == "medianrv")
       val = scaleValue(dop_median, -30.0, 1.0); // for forward-facing sensor
-    }
-    else if (feat_string[i] == "rv_var5") // TODO: handle variable
+    else if (feat_string[i] == "rv_var5")
       val = scaleValue(std::min(1.0 / sqrt(dop_pseudovar), 200.0), 0.0, 200.0);
-    else if (feat_string[i] == "rv_stddev5") // TODO: handle variable
-      val = scaleValue(sqrt(dop_pseudovar), 0.0, 1.0);
     else
       throw std::runtime_error("[DopplerImageCalib::buildFeatVec] Unknown feature!");
     feat(i) = val;  // set value
@@ -227,7 +221,7 @@ PreprocessingDopplerModule::PreprocessingDopplerModule(const Config::ConstPtr &c
   for (const auto& feat: config_->var_input_feat) {
     if (feat == "medianrv")
       config_->calc_median = true;
-    if (feat == "rv_var5")  // TODO: handle variable parameter in string
+    if (feat == "rv_var5")
       config_->calc_pseudovar = true;
   }
 }
