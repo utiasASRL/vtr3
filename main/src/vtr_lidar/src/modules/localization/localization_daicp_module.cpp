@@ -265,11 +265,32 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const auto T_s_m_optimized = T_m_s_optimized.inverse();
       const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
       
-      // Create T_r_v_icp with dummy covariance
-      Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
-      dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
-      T_r_v_icp = EdgeTransform(T_r_v_decoded, dummy_cov);
-      matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      // -------- Check difference between prior and computed T_r_v
+      const auto T_r_v_prior = T_r_v_var->value();
+      const auto T_diff = T_r_v_decoded * T_r_v_prior.inverse();
+      const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
+      const double translation_diff = T_diff_vec.head<3>().norm();
+      const double rotation_diff = T_diff_vec.tail<3>().norm();
+
+      // OUTLIER REJECTION: larger than 0.2m or 0.1rad (5.7deg)
+      if (translation_diff > 0.2 || rotation_diff > 0.1) {
+        CLOG(WARNING, "lidar.localization_daicp") << "Significant difference detected in T_r_v, fall back to odometry:";
+        CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
+        CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
+        CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
+                                                << (rotation_diff * 180.0 / M_PI) << " deg)";
+
+        // fallback to using prior
+        T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+        matched_points_ratio = 1.0f;  // dummy value to indicate success
+      } else {
+        // Create T_r_v_icp with dummy covariance
+        Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
+        dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
+        T_r_v_icp = EdgeTransform(T_r_v_decoded, dummy_cov);
+        matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      }
+
       //
       CLOG(DEBUG, "lidar.localization_daicp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||

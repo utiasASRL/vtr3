@@ -270,7 +270,7 @@ inline bool computeEigenvalueDecomposition(
 inline double computeThreshold(const Eigen::VectorXd& eigenvalues) {
   const double max_eigenval = eigenvalues.maxCoeff();
   // const double eigenvalue_threshold = max_eigenval * 1e-3;  
-  const double eigenvalue_threshold = 200.0;
+  const double eigenvalue_threshold = 1000.0;
   return eigenvalue_threshold;
 }
 
