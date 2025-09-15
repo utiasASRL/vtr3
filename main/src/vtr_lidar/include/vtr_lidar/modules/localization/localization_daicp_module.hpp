@@ -32,11 +32,11 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     float initial_max_pairing_dist = 2.0;
     float initial_max_planar_dist = 0.3;
     // refined stage
-    size_t refined_max_iter = 10;  // we use a fixed number of iters for now
+    size_t refined_max_iter = 20;  // we use a fixed number of iters for now
     float refined_max_pairing_dist = 2.0;
     float refined_max_planar_dist = 0.1;
     // error calculation
-    float averaging_num_steps = 5;
+    float averaging_num_steps = 10;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
     // steam optimizer

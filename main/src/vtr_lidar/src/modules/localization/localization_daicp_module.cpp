@@ -179,8 +179,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
     /// ########################### Gauss-Newton solver ########################### ///
-    int max_gn_iter = 3;
-    double inner_tolerance = 1e-4;
+    int max_gn_iter = 30;
+    double inner_tolerance = 1e-6;
     bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
                                                                 query_mat,
                                                                 map_mat,

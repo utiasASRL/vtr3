@@ -40,5 +40,5 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-    # panes:
-    #   - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/aeva.rviz
+    panes:
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/aeva.rviz

@@ -3,9 +3,9 @@
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
 #include "steam.hpp"
+#include "vtr_logging/logging.hpp"
 #include <iostream>
 #include <vector>
-
 
 namespace vtr {
 
@@ -79,7 +79,7 @@ inline Eigen::VectorXd computeP2PlaneJacobian(
   const Eigen::Vector3d n = target_normal.normalized();
   const Eigen::Vector3d ps = source_point;
   
-  // Jacobian with respect to rotation parameters (same as Python reference)
+  // Jacobian with respect to rotation parameters 
   const Eigen::Vector3d cross_x(0, -ps[2], ps[1]);   // ∂(R*p)/∂rx
   const Eigen::Vector3d cross_y(ps[2], 0, -ps[0]);   // ∂(R*p)/∂ry  
   const Eigen::Vector3d cross_z(-ps[1], ps[0], 0);   // ∂(R*p)/∂rz
@@ -134,21 +134,19 @@ inline void constructWellConditionedDirections(
     }
     // else: Vf.col(i) remains zero
   }
-  
-  CLOG(INFO, "lidar.localization_daicp") 
-      << "Well-conditioned directions: " << num_well_conditioned << "/6"
-      << " (threshold: " << eigenvalue_threshold << ")";
-  
-  // Log which directions are well-conditioned
-  std::string mask_str = "[";
+    
+  // Debug logging for eigenvalues and threshold
+  CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalues: [" << eigenvalues.transpose() << "]";
+  CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalue threshold: " << eigenvalue_threshold;
+
+  // Print well-conditioned mask
+  std::string mask_str = "Well-conditioned mask: [";
   for (int i = 0; i < n_dims; ++i) {
-    mask_str += well_conditioned_mask[i] ? "True" : "False";
+    mask_str += (well_conditioned_mask[i] ? "True" : "False");
     if (i < n_dims - 1) mask_str += ", ";
   }
   mask_str += "]";
-  
-  CLOG(DEBUG, "lidar.localization_daicp") 
-      << "Well-conditioned mask: " << mask_str;
+  CLOG(DEBUG, "lidar.localization_daicp") << mask_str;
 }
 
 inline Eigen::VectorXd computeUpdateStep(
@@ -162,21 +160,34 @@ inline Eigen::VectorXd computeUpdateStep(
   
   Eigen::VectorXd delta_x_f;
   try {
-    // Use pseudoinverse for robustness (equivalent to pinv in Python)
+    // Use pseudoinverse for robustness
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(AtA, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    const Eigen::MatrixXd AtA_pinv = svd.solve(Eigen::MatrixXd::Identity(AtA.rows(), AtA.cols()));
+    
+    // Compute pseudoinverse manually with tolerance
+    const double tolerance = 1e-14;
+    Eigen::VectorXd singular_values = svd.singularValues();
+    
+    // Create diagonal matrix with inverse of non-zero singular values
+    Eigen::MatrixXd S_inv = Eigen::MatrixXd::Zero(singular_values.size(), singular_values.size());
+    for (int i = 0; i < singular_values.size(); ++i) {
+      if (singular_values(i) > tolerance) {
+        S_inv(i, i) = 1.0 / singular_values(i);
+      }
+    }
+    
+    // Reconstruct pseudoinverse: AtA_pinv = V * S_inv * U^T
+    Eigen::MatrixXd AtA_pinv = svd.matrixV() * S_inv * svd.matrixU().transpose();
     delta_x_f = AtA_pinv * A.transpose() * b;
+    
   } catch (const std::exception& e) {
-    // Fallback to least squares (equivalent to lstsq in Python)
+    // Fallback to least squares 
+    // SVD failed, using least squares fallback
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
     delta_x_f = svd.solve(b);
   }
   
-  // Only use well-conditioned directions for the update
-  // Since V is orthogonal matrix with V^T V = I, we have V^{-1} = V^T
-  // The equation from the paper: V^{-1} @ (Vf @ delta_x_f) = V^T @ (Vf @ delta_x_f)
-  // But since each column of Vf is either an eigenvector or zero, we can use:
-  // delta_x_projected = V @ (Vf^T @ delta_x_f)
+  // Apply degeneracy-aware projection
+  // delta_x_projected = V @ (Vf.T @ delta_x_f)
   const Eigen::VectorXd delta_x_projected = V * (Vf.transpose() * delta_x_f);
   
   return delta_x_projected;
@@ -211,7 +222,7 @@ inline bool computeEigenvalueDecomposition(
         }
       }
       
-      CLOG(INFO, "lidar.localization_daicp") << "SVD fallback successful";
+      // SVD fallback successful
       return true;
     }
     
@@ -245,64 +256,22 @@ inline bool computeEigenvalueDecomposition(
       }
     }
     
-    // Debug logging to verify eigenvalues match Python
-    CLOG(DEBUG, "lidar.localization_daicp") 
-        << "Eigenvalues (descending): [" << eigenvalues.transpose() << "]";
+    // Debug logging to verify eigenvalues 
+    // CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalues (descending): [" << eigenvalues.transpose() << "]";
     
     return true;
     
   } catch (const std::exception& e) {
-    CLOG(ERROR, "lidar.localization_daicp") 
-        << "Exception in eigenvalue decomposition: " << e.what();
+    CLOG(ERROR, "lidar.localization_daicp") << "Exception in eigenvalue decomposition: " << e.what();
     return false;
   }
 }
 
 inline double computeThreshold(const Eigen::VectorXd& eigenvalues) {
   const double max_eigenval = eigenvalues.maxCoeff();
-  const double eigenvalue_threshold = max_eigenval * 1e-6;  // Conservative threshold
+  // const double eigenvalue_threshold = max_eigenval * 1e-3;  
+  const double eigenvalue_threshold = 200.0;
   return eigenvalue_threshold;
-}
-
-inline bool linearizeOptimizationProblem(
-    const std::vector<std::pair<size_t, size_t>>& sample_inds,
-    const Eigen::Matrix4Xf& query_mat,
-    const Eigen::Matrix4Xf& map_mat,
-    const Eigen::Matrix4Xf& map_normals_mat,
-    steam::se3::SE3StateVar::Ptr T_var,
-    Eigen::MatrixXd& A,
-    Eigen::VectorXd& b) {
-  
-  const int num_constraints = sample_inds.size();
-  A.resize(num_constraints, 6);
-  b.resize(num_constraints);
-  
-  // Get current transformation evaluation
-  const Eigen::Matrix4d T_current = T_var->value().matrix();
-  
-#pragma omp parallel for schedule(dynamic, 10) num_threads(daicp_num_thread)
-  for (size_t i = 0; i < sample_inds.size(); ++i) {
-    const auto& ind = sample_inds[i];
-    
-    // Get points and normal
-    const Eigen::Vector3d source_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-    const Eigen::Vector3d target_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
-    const Eigen::Vector3d target_normal = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-    
-    // Transform source point using current transformation
-    const Eigen::Vector4d source_pt_hom = (Eigen::Vector4d() << source_pt, 1.0).finished();
-    const Eigen::Vector3d transformed_source = (T_current * source_pt_hom).head<3>();
-    
-    // Compute Jacobian using the helper function
-    const Eigen::VectorXd jacobian = computeP2PlaneJacobian(transformed_source, target_normal);
-    A.row(i) = jacobian.transpose();
-    
-    // Compute residual (point-to-plane distance): n^T * (target - transformed_source)
-    const Eigen::Vector3d n = target_normal.normalized();
-    b(i) = n.dot(target_pt - transformed_source);
-  }
-  
-  return true;
 }
 
 inline bool daGaussNewtonP2Plane(
@@ -319,19 +288,20 @@ inline bool daGaussNewtonP2Plane(
     return false;
   }
   
-  // STEAM-style convergence parameters
-  const double absolute_cost_threshold = 1e-8;
-  const double absolute_cost_change_threshold = 1e-4;
-  const double relative_cost_change_threshold = 1e-4;
-  const double zero_gradient_threshold = 1e-6;
-  const double parameter_change_threshold = inner_tolerance;
+  // Convergence parameters 
+  const double absolute_cost_threshold = 1e-12;         
+  const double absolute_cost_change_threshold = 1e-8;   
+  const double relative_cost_change_threshold = 1e-8;    
+  const double zero_gradient_threshold = 1e-8;          
+  const double parameter_change_threshold = inner_tolerance; 
   
-  // Store initial transformation
-  const auto T_initial = T_var->value();
+  // Start with identity transformation for the Gauss-Newton process
+  // current_transformation = np.eye(4)
+  lgmath::se3::Transformation current_transformation = lgmath::se3::Transformation(); // Identity
+  Eigen::VectorXd accumulated_params = Eigen::VectorXd::Zero(6);
   
-  // Initialize transformation parameters (following Python reference)
-  Eigen::VectorXd params = Eigen::VectorXd::Zero(6);
-  lgmath::se3::Transformation current_transformation; // Identity by default
+  // Get initial transformation from T_var to apply later
+  const lgmath::se3::Transformation initial_T_var = T_var->value();
   
   // Variables for convergence tracking
   double prev_cost = std::numeric_limits<double>::max();
@@ -339,33 +309,30 @@ inline bool daGaussNewtonP2Plane(
   bool converged = false;
   std::string termination_reason = "";
   
-  // Gauss-Newton iterations with DEGENERACY-AWARE updates
+  // Inner loop Gauss-Newton iterations with DEGENERACY-AWARE updates
   for (int gn_iter = 0; gn_iter < max_gn_iter && !converged; ++gn_iter) {
-    CLOG(DEBUG, "lidar.localization_daicp") 
-        << "  Gauss-Newton iteration " << gn_iter;
-    
     // Build jacobian and residual for current transformation
-    // Following Python: transform source points with current estimate first
     Eigen::MatrixXd A(sample_inds.size(), 6);
     Eigen::VectorXd b(sample_inds.size());
     
-    const Eigen::Matrix4d T_current_mat = current_transformation.matrix();
+    // Compose with initial transformation: final_T = current_T * initial_T
+    const Eigen::Matrix4d T_combined = current_transformation.matrix() * initial_T_var.matrix();
     
 #pragma omp parallel for schedule(dynamic, 10) num_threads(daicp_num_thread)
     for (size_t i = 0; i < sample_inds.size(); ++i) {
       const auto& ind = sample_inds[i];
       
-      // Get original source point and transform it
+      // Get original source point and transform it with combined transformation
       const Eigen::Vector3d source_pt_original = query_mat.block<3, 1>(0, ind.first).cast<double>();
       Eigen::Vector4d source_pt_hom;
       source_pt_hom << source_pt_original, 1.0;
-      const Eigen::Vector3d source_pt_transformed = (T_current_mat * source_pt_hom).head<3>();
+      const Eigen::Vector3d source_pt_transformed = (T_combined * source_pt_hom).head<3>();
       
       // Get target point and normal
       const Eigen::Vector3d target_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
       const Eigen::Vector3d target_normal = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
       
-      // Compute Jacobian using the helper function
+      // Compute Jacobian with respect to the TRANSFORMED source point
       const Eigen::VectorXd jacobian = computeP2PlaneJacobian(source_pt_transformed, target_normal);
       A.row(i) = jacobian.transpose();
       
@@ -377,9 +344,6 @@ inline bool daGaussNewtonP2Plane(
     // Compute current cost (0.5 * ||b||^2) and gradient norm
     curr_cost = 0.5 * b.squaredNorm();
     const double grad_norm = (A.transpose() * b).norm();
-    
-    CLOG(DEBUG, "lidar.localization_daicp") 
-        << "  Iter " << gn_iter << " - Cost: " << curr_cost << ", Grad norm: " << grad_norm;
     
     // STEAM-style convergence checking
     
@@ -405,12 +369,6 @@ inline bool daGaussNewtonP2Plane(
       termination_reason = "CONVERGED_ZERO_GRADIENT";
     }
     
-    if (converged) {
-      CLOG(DEBUG, "lidar.localization_daicp") 
-          << "  Gauss-Newton converged after " << gn_iter << " iterations. Reason: " << termination_reason;
-      break;
-    }
-    
     // DEGENERACY-AWARE EIGENSPACE PROJECTION
     // Compute eigenvalue decomposition of A^T A
     const Eigen::MatrixXd AtA = A.transpose() * A;
@@ -424,9 +382,7 @@ inline bool daGaussNewtonP2Plane(
     }
     
     // Compute unified threshold
-    // const double eigenvalue_threshold = computeThreshold(eigenvalues);
-
-    const double eigenvalue_threshold = 50.0;
+    const double eigenvalue_threshold = computeThreshold(eigenvalues);
     
     // Construct well-conditioned directions matrix Vf
     Eigen::MatrixXd V, Vf;
@@ -435,27 +391,20 @@ inline bool daGaussNewtonP2Plane(
     // Compute update step using eigenspace projection
     Eigen::VectorXd delta_params = computeUpdateStep(A, b, V, Vf);
     
-    // 5. Check parameter change convergence
-    const double param_change = delta_params.norm();
-    if (param_change < parameter_change_threshold) {
+    // Accumulate parameters 
+    accumulated_params += delta_params;
+    
+    // Convert accumulated parameters to transformation
+    current_transformation = paramsToTransformationMatrix(accumulated_params);
+    // Check parameter change convergence AFTER applying the update
+    double param_change = delta_params.norm();
+    
+    // Check convergence (but allow at least one iteration to see progress)
+    if (gn_iter > 0 && param_change < parameter_change_threshold) {
       converged = true;
       termination_reason = "CONVERGED_PARAMETER_CHANGE";
-      CLOG(DEBUG, "lidar.localization_daicp") 
-          << "  Gauss-Newton converged after " << gn_iter << " iterations. Reason: " << termination_reason
-          << " (param change: " << param_change << ")";
       break;
     }
-
-    // Update parameters 
-    params += delta_params;
-    
-    // Convert parameters to transformation matrix 
-    current_transformation = paramsToTransformationMatrix(params);
-    
-    CLOG(DEBUG, "lidar.localization_daicp") 
-        << "  Accumulated params [rx,ry,rz,tx,ty,tz]: [" 
-        << params(0) << ", " << params(1) << ", " << params(2) << ", "
-        << params(3) << ", " << params(4) << ", " << params(5) << "]";
     
     // Update cost for next iteration
     prev_cost = curr_cost;
@@ -463,31 +412,22 @@ inline bool daGaussNewtonP2Plane(
   
   // Check if terminated due to max iterations
   if (!converged) {
-    CLOG(WARNING, "lidar.localization_daicp") 
-        << "  Gauss-Newton reached maximum iterations (" << max_gn_iter << ") without convergence";
+    // Maximum Gauss-Newton iterations reached
     termination_reason = "MAX_ITERATIONS";
   }
   
-  // Apply the final transformation to T_var
-  // current_transformation represents the total delta from identity
-  // Convert to SE(3) vector and apply as update
-  const Eigen::Matrix<double, 6, 1> delta_vec = lgmath::se3::tran2vec(current_transformation.matrix()); 
-  CLOG(DEBUG, "lidar.localization_daicp") 
-        << "  delta_vec before T_var->update [rx,ry,rz,tx,ty,tz]: [" 
-        << delta_vec(0) << ", " << delta_vec(1) << ", " << delta_vec(2) << ", "
-        << delta_vec(3) << ", " << delta_vec(4) << ", " << delta_vec(5) << "]";
-
-
-  // [consistent with STEAM]
-  //   Eigen::Matrix4d T_var_update = current_transformation.matrix() * T_var->value().matrix();
-  //   CLOG(DEBUG, "lidar.localization_daicp") 
-  //       << " T_var matrix (T_curr * T_var):\n" << T_var_update;
-
-  //   T_var->update(delta_vec);
+  // Update T_var with the final transformation
+  // Compose the delta transformation with the initial transformation: T_final = delta_T * T_initial
+  const lgmath::se3::Transformation final_transformation = lgmath::se3::Transformation(
+      static_cast<Eigen::Matrix4d>(current_transformation.matrix() * initial_T_var.matrix())
+  );
   
-  // steam update
-  CLOG(DEBUG, "lidar.localization_daicp") 
-      << " T_var matrix (steam):\n" << T_var->value().matrix().cast<float>();
+  // Calculate the actual delta from initial to final for STEAM update
+  Eigen::Matrix4d delta_for_steam = final_transformation.matrix() * initial_T_var.matrix().inverse();
+  Eigen::Matrix<double, 6, 1> delta_vec_steam = lgmath::se3::tran2vec(delta_for_steam);
+  
+  // Apply the update to T_var using STEAM's update mechanism
+  T_var->update(delta_vec_steam);
 
   return true;
 }
