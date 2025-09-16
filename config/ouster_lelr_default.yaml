@@ -11,7 +11,7 @@
         # tactic
       #- tactic
       #- tactic.pipeline
-      #- tactic.eop
+#      - tactic.eop
       - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
@@ -21,13 +21,13 @@
       - path_planning.cbit
       - path_planning.cbit_planner
       - cbit.path_planning
-      #- cbit_planner.path_planning
-      #- cbit.debug
+      - cbit_planner.path_planning
+      - cbit.debug
       - mpc.solver
       - mpc.speed_scheduler
-      #- mpc.cost_function
-      #- mpc.cbit
-      #- mpc.debug
+      - mpc.cost_function
+      - mpc.cbit
+      - mpc.debug
       - cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
@@ -74,11 +74,11 @@
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.05
+      route_completion_translation_threshold: 0.2
       route_completion_angle_threshold: 0.1
 
       chain:
-        min_cusp_distance: 0.5
+        min_cusp_distance: 0.1
         angle_weight: 1.0
         search_depth: 5
         search_back_depth: 10
@@ -237,7 +237,7 @@
       speed_scheduler:
         planar_curv_weight: 0.0
         profile_curv_weight: 0.0 
-        eop_weight: 1.0
+        eop_weight: 2.0
         min_vel: 0.3
 
       mpc:
@@ -246,9 +246,9 @@
         mpc_verbosity: false
         forward_vel: 0.5
         max_lin_vel: 0.75
-        max_ang_vel: 0.52
-        max_ang_acc: 0.35
-        max_lin_acc: 0.5
+        max_ang_vel: 0.454
+        max_ang_acc: 0.349
+        max_lin_acc: 0.3
         vehicle_model: "bicycle"
         wheelbase: 1.83
         recovery_steps: 15
@@ -256,20 +256,20 @@
 
         # Tunable controller parameters(Currently only works for the Bicycle)
         forward:
-          q_lat: 10.0
+          q_lat: 15.0
           q_lon: 4.0
-          q_th: 7.0
-          r1: 0.0
-          r2: 3.0
-          racc1: 4.0
-          racc2: 5.0
+          q_th: 5.0
+          r1: 0.1
+          r2: 1.0
+          racc1: 4.5
+          racc2: 7.0
           q_f: 1.0 # Multiplier for terminal cost
         reverse:
           q_lat: 10.0
           q_lon: 3.0
-          q_th: 7.0
+          q_th: 5.0
           r1: 0.1
-          r2: 1.0
+          r2: 2.0
           racc1: 2.0
           racc2: 3.5
           q_f: 1.0 # Multiplier for terminal cost

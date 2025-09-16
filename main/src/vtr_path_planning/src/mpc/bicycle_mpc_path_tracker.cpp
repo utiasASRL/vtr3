@@ -127,15 +127,15 @@ void BicycleMPCPathTracker::loadMPCConfig(
     CLOG(WARNING, "cbit.control") << "Failure count exceeded threshold. Enabling recovery mode.";
     mpc_config->recovery = true;
     // If we're recovering, the only thing that matters is getting back to the path
-    mpc_config->Q_lon = 1.0;
+    mpc_config->Q_lon = 0.4;
     // TODO: make these parameters configurable
     mpc_config->vel_max(0) = 0.5*config_->max_lin_vel;
     mpc_config->vel_min(0) = -0.5*config_->max_lin_vel;
-    mpc_config->R1 = 0.0;
-    mpc_config->R2 = 0.0;
-    mpc_config->Acc_R1 = 0.0;
-    mpc_config->Acc_R2 = 0.0;
-    mpc_config->Q_f = 0.0;
+    //mpc_config->R1 = 0.0;
+    //mpc_config->R2 = 0.0;
+    //mpc_config->Acc_R1 = 0.0;
+    //mpc_config->Acc_R2 = 0.0;
+    //mpc_config->Q_f = 0.0;
   }
 }
 
@@ -156,6 +156,9 @@ std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::C
     CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
     result = solver_.solve(*config);
     CLOG(INFO, "cbit.control") << "Solver called";
+    if (std::abs(result["vel"](casadi::Slice(),0).get_elements()[0]) < 0.05){
+      throw std::invalid_argument("Velocity too low.");
+    }
     success_count += 1;
     if(success_count > config_->recovery_steps){
         failure_count = 0;

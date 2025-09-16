@@ -170,7 +170,7 @@ bool Tactic::passedSeqId(const uint64_t& sid) const {
 bool Tactic::routeCompleted() const {
   auto lock = chain_->guard();
   const auto T_leaf_target = chain_->T_leaf_trunk()*chain_->T_trunk_target(chain_->sequence().size() - 1);
-  const auto translation = T_leaf_target.r_ba_ina().norm(); // lgmath bring to aang
+  const auto translation = abs(T_leaf_target.r_ba_ina()[0]);
   const auto T_leaf_target_matrix = T_leaf_target.matrix();
   const auto angle = atan2(T_leaf_target_matrix(1, 0), T_leaf_target_matrix(0, 0));
   const auto angle_180 = atan2(-T_leaf_target_matrix(1, 0), -T_leaf_target_matrix(0, 0));
