@@ -209,9 +209,12 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     for (int i = 0; i < mpc_res["pose"].columns(); i++) {
       const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
       mpc_poses.push_back(std::make_pair(curr_time + i*mpcConfig->DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
+      CLOG(DEBUG, "cbit.control")
+          << "MPC pose at step " << i << ": " << pose_i;
     }
   
-    CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
+    CLOG(INFO, "cbit.control") << "Successfully solved MPC problem, using offset 0";
+    // Changed for LELR: Const offset aligning with delay in steering angle
     const auto& mpc_vel_vec = mpc_res["vel"](casadi::Slice(), 0).get_elements();
   
     command.linear.x = mpc_vel_vec[0];
@@ -270,7 +273,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     auto dist = (curr_pose - last_pose).norm();
     if (end_ind < 0 && dist < base_config_->end_of_path_distance_threshold) {
       end_ind = i-1;
-      weighting = (float)  1.0 / (mpcConfig->N - end_ind);
+      weighting = 0.0; //(float)  1.0 / (mpcConfig->N - end_ind);
       CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
     }
     else if (end_ind >= 0 && dist > base_config_->end_of_path_distance_threshold) {
