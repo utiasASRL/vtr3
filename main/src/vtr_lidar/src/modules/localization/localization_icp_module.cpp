@@ -288,7 +288,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
       mean_dR += (dR_b - mean_dR) / avg_tot;
     }
 
-    // Refininement incremental
+    // Refinement incremental
     if (refinement_stage) refinement_step++;
 
     // Stop condition

@@ -43,6 +43,17 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     bool verbose = false;
     unsigned int max_iterations = 1;
 
+    bool use_odo = false; // temp
+
+    double eigenvalue_threshold = 1000.0;
+    float outlier_trans_thresh = 0.2;  // 0.2 m
+    float outlier_rot_thresh = 0.1;    // 0.1 rad
+
+    Eigen::Matrix<double, 6, 6> covariance = Eigen::Matrix<double, 6, 6>::Identity();
+
+    bool calc_gy_bias = false;
+    float calc_gy_bias_thresh = 1.0;
+
     /// Success criteria
     float min_matched_ratio = 0.4;
 
@@ -64,6 +75,10 @@ class LocalizationDAICPModule : public tactic::BaseModule {
         : tactic::BaseModule(module_factory, name), config_(config) {}
 
     private:
+
+        int64_t timestamp_prev_ = 0;
+        Eigen::Matrix4d T_r_v_loc_prev_ = Eigen::Matrix4d::Identity();
+
         void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
                   const tactic::Graph::Ptr &graph,
                   const tactic::TaskExecutor::Ptr &executor) override;

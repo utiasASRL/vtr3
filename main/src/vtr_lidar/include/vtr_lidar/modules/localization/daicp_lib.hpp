@@ -270,7 +270,7 @@ inline bool computeEigenvalueDecomposition(
 inline double computeThreshold(const Eigen::VectorXd& eigenvalues) {
   const double max_eigenval = eigenvalues.maxCoeff();
   // const double eigenvalue_threshold = max_eigenval * 1e-3;  
-  const double eigenvalue_threshold = 200.0;
+  const double eigenvalue_threshold = 1000.0;
   return eigenvalue_threshold;
 }
 
@@ -281,7 +281,9 @@ inline bool daGaussNewtonP2Plane(
     const Eigen::Matrix4Xf& map_normals_mat,
     steam::se3::SE3StateVar::Ptr T_var,
     int max_gn_iter,
-    double inner_tolerance) {
+    double inner_tolerance,
+    double eigenvalue_threshold = 1000.0
+    ) {
   
   if (sample_inds.size() < 6) {
     CLOG(WARNING, "lidar.localization_daicp") << "Insufficient correspondences for Gauss-Newton";
@@ -381,8 +383,8 @@ inline bool daGaussNewtonP2Plane(
       return false;
     }
     
-    // Compute unified threshold
-    const double eigenvalue_threshold = computeThreshold(eigenvalues);
+    // Compute unified threshold - temporarily controlled using a config parameter
+    // const double eigenvalue_threshold = computeThreshold(eigenvalues);
     
     // Construct well-conditioned directions matrix Vf
     Eigen::MatrixXd V, Vf;

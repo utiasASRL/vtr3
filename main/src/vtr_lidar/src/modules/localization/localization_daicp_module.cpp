@@ -32,6 +32,22 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
 
+  config->use_odo = node->declare_parameter<bool>(param_prefix + ".use_odo", config->use_odo); // temp
+  config->eigenvalue_threshold = node->declare_parameter<double>(param_prefix + ".eigenvalue_threshold", config->eigenvalue_threshold);
+  config->outlier_trans_thresh = node->declare_parameter<float>(param_prefix + ".outlier_trans_thresh", config->outlier_trans_thresh);
+  config->outlier_rot_thresh = node->declare_parameter<float>(param_prefix + ".outlier_rot_thresh", config->outlier_rot_thresh);
+
+  const auto cov_tuning = node->declare_parameter<std::vector<double>>(param_prefix + ".covariance", std::vector<double>());
+  if (cov_tuning.size() != 6) {
+    std::string err{"covariance malformed. Must be 6 elements!"};
+    CLOG(ERROR, "lidar.localization_daicp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->covariance = Eigen::DiagonalMatrix<double, 6>(cov_tuning[0], cov_tuning[1], cov_tuning[2], cov_tuning[3], cov_tuning[4], cov_tuning[5]);
+
+  config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
+  config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
+
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
   return config;
@@ -43,7 +59,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time && *qdata.pipeline_mode == tactic::PipelineMode::RepeatFollow) {
-    CLOG(WARNING, "lidar.localization_icp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
+    CLOG(WARNING, "lidar.localization_daicp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
     return;
   }
 
@@ -72,6 +88,14 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   /// Create and add the T_robot_map variable, here m = vertex frame.
   const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
 
+  // temporary!!! return odometry estimate as localization result directly
+  if (config_->use_odo) {
+    const auto T_r_v_prior = T_r_v_var->value();
+    *qdata.T_r_v_loc = EdgeTransform(T_r_v_prior, T_r_v.cov());
+    *qdata.loc_success = true;
+    return;
+  }
+
   /// compound transform for alignment (sensor to point map transform)
   const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
 
@@ -94,7 +118,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// create kd-tree of the map
-  CLOG(DEBUG, "lidar.localization_icp") << "Start building a kd-tree of the map.";
+  CLOG(DEBUG, "lidar.localization_daicp") << "Start building a kd-tree of the map.";
   NanoFLANNAdapter<PointWithInfo> adapter(point_map);
   KDTreeParams tree_params(/* max leaf */ 10);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
@@ -187,7 +211,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                                                 map_normals_mat,
                                                                 T_m_s_var,
                                                                 max_gn_iter,
-                                                                inner_tolerance);
+                                                                inner_tolerance,
+                                                                config_->eigenvalue_threshold
+                                                              );
 
     if (!optimization_success) {
       CLOG(WARNING, "lidar.localization_daicp") << "Gauss-Newton optimization failed at step " << step;
@@ -238,6 +264,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     // Stop condition
     if (!refinement_stage && step >= first_steps) {
+      CLOG(INFO, "lidar.localization_daicp") << "Initial alignment check at step " << step 
+                                          << ", mean_dT: " << mean_dT << ", mean_dR: " << mean_dR;
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
         CLOG(DEBUG, "lidar.localization_daicp") << "Initial alignment takes " << step << " steps.";
@@ -265,11 +293,32 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const auto T_s_m_optimized = T_m_s_optimized.inverse();
       const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
       
-      // Create T_r_v_icp with dummy covariance
-      Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
-      dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
-      T_r_v_icp = EdgeTransform(T_r_v_decoded, dummy_cov);
-      matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      // -------- Check difference between prior and computed T_r_v
+      const auto T_r_v_prior = T_r_v_var->value();
+      const auto T_diff = T_r_v_decoded * T_r_v_prior.inverse();
+      const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
+      const double translation_diff = T_diff_vec.head<3>().norm();
+      const double rotation_diff = T_diff_vec.tail<3>().norm();
+
+      // OUTLIER REJECTION: larger than 0.2m or 0.1rad (5.7deg)
+      if (translation_diff > config_->outlier_trans_thresh || rotation_diff > config_->outlier_rot_thresh) {
+        CLOG(WARNING, "lidar.localization_daicp") << "Significant difference detected in T_r_v, fall back to odometry:";
+        CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
+        CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
+        CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
+                                                << (rotation_diff * 180.0 / M_PI) << " deg)";
+
+        // fallback to using prior
+        T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+        matched_points_ratio = 1.0f;  // dummy value to indicate success
+      } else {
+        // Create T_r_v_icp with dummy covariance
+        // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
+        // dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
+        T_r_v_icp = EdgeTransform(T_r_v_decoded, config_->covariance);
+        matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      }
+
       //
       CLOG(DEBUG, "lidar.localization_daicp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
@@ -296,6 +345,59 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     *qdata.T_r_v_loc = T_r_v_icp;
     // set success
     *qdata.loc_success = true;
+
+    // Gyroscope bias estimation
+    if (config_->calc_gy_bias && qdata.gyro_msgs->size() > 0) {
+      const auto &query_stamp = *qdata.stamp;
+      Eigen::Matrix4d T_r_v_loc = T_r_v_icp.matrix();
+      double dt = (query_stamp - timestamp_prev_) * 1e-9;
+
+      if (timestamp_prev_ == 0) {
+        timestamp_prev_ = query_stamp;
+        T_r_v_loc_prev_ = T_r_v_loc;
+        return;
+      }
+
+      CLOG(DEBUG, "lidar.localization_daicp") << "Time since last update: " << dt << " s";
+      
+      // check if enough time has passed
+      if (dt < config_->calc_gy_bias_thresh) {
+        CLOG(DEBUG, "lidar.localization_daicp") << "Not enough motion since last update. Skip gyro bias estimation.";
+        return;
+      }
+
+      Eigen::Matrix<double, 6, 1> phi = lgmath::se3::tran2vec(T_r_v_loc * T_r_v_loc_prev_.inverse());
+      Eigen::Matrix<double, 6, 1> varpi_hat = phi / dt;
+
+      Eigen::Vector3d w_hat = varpi_hat.tail<3>();
+      
+      Eigen::Vector3d gyro_avg = Eigen::Vector3d::Zero();
+      for (const auto& msg : *qdata.gyro_msgs) {
+        gyro_avg += Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
+      }
+      gyro_avg /= (double)qdata.gyro_msgs->size();
+
+      CLOG(DEBUG, "lidar.localization_daicp") << "number of gyro msgs: " << qdata.gyro_msgs->size();
+
+      Eigen::Vector3d gyro_bias_update = gyro_avg - w_hat;
+
+      CLOG(DEBUG, "lidar.localization_daicp") << "gyro_avg: " << gyro_avg.transpose();
+      CLOG(DEBUG, "lidar.localization_daicp") << "w_hat: " << w_hat.transpose();
+
+      // check if the computed gyro_bias_update is similar to the previous gyro_bias
+      bool is_similar = ((*qdata.gyro_bias) - gyro_bias_update).norm() < 1e-3;
+      CLOG(DEBUG, "lidar.localization_daicp") << "gyro_bias_update similarity to previous: " << is_similar;
+      if (!is_similar) {
+        CLOG(WARNING, "lidar.localization_daicp") << "Computed gyro_bias_update is not similar to previous estimate. Skip update.";
+        return;
+      }
+
+      // update cache
+      *qdata.gyro_bias = 0.8*(*qdata.gyro_bias) + 0.2*gyro_bias_update;
+      CLOG(DEBUG, "lidar.localization_daicp") << "Estimated gyro bias: " << (*qdata.gyro_bias).transpose();
+      timestamp_prev_ = query_stamp;
+      T_r_v_loc_prev_ = T_r_v_loc;
+    }
   } else {
     CLOG(WARNING, "lidar.localization_daicp")
         << "Matched points ratio " << matched_points_ratio
