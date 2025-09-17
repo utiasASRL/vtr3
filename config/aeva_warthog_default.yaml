@@ -133,7 +133,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 12
-        crop_range: 80.0
+        crop_range: 100.0
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
@@ -162,7 +162,7 @@
         num_rows: 64                    # num of vertical scan lines
         num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
         min_dist: 0.0                   # meters
-        max_dist: 150.0                 # meters
+        max_dist: 100.0                 # meters
         #
         root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
         # root_path: "/home/wenda/ASRL/vtr3/aeva_config"
@@ -310,7 +310,17 @@
         max_iterations: 1
         min_matched_ratio: 0.45
         target_loc_time: 100.0
-        dratio_threshold: 0.75
+
+        use_odo: false # temporary! if true, return odometry as localization result directly
+        
+        eigenvalue_threshold: 1000.0
+        outlier_trans_thresh: 0.2 # 0.2 m
+        outlier_rot_thresh: 0.1   # 0.1 rad
+
+        covariance: [0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6]
+
+        calc_gy_bias: false
+        calc_gy_bias_thresh: 10.0 # [s]
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0
