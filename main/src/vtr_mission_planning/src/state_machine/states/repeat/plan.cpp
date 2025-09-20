@@ -72,7 +72,7 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
         << "Current vertex: " << persistent_loc.v
         << ", waypoints: " << waypoints_;
 
-    constexpr uint32_t max_offset = 7;
+    constexpr uint32_t max_offset = 0;
     uint32_t chain_offset = std::min(persistent_loc.v.minorId(), max_offset);
     CLOG(INFO, "mission.state_machine")
         << "Using chain offset of " << chain_offset;
