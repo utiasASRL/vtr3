@@ -251,11 +251,11 @@ class MultiRobotSocketVTRUI(MultiRobotVTRUI):
     ros_command.goal_handle.waypoints = [int(id) for id in data['waypoints']]
     return super().add_goal(ros_command)
 
-  def cancel_goal(self, data):
+  def cancel_goal(self, data, robot_id):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.CANCEL_GOAL
     ros_command.goal_handle.id = [int(id) for id in data['id']]
-    return super().cancel_goal(ros_command)
+    return super().cancel_goal(ros_command, robot_id)
   
   def begin_goals(self):
     ros_command = MissionCommand()
@@ -310,17 +310,14 @@ class MultiRobotSocketVTRUI(MultiRobotVTRUI):
       robot_id = kwargs.get("robot_id", "default")
       self._send(name, {'robot_state': robot_state, 'robot_id': robot_id})
     if name == 'server_state':
-      print(f"Sending server state: {kwargs['server_state']}")
       server_state = server_state_from_ros(kwargs["server_state"])
       robot_id = kwargs.get("robot_id", "default")
       self._send(name, {'server_state': server_state, 'robot_id': robot_id})
     if name == 'following_route':
-      print(f"Sending following route: {kwargs['following_route']}")
       robot_id = kwargs.get("robot_id", "default")
       following_route = following_route_from_ros(kwargs["following_route"])
       self._send(name, {'following_route': following_route, 'robot_id': robot_id})
     if name == 'task_queue_update':
-      print(f"Sending task queue update: {kwargs['task_queue_update']}")
       self._send(name, {'task_queue_update': task_queue_update_from_ros(kwargs["task_queue_update"])})
 
 def main():

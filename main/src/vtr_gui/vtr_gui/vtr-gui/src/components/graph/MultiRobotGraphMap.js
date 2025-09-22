@@ -27,7 +27,7 @@ import { kdTree } from "kd-tree-javascript";
 import {fetchWithTimeout} from "../../index"
 
 import ToolsMenu from "../tools/ToolsMenu";
-import GoalManager from "../goal/GoalManager";
+import MultiRobotGoalManager from "../goal/GoalManager";
 import TaskQueue from "../task_queue/TaskQueue";
 
 import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";
@@ -125,7 +125,7 @@ class MultiRobotGraphMap extends React.Component {
     const robotIds = props.robotIds || [];
     this.state = {
       /// goal manager
-      server_state: "EMPTY",
+      server_states: {}, // id -> server state
       waypoints_map: new Map(),
       display_waypoints_map: new Map(),
       goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
@@ -181,6 +181,7 @@ class MultiRobotGraphMap extends React.Component {
           rotationAngle: 0,
         }),
       };
+      this.state.server_states[id] = "EMPTY";
     });
     this.fetchMapCenter()
     /// leaflet map
@@ -349,9 +350,8 @@ class MultiRobotGraphMap extends React.Component {
   render() {
     const { socket } = this.props;
     const {
-      server_state,
+      server_states,
       waypoints_map,
-      goals,
       curr_goal_idx,
       new_goal_type,
       new_goal_waypoints,
@@ -438,21 +438,22 @@ class MultiRobotGraphMap extends React.Component {
           }
           />
         </Box>
-        <GoalManager
+        <MultiRobotGoalManager
           socket={socket}
           currentTool={current_tool}
           selectTool={this.selectTool.bind(this)}
           deselectTool={this.deselectTool.bind(this)}
-          serverState={server_state}
+          serverStates={server_states}
           waypointsMap={waypoints_map}
-          goals={goals}
+          goals={Object.entries(server_states).flatMap(([robot_id, state]) =>
+            (state && state.goals ? state.goals.map(g => ({ ...g, robot_id })) : [])
+          )}
           currGoalIdx={curr_goal_idx}
           newGoalType={new_goal_type}
           setNewGoalType={this.setNewGoalType.bind(this)}
           newGoalWaypoints={new_goal_waypoints}
           setNewGoalWaypoints={this.setNewGoalWaypoints.bind(this)}
           followingRouteIds={following_route_ids}
-          // merge
           mergeIds={merge_ids}
         />
         <TaskQueue socket={socket} />
@@ -822,7 +823,13 @@ class MultiRobotGraphMap extends React.Component {
         break;
       }
     }
-    this.setState({ server_state: state.server_state, goals: state.goals, curr_goal_idx: curr_goal_idx });
+    // Store full server state object by robotID
+    this.setState(prevState => ({
+      server_states: { ...prevState.server_states, [robot_id]: state },
+      server_state: state.server_state,
+      goals: state.goals,
+      curr_goal_idx: curr_goal_idx
+    }));
   }
 
   graphUpdateCallback(graph_update) {

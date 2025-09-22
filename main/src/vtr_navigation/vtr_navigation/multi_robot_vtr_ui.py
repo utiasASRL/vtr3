@@ -131,15 +131,11 @@ class MultiRobotVTRUI(ROSManager):
   @ROSManager.on_ros
   def get_graph_state(self):
     print("[MultiRobotVTRUI] get_graph_state called")
-    vtr_ui_logger.info("Base class: Getting graph state for robot " + next(iter(self._robot_namespaces.values())))
     robot = next(iter(self._robot_ids))
     # Get the graph state for a single robot. It should match between all
     while not self._graph_state_cli[robot].wait_for_service(timeout_sec=1.0):
       vtr_ui_logger.info("Base Class: Waiting for graph_state_srv service for robot " + robot)
     
-    
-    
-    print("Calling graph state service for robot " + robot)
     return next(iter(self._graph_state_cli.values())).call(GraphStateSrv.Request()).graph_state
 
   @ROSManager.on_ros
@@ -147,13 +143,11 @@ class MultiRobotVTRUI(ROSManager):
     vtr_ui_logger.info(f"Base Class: Graph state callback for robot {robot_id}")
     namespace = self._robot_namespaces[robot_id]
     self.notify("graph_state", graph_state=graph_state)
-    self.notify(namespace + "graph_state", graph_state=graph_state)
 
   @ROSManager.on_ros
   def graph_update_callback(self, graph_update, robot_id):
     namespace = self._robot_namespaces[robot_id]
     self.notify("graph_update", graph_update=graph_update)
-    self.notify(namespace + "graph_update", graph_update=graph_update)
 
   @ROSManager.on_ros
   def get_robot_state(self, robot_id):
@@ -168,8 +162,6 @@ class MultiRobotVTRUI(ROSManager):
   def get_map_info(self):
     print("[MultiRobotVTRUI] get_map_info called")
     vtr_ui_logger.info("Base class: Getting map info for robot")
-    #while not next(iter(self._map_info_cli.values())).wait_for_service(timeout_sec=1.0):
-    #  vtr_ui_logger.info("Base Class: Waiting for map_info_srv service for robot " + next(iter(self._robot_ids)))
     service = self._map_info_cli#[self._robot_ids[0]]
 
     res = service.call(MapInfoSrv.Request()) 
@@ -210,7 +202,10 @@ class MultiRobotVTRUI(ROSManager):
   @ROSManager.on_ros
   def set_pause(self, msg):
     # For now, we assume coordinated action across all robots
+    vtr_ui_logger.info("[MultiRobotVTRUI]: Pausing goal for all robots")
     for robot_id in self._robot_ids:
+      name = self._mission_command_pub[robot_id].topic_name
+      vtr_ui_logger.info(f"[MultiRobotVTRUI]Pausing goal for robot {robot_id} on topic {name}")
       self._mission_command_pub[robot_id].publish(msg)
 
   @ROSManager.on_ros
@@ -219,11 +214,16 @@ class MultiRobotVTRUI(ROSManager):
       self._mission_command_pub[robot_id].publish(msg)
 
   @ROSManager.on_ros
-  def cancel_goal(self, msg):
-    vtr_ui_logger.info("[MultiRobotVTRUI]: Cancelling goal for all robots")
+  def cancel_goal(self, msg, robot_id):
+    vtr_ui_logger.info("[MultiRobotVTRUI]: Cancelling goal for robot " + (robot_id if robot_id is not None else "all robots"))
+    if robot_id is not None:
+      name = self._mission_command_pub[robot_id].topic_name
+      vtr_ui_logger.info(f"[MultiRobotVTRUI]Cancelling goal for robot {robot_id} on topic {name}")
+      self._mission_command_pub[robot_id].publish(msg)
+      return
     for robot_id in self._robot_ids:
       name = self._mission_command_pub[robot_id].topic_name
-      print(f"[MultiRobotVTRUI]Cancelling goal for robot {robot_id} on topic {name}")
+      vtr_ui_logger.info(f"[MultiRobotVTRUI]Cancelling goal for robot {robot_id} on topic {name}")
       self._mission_command_pub[robot_id].publish(msg)
   
   @ROSManager.on_ros

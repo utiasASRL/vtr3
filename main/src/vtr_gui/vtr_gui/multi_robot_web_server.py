@@ -138,7 +138,6 @@ def get_following_route(robot_id):
 @app.route('/vtr/server/<robot_id>')
 def get_server_state(robot_id):
   server_state = build_remote().get_server_state(robot_id)
-  print(f"Web Server: Server state for robot {robot_id}: {server_state}") 
   return flask.jsonify(server_state)
 
 
