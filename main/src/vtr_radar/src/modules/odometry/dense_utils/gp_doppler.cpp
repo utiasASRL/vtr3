@@ -15,6 +15,25 @@ static cv::Mat tensorToMat(const torch::Tensor& t) {
     return m.clone();
 }
 
+// dumping functions start
+#include <iomanip>
+#include <filesystem>
+namespace fs = std::filesystem;
+
+static void dump_mat_float(const std::string& path, const cv::Mat& m) {
+  fs::create_directories(fs::path(path).parent_path());
+  cv::imwrite(path, m);  // will keep CV_32F if format supports it
+}
+
+static void dump_polar_tensor_float(const std::string& path, const torch::Tensor& polar) {
+  fs::create_directories(fs::path(path).parent_path());
+  // (H,W) float32 on any device -> CPU CV_32F
+  auto p = polar.detach().to(torch::kCPU).contiguous();
+  cv::Mat m(p.size(0), p.size(1), CV_32F, (void*)p.data_ptr<float>());
+  dump_mat_float(path, m);
+}
+
+
 GPStateEstimator::GPStateEstimator(vtr::radar::OdometryDenseModule::Config::ConstPtr config_) :
     device_(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU)
 {
@@ -87,7 +106,7 @@ GPStateEstimator::GPStateEstimator(vtr::radar::OdometryDenseModule::Config::Cons
 
     pose_estimation_ = use_gyro_ || estimate_ang_vel_;
 
-    vy_bias_ = torch::tensor(config_->vy_bias_prior, torch::TensorOptions().device(device_));
+    vy_bias_ = torch::tensor(config_->vy_bias_prior, torch::TensorOptions().dtype(torch::kFloat64).device(device_)); //changed to float64
 
     double kNeighbourhoodFactor = 1.0;
     double l_az = static_cast<double>(config_->lengthscale_az);
@@ -95,10 +114,10 @@ GPStateEstimator::GPStateEstimator(vtr::radar::OdometryDenseModule::Config::Cons
     size_az_ = static_cast<int>(kNeighbourhoodFactor * l_az);
     size_range_ = static_cast<int>(kNeighbourhoodFactor * l_range);
 
-    double df_dt = config_->del_f * config_->meas_freq;
+    double df_dt = (config_->del_f) * (config_->meas_freq);
     CLOG(DEBUG, "radar.gp_doppler") << "line 105: df_dt is: " << df_dt;
 
-    radar_beta_ = config_->beta_corr_fact *
+    radar_beta_ = (config_->beta_corr_fact) *
                                 (config_->ft + config_->del_f / 2.0) / df_dt;
 
     vel_to_bin_ = 2.0 * radar_beta_ / radar_res_;
@@ -151,6 +170,8 @@ GPStateEstimator::GPStateEstimator(vtr::radar::OdometryDenseModule::Config::Cons
 
     max_range_idx_ = static_cast<int>(std::floor(config_->max_range / radar_res_)); // doppler range is the same on the RAS3 since it does not have doppler
     min_range_idx_ = static_cast<int>(std::ceil(config_->min_range / radar_res_));
+    CLOG(DEBUG, "radar.gp_doppler") << "The min range index is: " << min_range_idx_;
+    CLOG(DEBUG, "radar.gp_doppler") << "The max range index is: " << max_range_idx_;
 
     if (use_direct_) 
     {
@@ -164,9 +185,14 @@ GPStateEstimator::GPStateEstimator(vtr::radar::OdometryDenseModule::Config::Cons
         CLOG(DEBUG, "radar.gp_doppler") << "The config param: local_map_size is: " << local_map_size;
         local_map_ = torch::zeros({local_map_size, local_map_size}, torch::TensorOptions().device(device_).dtype(torch::kFloat32));
 
-    //     // auto temp_x = (torch::arange(-local_map_size / 2, local_map_size / 2, torch::TensorOptions().device(device_)) + 1) * local_map_res_;
+        // auto temp_x = (torch::arange(-local_map_size / 2, local_map_size / 2, torch::TensorOptions().device(device_)) + 1) * local_map_res_;
 
         auto temp_x = ((torch::arange(-int(local_map_size/2)-1, int(local_map_size/2), 1).to(device_).to(torch::kFloat64)) + 1) * local_map_res_;
+        // print the first and last value of temp_x
+        CLOG(DEBUG,"radar.gp_doppler") << "first element of temp_x is: " << temp_x.index({0});
+        CLOG(DEBUG,"radar.gp_doppler") << "last element of temp_x is: " << temp_x.index({-1});
+        // exit(-1);
+
         auto X = -temp_x.unsqueeze(0).transpose(0, 1).repeat({1, local_map_size});
         auto Y = temp_x.unsqueeze(0).repeat({local_map_size, 1});
 
@@ -175,7 +201,7 @@ GPStateEstimator::GPStateEstimator(vtr::radar::OdometryDenseModule::Config::Cons
         local_map_polar_ = localMapToPolarCoord().to(torch::kFloat32);  
 
         double min_r = static_cast<double>(config_->min_range);
-        double max_r = static_cast<double>(config_->max_local_map_range);
+        // double max_r = static_cast<double>(config_->max_local_map_range);
 
         local_map_mask_ = (local_map_polar_.index({Slice(), Slice(), 1}) < max_local_map_range) &
                           (local_map_polar_.index({Slice(), Slice(), 1}) > min_r);
@@ -632,6 +658,8 @@ std::pair<torch::Tensor, torch::Tensor> GPStateEstimator::imgDopplerInterpAndJac
 
 torch::Tensor GPStateEstimator::solve(const torch::Tensor& state_init, int nb_iter, double cost_tol, double step_tol, bool verbose, bool degraded) 
 {
+    // indicate with logs that I am in the solve function
+    CLOG(DEBUG, "radar.gp_doppler") << "Entering the solve function.";
     torch::NoGradGuard no_grad;
 
     bool remove_angular = estimate_ang_vel_ && step_counter_ == 0;
@@ -686,10 +714,10 @@ torch::Tensor GPStateEstimator::solve(const torch::Tensor& state_init, int nb_it
         if (i == 0) first_cost = cost.clone();
 
         if (verbose) {
-            std::cout << "Iter: " << i << " - Cost: " << cost.item<double>()
+             CLOG(DEBUG, "radar.gp_doppler") << "--------- Iter: " << i << " - Cost: " << cost.item<double>()
                       << " - Step norm: " << step_norm.item<double>()
                       << " - Cost change: " << cost_change.item<double>() 
-                      << " - Grad norm: " << grad_norm.item<double>() << std::endl;
+                      << " - Grad norm: " << grad_norm.item<double>() ;
         }
 
         if (step_norm.item<double>() < step_tol ||
@@ -709,6 +737,7 @@ torch::Tensor GPStateEstimator::solve(const torch::Tensor& state_init, int nb_it
                    (torch::abs(torch::norm(vel[-1]) - previous_vel_).item<double>() > max_diff_vel_);
 
     if (try_degraded && !degraded) {
+        CLOG(DEBUG, "radar.gp_doppler") << "Switching to degraded mode";
         state = solve(state_init, nb_iter, cost_tol, step_tol, verbose, true);
     }
 
@@ -772,6 +801,24 @@ torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, c
 
     CLOG(DEBUG, "radar.gp_doppler") << "****** I am in the odometry step and the step counter is: **************" << step_counter_;
 
+
+    // dump the polar img
+
+        // --- DEBUG DUMP OF ONLINE INPUTS ---
+    const std::string base = "/home/samqiao/ASRL/vtr3/src/main/src/vtr_radar/src/modules/odometry/dump" + std::to_string(step_counter_);
+
+    // print the min and max of polar image
+    CLOG(DEBUG, "radar.gp_doppler") << "Polar image min: " << polar_image.min().item<float>() << ", max: " << polar_image.max().item<float>();
+
+// // // tensors we feed to GP (already min_id-masked, on device)
+//     {
+//     //   dump_tensor_csv(base + "_timestamps_us_tensor.csv", radar_torch.timestamps.to(torch::kCPU));
+//     //   dump_tensor_csv(base + "_azimuths_rad_tensor.csv", radar_torch.azimuths.to(torch::kCPU));
+//       dump_polar_tensor_float(base + "_polar_tensor.png", polar_image);
+//     }
+    
+    // exit(-1); // exit here dump one frame first frame
+
     chirp_up_ = chirp_up;
 
     double last_scan_time;
@@ -832,7 +879,7 @@ torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, c
                 
                 prev_scan_pos = prev_scan_pos.view({-1, 2, 1});
                 
-                auto pos = torch::matmul(rot_mats_transposed, (-prev_scan_pos + frame_pos.view({-1, 2, 1})));
+                auto pos = torch::matmul(rot_mats_transposed.to(torch::kFloat64), (-prev_scan_pos + frame_pos.view({-1, 2, 1})).to(torch::kFloat64));
                 auto rot = -prev_scan_rot + frame_rot;
                 
                 auto polar_coord_corrected = polarCoordCorrection(pos, rot);
@@ -1000,22 +1047,22 @@ torch::Tensor GPStateEstimator::odometryStep(const torch::Tensor& polar_image, c
     
     // cv::waitKey(0);
     // cv::destroyAllWindows();
-    if (step_counter_ > 0) {
-            auto local_map_blurred_cpu = local_map_blurred_.detach().cpu().to(torch::kFloat32);
-            auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
-            cv::resize(local_map_blurred_cv, local_map_blurred_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
-            cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
-            cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
-            cv::waitKey(0);
-        }
+    // if (step_counter_ > 0) {
+    //         auto local_map_blurred_cpu = local_map_blurred_.detach().cpu().to(torch::kFloat32);
+    //         auto local_map_blurred_cv = tensorToMat(local_map_blurred_cpu);
+    //         cv::resize(local_map_blurred_cv, local_map_blurred_cv, cv::Size(), 0.3, 0.3, cv::INTER_LINEAR);
+    //         cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
+    //         cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
+    //         cv::waitKey(0);
+    //     }
         //     cv::destroyWindow("local_map_blurred_cv");
         // }
         // cv::namedWindow("local_map_blurred_cv", cv::WINDOW_AUTOSIZE);
         // cv::imshow("local_map_blurred_cv", local_map_blurred_cv);
         // cv::waitKey(0);
-        cv::destroyWindow("local_map_blurred_cv");
+        // cv::destroyWindow("local_map_blurred_cv");
         
-    auto result = solve(state_init_, 250, 1e-6, 1e-5);
+    auto result = solve(state_init_, 250, 1e-6, 1e-5, true); // change verbose to true for debug
 
     // auto local_map_cpu = local_map_.detach().cpu().to(torch::kFloat32);
     // auto local_map_cv = tensorToMat(local_map_cpu);
@@ -1046,7 +1093,7 @@ torch::Tensor GPStateEstimator::getDopplerVelocity() {
 
     bool save_use_direct = use_direct_;
     use_direct_ = false;
-    auto result = solve(state_init_, 250, 1e-6, 1e-5);
+    auto result = solve(state_init_, 250, 1e-6, 1e-5); // change verbose to true for debug
     use_direct_ = save_use_direct;
 
     return result.index({Slice(None, 2)}).detach().cpu();

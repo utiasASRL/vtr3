@@ -58,7 +58,7 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   fft_scan.convertTo(fft_scan, CV_32F); 
 
   // normalize to 0-1
-  fft_scan = fft_scan/255.0;
+  fft_scan = fft_scan/255.0f;
 
   cv::Mat cartesian;
   Cache<Timestamp> qstamp = qdata.stamp;

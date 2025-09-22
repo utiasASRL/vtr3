@@ -249,12 +249,15 @@ torch::Tensor applyGaussianBlur2D(const torch::Tensor& input, int kx, int ky, do
 RadarDataTorch toTorch(const RadarData& src, const torch::Device& device, int min_id) {
   RadarDataTorch dst;
 
+
   // 1. Convert timestamps: vector<int64_t> (ns) -> microseconds -> tensor (float64)
   std::vector<double> timestamps_us;
   timestamps_us.reserve(src.azimuth_times.size());
   for (auto ns : src.azimuth_times) {
-    timestamps_us.push_back(static_cast<double>(ns) / 1e3);  // ns -> us
+    int64_t us = ns/1000;
+    timestamps_us.push_back((double)us);  // ns -> us
   }
+  
   dst.timestamps = torch::from_blob(
       timestamps_us.data(),
       {(long)timestamps_us.size()},
@@ -271,6 +274,8 @@ RadarDataTorch toTorch(const RadarData& src, const torch::Device& device, int mi
   // 3. FFT scan cv::Mat -> tensor (float32, H x W')
   cv::Mat fft_float;
   src.fft_scan.convertTo(fft_float, CV_32F);
+  
+  
   dst.polar = torch::from_blob(
       fft_float.data,
       {fft_float.rows, fft_float.cols},
@@ -278,9 +283,11 @@ RadarDataTorch toTorch(const RadarData& src, const torch::Device& device, int mi
   ).clone().to(device);
 
   // // 4. Single timestamp: ns -> s
-  // dst.timestamp = static_cast<double>(src.timestamp) / 1e9;
-    // remove the mid id which corresponds to the first couple of cols of polar image
-  dst.polar.index_put_({torch::indexing::Slice(), torch::indexing::Slice(0, min_id)}, torch::zeros({400, min_id}, torch::TensorOptions().dtype(torch::kFloat64)));
+    // dst.timestamp = static_cast<double>(src.timestamp) / 1e9;
+      // remove the mid id which corresponds to the first couple of cols of polar image
+  if (min_id > 0) {
+    dst.polar.index_put_({torch::indexing::Slice(), torch::indexing::Slice(0, min_id)}, torch::zeros({dst.polar.size(0), min_id}, torch::TensorOptions().dtype(torch::kFloat32).device(device)));
+  }
 
   return dst;
 }

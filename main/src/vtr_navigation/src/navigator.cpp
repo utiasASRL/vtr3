@@ -361,6 +361,7 @@ void Navigator::radarCallback(
     CLOG(WARNING, "navigation")
         << "Dropping old message because the queue is full.";
     queue_.pop();
+    std::cout << "Sam: I am in navigator and the queue is full! " << std::endl;
   }
 
 

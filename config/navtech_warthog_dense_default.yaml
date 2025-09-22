@@ -81,14 +81,7 @@
         type: radar.online_converter
         radar_resolution: 0.040308
         encoder_bin_size: 16000 # encoder bin size
-        # ft: 76.04E9
-        # meas_freq: 1600.0
-        # del_f: 893.0E6
-        # beta_corr_fact: 0.944
-        # doppler_enabled: false
-        # chirp_up: true # Ignored if doppler_enabled is true (the true/false might be inverted)
-        # range_offset: 0.00
-
+        
     odometry:
       dense:
         type: radar.odometry_dense
@@ -96,15 +89,15 @@
         estimation:
           doppler_cost: false
           direct_cost: true
-          motion_model: 'const_body_vel_gyro' #'const_vel_const_w' #, const_acc_const_w
-          gyro_bias_estimation: true
-          estimate_gyro_bias: true # was true
+          motion_model: 'const_vel_const_w' #'const_body_vel_gyro' #'const_vel_const_w' #, const_acc_const_w
+          gyro_bias_estimation: false
+          estimate_gyro_bias: false # was true
           max_acceleration: 2.0 # m/s^2 This is used to detect failure modes due to too many outliers number 6.0 comes for the max performance of a car that is 0-100 in approx 3s (high performance car)
-          optimisation_first_step: 0.1
+          optimization_first_step: 0.1
           vy_bias_prior: 0.0
           estimate_doppler_vy_bias: false
-          use_gyro: true
-
+          use_gyro: false
+          ang_vel_bias: 0.0
         gp:
           lengthscale_az: 2.0
           lengthscale_range: 4.0
