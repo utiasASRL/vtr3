@@ -13,7 +13,7 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr -p ip_address:=192.168.3.42 # TODO: Set IP as a cmd line arg, so we can do this from ssh?
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr -p ip_address:=192.168.2.42 # TODO: Set IP as a cmd line arg, so we can do this from ssh?
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
@@ -23,6 +23,15 @@ windows:
         planner:="bicycle_mpc_follower"
         model_dir:=${VTRROOT}/models
         override_params:=follower_params.yaml
+
+  - window_name: vtr_gui
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 run vtr_gui socket_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
+      - ros2 run vtr_gui socket_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
+      - ros2 run vtr_gui web_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
         
   - window_name: rosbag
     layout: main-horizontal

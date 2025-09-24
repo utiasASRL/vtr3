@@ -154,6 +154,9 @@ if(BUILD_TESTING)
   ament_add_gtest(test_unicycle test/closed_loop/unicycle_tests.cpp)
   target_link_libraries(test_unicycle ${PROJECT_NAME}_cbit)
 
+  ament_add_gtest(test_casadi_solvers test/casadi_simple_tests.cpp)
+  target_link_libraries(test_casadi_solvers ${PROJECT_NAME}_mpc)
+
   # Linting
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml

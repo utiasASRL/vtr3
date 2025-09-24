@@ -32,7 +32,7 @@ void BicycleMPCJointPathTracker::Config::loadConfig(BicycleMPCJointPathTracker::
   // MPC Configs:
 
   // Follower params
-  config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
+  config->follower_namespace = node->declare_parameter<std::string>(prefix + ".follower_namespace", config->follower_namespace);
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
   config->distance_margin = node->declare_parameter<double>(prefix + ".distance_margin", config->distance_margin);
 
@@ -67,24 +67,27 @@ BicycleMPCJointPathTracker::BicycleMPCJointPathTracker(const Config::ConstPtr& c
     : BicycleMPCPathTracker(config, robot_state, graph, callback), config_(config), solver_{config_->mpc_verbosity}, graph_{graph}, robot_state_{robot_state} {
 
   vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
+  lastFollowerCommand_ << 0, 0;
 
   CLOG(DEBUG, "mpc.follower") << "Choosing " << config_->waypoint_selection << " option for waypoint selection!";
 
   using std::placeholders::_1;
-  const auto leader_cmd_topic = config_->leader_namespace + "/cmd_vel";
-  const auto leader_graph_topic = config_->leader_namespace + "/vtr/graph_state_srv";
-  const auto leader_route_topic = config_->leader_namespace + "/vtr/following_route";
-  CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
-  CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
-  CLOG(INFO, "mpc.follower") << "Sending leader velocities to " << leader_cmd_topic;
+  const auto follower_cmd_topic = config_->follower_namespace + "/cmd_vel";
+  const auto follower_odom_topic = config_->follower_namespace + "/vtr/odometry";
+  const auto follower_graph_topic = config_->follower_namespace + "/vtr/graph_state_srv";
+  const auto follower_route_topic = config_->follower_namespace + "/vtr/following_route";
+  CLOG(INFO, "mpc.follower") << "Requesting graph info from " << follower_graph_topic;
+  CLOG(INFO, "mpc.follower") << "Listening for route on " << follower_route_topic;
+  CLOG(INFO, "mpc.follower") << "Listening for pose on " << follower_odom_topic;
+  CLOG(INFO, "mpc.follower") << "Sending leader velocities to " << follower_cmd_topic;
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->following_offset;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
-  leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCJointPathTracker::onLeaderRoute, this, _1));
-
-  leaderCommandPub_ = robot_state->node->create_publisher<Command>(leader_cmd_topic, 10);
-  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
-  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
+  followerRouteSub_ = robot_state->node->create_subscription<RouteMsg>(follower_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCJointPathTracker::onFollowerRoute, this, _1));
+  followerOdomSub_ = robot_state->node->create_subscription<OdomMsg>(follower_odom_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCJointPathTracker::onFollowerOdom, this, _1));
+  followerCommandPub_ = robot_state->node->create_publisher<Command>(follower_cmd_topic, 10);
+  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
+  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(follower_graph_topic);
 
 }
 
@@ -106,6 +109,17 @@ CasadiMPC::Config::Ptr BicycleMPCJointPathTracker::getMPCConfig(const bool isRev
 }
 
 bool BicycleMPCJointPathTracker::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& curr_time){
+  if (follower_stamp_ == 0) {
+    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Leader has received no odom info from the follower yet. Stopping";
+    return false;
+  }
+
+  const auto delta_t = curr_time - follower_stamp_;
+  if (delta_t > 1e9) {
+    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Leader has received no path from the follower in more than 1 second. Stopping\n Delay: "
+           << delta_t / 1e9;
+    return false;
+  }
   return true;
 }
 
@@ -115,81 +129,70 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
                          RobotState& robot_state,
                          const tactic::Timestamp& curr_time) {
 
-  
-  auto follower_mpc_config = std::dynamic_pointer_cast<CasadiBicycleMPCJoint::Config>(mpcConfig);
+  // Leader is handled as normal
+  BaseMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, curr_time);
+  std::vector<lgmath::se3::Transformation> leader_world_poses;
+  for (const auto& Tf : mpcConfig->reference_poses) {
+    const auto Tf_g = Tf.get_elements();
+    leader_world_poses.push_back(T_w_p * tf_from_global(Tf_g[0], Tf_g[1], Tf_g[2]));
+  }
+
+  auto joint_mpc_config = std::dynamic_pointer_cast<CasadiBicycleMPCJoint::Config>(mpcConfig);
   
   auto& chain = robot_state.chain.ptr();
-  follower_mpc_config->leader_reference_poses.clear();
 
-  std::vector<lgmath::se3::Transformation> leader_world_poses;
-  // const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_fw_lw_ * leaderPath_copy.at(curr_time);
-  // CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  T_f_l;
-  // const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
-  // CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
-  // CLOG(DEBUG, "mpc.follower") << "Dist to leader:\n" << dist.head<2>().norm();
+  auto T_w_f_extp = T_lw_fw_ * T_fw_f_;
+  if (config_->extrapolate_robot_pose) {
+    auto dt = static_cast<double>(curr_time - follower_stamp_) * 1e-9;
+    Eigen::Vector<double, 6> w_p_r_in_r;
+    w_p_r_in_r << follower_vel_(0), 0, 0, 0, 0, follower_vel_(1);
+    CLOG(DEBUG, "mpc.follower")
+        << "Robot velocity Used for Follower Extrapolation: " << -w_p_r_in_r
+        << " dt: " << dt << std::endl;
+    Eigen::Vector<double, 6> xi_p_r_in_r(-dt * w_p_r_in_r);
+    T_w_f_extp = T_w_f_extp * tactic::EdgeTransform(xi_p_r_in_r);
+  }
+
+  joint_mpc_config->T0_follower = tf_to_global(T_w_p.inverse() * T_w_f_extp);
+  joint_mpc_config->previous_vel_follower = {-follower_vel_(0), lastFollowerCommand_(1)};
+
+  CLOG(DEBUG, "mpc.follower") << "Leader location: " << joint_mpc_config->T0;
+  CLOG(DEBUG, "mpc.follower") << "Follower location: " << joint_mpc_config->T0_follower;
+
+
+  const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_f_extp;
+  CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  T_f_l;
+  const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
+  CLOG(DEBUG, "mpc.follower") << "Dist to leader:\n" << dist.head<2>().norm();
   
-  // for (int i = 0; i < mpcConfig->N; i++){
-  //   const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
-  //   follower_mpc_config->leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
-  //   leader_world_poses.push_back(T_w_lp);
-  //   CLOG(DEBUG, "mpc.follower.target") << "Leader target " << tf_to_global(T_w_p.inverse() *  T_w_lp);
-  // }
 
-
-  mpcConfig->reference_poses.clear();
+  joint_mpc_config->follower_reference_poses.clear();
+  const auto [_, follower_state_p] = findRobotP(T_w_f_extp, chain);
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain);
-      return generateFollowerReferencePosesEuclidean(leader_world_poses, final_leader_p_value, chain, state_p, follower_mpc_config->distance);
+      const auto final_leader_p_value = state_p + mpcConfig->N * mpcConfig->VF * mpcConfig->DT;
+      const auto initial_leader_p_value = state_p;
+      std::vector<double> max_p_vals;
+      for (float i = 0; i < leader_world_poses.size(); i++) {
+        max_p_vals.push_back(initial_leader_p_value + i / (leader_world_poses.size() - 1) * (final_leader_p_value - initial_leader_p_value));
+      }
+      return generateFollowerReferencePosesEuclidean(leader_world_poses, max_p_vals, chain, follower_state_p, joint_mpc_config->distance);
     } else {
       CLOG_IF(config_->waypoint_selection ==  "arclength", WARNING, "mpc.follower") << "Arclength not implemented yet for bicycle!";
 
       std::vector<double> p_rollout;
       for(int j = 1; j < mpcConfig->N+1; j++){
-        p_rollout.push_back(state_p + j*mpcConfig->VF*mpcConfig->DT);
+        p_rollout.push_back(follower_state_p + j*mpcConfig->VF*mpcConfig->DT);
       }
       return generateHomotopyReference(p_rollout, chain);
     }
   }();
   
   for(const auto& Tf : referenceInfo.poses) {
-    mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-    CLOG(DEBUG, "mpc.follower.target") << "Own target " << tf_to_global(T_w_p.inverse() *  Tf);
+    joint_mpc_config->follower_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+    CLOG(DEBUG, "mpc.follower.target") << "Follower target " << tf_to_global(T_w_p.inverse() *  Tf);
   }
-
-  // Detect end of path and set the corresponding cost weight vector element to zero
-  mpcConfig->cost_weights.clear();
-  mpcConfig->cost_weights.push_back(1.0);
-  auto last_pose = (T_w_p.inverse()*referenceInfo.poses[0]).vec();
-  int end_ind = -1;
-  auto weighting = 1.0;
-  for (int i = 1; i < mpcConfig->N; i++) {
-    auto curr_pose = (T_w_p.inverse() * referenceInfo.poses[i]).vec();
-    auto dist = (curr_pose - last_pose).norm();
-    if (end_ind < 0 && dist < config_->end_of_path_distance_threshold) {
-      end_ind = i-1;
-      weighting = (float) end_ind / mpcConfig->N;
-      CLOG(DEBUG, "cbit.control") << "Detected end of path. Setting cost of EoP poses to: " << weighting;
-    }
-    else if (end_ind >= 0 && dist > config_->end_of_path_distance_threshold) {
-      weighting = 1.0;
-      for (int j = 0; j < i; j++) {
-        mpcConfig->cost_weights[j] = weighting;
-      }
-      end_ind = -1;
-      CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
-    }
-      
-    mpcConfig->cost_weights.push_back(weighting);
-    last_pose = curr_pose;
-
-  }
-  vis_->publishReferencePoses(referenceInfo.poses);
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig->DT);
-
-  mpcConfig->eop_index = end_ind;
-  mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
-  mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
 }
 
 std::map<std::string, casadi::DM> BicycleMPCJointPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
@@ -204,29 +207,58 @@ std::map<std::string, casadi::DM> BicycleMPCJointPathTracker::callSolver(CasadiM
 
       throw e;
   }
+
+  // for (int i = 0; i < result["pose_follower"].columns(); i++) {
+  //   const auto& pose_i = result["pose_follower"](casadi::Slice(), i).get_elements();
+  //   mpc_poses.push_back(std::make_pair(curr_time + i*mpcConfig->DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
+  // }
+
+  const auto& mpc_vel_vec = result["vel_follower"](casadi::Slice(), 0).get_elements();
+
+  Command followerCommand;
+  followerCommand.linear.x = mpc_vel_vec[0];
+  followerCommand.angular.z = mpc_vel_vec[1];
+  lastFollowerCommand_ << mpc_vel_vec[0], mpc_vel_vec[1];
+
+  // // Get all the mpc velocities
+  // for (int i = 0; i < result["vel"].columns(); i++) {
+  //   const auto& vel_i = result["vel"](casadi::Slice(), i).get_elements();
+  //   mpc_velocities.emplace_back(vel_i[0], vel_i[1]);
+  //   CLOG(DEBUG, "cbit.control")
+  //       << "MPC velocity at step " << i << ": " << mpc_velocities.back().transpose();
+  // }
+
+  followerCommandPub_->publish(followerCommand);
+
   return result;
 }
 
 
-void BicycleMPCJointPathTracker::onLeaderRoute(const RouteMsg::SharedPtr route) {
-  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route->ids.size() > 0 && route->ids.front() != leader_root_) { 
+void BicycleMPCJointPathTracker::onFollowerRoute(const RouteMsg::SharedPtr route) {
+  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route->ids.size() > 0 && route->ids.front() != follower_root_) { 
 
     //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
     // leaderGraphSrv_->async_send_request()
-    leader_root_ = route->ids.front();
-    CLOG(INFO, "mpc.follower") << "Updated leader's root to: " << leader_root_;
-    const auto follower_root = robot_state_->chain->sequence().front();
-    CLOG(INFO, "mpc.follower") << "Follower's root to: " << follower_root;
+    follower_root_ = route->ids.front();
+    CLOG(INFO, "mpc.follower") << "Updated follower's root to: " << follower_root_;
+    const auto leader_root = robot_state_->chain->sequence().front();
+    CLOG(INFO, "mpc.follower") << "Leader's root is: " << leader_root;
 
-    auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
+    auto connected = graph_->dijkstraSearch(leader_root, follower_root_);
     
-    T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
-    CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
+    T_lw_fw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(leader_root), connected->end(), tactic::EdgeTransform(true));    
+    CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_lw_fw_;
+  } else {
+    CLOG(WARNING, "mpc.follower") << "Follower route received but robot state chain is not valid or empty. Cannot update follower root.";
+  }
+}
 
-  }
-  else{
-    CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
-  }
+void BicycleMPCJointPathTracker::onFollowerOdom(const OdomMsg::SharedPtr leader_pose) {
+  using namespace vtr::common::conversions;
+  T_fw_f_ = tfFromPoseMessage(leader_pose->pose.pose);
+  follower_vel_ << leader_pose->twist.twist.linear.x, leader_pose->twist.twist.angular.z;
+  follower_stamp_ = rclcpp::Time(leader_pose->header.stamp).nanoseconds();
+  CLOG(DEBUG, "mpc.follower") << "Received odom from follower at time " << rclcpp::Time(leader_pose->header.stamp).seconds();
 }
 
 

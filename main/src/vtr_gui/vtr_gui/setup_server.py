@@ -73,6 +73,7 @@ def handle_confirm_setup(data):
   if vtr_setup.confirm_setup(data):
     logger.info('Broadcasting setup complete')
     socketio.emit(u"notification/setup_complete")
+    socketio.emit(u"command/confirm_setup_transfer", data)
   else:
     logger.info('Broadcasting setup invalid')
     socketio.emit(u"notification/setup_invalid")
@@ -94,6 +95,7 @@ def handle_available_subdirs():
 
 @socketio.on('command/kill_setup_server')
 def handle_kill_setup_server():
+  socketio.emit(u"command/kill_setup_client")
   os._exit(0)
 
 

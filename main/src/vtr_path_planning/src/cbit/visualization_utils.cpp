@@ -26,7 +26,7 @@ namespace path_planning {
 VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
     mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
-    leader_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("leader_mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
+    leader_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("leader_mpc_prediction", 10);
     robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
     path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
     corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
@@ -307,6 +307,7 @@ void VisualizationUtils::visualize(
             auto& pose = poses.emplace_back();
             pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].second.matrix()));
             pose.header.stamp = rclcpp::Time(mpc_prediction[i].first);
+            pose.header.frame_id = "world";
         }
         mpc_path_pub_->publish(mpc_path);
     }
@@ -322,6 +323,7 @@ void VisualizationUtils::visualize(
             auto& pose = poses.emplace_back();
             pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
             pose.header.stamp = rclcpp::Time(stamp + i*dt*1e9);
+            pose.header.frame_id = "world";
         }
         leader_path_pub_->publish(mpc_path);
     }

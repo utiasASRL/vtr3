@@ -5,6 +5,7 @@ import "./index.css";
 import io from "socket.io-client";
 import "@fontsource/roboto";
 
+import MultiRobotGraphMap from "./components/graph/MultiRobotGraphMap";
 import GraphMap from "./components/graph/GraphMap";
 import StartMenu from "./components/setup/StartMenu";
 
@@ -33,6 +34,9 @@ class VTRGUI extends React.Component {
       },
       current_tool: null,
       setup_complete: false,
+      additional_data: null,
+      loading_additional_data: false,
+      tried_additional_data: false,
     };
   }
 
@@ -56,21 +60,55 @@ class VTRGUI extends React.Component {
     SETUP_SOCKET.off("connect_error", this.setupSocketConnectErrorCallback.bind(this));
   }
 
+  // Fetch additional data only after setup is complete, and only try once
+  fetchAdditionalData() {
+    this.setState({ loading_additional_data: true });
+    fetchWithTimeout("/vtr/additional_data", { timeoutMS: 2000 })
+      .then((response) => {
+        if (response.status !== 200) throw new Error("No additional data " + response.status);
+        return response.json();
+      })
+      .then((data) => {
+        this.setState({ additional_data: data, loading_additional_data: false, tried_additional_data: true });
+      })
+      .catch((error) => {
+        this.setState({ loading_additional_data: false, tried_additional_data: true });
+        console.error(error);
+      });
+  }
+
   render() {
-    if (this.state.setup_complete){
-      return (
-          <>
-            <GraphMap socket={SOCKET} />
-          </>
-      );
-    }
-    else {
+    if (!this.state.setup_complete) {
       return (
         <>
           <StartMenu socket={SETUP_SOCKET} set_setup_complete={this.setSetupComplete.bind(this)} />
         </>
-    );
+      );
     }
+    // After setup is complete, fetch additional data if not already done, and only try once
+    if (this.state.setup_complete && this.state.additional_data == null && !this.state.loading_additional_data && !this.state.tried_additional_data) {
+      this.fetchAdditionalData();
+      return <div>Loading additional data...</div>;
+    }
+    // If tried and failed, or if data is present, move on
+    if (this.state.setup_complete && (this.state.additional_data || this.state.tried_additional_data)) {
+      // If we have additional_data and it contains robot_ids, use MultiRobotGraphMap
+      if (this.state.additional_data) {
+        return (
+          <>
+            <MultiRobotGraphMap socket={SOCKET} robotIds={this.state.additional_data} />
+          </>
+        );
+      } else {
+        // Fallback to single-robot GraphMap
+        return (
+          <>
+            <GraphMap socket={SOCKET}/>
+          </>
+        );
+      }
+    }
+    return null;
   }
 
   setSetupComplete(value) {

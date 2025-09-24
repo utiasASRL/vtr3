@@ -36,6 +36,7 @@ auto LeaderLocator::Config::fromROS(
   config->maximum_distance = node->declare_parameter<float>(param_prefix + ".maximum_distance", config->maximum_distance);
   config->minimum_distance = node->declare_parameter<float>(param_prefix + ".minimum_distance", config->minimum_distance);
   config->intensity_threshold = node->declare_parameter<float>(param_prefix + ".intensity_threshold", config->intensity_threshold);
+  config->publish = node->declare_parameter<bool>(param_prefix + ".publish", config->publish);
 
   // clang-format on
   return config;
@@ -116,9 +117,12 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
 
   const float leader_dist = leader_in_follower.head<2>().norm();
   CLOG(INFO, static_name) << "Leader lidar distance: " << leader_dist << " at stamp " << stamp;
-  FloatMsg dist_msg;
-  dist_msg.data = leader_dist;
-  distance_pub_->publish(dist_msg);
+  
+  if (config_->publish){
+    FloatMsg dist_msg;
+    dist_msg.data = leader_dist;
+    distance_pub_->publish(dist_msg);
+  }
 }
 
 }  // namespace lidar

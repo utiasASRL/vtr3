@@ -249,8 +249,8 @@
       control_period: 100 # ms
 
       speed_scheduler:
-        planar_curv_weight: 0.0
-        profile_curv_weight: 0.0 
+        planar_curv_weight: 3.0
+        profile_curv_weight: 1.0 
         eop_weight: 1.0
         min_vel: 0.5
       mpc:
@@ -259,13 +259,13 @@
         mpc_verbosity: false
         forward_vel: 0.75
         max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
-        max_ang_vel: 0.34
+        max_ang_vel: 0.46
         max_ang_acc: 0.89
         ang_alpha: 0.0
         lin_alpha: 0.0
         max_lin_acc: 0.5
         vehicle_model: "bicycle"
-        wheelbase: 0.55
+        wheelbase: 0.65
         recovery_steps: 15
         failure_threshold: 5
 

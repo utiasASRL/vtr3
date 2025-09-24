@@ -1,0 +1,48 @@
+## Online Lidar VTR3
+session_name: vtr_online_ouster_hunter
+
+environment:
+  RMW_IMPLEMENTATION: rmw_zenoh_cpp
+  ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
+  FOLLOWER_HOST: 192.168.2.42 # green-jetson NOTE: Hostnames do not work currently, so I am using IP until I can figure out why
+  FOLLOWER_ROS_NS: mr_green
+
+start_directory: ${VTRTEMP}
+suppress_history: false
+
+windows:
+  - window_name: vtr_navigation_system
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
+    panes:
+      - >
+        ros2 launch vtr_navigation vtr.launch.py
+        base_params:=ouster_hunter_default.yaml
+        start_new_graph:=false
+        use_sim_time:=false
+        planner:="bicycle_mpc"
+        model_dir:=${VTRROOT}/models
+
+  - window_name: vtr_gui
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 run vtr_gui multi_robot_socket_client --ros-args -p robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"]
+      - ros2 run vtr_gui multi_robot_socket_server --ros-args -p robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"]
+      - ros2 run vtr_gui multi_robot_web_server --ros-args -p robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"]
+      - ros2 launch vtr_multi_robot convoy_manager.launch.py
+        base_params:=ouster_hunter_default.yaml
+        robots:=["$ROBOT_NAME","$FOLLOWER_ROS_NS"] # Figure out how to easily make this configurable
+      # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
+
+  - window_name: follower_vtr
+    layout: main-horizontal
+    shell_command_before:
+      - ssh indro@$FOLLOWER_HOST # Figure out how to make this configurable
+      - docker start vtr3
+    panes:
+      - docker exec -it vtr3 tmuxp load $VTRROOT/hunter/launch/ouster.launch.yaml
+      - docker exec -it vtr3 tmuxp load $VTRSRC/launch/online_ouster_hunter_follower.launch.yaml

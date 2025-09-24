@@ -66,10 +66,19 @@ controls = ca.vertcat(leader_controls, follower_controls)
 n_controls = leader_controls.numel()
 
 # matrix containing all states over all time steps +1 (each column is a state vector)
-X = ca.SX.sym('X', 2*n_states, N + 1)
+pos_l = ca.SX.sym('pos_l', n_states - 1, N + 1)
+thetas_l = ca.SX.sym('thetas_l', 1, N + 1)
+
+pos_f = ca.SX.sym('pos_f', n_states - 1, N + 1)
+thetas_f = ca.SX.sym('thetas_f', 1, N + 1)
+
+X = ca.vertcat(pos_l, thetas_l, pos_f, thetas_f)
 
 # matrix containing all control actions over all time steps (each column is an action vector)
-U = ca.SX.sym('U', 2*n_controls, N)
+input_l = ca.SX.sym('u_l', n_controls, N)
+input_f = ca.SX.sym('u_f', n_controls, N)
+
+U = ca.vertcat(input_l, input_f)
 
 last_v_l = ca.SX.sym('last_v_l')
 last_psi_l = ca.SX.sym('last_psi_l')
@@ -90,8 +99,8 @@ last_controls_f = ca.vertcat(
 # column vector for storing runtime information(paths, etc) 
 init_pose_leader = ca.SX.sym('init_pose_l', n_states)
 init_pose_follower = ca.SX.sym('init_pose_f', n_states)
-follower_ref_poses = ca.SX.sym('ref_poses_f', n_states*N)
 leader_ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
+follower_ref_poses = ca.SX.sym('ref_poses_f', n_states*N)
 measured_velo_leader = ca.SX.sym('measured_velo_l', n_controls)
 measured_velo_follower = ca.SX.sym('measured_velo_f', n_controls)
 
@@ -131,31 +140,20 @@ motion_model_f = ca.Function('motion_model_follower', [follower_states, follower
 theta_to_so2 = ca.Function('theta2rotm', [theta_l], [rot_2d_z])
 
 cost_fn = 0  # cost function
-g = X[:n_states, 0] - init_pose_leader  # constraints in the equation
-g = X[n_states:, 0] - init_pose_follower  # constraints in the equation
+g = X[:, 0] - ca.vertcat(init_pose_leader, init_pose_follower)  # constraints in the equation
 
 
 def so2_error(ref, current):
     rel_m = theta_to_so2(ref).T @ theta_to_so2(current)
     return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
-def calc_cost(ref, X, con, k, cost):
-    dx = X[0, k+1] - follower_ref_poses[n_states*k]
-    dy = X[1, k+1] - follower_ref_poses[n_states*k + 1]
-    theta_ref = follower_ref_poses[n_states*k + 2]
-    e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
-    e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
-    cost += Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
-    cost += Q_dist * (ca.norm_2((X[:2, k+1] - leader_ref_poses[n_states*k:n_states*k + 2])) - d)**2
-    return cost
-
-def calc_state_cost(state, ref_pose):
+def calc_state_cost(state, ref_pose, con_i):
     dx = state[0] - ref_pose[0]
     dy = state[1] - ref_pose[1]
     theta_ref = ref_pose[2]
     e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
     e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
-    return Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
+    return Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, state[2])**2 + con_i.T @ R @ con_i
 
 #Leader base path tracking costs
 #for initial leader
@@ -164,7 +162,7 @@ st = X[:n_states, k]
 con = U[:n_controls, k]
 last_vel = measured_velo_leader
 st_next = X[:n_states, k+1]
-cost_fn = calc_state_cost(st_next, leader_ref_poses[n_states*k:n_states*(k+1)])
+cost_fn += calc_state_cost(st_next, leader_ref_poses[n_states*k:n_states*(k+1)], con)
 k1 = motion_model_l(st, con, last_vel, L)
 k2 = motion_model_l(st + step_horizon/2*k1, con, last_vel, L)
 k3 = motion_model_l(st + step_horizon/2*k2, con, last_vel, L)
@@ -181,7 +179,7 @@ for k in range(1, N):
     con = U[:n_controls, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
 
-    cost_fn += calc_state_cost(st_next, leader_ref_poses[n_states*k:n_states*(k+1)])
+    cost_fn += calc_state_cost(st_next, leader_ref_poses[n_states*k:n_states*(k+1)], con)
     k1 = motion_model_l(st, con, last_vel, L)
     k2 = motion_model_l(st + step_horizon/2*k1, con, last_vel, L)
     k3 = motion_model_l(st + step_horizon/2*k2, con, last_vel, L)
@@ -198,7 +196,7 @@ st = X[n_states:, k]
 con = U[n_controls:, k]
 last_vel = measured_velo_follower
 st_next = X[n_states:, k+1]
-cost_fn = calc_state_cost(st_next, follower_ref_poses[n_states*k:n_states*(k+1)])
+cost_fn += calc_state_cost(st_next, follower_ref_poses[n_states*k:n_states*(k+1)], con)
 k1 = motion_model_f(st, con, last_vel, L)
 k2 = motion_model_f(st + step_horizon/2*k1, con, last_vel, L)
 k3 = motion_model_f(st + step_horizon/2*k2, con, last_vel, L)
@@ -215,7 +213,7 @@ for k in range(1, N):
     con = U[n_controls:, k]
     last_vel = ca.vertcat(U[n_controls, k-1], (1 - alpha) * U[n_controls+1, k-1] + alpha * last_vel[1])
 
-    cost_fn += calc_state_cost(st_next, follower_ref_poses[n_states*k:n_states*(k+1)])
+    cost_fn += calc_state_cost(st_next, follower_ref_poses[n_states*k:n_states*(k+1)], con)
     k1 = motion_model_f(st, con, last_vel, L)
     k2 = motion_model_f(st + step_horizon/2*k1, con, last_vel, L)
     k3 = motion_model_f(st + step_horizon/2*k2, con, last_vel, L)
@@ -241,10 +239,13 @@ for k in range(1, N-1):
 for k in range(0, N):
     leader_st_next = X[:n_states, k+1]
     follower_st_next = X[n_states:, k+1]
+    cost_fn += Q_dist * (ca.norm_2((leader_st_next[:2] - follower_st_next[:2])) - d)**2
+
     g = ca.vertcat(g, ca.norm_2((leader_st_next[:2] - follower_st_next[:2])))
 
 # Terminal cost
-# cost_fn = calc_cost(P, X, con, N-1, cost_fn)
+# cost_fn += calc_cost(P, X, con, N-1, cost_fn)
+
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1

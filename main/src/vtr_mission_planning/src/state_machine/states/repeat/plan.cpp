@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning/state_machine/states/repeat/plan.hpp"
+#include <algorithm>
 
 namespace vtr {
 namespace mission_planning {
@@ -71,9 +72,13 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
         << "Current vertex: " << persistent_loc.v
         << ", waypoints: " << waypoints_;
 
+    constexpr uint32_t max_offset = 0;
+    uint32_t chain_offset = std::min(persistent_loc.v.minorId(), max_offset);
+    CLOG(INFO, "mission.state_machine")
+        << "Using chain offset of " << chain_offset;
     auto path =
-        route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
-    tactic->setPath(path, 0, persistent_loc.T, true);
+        route_planner->path(persistent_loc.v - chain_offset, waypoints_, waypoint_seq_);
+    tactic->setPath(path, chain_offset, persistent_loc.T, true);
   }
 
   // Recursively call up the inheritance chain until we get to the least common

@@ -42,15 +42,17 @@ class ROSWorker(Node):
     self._return_queue = return_queue
     self._notify_queue = notify_queue
 
-    for k, v in methods.items():
+    self.declare_parameter('robots', [""])
+    robots = self.get_parameter('robots').value
 
+    for k, v in methods.items():
       def call(*args, _v=v, **kwargs):
         return _v(self, *args, **kwargs)
 
       setattr(self, k, call)
 
     for setup_call in setup_calls:
-      setup_call(self)
+      setup_call(self, robots)
 
     self._listener = Thread(target=self._listen)
     self._listener.start()
@@ -62,16 +64,24 @@ class ROSWorker(Node):
     worker_logger.debug("Stopping ROS worker:listener thread - done.")
 
   def _listen(self):
-    """Listens for incoming ROS commands from the main process"""
-    worker_logger.debug("ROS process listener starts listening.")
+    worker_logger.debug("ROSWorker: Listener thread started")
+    print("[ROSWorker] [WORKER] Listener thread started and waiting for calls...")
     while True:
       func, args, kwargs = self._call_queue.get()
-      worker_logger.debug(f"ROS process is calling: {func}")
+      worker_logger.debug(f"ROSWorker: Got call {func}")
+      print(f"[ROSWorker] [WORKER] Got call: {func} with args: {args}, kwargs: {kwargs}")
       if func == "stop":  # special signal for joining the thread
+        print("[ROSWorker] [WORKER] Received stop signal. Exiting listener thread.")
         break
+
+      worker_logger.debug(f"ROSWorker: Calling {func} with args {args} kwargs {kwargs}")
+      print(f"[ROSWorker] [WORKER] Calling {func} with args: {args}, kwargs: {kwargs}")
       ret = getattr(self, func)(*args, **kwargs)
+      print(f"[ROSWorker] [WORKER->PROXY] {func} returned {ret}")
+      worker_logger.debug(f"ROSWorker: {func} returned {ret}")
       self._return_queue.put(ret)
-    worker_logger.debug("ROS process listener stops listening.")
+    worker_logger.debug("ROSWorker: Listener thread exiting")
+    print("[ROSWorker] [WORKER] Listener thread exiting.")
 
   def notify(self, name, *args, **kwargs):
     """Transmits messages to the main process"""
@@ -105,9 +115,14 @@ class ROSManager():
       cls.__proxy_methods__[func.__name__] = func
 
     def decorated_func(self, *args, **kwargs):
+      print(f"[ROSManager] [PROXY->WORKER] About to put {func.__name__} on call queue with args: {args}, kwargs: {kwargs}")
       manager_logger.debug("Main process is calling %s", func.__name__)
       self._ros_worker_call.put((func.__name__, args, kwargs))
-      return self._ros_worker_return.get()
+      print(f"[ROSManager] [PROXY->WORKER] Waiting for {func.__name__} result")
+      manager_logger.debug("Main process is waiting for %s", func.__name__)
+      result = self._ros_worker_return.get()
+      print(f"[ROSManager] [WORKER->PROXY] Got result for {func.__name__}: {result}")
+      return result
 
     return decorated_func
 

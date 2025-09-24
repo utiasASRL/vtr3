@@ -1,10 +1,5 @@
 ## Online Lidar VTR3
-session_name: vtr_online_honeycomb_grizzly
-
-environment:
-  RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-  FASTRTPS_DEFAULT_PROFILES_FILE: ${VTRSRC}/config/vtr_rtps.xml
-  ROS_DOMAIN_ID: "13"  # set this to a unique number when multiple ROS2 processes running on the same network
+session_name: vtr_online_ouster_warthog
 
 
 start_directory: ${VTRTEMP}
@@ -19,11 +14,12 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_default.yaml
+        base_params:=ouster_warthog_default.yaml
         start_new_graph:=false
         use_sim_time:=false
-
-      #- htop # monitor hardware usage
+        planner:="stationary"
+        model_dir:=${VTRROOT}/models
+        
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -40,5 +36,4 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/honeycomb.rviz
-      # - ros2 run rqt_reconfigure rqt_reconfigure
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz

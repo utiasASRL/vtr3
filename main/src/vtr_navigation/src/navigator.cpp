@@ -146,6 +146,7 @@ if (pipeline->name() == "lidar"){
     node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
+  timestamp_offset_ = node->declare_parameter<int>("timestamp_offset", timestamp_offset_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
@@ -298,7 +299,7 @@ void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
 
   // set the timestamp
-  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec + timestamp_offset_;
 
   CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
 
