@@ -14,7 +14,7 @@ N = 15           # number of look ahead steps
 # The first order lag weighting for the steering angle
 alpha = 0.8
 
-alpha_v = 0.8
+alpha_v = 0.4
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states

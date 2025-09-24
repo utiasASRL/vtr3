@@ -215,7 +215,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["lbg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, 1);
   arg["ubg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + (mpcConf.N-1)*mpcConf.nControl, 1);
 
-  if (mpcConf.up_barrier_q.size() > 0 && mpcConf.low_barrier_q.size() > 0) {
+  if (false && mpcConf.up_barrier_q.size() > 0 && mpcConf.low_barrier_q.size() > 0) {
     arg["ubg"].set(DM(mpcConf.up_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
     arg["lbg"].set(DM(mpcConf.low_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
   } else {
@@ -263,21 +263,9 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lon));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_th));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R1));
-  if (mpcConf.eop_index >=0 ){
-    arg["p"] = vertcat(arg["p"], DM(0.0));
-  }
-  else{
-    arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
-  }
-
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
-  if (mpcConf.eop_index >=0 ){
-    arg["p"] = vertcat(arg["p"], DM(0.0));
-  }
-  else{
-    arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
-  }
-
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_f));
 
   auto res = solve_mpc(arg);

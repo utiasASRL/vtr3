@@ -1,0 +1,6 @@
+/**:
+  ros__parameters:
+    robot_frame: foxtrot/back_wheels_link
+    env_info_topic: foxtrot/env_info
+    lidar_frame: foxtrot/ouster_front_lidar
+    lidar_topic: /foxtrot/ouster_front/points
