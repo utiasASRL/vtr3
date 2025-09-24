@@ -77,6 +77,7 @@ void Localize::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
   const auto tactic = getTactic(state_machine);
+  tactic->setPath(PathType(), 0, tactic::EdgeTransform(true), true);
   tactic->finishRun();
 
   // Recursively call up the inheritance chain until we get to the least common

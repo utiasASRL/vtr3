@@ -43,8 +43,6 @@ void MetricLocalize::processGoals(StateMachine &state_machine,
   switch (event.action) {
     case Action::Continue:
     {
-      if (getTactic(state_machine)->isLocalized())
-        return Parent::processGoals(state_machine, Event(Action::EndGoal));
       [[fallthrough]];
     }
     default:
