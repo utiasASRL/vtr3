@@ -228,6 +228,8 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
       return repeatMetricLocOdometryMapping(qdata);
     case PipelineMode::RepeatFollow:
       return repeatFollowOdometryMapping(qdata);
+    case PipelineMode::LocalizeMetricLoc:
+      return repeatFollowOdometryMapping(qdata);
     default:
       return true;
   }
@@ -690,6 +692,8 @@ bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
     case PipelineMode::RepeatMetricLoc:
       return repeatMetricLocLocalization(qdata);
     case PipelineMode::RepeatFollow:
+      return repeatFollowLocalization(qdata);
+    case PipelineMode::LocalizeMetricLoc:
       return repeatFollowLocalization(qdata);
     default:
       return true;

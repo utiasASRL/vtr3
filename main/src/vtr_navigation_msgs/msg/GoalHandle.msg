@@ -3,6 +3,7 @@ uint8[16] id
 uint8 IDLE = 0
 uint8 TEACH = 1
 uint8 REPEAT = 2
+uint8 LOCALIZE = 3
 uint8 type
 
 # for repeat only

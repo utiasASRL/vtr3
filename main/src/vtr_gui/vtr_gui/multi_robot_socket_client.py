@@ -128,6 +128,8 @@ def goal_handle_from_ros(ros_goal_handle):
     goal_handle["type"] = "teach"
   elif ros_goal_handle.type == GoalHandle.REPEAT:
     goal_handle["type"] = "repeat"
+  elif ros_goal_handle.type == GoalHandle.LOCALIZE:
+    goal_handle["type"] = "localize"
   else:
     goal_handle["type"] = "unknown"
   # pause before
@@ -244,6 +246,10 @@ class MultiRobotSocketVTRUI(MultiRobotVTRUI):
     ros_command.type = MissionCommand.ADD_GOAL
     if (data['type'] == 'repeat'):
       ros_command.goal_handle.type = GoalHandle.REPEAT
+    elif (data['type'] == 'teach'):
+      ros_command.goal_handle.type = GoalHandle.TEACH
+    elif (data['type'] == 'localize'):
+      ros_command.goal_handle.type = GoalHandle.LOCALIZE
     else:
       ros_command.goal_handle.type = GoalHandle.IDLE
     ros_command.goal_handle.pause_before = int(data['pause_before'] * 1000)

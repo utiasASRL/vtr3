@@ -316,7 +316,7 @@ class MultiRobotGraphMap extends React.Component {
                   color="secondary"
                   size="small"
                   onClick={() => {
-                    if (this.state.new_goal_type === "repeat") {
+                    if (this.state.new_goal_type === "repeat" || this.state.new_goal_type === "localize") {
                       this.setNewGoalWaypoints([...this.state.new_goal_waypoints, key]);
                     }
                     else {
@@ -558,7 +558,7 @@ class MultiRobotGraphMap extends React.Component {
 
         return {display_waypoints_map: disp_wps_map };
       });
-      if (this.state.new_goal_type === "repeat") {
+      if (this.state.new_goal_type === "repeat" || this.state.new_goal_type === "localize") {
         this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
       }
     }

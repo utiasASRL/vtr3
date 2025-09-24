@@ -46,6 +46,7 @@ enum class GoalTarget : int8_t {
   Idle = 0,
   Teach = 1,
   Repeat = 2,
+  Localize = 3,
 };
 std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target);
 
@@ -444,8 +445,13 @@ void MissionServer<GoalHandle>::startGoal() {
         state_machine->handle(Event::StartRepeat(path));
         break;
       }
+      case GoalTarget::Localize: {
+        state_machine->handle(Event::StartLocalize());
+        break;
+      }
       default:
-        throw std::runtime_error("Unknown goal target");
+        throw std::runtime_error("Unknown goal target " +
+                                 std::to_string(int(GoalInterface<GoalHandle>::target(current_goal))));
     }
   }
 }

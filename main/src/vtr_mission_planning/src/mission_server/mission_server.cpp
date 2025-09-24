@@ -74,6 +74,9 @@ std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target) {
     case GoalTarget::Repeat:
       os << "Repeat";
       return os;
+    case GoalTarget::Localize:
+      os << "Localize";
+      return os;
   };
   return os;
 }

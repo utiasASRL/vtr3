@@ -162,7 +162,7 @@ class MultiRobotVTRUI(ROSManager):
   def get_map_info(self):
     print("[MultiRobotVTRUI] get_map_info called")
     vtr_ui_logger.info("Base class: Getting map info for robot")
-    service = self._map_info_cli#[self._robot_ids[0]]
+    service = self._map_info_cli
 
     res = service.call(MapInfoSrv.Request()) 
     print(f"[MultiRobotVTRUI] Map info: {res}")

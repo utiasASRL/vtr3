@@ -43,7 +43,7 @@ class GoalCurrent extends React.Component {
         }}
       >
         <Typography sx={{ width: 200, m: 1 }} align="center" variant="h5">
-          {goal.type.toUpperCase() + "ING"}
+          {goal.type.toUpperCase().slice(-1) === 'E' ? goal.type.toUpperCase().slice(0,-1) + "ING" : goal.type.toUpperCase() + "ING"}
         </Typography>
         {goal.type === "teach" &&
           (followingRouteIds.length === 0 ? (

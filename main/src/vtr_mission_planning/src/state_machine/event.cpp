@@ -91,6 +91,11 @@ Event::Ptr Event::StartRepeat(const std::list<VertexId>& waypoints) {
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
+Event::Ptr Event::StartLocalize() {
+  auto tmp = std::make_shared<localize::MetricLocalize>();
+  return std::make_shared<Event>(Action::NewGoal, tmp);
+}
+
 Event::Ptr Event::Reset() { return std::make_shared<Event>(Action::Reset); }
 
 std::string Event::signalName() const {
