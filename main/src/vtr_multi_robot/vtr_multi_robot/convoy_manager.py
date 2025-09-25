@@ -16,7 +16,7 @@
 
 import rclpy
 from rclpy.node import Node
-from vtr_navigation_msgs.msg import MissionCommand, ServerState, GraphState
+from vtr_navigation_msgs.msg import MissionCommand, ServerState, GraphState, RobotState
 from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
 import time
 
@@ -54,6 +54,8 @@ class ConvoyManager(Node):
     while not self._graph_state_cli.wait_for_service(timeout_sec=1.0):
       self.get_logger().info(f'service not available for {self._robots[-1]}, waiting again...')
 
+    self._server_states = {robot_id: None for robot_id in self._robots}
+
     # Once VTR is running, localize the robots rather than using a set offset to assume they are in the right place
     self._localize_all()
 
@@ -62,7 +64,8 @@ class ConvoyManager(Node):
     
     # Appears we need to wait after services are set up for the GUI to setup. I didn't see an
     # obvious callback or signal so just wait a bit
-    time.sleep(1.0)
+    # TODO: Find a better way to do this, probably add an explicity 'READY' Signal from the GUI?
+    time.sleep(5)
     # Iterate through robots and send a move robot command for each 
     for i in range(len(self._robots)):
       robot_id = self._robots[i]
@@ -76,14 +79,19 @@ class ConvoyManager(Node):
     
 
   def server_state_callback(self, msg, rid):
+    self.get_logger().info(f"Server state callback for {rid}: {msg.current_goal_state}")
+
+    self._server_states[rid] = msg
     # If any robot completes, send finish command to all robots
     if msg.current_goal_state == ServerState.FINISHING:
       mission_cmd = MissionCommand()
-      mission_cmd.header.stamp = rospy.Time.now()
-      mission_cmd.type = MissionCommand.FINISH
-      for robot_id, pub in self._mission_command_pubs.items():
-        self.get_logger().info(f"Published mission command to {robot_id}")
-        pub.publish(mission_cmd)
+      for robot_id in self._robots:
+        if robot_id != rid:
+          mission_cmd.type = MissionCommand.CANCEL_GOAL
+          mission_cmd.goal_handle = self._server_states[robot_id].goals[0]
+          self.get_logger().info(f"Published cancel command to {robot_id}")
+          self._mission_command_pubs[robot_id].publish(mission_cmd)
+          self._server_states[robot_id] = None
 
 def main():
   rclpy.init()
