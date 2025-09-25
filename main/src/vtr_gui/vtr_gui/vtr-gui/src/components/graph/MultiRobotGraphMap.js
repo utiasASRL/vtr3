@@ -27,7 +27,7 @@ import { kdTree } from "kd-tree-javascript";
 import {fetchWithTimeout} from "../../index"
 
 import ToolsMenu from "../tools/ToolsMenu";
-import MultiRobotGoalManager from "../goal/GoalManager";
+import MultiRobotGoalManager from "../goal/MultiRobotGoalManager";
 import TaskQueue from "../task_queue/TaskQueue";
 
 import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";

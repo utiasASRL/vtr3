@@ -41,10 +41,12 @@ class MultiRobotGoalManager extends React.Component {
   getCurrentGoalsByRobot() {
     const { serverStates } = this.props;
     let robotGoals = {};
+    console.log("Getting current goals by robot from serverStates:", serverStates);
     if (serverStates) {
       Object.entries(serverStates).forEach(([robot_id, state]) => {
         if (state && state.goals && state.current_goal_id !== undefined) {
           const currentGoal = state.goals.find(g => g.id.toString() === state.current_goal_id.toString());
+          console.log(`Current goal for robot ${robot_id}:`, currentGoal);
           if (currentGoal) {
             robotGoals[robot_id] = { ...currentGoal, robot_id };
           }
@@ -86,7 +88,7 @@ class MultiRobotGoalManager extends React.Component {
           SYSTEM CRASHED
         </Button>);
 
-      } else if (Object.values(serverStates).all(state => state === "PAUSED" || state === "PENDING_PAUSE")) {
+      } else if (Object.values(serverStates).some(state => state === "PAUSED" || state === "PENDING_PAUSE")) {
         stateBox = (<Button
           color={"primary"}
           disableElevation={true}
@@ -258,6 +260,8 @@ class MultiRobotGoalManager extends React.Component {
   cancelGoal(goal) {
     // Cancel the current goal for each robot
     const robotGoals = this.getCurrentGoalsByRobot();
+    console.debug("Cancelling goals for robots:", robotGoals);
+    console.debug("Server states:", this.props.serverStates);
     Object.entries(robotGoals).forEach(([robot_id, g]) => {
       console.debug(`Sending cancel goal signal for robot ${robot_id} with goal:`, g);
       this.props.socket.emit("command/cancel_goal", g);
@@ -276,4 +280,4 @@ class MultiRobotGoalManager extends React.Component {
 
 }
 
-export default GoalManager;
+export default MultiRobotGoalManager;
