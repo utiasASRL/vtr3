@@ -1,8 +1,8 @@
 session_name: vtr_online_ouster_jackal
 
-environment:
-  RMW_IMPLEMENTATION: rmw_cyclonedds_cpp # CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
-  ROS_DOMAIN_ID: "0"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+# environment:
+#   RMW_IMPLEMENTATION: rmw_cyclonedds_cpp # CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
+#   ROS_DOMAIN_ID: "0"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
 
@@ -43,3 +43,4 @@ windows:
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
       # - ros2 run rqt_reconfigure rqt_reconfigure
+

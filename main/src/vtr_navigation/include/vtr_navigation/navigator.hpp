@@ -22,7 +22,10 @@
 #include "vtr_navigation/ros_mission_server.hpp"
 #include "vtr_path_planning/path_planner_interface.hpp"
 #include "vtr_route_planning/route_planner_interface.hpp"
+#include "vtr_route_planning/bfs_planner.hpp"
 #include "vtr_tactic/tactic.hpp"
+#include "vtr_navigation_msgs/msg/graph_route.hpp"
+#include "std_msgs/msg/bool.hpp"
 
 #ifdef VTR_ENABLE_VISION
 #include "message_filters/subscriber.h"
@@ -143,6 +146,12 @@ typedef message_filters::sync_policies::ApproximateTime<
   route_planning::RoutePlannerInterface::Ptr route_planner_;
   ROSMissionServer::Ptr mission_server_;
   mission_planning::StateMachine::Ptr state_machine_;
+
+  // Obstacle status subscriber
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr obstacle_status_sub_;
+  // Following route subscriber (for mapping path to vertex ids)
+  rclcpp::Subscription<vtr_navigation_msgs::msg::GraphRoute>::SharedPtr following_route_sub_;
+  std::vector<uint64_t> following_route_ids_;
 
   /// Threading
   bool stop_ = false;

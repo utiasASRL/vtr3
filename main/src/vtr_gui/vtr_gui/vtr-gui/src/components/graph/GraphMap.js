@@ -139,7 +139,9 @@ class GraphMap extends React.Component {
       // move robot
       move_robot_vertex: { lng: 0, lat: 0, id: -1 },
       // map center
-      map_center: {lat: 43.78220, lng: -79.4661},
+      // map_center: {lat: 43.78220, lng: -79.4661}, // UTIAS (original)
+      // map_center: {lat: 43.660837, lng: -79.396485}, // Myhal Centre (accurate coordinates)
+      map_center: {lat: 43.6606838, lng: -79.3965537}, // Robot starting position (adjusted 0.5m left, 0.2m up)
       /// whether the path selection will be the whole path (for annotation)
       annotate_full: true,
       in_select_mode: false,
@@ -322,12 +324,19 @@ class GraphMap extends React.Component {
       map_center
     } = this.state;
     const imageBounds = [
-      [43.660511, -79.397019], // Bottom-left coordinates of the image
-      [43.661091, -79.395995], // Top-right coordinates of the image
+      // UTIAS bounds (original - commented out)
+      // [43.660511, -79.397019], // Bottom-left coordinates of UTIAS
+      // [43.661091, -79.395995], // Top-right coordinates of UTIAS
+      // // Myhal Centre bounds (accurate coordinates for floor plan overlay)
+      // [43.660737, -79.396585], // Bottom-left: 100m south-west of Myhal centre
+      // [43.660937, -79.396385], // Top-right: 100m north-east of Myhal centre
+      // Myhal Centre bounds (back to precise satellite coordinates)
+      [43.660583, -79.396722], // Bottom-left: 43°39'38.1"N 79°23'48.2"W
+      [43.661083, -79.396361], // Top-right: 43°39'39.9"N 79°23'46.9"W
     ];
     return (
       <>
-        {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
+        {/* Leaflet map container - currently set to Myhal Centre (was UTIAS) */}
         <MapContainer
           center={[map_center.lat, map_center.lng]}
           // center={[43.6605, -79.3964]} /* Jordy Modification For PETAWAWA center={[45.8983, -77.2829]} => TODO We should make this set dynamically from the yaml config*/
@@ -343,7 +352,12 @@ class GraphMap extends React.Component {
             maxZoom={22}
           />
           {/* Add the ImageOverlay component to the map */}
-          <ImageOverlay url={MyhalPlan} bounds={imageBounds} />
+          <ImageOverlay 
+            url={MyhalPlan} 
+            bounds={imageBounds} 
+            opacity={0.8}
+            interactive={false}
+          />
           <ZoomControl position="bottomright" />
           <this.WaypointMarkers />
         </MapContainer>

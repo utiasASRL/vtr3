@@ -51,7 +51,8 @@ enum class Signal : int8_t {
   Continue = 0,  // Keep going with this state (default action)
   // [teach::merge]
   AttemptClosure,  // Attempt to link back to the existing map
-  ContinueTeach    // Cannot merge or user has canceled merge, continue teaching
+  ContinueTeach,   // Cannot merge or user has canceled merge, continue teaching
+  ObstacleDetected // Hshmat: Path ahead blocked during repeat follow; trigger re-plan
 };
 
 std::ostream& operator<<(std::ostream& os, const Signal& signal);

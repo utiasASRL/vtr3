@@ -136,6 +136,53 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   max_queue_size_ = node->declare_parameter<int>("queue_size", max_queue_size_);
 
+  // Subscribe to obstacle status to trigger replanning during Repeat::Follow
+  obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
+      "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        if (!msg || !msg->data) return;  // only act on blocked=true
+        // Forward event to state machine
+        try {
+          state_machine_->handle(std::make_shared<mission_planning::Event>(
+              mission_planning::Signal::ObstacleDetected));
+        } catch (const std::exception &e) {
+          CLOG(WARNING, "navigation") << "Failed to send ObstacleDetected: " << e.what();
+        }
+
+        // Also ban upcoming edges in the current following route to force topo re-plan
+        try {
+          const auto loc = tactic_->getPersistentLoc();
+          const auto current_vid = loc.v;
+          // Find current vertex in following route ids
+          int idx = -1;
+          for (size_t i = 0; i < following_route_ids_.size(); ++i) {
+            if (vtr::tactic::VertexId(following_route_ids_[i]) == current_vid) { idx = static_cast<int>(i); break; }
+          }
+          if (idx >= 0) {
+            std::vector<vtr::tactic::EdgeId> banned;
+            const int lookahead_edges = 3; // conservative default; can be parameterized later
+            for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size()) && i < idx + lookahead_edges; ++i) {
+              vtr::tactic::VertexId v1(following_route_ids_[i]);
+              vtr::tactic::VertexId v2(following_route_ids_[i+1]);
+              banned.emplace_back(v1, v2);
+            }
+            if (!banned.empty()) {
+              auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_);
+              if (bfs_ptr) bfs_ptr->setBannedEdges(banned);
+            }
+          }
+        } catch (const std::exception &e) {
+          CLOG(WARNING, "navigation") << "Failed to set banned edges: " << e.what();
+        }
+      });
+
+  // Track following route ids for mapping to BFS edge blacklist (if needed)
+  following_route_sub_ = node_->create_subscription<vtr_navigation_msgs::msg::GraphRoute>(
+      "following_route", rclcpp::QoS(10),
+      [this](const vtr_navigation_msgs::msg::GraphRoute::SharedPtr route) {
+        following_route_ids_.assign(route->ids.begin(), route->ids.end());
+      });
+
 #ifdef VTR_ENABLE_LIDAR
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
@@ -300,7 +347,7 @@ void Navigator::lidarCallback(
   // set the timestamp
   Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
-  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
+  // CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<lidar::LidarQueryCache>();
@@ -309,8 +356,8 @@ void Navigator::lidarCallback(
 
   /// Discard old frames if our queue is too big
   if (queue_.size() > max_queue_size_) {
-    CLOG(WARNING, "navigation")
-        << "Dropping pointcloud message " << *queue_.front()->stamp << " because the queue is full.";
+    // CLOG(WARNING, "navigation")
+    //     << "Dropping pointcloud message " << *queue_.front()->stamp << " because the queue is full.";
     queue_.pop();
   }
 

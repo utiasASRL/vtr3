@@ -19,6 +19,8 @@
 #pragma once
 
 #include "vtr_route_planning/route_planner_interface.hpp"
+#include <unordered_set>
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
 
 namespace vtr {
 namespace route_planning {
@@ -37,6 +39,14 @@ class BFSPlanner : public RoutePlannerInterface {
   PathType path(const VertexId &from, const VertexId::List &to,
                 std::list<uint64_t> &idx) override;
 
+  /** \brief Set or update the list of temporarily banned edges (topology). */
+  void setBannedEdges(const std::vector<tactic::EdgeId> &edges) {
+    banned_edges_ = {edges.begin(), edges.end()};
+  }
+
+  /** \brief Clear any temporarily banned edges. */
+  void clearBannedEdges() { banned_edges_.clear(); }
+
  private:
   /** \brief Helper to get a shared pointer to the graph */
   GraphPtr getGraph() const;
@@ -47,6 +57,8 @@ class BFSPlanner : public RoutePlannerInterface {
                 const VertexId &to);
 
   GraphWeakPtr graph_;
+  /** \brief Temporarily banned edges (not traversable). */
+  std::unordered_set<tactic::EdgeId> banned_edges_;
 };
 
 }  // namespace route_planning

@@ -4,19 +4,19 @@
     log_debug: true
     log_enabled:
       - navigation
-      #- navigation.graph_map_server
-      #- navigation.command
+      - navigation.graph_map_server
+      - navigation.command
         # tactic
       #- tactic
-      #- tactic.pipeline
+      - tactic.pipeline
       - tactic.module # GOOD speed on to check
-      #- tactic.module.live_mem_manager
-      #- tactic.module.graph_mem_manager
-      #- mission.state_machine
+      - tactic.module.live_mem_manager
+      - tactic.module.graph_mem_manager
+      - mission.state_machine
       - mission.server
-      # - navigator
+      - navigator
         # planner manager
-      - cbit.control
+      # - cbit.control
       # - cbit.debug
       # - cbit.path_planning
       # - cbit.visualization
@@ -51,8 +51,15 @@
     lidar_frame: os_lidar
     lidar_topic: /ouster/points
     graph_projection:
-      origin_lat: 43.7822
-      origin_lng: -79.4661
+      # # UTIAS coordinates (original)
+      # origin_lat: 43.7822  # UTIAS
+      # origin_lng: -79.4661 # UTIAS
+      # # Myhal Centre coordinates (accurate)
+      # origin_lat: 43.660837  # Myhal Centre (accurate coordinates)
+      # origin_lng: -79.396485 # Myhal Centre (accurate coordinates)
+      # # Robot starting position (adjusted 0.5m left, 0.2m up)
+      origin_lat: 43.6606838  # Robot starting position + 0.2m north
+      origin_lng: -79.3965537 # Robot starting position + 0.5m west
       origin_theta: 1.3
       scale: 1.0
       gps_topic: "/novatel/fix"
@@ -64,16 +71,16 @@
       task_queue_num_threads: 1
       task_queue_size: -1
       
-      route_completion_translation_threshold: 0.3 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
-      route_completion_angle_threshold: 0.5 #0.26
+      route_completion_translation_threshold: 0.00001 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
+      route_completion_angle_threshold: 0.00001 #0.26
 
       chain:
         min_cusp_distance: 1.5
         angle_weight: 0.25
-        search_depth: 5
+        search_depth: 6
         search_back_depth: 5
         distance_warning: 5.0
-        alpha: 0.25 # the one in genreate_pq is not used.
+        alpha: 0.15 #0.25 # the one in genreate_pq is not used.
       save_odometry_result: true
       save_localization_result: true
       visualize: true
@@ -97,11 +104,11 @@
       localization:
         - recall
         - icp
-        - safe_corridor
+        # - safe_corridor
         # - change_detection_sync
         - memory
-      submap_translation_threshold: 0.275 
-      submap_rotation_threshold: 15.0
+      submap_translation_threshold: 0.325 
+      submap_rotation_threshold: 20.0
     preprocessing:
       conversion:
         type: lidar.ouster_converter
@@ -113,7 +120,7 @@
 
       filtering:
         type:  lidar.preprocessing #lidar.preprocessing_v2
-        num_threads: 8
+        num_threads: 4
         crop_range: 20.0
 
         frame_voxel_size: 0.3 #0.3 # grid subsampling voxel size
@@ -121,17 +128,17 @@
         vertical_angle_res: 0.0122718463 # (pi/2)/128 for OS0 128
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
         r_scale: 2.5 # scale down point range by this value after taking log, whatever works
-        h_scale: 0.5 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution is 360/1024 ~= 0.3516 degree, so 0.3516 / (90/128) = 0.5
+        h_scale: 0.5 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution is 360/1024 ~= 0.3516 degree, so 0.3516 / (90/128) = 0.5. OR for 360/512 = 0.7031, 0.7031 / (90/128) = 1.0
 
-        num_sample1: 2500 #12500 # max number of sample after filtering based on planarity
+        num_sample1: 2000 #12500 # max number of sample after filtering based on planarity
         min_norm_score1: 0.95 # min planarity score
 
-        num_sample2: 2500 #12500 # max number of sample after filtering based on planarity
+        num_sample2: 2000 #12500 # max number of sample after filtering based on planarity
         min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
         min_normal_estimate_dist: 1.0 # minimum distance to estimate normal in meters
         max_normal_estimate_angle: 0.44 # must <1/2, this value will be timed by M_PI
 
-        cluster_num_sample: 2500 #12500 # maxnumber of sample after removing isolated points
+        cluster_num_sample: 2000 #12500 # maxnumber of sample after removing isolated points
 
         visualize: false
     odometry:
@@ -141,6 +148,8 @@
         # continuous time estimation
         use_trajectory_estimation: false
         traj_num_extra_states: 0
+        traj_lock_prev_pose: false
+        traj_lock_prev_vel: false
         traj_qc_diag:
           - 1.0
           - 0.1
@@ -148,7 +157,7 @@
           - 0.1
           - 0.1
           - 1.0
-        num_threads: 8
+        num_threads: 4
         first_num_steps: 2
         initial_max_iter: 4
         initial_max_pairing_dist: 1.5
@@ -215,7 +224,7 @@
       icp:
         type: lidar.localization_icp
         use_pose_prior: true
-        num_threads: 8
+        num_threads: 4
         first_num_steps: 2
         initial_max_iter: 4
         initial_max_pairing_dist: 1.5
@@ -325,7 +334,7 @@
 
     path_planning:
       type: cbit
-      control_period: 100 # ms
+      control_period: 30 # ms
       cbit:
         obstacle_avoidance: false
         obs_padding: 0.0
@@ -359,17 +368,17 @@
         planar_curv_weight: 2.50
         profile_curv_weight: 0.5 
         eop_weight: 1.0
-        min_vel: 1.2 #0.5
+        min_vel: 0.95 #0.5
 
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
+        extrapolate_robot_pose: false
         mpc_verbosity: false
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.25 # JH: I think this is planning time step which I need to be 0.25s for DRL model.
-        forward_vel: 0.75
-        max_lin_vel: 1.1 #1.0
+        forward_vel: 0.9
+        max_lin_vel: 1.0 #1.0
         max_ang_vel: 1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration

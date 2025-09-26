@@ -73,10 +73,10 @@ def get_tile(s, x, y, z):
     return flask.send_from_directory(fdir, fname, max_age=60 * 60 * 24 * 30)
 
   headers = {'Accept': 'image/webp,image/*,*/*;q=0.8', 'User-Agent': flask.request.user_agent.string}
-  # Google Map service
-  url = f'http://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
-  # Open Street Map (mapnik) service
-  # url = f'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+  # Google Map service (commented out)
+  # url = f'http://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+  # ESRI World Imagery service (active)
+  url = f'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
   try:
     res = requests.get(url, headers=headers, verify=False)

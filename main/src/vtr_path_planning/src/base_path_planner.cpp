@@ -27,7 +27,6 @@ auto BasePathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   // clang-format off
   config->control_period = (unsigned int)node->declare_parameter<int>(prefix + ".control_period", config->control_period);
   // clang-format on
-
   return config;
 }
 

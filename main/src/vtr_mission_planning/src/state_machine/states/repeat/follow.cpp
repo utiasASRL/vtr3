@@ -34,6 +34,12 @@ void Follow::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
+    case Signal::ObstacleDetected: {
+      // Swap to Plan state with the same waypoints to trigger replanning
+      const auto tmp = std::make_shared<Plan>();
+      tmp->setWaypoints(waypoints_, waypoint_seq_);
+      return Parent::processGoals(state_machine, Event(Action::SwapGoal, tmp));
+    }
     default:
       return Parent::processGoals(state_machine, event);
   }

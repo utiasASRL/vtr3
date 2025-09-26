@@ -73,7 +73,31 @@ auto BFSPlanner::getPrivilegedGraph() const -> GraphBasePtr {
 
 auto BFSPlanner::path(const GraphBasePtr &priv_graph, const VertexId &from,
                       const VertexId &to) -> PathType {
-  const auto computed_path = priv_graph->dijkstraSearch(from, to);
+  // If any edges are temporarily banned, construct a mask to exclude them
+  eval::mask::Ptr mask = std::make_shared<eval::mask::ConstEval>(true, true);
+  if (!banned_edges_.empty()) {
+    struct Local {
+      static eval::mask::Ptr makeMask(const GraphBasePtr &graph,
+                                      const std::unordered_set<VertexId> &banned_vertices,
+                                      const std::unordered_set<EdgeId> &banned_edges) {
+        using namespace eval::mask;
+        auto edgeFcn = [&, graph](const GraphBase &g, const EdgeId &e) -> ReturnType {
+          (void)graph; // unused
+          return banned_edges.count(e) == 0;
+        };
+        auto vertexFcn = [&, graph](const GraphBase &g, const VertexId &v) -> ReturnType {
+          (void)graph; // unused
+          return true;
+        };
+        return std::make_shared<variable::Eval<GraphBase>>( *graph, edgeFcn, vertexFcn);
+      }
+    };
+    // Build a mask that returns false for banned edges
+    mask = Local::makeMask(priv_graph, {}, banned_edges_);
+  }
+
+  const auto computed_path = priv_graph->dijkstraSearch(from, to,
+      std::make_shared<eval::weight::ConstEval>(1.f, 1.f), mask);
   //
   PathType rval;
   rval.reserve(computed_path->numberOfVertices());

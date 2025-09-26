@@ -14,6 +14,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)  # load frames
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
@@ -178,3 +179,14 @@ if(BUILD_TESTING)
 endif()
 
 ament_package()
+
+# ------------------ Obstacle Monitor Node ------------------
+add_executable(obstacle_monitor src/obstacle_monitor.cpp)
+ament_target_dependencies(obstacle_monitor
+  rclcpp nav_msgs geometry_msgs std_msgs tf2 tf2_ros tf2_geometry_msgs)
+target_include_directories(obstacle_monitor
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+install(TARGETS obstacle_monitor
+  RUNTIME DESTINATION lib/${PROJECT_NAME})
