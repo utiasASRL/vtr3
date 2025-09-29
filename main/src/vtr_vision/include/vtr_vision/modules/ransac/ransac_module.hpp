@@ -20,6 +20,12 @@
  */
 #pragma once
 
+// Include PyTorch headers FIRST to avoid namespace conflicts with ROS/std
+#ifdef VTR_VISION_LEARNED
+#include <torch/script.h>
+#include <torch/torch.h>
+#endif
+
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/outliers.hpp>

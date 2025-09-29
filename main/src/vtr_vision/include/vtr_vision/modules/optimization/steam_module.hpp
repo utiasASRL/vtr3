@@ -20,11 +20,18 @@
  */
 #pragma once
 
-#include <lgmath.hpp>
-#include <steam.hpp>
+// Include PyTorch headers FIRST to avoid namespace conflicts with ROS/std
+#ifdef VTR_VISION_LEARNED
+#include <torch/script.h>
+#include <torch/torch.h>
+#endif
 
+// Now include other headers
 #include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/cache.hpp>
+
+#include <lgmath.hpp>
+#include <steam.hpp>
 
 namespace vtr {
 namespace vision {

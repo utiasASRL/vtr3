@@ -20,8 +20,13 @@
  */
 #pragma once
 
-#include "sensor_msgs/msg/image.hpp"
+// Include PyTorch headers FIRST to avoid namespace conflicts with ROS/std
+#ifdef VTR_VISION_LEARNED
+#include <torch/script.h>
+#include <torch/torch.h>
+#endif
 
+#include "sensor_msgs/msg/image.hpp"
 
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>

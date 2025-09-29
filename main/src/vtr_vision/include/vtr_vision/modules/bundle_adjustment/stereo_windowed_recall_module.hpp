@@ -20,9 +20,17 @@
  */
 #pragma once
 
-#include <vtr_tactic/modules/base_module.hpp>
+// Include PyTorch headers FIRST to avoid namespace conflicts with ROS/std
+#ifdef VTR_VISION_LEARNED
+#include <torch/script.h>
+#include <torch/torch.h>
+#endif
+
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/types.hpp>
+
+// Now include other VTR headers
+#include <vtr_tactic/modules/base_module.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_common_msgs/msg/velocity.hpp>
 
