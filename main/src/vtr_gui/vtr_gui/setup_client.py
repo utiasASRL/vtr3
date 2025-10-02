@@ -71,11 +71,6 @@ class SetupClient(Node):
   def handle_confirm_setup(self, data):
     logger.info('Received setup parameters', data)
     # TEMP for local data
-    data['data_dir'] 
-    if self.is_sim:
-      data['data_dir']+= "_" + self.get_parameter('robot_index').value.__str__()
-      # This, for some reason, prevents the GUI from updating the default pose graph route
-      time.sleep(1.0)
     if vtr_setup.confirm_setup(data):
       logger.info('Setup complete')
       self.shutdown = True
