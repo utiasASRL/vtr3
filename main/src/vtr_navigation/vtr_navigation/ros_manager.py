@@ -16,8 +16,9 @@
 """Defines a class that isolates ROS in a separate process."""
 
 import logging
-from multiprocessing import Process, Queue, Event
+from multiprocessing import Process, Queue, Event, pool
 from threading import Thread
+import multiprocessing
 
 import rclpy
 from rclpy.node import Node
@@ -187,11 +188,15 @@ class ROSManager():
     """Listens for messages from the ROS process"""
     manager_logger.debug("Main process listener starts listening.")
     while True:
-      type, args, kwargs = self._ros_worker_notify.get()
-      manager_logger.debug("Main process is notifying %s", type)
-      if type == "stop":
-        break
-      self._notify_hook(type, *args, **kwargs)
+
+      try:
+        with pool.ThreadPool(processes=1) as p:
+          type, args, kwargs = p.apply_async(self._ros_worker_notify.get).get(timeout=3)
+          manager_logger.debug("Main process is notifying %s", type)
+          self._notify_hook(type, *args, **kwargs)
+      except multiprocessing.TimeoutError:
+        manager_logger.debug("Main process listener timeout.")
+        continue
     manager_logger.debug("Main process listener stops listening.")
 
   def _notify_hook(self, type, *args, **kwargs):
