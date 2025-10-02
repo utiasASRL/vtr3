@@ -2,7 +2,11 @@
   ros__parameters:
     robot_frame: foxtrot/base_link
     lidar_frame: foxtrot/ouster_back_lidar
+    gyro_frame: foxtrot/ouster_back_imu        
     lidar_topic: /foxtrot/ouster_back/points
+    preprocessing:
+      filtering:
+        vertical_angle_res: 0.012271 # radians
     tactic:
       chain:
         alpha: 0.0
@@ -34,16 +38,3 @@
       - mpc.solver
       - mpc.follower
       #- mpc.follower.target
-
-    # pipeline:
-    #   preprocessing:
-    #     - conversion
-    #     - filtering
-    #     - locate_leader
-    # preprocessing:
-    #   locate_leader:
-    #     type: lidar.leader_locator
-    #     maximum_distance: 5.0
-    #     minimum_distance: 0.0
-    #     intensity_threshold: 10000.0
-    #     publish: true
