@@ -63,26 +63,21 @@ def on_disconnect():
 
 
 ##### VTR specific calls #####
-
-
 @socketio.on('command/set_pause')
 def handle_set_pause(data):
   logger.info('Received set pause command', data)
   build_remote().set_pause(data)
-
 
 @socketio.on('command/add_goal')
 def handle_add_goal(data):
   logger.info('Received add goal command', data)
   build_remote().add_goal(data)
 
-
 @socketio.on('command/cancel_goal')
 def handle_cancel_goal(data):
   robot_id = data.get('robot_id', None)
   logger.info(f'Received cancel goal command for robot {robot_id}', data)
   build_remote().cancel_goal(data, robot_id)
-
 
 @socketio.on('command/begin_goals')
 def handle_begin_goals():
@@ -93,7 +88,6 @@ def handle_begin_goals():
 def handle_update_waypoint(data):
   logger.info('Received update waypoint command', data)
   build_remote().update_waypoint(data)
-
 
 @socketio.on('command/annotate_route')
 def handle_annotate_route(data):
@@ -132,6 +126,12 @@ def handle_graph_state(json):
   logger.info('Broadcasting graph state')
   graph_state = json['graph_state']
   socketio.emit(u"graph/state", graph_state)
+
+@socketio.on('notification/diagnostics')
+def handle_diagnostics(json):
+  logger.info('Broadcasting diagnostics')
+  diagnostics = json['diagnostics']
+  socketio.emit(u"diagnostics", diagnostics)
 
 @socketio.on('notification/graph_update')
 def handle_graph_update(json):

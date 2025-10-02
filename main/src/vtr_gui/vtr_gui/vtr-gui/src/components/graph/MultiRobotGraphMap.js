@@ -154,6 +154,7 @@ class MultiRobotGraphMap extends React.Component {
       robotStates: {}, // id -> robot state
       robotMarkers: {}, // id -> marker object
       targetMarkers: {}, // id -> marker object
+      diagnostics: null,
     };
     // Initialize robot and target markers for each robot
     robotIds.forEach(id => {
@@ -232,6 +233,7 @@ class MultiRobotGraphMap extends React.Component {
     // Socket IO
     this.props.socket.on("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.on("graph/update", this.graphUpdateCallback.bind(this));
+    this.props.socket.on("diagnostics", this.diagnosticsCallback.bind(this));
     // Listen for robot-specific events
     this.state.robotIds.forEach(id => {
       this.props.socket.on(`following_route/${id}`, (route) => this.followingRouteCallback(route, id));
@@ -244,6 +246,7 @@ class MultiRobotGraphMap extends React.Component {
     // Socket IO
     this.props.socket.off("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.off("graph/update", this.graphUpdateCallback.bind(this));
+    this.props.socket.off("diagnostics", this.diagnosticsCallback.bind(this));
     this.state.robotIds.forEach(id => {
       this.props.socket.off(`following_route/${id}`);
       this.props.socket.off(`robot/state/${id}`);
@@ -362,7 +365,9 @@ class MultiRobotGraphMap extends React.Component {
       merge_ids,
       move_graph_change,
       move_robot_vertex,
-      map_center
+      map_center,
+      diagnostics,
+      showDiagnostics
     } = this.state;
     const myhalImageBounds = [
       [43.660511, -79.397019], // Bottom-left coordinates of the image
@@ -375,6 +380,27 @@ class MultiRobotGraphMap extends React.Component {
     ];
     return (
       <>
+        {/* Diagnostics message box */}
+        {diagnostics && (
+          <Box
+            sx={{
+              position: "fixed",
+              top: 10,
+              right: 200,
+              zIndex: 2000,
+              backgroundColor: this.convertDiagnosticsLevel(diagnostics.level) === "error" ? "#ffcccc" :  this.convertDiagnosticsLevel(diagnostics.level) === "warn" ? "#fff3cd" : "#e3fcec",
+              color:  this.convertDiagnosticsLevel(diagnostics.level) === "error" ? "#a94442" :  this.convertDiagnosticsLevel(diagnostics.level) === "warn" ? "#856404" : "#155724",
+              borderRadius: 2,
+              boxShadow: 3,
+              p: 2,
+              minWidth: 250,
+              maxWidth: 400,
+              fontWeight: 500,
+            }}
+          >
+            <strong>{this.convertDiagnosticsLevel(diagnostics.level).toUpperCase()}</strong>: {diagnostics.message}
+          </Box>
+        )}
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
         <MapContainer
           center={[map_center.lat, map_center.lng]}
@@ -502,6 +528,13 @@ class MultiRobotGraphMap extends React.Component {
     });
   }
 
+  convertDiagnosticsLevel(level) {
+    const numerical_level = parseInt(level.slice(-2));
+    if (numerical_level >= 2) return "error";
+    else if (numerical_level === 1) return "warn";
+    else return "info";
+  }
+
   /** @brief Leaflet map creationg callback */
   mapCreatedCallback(map) {
     console.debug("Leaflet map created.");
@@ -596,6 +629,11 @@ class MultiRobotGraphMap extends React.Component {
   graphStateCallback(graph_state) {
     console.info("Received graph state: ", graph_state);
     this.loadGraphState(graph_state);
+  }
+
+  diagnosticsCallback(diagnostics) {
+    console.info("Received diagnostics: ", diagnostics);
+    this.setState({diagnostics: diagnostics, showDiagnostics: true});
   }
   
   /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */

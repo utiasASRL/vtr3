@@ -42,7 +42,12 @@ from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 SOCKET_ADDRESS = 'localhost'
 SOCKET_PORT = 5201
 
-vtr_ui_logger = logging.getLogger('vtr_ui')  # set up in vtr_ui.py
+vtr_ui_logger = logging.getLogger('multi_robot_vtr_ui')  # set up in vtr_ui.py
+vtr_ui_logger.setLevel(logging.INFO)
+hd = logging.StreamHandler()
+fm = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+hd.setFormatter(fm)
+vtr_ui_logger.addHandler(hd)
 
 def graph_state_from_ros(ros_graph_state):
   return {
@@ -172,6 +177,12 @@ def server_state_from_ros(ros_server_state):
   server_state["goals"] = [goal_handle_from_ros(gh) for gh in ros_server_state.goals]
   return server_state
 
+def diagnostics_info_from_ros(ros_diagnostics):
+  return {
+          'level': str(ros_diagnostics.level),
+          'name': ros_diagnostics.name,
+          'message': ros_diagnostics.message,
+  }
 
 def task_queue_task_from_ros(ros_task_queue_task):
   return {
@@ -304,14 +315,13 @@ class MultiRobotSocketVTRUI(MultiRobotVTRUI):
     return super().change_env_info(ros_env_info)
 
   def _notify_hook(self, name, *args, **kwargs):
-    print(f"Notify hook: {name}, {args}, {kwargs}")
+    if name == 'diagnostics':
+      self._send(name, {'diagnostics': diagnostics_info_from_ros(kwargs["diagnostics"])})
     if name == 'graph_state':
       self._send(name, {'graph_state': graph_state_from_ros(kwargs["graph_state"])})
     if name == 'graph_update':
-      print(f"Sending graph update: {kwargs['graph_update']}")
       self._send(name, {'graph_update': graph_update_from_ros(kwargs["graph_update"])})
     if name == 'robot_state':
-      print(f"Sending robot state: {kwargs['robot_state']}")
       robot_state = robot_state_from_ros(kwargs["robot_state"])
       robot_id = kwargs.get("robot_id", "default")
       self._send(name, {'robot_state': robot_state, 'robot_id': robot_id})
@@ -325,6 +335,7 @@ class MultiRobotSocketVTRUI(MultiRobotVTRUI):
       self._send(name, {'following_route': following_route, 'robot_id': robot_id})
     if name == 'task_queue_update':
       self._send(name, {'task_queue_update': task_queue_update_from_ros(kwargs["task_queue_update"])})
+    
 
 def main():
   vtr_gui, mgr = build_master(MultiRobotSocketVTRUI)

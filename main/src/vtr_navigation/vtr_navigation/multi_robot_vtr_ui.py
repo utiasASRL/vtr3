@@ -27,6 +27,7 @@ from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
 from vtr_navigation_msgs.msg import TaskQueueUpdate
 from vtr_pose_graph_msgs.srv import MapInfo as MapInfoSrv
+from diagnostic_msgs.msg import DiagnosticStatus
 from vtr_tactic_msgs.msg import EnvInfo
 import rclpy
 
@@ -123,10 +124,19 @@ class MultiRobotVTRUI(ROSManager):
       # env info
       self._change_env_info_pub[robot_id] = self.create_publisher(EnvInfo, namespace + 'env_info', 1)
 
+    # Additional data we might want
+    self._diagnostics_sub = self.create_subscription(DiagnosticStatus, '/vtr/mr_diagnostics', self.diagnostics_callback, 10)
+
     # map center
     self._map_info_cli = self.create_client(MapInfoSrv, namespace + "map_info_srv")
     while not self._map_info_cli.wait_for_service(timeout_sec=1.0):
       vtr_ui_logger.info("Waiting for map_info_srv service for robot " + robot_id)
+
+  @ROSManager.on_ros
+  def diagnostics_callback(self, diagnostics):
+    # Process diagnostics messages if needed
+    vtr_ui_logger.info("Diagnostics callback")
+    self.notify("diagnostics", diagnostics=diagnostics)
 
   @ROSManager.on_ros
   def get_graph_state(self):
@@ -184,7 +194,6 @@ class MultiRobotVTRUI(ROSManager):
   @ROSManager.on_ros
   def server_state_callback(self, server_state, robot_id):
     self.notify("server_state", server_state=server_state, robot_id=robot_id)
-    #self.notify(namespace + "server_state", server_state=server_state)
 
   @ROSManager.on_ros
   def get_task_queue_state(self):
@@ -197,7 +206,6 @@ class MultiRobotVTRUI(ROSManager):
     namespace = self._robot_namespaces[robot_id]
     vtr_ui_logger.info(f"Base Class: Task queue update callback for robot {robot_id}")
     self.notify("task_queue_update", task_queue_update=task_queue_update)
-    #self.notify(namespace + "task_queue_update", task_queue_update=task_queue_update)
 
   @ROSManager.on_ros
   def set_pause(self, msg):
