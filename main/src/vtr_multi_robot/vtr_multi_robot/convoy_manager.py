@@ -49,6 +49,7 @@ class ConvoyManager(Node):
     self._robot_state_subs = {}
     self._robot_states = {robot_id: None for robot_id in self._robots}
     self._localizing = False
+    self._idle = True
     self._config_checked = False
     self._config_valid = False
     self._crs = None
@@ -99,11 +100,12 @@ class ConvoyManager(Node):
     else:
       msg.level = DiagnosticStatus.WARN
       msg.message = "Convoy configuration not yet checked"
-    self._diagnostic_pub.publish(msg)
+
+    if self._localizing or self._idle:
+      self._diagnostic_pub.publish(msg)
   
   def _localize_all(self,):
     self.get_logger().info("Setup complete notification received")
-    
     # Appears we need to wait after services are set up for the GUI to setup. I didn't see an
     # obvious callback or signal so just wait a bit
     # TODO: Find a better way to do this, probably add an explicity 'READY' Signal from the GUI?
@@ -193,6 +195,10 @@ class ConvoyManager(Node):
     self._server_states[rid] = msg
     if msg.goals is not None and len(msg.goals) != 0 and msg.goals[0].type == GoalHandle.LOCALIZE and msg.current_goal_state == ServerState.RUNNING:
       self._localizing = True
+      self._idle = False
+    elif msg.goals is not None and len(msg.goals) != 0 and msg.goals[0].type == GoalHandle.IDLE and msg.current_goal_state == ServerState.RUNNING:
+      self._idle = True
+      self._localizing = False
     else:
       self._localizing = False
     # If any robot completes, send finish command to all robots

@@ -381,7 +381,7 @@ class MultiRobotGraphMap extends React.Component {
     return (
       <>
         {/* Diagnostics message box */}
-        {diagnostics && (
+        {diagnostics && showDiagnostics && (
           <Box
             sx={{
               position: "fixed",
@@ -868,6 +868,10 @@ class MultiRobotGraphMap extends React.Component {
       goals: state.goals,
       curr_goal_idx: curr_goal_idx
     }));
+    if (state.showDiagnostics && this.convertDiagnosticsLevel(state.diagnostics) !== "error") {
+      this.setState({showDiagnostics: false});
+    }
+
   }
 
   graphUpdateCallback(graph_update) {
