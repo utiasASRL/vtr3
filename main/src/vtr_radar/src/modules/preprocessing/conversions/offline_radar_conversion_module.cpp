@@ -24,19 +24,6 @@
 namespace vtr {
 namespace radar {
 
-namespace {
-
-template <class PointT>
-void pol2Cart2D(pcl::PointCloud<PointT> &pointcloud) {
-  for (auto &point : pointcloud) {
-    point.x = point.rho * std::cos(point.phi);
-    point.y = point.rho * std::sin(point.phi);
-    point.z = 0.0;
-  }
-}
-
-}  // namespace
-
 using namespace tactic;
 
 /// boreas navtech radar upgrade time
