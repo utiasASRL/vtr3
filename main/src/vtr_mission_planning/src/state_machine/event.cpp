@@ -62,6 +62,9 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::ContinueTeach:
       os << "ContinueTeach";
       return os;
+    case Signal::ForceAddVertex:
+      os << "ForceAddVertex";
+      return os;
   }
 
   // GCC seems to complain when this isn't here

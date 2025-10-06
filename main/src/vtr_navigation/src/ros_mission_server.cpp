@@ -94,6 +94,10 @@ void ROSMissionServer::handleCommand(
       tmp.target = mission_planning::CommandTarget::ContinueTeach;
       processCommand(tmp);
       return;
+    case MissionCommandMsg::FORCE_ADD_VERTEX:
+      tmp.target = mission_planning::CommandTarget::ForceAddVertex;
+      processCommand(tmp);
+      return;
     default:
       return;
   }

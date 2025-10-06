@@ -99,6 +99,9 @@ std::ostream& operator<<(std::ostream& os,
     case CommandTarget::ContinueTeach:
       os << "ContinueTeach";
       return os;
+    case CommandTarget::ForceAddVertex:
+      os << "ForceAddVertex";
+      return os;
   };
   return os;
 }
