@@ -51,11 +51,9 @@ socketio = flask_socketio.SocketIO(app,
 def main():
   return "This is a socket-only API server."
 
-
 @socketio.on('connect')
 def on_connect():
   logger.info('Client connected!')
-
 
 @socketio.on('disconnect')
 def on_disconnect():
