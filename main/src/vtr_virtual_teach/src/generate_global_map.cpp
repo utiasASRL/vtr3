@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
     std::streambuf* cout_buf = std::cout.rdbuf();
     std::cout.rdbuf(log_file.rdbuf());
 
-    constexpr bool use_radar = true;  // set true for radar cropping, false for lidar
+    constexpr bool use_radar = false;  // set true for radar cropping, false for lidar
 
     // Initialize ROS2 node
     rclcpp::init(argc, argv);  
@@ -188,11 +188,11 @@ int main(int argc, char **argv) {
     vtr::logging::configureLogging(log_filename, enable_debug, enabled_loggers); 
 
     // Load point cloud data
-    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/new_path_new_cropping_tests/test1_what_worked_the_first_time/NEW_ESTIMATEDpc.pcd");
+    auto cloud = loadPointCloud("/home/desiree/ASRL/vtr3/data/Experiment3/urban/pix4d/ESTIMATEDpc.pcd");
     std::cout << "Point cloud loaded successfully." << std::endl;
 
     // Read transformation matrices from CSV
-    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/new_path_new_cropping_tests_final_best/relative_transforms_2025_06_12_15_09_41_Pix4D_Dome_Path_Loop.csv"; 
+    std::string odometry_csv_path = "/home/desiree/ASRL/vtr3/data/Experiment3/urban/pix4d/clicked_relative_transforms_2025_08_15_02_14_01_urban_path.csv"; 
     auto matrices_with_timestamps = readTransformMatricesWithTimestamps(odometry_csv_path);
 
     // This transform brings the first pose (absolute) to identity.
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     cloud = rebased_cloud; 
 
     // Create and populate pose graph
-    std::string graph_path =  "/home/desiree/ASRL/vtr3/data/Testing/VirtualRadar/Pix4dMay23DomeTests/new_path_new_cropping_tests_final_best/domeLoop/graph"; 
+    std::string graph_path =  "/home/desiree/ASRL/vtr3/temp/Experiment3/virtual_urban/pix4d/clicked_graph"; 
     auto graph = createPoseGraph(matrices_with_timestamps, graph_path);
 
     // Reload the saved graph
@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
     float lidar_cylinder_height = 20.0; //lidar_cylinder_height = 30.0;   
     float radar_cylinder_height = 0.1; //0.2
     float cylinder_height = use_radar ? radar_cylinder_height : lidar_cylinder_height; 
-    float voxel_size = use_radar ? 1.7f : 0.9f; // Set voxel size based on sensor type - lower number = more dense - for paper used 0.9 for all lidar nerf maps - current radar tests use 1.0
+    float voxel_size = use_radar ? 4.0f : 0.9f; // Set voxel size based on sensor type - lower number = more dense - for paper used 0.9 for all lidar nerf maps - current radar tests use 1.0
     
     // Iterate through all vertices in the graph 
     for (auto it = loaded_graph->begin(0ul); it != loaded_graph->end(); ++it) {
@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
         
         // RADAR:
         if (use_radar) {      
-          constexpr float kRadarMaxRange  = 40.0f;                       // metres // current best is 40
+          constexpr float kRadarMaxRange  = 20.0f;                       // metres // current best is 40
           constexpr float kRadarConeDeg   = 2.0f;                        // half-angle 
           constexpr float kConeTan        = std::tan(kRadarConeDeg * M_PI / 180.0); 
           constexpr float kAzRes           = 0.015707963267948967f;      // approx 0.9 rad // current best is *2 (TRY *1, *0.5, *1.5)

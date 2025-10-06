@@ -93,7 +93,7 @@
         range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
         kstrongest:
           kstrong: 4 # k-strongest per azimuth to retain was 12
-          static_threshold: 0.23
+          static_threshold: 0.3
         cen2018:
           zq: 2.5
           sigma: 8
