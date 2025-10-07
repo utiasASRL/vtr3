@@ -136,6 +136,10 @@ def handle_change_env_info(data):
   logger.info('Received change env info command', data)
   build_remote().change_env_info(data)
 
+@socketio.on('command/force_add_vertex')
+def handle_force_add_vertex():
+  logger.info('Received force add vertex command')
+  build_remote().force_add_vertex()
 
 @socketio.on('notification/server_state')
 def handle_server_state(json):
@@ -177,6 +181,8 @@ def handle_task_queue_update(json):
   logger.info('Broadcasting task queue update')
   task_queue_update = json['task_queue_update']
   socketio.emit(u"task_queue/update", task_queue_update)
+
+
 
 
 def main():

@@ -23,6 +23,7 @@ import AnnotateRoute from "./AnnotateRoute";
 import DeleteWaypoints from "./DeleteWaypoints";
 import MoveGraph from "./MoveGraph";
 import MoveRobot from "./MoveRobot";
+import ForceAddVertex from "./ForceAddVertex";
 
 class ToolsMenu extends React.Component {
   render() {
@@ -69,6 +70,14 @@ class ToolsMenu extends React.Component {
           onCancel={deselectTool}
           waypointsMap={this.props.waypointsMap}
           handleUpdateWaypoint={this.props.handleUpdateWaypoint}
+        />
+        <ForceAddVertex
+          socket={socket}
+          active={currentTool === "force_add_vertex" ? true : false}
+          onSelect={() => selectTool("force_add_vertex")}
+          onCancel={deselectTool}
+          //waypointsMap={this.props.waypointsMap}
+          //handleUpdateWaypoint={this.props.handleUpdateWaypoint}
         />
       </Box>
     );

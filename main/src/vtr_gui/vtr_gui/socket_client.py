@@ -257,6 +257,11 @@ class SocketVTRUI(VTRUI):
     ros_command.type = MissionCommand.BEGIN_GOALS
     return super().begin_goals(ros_command)
 
+  def force_add_vertex(self):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.FORCE_ADD_VERTEX
+    return super().force_add_vertex(ros_command)
+
   def move_robot(self, data):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.LOCALIZE
