@@ -25,9 +25,20 @@ namespace pose_graph {
 
 namespace {
 
+// Cursor: Helper aliases and converters used only in this translation unit.
+// Cursor: Rationale: keep the ROS <-> internal transform conversion logic local,
+// Cursor: avoid exposing it in the public header, and ensure the implementation
+// Cursor: remains lightweight (no heavy data is touched here).
+
 using TransformT = EdgeTransform;
 using TransformMsg = vtr_common_msgs::msg::LieGroupTransform;
 
+// Cursor: Convert a ROS LieGroupTransform message to the lightweight internal
+// Cursor: EdgeTransform representation.
+// Cursor: - xi: 6D minimal representation (se(3)): [rx, ry, rz, tx, ty, tz]
+// Cursor: - cov (optional): 6x6 covariance, flattened row-major
+// Cursor: If covariance is not provided (cov_set=false), construct a transform
+// Cursor: without covariance to keep memory/compute minimal.
 TransformT fromMsg(const TransformMsg& msg) {
   using TransformVecT = Eigen::Matrix<double, 6, 1>;
 
@@ -41,6 +52,9 @@ TransformT fromMsg(const TransformMsg& msg) {
   }
 }
 
+// Cursor: Convert the internal EdgeTransform to a ROS LieGroupTransform message.
+// Cursor: Only emit covariance if it has been set on the transform. This reduces
+// Cursor: message size and downstream processing when uncertainties are not needed.
 TransformMsg toMsg(const TransformT& T) {
   TransformMsg msg;
 
@@ -71,6 +85,10 @@ RCEdge::RCEdge(const VertexId& from_id, const VertexId& to_id,
                const EdgeType& type, const bool manual,
                const EdgeTransform& T_to_from)
     : EdgeBase(from_id, to_id, type, manual, T_to_from) {
+  // Cursor: When constructing from in-memory values, initialize a lockable message
+  // Cursor: holder with an empty ROS message. The actual message content is lazily
+  // Cursor: synchronized in serialize(). This keeps the edge object lightweight and
+  // Cursor: thread-safe for later streaming/storage.
   const auto data = std::make_shared<EdgeMsg>();
   msg_ = std::make_shared<storage::LockableMessage<EdgeMsg>>(data);
 }
@@ -84,13 +102,18 @@ RCEdge::RCEdge(const EdgeMsg& msg,
       msg_(msg_ptr) {}
 
 storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
+  // Cursor: Synchronize the internal edge state to its ROS message representation.
+  // Cursor: This method is change-aware: it only writes back to the message if any
+  // Cursor: field differs. This avoids unnecessary churn in storage/transport layers.
   bool changed = false;
 
+  // Cursor: Acquire the lockable message for safe read-modify-write of its payload.
   const auto msg_locked = msg_->locked();
   auto& msg_ref = msg_locked.get();
   auto data = msg_ref.getData();  // copy of current data
 
   // potentially updated info
+  // Cursor: Convert internal enum/bool types to ROS message enums/IDs.
   const auto type = static_cast<unsigned>(type_);
   const auto mode = manual_ ? EdgeModeMsg::MANUAL : EdgeModeMsg::AUTONOMOUS;
   const auto from_id = (uint64_t)from_;
@@ -105,10 +128,14 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
     changed = true;
   }
 
+  // Cursor: Read lock the edge's internal state while examining the transform.
+  // Cursor: Multiple readers can concurrently inspect the state; writers elsewhere
+  // Cursor: will take an exclusive lock when modifying T_to_from_.
   std::shared_lock lock(mutex_);
 
   if (data.t_to_from.xi.empty() ||
       (data.t_to_from.cov_set != T_to_from_.covarianceSet())) {
+    // Cursor: No transform yet, or covariance presence changed — write full transform.
     data.t_to_from = toMsg(T_to_from_);
     changed = true;
   } else {
@@ -129,6 +156,7 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
     }
 
     if (!tf_approx_equal) {
+      // Cursor: Only update the message if values materially changed to reduce I/O.
       data.t_to_from = t_to_from;
       changed = true;
     }
@@ -136,6 +164,7 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
 
   lock.unlock();
 
+  // Cursor: Commit the modified payload once, if anything changed under our lock.
   if (changed) msg_ref.setData(data);
 
   CLOG(DEBUG, "pose_graph") << "Edge " << id_ << " -> ROS msg: "

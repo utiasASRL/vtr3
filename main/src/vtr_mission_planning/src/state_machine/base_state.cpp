@@ -38,8 +38,13 @@ StateInterface::Ptr BaseState::nextStep(const StateInterface& new_state) const {
 }
 
 void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
-  // this state does not process any goals
+  // this state does not process any goals; ignore certain async signals
   if (event.signal != Signal::Continue) {
+    if (event.signal == Signal::ObstacleDetected) {
+      // Hshmat: ignore obstacle notifications at the base level; concrete
+      // Repeat/Follow states will handle this when active.
+      return;
+    }
     std::stringstream ss;
     ss << "Received unhandled signal: " << event.signal;
     CLOG(ERROR, "mission.state_machine") << ss.str();

@@ -4,14 +4,14 @@
     log_debug: true
     log_enabled:
       - navigation
-      - navigation.graph_map_server
-      - navigation.command
+      # - navigation.graph_map_server
+      # - navigation.command
         # tactic
       #- tactic
-      - tactic.pipeline
-      - tactic.module # GOOD speed on to check
-      - tactic.module.live_mem_manager
-      - tactic.module.graph_mem_manager
+      # - tactic.pipeline
+      # - tactic.module # GOOD speed on to check
+      # - tactic.module.live_mem_manager
+      # - tactic.module.graph_mem_manager
       - mission.state_machine
       - mission.server
       - navigator
@@ -50,6 +50,8 @@
     env_info_topic: env_info
     lidar_frame: os_lidar
     lidar_topic: /ouster/points
+    route_planning:
+      enable_reroute: true
     graph_projection:
       # # UTIAS coordinates (original)
       # origin_lat: 43.7822  # UTIAS
@@ -130,15 +132,15 @@
         r_scale: 2.5 # scale down point range by this value after taking log, whatever works
         h_scale: 0.5 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution is 360/1024 ~= 0.3516 degree, so 0.3516 / (90/128) = 0.5. OR for 360/512 = 0.7031, 0.7031 / (90/128) = 1.0
 
-        num_sample1: 2000 #12500 # max number of sample after filtering based on planarity
+        num_sample1: 4000 #12500 # max number of sample after filtering based on planarity
         min_norm_score1: 0.95 # min planarity score
 
-        num_sample2: 2000 #12500 # max number of sample after filtering based on planarity
+        num_sample2: 4000 #12500 # max number of sample after filtering based on planarity
         min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
         min_normal_estimate_dist: 1.0 # minimum distance to estimate normal in meters
         max_normal_estimate_angle: 0.44 # must <1/2, this value will be timed by M_PI
 
-        cluster_num_sample: 2000 #12500 # maxnumber of sample after removing isolated points
+        cluster_num_sample: 4000 #12500 # maxnumber of sample after removing isolated points
 
         visualize: false
     odometry:
@@ -377,9 +379,9 @@
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.25 # JH: I think this is planning time step which I need to be 0.25s for DRL model.
-        forward_vel: 0.9
-        max_lin_vel: 1.0 #1.0
-        max_ang_vel: 1.0
+        forward_vel: 0.5 #hsh, used to be0.9
+        max_lin_vel: 0.5 # hsh, used to be 1.0 #1.0
+        max_ang_vel: 0.5 # hsh, used to be 1.0 #1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 

@@ -22,10 +22,12 @@
 #include "vtr_navigation/ros_mission_server.hpp"
 #include "vtr_path_planning/path_planner_interface.hpp"
 #include "vtr_route_planning/route_planner_interface.hpp"
-#include "vtr_route_planning/bfs_planner.hpp"
+#include "vtr_route_planning/bfs_planner.hpp" // Hshmat: for mapping following route ids to BFS edge blacklist
 #include "vtr_tactic/tactic.hpp"
-#include "vtr_navigation_msgs/msg/graph_route.hpp"
-#include "std_msgs/msg/bool.hpp"
+#include "vtr_navigation_msgs/msg/graph_route.hpp" //Hshmat: for mapping following route ids to BFS edge blacklist
+#include "std_msgs/msg/bool.hpp" // Hshmat: for mapping following route ids to BFS edge blacklist
+#include <chrono> // Hshmat: for debouncing obstacle detection
+#include <optional> // Hshmat: for debouncing obstacle detection
 
 #ifdef VTR_ENABLE_VISION
 #include "message_filters/subscriber.h"
@@ -147,11 +149,14 @@ typedef message_filters::sync_policies::ApproximateTime<
   ROSMissionServer::Ptr mission_server_;
   mission_planning::StateMachine::Ptr state_machine_;
 
-  // Obstacle status subscriber
+  // Hshmat: Obstacle status subscriber
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr obstacle_status_sub_;
-  // Following route subscriber (for mapping path to vertex ids)
+  // Hshmat: Following route subscriber (for mapping path to vertex ids)
   rclcpp::Subscription<vtr_navigation_msgs::msg::GraphRoute>::SharedPtr following_route_sub_;
   std::vector<uint64_t> following_route_ids_;
+  
+  // Hshmat: Debouncing for obstacle detection
+  std::optional<std::chrono::steady_clock::time_point> last_obstacle_time_;
 
   /// Threading
   bool stop_ = false;

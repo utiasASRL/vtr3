@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning/state_machine/states/repeat/plan.hpp"
+#include "vtr_route_planning/bfs_planner.hpp"
 
 namespace vtr {
 namespace mission_planning {
@@ -71,9 +72,87 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
         << "Current vertex: " << persistent_loc.v
         << ", waypoints: " << waypoints_;
 
-    auto path =
-        route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+    auto bfs = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner);
+    PathType path;
+    const bool using_masked = bfs && bfs->useMasked();
+    
+    CLOG(INFO, "mission.state_machine") << "HSHMAT: Plan::onExit - Starting route computation";
+    CLOG(INFO, "mission.state_machine") << "HSHMAT: Using masked planning: " << (using_masked ? "true" : "false");
+    
+    if (using_masked) {
+      // Use masked Dijkstra honoring banned edges; if it fails (e.g., no route
+      // exists under current mask), log and fall back to unmasked planning.
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: Attempting masked plan from " << persistent_loc.v << " to "
+          << waypoints_.front() << ", permanentBan="
+          << (bfs->permanentBan() ? "true" : "false");
+      try {
+        path = bfs->hshmat_plan(persistent_loc.v, waypoints_.front());
+        CLOG(INFO, "mission.state_machine") << "HSHMAT: Masked plan succeeded with " << path.size() << " vertices";
+      } catch (const std::exception &e) {
+        CLOG(WARNING, "mission.state_machine")
+            << "HSHMAT: Masked plan failed: '" << e.what()
+            << "'. Falling back to unmasked route computation.";
+        try {
+          path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Unmasked fallback succeeded with " << path.size() << " vertices";
+        } catch (const std::exception &e2) {
+          CLOG(ERROR, "mission.state_machine")
+              << "HSHMAT: Unmasked plan also failed: '" << e2.what()
+              << "'. Keeping previous path; skipping setPath.";
+          // Do not throw; leave without updating path to avoid crashing
+          if (bfs && !bfs->permanentBan()) bfs->clearBannedEdges();
+          Parent::onExit(state_machine, new_state);
+          return;
+        }
+      }
+    } else {
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: Using unmasked planning";
+      path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: Unmasked plan completed with " << path.size() << " vertices";
+    }
+    // Clear bans only if not permanent (reroute disabled)
+    // Note: For rerouting, we keep permanent bans but clear them after successful planning
+    // to allow future rerouting to work properly
+    if (bfs && !bfs->permanentBan()) {
+      bfs->clearBannedEdges();
+    } else if (bfs && bfs->permanentBan()) {
+      // For rerouting mode, clear banned edges after successful planning
+      // This allows the system to handle future obstacles properly
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: Clearing banned edges after successful reroute planning";
+      bfs->clearBannedEdges();
+    }
+
+    CLOG(INFO, "mission.state_machine")
+        << "Plan computed (masked=" << (using_masked ? "true" : "false")
+        << ") with " << path.size() << " vertices. From " << persistent_loc.v
+        << " to " << waypoints_.front();
     tactic->setPath(path, 0, persistent_loc.T, true);
+    
+    // Hshmat: Update waypoints to match the new computed path for consistent following
+    if (!path.empty()) {
+      // Extract waypoints from the computed path (excluding start vertex)
+      std::list<VertexId> new_waypoints;
+      std::list<uint64_t> new_waypoint_seq;
+      
+      // Add intermediate vertices as waypoints (excluding start and end)
+      for (size_t i = 1; i < path.size() - 1; ++i) {
+        new_waypoints.push_back(path[i]);
+        new_waypoint_seq.push_back(i); // Use path index as sequence
+      }
+      // Add the final goal
+      if (!path.empty()) {
+        new_waypoints.push_back(path.back());
+        new_waypoint_seq.push_back(path.size() - 1);
+      }
+      
+      // Update waypoints for the current state and parent states
+      waypoints_ = new_waypoints;
+      waypoint_seq_ = new_waypoint_seq;
+      
+      CLOG(INFO, "mission.state_machine") 
+          << "HSHMAT: Updated waypoints to match new route: " << new_waypoints;
+    }
   }
 
   // Recursively call up the inheritance chain until we get to the least common

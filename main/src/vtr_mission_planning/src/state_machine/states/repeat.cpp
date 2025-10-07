@@ -85,6 +85,12 @@ void Repeat::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
+    case Signal::ObstacleDetected: {
+      // Hshmat: Respond to obstacle detection by swapping to Plan to trigger a re-route
+      const auto tmp = std::make_shared<Plan>();
+      tmp->setWaypoints(waypoints_, waypoint_seq_);
+      return Parent::processGoals(state_machine, Event(Action::SwapGoal, tmp));
+    }
     default:
       return Parent::processGoals(state_machine, event);
   }

@@ -114,6 +114,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);
+  if (auto bfs_ptr = std::dynamic_pointer_cast<BFSPlanner>(route_planner_)) {
+    const bool reroute_enable = node_->declare_parameter<bool>("route_planning.enable_reroute", false);
+    // When reroute is enabled, always use masked BFS and permanent bans
+    bfs_ptr->setUseMasked(reroute_enable);
+    bfs_ptr->setPermanentBan(reroute_enable);
+  }
 
   /// mission server
   mission_server_ = std::make_shared<ROSMissionServer>();
@@ -136,47 +142,93 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   max_queue_size_ = node->declare_parameter<int>("queue_size", max_queue_size_);
 
-  // Subscribe to obstacle status to trigger replanning during Repeat::Follow
+  // Hshmat: Subscribe to obstacle status to trigger replanning during Repeat::Follow
   obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
         if (!msg || !msg->data) return;  // only act on blocked=true
+        
+        // Note: Debouncing removed - the real issue was waypoint mismatch after rerouting
+        
+        CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 1 - Obstacle detected, received /vtr/obstacle_status=true";
+        
+        // Reroute gate: only respond if enabled in params
+        bool reroute_enable = false;
+        try { reroute_enable = node_->get_parameter("route_planning.enable_reroute").get_value<bool>(); } catch (...) {}
+        CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 2 - Checking reroute config: enable_reroute=" << (reroute_enable ? "true" : "false");
+        if (!reroute_enable) {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Rerouting disabled, ignoring obstacle";
+          return;
+        }
+        // Only respond during Repeat::Follow. Ignore in Teach or other modes.
+        try {
+          const std::string curr = state_machine_->name();
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 3 - Checking state mode: " << curr;
+          const bool in_repeat = curr.find("Repeat") != std::string::npos;
+          const bool in_follow = curr.find("Follow") != std::string::npos;
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: State analysis - in_repeat=" << (in_repeat ? "true" : "false") << ", in_follow=" << (in_follow ? "true" : "false");
+          if (!(in_repeat && in_follow)) {
+            CLOG(INFO, "mission.state_machine") << "HSHMAT: Not in Repeat::Follow mode, ignoring obstacle";
+            return;
+          }
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Confirmed in Repeat::Follow mode, proceeding with rerouting";
+        } catch (...) { return; }
         // Forward event to state machine
         try {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 4a - Sending Signal::ObstacleDetected to state machine";
           state_machine_->handle(std::make_shared<mission_planning::Event>(
               mission_planning::Signal::ObstacleDetected));
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Signal::ObstacleDetected sent successfully";
         } catch (const std::exception &e) {
           CLOG(WARNING, "navigation") << "Failed to send ObstacleDetected: " << e.what();
         }
 
         // Also ban upcoming edges in the current following route to force topo re-plan
         try {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 4b - Banning edges in current route";
           const auto loc = tactic_->getPersistentLoc();
           const auto current_vid = loc.v;
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Current vertex: " << current_vid;
+          
           // Find current vertex in following route ids
           int idx = -1;
           for (size_t i = 0; i < following_route_ids_.size(); ++i) {
             if (vtr::tactic::VertexId(following_route_ids_[i]) == current_vid) { idx = static_cast<int>(i); break; }
           }
+          CLOG(INFO, "mission.state_machine") << "HSHMAT: Found current vertex at route index: " << idx;
+          
           if (idx >= 0) {
             std::vector<vtr::tactic::EdgeId> banned;
-            const int lookahead_edges = 3; // conservative default; can be parameterized later
+            const int lookahead_edges = 3; // placeholder; will be refined later
             for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size()) && i < idx + lookahead_edges; ++i) {
               vtr::tactic::VertexId v1(following_route_ids_[i]);
               vtr::tactic::VertexId v2(following_route_ids_[i+1]);
               banned.emplace_back(v1, v2);
+              CLOG(INFO, "mission.state_machine") << "HSHMAT: Banning edge " << v1 << " -> " << v2;
             }
+            CLOG(INFO, "mission.state_machine") << "HSHMAT: Total edges to ban: " << banned.size();
+            
             if (!banned.empty()) {
               auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_);
-              if (bfs_ptr) bfs_ptr->setBannedEdges(banned);
+              if (bfs_ptr) {
+                // Permanent add (single-flag semantics)
+                bfs_ptr->addBannedEdges(banned);
+                // Ensure masked is on
+                bfs_ptr->setUseMasked(true);
+                CLOG(INFO, "mission.state_machine") << "HSHMAT: Successfully added " << banned.size() << " banned edges to BFS planner, masked planning enabled";
+              } else {
+                CLOG(WARNING, "mission.state_machine") << "HSHMAT: Could not cast route planner to BFSPlanner";
+              }
             }
+          } else {
+            CLOG(WARNING, "mission.state_machine") << "HSHMAT: Could not find current vertex in following route";
           }
         } catch (const std::exception &e) {
           CLOG(WARNING, "navigation") << "Failed to set banned edges: " << e.what();
         }
       });
 
-  // Track following route ids for mapping to BFS edge blacklist (if needed)
+  // Hshmat: Track following route ids for mapping to BFS edge blacklist (if needed)
   following_route_sub_ = node_->create_subscription<vtr_navigation_msgs::msg::GraphRoute>(
       "following_route", rclcpp::QoS(10),
       [this](const vtr_navigation_msgs::msg::GraphRoute::SharedPtr route) {

@@ -32,6 +32,10 @@ RCGraph::RCGraph(const std::string& file_path, const bool load,
       file_path_(file_path),
       name2accessor_map_(std::make_shared<LockableName2AccessorMap>(
           fs::path{file_path} / "data", Name2AccessorMapBase())) {
+  // Cursor: If 'load' is true and an index exists on disk, load a persisted
+  // Cursor: graph (index + vertices + edges) and then rebuild the lightweight
+  // Cursor: SimpleGraph for topological operations. Otherwise, initialize a new
+  // Cursor: graph and prepare an empty lockable Graph ROS message.
   if (load && fs::exists(fs::path(file_path_) / "index")) {
     CLOG(INFO, "pose_graph") << "Loading pose graph from " << file_path;
     loadGraphIndex();
@@ -47,6 +51,9 @@ RCGraph::RCGraph(const std::string& file_path, const bool load,
 }
 
 void RCGraph::save() {
+  // Cursor: Serialize the current in-memory graph back to disk.
+  // Cursor: Take an exclusive lock to guard against concurrent mutation and
+  // Cursor: write index, vertices, then edges.
   std::unique_lock lock(mutex_);
   CLOG(INFO, "pose_graph") << "Saving pose graph";
   saveGraphIndex();
@@ -56,10 +63,15 @@ void RCGraph::save() {
 }
 
 auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
+  // Cursor: Delegate to base to create a vertex that shares the accessor map.
+  // Cursor: The shared accessor map allows all vertices/edges to lazily access
+  // Cursor: their on-disk bubbles under <file_path>/data/.
   return GraphType::addVertex(time, name2accessor_map_);
 }
 
 void RCGraph::loadGraphIndex() {
+  // Cursor: Read the single graph-level metadata message (index) from disk
+  // Cursor: and populate IDs and map_info.
   GraphMsgAccessor accessor{fs::path{file_path_}, "index", "vtr_pose_graph_msgs/msg/Graph"};
   msg_ = accessor.readAtIndex(1);
   if (!msg_) {
@@ -81,6 +93,9 @@ void RCGraph::loadGraphIndex() {
 }
 
 void RCGraph::loadVertices() {
+  // Cursor: Sequentially read vertex messages until no more entries exist;
+  // Cursor: for each, construct an RCVertex that shares the accessor map and
+  // Cursor: store it in the in-memory vertex map.
   CLOG(DEBUG, "pose_graph") << "Loading vertices from disk";
 
   VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
@@ -96,6 +111,9 @@ void RCGraph::loadVertices() {
 }
 
 void RCGraph::loadEdges() {
+  // Cursor: Sequentially read edge messages until no more entries exist;
+  // Cursor: for each, construct an RCEdge bound to the lockable message and
+  // Cursor: store it in the in-memory edge map.
   CLOG(DEBUG, "pose_graph") << "Loading edges from disk";
 
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
@@ -111,6 +129,9 @@ void RCGraph::loadEdges() {
 }
 
 void RCGraph::buildSimpleGraph() {
+  // Cursor: Populate the internal SimpleGraph with the set of vertex IDs and
+  // Cursor: edge IDs to enable fast topological queries independent of heavy
+  // Cursor: per-vertex/edge data.
   // First add all vertices to the simple graph
   for (auto it = vertices_.begin(); it != vertices_.end(); ++it)
     graph_.addVertex(it->first);
@@ -120,6 +141,8 @@ void RCGraph::buildSimpleGraph() {
 }
 
 void RCGraph::saveGraphIndex() {
+  // Cursor: Write the graph-level metadata (IDs and map_info) back to disk as
+  // Cursor: a single Graph message under <file_path>/index.
   GraphMsg data;
   data.curr_major_id = curr_major_id_;
   data.curr_minor_id = curr_minor_id_;
@@ -137,6 +160,8 @@ void RCGraph::saveGraphIndex() {
 }
 
 void RCGraph::saveVertices() {
+  // Cursor: Ensure any lazily-held vertex data is flushed/unloaded, then write
+  // Cursor: each vertex's serialized message to <file_path>/vertices.
   // save any unsaved data first
   CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
   for (auto iter = vertices_.begin(); iter != vertices_.end(); ++iter)
@@ -147,6 +172,7 @@ void RCGraph::saveVertices() {
 }
 
 void RCGraph::saveEdges() {
+  // Cursor: Write each edge's serialized message to <file_path>/edges.
   CLOG(DEBUG, "pose_graph") << "Saving edges to disk";
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
   for (auto it = edges_.begin(); it != edges_.end(); ++it)

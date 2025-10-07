@@ -62,6 +62,7 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::ContinueTeach:
       os << "ContinueTeach";
       return os;
+    // Hshmat: Path ahead blocked during repeat follow; trigger re-plan
     case Signal::ObstacleDetected:
       os << "ObstacleDetected";
       return os;

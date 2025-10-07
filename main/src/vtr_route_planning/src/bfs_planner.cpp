@@ -17,6 +17,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_route_planning/bfs_planner.hpp"
+#include "vtr_pose_graph/evaluator/evaluators.hpp" // Hshmat: for mapping following route ids to BFS edge blacklist
 
 namespace vtr {
 namespace route_planning {
@@ -52,6 +53,71 @@ auto BFSPlanner::path(const VertexId &from, const VertexId &to) -> PathType {
   return path(getPrivilegedGraph(), from, to);
 }
 
+// Hshmat: Experimental: compute path while honoring banned edges.
+//
+// High-level idea
+// - Consumers (e.g., Navigator) can call setBannedEdges(...) to populate
+//   BFSPlanner::banned_edges_ with a small set of (EdgeId) graph edges that
+//   should be avoided in the next topological replan.
+// - Here, we construct a boolean mask evaluator that returns false for any
+//   EdgeId contained in banned_edges_. This mask is given to the Dijkstra
+//   search routine so those edges are never traversed (equivalent to infinite
+//   cost in practice).
+// - All other edges/vertices return true and are traversable.
+//
+// Notes
+// - We keep vertex mask always true in this initial version (we could also
+//   block vertices similarly if needed in the future).
+// - Weight evaluator is constant distance=1 for both edges and vertices here;
+//   if you later need distance-based weights, plug an appropriate evaluator.
+// - This function does not mutate the graph; it only constrains search.
+auto BFSPlanner::hshmat_plan(const VertexId &from, const VertexId &to) -> PathType {
+  const auto priv_graph = getPrivilegedGraph();
+  // Start with a permissive mask (everything allowed), then optionally
+  // replace it with a lambda-based mask that filters only banned edges.
+  vtr::pose_graph::eval::mask::Ptr mask = std::make_shared<vtr::pose_graph::eval::mask::ConstEval>(true, true);
+  if (!banned_edges_.empty()) {
+    struct Local {
+      // Build a mask that yields false for any edge in 'banned_edges'. Vertices
+      // remain allowed (true). The GRAPH template parameter for the evaluator
+      // is the type of the subgraph used by Dijkstra (tactic::GraphBase).
+      static vtr::pose_graph::eval::mask::Ptr makeMask(
+          const GraphBasePtr &graph,
+          const std::unordered_set<vtr::tactic::VertexId> &banned_vertices,
+          const std::unordered_set<vtr::tactic::EdgeId> &banned_edges) {
+        using namespace vtr::pose_graph::eval::mask;
+        // Edge predicate: return true if edge NOT in banned set; false otherwise.
+        auto edgeFcn = [&, graph](const vtr::tactic::GraphBase &g, const vtr::tactic::EdgeId &e) -> ReturnType {
+          (void)graph; // unused
+          return banned_edges.count(e) == 0;
+        };
+        // Vertex predicate: currently leave all vertices enabled.
+        auto vertexFcn = [&, graph](const vtr::tactic::GraphBase &g, const vtr::tactic::VertexId &v) -> ReturnType {
+          (void)graph; // unused
+          // could exclude vertices too if needed
+          return true;
+        };
+        // variable::Eval lets us construct a mask from the two lambdas above.
+        return std::make_shared<variable::Eval<vtr::tactic::GraphBase>>( *graph, edgeFcn, vertexFcn);
+      }
+    };
+    mask = Local::makeMask(priv_graph, {}, banned_edges_);
+  }
+
+  // Run Dijkstra with:
+  // - weights: constant (1, 1) to keep behavior equivalent to unweighted BFS;
+  // - mask: the edge filter assembled above so banned edges are never expanded.
+  const auto computed_path = priv_graph->dijkstraSearch(
+      from, to, std::make_shared<vtr::pose_graph::eval::weight::ConstEval>(1.f, 1.f), mask);
+  // Convert the traversal result to the expected PathType (list of VertexId).
+  PathType rval;
+  rval.reserve(computed_path->numberOfVertices());
+  for (auto it = computed_path->begin(from), ite = computed_path->end();
+       it != ite; ++it)
+    rval.push_back(*it);
+  return rval;
+}
+
 auto BFSPlanner::getGraph() const -> GraphPtr {
   if (auto graph_acquired = graph_.lock())
     return graph_acquired;
@@ -73,32 +139,7 @@ auto BFSPlanner::getPrivilegedGraph() const -> GraphBasePtr {
 
 auto BFSPlanner::path(const GraphBasePtr &priv_graph, const VertexId &from,
                       const VertexId &to) -> PathType {
-  // If any edges are temporarily banned, construct a mask to exclude them
-  eval::mask::Ptr mask = std::make_shared<eval::mask::ConstEval>(true, true);
-  if (!banned_edges_.empty()) {
-    struct Local {
-      static eval::mask::Ptr makeMask(const GraphBasePtr &graph,
-                                      const std::unordered_set<VertexId> &banned_vertices,
-                                      const std::unordered_set<EdgeId> &banned_edges) {
-        using namespace eval::mask;
-        auto edgeFcn = [&, graph](const GraphBase &g, const EdgeId &e) -> ReturnType {
-          (void)graph; // unused
-          return banned_edges.count(e) == 0;
-        };
-        auto vertexFcn = [&, graph](const GraphBase &g, const VertexId &v) -> ReturnType {
-          (void)graph; // unused
-          return true;
-        };
-        return std::make_shared<variable::Eval<GraphBase>>( *graph, edgeFcn, vertexFcn);
-      }
-    };
-    // Build a mask that returns false for banned edges
-    mask = Local::makeMask(priv_graph, {}, banned_edges_);
-  }
-
-  const auto computed_path = priv_graph->dijkstraSearch(from, to,
-      std::make_shared<eval::weight::ConstEval>(1.f, 1.f), mask);
-  //
+  const auto computed_path = priv_graph->dijkstraSearch(from, to);
   PathType rval;
   rval.reserve(computed_path->numberOfVertices());
   for (auto it = computed_path->begin(from), ite = computed_path->end();

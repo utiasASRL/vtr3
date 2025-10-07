@@ -34,11 +34,14 @@ void Follow::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
+    // Hshmat: Path ahead blocked during repeat follow; trigger re-plan
     case Signal::ObstacleDetected: {
-      // Swap to Plan state with the same waypoints to trigger replanning
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: Follow state received Signal::ObstacleDetected";
+      // Replan by pushing Plan in front, keeping Follow underneath
       const auto tmp = std::make_shared<Plan>();
       tmp->setWaypoints(waypoints_, waypoint_seq_);
-      return Parent::processGoals(state_machine, Event(Action::SwapGoal, tmp));
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: Creating Plan state with waypoints, transitioning Follow->Plan";
+      return Parent::processGoals(state_machine, Event(Action::AppendGoal, tmp));
     }
     default:
       return Parent::processGoals(state_machine, event);
