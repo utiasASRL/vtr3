@@ -20,12 +20,19 @@ import React from "react";
 import { Box, Button } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import AndroidIcon from "@mui/icons-material/Android";
+import AddIcon from '@mui/icons-material/Add';
+import {fetchWithTimeout} from "../../index"
 
 class ForceAddVertex extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {};
+    console.debug("Current props:" + props);
+    for (let key in props) {
+      console.log(`${key}: ${props[key]}`);
+    }
+    this.state ={
+      current_vertex: null,
+    };
   }
 
   render() {
@@ -60,7 +67,7 @@ class ForceAddVertex extends React.Component {
             sx={{ m: 0.25 }}
             color={"primary"}
             disableElevation={true}
-            startIcon={<AndroidIcon />}
+            startIcon={<AddIcon />}
             variant={"contained"}
             onClick={onSelect}
             size={"small"}
@@ -83,6 +90,7 @@ class ForceAddVertex extends React.Component {
   }
 
   handleConfirm() {
+    let vert_name = window.prompt("Enter a waypoint name for the vertex:","POI");
     this.setState(
       (state, props) => {
         console.debug("Confirmed force add vertex");
@@ -90,48 +98,34 @@ class ForceAddVertex extends React.Component {
       },
       () => this.props.onCancel()
     );
+    if (vert_name !== null && vert_name !== ""){
+      this.fetchRobotState(vert_name);
+    }
   }
-/*
-  fetchRobotState() {
-    this.state.robotIds.forEach(id => {
-      fetchWithTimeout(`/vtr/robot/${id}`)
-        .then((response) => {
-          if (response.status !== 200) throw new Error(`Failed to fetch robot state for ${id}: ` + response.status);
-          response.json().then((data) => {
-            this.loadRobotState(data, id);
-          });
-        })
-        .catch((error) => {
-          console.error(error);
+
+  fetchRobotState(vert_name) {
+    console.info("Fetching the current robot state (full).");
+    fetchWithTimeout("/vtr/robot")
+      .then((response) => {
+        if (response.status !== 200) throw new Error("Failed to fetch robot state: " + response.status);
+        response.json().then((data) => {
+          let vertex = this.loadRobotState(data);
+          console.warn('Updating waypoint:' + vertex.target.id);
+          this.props.handleUpdateWaypoint(vertex.target.id, 0, vert_name); /*ADD*/
         });
-    });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   }
 
-  /*
-  loadRobotState(state, robot_id) {
-    this.setState(prevState => ({
-      robotStates: { ...prevState.robotStates, [robot_id]: state }
-    }));
-
-    // from vertex
-    let vf = graph_update.vertex_from;
-    vf.valueOf = () => vf.id;
-    vf.distanceTo = L.LatLng.prototype.distanceTo;
-    // only update if the vertex is not in the map (vertex position does not change)
-    if (!this.id2vertex.has(vf.id)) this.kdtree.insert(vf);
-    // always update the vertex map, because vertex neighbors may change
-    this.id2vertex.set(vf.id, vf);
-
-    // to vertex
-    let vt = graph_update.vertex_to;
-    vt.valueOf = () => vt.id;
-    vt.distanceTo = L.LatLng.prototype.distanceTo;
-    // only update if the vertex is not in the map (vertex position does not change)
-    if (!this.id2vertex.has(vt.id)) this.kdtree.insert(vt);
-    // always update the vertex map, because vertex neighbors may change
-    this.id2vertex.set(vt.id, vt);
+  loadRobotState(robot) {
+    let vertex = null;
+    if (robot.valid !== false) {
+      vertex = this.props.getClosestVertex({lat:robot.lat, lng:robot.lng});
+    }
+    return vertex;
   }
-  */
 }
 
 export default ForceAddVertex;

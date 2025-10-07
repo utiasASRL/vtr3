@@ -438,6 +438,8 @@ class MultiRobotGraphMap extends React.Component {
           moveGraphChange={move_graph_change}
           // move robot
           moveRobotVertex={move_robot_vertex}
+          // force add vertex
+          getClosestVertex={this.getClosestVertex.bind(this)}
         />
         <Box
           sx={{

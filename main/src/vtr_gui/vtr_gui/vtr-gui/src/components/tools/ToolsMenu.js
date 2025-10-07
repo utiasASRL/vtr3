@@ -76,8 +76,9 @@ class ToolsMenu extends React.Component {
           active={currentTool === "force_add_vertex" ? true : false}
           onSelect={() => selectTool("force_add_vertex")}
           onCancel={deselectTool}
-          //waypointsMap={this.props.waypointsMap}
-          //handleUpdateWaypoint={this.props.handleUpdateWaypoint}
+          waypointsMap={this.props.waypointsMap}
+          handleUpdateWaypoint={this.props.handleUpdateWaypoint}
+          getClosestVertex={this.props.getClosestVertex}
         />
       </Box>
     );
