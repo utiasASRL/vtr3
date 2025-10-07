@@ -69,6 +69,8 @@ struct Event {
   static Event::Ptr StartMerge(const std::vector<VertexId>& match_window);
   static Event::Ptr StartRepeat(const std::list<VertexId>& waypoints);
   static Event::Ptr StartLocalize();
+  static Event::Ptr SwitchController(const std::string& new_controller);
+
   static Event::Ptr Reset();
 
   std::string signalName() const;

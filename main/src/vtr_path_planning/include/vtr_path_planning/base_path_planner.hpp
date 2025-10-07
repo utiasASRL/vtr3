@@ -166,6 +166,7 @@ class BasePathPlanner : public PathPlannerInterface {
   friend class PathPlannerRegister;
   friend class PathPlannerFactory;
   friend class ROSPathPlannerFactory;
+  friend class DynamicPathPlanner;
 };
 
 template <typename T>

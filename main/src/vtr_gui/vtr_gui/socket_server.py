@@ -141,6 +141,11 @@ def handle_force_add_vertex():
   logger.info('Received force add vertex command')
   build_remote().force_add_vertex()
 
+@socketio.on('command/change_controller')
+def handle_change_controller(data):
+  logger.info('Received change controller command', data)
+  build_remote().change_controller(data)
+
 @socketio.on('notification/server_state')
 def handle_server_state(json):
   logger.info('Broadcasting server state')

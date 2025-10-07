@@ -48,6 +48,7 @@ def generate_launch_description():
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
                     "path_planning.type": LaunchConfiguration("planner"),
+                    "path_planning.stationary.type": "stationary",
               },
                 PathJoinSubstitution((config_dir, LaunchConfiguration("override_params")))
             ],
@@ -67,7 +68,7 @@ def generate_launch_description():
                     "start_new_graph": LaunchConfiguration("start_new_graph"),
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
                     "path_planning.type": LaunchConfiguration("planner"),
-
+                    "path_planning.stationary.type": "stationary",
                 },
                 PathJoinSubstitution((config_dir, LaunchConfiguration("override_params")))
             ],
