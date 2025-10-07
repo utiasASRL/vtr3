@@ -45,6 +45,9 @@ std::ostream& operator<<(std::ostream& os, const Action& action) {
     case Action::EndGoal:
       os << "EndGoal";
       return os;
+    case Action::ForceAddVertex:
+      os << "ForceAddVertex";
+      return os;
   };
 
   // GCC seems to complain when this isn't here
@@ -61,9 +64,6 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
       return os;
     case Signal::ContinueTeach:
       os << "ContinueTeach";
-      return os;
-    case Signal::ForceAddVertex:
-      os << "ForceAddVertex";
       return os;
   }
 

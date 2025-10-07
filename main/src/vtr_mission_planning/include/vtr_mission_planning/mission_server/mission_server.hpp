@@ -350,7 +350,7 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
       return;
     }
     case CommandTarget::ForceAddVertex: {
-      state_machine->handle(std::make_shared<Event>(Signal::ForceAddVertex));
+      state_machine->handle(std::make_shared<Event>(Action::ForceAddVertex));
       return;
     }
     default:

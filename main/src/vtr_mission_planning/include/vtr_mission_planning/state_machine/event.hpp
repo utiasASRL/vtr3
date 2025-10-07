@@ -36,8 +36,9 @@ enum class Action : int8_t {
                  // only replaces
   AppendGoal,    // Append a new temporary goal state (eg. taking a brief detour
                  // to reteach a bad looking area)
-  EndGoal  // User indication that a goal is complete (eg. mapping/repair is
+  EndGoal,  // User indication that a goal is complete (eg. mapping/repair is
            // done now)
+  ForceAddVertex, // Add a vertex at the robot's current pose during a teach
 };
 
 std::ostream& operator<<(std::ostream& os, const Action& action);
@@ -51,7 +52,7 @@ enum class Signal : int8_t {
   Continue = 0,  // Keep going with this state (default action)
   // [teach::merge]
   AttemptClosure,  // Attempt to link back to the existing map
-  ContinueTeach    // Cannot merge or user has canceled merge, continue teaching
+  ContinueTeach,    // Cannot merge or user has canceled merge, continue teaching
 };
 
 std::ostream& operator<<(std::ostream& os, const Signal& signal);
