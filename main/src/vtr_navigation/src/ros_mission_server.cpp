@@ -47,6 +47,8 @@ void ROSMissionServer::serverStateSrvCallback(
 void ROSMissionServer::handleCommand(
     const MissionCommandMsg::SharedPtr command) {
   mission_planning::Command tmp;
+  auto uuid = boost::uuids::random_generator()();
+
   switch (command->type) {
     case MissionCommandMsg::PAUSE:
       setPause(command->pause);
@@ -54,7 +56,6 @@ void ROSMissionServer::handleCommand(
     case MissionCommandMsg::ADD_GOAL: {
       auto& gh = command->goal_handle;
       // generate a new uuid for this goal
-      auto uuid = boost::uuids::random_generator()();
       std::copy(uuid.begin(), uuid.end(), gh.id.begin());
       CLOG(INFO, "mission.server") << "Adding goal with id: " << uuid;
       // sanity check
@@ -93,6 +94,20 @@ void ROSMissionServer::handleCommand(
     case MissionCommandMsg::CONTINUE_TEACH:
       tmp.target = mission_planning::CommandTarget::ContinueTeach;
       processCommand(tmp);
+      return;
+    case MissionCommandMsg::SELECT_CONTROLLER:{
+        tmp.target = mission_planning::CommandTarget::SelectController;
+        tmp.controller_name = command->controller_name;
+        GoalHandle gh;
+        gh.type = GoalHandle::IDLE;
+        // generate a new uuid for this goal
+        std::copy(uuid.begin(), uuid.end(), gh.id.begin());
+        CLOG(INFO, "mission.server") << "Adding goal with id: " << uuid;
+        
+        addGoal(gh);
+        beginGoals();
+        processCommand(tmp);
+      }
       return;
     default:
       return;

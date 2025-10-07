@@ -136,6 +136,10 @@ def handle_change_env_info(data):
   logger.info('Received change env info command', data)
   build_remote().change_env_info(data)
 
+@socketio.on('command/change_controller')
+def handle_change_controller(data):
+  logger.info('Received change controller command', data)
+  build_remote().change_controller(data)
 
 @socketio.on('notification/server_state')
 def handle_server_state(json):
