@@ -189,14 +189,8 @@ class ROSManager():
     manager_logger.debug("Main process listener starts listening.")
     while True:
 
-      try:
-        with pool.ThreadPool(processes=1) as p:
-          type, args, kwargs = p.apply_async(self._ros_worker_notify.get).get(timeout=3)
-          manager_logger.debug("Main process is notifying %s", type)
-          self._notify_hook(type, *args, **kwargs)
-      except multiprocessing.TimeoutError:
-        manager_logger.debug("Main process listener timeout.")
-        continue
+        manager_logger.debug("Main process is notifying %s", type)
+        self._notify_hook(type, *args, **kwargs)
     manager_logger.debug("Main process listener stops listening.")
 
   def _notify_hook(self, type, *args, **kwargs):
