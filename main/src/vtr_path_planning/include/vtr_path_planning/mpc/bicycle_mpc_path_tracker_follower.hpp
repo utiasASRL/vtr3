@@ -31,6 +31,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
 #include <vtr_navigation_msgs/srv/graph_state.hpp>
+#include <vtr_navigation_msgs/srv/following_route.hpp>
 #include "std_msgs/msg/float32.hpp"
 
 namespace vtr {
@@ -46,6 +47,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
+  using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
   using Transformation = lgmath::se3::Transformation;
   using FloatMsg = std_msgs::msg::Float32;
 
@@ -124,7 +126,9 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   void onLeaderRoute(const RouteMsg::SharedPtr route);
   tactic::EdgeTransform T_fw_lw_;
   tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
-
+  
+  rclcpp::Client<FollowingRouteSrv>::SharedPtr leaderRouteSrv_;
+  void leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
 
@@ -133,6 +137,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   void onLeaderDist(const FloatMsg::SharedPtr distance);
   float lastError_ = 0;
   float errorIntegrator = 0;
+  bool hasRequestedLeaderRoute_ = false;
 
 
 };
