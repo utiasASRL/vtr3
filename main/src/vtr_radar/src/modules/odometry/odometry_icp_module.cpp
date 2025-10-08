@@ -392,8 +392,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // shared loss function
     // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);
     auto icp_loss_func = CauchyLossFunc::MakeShared(config_->cauchy_k);
+
     // cost terms and noise model
-    bool rv_cost_added = false;
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
