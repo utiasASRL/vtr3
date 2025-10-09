@@ -109,10 +109,6 @@ using LockableCache = common::SharedLockable<Cache<DataType>>;
 struct QueryCache : std::enable_shared_from_this<QueryCache> {
   using Ptr = std::shared_ptr<QueryCache>;
 
-  QueryCache(){
-    force_add_vertex.emplace(false);
-  }
-
   virtual ~QueryCache() = default;
 
   // input
