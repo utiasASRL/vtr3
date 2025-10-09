@@ -109,6 +109,10 @@ using LockableCache = common::SharedLockable<Cache<DataType>>;
 struct QueryCache : std::enable_shared_from_this<QueryCache> {
   using Ptr = std::shared_ptr<QueryCache>;
 
+  QueryCache(){
+    force_add_vertex.emplace(false);
+  }
+
   virtual ~QueryCache() = default;
 
   // input
@@ -129,7 +133,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<Eigen::Matrix<double, 6, 1>> w_v_r_in_r_odo;  // body centric velocity
   Cache<Timestamp> timestamp_odo;
   Cache<const double> odo_time;
-  Cache<const bool> force_add_vertex = false;
+  Cache<const bool> force_add_vertex;
 
   // localization
   Cache<const VertexId> vid_loc;
