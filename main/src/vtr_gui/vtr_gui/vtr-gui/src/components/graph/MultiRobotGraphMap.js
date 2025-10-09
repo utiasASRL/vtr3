@@ -758,11 +758,20 @@ class MultiRobotGraphMap extends React.Component {
     if (this.graph_loaded === false) return;
     console.info("Loading the current following route: ", route);
     //
-    if (this.following_route_polyline !== null) this.following_route_polyline.remove();
-    //
+    // Maintain a polyline for each robot
+    if (!this.following_route_polylines) {
+      this.following_route_polylines = {};
+    }
+    // Remove previous polyline for this robot
+    if (this.following_route_polylines[robot_id]) {
+      this.following_route_polylines[robot_id].remove();
+      delete this.following_route_polylines[robot_id];
+    }
     if (route.ids.length === 0) {
-      this.following_route_polyline = null;
-      this.setState({ following_route_ids: [] });
+      // No route for this robot
+      this.setState(prevState => ({
+        following_route_ids: prevState.following_route_ids.filter(r => r.robot_id !== robot_id)
+      }));
     } else {
       let latlngs = route.ids.map((id) => {
         let v = this.id2vertex.get(id);
@@ -775,8 +784,14 @@ class MultiRobotGraphMap extends React.Component {
         pane: "graph",
       });
       polyline.addTo(this.map);
-      this.following_route_polyline = polyline;
-      this.setState({ following_route_ids: route.ids });
+      this.following_route_polylines[robot_id] = polyline;
+      // Store route ids per robot
+      this.setState(prevState => ({
+        following_route_ids: [
+          ...prevState.following_route_ids.filter(r => r.robot_id !== robot_id),
+          { robot_id, ids: route.ids }
+        ]
+      }));
     }
   }
 
