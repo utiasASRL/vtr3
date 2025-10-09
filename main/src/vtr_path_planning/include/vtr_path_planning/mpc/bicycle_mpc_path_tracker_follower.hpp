@@ -122,8 +122,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   PathInterpolator::ConstPtr leaderPathInterp_; 
   PoseStampedMsg lastRobotPose_;
 
-  rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
-  void onLeaderRoute(const RouteMsg::SharedPtr route);
   tactic::EdgeTransform T_fw_lw_;
   tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
   

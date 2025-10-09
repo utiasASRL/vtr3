@@ -88,7 +88,6 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
   leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
-  //leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderRoute, this, _1));
 
   leaderRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(leader_route_service);
 
@@ -313,32 +312,12 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
     
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
+    hasRequestedLeaderRoute_ = false;
 
   }
   else{
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
     hasRequestedLeaderRoute_ = false;
-  }
-}
-
-void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
-  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route->ids.size() > 0 && route->ids.front() != leader_root_) { 
-
-    //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
-    // leaderGraphSrv_->async_send_request()
-    leader_root_ = route->ids.front();
-    CLOG(INFO, "mpc.follower") << "Updated leader's root to: " << leader_root_;
-    const auto follower_root = robot_state_->chain->sequence().front();
-    CLOG(INFO, "mpc.follower") << "Follower's root to: " << follower_root;
-
-    auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
-    
-    T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
-    CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
-
-  }
-  else{
-    CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
   }
 }
 
