@@ -5,19 +5,20 @@
     log_debug: true
     log_enabled:
       - navigation
-      - radar.pipeline
+      #- radar.pipeline
       # - navigation.sensor_input
-      #- radar.online_converter
-      - radar.pc_extractor
-      - radar.odometry_icp
-      - radar.odometry_gyro
-      - radar.odometry_preintegration
+      - radar.online_converter
+      #- radar.pc_extractor
+      #- radar.odometry_icp
+      #- radar.odometry_gyro
+      #- radar.odometry_preintegration
       # - radar.localization_icp
       # - tactic
       # - tactic.pipeline
       - tactic.module
-      # - mpc.debug
-      # - cbit.control
+      #- mpc.debug
+      #- cbit.control
+      #- test
       #- mission.state_machine
       #- mission.server
     robot_frame: base_link
@@ -26,7 +27,7 @@
     radar_topic: /radar/b_scan_msg
     gyro_frame: MTi30_link
     gyro_topic: /vn100/data_raw
-    gyro_bias: -0.02751264625189735
+    gyro_bias: -0.027524760208093454
 
     queue_size: 5
     graph_projection:
@@ -77,8 +78,8 @@
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
-      save_raw_point_cloud: true
-      save_radar_images: true
+      save_raw_point_cloud: false
+      save_radar_images: false
     preprocessing:
       conversion:
         type: radar.online_converter
@@ -144,17 +145,6 @@
         visualize: true
 
     odometry:
-      gyro:
-        type: radar.odometry_gyro
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
-        bias: -0.02751264625189735
-
-        gyro_cov: 1e-7
-
-        # steam parameters #TOTUNE
-        verbose: false
-        max_iterations: 3
-        
       icp:
         type: radar.odometry_icp
 

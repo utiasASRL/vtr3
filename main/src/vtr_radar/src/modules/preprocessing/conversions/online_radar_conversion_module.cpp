@@ -61,13 +61,18 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   fft_scan = fft_scan/255.0;
 
   cv::Mat cartesian;
-  Cache<Timestamp> qstamp = qdata.stamp;
+  Timestamp qstamp = *qdata.stamp;
   std::vector<bool> up_chirps;
 
+  int timescale = 1;
+  if (static_cast<double>(qdata.scan_msg->timestamps.front()) / qstamp < 0.1 ) {
+    CLOG_N_TIMES(1, INFO, "radar.online_converter") << "Detected timestamps in microseconds not nanoseconds!";
+    timescale = 1000;
+  }
 
   std::vector<int64_t> azimuth_times;
   for (const auto& time : qdata.scan_msg->timestamps) {
-    azimuth_times.emplace_back(static_cast<int64_t>(time));
+    azimuth_times.emplace_back(static_cast<int64_t>(time) * timescale);
     up_chirps.emplace_back(false);
   }
 
