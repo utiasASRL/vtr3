@@ -269,8 +269,7 @@ inline bool computeEigenvalueDecomposition(
 
 inline double computeThreshold(const Eigen::VectorXd& eigenvalues) {
   const double max_eigenval = eigenvalues.maxCoeff();
-  // const double eigenvalue_threshold = max_eigenval * 1e-3;  
-  const double eigenvalue_threshold = 1000.0;
+  const double eigenvalue_threshold = max_eigenval * 1e-4;
   return eigenvalue_threshold;
 }
 
@@ -384,7 +383,12 @@ inline bool daGaussNewtonP2Plane(
     }
     
     // Compute unified threshold - temporarily controlled using a config parameter
-    // const double eigenvalue_threshold = computeThreshold(eigenvalues);
+    const double eigvalue_threshold = computeThreshold(eigenvalues);
+
+    if (eigenvalue_threshold == 0.0) {
+      CLOG(WARNING, "lidar.localization_daicp") << "Eigenvalue threshold set to zero, using computeThreshold() value instead";
+      eigenvalue_threshold = eigvalue_threshold;
+    }
     
     // Construct well-conditioned directions matrix Vf
     Eigen::MatrixXd V, Vf;
