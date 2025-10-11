@@ -1,5 +1,6 @@
 #include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
 #include "vtr_lidar/modules/localization/daicp_lib.hpp"
+#include "vtr_lidar/modules/localization/daicp_lib_new.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
@@ -181,19 +182,44 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// ########################### Gauss-Newton solver ########################### ///
     int max_gn_iter = 30;
     double inner_tolerance = 1e-6;
-    bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
-                                                                query_mat,
-                                                                map_mat,
-                                                                map_normals_mat,
-                                                                T_m_s_var,
-                                                                max_gn_iter,
-                                                                inner_tolerance);
+
+    // // old version in daicp_lib.hpp
+    // bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
+    //                                                             query_mat,
+    //                                                             map_mat,
+    //                                                             map_normals_mat,
+    //                                                             T_m_s_var,
+    //                                                             max_gn_iter,
+    //                                                             inner_tolerance);
+
+    // debug test: T_m_l is the prior pose of lidar, transformation from lidar to map
+    Eigen::Matrix<double, 4, 4> T_m_l;
+    T_m_l << 1.0, 0.0, 0.0, 0.0,
+               0.0, 1.0, 0.0, 0.0,
+               0.0, 0.0, 1.0, 1.5,
+               0.0, 0.0, 0.0, 1.0;
+
+    //  Define covariance matrices (simplified for now)
+    Eigen::MatrixXd Sigma_x = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
+    Sigma_x.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.1*0.1, 0.1*0.1, 0.1*0.1;
+
+    // new version in daicp_lib_new.hpp
+    bool optimization_success = daicp_lib_new::daGaussNewtonScaleP2Plane(filtered_sample_inds,
+                                                                         query_mat,
+                                                                         map_mat,
+                                                                         map_normals_mat,
+                                                                         T_m_s_var,
+                                                                         Sigma_x,
+                                                                         T_m_l,  // transformation from lidar to map
+                                                                         max_gn_iter,
+                                                                         inner_tolerance);
+    /// ########################################################################### ///
 
     if (!optimization_success) {
       CLOG(WARNING, "lidar.localization_daicp") << "Gauss-Newton optimization failed at step " << step;
       break;
     }
-    /// ########################################################################### ///
+
     timer[3]->stop();
 
     /// Alignment, update aligned_mat and aligned_norms_mat
