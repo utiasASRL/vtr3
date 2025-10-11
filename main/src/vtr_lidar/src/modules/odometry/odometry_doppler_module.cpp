@@ -162,6 +162,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_points = *qdata.doppler_preprocessed_point_cloud; // point cloud after preprocess
   const auto &T_s_r = *qdata.T_s_r;                   // external calib, T from robot to lidar
   const auto &T_s_r_gyro = *qdata.T_s_r_gyro;         // external calib, T from robot to gyro
+  const auto &ivariance = *qdata.doppler_ivariance;   // precomputed ivariance for each point
   
   // katya to do: need better way to initialize gyro_bias
   // currently have initialization from navigator in a separate cache, but want both init + online est to be stored in gyro_bias cache
@@ -404,7 +405,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     double alpha = static_cast<double>(query_points[i].timestamp - prev_time) / static_cast<double>(frame_end_time - prev_time);
     alpha_precompute_[k] = std::min(1.0, std::max(0.0, alpha));
     malpha_precompute_[k] = std::max(0.0, 1.0 - alpha_precompute_[k]);
-    ivariance_precompute_[k] = query_points[i].ivariance;
+    ivariance_precompute_[k] = ivariance(i);
     ++k;
   }
   // end ransac
@@ -582,6 +583,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "lidar.odometry_doppler") << "using VTR preprocessed point cloud";
     const auto &vtr_points = *qdata.preprocessed_point_cloud;
 
+    CLOG(DEBUG, "lidar.odometry_doppler") << "vtr_points size: " << vtr_points.size();
+
     // outputs - create shallow copy
     pcl::PointCloud<PointWithInfo> aligned_points(vtr_points);
     const auto query_mat = vtr_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
@@ -660,6 +663,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   timer[3]->stop();
 
   frame_count++;
+
+  CLOG(DEBUG, "lidar.odometry_doppler") << "size of undistorted point cloud: " << qdata.undistorted_point_cloud->size();
 
   /// Dump timing info
   CLOG(DEBUG, "lidar.odometry_doppler") << "Dump timing info inside loop: ";

@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2025, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file preprocessing_module.cpp
+ * \file preprocessing_module_doppler.cpp
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/preprocessing/preprocessing_module_doppler.hpp"
@@ -233,7 +233,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("filtered_point_cloud", 5);
+    filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("doppler_filtered_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -308,6 +308,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // output
+  Eigen::VectorXd ivariance_feat(pt_count);
   pcl::PointCloud<PointWithInfo> out_frame;
   out_frame.reserve(pt_count);
   Eigen::VectorXd bias_feat(config_->bias_input_feat.size());
@@ -340,12 +341,13 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
         // apply linear regression model
         int faceid = out_frame.back().face_id;
         out_frame.back().radial_velocity -= computeModel(bias_feat, bias_weights_[0][faceid][r][c], config_->bias_polyorder);
-        out_frame.back().ivariance = exp(computeModel(var_feat, var_weights_[0][faceid][0][0], config_->var_polyorder)); // TODO: when var is also a grid/image
+        ivariance_feat[out_frame.size() - 1] = exp(computeModel(var_feat, var_weights_[0][faceid][0][0], config_->var_polyorder));
       }
     }
   }
 
   auto filtered_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(out_frame);
+  auto ivariance = std::make_shared<Eigen::VectorXd>(ivariance_feat);
 
   // print size after regression step
   CLOG(DEBUG, "lidar.preprocessing_doppler")
@@ -361,6 +363,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Output
   qdata.doppler_preprocessed_point_cloud = filtered_cloud;
+  qdata.doppler_ivariance = ivariance;
 
 }
 
