@@ -492,7 +492,7 @@ inline void computeJacobianResidualInformation(
     const Eigen::Matrix4Xf& map_mat,
     const Eigen::Matrix4Xf& map_normals_mat,
     const Eigen::Matrix4d& T_combined,
-    const Eigen::MatrixXd& T_lidar_prior,
+    const Eigen::MatrixXd& T_ms_prior,
     const Eigen::MatrixXd& Sigma_x,
     Eigen::MatrixXd& A,
     Eigen::VectorXd& b,
@@ -539,7 +539,7 @@ inline void computeJacobianResidualInformation(
     
     // ===== 2. Compute Sigma_pL_s for this point =====
     // Get lidar scan point in lidar frame for noise modeling
-    const Eigen::Vector3d p_lidar = (T_lidar_prior.inverse() * source_pt_hom).head<3>();
+    const Eigen::Vector3d p_lidar = (T_ms_prior.inverse() * source_pt_hom).head<3>();
     
     // Compute range, azimuth, elevation in lidar frame
     const double range = p_lidar.norm();
@@ -586,8 +586,8 @@ inline bool daGaussNewtonScaleP2Plane(
     const Eigen::Matrix4Xf& map_mat,
     const Eigen::Matrix4Xf& map_normals_mat,
     steam::se3::SE3StateVar::Ptr T_var,
+    const Eigen::MatrixXd& T_ms_prior,
     const Eigen::MatrixXd& Sigma_x,
-    const Eigen::MatrixXd& T_lidar_prior,
     int max_gn_iter,
     double inner_tolerance) {
   
@@ -623,7 +623,7 @@ inline bool daGaussNewtonScaleP2Plane(
     Eigen::MatrixXd A, W_inv;
     Eigen::VectorXd b;
     computeJacobianResidualInformation(sample_inds, query_mat, map_mat, map_normals_mat,
-                                              T_combined, T_lidar_prior, Sigma_x, A, b, W_inv);
+                                              T_combined, T_ms_prior, Sigma_x, A, b, W_inv);
     
     // STEAM-style convergence checking
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm

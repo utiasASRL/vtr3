@@ -51,9 +51,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
-  const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior
-  const auto &T_v_m = *qdata.T_v_m_loc;
+  const auto &T_s_r = *qdata.T_s_r;      // T from robot to sensor, external calibration, fixed
+  const auto &T_r_v = *qdata.T_r_v_loc;  // T from vertex to robot,used as prior
+  const auto &T_v_m = *qdata.T_v_m_loc;  // T from submap (build in teach) to vertex
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
@@ -192,25 +192,28 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     //                                                             max_gn_iter,
     //                                                             inner_tolerance);
 
-    // debug test: T_m_l is the prior pose of lidar, transformation from lidar to map
-    Eigen::Matrix<double, 4, 4> T_m_l;
-    T_m_l << 1.0, 0.0, 0.0, 0.0,
-               0.0, 1.0, 0.0, 0.0,
-               0.0, 0.0, 1.0, 1.5,
-               0.0, 0.0, 0.0, 1.0;
+    /// ########################################################################### ///
+    // T_m_s is the tranformation from the current submap to the lidar sensor.
+    // The submap is built in the teach step and is the one we are localizing against.
+    EdgeTransform T_s_m_edge;
+    T_s_m_edge = T_s_r * T_r_v * T_v_m;
+    EdgeTransform T_m_s_edge = T_s_m_edge.inverse();
 
-    //  Define covariance matrices (simplified for now)
-    Eigen::MatrixXd Sigma_x = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
-    Sigma_x.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.1*0.1, 0.1*0.1, 0.1*0.1;
+    Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
+    Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
+
+    // -- debugging test
+    // Eigen::MatrixXd Sigma_x = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
+    // Sigma_x.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.1*0.1, 0.1*0.1, 0.1*0.1;
 
     // new version in daicp_lib_new.hpp
     bool optimization_success = daicp_lib_new::daGaussNewtonScaleP2Plane(filtered_sample_inds,
                                                                          query_mat,
                                                                          map_mat,
                                                                          map_normals_mat,
-                                                                         T_m_s_var,
-                                                                         Sigma_x,
-                                                                         T_m_l,  // transformation from lidar to map
+                                                                         T_m_s_var,    // SE3StateVar, param to optimize
+                                                                         T_m_s_prior,  // transformation from lidar to map
+                                                                         T_m_s_cov,    // covariance of the above transformation
                                                                          max_gn_iter,
                                                                          inner_tolerance);
     /// ########################################################################### ///
