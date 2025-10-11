@@ -119,16 +119,16 @@ void OdometryMapMaintenanceModuleV2::run_(QueryCache &qdata0, OutputCache &,
     if (indices.size() < 4) return;
 
     // get points for computation
-    const pcl::PointCloud<PointWithInfo> neigobors(point_cloud, indices);
+    const pcl::PointCloud<PointWithInfo> neighbours(point_cloud, indices);
 
     // Placeholder for the 3x3 covariance matrix at each surface patch
     Eigen::Matrix3f covariance_matrix;
     // 16-bytes aligned placeholder for the XYZ centroid of a surface patch
     Eigen::Vector4f xyz_centroid;
     // Estimate the XYZ centroid
-    pcl::compute3DCentroid(neigobors, xyz_centroid);
+    pcl::compute3DCentroid(neighbours, xyz_centroid);
     // Compute the 3x3 covariance matrix
-    pcl::computeCovarianceMatrix(neigobors, xyz_centroid, covariance_matrix);
+    pcl::computeCovarianceMatrix(neighbours, xyz_centroid, covariance_matrix);
     // Compute pca
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> es;
     es.compute(covariance_matrix);
