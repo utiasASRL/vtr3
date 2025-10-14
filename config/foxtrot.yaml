@@ -12,7 +12,7 @@
         alpha: 0.0
     path_planning:
       type: bicycle_mpc_follower
-      follow_distance: 4.35
+      follow_distance: 4.2
       distance_margin: 1.0
       leader_namespace: /echo
       waypoint_selection: euclidean
