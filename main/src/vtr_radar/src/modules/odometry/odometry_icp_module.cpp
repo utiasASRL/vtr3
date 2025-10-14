@@ -288,7 +288,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
   Evaluable<lgmath::se2::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
   Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
-  const_vel_2d::Interface::Ptr trajectory = const_vel_2d::Interface::MakeShared(config_->traj_qc_diag);
+  const_vel_se2::Interface::Ptr trajectory = const_vel_se2::Interface::MakeShared(config_->traj_qc_diag);
   lgmath::se2::Transformation T_r_m_odo_prior_new;
   Eigen::Matrix<double, 3, 1> w_m_r_in_r_odo_prior_new;
   Eigen::Matrix<double, 6, 6> cov_prior_new;
@@ -488,14 +488,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
           const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
           const auto &up_chirp = query_points[ind.first].up_chirp;
           if (up_chirp) {
-            return p2p::p2p2DErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
+            return p2p::p2pSE2ErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
           } else {
-            return p2p::p2p2DErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta, rm_ori);
+            return p2p::p2pSE2ErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta, rm_ori);
           }
           
         } else {
-          // TODO: Implement classic 2d point to plane error
-          // return p2p::p2p2DError(T_m_s_intp_eval, ref_pt, qry_pt, rm_ori);
+          return p2p::p2pSE2Error(T_m_s_intp_eval, ref_pt, qry_pt, rm_ori);
         }
       }();
 
@@ -581,7 +580,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto loss_func = L2LossFunc::MakeShared();
         Eigen::Matrix<double, 1, 1> W_gyro = config_->gyro_cov * Eigen::Matrix<double, 1, 1>::Identity();
         const auto noise_model = StaticNoiseModel<1>::MakeShared(W_gyro);
-        const auto error_func = imu::GyroErrorEvaluator2D::MakeShared(w_m_r_in_r_intp_eval, bias, yaw_meas_r);
+        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, yaw_meas_r);
         const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
 
         problem.addCostTerm(gyro_cost);

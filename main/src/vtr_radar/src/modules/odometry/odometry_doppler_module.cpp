@@ -482,37 +482,37 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       }
     }
 
-    // Add individual gyro cost terms if populated
-    if (qdata.gyro_msgs) {
-      // Load in transform between gyro and robot frame
-      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+    // // Add individual gyro cost terms if populated
+    // if (qdata.gyro_msgs) {
+    //   // Load in transform between gyro and robot frame
+    //   const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
 
-      for (const auto &gyro_msg : *qdata.gyro_msgs) {
-        // Load in gyro measurement and timestamp
-        const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
-        const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
-        const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
+    //   for (const auto &gyro_msg : *qdata.gyro_msgs) {
+    //     // Load in gyro measurement and timestamp
+    //     const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
+    //     const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
+    //     const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
-        // Transform gyro measurement into robot frame
-        Eigen::VectorXd gyro_meas_g(3); // Create a 6x1 vector
-        gyro_meas_g << gyro_meas(0), gyro_meas(1), gyro_meas(2);
-        const Eigen::Matrix<double, 3, 1> gyro_meas_r = T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
+    //     // Transform gyro measurement into robot frame
+    //     Eigen::VectorXd gyro_meas_g(3); // Create a 6x1 vector
+    //     gyro_meas_g << gyro_meas(0), gyro_meas(1), gyro_meas(2);
+    //     const Eigen::Matrix<double, 3, 1> gyro_meas_r = T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
 
-        // Interpolate velocity measurement at gyro stamp
-        auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
+    //     // Interpolate velocity measurement at gyro stamp
+    //     auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
 
-        // Generate empty bias state
-        Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
-        const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
-        bias->locked() = true;
-        const auto loss_func = L2LossFunc::MakeShared();
-        const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->gyro_cov));
-        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost_" + std::to_string(gyro_stamp_time));
+    //     // Generate empty bias state
+    //     Eigen::Matrix<double, 6, 1> b_zero = Eigen::Matrix<double, 6, 1>::Zero();
+    //     const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
+    //     bias->locked() = true;
+    //     const auto loss_func = L2LossFunc::MakeShared();
+    //     const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->gyro_cov));
+    //     const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+    //     const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost_" + std::to_string(gyro_stamp_time));
 
-        // problem.addCostTerm(gyro_cost);
-      }
-    }
+    //     // problem.addCostTerm(gyro_cost);
+    //   }
+    // }
 
 
     // optimize
