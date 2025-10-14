@@ -303,6 +303,13 @@ class SocketVTRUI(VTRUI):
     ros_env_info = EnvInfo()
     ros_env_info.terrain_type = int(data['terrain_type'])
     return super().change_env_info(ros_env_info)
+  
+  def change_controller(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.SELECT_CONTROLLER
+    ros_command.controller_name = data['controller_name']
+    return super().change_controller(ros_command)
+
 
   def _notify_hook(self, name, *args, **kwargs):
     if name == 'graph_state':

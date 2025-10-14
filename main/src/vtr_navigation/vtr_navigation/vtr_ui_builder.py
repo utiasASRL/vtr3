@@ -83,6 +83,9 @@ class VTRUIProxy(BaseProxy):
   
   def get_map_info(self):
     return self._callmethod('get_map_info')
+  
+  def change_controller(self, command):
+    return self._callmethod('change_controller', args=(command,))
 
 
 def build_master(vtr_ui_class=VTRUI):

@@ -96,6 +96,9 @@ std::ostream& operator<<(std::ostream& os,
     case CommandTarget::ContinueTeach:
       os << "ContinueTeach";
       return os;
+    case CommandTarget::SelectController:
+      os << "SelectController";
+      return os;
   };
   return os;
 }

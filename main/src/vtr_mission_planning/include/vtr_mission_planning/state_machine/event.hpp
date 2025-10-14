@@ -51,7 +51,7 @@ enum class Signal : int8_t {
   Continue = 0,  // Keep going with this state (default action)
   // [teach::merge]
   AttemptClosure,  // Attempt to link back to the existing map
-  ContinueTeach    // Cannot merge or user has canceled merge, continue teaching
+  ContinueTeach,    // Cannot merge or user has canceled merge, continue teaching
 };
 
 std::ostream& operator<<(std::ostream& os, const Signal& signal);
@@ -67,6 +67,8 @@ struct Event {
   static Event::Ptr StartTeach();
   static Event::Ptr StartMerge(const std::vector<VertexId>& match_window);
   static Event::Ptr StartRepeat(const std::list<VertexId>& waypoints);
+  static Event::Ptr SwitchController(const std::string& new_controller);
+
   static Event::Ptr Reset();
 
   std::string signalName() const;

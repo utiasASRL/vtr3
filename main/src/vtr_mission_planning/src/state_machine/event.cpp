@@ -91,6 +91,12 @@ Event::Ptr Event::StartRepeat(const std::list<VertexId>& waypoints) {
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
+Event::Ptr Event::SwitchController(const std::string& new_controller) {
+  auto tmp = std::make_shared<ControllerSwitch>();
+  tmp->setController(new_controller);
+  return std::make_shared<Event>(Action::NewGoal, tmp);
+}
+
 Event::Ptr Event::Reset() { return std::make_shared<Event>(Action::Reset); }
 
 std::string Event::signalName() const {
