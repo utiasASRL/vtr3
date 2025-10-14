@@ -14,7 +14,7 @@
 
 /**
  * \file odometry_icp_module.hpp
- * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \author Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -46,8 +46,8 @@ class OdometryICPModule : public tactic::BaseModule {
     bool use_radial_velocity = false;
     bool use_vel_meas = false;
     int traj_num_extra_states = 0;
-    Eigen::Matrix<double, 6, 1> traj_qc_diag =
-        Eigen::Matrix<double, 6, 1>::Ones();
+    Eigen::Matrix<double, 3, 1> traj_qc_diag =
+        Eigen::Matrix<double, 3, 1>::Ones();
 
     // gyro weight
     double gyro_cov = 1e-3;
@@ -80,7 +80,7 @@ class OdometryICPModule : public tactic::BaseModule {
     double vel_side_std = 1.0;
     bool use_p2pl = false;
     bool remove_orientation = false;
-    Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
+    Eigen::Matrix2d W_icp = Eigen::Matrix2d::Identity();
     double normal_score_threshold = 0.0;
 
     /// Success criteria

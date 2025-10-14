@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file odometry_2d_icp_module.hpp
- * \author Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
+ * \file odometry_se3_icp_module.hpp
+ * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -31,12 +31,12 @@ namespace vtr {
 namespace radar {
 
 /** \brief ICP for odometry. */
-class Odometry2dICPModule : public tactic::BaseModule {
+class OdometrySE3ICPModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.odometry_2d_icp";
+  static constexpr auto static_name = "radar.odometry_se3_icp";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
@@ -46,8 +46,8 @@ class Odometry2dICPModule : public tactic::BaseModule {
     bool use_radial_velocity = false;
     bool use_vel_meas = false;
     int traj_num_extra_states = 0;
-    Eigen::Matrix<double, 3, 1> traj_qc_diag =
-        Eigen::Matrix<double, 3, 1>::Ones();
+    Eigen::Matrix<double, 6, 1> traj_qc_diag =
+        Eigen::Matrix<double, 6, 1>::Ones();
 
     // gyro weight
     double gyro_cov = 1e-3;
@@ -80,7 +80,7 @@ class Odometry2dICPModule : public tactic::BaseModule {
     double vel_side_std = 1.0;
     bool use_p2pl = false;
     bool remove_orientation = false;
-    Eigen::Matrix2d W_icp = Eigen::Matrix2d::Identity();
+    Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
     double normal_score_threshold = 0.0;
 
     /// Success criteria
@@ -96,7 +96,7 @@ class Odometry2dICPModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  Odometry2dICPModule(
+  OdometrySE3ICPModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -109,7 +109,7 @@ class Odometry2dICPModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(Odometry2dICPModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometrySE3ICPModule);
 };
 
 }  // namespace radar
