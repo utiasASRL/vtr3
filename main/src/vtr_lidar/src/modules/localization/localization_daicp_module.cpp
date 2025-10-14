@@ -1,5 +1,6 @@
 #include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
-#include "vtr_lidar/modules/localization/daicp_lib.hpp"
+// #include "vtr_lidar/modules/localization/daicp_lib.hpp"
+#include "vtr_lidar/modules/localization/daicp_lib_new.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 struct CurvatureAdapter4D {
@@ -87,11 +88,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
-
-  CLOG(DEBUG, "lidar.localization_daicp") << "Input query point cloud has " << query_points.size() << " points.";
-  const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior
-  const auto &T_v_m = *qdata.T_v_m_loc;
+  const auto &T_s_r = *qdata.T_s_r;      // T from robot to sensor, external calibration, fixed
+  const auto &T_r_v = *qdata.T_r_v_loc;  // T from vertex to robot,used as prior
+  const auto &T_v_m = *qdata.T_v_m_loc;  // T from submap (build in teach) to vertex
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
@@ -369,21 +368,47 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// ########################### Gauss-Newton solver ########################### ///
     int max_gn_iter = 30;
     double inner_tolerance = 1e-6;
-    bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
-                                                                query_mat,
-                                                                map_mat,
-                                                                map_normals_mat,
-                                                                T_m_s_var,
-                                                                max_gn_iter,
-                                                                inner_tolerance,
-                                                                config_->eigenvalue_threshold
-                                                              );
+
+    // // old version in daicp_lib.hpp
+    // bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
+    //                                                             query_mat,
+    //                                                             map_mat,
+    //                                                             map_normals_mat,
+    //                                                             T_m_s_var,
+    //                                                             max_gn_iter,
+    //                                                             inner_tolerance);
+
+    /// ########################################################################### ///
+    // T_m_s is the tranformation from the current submap to the lidar sensor.
+    // The submap is built in the teach step and is the one we are localizing against.
+    EdgeTransform T_s_m_edge;
+    T_s_m_edge = T_s_r * T_r_v * T_v_m;
+    EdgeTransform T_m_s_edge = T_s_m_edge.inverse();
+
+    Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
+    // Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
+
+    // -- debugging test
+    Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
+    T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.1*0.1, 0.1*0.1, 0.1*0.1;
+
+    // new version in daicp_lib_new.hpp
+    bool optimization_success = daicp_lib_new::daGaussNewtonScaleP2Plane(filtered_sample_inds,
+                                                                         query_mat,
+                                                                         map_mat,
+                                                                         map_normals_mat,
+                                                                         T_m_s_var,    // SE3StateVar, param to optimize
+                                                                         T_m_s_prior,  // transformation from lidar to map
+                                                                         T_m_s_cov,    // covariance of the above transformation
+                                                                         max_gn_iter,
+                                                                         inner_tolerance);
+    /// ########################################################################### ///
 
     if (!optimization_success) {
       CLOG(WARNING, "lidar.localization_daicp") << "Gauss-Newton optimization failed at step " << step;
       break;
     }
-    /// ########################################################################### ///
+
     timer[3]->stop();
 
     /// Alignment, update aligned_mat and aligned_norms_mat
