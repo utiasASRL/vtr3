@@ -49,7 +49,6 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   config->max_dist = node->declare_parameter<double>(param_prefix + ".max_dist", config->num_cols);
   //
   config->root_path = node->declare_parameter<std::string>(param_prefix + ".root_path", config->root_path);
-  // config->model_name = node->declare_parameter<std::string>(param_prefix + ".model_name", config->model_name);
   config->downsample_steps = node->declare_parameter<int>(param_prefix + ".downsample_steps", config->downsample_steps);
   config->bias_input_feat =node->declare_parameter<std::vector<std::string>>(param_prefix + ".bias_input_feat", config->bias_input_feat);
   config->var_input_feat = node->declare_parameter<std::vector<std::string>>(param_prefix + ".var_input_feat", config->var_input_feat);
