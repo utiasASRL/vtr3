@@ -87,6 +87,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   void setPipeline(const PipelineMode& pipeline_mode) override;
   void addRun(const bool ephemeral = false) override;
   void finishRun() override;
+  void setForceAddVertex(const bool force_add_vertex) override; 
   void setPath(const VertexId::Vector& path, const unsigned& trunk_sid = 0,
                const EdgeTransform& T_twig_branch = EdgeTransform(true),
                const bool publish = false) override;
@@ -132,6 +133,13 @@ class Tactic : public PipelineInterface, public TacticInterface {
    * \note Only change this variable when pipeline is locked.
    */
   bool first_frame_ = true;
+
+  /**
+   * \brief Whether we have been commanded to add a vertex
+   * \note Only change this when pipeline is locked
+   */
+  bool force_add_vertex_ = false;
+
 
   /**
    * \brief Current vertex id for odometry, only used by odometry thread

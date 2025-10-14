@@ -64,18 +64,25 @@ class GoalForm extends React.Component {
               variant={"contained"}
             >
               <Button
-                sx={{ width: 140 }}
+                sx={{ width: 120 }}
                 color={goalType === "teach" ? "secondary" : "primary"}
                 onClick={this.selectGoalType.bind(this, "teach")}
               >
                 Teach
               </Button>
               <Button
-                sx={{ width: 140 }}
+                sx={{ width: 120 }}
                 color={goalType === "repeat" ? "secondary" : "primary"}
                 onClick={this.selectGoalType.bind(this, "repeat")}
               >
                 Repeat
+              </Button>
+              <Button
+                sx={{ width: 120 }}
+                color={goalType === "localize" ? "secondary" : "primary"}
+                onClick={this.selectGoalType.bind(this, "localize")}
+              >
+                Localize
               </Button>
             </ButtonGroup>
             {goalType === "repeat" && (

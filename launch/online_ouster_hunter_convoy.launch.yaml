@@ -41,8 +41,38 @@ windows:
   - window_name: follower_vtr
     layout: main-horizontal
     shell_command_before:
+      - "tmux set-hook -g session-closed 'run-shell \"ssh indro@192.168.2.42 pkill -TERM -f vtr_navigation\"'" # NOTE: There may be a better way to do this, but this works and is roughly equivalent to just exiting through an interrupt
       - ssh indro@$FOLLOWER_HOST # Figure out how to make this configurable
-      - docker start vtr3
+      - docker exec -it vtr3 bash
+      - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr -p ip_address:=192.168.3.42 # NOTE: This will drop to the follower robot name 
+      - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+      - export ZENOH_ROUTER_CONFIG_URI=$VTRROOT/hunter/hunter2_zenoh.json5
+    panes:
+      - >
+        ros2 launch vtr_navigation vtr.launch.py
+        base_params:=ouster_hunter_default.yaml
+        start_new_graph:=false
+        use_sim_time:=false
+        planner:="bicycle_mpc_follower"
+        model_dir:=${VTRROOT}/models
+        override_params:=follower_params.yaml
+
+
+  - window_name: follower-ouster
+    layout: main-horizontal
+    shell_command_before:
+      - ssh indro@$FOLLOWER_HOST # Figure out how to make this configurable
+      - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+      - export ZENOH_ROUTER_CONFIG_URI=$VTRROOT/hunter/hunter2_zenoh.json5
     panes:
       - docker exec -it vtr3 tmuxp load $VTRROOT/hunter/launch/ouster.launch.yaml
-      - docker exec -it vtr3 tmuxp load $VTRSRC/launch/online_ouster_hunter_follower.launch.yaml
+
+  - window_name: rosbag
+    layout: main-horizontal
+    shell_command_before:
+      - ssh indro@$FOLLOWER_HOST
+      - docker exec -it vtr3 bash
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 bag record /prof_plum/cmd_vel /mr_green/cmd_vel /miss_scarlet/cmd_vel /mr_green/vtr/mpc_prediction /miss_scarlet/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction /mr_green/vtr/odometry /miss_scarlet/vtr/odometry /prof_plum/vtr/odometry /mr_green/vtr/leader_mpc_prediction /miss_scarlet/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction /mr_green/vtr/mpc_ref_pose_array /miss_scarlet/vtr/mpc_ref_pose_array /prof_plum/vtr/mpc_ref_pose_array

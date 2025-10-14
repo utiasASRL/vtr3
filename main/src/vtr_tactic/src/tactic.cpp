@@ -110,6 +110,10 @@ void Tactic::finishRun() {
   callback_->endRun();
 }
 
+void Tactic::setForceAddVertex(const bool force_add_vertex) {
+  force_add_vertex_ = force_add_vertex;
+}
+
 void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
                      const EdgeTransform& T_twig_branch, const bool publish) {
   /// Set path and target localization
@@ -212,6 +216,8 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   qdata->vid_odo.emplace(current_vertex_id_);
   qdata->vertex_test_result.emplace(VertexTestResult::DO_NOTHING);
   qdata->odo_success.emplace(false);
+  qdata->force_add_vertex.emplace(force_add_vertex_);
+  if (force_add_vertex_) force_add_vertex_ = false;
 
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
@@ -227,6 +233,8 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
     case PipelineMode::RepeatMetricLoc:
       return repeatMetricLocOdometryMapping(qdata);
     case PipelineMode::RepeatFollow:
+      return repeatFollowOdometryMapping(qdata);
+    case PipelineMode::LocalizeMetricLoc:
       return repeatFollowOdometryMapping(qdata);
     default:
       return true;
@@ -690,6 +698,8 @@ bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
     case PipelineMode::RepeatMetricLoc:
       return repeatMetricLocLocalization(qdata);
     case PipelineMode::RepeatFollow:
+      return repeatFollowLocalization(qdata);
+    case PipelineMode::LocalizeMetricLoc:
       return repeatFollowLocalization(qdata);
     default:
       return true;

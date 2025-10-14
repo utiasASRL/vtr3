@@ -95,6 +95,10 @@ void ROSMissionServer::handleCommand(
       tmp.target = mission_planning::CommandTarget::ContinueTeach;
       processCommand(tmp);
       return;
+    case MissionCommandMsg::FORCE_ADD_VERTEX:
+      tmp.target = mission_planning::CommandTarget::ForceAddVertex;
+      processCommand(tmp);
+      return;
     case MissionCommandMsg::SELECT_CONTROLLER:{
         tmp.target = mission_planning::CommandTarget::SelectController;
         tmp.controller_name = command->controller_name;

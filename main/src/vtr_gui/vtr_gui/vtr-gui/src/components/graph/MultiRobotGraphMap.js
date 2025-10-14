@@ -27,7 +27,7 @@ import { kdTree } from "kd-tree-javascript";
 import {fetchWithTimeout} from "../../index"
 
 import ToolsMenu from "../tools/ToolsMenu";
-import GoalManager from "../goal/GoalManager";
+import MultiRobotGoalManager from "../goal/MultiRobotGoalManager";
 import TaskQueue from "../task_queue/TaskQueue";
 
 import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";
@@ -125,7 +125,7 @@ class MultiRobotGraphMap extends React.Component {
     const robotIds = props.robotIds || [];
     this.state = {
       /// goal manager
-      server_state: "EMPTY",
+      server_states: {}, // id -> server state
       waypoints_map: new Map(),
       display_waypoints_map: new Map(),
       goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
@@ -154,6 +154,7 @@ class MultiRobotGraphMap extends React.Component {
       robotStates: {}, // id -> robot state
       robotMarkers: {}, // id -> marker object
       targetMarkers: {}, // id -> marker object
+      diagnostics: null,
     };
     // Initialize robot and target markers for each robot
     robotIds.forEach(id => {
@@ -181,6 +182,7 @@ class MultiRobotGraphMap extends React.Component {
           rotationAngle: 0,
         }),
       };
+      this.state.server_states[id] = "EMPTY";
     });
     this.fetchMapCenter()
     /// leaflet map
@@ -231,6 +233,7 @@ class MultiRobotGraphMap extends React.Component {
     // Socket IO
     this.props.socket.on("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.on("graph/update", this.graphUpdateCallback.bind(this));
+    this.props.socket.on("diagnostics", this.diagnosticsCallback.bind(this));
     // Listen for robot-specific events
     this.state.robotIds.forEach(id => {
       this.props.socket.on(`following_route/${id}`, (route) => this.followingRouteCallback(route, id));
@@ -243,6 +246,7 @@ class MultiRobotGraphMap extends React.Component {
     // Socket IO
     this.props.socket.off("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.off("graph/update", this.graphUpdateCallback.bind(this));
+    this.props.socket.off("diagnostics", this.diagnosticsCallback.bind(this));
     this.state.robotIds.forEach(id => {
       this.props.socket.off(`following_route/${id}`);
       this.props.socket.off(`robot/state/${id}`);
@@ -315,7 +319,7 @@ class MultiRobotGraphMap extends React.Component {
                   color="secondary"
                   size="small"
                   onClick={() => {
-                    if (this.state.new_goal_type === "repeat") {
+                    if (this.state.new_goal_type === "repeat" || this.state.new_goal_type === "localize") {
                       this.setNewGoalWaypoints([...this.state.new_goal_waypoints, key]);
                     }
                     else {
@@ -349,9 +353,8 @@ class MultiRobotGraphMap extends React.Component {
   render() {
     const { socket } = this.props;
     const {
-      server_state,
+      server_states,
       waypoints_map,
-      goals,
       curr_goal_idx,
       new_goal_type,
       new_goal_waypoints,
@@ -362,7 +365,9 @@ class MultiRobotGraphMap extends React.Component {
       merge_ids,
       move_graph_change,
       move_robot_vertex,
-      map_center
+      map_center,
+      diagnostics,
+      showDiagnostics
     } = this.state;
     const myhalImageBounds = [
       [43.660511, -79.397019], // Bottom-left coordinates of the image
@@ -375,6 +380,27 @@ class MultiRobotGraphMap extends React.Component {
     ];
     return (
       <>
+        {/* Diagnostics message box */}
+        {diagnostics && showDiagnostics && (
+          <Box
+            sx={{
+              position: "fixed",
+              top: 10,
+              right: 200,
+              zIndex: 2000,
+              backgroundColor: this.convertDiagnosticsLevel(diagnostics.level) === "error" ? "#ffcccc" :  this.convertDiagnosticsLevel(diagnostics.level) === "warn" ? "#fff3cd" : "#e3fcec",
+              color:  this.convertDiagnosticsLevel(diagnostics.level) === "error" ? "#a94442" :  this.convertDiagnosticsLevel(diagnostics.level) === "warn" ? "#856404" : "#155724",
+              borderRadius: 2,
+              boxShadow: 3,
+              p: 2,
+              minWidth: 250,
+              maxWidth: 400,
+              fontWeight: 500,
+            }}
+          >
+            <strong>{this.convertDiagnosticsLevel(diagnostics.level).toUpperCase()}</strong>: {diagnostics.message}
+          </Box>
+        )}
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
         <MapContainer
           center={[map_center.lat, map_center.lng]}
@@ -412,6 +438,8 @@ class MultiRobotGraphMap extends React.Component {
           moveGraphChange={move_graph_change}
           // move robot
           moveRobotVertex={move_robot_vertex}
+          // force add vertex
+          getClosestVertex={this.getClosestVertex.bind(this)}
         />
         <Box
           sx={{
@@ -438,21 +466,22 @@ class MultiRobotGraphMap extends React.Component {
           }
           />
         </Box>
-        <GoalManager
+        <MultiRobotGoalManager
           socket={socket}
           currentTool={current_tool}
           selectTool={this.selectTool.bind(this)}
           deselectTool={this.deselectTool.bind(this)}
-          serverState={server_state}
+          serverStates={server_states}
           waypointsMap={waypoints_map}
-          goals={goals}
+          goals={Object.entries(server_states).flatMap(([robot_id, state]) =>
+            (state && state.goals ? state.goals.map(g => ({ ...g, robot_id })) : [])
+          )}
           currGoalIdx={curr_goal_idx}
           newGoalType={new_goal_type}
           setNewGoalType={this.setNewGoalType.bind(this)}
           newGoalWaypoints={new_goal_waypoints}
           setNewGoalWaypoints={this.setNewGoalWaypoints.bind(this)}
           followingRouteIds={following_route_ids}
-          // merge
           mergeIds={merge_ids}
         />
         <TaskQueue socket={socket} />
@@ -499,6 +528,13 @@ class MultiRobotGraphMap extends React.Component {
         lineCap: "butt",
       })
     });
+  }
+
+  convertDiagnosticsLevel(level) {
+    const numerical_level = parseInt(level.slice(-2));
+    if (numerical_level >= 2) return "error";
+    else if (numerical_level === 1) return "warn";
+    else return "info";
   }
 
   /** @brief Leaflet map creationg callback */
@@ -557,7 +593,7 @@ class MultiRobotGraphMap extends React.Component {
 
         return {display_waypoints_map: disp_wps_map };
       });
-      if (this.state.new_goal_type === "repeat") {
+      if (this.state.new_goal_type === "repeat" || this.state.new_goal_type === "localize") {
         this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
       }
     }
@@ -595,6 +631,11 @@ class MultiRobotGraphMap extends React.Component {
   graphStateCallback(graph_state) {
     console.info("Received graph state: ", graph_state);
     this.loadGraphState(graph_state);
+  }
+
+  diagnosticsCallback(diagnostics) {
+    console.info("Received diagnostics: ", diagnostics);
+    this.setState({diagnostics: diagnostics, showDiagnostics: true});
   }
   
   /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
@@ -717,11 +758,20 @@ class MultiRobotGraphMap extends React.Component {
     if (this.graph_loaded === false) return;
     console.info("Loading the current following route: ", route);
     //
-    if (this.following_route_polyline !== null) this.following_route_polyline.remove();
-    //
+    // Maintain a polyline for each robot
+    if (!this.following_route_polylines) {
+      this.following_route_polylines = {};
+    }
+    // Remove previous polyline for this robot
+    if (this.following_route_polylines[robot_id]) {
+      this.following_route_polylines[robot_id].remove();
+      delete this.following_route_polylines[robot_id];
+    }
     if (route.ids.length === 0) {
-      this.following_route_polyline = null;
-      this.setState({ following_route_ids: [] });
+      // No route for this robot
+      this.setState(prevState => ({
+        following_route_ids: prevState.following_route_ids.filter(r => r.robot_id !== robot_id)
+      }));
     } else {
       let latlngs = route.ids.map((id) => {
         let v = this.id2vertex.get(id);
@@ -734,8 +784,14 @@ class MultiRobotGraphMap extends React.Component {
         pane: "graph",
       });
       polyline.addTo(this.map);
-      this.following_route_polyline = polyline;
-      this.setState({ following_route_ids: route.ids });
+      this.following_route_polylines[robot_id] = polyline;
+      // Store route ids per robot
+      this.setState(prevState => ({
+        following_route_ids: [
+          ...prevState.following_route_ids.filter(r => r.robot_id !== robot_id),
+          { robot_id, ids: route.ids }
+        ]
+      }));
     }
   }
 
@@ -822,7 +878,17 @@ class MultiRobotGraphMap extends React.Component {
         break;
       }
     }
-    this.setState({ server_state: state.server_state, goals: state.goals, curr_goal_idx: curr_goal_idx });
+    // Store full server state object by robotID
+    this.setState(prevState => ({
+      server_states: { ...prevState.server_states, [robot_id]: state },
+      server_state: state.server_state,
+      goals: state.goals,
+      curr_goal_idx: curr_goal_idx
+    }));
+    if (state.showDiagnostics && this.convertDiagnosticsLevel(state.diagnostics) !== "error") {
+      this.setState({showDiagnostics: false});
+    }
+
   }
 
   graphUpdateCallback(graph_update) {

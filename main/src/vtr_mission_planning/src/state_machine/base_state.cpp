@@ -78,6 +78,8 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
       // A new goal must be added to the stack and transitioned to
       getGoals(state_machine).push_front(event.goal);
       break;
+    case Action::ForceAddVertex:
+      break;
   }
   // If we ever finish our list of goals, drop into Idle automatically
   if (getGoals(state_machine).empty()) {

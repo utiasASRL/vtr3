@@ -45,6 +45,9 @@ std::ostream& operator<<(std::ostream& os, const Action& action) {
     case Action::EndGoal:
       os << "EndGoal";
       return os;
+    case Action::ForceAddVertex:
+      os << "ForceAddVertex";
+      return os;
   };
 
   // GCC seems to complain when this isn't here
@@ -88,6 +91,11 @@ Event::Ptr Event::StartMerge(const std::vector<VertexId>& match_window) {
 Event::Ptr Event::StartRepeat(const std::list<VertexId>& waypoints) {
   auto tmp = std::make_shared<repeat::Follow>();
   tmp->setWaypoints(waypoints);
+  return std::make_shared<Event>(Action::NewGoal, tmp);
+}
+
+Event::Ptr Event::StartLocalize() {
+  auto tmp = std::make_shared<localize::MetricLocalize>();
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 

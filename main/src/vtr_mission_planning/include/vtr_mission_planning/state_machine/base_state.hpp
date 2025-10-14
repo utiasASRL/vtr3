@@ -43,4 +43,5 @@ class BaseState : public StateInterface {
 #include "vtr_mission_planning/state_machine/states/idle.hpp"
 #include "vtr_mission_planning/state_machine/states/repeat.hpp"
 #include "vtr_mission_planning/state_machine/states/teach.hpp"
+#include "vtr_mission_planning/state_machine/states/localize.hpp"
 #include "vtr_mission_planning/state_machine/states/controller_switch.hpp"

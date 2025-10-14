@@ -141,6 +141,11 @@ def get_map_info():
   map_info = build_remote().get_map_info()
   return flask.jsonify(map_info)
 
+@app.route('/vtr/additional_data')
+def get_additional_data():
+  # No additional data for single robot, but keep the endpoint for compatibility
+  return flask.jsonify(None)
+
 def main():
   logger.info("Launching the web server.")
   app.run(threaded=True, host=GUI_ADDRESS, port=GUI_PORT, use_reloader=False)

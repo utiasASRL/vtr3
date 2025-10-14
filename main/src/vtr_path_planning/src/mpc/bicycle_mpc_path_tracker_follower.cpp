@@ -22,7 +22,9 @@
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <vtr_path_planning/cbit/utils.hpp>
+#include <chrono>
 
+using namespace std::chrono_literals;
 namespace vtr::path_planning {
 
 void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFollower::Config::Ptr config, 
@@ -78,6 +80,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   const auto leader_path_topic = config_->leader_namespace + "/vtr/mpc_prediction";
   const auto leader_graph_topic = config_->leader_namespace + "/vtr/graph_state_srv";
   const auto leader_route_topic = config_->leader_namespace + "/vtr/following_route";
+  const auto leader_route_service = config_->leader_namespace + "/vtr/following_route_srv";
   CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
@@ -85,7 +88,8 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
   leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
-  leaderRouteSub_ = robot_state->node->create_subscription<RouteMsg>(leader_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderRoute, this, _1));
+
+  leaderRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(leader_route_service);
 
   leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
   followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
@@ -111,8 +115,20 @@ CasadiMPC::Config::Ptr BicycleMPCPathTrackerFollower::getMPCConfig(const bool is
 }
 
 bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& curr_time){
-  if (recentLeaderPath_ == nullptr) {
-    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
+  if (leader_root_ == tactic::VertexId::Invalid()){
+    if (!hasRequestedLeaderRoute_){
+      CLOG(INFO, "cbit.control") << "Leader root not yet set. Calling service";
+      auto request = std::make_shared<FollowingRouteSrv::Request>();
+      while (!leaderRouteSrv_->wait_for_service(1s)) {
+        if (!rclcpp::ok()) {
+          CLOG(ERROR, "cbit.control") << "Interrupted while waiting for the service. Exiting.";
+          return false;
+        }
+        CLOG(INFO, "cbit.control") << "service not available, waiting again...";
+      }
+      auto result = leaderRouteSrv_->async_send_request(request, std::bind(&BicycleMPCPathTrackerFollower::leaderRouteCallback, this, std::placeholders::_1));
+      hasRequestedLeaderRoute_ = true;
+    }
     return false;
   }
 
@@ -283,12 +299,11 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
 }
 
-void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr route) {
-  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route->ids.size() > 0 && route->ids.front() != leader_root_) { 
-
-    //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
-    // leaderGraphSrv_->async_send_request()
-    leader_root_ = route->ids.front();
+void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future){
+  auto result = Future.get();
+  auto route = result->following_route;
+  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route.ids.size() > 0 && route.ids.front() != leader_root_) { 
+    leader_root_ = route.ids.front();
     CLOG(INFO, "mpc.follower") << "Updated leader's root to: " << leader_root_;
     const auto follower_root = robot_state_->chain->sequence().front();
     CLOG(INFO, "mpc.follower") << "Follower's root to: " << follower_root;
@@ -297,10 +312,12 @@ void BicycleMPCPathTrackerFollower::onLeaderRoute(const RouteMsg::SharedPtr rout
     
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
+    hasRequestedLeaderRoute_ = false;
 
   }
   else{
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
+    hasRequestedLeaderRoute_ = false;
   }
 }
 

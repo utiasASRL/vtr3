@@ -4,8 +4,8 @@
     log_debug: true
     log_enabled:
         # navigator
-        #- navigation
-        #- navigation.graph_map_server
+        #  #- navigation
+        #  #- navigation.graph_map_server
       #- navigation.command
     
         # tactic
@@ -75,9 +75,11 @@
       task_queue_size: -1
 
       route_completion_translation_threshold: 0.2
+      route_completion_translation_threshold: 0.2
       route_completion_angle_threshold: 0.1
 
       chain:
+        min_cusp_distance: 0.1
         min_cusp_distance: 0.1
         angle_weight: 1.0
         search_depth: 5
@@ -226,6 +228,7 @@
         max_iterations: 1
         min_matched_ratio: 0.45
 
+
       memory:
         type: graph_mem_manager
         vertex_life_span: 5
@@ -234,14 +237,20 @@
     path_planning:
       type: bicycle_mpc
       control_period: 100
+      type: bicycle_mpc
+      control_period: 100
       speed_scheduler:
         planar_curv_weight: 0.0
         profile_curv_weight: 0.0 
         eop_weight: 2.0
         min_vel: 0.3
 
+        eop_weight: 2.0
+        min_vel: 0.3
+
       mpc:
         # Controller Params
+        extrapolate_robot_pose: true
         extrapolate_robot_pose: true
         mpc_verbosity: false
         forward_vel: 0.5

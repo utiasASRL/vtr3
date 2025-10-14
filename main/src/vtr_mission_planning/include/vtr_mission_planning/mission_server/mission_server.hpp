@@ -46,6 +46,7 @@ enum class GoalTarget : int8_t {
   Idle = 0,
   Teach = 1,
   Repeat = 2,
+  Localize = 3,
 };
 std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target);
 
@@ -55,7 +56,8 @@ enum class CommandTarget : int8_t {
   StartMerge = 1,
   ConfirmMerge = 2,
   ContinueTeach = 3,
-  SelectController = 4,
+  ForceAddVertex = 4,
+  SelectController = 5,
 };
 
 struct Command {
@@ -349,6 +351,10 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
       state_machine->handle(std::make_shared<Event>(Signal::ContinueTeach));
       return;
     }
+    case CommandTarget::ForceAddVertex: {
+      state_machine->handle(std::make_shared<Event>(Action::ForceAddVertex));
+      return;
+    }
     case CommandTarget::SelectController: {
       state_machine->handle(Event::SwitchController(command.controller_name));
       return;
@@ -450,8 +456,13 @@ void MissionServer<GoalHandle>::startGoal() {
         state_machine->handle(Event::StartRepeat(path));
         break;
       }
+      case GoalTarget::Localize: {
+        state_machine->handle(Event::StartLocalize());
+        break;
+      }
       default:
-        throw std::runtime_error("Unknown goal target");
+        throw std::runtime_error("Unknown goal target " +
+                                 std::to_string(int(GoalInterface<GoalHandle>::target(current_goal))));
     }
   }
 }

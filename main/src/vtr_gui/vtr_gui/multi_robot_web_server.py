@@ -121,13 +121,10 @@ def get_additional_data():
   robots = build_remote().get_robot_ids()
   return flask.jsonify(robots)
 
-
-
 @app.route('/vtr/robot/<robot_id>')
 def get_robot_state(robot_id):
   robot_state = build_remote().get_robot_state(robot_id)
   return flask.jsonify(robot_state)
-
 
 @app.route('/vtr/following_route/<robot_id>')
 def get_following_route(robot_id):
@@ -138,7 +135,6 @@ def get_following_route(robot_id):
 @app.route('/vtr/server/<robot_id>')
 def get_server_state(robot_id):
   server_state = build_remote().get_server_state(robot_id)
-  print(f"Web Server: Server state for robot {robot_id}: {server_state}") 
   return flask.jsonify(server_state)
 
 

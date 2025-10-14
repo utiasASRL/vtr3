@@ -4,15 +4,15 @@
     log_debug: true
     log_enabled:
         # navigator
-        #- navigation
-        #- navigation.graph_map_server
-        #- navigation.command
+      #- navigation
+      #- navigation.graph_map_server
+      #- navigation.command
     
         # tactic
       #- tactic
       #- tactic.pipeline
       #- tactic.eop
-      #- tactic.module
+      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 
@@ -34,8 +34,8 @@
       #- ouster
         
         # mission planner
-      - mission.server
-      - mission.state_machine
+      #- mission.server
+      #- mission.state_machine
 
         # pose graph
       #- pose_graph
@@ -257,8 +257,8 @@
         # Controller Params
         extrapolate_robot_pose: true
         mpc_verbosity: false
-        forward_vel: 0.75
-        max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
+        forward_vel: 1.25
+        max_lin_vel: 1.5 
         max_ang_vel: 0.46
         max_ang_acc: 0.89
         ang_alpha: 0.0
@@ -271,8 +271,8 @@
 
         # Tunable controller parameters(Currently only works for the Bicycle)
         forward:
-          q_lat: 10.0
-          q_lon: 4.0
+          q_lat: 20.0
+          q_lon: 5.0
           q_th: 7.0
           r1: 0.0
           r2: 3.0

@@ -63,7 +63,7 @@ class VTRGUI extends React.Component {
   // Fetch additional data only after setup is complete, and only try once
   fetchAdditionalData() {
     this.setState({ loading_additional_data: true });
-    fetchWithTimeout("/vtr/additional_data", { timeoutMS: 2000 })
+    fetchWithTimeout("/vtr/additional_data", { timeoutMS: 5000 })
       .then((response) => {
         if (response.status !== 200) throw new Error("No additional data " + response.status);
         return response.json();

@@ -116,6 +116,8 @@ def goal_handle_from_ros(ros_goal_handle):
     goal_handle["type"] = "teach"
   elif ros_goal_handle.type == GoalHandle.REPEAT:
     goal_handle["type"] = "repeat"
+  elif ros_goal_handle.type == GoalHandle.LOCALIZE:
+    goal_handle["type"] = "localize"
   else:
     goal_handle["type"] = "unknown"
   # pause before
@@ -235,6 +237,8 @@ class SocketVTRUI(VTRUI):
       ros_command.goal_handle.type = GoalHandle.TEACH
     elif (data['type'] == 'repeat'):
       ros_command.goal_handle.type = GoalHandle.REPEAT
+    elif (data['type'] == 'localize'):
+      ros_command.goal_handle.type = GoalHandle.LOCALIZE
     else:
       ros_command.goal_handle.type = GoalHandle.IDLE
     ros_command.goal_handle.pause_before = int(data['pause_before'] * 1000)
@@ -252,6 +256,11 @@ class SocketVTRUI(VTRUI):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.BEGIN_GOALS
     return super().begin_goals(ros_command)
+
+  def force_add_vertex(self):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.FORCE_ADD_VERTEX
+    return super().force_add_vertex(ros_command)
 
   def move_robot(self, data):
     ros_command = MissionCommand()

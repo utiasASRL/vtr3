@@ -58,6 +58,8 @@ class GoalInterface<vtr_navigation_msgs::msg::GoalHandle> {
         return GoalTarget::Teach;
       case GoalHandle::REPEAT:
         return GoalTarget::Repeat;
+      case GoalHandle::LOCALIZE:
+        return GoalTarget::Localize;
       default:
         return GoalTarget::Unknown;
     }

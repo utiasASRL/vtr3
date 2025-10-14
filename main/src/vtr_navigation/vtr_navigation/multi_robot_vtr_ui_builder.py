@@ -51,13 +51,11 @@ class MultiRobotVTRUIProxy(BaseProxy):
   def get_following_route(self, robot_id):
     print(f"[Proxy] get_following_route({robot_id}): calling _callmethod")
     result = self._callmethod('get_following_route', args=(robot_id,))
-    print(f"[Proxy] get_following_route({robot_id}): result={result}")
     return result
 
   def get_server_state(self, robot_id):
     print(f"[Proxy] get_server_state({robot_id}): calling _callmethod")
     result = self._callmethod('get_server_state', args=(robot_id,))
-    print(f"[Proxy] get_server_state({robot_id}): result={result}")
     return result
 
   def get_task_queue_state(self):
@@ -78,9 +76,9 @@ class MultiRobotVTRUIProxy(BaseProxy):
     print(f"[Proxy] add_goal({command}): result={result}")
     return result
 
-  def cancel_goal(self, command):
+  def cancel_goal(self, command, robot_id):
     print(f"[Proxy] cancel_goal({command}): calling _callmethod")
-    result = self._callmethod('cancel_goal', args=(command,))
+    result = self._callmethod('cancel_goal', args=(command, robot_id))
     print(f"[Proxy] cancel_goal({command}): result={result}")
     return result
 
