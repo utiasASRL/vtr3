@@ -14,7 +14,7 @@
 
 /**
  * \file odometry_icp_module.hpp
- * \author Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
+ * \author Daniil Lisus, Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

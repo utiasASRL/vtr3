@@ -642,7 +642,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
         const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
         // Still create 3D v_m_s_in_s but just with a 0 z component
-        const Eigen::Vector3f v_m_s_in_s = w_m_s_in_s.block<3, 1>(0, 0);
+        const Eigen::Vector3f v_m_s_in_s = Eigen::Vector3f(w_m_s_in_s(0), w_m_s_in_s(1), 0.0f);
         Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
         abar.normalize();
         if (up_chirp) {
