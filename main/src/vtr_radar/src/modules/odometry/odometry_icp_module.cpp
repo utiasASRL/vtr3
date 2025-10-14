@@ -773,8 +773,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->evaluate().matrix();
   const auto vel_diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo_2d;
   const auto vel_diff_norm = vel_diff.norm();
-  const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
-  const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
+  const auto trans_vel_diff_norm = vel_diff.head<2>().norm();
+  const auto rot_vel_diff_norm = fabs(vel_diff(2));;
 
   const auto T_r_m_prev = T_r_m_odo_2d;
   const auto T_r_m_query = T_r_m_eval->value();
