@@ -49,7 +49,7 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   config->max_dist = node->declare_parameter<double>(param_prefix + ".max_dist", config->num_cols);
   //
   config->root_path = node->declare_parameter<std::string>(param_prefix + ".root_path", config->root_path);
-  config->model_name = node->declare_parameter<std::string>(param_prefix + ".model_name", config->model_name);
+  // config->model_name = node->declare_parameter<std::string>(param_prefix + ".model_name", config->model_name);
   config->downsample_steps = node->declare_parameter<int>(param_prefix + ".downsample_steps", config->downsample_steps);
   config->bias_input_feat =node->declare_parameter<std::vector<std::string>>(param_prefix + ".bias_input_feat", config->bias_input_feat);
   config->var_input_feat = node->declare_parameter<std::vector<std::string>>(param_prefix + ".var_input_feat", config->var_input_feat);
@@ -206,12 +206,11 @@ bool PreprocessingDopplerModule::computePseudovar(double& pseudovar, const std::
 
 PreprocessingDopplerModule::PreprocessingDopplerModule(const Config::ConstPtr &config, const std::shared_ptr<tactic::ModuleFactory> &module_factory, const std::string &name) : tactic::BaseModule(module_factory, name), config_(config) {
   // init weights
-  std::string bias_shape = config_->root_path + "/" + config_->model_name + "/bias_shape.txt"; 
-  std::string binary = config_->root_path + "/" + config_->model_name + "/bias.bin";
+  std::string bias_shape = config_->root_path + "/bias_shape.txt"; 
+  std::string binary = config_->root_path + "/bias.bin";
   initImgWeight(true, config, bias_shape, binary, bias_weights_);
-  
-  std::string var_shape = config_->root_path + "/" + config_->model_name + "/var_shape.txt"; 
-  std::string var = config_->root_path + "/" + config_->model_name + "/var.bin";
+  std::string var_shape = config_->root_path + "/var_shape.txt";
+  std::string var = config_->root_path + "/var.bin";
   initImgWeight(false, config, var_shape, var, var_weights_);
 
   // check if we need to calculate median Doppler velocity

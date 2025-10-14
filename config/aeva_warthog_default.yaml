@@ -164,9 +164,7 @@
         min_dist: 0.0                   # meters
         max_dist: 150.0                 # meters
         #
-        # root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
-        root_path: "/home/wenda/ASRL/vtr3/aeva_config"
-        model_name: "comm"
+        root_path: "${WARTHOG}/ros2/aeriesii_ros2/sensor_config"
         downsample_steps: 2             # after image projection 
         bias_input_feat: ["range", "intensity", "medianrv"]
         var_input_feat: ["intensity", "medianrv", "rv_var5"]
