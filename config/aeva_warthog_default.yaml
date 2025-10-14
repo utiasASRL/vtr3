@@ -166,8 +166,7 @@
         min_dist: 0.0                   # meters
         max_dist: 15.0                 # meters
         #
-        # root_path: "$(env WARTHOG)/ros2/aeriesii_ros2/sensor_config"       
-        root_path: "/home/wenda/ASRL/vtr3/aeva_config"
+        root_path: "${WARTHOG}/ros2/aeriesii_ros2/sensor_config"
         downsample_steps: 2             # after image projection 
         bias_input_feat: ["range", "intensity", "medianrv"]
         var_input_feat: ["intensity", "medianrv", "rv_var5"]
