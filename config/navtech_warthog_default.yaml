@@ -24,7 +24,7 @@
     gyro_frame: vectornav #w200_0066_os_imu #navtech_base
     gyro_topic: /vectornav/data_raw
     gyro_bias: 
-      z: 0.0 # -0.02751264625189735 # 0.004203267148472062
+      z: -0.02751264625189735 # 0.004203267148472062
     queue_size: 100
     graph_projection:
       origin_lat: 47.322101 # UTIAS: 43.78220
@@ -73,8 +73,8 @@
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
-      save_raw_point_cloud: true
-      save_radar_images: true
+      save_raw_point_cloud: false
+      save_radar_images: false
     preprocessing:
       conversion:
         type: radar.online_converter
@@ -84,16 +84,16 @@
         type: radar.pc_extractor
         radar_resolution: 0.043809514 # 0307827  # RAS3 0.161231 #0.044
         detector: kpeaks #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
-        minr: 10.0 # mininum detection distance
-        maxr: 100.0 # maximum detection distance
+        minr: 5.0 # mininum detection distance
+        maxr: 300.0 # maximum detection distance
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: 0.0 # -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
+        range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
         kpeaks:
           kstrong: 4
           threshold2: 0.0
-          threshold3: 0.30
+          threshold3: 0.25
         kstrongest:
           kstrong: 4 # k-strongest per azimuth to retain was 12
           static_threshold: 0.3
@@ -152,26 +152,26 @@
 
         # ICP parameters # TOTUNE
         num_threads: 10 # 8
-        # first_num_steps: 2 # 2
-        # initial_max_iter: 4 # 4
-        # initial_max_pairing_dist: 1.5 # 5.0 # now same as lidar
-        # initial_max_planar_dist: 1.0 # 5.0
-        # refined_max_iter: 50 # 50
-        # refined_max_pairing_dist: 1.0 # 5.0
-        # refined_max_planar_dist: 0.3 # 5.0
-        # averaging_num_steps: 5 # 5
-        # huber_delta: 1.0 # 1.0
         first_num_steps: 2 # 2
         initial_max_iter: 4 # 4
-        initial_max_pairing_dist: 5.0 # 5.0
-        initial_max_planar_dist: 5.0 # 5.0
-        refined_max_iter: 20 # 50
-        refined_max_pairing_dist: 5.0 # 5.0
-        refined_max_planar_dist: 5.0 # 5.0
+        initial_max_pairing_dist: 1.5 # 5.0 # now same as lidar
+        initial_max_planar_dist: 1.0 # 5.0
+        refined_max_iter: 50 # 50
+        refined_max_pairing_dist: 1.0 # 5.0
+        refined_max_planar_dist: 0.3 # 5.0
         averaging_num_steps: 5 # 5
         huber_delta: 1.0 # 1.0
+        # first_num_steps: 2 # 2
+        # initial_max_iter: 4 # 4
+        # initial_max_pairing_dist: 5.0 # 5.0
+        # initial_max_planar_dist: 5.0 # 5.0
+        # refined_max_iter: 20 # 50
+        # refined_max_pairing_dist: 5.0 # 5.0
+        # refined_max_planar_dist: 5.0 # 5.0
+        # averaging_num_steps: 5 # 5
+        # huber_delta: 1.0 # 1.0
         cauchy_k: 0.2 # was 0.8
-        remove_orientation: true
+        remove_orientation: false
 
         # steam parameters #TOTUNE
         verbose: false
