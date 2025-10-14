@@ -473,7 +473,7 @@ void OdometrySE3ICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto error_func = imu::DopplerErrorEvaluatorSE2::MakeShared(w_m_s_in_s_intp_eval, bias, azimuth, radial_velocity_vec);
         const auto doppler_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "doppler_cost" + std::to_string(azimuth_idx));
 
-        // Also add zero vertical velocity error term. Problem becomes unstable without this (need to switch to SE(2)...)
+        // Also add zero vertical velocity error term. Problem becomes unstable without this.
         const auto zero_vel_loss_func = L2LossFunc::MakeShared();
         const auto zero_vel_noise_model = StaticNoiseModel<1>::MakeShared(1e-4 * Eigen::Matrix<double, 1, 1>::Identity());
         Eigen::Matrix<double, 1, 6> D_vel = Eigen::Matrix<double, 1, 6>::Zero();
