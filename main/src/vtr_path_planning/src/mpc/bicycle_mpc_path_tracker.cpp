@@ -156,7 +156,7 @@ std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::C
     CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
     result = solver_.solve(*config);
     CLOG(INFO, "cbit.control") << "Solver called";
-    if (std::abs(result["vel"](casadi::Slice(),0).get_elements()[0]) < 0.05){
+    if (std::abs(result["vel"](casadi::Slice(),0).get_elements()[0]) < 0.0001){
       throw std::invalid_argument("Velocity too low.");
     }
     success_count += 1;
