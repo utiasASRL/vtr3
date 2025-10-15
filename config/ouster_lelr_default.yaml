@@ -76,7 +76,7 @@
 
       route_completion_translation_threshold: 0.2
       route_completion_translation_threshold: 0.2
-      route_completion_angle_threshold: 0.1
+      route_completion_angle_threshold: 0.3
 
       chain:
         min_cusp_distance: 0.1
@@ -275,7 +275,7 @@
           q_f: 1.0 # Multiplier for terminal cost
         reverse:
           q_lat: 15.0
-          q_lon: 4.0
+          q_lon: 6.0
           q_th: 2.0
           r1: 8.0
           r2: 0.0
