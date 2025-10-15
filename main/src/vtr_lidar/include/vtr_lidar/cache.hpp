@@ -37,10 +37,16 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros
   tactic::Cache<const Eigen::MatrixXd> points;  // alternative input non-ros
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
+
+  // gyro input
   tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
   tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
   tactic::Cache<Eigen::Vector3d> gyro_bias;
   tactic::Cache<Eigen::Vector3d> init_gyro_bias; // katya to do: need better way to initialize gyro_bias
+
+  // wheel input
+  tactic::Cache<const tactic::EdgeTransform> T_s_r_wheel;
+  tactic::Cache<std::vector<std::pair<rclcpp::Time, double>>> wheel_meas;
 
   // preprocessing
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
