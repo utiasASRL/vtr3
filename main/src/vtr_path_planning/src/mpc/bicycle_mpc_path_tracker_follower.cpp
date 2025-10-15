@@ -97,8 +97,8 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
 
-
 BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
+
 void BicycleMPCPathTrackerFollower::loadMPCConfig(
     CasadiBicycleMPCFollower::Config::Ptr mpc_config, const bool isReversing, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) { 
   BicycleMPCPathTracker::loadMPCConfig(mpc_config, isReversing, w_p_r_in_r, applied_vel);
@@ -113,6 +113,14 @@ CasadiMPC::Config::Ptr BicycleMPCPathTrackerFollower::getMPCConfig(const bool is
   loadMPCConfig(mpcConfig, isReversing, w_p_r_in_r, applied_vel);
   return mpcConfig;
 }
+
+void BicycleMPCPathTrackerFollower::setRunning(const bool running) {
+  if (!running) {
+    leader_root_ = tactic::VertexId::Invalid();
+  }
+  BicycleMPCPathTracker::setRunning(running);
+}
+
 
 bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& curr_time){
   if (leader_root_ == tactic::VertexId::Invalid()){

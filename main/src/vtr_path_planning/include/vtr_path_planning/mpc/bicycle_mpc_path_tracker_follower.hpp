@@ -86,6 +86,8 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
                  const Callback::Ptr& callback);
   ~BicycleMPCPathTrackerFollower() override;
 
+  void setRunning(const bool running) override;
+
  protected:
   void initializeRoute(RobotState& robot_state);
 
@@ -104,6 +106,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
                            const tactic::Timestamp& curr_time) override;
 
   std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
+
 
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTrackerFollower);
