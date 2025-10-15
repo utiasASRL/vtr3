@@ -137,22 +137,22 @@
         num_threads: 12
         crop_range: 15.0
 
-        frame_voxel_size: 0.3 # grid subsampling voxel size
+        frame_voxel_size: 0.3           # grid subsampling voxel size
 
-        vertical_angle_res: 0.00349066 # vertical angle resolution in radians
-        polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
-        r_scale: 4.0 # scale down point range by this value after taking log, whatever works
-        h_scale: 2.0 #0.125 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution
+        vertical_angle_res: 0.00349066  # vertical angle resolution in radians
+        polar_r_scale: 2.0              # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
+        r_scale: 4.0                    # scale down point range by this value after taking log, whatever works
+        h_scale: 2.0                    # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution
 
-        num_sample1: 10000 # max number of sample after filtering based on planarity
-        min_norm_score1: 0.95 # min planarity score
+        num_sample1: 10000              # max number of sample after filtering based on planarity
+        min_norm_score1: 0.95           # min planarity score
 
-        num_sample2: 10000 # max number of sample after filtering based on planarity
-        min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
-        min_normal_estimate_dist: 1.0 # minimum distance to estimate normal in meters
+        num_sample2: 10000              # max number of sample after filtering based on planarity
+        min_norm_score2: 0.2            # 0.2 is when the incident angle 5/12 * pi
+        min_normal_estimate_dist: 1.0   # minimum distance to estimate normal in meters
         max_normal_estimate_angle: 0.44 # must <1/2, this value will be timed by M_PI
 
-        cluster_num_sample: 10000 # maxnumber of sample after removing isolated points
+        cluster_num_sample: 10000       # maxnumber of sample after removing isolated points
 
         visualize: true
 
@@ -179,17 +179,17 @@
         type: lidar.preprocessing_curvature
         num_threads: 12
 
-        crop_range: 15.0
-        num_sample: 10000 # max number of points after range cropping
-        plane_voxel_size: 1.0
-        feature_voxel_size: 0.3
+        crop_range: 15.0            # range cropping in meters
+        num_sample: 10000           # max number of points after range cropping
+        plane_voxel_size: 1.0       # voxel size for plane
+        feature_voxel_size: 0.3     # voxel size for feature
+        k_neighbors: 30             # number of neighbors to compute curvature (keep <50)
 
+        # clustering parameters
         t: 4.0
         d_prime: 2.0
-        ground_plane_threshold: 0.7
-
-        min_points_threshold: 10 # minimum number of points to keep a cluster
-        k_neighbors: 30
+        ground_plane_threshold: 0.7 # max curvature to be considered as ground
+        min_points_threshold: 10    # minimum number of points to keep a cluster
 
         visualize: true
 
