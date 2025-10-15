@@ -397,7 +397,14 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     // --------- [DEBUG]: set a fixed covariance
     Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
+    // NOTE: T_m_s_cov is for [x, y, z, roll, pitch, yaw]
     T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.01*0.01, 0.01*0.01, 0.01*0.01;
+
+    // Define permutation: new order = [3,4,5,0,1,2]
+    Eigen::PermutationMatrix<6> P;
+    P.indices() << 3, 4, 5, 0, 1, 2;
+    // Apply permutation to have covariance in order [roll, pitch, yaw, x, y, z]
+    Eigen::Matrix<double, 6, 6> T_reordered = P * T_m_s_cov * P.transpose();
 
     // new version in daicp_lib_new.hpp
     bool optimization_success = daicp_lib_new::daGaussNewtonScaleP2Plane(filtered_sample_inds,
@@ -406,7 +413,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                                                          map_normals_mat,
                                                                          T_m_s_var,    // SE3StateVar, param to optimize
                                                                          T_m_s_prior,  // transformation from lidar to map
-                                                                         T_m_s_cov,    // covariance of the above transformation
+                                                                         T_reordered,    // covariance of the above transformation
                                                                          max_gn_iter,
                                                                          inner_tolerance);
     /// ########################################################################### ///

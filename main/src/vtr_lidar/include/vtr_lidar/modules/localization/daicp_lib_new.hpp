@@ -295,12 +295,12 @@ inline double computeThresholdVLG(const Eigen::VectorXd& eigenvalues) {
   Eigen::VectorXd log_eigenvalues = eigenvalues.array().max(1e-30).log();
   
   const double max_eigenval_full = log_eigenvalues.maxCoeff();
-  const double eigenvalue_threshold = max_eigenval_full * 1e-2;  // Conservative threshold
+  const double eigenvalue_threshold = max_eigenval_full * 1e-3;  // Conservative threshold
   
   double decode_threshold = std::exp(eigenvalue_threshold);
 
   // DEBUG: magic number
-  decode_threshold = 15.0;
+  // decode_threshold = 15.0;
   
   CLOG(DEBUG, "lidar.localization_daicp") << "Log Threshold: " << eigenvalue_threshold;
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << decode_threshold;
@@ -480,7 +480,7 @@ inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& H, const Ei
     // With degenerate directions
     // [TODO] this will lead to very large values in degenerate directions
     // Consider to use the prior covariance in degenerated directions.
-    const double epsilon = 1e-6;  // regularization term for degenerate directions
+    const double epsilon = 1e-2;  // regularization term for degenerate directions
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() + 
                (1.0/epsilon) * (Vd * Vd.transpose());
   }
@@ -572,8 +572,8 @@ inline void computeJacobianResidualInformation(
     CLOG(DEBUG, "lidar.localization_daicp") << " ================ n_t: [" << n_t.transpose() << "] ================ ";
     CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_pose: [" << J_pose << "] ================ ";
     CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_p: [" << J_p << "] ================ ";
-    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_pL_i: \n" << Sigma_pL_i.diagonal().transpose() << " ================ ";
-    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_x: \n" << Sigma_x.diagonal().transpose() << " ================ ";
+    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_pL_i: " << Sigma_pL_i.diagonal().transpose() << " ================ ";
+    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_x: " << Sigma_x.diagonal().transpose() << " ================ ";
 
     // cov_r = J_pose @ Sigma_x @ J_pose^T + J_p @ Sigma_pL_i @ J_p^T
     const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0) + 
