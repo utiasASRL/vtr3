@@ -162,14 +162,12 @@ void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithIn
       continue;
     }
 
-    Eigen::Vector3f p_vec(query_pt.x, query_pt.y, query_pt.z);
-
     // --- Find farthest projected neighbor to define u ---
     float max_dist = 0.0f;
     Eigen::Vector3f u_dir(1.0f, 0.0f, 0.0f);  // fallback
     for (size_t j = 0; j < found; ++j) {
       Eigen::Vector3f vec = Eigen::Vector3f(
-          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z) - p_vec;
+          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z) - p;
 
       // Remove normal component (projection onto tangent plane)
       float z = vec.dot(normal);
@@ -198,7 +196,7 @@ void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithIn
     Eigen::VectorXf us(found), vs(found), zs(found);
     for (size_t j = 0; j < found; ++j) {
       Eigen::Vector3f vec = Eigen::Vector3f(
-          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z) - p_vec;
+          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z) - p;
       float z = vec.dot(normal);
       Eigen::Vector3f plane_vec = vec - z * normal;
 
