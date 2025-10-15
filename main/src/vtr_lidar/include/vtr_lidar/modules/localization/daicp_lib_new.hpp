@@ -568,13 +568,21 @@ inline void computeJacobianResidualInformation(
     // J_p = n_t^T (1x3)
     const Eigen::RowVector3d J_p = n_t.transpose();
     
-    // DEBUG: only use prior
-    // Compute covariance of the residual
-    // cov_r = J_pose @ Sigma_x @ J_pose^T + J_p @ Sigma_pL_i @ J_p^T
-    // const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0) + 
-    //                     (J_p * Sigma_pL_i * J_p.transpose())(0,0);
 
-    const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0); 
+    CLOG(DEBUG, "lidar.localization_daicp") << " ================ n_t: [" << n_t.transpose() << "] ================ ";
+    CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_pose: [" << J_pose << "] ================ ";
+    CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_p: [" << J_p << "] ================ ";
+    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_pL_i: \n" << Sigma_pL_i.diagonal().transpose() << " ================ ";
+    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_x: \n" << Sigma_x.diagonal().transpose() << " ================ ";
+
+    // cov_r = J_pose @ Sigma_x @ J_pose^T + J_p @ Sigma_pL_i @ J_p^T
+    const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0) + 
+                        (J_p * Sigma_pL_i * J_p.transpose())(0,0);
+
+    // --------- [DEBUG]: only use prior
+    // Compute covariance of the residual
+    // const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0); 
+
     // Set information weight (inverse of covariance)
     if ((1.0 / cov_r) > 10000.0) {
       W_inv(i, i) = 10000.0;  // Cap the maximum weight
@@ -630,8 +638,8 @@ inline bool daGaussNewtonScaleP2Plane(
     computeJacobianResidualInformation(sample_inds, query_mat, map_mat, map_normals_mat,
                                               T_combined, T_ms_prior, Sigma_x, A, b, W_inv);
 
-    // DEBUG: disable weighting
-    W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());  // DEBUG: set to identity to disable weighting
+    // --------- [DEBUG]: disable weighting
+    // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());  // DEBUG: set to identity to disable weighting
 
     // STEAM-style convergence checking
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm

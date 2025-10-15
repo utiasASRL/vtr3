@@ -89,7 +89,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;      // T from robot to sensor, external calibration, fixed
-  const auto &T_r_v = *qdata.T_r_v_loc;  // T from vertex to robot,used as prior
+  const auto &T_r_v = *qdata.T_r_v_loc;  // T from vertex to robot, used as prior
   const auto &T_v_m = *qdata.T_v_m_loc;  // T from submap (build in teach) to vertex
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
@@ -386,11 +386,18 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     EdgeTransform T_m_s_edge = T_s_m_edge.inverse();
 
     Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
-    // Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
 
-    // -- debugging test
+    // [debugging here]
+    // Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
+    
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_s_r.cov(): \n" << T_s_r.cov().diagonal().transpose();
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_r_v.cov(): \n" << T_r_v.cov().diagonal().transpose();
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_v_m.cov(): \n" << T_v_m.cov().diagonal().transpose();
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_m_s_cov diagonal: [" << T_m_s_cov.diagonal().transpose() << "]";
+
+    // --------- [DEBUG]: set a fixed covariance
     Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
-    T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.1*0.1, 0.1*0.1, 0.1*0.1;
+    T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.01*0.01, 0.01*0.01, 0.01*0.01;
 
     // new version in daicp_lib_new.hpp
     bool optimization_success = daicp_lib_new::daGaussNewtonScaleP2Plane(filtered_sample_inds,
