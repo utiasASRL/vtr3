@@ -388,17 +388,17 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
 
     // [debugging here]
-    // Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
+    Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
     
-    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_s_r.cov(): \n" << T_s_r.cov().diagonal().transpose();
-    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_r_v.cov(): \n" << T_r_v.cov().diagonal().transpose();
-    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_v_m.cov(): \n" << T_v_m.cov().diagonal().transpose();
-    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_m_s_cov diagonal: [" << T_m_s_cov.diagonal().transpose() << "]";
+    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_s_r.cov(): \n" << T_s_r.cov().diagonal().transpose();
+    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_r_v.cov(): \n" << T_r_v.cov().diagonal().transpose();
+    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_v_m.cov(): \n" << T_v_m.cov().diagonal().transpose();
+    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_m_s_cov diagonal: [" << T_m_s_cov.diagonal().transpose() << "]";
 
     // --------- [DEBUG]: set a fixed covariance
-    Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
-    // NOTE: T_m_s_cov is for [x, y, z, roll, pitch, yaw]
-    T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.01*0.01, 0.01*0.01, 0.01*0.01;
+    // Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
+    // // NOTE: T_m_s_cov is for [x, y, z, roll, pitch, yaw]
+    // T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.01*0.01, 0.01*0.01, 0.01*0.01;
 
     // Define permutation: new order = [3,4,5,0,1,2]
     Eigen::PermutationMatrix<6> P;
