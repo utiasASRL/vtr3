@@ -12,7 +12,7 @@
         alpha: 0.0
     path_planning:
       type: bicycle_mpc_follower
-      follow_distance: 4.2
+      follow_distance: 4.15
       distance_margin: 1.0
       leader_namespace: /echo
       waypoint_selection: euclidean
@@ -30,8 +30,8 @@
       #- mission.server
         # planner manager
       - cbit.control
-      #- cbit.debug
-      #- cbit.path_planning
+      - cbit.debug
+      - cbit.path_planning
         # mpc
       - mpc.speed_scheduler
       - mpc.debug
