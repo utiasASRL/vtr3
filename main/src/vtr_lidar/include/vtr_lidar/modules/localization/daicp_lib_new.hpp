@@ -299,9 +299,12 @@ inline double computeThresholdVLG(const Eigen::VectorXd& eigenvalues) {
   
   double decode_threshold = std::exp(eigenvalue_threshold);
 
-  // DEBUG: magic number
-  decode_threshold = 350.0;
-  
+  // [DEBUG]: magic number
+  // decode_threshold = 350.0;
+
+  // [DEBUG] ensure exactly which directions are well-conditioned
+  decode_threshold = eigenvalues(1) - 0.0001; 
+
   CLOG(DEBUG, "lidar.localization_daicp") << "Log Threshold: " << eigenvalue_threshold;
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << decode_threshold;
   
@@ -590,6 +593,7 @@ inline void computeJacobianResidualInformation(
     // Set information weight (inverse of covariance)
     if ((1.0 / cov_r) > 10000.0) {
       W_inv(i, i) = 10000.0;  // Cap the maximum weight
+      CLOG(DEBUG, "lidar.localization_daicp") << " ================ W_inv is set to be 10000.0, error out  ================ ";
     } else {
       W_inv(i, i) = 1.0 / cov_r;
     }
@@ -649,7 +653,7 @@ inline bool daGaussNewtonScaleP2Plane(
                                        T_combined, T_ms_prior, Sigma_x, A, b, W_inv, ell_mr);
 
     // --------- [DEBUG]: disable weighting
-    // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());  // DEBUG: set to identity to disable weighting
+    W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());  // DEBUG: set to identity to disable weighting
 
     // STEAM-style convergence checking
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
