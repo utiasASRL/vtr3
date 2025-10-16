@@ -174,7 +174,7 @@ void LocalizationChain<Graph>::updateBranchToTwigTransform(
 
   // find the transform from old twig to new twig
   auto Ttw_old_new = [&]() {
-    if (twig_vid == twig_vid_) {
+    if (twig_vid == twig_vid_ || !twig_vid_.isValid()) {
       return EdgeTransform(true);
     } else if (twig_vid == petiole_vid_) {
       return T_petiole_twig_.inverse();
