@@ -478,18 +478,12 @@ inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& H, const Ei
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
   } else {
     // With degenerate directions
-    // [TODO] this will lead to very large values in degenerate directions
-    // Consider to use the prior covariance in degenerated directions.
-    const double epsilon_t = 1e-2;     // regularization term for degenerate directions for translation
-    const double epsilon_theta = 1e-1; // regularization term for degenerate directions for rotation
-
-    // Create diagonal regularization matrix directly
-    Eigen::MatrixXd epsilon_mat = Eigen::MatrixXd::Zero(6, 6);
-    epsilon_mat.diagonal() << 1.0 / epsilon_theta, 1.0 / epsilon_theta, 1.0 / epsilon_theta,
-                              1.0 / epsilon_t, 1.0 / epsilon_t, 1.0 / epsilon_t;
-
+    // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
+    // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
+    // Consider to use the prior covariance in degenerated directions. 
+    const double epsilon = 0.1;  
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
-               (Vd * epsilon_mat * Vd.transpose());
+              (1.0/epsilon) * (Vd *Vd.transpose());
   }
   
   return daicpCov;
@@ -592,10 +586,6 @@ inline void computeJacobianResidualInformation(
     // cov_r = J_pose @ Sigma_x @ J_pose^T + J_p @ Sigma_pL_i @ J_p^T
     const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0) + 
                         (J_p * Sigma_pL_i * J_p.transpose())(0,0);
-
-    // --------- [DEBUG]: only use prior
-    // Compute covariance of the residual
-    // const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0); 
 
     // Set information weight (inverse of covariance)
     if ((1.0 / cov_r) > 10000.0) {
