@@ -32,6 +32,10 @@ import TaskQueue from "../task_queue/TaskQueue";
 
 import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";
 import RobotIconSVG from "../../images/arrow.svg";
+import RobotIconSVG2 from "../../images/arrow2.svg";
+import RobotIconSVG3 from "../../images/arrow3.svg";
+import RobotIconSVG4 from "../../images/arrow4.svg";
+import RobotIconSVG5 from "../../images/arrow5.svg";
 import TargetIconSVG from "../../images/arrow-merge.svg";
 import SelectorCenterSVG from "../../images/selector-center.svg";
 import SelectorEndSVG from "../../images/selector-end.svg";
@@ -57,10 +61,19 @@ const GRAPH_OPACITY = 0.9;
 /// robot constants
 const ROBOT_OPACITY = 0.8;
 const ROBOT_UNLOCALIZED_OPACITY = 0.4;
-const ROBOT_ICON = new L.Icon({
-  iconUrl: RobotIconSVG,
-  iconSize: new L.Point(30, 30),
-});
+const ROBOT_ICONS_SVGS = [
+  RobotIconSVG,
+  RobotIconSVG2,
+  RobotIconSVG3,
+  RobotIconSVG4,
+  RobotIconSVG5,
+];
+const ROBOT_ICONS_ARRAY = ROBOT_ICONS_SVGS.map(svg =>
+  new L.Icon({
+    iconUrl: svg,
+    iconSize: new L.Point(30, 30),
+  })
+);
 const TARGET_ICON = new L.Icon({
   iconUrl: TargetIconSVG,
   iconSize: new L.Point(30, 30),
@@ -157,12 +170,14 @@ class MultiRobotGraphMap extends React.Component {
       diagnostics: null,
     };
     // Initialize robot and target markers for each robot
-    robotIds.forEach(id => {
+    robotIds.forEach((id, idx) => {
+      // Assign a different icon for each robot, cycling if more than 6
+      const iconIdx = idx % ROBOT_ICONS_ARRAY.length;
       this.state.robotMarkers[id] = {
         valid: false,
         marker: L.marker([0, 0], {
           draggable: false,
-          icon: ROBOT_ICON,
+          icon: ROBOT_ICONS_ARRAY[iconIdx],
           opacity: ROBOT_OPACITY,
           pane: "tooltipPane",
           zIndexOffset: 200,
@@ -197,18 +212,6 @@ class MultiRobotGraphMap extends React.Component {
     this.active_routes = [];
 
     /// robot state
-    this.robot_marker = {
-      valid: false,
-      marker: L.marker([0, 0], {
-        draggable: false,
-        icon: ROBOT_ICON,
-        opacity: ROBOT_OPACITY,
-        pane: "tooltipPane",
-        zIndexOffset: 200,
-        rotationOrigin: "center",
-        rotationAngle: 0,
-      }),
-    };
     this.target_marker = {
       valid: false,
       marker: L.marker([0, 0], {
@@ -1675,7 +1678,7 @@ class MultiRobotGraphMap extends React.Component {
     };
     this[`move_robot_marker_${robot_id}`] = L.marker(curr_latlng, {
       draggable: true,
-      icon: ROBOT_ICON,
+      icon: this.robotMarkers && this.robotMarkers[robot_id] && this.robotMarkers[robot_id].marker.options.icon ? this.robotMarkers[robot_id].marker.options.icon : null,
       opacity: MOVE_ROBOT_OPACITY,
       pane: "tooltipPane",
       zIndexOffset: 100,
