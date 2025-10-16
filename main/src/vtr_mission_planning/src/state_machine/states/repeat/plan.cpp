@@ -117,10 +117,9 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
     if (bfs && !bfs->permanentBan()) {
       bfs->clearBannedEdges();
     } else if (bfs && bfs->permanentBan()) {
-      // For rerouting mode, clear banned edges after successful planning
-      // This allows the system to handle future obstacles properly
-      CLOG(INFO, "mission.state_machine") << "HSHMAT: Clearing banned edges after successful reroute planning";
-      bfs->clearBannedEdges();
+      // If permanentBan() is true, we keep banned edges across replans.
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: Permanent ban is enabled, not clearing banned edges";
+      // bfs->clearBannedEdges();
     }
 
     CLOG(INFO, "mission.state_machine")

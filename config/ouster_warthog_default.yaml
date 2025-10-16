@@ -323,6 +323,12 @@
         run_async: true
         visualize: true
     
+    route_planning:
+      enable_reroute: false  # Enable obstacle-triggered rerouting
+      use_chatgpt: false      # Query ChatGPT for wait/reroute decision (if false, default to reroute)
+      permanent_ban: false   # Permanently ban edges during reroute (if false, bans are temporary)
+      default_decision: "reroute"  # Default decision when ChatGPT is disabled
+
     path_planning:
       type: cbit
       control_period: 100 # ms

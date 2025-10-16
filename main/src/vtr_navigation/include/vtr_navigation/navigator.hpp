@@ -155,6 +155,20 @@ typedef message_filters::sync_policies::ApproximateTime<
   rclcpp::Subscription<vtr_navigation_msgs::msg::GraphRoute>::SharedPtr following_route_sub_;
   std::vector<uint64_t> following_route_ids_;
   
+  // Hshmat: ChatGPT decision subscriber
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr chatgpt_decision_sub_;
+  std::string latest_chatgpt_decision_;  // "wait" or "reroute"
+  
+  // Hshmat: Publisher for pausing robot (zero velocity)
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pause_cmd_pub_;
+  bool robot_paused_;  // Track if robot is currently paused
+  bool waiting_for_reroute_;  // Track if we're waiting for a replanned route
+  
+  // Hshmat: ChatGPT configuration and publisher
+  bool use_chatgpt_;  // Whether to query ChatGPT (if false, default to reroute)
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr use_chatgpt_pub_;
+  std::string default_decision_;  // "wait" or "reroute" fallback when ChatGPT disabled
+  
   // Hshmat: Debouncing for obstacle detection
   std::optional<std::chrono::steady_clock::time_point> last_obstacle_time_;
 

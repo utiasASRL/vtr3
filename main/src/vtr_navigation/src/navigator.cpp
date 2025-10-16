@@ -116,9 +116,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   route_planner_ = std::make_shared<BFSPlanner>(graph_);
   if (auto bfs_ptr = std::dynamic_pointer_cast<BFSPlanner>(route_planner_)) {
     const bool reroute_enable = node_->declare_parameter<bool>("route_planning.enable_reroute", false);
-    // When reroute is enabled, always use masked BFS and permanent bans
+    const bool permanent_ban = node_->declare_parameter<bool>("route_planning.permanent_ban", false);
+    // When reroute is enabled, always use masked BFS
     bfs_ptr->setUseMasked(reroute_enable);
-    bfs_ptr->setPermanentBan(reroute_enable);
+    // Permanent ban controlled separately
+    bfs_ptr->setPermanentBan(permanent_ban);
+    CLOG(INFO, "navigation") << "Route planning config: enable_reroute=" << reroute_enable 
+                             << ", permanent_ban=" << permanent_ban;
   }
 
   /// mission server
@@ -142,15 +146,71 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   max_queue_size_ = node->declare_parameter<int>("queue_size", max_queue_size_);
 
+  // Hshmat: Initialize robot paused state
+  robot_paused_ = false;
+  waiting_for_reroute_ = false;
+  
+  // Hshmat: Declare and publish use_chatgpt parameter
+  use_chatgpt_ = node_->declare_parameter<bool>("route_planning.use_chatgpt", true);
+  default_decision_ = node_->declare_parameter<std::string>("route_planning.default_decision", std::string("wait"));
+  if (default_decision_ != "wait" && default_decision_ != "reroute") {
+    default_decision_ = "wait";
+    CLOG(WARNING, "navigation") << "Invalid route_planning.default_decision; falling back to 'wait'";
+  }
+  use_chatgpt_pub_ = node_->create_publisher<std_msgs::msg::Bool>(
+      "/vtr/use_chatgpt", rclcpp::SystemDefaultsQoS());
+  // Publish once at startup
+  {
+    std_msgs::msg::Bool msg;
+    msg.data = use_chatgpt_;
+    use_chatgpt_pub_->publish(msg);
+    CLOG(INFO, "navigation") << "ChatGPT enabled: " << (use_chatgpt_ ? "true" : "false")
+                              << ", default_decision='" << default_decision_ << "'";
+  }
+  
+  // Hshmat: Create publisher for emergency stop (zero velocity)
+  pause_cmd_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>(
+      "/j100_0365/platform/cmd_vel_unstamped", rclcpp::SystemDefaultsQoS());
+  
+  // Hshmat: Subscribe to ChatGPT decision for wait vs reroute strategy
+  chatgpt_decision_sub_ = node_->create_subscription<std_msgs::msg::String>(
+      "/vtr/chatgpt_decision", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::String::SharedPtr msg) {
+        if (!msg) return;
+        latest_chatgpt_decision_ = msg->data;
+        CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Received decision from detector: '" << msg->data << "'";
+        if (use_chatgpt_) {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'ChatGPT enabled. Decision: " << msg->data << ".'";
+        } else {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'ChatGPT disabled. Decision: " << msg->data << ".'";
+        }
+      });
+  
   // Hshmat: Subscribe to obstacle status to trigger replanning during Repeat::Follow
   obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
-        if (!msg || !msg->data) return;  // only act on blocked=true
+        if (!msg) return;
+        
+        // If obstacle cleared and robot was paused, log resume
+        if (!msg->data && robot_paused_) {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Obstacle cleared (obstacle_status=false)";
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'Obstacle cleared. Resuming.'";
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot was paused due to WAIT decision, will now resume normal navigation";
+          robot_paused_ = false;
+          return;
+        }
+        
+        // Only process obstacle detected (true)
+        if (!msg->data) return;
         
         // Note: Debouncing removed - the real issue was waypoint mismatch after rerouting
         
+        CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
+        CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'Obstacle detected.'";
+        CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
         CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 1 - Obstacle detected, received /vtr/obstacle_status=true";
+        CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Latest decision = '" << latest_chatgpt_decision_ << "'";
         
         // Reroute gate: only respond if enabled in params
         bool reroute_enable = false;
@@ -159,6 +219,51 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         if (!reroute_enable) {
           CLOG(INFO, "mission.state_machine") << "HSHMAT: Rerouting disabled, ignoring obstacle";
           return;
+        }
+        
+        // Check ChatGPT decision: handle 'wait' vs 'reroute' differently
+        // If ChatGPT is disabled, use configured default_decision_
+        std::string decision = latest_chatgpt_decision_;
+        if (!use_chatgpt_) {
+          decision = default_decision_;
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: ChatGPT disabled, defaulting to '" << decision << "'";
+        }
+        
+        CLOG(INFO, "mission.state_machine") << "⏱ TIMING: Decision is '" << decision << "', checking mode...";
+        
+        if (decision == "wait") {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Decision is WAIT - Pausing robot instead of replanning";
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Publishing ZERO velocity to stop robot";
+          
+          // Publish zero velocity to stop the robot
+          geometry_msgs::msg::Twist stop_cmd;
+          stop_cmd.linear.x = 0.0;
+          stop_cmd.linear.y = 0.0;
+          stop_cmd.linear.z = 0.0;
+          stop_cmd.angular.x = 0.0;
+          stop_cmd.angular.y = 0.0;
+          stop_cmd.angular.z = 0.0;
+          pause_cmd_pub_->publish(stop_cmd);
+          
+          robot_paused_ = true;
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Robot stopped. Will wait for obstacle to clear (obstacle_status=false)";
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Not triggering replanning - obstacle may move on its own";
+          return;  // Don't trigger replanning, just wait
+        } else if (decision == "reroute") {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Decision is REROUTE - Proceeding with replanning logic";
+          
+          // Mark that we're waiting for a reroute to complete
+          waiting_for_reroute_ = true;
+          
+          // If robot was paused, log that we're resuming
+          if (robot_paused_) {
+            CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Robot was paused, will resume after replanning completes";
+            robot_paused_ = false;
+          }
+        } else {
+          // No decision yet or unknown decision - default to reroute for safety
+          CLOG(WARNING, "mission.state_machine") << "HSHMAT-ChatGPT: No valid decision received (got '" << decision << "'), defaulting to REROUTE";
+          waiting_for_reroute_ = true;
         }
         // Only respond during Repeat::Follow. Ignore in Teach or other modes.
         try {
@@ -175,10 +280,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         } catch (...) { return; }
         // Forward event to state machine
         try {
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 4a - Sending Signal::ObstacleDetected to state machine";
+          CLOG(INFO, "mission.state_machine") << "⏱ TIMING: Sending Signal::ObstacleDetected to state machine NOW";
           state_machine_->handle(std::make_shared<mission_planning::Event>(
               mission_planning::Signal::ObstacleDetected));
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Signal::ObstacleDetected sent successfully";
+          CLOG(INFO, "mission.state_machine") << "⏱ TIMING: Signal::ObstacleDetected handled, state machine processing...";
         } catch (const std::exception &e) {
           CLOG(WARNING, "navigation") << "Failed to send ObstacleDetected: " << e.what();
         }
@@ -232,6 +337,28 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   following_route_sub_ = node_->create_subscription<vtr_navigation_msgs::msg::GraphRoute>(
       "following_route", rclcpp::QoS(10),
       [this](const vtr_navigation_msgs::msg::GraphRoute::SharedPtr route) {
+        // Check if route changed (replanning occurred)
+        bool route_changed = false;
+        if (route->ids.size() != following_route_ids_.size()) {
+          route_changed = true;
+        } else {
+          for (size_t i = 0; i < route->ids.size(); ++i) {
+            if (route->ids[i] != following_route_ids_[i]) {
+              route_changed = true;
+              break;
+            }
+          }
+        }
+        
+        // Log if replanning completed
+        if (route_changed && waiting_for_reroute_ && !route->ids.empty()) {
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
+          CLOG(INFO, "mission.state_machine") << "⏱ TIMING: New following_route published NOW (" << route->ids.size() << " vertices) - topological replanning complete";
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'Replanning complete. Resuming.'";
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
+          waiting_for_reroute_ = false;
+        }
+        
         following_route_ids_.assign(route->ids.begin(), route->ids.end());
       });
 
