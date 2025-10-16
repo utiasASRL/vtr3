@@ -106,9 +106,9 @@
       type: lidar
       preprocessing:
         - conversion
-        #- filtering
+        - filtering
         - doppler_filtering
-        - curvature_filtering
+        #- curvature_filtering
       odometry:
         #- icp
         - doppler
@@ -135,7 +135,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 12
-        crop_range: 15.0
+        crop_range: 60.0                # 15.0
 
         frame_voxel_size: 0.3           # grid subsampling voxel size
 
@@ -164,7 +164,7 @@
         num_rows: 64                    # num of vertical scan lines
         num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
         min_dist: 0.0                   # meters
-        max_dist: 15.0                  # meters
+        max_dist: 60.0       # 15.0                  # meters
         #
         root_path: "${WARTHOG}/ros2/aeriesii_ros2/sensor_config"
         downsample_steps: 2             # after image projection 
@@ -179,7 +179,7 @@
         type: lidar.preprocessing_curvature
         num_threads: 12
 
-        crop_range: 15.0            # range cropping in meters
+        crop_range: 60.0      #15.0            # range cropping in meters
         num_sample: 10000           # max number of points after range cropping
         plane_voxel_size: 1.0       # voxel size for plane
         feature_voxel_size: 0.3     # voxel size for feature
@@ -339,7 +339,7 @@
 
         calc_gy_bias: false
         calc_gy_bias_thresh: 10.0 # [s]
-        correspondence_method: 0 # 0: 4D KDTree w/ curvature, 1: KDTree on clusters, 2: normal KDTree (spatial only)
+        correspondence_method: 2 # 0: 4D KDTree w/ curvature, 1: KDTree on clusters, 2: normal KDTree (spatial only)
         curvature_similarity_thresh: 0.5 # threshold on curvature difference for correspondence rejection
 
       safe_corridor:
