@@ -19,6 +19,7 @@
 #pragma once
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 
 #include "vtr_lidar/data_types/costmap.hpp"
 #include "vtr_lidar/data_types/point.hpp"
@@ -37,6 +38,14 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const Eigen::MatrixXd> points;  // alternative input non-ros
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
 
+  // gyro input
+  tactic::Cache<const tactic::EdgeTransform> T_s_r_gyro;
+  tactic::Cache<std::vector<sensor_msgs::msg::Imu>> gyro_msgs;
+
+  // wheel input
+  tactic::Cache<const tactic::EdgeTransform> T_s_r_wheel;
+  tactic::Cache<std::vector<std::pair<rclcpp::Time, double>>> wheel_meas;
+
   // preprocessing
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
@@ -50,6 +59,11 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<PointMap<PointWithInfo>> sliding_map_odo;
   tactic::Cache<tactic::EdgeTransform> T_r_m_odo;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;
+
+  tactic::Cache<lgmath::se3::Transformation> T_r_m_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior;
+  tactic::Cache<Eigen::Matrix<double, 12, 12>> cov_prior;
+  tactic::Cache<int64_t> timestamp_prior;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
