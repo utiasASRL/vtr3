@@ -388,6 +388,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
 
     // [debugging here]
+    // NOTE: T_m_s_cov is for [x, y, z, roll, pitch, yaw]
     Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
     
     CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_s_r.cov(): \n" << T_s_r.cov().diagonal().transpose();
@@ -397,14 +398,13 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     // --------- [DEBUG]: set a fixed covariance
     // Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
-    // // NOTE: T_m_s_cov is for [x, y, z, roll, pitch, yaw]
     // T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.01*0.01, 0.01*0.01, 0.01*0.01;
 
     // Define permutation: new order = [3,4,5,0,1,2]
-    Eigen::PermutationMatrix<6> P;
-    P.indices() << 3, 4, 5, 0, 1, 2;
+    Eigen::PermutationMatrix<6> Pm;
+    Pm.indices() << 3, 4, 5, 0, 1, 2;
     // Apply permutation to have covariance in order [roll, pitch, yaw, x, y, z]
-    Eigen::Matrix<double, 6, 6> T_reordered = P * T_m_s_cov * P.transpose();
+    Eigen::Matrix<double, 6, 6> T_reordered = Pm * T_m_s_cov * Pm.transpose();
 
     // new version in daicp_lib_new.hpp
     bool optimization_success = daicp_lib_new::daGaussNewtonScaleP2Plane(filtered_sample_inds,

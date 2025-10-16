@@ -499,8 +499,9 @@ inline void computeJacobianResidualInformation(
     const Eigen::MatrixXd& Sigma_x,
     Eigen::MatrixXd& A,
     Eigen::VectorXd& b,
-    Eigen::MatrixXd& W_inv) {
-  
+    Eigen::MatrixXd& W_inv,
+    double& ell_mr) {
+
   const int n_points = static_cast<int>(sample_inds.size());
   
   // Initialize outputs
@@ -517,7 +518,11 @@ inline void computeJacobianResidualInformation(
                                                    sigma_az * sigma_az, 
                                                    sigma_el * sigma_el).asDiagonal();
   
-  #pragma omp parallel for schedule(dynamic, 10) num_threads(daicp_num_thread)
+  // --- parallel accumulation for mean range ---
+  double sum_range = 0.0;
+  int valid_count  = 0;
+  // using OpenMP reduction to safely accumulate sum_range and valid_count
+  #pragma omp parallel for reduction(+:sum_range,valid_count) schedule(dynamic, 10) num_threads(daicp_num_thread)
   for (int i = 0; i < n_points; ++i) {
     const auto& ind = sample_inds[i];
     
@@ -552,6 +557,9 @@ inline void computeJacobianResidualInformation(
     // Compute covariance for this measurement
     const Eigen::Matrix3d Sigma_pL_i = computeRangeBearingCovariance(range, azimuth, elevation, Sigma_du);
     
+    // accumulate range for ell_mr
+    if (std::isfinite(range)) { sum_range += range; valid_count += 1; }
+
     // ===== 3. Compute Information Weight for this point =====
     // Compute Jacobians following the Python implementation
     // J_theta = -n_t^T @ skew_symmetric(source_pt_transformed)
@@ -568,12 +576,11 @@ inline void computeJacobianResidualInformation(
     // J_p = n_t^T (1x3)
     const Eigen::RowVector3d J_p = n_t.transpose();
     
-
-    CLOG(DEBUG, "lidar.localization_daicp") << " ================ n_t: [" << n_t.transpose() << "] ================ ";
-    CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_pose: [" << J_pose << "] ================ ";
-    CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_p: [" << J_p << "] ================ ";
-    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_pL_i: " << Sigma_pL_i.diagonal().transpose() << " ================ ";
-    CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_x: " << Sigma_x.diagonal().transpose() << " ================ ";
+    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ n_t: [" << n_t.transpose() << "] ================ ";
+    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_pose: [" << J_pose << "] ================ ";
+    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_p: [" << J_p << "] ================ ";
+    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_pL_i: " << Sigma_pL_i.diagonal().transpose() << " ================ ";
+    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_x: " << Sigma_x.diagonal().transpose() << " ================ ";
 
     // cov_r = J_pose @ Sigma_x @ J_pose^T + J_p @ Sigma_pL_i @ J_p^T
     const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0) + 
@@ -590,6 +597,10 @@ inline void computeJacobianResidualInformation(
       W_inv(i, i) = 1.0 / cov_r;
     }
   }
+
+    // mean range -> scaling parameter
+  const double mean_range = (valid_count > 0) ? (sum_range / valid_count) : 0.0;
+  ell_mr = mean_range;  // simplest: 1 rad ~ ell_mr meters
 }
 
 // =================== DA-ICP with Block Scaling ===================
@@ -635,8 +646,10 @@ inline bool daGaussNewtonScaleP2Plane(
     // ---- Jacobian, residual, Sigma_pL_s, and information matrix 
     Eigen::MatrixXd A, W_inv;
     Eigen::VectorXd b;
+    double ell_mr = 0.0;  // scaling factor using mean point range \bar{r}
+
     computeJacobianResidualInformation(sample_inds, query_mat, map_mat, map_normals_mat,
-                                              T_combined, T_ms_prior, Sigma_x, A, b, W_inv);
+                                       T_combined, T_ms_prior, Sigma_x, A, b, W_inv, ell_mr);
 
     // --------- [DEBUG]: disable weighting
     // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());  // DEBUG: set to identity to disable weighting
@@ -683,11 +696,16 @@ inline bool daGaussNewtonScaleP2Plane(
     
     // Compute scaling factor
     double ell = computeScalingFactorMax(H_marg_theta, H_marg_t);
+
     CLOG(DEBUG, "lidar.localization_daicp") << "-------------- Scaling factor ell: " << ell << " --------------";
+    CLOG(DEBUG, "lidar.localization_daicp") << "-------------- Scaling factor ell_mr: " << ell_mr << " --------------";
     
+    // --- [DEBUG]
+    // ell_mr = 1.0;  // Disable scaling for debugging
+
     // Construct inverse block scaling matrix: D_inv
     Eigen::MatrixXd D_inv = Eigen::MatrixXd::Identity(6, 6);
-    D_inv.block<3, 3>(0, 0) *= (1.0 / ell);  // rotation scaling
+    D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead. 
     // translation scaling remains 1.0
     
     // Scale the jacobian
