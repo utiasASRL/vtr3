@@ -300,7 +300,7 @@ inline double computeThresholdVLG(const Eigen::VectorXd& eigenvalues) {
   double decode_threshold = std::exp(eigenvalue_threshold);
 
   // DEBUG: magic number
-  // decode_threshold = 15.0;
+  decode_threshold = 350.0;
   
   CLOG(DEBUG, "lidar.localization_daicp") << "Log Threshold: " << eigenvalue_threshold;
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << decode_threshold;
@@ -480,9 +480,16 @@ inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& H, const Ei
     // With degenerate directions
     // [TODO] this will lead to very large values in degenerate directions
     // Consider to use the prior covariance in degenerated directions.
-    const double epsilon = 1e-2;  // regularization term for degenerate directions
-    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() + 
-               (1.0/epsilon) * (Vd * Vd.transpose());
+    const double epsilon_t = 1e-2;     // regularization term for degenerate directions for translation
+    const double epsilon_theta = 1e-1; // regularization term for degenerate directions for rotation
+
+    // Create diagonal regularization matrix directly
+    Eigen::MatrixXd epsilon_mat = Eigen::MatrixXd::Zero(6, 6);
+    epsilon_mat.diagonal() << 1.0 / epsilon_theta, 1.0 / epsilon_theta, 1.0 / epsilon_theta,
+                              1.0 / epsilon_t, 1.0 / epsilon_t, 1.0 / epsilon_t;
+
+    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
+               (Vd * epsilon_mat * Vd.transpose());
   }
   
   return daicpCov;
