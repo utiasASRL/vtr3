@@ -210,6 +210,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         CurvKDTreeType curv_kdtree(4, curv_adapter, tree_params);
         curv_kdtree.buildIndex();
 
+        /// to do: check if this is the best way to do this, can definitely improve
+        /// to do: fix issue resulting in 0 pairs found using distance thresholding
         // compute dynamic curvature scaling
         Eigen::Vector3f mean_xyz = Eigen::Vector3f::Zero();
         float mean_curv = 0.0f;
