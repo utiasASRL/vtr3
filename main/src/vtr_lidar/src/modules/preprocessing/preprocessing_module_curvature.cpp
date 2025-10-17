@@ -148,13 +148,14 @@ void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithIn
       (*cloud)[i].curvature = std::numeric_limits<float>::quiet_NaN();
       continue;
     }
-    (*cloud)[i].getNormalVector3fMap() = 
-        eig.eigenvectors().col(0).dot(p) > 0
-            ? -Eigen::Vector3f(eig.eigenvectors().col(0))
-            : Eigen::Vector3f(eig.eigenvectors().col(0));
-    (*cloud)[i].normal_score = 1.0f - eig.eigenvalues()(0) / (eig.eigenvalues()(2) + 1e-9f);
 
-    Eigen::Vector3f normal = (*cloud)[i].getNormalVector3fMap().normalized();
+    Eigen::Vector3f normal = eig.eigenvectors().col(0);
+    if (normal.dot(p) > 0) {
+        normal = -normal;
+    }
+    normal.normalize();
+    (*cloud)[i].getNormalVector3fMap() = normal;
+    (*cloud)[i].normal_score = 1.0f - eig.eigenvalues()(0) / (eig.eigenvalues()(2) + 1e-9f);
 
     // early planar skip
     float lambda0 = eig.eigenvalues()(0), lambda1 = eig.eigenvalues()(1);
