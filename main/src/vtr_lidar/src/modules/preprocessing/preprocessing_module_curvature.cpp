@@ -40,15 +40,16 @@ auto PreprocessingCurvatureModule::Config::fromROS(const rclcpp::Node::SharedPtr
 
   config->crop_range = node->declare_parameter<float>(param_prefix + ".crop_range", config->crop_range);
   config->num_sample = node->declare_parameter<int>(param_prefix + ".num_sample", config->num_sample);
+  config->k_neighbors = node->declare_parameter<int>(param_prefix + ".k_neighbors", config->k_neighbors);
+
+  config->downsample_teach_map = node->declare_parameter<bool>(param_prefix + ".downsample_teach_map", config->downsample_teach_map);
   config->plane_voxel_size = node->declare_parameter<float>(param_prefix + ".plane_voxel_size", config->plane_voxel_size);
   config->feature_voxel_size = node->declare_parameter<float>(param_prefix + ".feature_voxel_size", config->feature_voxel_size);
 
   config->t = node->declare_parameter<float>(param_prefix + ".t", config->t);
   config->d_prime = node->declare_parameter<float>(param_prefix + ".d_prime", config->d_prime);
   config->ground_plane_threshold = node->declare_parameter<float>(param_prefix + ".ground_plane_threshold", config->ground_plane_threshold);
-
   config->min_points_threshold = node->declare_parameter<int>(param_prefix + ".min_points_threshold", config->min_points_threshold);
-  config->k_neighbors = node->declare_parameter<int>(param_prefix + ".k_neighbors", config->k_neighbors);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -518,33 +519,53 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
   std::set<int> unique_labels(labels.begin(), labels.end());
   unique_labels.erase(-1); // Remove invalid label if present
 
-  // downsample each cluster based on its mean curvature
+  bool is_repeating = false;
+  const auto &pipeline_mode = *qdata.pipeline_mode;
+  if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow) {
+    is_repeating = true;
+  }
+  CLOG(DEBUG, "lidar.preprocessing_curvature")
+      << "is repeating: " << (is_repeating ? "true" : "false")
+      << ", config_->downsample_teach_map: " << (config_->downsample_teach_map ? "true" : "false");
+
   auto final_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>();
-  for (auto label : unique_labels) {
-    std::vector<int> cluster_indices;
-    for (size_t i = 0; i < labels.size(); ++i)
-      if (labels[i] == label) cluster_indices.push_back(static_cast<int>(i));
-
-    if (cluster_indices.empty()) continue;
-
-    pcl::PointCloud<PointWithInfo>::Ptr cluster_cloud(new pcl::PointCloud<PointWithInfo>);
-    pcl::copyPointCloud(*filtered_point_cloud, cluster_indices, *cluster_cloud);
-
-    double mean_curvature = 0.0;
-    for (const auto& pt : *cluster_cloud)
-      mean_curvature += pt.curvature;
-    mean_curvature /= static_cast<double>(cluster_cloud->size());
-
+  if (is_repeating || config_->downsample_teach_map) {
+    // If repeating or downsample_teach_map is true, use different voxel sizes for planar vs feature-rich clusters
     CLOG(DEBUG, "lidar.preprocessing_curvature")
-        << "cluster " << label << " size: " << cluster_cloud->size()
-        << ", mean curvature: " << mean_curvature;
+        << "Downsampling each cluster separately using plane_voxel_size: " << config_->plane_voxel_size
+        << " and feature_voxel_size: " << config_->feature_voxel_size;
+    for (auto label : unique_labels) {
+      std::vector<int> cluster_indices;
+      for (size_t i = 0; i < labels.size(); ++i)
+        if (labels[i] == label) cluster_indices.push_back(static_cast<int>(i));
 
-    float voxel_size = (std::abs(mean_curvature) < config_->ground_plane_threshold) 
-                                                    ? config_->plane_voxel_size
-                                                    : config_->feature_voxel_size;
+      if (cluster_indices.empty()) continue;
 
-    voxelDownsample(*cluster_cloud, voxel_size);
-    *final_cloud += *cluster_cloud;
+      pcl::PointCloud<PointWithInfo>::Ptr cluster_cloud(new pcl::PointCloud<PointWithInfo>);
+      pcl::copyPointCloud(*filtered_point_cloud, cluster_indices, *cluster_cloud);
+
+      double mean_curvature = 0.0;
+      for (const auto& pt : *cluster_cloud)
+        mean_curvature += pt.curvature;
+      mean_curvature /= static_cast<double>(cluster_cloud->size());
+
+      CLOG(DEBUG, "lidar.preprocessing_curvature")
+          << "cluster " << label << " size: " << cluster_cloud->size()
+          << ", mean curvature: " << mean_curvature;
+
+      float voxel_size = (std::abs(mean_curvature) < config_->ground_plane_threshold) 
+                                                      ? config_->plane_voxel_size
+                                                      : config_->feature_voxel_size;
+
+      voxelDownsample(*cluster_cloud, voxel_size);
+      *final_cloud += *cluster_cloud;
+    }
+  } else {
+    // If mapping, downsample whole cloud using feature_voxel_size
+    CLOG(DEBUG, "lidar.preprocessing_curvature")
+        << "Are you building the map? Downsampling whole point cloud using feature_voxel_size: " << config_->feature_voxel_size;
+    voxelDownsample(*filtered_point_cloud, config_->feature_voxel_size);
+    final_cloud = filtered_point_cloud;
   }
   timer[4]->stop();
 
