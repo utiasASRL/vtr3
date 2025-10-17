@@ -1,0 +1,36 @@
+## Offline Lidar VTR3
+session_name: vtr_offline_convoy
+
+
+
+start_directory: ${VTRTEMP}
+suppress_history: false
+
+windows:
+  - window_name: leader_navigation_system
+    layout: main-vertical
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - >
+        ROBOT_NAME=mr_green ros2 launch vtr_navigation vtr.launch.py
+        base_params:=ouster_hunter_default.yaml
+        start_new_graph:=false
+        use_sim_time:=false
+        planner:="dynamic_path_planner"
+        model_dir:=${VTRROOT}/models
+      - >
+        ROBOT_NAME=prof_plum ros2 launch vtr_navigation vtr.launch.py
+        base_params:=ouster_hunter_default.yaml
+        start_new_graph:=false
+        use_sim_time:=false
+        planner:="dynamic_path_planner"
+        model_dir:=${VTRROOT}/models
+  
+  - window_name: convoy_manager
+    layout: main-horizontal
+    shell_command_before:
+      - source $VTRSRC/main/install/setup.bash
+    panes:
+      - >
+        ros2 launch vtr_multi_robot convoy_route_planner.launch.py base_params:=ouster_hunter_default.yaml robots:='[mr_green, prof_plum]'

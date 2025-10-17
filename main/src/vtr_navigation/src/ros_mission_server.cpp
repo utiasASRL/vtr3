@@ -47,8 +47,7 @@ void ROSMissionServer::serverStateSrvCallback(
 void ROSMissionServer::handleCommand(
     const MissionCommandMsg::SharedPtr command) {
   mission_planning::Command tmp;
-  auto uuid = boost::uuids::random_generator()();
-
+  CLOG(INFO, "mission.server") << "Got Mission Command with type " <<  static_cast<int>(command->type);
   switch (command->type) {
     case MissionCommandMsg::PAUSE:
       setPause(command->pause);
@@ -56,14 +55,21 @@ void ROSMissionServer::handleCommand(
     case MissionCommandMsg::ADD_GOAL: {
       auto& gh = command->goal_handle;
       // generate a new uuid for this goal
+      auto uuid = boost::uuids::random_generator()();
       std::copy(uuid.begin(), uuid.end(), gh.id.begin());
-      CLOG(INFO, "mission.server") << "Adding goal with id: " << uuid;
+      CLOG(INFO, "mission.server") << "Adding goal with id: " << uuid << " and type " << static_cast<int>(gh.type);
       // sanity check
       if (gh.type == GoalHandle::REPEAT && gh.waypoints.size() == 0) {
         CLOG(WARNING, "mission.server") << "Issued a REPEAT Target without "
                                            "specifying a path - goal ignored";
         return;
       }
+
+      if (gh.type == GoalHandle::SELECT_CONTROLLER && gh.controller_name == "") {
+        CLOG(WARNING, "mission.server") << "Trying to change controllers without specifying the new type - goal ignored";
+        return;
+      }
+
       addGoal(gh);
       return;
     }
@@ -98,20 +104,6 @@ void ROSMissionServer::handleCommand(
     case MissionCommandMsg::FORCE_ADD_VERTEX:
       tmp.target = mission_planning::CommandTarget::ForceAddVertex;
       processCommand(tmp);
-      return;
-    case MissionCommandMsg::SELECT_CONTROLLER:{
-        tmp.target = mission_planning::CommandTarget::SelectController;
-        tmp.controller_name = command->controller_name;
-        GoalHandle gh;
-        gh.type = GoalHandle::IDLE;
-        // generate a new uuid for this goal
-        std::copy(uuid.begin(), uuid.end(), gh.id.begin());
-        CLOG(INFO, "mission.server") << "Adding goal with id: " << uuid;
-        
-        addGoal(gh);
-        beginGoals();
-        processCommand(tmp);
-      }
       return;
     default:
       return;

@@ -3,11 +3,15 @@
 <package format="3">
   <name>vtr_multi_robot</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Nodes for managing a convoy</description>
   <maintainer email="l.antonyshyn@hotmail.com">asrl</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>vtr_navigation_msgs/</depend>
+  <depend>vtr_tactic</depend>
+  <depend>vtr_route_planning</depend>
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
@@ -15,6 +19,6 @@
   <test_depend>python3-pytest</test_depend>
 
   <export>
-    <build_type>ament_python</build_type>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

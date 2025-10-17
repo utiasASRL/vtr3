@@ -47,6 +47,7 @@ enum class GoalTarget : int8_t {
   Teach = 1,
   Repeat = 2,
   Localize = 3,
+  SelectController = 4,
 };
 std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target);
 
@@ -57,7 +58,6 @@ enum class CommandTarget : int8_t {
   ConfirmMerge = 2,
   ContinueTeach = 3,
   ForceAddVertex = 4,
-  SelectController = 5,
 };
 
 struct Command {
@@ -65,7 +65,6 @@ struct Command {
   CommandTarget target;
   VertexId vertex;
   std::vector<VertexId> path;
-  std::string controller_name;
 };
 
 /** \brief Template specialization to standardize the goal interface */
@@ -85,6 +84,7 @@ class GoalInterface {
   static std::list<tactic::VertexId> path(const GoalHandle& gh) { return gh.path; }
   static std::chrono::milliseconds pause_before(const GoalHandle& gh) { return gh.pause_before; }
   static std::chrono::milliseconds pause_after(const GoalHandle& gh) { return gh.pause_after; }
+  static std::string controller_name(const GoalHandle& gh) { return gh.controller_name;  }
   // clang-format on
 };
 
@@ -355,10 +355,6 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
       state_machine->handle(std::make_shared<Event>(Action::ForceAddVertex));
       return;
     }
-    case CommandTarget::SelectController: {
-      state_machine->handle(Event::SwitchController(command.controller_name));
-      return;
-    }
     default:
       CLOG(ERROR, "mission.server") << "Unknown command encountered.";
       throw std::runtime_error("Unknown command encountered.");
@@ -458,6 +454,10 @@ void MissionServer<GoalHandle>::startGoal() {
       }
       case GoalTarget::Localize: {
         state_machine->handle(Event::StartLocalize());
+        break;
+      }
+      case GoalTarget::SelectController: {
+        state_machine->handle(Event::SwitchController(GoalInterface<GoalHandle>::controller_name(current_goal)));
         break;
       }
       default:
