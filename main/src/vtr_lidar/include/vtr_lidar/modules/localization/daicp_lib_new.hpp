@@ -616,8 +616,9 @@ inline bool daGaussNewtonScaleP2Plane(
     const Eigen::MatrixXd& T_ms_prior,
     const Eigen::MatrixXd& Sigma_x,
     int max_gn_iter,
-    double inner_tolerance) {
-  
+    double inner_tolerance,
+    Eigen::MatrixXd& daicp_cov) {
+
   if (sample_inds.size() < 6) {
     CLOG(WARNING, "lidar.localization_daicp") << "Insufficient correspondences for Gauss-Newton";
     return false;
@@ -739,7 +740,7 @@ inline bool daGaussNewtonScaleP2Plane(
     
     // Unscale the parameters and covariance
     Eigen::VectorXd delta_params = D_inv * delta_params_scaled;
-    Eigen::MatrixXd daicp_cov = D_inv * daicp_cov_scaled * D_inv.transpose();
+    daicp_cov = D_inv * daicp_cov_scaled * D_inv.transpose();
     // --- Print covariance information
     printCovarianceInfo(daicp_cov);
     

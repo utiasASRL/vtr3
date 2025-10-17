@@ -473,6 +473,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     Pm.indices() << 3, 4, 5, 0, 1, 2;
     // Apply permutation to have covariance in order [roll, pitch, yaw, x, y, z]
     Eigen::Matrix<double, 6, 6> T_reordered = Pm * T_m_s_cov * Pm.transpose();
+  
+    // Initialize output covariance matrix
+    Eigen::MatrixXd daicp_cov = Eigen::MatrixXd::Zero(6, 6);
 
     // new version in daicp_lib_new.hpp
     bool optimization_success = daicp_lib_new::daGaussNewtonScaleP2Plane(filtered_sample_inds,
@@ -481,9 +484,10 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                                                          map_normals_mat,
                                                                          T_m_s_var,    // SE3StateVar, param to optimize
                                                                          T_m_s_prior,  // transformation from lidar to map
-                                                                         T_reordered,    // covariance of the above transformation
+                                                                         T_reordered,  // covariance of the above transformation
                                                                          max_gn_iter,
-                                                                         inner_tolerance);
+                                                                         inner_tolerance,
+                                                                         daicp_cov);
     /// ########################################################################### ///
 
     if (!optimization_success) {
@@ -504,13 +508,14 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // shared loss function
     auto loss_func_icp = L2LossFunc::MakeShared();
 
-    // [TODO] replace the T_m_s_cov_dummy with the actual covariance from the da_icp optimization
-    Eigen::Matrix<double, 6, 6> T_m_s_cov_dummy = Eigen::Matrix<double, 6, 6>::Identity()*0.01;
-    auto noise_model = StaticNoiseModel<6>::MakeShared(T_m_s_cov_dummy);
+    // convert the covariance back to [x,y,z,roll,pitch,yaw] order
+    daicp_cov = Pm.transpose() * daicp_cov * Pm;
+
     // Use the optimized T_m_s from DA-ICP as the measurement
     const auto T_m_s_optimized = T_m_s_var->value();
     auto T_m_s_icp = SE3StateVar::MakeShared(T_m_s_optimized); 
     T_m_s_icp->locked() = true;
+    auto noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);
     auto error_func = tran2vec(compose(T_m_s_icp, inverse(T_m_s_eval)));
     auto daicp_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func_icp);
     problem.addCostTerm(daicp_cost_term);
