@@ -42,7 +42,7 @@ namespace storage {
 
 StorageAccessor::~StorageAccessor() { close(); }
 
-void StorageAccessor::open(const std::string& uri) {
+void StorageAccessor::open(const std::string& uri, const bool read_only) {
   std::lock_guard<std::mutex> storage_lock(storage_mutex_);
 
   if (storage_ != nullptr && base_folder_ != uri)
@@ -64,7 +64,7 @@ void StorageAccessor::open(const std::string& uri) {
       fs::path(uri + "/").parent_path().filename().string() + "_0.db3";
 
   storage_ = std::make_unique<sqlite::SqliteStorage>();
-  storage_->open(base_folder_ + "/" + relative_file_path, IOFlag::READ_WRITE);
+  storage_->open(base_folder_ + "/" + relative_file_path, (read_only) ? IOFlag::READ_ONLY : IOFlag::READ_WRITE);
 
   if (!metadata_io_->metadata_file_exists(uri)) return;
 
