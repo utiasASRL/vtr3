@@ -112,6 +112,24 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   /// Create and add the T_robot_map variable, here m = vertex frame.
   const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
 
+  /// ======================= [OPTIMIZATION] use odometry as a prior
+  WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
+  if (*qdata.odo_success && output.chain->isLocalized()) {
+    auto loss_func = L2LossFunc::MakeShared();
+    auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
+    auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
+    auto error_func = tran2vec(compose(T_r_v_meas, inverse(T_r_v_var)));
+    prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func);
+  }
+  
+  /// compound transform for alignment (sensor to point map transform)
+  const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
+  /// ========================================================  
+
+  /// Create T_m_s_var for direct point cloud alignment optimization
+  const auto initial_T_m_s = T_m_s_eval->evaluate();
+  auto T_m_s_var = SE3StateVar::MakeShared(initial_T_m_s);
+
   // temporary!!! return odometry estimate as localization result directly
   if (config_->use_odo) {
     const auto T_r_v_prior = T_r_v_var->value();
@@ -119,13 +137,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     *qdata.loc_success = true;
     return;
   }
-
-  /// compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
-
-  /// Create T_m_s_var for direct point cloud alignment optimization
-  const auto initial_T_m_s = T_m_s_eval->evaluate();
-  auto T_m_s_var = SE3StateVar::MakeShared(initial_T_m_s);
 
   /// Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
@@ -185,7 +196,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   int refinement_step = 0;
 
   CLOG(DEBUG, "lidar.localization_daicp") << "Start the Degeneracy-Aware ICP optimization loop.";
-  // outer loop
+  // daicp outer loop
   for (int step = 0;; step++) {
     // index of the corresponding points
     timer[0]->start();
@@ -397,7 +408,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
     /// ########################### Gauss-Newton solver ########################### ///
-    int max_gn_iter = 30;
+    int max_gn_iter = 10;
     double inner_tolerance = 1e-6;
 
     // // old version in daicp_lib.hpp
@@ -420,16 +431,16 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     // [debugging here]
     // NOTE: T_m_s_cov is for [x, y, z, roll, pitch, yaw]
-    Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
+    // Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
     
-    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_s_r.cov(): \n" << T_s_r.cov().diagonal().transpose();
-    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_r_v.cov(): \n" << T_r_v.cov().diagonal().transpose();
-    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_v_m.cov(): \n" << T_v_m.cov().diagonal().transpose();
-    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_m_s_cov diagonal: [" << T_m_s_cov.diagonal().transpose() << "]";
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_s_r.cov(): " << T_s_r.cov().diagonal().transpose();
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_v_m.cov(): " << T_v_m.cov().diagonal().transpose();
+    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_m_s_cov diagonal: [" << T_m_s_cov.diagonal().transpose() << "]";
 
     // --------- [DEBUG]: set a fixed covariance
-    // Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
-    // T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.01*0.01, 0.01*0.01, 0.01*0.01;
+    Eigen::MatrixXd T_m_s_cov = Eigen::MatrixXd::Identity(6, 6);  // covariance for lidar pose
+    T_m_s_cov.diagonal() << 0.05*0.05, 0.05*0.05, 0.05*0.05, 0.01*0.01, 0.01*0.01, 0.01*0.01;
 
     // Define permutation: new order = [3,4,5,0,1,2]
     Eigen::PermutationMatrix<6> Pm;
@@ -456,15 +467,59 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     timer[3]->stop();
 
-    /// Alignment, update aligned_mat and aligned_norms_mat
+    /// ======================= [OPTIMIZATION] =======================
+    // initialize problem
+    OptimizationProblem problem(config_->num_threads);
+    // add variables
+    problem.addStateVariable(T_r_v_var);
+    if (prior_cost_term) {  // null check
+      problem.addCostTerm(prior_cost_term);  // add prior cost term
+    }
+    // shared loss function
+    auto loss_func_icp = L2LossFunc::MakeShared();
+
+    // [TODO] replace the T_m_s_cov_dummy with the actual covariance from the da_icp optimization
+    Eigen::Matrix<double, 6, 6> T_m_s_cov_dummy = Eigen::Matrix<double, 6, 6>::Identity()*0.01;
+    auto noise_model = StaticNoiseModel<6>::MakeShared(T_m_s_cov_dummy);
+    // Use the optimized T_m_s from DA-ICP as the measurement
+    const auto T_m_s_optimized = T_m_s_var->value();
+    auto T_m_s_icp = SE3StateVar::MakeShared(T_m_s_optimized); 
+    T_m_s_icp->locked() = true;
+    auto error_func = tran2vec(compose(T_m_s_icp, inverse(T_m_s_eval)));
+    auto daicp_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func_icp);
+    problem.addCostTerm(daicp_cost_term);
+
+    // optimize
+    GaussNewtonSolver::Params params;
+    params.verbose = config_->verbose;
+    params.max_iterations = (unsigned int)config_->max_iterations;
+    GaussNewtonSolver solver(problem, params);
+
+    Covariance covariance(solver);
+
+    try{
+      solver.optimize();
+    } catch (std::runtime_error& e) {
+      CLOG(WARNING, "lidar.localization_icp") <<  "Steam failed.\n e.what(): " << e.what();
+      break;
+    }
+
+    /// ======================= [OPTIMIZATION END] =======================
+
+
+    //[NOTE] Since we applied the same STEAM optimization as in ICP module, 
+    // the rest of the code will follow the same structure of localization_icp_module.cpp
+
+    /// Alignment
     timer[4]->start();
     {
-      const auto T_m_s = T_m_s_var->value().matrix().cast<float>();
+      const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
       aligned_mat = T_m_s * query_mat;
       aligned_norms_mat = T_m_s * query_norms_mat;
     }
-    /// save the transformation results
-    const auto T_m_s = T_m_s_var->value().matrix();
+
+    // Update all result matrices
+    const auto T_m_s = T_m_s_eval->evaluate().matrix();
     if (step == 0)
       all_tfs = Eigen::MatrixXd(T_m_s);
     else {
@@ -474,6 +529,26 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       all_tfs = temp;
     }
     timer[4]->stop();
+
+
+    // [original] /// Alignment, update aligned_mat and aligned_norms_mat
+    // timer[4]->start();
+    // {
+    //   const auto T_m_s = T_m_s_var->value().matrix().cast<float>();
+    //   aligned_mat = T_m_s * query_mat;
+    //   aligned_norms_mat = T_m_s * query_norms_mat;
+    // }
+    // /// save the transformation results
+    // const auto T_m_s = T_m_s_var->value().matrix();
+    // if (step == 0)
+    //   all_tfs = Eigen::MatrixXd(T_m_s);
+    // else {
+    //   Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
+    //   temp.topRows(all_tfs.rows()) = all_tfs;
+    //   temp.bottomRows(4) = Eigen::MatrixXd(T_m_s);
+    //   all_tfs = temp;
+    // }
+    // timer[4]->stop();
 
     /// Check convergence
     timer[5]->start();
@@ -521,15 +596,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      // Decode T_r_v from optimized T_m_s_var
-      // T_m_s = T_m_v * T_v_r * T_r_s, so T_r_v = T_r_s * T_s_m * T_m_v
-      const auto T_m_s_optimized = T_m_s_var->value();
-      const auto T_s_m_optimized = T_m_s_optimized.inverse();
-      const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
-      
+
       // -------- Check difference between prior and computed T_r_v
-      const auto T_r_v_prior = T_r_v_var->value();
-      const auto T_diff = T_r_v_decoded * T_r_v_prior.inverse();
+      const auto T_r_v_result = T_r_v_var->value();  // final optimized result from steam
+      const auto T_r_v_prior = T_r_v;                // odometry prior
+      const auto T_diff = T_r_v_result * T_r_v_prior.inverse();
       const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
       const double translation_diff = T_diff_vec.head<3>().norm();
       const double rotation_diff = T_diff_vec.tail<3>().norm();
@@ -549,10 +620,10 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         // Create T_r_v_icp with dummy covariance
         // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
         // dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
-        T_r_v_icp = EdgeTransform(T_r_v_decoded, config_->covariance);
+
+        T_r_v_icp = EdgeTransform(T_r_v_var->value(), covariance.query(T_r_v_var));
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       }
-
       //
       CLOG(DEBUG, "lidar.localization_daicp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
@@ -565,7 +636,63 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       break;
     }
     timer[6]->stop();
-  }
+
+
+    // [original] /// Last step
+    // timer[6]->start();
+    // if ((refinement_stage && step >= max_it - 1) ||
+    //     (refinement_step > config_->averaging_num_steps &&
+    //      mean_dT < config_->trans_diff_thresh &&
+    //      mean_dR < config_->rot_diff_thresh)) {
+    //   // Decode T_r_v from optimized T_m_s_var
+    //   // T_m_s = T_m_v * T_v_r * T_r_s, so T_r_v = T_r_s * T_s_m * T_m_v
+    //   const auto T_m_s_optimized = T_m_s_var->value();
+    //   const auto T_s_m_optimized = T_m_s_optimized.inverse();
+    //   const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
+      
+    //   // -------- Check difference between prior and computed T_r_v
+    //   const auto T_r_v_prior = T_r_v_var->value();
+    //   const auto T_diff = T_r_v_decoded * T_r_v_prior.inverse();
+    //   const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
+    //   const double translation_diff = T_diff_vec.head<3>().norm();
+    //   const double rotation_diff = T_diff_vec.tail<3>().norm();
+
+    //   // OUTLIER REJECTION: larger than 0.2m or 0.1rad (5.7deg)
+    //   if (translation_diff > config_->outlier_trans_thresh || rotation_diff > config_->outlier_rot_thresh) {
+    //     CLOG(WARNING, "lidar.localization_daicp") << "Significant difference detected in T_r_v, fall back to odometry:";
+    //     CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
+    //     CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
+    //     CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
+    //                                             << (rotation_diff * 180.0 / M_PI) << " deg)";
+
+    //     // fallback to using prior
+    //     T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+    //     matched_points_ratio = 1.0f;  // dummy value to indicate success
+    //   } else {
+    //     // Create T_r_v_icp with dummy covariance
+    //     // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
+    //     // dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
+    //     T_r_v_icp = EdgeTransform(T_r_v_decoded, config_->covariance);
+    //     matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+    //   }
+
+    //   //
+    //   CLOG(DEBUG, "lidar.localization_daicp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
+    //   if (mean_dT >= config_->trans_diff_thresh ||
+    //       mean_dR >= config_->rot_diff_thresh) {
+    //     CLOG(WARNING, "lidar.localization_daicp") << "DA-ICP did not converge to the specified threshold.";
+    //     if (!refinement_stage) {
+    //       CLOG(WARNING, "lidar.localization_daicp") << "DA-ICP did not enter refinement stage at all.";
+    //     }
+    //   }
+    //   break;
+    // }
+    // timer[6]->stop();
+
+
+  }  // daicp outer loop, end
+
+
 
   /// Dump timing info
   CLOG(DEBUG, "lidar.localization_daicp") << "Dump timing info inside loop: ";
