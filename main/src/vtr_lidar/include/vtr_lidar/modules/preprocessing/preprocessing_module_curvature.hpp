@@ -43,15 +43,16 @@ class PreprocessingCurvatureModule : public tactic::BaseModule {
 
     float crop_range = 10.0;
     int num_sample = 10000;
+    int k_neighbors = 30;
+
+    bool downsample_teach_map = false;
     float plane_voxel_size = 1.0;
     float feature_voxel_size = 0.3;
     
     float t = 4.0;
     float d_prime = 2.0;
     float ground_plane_threshold = 0.8;
-
     int min_points_threshold = 0;
-    int k_neighbors = 30;
 
     bool visualize = false;
 
