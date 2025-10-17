@@ -679,7 +679,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   /// Dump timing info
   CLOG(DEBUG, "lidar.odometry_doppler") << "Dump timing info inside loop: ";
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.odometry_doppler") << "  " << clock_str[i] << timer[i]->count() / 1e6;
+    CLOG(DEBUG, "lidar.odometry_doppler") << "  " << clock_str[i] << timer[i]->count();
   }
   // clang-format on
 }
