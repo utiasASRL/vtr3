@@ -580,6 +580,7 @@ inline void computeJacobianResidualInformation(
     // J_p = n_t^T (1x3)
     const Eigen::RowVector3d J_p = n_t.transpose();
     
+
     // CLOG(DEBUG, "lidar.localization_daicp") << " ================ n_t: [" << n_t.transpose() << "] ================ ";
     // CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_pose: [" << J_pose << "] ================ ";
     // CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_p: [" << J_p << "] ================ ";

@@ -210,6 +210,35 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         CurvKDTreeType curv_kdtree(4, curv_adapter, tree_params);
         curv_kdtree.buildIndex();
 
+        // compute dynamic curvature scaling
+        Eigen::Vector3f mean_xyz = Eigen::Vector3f::Zero();
+        float mean_curv = 0.0f;
+
+        for (const auto &p : point_map) {
+          mean_xyz += Eigen::Vector3f(p.x, p.y, p.z);
+          mean_curv += p.curvature;
+        }
+        mean_xyz /= point_map.size();
+        mean_curv /= point_map.size();
+
+        // Variances
+        float var_xyz = 0.0f;
+        float var_curv = 0.0f;
+        for (const auto &p : point_map) {
+          Eigen::Vector3f diff = Eigen::Vector3f(p.x, p.y, p.z) - mean_xyz;
+          var_xyz += diff.squaredNorm();
+          float dc = p.curvature - mean_curv;
+          var_curv += dc * dc;
+        }
+        var_xyz /= point_map.size();
+        var_curv /= point_map.size();
+
+        // if curvature has small variance, scale it up so it contributes similarly
+        float curvature_scale = std::sqrt(var_xyz / (var_curv + 1e-9f));
+
+        CLOG(INFO, "lidar.localization_daicp")
+            << "Dynamic curvature scaling: " << curvature_scale;
+
         timer[1]->start();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
         for (size_t i = 0; i < sample_inds.size(); ++i) {
@@ -217,7 +246,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
             aligned_points[sample_inds[i].first].x,
             aligned_points[sample_inds[i].first].y,
             aligned_points[sample_inds[i].first].z,
-            aligned_points[sample_inds[i].first].curvature
+            curvature_scale * aligned_points[sample_inds[i].first].curvature
           };
 
           size_t nearest_idx = static_cast<size_t>(-1);

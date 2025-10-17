@@ -181,7 +181,7 @@
 
         crop_range: 60.0      #15.0            # range cropping in meters
         num_sample: 10000           # max number of points after range cropping
-        plane_voxel_size: 1.0       # voxel size for plane
+        plane_voxel_size: 0.3       # voxel size for plane
         feature_voxel_size: 0.3     # voxel size for feature
         k_neighbors: 30             # number of neighbors to compute curvature (keep <50)
 
@@ -329,18 +329,18 @@
         min_matched_ratio: 0.45
         target_loc_time: 100.0
 
-        use_odo: false # temporary! if true, return odometry as localization result directly
+        use_odo: false                    # temporary! if true, return odometry as localization result directly
         
         eigenvalue_threshold: 5000.0
-        outlier_trans_thresh: 0.3 # 0.2 m
-        outlier_rot_thresh: 0.1   # 0.1 rad
+        outlier_trans_thresh: 0.3         # 0.2 m
+        outlier_rot_thresh: 0.1           # 0.1 rad
 
         covariance: [0.01, 0.01, 0.01, 1e-3, 1e-3, 1e-3]
 
         calc_gy_bias: false
-        calc_gy_bias_thresh: 10.0 # [s]
-        correspondence_method: 2 # 0: 4D KDTree w/ curvature, 1: KDTree on clusters, 2: normal KDTree (spatial only)
-        curvature_similarity_thresh: 0.5 # threshold on curvature difference for correspondence rejection
+        calc_gy_bias_thresh: 10.0         # [s]
+        correspondence_method: 0          # 0: 4D KDTree w/ curvature, 1: KDTree on clusters, 2: normal KDTree (spatial only)
+        curvature_similarity_thresh: 0.5  # threshold on curvature difference for correspondence rejection
 
       safe_corridor:
         type: lidar.safe_corridor

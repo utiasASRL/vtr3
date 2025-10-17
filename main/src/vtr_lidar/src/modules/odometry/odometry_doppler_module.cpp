@@ -136,7 +136,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.undistorted_point_cloud = undistorted_point_cloud;
     //
     qdata.timestamp_odo.emplace(*qdata.stamp);
-    qdata.T_r_m_odo.emplace(EdgeTransform(identityMatrix, Eigen::Matrix<double, 6, 6>::Identity()));
+    qdata.T_r_m_odo.emplace(identityMatrix, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
     qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     // Initialize prior values
     qdata.T_r_m_odo_prior.emplace(lgmath::se3::Transformation());
@@ -576,6 +576,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   cov_T_k = P_int;                           
 
   CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_eval: " << T_temp.matrix();
+  CLOG(DEBUG, "lidar.odometry_doppler") << "P_query: \n" << P_query;
+  CLOG(DEBUG, "lidar.odometry_doppler") << "cov_T_k: \n" << cov_T_k;
   CLOG(DEBUG, "lidar.odometry_doppler") << "w_m_r_in_r_eval: " << w_temp.transpose();
 
   const auto T_r_m_eval = SE3StateVar::MakeShared(T_temp);
@@ -644,7 +646,9 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
     EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, P_query);
 
-    *qdata.T_r_v_odo = T_r_m_dop * sliding_map_odo.T_vertex_this().inverse();
+    CLOG(DEBUG, "lidar.odometry_doppler") << "sliding_map_odo->T_vertex_this(): " << sliding_map_odo.T_vertex_this();
+
+    *qdata.T_r_v_odo = T_r_m_dop * sliding_map_odo.T_vertex_this().inverse(); // T_r_m * T_m_v
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     *qdata.timestamp_odo = query_stamp;
 
