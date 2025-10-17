@@ -7,10 +7,24 @@ import os.path as osp
 
 def generate_launch_description():
     package_name = 'vtr_multi_robot'
-    config_dir = osp.join(os.getenv('VTRSRC', ''), 'config')
+    vtr_temp = os.getenv('VTRTEMP')
+    config_dir = osp.join(os.getenv('VTRSRC'), 'config')
     return LaunchDescription([
         DeclareLaunchArgument('base_params', description='base parameter file (sensor, robot specific)'),
         DeclareLaunchArgument('robots', default_value='[\"robot1\",\"robot2\"]', description='list of robot names'),
+        Node(
+            package='vtr_multi_robot',
+            executable='convoy_planning_node',
+            name='convoy_planning_node',
+            output='screen',
+            namespace='vtr',
+            parameters=[
+                PathJoinSubstitution([vtr_temp, 'setup_params.yaml']),
+                {'robot_names': LaunchConfiguration('robots'),
+                 'log_enabled': ["pose_graph",
+                                 "convoy_route"]}
+            ]
+        ),
         Node(
             package='vtr_multi_robot',
             executable='convoy_manager.py',

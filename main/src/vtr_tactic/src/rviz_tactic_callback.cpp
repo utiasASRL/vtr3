@@ -86,7 +86,7 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   odometry.header.stamp = rclcpp::Time(stamp);
   odometry.pose.pose =
       tf2::toMsg(Eigen::Affine3d((T_m_w * T_w_v_odo * T_r_v_odo.inverse()).matrix()));
-  odometry.twist.twist = tf2::toMsg(w_r_in_r);
+  odometry.twist.twist = tf2::toMsg(Eigen::Vector<double, 6>(-w_r_in_r));
   odometry_pub_->publish(odometry);
 
   // publish current frame
