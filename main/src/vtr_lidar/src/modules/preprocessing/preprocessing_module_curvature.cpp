@@ -90,154 +90,102 @@ struct UnionFind {
 void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithInfo>::Ptr& cloud) {
   if (!cloud || cloud->empty()) return;
 
-  // Build nanoflann KD-tree for neighbor search
+  // Build KD-tree
   NanoFLANNAdapter<PointWithInfo> adapter(*cloud);
-  KDTreeParams tree_params(10); // max leaf
+  KDTreeParams tree_params(10);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   std::vector<std::vector<size_t>> idx_buf(config_->num_threads, std::vector<size_t>(config_->k_neighbors));
   std::vector<std::vector<float>> dist_buf(config_->num_threads, std::vector<float>(config_->k_neighbors));
-  std::vector<Eigen::VectorXf> coeffs_buf(config_->num_threads);
 
-  // For each point, estimate curvature using quadratic surface fit (He 2005)
 #pragma omp parallel for schedule(static, 64) num_threads(config_->num_threads)
   for (size_t i = 0; i < cloud->size(); ++i) {
-    const auto& query_pt = (*cloud)[i];
     int tid = omp_get_thread_num();
     auto &idx = idx_buf[tid];
     auto &dists = dist_buf[tid];
 
+    const auto& query_pt = (*cloud)[i];
     size_t found = kdtree->knnSearch(&query_pt.x, config_->k_neighbors, idx.data(), dists.data());
     if (found < 6) {
       (*cloud)[i].curvature = std::numeric_limits<float>::quiet_NaN();
       continue;
     }
 
-    // Gather neighbors
-    Eigen::MatrixXf neighbors(found, 3);
-    for (size_t j = 0; j < found; ++j) {
-      neighbors.row(j) = Eigen::Vector3f(
-          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z);
-    }
-    Eigen::Vector3f p(query_pt.x, query_pt.y, query_pt.z);
+    std::vector<int> idx_int(idx.begin(), idx.end());
+    const pcl::PointCloud<PointWithInfo> points(*cloud, idx_int);
 
-    // Center neighbors at query point
-    Eigen::MatrixXf B_centered = neighbors.rowwise() - p.transpose();
-  
-    // Compute centroid
-    Eigen::Vector3f centroid = Eigen::Vector3f::Zero();
-    for (size_t j = 0; j < found; ++j) {
-      centroid += Eigen::Vector3f(
-          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z);
-    }
-    centroid /= static_cast<float>(found);
-
-    // Compute covariance (fixed-size 3×3)
-    Eigen::Matrix3f cov = Eigen::Matrix3f::Zero();
-    for (size_t j = 0; j < found; ++j) {
-      Eigen::Vector3f diff = Eigen::Vector3f(
-          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z) - centroid;
-      cov += diff * diff.transpose();
-    }
-    cov /= static_cast<float>(found - 1);
+    // Compute centroid and covariance
+    Eigen::Matrix3f covariance;
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(points, centroid);
+    pcl::computeCovarianceMatrix(points, centroid, covariance);
 
     // Eigen decomposition
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eig(cov);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eig(covariance);
     if (eig.info() != Eigen::Success) {
       (*cloud)[i].curvature = std::numeric_limits<float>::quiet_NaN();
       continue;
     }
 
+    // Use smallest eigenvector
     Eigen::Vector3f normal = eig.eigenvectors().col(0);
-    if (normal.dot(p) > 0) {
-        normal = -normal;
-    }
+
+    // Orient normal to face lidar origin
+    Eigen::Vector3f p(query_pt.x, query_pt.y, query_pt.z);
+    if (normal.dot(p) > 0) normal = -normal;
     normal.normalize();
+
     (*cloud)[i].getNormalVector3fMap() = normal;
-    (*cloud)[i].normal_score = 1.0f - eig.eigenvalues()(0) / (eig.eigenvalues()(2) + 1e-9f);
 
-    // early planar skip
-    float lambda0 = eig.eigenvalues()(0), lambda1 = eig.eigenvalues()(1);
-    if (lambda0 / (lambda1 + 1e-12f) < 1e-3f) {
-      (*cloud)[i].curvature = 0.0f; // or small value
+    float lambda0 = eig.eigenvalues()(0);
+    float lambda1 = eig.eigenvalues()(1);
+    float lambda2 = eig.eigenvalues()(2);
+    (*cloud)[i].normal_score = 1.0f - lambda0 / (lambda2 + 1e-9f);
+
+    // Early planar skip
+    if (lambda0 / (lambda1 + 1e-9f) < 1e-3f) {
+      (*cloud)[i].curvature = 0.0f;
       continue;
     }
 
-    // --- Find farthest projected neighbor to define u ---
-    float max_dist = 0.0f;
-    Eigen::Vector3f u_dir(1.0f, 0.0f, 0.0f);  // fallback
-    for (size_t j = 0; j < found; ++j) {
-      Eigen::Vector3f vec = Eigen::Vector3f(
-          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z) - p;
+    ///  Quadratic surface fitting (following He 2005)
+    // Build tangent basis (u,v)
+    Eigen::Vector3f u_dir = (eig.eigenvectors().col(1)).normalized();
+    Eigen::Vector3f v_dir = (eig.eigenvectors().col(2)).normalized();
 
-      // Remove normal component (projection onto tangent plane)
-      float z = vec.dot(normal);
-      Eigen::Vector3f plane_vec = vec - z * normal;
-      float dist = plane_vec.squaredNorm();
-
-      if (dist > max_dist) {
-        max_dist = dist;
-        u_dir = plane_vec;
-      }
-    }
-
-    float u_norm = u_dir.norm();
-    if (u_norm < 1e-12f) {
-      (*cloud)[i].curvature = std::numeric_limits<float>::quiet_NaN();
-      continue;
-    }
-    Eigen::Vector3f u = u_dir / u_norm;
-    Eigen::Vector3f v = normal.cross(u).normalized();
-    if (v.norm() < 1e-12f) {
-      (*cloud)[i].curvature = std::numeric_limits<float>::quiet_NaN();
-      continue;
-    }
-
-    // --- Compute local (u, v, z) coordinates without matrix allocations ---
-    Eigen::VectorXf us(found), vs(found), zs(found);
-    for (size_t j = 0; j < found; ++j) {
-      Eigen::Vector3f vec = Eigen::Vector3f(
-          (*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z) - p;
-      float z = vec.dot(normal);
-      Eigen::Vector3f plane_vec = vec - z * normal;
-
-      us(j) = plane_vec.dot(u);
-      vs(j) = plane_vec.dot(v);
+    const size_t n = found;
+    Eigen::VectorXf us(n), vs(n), zs(n);
+    for (size_t j = 0; j < n; ++j) {
+      Eigen::Vector3f q((*cloud)[idx[j]].x, (*cloud)[idx[j]].y, (*cloud)[idx[j]].z);
+      Eigen::Vector3f diff = q - p;
+      float z = diff.dot(normal);
+      Eigen::Vector3f plane_proj = diff - z * normal;
+      us(j) = plane_proj.dot(u_dir);
+      vs(j) = plane_proj.dot(v_dir);
       zs(j) = z;
     }
 
-    // Design matrix for quadratic fit: z = A u^2 + B u v + C v^2 + D u + E v + F
-    Eigen::MatrixXf A_design(found, 6);
-    A_design.col(0) = us.array().square();
-    A_design.col(1) = us.array() * vs.array();
-    A_design.col(2) = vs.array().square();
-    A_design.col(3) = us;
-    A_design.col(4) = vs;
-    A_design.col(5).setOnes();
+    Eigen::MatrixXf A(n, 6);
+    A.col(0) = us.array().square();
+    A.col(1) = us.array() * vs.array();
+    A.col(2) = vs.array().square();
+    A.col(3) = us;
+    A.col(4) = vs;
+    A.col(5).setOnes();
 
-    // Least squares fit
-    Eigen::VectorXf coeffs = A_design.colPivHouseholderQr().solve(zs);
-    float A_coef = coeffs(0), B_coef = coeffs(1), C_coef = coeffs(2);
-    float D_coef = coeffs(3), E_coef = coeffs(4);
+    Eigen::VectorXf coeffs = A.colPivHouseholderQr().solve(zs);
 
-    // Second derivatives at origin
-    float z_uu = 2.0f * A_coef;
-    float z_uv = B_coef;
-    float z_vv = 2.0f * C_coef;
+    float A_ = coeffs(0), B_ = coeffs(1), C_ = coeffs(2);
+    float D_ = coeffs(3), E_ = coeffs(4);
+    float z_uu = 2.0f * A_, z_uv = B_, z_vv = 2.0f * C_;
+    float z_u0 = D_, z_v0 = E_;
 
-    // First derivatives at origin
-    float z_u0 = D_coef;
-    float z_v0 = E_coef;
-
-    // First fundamental form
     float E_ff = 1.0f + z_u0 * z_u0;
     float F_ff = z_u0 * z_v0;
     float G_ff = 1.0f + z_v0 * z_v0;
 
-    // Second fundamental form
     float L = z_uu, M = z_uv, N = z_vv;
-
     float denom = (E_ff * G_ff - F_ff * F_ff);
     if (std::abs(denom) < 1e-12f) {
       (*cloud)[i].curvature = std::numeric_limits<float>::quiet_NaN();
