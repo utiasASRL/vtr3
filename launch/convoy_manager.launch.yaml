@@ -3,7 +3,7 @@ session_name: vtr_convoy_manager
 environment:
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
   ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
-  ROBOTS: "[prof_plum, mr_green]" # Figure out how to easily make this configurable
+  ROBOTS: \"[prof_plum, mr_green]\" # Figure out how to easily make this configurable
 
 start_directory: ${VTRDATA}
 suppress_history: false
@@ -17,9 +17,6 @@ windows:
       - ros2 run vtr_gui multi_robot_socket_client --ros-args -p robots:=$ROBOTS
       - ros2 run vtr_gui multi_robot_socket_server --ros-args -p robots:=$ROBOTS
       - ros2 run vtr_gui multi_robot_web_server --ros-args -p robots:=$ROBOTS
-      - ros2 launch vtr_multi_robot convoy_manager.launch.py
-        base_params:=ouster_hunter_default.yaml
-        robots:=$ROBOTS 
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: convoy_manager
@@ -29,7 +26,7 @@ windows:
     panes:
       - >
         ros2 launch vtr_multi_robot convoy_route_manager.launch.py
-        robots:=$ROBOTS
+        robots:=$ROBOTS base_params:=ouster_hunter_default.yaml
 
   - window_name: rosbag
     layout: main-horizontal
