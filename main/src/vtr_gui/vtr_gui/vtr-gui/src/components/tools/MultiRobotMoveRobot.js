@@ -1,5 +1,4 @@
 /**
- * Multi-robot Move Robot Tool
  * Copyright 2021, Autonomous Space Robotics Lab (ASRL)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,10 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 import React from "react";
-import { Box, Button, MenuItem, Select, InputLabel, FormControl } from "@mui/material";
+
+import { Box, Button } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import AndroidIcon from "@mui/icons-material/Android";
@@ -24,66 +25,13 @@ import AndroidIcon from "@mui/icons-material/Android";
 class MultiRobotMoveRobot extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
-      selectedRobotId: props.robotIds && props.robotIds.length > 0 ? props.robotIds[0] : null,
-    };
+    this.state = {};
   }
 
-  handleRobotChange = (event) => {
-    this.setState({ selectedRobotId: event.target.value });
-    if (this.props.onRobotSelect) {
-      this.props.onRobotSelect(event.target.value);
-    }
-  };
-
-  handleSelect = () => {
-    if (this.props.onSelect && this.state.selectedRobotId) {
-      this.props.onSelect(this.state.selectedRobotId);
-    }
-  };
-
-  handleCancel = () => {
-    if (this.props.onCancel && this.state.selectedRobotId) {
-      this.props.onCancel(this.state.selectedRobotId);
-    }
-  };
-
-  handleConfirm = () => {
-    const { moveRobotVertex, socket } = this.props;
-    const { selectedRobotId } = this.state;
-    if (
-      moveRobotVertex &&
-      moveRobotVertex[selectedRobotId] &&
-      moveRobotVertex[selectedRobotId].id !== -1
-    ) {
-      socket.emit("command/move_robot/${selectedRobotId}", {
-        robot_id: selectedRobotId,
-        vertex: moveRobotVertex[selectedRobotId].id,
-      });
-    }
-    this.handleCancel();
-  };
-
   render() {
-    const { active, robotIds } = this.props;
-    const { selectedRobotId } = this.state;
+    const { active, onSelect, onCancel } = this.props;
     return (
       <>
-        <FormControl sx={{ minWidth: 120, m: 0.5 }} size="small">
-          <InputLabel id="robot-select-label">Robot</InputLabel>
-          <Select
-            labelId="robot-select-label"
-            value={selectedRobotId || ""}
-            label="Robot"
-            onChange={this.handleRobotChange}
-          >
-            {robotIds.map((id) => (
-              <MenuItem key={id} value={id}>
-                {id}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
         {active ? (
           <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Button
@@ -92,7 +40,7 @@ class MultiRobotMoveRobot extends React.Component {
               disableElevation={true}
               variant={"contained"}
               size={"small"}
-              onClick={this.handleConfirm}
+              onClick={this.handleConfirm.bind(this)}
             >
               <CheckIcon />
             </Button>
@@ -102,7 +50,7 @@ class MultiRobotMoveRobot extends React.Component {
               disableElevation={true}
               variant={"contained"}
               size={"small"}
-              onClick={this.handleCancel}
+              onClick={onCancel}
             >
               <CloseIcon />
             </Button>
@@ -114,9 +62,8 @@ class MultiRobotMoveRobot extends React.Component {
             disableElevation={true}
             startIcon={<AndroidIcon />}
             variant={"contained"}
-            onClick={this.handleSelect}
+            onClick={onSelect}
             size={"small"}
-            disabled={!selectedRobotId}
           >
             Move Robot
           </Button>
@@ -124,6 +71,26 @@ class MultiRobotMoveRobot extends React.Component {
       </>
     );
   }
+
+  handleConfirm() {
+    console.log("MultiRobotMoveRobot: handleConfirm called");
+    const { moveRobotVertex, socket, robotIds } = this.props;
+    console.log("Robot IDs:", robotIds);
+    console.log("Move Robot Vertex:", moveRobotVertex);
+    // Move every robot with a valid vertex
+    if (robotIds && moveRobotVertex) {
+      robotIds.forEach((id) => {
+        if (moveRobotVertex[id] && moveRobotVertex[id].id !== -1) {
+          socket.emit(`command/move_robot`, {
+            robot_id: id,
+            vertex: moveRobotVertex[id].id,
+          });
+          console.log(`Emitted move_robot command for robot ${id} to vertex ${moveRobotVertex[id].id}`);
+        }
+      });
+    }
+    this.props.onCancel();
+  };
 }
 
 export default MultiRobotMoveRobot;

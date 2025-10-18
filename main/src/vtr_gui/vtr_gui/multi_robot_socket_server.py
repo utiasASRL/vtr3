@@ -99,9 +99,10 @@ def handle_move_graph(data):
   build_remote().move_graph(data)
 
 
-@socketio.on('command/move_robot/<robot_id>')
-def handle_move_robot(data, robot_id):
+@socketio.on('command/move_robot')
+def handle_move_robot(data):
   logger.info('Received move robot command', data)
+  robot_id = data.get('robot_id', None)
   build_remote().move_robot(data, robot_id)
 
 

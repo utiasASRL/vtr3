@@ -26,7 +26,7 @@ import { kdTree } from "kd-tree-javascript";
 
 import {fetchWithTimeout} from "../../index"
 
-import ToolsMenu from "../tools/ToolsMenu";
+import MultiRobotToolsMenu from "../tools/MultiRobotToolsMenu";
 import MultiRobotGoalManager from "../goal/MultiRobotGoalManager";
 import TaskQueue from "../task_queue/TaskQueue";
 
@@ -426,7 +426,7 @@ class MultiRobotGraphMap extends React.Component {
           <ZoomControl position="bottomright" />
           <this.WaypointMarkers />
         </MapContainer>
-        <ToolsMenu
+        <MultiRobotToolsMenu
           socket={socket}
           currentTool={current_tool}
           selectTool={this.selectTool.bind(this)}
@@ -444,6 +444,8 @@ class MultiRobotGraphMap extends React.Component {
           moveRobotVertex={move_robot_vertices}
           // force add vertex
           getClosestVertex={this.getClosestVertex.bind(this)}
+          //
+          robotIds={this.state.robotIds}
         />
         <Box
           sx={{
@@ -982,7 +984,7 @@ class MultiRobotGraphMap extends React.Component {
             break;
           case "move_robot":
             // We'll select the robot below
-            this.state.robotIds.forEach(rid => this.finishMoveRobot(rid));
+            this.finishMoveRobot();
             break;
           case "merge":
             this.finishMerge();
@@ -1653,8 +1655,8 @@ class MultiRobotGraphMap extends React.Component {
         let closest_vertices = this.kdtree.nearest(interm_pos, 1);
         let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : this.move_robot_vertex;
         this.setState(prevState => ({
-          move_robot_vertex: {
-            ...prevState.move_robot_vertex,
+          move_robot_vertices: {
+            ...prevState.move_robot_vertices,
             [id]: move_robot_vertex 
           }
         }));
@@ -1681,22 +1683,26 @@ class MultiRobotGraphMap extends React.Component {
     });
   }
 
-  finishMoveRobot(robot_id) {
-    const markerObj = this.state.robotMarkers[robot_id];
-    if (!markerObj || markerObj.valid === false) return;
-    console.info(`Finish moving robot ${robot_id}`);
-    if (this.move_robot_marker && this.move_robot_marker[robot_id]) {
-      this.move_robot_marker[robot_id].remove();
-      this.move_robot_marker[robot_id] = null;
-    }
-    this.setState(prevState => ({
-      move_robot_vertex: {
-        ...prevState.move_robot_vertex,
-        [robot_id]: { lng: 0, lat: 0, id: -1 }
+  finishMoveRobot() {
+    // If no robot_id is given, finish for all robots
+    const robotIds = this.props.robotIds || [];
+    robotIds.forEach(id => {
+      const markerObj = this.state.robotMarkers[id];
+      if (!markerObj || markerObj.valid === false) return;
+      console.info(`Finish moving robot ${id}`);
+      if (this.move_robot_marker && this.move_robot_marker[id]) {
+        this.move_robot_marker[id].remove();
+        this.move_robot_marker[id] = null;
       }
-    }));
-    // add the robot marker back
-    markerObj.marker.addTo(this.map);
+      this.setState(prevState => ({
+        move_robot_vertices: {
+          ...prevState.move_robot_vertices,
+          [id]: { lng: 0, lat: 0, id: -1 }
+        }
+      }));
+      // add the robot marker back
+      markerObj.marker.addTo(this.map);
+    });
   }
 
   metres2pix(metres) {
