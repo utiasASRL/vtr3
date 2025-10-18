@@ -42,13 +42,13 @@
 
         # lidar pipeline
       #- lidar.pipeline
-      - lidar.preprocessing
+      #- lidar.preprocessing
       #- lidar.ouster_converter
-      - lidar.odometry_icp
+      #- lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
-      - lidar.localization_icp
+      #- lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging

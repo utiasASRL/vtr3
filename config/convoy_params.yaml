@@ -8,7 +8,7 @@
         type: bicycle_mpc
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
-      follow_distance: 1.5
+      follow_distance: 2.75
       distance_margin: 0.5
       waypoint_selection: euclidean
       longitudinal_control:

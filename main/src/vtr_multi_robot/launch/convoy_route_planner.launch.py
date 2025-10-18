@@ -21,8 +21,7 @@ def generate_launch_description():
             parameters=[
                 PathJoinSubstitution([vtr_temp, 'setup_params.yaml']),
                 {'robot_names': LaunchConfiguration('robots'),
-                 'log_enabled': ["pose_graph",
-                                 "convoy_route"]}
+                 'log_enabled': ["convoy_route"]}
             ]
         ),
         Node(

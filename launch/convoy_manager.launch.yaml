@@ -25,7 +25,7 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - >
-        ros2 launch vtr_multi_robot convoy_route_manager.launch.py
+        ros2 launch vtr_multi_robot convoy_route_planner.launch.py
         robots:=$ROBOTS base_params:=ouster_hunter_default.yaml
 
   - window_name: rosbag
