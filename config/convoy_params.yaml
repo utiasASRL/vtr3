@@ -6,6 +6,7 @@
     path_planning:
       bicycle_mpc:
         type: bicycle_mpc
+        control_period: 100
         speed_scheduler:
           planar_curv_weight: 0.0
           profile_curv_weight: 1.0 
@@ -48,6 +49,7 @@
             q_f: 1.0 # Multiplier for terminal cost
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
+        control_period: 100
         follow_distance: 2.75
         distance_margin: 0.5
         waypoint_selection: euclidean
