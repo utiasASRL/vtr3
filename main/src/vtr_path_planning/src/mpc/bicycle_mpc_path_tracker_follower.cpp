@@ -119,14 +119,7 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     if (!hasRequestedLeaderRoute_){
       CLOG(INFO, "cbit.control") << "Leader root not yet set. Calling service";
       auto request = std::make_shared<FollowingRouteSrv::Request>();
-      while (!leaderRouteSrv_->wait_for_service(1s)) {
-        if (!rclcpp::ok()) {
-          CLOG(ERROR, "cbit.control") << "Interrupted while waiting for the service. Exiting.";
-          return false;
-        }
-        CLOG(INFO, "cbit.control") << "service not available, waiting again...";
-      }
-      auto result = leaderRouteSrv_->async_send_request(request, std::bind(&BicycleMPCPathTrackerFollower::leaderRouteCallback, this, std::placeholders::_1));
+      leaderRouteSrv_->async_send_request(request, std::bind(&BicycleMPCPathTrackerFollower::leaderRouteCallback, this, std::placeholders::_1));
       hasRequestedLeaderRoute_ = true;
     }
     return false;
