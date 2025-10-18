@@ -15,6 +15,36 @@
         kp: 2.0
         ki: 0.5
         kd: 0.0
+    log_enabled:
+      #- tactic.module
+      - mission.state_machine
+      - mission.server
+        # planner manager
+      - cbit.control
+      #- cbit.debug
+      #- cbit.path_planning
+        # mpc
+      #- mpc.speed_scheduler
+      - mpc.debug
+      - mpc.solver
+      - mpc.follower
+      #- mpc.follower.target
+      - mpc.follower.pid
+        # path planner
+      #- cbit_planner.path_planning
+        # pose graph
+      #- pose_graph
+        # lidar pipeline
+      #- lidar.pipeline
+      #- lidar.preprocessing
+      #- lidar.odometry_icp
+      #- lidar.odometry_map_maintenance
+      #- lidar.vertex_test
+      #- lidar.localization_map_recall
+      #- lidar.localization_icp
+      #- lidar.intra_exp_merging
+      #- lidar.inter_exp_merging
+      #- lidar.leader_locator
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
