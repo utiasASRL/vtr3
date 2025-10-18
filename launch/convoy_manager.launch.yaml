@@ -3,7 +3,7 @@ session_name: vtr_convoy_manager
 environment:
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
   ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
-  ROBOTS: \"[prof_plum, mr_green]\" # Figure out how to easily make this configurable
+  ROBOTS: "[prof_plum,mr_green]" # Figure out how to easily make this configurable
 
 start_directory: ${VTRDATA}
 suppress_history: false
