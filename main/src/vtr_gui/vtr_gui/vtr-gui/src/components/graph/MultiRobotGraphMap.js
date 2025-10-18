@@ -156,7 +156,7 @@ class MultiRobotGraphMap extends React.Component {
       // move graph
       move_graph_change: { lng: 0, lat: 0, theta: 0, scale: 1 },
       // move robot
-      move_robot_vertex: { lng: 0, lat: 0, id: -1 },
+      move_robot_vertices: {},
       // map center
       map_center: {lat: 43.78220, lng: -79.4661},
       /// whether the path selection will be the whole path (for annotation)
@@ -198,6 +198,7 @@ class MultiRobotGraphMap extends React.Component {
         }),
       };
       this.state.server_states[id] = "EMPTY";
+      this.state.move_robot_vertices[id] = {lng: 0, lat: 0, id: -1}; 
     });
     this.fetchMapCenter()
     /// leaflet map
@@ -367,7 +368,7 @@ class MultiRobotGraphMap extends React.Component {
       annotate_route_ids,
       merge_ids,
       move_graph_change,
-      move_robot_vertex,
+      move_robot_vertices,
       map_center,
       diagnostics,
       showDiagnostics
@@ -440,7 +441,7 @@ class MultiRobotGraphMap extends React.Component {
           // move graph
           moveGraphChange={move_graph_change}
           // move robot
-          moveRobotVertex={move_robot_vertex}
+          moveRobotVertex={move_robot_vertices}
           // force add vertex
           getClosestVertex={this.getClosestVertex.bind(this)}
         />
@@ -1001,30 +1002,8 @@ class MultiRobotGraphMap extends React.Component {
           this.startMoveGraph();
           break;
         case "move_robot": {
-          // Use last map click position if available, else map center
-          let refPoint = this.lastMapClickLatLng || (this.map ? this.map.getCenter() : {lat: 0, lng: 0});
-          let minDist = Infinity;
-          let selectedId = null;
-          this.state.robotIds.forEach(rid => {
-            const markerObj = this.state.robotMarkers[rid];
-            if (markerObj && markerObj.valid) {
-              const pos = markerObj.marker.getLatLng();
-              const dist = Math.pow(pos.lat - refPoint.lat, 2) + Math.pow(pos.lng - refPoint.lng, 2);
-              if (dist < minDist) {
-                minDist = dist;
-                selectedId = rid;
-              } else if (dist === minDist) {
-                // If tied, use order in robotIds
-                if (selectedId === null || this.state.robotIds.indexOf(rid) < this.state.robotIds.indexOf(selectedId)) {
-                  selectedId = rid;
-                }
-              }
-            }
-          });
-          if (selectedId) {
-            this.startMoveRobot(selectedId);
-            this.setState({ moveRobotToolActive: true, moveRobotToolRobotId: selectedId });
-          }
+          this.startMoveRobot();
+          this.setState({ moveRobotToolActive: true});
           break;
         }
         case "merge":
@@ -1647,56 +1626,68 @@ class MultiRobotGraphMap extends React.Component {
     this.ref_marker = null;
   }
 
-  startMoveRobot(robot_id) {
-    const markerObj = this.state.robotMarkers[robot_id];
-    if (!markerObj || markerObj.valid === false) return;
-    console.info(`Start moving robot ${robot_id}`);
-    // remove current robot marker and replace it with a draggable marker
-    markerObj.marker.remove();
-    let curr_latlng = markerObj.marker.getLatLng();
-    // initialize vertex
-    let closest_vertices = this.kdtree.nearest(curr_latlng, 1);
-    let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : { ...curr_latlng, id: -1 };
-    this.setState(prevState => ({
-      move_robot_vertex: {
-        ...prevState.move_robot_vertex,
-        [robot_id]: move_robot_vertex
-      }
-    }));
-    let interm_pos = null;
-    let handleDrag = (e) => (interm_pos = e.latlng);
-    let handleDragEnd = () => {
-      let closest_vertices = this.kdtree.nearest(interm_pos, 1);
-      let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : this.state.move_robot_vertex[robot_id];
+  startMoveRobot() {
+    const robotIds = this.props.robotIds || [];
+    if (!this.move_robot_marker) this.move_robot_marker = {};
+    robotIds.forEach((id, idx) => {
+      if (this.state.robotMarkers[id].valid === false) return;
+      console.info("Start moving robot " + id);
+      // remove current robot marker and replace it with a draggable marker
+      this.state.robotMarkers[id].marker.remove();
+      //
+      let curr_latlng = this.state.robotMarkers[id].marker.getLatLng();
+      // initialize vertex
+      let closest_vertices = this.kdtree.nearest(curr_latlng, 1);
+      let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : { ...curr_latlng, id: -1 };
+
       this.setState(prevState => ({
         move_robot_vertex: {
           ...prevState.move_robot_vertex,
-          [robot_id]: move_robot_vertex
+          [id]: move_robot_vertex 
         }
       }));
-      this[`move_robot_marker_${robot_id}`].setLatLng(move_robot_vertex);
-    };
-    this[`move_robot_marker_${robot_id}`] = L.marker(curr_latlng, {
-      draggable: true,
-      icon: this.robotMarkers && this.robotMarkers[robot_id] && this.robotMarkers[robot_id].marker.options.icon ? this.robotMarkers[robot_id].marker.options.icon : null,
-      opacity: MOVE_ROBOT_OPACITY,
-      pane: "tooltipPane",
-      zIndexOffset: 100,
-      rotationOrigin: "center",
-      rotationAngle: 0,
+
+      let interm_pos = null;
+      let handleDrag = (e) => (interm_pos = e.latlng);
+      let handleDragEnd = () => {
+        let closest_vertices = this.kdtree.nearest(interm_pos, 1);
+        let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : this.move_robot_vertex;
+        this.setState(prevState => ({
+          move_robot_vertex: {
+            ...prevState.move_robot_vertex,
+            [id]: move_robot_vertex 
+          }
+        }));
+        if (this.move_robot_marker && this.move_robot_marker[id]) {
+          this.move_robot_marker[id].setLatLng(move_robot_vertex);
+        }
+      };
+      // Create per-robot draggable marker
+      if (this.move_robot_marker[id]) {
+        this.move_robot_marker[id].remove();
+      }
+      this.move_robot_marker[id] = L.marker(curr_latlng, {
+        draggable: true,
+        icon: ROBOT_ICONS_ARRAY[idx % ROBOT_ICONS_ARRAY.length],
+        opacity: MOVE_ROBOT_OPACITY,
+        pane: "tooltipPane",
+        zIndexOffset: 100,
+        rotationOrigin: "center",
+        rotationAngle: 0,
+      });
+      this.move_robot_marker[id].on("drag", handleDrag);
+      this.move_robot_marker[id].on("dragend", handleDragEnd);
+      this.move_robot_marker[id].addTo(this.map);
     });
-    this[`move_robot_marker_${robot_id}`].on("drag", handleDrag);
-    this[`move_robot_marker_${robot_id}`].on("dragend", handleDragEnd);
-    this[`move_robot_marker_${robot_id}`].addTo(this.map);
   }
 
   finishMoveRobot(robot_id) {
     const markerObj = this.state.robotMarkers[robot_id];
     if (!markerObj || markerObj.valid === false) return;
     console.info(`Finish moving robot ${robot_id}`);
-    if (this[`move_robot_marker_${robot_id}`]) {
-      this[`move_robot_marker_${robot_id}`].remove();
-      this[`move_robot_marker_${robot_id}`] = null;
+    if (this.move_robot_marker && this.move_robot_marker[robot_id]) {
+      this.move_robot_marker[robot_id].remove();
+      this.move_robot_marker[robot_id] = null;
     }
     this.setState(prevState => ({
       move_robot_vertex: {
