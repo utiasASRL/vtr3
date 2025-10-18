@@ -128,12 +128,14 @@
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
-    leader_namespace:
-      /prof_plum 
+    bicycle_mpc_follower:
+      leader_namespace:
+        /prof_plum 
 /prof_plum/vtr/navigator:
   ros__parameters:
    path_planning:
-    leader_namespace:
-      /mr_green 
+    bicycle_mpc_follower:
+      leader_namespace:
+        /mr_green 
 
     
