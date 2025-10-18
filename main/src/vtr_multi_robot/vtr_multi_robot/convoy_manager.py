@@ -208,7 +208,7 @@ class ConvoyManager(Node):
       for robot_id in self._robots:
         if robot_id != rid and len(self._server_states[robot_id].goals) > 0:
           active_goal = self._server_states[robot_id].goals[0]
-          if active_goal.type == GoalHandle.REPEAT and msg.goals[0].type == GoalHandle.REPEAT:
+          if active_goal.type == GoalHandle.REPEAT and msg.goals[0].type == GoalHandle.REPEAT and len(self._server_states[robot_id].goals) == len(msg.goals):
             mission_cmd.type = MissionCommand.CANCEL_GOAL
             mission_cmd.goal_handle = self._server_states[robot_id].goals[0]
             self.get_logger().info(f"Published cancel command to {robot_id}")
