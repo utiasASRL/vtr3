@@ -106,9 +106,9 @@
       type: lidar
       preprocessing:
         - conversion
-        #- filtering
+        - filtering
         - doppler_filtering
-        - curvature_filtering
+        #- curvature_filtering
       odometry:
         #- icp
         - doppler

@@ -109,6 +109,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
+  CLOG(WARNING, "lidar.localization_daicp") << "##### Localization DA-ICP input: T_r_v (prior): \n"
+                                            << T_r_v.cov();
+
   CLOG(DEBUG, "lidar.localization_daicp") << "####### Query point cloud has " << query_points.size() << " points.";
   CLOG(DEBUG, "lidar.localization_daicp") << "######### Map point cloud has " << point_map.size() << " points.";
 
@@ -460,7 +463,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // Eigen::MatrixXd T_m_s_cov = T_m_s_edge.cov();
     
     // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_s_r.cov(): " << T_s_r.cov().diagonal().transpose();
-    // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
+    CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
     // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_v_m.cov(): " << T_v_m.cov().diagonal().transpose();
     // CLOG(DEBUG, "lidar.localization_daicp") << " =========== T_m_s_cov diagonal: [" << T_m_s_cov.diagonal().transpose() << "]";
 
@@ -484,7 +487,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                                                          map_normals_mat,
                                                                          T_m_s_var,    // SE3StateVar, param to optimize
                                                                          T_m_s_prior,  // transformation from lidar to map
-                                                                         T_reordered,  // covariance of the above transformation
+                                                                         T_reordered,  // covariance of the above transformation (not used)
                                                                          max_gn_iter,
                                                                          inner_tolerance,
                                                                          daicp_cov);
