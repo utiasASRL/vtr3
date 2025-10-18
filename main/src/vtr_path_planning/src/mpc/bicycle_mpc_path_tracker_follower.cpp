@@ -125,6 +125,11 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     return false;
   }
 
+  if (recentLeaderPath_ == nullptr) {
+    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
+    return false;
+  }
+
   const auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
   const auto delta_t = curr_time - leader_path_time;
   if (delta_t > 1e9) {
