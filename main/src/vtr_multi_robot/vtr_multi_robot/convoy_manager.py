@@ -201,16 +201,19 @@ class ConvoyManager(Node):
       self._localizing = False
     else:
       self._localizing = False
+
     # If any robot completes, send finish command to all robots
     if msg.current_goal_state == ServerState.FINISHING:
       mission_cmd = MissionCommand()
       for robot_id in self._robots:
         if robot_id != rid:
-          mission_cmd.type = MissionCommand.CANCEL_GOAL
-          mission_cmd.goal_handle = self._server_states[robot_id].goals[0]
-          self.get_logger().info(f"Published cancel command to {robot_id}")
-          self._mission_command_pubs[robot_id].publish(mission_cmd)
-          self._server_states[robot_id] = None
+          active_goal = self._server_states[robot_id].goals[0]
+          if active_goal.type == GoalHandle.REPEAT and msg.goals[0].type == GoalHandle.REPEAT:
+            mission_cmd.type = MissionCommand.CANCEL_GOAL
+            mission_cmd.goal_handle = self._server_states[robot_id].goals[0]
+            self.get_logger().info(f"Published cancel command to {robot_id}")
+            self._mission_command_pubs[robot_id].publish(mission_cmd)
+            self._server_states[robot_id] = None
 
 def main():
   rclpy.init()

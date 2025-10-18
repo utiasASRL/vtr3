@@ -22,4 +22,3 @@ windows:
         planner:="dynamic_path_planner"
         model_dir:=${VTRROOT}/models
         override_params:=convoy_params.yaml
-        data_dir:=$VTRTEMP/woody_convoy
