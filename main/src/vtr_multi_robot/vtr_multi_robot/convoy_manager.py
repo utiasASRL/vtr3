@@ -206,7 +206,7 @@ class ConvoyManager(Node):
     if msg.current_goal_state == ServerState.FINISHING:
       mission_cmd = MissionCommand()
       for robot_id in self._robots:
-        if robot_id != rid:
+        if robot_id != rid and len(self._server_states[robot_id].goals) > 0:
           active_goal = self._server_states[robot_id].goals[0]
           if active_goal.type == GoalHandle.REPEAT and msg.goals[0].type == GoalHandle.REPEAT:
             mission_cmd.type = MissionCommand.CANCEL_GOAL
