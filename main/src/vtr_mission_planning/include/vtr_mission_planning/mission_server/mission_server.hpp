@@ -563,7 +563,6 @@ bool MissionServer<GoalHandle>::clearCurrentGoal() {
     } else {
       current_goal_id_ = goal_queue_.front();
       current_goal_state_ = GoalState::Starting;
-      return false;
     }
   }
   cv_stop_or_goal_changed_.notify_all();
