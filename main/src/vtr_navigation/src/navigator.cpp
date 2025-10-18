@@ -18,6 +18,9 @@
  */
 #include "vtr_navigation/navigator.hpp"
 
+#include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/string.hpp>
+
 #include "vtr_common/utils/filesystem.hpp"
 #include "vtr_navigation/command_publisher.hpp"
 #include "vtr_navigation/task_queue_server.hpp"
@@ -186,6 +189,16 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         }
       });
   
+  // Hshmat: Subscribe to obstacle distance (meters along path where obstacle detected)
+  last_obstacle_distance_ = 0.0;
+  obstacle_distance_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
+      "/vtr/obstacle_distance", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::Float64::SharedPtr msg) {
+        if (!msg) return;
+        last_obstacle_distance_ = msg->data;
+        CLOG(DEBUG, "mission.state_machine") << "📏 Obstacle distance updated: " << last_obstacle_distance_ << " m along path";
+      }, sub_opt);
+  
   // Hshmat: Subscribe to obstacle status to trigger replanning during Repeat::Follow
   obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
@@ -304,14 +317,61 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           
           if (idx >= 0) {
             std::vector<vtr::tactic::EdgeId> banned;
-            const int lookahead_edges = 3; // placeholder; will be refined later
-            for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size()) && i < idx + lookahead_edges; ++i) {
+            
+            // Distance-based banning: ban edges ONLY where the obstacle is located
+            // Assume obstacle extends for a reasonable length (configurable)
+            const double obstacle_extent_m = 0.5; // Assume obstacle is 2m long
+            const double obstacle_start = last_obstacle_distance_;
+            const double obstacle_end = last_obstacle_distance_ + obstacle_extent_m;
+            double accumulated_distance = 0.0;
+            
+            CLOG(INFO, "mission.state_machine") << "HSHMAT: Obstacle detected at " << last_obstacle_distance_ 
+                                                 << " m ahead, banning edges in range [" << obstacle_start 
+                                                 << " m, " << obstacle_end << " m] (assumed extent: " 
+                                                 << obstacle_extent_m << " m)";
+            
+            for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size()); ++i) {
               vtr::tactic::VertexId v1(following_route_ids_[i]);
               vtr::tactic::VertexId v2(following_route_ids_[i+1]);
-              banned.emplace_back(v1, v2);
-              CLOG(INFO, "mission.state_machine") << "HSHMAT: Banning edge " << v1 << " -> " << v2;
+              
+              // Query edge length from graph
+              double edge_length = 0.0;
+              try {
+                auto edge_ptr = graph_->at(vtr::tactic::EdgeId(v1, v2));
+                if (edge_ptr) {
+                  // Get euclidean distance from transform
+                  edge_length = edge_ptr->T().r_ab_inb().norm();
+                  double edge_start = accumulated_distance;
+                  double edge_end = accumulated_distance + edge_length;
+                  accumulated_distance = edge_end;
+                  
+                  // Check if this edge overlaps with the obstacle range [obstacle_start, obstacle_end]
+                  bool edge_in_obstacle_range = (edge_end > obstacle_start && edge_start < obstacle_end);
+                  
+                  if (edge_in_obstacle_range) {
+                    banned.emplace_back(v1, v2);
+                    CLOG(INFO, "mission.state_machine") << "HSHMAT: Banning edge " << v1 << " -> " << v2 
+                                                         << " (edge range: [" << edge_start << " m, " << edge_end 
+                                                         << " m], overlaps obstacle range)";
+                  } else {
+                    CLOG(DEBUG, "mission.state_machine") << "HSHMAT: Skipping edge " << v1 << " -> " << v2 
+                                                          << " (edge range: [" << edge_start << " m, " << edge_end 
+                                                          << " m], outside obstacle range)";
+                  }
+                  
+                  // Stop searching once we're past the obstacle
+                  if (edge_start >= obstacle_end) {
+                    CLOG(INFO, "mission.state_machine") << "HSHMAT: Passed obstacle range, stopping edge search";
+                    break;
+                  }
+                } else {
+                  CLOG(WARNING, "mission.state_machine") << "HSHMAT: Edge " << v1 << " -> " << v2 << " not found in graph";
+                }
+              } catch (const std::exception &e) {
+                CLOG(WARNING, "mission.state_machine") << "HSHMAT: Failed to query edge " << v1 << " -> " << v2 << ": " << e.what();
+              }
             }
-            CLOG(INFO, "mission.state_machine") << "HSHMAT: Total edges to ban: " << banned.size();
+            CLOG(INFO, "mission.state_machine") << "HSHMAT: Total edges banned: " << banned.size();
             
             if (!banned.empty()) {
               auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_);

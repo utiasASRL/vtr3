@@ -51,10 +51,8 @@
     lidar_frame: os_lidar
     lidar_topic: /ouster/points
     route_planning:
-      enable_reroute: true  # default in code
-      use_chatgpt: true      # default in code
-      permanent_ban: false   # default in code
-      default_decision: "reroute"  # default in code
+      enable_reroute: true   # Enable obstacle-triggered rerouting
+      permanent_ban: false   # Keep bans across replanning attempts
     graph_projection:
       # # UTIAS coordinates (original)
       # origin_lat: 43.7822  # UTIAS

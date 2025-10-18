@@ -333,7 +333,7 @@
       type: cbit
       control_period: 100 # ms
       cbit:
-        obstacle_avoidance: false
+        obstacle_avoidance: falseg
         obs_padding: 0.0
         curv_to_euclid_discretization: 10
         sliding_window_width: 12.0

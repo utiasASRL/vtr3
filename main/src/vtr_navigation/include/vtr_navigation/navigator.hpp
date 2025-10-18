@@ -26,6 +26,8 @@
 #include "vtr_tactic/tactic.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp" //Hshmat: for mapping following route ids to BFS edge blacklist
 #include "std_msgs/msg/bool.hpp" // Hshmat: for mapping following route ids to BFS edge blacklist
+#include "std_msgs/msg/float64.hpp" // Hshmat: for obstacle distance subscription
+#include "std_msgs/msg/string.hpp" // Hshmat: for ChatGPT decision subscription
 #include <chrono> // Hshmat: for debouncing obstacle detection
 #include <optional> // Hshmat: for debouncing obstacle detection
 
@@ -151,6 +153,9 @@ typedef message_filters::sync_policies::ApproximateTime<
 
   // Hshmat: Obstacle status subscriber
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr obstacle_status_sub_;
+  // Hshmat: Obstacle distance subscriber (distance along path to nearest obstacle)
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr obstacle_distance_sub_;
+  double last_obstacle_distance_;  // meters along path where obstacle detected
   // Hshmat: Following route subscriber (for mapping path to vertex ids)
   rclcpp::Subscription<vtr_navigation_msgs::msg::GraphRoute>::SharedPtr following_route_sub_;
   std::vector<uint64_t> following_route_ids_;
