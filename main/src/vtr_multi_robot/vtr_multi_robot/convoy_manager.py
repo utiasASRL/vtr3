@@ -122,7 +122,7 @@ class ConvoyManager(Node):
       self.get_logger().info(f"Published localize command to {robot_id} with sid {sid}")
 
   def robot_state_callback(self, msg, rid):
-    self.get_logger().info(f"Robot state callback for {rid}")
+    # self.get_logger().info(f"Robot state callback for {rid}")
     if self._localizing:
       lon, lat, theta = msg.lng, msg.lat, msg.theta
       x, y = self.LonLat_To_XY(lon, lat)

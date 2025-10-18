@@ -26,7 +26,7 @@ windows:
     panes:
       - >
         ros2 launch vtr_multi_robot convoy_route_planner.launch.py
-        robots:=$ROBOTS base_params:=ouster_hunter_default.yaml
+        robots:=$ROBOTS base_params:=ouster_hunter_default.yaml convoy_params:=convoy_params.yaml
 
   - window_name: rosbag
     layout: main-horizontal

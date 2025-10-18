@@ -6,15 +6,95 @@
     path_planning:
       bicycle_mpc:
         type: bicycle_mpc
+        speed_scheduler:
+          planar_curv_weight: 0.0
+          profile_curv_weight: 1.0 
+          eop_weight: 1.0
+          min_vel: 0.5
+        mpc:
+          # Controller Params
+          extrapolate_robot_pose: true
+          mpc_verbosity: false
+          forward_vel: 0.75
+          max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
+          max_ang_vel: 0.46
+          max_ang_acc: 0.89
+          ang_alpha: 0.0
+          lin_alpha: 0.0
+          max_lin_acc: 0.5
+          vehicle_model: "bicycle"
+          wheelbase: 0.65
+          recovery_steps: 15
+          failure_threshold: 5
+
+          # Tunable controller parameters(Currently only works for the Bicycle)
+          forward:
+            q_lat: 10.0
+            q_lon: 4.0
+            q_th: 7.0
+            r1: 0.0
+            r2: 3.0
+            racc1: 4.0
+            racc2: 5.0
+            q_f: 1.0 # Multiplier for terminal cost
+          reverse:
+            q_lat: 10.0
+            q_lon: 3.0
+            q_th: 7.0
+            r1: 0.1
+            r2: 1.0
+            racc1: 2.0
+            racc2: 3.5
+            q_f: 1.0 # Multiplier for terminal cost
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
-      follow_distance: 2.75
-      distance_margin: 0.5
-      waypoint_selection: euclidean
-      longitudinal_control:
-        kp: 2.0
-        ki: 0.5
-        kd: 0.0
+        follow_distance: 2.75
+        distance_margin: 0.5
+        waypoint_selection: euclidean
+        longitudinal_control:
+          kp: 2.0
+          ki: 0.5
+          kd: 0.0
+        speed_scheduler:
+          planar_curv_weight: 0.0
+          profile_curv_weight: 1.0 
+          eop_weight: 1.0
+          min_vel: 0.5
+        mpc:
+          # Controller Params
+          extrapolate_robot_pose: true
+          mpc_verbosity: false
+          forward_vel: 0.75
+          max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
+          max_ang_vel: 0.46
+          max_ang_acc: 0.89
+          ang_alpha: 0.0
+          lin_alpha: 0.0
+          max_lin_acc: 0.5
+          vehicle_model: "bicycle"
+          wheelbase: 0.65
+          recovery_steps: 15
+          failure_threshold: 5
+
+          # Tunable controller parameters(Currently only works for the Bicycle)
+          forward:
+            q_lat: 10.0
+            q_lon: 4.0
+            q_th: 7.0
+            r1: 0.0
+            r2: 3.0
+            racc1: 4.0
+            racc2: 5.0
+            q_f: 1.0 # Multiplier for terminal cost
+          reverse:
+            q_lat: 10.0
+            q_lon: 3.0
+            q_th: 7.0
+            r1: 0.1
+            r2: 1.0
+            racc1: 2.0
+            racc2: 3.5
+            q_f: 1.0 # Multiplier for terminal cost
     log_enabled:
       #- tactic.module
       - mission.state_machine
