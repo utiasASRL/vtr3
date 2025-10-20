@@ -279,11 +279,11 @@ class MultiRobotSocketVTRUI(MultiRobotVTRUI):
     ros_command.type = MissionCommand.BEGIN_GOALS
     return super().begin_goals(ros_command)
 
-  def move_robot(self, data):
+  def move_robot(self, data, robot_id):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.LOCALIZE
     ros_command.vertex = int(data['vertex'])
-    return super().move_robot(ros_command)
+    return super().move_robot(ros_command, robot_id)
   
   def update_waypoint(self, data):
     ros_waypoint_update = UpdateWaypoint()

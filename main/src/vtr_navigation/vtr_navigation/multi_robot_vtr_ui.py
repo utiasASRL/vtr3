@@ -241,6 +241,7 @@ class MultiRobotVTRUI(ROSManager):
 
   @ROSManager.on_ros
   def move_robot(self, msg, robot_id):
+    vtr_ui_logger.info(f"[MultiRobotVTRUI]: Moving robot {robot_id}")
     self._mission_command_pub[robot_id].publish(msg)
 
   @ROSManager.on_ros

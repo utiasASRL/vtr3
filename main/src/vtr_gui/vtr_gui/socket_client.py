@@ -315,9 +315,8 @@ class SocketVTRUI(VTRUI):
   
   def change_controller(self, data):
     ros_command = MissionCommand()
-    ros_command.type = MissionCommand.ADD_GOAL
-    ros_command.goal_handle.type = GoalHandle.SELECT_CONTROLLER
-    ros_command.goal_handle.controller_name = data['controller_name']
+    ros_command.type = MissionCommand.SELECT_CONTROLLER
+    ros_command.controller_name = data['controller_name']
     return super().change_controller(ros_command)
 
 

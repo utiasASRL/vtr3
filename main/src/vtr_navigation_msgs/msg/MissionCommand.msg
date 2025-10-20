@@ -11,6 +11,7 @@ uint8 START_MERGE = 5
 uint8 CONFIRM_MERGE = 6
 uint8 CONTINUE_TEACH = 7
 uint8 FORCE_ADD_VERTEX = 8
+uint8 SELECT_CONTROLLER = 9
 uint8 type
 
 ## PAUSE
@@ -24,3 +25,6 @@ uint64 vertex
 
 ## START_MERGE - specify the window to merge
 uint64[] window  # for START_MERGE
+
+## SELECT_CONTROLLER - specify the controller name
+string controller_name
