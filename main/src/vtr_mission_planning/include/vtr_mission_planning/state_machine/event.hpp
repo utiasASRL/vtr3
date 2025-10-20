@@ -72,6 +72,7 @@ struct Event {
   static Event::Ptr SwitchController(const std::string& new_controller);
 
   static Event::Ptr Reset();
+  static Event::Ptr EndGoal();
 
   std::string signalName() const;
   std::string actionName() const;

@@ -56,7 +56,7 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
       [[fallthrough]];
     case Action::Reset:
       // Goal canceled so we reset the statemachine
-      // getGoals(state_machine).clear();
+      getGoals(state_machine).clear();
       success = false;
       break;
     case Action::EndGoal:

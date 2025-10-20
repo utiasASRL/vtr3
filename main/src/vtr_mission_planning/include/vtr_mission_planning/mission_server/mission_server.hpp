@@ -290,14 +290,18 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
     }
   }
   goal_map_.erase(goal_id);
-  //
-  auto reset_sm = (current_goal_id_ == goal_id) ? clearCurrentGoal() : false;
-  //
+  bool needs_reset = clearCurrentGoal();
+  
   serverStateChanged();
   lock.unlock();
-  if (!reset_sm) return;
-  if (const auto state_machine = getStateMachine())
-    state_machine->handle(Event::Reset());
+  if (const auto state_machine = getStateMachine()){
+    if (needs_reset) {
+      state_machine->handle(Event::Reset());
+    } else if (current_goal_id_ == goal_id) {
+      state_machine->handle(Event::EndGoal());
+    }
+  }
+    
 }
 
 template <class GoalHandle>
@@ -561,8 +565,9 @@ bool MissionServer<GoalHandle>::clearCurrentGoal() {
       current_goal_state_ = GoalState::Empty;
       current_server_state_ = ServerState::Empty;
     } else {
-      current_goal_id_ = goal_queue_.front();
-      current_goal_state_ = GoalState::Starting;
+      // current_goal_id_ = goal_queue_.front();
+      // current_goal_state_ = GoalState::Starting;
+      return false;
     }
   }
   cv_stop_or_goal_changed_.notify_all();

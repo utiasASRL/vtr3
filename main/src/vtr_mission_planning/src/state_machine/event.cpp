@@ -107,6 +107,8 @@ Event::Ptr Event::SwitchController(const std::string& new_controller) {
 
 Event::Ptr Event::Reset() { return std::make_shared<Event>(Action::Reset); }
 
+Event::Ptr Event::EndGoal() { return std::make_shared<Event>(Action::EndGoal); }
+
 std::string Event::signalName() const {
   std::stringstream ss;
   ss << signal;
