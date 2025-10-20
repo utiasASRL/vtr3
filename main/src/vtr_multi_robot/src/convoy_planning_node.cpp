@@ -182,10 +182,7 @@ private:
                 x.isLeader = !x.isLeader;
                 CLOG(DEBUG, "convoy_route") << "Publishing route to " << x.name; 
                 x.mission_pub->publish(route_section);
-<<<<<<< HEAD
-=======
                 std::this_thread::sleep_for(10ms); 
->>>>>>> convoy
             });
         }
 
@@ -198,10 +195,7 @@ private:
                 RobotInfo::setController(x);
                 CLOG(DEBUG, "convoy_route") << "Publishing route to " << x.name; 
                 x.mission_pub->publish(final_goal);
-<<<<<<< HEAD
-=======
                 std::this_thread::sleep_for(10ms); 
->>>>>>> convoy
             });
     }
 

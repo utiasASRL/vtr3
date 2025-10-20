@@ -11,10 +11,7 @@ def generate_launch_description():
     config_dir = osp.join(os.getenv('VTRSRC'), 'config')
     return LaunchDescription([
         DeclareLaunchArgument('base_params', description='base parameter file (sensor, robot specific)'),
-<<<<<<< HEAD
-=======
         DeclareLaunchArgument('convoy_params', description='convoy parameter file (sensor, robot specific)'),
->>>>>>> convoy
         DeclareLaunchArgument('robots', default_value='[\"robot1\",\"robot2\"]', description='list of robot names'),
         Node(
             package='vtr_multi_robot',
@@ -25,12 +22,7 @@ def generate_launch_description():
             parameters=[
                 PathJoinSubstitution([vtr_temp, 'setup_params.yaml']),
                 {'robot_names': LaunchConfiguration('robots'),
-<<<<<<< HEAD
-                 'log_enabled': ["pose_graph",
-                                 "convoy_route"]}
-=======
                  'log_enabled': ["convoy_route"]}
->>>>>>> convoy
             ]
         ),
         Node(
@@ -40,10 +32,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 PathJoinSubstitution([config_dir, LaunchConfiguration('base_params')]),
-<<<<<<< HEAD
-=======
                 PathJoinSubstitution([config_dir, LaunchConfiguration('convoy_params')]),
->>>>>>> convoy
                 {'robots': LaunchConfiguration('robots')}
             ]
         ),
