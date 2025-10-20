@@ -282,23 +282,25 @@ template <class GoalHandle>
 void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
   UniqueLock lock(mutex_);
   const auto goal_id = GoalInterface<GoalHandle>::id(gh);
+  CLOG(DEBUG, "mission.server") << "Requested remove goal " << goal_id;
+
   //
   for (auto iter = goal_queue_.begin(); iter != goal_queue_.end(); ++iter) {
-    if (*iter == goal_id && current_goal_id_ != goal_id) {
+    if (*iter == goal_id) {
       goal_queue_.erase(iter);
       goal_map_.erase(goal_id);
+      CLOG(DEBUG, "mission.server") << "Removing goal!";
       break;
     }
   }
   bool needs_reset = clearCurrentGoal();
+  cv_stop_or_goal_changed_.notify_all();
   
   serverStateChanged();
   lock.unlock();
   if (const auto state_machine = getStateMachine()){
     if (needs_reset) {
       state_machine->handle(Event::Reset());
-    } else if (current_goal_id_ == goal_id) {
-      state_machine->handle(Event::EndGoal());
     }
   }
     
@@ -565,12 +567,11 @@ bool MissionServer<GoalHandle>::clearCurrentGoal() {
       current_goal_state_ = GoalState::Empty;
       current_server_state_ = ServerState::Empty;
     } else {
-      // current_goal_id_ = goal_queue_.front();
-      // current_goal_state_ = GoalState::Starting;
+      current_goal_id_ = goal_queue_.front();
+      current_goal_state_ = GoalState::Starting;
       return false;
     }
   }
-  cv_stop_or_goal_changed_.notify_all();
 
   return true;  // state machine needs reset
 }
