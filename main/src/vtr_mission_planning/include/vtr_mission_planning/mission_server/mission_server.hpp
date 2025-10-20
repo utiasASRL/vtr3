@@ -284,12 +284,12 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
   const auto goal_id = GoalInterface<GoalHandle>::id(gh);
   //
   for (auto iter = goal_queue_.begin(); iter != goal_queue_.end(); ++iter) {
-    if (*iter == goal_id) {
+    if (*iter == goal_id && current_goal_id_ != goal_id) {
       goal_queue_.erase(iter);
+      goal_map_.erase(goal_id);
       break;
     }
   }
-  goal_map_.erase(goal_id);
   bool needs_reset = clearCurrentGoal();
   
   serverStateChanged();
