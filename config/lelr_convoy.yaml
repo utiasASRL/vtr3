@@ -61,13 +61,12 @@
           eop_weight: 2.0
           min_vel: 0.3
 
+        follow_distance: 4.15
+        distance_margin: 1.0
+        waypoint_selection: euclidean
 
         mpc:
-          follow_distance: 4.15
-          distance_margin: 1.0
-          waypoint_selection: euclidean
           # Controller Params
-          extrapolate_robot_pose: true
           extrapolate_robot_pose: true
           mpc_verbosity: false
           forward_vel: 0.5
