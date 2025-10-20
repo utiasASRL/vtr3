@@ -383,6 +383,7 @@ void GraphMapServer::updateRobotProjection() {
     robot_state_.lat = lat;
     robot_state_.theta = theta;
     robot_state_.localized = robot_persistent_loc_.localized;
+    robot_state_.index = robot_persistent_loc_.v;
   } else {
     robot_state_.valid = false;
   }

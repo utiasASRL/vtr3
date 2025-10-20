@@ -25,10 +25,10 @@ namespace storage {
 
 DataStreamAccessorBase::DataStreamAccessorBase(
     const std::string &base_directory, const std::string &stream_name,
-    const std::string &stream_type)
+    const std::string &stream_type, const bool read_only)
     : base_directory_(std::filesystem::path(base_directory)),
       data_directory_(std::filesystem::path(base_directory) / stream_name) {
-  storage_accessor_->open(data_directory_.string());
+  storage_accessor_->open(data_directory_.string(), read_only);
 
   tm_.name = stream_name;
   tm_.type = stream_type;

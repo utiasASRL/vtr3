@@ -64,15 +64,15 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   /** \brief Pseudo constructor for making shared pointers */
   static Ptr MakeShared(
       const std::string& file_path, const bool load = true,
-      const CallbackPtr& callback = std::make_shared<Callback>()) {
-    return std::make_shared<RCGraph>(file_path, load, callback);
+      const CallbackPtr& callback = std::make_shared<Callback>(), const bool read_only = false) {
+    return std::make_shared<RCGraph>(file_path, load, callback, read_only);
   }
 
   /** \brief Construct an empty graph with an id and save location */
   RCGraph(const std::string& file_path, const bool load = true,
-          const CallbackPtr& callback = std::make_shared<Callback>());
+          const CallbackPtr& callback = std::make_shared<Callback>(), const bool read_only = false);
 
-  virtual ~RCGraph() { save(); }
+  virtual ~RCGraph() { if(!read_only_) save(); }
 
   void save();
 
@@ -123,6 +123,8 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   const std::string file_path_;
 
   const Name2AccessorMapPtr name2accessor_map_;
+
+  const bool read_only_;
 
   /** \brief Ros message containing necessary information for a list of runs. */
   storage::LockableMessage<GraphMsg>::Ptr msg_ = nullptr;

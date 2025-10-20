@@ -1,0 +1,36 @@
+## Online Convoy Manger
+session_name: vtr_convoy_manager
+environment:
+  RMW_IMPLEMENTATION: rmw_zenoh_cpp
+  ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
+  ROBOTS: "[prof_plum,mr_green]" # Figure out how to easily make this configurable
+
+start_directory: ${VTRDATA}
+suppress_history: false
+
+windows:
+  - window_name: vtr_gui
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 run vtr_gui multi_robot_socket_client --ros-args -p robots:=$ROBOTS
+      - ros2 run vtr_gui multi_robot_socket_server --ros-args -p robots:=$ROBOTS
+      - ros2 run vtr_gui multi_robot_web_server --ros-args -p robots:=$ROBOTS
+      # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
+
+  - window_name: convoy_manager
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - >
+        ros2 launch vtr_multi_robot convoy_route_planner.launch.py
+        robots:=$ROBOTS base_params:=ouster_hunter_default.yaml convoy_params:=convoy_params.yaml
+
+  - window_name: rosbag
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 bag record /prof_plum/cmd_vel /mr_green/cmd_vel /miss_scarlet/cmd_vel /mr_green/vtr/mpc_prediction /miss_scarlet/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction /mr_green/vtr/odometry /miss_scarlet/vtr/odometry /prof_plum/vtr/odometry /mr_green/vtr/leader_mpc_prediction /miss_scarlet/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction /mr_green/vtr/mpc_ref_pose_array /miss_scarlet/vtr/mpc_ref_pose_array /prof_plum/vtr/mpc_ref_pose_array

@@ -116,18 +116,21 @@ struct TestGoalHandle {
                  const GoalTarget& target0 = GoalTarget::Unknown,
                  const std::chrono::milliseconds& pause_before0 = 0ms,
                  const std::chrono::milliseconds& pause_after0 = 0ms,
-                 const std::list<tactic::VertexId>& path0 = {})
+                 const std::list<tactic::VertexId>& path0 = {},
+                 const std::string& controller_name0 = "")
       : id(id0),
         target(target0),
         pause_before(pause_before0),
         pause_after(pause_after0),
-        path(path0) {}
+        path(path0),
+        controller_name(controller_name0) {}
 
   int id;
   GoalTarget target;
   std::chrono::milliseconds pause_before;
   std::chrono::milliseconds pause_after;
   std::list<tactic::VertexId> path;
+  std::string controller_name;
 };
 
 }  // namespace mission_planning
