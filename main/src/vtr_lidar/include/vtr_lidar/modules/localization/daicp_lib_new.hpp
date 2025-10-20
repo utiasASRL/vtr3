@@ -295,12 +295,9 @@ inline double computeThresholdVLG(const Eigen::VectorXd& eigenvalues) {
   Eigen::VectorXd log_eigenvalues = eigenvalues.array().max(1e-30).log();
   
   const double max_eigenval_full = log_eigenvalues.maxCoeff();
-  const double eigenvalue_threshold = max_eigenval_full * 1e-3;  // Conservative threshold
+  const double eigenvalue_threshold = max_eigenval_full * 0.1;  // Conservative threshold
   
   double decode_threshold = std::exp(eigenvalue_threshold);
-
-  // [DEBUG]: magic number
-  // decode_threshold = 350.0;
 
 
 
@@ -308,8 +305,10 @@ inline double computeThresholdVLG(const Eigen::VectorXd& eigenvalues) {
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << decode_threshold;
   
   // [DEBUG] ensure exactly which directions are well-conditioned
-  decode_threshold = eigenvalues(1) - 0.0001; 
-  
+  // decode_threshold = eigenvalues(1) - 0.0001; 
+  // [DEBUG]: magic number
+  decode_threshold = 1e5;
+
   // return decode_threshold * (-1.0);  // disable daicp, should fall back to standard icp
   return decode_threshold; 
 }
@@ -487,7 +486,7 @@ inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& H, const Ei
     // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
     // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
     // Consider to use the prior covariance in degenerated directions. 
-    const double epsilon = 1e-1;  
+    const double epsilon = 0.1;  
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
               (1.0/epsilon) * (Vd *Vd.transpose());
   }
