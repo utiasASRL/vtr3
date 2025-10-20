@@ -62,7 +62,8 @@ void ControllerSwitch::onEntry(StateMachine &state_machine, StateInterface &old_
   using DynamicPathPlanner = path_planning::DynamicPathPlanner;
 
   const auto pp = getPathPlanner(state_machine);
-  if (DynamicPathPlanner::Ptr dpp = std::static_pointer_cast<DynamicPathPlanner>(pp)) {
+  DynamicPathPlanner::Ptr dpp = std::static_pointer_cast<DynamicPathPlanner>(pp);
+  if (dpp != nullptr) {
     dpp->setController(new_controller_);
     CLOG(DEBUG, "mission.state_machine") << "Requesting controller " << new_controller_;
   } else {

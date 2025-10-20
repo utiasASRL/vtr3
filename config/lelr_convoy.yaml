@@ -110,6 +110,7 @@
       - mission.server
         # planner manager
       - cbit.control
+      - dynamic_path_planner
       #- cbit.debug
       #- cbit.path_planning
         # mpc

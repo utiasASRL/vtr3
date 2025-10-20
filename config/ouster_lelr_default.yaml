@@ -237,8 +237,6 @@
     path_planning:
       type: bicycle_mpc
       control_period: 100
-      type: bicycle_mpc
-      control_period: 100
       speed_scheduler:
         planar_curv_weight: 0.0
         profile_curv_weight: 0.0 
