@@ -138,7 +138,7 @@
     preprocessing:
       filtering:
         vertical_angle_res: 0.012271 # radians
-   path_planning:
+  path_planning:
     bicycle_mpc_follower:
       leader_namespace:
         /echo 
