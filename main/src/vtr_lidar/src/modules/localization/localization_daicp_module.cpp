@@ -258,9 +258,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
         CLOG(INFO, "lidar.localization_daicp") << "Dynamic curvature scaling: " << curvature_scale;
 
-        curvature_scale = 5.0f; // for testing without dynamic scaling
+        // curvature_scale = 5.0f; // for testing without dynamic scaling
 
-        CLOG(INFO, "lidar.localization_daicp") << "Using fixed curvature scaling: " << curvature_scale;
+        // CLOG(INFO, "lidar.localization_daicp") << "Using fixed curvature scaling: " << curvature_scale;
 
         timer[1]->start();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -286,13 +286,13 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         CLOG(DEBUG, "lidar.localization_daicp") << "Curvature KDTree nn search done, found " << sample_inds.size() << " pairs.";
         timer[1]->stop();
       } else if (config_->correspondence_method == 1) {
-        // --- build KD-Tree for spatial (xyz) ---
+        // build KD-Tree for spatial (xyz)
         NanoFLANNAdapter<PointWithInfo> adapter_xyz(point_map);
         KDTreeParams tree_params(10); // max leaf
         auto kdtree_xyz = std::make_unique<KDTree<PointWithInfo>>(3, adapter_xyz, tree_params);
         kdtree_xyz->buildIndex();
 
-        // --- build KD-Tree for curvature (1D) ---
+        // build KD-Tree for curvature (1D)
         CurvatureAdapter1D curv_adapter(point_map);
         using CurvKDTreeType = nanoflann::KDTreeSingleIndexAdaptor<
             nanoflann::L2_Simple_Adaptor<float, CurvatureAdapter1D>,
@@ -303,7 +303,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
         timer[1]->start();
 
-        // --- first pass: nearest in XYZ ---
+        // first pass: nearest in XYZ
   #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
         for (size_t i = 0; i < sample_inds.size(); ++i) {
           KDTreeResultSet result_set(1);
@@ -314,7 +314,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         CLOG(DEBUG, "lidar.localization_daicp") 
             << "Spatial KDTree nn search done, found " << sample_inds.size() << " pairs.";
 
-        // --- second pass: refine by curvature only ---
+        // second pass: refine by curvature only
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
         for (size_t i = 0; i < sample_inds.size(); ++i) {
           size_t curv_nn_idx = static_cast<size_t>(-1);
