@@ -105,9 +105,9 @@
         # tactic
       #- tactic
       #- tactic.pipeline
-      - tactic.module
-      #- mission.state_machine
-      #- mission.server
+      #- tactic.module
+      - mission.state_machine
+      - mission.server
         # planner manager
       - cbit.control
       #- cbit.debug
