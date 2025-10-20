@@ -113,7 +113,7 @@ namespace lidar {
       int32_t line_id; \
       int32_t face_id; \
       float curvature; \
-      float cluster_id; \
+      float ivariance; \
     }; \
   };
 

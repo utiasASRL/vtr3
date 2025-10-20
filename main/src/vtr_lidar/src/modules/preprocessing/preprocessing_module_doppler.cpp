@@ -306,7 +306,6 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   // output
-  Eigen::VectorXd ivariance_feat(pt_count);
   pcl::PointCloud<PointWithInfo> out_frame;
   out_frame.reserve(pt_count);
   Eigen::VectorXd bias_feat(config_->bias_input_feat.size());
@@ -339,13 +338,12 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
         // apply linear regression model
         int faceid = out_frame.back().face_id;
         out_frame.back().radial_velocity -= computeModel(bias_feat, bias_weights_[0][faceid][r][c], config_->bias_polyorder);
-        ivariance_feat[out_frame.size() - 1] = exp(computeModel(var_feat, var_weights_[0][faceid][0][0], config_->var_polyorder));
+        out_frame.back().ivariance = exp(computeModel(var_feat, var_weights_[0][faceid][0][0], config_->var_polyorder));
       }
     }
   }
 
   auto filtered_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(out_frame);
-  auto ivariance = std::make_shared<Eigen::VectorXd>(ivariance_feat);
 
   // print size after regression step
   CLOG(DEBUG, "lidar.preprocessing_doppler")
@@ -361,7 +359,6 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// Output
   qdata.doppler_preprocessed_point_cloud = filtered_cloud;
-  qdata.doppler_ivariance = ivariance;
 
 }
 

@@ -68,8 +68,8 @@ class PreprocessingCurvatureModule : public tactic::BaseModule {
 
  protected:
   void compute_curvature(pcl::PointCloud<PointWithInfo>::Ptr& cloud);
-  void cluster_curvature(const pcl::PointCloud<PointWithInfo>::Ptr& cloud);
-  void remove_small_clusters(pcl::PointCloud<PointWithInfo>::Ptr& cloud);
+  void cluster_curvature(const pcl::PointCloud<PointWithInfo>::Ptr& cloud, std::vector<int>& cluster_ids);
+  void remove_small_clusters(pcl::PointCloud<PointWithInfo>::Ptr& cloud, std::vector<int>& cluster_ids);
 
 
  private:

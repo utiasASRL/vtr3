@@ -162,7 +162,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &query_points = *qdata.doppler_preprocessed_point_cloud; // point cloud after preprocess
   const auto &T_s_r = *qdata.T_s_r;                   // external calib, T from robot to lidar
   const auto &T_s_r_gyro = *qdata.T_s_r_gyro;         // external calib, T from robot to gyro
-  const auto &ivariance = *qdata.doppler_ivariance;   // precomputed ivariance for each point
   
   // katya to do: need better way to initialize gyro_bias
   // currently have initialization from navigator in a separate cache, but want both init + online est to be stored in gyro_bias cache
@@ -401,7 +400,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     double alpha = static_cast<double>(query_points[i].timestamp - prev_time) / static_cast<double>(frame_end_time - prev_time);
     alpha_precompute_[k] = std::min(1.0, std::max(0.0, alpha));
     malpha_precompute_[k] = std::max(0.0, 1.0 - alpha_precompute_[k]);
-    ivariance_precompute_[k] = ivariance(i);
+    ivariance_precompute_[k] = query_points[i].ivariance;
     ++k;
   }
   // end ransac

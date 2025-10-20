@@ -196,16 +196,17 @@ void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithIn
   }
 }
 
-void PreprocessingCurvatureModule::cluster_curvature(const pcl::PointCloud<PointWithInfo>::Ptr& cloud) {
+void PreprocessingCurvatureModule::cluster_curvature(
+  const pcl::PointCloud<PointWithInfo>::Ptr& cloud,
+  std::vector<int>& cluster_ids) {
   if (!cloud || cloud->empty()) return;
 
+  cluster_ids.assign(cloud->size(), -1);  // initialize with -1
+
   const float flat_thresh = config_->ground_plane_threshold;
-
-  // separate flat and non-flat points
   std::vector<size_t> flat_inds, nonflat_inds;
-  flat_inds.reserve(cloud->size());
-  nonflat_inds.reserve(cloud->size());
 
+  // Separate flat/nonflat points
   for (size_t i = 0; i < cloud->size(); ++i) {
     float curv = (*cloud)[i].curvature;
     if (!std::isfinite(curv)) continue;
@@ -216,10 +217,8 @@ void PreprocessingCurvatureModule::cluster_curvature(const pcl::PointCloud<Point
   }
 
   if (nonflat_inds.empty()) {
-    // All flat
     for (size_t i = 0; i < cloud->size(); ++i)
-      (*cloud)[i].cluster_id = 0;
-    CLOG(DEBUG, "lidar.preprocessing.curvature") << "All points are flat; assigned to single cluster 0.";
+      cluster_ids[i] = 0;
     return;
   }
 
@@ -279,103 +278,39 @@ void PreprocessingCurvatureModule::cluster_curvature(const pcl::PointCloud<Point
 
   // assign cluster ids
   for (size_t i = 0; i < cloud->size(); ++i)
-    (*cloud)[i].cluster_id = -1;
+    cluster_ids[i] = -1;
 
   // flat points → cluster 0
   for (size_t i : flat_inds)
-    (*cloud)[i].cluster_id = 0;
+    cluster_ids[i] = 0;
 
   // non-flat points → cluster 1, 2, ...
   for (size_t k = 0; k < nonflat_inds.size(); ++k)
-    (*cloud)[nonflat_inds[k]].cluster_id = labels[k];
+    cluster_ids[nonflat_inds[k]] = labels[k];
 
   CLOG(INFO, "lidar.preprocessing.curvature")
     << "Clustered " << cloud->size() << " points into "
     << current_label << " clusters (including flat cluster 0).";
 }
 
-// void PreprocessingCurvatureModule::cluster_curvature(const pcl::PointCloud<PointWithInfo>::Ptr& cloud) {
-//     if (!cloud || cloud->empty()) return;
-
-//     const size_t N = cloud->size();
-//     float radius = config_->d_prime;
-//     float curv_thresh = config_->ground_plane_threshold;
-
-//     NanoFLANNAdapter<PointWithInfo> adapter(*cloud);
-//     KDTree<PointWithInfo> tree(3, adapter, KDTreeParams(10));
-//     tree.buildIndex();
-
-//     UnionFind uf(N);
-
-// #pragma omp parallel for schedule(dynamic, 64) num_threads(config_->num_threads)
-//     for (size_t i = 0; i < N; ++i) {
-//         const float query_pt[3] = {(*cloud)[i].x, (*cloud)[i].y, (*cloud)[i].z};
-//         std::vector<size_t> neighbors;
-//         std::vector<float> dists;
-
-//         NanoFLANNRadiusResultSet<float, size_t> resultSet(radius, dists, neighbors);
-//         tree.findNeighbors(resultSet, query_pt, KDTreeSearchParams());
-
-//         float curv_i = (*cloud)[i].curvature;
-//         if (!std::isfinite(curv_i)) continue;
-
-//         for (auto j : neighbors) {
-//             if (j == i) continue;
-//             float curv_j = (*cloud)[j].curvature;
-//             if (!std::isfinite(curv_j)) continue;
-
-//             if (std::fabs(curv_i - curv_j) < curv_thresh) {
-//                 uf.unite(i, j);  // thread-safe union
-//             }
-//         }
-//     }
-
-//     // Assign cluster labels
-//     std::vector<int> labels(N);
-//     std::unordered_map<int, int> cluster_map;
-//     int next_label = 0;
-
-//     for (size_t i = 0; i < N; ++i) {
-//         int root = uf.find(i);
-//         int label;
-//         auto it = cluster_map.find(root);
-//         if (it == cluster_map.end()) {
-//             label = next_label++;
-//             cluster_map[root] = label;
-//         } else {
-//             label = it->second;
-//         }
-//         labels[i] = label;
-//     }
-
-//     for (size_t i = 0; i < N; ++i) {
-//         (*cloud)[i].cluster_id = labels[i];
-//     }
-
-//     CLOG(INFO, "lidar.preprocessing.curvature")
-//         << "Clustered " << N << " points into " << next_label << " clusters.";
-// }
-
-
-void PreprocessingCurvatureModule::remove_small_clusters(pcl::PointCloud<PointWithInfo>::Ptr& cloud) {
+void PreprocessingCurvatureModule::remove_small_clusters(
+  pcl::PointCloud<PointWithInfo>::Ptr& cloud,
+  std::vector<int>& cluster_ids) {
   if (!cloud || cloud->empty()) return;
 
   // Count cluster sizes
   std::unordered_map<int, int> cluster_sizes;
-  for (const auto& pt : *cloud) cluster_sizes[pt.cluster_id]++;
+  for (int id : cluster_ids)
+    if (id >= 0) cluster_sizes[id]++;
 
-  // Find valid cluster ids
   std::unordered_set<int> valid_labels;
-  for (const auto& [label, size] : cluster_sizes) {
+  for (auto &[label, size] : cluster_sizes) 
     if (size >= config_->min_points_threshold)
       valid_labels.insert(label);
-  }
 
-  // Mark invalid clusters
-  for (auto& pt : *cloud) {
-    if (valid_labels.find(pt.cluster_id) == valid_labels.end())
-      pt.cluster_id = -1;
-  }
+  for (auto &id : cluster_ids)
+    if (valid_labels.find(id) == valid_labels.end())
+      id = -1;
 }
 
 void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
@@ -448,18 +383,19 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
 
   // curvature-based clustering
   timer[2]->start();
-  cluster_curvature(filtered_point_cloud);
+  std::vector<int> cluster_ids;
+  cluster_curvature(filtered_point_cloud, cluster_ids);
   timer[2]->stop();
 
   // remove small clusters
   timer[3]->start();
-  remove_small_clusters(filtered_point_cloud);
+  remove_small_clusters(filtered_point_cloud, cluster_ids);
   timer[3]->stop();
 
   // extract labels
   std::vector<int> labels(filtered_point_cloud->size());
   for (size_t i = 0; i < filtered_point_cloud->size(); ++i)
-    labels[i] = (*filtered_point_cloud)[i].cluster_id;
+    labels[i] =  cluster_ids[i];
   CLOG(DEBUG, "lidar.preprocessing_curvature")
       << "number of clusters after removing small ones: " << (*std::max_element(labels.begin(), labels.end())) + 1;
 
