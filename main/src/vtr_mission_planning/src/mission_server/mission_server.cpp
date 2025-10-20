@@ -105,9 +105,6 @@ std::ostream& operator<<(std::ostream& os,
     case CommandTarget::ForceAddVertex:
       os << "ForceAddVertex";
       return os;
-    case CommandTarget::SelectController:
-      os << "SelectController";
-      return os;
   };
   return os;
 }

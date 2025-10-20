@@ -58,7 +58,6 @@ enum class CommandTarget : int8_t {
   ConfirmMerge = 2,
   ContinueTeach = 3,
   ForceAddVertex = 4,
-  SelectController = 5,
 };
 
 struct Command {
@@ -66,7 +65,6 @@ struct Command {
   CommandTarget target;
   VertexId vertex;
   std::vector<VertexId> path;
-  std::string controller_name;
 };
 
 /** \brief Template specialization to standardize the goal interface */
@@ -351,10 +349,6 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
     }
     case CommandTarget::ContinueTeach: {
       state_machine->handle(std::make_shared<Event>(Signal::ContinueTeach));
-      return;
-    }
-    case CommandTarget::SelectController: {
-      state_machine->handle(Event::SwitchController(command.controller_name));
       return;
     }
     case CommandTarget::ForceAddVertex: {
