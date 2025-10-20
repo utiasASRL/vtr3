@@ -1,110 +1,102 @@
 /**:
   ros__parameters:
-    robot_frame: echo/base_link
-    env_info_topic: echo/env_info
-    gyro_frame: echo/ouster_front_imu
-    lidar_frame: echo/ouster_front_lidar
-    lidar_topic: /echo/ouster_front/points
     path_planning:
       bicycle_mpc:
-            control_period: 100
-            type: bicycle_mpc
-            control_period: 100
-            speed_scheduler:
-              planar_curv_weight: 0.0
-              profile_curv_weight: 0.0 
-              eop_weight: 2.0
-              min_vel: 0.3
- 
-              eop_weight: 2.0
-              min_vel: 0.3
- 
-            mpc:
-              # Controller Params
-              extrapolate_robot_pose: true
-              extrapolate_robot_pose: true
-              mpc_verbosity: false
-              forward_vel: 0.5
-              max_lin_vel: 0.75
-              max_ang_vel: 0.454
-              max_ang_acc: 0.149
-              max_lin_acc: 0.3
-              vehicle_model: "bicycle"
-              wheelbase: 1.83
-              recovery_steps: 15
-              failure_threshold: 5
- 
-              # Tunable controller parameters(Currently only works for the Bicycle)
-              forward:
-                q_lat: 15.0
-                q_lon: 4.0
-                q_th: 5.0
-                r1: 0.1
-                r2: 1.0
-                racc1: 4.5
-                racc2: 7.0
-                q_f: 1.0 # Multiplier for terminal cost
-              reverse:
-                q_lat: 15.0
-                q_lon: 6.0
-                q_th: 2.0
-                r1: 8.0
-                r2: 0.0
-                racc1: 12.5
-                racc2: 2.0
-                q_f: 0.0 # Multiplier for terminal cost
+        control_period: 100
+        type: bicycle_mpc
+        control_period: 100
+        speed_scheduler:
+          planar_curv_weight: 0.0
+          profile_curv_weight: 0.0
+          eop_weight: 2.0
+          min_vel: 0.3
+
+          eop_weight: 2.0
+          min_vel: 0.3
+
+        mpc:
+          # Controller Params
+          extrapolate_robot_pose: true
+          extrapolate_robot_pose: true
+          mpc_verbosity: false
+          forward_vel: 0.5
+          max_lin_vel: 0.75
+          max_ang_vel: 0.454
+          max_ang_acc: 0.149
+          max_lin_acc: 0.3
+          wheelbase: 1.83
+          recovery_steps: 15
+          failure_threshold: 5
+
+          # Tunable controller parameters(Currently only works for the Bicycle)
+          forward:
+            q_lat: 15.0
+            q_lon: 4.0
+            q_th: 5.0
+            r1: 0.1
+            r2: 1.0
+            racc1: 4.5
+            racc2: 7.0
+            q_f: 1.0 # Multiplier for terminal cost
+          reverse:
+            q_lat: 15.0
+            q_lon: 6.0
+            q_th: 2.0
+            r1: 8.0
+            r2: 0.0
+            racc1: 12.5
+            racc2: 2.0
+            q_f: 0.0 # Multiplier for terminal cost
 
       bicycle_mpc_follower:
-          control_period: 100
-          type: bicycle_mpc_follower
-          control_period: 100
-          speed_scheduler:
-            planar_curv_weight: 0.0
-            profile_curv_weight: 0.0 
-            eop_weight: 2.0
-            min_vel: 0.3
- 
-            eop_weight: 2.0
-            min_vel: 0.3
+        control_period: 100
+        type: bicycle_mpc_follower
+        control_period: 100
+        speed_scheduler:
+          planar_curv_weight: 0.0
+          profile_curv_weight: 0.0 
+          eop_weight: 2.0
+          min_vel: 0.3
 
- 
-          mpc:
-            follow_distance: 4.15
-            distance_margin: 1.0
-            waypoint_selection: euclidean
-            # Controller Params
-            extrapolate_robot_pose: true
-            extrapolate_robot_pose: true
-            mpc_verbosity: false
-            forward_vel: 0.5
-            max_lin_vel: 0.75
-            max_ang_vel: 0.454
-            max_ang_acc: 0.149
-            max_lin_acc: 0.3
-            vehicle_model: "bicycle"
-            wheelbase: 1.83
-            recovery_steps: 15
-            failure_threshold: 5
- 
-            # Tunable controller parameters(Currently only works for the Bicycle)
-            forward:
-              q_lat: 15.0
-              q_lon: 4.0
-              q_th: 5.0
-              r1: 0.1
-              r2: 1.0
-              racc1: 4.5
-              racc2: 7.0
-              q_f: 1.0 # Multiplier for terminal cost
-            reverse:
-              q_lat: 15.0
-              q_lon: 6.0
-              q_th: 2.0
-              r1: 8.0
-              r2: 0.0
-              racc1: 12.5
-              racc2: 2.0
-              q_f: 0.0 # Multiplier for terminal cost
+          eop_weight: 2.0
+          min_vel: 0.3
+
+        follow_distance: 4.15
+        distance_margin: 1.0
+        waypoint_selection: euclidean
+
+        mpc:
+          # Controller Params
+          extrapolate_robot_pose: true
+          mpc_verbosity: false
+          forward_vel: 0.5
+          max_lin_vel: 0.75
+          max_ang_vel: 0.454
+          max_ang_acc: 0.149
+          max_lin_acc: 0.3
+          wheelbase: 1.83
+          recovery_steps: 15
+          failure_threshold: 5
+
+          # Tunable controller parameters(Currently only works for the Bicycle)
+          forward:
+            q_lat: 15.0
+            q_lon: 4.0
+            q_th: 5.0
+            r1: 0.1
+            r2: 1.0
+            racc1: 4.5
+            racc2: 7.0
+            q_f: 1.0 # Multiplier for terminal cost
+          reverse:
+            q_lat: 15.0
+            q_lon: 6.0
+            q_th: 2.0
+            r1: 8.0
+            r2: 0.0
+            racc1: 12.5
+            racc2: 2.0
+            q_f: 0.0 # Multiplier for terminal cost
     log_enabled:
       #- navigation
       #- navigation.graph_map_server
@@ -112,13 +104,12 @@
         # tactic
       #- tactic
       #- tactic.pipeline
-      - tactic.module
-      #- tactic.module.live_mem_manager
-      #- tactic.module.graph_mem_manager
-      #- mission.state_machine
-      #- mission.server
+      #- tactic.module
+      - mission.state_machine
+      - mission.server
         # planner manager
       - cbit.control
+      - dynamic_path_planner
       #- cbit.debug
       #- cbit.path_planning
         # mpc
@@ -127,16 +118,30 @@
       - mpc.solver
       - mpc.follower
       #- mpc.follower.target
-/echo/vtr/navigator:
+
+echo/vtr/navigator:
   ros__parameters:
-   path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /foxtrot 
-/echo/vtr/navigator:
+    robot_frame: echo/base_link
+    env_info_topic: echo/env_info
+    gyro_frame: echo/ouster_front_imu
+    lidar_frame: echo/ouster_front_lidar
+    lidar_topic: /echo/ouster_front/points
+    path_planning:
+      bicycle_mpc_follower:
+        leader_namespace:
+          /foxtrot
+
+foxtrot/vtr/navigator:
   ros__parameters:
-   path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /echo 
+    robot_frame: foxtrot/base_link
+    lidar_frame: foxtrot/ouster_back_lidar
+    gyro_frame: foxtrot/ouster_back_imu
+    lidar_topic: /foxtrot/ouster_back/points
+    preprocessing:
+      filtering:
+        vertical_angle_res: 0.012271 # radians
+    path_planning:
+      bicycle_mpc_follower:
+        leader_namespace:
+          /echo
 
