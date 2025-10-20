@@ -302,11 +302,13 @@ inline double computeThresholdVLG(const Eigen::VectorXd& eigenvalues) {
   // [DEBUG]: magic number
   // decode_threshold = 350.0;
 
-  // [DEBUG] ensure exactly which directions are well-conditioned
-  decode_threshold = eigenvalues(1) - 0.0001; 
+
 
   CLOG(DEBUG, "lidar.localization_daicp") << "Log Threshold: " << eigenvalue_threshold;
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << decode_threshold;
+  
+  // [DEBUG] ensure exactly which directions are well-conditioned
+  decode_threshold = eigenvalues(1) - 0.0001; 
   
   // return decode_threshold * (-1.0);  // disable daicp, should fall back to standard icp
   return decode_threshold; 
