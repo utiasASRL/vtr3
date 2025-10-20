@@ -7,11 +7,7 @@
   <maintainer email="l.antonyshyn@hotmail.com">asrl</maintainer>
   <license>TODO: License declaration</license>
 
-<<<<<<< HEAD
-  <depend>vtr_navigation_msgs/</depend>
-=======
   <depend>vtr_navigation_msgs</depend>
->>>>>>> convoy
   <depend>vtr_tactic</depend>
   <depend>vtr_route_planning</depend>
   <depend>rclcpp</depend>
