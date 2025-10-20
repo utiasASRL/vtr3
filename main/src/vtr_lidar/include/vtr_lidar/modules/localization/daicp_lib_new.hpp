@@ -566,39 +566,66 @@ inline void computeJacobianResidualInformation(
     if (std::isfinite(range)) { sum_range += range; valid_count += 1; }
 
     // ===== 3. Compute Information Weight for this point =====
-    // Compute Jacobians following the Python implementation
-    // J_theta = -n_t^T @ skew_symmetric(source_pt_transformed)
-    const Eigen::Matrix3d skew_p = skewSymmetric(source_pt_transformed);
-    const Eigen::RowVector3d J_theta = -n_t.transpose() * skew_p;
-    
-    // J_t = n_t^T
-    const Eigen::RowVector3d J_t = n_t.transpose();
-    
-    // J_pose = [J_theta, J_t] (1x6)
-    Eigen::RowVectorXd J_pose(6);
-    J_pose << J_theta, J_t;
-    
-    // J_p = n_t^T (1x3)
-    const Eigen::RowVector3d J_p = n_t.transpose();
-    
+    // Jacobians for variance terms:
+    const Eigen::Matrix3d R_combined = T_combined.block<3,3>(0,0); // Rotation part of T_combined
+    // J_p = n^T R   (since residual uses R p + t)
+    const Eigen::RowVector3d J_p = (n_t.transpose() * R_combined);      // 1x3
+    // J_q = -n^T
+    const Eigen::RowVector3d J_q = (-n_t.transpose());                   // 1x3
+    // J_n = (R p + t - q)^T
+    const Eigen::Vector3d d = source_pt_transformed - target_pt;
+    const Eigen::RowVector3d J_n = d.transpose();                        // 1x3
 
-    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ n_t: [" << n_t.transpose() << "] ================ ";
-    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_pose: [" << J_pose << "] ================ ";
-    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ J_p: [" << J_p << "] ================ ";
-    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_pL_i: " << Sigma_pL_i.diagonal().transpose() << " ================ ";
-    // CLOG(DEBUG, "lidar.localization_daicp") << " ================ Sigma_x: " << Sigma_x.diagonal().transpose() << " ================ ";
+    // --- Map-point covariance (choose a reasonable model) ---
+    // If you have a per-point map covariance, use it here; otherwise use an isotropic model.
+    // Example: tie it to voxel size and plane fit quality.
+    // const double sigma_map = std::max(0.5 * voxel_size, 1.0e-3); // [m]
+    const double sigma_map = 0.02;  // meters
+    const Eigen::Matrix3d Sigma_q_i = (sigma_map * sigma_map) * Eigen::Matrix3d::Identity();
 
-    // cov_r = J_pose @ Sigma_x @ J_pose^T + J_p @ Sigma_pL_i @ J_p^T
-    const double cov_r = (J_pose * Sigma_x * J_pose.transpose())(0,0) + 
-                        (J_p * Sigma_pL_i * J_p.transpose())(0,0);
+    // --- Normal covariance (tangent-plane, PSD) ---
+    // Uncertainty only in directions orthogonal to n_t.
+    const double sigma_n = 0.03; // e.g., a small angle in radians mapped to length via ||d||
+                                // typical: normal_sigma ~ 0.02 to 0.05 (tuned)
+    const Eigen::Matrix3d Pn = Eigen::Matrix3d::Identity() - n_t * n_t.transpose();
+    const Eigen::Matrix3d Sigma_n_i = (sigma_n * sigma_n) * Pn;
 
-    // Set information weight (inverse of covariance)
-    if ((1.0 / cov_r) > 10000.0) {
-      W_inv(i, i) = 10000.0;  // Cap the maximum weight
-      CLOG(DEBUG, "lidar.localization_daicp") << " ================ W_inv is set to be 10000.0, error out  ================ ";
-    } else {
-      W_inv(i, i) = 1.0 / cov_r;
+    // --- Transform LiDAR point covariance to the target/map frame ---
+    // Sigma_p (world) = R * Sigma_p (lidar) * R^T   (R: lidar->world here equals R_combined if p_lidar was in lidar frame)
+    const Eigen::Matrix3d Sigma_p_world = R_combined * Sigma_pL_i * R_combined.transpose();
+
+    // --- Scalar residual variance ---
+    double cov_r = 0.0;
+    cov_r += (J_p * Sigma_p_world * J_p.transpose())(0,0); // source point noise
+    cov_r += (J_q * Sigma_q_i    * J_q.transpose())(0,0);  // map point noise
+    cov_r += (J_n * Sigma_n_i    * J_n.transpose())(0,0);  // normal noise
+
+    // --- Physical variance floor (prevents ill-conditioning / overconfidence) ---
+    // Use sensor floor and model floor; pick something tied to your setup.
+    // const double sigma_floor = std::max({ 1.0e-3, 0.25 * voxel_size }); // meters
+    const double sigma_floor = 0.01;  // meters
+    const double var_floor   = sigma_floor * sigma_floor;
+    cov_r = std::max(cov_r, var_floor);
+
+    double w = 1.0 / cov_r;
+
+    // CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- Cov_r: " << cov_r;
+    // CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- Weight: " << w;
+
+    const double w_cap = 1.0e6;  // optional cap
+    if (w > w_cap) {
+      w = w_cap;
+      CLOG(DEBUG, "lidar.localization_daicp") << "W_inv capped at " << w_cap;
     }
+
+    // Debug
+    // CLOG(DEBUG, "lidar.localization_daicp") << "cov_r=" << cov_r
+    //     << "  | JpΣpJp^T=" << (J_p * Sigma_p_world * J_p.transpose())(0,0)
+    //     << "  | JqΣqJq^T=" << (J_q * Sigma_q_i    * J_q.transpose())(0,0)
+    //     << "  | JnΣnJn^T=" << (J_n * Sigma_n_i    * J_n.transpose())(0,0);
+
+    // Store weight (diagonal of W_inv)
+    W_inv(i, i) = w;
   }
 
     // mean range -> scaling parameter
@@ -656,7 +683,7 @@ inline bool daGaussNewtonScaleP2Plane(
                                        T_combined, T_ms_prior, Sigma_x, A, b, W_inv, ell_mr);
 
     // --------- [DEBUG]: disable weighting
-    W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());  // DEBUG: set to identity to disable weighting
+    // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());  
 
     // STEAM-style convergence checking
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm

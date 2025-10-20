@@ -655,6 +655,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = true;
 
     CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_v_odo: " << *qdata.T_r_v_odo;
+    CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_v_odo.cov(): " << (*qdata.T_r_v_odo).cov().diagonal().transpose();
     CLOG(DEBUG, "lidar.odometry_doppler") << "w_v_r_in_r_odo: " << *qdata.w_v_r_in_r_odo;
     CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_odo: " << *qdata.T_r_m_odo;
   } 

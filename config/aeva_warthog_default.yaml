@@ -106,9 +106,9 @@
       type: lidar
       preprocessing:
         - conversion
-        #- filtering
+        - filtering
         - doppler_filtering
-        - curvature_filtering
+        #- curvature_filtering
       odometry:
         #- icp
         - doppler
@@ -343,7 +343,7 @@
 
         calc_gy_bias: false
         calc_gy_bias_thresh: 10.0         # [s]
-        correspondence_method: 0          # 0: 4D KDTree w/ curvature, 1: KDTree on clusters, 2: normal KDTree (spatial only)
+        correspondence_method: -1          # 0: 4D KDTree w/ curvature, 1: KDTree on clusters, 2: normal KDTree (spatial only)
         curvature_similarity_thresh: 0.5  # threshold on curvature difference for correspondence rejection
 
       safe_corridor:
