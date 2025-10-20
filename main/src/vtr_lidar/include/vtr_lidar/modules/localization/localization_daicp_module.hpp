@@ -44,7 +44,7 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     unsigned int max_iterations = 1;
 
     int max_gn_iter = 30;
-    double inner_tolerance = 1e-6;s
+    double inner_tolerance = 1e-6;
 
     bool use_odo = false; // temp
 
