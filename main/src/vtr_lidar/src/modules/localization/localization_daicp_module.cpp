@@ -66,6 +66,9 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
 
+  config->max_gn_iter = node->declare_parameter<int>(param_prefix + ".max_gn_iter", config->max_gn_iter);
+  config->inner_tolerance = node->declare_parameter<double>(param_prefix + ".inner_tolerance", config->inner_tolerance);
+
   config->use_odo = node->declare_parameter<bool>(param_prefix + ".use_odo", config->use_odo); // temp
   config->eigenvalue_threshold = node->declare_parameter<double>(param_prefix + ".eigenvalue_threshold", config->eigenvalue_threshold);
   config->outlier_trans_thresh = node->declare_parameter<float>(param_prefix + ".outlier_trans_thresh", config->outlier_trans_thresh);
@@ -425,8 +428,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
     /// ########################### Gauss-Newton solver ########################### ///
-    int max_gn_iter = 10;
-    double inner_tolerance = 1e-6;
 
     // // old version in daicp_lib.hpp
     // bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
@@ -434,8 +435,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     //                                                             map_mat,
     //                                                             map_normals_mat,
     //                                                             T_m_s_var,
-    //                                                             max_gn_iter,
-    //                                                             inner_tolerance);
+    //                                                             config_->max_gn_iter,
+    //                                                             config_->inner_tolerance);
 
     /// ########################################################################### ///
     // T_m_s is the tranformation from the current submap to the lidar sensor.
@@ -476,8 +477,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                                                          T_m_s_var,    // SE3StateVar, param to optimize
                                                                          T_m_s_prior,  // transformation from lidar to map
                                                                          T_reordered,  // covariance of the above transformation (not used)
-                                                                         max_gn_iter,
-                                                                         inner_tolerance,
+                                                                         config_->max_gn_iter,
+                                                                         config_->inner_tolerance,
                                                                          daicp_cov);
     /// ########################################################################### ///
 

@@ -43,6 +43,9 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     bool verbose = false;
     unsigned int max_iterations = 1;
 
+    int max_gn_iter = 30;
+    double inner_tolerance = 1e-6;s
+
     bool use_odo = false; // temp
 
     double eigenvalue_threshold = 1000.0;
