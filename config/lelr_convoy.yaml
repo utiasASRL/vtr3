@@ -7,7 +7,7 @@
         control_period: 100
         speed_scheduler:
           planar_curv_weight: 0.0
-          profile_curv_weight: 0.0 
+          profile_curv_weight: 0.0
           eop_weight: 2.0
           min_vel: 0.3
 
@@ -118,28 +118,30 @@
       - mpc.solver
       - mpc.follower
       #- mpc.follower.target
-/echo/vtr/navigator:
+
+echo/vtr/navigator:
   ros__parameters:
     robot_frame: echo/base_link
     env_info_topic: echo/env_info
     gyro_frame: echo/ouster_front_imu
     lidar_frame: echo/ouster_front_lidar
     lidar_topic: /echo/ouster_front/points
-  path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /foxtrot 
-/foxtrot/vtr/navigator:
+    path_planning:
+      bicycle_mpc_follower:
+        leader_namespace:
+          /foxtrot
+
+foxtrot/vtr/navigator:
   ros__parameters:
     robot_frame: foxtrot/base_link
     lidar_frame: foxtrot/ouster_back_lidar
-    gyro_frame: foxtrot/ouster_back_imu        
+    gyro_frame: foxtrot/ouster_back_imu
     lidar_topic: /foxtrot/ouster_back/points
     preprocessing:
       filtering:
         vertical_angle_res: 0.012271 # radians
-  path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /echo 
+    path_planning:
+      bicycle_mpc_follower:
+        leader_namespace:
+          /echo
 
