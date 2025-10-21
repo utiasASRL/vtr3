@@ -77,7 +77,7 @@ class GoalInterface {
   using IdHash = std::hash<Id>;
 
   static const Id& InvalidId() {
-    static Id invalid_id{-1};
+    static Id invalid_id{0};
     return invalid_id;
   }
   static Id id(const GoalHandle& gh) { return gh.id; }
