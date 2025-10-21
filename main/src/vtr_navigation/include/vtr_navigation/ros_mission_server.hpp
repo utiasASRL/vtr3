@@ -42,7 +42,7 @@ class GoalInterface<vtr_navigation_msgs::msg::GoalHandle> {
   using IdHash = boost::hash<Id>;
 
   static const Id& InvalidId() {
-    static Id invalid_id = boost::uuids::random_generator()();
+    static Id invalid_id = boost::uuids::nil_generator()();
     return invalid_id;
   }
   static Id id(const GoalHandle& gh) {
