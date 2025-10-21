@@ -2,6 +2,39 @@
 #include "vtr_lidar/modules/localization/daicp_lib.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
+
+struct CurvatureAdapter1D {
+  const pcl::PointCloud<vtr::lidar::PointWithInfo>& points;
+  CurvatureAdapter1D(const pcl::PointCloud<vtr::lidar::PointWithInfo>& pts) : points(pts) {}
+
+  inline size_t kdtree_get_point_count() const { return points.size(); }
+
+  inline float kdtree_get_pt(const size_t idx, int /*dim*/) const {
+    return points[idx].curvature;
+  }
+
+  template <class BBOX>
+  bool kdtree_get_bbox(BBOX&) const { return false; }
+};
+
+struct CurvatureAdapter4D {
+  const pcl::PointCloud<vtr::lidar::PointWithInfo>& points;
+  CurvatureAdapter4D(const pcl::PointCloud<vtr::lidar::PointWithInfo>& pts) : points(pts) {}
+
+  inline size_t kdtree_get_point_count() const { return points.size(); }
+
+  inline float kdtree_get_pt(size_t idx, size_t dim) const {
+    const auto& p = points[idx];
+    if (dim == 0) return p.x;
+    if (dim == 1) return p.y;
+    if (dim == 2) return p.z;
+    return p.curvature;
+  }
+
+  template <class BBOX>
+  bool kdtree_get_bbox(BBOX&) const { return false; }
+};
+
 namespace vtr {
 namespace lidar {
 
@@ -33,6 +66,12 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
+
+  config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
+  config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
+  config->correspondence_method = node->declare_parameter<int>(param_prefix + ".correspondence_method", config->correspondence_method);
+  config->curvature_similarity_thresh = node->declare_parameter<float>(param_prefix + ".curvature_similarity_thresh", config->curvature_similarity_thresh);
+
   // clang-format on
   return config;
 }
@@ -43,18 +82,21 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time && *qdata.pipeline_mode == tactic::PipelineMode::RepeatFollow) {
-    CLOG(WARNING, "lidar.localization_icp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
+    CLOG(WARNING, "lidar.localization_daicp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
     return;
   }
 
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
-  const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_v = *qdata.T_r_v_loc;  // used as prior
-  const auto &T_v_m = *qdata.T_v_m_loc;
+  const auto &T_s_r = *qdata.T_s_r;      // T from robot to sensor, external calibration, fixed
+  const auto &T_r_v = *qdata.T_r_v_loc;  // T from vertex to robot, used as prior
+  const auto &T_v_m = *qdata.T_v_m_loc;  // T from submap (build in teach) to vertex
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
+
+  CLOG(DEBUG, "lidar.localization_daicp") << "####### Query point cloud has " << query_points.size() << " points.";
+  CLOG(DEBUG, "lidar.localization_daicp") << "######### Map point cloud has " << point_map.size() << " points.";
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -94,7 +136,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// create kd-tree of the map
-  CLOG(DEBUG, "lidar.localization_icp") << "Start building a kd-tree of the map.";
+  CLOG(DEBUG, "lidar.localization_daicp") << "Start building a kd-tree of the map.";
   NanoFLANNAdapter<PointWithInfo> adapter(point_map);
   KDTreeParams tree_params(/* max leaf */ 10);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
@@ -146,35 +188,214 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i; 
     timer[0]->stop();
     // find nearest neigbors and distances
-    timer[1]->start();
     std::vector<float> nn_dists(sample_inds.size());
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (size_t i = 0; i < sample_inds.size(); i++) {
-      KDTreeResultSet result_set(1);
-      result_set.init(&sample_inds[i].second, &nn_dists[i]);
-      kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
-    }
-    timer[1]->stop();
-
-    /// Filter point pairs based on distances metrics
-    timer[2]->start();
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
-    filtered_sample_inds.reserve(sample_inds.size());
-    for (size_t i = 0; i < sample_inds.size(); i++) {
-      if (nn_dists[i] < max_pair_d2) {
-        // Check planar distance (only after a few steps for initial alignment)
-        auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
-                    point_map[sample_inds[i].second].getVector3fMap();
-        float planar_dist = std::abs(
-            diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap())
-        );
-        // check (1) first a few steps (2) planar distance is smaller than threshold (outlier rejection)
-        if (step < first_steps || planar_dist < max_planar_d) {
-          filtered_sample_inds.push_back(sample_inds[i]);
+    if (config_->correspondence_method == 0 || config_->correspondence_method == 1 || config_->correspondence_method == 2) {
+      if (config_->correspondence_method == 0) {
+        CurvatureAdapter4D curv_adapter(point_map);
+
+        using CurvKDTreeType = nanoflann::KDTreeSingleIndexAdaptor<
+            nanoflann::L2_Simple_Adaptor<float, CurvatureAdapter4D>,
+            CurvatureAdapter4D,
+            4>;
+
+        KDTreeParams tree_params(10);
+        CurvKDTreeType curv_kdtree(4, curv_adapter, tree_params);
+        curv_kdtree.buildIndex();
+
+        /// to do: check if this is the best way to do this, can definitely improve
+        /// to do: fix issue resulting in 0 pairs found using distance thresholding
+        // compute dynamic curvature scaling
+        Eigen::Vector3f mean_xyz = Eigen::Vector3f::Zero();
+        float mean_curv = 0.0f;
+
+        for (const auto &p : point_map) {
+          mean_xyz += Eigen::Vector3f(p.x, p.y, p.z);
+          mean_curv += p.curvature;
+        }
+        mean_xyz /= point_map.size();
+        mean_curv /= point_map.size();
+
+        // Variances
+        float var_xyz = 0.0f;
+        float var_curv = 0.0f;
+        for (const auto &p : point_map) {
+          Eigen::Vector3f diff = Eigen::Vector3f(p.x, p.y, p.z) - mean_xyz;
+          var_xyz += diff.squaredNorm();
+          float dc = p.curvature - mean_curv;
+          var_curv += dc * dc;
+        }
+        var_xyz /= point_map.size();
+        var_curv /= point_map.size();
+
+        // if curvature has small variance, scale it up so it contributes similarly
+        float curvature_scale = std::sqrt(var_xyz / (var_curv + 1e-9f));
+
+        CLOG(INFO, "lidar.localization_daicp") << "Dynamic curvature scaling: " << curvature_scale;
+
+        // curvature_scale = 5.0f; // for testing without dynamic scaling
+
+        // CLOG(INFO, "lidar.localization_daicp") << "Using fixed curvature scaling: " << curvature_scale;
+
+        timer[1]->start();
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+        for (size_t i = 0; i < sample_inds.size(); ++i) {
+          float query_pt[4] = {
+            aligned_points[sample_inds[i].first].x,
+            aligned_points[sample_inds[i].first].y,
+            aligned_points[sample_inds[i].first].z,
+            curvature_scale * aligned_points[sample_inds[i].first].curvature
+          };
+
+          size_t nearest_idx = static_cast<size_t>(-1);
+          float distance_sq = 0.0f;
+
+          nanoflann::KNNResultSet<float> result_set(1);
+          result_set.init(&nearest_idx, &distance_sq);
+
+          curv_kdtree.findNeighbors(result_set, query_pt, search_params);
+
+          sample_inds[i].second = nearest_idx;
+          nn_dists[i] = distance_sq;
+        }
+        CLOG(DEBUG, "lidar.localization_daicp") << "Curvature KDTree nn search done, found " << sample_inds.size() << " pairs.";
+        timer[1]->stop();
+      } else if (config_->correspondence_method == 1) {
+        // build KD-Tree for spatial (xyz)
+        NanoFLANNAdapter<PointWithInfo> adapter_xyz(point_map);
+        KDTreeParams tree_params(10); // max leaf
+        auto kdtree_xyz = std::make_unique<KDTree<PointWithInfo>>(3, adapter_xyz, tree_params);
+        kdtree_xyz->buildIndex();
+
+        // build KD-Tree for curvature (1D)
+        CurvatureAdapter1D curv_adapter(point_map);
+        using CurvKDTreeType = nanoflann::KDTreeSingleIndexAdaptor<
+            nanoflann::L2_Simple_Adaptor<float, CurvatureAdapter1D>,
+            CurvatureAdapter1D,
+            1>;
+        CurvKDTreeType kdtree_curv(1, curv_adapter, tree_params);
+        kdtree_curv.buildIndex();
+
+        timer[1]->start();
+
+        // first pass: nearest in XYZ
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+        for (size_t i = 0; i < sample_inds.size(); ++i) {
+          KDTreeResultSet result_set(1);
+          result_set.init(&sample_inds[i].second, &nn_dists[i]);
+          kdtree_xyz->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
+        }
+
+        CLOG(DEBUG, "lidar.localization_daicp") 
+            << "Spatial KDTree nn search done, found " << sample_inds.size() << " pairs.";
+
+        // second pass: refine by curvature only
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+        for (size_t i = 0; i < sample_inds.size(); ++i) {
+          size_t curv_nn_idx = static_cast<size_t>(-1);
+          float curv_distance_sq = 0.0f;
+
+          nanoflann::KNNResultSet<float> result_set(1);
+          result_set.init(&curv_nn_idx, &curv_distance_sq);
+
+          // curvature query is just 1D
+          float query_curv[1] = { aligned_points[sample_inds[i].first].curvature };
+          kdtree_curv.findNeighbors(result_set, query_curv, search_params);
+
+          // optionally, replace if curvature match better (based on your policy)
+          if (curv_nn_idx != sample_inds[i].second) {
+            sample_inds[i].second = curv_nn_idx;
+            nn_dists[i] = curv_distance_sq;
+          }
+        }
+
+        CLOG(DEBUG, "lidar.localization_daicp") << "Curvature KDTree nn refinement done, found " << sample_inds.size() << " pairs.";
+        timer[1]->stop();
+      } else if (config_->correspondence_method == 2) {
+        timer[1]->start();
+        std::vector<float> nn_dists(sample_inds.size());
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+        for (size_t i = 0; i < sample_inds.size(); i++) {
+          KDTreeResultSet result_set(1);
+          result_set.init(&sample_inds[i].second, &nn_dists[i]);
+          kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
+        }
+        CLOG(DEBUG, "lidar.localization_daicp") << "Spatial KDTree nn search done, found " << sample_inds.size() << " pairs.";
+        timer[1]->stop();
+      }
+
+      /// Filter point pairs based on distances metrics
+      timer[2]->start();
+      filtered_sample_inds.reserve(sample_inds.size());
+      std::vector<size_t> filtered_source_indices;
+      std::vector<size_t> filtered_target_indices;
+      std::vector<float> filtered_distances;
+      for (size_t i = 0; i < sample_inds.size(); i++) {
+        if (nn_dists[i] < max_pair_d2) {
+          // Check planar distance (only after a few steps for initial alignment)
+          auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
+                      point_map[sample_inds[i].second].getVector3fMap();
+          float planar_dist = std::abs(
+                      diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
+          if (step < first_steps || planar_dist < max_planar_d) {
+            filtered_sample_inds.push_back(sample_inds[i]);
+          }
         }
       }
+
+      CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
+
+      // Second filter by curvature if available
+      if (!filtered_sample_inds.empty()) {
+        std::vector<std::pair<size_t, size_t>> curvature_filtered_sample_inds;
+        curvature_filtered_sample_inds.reserve(filtered_sample_inds.size());
+        for (size_t i = 0; i < filtered_sample_inds.size(); i++) {
+          float src_curv = aligned_points[filtered_sample_inds[i].first].curvature;
+          float tgt_curv = point_map[filtered_sample_inds[i].second].curvature;
+          if (std::abs(src_curv - tgt_curv) < config_->curvature_similarity_thresh) {
+            curvature_filtered_sample_inds.emplace_back(filtered_sample_inds[i]);
+          }
+        }
+        filtered_sample_inds = std::move(curvature_filtered_sample_inds);
+        CLOG(DEBUG, "lidar.localization_daicp") << "Curvature filtering done, filtered to " << filtered_sample_inds.size() << " pairs.";
+      } else {
+        // fallback: no points passed distance filter
+        filtered_sample_inds.clear();
+      }
+      CLOG(DEBUG, "lidar.localization_daicp") << "Filtered " << sample_inds.size() << " point pairs to "
+                                          << filtered_sample_inds.size() << " pairs.";
+      timer[2]->stop();
+
+    } else {
+      /// find nearest neighbours and distances
+      timer[1]->start();
+      std::vector<float> nn_dists(sample_inds.size());
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (size_t i = 0; i < sample_inds.size(); i++) {
+        KDTreeResultSet result_set(1);
+        result_set.init(&sample_inds[i].second, &nn_dists[i]);
+        kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
+      }
+      timer[1]->stop();
+
+      /// filtering based on distances metrics
+      timer[2]->start();
+      filtered_sample_inds.reserve(sample_inds.size());
+      for (size_t i = 0; i < sample_inds.size(); i++) {
+        if (nn_dists[i] < max_pair_d2) {
+          // Check planar distance (only after a few steps for initial alignment)
+          auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
+                      point_map[sample_inds[i].second].getVector3fMap();
+          float planar_dist = std::abs(
+              diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
+          if (step < first_steps || planar_dist < max_planar_d) {
+            filtered_sample_inds.push_back(sample_inds[i]);
+          }
+        }
+      }
+      timer[2]->stop();
+      CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
     }
-    timer[2]->stop();
 
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
