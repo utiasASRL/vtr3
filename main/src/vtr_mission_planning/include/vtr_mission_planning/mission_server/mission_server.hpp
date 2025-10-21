@@ -48,6 +48,7 @@ enum class GoalTarget : int8_t {
   Repeat = 2,
   Localize = 3,
   SelectController = 4,
+  Pause = 5,
 };
 std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target);
 
@@ -58,6 +59,7 @@ enum class CommandTarget : int8_t {
   ConfirmMerge = 2,
   ContinueTeach = 3,
   ForceAddVertex = 4,
+  ExitPause = 5,
 };
 
 struct Command {
@@ -355,6 +357,10 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
       state_machine->handle(std::make_shared<Event>(Action::ForceAddVertex));
       return;
     }
+    case CommandTarget::ExitPause: {
+      state_machine->handle(std::make_shared<Event>(Action::ExitPause));
+      return;
+    }
     default:
       CLOG(ERROR, "mission.server") << "Unknown command encountered.";
       throw std::runtime_error("Unknown command encountered.");
@@ -458,6 +464,10 @@ void MissionServer<GoalHandle>::startGoal() {
       }
       case GoalTarget::SelectController: {
         state_machine->handle(Event::SwitchController(GoalInterface<GoalHandle>::controller_name(current_goal)));
+        break;
+      }
+      case GoalTarget::Pause: {
+        state_machine->handle(Event::StartPause());
         break;
       }
       default:

@@ -80,6 +80,8 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
       break;
     case Action::ForceAddVertex:
       break;
+    case Action::ExitPause:
+      break;
   }
   // If we ever finish our list of goals, drop into Idle automatically
   if (getGoals(state_machine).empty()) {
