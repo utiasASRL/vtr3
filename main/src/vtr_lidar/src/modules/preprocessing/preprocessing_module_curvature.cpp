@@ -197,16 +197,17 @@ void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithIn
 }
 
 void PreprocessingCurvatureModule::cluster_curvature(
-  const pcl::PointCloud<PointWithInfo>::Ptr& cloud,
-  std::vector<int>& cluster_ids) {
+    const pcl::PointCloud<PointWithInfo>::Ptr& cloud,
+    std::vector<int>& cluster_ids) {
+
   if (!cloud || cloud->empty()) return;
 
-  cluster_ids.assign(cloud->size(), -1);  // initialize with -1
+  cluster_ids.assign(cloud->size(), -1);  // initialize
 
   const float flat_thresh = config_->ground_plane_threshold;
   std::vector<size_t> flat_inds, nonflat_inds;
 
-  // Separate flat/nonflat points
+  // Separate flat and non-flat points
   for (size_t i = 0; i < cloud->size(); ++i) {
     float curv = (*cloud)[i].curvature;
     if (!std::isfinite(curv)) continue;
@@ -216,77 +217,54 @@ void PreprocessingCurvatureModule::cluster_curvature(
       nonflat_inds.push_back(i);
   }
 
+  // Early exit if no non-flat points
   if (nonflat_inds.empty()) {
     for (size_t i = 0; i < cloud->size(); ++i)
       cluster_ids[i] = 0;
     return;
   }
 
-  // label as concave, flat, or convex
-  std::vector<float> a(nonflat_inds.size(), 0.0f);
-  for (size_t k = 0; k < nonflat_inds.size(); ++k) {
-    size_t i = nonflat_inds[k];
-    float curv = (*cloud)[i].curvature;
-    if (curv < -config_->ground_plane_threshold)
-      a[k] = -config_->t;
-    else if (std::abs(curv) <= config_->ground_plane_threshold)
-      a[k] = 0.0f;
-    else if (curv > config_->ground_plane_threshold)
-      a[k] = config_->t;
-  }
+  // Build KD-tree for non-flat points
+  pcl::PointCloud<PointWithInfo> nonflat_cloud;
+  nonflat_cloud.resize(nonflat_inds.size());
+  for (size_t k = 0; k < nonflat_inds.size(); ++k)
+    nonflat_cloud[k] = (*cloud)[nonflat_inds[k]];
 
-  // embed non-flat into R^{n+1}
-  std::vector<Eigen::Vector4f> X_embedded(nonflat_inds.size());
-  for (size_t k = 0; k < nonflat_inds.size(); ++k) {
-    size_t i = nonflat_inds[k];
-    X_embedded[k] = Eigen::Vector4f(
-      (*cloud)[i].x, (*cloud)[i].y, (*cloud)[i].z, a[k]);
-  }
+  NanoFLANNAdapter<PointWithInfo> adapter(nonflat_cloud);
+  KDTreeParams tree_params(10);
+  KDTree<PointWithInfo> kdtree(3, adapter, tree_params);
+  kdtree.buildIndex();
 
-  // build adjacency
-  std::vector<std::vector<size_t>> adjacency(nonflat_inds.size());
-  for (size_t i = 0; i < nonflat_inds.size(); ++i) {
-    for (size_t j = i + 1; j < nonflat_inds.size(); ++j) {
-      float dist = (X_embedded[i] - X_embedded[j]).norm();
-      if (dist < config_->d_prime) {
-        adjacency[i].push_back(j);
-        adjacency[j].push_back(i);
+  // Union-Find for clustering
+  UnionFind uf(nonflat_inds.size());
+
+  // Connect neighbors within distance d_prime
+  const size_t K = 50; // max neighbors to search per point
+#pragma omp parallel for schedule(dynamic)
+  for (size_t i = 0; i < nonflat_cloud.size(); ++i) {
+    std::vector<size_t> idx(K);
+    std::vector<float> dist(K);
+    size_t found = kdtree.knnSearch(&nonflat_cloud[i].x, K, idx.data(), dist.data());
+    for (size_t j = 0; j < found; ++j) {
+      if (idx[j] != i && dist[j] < config_->d_prime * config_->d_prime) { // squared distance
+        uf.unite(i, idx[j]);
       }
     }
   }
 
-  // connected components as clusters
-  std::vector<int> labels(nonflat_inds.size(), -1);
-  int current_label = 1;  // start from 1 since 0 = flat cluster
-
-  for (size_t i = 0; i < nonflat_inds.size(); ++i) {
-    if (labels[i] != -1) continue;
-    std::queue<size_t> q;
-    q.push(i);
-    labels[i] = current_label;
-    while (!q.empty()) {
-      size_t idx = q.front(); q.pop();
-      for (size_t nbr : adjacency[idx]) {
-        if (labels[nbr] == -1) {
-          labels[nbr] = current_label;
-          q.push(nbr);
-        }
-      }
-    }
-    current_label++;
+  // Assign cluster labels
+  std::unordered_map<int, int> root_to_label;
+  int current_label = 1; // 0 = flat
+  for (size_t k = 0; k < nonflat_inds.size(); ++k) {
+    int root = uf.find(k);
+    if (root_to_label.find(root) == root_to_label.end())
+      root_to_label[root] = current_label++;
+    cluster_ids[nonflat_inds[k]] = root_to_label[root];
   }
 
-  // assign cluster ids
-  for (size_t i = 0; i < cloud->size(); ++i)
-    cluster_ids[i] = -1;
-
-  // flat points → cluster 0
+  // Assign flat points to cluster 0
   for (size_t i : flat_inds)
     cluster_ids[i] = 0;
-
-  // non-flat points → cluster 1, 2, ...
-  for (size_t k = 0; k < nonflat_inds.size(); ++k)
-    cluster_ids[nonflat_inds[k]] = labels[k];
 
   CLOG(INFO, "lidar.preprocessing.curvature")
     << "Clustered " << cloud->size() << " points into "
