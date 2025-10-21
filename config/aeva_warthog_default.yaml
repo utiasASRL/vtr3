@@ -45,6 +45,7 @@
       #- lidar.aeva_converter_v2
       #- lidar.preprocessing
       - lidar.preprocessing_doppler
+      - lidar.preprocessing_curvature
       - lidar.odometry_icp
       - lidar.odometry_doppler
       #- lidar.odometry_map_maintenance
@@ -105,8 +106,9 @@
       type: lidar
       preprocessing:
         - conversion
-        - filtering
+        #- filtering
         - doppler_filtering
+        - curvature_filtering
       odometry:
         #- icp
         - doppler
@@ -135,22 +137,22 @@
         num_threads: 12
         crop_range: 40.0
 
-        frame_voxel_size: 0.3 # grid subsampling voxel size
+        frame_voxel_size: 0.3           # grid subsampling voxel size
 
-        vertical_angle_res: 0.00349066 # vertical angle resolution in radians
-        polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
-        r_scale: 4.0 # scale down point range by this value after taking log, whatever works
-        h_scale: 2.0 #0.125 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution
+        vertical_angle_res: 0.00349066  # vertical angle resolution in radians
+        polar_r_scale: 2.0              # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
+        r_scale: 4.0                    # scale down point range by this value after taking log, whatever works
+        h_scale: 2.0                    # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution
 
-        num_sample1: 20000 # max number of sample after filtering based on planarity
-        min_norm_score1: 0.95 # min planarity score
+        num_sample1: 10000              # max number of sample after filtering based on planarity
+        min_norm_score1: 0.95           # min planarity score
 
-        num_sample2: 20000 # max number of sample after filtering based on planarity
-        min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
-        min_normal_estimate_dist: 1.0 # minimum distance to estimate normal in meters
+        num_sample2: 10000              # max number of sample after filtering based on planarity
+        min_norm_score2: 0.2            # 0.2 is when the incident angle 5/12 * pi
+        min_normal_estimate_dist: 1.0   # minimum distance to estimate normal in meters
         max_normal_estimate_angle: 0.44 # must <1/2, this value will be timed by M_PI
 
-        cluster_num_sample: 20000 # maxnumber of sample after removing isolated points
+        cluster_num_sample: 10000       # maxnumber of sample after removing isolated points
 
         visualize: true
 
@@ -162,7 +164,7 @@
         num_rows: 64                    # num of vertical scan lines
         num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
         min_dist: 0.0                   # meters
-        max_dist: 40.0                 # meters
+        max_dist: 40.0                  # meters
         #
         root_path: "${WARTHOG}/ros2/aeriesii_ros2/sensor_config"
         downsample_steps: 2             # after image projection 
@@ -170,6 +172,28 @@
         var_input_feat: ["intensity", "medianrv", "rv_var5"]
         bias_polyorder: 3
         var_polyorder: 2                # only one sensor
+
+        visualize: true
+
+      curvature_filtering:
+        type: lidar.preprocessing_curvature
+        num_threads: 12
+
+        crop_range: 40.0            # range cropping in meters
+        num_sample: 10000           # max number of points after range cropping
+        k_neighbors: 30             # number of neighbors to compute curvature (keep <50)
+
+        downsample_teach_map: false # whether to downsample the frames used in **map building**. in repeat, always downsample plane and feature separately 
+                                    # if false, use feature_voxel_size for whole frame
+                                    # if true, downsample pleane and features separately using plane_voxel_size and feature_voxel_size
+        plane_voxel_size: 1.0       # voxel size for plane
+        feature_voxel_size: 0.3     # voxel size for feature
+
+        # clustering parameters
+        t: 4.0
+        d_prime: 2.0
+        ground_plane_threshold: 0.7 # max curvature to be considered as ground
+        min_points_threshold: 10    # minimum number of points to keep a cluster
 
         visualize: true
 
@@ -307,8 +331,13 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.45
-        target_loc_time: 100.0
         dratio_threshold: 0.75
+
+        calc_gy_bias: true
+        calc_gy_bias_thresh: 10.0         # [s]
+        correspondence_method: 1          # 0: 4D KDTree w/ curvature, 1: 3D KDTree -> 1D KD Tree, 2: normal KDTree (spatial only)
+        curvature_similarity_thresh: 0.1  # threshold on curvature difference for correspondence rejection
+
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0
