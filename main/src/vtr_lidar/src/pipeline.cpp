@@ -146,7 +146,7 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   // set the current map for localization
   if (submap_loc_ != nullptr) {
     qdata->submap_loc = submap_loc_;
-    // qdata->gyro_bias = gyro_bias_; // gyro bias should be here, but need to first fix initialization
+    qdata->gyro_bias = gyro_bias_;
   }
 
   for (const auto &module : localization_)
@@ -155,7 +155,7 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   /// store the current map for localization
   if (qdata->submap_loc) {
     submap_loc_ = qdata->submap_loc.ptr();
-    // gyro_bias_ = qdata->gyro_bias.ptr();
+    gyro_bias_ = qdata->gyro_bias.ptr();
   }
 }
 

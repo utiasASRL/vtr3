@@ -44,7 +44,6 @@ class PreprocessingDopplerModule : public tactic::BaseModule {
 
     // DOPPLER
     std::string root_path;
-    std::string model_name;
     int downsample_steps = 1;
     //
     std::vector<std::string> bias_input_feat;

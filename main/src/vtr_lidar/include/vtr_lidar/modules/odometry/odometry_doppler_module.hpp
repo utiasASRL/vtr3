@@ -68,11 +68,11 @@ class OdometryDopplerModule : public tactic::BaseModule {
         Eigen::Matrix<double, 3, 3>::Identity();
 
     // inverse covariances
-    Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Identity(); 
-    Eigen::Matrix<double, 6, 6> P0inv = Eigen::Matrix<double, 6, 6>::Identity();
-    Eigen::Matrix<double, 6, 6> Qzinv = Eigen::Matrix<double, 6, 6>::Identity();
+    Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Zero(); 
+    Eigen::Matrix<double, 6, 6> P0inv = Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 6, 6> Qzinv = Eigen::Matrix<double, 6, 6>::Zero();
     // init covariance
-    Eigen::Matrix<double, 6, 6> P0 = Eigen::Matrix<double, 6, 6>::Identity();
+    Eigen::Matrix<double, 6, 6> P0 = Eigen::Matrix<double, 6, 6>::Zero();
     // Success criteria
     float max_trans_vel_diff = 1000.0; // m/s
     float max_rot_vel_diff = 1000.0; // m/s

@@ -110,9 +110,9 @@ namespace lidar {
       float flex34; \
     }; \
     struct { \
-      int32_t unused4; \
       int32_t line_id; \
       int32_t face_id; \
+      float curvature; \
       float ivariance; \
     }; \
   };
