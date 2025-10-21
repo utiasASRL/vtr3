@@ -75,9 +75,11 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o
 ## Install VTR specific ROS2 dependencies
 RUN apt update && apt install -q -y \
   ros-humble-xacro \
+  ros-humble-vision-msgs \
   ros-humble-vision-opencv \
   ros-humble-perception-pcl ros-humble-pcl-ros \
-  ros-humble-rmw-cyclonedds-cpp
+  ros-humble-rmw-cyclonedds-cpp \
+  ros-humble-rosbag2-storage-mcap
 
 RUN apt install ros-humble-tf2-tools
 
