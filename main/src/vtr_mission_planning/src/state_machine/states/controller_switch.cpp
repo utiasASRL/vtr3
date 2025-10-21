@@ -32,7 +32,7 @@ StateInterface::Ptr ControllerSwitch::nextStep(const StateInterface &new_state) 
   return nullptr;
 }
 
-void ControllerSwitch::processGoals(StateMachine &state_machine, const Event &event) {
+void ControllerSwitch::processGoals(StateMachine &state_machine, const Event &) {
   return Parent::processGoals(state_machine, Event(Action::EndGoal));
 }
 
