@@ -44,6 +44,7 @@ void Follow::processGoals(StateMachine &state_machine, const Event &event) {
       if (tactic->routeCompleted()) {
         CLOG(INFO, "mission.state_machine")
             << "Path has been completed; ending the current goal.";
+        getPathPlanner(state_machine)->setRunning(false);
         return Parent::processGoals(state_machine, Event(Action::EndGoal));
       }
       // If we have passed a waypoint, remove it from the list
