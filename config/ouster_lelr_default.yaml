@@ -11,8 +11,8 @@
         # tactic
       #- tactic
       #- tactic.pipeline
-#      - tactic.eop
-      - tactic.module
+      - tactic.eop
+#      - tactic.module
       #- tactic.module.live_mem_manager
       #- tactic.module.graph_mem_manager
 

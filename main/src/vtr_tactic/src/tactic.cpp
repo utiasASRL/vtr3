@@ -180,6 +180,7 @@ bool Tactic::routeCompleted() const {
   const auto angle_180 = atan2(-T_leaf_target_matrix(1, 0), -T_leaf_target_matrix(0, 0));
 
   CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
+  CLOG(DEBUG, "tactip.eop") << "Sequence left " << chain_->sequence().size() - 1 - chain_->trunkSequenceId(); 
   if (chain_->trunkSequenceId() < chain_->sequence().size() - 2) {
     return false;
   }
