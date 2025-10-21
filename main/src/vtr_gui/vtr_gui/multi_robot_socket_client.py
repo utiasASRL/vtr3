@@ -135,6 +135,10 @@ def goal_handle_from_ros(ros_goal_handle):
     goal_handle["type"] = "repeat"
   elif ros_goal_handle.type == GoalHandle.LOCALIZE:
     goal_handle["type"] = "localize"
+  elif ros_goal_handle.type == GoalHandle.PAUSE:
+    goal_handle["type"] = "pause"
+  elif ros_goal_handle.type == GoalHandle.SWITCH_CONTROLLER:
+    goal_handle["type"] = "controller_switch"
   else:
     goal_handle["type"] = "unknown"
   # pause before
