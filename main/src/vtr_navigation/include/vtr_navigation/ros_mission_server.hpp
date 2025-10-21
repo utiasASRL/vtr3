@@ -62,6 +62,8 @@ class GoalInterface<vtr_navigation_msgs::msg::GoalHandle> {
         return GoalTarget::Localize;
       case GoalHandle::SELECT_CONTROLLER:
         return GoalTarget::SelectController;
+      case GoalHandle::PAUSE:
+        return GoalTarget::Pause;
       default:
         return GoalTarget::Unknown;
     }

@@ -80,6 +80,9 @@ std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target) {
     case GoalTarget::SelectController:
       os << "SelectController";
       return os;
+    case GoalTarget::Pause:
+      os << "Pause";
+      return os;
   };
   return os;
 }

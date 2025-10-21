@@ -48,6 +48,7 @@ enum class GoalTarget : int8_t {
   Repeat = 2,
   Localize = 3,
   SelectController = 4,
+  Pause = 5,
 };
 std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target);
 
@@ -464,6 +465,10 @@ void MissionServer<GoalHandle>::startGoal() {
       }
       case GoalTarget::SelectController: {
         state_machine->handle(Event::SwitchController(GoalInterface<GoalHandle>::controller_name(current_goal)));
+        break;
+      }
+      case GoalTarget::Pause: {
+        state_machine->handle(Event::StartPause());
         break;
       }
       default:

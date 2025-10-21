@@ -48,6 +48,9 @@ std::ostream& operator<<(std::ostream& os, const Action& action) {
     case Action::ForceAddVertex:
       os << "ForceAddVertex";
       return os;
+    case Action::ExitPause:
+      os << "ExitPause";
+      return os;
   };
 
   // GCC seems to complain when this isn't here
@@ -96,6 +99,11 @@ Event::Ptr Event::StartRepeat(const std::list<VertexId>& waypoints) {
 
 Event::Ptr Event::StartLocalize() {
   auto tmp = std::make_shared<localize::MetricLocalize>();
+  return std::make_shared<Event>(Action::NewGoal, tmp);
+}
+
+Event::Ptr Event::StartPause() {
+  auto tmp = std::make_shared<pause::Spin>();
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
