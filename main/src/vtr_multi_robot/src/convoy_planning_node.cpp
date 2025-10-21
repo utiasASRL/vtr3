@@ -59,8 +59,6 @@ using FutureRobotState = rclcpp::Client<RobotStateSrv>::SharedFuture;
 
         client_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
-
-
         // Parameters
         std::vector<std::string> robot_names = declare_parameter<std::vector<std::string>>("robot_names");
 

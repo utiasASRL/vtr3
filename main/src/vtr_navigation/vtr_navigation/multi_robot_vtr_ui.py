@@ -24,7 +24,7 @@ from vtr_navigation_msgs.srv import FollowingRoute as FollowingRouteSrv
 from vtr_navigation_msgs.srv import TaskQueueState as TaskQueueStateSrv
 from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRoute
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
-from vtr_navigation_msgs.msg import MissionCommand, ServerState
+from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 from vtr_navigation_msgs.msg import TaskQueueUpdate
 from vtr_pose_graph_msgs.srv import MapInfo as MapInfoSrv
 from diagnostic_msgs.msg import DiagnosticStatus
@@ -127,6 +127,8 @@ class MultiRobotVTRUI(ROSManager):
     # Additional data we might want
     self._diagnostics_sub = self.create_subscription(DiagnosticStatus, '/vtr/mr_diagnostics', self.diagnostics_callback, 10)
 
+    self._multi_robot_planner_pub = self.create_publisher(MissionCommand, '/vtr/convoy_command', 1)
+
     # map center
     self._map_info_cli = self.create_client(MapInfoSrv, namespace + "map_info_srv")
     while not self._map_info_cli.wait_for_service(timeout_sec=1.0):
@@ -218,6 +220,9 @@ class MultiRobotVTRUI(ROSManager):
 
   @ROSManager.on_ros
   def add_goal(self, msg):
+    if msg.type == MissionCommand.ADD_GOAL and msg.goal_handle.type == GoalHandle.REPEAT:
+      self._multi_robot_planner_pub.publish(msg)
+      return
     for robot_id in self._robot_ids:
       self._mission_command_pub[robot_id].publish(msg)
 
