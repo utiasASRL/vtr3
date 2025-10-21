@@ -331,7 +331,6 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.45
-        dratio_threshold: 0.75
 
         calc_gy_bias: true
         calc_gy_bias_thresh: 10.0         # [s]
