@@ -133,7 +133,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 12
-        crop_range: 80.0
+        crop_range: 40.0
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
@@ -164,8 +164,8 @@
         min_dist: 0.0                   # meters
         max_dist: 150.0                 # meters
         #
-        root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
-        # root_path: "/home/wenda/ASRL/vtr3/aeva_config"
+        # root_path: "/home/katya/Documents/Data/sensor_config/boreas_aeries_ii"  # point this to where we find the trained sensor model
+        root_path: "/home/wenda/ASRL/vtr3/aeva_config"
         model_name: "comm"
         downsample_steps: 2             # after image projection 
         bias_input_feat: ["range", "intensity", "medianrv"]

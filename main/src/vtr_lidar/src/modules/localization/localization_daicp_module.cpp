@@ -179,7 +179,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
     /// ########################### Gauss-Newton solver ########################### ///
-    int max_gn_iter = 30;
+    int max_gn_iter = 1;
     double inner_tolerance = 1e-6;
     bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
                                                                 query_mat,
@@ -273,7 +273,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const double rotation_diff = T_diff_vec.tail<3>().norm();
 
       // OUTLIER REJECTION: larger than 0.2m or 0.1rad (5.7deg)
-      if (translation_diff > 0.2 || rotation_diff > 0.1) {
+      if ((-1.0 * translation_diff) > 0.2 || (-1.0 * rotation_diff) > 0.1) {
         CLOG(WARNING, "lidar.localization_daicp") << "Significant difference detected in T_r_v, fall back to odometry:";
         CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
         CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
