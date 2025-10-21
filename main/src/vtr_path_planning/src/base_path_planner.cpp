@@ -48,7 +48,11 @@ void BasePathPlanner::setRunning(const bool running) {
   running_ = running;
   cv_terminate_or_state_changed_.notify_all();
   // wait until the process thread starts waiting
-  if (running == false) cv_waiting_.wait(lock, [this] { return waiting_; });
+  if (running == false) {
+    CLOG(INFO, "path_planning") << "Stopping base planning";
+    cv_waiting_.wait(lock, [this] { return waiting_; });
+    CLOG(INFO, "path_planning") << "Stopped base planning";
+  }
   callback_->stateChanged(running_);
 }
 
@@ -66,6 +70,9 @@ void BasePathPlanner::process() {
   auto wait_until_time = std::chrono::steady_clock::now();
   while (true) {
     UniqueLock lock(mutex_);
+    if (!running_) {
+      callback_->commandReceived(Command());
+    }
     cv_terminate_or_state_changed_.wait(lock, [this] {
       waiting_ = true;
       cv_waiting_.notify_all();
