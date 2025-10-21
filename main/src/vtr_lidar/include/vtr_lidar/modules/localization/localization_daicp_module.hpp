@@ -43,6 +43,11 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     bool verbose = false;
     unsigned int max_iterations = 1;
 
+    bool calc_gy_bias = false;
+    float calc_gy_bias_thresh = 1.0;
+    int correspondence_method = 0;
+    float curvature_similarity_thresh = 0.5; // threshold on curvature difference for correspondence rejection
+
     /// Success criteria
     float min_matched_ratio = 0.4;
 
