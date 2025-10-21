@@ -76,7 +76,7 @@ class BasePathPlanner : public PathPlannerInterface {
   struct Config {
     PTR_TYPEDEFS(Config);
 
-    unsigned int control_period = 0;
+    unsigned int control_period = 100;
 
     virtual ~Config() = default;
 

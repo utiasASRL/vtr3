@@ -285,10 +285,7 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
   const auto goal_id = GoalInterface<GoalHandle>::id(gh);
   CLOG(DEBUG, "mission.server") << "Requested remove goal " << goal_id;
 
-  bool needs_reset = false;
-  if (goal_id == current_goal_id_) {
-    needs_reset = clearCurrentGoal();
-  } else {
+  if (goal_id != current_goal_id_) {
     for (auto iter = goal_queue_.begin(); iter != goal_queue_.end(); ++iter) {
       if (*iter == goal_id) {
         goal_queue_.erase(iter);
@@ -298,16 +295,16 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
       }
     }
   }
-
-
   
   cv_stop_or_goal_changed_.notify_all();
   
-  serverStateChanged();
   lock.unlock();
+  serverStateChanged();
   if (const auto state_machine = getStateMachine()){
-    if (needs_reset) {
+    if (goal_id == GoalInterface<GoalHandle>::InvalidId()) {
       state_machine->handle(Event::Reset());
+    } else if (goal_id == current_goal_id_) {
+      state_machine->handle(Event::EndGoal());
     }
   }
     
