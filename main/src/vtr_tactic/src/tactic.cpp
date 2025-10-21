@@ -111,6 +111,7 @@ void Tactic::finishRun() {
 }
 
 void Tactic::setForceAddVertex(const bool force_add_vertex) {
+  CLOG(DEBUG, "tactic") << "Forcing a new vertex";
   force_add_vertex_ = force_add_vertex;
 }
 
@@ -180,7 +181,7 @@ bool Tactic::routeCompleted() const {
   const auto angle_180 = atan2(-T_leaf_target_matrix(1, 0), -T_leaf_target_matrix(0, 0));
 
   CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
-  CLOG(DEBUG, "tactip.eop") << "Sequence left " << chain_->sequence().size() - 1 - chain_->trunkSequenceId(); 
+  CLOG(DEBUG, "tactic.eop") << "Sequence left " << chain_->sequence().size() - 1 - chain_->trunkSequenceId(); 
   if (chain_->trunkSequenceId() < chain_->sequence().size() - 2) {
     return false;
   }
@@ -217,7 +218,6 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   qdata->vid_odo.emplace(current_vertex_id_);
   qdata->vertex_test_result.emplace(VertexTestResult::DO_NOTHING);
   qdata->odo_success.emplace(false);
-  qdata->force_add_vertex.emplace(force_add_vertex_);
   if (force_add_vertex_) force_add_vertex_ = false;
 
   switch (pipeline_mode_) {
@@ -311,7 +311,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;
-  if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+  if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
@@ -413,7 +413,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;
-  if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+  if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
