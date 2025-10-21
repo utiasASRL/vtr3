@@ -108,9 +108,6 @@ std::ostream& operator<<(std::ostream& os,
     case CommandTarget::ForceAddVertex:
       os << "ForceAddVertex";
       return os;
-    case CommandTarget::ExitPause:
-      os << "ExitPause";
-      return os;
   };
   return os;
 }

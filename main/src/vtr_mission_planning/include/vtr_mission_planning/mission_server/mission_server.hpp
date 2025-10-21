@@ -59,7 +59,6 @@ enum class CommandTarget : int8_t {
   ConfirmMerge = 2,
   ContinueTeach = 3,
   ForceAddVertex = 4,
-  ExitPause = 5,
 };
 
 struct Command {
@@ -355,10 +354,6 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
     }
     case CommandTarget::ForceAddVertex: {
       state_machine->handle(std::make_shared<Event>(Action::ForceAddVertex));
-      return;
-    }
-    case CommandTarget::ExitPause: {
-      state_machine->handle(std::make_shared<Event>(Action::ExitPause));
       return;
     }
     default:

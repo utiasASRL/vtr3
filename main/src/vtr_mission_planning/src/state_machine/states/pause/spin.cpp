@@ -41,8 +41,6 @@ void Spin::processGoals(StateMachine &state_machine,
   }
 
   switch (event.action) {
-    case Action::ExitPause:
-      return Parent::processGoals(state_machine, Event(Action::EndGoal));
     case Action::Continue:
     {
       [[fallthrough]];

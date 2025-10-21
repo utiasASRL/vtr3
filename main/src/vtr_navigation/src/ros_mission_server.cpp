@@ -105,10 +105,6 @@ void ROSMissionServer::handleCommand(
       tmp.target = mission_planning::CommandTarget::ForceAddVertex;
       processCommand(tmp);
       return;
-    case MissionCommandMsg::EXIT_PAUSE:
-      tmp.target = mission_planning::CommandTarget::ExitPause;
-      processCommand(tmp);
-      return;
     default:
       return;
   }
