@@ -334,8 +334,8 @@
 
         calc_gy_bias: true
         calc_gy_bias_thresh: 10.0         # [s]
-        correspondence_method: 1          # 0: 4D KDTree w/ curvature, 1: 3D KDTree -> 1D KD Tree, 2: normal KDTree (spatial only)
-        curvature_similarity_thresh: 0.1  # threshold on curvature difference for correspondence rejection
+        correspondence_method: 2          # 0: 4D KDTree w/ curvature, 1: 3D KDTree -> 1D KD Tree, 2: normal KDTree (spatial only)
+        curvature_similarity_thresh: 0.5 # threshold on curvature difference for correspondence rejection
 
       safe_corridor:
         type: lidar.safe_corridor

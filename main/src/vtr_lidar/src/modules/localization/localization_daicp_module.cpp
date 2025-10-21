@@ -261,12 +261,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         CLOG(DEBUG, "lidar.localization_daicp") << "Curvature KDTree nn search done, found " << sample_inds.size() << " pairs.";
         timer[1]->stop();
       } else if (config_->correspondence_method == 1) {
-        // build KD-Tree for spatial (xyz)
-        NanoFLANNAdapter<PointWithInfo> adapter_xyz(point_map);
-        KDTreeParams tree_params(10); // max leaf
-        auto kdtree_xyz = std::make_unique<KDTree<PointWithInfo>>(3, adapter_xyz, tree_params);
-        kdtree_xyz->buildIndex();
-
+        std::vector<float> nn_dists(sample_inds.size());
         // build KD-Tree for curvature (1D)
         CurvatureAdapter1D curv_adapter(point_map);
         using CurvKDTreeType = nanoflann::KDTreeSingleIndexAdaptor<
@@ -283,7 +278,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         for (size_t i = 0; i < sample_inds.size(); ++i) {
           KDTreeResultSet result_set(1);
           result_set.init(&sample_inds[i].second, &nn_dists[i]);
-          kdtree_xyz->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
+          kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
         }
 
         CLOG(DEBUG, "lidar.localization_daicp") 
@@ -400,7 +395,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
     /// ########################### Gauss-Newton solver ########################### ///
-    int max_gn_iter = 1;
+    int max_gn_iter = 5;
     double inner_tolerance = 1e-6;
     bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
                                                                 query_mat,

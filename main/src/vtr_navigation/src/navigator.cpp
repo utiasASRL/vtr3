@@ -309,9 +309,9 @@ if (pipeline->name() == "radar") {
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
 
   // compute gyro bias
-  // gyro_bias_ = loadGyroBias(gyro_topic);
+  gyro_bias_ = loadGyroBias(gyro_topic);
   // gyro_bias_ = Eigen::Vector3d(-0.0115121, -0.00701742, -0.00503122); // temp hardcoded value for offline testing
-  gyro_bias_ = Eigen::Vector3d(-0.0117018, -0.00694546, -0.00463976); // may05 teach47
+  // gyro_bias_ = Eigen::Vector3d(-0.0117018, -0.00694546, -0.00463976); // may05 teach47
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 
   std::cout << "############################ gyro bias : " << gyro_bias_.transpose() << "############################" << std::endl;
