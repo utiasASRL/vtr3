@@ -377,6 +377,13 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
       Eigen::Vector3d gyro_bias_update = gyro_avg - w_hat;
 
+      // check if the computed gyro_bias_update is similar to the previous gyro_bias
+      bool is_similar = ((*qdata.gyro_bias) - gyro_bias_update).norm() < 1e-3;
+      if (!is_similar) {
+        CLOG(WARNING, "lidar.localization_icp") << "Computed gyro bias update is not similar to previous estimate. Skip update.";
+        return;
+      }
+
       // update cache
       *qdata.gyro_bias = 0.8*(*qdata.gyro_bias) + 0.2*gyro_bias_update;
       CLOG(DEBUG, "lidar.localization_icp") << "Estimated gyro bias: " << (*qdata.gyro_bias).transpose();
