@@ -533,6 +533,52 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     *qdata.T_r_v_loc = T_r_v_icp;
     // set success
     *qdata.loc_success = true;
+
+    // Gyroscope bias estimation
+    if (config_->calc_gy_bias && qdata.gyro_msgs->size() > 0) {
+      const auto &query_stamp = *qdata.stamp;
+      Eigen::Matrix4d T_r_v_loc = T_r_v_icp.matrix();
+      double dt = (query_stamp - timestamp_prev_) * 1e-9;
+      
+      if (timestamp_prev_ == 0) {
+        timestamp_prev_ = query_stamp;
+        T_r_v_loc_prev_ = T_r_v_loc;
+        return;
+      }
+
+      // check if enough time has passed
+      if (dt < config_->calc_gy_bias_thresh) {
+        CLOG(DEBUG, "lidar.localization_daicp") << "Not enough motion since last update. Skip gyro bias estimation.";
+        return;
+      }
+
+      Eigen::Matrix<double, 6, 1> phi = lgmath::se3::tran2vec(T_r_v_loc * T_r_v_loc_prev_.inverse());
+      Eigen::Matrix<double, 6, 1> varpi_hat = phi / dt;
+
+      Eigen::Vector3d w_hat = varpi_hat.tail<3>();
+      
+      Eigen::Vector3d gyro_avg = Eigen::Vector3d::Zero();
+      for (const auto& msg : *qdata.gyro_msgs) {
+        gyro_avg += Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
+      }
+      gyro_avg /= (double)qdata.gyro_msgs->size();
+
+      Eigen::Vector3d gyro_bias_update = gyro_avg - w_hat;
+
+      // check if the computed gyro_bias_update is similar to the previous gyro_bias
+      bool is_similar = ((*qdata.gyro_bias) - gyro_bias_update).norm() < 1e-3;
+      CLOG(DEBUG, "lidar.localization_daicp") << "gyro_bias_update similarity to previous: " << is_similar;
+      if (!is_similar) {
+        CLOG(WARNING, "lidar.localization_daicp") << "Computed gyro_bias_update is not similar to previous estimate. Skip update.";
+        return;
+      }
+
+      // update cache
+      *qdata.gyro_bias = 0.8*(*qdata.gyro_bias) + 0.2*gyro_bias_update;
+      CLOG(DEBUG, "lidar.localization_daicp") << "Estimated gyro bias: " << (*qdata.gyro_bias).transpose();
+      timestamp_prev_ = query_stamp;
+      T_r_v_loc_prev_ = T_r_v_loc;
+    }
   } else {
     CLOG(WARNING, "lidar.localization_daicp")
         << "Matched points ratio " << matched_points_ratio

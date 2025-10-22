@@ -62,20 +62,24 @@ class LocalizationDAICPModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-    LocalizationDAICPModule(
-        const Config::ConstPtr &config,
-        const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
-        const std::string &name = static_name)
-        : tactic::BaseModule(module_factory, name), config_(config) {}
+  LocalizationDAICPModule(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : tactic::BaseModule(module_factory, name), config_(config) {}
 
-    private:
-        void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
-                  const tactic::Graph::Ptr &graph,
-                  const tactic::TaskExecutor::Ptr &executor) override;
-                  
-        Config::ConstPtr config_;
+ private:
 
-        VTR_REGISTER_MODULE_DEC_TYPE(LocalizationDAICPModule);
+  int64_t timestamp_prev_ = 0;
+  Eigen::Matrix4d T_r_v_loc_prev_ = Eigen::Matrix4d::Identity();
+  
+  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
+            
+  Config::ConstPtr config_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(LocalizationDAICPModule);
 };
 
 }  // namespace lidar
