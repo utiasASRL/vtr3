@@ -394,22 +394,44 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
-    /// ########################### Gauss-Newton solver ########################### ///
     int max_gn_iter = 5;
     double inner_tolerance = 1e-6;
+
+    // /// ########################### Gauss-Newton solver ########################### ///
+    // bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
+    //                                                             query_mat,
+    //                                                             map_mat,
+    //                                                             map_normals_mat,
+    //                                                             T_m_s_var,
+    //                                                             max_gn_iter,
+    //                                                             inner_tolerance);
+    // /// ########################################################################### ///
+
+
+    /// ########################### Gauss-Newton solver ########################### ///
+    EdgeTransform T_s_m_edge;
+    T_s_m_edge = T_s_r * T_r_v * T_v_m;
+    EdgeTransform T_m_s_edge = T_s_m_edge.inverse();
+    // Initialize output covariance matrix
+    Eigen::MatrixXd daicp_cov = Eigen::MatrixXd::Zero(6, 6);
+
+    Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
     bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
                                                                 query_mat,
                                                                 map_mat,
                                                                 map_normals_mat,
                                                                 T_m_s_var,
+                                                                T_m_s_prior, // transformation from lidar to map, will be simplified.
                                                                 max_gn_iter,
-                                                                inner_tolerance);
+                                                                inner_tolerance,
+                                                                daicp_cov);
+    /// ########################################################################### ///
 
     if (!optimization_success) {
       CLOG(WARNING, "lidar.localization_daicp") << "Gauss-Newton optimization failed at step " << step;
       break;
     }
-    /// ########################################################################### ///
+
     timer[3]->stop();
 
     /// Alignment, update aligned_mat and aligned_norms_mat
