@@ -135,7 +135,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 12
-        crop_range: 40.0                # range cropping in meters
+        crop_range: 15.0                # range cropping in meters
 
         frame_voxel_size: 0.3           # grid subsampling voxel size
 
@@ -164,7 +164,7 @@
         num_rows: 64                    # num of vertical scan lines
         num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
         min_dist: 0.0                   # meters
-        max_dist: 40.0                  # meters
+        max_dist: 15.0                  # meters
         #
         root_path: "${WARTHOG}/ros2/aeriesii_ros2/sensor_config"
         downsample_steps: 2             # after image projection 
@@ -179,7 +179,7 @@
         type: lidar.preprocessing_curvature
         num_threads: 12
 
-        crop_range: 40.0            # range cropping in meters
+        crop_range: 15.0            # range cropping in meters
         num_sample: 10000           # max number of points after range cropping
         k_neighbors: 30             # number of neighbors to compute curvature (keep <50)
 
@@ -333,12 +333,10 @@
         min_matched_ratio: 0.45
 
         lambda: 1.0                         # weight for spatial vs curvature in correspondence search: 0 = all curvature, 1 = equal weight after normalization
-        curvature_similarity_thresh: 100.0  # threshold on curvature difference for correspondence rejection
+        curvature_similarity_thresh: 5.0    # threshold on curvature difference for correspondence rejection
 
         calc_gy_bias: true
-        calc_gy_bias_thresh: 10.0         # [s]
-        correspondence_method: -1          # 0: 4D KDTree w/ curvature, 1: 3D KDTree -> 1D KD Tree, 2: normal KDTree (spatial only)
-        curvature_similarity_thresh: 0.5 # threshold on curvature difference for correspondence rejection
+        calc_gy_bias_thresh: 10.0           # [s]
 
       safe_corridor:
         type: lidar.safe_corridor
