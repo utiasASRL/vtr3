@@ -49,6 +49,8 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
+  config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
+  config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
@@ -341,7 +343,19 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   }
 
   /// Outputs
-  if (matched_points_ratio > config_->min_matched_ratio) {
+  const auto &T_r_v_init = *qdata.T_r_v_loc;
+  // decide whether to accept the icp result
+  const auto delta_T = T_r_v_init.inverse().matrix() * T_r_v_icp.matrix();
+  const float delta_trans = lgmath::se3::tran2vec(delta_T).block<3, 1>(0, 0).norm();
+  const float delta_rot = lgmath::se3::tran2vec(delta_T).block<3, 1>(3, 0).norm();
+  CLOG(DEBUG,  "lidar.localization_icp") << "T_r_v_init:\n" << T_r_v_init.matrix();
+  CLOG(DEBUG,  "lidar.localization_icp") << "T_r_v_icp:\n" << T_r_v_icp.matrix();
+  CLOG(DEBUG, "lidar.localization_icp")
+      << "ICP delta translation: " << delta_trans << " , delta rotation: " << delta_rot;
+
+  if (matched_points_ratio > config_->min_matched_ratio &&
+      delta_trans < config_->max_trans_diff &&
+      delta_rot < config_->max_rot_diff) {
     // update map to robot transform
     *qdata.T_r_v_loc = T_r_v_icp;
     // set success
