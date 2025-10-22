@@ -11,12 +11,8 @@
           eop_weight: 2.0
           min_vel: 0.3
 
-          eop_weight: 2.0
-          min_vel: 0.3
-
         mpc:
           # Controller Params
-          extrapolate_robot_pose: true
           extrapolate_robot_pose: true
           mpc_verbosity: false
           forward_vel: 0.5
@@ -97,27 +93,6 @@
             racc1: 12.5
             racc2: 2.0
             q_f: 0.0 # Multiplier for terminal cost
-    log_enabled:
-      #- navigation
-      #- navigation.graph_map_server
-      #- navigation.command
-        # tactic
-      #- tactic
-      #- tactic.pipeline
-      #- tactic.module
-      - mission.state_machine
-      - mission.server
-        # planner manager
-      - cbit.control
-      - dynamic_path_planner
-      #- cbit.debug
-      #- cbit.path_planning
-        # mpc
-      - mpc.speed_scheduler
-      - mpc.debug
-      - mpc.solver
-      - mpc.follower
-      #- mpc.follower.target
 
 echo/vtr/navigator:
   ros__parameters:

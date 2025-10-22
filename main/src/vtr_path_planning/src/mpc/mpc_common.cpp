@@ -156,7 +156,6 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
 tactic::SegmentInfo findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
 
     double best_distance = std::numeric_limits<double>::max();
-    double max_distance = -1.;
     unsigned best_sid = sid_start;
     const unsigned end_sid = std::min(sid_start + 20 + 1,
                                     unsigned(chain->size()));
@@ -173,7 +172,6 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
       double distance = abs(p - chain->p(path_it));
 
       // Record the best distance
-      max_distance = std::max(distance, max_distance);
       if (distance < best_distance) {
         best_distance = distance;
         best_sid = unsigned(path_it);
@@ -183,8 +181,10 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
     //Handle end of path exceptions
     if(best_sid == 0)
       return tactic::SegmentInfo(best_sid, best_sid + 1);
-    if(best_sid == chain->size() - 1)
+    if(best_sid == chain->size() - 1) {
+      CLOG(DEBUG, "cbit.debug") << "Found the final segment";
       return tactic::SegmentInfo(best_sid - 1, best_sid);
+    }
 
     if(p - chain->p(best_sid) > 0){
       return tactic::SegmentInfo(best_sid, best_sid + 1);
