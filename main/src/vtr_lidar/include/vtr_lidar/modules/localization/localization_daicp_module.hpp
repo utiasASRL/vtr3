@@ -24,15 +24,14 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     bool use_pose_prior = false;
 
     /// ICP parameters
-    // number of threads for nearest neighbor search
-    int num_threads = 4;
+    int num_threads = 4;                         // number of threads for nearest neighbor search
     // initial alignment config
     size_t first_num_steps = 3;
     size_t initial_max_iter = 100;
     float initial_max_pairing_dist = 2.0;
     float initial_max_planar_dist = 0.3;
     // refined stage
-    size_t refined_max_iter = 20;  // we use a fixed number of iters for now
+    size_t refined_max_iter = 20;                // we use a fixed number of iters for now
     float refined_max_pairing_dist = 2.0;
     float refined_max_planar_dist = 0.1;
     // error calculation
@@ -43,10 +42,11 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     bool verbose = false;
     unsigned int max_iterations = 1;
 
+    float lambda = 1.0;                          // weight for spatial vs curvature in correspondence search
+    float curvature_similarity_thresh = 0.5;     // threshold on curvature difference for correspondence rejection
+
     bool calc_gy_bias = false;
     float calc_gy_bias_thresh = 1.0;
-    int correspondence_method = 0;
-    float curvature_similarity_thresh = 0.5; // threshold on curvature difference for correspondence rejection
 
     /// Success criteria
     float min_matched_ratio = 0.4;
