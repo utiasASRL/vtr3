@@ -175,6 +175,8 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 
   lgmath::se3::Transformation T0 = T_p_r_extp;
   mpcConfig->T0 = tf_to_global(T0);
+  CLOG(DEBUG, "cbit.control") << "Rover position: " << mpcConfig->T0; 
+
 
   CLOG(DEBUG, "cbit.control")
       << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
@@ -198,6 +200,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 
     for (int i = 0; i < mpc_res["pose"].columns(); i++) {
       const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
+      CLOG(DEBUG, "cbit.control") << "Rolled out poses " << pose_i;
       mpc_poses.push_back(std::make_pair(curr_time + i*mpcConfig->DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
     }
   
@@ -277,6 +280,9 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
   }
 
   vis_->publishReferencePoses(referenceInfo.poses);
+
+  if (end_ind == 0)
+    end_ind = 1;
   mpcConfig->eop_index = end_ind;
 
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
