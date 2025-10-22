@@ -2,7 +2,6 @@
   ros__parameters:
     path_planning:
       bicycle_mpc:
-        control_period: 100
         type: bicycle_mpc
         control_period: 100
         speed_scheduler:
@@ -45,15 +44,11 @@
             q_f: 0.0 # Multiplier for terminal cost
 
       bicycle_mpc_follower:
-        control_period: 100
         type: bicycle_mpc_follower
         control_period: 100
         speed_scheduler:
           planar_curv_weight: 0.0
           profile_curv_weight: 0.0 
-          eop_weight: 2.0
-          min_vel: 0.3
-
           eop_weight: 2.0
           min_vel: 0.3
 

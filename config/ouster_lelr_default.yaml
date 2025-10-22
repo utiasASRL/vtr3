@@ -44,11 +44,9 @@
       task_queue_size: -1
 
       route_completion_translation_threshold: 0.2
-      route_completion_translation_threshold: 0.2
       route_completion_angle_threshold: 0.3
 
       chain:
-        min_cusp_distance: 0.1
         min_cusp_distance: 0.1
         angle_weight: 1.0
         search_depth: 5
@@ -212,12 +210,8 @@
         eop_weight: 2.0
         min_vel: 0.3
 
-        eop_weight: 2.0
-        min_vel: 0.3
-
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
         extrapolate_robot_pose: true
         mpc_verbosity: false
         forward_vel: 0.5
