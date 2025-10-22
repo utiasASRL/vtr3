@@ -61,7 +61,7 @@ EdgeTransform loadTransform(const std::string& source_frame,
     tf2::fromMsg(tf_source_target, tf2_source_target);
     EdgeTransform T_source_target(
         common::conversions::fromStampedTransformation(tf2_source_target));
-    T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity() * 1e-6);
     CLOG(DEBUG, "navigation")
         << "Transform from " << target_frame << " to " << source_frame
         << " has been set to" << T_source_target;
@@ -77,7 +77,7 @@ EdgeTransform loadTransform(const std::string& source_frame,
                         0,  0, -1,  0.84282,
                         0,  0,  0,  1;
     EdgeTransform T_source_target_(T_source_target);
-    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Identity() * 1e-6);
     CLOG(DEBUG, "navigation")
         << "Transform from " << target_frame << " to " << source_frame
         << " has been set to" << T_source_target_;
@@ -93,7 +93,7 @@ EdgeTransform loadTransform(const std::string& source_frame,
           0.0, 0.0, 0.0, 1.0; // T_aeva_warthog
 
     EdgeTransform T_source_target_(T_source_target);
-    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Identity() * 1e-6);
     CLOG(DEBUG, "navigation")
         << "Transform from " << target_frame << " to " << source_frame
         << " has been set to" << T_source_target_;
@@ -116,7 +116,7 @@ EdgeTransform loadTransform(const std::string& source_frame,
     Eigen::Matrix4d T_source_target = T_imu_aeva_mat * T_aeva_robot;
 
     EdgeTransform T_source_target_(T_source_target);
-    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Identity() * 1e-6);
     CLOG(DEBUG, "navigation")
         << "Transform from " << target_frame << " to " << source_frame
         << " has been set to" << T_source_target_;
@@ -127,7 +127,7 @@ EdgeTransform loadTransform(const std::string& source_frame,
       << "Transform not found - source: " << source_frame
       << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
-  T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+  T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity() * 1e-6);
   return T_source_target;
 }
 
@@ -308,12 +308,11 @@ if (pipeline->name() == "radar") {
   gyro_qos.reliable();
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
 
-  // compute gyro bias
+  // ----- compute gyro bias
   // gyro_bias_ = loadGyroBias(gyro_topic);
-  // gyro_bias_ = Eigen::Vector3d(-0.0115121, -0.00701742, -0.00503122); // temp hardcoded value for offline testing
-  // gyro_bias_ = Eigen::Vector3d(-0.0117018, -0.00694546, -0.00463976); // may05 teach47
-  gyro_bias_ = Eigen::Vector3d(-0.010339, -0.00727331,  -0.0054914);       // 1021 feature
-  // gyro_bias_ = Eigen::Vector3d(-0.0102267, -0.00724319, -0.00547418);      // 1021 featureless 
+  // gyro_bias_ << -0.0115121, -0.00701742, -0.00503122;   // temp hardcoded value for offline testing
+  gyro_bias_ << -0.0112692, -0.00706693, -0.00526226;   //  loop3 large
+  // gyro_bias_ <<  -0.0112731, -0.00725823, -0.00593503; // fig 8 run1
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 
   std::cout << "############################ gyro bias : " << gyro_bias_.transpose() << "############################" << std::endl;
