@@ -149,6 +149,26 @@ bool BicycleMPCPathTracker::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic
   return true;
 }
 
+void BicycleMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
+                         const lgmath::se3::Transformation& T_p_r_extp,
+                         const double state_p,
+                         RobotState& robot_state,
+                         const tactic::Timestamp& t) {
+  auto mpc_config = std::static_pointer_cast<CasadiBicycleMPC::Config>(mpcConfig);
+  BaseMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
+  if (mpc_config != nullptr) {
+    if (mpc_config->eop_index > -1) {
+      mpc_config->Q_f = 10000.0;
+      mpc_config->cost_weights[mpc_config->eop_index] *= mpc_config->Q_f;
+      if (mpc_config->eop_index < 3) { 
+        mpc_config->Q_lon = 100;
+        mpc_config->R1 = 0;
+        mpc_config->Acc_R1 = 0;
+      }
+    }
+  }
+}
+
 std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
   std::map<std::string, casadi::DM> result;
 

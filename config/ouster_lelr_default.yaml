@@ -7,19 +7,19 @@
       #- navigation.graph_map_server
       #- navigation.command
         # tactic
-      - tactic
+      #- tactic
       - tactic.eop
       #- tactic.pipeline
       #- tactic.module
-      - mission.state_machine
-      - mission.server
+      #- mission.state_machine
+      #- mission.server
         # planner manager
       - cbit.control
       - dynamic_path_planner
-      #- cbit.debug
+      - cbit.debug
       #- cbit.path_planning
         # mpc
-      - mpc.speed_scheduler
+      #- mpc.speed_scheduler
       - mpc.debug
       - mpc.solver
       - mpc.follower
@@ -43,7 +43,7 @@
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.2
+      route_completion_translation_threshold: 0.05
       route_completion_angle_threshold: 0.3
 
       chain:
@@ -208,7 +208,8 @@
         planar_curv_weight: 0.0
         profile_curv_weight: 0.0 
         eop_weight: 2.0
-        min_vel: 0.3
+        sop_weight: 4.0
+        min_vel: 0.1
 
       mpc:
         # Controller Params
@@ -236,10 +237,10 @@
           q_f: 1.0 # Multiplier for terminal cost
         reverse:
           q_lat: 15.0
-          q_lon: 6.0
+          q_lon: 65.0
           q_th: 2.0
-          r1: 8.0
+          r1: 1.0
           r2: 0.0
           racc1: 12.5
           racc2: 2.0
-          q_f: 0.0 # Multiplier for terminal cost
+          q_f: 1.0 # Multiplier for terminal cost
