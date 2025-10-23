@@ -209,7 +209,7 @@
         profile_curv_weight: 0.0 
         eop_weight: 2.0
         sop_weight: 4.0
-        min_vel: 0.1
+        min_vel: 0.3
 
       mpc:
         # Controller Params
