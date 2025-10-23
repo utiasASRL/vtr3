@@ -134,7 +134,7 @@ class ConvoyManager(Node):
       self._robot_vertex[rid] = msg.index
       self.get_logger().info(f"Robots localizing, checking for config if all robot states valid")
       if all(state is not None for state in self._robot_states.values()):
-        self.config_checked = True
+        self._config_checked = True
         self.get_logger().info(f"All robots localized, checking configuration validity")
         valid = self.check_valid_configuration()
         self._config_valid = valid
