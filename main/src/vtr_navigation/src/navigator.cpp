@@ -314,8 +314,8 @@ if (pipeline->name() == "radar") {
   // gyro_bias_ << -0.0112692, -0.00706693, -0.00526226;     // loop3 large
   // gyro_bias_ << -0.0112731, -0.00725823, -0.00593503;     // fig 8 run1
   // gyro_bias_ << -0.0117018, -0.00694546, -0.00463976;     // may05 teach47
-  // gyro_bias_ << -0.0103390, -0.00727331, -0.0054914;     // 1021 feature
-  gyro_bias_ << -0.0102267, -0.00724319, -0.00547418;     // 1021 featureless
+  gyro_bias_ << -0.0103390, -0.00727331, -0.0054914;     // 1021 feature
+  // gyro_bias_ << -0.0102267, -0.00724319, -0.00547418;     // 1021 featureless
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 
   // Subscribe to the imu topic 

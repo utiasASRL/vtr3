@@ -476,8 +476,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const double translation_diff = T_diff_vec.head<3>().norm();
       const double rotation_diff = T_diff_vec.tail<3>().norm();
 
-      // OUTLIER REJECTION: larger than 0.2m or 0.1rad (5.7deg)
-      if ((-1.0 * translation_diff) > 0.2 || (-1.0 * rotation_diff) > 0.1) {
+      // OUTLIER REJECTION: larger than 0.3m or 0.2rad (11.5deg)
+      if ((translation_diff) > 0.3 || (rotation_diff) > 0.2) {
         CLOG(WARNING, "lidar.localization_daicp") << "Significant difference detected in T_r_v, fall back to odometry:";
         CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
         CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
