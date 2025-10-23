@@ -344,54 +344,6 @@ inline void computeJacobianResidualInformation(
   ell_mr = mean_range;  // simplest: 1 rad ~ ell_mr meters
 }
 
-// inline void constructWellConditionedDirections(
-//     const Eigen::VectorXd& eigenvalues,
-//     const Eigen::MatrixXd& eigenvectors,
-//     double eigenvalue_threshold,
-//     Eigen::MatrixXd& V,
-//     Eigen::MatrixXd& Vf) {
-  
-//   const int n_dims = eigenvalues.size();
-  
-//   // V is the full eigenvector matrix (each column is an eigenvector)
-//   V = eigenvectors;
-  
-//   // Initialize Vf as zeros
-//   Vf = Eigen::MatrixXd::Zero(n_dims, n_dims);
-  
-//   // Find well-conditioned directions using the threshold
-//   std::vector<bool> well_conditioned_mask(n_dims);
-//   int num_well_conditioned = 0;
-  
-//   for (int i = 0; i < n_dims; ++i) {
-//     well_conditioned_mask[i] = eigenvalues[i] > eigenvalue_threshold;
-//     if (well_conditioned_mask[i]) {
-//       num_well_conditioned++;
-//     }
-//   }
-  
-//   // Keep the good directions as-is, zero out the others
-//   for (int i = 0; i < n_dims; ++i) {
-//     if (well_conditioned_mask[i]) {
-//       Vf.col(i) = V.col(i);
-//     }
-//     // else: Vf.col(i) remains zero
-//   }
-    
-//   // Debug logging for eigenvalues and threshold
-//   CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalues: [" << eigenvalues.transpose() << "]";
-//   CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalue threshold: " << eigenvalue_threshold;
-
-//   // Print well-conditioned mask
-//   std::string mask_str = "Well-conditioned mask: [";
-//   for (int i = 0; i < n_dims; ++i) {
-//     mask_str += (well_conditioned_mask[i] ? "True" : "False");
-//     if (i < n_dims - 1) mask_str += ", ";
-//   }
-//   mask_str += "]";
-//   CLOG(DEBUG, "lidar.localization_daicp") << mask_str;
-// }
-
 inline void constructWellConditionedDirections(
     const Eigen::VectorXd& eigenvalues,
     const Eigen::MatrixXd& eigenvectors,
@@ -556,11 +508,17 @@ inline bool computeEigenvalueDecomposition(
 }
 
 inline double computeThreshold(const Eigen::VectorXd& eigenvalues) {
-  // const double max_eigenval = eigenvalues.maxCoeff();
+  const double max_eigenval = eigenvalues.maxCoeff();
   // const double eigenvalue_threshold = max_eigenval * 1e-3;  
   const double eigenvalue_threshold = -1000.0;
 
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
+
+  // Print relative condition numbers
+  for (int i = 0; i < eigenvalues.size(); ++i) {
+    double cond_num = (eigenvalues(i) > 1e-15) ? (max_eigenval / eigenvalues(i)) : std::numeric_limits<double>::infinity();
+    CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
+  }
 
   return eigenvalue_threshold;
 }
