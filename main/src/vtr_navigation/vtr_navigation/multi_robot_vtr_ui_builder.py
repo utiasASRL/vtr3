@@ -27,7 +27,7 @@ class MultiRobotVTRUIProxy(BaseProxy):
   """Multiprocessing.Manager proxy for a VTRUI object."""
 
   _exposed_ = ('get_graph_state', 'get_robot_state', 'get_following_route', 'get_server_state', 'get_task_queue_state',
-               'set_pause', 'add_goal', 'cancel_goal', 'begin_goals', 'update_waypoint', 'annotate_route', 'move_graph', 'move_robot', 
+               'set_pause', 'add_goal', 'cancel_goal', 'cancel_all_goals', 'begin_goals', 'update_waypoint', 'annotate_route', 'move_graph', 'move_robot', 
                'merge', 'confirm_merge', 'continue_teach', 'change_env_info', 'get_map_info', 'get_robot_ids')
 
   def get_robot_ids(self):
@@ -80,6 +80,12 @@ class MultiRobotVTRUIProxy(BaseProxy):
     print(f"[Proxy] cancel_goal({command}): calling _callmethod")
     result = self._callmethod('cancel_goal', args=(command, robot_id))
     print(f"[Proxy] cancel_goal({command}): result={result}")
+    return result
+
+  def cancel_all_goals(self):
+    print(f"[Proxy] cancel_all_goals(): calling _callmethod")
+    result = self._callmethod('cancel_all_goals')
+    print(f"[Proxy] cancel_all_goals(): result={result}")
     return result
 
   def begin_goals(self):

@@ -82,6 +82,10 @@ def handle_cancel_goal(data):
   logger.info('Received cancel goal command', data)
   build_remote().cancel_goal(data)
 
+@socketio.on('command/cancel_all_goals')
+def handle_cancel_all_goal():
+  logger.info('Received cancel all goals command')
+  build_remote().cancel_all_goals()
 
 @socketio.on('command/begin_goals')
 def handle_begin_goals():

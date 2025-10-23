@@ -43,7 +43,7 @@ class GoalForm extends React.Component {
   }
 
   render() {
-    const { goalType, goalWaypoints, setNewGoalWaypoints } = this.props;
+    const { goalType, goalWaypoints, setNewGoalWaypoints, cancelAllGoals } = this.props;
     const { goal_form_open, goal_waypoints_str, goal_waypoints_invalid, pause_after, pause_before } = this.state;
     return (
       <>
@@ -185,6 +185,16 @@ class GoalForm extends React.Component {
               onClick={this.toggleGoalForm.bind(this, true)}
             >
               Add Goal
+            </Button>
+            <Button
+              color={"primary"}
+              disableElevation={true}
+              variant={"contained"}
+              startIcon={<ClearIcon />}
+              size={"small"}
+              onClick={cancelAllGoals.bind(this)}
+            >
+              Clear All Goals
             </Button>
           </Box>
         )}

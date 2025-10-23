@@ -225,6 +225,7 @@ class GoalManager extends React.Component {
               goalType={newGoalType}
               setNewGoalWaypoints={setNewGoalWaypoints}
               setGoalType={setNewGoalType}
+              cancelAllGoals={this.cancelAllGoals.bind(this)}
             ></GoalForm>
           </Box>
         </Drawer>
@@ -245,6 +246,10 @@ class GoalManager extends React.Component {
   cancelGoal(goal) {
     console.debug("Sending cancel goal signal with goal:", goal);
     this.props.socket.emit("command/cancel_goal", goal);
+  }
+  cancelAllGoals() {
+    console.debug("Cancelling all goals for all robots");
+    this.props.socket.emit("command/cancel_all_goals");
   }
 
   beginGoals() {

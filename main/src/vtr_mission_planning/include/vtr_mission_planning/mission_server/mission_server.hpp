@@ -299,14 +299,16 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
   cv_stop_or_goal_changed_.notify_all();
   
   lock.unlock();
-  serverStateChanged();
   if (const auto state_machine = getStateMachine()){
     if (goal_id == GoalInterface<GoalHandle>::InvalidId()) {
       state_machine->handle(Event::Reset());
+      goal_queue_.clear();
+      goal_map_.clear();
     } else if (goal_id == current_goal_id_) {
       state_machine->handle(Event::EndGoal());
     }
   }
+  serverStateChanged();
     
 }
 

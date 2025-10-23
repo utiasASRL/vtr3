@@ -138,7 +138,7 @@ def goal_handle_from_ros(ros_goal_handle):
   elif ros_goal_handle.type == GoalHandle.PAUSE:
     goal_handle["type"] = "pause"
   elif ros_goal_handle.type == GoalHandle.SELECT_CONTROLLER:
-    goal_handle["type"] = "controller_switch"
+    goal_handle["type"] = "select"
   else:
     goal_handle["type"] = "unknown"
   # pause before
@@ -278,6 +278,12 @@ class MultiRobotSocketVTRUI(MultiRobotVTRUI):
     ros_command.goal_handle.id = [int(id) for id in data['id']]
     return super().cancel_goal(ros_command, robot_id)
   
+  def cancel_all_goals(self):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.CANCEL_GOAL
+    ros_command.goal_handle.id = [int(0) for i in range(16)]
+    return super().cancel_goal(ros_command, robot_id=None)
+
   def begin_goals(self):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.BEGIN_GOALS
