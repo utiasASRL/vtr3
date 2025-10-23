@@ -509,8 +509,10 @@ inline bool computeEigenvalueDecomposition(
 
 inline double computeThreshold(const Eigen::VectorXd& eigenvalues) {
   const double max_eigenval = eigenvalues.maxCoeff();
-  // const double eigenvalue_threshold = max_eigenval * 1e-3;  
-  const double eigenvalue_threshold = -1000.0;
+
+  const double eigenvalue_threshold = -1000.0;       // default back to point-to-plane icp
+
+  // const double eigenvalue_threshold = max_eigenval + 1; // use prior only
 
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
 
