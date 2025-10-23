@@ -78,10 +78,6 @@ void Pause::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-  // resets the robot state
-  /// \note target is always resetted while persistent loc is only resetted if
-  /// vertex_id_ is valid
-  getTactic(state_machine)->setTrunk(vertex_id_);
 }
 
 }  // namespace mission_planning

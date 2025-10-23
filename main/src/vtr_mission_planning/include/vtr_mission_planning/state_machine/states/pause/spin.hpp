@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file sping.hpp
+ * \file spin.hpp
  * \author Luka Antonyshyn, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

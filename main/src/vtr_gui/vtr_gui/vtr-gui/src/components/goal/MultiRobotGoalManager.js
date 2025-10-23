@@ -240,6 +240,7 @@ class MultiRobotGoalManager extends React.Component {
               goalType={newGoalType}
               setNewGoalWaypoints={setNewGoalWaypoints}
               setGoalType={setNewGoalType}
+              cancelAllGoals={this.cancelAllGoals.bind(this)}
             ></GoalForm>
           </Box>
         </Drawer>
@@ -266,6 +267,11 @@ class MultiRobotGoalManager extends React.Component {
       console.debug(`Sending cancel goal signal for robot ${robot_id} with goal:`, g);
       this.props.socket.emit("command/cancel_goal", g);
     });
+  }
+
+  cancelAllGoals() {
+    console.debug("Cancelling all goals for all robots");
+    this.props.socket.emit("command/cancel_all_goals");
   }
 
   beginGoals() {

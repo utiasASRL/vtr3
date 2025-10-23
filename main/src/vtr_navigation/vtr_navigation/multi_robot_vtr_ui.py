@@ -232,7 +232,7 @@ class MultiRobotVTRUI(ROSManager):
       self._mission_command_pub[robot_id].publish(msg)
 
   @ROSManager.on_ros
-  def cancel_goal(self, msg, robot_id):
+  def cancel_goal(self, msg, robot_id=None):
     vtr_ui_logger.info("[MultiRobotVTRUI]: Cancelling goal for robot " + (robot_id if robot_id is not None else "all robots"))
     if robot_id is not None:
       name = self._mission_command_pub[robot_id].topic_name

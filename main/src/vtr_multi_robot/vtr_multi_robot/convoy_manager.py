@@ -29,9 +29,10 @@ class ConvoyManager(Node):
     self.declare_parameter('robots', ["r1"])
     self.declare_parameter('path_planning.follow_distance', 2.0)
     self.declare_parameter('odometry.mapping.map_voxel_size', 0.3)
-    self.declare_parameter('path_planning.distance_margin', 2.0)
+    self.declare_parameter('path_planning.distance_margin', 0.5)
     self.declare_parameter('path_planning.wheelbase', 0.5)
     self.declare_parameter('path_planning.max_ang_vel', 0.46)
+    self._corridor_width = 0.2 # meters, appears to be decided by VTR, so this is set internally for now
     self._follow_distance = self.get_parameter('path_planning.follow_distance').value
     self._distance_margin = self.get_parameter('path_planning.distance_margin').value
     self._wheelbase = self.get_parameter('path_planning.wheelbase').value
@@ -48,11 +49,13 @@ class ConvoyManager(Node):
     self._mission_command_pubs = {}
     self._robot_state_subs = {}
     self._robot_states = {robot_id: None for robot_id in self._robots}
+    self._robot_vertex = {robot_id: None for robot_id in self._robots}
     self._localizing = False
     self._idle = True
     self._config_checked = False
     self._config_valid = False
     self._crs = None
+    self._graph_state = None
 
     for robot_id in self._robots:
       namespace = self._robot_namespaces[robot_id]
@@ -67,12 +70,12 @@ class ConvoyManager(Node):
     self._diagnostic_pub = self.create_publisher(DiagnosticStatus, '/vtr/mr_diagnostics', 10)
     self._diagnostic_timer = self.create_timer(0.2, self.publish_diagnostics)
 
-    last_robot_namespace = self._robot_namespaces[self._robots[-1]]
+    last_robot_namespace = self._robot_namespaces[self._robots[0]]
     self.get_logger().info(f"Last robot namespace: {last_robot_namespace}")
-    self._graph_state_cli = self.create_client(GraphStateSrv, namespace + 'graph_state_srv')
+    self._graph_state_cli = self.create_client(GraphStateSrv, last_robot_namespace + 'graph_state_srv')
 
     while not self._graph_state_cli.wait_for_service(timeout_sec=1.0):
-      self.get_logger().info(f'service not available for {self._robots[-1]}, waiting again...')
+      self.get_logger().info(f'service not available for {self._robots[0]}, waiting again...')
 
 
     self._server_states = {robot_id: None for robot_id in self._robots}
@@ -128,66 +131,66 @@ class ConvoyManager(Node):
       x, y = self.LonLat_To_XY(lon, lat)
       print(f"Robot {rid} localized to lon: {lon}, lat: {lat}, x: {x}, y: {y}, theta: {theta}")
       self._robot_states[rid] =  (x, y, theta)
+      self._robot_vertex[rid] = msg.index
       self.get_logger().info(f"Robots localizing, checking for config if all robot states valid")
       if all(state is not None for state in self._robot_states.values()):
-        self.config_checked = True
-        self.get_logger().info(f"All robots localized, checking configuration validity")
-        robot_trajs = {robot_id: None for robot_id, state in self._robot_states.items()}
-        for robot_id, state in self._robot_states.items():
-          self.get_logger().info(f"Robot {robot_id} state: {state}")
-          # Check that the configuration is valid
-          primitives = self.motion_primitives(state)
-          robot_trajs[robot_id] = primitives
         self._config_checked = True
-        valid = self.check_valid_configuration(robot_trajs)
+        self.get_logger().info(f"All robots localized, checking configuration validity")
+        valid = self.check_valid_configuration()
         self._config_valid = valid
         if valid:
-          self.get_logger().info(f"Configuration valid, sending move commands")
+          self.get_logger().info(f"Configuration valid")
         else:
           self.get_logger().info(f"Configuration invalid, retrying localization")
       else:
         self.get_logger().info(f"Not all robots localized yet, waiting for more robot states")
 
-  def check_valid_configuration(self, robot_trajs):
-    for rid, trajs in robot_trajs.items():
-      for other_rid, other_trajs in robot_trajs.items():
-        if rid != other_rid:
-          # TODO: This is pretty horrendous, but should work for now, so long as we don't have too many robots
-          for traj in trajs:
-            for state in traj:
-              for other_traj in other_trajs:
-                for other_state in other_traj:
-                  dist = ((state[0] - other_state[0])**2 + (state[1] - other_state[1])**2)**0.5
-                  if (dist - self._follow_distance) > self._distance_margin:
-                    self.get_logger().info(f"Distance problem detected between {rid} and {other_rid} at states {state} and {other_state} with distance {dist}")
-                    return False
+  def check_valid_configuration(self):
+    valid = True
+    for i in range(1, len(self._robots)):
+      valid &= self.check_follower_position(self._robot_states[self._robots[i-1]], self._robot_states[self._robots[i]])
+    #for rid in self._robots:
+      #valid &= self.check_robot_against_graph(self._robot_vertex[rid], self._robot_states[rid])
+    return valid
+
+  def check_follower_position(self, leader_pos, follower_pos):
+    leader_x, leader_y, leader_theta = leader_pos
+    follower_x, follower_y, follower_theta = follower_pos
+
+    dx = follower_x - leader_x
+    dy = follower_y - leader_y
+    distance = np.sqrt(dx**2 + dy**2)
+
+    expected_distance = self._follow_distance
+    distance_margin = self._distance_margin
+
+    if not (expected_distance - distance_margin <= distance <= expected_distance + distance_margin):
+      self.get_logger().info(f"Follower at distance {distance} outside expected range [{expected_distance - distance_margin}, {expected_distance + distance_margin}]")
+      return False
+
+    angle_diff = (follower_theta - leader_theta + np.pi) % (2 * np.pi) - np.pi
+
+    if abs(angle_diff) > np.pi / 4:  # 45 degrees tolerance
+      self.get_logger().info(f"Follower angle difference {angle_diff} exceeds tolerance")
+      return False
+
     return True
 
-  def motion_primitives(self, state,):
-    # Generate motion primitives for the robot based on its parameters
-    dirs = [(1, self._max_ang_vel), (1, 0), (1, -self._max_ang_vel), (0.5, self._max_ang_vel), (0.5, 0), (0.5, -self._max_ang_vel)]
-    motions = []
+  def check_robot_against_graph(self, vertex_id, robot_pos):
+    if self._graph_state is None:
+      self._graph_state = self._graph_state_cli.call(GraphStateSrv.Request()).graph_state
 
-    for cmd in dirs:
-      states = [(state[0], state[1], state[2])]
-      last_state = state
-      for i in range(10):
-        new_state = self.rollout_model(state[0], state[1], state[2], cmd[0], cmd[1])
-        states.append(new_state)
-        last_state = new_state
-      motions.append(states)
-    return motions
-      
-  def rollout_model(self, x, y, theta, v, phi):
-    dt = 0.1
-    L = self._wheelbase
-    x_dot = v * np.cos(theta)
-    y_dot = v * np.sin(theta)
-    theta_dot = v / L * np.tan(phi)
-    x_new = x + x_dot * dt
-    y_new = y + y_dot * dt
-    theta_new = theta + theta_dot * dt
-    return (x_new, y_new, theta_new)
+    graph_vertex = self._graph_state.vertices[vertex_id]
+    vertex_lon, vertex_lat = graph_vertex.lng, graph_vertex.lat
+    vertex_x, vertex_y = self.LonLat_To_XY(vertex_lon, vertex_lat)
+
+    dist_x, dist_y = robot_pos[0] - vertex_x, robot_pos[1] - vertex_y
+    dist = np.sqrt(dist_x**2 + dist_y**2)
+    if dist > self._corridor_width:
+      self.get_logger().info(f"Robot at distance {dist} from graph vertex exceeds corridor width {self._corridor_width}")
+      return False
+    return True
+
 
   def server_state_callback(self, msg, rid):
     self.get_logger().info(f"Server state callback for {rid}: {msg.current_goal_state}")
@@ -206,7 +209,7 @@ class ConvoyManager(Node):
     if msg.current_goal_state == ServerState.FINISHING:
       mission_cmd = MissionCommand()
       for robot_id in self._robots:
-        if robot_id != rid and (self._server_states[robot_id].goals is not None) and len(self._server_states[robot_id].goals) > 0:
+        if robot_id != rid and (self._server_states[robot_id] is not None) and (self._server_states[robot_id].goals is not None) and len(self._server_states[robot_id].goals) > 0:
           active_goal = self._server_states[robot_id].goals[0]
           if active_goal.type == GoalHandle.REPEAT and msg.goals[0].type == GoalHandle.REPEAT and len(self._server_states[robot_id].goals) == len(msg.goals):
             mission_cmd.type = MissionCommand.CANCEL_GOAL
