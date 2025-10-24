@@ -52,6 +52,15 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
   config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
 
+  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", {1.0, 1.0, 1.0});
+  if (w_icp.size() != 3) {
+    std::string err{"W_icp diagonal malformed. Must be 3 elements!"};
+    CLOG(ERROR, "lidar.localization_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  // Invert here since W is information matrix
+  config->W_icp << 1/w_icp[0], 0, 0, 0, 1/w_icp[1], 0, 0, 0, 1/w_icp[2];
+
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
   return config;
@@ -224,8 +233,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
       if (point_map[ind.second].normal_score <= 0.0) continue;
       Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
       Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+      // Apply ICP weighting
+      W = config_->W_icp * W;
       auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
-
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
