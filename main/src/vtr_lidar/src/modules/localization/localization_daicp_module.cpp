@@ -2,39 +2,6 @@
 #include "vtr_lidar/modules/localization/daicp_lib.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
-
-struct CurvatureAdapter1D {
-  const pcl::PointCloud<vtr::lidar::PointWithInfo>& points;
-  CurvatureAdapter1D(const pcl::PointCloud<vtr::lidar::PointWithInfo>& pts) : points(pts) {}
-
-  inline size_t kdtree_get_point_count() const { return points.size(); }
-
-  inline float kdtree_get_pt(const size_t idx, int /*dim*/) const {
-    return points[idx].curvature;
-  }
-
-  template <class BBOX>
-  bool kdtree_get_bbox(BBOX&) const { return false; }
-};
-
-struct CurvatureAdapter4D {
-  const pcl::PointCloud<vtr::lidar::PointWithInfo>& points;
-  CurvatureAdapter4D(const pcl::PointCloud<vtr::lidar::PointWithInfo>& pts) : points(pts) {}
-
-  inline size_t kdtree_get_point_count() const { return points.size(); }
-
-  inline float kdtree_get_pt(size_t idx, size_t dim) const {
-    const auto& p = points[idx];
-    if (dim == 0) return p.x;
-    if (dim == 1) return p.y;
-    if (dim == 2) return p.z;
-    return p.curvature;
-  }
-
-  template <class BBOX>
-  bool kdtree_get_bbox(BBOX&) const { return false; }
-};
-
 namespace vtr {
 namespace lidar {
 
