@@ -60,6 +60,7 @@ class LocalizationICPModule : public tactic::BaseModule {
     // steam optimizer
     bool verbose = false;
     unsigned int max_iterations = 1;
+    Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
 
     /// Success criteria
     float min_matched_ratio = 0.4;
