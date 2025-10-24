@@ -8,8 +8,9 @@
 #include <vector>
 
 namespace vtr {
-
 namespace lidar {
+
+class LocalizationDAICPModule;
 
 namespace daicp_lib {
 
@@ -216,7 +217,8 @@ inline void computeJacobianResidualInformation(
     Eigen::MatrixXd& A,
     Eigen::VectorXd& b,
     Eigen::MatrixXd& W_inv,
-    double& ell_mr) {
+    double& ell_mr,
+    const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_) {
 
   const int n_points = static_cast<int>(sample_inds.size());
   
@@ -225,13 +227,13 @@ inline void computeJacobianResidualInformation(
   b.resize(n_points);
   W_inv = Eigen::MatrixXd::Zero(n_points, n_points);
   
-  // Lidar range and bearing noise model parameters (HARDCODED, move to config later)
-  const double sigma_d = 0.02;                    // range noise std (2cm)
-  const double sigma_az = M_PI / 180.0 * 0.03;    // azimuth noise std (0.03 degrees)
-  const double sigma_el = M_PI / 180.0 * 0.03;    // elevation noise std (0.03 degrees)
-  
-  const Eigen::Matrix3d Sigma_du = Eigen::Vector3d(sigma_d * sigma_d, 
-                                                   sigma_az * sigma_az, 
+  // Lidar range and bearing noise model parameters
+  const double sigma_d = config_->sigma_d;          // range noise std (2cm)
+  const double sigma_az = config_->sigma_az;        // azimuth noise std (0.03 degrees)
+  const double sigma_el = config_->sigma_el;        // elevation noise std (0.03 degrees)
+
+  const Eigen::Matrix3d Sigma_du = Eigen::Vector3d(sigma_d * sigma_d,
+                                                   sigma_az * sigma_az,
                                                    sigma_el * sigma_el).asDiagonal();
   
   // --- parallel accumulation for mean range ---
@@ -532,22 +534,14 @@ inline bool daGaussNewtonP2Plane(
     const Eigen::Matrix4Xf& map_normals_mat,
     steam::se3::SE3StateVar::Ptr T_var,
     const Eigen::MatrixXd& T_ms_prior,
-    int max_gn_iter,
-    double inner_tolerance,
+    const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
     Eigen::MatrixXd& daicp_cov) {
   
   if (sample_inds.size() < 6) {
     CLOG(WARNING, "lidar.localization_daicp") << "Insufficient correspondences for Gauss-Newton";
     return false;
   }
-  
-  // Convergence parameters 
-  const double absolute_cost_threshold = 1e-12;         
-  const double absolute_cost_change_threshold = 1e-8;   
-  const double relative_cost_change_threshold = 1e-8;    
-  const double zero_gradient_threshold = 1e-8;          
-  const double parameter_change_threshold = inner_tolerance; 
-  
+
   // Start with identity transformation for the Gauss-Newton process
   lgmath::se3::Transformation current_transformation = lgmath::se3::Transformation(); // Identity
   Eigen::VectorXd accumulated_params = Eigen::VectorXd::Zero(6);
@@ -562,7 +556,7 @@ inline bool daGaussNewtonP2Plane(
   std::string termination_reason = "";
   
   // Inner loop Gauss-Newton iterations with DEGENERACY-AWARE updates
-  for (int gn_iter = 0; gn_iter < max_gn_iter && !converged; ++gn_iter) {
+  for (int gn_iter = 0; gn_iter < config_->max_gn_iter && !converged; ++gn_iter) {
     // Build jacobian and residual for current transformation
     Eigen::MatrixXd A(sample_inds.size(), 6);
     Eigen::MatrixXd W_inv(sample_inds.size(), sample_inds.size());
@@ -574,7 +568,7 @@ inline bool daGaussNewtonP2Plane(
     double ell_mr = 0.0;
 
     computeJacobianResidualInformation(sample_inds, query_mat, map_mat, map_normals_mat,
-                                       T_combined, T_ms_prior, A, b, W_inv, ell_mr);
+                                       T_combined, T_ms_prior, A, b, W_inv, ell_mr, config_);
 
     // --------- [DEBUG]: disable weighting
     // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());
@@ -589,23 +583,23 @@ inline bool daGaussNewtonP2Plane(
     
     // STEAM-style convergence checking
     // 1. Check absolute cost threshold
-    if (curr_cost <= absolute_cost_threshold) {
+    if (curr_cost <= config_->abs_cost_thresh) {
       converged = true;
       termination_reason = "CONVERGED_ABSOLUTE_COST";
     }
     // 2. Check absolute cost change (after first iteration)
-    else if (gn_iter > 0 && std::abs(prev_cost - curr_cost) <= absolute_cost_change_threshold) {
+    else if (gn_iter > 0 && std::abs(prev_cost - curr_cost) <= config_->abs_cost_change_thresh) {
       converged = true;
       termination_reason = "CONVERGED_ABSOLUTE_COST_CHANGE";
     }
     // 3. Check relative cost change (after first iteration)
     else if (gn_iter > 0 && prev_cost > 0 && 
-             std::abs(prev_cost - curr_cost) / prev_cost <= relative_cost_change_threshold) {
+             std::abs(prev_cost - curr_cost) / prev_cost <= config_->rel_cost_change_thresh) {
       converged = true;
       termination_reason = "CONVERGED_RELATIVE_COST_CHANGE";
     }
     // 4. Check zero gradient
-    else if (grad_norm < zero_gradient_threshold) {
+    else if (grad_norm < config_->zero_gradient_thresh) {
       converged = true;
       termination_reason = "CONVERGED_ZERO_GRADIENT";
     }
@@ -664,7 +658,7 @@ inline bool daGaussNewtonP2Plane(
     double param_change = delta_params.norm();
     
     // Check convergence (but allow at least one iteration to see progress)
-    if (gn_iter > 0 && param_change < parameter_change_threshold) {
+    if (gn_iter > 0 && param_change < config_->inner_tolerance) {
       converged = true;
       termination_reason = "CONVERGED_PARAMETER_CHANGE";
       break;
@@ -697,6 +691,5 @@ inline bool daGaussNewtonP2Plane(
 }
 
 }  // daicp_lib
-
 }  // namespace lidar
 }  // namespace vtr

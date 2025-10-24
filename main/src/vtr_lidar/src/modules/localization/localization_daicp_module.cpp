@@ -47,29 +47,42 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
-
-  // icp params
+  // general
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
+  config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
+  // iteration control
   config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
   config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
+  // data association
+  config->lambda = node->declare_parameter<float>(param_prefix + ".lambda", config->lambda);
+  config->curvature_similarity_thresh = node->declare_parameter<float>(param_prefix + ".curvature_similarity_thresh", config->curvature_similarity_thresh);
   config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
   config->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config->initial_max_planar_dist);
+  // daicp
+  config->max_gn_iter = node->declare_parameter<int>(param_prefix + ".max_gn_iter", config->max_gn_iter);
+  // daicp - range and bearing noise model
+  config->sigma_d = node->declare_parameter<double>(param_prefix + ".sigma_d", config->sigma_d);
+  config->sigma_az = node->declare_parameter<double>(param_prefix + ".sigma_az", config->sigma_az);
+  config->sigma_el = node->declare_parameter<double>(param_prefix + ".sigma_el", config->sigma_el);
+  // daicp - convergence checks
+  config->abs_cost_thresh = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", config->abs_cost_thresh);
+  config->abs_cost_change_thresh = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", config->abs_cost_change_thresh);
+  config->rel_cost_change_thresh = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config->rel_cost_change_thresh);
+  config->zero_gradient_thresh = node->declare_parameter<double>(param_prefix + ".zero_gradient_thresh", config->zero_gradient_thresh);
+  config->inner_tolerance = node->declare_parameter<double>(param_prefix + ".inner_tolerance", config->inner_tolerance);
+  // refinement
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
   config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
+  // error calculation
   config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
   config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
-  config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
-
+  // outlier rejection
+  config->trans_outlier_thresh = node->declare_parameter<float>(param_prefix + ".trans_outlier_thresh", config->trans_outlier_thresh);
+  config->rot_outlier_thresh = node->declare_parameter<float>(param_prefix + ".rot_outlier_thresh", config->rot_outlier_thresh);
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
-
-  config->lambda = node->declare_parameter<float>(param_prefix + ".lambda", config->lambda);
-  config->curvature_similarity_thresh = node->declare_parameter<float>(param_prefix + ".curvature_similarity_thresh", config->curvature_similarity_thresh);
-
+  // online gyroscope bias
   config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
   config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
 
@@ -360,8 +373,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
-    int max_gn_iter = 5;
-    double inner_tolerance = 1e-6;
 
     // /// ########################### Gauss-Newton solver ########################### ///
     // bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
@@ -382,15 +393,21 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     Eigen::MatrixXd daicp_cov = Eigen::MatrixXd::Zero(6, 6);
 
     Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
-    bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
-                                                                query_mat,
-                                                                map_mat,
-                                                                map_normals_mat,
-                                                                T_m_s_var,
-                                                                T_m_s_prior, // transformation from lidar to map, will be simplified.
-                                                                max_gn_iter,
-                                                                inner_tolerance,
-                                                                daicp_cov);
+    bool optimization_success = daicp_lib::daGaussNewtonP2Plane(
+        // inputs
+        filtered_sample_inds, 
+        query_mat,
+        map_mat,
+        map_normals_mat,
+        // state to be optimized
+        T_m_s_var,
+        // prior, transformation from lidar to map, will be simplified.
+        T_m_s_prior,
+        // configuration
+        config_,
+        // output
+        daicp_cov
+      );
     /// ########################################################################### ///
 
     if (!optimization_success) {
@@ -477,7 +494,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const double rotation_diff = T_diff_vec.tail<3>().norm();
 
       // OUTLIER REJECTION: larger than 0.3m or 0.2rad (11.5deg)
-      if ((translation_diff) > 0.3 || (rotation_diff) > 0.2) {
+      if ((translation_diff) > config_->trans_outlier_thresh || (rotation_diff) > config_->rot_outlier_thresh) {
         CLOG(WARNING, "lidar.localization_daicp") << "Significant difference detected in T_r_v, fall back to odometry:";
         CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
         CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
