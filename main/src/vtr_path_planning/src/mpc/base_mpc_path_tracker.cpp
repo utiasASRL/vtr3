@@ -40,6 +40,7 @@ auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr conf
   config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
   config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
   config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
+  config->eop_min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_min_vel", config->min_vel);
 
   // CONTROLLER PARAMS
   config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
@@ -184,7 +185,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   // TODO refactor to accept the chain and use the curvature of the links
   mpcConfig->VF = ScheduleSpeed(
       chain,
-      {base_config_->forward_vel, base_config_->min_vel, base_config_->planar_curv_weight,
+      {base_config_->forward_vel, base_config_->min_vel, base_config_->eop_min_vel, base_config_->planar_curv_weight,
        base_config_->profile_curv_weight, base_config_->eop_weight, 7}, dir_switch);
 
   loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, curr_time);
