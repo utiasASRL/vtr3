@@ -1,3 +1,7 @@
+'''
+  Debugging for fusing prior with da-icp results
+'''
+
 #include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
 // #include "vtr_lidar/modules/localization/daicp_lib.hpp"
 #include "vtr_lidar/modules/localization/daicp_lib_new.hpp"
