@@ -135,7 +135,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 12
-        crop_range: 40.0                # range cropping in meters
+        crop_range: 20.0                # range cropping in meters
 
         frame_voxel_size: 0.3           # grid subsampling voxel size
 
@@ -164,7 +164,7 @@
         num_rows: 64                    # num of vertical scan lines
         num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
         min_dist: 0.0                   # meters
-        max_dist: 20.0                  # meters
+        max_dist: 15.0                  # meters
         #
         root_path: "${WARTHOG}/ros2/aeriesii_ros2/sensor_config"
         downsample_steps: 2             # after image projection 
@@ -179,7 +179,7 @@
         type: lidar.preprocessing_curvature
         num_threads: 12
 
-        crop_range: 20.0            # range cropping in meters
+        crop_range: 15.0            # range cropping in meters
         num_sample: 10000           # max number of points after range cropping
         k_neighbors: 30             # number of neighbors to compute curvature (keep <50)
 
@@ -343,8 +343,8 @@
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
         # outlier rejection
-        trans_outlier_thresh: 100.0           # threshold on translation outlier rejection
-        rot_outlier_thresh: 100.0             # threshold on rotation outlier rejection
+        trans_outlier_thresh: 0.3             # threshold on translation outlier rejection
+        rot_outlier_thresh: 0.1               # threshold on rotation outlier rejection
         min_matched_ratio: 0.45
         # online gyro bias estimation
         calc_gy_bias: true
