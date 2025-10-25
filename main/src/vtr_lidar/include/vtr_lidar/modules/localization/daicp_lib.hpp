@@ -325,7 +325,7 @@ inline void computeJacobianResidualInformation(
     // CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- Cov_r: " << cov_r;
     // CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- Weight: " << w;
 
-    const double w_cap = 1.0e6;  // optional cap
+    const double w_cap = 1.0e6;  // weight cap
     if (w > w_cap) {
       w = w_cap;
       CLOG(DEBUG, "lidar.localization_daicp") << "W_inv capped at " << w_cap;
@@ -509,12 +509,18 @@ inline bool computeEigenvalueDecomposition(
   }
 }
 
-inline double computeThreshold(const Eigen::VectorXd& eigenvalues) {
+inline double computeThreshold(const Eigen::VectorXd& eigenvalues, 
+                               const double cond_num_thresh_ratio) {
+
   const double max_eigenval = eigenvalues.maxCoeff();
 
-  const double eigenvalue_threshold = -1000.0;       // default back to point-to-plane icp
+  // const double eigenvalue_threshold = -1000.0;       // [DEBUG] default back to point-to-plane icp
 
-  // const double eigenvalue_threshold = max_eigenval + 1; // use prior only
+  // ----- Compute threshold based on condition number ratio
+  // A direction is well-conditioned if: max_eigenval / eigenval < cond_num_thresh_ratio
+  // Rearranging: eigenval > max_eigenval / cond_num_thresh_ratio
+  
+  const double eigenvalue_threshold = max_eigenval / cond_num_thresh_ratio;
 
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
 
@@ -631,7 +637,7 @@ inline bool daGaussNewtonP2Plane(
     }
     
     // Compute unified threshold
-    const double eigenvalue_threshold = computeThreshold(eigenvalues);
+    const double eigenvalue_threshold = computeThreshold(eigenvalues, config_->degeneracy_thresh);
     
     // Construct well-conditioned directions matrix 
     Eigen::MatrixXd V, Vf, Vd;

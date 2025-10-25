@@ -164,7 +164,7 @@
         num_rows: 64                    # num of vertical scan lines
         num_cols: 601                   # 120 deg FOV, 0.2 deg resolution
         min_dist: 0.0                   # meters
-        max_dist: 40.0                  # meters
+        max_dist: 20.0                  # meters
         #
         root_path: "${WARTHOG}/ros2/aeriesii_ros2/sensor_config"
         downsample_steps: 2             # after image projection 
@@ -179,7 +179,7 @@
         type: lidar.preprocessing_curvature
         num_threads: 12
 
-        crop_range: 40.0            # range cropping in meters
+        crop_range: 20.0            # range cropping in meters
         num_sample: 10000           # max number of points after range cropping
         k_neighbors: 30             # number of neighbors to compute curvature (keep <50)
 
@@ -330,7 +330,9 @@
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
         ### daicp
-        max_gn_iter: 5
+        max_gn_iter: 2
+        ### degeneracy threshold
+        degeneracy_thresh: 100.0              # we use condition number to set the threshold
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)

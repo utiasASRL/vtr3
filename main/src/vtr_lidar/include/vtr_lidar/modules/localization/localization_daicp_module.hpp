@@ -33,7 +33,9 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     float initial_max_pairing_dist = 2.0;
     float initial_max_planar_dist = 0.3;
     // daicp
-    int max_gn_iter = 5;                        // max gauss-newton iterations per daicp step
+    int max_gn_iter = 2;                        // max gauss-newton iterations per daicp step
+    // degeneracy threshold
+    double degeneracy_thresh = 100.0;           // use relative condition number to set eigenvalue threshold
     // daicp - range and bearing noise model
     double sigma_d = 0.02;                      // range noise std (2cm)
     double sigma_az = M_PI / 180.0 * 0.03;      // azimuth noise std (0.03 degrees)
