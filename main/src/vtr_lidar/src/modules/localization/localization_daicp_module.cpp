@@ -27,7 +27,7 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config->initial_max_planar_dist);
   // daicp
   config->max_gn_iter = node->declare_parameter<int>(param_prefix + ".max_gn_iter", config->max_gn_iter);
-  // daicp
+  // daicp - degeneracy threshold
   config->degeneracy_thresh = node->declare_parameter<double>(param_prefix + ".degeneracy_thresh", config->degeneracy_thresh);
   // daicp - range and bearing noise model
   config->sigma_d = node->declare_parameter<double>(param_prefix + ".sigma_d", config->sigma_d);
