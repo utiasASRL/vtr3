@@ -331,7 +331,7 @@
         initial_max_planar_dist: 1.0
         ### daicp
         max_gn_iter: 2
-        ### degeneracy threshold
+        # daicp - degeneracy threshold
         degeneracy_thresh: 100.0              # we use condition number to set the threshold
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
