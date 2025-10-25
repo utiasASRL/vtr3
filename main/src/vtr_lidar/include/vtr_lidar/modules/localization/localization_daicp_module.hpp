@@ -40,7 +40,7 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     double sigma_d = 0.02;                      // range noise std (2cm)
     double sigma_az = M_PI / 180.0 * 0.03;      // azimuth noise std (0.03 degrees)
     double sigma_el = M_PI / 180.0 * 0.03;      // elevation noise std (0.03 degrees)
-    // daicp - convergence checks
+    // daicp - convergence checks (numbers taken from STEAM's ICP implementation)
     double abs_cost_thresh = 1e-12;             // absolute cost threshold for convergence
     double abs_cost_change_thresh = 1e-8;       // absolute parameter change threshold for convergence
     double rel_cost_change_thresh = 1e-8;       // relative cost change threshold for convergence

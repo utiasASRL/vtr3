@@ -337,12 +337,6 @@
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
         sigma_el: 0.000523599                 # elevation noise std (0.03 degrees)
-        # daicp - convergence checks
-        abs_cost_thresh: 1e-12
-        abs_cost_change_thresh: 1e-8
-        rel_cost_change_thresh: 1e-8
-        zero_gradient_thresh: 1e-8
-        inner_tolerance: 1e-6
         # refinement
         refined_max_iter: 50
         refined_max_pairing_dist: 1.0
