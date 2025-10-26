@@ -263,10 +263,7 @@ void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
     Eigen::Matrix<double, 6, 1> se3_leaf_new_180 = T_leaf_new_180.vec();
     double distance_180_deg = se3_leaf_new_180.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new_180.tail<3>().norm();
-
-    std::cout << "Trying sid: " << unsigned(path_it)
-              << " distance_0_deg: " << distance_0_deg
-              << " distance_180_deg: " << distance_180_deg << std::endl;
+    // Take the minimum of forward and backward facing
     double distance = std::min(distance_0_deg, distance_180_deg);
 
     // This block is just for the debug log below
