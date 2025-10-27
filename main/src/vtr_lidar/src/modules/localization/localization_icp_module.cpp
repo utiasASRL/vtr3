@@ -58,6 +58,14 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     CLOG(ERROR, "lidar.localization_icp") << err;
     throw std::invalid_argument{err};
   }
+  // Check for zeros
+  for (const auto& w : w_icp) {
+    if (w == 0.0) {
+      std::string err{"W_icp diagonal has zero element(s)!"};
+      CLOG(ERROR, "lidar.localization_icp") << err;
+      throw std::invalid_argument{err};
+    }
+  }
   // Invert here since W is information matrix
   config->W_icp << 1/w_icp[0], 0, 0, 0, 1/w_icp[1], 0, 0, 0, 1/w_icp[2];
 
