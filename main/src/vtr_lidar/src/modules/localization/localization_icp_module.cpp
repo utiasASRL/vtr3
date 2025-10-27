@@ -54,7 +54,7 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
   const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", {1.0, 1.0, 1.0});
   if (w_icp.size() != 3) {
-    std::string err{"W_icp diagonal malformed. Must be 3 elements!"};
+    std::string err = "Parameter 'w_icp_diag' malformed. Expected 3 elements, got " + std::to_string(w_icp.size());
     CLOG(ERROR, "lidar.localization_icp") << err;
     throw std::invalid_argument{err};
   }
