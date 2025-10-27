@@ -364,8 +364,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   const auto &T_r_v_init = *qdata.T_r_v_loc;
   // decide whether to accept the icp result
   const auto delta_T = T_r_v_init.inverse().matrix() * T_r_v_icp.matrix();
-  const float delta_trans = lgmath::se3::tran2vec(delta_T).block<3, 1>(0, 0).norm();
-  const float delta_rot = lgmath::se3::tran2vec(delta_T).block<3, 1>(3, 0).norm();
+  const auto delta_vec = lgmath::se3::tran2vec(delta_T);
+  const float delta_trans = delta_vec.block<3, 1>(0, 0).norm();
+  const float delta_rot = delta_vec.block<3, 1>(3, 0).norm();
   CLOG(DEBUG,  "lidar.localization_icp") << "T_r_v_init:\n" << T_r_v_init.matrix();
   CLOG(DEBUG,  "lidar.localization_icp") << "T_r_v_icp:\n" << T_r_v_icp.matrix();
   CLOG(DEBUG, "lidar.localization_icp")
