@@ -3,58 +3,27 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-        # navigator
-        #  #- navigation
-        #  #- navigation.graph_map_server
+      #- navigation
+      #- navigation.graph_map_server
       #- navigation.command
-    
         # tactic
       #- tactic
-      #- tactic.pipeline
       - tactic.eop
-#      - tactic.module
-      #- tactic.module.live_mem_manager
-      #- tactic.module.graph_mem_manager
-
-      # path planner
-      - path_planning
-      - path_planning.cbit
-      - path_planning.cbit_planner
-      - cbit.path_planning
-      - cbit_planner.path_planning
-      - cbit.debug
-      - mpc.solver
-      - mpc.speed_scheduler
-      - mpc.cost_function
-      - mpc.cbit
-      - mpc.debug
-      - cbit.control
-      #- obstacle detection.cbit
-      #- grizzly_controller_tests.cbit
-      #- ouster
-        
-        # mission planner
-      #- mission.server
+      #- tactic.pipeline
+      #- tactic.module
       #- mission.state_machine
-
-        # pose graph
-      #- pose_graph
-
-        # lidar pipeline
-      #- lidar.pipeline
-      #- lidar.preprocessing
-      #- lidar.ouster_converter
-      #- lidar.odometry_icp
-      #- lidar.odometry_map_maintenance
-      #- lidar.vertex_test
-      #- lidar.localization_map_recall
-      #- lidar.localization_icp
-      #- lidar.intra_exp_merging
-      #- lidar.dynamic_detection
-      #- lidar.inter_exp_merging
-      #- lidar.ground_extraction
-      #- lidar.obstacle_detection
-      #- lidar.terrain_assessment
+      #- mission.server
+        # planner manager
+      - cbit.control
+      - dynamic_path_planner
+      - cbit.debug
+      #- cbit.path_planning
+        # mpc
+      #- mpc.speed_scheduler
+      - mpc.debug
+      - mpc.solver
+      - mpc.follower
+      #- mpc.follower.target
 
     robot_frame: back_wheels_link
     env_info_topic: env_info
@@ -74,12 +43,10 @@
       task_queue_num_threads: 1
       task_queue_size: -1
 
-      route_completion_translation_threshold: 0.2
-      route_completion_translation_threshold: 0.2
+      route_completion_translation_threshold: 0.05
       route_completion_angle_threshold: 0.3
 
       chain:
-        min_cusp_distance: 0.1
         min_cusp_distance: 0.1
         angle_weight: 1.0
         search_depth: 5
@@ -241,14 +208,13 @@
         planar_curv_weight: 0.0
         profile_curv_weight: 0.0 
         eop_weight: 2.0
+        sop_weight: 4.0
         min_vel: 0.3
+        eop_min_vel: 0.1
 
-        eop_weight: 2.0
-        min_vel: 0.3
 
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
         extrapolate_robot_pose: true
         mpc_verbosity: false
         forward_vel: 0.5
@@ -273,10 +239,10 @@
           q_f: 1.0 # Multiplier for terminal cost
         reverse:
           q_lat: 15.0
-          q_lon: 6.0
+          q_lon: 65.0
           q_th: 2.0
-          r1: 8.0
+          r1: 1.0
           r2: 0.0
           racc1: 12.5
           racc2: 2.0
-          q_f: 0.0 # Multiplier for terminal cost
+          q_f: 1.0 # Multiplier for terminal cost

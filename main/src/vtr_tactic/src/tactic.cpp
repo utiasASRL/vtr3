@@ -96,6 +96,7 @@ void Tactic::addRun(const bool) {
   // re-initialize the pose records for visualization
   T_w_v_odo_ = EdgeTransform(true);
   T_w_v_loc_ = EdgeTransform(true);
+  T_m_w_ = EdgeTransform(true);
   // re-initialize the pipeline
   pipeline_->reset();
   //
@@ -111,6 +112,7 @@ void Tactic::finishRun() {
 }
 
 void Tactic::setForceAddVertex(const bool force_add_vertex) {
+  CLOG(DEBUG, "tactic") << "Forcing a new vertex";
   force_add_vertex_ = force_add_vertex;
 }
 
@@ -122,7 +124,11 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   auto lock = chain_->guard();
   //
   chain_->setSequence(path);
-  if (path.size() > 0) chain_->expand();
+  if (path.size() > 0) {
+    chain_->expand();
+    auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front());
+    T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(VertexId(0, 0)), connected->end(), EdgeTransform(true));
+  }
   // used as initial guess for trunk
   chain_->resetTrunk(trunk_sid);
   // used as initial guess for localization
@@ -180,7 +186,7 @@ bool Tactic::routeCompleted() const {
   const auto angle_180 = atan2(-T_leaf_target_matrix(1, 0), -T_leaf_target_matrix(0, 0));
 
   CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
-  CLOG(DEBUG, "tactip.eop") << "Sequence left " << chain_->sequence().size() - 1 - chain_->trunkSequenceId(); 
+  CLOG(DEBUG, "tactic.eop") << "Sequence left " << chain_->sequence().size() - 1 - chain_->trunkSequenceId(); 
   if (chain_->trunkSequenceId() < chain_->sequence().size() - 2) {
     return false;
   }
@@ -217,7 +223,6 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   qdata->vid_odo.emplace(current_vertex_id_);
   qdata->vertex_test_result.emplace(VertexTestResult::DO_NOTHING);
   qdata->odo_success.emplace(false);
-  qdata->force_add_vertex.emplace(force_add_vertex_);
   if (force_add_vertex_) force_add_vertex_ = false;
 
   switch (pipeline_mode_) {
@@ -294,7 +299,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -311,7 +316,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;
-  if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+  if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
@@ -397,7 +402,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -413,7 +418,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;
-  if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+  if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
@@ -492,7 +497,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -562,7 +567,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -632,7 +637,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest

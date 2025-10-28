@@ -44,6 +44,7 @@ class BaseMPCPathTracker : public BasePathPlanner {
     double profile_curv_weight = 0.5; 
     double eop_weight = 1.0;
     double min_vel = 0.5;  
+    double eop_min_vel = 0.5;  
 
     // MPC Configs
     bool extrapolate_robot_pose = true;

@@ -192,6 +192,15 @@ class ConvoyPlanningNode : public rclcpp::Node {
 
     tactic::PathType direction_switches;
 
+    for (GraphPath::Iterator it = active_path_->begin(1);
+         it != active_path_->end(); ++it) {
+      if (areVectorsOpposite(it->T(), (it - 1)->T())) {
+        CLOG(DEBUG, "convoy_route")
+            << "Found a direction switch at " << it->from();
+        direction_switches.push_back(it->from());
+      }
+    }
+
     const auto status_a = robot_futures.front().wait_for(1s);
     const auto status_b = robot_futures.back().wait_for(1s);
     if (status_a != std::future_status::ready ||
@@ -221,14 +230,7 @@ class ConvoyPlanningNode : public rclcpp::Node {
       robots.back().setLeader();
     }
 
-    for (GraphPath::Iterator it = active_path_->begin(1);
-         it != active_path_->end(); ++it) {
-      if (areVectorsOpposite(it->T(), (it - 1)->T())) {
-        CLOG(DEBUG, "convoy_route")
-            << "Found a direction switch at " << it->from();
-        direction_switches.push_back(it->from());
-      }
-    }
+
 
     for (const auto& cusp_vertex : direction_switches) {
       MissionCommand route_section;

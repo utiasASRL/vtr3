@@ -29,7 +29,7 @@ namespace vtr::path_planning
     CLOG(DEBUG, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
     CLOG(DEBUG, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
 
-    double VF_EOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * (chain->size()- 1 - curr_sid) / 20.0));
+    double VF_EOP = std::max(params.eop_min_vel, params.target_vel * (params.eop_weight * (chain->size()- 1 - curr_sid) / 20.0));
     double VF_SOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * curr_sid / 10));
 
 
@@ -69,7 +69,7 @@ namespace vtr::path_planning
     CLOG(DEBUG, "mpc.speed_scheduler") << "TRYING TO SCHEDULE SPEED:";
     CLOG(DEBUG, "mpc.speed_scheduler") << "CURRENT SID IS:" << curr_sid;
 
-    double VF_EOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * (chain->size()- 1 - curr_sid) / 20.0));
+    double VF_EOP = std::max(params.eop_min_vel, params.target_vel * (params.eop_weight * (chain->size()- 1 - curr_sid) / 20.0));
     double VF_DS  = std::max(params.min_vel, params.target_vel * (direction_switch ? 0.0 : 1.0));
     double VF_SOP = std::max(params.min_vel, params.target_vel * (params.eop_weight * curr_sid / 10));
 
