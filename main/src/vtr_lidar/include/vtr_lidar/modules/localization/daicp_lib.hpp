@@ -167,7 +167,7 @@ inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& Vf,
     // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
     // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
     // Consider to use the prior covariance in degenerated directions. 
-    const double epsilon = 0.1;  
+    const double epsilon = 1e-3;  
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
               (1.0/epsilon) * (Vd *Vd.transpose());
   }

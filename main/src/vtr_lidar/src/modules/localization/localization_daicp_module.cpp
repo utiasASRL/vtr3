@@ -161,6 +161,10 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   bool refinement_stage = false;
   int refinement_step = 0;
 
+  // convert the covariance back to [x,y,z,roll,pitch,yaw] order
+  Eigen::PermutationMatrix<6> Pm;
+  Pm.indices() << 3, 4, 5, 0, 1, 2;
+
   CLOG(DEBUG, "lidar.localization_daicp") << "Start the Degeneracy-Aware ICP optimization loop.";
   // outer loop
   for (int step = 0;; step++) {
@@ -377,6 +381,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         // output
         daicp_cov
       );
+    // convert the covariance back to [x,y,z,roll,pitch,yaw] order
+    daicp_cov = Pm.transpose() * daicp_cov * Pm;
     /// ########################################################################### ///
 
     if (!optimization_success) {
@@ -449,15 +455,42 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
+
+      // --- implement the filter-based fusion of the prior  
+      // the edge transformation of T_m_s from DA-ICP
+      EdgeTransform T_m_s_icp_edge(T_m_s_var->value(), daicp_cov);
+      // the edge transformation of T_r_v computed from DA-ICP
+      EdgeTransform T_r_v_icp_edge;   
+      T_r_v_icp_edge =  T_s_r.inverse() * T_m_s_icp_edge.inverse() * T_v_m.inverse();
+
+      // [DEBUGGING] print out the matrix and covariance
+      CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result T_r_v_icp: \n" << T_r_v_icp_edge.matrix();
+      CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result covariance: \n" << T_r_v_icp_edge.cov();
+
+      // filter-based fusion [disabled, performance is not good]
+      // compute the residual 
+      Eigen::Matrix<double, 6, 1> residual = lgmath::se3::tran2vec(T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix());
+      Eigen::Matrix4d T_res = T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix();
+      Eigen::Matrix<double, 6, 6> T_res_cov = lgmath::se3::tranAd(T_res) * daicp_cov * lgmath::se3::tranAd(T_res).transpose();
+      Eigen::Matrix<double, 6, 6> K_gain = T_r_v.cov() * (T_r_v.cov() + T_res_cov).inverse();
+      Eigen::Matrix<double, 6, 1> delta_vec = K_gain * residual;
+      Eigen::Matrix4d T_r_v_post = lgmath::se3::vec2tran(delta_vec) * T_r_v.matrix();
+      Eigen::Matrix<double, 6, 6> T_r_v_post_cov = (Eigen::Matrix<double, 6, 6>::Identity() - K_gain) * T_r_v.cov();
+
+      // ============================= original code block =========================== //   
       // Decode T_r_v from optimized T_m_s_var
       // T_m_s = T_m_v * T_v_r * T_r_s, so T_r_v = T_r_s * T_s_m * T_m_v
       const auto T_m_s_optimized = T_m_s_var->value();
       const auto T_s_m_optimized = T_m_s_optimized.inverse();
       const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
-      
+      // ============================================================================= // 
+
+      // [Debugging]
+      auto T_r_v_select = T_r_v_decoded;
+
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
-      const auto T_diff = T_r_v_decoded * T_r_v_prior.inverse();
+      const auto T_diff = T_r_v_select * T_r_v_prior.inverse();
       const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
       const double translation_diff = T_diff_vec.head<3>().norm();
       const double rotation_diff = T_diff_vec.tail<3>().norm();
@@ -474,10 +507,12 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } else {
-        // Create T_r_v_icp with dummy covariance
         Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
         dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
-        T_r_v_icp = EdgeTransform(T_r_v_decoded, dummy_cov);
+        // dummy_cov.diagonal() << 1e10, 1e10, 1e10, 1e6, 1e6, 1e6;  // [x,y,z,rx,ry,rz]
+
+        T_r_v_icp = EdgeTransform(T_r_v_select, dummy_cov);
+        // T_r_v_icp = EdgeTransform(T_r_v_post, T_r_v_post_cov);
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       }
 
