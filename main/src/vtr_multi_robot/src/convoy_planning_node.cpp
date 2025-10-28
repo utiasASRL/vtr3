@@ -184,35 +184,21 @@ class ConvoyPlanningNode : public rclcpp::Node {
                    });
 
     std::list<uint64_t> sequence_ids;
-    std::list<tactic::VertexId> waypoints(
+    const std::list<tactic::VertexId> waypoints(
         msg->goal_handle.waypoints.begin(), msg->goal_handle.waypoints.end());
     tactic::PathType combined_path =
         route_planner_->path(msg->vertex, waypoints, sequence_ids);
     active_path_->setSequence(combined_path);
 
-    std::vector<tactic::PathType> routes;
-    routes.push_back({});
+    tactic::PathType direction_switches;
 
     for (GraphPath::Iterator it = active_path_->begin(1);
          it != active_path_->end(); ++it) {
-      if (waypoints.size() > 0 && it->from() == waypoints.front()) {
-        routes.back().push_back(it->from());
-        CLOG(DEBUG, "convoy_route")
-            << "Adding waypoint " << it->from();
-        waypoints.pop_front();
-      }
       if (areVectorsOpposite(it->T(), (it - 1)->T())) {
         CLOG(DEBUG, "convoy_route")
             << "Found a direction switch at " << it->from();
-        routes.push_back({});
+        direction_switches.push_back(it->from());
       }
-    }
-
-    if (waypoints.size() > 0) {
-      routes.back().push_back(waypoints.front());
-      CLOG(DEBUG, "convoy_route")
-          << "Adding waypoint " << waypoints.front();
-      waypoints.pop_front();
     }
 
     const auto status_a = robot_futures.front().wait_for(1s);
@@ -246,25 +232,32 @@ class ConvoyPlanningNode : public rclcpp::Node {
 
 
 
-    for (const auto& route : routes) {
+    for (const auto& cusp_vertex : direction_switches) {
       MissionCommand route_section;
       route_section.type = MissionCommand::ADD_GOAL;
       route_section.goal_handle.type = Goal::REPEAT;
-      route_section.goal_handle.waypoints.resize(route.size());
-      std::transform(route.begin(), route.end(), route_section.goal_handle.waypoints.begin(),
-                   [](const tactic::VertexId& v) { return uint64_t(v); });
-      const bool is_last = route == routes.back();
+      route_section.goal_handle.waypoints.push_back(cusp_vertex);
       std::for_each(
-          robots.begin(), robots.end(), [route_section, is_last](RobotInfo& x) {
+          robots.begin(), robots.end(), [route_section](RobotInfo& x) {
             x.selectController();
             x.isLeader = !x.isLeader;
             CLOG(DEBUG, "convoy_route") << "Publishing route to " << x.name;
             x.mission_pub->publish(route_section);
             std::this_thread::sleep_for(10ms);
-            if (!is_last)
-              x.sendPause();
+            x.sendPause();
           });
     }
+
+    MissionCommand final_goal;
+    final_goal.type = MissionCommand::ADD_GOAL;
+    final_goal.goal_handle.type = Goal::REPEAT;
+    final_goal.goal_handle.waypoints.push_back(waypoints.back());
+    std::for_each(robots.begin(), robots.end(), [final_goal](RobotInfo& x) {
+      x.selectController();
+      CLOG(DEBUG, "convoy_route") << "Publishing route to " << x.name;
+      x.mission_pub->publish(final_goal);
+      std::this_thread::sleep_for(10ms);
+    });
   }
 
   void onServerState(const std::string robot_name,

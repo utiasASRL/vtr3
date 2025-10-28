@@ -9,6 +9,7 @@
           profile_curv_weight: 0.0
           eop_weight: 2.0
           min_vel: 0.3
+          eop_min_vel: 0.1
 
         mpc:
           # Controller Params
@@ -104,9 +105,9 @@ echo/vtr/navigator:
 foxtrot/vtr/navigator:
   ros__parameters:
     robot_frame: foxtrot/base_link
-    lidar_frame: foxtrot/ouster_back_lidar
+    lidar_frame: foxtrot/base_link
     gyro_frame: foxtrot/ouster_back_imu
-    lidar_topic: /foxtrot/ouster_back/points
+    lidar_topic: /foxtrot/merged/points
     preprocessing:
       filtering:
         vertical_angle_res: 0.012271 # radians
