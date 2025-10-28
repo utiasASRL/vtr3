@@ -85,7 +85,7 @@ class GoalForm extends React.Component {
                 Localize
               </Button>
             </ButtonGroup>
-            {goalType === "repeat" && (
+            { (goalType === "repeat" || goalType === "localize") && (
               <>
                 {/* Get input before and after time */}
                 <Box sx={{ mx: 1, my: 0.5, display: "flex", justifyContent: "center", flexDirection: "row" }}>

@@ -465,7 +465,8 @@ void MissionServer<GoalHandle>::startGoal() {
         break;
       }
       case GoalTarget::Localize: {
-        state_machine->handle(Event::StartLocalize());
+        const auto search_range = GoalInterface<GoalHandle>::path(current_goal);
+        state_machine->handle(Event::StartLocalize(search_range));
         break;
       }
       case GoalTarget::SelectController: {

@@ -33,4 +33,4 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 bag record /echo/cmd_vel /foxtrot/cmd_vel /echo/vtr/mpc_prediction /foxtrot/vtr/mpc_prediction /echo/vtr/odometry /foxtrot/vtr/odometry /echo/vtr/leader_mpc_prediction /foxtrot/vtr/leader_mpc_prediction
+      - ros2 bag record /echo/cmd_vel/ltr /foxtrot/cmd_vel/ltr /echo/vtr/mpc_prediction /foxtrot/vtr/mpc_prediction /echo/vtr/odometry /foxtrot/vtr/odometry /echo/vtr/leader_mpc_prediction /foxtrot/vtr/leader_mpc_prediction /foxtrot/distance

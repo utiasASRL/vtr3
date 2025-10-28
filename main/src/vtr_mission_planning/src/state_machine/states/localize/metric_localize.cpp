@@ -79,7 +79,11 @@ void MetricLocalize::onEntry(StateMachine &state_machine,
 
   const auto tactic = getTactic(state_machine);
   const auto persistent_loc = tactic->getPersistentLoc();
-  tactic->setPath({persistent_loc.v}, 0, persistent_loc.T, false);
+  const auto route_planner = getRoutePlanner(state_machine);
+  
+  auto path =
+      route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+  tactic->setPath(path, 0, persistent_loc.T, false);
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
