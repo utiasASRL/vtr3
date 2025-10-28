@@ -96,5 +96,11 @@ void Localize::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   getTactic(state_machine)->addRun(false);
 }
 
+void Localize::setWaypoints(const std::list<VertexId> &waypoints,
+                          const std::list<uint64_t> &waypoint_seq) {
+  waypoints_ = waypoints;
+  waypoint_seq_ = waypoint_seq;
+}
+
 }  // namespace mission_planning
 }  // namespace vtr

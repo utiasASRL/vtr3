@@ -97,8 +97,9 @@ Event::Ptr Event::StartRepeat(const std::list<VertexId>& waypoints) {
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
-Event::Ptr Event::StartLocalize() {
+Event::Ptr Event::StartLocalize(const std::list<VertexId>& search_range) {
   auto tmp = std::make_shared<localize::MetricLocalize>();
+  tmp->setWaypoints(search_range);
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 

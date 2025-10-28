@@ -113,6 +113,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool teachMergeOdometryMapping(const QueryCache::Ptr& qdata);
   bool repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
   bool repeatFollowOdometryMapping(const QueryCache::Ptr& qdata);
+  bool localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
 
   /** \brief Performs the actual localization task */
   bool runLocalization_(const QueryCache::Ptr& qdata) override;
@@ -121,6 +122,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool teachMergeLocalization(const QueryCache::Ptr& qdata);
   bool repeatMetricLocLocalization(const QueryCache::Ptr& qdata);
   bool repeatFollowLocalization(const QueryCache::Ptr& qdata);
+  bool localizeMetricLocLocalization(const QueryCache::Ptr& qdata);
 
  private:
   /// pipeline helper functions and states

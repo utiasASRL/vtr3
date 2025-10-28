@@ -69,7 +69,7 @@ struct Event {
   static Event::Ptr StartTeach();
   static Event::Ptr StartMerge(const std::vector<VertexId>& match_window);
   static Event::Ptr StartRepeat(const std::list<VertexId>& waypoints);
-  static Event::Ptr StartLocalize();
+  static Event::Ptr StartLocalize(const std::list<VertexId>& search_range);
   static Event::Ptr StartPause();
   static Event::Ptr SwitchController(const std::string& new_controller);
 
