@@ -22,6 +22,7 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StorageIcon from "@mui/icons-material/Storage";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
+import ClearIcon from "@mui/icons-material/Clear";
 
 import GoalCard from "./GoalCard";
 import GoalCurrent from "./GoalCurrent";
@@ -116,6 +117,27 @@ class MultiRobotGoalManager extends React.Component {
 
     return (
       <>
+        {/* Cancel all goals. */}
+        <Box sx={{
+            position: "absolute",
+            top: 0,
+            left: goal_panel_open ? GOAL_PANEL_WIDTH + 130 : 130,
+            width: "flex",
+            zIndex: 1000,
+            m: 1,
+            transition: "left 0.3s",
+          }}>
+          <Button
+            color={"primary"}
+            disableElevation={true}
+            variant={"contained"}
+            startIcon={<ClearIcon />}
+            size={"small"}
+            Click={this.cancelAllGoals.bind(this)}
+          >
+          Clear All Goals
+          </Button>
+      </Box>
         {/* Start, Pause and Clear buttons */}
         <Box
           sx={{
