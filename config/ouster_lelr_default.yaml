@@ -210,7 +210,7 @@
         eop_weight: 2.0
         sop_weight: 4.0
         min_vel: 0.3
-        eop_min_vel: 0.1
+        eop_min_vel: 0.15
 
 
       mpc:

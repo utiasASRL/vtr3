@@ -128,6 +128,7 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
     chain_->expand();
     auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front());
     T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(VertexId(0, 0)), connected->end(), EdgeTransform(true));
+    CLOG(INFO, "tactic") << "Setting tf from root to " << T_m_w_;
   }
   // used as initial guess for trunk
   chain_->resetTrunk(trunk_sid);
@@ -707,7 +708,7 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
