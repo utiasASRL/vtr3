@@ -37,9 +37,7 @@ class SetupClient(Node):
     super().__init__('setup_client')
     self.declare_parameter('ip_address', '0.0.0.0')
     self.declare_parameter('port', 5202)
-    self.declare_parameter('is_sim', False) # Simulation needs to handle different data dirs, so we assume a naming scheme
     self.declare_parameter('robot_index', 2) # One indexed in naming currently, so at min, client is 2
-    self.is_sim = self.get_parameter('is_sim').value
     self.SOCKET_ADDRESS = self.get_parameter('ip_address').value
     self.SOCKET_PORT = self.get_parameter('port').value
     logger.info(f"Setup client connecting to {self.SOCKET_ADDRESS}:{self.SOCKET_PORT}")
@@ -51,12 +49,14 @@ class SetupClient(Node):
         self._socketio.connect('http://' + self.SOCKET_ADDRESS + ':' + str(self.SOCKET_PORT))
         break
       except socketio.exceptions.ConnectionError:
-        vtr_ui_logger.info("Waiting for socket io server...")
+        logger.info("Waiting for socket io server...")
         time.sleep(1)
     self._socketio.on('connect', self.on_connect)
     self._socketio.on('disconnect', self.on_disconnect)
     self._socketio.on('command/confirm_setup_transfer', self.handle_confirm_setup)
     self._socketio.on('command/kill_setup_client', self.handle_kill_setup_client)
+    self._socketio.on('command/request_available_subdirs', self.handle_dirs)
+    self._socketio.emit('join', data={'namespace': os.getenv("ROBOT_NAME")})
   
 
   def on_connect(self,):
@@ -76,11 +76,17 @@ class SetupClient(Node):
       self.shutdown = True
     else:
       logger.info('Setup invalid')
+  
+  def handle_dirs(self):
+    logger.info("Handling Dir")
+    data_var = {"namespace": os.getenv("ROBOT_NAME"), "files": vtr_setup.get_available_subdirs()}
+    self._socketio.emit('notification/robot_data', data=data_var)
 
 
   def handle_kill_setup_client(self, ):
     self.shutdown = True
     logger.info('Shutting down setup client')
+    self._socketio.emit('leave', data={'namespace': os.getenv("ROBOT_NAME")})
     os._exit(0)
 
 def main():
