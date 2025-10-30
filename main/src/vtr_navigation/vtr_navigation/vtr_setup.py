@@ -37,7 +37,7 @@ def get_default_dir():
     return DEFAULT_DIR
 
 def get_available_subdirs(dir_path=DEFAULT_DIR):
-    print(f"Searching for available subdirectories in {dir_path}")
+    # print(f"Searching for available subdirectories in {dir_path}")
     this_level_subdirs = [subdir for subdir in os.listdir(dir_path) if osp.isdir(osp.join(dir_path, subdir))]
     available_subdirs = []
     for subdir in this_level_subdirs:

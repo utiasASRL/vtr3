@@ -14,9 +14,10 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 run vtr_gui multi_robot_socket_client --ros-args -p robots:=$ROBOTS
-      - ros2 run vtr_gui multi_robot_socket_server --ros-args -p robots:=$ROBOTS
-      - ros2 run vtr_gui multi_robot_web_server --ros-args -p robots:=$ROBOTS
+      - ros2 run vtr_gui multi_robot_socket_client --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
+      - ros2 run vtr_gui multi_robot_socket_server --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
+      - ros2 run vtr_gui multi_robot_web_server --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
+      - ros2 run vtr_gui setup_server --ros-args -r __ns:=/vtr --num-robots 2
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: convoy_manager
