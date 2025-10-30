@@ -49,7 +49,7 @@ using namespace vtr::mission_planning;
 namespace {
 
 EdgeTransform loadTransform(const std::string& source_frame,
-                            const std::string& target_frame) {
+                            const std::string& target_frame, bool is_critical=true) {
   auto clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
@@ -70,6 +70,11 @@ EdgeTransform loadTransform(const std::string& source_frame,
   CLOG(WARNING, "navigation")
       << "Transform not found - source: " << source_frame
       << " target: " << target_frame << ". Default to identity.";
+  if (is_critical)
+    throw std::runtime_error(
+          "Navigator: Throwing error for missing transform between " + source_frame +
+          " and " + target_frame);
+
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
   return T_source_target;
@@ -145,7 +150,7 @@ if (pipeline->name() == "lidar"){
     node_->declare_parameter<double>("gyro_bias.y", 0.0),
     node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
-  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, false);
   timestamp_offset_ = node->declare_parameter<int>("timestamp_offset", timestamp_offset_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
