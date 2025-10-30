@@ -318,7 +318,10 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
     const auto follower_root = robot_state_->chain->sequence().front();
     CLOG(INFO, "mpc.follower") << "Follower's root to: " << follower_root;
 
-    auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
+
+    auto eval =
+          std::make_shared<pose_graph::eval::mask::privileged::Eval<tactic::GraphBase>>(*graph_);
+    auto connected = graph_->dijkstraSearch(follower_root, leader_root_, std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
     
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;

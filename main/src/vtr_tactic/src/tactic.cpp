@@ -126,7 +126,9 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   chain_->setSequence(path);
   if (path.size() > 0) {
     chain_->expand();
-    auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front());
+    auto eval =
+          std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph_);
+    auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front(), std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
     T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(VertexId(0, 0)), connected->end(), EdgeTransform(true));
     CLOG(INFO, "tactic") << "Setting tf from root to " << T_m_w_;
   }
