@@ -51,6 +51,16 @@ target_link_libraries(${PROJECT_NAME}_serializable
   ${PROJECT_NAME}_index
 )
 
+# tools
+add_executable(${PROJECT_NAME}_smoother src/tools/pose_graph_smoother.cpp)
+ament_target_dependencies(${PROJECT_NAME}_smoother
+  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
+)
+target_link_libraries(${PROJECT_NAME}_smoother
+  ${PROJECT_NAME}_serializable
+)
+
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   lgmath steam
@@ -68,6 +78,15 @@ install(
     ${PROJECT_NAME}_index
     ${PROJECT_NAME}_serializable
   EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include
+)
+
+install(
+  TARGETS
+    ${PROJECT_NAME}_smoother
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

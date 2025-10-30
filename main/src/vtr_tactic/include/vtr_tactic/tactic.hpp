@@ -20,6 +20,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "vtr_pose_graph/tools/pose_graph_smoother.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/pipeline_interface.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
@@ -161,6 +162,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   const OutputCache::Ptr output_;
   const LocalizationChain::Ptr chain_;
   const Graph::Ptr graph_;
+  const pose_graph::GraphSmoother<Vertex, Edge> smoother_;
 
   /// robot status update related
  private:

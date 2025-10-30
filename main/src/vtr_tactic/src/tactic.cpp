@@ -67,6 +67,7 @@ Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
       output_(output),
       chain_(std::make_shared<LocalizationChain>(config_->chain_config, graph)),
       graph_(graph),
+      smoother_(graph),
       callback_(callback) {
   //
   output_->chain = chain_;  // shared pointing to the same chain, no copy
@@ -106,6 +107,7 @@ void Tactic::addRun(const bool) {
 void Tactic::finishRun() {
   // saving graph here is optional as we save at destruction, just to avoid
   // unexpected data loss
+  smoother_.runBranchSmoothing();
   graph_->save();
   //
   callback_->endRun();
