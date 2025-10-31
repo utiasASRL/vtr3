@@ -49,6 +49,25 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
+  config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
+  config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
+
+  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", {1.0, 1.0, 1.0});
+  if (w_icp.size() != 3) {
+    std::string err = "Parameter 'w_icp_diag' malformed. Expected 3 elements, got " + std::to_string(w_icp.size());
+    CLOG(ERROR, "lidar.localization_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  // Check for zeros
+  for (const auto& w : w_icp) {
+    if (w == 0.0) {
+      std::string err{"W_icp diagonal has zero element(s)!"};
+      CLOG(ERROR, "lidar.localization_icp") << err;
+      throw std::invalid_argument{err};
+    }
+  }
+  // Invert here since W is information matrix
+  config->W_icp << 1/w_icp[0], 0, 0, 0, 1/w_icp[1], 0, 0, 0, 1/w_icp[2];
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
@@ -222,8 +241,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
       if (point_map[ind.second].normal_score <= 0.0) continue;
       Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
       Eigen::Matrix3d W(point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+      // Apply ICP weighting
+      W = config_->W_icp * W;
       auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
-
       // query and reference point
       const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
@@ -341,7 +361,20 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   }
 
   /// Outputs
-  if (matched_points_ratio > config_->min_matched_ratio) {
+  const auto &T_r_v_init = *qdata.T_r_v_loc;
+  // decide whether to accept the icp result
+  const auto delta_T = T_r_v_init.inverse().matrix() * T_r_v_icp.matrix();
+  const auto delta_vec = lgmath::se3::tran2vec(delta_T);
+  const float delta_trans = delta_vec.block<3, 1>(0, 0).norm();
+  const float delta_rot = delta_vec.block<3, 1>(3, 0).norm();
+  CLOG(DEBUG,  "lidar.localization_icp") << "T_r_v_init:\n" << T_r_v_init.matrix();
+  CLOG(DEBUG,  "lidar.localization_icp") << "T_r_v_icp:\n" << T_r_v_icp.matrix();
+  CLOG(DEBUG, "lidar.localization_icp")
+      << "ICP delta translation: " << delta_trans << " , delta rotation: " << delta_rot;
+
+  if (matched_points_ratio > config_->min_matched_ratio &&
+      delta_trans < config_->max_trans_diff &&
+      delta_rot < config_->max_rot_diff) {
     // update map to robot transform
     *qdata.T_r_v_loc = T_r_v_icp;
     // set success

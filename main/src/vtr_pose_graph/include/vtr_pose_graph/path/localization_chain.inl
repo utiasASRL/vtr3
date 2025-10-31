@@ -248,13 +248,23 @@ void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
   // Find the closest vertex (updating Trunk) now that VO has updated the leaf
   for (auto path_it = this->begin(begin_sid); unsigned(path_it) < end_sid;
        ++path_it) {
-    EdgeTransform T_root_new = this->pose(path_it);
+    EdgeTransform T_root_new = this->pose(path_it);    
     EdgeTransform T_leaf_new = T_leaf_root * T_root_new;
 
     // Calculate the "distance"
     Eigen::Matrix<double, 6, 1> se3_leaf_new = T_leaf_new.vec();
-    double distance = se3_leaf_new.head<3>().norm() +
+    double distance_0_deg = se3_leaf_new.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
+    // Also compute the 180 "distance" to support repeating in a reverse direction
+    Eigen::Matrix4d T_180_rot;
+    T_180_rot << -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
+    EdgeTransform T_180 = EdgeTransform(T_180_rot);
+    EdgeTransform T_leaf_new_180 = T_leaf_root * T_root_new * T_180;
+    Eigen::Matrix<double, 6, 1> se3_leaf_new_180 = T_leaf_new_180.vec();
+    double distance_180_deg = se3_leaf_new_180.head<3>().norm() +
+                      config_.angle_weight * se3_leaf_new_180.tail<3>().norm();
+    // Take the minimum of forward and backward facing
+    double distance = std::min(distance_0_deg, distance_180_deg);
 
     // This block is just for the debug log below
     if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
