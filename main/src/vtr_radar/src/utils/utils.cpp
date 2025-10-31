@@ -39,19 +39,7 @@ void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
   azimuths = std::vector<double>(N, 0);
   up_chirps = std::vector<bool>(N, true);
 
-  bool doppler_metadata = false;
-  bool velocity_metadata = false;
-  if (M == 6859) {
-    doppler_metadata = false;
-  } else if (M == 6863) {
-    doppler_metadata = true;
-  } else if (M == 6871) {
-    velocity_metadata = true;
-  } else {
-    throw std::runtime_error("Invalid radar data size");
-  }
-
-  const uint range_bins = M - 11 - (doppler_metadata ? 4 : 0) - (velocity_metadata ? 12 : 0);
+  const uint range_bins = M - 11;
   fft_data = cv::Mat::zeros(N, range_bins, CV_32F);
 
   // #pragma omp parallel
@@ -63,13 +51,6 @@ void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
     up_chirps[i] = *(byteArray + 10);
     for (uint j = 0; j < range_bins; ++j) {
       fft_data.at<float>(i, j) = (float)*(byteArray + 11 + j) / 255.0;
-    }
-    
-    // For paper 1, the last 12 bytes contain fwd, side, and yaw measurements
-    if (velocity_metadata && i == 0) {
-      vel_meas(0) = *((float *)(byteArray + M - 12));
-      vel_meas(1) = *((float *)(byteArray + M - 8));
-      yaw_meas = *((float *)(byteArray + M - 4));
     }
   }
 }

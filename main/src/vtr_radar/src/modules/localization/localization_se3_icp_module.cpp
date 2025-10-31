@@ -14,7 +14,7 @@
 
 /**
  * \file localization_icp_module.cpp
- * \author Daniil Lisus, Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar/modules/localization/localization_icp_module.hpp"
 
@@ -25,53 +25,7 @@ namespace radar {
 
 using namespace tactic;
 using namespace steam;
-using namespace steam::se2;
-
-namespace {
-
-Eigen::Vector<double, 3> vec3Dto2D(const Eigen::Matrix<double, 6, 1> &se3_vec) {
-  Eigen::Vector3d se2_vec;
-  se2_vec << se3_vec(0), se3_vec(1), se3_vec(5);
-  return se2_vec;
-}
-
-Eigen::Vector<double, 6> vec2Dto3D(const Eigen::Matrix<double, 3, 1> &se2_vec) {
-  Eigen::Vector<double, 6> se3_vec = Eigen::Vector<double, 6>::Zero();
-  se3_vec << se2_vec(0), se2_vec(1), 0, 0, 0, se2_vec(2);
-  return se3_vec;
-}
-
-Eigen::Matrix<double, 3, 3> cov3Dto2D(const Eigen::Matrix<double, 6, 6> &se3_cov) {
-  Eigen::Matrix<double, 3, 3> se2_cov = Eigen::Matrix<double, 3, 3>::Zero();
-  // Extract xy block
-  se2_cov.block<2, 2>(0, 0) = se3_cov.block<2, 2>(0, 0);
-  // Exract yaw element
-  se2_cov.block<1,1>(2,2) = se3_cov.block<1,1>(5,5);
-  // Extract x, y to yaw cross-correlation blocks
-  se2_cov.block<2,1>(0,2) = se3_cov.block<2,1>(0,5);
-  se2_cov.block<1,2>(2,0) = se3_cov.block<1,2>(5,0);
-  // Normalize for safety
-  se2_cov = 0.5 * (se2_cov + se2_cov.transpose());
-  return se2_cov;
-}
-
-// Overload definition for single state 3x3 input
-Eigen::Matrix<double, 6, 6> cov2Dto3D(const Eigen::Matrix<double, 3, 3> &se2_cov) {
-  // Initialize to small diagonal value to make valid covariance matrix
-  Eigen::Matrix<double, 6, 6> se3_cov = 1e-12 * Eigen::Matrix<double, 6, 6>::Identity();
-  // Insert xy block
-  se3_cov.block<2, 2>(0, 0) = se2_cov.block<2, 2>(0, 0);
-  // Insert yaw element
-  se3_cov.block<1,1>(5,5) = se2_cov.block<1,1>(2,2);
-  // Insert x, y to yaw cross-correlation blocks
-  se3_cov.block<2,1>(0,5) = se2_cov.block<2,1>(0,2);
-  se3_cov.block<1,2>(5,0) = se2_cov.block<1,2>(2,0);
-  // Normalize for safety
-  se3_cov = 0.5 * (se3_cov + se3_cov.transpose());
-  return se3_cov;
-}
-
-}  // namespace
+using namespace steam::se3;
 
 auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string &param_prefix)
@@ -96,14 +50,6 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
   config->huber_delta = node->declare_parameter<double>(param_prefix + ".huber_delta", config->huber_delta);
   config->cauchy_k = node->declare_parameter<double>(param_prefix + ".cauchy_k", config->cauchy_k);
-
-  const auto w_icp = node->declare_parameter<std::vector<double>>(param_prefix + ".w_icp_diag", {1.0, 1.0});
-  if (w_icp.size() != 2) {
-    std::string err{"W_icp diagonal malformed. Must be 2 elements!"};
-    CLOG(ERROR, "radar.odometry_icp") << err;
-    throw std::invalid_argument{err};
-  }
-  config->W_icp << w_icp[0], 0, 0, w_icp[1];
 
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // clang-format on
@@ -132,11 +78,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
-  // Extract 2D transforms
-  const lgmath::se2::Transformation T_s_r_2d = T_s_r.toSE2();
-  const lgmath::se2::Transformation T_r_v_2d = T_r_v.toSE2();
-  const lgmath::se2::Transformation T_v_m_2d = T_v_m.toSE2();
-
   /// Parameters
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
@@ -147,20 +88,20 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   // clang-format off
   /// Create robot to sensor transform variable, fixed.
-  const auto T_s_r_var = SE2StateVar::MakeShared(T_s_r_2d); T_s_r_var->locked() = true;
-  const auto T_v_m_var = SE2StateVar::MakeShared(T_v_m_2d); T_v_m_var->locked() = true;
+  const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r); T_s_r_var->locked() = true;
+  const auto T_v_m_var = SE3StateVar::MakeShared(T_v_m); T_v_m_var->locked() = true;
 
   /// Create and add the T_robot_map variable, here m = vertex frame.
-  const auto T_r_v_var = SE2StateVar::MakeShared(T_r_v_2d);
+  const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
 
   /// use odometry as a prior
-  WeightedLeastSqCostTerm<3>::Ptr prior_cost_term = nullptr;
+  WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
   if (config_->use_pose_prior && output.chain->isLocalized()) {
     auto loss_func = L2LossFunc::MakeShared();
-    auto noise_model = StaticNoiseModel<3>::MakeShared(cov3Dto2D(T_r_v.cov()));
-    auto T_r_v_meas = SE2StateVar::MakeShared(T_r_v_2d); T_r_v_meas->locked() = true;
+    auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
+    auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
     auto error_func = tran2vec(compose(T_r_v_meas, inverse(T_r_v_var)));
-    prior_cost_term = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
+    prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func);
   }
 
   /// compound transform for alignment (sensor to point map transform)
@@ -186,7 +127,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// perform initial alignment
   {
-    const auto T_m_s = T_m_s_eval->evaluate().toSE3().matrix().cast<float>();
+    const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
     aligned_mat = T_m_s * query_mat;
     aligned_norms_mat = T_m_s * query_norms_mat;
   }
@@ -216,7 +157,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // Convergence variables
   float mean_dT = 0;
   float mean_dR = 0;
-  Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(3, 3);
+  Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
   bool refinement_stage = false;
   int refinement_step = 0;
 
@@ -246,7 +187,14 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     filtered_sample_inds.reserve(sample_inds.size());
     for (size_t i = 0; i < sample_inds.size(); i++) {
       if (nn_dists[i] < max_pair_d2) {
+        // // Check planar distance (only after a few steps for initial alignment)
+        // auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
+        //             point_map[sample_inds[i].second].getVector3fMap();
+        // float planar_dist = std::abs(
+        //     diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
+        // if (step < first_steps || planar_dist < max_planar_d) {
           filtered_sample_inds.push_back(sample_inds[i]);
+        // }
       }
     }
     timer[2]->stop();
@@ -269,17 +217,31 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // cost terms and noise model
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
-      Eigen::Matrix2d W = config_->W_icp;
-      auto noise_model = StaticNoiseModel<2>::MakeShared(W);
+      // noise model W = n * n.T (information matrix)
+      Eigen::Matrix3d W = [&] {
+        // point to line
+        // if (point_map[ind.second].normal_score > 0) {
+        //   Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+        //   return Eigen::Matrix3d((nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity());
+        // } else {
+        //   Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        //   W(2, 2) = 1e-5;
+        //   return W;
+        // }
+        /// point to point
+        Eigen::Matrix3d W = Eigen::Matrix3d::Identity();
+        return W;
+      }();
+      auto noise_model = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
 
       // query and reference point
-      const auto qry_pt = query_mat.block<2, 1>(0, ind.first).cast<double>();
-      const auto ref_pt = map_mat.block<2, 1>(0, ind.second).cast<double>();
+      const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
+      const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      const auto error_func = p2p::p2pSE2Error(T_m_s_eval, ref_pt, qry_pt);
+      const auto error_func = p2p::p2pError(T_m_s_eval, ref_pt, qry_pt);
 
       // create cost term and add to problem
-      auto cost = WeightedLeastSqCostTerm<2>::MakeShared(error_func, noise_model, loss_func);
+      auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
 
 #pragma omp critical(loc_icp_add_p2p_error_cost)
       problem.addCostTerm(cost);
@@ -297,7 +259,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Alignment
     timer[4]->start();
     {
-      const auto T_m_s = T_m_s_eval->evaluate().toSE3().matrix().cast<float>();
+      const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
       aligned_mat = T_m_s * query_mat;
       aligned_norms_mat = T_m_s * query_norms_mat;
     }
@@ -307,9 +269,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     if (step == 0)
       all_tfs = Eigen::MatrixXd(T_m_s);
     else {
-      Eigen::MatrixXd temp(all_tfs.rows() + 3, 3);
+      Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(3) = Eigen::MatrixXd(T_m_s);
+      temp.bottomRows(4) = Eigen::MatrixXd(T_m_s);
       all_tfs = temp;
     }
     timer[4]->stop();
@@ -321,12 +283,12 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
       float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
 
       // Get last transformation variations
-      Eigen::Matrix3d T2 = all_tfs.block<3, 3>(all_tfs.rows() - 3, 0);
-      Eigen::Matrix3d T1 = all_tfs.block<3, 3>(all_tfs.rows() - 6, 0);
-      Eigen::Matrix3d diffT = T2 * T1.inverse();
-      Eigen::Matrix<double, 3, 1> diffT_vec = lgmath::se2::tran2vec(diffT);
-      float dT_b = diffT_vec.block<2, 1>(0, 0).norm();
-      float dR_b = fabs(diffT_vec(2));
+      Eigen::Matrix4d T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
+      Eigen::Matrix4d T1 = all_tfs.block<4, 4>(all_tfs.rows() - 8, 0);
+      Eigen::Matrix4d diffT = T2 * T1.inverse();
+      Eigen::Matrix<double, 6, 1> diffT_vec = lgmath::se3::tran2vec(diffT);
+      float dT_b = diffT_vec.block<3, 1>(0, 0).norm();
+      float dR_b = diffT_vec.block<3, 1>(3, 0).norm();
 
       mean_dT += (dT_b - mean_dT) / avg_tot;
       mean_dR += (dR_b - mean_dR) / avg_tot;
@@ -349,6 +311,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
+        // max_planar_d = config_->refined_max_planar_dist;
       }
     }
     timer[5]->stop();
@@ -360,7 +323,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
       // result
-      T_r_v_icp = EdgeTransform(T_r_v_var->value().toSE3(), cov2Dto3D(covariance.query(T_r_v_var)));
+      T_r_v_icp = EdgeTransform(T_r_v_var->value(), covariance.query(T_r_v_var));
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
       CLOG(DEBUG, "radar.localization_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;

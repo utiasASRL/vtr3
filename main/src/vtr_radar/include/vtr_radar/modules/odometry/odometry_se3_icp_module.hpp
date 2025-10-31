@@ -13,10 +13,12 @@
 // limitations under the License.
 
 /**
- * \file localization_icp_module.hpp
+ * \file odometry_se3_icp_module.hpp
  * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
+
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "steam.hpp"
 
@@ -28,18 +30,28 @@ namespace vtr {
 
 namespace radar {
 
-/** \brief ICP for localization. */
-class LocalizationICPModule : public tactic::BaseModule {
+/** \brief ICP for odometry. */
+class OdometrySE3ICPModule : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.localization_icp";
+  static constexpr auto static_name = "radar.odometry_se3_icp";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    /// Prior terms
-    bool use_pose_prior = false;
+    // continuous-time estimation
+    bool use_radial_velocity = false;
+    bool use_vel_meas = false;
+    int traj_num_extra_states = 0;
+    Eigen::Matrix<double, 6, 1> traj_qc_diag =
+        Eigen::Matrix<double, 6, 1>::Ones();
+
+    // gyro weight
+    double gyro_cov = 1e-3;
+    bool estimate_gyro_bias = false;
 
     /// ICP parameters
     // number of threads for nearest neighbor search
@@ -62,16 +74,29 @@ class LocalizationICPModule : public tactic::BaseModule {
     unsigned int max_iterations = 1;
     double huber_delta = 1.0;
     double cauchy_k = 0.5;
-    Eigen::Matrix2d W_icp = Eigen::Matrix2d::Identity();
+    double dopp_cauchy_k = 0.8;
+    double dopp_meas_std = 1.0;
+    double vel_fwd_std = 0.1;
+    double vel_side_std = 1.0;
+    bool use_p2pl = false;
+    bool remove_orientation = false;
+    Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
+    double normal_score_threshold = 0.0;
 
     /// Success criteria
     float min_matched_ratio = 0.4;
+    float max_trans_vel_diff = 1000.0; // m/s
+    float max_rot_vel_diff = 1000.0; // m/s
+    float max_trans_diff = 1000.0; // m
+    float max_rot_diff = 1000.0; // rad
+
+    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  LocalizationICPModule(
+  OdometrySE3ICPModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -84,7 +109,7 @@ class LocalizationICPModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(LocalizationICPModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometrySE3ICPModule);
 };
 
 }  // namespace radar
