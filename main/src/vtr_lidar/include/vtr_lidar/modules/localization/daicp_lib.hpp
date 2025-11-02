@@ -237,10 +237,10 @@ inline void computeJacobianResidualInformation(
                                                    sigma_el * sigma_el).asDiagonal();
   
   // --- parallel accumulation for mean range ---
-  double sum_range = 0.0;
+  double sum_flat_range = 0.0;
   int valid_count  = 0;
-  // using OpenMP reduction to safely accumulate sum_range and valid_count
-  #pragma omp parallel for reduction(+:sum_range,valid_count) schedule(dynamic, 10) num_threads(daicp_num_thread)
+  // using OpenMP reduction to safely accumulate sum_flat_range and valid_count
+  #pragma omp parallel for reduction(+:sum_flat_range,valid_count) schedule(dynamic, 10) num_threads(daicp_num_thread)
   for (int i = 0; i < n_points; ++i) {
     const auto& ind = sample_inds[i];
     
@@ -267,16 +267,17 @@ inline void computeJacobianResidualInformation(
     // Get lidar scan point in lidar frame for noise modeling
     const Eigen::Vector3d p_lidar = (T_ms_prior.inverse() * source_pt_hom).head<3>();
     
-    // Compute range, azimuth, elevation in lidar frame
+    // Compute range, flat_range, azimuth, elevation in lidar frame
     const double range = p_lidar.norm();
+    const double flat_range = std::sqrt(p_lidar(0)*p_lidar(0) + p_lidar(1)*p_lidar(1));
     const double azimuth = std::atan2(p_lidar(1), p_lidar(0));
     const double elevation = std::atan2(p_lidar(2), std::sqrt(p_lidar(0)*p_lidar(0) + p_lidar(1)*p_lidar(1)));
     
     // Compute covariance for this measurement
     const Eigen::Matrix3d Sigma_pL_i = computeRangeBearingCovariance(range, azimuth, elevation, Sigma_du);
     
-    // accumulate range for ell_mr
-    if (std::isfinite(range)) { sum_range += range; valid_count += 1; }
+    // accumulate flat_range for ell_mr
+    if (std::isfinite(flat_range)) { sum_flat_range += flat_range; valid_count += 1; }
 
     // ===== 3. Compute Information Weight for this point =====
     // Jacobians for variance terms:
@@ -341,9 +342,9 @@ inline void computeJacobianResidualInformation(
     W_inv(i, i) = w;
   }
 
-    // mean range -> scaling parameter
-  const double mean_range = (valid_count > 0) ? (sum_range / valid_count) : 0.0;
-  ell_mr = mean_range;  // simplest: 1 rad ~ ell_mr meters
+  // mean flat range -> scaling parameter
+  const double mean_flat_range = (valid_count > 0) ? (sum_flat_range / valid_count) : 0.0;
+  ell_mr = mean_flat_range;  // simplest: 1 rad ~ ell_mr meters
 }
 
 inline void constructWellConditionedDirections(
@@ -573,6 +574,9 @@ inline bool daGaussNewtonP2Plane(
     
     double ell_mr = 0.0;
 
+    // [NOTE] here we use T_ms_prior to compute the lidar point noise model. 
+    // The lidar meas. noise should be consistent and invariant to the optimization state. 
+    // It can be simplied to be the first value of initial_T_var (TODO).
     computeJacobianResidualInformation(sample_inds, query_mat, map_mat, map_normals_mat,
                                        T_combined, T_ms_prior, A, b, W_inv, ell_mr, config_);
 

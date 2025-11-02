@@ -486,7 +486,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       // ============================================================================= // 
 
       // [Debugging]
-      auto T_r_v_select = T_r_v_decoded;
+      auto T_r_v_select = T_r_v_icp_edge.matrix();
 
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
@@ -507,11 +507,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } else {
-        Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
-        dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
-        // dummy_cov.diagonal() << 1e10, 1e10, 1e10, 1e6, 1e6, 1e6;  // [x,y,z,rx,ry,rz]
-
-        T_r_v_icp = EdgeTransform(T_r_v_select, dummy_cov);
+        // accept DA-ICP result
+        T_r_v_icp = EdgeTransform(T_r_v_select, T_r_v_icp_edge.cov());
         // T_r_v_icp = EdgeTransform(T_r_v_post, T_r_v_post_cov);
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       }

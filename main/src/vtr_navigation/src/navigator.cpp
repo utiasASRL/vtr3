@@ -316,8 +316,8 @@ if (pipeline->name() == "radar") {
   // gyro_bias_ << -0.0117018, -0.00694546, -0.00463976;     // may05 teach47
   // gyro_bias_ << -0.0103390, -0.00727331, -0.0054914;      // 1021 feature
   // gyro_bias_ << -0.0102267, -0.00724319, -0.00547418;     // 1021 featureless
-  // gyro_bias_ << -0.0108695, -0.00728282, -0.00527489;        // 1025 parkinglot 40 meters
-  gyro_bias_ << -0.0107887, -0.00732645, -0.00541888;        // 1025 parkinglot 15 meters
+  gyro_bias_ << -0.0108695, -0.00728282, -0.00527489;        // 1025 parkinglot 40 meters
+  // gyro_bias_ << -0.0107887, -0.00732645, -0.00541888;        // 1025 parkinglot 15 meters
 
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 
