@@ -47,6 +47,16 @@ auto OdometryGTModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
+
+  // Undistortion trajectory parameters
+  const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
+  if (qcd.size() != 3) {
+    std::string err{"Qc diagonal malformed. Must be 3 elements!"};
+    CLOG(ERROR, "radar.odometry_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->traj_qc_diag << qcd[0], qcd[1], qcd[2];
+
   return config;
 }
 
@@ -60,7 +70,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     return;
   }
 
-  if (!qdata.T_rad_world_gt || !qdata.v_rad_gt) {
+  if (!qdata.T_s_world_gt || !qdata.v_s_gt) {
     CLOG(ERROR, "radar.odometry_gt")
         << "Groundtruth pose or velocity not provided!";
     throw std::runtime_error("Groundtruth pose or velocity not provided!");
@@ -77,8 +87,10 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     //
     qdata.T_r_m_odo.emplace(EdgeTransform(true));
     qdata.T_r_m_odo_radar.emplace(EdgeTransform(true));
-    // Initialize prior values
-    qdata.T_r_m_odo_prior.emplace(*qdata.T_rad_world_gt);
+
+    // Initialize prior values used to store past groundtruth inputs
+    qdata.T_r_m_odo_prior.emplace(*qdata.T_s_world_gt);
+    qdata.w_m_r_in_r_odo_prior.emplace(*qdata.v_s_gt);
 
     //
     *qdata.odo_success = true;
@@ -100,11 +112,15 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &scan_stamp = *qdata.stamp;
   const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_m_odo = *qdata.T_r_m_odo_radar; // use last data from radar scan msg (not gyro!)
+  const auto &T_r_m_odo = *qdata.T_r_m_odo_radar;
   const auto &beta = *qdata.beta;
-  const auto &T_rad_world_gt = *qdata.T_rad_world_gt;
-  const auto &v_rad_gt = *qdata.v_rad_gt;
-  const auto &T_rad_world_gt_prev = *qdata.T_r_m_odo_prior;
+  const auto &T_s_world_gt = *qdata.T_s_world_gt;
+  const auto &v_s_gt = *qdata.v_s_gt;
+  const auto &T_s_world_gt_prev = *qdata.T_r_m_odo_prior;
+  const auto &v_s_gt_prev = *qdata.w_m_r_in_r_odo_prior;
+
+  // Create trajectory for undistortion
+  const_vel_se2::Interface::Ptr trajectory = const_vel_se2::Interface::MakeShared(config_->traj_qc_diag);
 
   // // General radar odometry (at scan time)
   // T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
@@ -130,12 +146,12 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
   auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-//   /// perform initial alignment
-//   CLOG(DEBUG, "radar.odometry_gt") << "Start initial alignment.";
-// #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-//   for (unsigned i = 0; i < query_points.size(); ++i) {
-//     aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
-//   }
+  /// perform initial alignment
+  CLOG(DEBUG, "radar.odometry_gt") << "Start initial alignment.";
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+  for (unsigned i = 0; i < query_points.size(); ++i) {
+    aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
+  }
 //   if (beta != 0) {
 // #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
 //     for (unsigned i = 0; i < query_points.size(); ++i) {
@@ -167,23 +183,27 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
 //     aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
 //   }
 
-//   // undistort the preprocessed pointcloud to eval state (at query timestamp)
-//   const auto T_s_m = T_m_s_eval->evaluate().toSE3().matrix().inverse().cast<float>();
-//   aligned_mat = T_s_m * aligned_mat;
-//   aligned_norms_mat = T_s_m * aligned_norms_mat;
+  // // undistort the preprocessed pointcloud to eval state (at query timestamp)
+  // const auto T_s_m = T_m_s_eval->evaluate().toSE3().matrix().inverse().cast<float>();
+  // aligned_mat = T_s_m * aligned_mat;
+  // aligned_norms_mat = T_s_m * aligned_norms_mat;
 
   auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
   cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
   qdata.undistorted_point_cloud = undistorted_point_cloud;
 
-  //
-  auto T_r_v_odo_prev = *qdata.T_r_v_odo;
-  *qdata.T_r_v_odo = (T_rad_world_gt * T_rad_world_gt_prev.inverse()) * T_r_v_odo_prev;
-  /// \todo double check that we can indeed treat m same as v for velocity
-  *qdata.w_v_r_in_r_odo = v_rad_gt;
+  // Compute odometry change from groundtruth
+  auto T_r_s = T_s_r.inverse();
+  auto del_T_r = T_r_s * T_s_world_gt * T_s_world_gt_prev.inverse() * T_s_r;
+  // Update variables
+  *qdata.T_r_v_odo = del_T_r * *qdata.T_r_v_odo;
+  *qdata.T_r_m_odo = del_T_r * T_r_m_odo;
+  *qdata.T_r_m_odo_radar = del_T_r * T_r_m_odo;
+  *qdata.w_v_r_in_r_odo = v_s_gt;
 
   // Reuse the prior variables to pass previous groundtruth
-  *qdata.T_r_m_odo_prior = T_rad_world_gt;
+  *qdata.T_r_m_odo_prior = T_s_world_gt;
+  *qdata.w_m_r_in_r_odo_prior = v_s_gt;
 
   //
   *qdata.odo_success = true;

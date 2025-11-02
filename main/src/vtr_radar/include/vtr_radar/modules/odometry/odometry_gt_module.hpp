@@ -42,6 +42,9 @@ class OdometryGTModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
+    // Undistortion trajectory parameters
+    Eigen::Matrix<double, 3, 1> traj_qc_diag =
+        Eigen::Matrix<double, 3, 1>::Ones();
     // Number of threads for pointcloud processing
     int num_threads = 4;
 
