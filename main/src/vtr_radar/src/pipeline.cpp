@@ -89,10 +89,6 @@ void RadarPipeline::reset() {
   cov_prior_ = nullptr;
   timestamp_prior_ = nullptr;
 
-  // Groundtruth stuff
-  T_rad_world_gt_prev_ = nullptr;
-  v_rad_gt_prev_ = nullptr;
-
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -129,10 +125,6 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
     qdata->cov_prior = cov_prior_;
     qdata->timestamp_prior = timestamp_prior_;
-
-    // Groundtruth stuff
-    qdata->T_rad_world_gt_prev = T_rad_world_gt_prev_;
-    qdata->v_rad_gt_prev = v_rad_gt_prev_;
   }
 
   for (const auto &module : odometry_)
@@ -154,9 +146,6 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       timestamp_prior_ = qdata->timestamp_prior.ptr();
       w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
       cov_prior_ = qdata->cov_prior.ptr();
-      // Groundtruth stuff
-      T_rad_world_gt_prev_ = qdata->T_rad_world_gt_prev.ptr();
-      v_rad_gt_prev_ = qdata->v_rad_gt_prev.ptr();
     }
   }
 }
