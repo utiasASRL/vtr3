@@ -59,6 +59,8 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   // groundtruth
   tactic::Cache<lgmath::se3::Transformation> T_s_world_gt;
   tactic::Cache<Eigen::Matrix<double, 6, 1>> v_s_gt;
+  tactic::Cache<lgmath::se3::Transformation> T_s_world_gt_prev;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> v_s_gt_prev;
 
   // radar raw data
   tactic::Cache<RadarData> radar_data;
