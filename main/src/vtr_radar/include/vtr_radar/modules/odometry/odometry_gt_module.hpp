@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file odometry_gt_moduel.hpp
+ * \file odometry_gt_module.hpp
  * \author Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -46,8 +46,8 @@ class OdometryGTModule : public tactic::BaseModule {
     bool use_radial_velocity = false;
     bool use_vel_meas = false;
     int traj_num_extra_states = 0;
-    Eigen::Matrix<double, 6, 1> traj_qc_diag =
-        Eigen::Matrix<double, 6, 1>::Ones();
+    Eigen::Matrix<double, 3, 1> traj_qc_diag =
+        Eigen::Matrix<double, 3, 1>::Ones();
 
     // gyro weight
     double gyro_cov = 1e-3;
@@ -79,7 +79,6 @@ class OdometryGTModule : public tactic::BaseModule {
     double vel_fwd_std = 0.1;
     double vel_side_std = 1.0;
     bool use_p2pl = false;
-    bool remove_orientation = false;
     double normal_score_threshold = 0.0;
 
     /// Success criteria

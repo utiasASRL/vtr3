@@ -121,6 +121,10 @@ class RadarPipeline : public tactic::BasePipeline {
   /** \brief Current submap for localization */
   std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;
 
+  // Groundtruth stuff
+  std::shared_ptr<lgmath::se3::Transformation> T_rad_world_gt_prev_;
+  std::shared_ptr<Eigen::Matrix<double, 6, 1>> v_rad_gt_prev_;
+
   VTR_REGISTER_PIPELINE_DEC_TYPE(RadarPipeline);
 };
 
