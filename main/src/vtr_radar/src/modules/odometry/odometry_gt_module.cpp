@@ -34,6 +34,18 @@ void cart2pol(pcl::PointCloud<PointT> &point_cloud) {
   }
 }
 
+Eigen::Vector<double, 3> vec3Dto2D(const Eigen::Matrix<double, 6, 1> &se3_vec) {
+  Eigen::Vector3d se2_vec;
+  se2_vec << se3_vec(0), se3_vec(1), se3_vec(5);
+  return se2_vec;
+}
+
+Eigen::Vector<double, 6> vec2Dto3D(const Eigen::Matrix<double, 3, 1> &se2_vec) {
+  Eigen::Vector<double, 6> se3_vec = Eigen::Vector<double, 6>::Zero();
+  se3_vec << se2_vec(0), se2_vec(1), 0, 0, 0, se2_vec(2);
+  return se3_vec;
+}
+
 }  // namespace
 
 using namespace tactic;
@@ -91,6 +103,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     // Initialize prior values used to store past groundtruth inputs
     qdata.T_r_m_odo_prior.emplace(*qdata.T_s_world_gt);
     qdata.w_m_r_in_r_odo_prior.emplace(*qdata.v_s_gt);
+    qdata.timestamp_prior.emplace(*qdata.stamp);
 
     //
     *qdata.odo_success = true;
@@ -118,24 +131,37 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &v_s_gt = *qdata.v_s_gt;
   const auto &T_s_world_gt_prev = *qdata.T_r_m_odo_prior;
   const auto &v_s_gt_prev = *qdata.w_m_r_in_r_odo_prior;
+  const auto &timestamp_prev = *qdata.timestamp_prior;
+
+  // Compute velocity in robot frame
+  const auto Ad_T_r_s = lgmath::se2::tranAd(T_s_r.inverse().toSE2().matrix());
+  const auto v_s_gt_2d = vec3Dto2D(v_s_gt);
+  const auto v_r_gt_2d = Ad_T_r_s * v_s_gt_2d;
+  const auto v_s_gt_prev_2d = vec3Dto2D(v_s_gt_prev);
+  const auto v_r_gt_prev_2d = Ad_T_r_s * v_s_gt_prev_2d;
+
+  // Compute odometry change from groundtruth
+  auto T_r_s = T_s_r.inverse();
+  auto del_T_r = (T_r_s * T_s_world_gt * T_s_world_gt_prev.inverse() * T_s_r).toSE2().toSE3();
+
+  // Compute new odometry at radar scan time
+  auto T_r_m_new = del_T_r * T_r_m_odo;
 
   // Create trajectory for undistortion
   const_vel_se2::Interface::Ptr trajectory = const_vel_se2::Interface::MakeShared(config_->traj_qc_diag);
+  // Add poses and velocities to trajectory
+  trajectory->add(Time(timestamp_prev), SE2StateVar::MakeShared(T_r_m_odo.toSE2()),
+                  VSpaceStateVar<3>::MakeShared(v_r_gt_prev_2d));
+  trajectory->add(Time(scan_stamp), SE2StateVar::MakeShared(T_r_m_new.toSE2()),
+                  VSpaceStateVar<3>::MakeShared(v_r_gt_2d));
+  
+  /// Create robot to sensor transform variable, fixed.
+  const auto T_s_r_var = SE2StateVar::MakeShared(T_s_r.toSE2());
+  T_s_r_var->locked() = true;
 
-  // // General radar odometry (at scan time)
-  // T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
-  // w_m_r_in_r_eval = trajectory->getVelocityInterpolator(scan_time);
-
-  // // Odometry at extrapolated state (might be the same as above, but not necessarily, if we have gyro)
-  // Time extp_time(static_cast<int64_t>(timestamp_odo_new));
-  // T_r_m_eval_extp = trajectory->getPoseInterpolator(extp_time);
-  // w_m_r_in_r_eval_extp = trajectory->getVelocityInterpolator(extp_time);
-
-  // /// Create robot to sensor transform variable, fixed.
-  // const auto T_s_r_var = SE2StateVar::MakeShared(T_s_r_2d);
-  // T_s_r_var->locked() = true;
-  // /// compound transform for alignment (sensor to point map transform)
-  // const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
+  /// compound transform for alignment (sensor to point map transform)
+  Evaluable<lgmath::se2::Transformation>::ConstPtr T_r_m_eval = trajectory->getPoseInterpolator(scan_stamp);
+  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
 
   /// Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
@@ -152,58 +178,56 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
   for (unsigned i = 0; i < query_points.size(); ++i) {
     aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
   }
-//   if (beta != 0) {
-// #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-//     for (unsigned i = 0; i < query_points.size(); ++i) {
-//       const auto &qry_time = query_points[i].timestamp;
-//       const auto &up_chirp = query_points[i].up_chirp;
-//       const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-//       const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-//       const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
-//       // Still create 3D v_m_s_in_s but just with a 0 z component
-//       const Eigen::Vector3f v_m_s_in_s = Eigen::Vector3f(w_m_s_in_s(0), w_m_s_in_s(1), 0.0f);
-//       Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
-//       abar.normalize();
-//       // If up chirp azimuth, subtract Doppler shift
-//       if (up_chirp) { 
-//         aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
-//       } else {
-//         aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
-//       }
-//     }
-//   }
-// #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-//   for (unsigned i = 0; i < query_points.size(); i++) {
-//     const auto &qry_time = query_points[i].timestamp;
-//     const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-//     const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-//     // Transform to 3D for point manipulation
-//     const auto T_m_s = T_m_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
-//     aligned_mat.block<4, 1>(0, i) = T_m_s * aligned_mat.block<4, 1>(0, i);
-//     aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
-//   }
+  if (beta != 0) {
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (unsigned i = 0; i < query_points.size(); ++i) {
+      const auto &qry_time = query_points[i].timestamp;
+      const auto &up_chirp = query_points[i].up_chirp;
+      const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+      const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+      const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
+      // Still create 3D v_m_s_in_s but just with a 0 z component
+      const Eigen::Vector3f v_m_s_in_s = Eigen::Vector3f(w_m_s_in_s(0), w_m_s_in_s(1), 0.0f);
+      Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
+      abar.normalize();
+      // If up chirp azimuth, subtract Doppler shift
+      if (up_chirp) { 
+        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+      } else {
+        aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
+      }
+    }
+  }
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+  for (unsigned i = 0; i < query_points.size(); i++) {
+    const auto &qry_time = query_points[i].timestamp;
+    const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+    const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+    // Transform to 3D for point manipulation
+    const auto T_m_s = T_m_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
+    aligned_mat.block<4, 1>(0, i) = T_m_s * aligned_mat.block<4, 1>(0, i);
+    aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
+  }
 
-  // // undistort the preprocessed pointcloud to eval state (at query timestamp)
-  // const auto T_s_m = T_m_s_eval->evaluate().toSE3().matrix().inverse().cast<float>();
-  // aligned_mat = T_s_m * aligned_mat;
-  // aligned_norms_mat = T_s_m * aligned_norms_mat;
+  // undistort the preprocessed pointcloud to eval state (at query timestamp)
+  const auto T_s_m = T_m_s_eval->evaluate().toSE3().matrix().inverse().cast<float>();
+  aligned_mat = T_s_m * aligned_mat;
+  aligned_norms_mat = T_s_m * aligned_norms_mat;
 
   auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
   cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
   qdata.undistorted_point_cloud = undistorted_point_cloud;
 
-  // Compute odometry change from groundtruth
-  auto T_r_s = T_s_r.inverse();
-  auto del_T_r = T_r_s * T_s_world_gt * T_s_world_gt_prev.inverse() * T_s_r;
   // Update variables
   *qdata.T_r_v_odo = del_T_r * *qdata.T_r_v_odo;
   *qdata.T_r_m_odo = del_T_r * T_r_m_odo;
   *qdata.T_r_m_odo_radar = del_T_r * T_r_m_odo;
-  *qdata.w_v_r_in_r_odo = v_s_gt;
+  *qdata.w_v_r_in_r_odo = vec2Dto3D(v_r_gt_2d);
 
   // Reuse the prior variables to pass previous groundtruth
   *qdata.T_r_m_odo_prior = T_s_world_gt;
-  *qdata.w_m_r_in_r_odo_prior = v_s_gt;
+  *qdata.w_m_r_in_r_odo_prior = vec2Dto3D(v_r_gt_2d);
+  *qdata.timestamp_prior = scan_stamp;
 
   //
   *qdata.odo_success = true;
