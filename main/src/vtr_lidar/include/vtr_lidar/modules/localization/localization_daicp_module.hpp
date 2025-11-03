@@ -5,7 +5,7 @@
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
-
+// #include "vtr_tactic/types.hpp"
 namespace vtr {
 
 namespace lidar {
@@ -78,8 +78,12 @@ class LocalizationDAICPModule : public tactic::BaseModule {
  private:
 
   int64_t timestamp_prev_ = 0;
+  int64_t timestamp_wnoa_prev_ = 0; // for WNOA motion prior. TODO: simplified to use timestamp_prev_ 
+  pose_graph::EdgeTransform T_r_v_wnoa_prev_edge_; // Pose part of state
+  Eigen::Matrix<double,6,1> velocity_wnoa_prev_{Eigen::Matrix<double,6,1>::Zero()}; // [ω, v] body frame
+  Eigen::Matrix<double,12,12> P_wnoa_12x12_{Eigen::Matrix<double,12,12>::Identity() * 1e-6}; // Full 12×12 covariance
+
   Eigen::Matrix4d T_r_v_loc_prev_ = Eigen::Matrix4d::Identity();
-  
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
