@@ -25,7 +25,6 @@
 #include "vtr_radar/modules/preprocessing/preprocessing_module.hpp"
 
 #include "vtr_radar/modules/odometry/odometry_gyro_module.hpp"
-#include "vtr_radar/modules/odometry/odometry_doppler_module.hpp"
 
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_se3_icp_module.hpp"
