@@ -467,15 +467,53 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result T_r_v_icp: \n" << T_r_v_icp_edge.matrix();
       CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result covariance: \n" << T_r_v_icp_edge.cov();
 
-      // filter-based fusion [disabled, performance is not good]
-      // compute the residual 
-      Eigen::Matrix<double, 6, 1> residual = lgmath::se3::tran2vec(T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix());
-      Eigen::Matrix4d T_res = T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix();
-      Eigen::Matrix<double, 6, 6> T_res_cov = lgmath::se3::tranAd(T_res) * daicp_cov * lgmath::se3::tranAd(T_res).transpose();
-      Eigen::Matrix<double, 6, 6> K_gain = T_r_v.cov() * (T_r_v.cov() + T_res_cov).inverse();
-      Eigen::Matrix<double, 6, 1> delta_vec = K_gain * residual;
-      Eigen::Matrix4d T_r_v_post = lgmath::se3::vec2tran(delta_vec) * T_r_v.matrix();
-      Eigen::Matrix<double, 6, 6> T_r_v_post_cov = (Eigen::Matrix<double, 6, 6>::Identity() - K_gain) * T_r_v.cov();
+      // [debug] filter-based fusion 
+      // // compute the residual 
+      // Eigen::Matrix<double, 6, 1> residual = lgmath::se3::tran2vec(T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix());
+      // Eigen::Matrix4d T_res = T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix();
+      // Eigen::Matrix<double, 6, 6> T_res_cov = lgmath::se3::tranAd(T_res) * daicp_cov * lgmath::se3::tranAd(T_res).transpose();
+      // Eigen::Matrix<double, 6, 6> K_gain = T_r_v.cov() * (T_r_v.cov() + T_res_cov).inverse();
+      // Eigen::Matrix<double, 6, 1> delta_vec = K_gain * residual;
+      // Eigen::Matrix4d T_r_v_post = lgmath::se3::vec2tran(delta_vec) * T_r_v.matrix();
+      // Eigen::Matrix<double, 6, 6> T_r_v_post_cov = (Eigen::Matrix<double, 6, 6>::Identity() - K_gain) * T_r_v.cov();
+
+
+      // EKF-style update
+      // State and ICP measurement (both expressed in the teach/world frame)
+      const Eigen::Matrix4d X = T_r_v.matrix();           // current estimate T_rv
+      const Eigen::Matrix4d Z = T_r_v_icp_edge.matrix();  // ICP-derived T_rv (measurement)
+
+      // --- Build ΣZ: propagate daicp_cov on T_ms through inverse + compose to Z = T_rv^icp.
+      // Treat T_sr and T_vm as deterministic (if not, add their terms similarly).
+      Eigen::Matrix<double,6,6> SigmaZ =
+          lgmath::se3::tranAd(T_v_m.matrix().inverse()) *
+          ( lgmath::se3::tranAd(T_m_s_icp_edge.matrix().inverse()) *
+            daicp_cov *
+            lgmath::se3::tranAd(T_m_s_icp_edge.matrix().inverse()).transpose() ) *
+          lgmath::se3::tranAd(T_v_m.matrix().inverse()).transpose();
+
+      // --- Left-invariant residual (Barfoot): r = Log( Z * X^{-1} )
+      const Eigen::Matrix<double,6,1> r = lgmath::se3::tran2vec( Z * X.inverse() );
+
+      // Map measurement covariance into the residual’s tangent (at identity via left error):
+      // r lives in the tangent induced by left perturbation on X, so use Ad_{X^{-1}}.
+      const Eigen::Matrix<double,6,6> Rstar =
+          lgmath::se3::tranAd(X.inverse()) * SigmaZ * lgmath::se3::tranAd(X.inverse()).transpose();
+
+      // --- EKF update with H = I (left-invariant error)
+      Eigen::Matrix<double,6,6> P = T_r_v.cov();
+      const Eigen::Matrix<double,6,6> S = P + Rstar;
+      const Eigen::Matrix<double,6,6> K = P * S.inverse();
+      const Eigen::Matrix<double,6,1> dx = K * r;
+
+      // Left-multiplicative state update 
+      const Eigen::Matrix4d T_r_v_post = lgmath::se3::vec2tran(dx) * X;
+
+      // Joseph-form covariance update to preserve SPD
+      const Eigen::Matrix<double,6,6> I6 = Eigen::Matrix<double,6,6>::Identity();
+      const Eigen::Matrix<double,6,6> T_r_v_post_cov =
+          (I6 - K) * P * (I6 - K).transpose() + K * Rstar * K.transpose();
+
 
       // ============================= original code block =========================== //   
       // Decode T_r_v from optimized T_m_s_var
@@ -485,8 +523,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
       // ============================================================================= // 
 
-      // [Debugging]
-      auto T_r_v_select = T_r_v_icp_edge.matrix();
+      // auto T_r_v_select = T_r_v_icp_edge.matrix(); // do not fuse prior
+      //// [Debugging]
+      auto T_r_v_select = T_r_v_post;             // fuse the prior
+      // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
+      // dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
 
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
@@ -507,9 +548,10 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } else {
-        // accept DA-ICP result
-        T_r_v_icp = EdgeTransform(T_r_v_select, T_r_v_icp_edge.cov());
-        // T_r_v_icp = EdgeTransform(T_r_v_post, T_r_v_post_cov);
+        // --- accept DA-ICP result
+        // T_r_v_icp = EdgeTransform(T_r_v_select, T_r_v_icp_edge.cov());
+        T_r_v_icp = EdgeTransform(T_r_v_post, T_r_v_post_cov);  // [debug] fuse prior
+        // T_r_v_icp = EdgeTransform(T_r_v_select, dummy_cov);     // [debug] use dummy covariance 
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       }
 
@@ -537,7 +579,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   if (matched_points_ratio > config_->min_matched_ratio) {
     // update map to robot transform
     *qdata.T_r_v_loc = T_r_v_icp;
-    // set success
+    // -- set success
     *qdata.loc_success = true;
 
     // Gyroscope bias estimation

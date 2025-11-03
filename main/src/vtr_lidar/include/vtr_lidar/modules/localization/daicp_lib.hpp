@@ -521,7 +521,7 @@ inline double computeThreshold(const Eigen::VectorXd& eigenvalues,
   // A direction is well-conditioned if: max_eigenval / eigenval < cond_num_thresh_ratio
   // Rearranging: eigenval > max_eigenval / cond_num_thresh_ratio
   
-  const double eigenvalue_threshold = max_eigenval / cond_num_thresh_ratio;
+  const double eigenvalue_threshold = -1.0 * max_eigenval / cond_num_thresh_ratio;
 
   CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
 
