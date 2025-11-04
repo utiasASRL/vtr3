@@ -92,6 +92,15 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   }
   config->W_icp << w_icp[0], 0, 0, w_icp[1];
 
+  const auto doppler_bias = node->declare_parameter<std::vector<double>>(param_prefix + ".doppler_bias", {1.0, 1.0});
+  if (w_icp.size() != 2) {
+    std::string err{"doppler_bias malformed. Must be 2 elements!"};
+    CLOG(ERROR, "radar.odometry_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->doppler_bias << doppler_bias[0], doppler_bias[1];
+
+
   config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
   config->estimate_gyro_bias = node->declare_parameter<bool>(param_prefix + ".estimate_gyro_bias", config->estimate_gyro_bias);
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
@@ -453,8 +462,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
         // Generate empty bias state (for now)
         Eigen::Matrix<double, 3, 1> b_zero = Eigen::Matrix<double, 3, 1>::Zero();
-        b_zero(0) = 0.10;
-        b_zero(1) = -0.11;
+        b_zero.head<2>() = config_->doppler_bias;
         const auto bias = VSpaceStateVar<3>::MakeShared(b_zero);
         bias->locked() = true;
 

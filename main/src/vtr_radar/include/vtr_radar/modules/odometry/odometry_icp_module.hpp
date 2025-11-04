@@ -78,6 +78,7 @@ class OdometryICPModule : public tactic::BaseModule {
     double dopp_meas_std = 1.0;
     double vel_fwd_std = 0.1;
     double vel_side_std = 1.0;
+    Eigen::Vector2d doppler_bias = Eigen::Vector2d::Zero();
     bool use_p2pl = false;
     bool remove_orientation = false;
     Eigen::Matrix2d W_icp = Eigen::Matrix2d::Identity();
