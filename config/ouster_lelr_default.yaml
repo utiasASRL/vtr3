@@ -11,8 +11,8 @@
       #- tactic.eop
       #- tactic.pipeline
       - tactic.module
-      #- mission.state_machine
-      #- mission.server
+      - mission.state_machine
+      - mission.server
         # planner manager
       - cbit.control
       - dynamic_path_planner

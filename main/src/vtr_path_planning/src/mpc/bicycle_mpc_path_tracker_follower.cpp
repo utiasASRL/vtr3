@@ -125,11 +125,12 @@ void BicycleMPCPathTrackerFollower::setRunning(const bool running) {
 
 bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& curr_time){
   if (leader_root_ == tactic::VertexId::Invalid()){
-    if (!hasRequestedLeaderRoute_){
+    if (!hasRequestedLeaderRoute_ || robot_state_->node->now() - requestTime_ > rclcpp::Duration(1, 0)){
       CLOG(INFO, "cbit.control") << "Leader root not yet set. Calling service";
       auto request = std::make_shared<FollowingRouteSrv::Request>();
       leaderRouteSrv_->async_send_request(request, std::bind(&BicycleMPCPathTrackerFollower::leaderRouteCallback, this, std::placeholders::_1));
       hasRequestedLeaderRoute_ = true;
+      requestTime_ = robot_state_->node->now();
     }
     return false;
   }
