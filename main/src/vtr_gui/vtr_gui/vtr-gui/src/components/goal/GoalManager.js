@@ -27,6 +27,7 @@ import GoalCard from "./GoalCard";
 import GoalCurrent from "./GoalCurrent";
 import GoalForm from "./GoalForm";
 import AnnotateSlider from "../tools/AnnotateSlider";
+import ClearIcon from "@mui/icons-material/Clear";
 
 //
 const GOAL_PANEL_WIDTH = 300;
@@ -101,6 +102,27 @@ class GoalManager extends React.Component {
 
     return (
       <>
+        {/* Cancel all goals. */}
+        <Box sx={{
+            position: "absolute",
+            top: 0,
+            left: goal_panel_open ? GOAL_PANEL_WIDTH + 130 : 130,
+            width: "flex",
+            zIndex: 1000,
+            m: 1,
+            transition: "left 0.3s",
+          }}>
+          <Button
+            color={"primary"}
+            disableElevation={true}
+            variant={"contained"}
+            startIcon={<ClearIcon />}
+            size={"small"}
+            Click={this.cancelAllGoals.bind(this)}
+          >
+          Clear All Goals
+          </Button>
+      </Box>
         {/* Start, Pause and Clear buttons */}
         <Box
           sx={{
@@ -160,7 +182,7 @@ class GoalManager extends React.Component {
             followingRouteIds={followingRouteIds}
             mergeIds={mergeIds}
           ></GoalCurrent>
-        )}
+        )}   
         {/* The queue of goals and new goal submission form */}
         <Drawer
           anchor="left"
