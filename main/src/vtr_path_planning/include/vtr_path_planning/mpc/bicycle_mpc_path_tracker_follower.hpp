@@ -133,6 +133,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
 
+  rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
   FloatMsg::SharedPtr recentLeaderDist_;
   rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
   void onLeaderDist(const FloatMsg::SharedPtr distance);

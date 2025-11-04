@@ -94,6 +94,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
   followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
 
+  estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
   leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
 
@@ -169,13 +170,17 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   const auto leaderPath_copy = *leaderPathInterp_;
   const auto T_w_l = T_fw_lw_ * leaderPath_copy.at(curr_time);
   const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_l;
-  const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
-  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
-  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << dist.head<2>().norm() << " at stamp " << curr_time;
+  const Eigen::Vector<double, 3> dist_vec = T_f_l.r_ab_inb();
+  FloatMsg internal_dist;
+  internal_dist.data = dist_vec.head<2>().norm();
+  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist_vec;
+  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << internal_dist.data << " at stamp " << curr_time;
+  estimatedDistancePub_->publish(internal_dist);
 
   mpcConfig->VF = abs(leader_vel_(0));
   if (config_->waypoint_selection == "external_dist") {
-    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : dist.head<2>().norm();
+    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data :   CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << internal_dist.data << " at stamp " << curr_time;
+;
     const double error = distance - config_->following_offset;
     if (abs(chain->leaf_velocity()(0)) > 0.05)
       errorIntegrator += error * config_->control_period / 1000.0;
