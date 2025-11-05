@@ -186,7 +186,7 @@
         downsample_teach_map: false # whether to downsample the frames used in **map building**. in repeat, always downsample plane and feature separately 
                                     # if false, use feature_voxel_size for whole frame
                                     # if true, downsample pleane and features separately using plane_voxel_size and feature_voxel_size
-        plane_voxel_size: 1.0       # voxel size for plane
+        plane_voxel_size: 5.0       # voxel size for plane
         feature_voxel_size: 0.3     # voxel size for feature
 
         # clustering parameters
