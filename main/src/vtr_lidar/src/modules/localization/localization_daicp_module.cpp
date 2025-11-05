@@ -457,15 +457,16 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
          mean_dR < config_->rot_diff_thresh)) {
 
       //=========================== Fusion with PRIOR =========================== //
-      // the edge transformation of T_m_s from DA-ICP
-      EdgeTransform T_m_s_icp_edge(T_m_s_var->value(), daicp_cov);
-      // the edge transformation of T_r_v computed from DA-ICP
-      EdgeTransform T_r_v_icp_edge;   
-      T_r_v_icp_edge =  T_s_r.inverse() * T_m_s_icp_edge.inverse() * T_v_m.inverse();
+      // // the edge transformation of T_m_s from DA-ICP
+      // EdgeTransform T_m_s_icp_edge(T_m_s_var->value(), daicp_cov);
+      // // the edge transformation of T_r_v computed from DA-ICP
+      // EdgeTransform T_r_v_icp_edge;   
+      // T_r_v_icp_edge =  T_s_r.inverse() * T_m_s_icp_edge.inverse() * T_v_m.inverse();
 
-      // [DEBUGGING] print out the matrix and covariance
-      CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result T_r_v_icp: \n" << T_r_v_icp_edge.matrix();
-      CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result covariance: \n" << T_r_v_icp_edge.cov();
+      // // [DEBUGGING] print out the matrix and covariance
+      // CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result T_r_v_icp: \n" << T_r_v_icp_edge.matrix();
+      // CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result covariance: \n" << T_r_v_icp_edge.cov();
+
       // ##################################### STEAM-based prior fusion ###################################### // 
       // Create fresh variables for the joint optimization
       // T_r_v variable (what we want to estimate)
@@ -491,15 +492,14 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       joint_problem.addCostTerm(prior_cost_term);
       // Add DA-ICP measurement cost term
       // Create a "measurement" from the DA-ICP result T_m_s
-
+      // -- use L2 loss function
       // auto daicp_loss_func = L2LossFunc::MakeShared();
-      // -- try roboust loss function
-      auto daicp_loss_func = CauchyLossFunc::MakeShared(0.1); 
+      // -- use robust loss function to get smoother results
+      auto daicp_loss_func = CauchyLossFunc::MakeShared(0.1);
 
-      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] daicp is not PD sometimes
+      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
       Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
       auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
-
       CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
       CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << daicp_cov.diagonal().transpose();
       CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP dummy covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
@@ -519,15 +519,13 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       joint_params.max_iterations = 10;
       GaussNewtonSolver joint_solver(joint_problem, joint_params);
       
-      Eigen::Matrix4d T_r_v_steam;
-
       joint_solver.optimize();        
       // Get the covariance after joint optimization
       Covariance joint_covariance(joint_solver);
       // Create the fused result
       // T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));
+      Eigen::Matrix4d T_r_v_steam;
       T_r_v_steam = T_r_v_joint_var->value().matrix();
-
       // ##################################### STEAM-based prior fusion (END)###################################### // 
       
       /// TODO: clean the code here
@@ -547,14 +545,12 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
         CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
                                                 << (rotation_diff * 180.0 / M_PI) << " deg)";
-
         // fallback to using prior
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } else {
         // --- accept DA-ICP result
         T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance
-
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       }
 
