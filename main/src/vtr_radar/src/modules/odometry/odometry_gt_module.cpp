@@ -222,6 +222,9 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Update results
   *qdata.T_r_v_odo = del_T_r * *qdata.T_r_v_odo;
+  // Set small diagonal covariance
+  Eigen::Matrix<double, 6, 6> cov = Eigen::Matrix<double, 6, 6>::Identity() * 1e-6;
+  qdata.T_r_v_odo->setCovariance(cov);
   *qdata.T_r_m_odo = T_r_m_new;
   *qdata.T_r_m_odo_radar = T_r_m_new;
   *qdata.w_v_r_in_r_odo = vec2Dto3D(v_r_gt_2d);
