@@ -135,7 +135,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 12
-        crop_range: 20.0                # range cropping in meters
+        crop_range: 40.0                # range cropping in meters
 
         frame_voxel_size: 0.3           # grid subsampling voxel size
 
@@ -186,7 +186,7 @@
         downsample_teach_map: false # whether to downsample the frames used in **map building**. in repeat, always downsample plane and feature separately 
                                     # if false, use feature_voxel_size for whole frame
                                     # if true, downsample pleane and features separately using plane_voxel_size and feature_voxel_size
-        plane_voxel_size: 2.0       # voxel size for plane
+        plane_voxel_size: 1.0       # voxel size for plane
         feature_voxel_size: 0.3     # voxel size for feature
 
         # clustering parameters
@@ -332,11 +332,15 @@
         ### daicp
         max_gn_iter: 2
         # daicp - degeneracy threshold
-        degeneracy_thresh: 70.0               # we use condition number to set the threshold
+        degeneracy_thresh: 100.0              # we use condition number to set the threshold
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
         sigma_el: 0.000523599                 # elevation noise std (0.03 degrees)
+        # prior fusion
+        max_pfusion_iter: 1                   # max iterations for prior fusion
+        use_L2_loss: false                    # whether to use L2 loss in prior fusion
+        robust_loss: 0.5                      # parameter for robust loss function in prior fusion
         # refinement
         refined_max_iter: 50
         refined_max_pairing_dist: 1.0
