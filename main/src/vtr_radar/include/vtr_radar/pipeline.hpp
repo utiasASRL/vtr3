@@ -109,6 +109,8 @@ class RadarPipeline : public tactic::BasePipeline {
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar_;
   std::shared_ptr<lgmath::se3::Transformation> T_r_m_odo_prior_;
+  std::shared_ptr<lgmath::se3::Transformation> T_s_world_gt_prev_;
+  std::shared_ptr<Eigen::Matrix<double, 6, 1>> v_s_gt_prev_;
   std::shared_ptr<int64_t> timestamp_prior_;
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior_;
   std::shared_ptr<Eigen::Matrix<double, 12, 12>> cov_prior_;
