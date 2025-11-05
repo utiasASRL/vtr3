@@ -143,7 +143,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = true;
     // clang-format on
 
-    // This is the first odomety frame
+    // This is the first odometry frame
     if(qdata.first_frame)
       *qdata.first_frame = true;
     else

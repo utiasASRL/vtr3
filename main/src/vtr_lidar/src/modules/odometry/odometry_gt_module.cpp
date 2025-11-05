@@ -80,7 +80,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     //
     qdata.T_r_m_odo.emplace(EdgeTransform(true));
 
-    // Initialize groundtruth varibales
+    // Initialize groundtruth variables
     qdata.T_s_world_gt_prev.emplace(*qdata.T_s_world_gt);
     qdata.v_s_gt_prev.emplace(*qdata.v_s_gt);
 

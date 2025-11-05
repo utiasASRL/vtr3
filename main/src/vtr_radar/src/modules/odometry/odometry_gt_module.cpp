@@ -100,7 +100,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.T_r_m_odo.emplace(EdgeTransform(true));
     qdata.T_r_m_odo_radar.emplace(EdgeTransform(true));
 
-    // Initialize groundtruth varibales
+    // Initialize groundtruth variables
     qdata.T_s_world_gt_prev.emplace(*qdata.T_s_world_gt);
     qdata.v_s_gt_prev.emplace(*qdata.v_s_gt);
 
@@ -111,7 +111,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = true;
     // clang-format on
 
-    // This is the first odomety frame
+    // This is the first odometry frame
     if(qdata.first_frame)
       *qdata.first_frame = true;
     else
