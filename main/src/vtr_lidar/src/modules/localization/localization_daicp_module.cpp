@@ -39,6 +39,10 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->rel_cost_change_thresh = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config->rel_cost_change_thresh);
   config->zero_gradient_thresh = node->declare_parameter<double>(param_prefix + ".zero_gradient_thresh", config->zero_gradient_thresh);
   config->inner_tolerance = node->declare_parameter<double>(param_prefix + ".inner_tolerance", config->inner_tolerance);
+  // prior fusion
+  config->max_pfusion_iter = node->declare_parameter<int>(param_prefix + ".max_pfusion_iter", config->max_pfusion_iter);
+  config->use_L2_loss = node->declare_parameter<bool>(param_prefix + ".use_L2_loss", config->use_L2_loss);
+  config->robust_loss = node->declare_parameter<double>(param_prefix + ".robust_loss", config->robust_loss);
   // refinement
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
@@ -492,10 +496,12 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       joint_problem.addCostTerm(prior_cost_term);
       // Add DA-ICP measurement cost term
       // Create a "measurement" from the DA-ICP result T_m_s
-      // -- use L2 loss function
-      // auto daicp_loss_func = L2LossFunc::MakeShared();
-      // -- use robust loss function to get smoother results
-      auto daicp_loss_func = CauchyLossFunc::MakeShared(0.1);
+      std::shared_ptr<BaseLossFunc> daicp_loss_func;
+      if (config_->use_L2_loss) {
+        daicp_loss_func = L2LossFunc::MakeShared();
+      } else {
+        daicp_loss_func = CauchyLossFunc::MakeShared(config_->robust_loss);
+      }
 
       // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
       Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
@@ -516,7 +522,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       // Solve the joint optimization problem
       GaussNewtonSolver::Params joint_params;
       joint_params.verbose = false;  // Set to true for debugging
-      joint_params.max_iterations = 10;
+      joint_params.max_iterations = config_->max_pfusion_iter;
       GaussNewtonSolver joint_solver(joint_problem, joint_params);
       
       joint_solver.optimize();        

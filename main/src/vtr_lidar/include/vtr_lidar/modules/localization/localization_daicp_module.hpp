@@ -46,6 +46,10 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     double rel_cost_change_thresh = 1e-8;       // relative cost change threshold for convergence
     double zero_gradient_thresh = 1e-8;         // zero gradient threshold for convergence
     double inner_tolerance = 1e-6;              // tolerance for gauss-newton solver
+    // prior fusion
+    int max_pfusion_iter = 1;                   // max iterations for prior fusion
+    bool use_L2_loss = true;                    // whether to use L2 loss in prior fusion
+    double robust_loss = 0.5;                   // parameter for robust loss function in prior fusion
     // refinement
     size_t refined_max_iter = 20;               // we use a fixed number of iters for now
     float refined_max_pairing_dist = 2.0;
