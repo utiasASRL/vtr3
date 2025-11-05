@@ -457,8 +457,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
          mean_dR < config_->rot_diff_thresh)) {
 
       //=========================== Fusion with PRIOR =========================== //
-
-
       // the edge transformation of T_m_s from DA-ICP
       EdgeTransform T_m_s_icp_edge(T_m_s_var->value(), daicp_cov);
       // the edge transformation of T_r_v computed from DA-ICP
@@ -468,57 +466,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       // [DEBUGGING] print out the matrix and covariance
       CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result T_r_v_icp: \n" << T_r_v_icp_edge.matrix();
       CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result covariance: \n" << T_r_v_icp_edge.cov();
-
-      // ##################################### (1) Filter-based prior fusion ###################################### // 
-      // // [method 1] filter-based fusion 
-      // // compute the residual 
-      // Eigen::Matrix<double, 6, 1> residual = lgmath::se3::tran2vec(T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix());
-      // Eigen::Matrix4d T_res = T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix();
-      // Eigen::Matrix<double, 6, 6> T_res_cov = lgmath::se3::tranAd(T_res) * daicp_cov * lgmath::se3::tranAd(T_res).transpose();
-      // Eigen::Matrix<double, 6, 6> K_gain = T_r_v.cov() * (T_r_v.cov() + T_res_cov).inverse();
-      // Eigen::Matrix<double, 6, 1> delta_vec = K_gain * residual;
-      // Eigen::Matrix4d T_r_v_post = lgmath::se3::vec2tran(delta_vec) * T_r_v.matrix();
-      // Eigen::Matrix<double, 6, 6> T_r_v_post_cov = (Eigen::Matrix<double, 6, 6>::Identity() - K_gain) * T_r_v.cov();
-
-
-      // // [method 2] EKF-style update
-      // // State and ICP measurement (both expressed in the teach/world frame)
-      // const Eigen::Matrix4d X = T_r_v.matrix();           // current estimate T_rv
-      // const Eigen::Matrix4d Z = T_r_v_icp_edge.matrix();  // ICP-derived T_rv (measurement)
-
-      // // --- Build ΣZ: propagate daicp_cov on T_ms through inverse + compose to Z = T_rv^icp.
-      // // Treat T_sr and T_vm as deterministic (if not, add their terms similarly).
-      // Eigen::Matrix<double,6,6> SigmaZ =
-      //     lgmath::se3::tranAd(T_v_m.matrix().inverse()) *
-      //     ( lgmath::se3::tranAd(T_m_s_icp_edge.matrix().inverse()) *
-      //       daicp_cov *
-      //       lgmath::se3::tranAd(T_m_s_icp_edge.matrix().inverse()).transpose() ) *
-      //     lgmath::se3::tranAd(T_v_m.matrix().inverse()).transpose();
-
-      // // --- Left-invariant residual (Barfoot): r = Log( Z * X^{-1} )
-      // const Eigen::Matrix<double,6,1> r = lgmath::se3::tran2vec( Z * X.inverse() );
-
-      // // Map measurement covariance into the residual’s tangent (at identity via left error):
-      // // r lives in the tangent induced by left perturbation on X, so use Ad_{X^{-1}}.
-      // const Eigen::Matrix<double,6,6> Rstar =
-      //     lgmath::se3::tranAd(X.inverse()) * SigmaZ * lgmath::se3::tranAd(X.inverse()).transpose();
-
-      // // --- EKF update with H = I (left-invariant error)
-      // Eigen::Matrix<double,6,6> P = T_r_v.cov();
-      // const Eigen::Matrix<double,6,6> S = P + Rstar;
-      // const Eigen::Matrix<double,6,6> K = P * S.inverse();
-      // const Eigen::Matrix<double,6,1> dx = K * r;
-
-      // // Left-multiplicative state update 
-      // const Eigen::Matrix4d T_r_v_post = lgmath::se3::vec2tran(dx) * X;
-
-      // // Joseph-form covariance update to preserve SPD
-      // const Eigen::Matrix<double,6,6> I6 = Eigen::Matrix<double,6,6>::Identity();
-      // const Eigen::Matrix<double,6,6> T_r_v_post_cov =
-      //     (I6 - K) * P * (I6 - K).transpose() + K * Rstar * K.transpose();
-
-      // ##################################### Filter-based prior fusion (END) ###################################### //
-
       // ##################################### STEAM-based prior fusion ###################################### // 
       // Create fresh variables for the joint optimization
       // T_r_v variable (what we want to estimate)
@@ -544,16 +491,18 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       joint_problem.addCostTerm(prior_cost_term);
       // Add DA-ICP measurement cost term
       // Create a "measurement" from the DA-ICP result T_m_s
-      auto daicp_loss_func = L2LossFunc::MakeShared();
+
+      // auto daicp_loss_func = L2LossFunc::MakeShared();
+      // -- try roboust loss function
+      auto daicp_loss_func = CauchyLossFunc::MakeShared(0.1); 
 
       // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] daicp is not PD sometimes
-
       Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
+      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
 
       CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
       CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << daicp_cov.diagonal().transpose();
       CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP dummy covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
-      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
 
       auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value()); 
       T_m_s_daicp_meas->locked() = true;
@@ -571,48 +520,18 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       GaussNewtonSolver joint_solver(joint_problem, joint_params);
       
       Eigen::Matrix4d T_r_v_steam;
-      // try {
-        joint_solver.optimize();
-        
-        // Get the covariance after joint optimization
-        Covariance joint_covariance(joint_solver);
-        
-        // Create the fused result
-        // T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));
 
-        T_r_v_steam = T_r_v_joint_var->value().matrix();
-        // CLOG(DEBUG, "lidar.localization_daicp") << "STEAM fusion successful. Fused T_r_v: \n" << T_r_v_icp.matrix();
-        // CLOG(DEBUG, "lidar.localization_daicp") << "Fused covariance trace: " << T_r_v_icp.cov().trace();
-        
-      // } catch (std::runtime_error& e) {
-      //   CLOG(WARNING, "lidar.localization_daicp") << "STEAM joint optimization failed: " << e.what();
-      //   CLOG(WARNING, "lidar.localization_daicp") << "Falling back to DA-ICP only result";
-      //   // Fallback to DA-ICP only result
-      //   // T_r_v_icp = T_r_v_icp_edge;
-      //   T_r_v_steam = T_r_v_icp_edge.matrix(); // do not fuse prior
-      // }
-
+      joint_solver.optimize();        
+      // Get the covariance after joint optimization
+      Covariance joint_covariance(joint_solver);
+      // Create the fused result
+      // T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));
+      T_r_v_steam = T_r_v_joint_var->value().matrix();
 
       // ##################################### STEAM-based prior fusion (END)###################################### // 
-
-
-      // ============================= NO Prior Fusion =========================== //   
-      // Decode T_r_v from optimized T_m_s_var
-      // T_m_s = T_m_v * T_v_r * T_r_s, so T_r_v = T_r_s * T_s_m * T_m_v
-      const auto T_m_s_optimized = T_m_s_var->value();
-      const auto T_s_m_optimized = T_m_s_optimized.inverse();
-      const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
-      // ============================================================================= // 
-
-      // auto T_r_v_select = T_r_v_icp_edge.matrix(); // do not fuse prior
-      //// [Debugging]
-      // auto T_r_v_select = T_r_v_post;             // fuse the prior
       
-      /// [Debugging]
+      /// TODO: clean the code here
       auto T_r_v_select = T_r_v_steam;        // STEAM-based fusion
-      
-      Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
-      dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-4, 1e-4, 1e-3;  // [x,y,z,rx,ry,rz]
 
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
@@ -634,10 +553,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } else {
         // --- accept DA-ICP result
-        // T_r_v_icp = EdgeTransform(T_r_v_select, T_r_v_icp_edge.cov());
-        // T_r_v_icp = EdgeTransform(T_r_v_post, T_r_v_post_cov);  // [debug] fuse prior
-        // T_r_v_icp = EdgeTransform(T_r_v_select, dummy_cov);     // [debug] use dummy covariance 
-
         T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance
 
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
