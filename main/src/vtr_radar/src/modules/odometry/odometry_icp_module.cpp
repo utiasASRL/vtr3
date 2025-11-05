@@ -19,6 +19,7 @@
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 
 #include "vtr_radar/utils/nanoflann_utils.hpp"
+#include "vtr_common/conversions/se2_to_se3.hpp"
 
 namespace vtr {
 namespace radar {
@@ -34,79 +35,6 @@ void cart2pol(pcl::PointCloud<PointT> &point_cloud) {
   }
 }
 
-Eigen::Vector<double, 3> vec3Dto2D(const Eigen::Matrix<double, 6, 1> &se3_vec) {
-  Eigen::Vector3d se2_vec;
-  se2_vec << se3_vec(0), se3_vec(1), se3_vec(5);
-  return se2_vec;
-}
-
-Eigen::Vector<double, 6> vec2Dto3D(const Eigen::Matrix<double, 3, 1> &se2_vec) {
-  Eigen::Vector<double, 6> se3_vec = Eigen::Vector<double, 6>::Zero();
-  se3_vec << se2_vec(0), se2_vec(1), 0, 0, 0, se2_vec(2);
-  return se3_vec;
-}
-
-Eigen::Matrix<double, 6, 6> cov3Dto2D(const Eigen::Matrix<double, 12, 12> &se3_cov) {
-  Eigen::Matrix<double, 6, 6> se2_cov = Eigen::Matrix<double, 6, 6>::Zero();
-  // Extract xy block
-  se2_cov.block<2, 2>(0, 0) = se3_cov.block<2, 2>(0, 0);
-  // Extract yaw, vx, vy block
-  se2_cov.block<3,3>(2,2) = se3_cov.block<3,3>(5,5);
-  // Extract vyaw element
-  se2_cov.block<1,1>(5,5) = se3_cov.block<1,1>(11,11);
-  // Extract x, y to yaw, vx, vy cross-correlation blocks
-  se2_cov.block<2,3>(0,2) = se3_cov.block<2,3>(0,5);
-  se2_cov.block<3,2>(2,0) = se3_cov.block<3,2>(5,0);
-  // Extract x, y to vyaw cross-correlation blocks
-  se2_cov.block<2,1>(0,5) = se3_cov.block<2,1>(0,11);
-  se2_cov.block<1,2>(5,0) = se3_cov.block<1,2>(11,0);
-  // Extract yaw, vx, vy to vyaw cross-correlation blocks
-  se2_cov.block<3,1>(2,5) = se3_cov.block<3,1>(5,11);
-  se2_cov.block<1,3>(5,2) = se3_cov.block<1,3>(11,5);
-  // Normalize for safety
-  se2_cov = 0.5 * (se2_cov + se2_cov.transpose());
-  return se2_cov;
-}
-
-Eigen::Matrix<double, 12, 12> cov2Dto3D(const Eigen::Matrix<double, 6, 6> &se2_cov) {
-  // Initialize to small diagonal value to make valid covariance matrix
-  Eigen::Matrix<double, 12, 12> se3_cov = 1e-12 * Eigen::Matrix<double, 12, 12>::Identity();
-  // Insert xy block
-  se3_cov.block<2, 2>(0, 0) = se2_cov.block<2, 2>(0, 0);
-  // Insert yaw, vx, vy block
-  se3_cov.block<3,3>(5,5) = se2_cov.block<3,3>(2,2);
-  // Insert vyaw element
-  se3_cov.block<1,1>(11,11) = se2_cov.block<1,1>(5,5);
-  // Insert x, y to yaw, vx, vy cross-correlation blocks
-  se3_cov.block<2,3>(0,5) = se2_cov.block<2,3>(0,2);
-  se3_cov.block<3,2>(5,0) = se2_cov.block<3,2>(2,0);
-  // Insert x, y to vyaw cross-correlation blocks
-  se3_cov.block<2,1>(0,11) = se2_cov.block<2,1>(0,5);
-  se3_cov.block<1,2>(11,0) = se2_cov.block<1,2>(5,0);
-  // Insert yaw, vx, vy to vyaw cross-correlation blocks
-  se3_cov.block<3,1>(5,11) = se2_cov.block<3,1>(2,5);
-  se3_cov.block<1,3>(11,5) = se2_cov.block<1,3>(5,2);
-  // Normalize for safety
-  se3_cov = 0.5 * (se3_cov + se3_cov.transpose());
-  return se3_cov;
-}
-
-// Overload definition for single state 3x3 input
-Eigen::Matrix<double, 6, 6> cov2Dto3D(const Eigen::Matrix<double, 3, 3> &se2_cov) {
-  // Initialize to small diagonal value to make valid covariance matrix
-  Eigen::Matrix<double, 6, 6> se3_cov = 1e-12 * Eigen::Matrix<double, 6, 6>::Identity();
-  // Insert xy block
-  se3_cov.block<2, 2>(0, 0) = se2_cov.block<2, 2>(0, 0);
-  // Insert yaw element
-  se3_cov.block<1,1>(5,5) = se2_cov.block<1,1>(2,2);
-  // Insert x, y to yaw cross-correlation blocks
-  se3_cov.block<2,1>(0,5) = se2_cov.block<2,1>(0,2);
-  se3_cov.block<1,2>(5,0) = se2_cov.block<1,2>(2,0);
-  // Normalize for safety
-  se3_cov = 0.5 * (se3_cov + se3_cov.transpose());
-  return se3_cov;
-}
-
 }  // namespace
 
 using namespace tactic;
@@ -114,6 +42,7 @@ using namespace steam;
 using namespace steam::se2;
 using namespace steam::traj;
 using namespace steam::vspace;
+using namespace common::conversions;
 
 auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string &param_prefix)
@@ -162,6 +91,15 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->W_icp << w_icp[0], 0, 0, w_icp[1];
+
+  const auto doppler_bias = node->declare_parameter<std::vector<double>>(param_prefix + ".doppler_bias", {1.0, 1.0});
+  if (w_icp.size() != 2) {
+    std::string err{"doppler_bias malformed. Must be 2 elements!"};
+    CLOG(ERROR, "radar.odometry_icp") << err;
+    throw std::invalid_argument{err};
+  }
+  config->doppler_bias << doppler_bias[0], doppler_bias[1];
+
 
   config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
   config->estimate_gyro_bias = node->declare_parameter<bool>(param_prefix + ".estimate_gyro_bias", config->estimate_gyro_bias);
@@ -524,8 +462,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
         // Generate empty bias state (for now)
         Eigen::Matrix<double, 3, 1> b_zero = Eigen::Matrix<double, 3, 1>::Zero();
-        b_zero(0) = 0.10;
-        b_zero(1) = -0.11;
+        b_zero.head<2>() = config_->doppler_bias;
         const auto bias = VSpaceStateVar<3>::MakeShared(b_zero);
         bias->locked() = true;
 
