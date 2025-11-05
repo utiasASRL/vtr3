@@ -3,8 +3,8 @@ session_name: vtr_online_aeva_warthog
 
 environment:
   ROS_DOMAIN_ID: "7"   # set this to a unique number when multiple ROS2 dependent system running on the same network
-  # ROS_DISCOVERY_SERVER: "192.168.131.1:11811;192.168.131.100:11811"
-  ROS_DISCOVERY_SERVER: "localhost:11811;localhost:11811"
+  ROS_DISCOVERY_SERVER: "192.168.131.1:11811;192.168.131.100:11811"
+  # ROS_DISCOVERY_SERVER: "localhost:11811;localhost:11811"
   
 
 start_directory: ${VTRTEMP}
@@ -43,3 +43,18 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/aeva.rviz
+
+  - window_name: copy_config_to_data_dir
+    layout: main-horizontal
+    panes:
+      - DATA_DIR=$(grep 'data_dir:' ${VTRTEMP}/setup_params.yaml | awk '{print $2}');
+        TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S");
+        DEST_FILE="aeva_warthog_default_${TIMESTAMP}.yaml";
+        echo "Copying config to $DATA_DIR/$DEST_FILE ...";
+        if [ -n "$DATA_DIR" ]; then
+          mkdir -p "$DATA_DIR";
+          cp ${VTRSRC}/config/aeva_warthog_default.yaml "$DATA_DIR/$DEST_FILE";
+          echo "✅ Config copied to $DATA_DIR/$DEST_FILE";
+        else
+          echo "❌ Could not find data_dir in ${VTRTEMP}/setup_params.yaml";
+        fi
