@@ -137,6 +137,43 @@ inline Eigen::Matrix3d computeRangeBearingCovariance(double d, double az, double
 }
 
 // =================== Covariance Computation ===================
+inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov, 
+                                          double min_eigenvalue = 1e-6) {
+    // Check if matrix is already positive definite using Cholesky decomposition
+    Eigen::LLT<Eigen::Matrix<double, 6, 6>> llt(cov);
+    if (llt.info() == Eigen::Success) {
+        return cov;  // Already positive definite
+    }
+    
+    CLOG(DEBUG, "lidar.localization_daicp") << "Covariance matrix is not positive definite, fixing...";
+    
+    // Use eigenvalue decomposition to fix
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigensolver(cov);
+    if (eigensolver.info() != Eigen::Success) {
+        CLOG(WARNING, "lidar.localization_daicp") << "Eigenvalue decomposition failed, using diagonal regularization";
+        return cov + min_eigenvalue * Eigen::Matrix<double, 6, 6>::Identity();
+    }
+    
+    Eigen::VectorXd eigenvalues = eigensolver.eigenvalues();
+    Eigen::Matrix<double, 6, 6> eigenvectors = eigensolver.eigenvectors();
+    
+    // Clamp negative eigenvalues
+    bool modified = false;
+    for (int i = 0; i < eigenvalues.size(); ++i) {
+        if (eigenvalues(i) < min_eigenvalue) {
+            eigenvalues(i) = min_eigenvalue;
+            modified = true;
+        }
+    }
+    
+    if (modified) {
+        CLOG(DEBUG, "lidar.localization_daicp") << "Fixed " << eigenvalues.size() << " negative eigenvalues";
+    }
+    
+    // Reconstruct the matrix
+    return eigenvectors * eigenvalues.asDiagonal() * eigenvectors.transpose();
+}
+
 inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& Vf, 
                                               const Eigen::VectorXd& eigen_vf, 
                                               const Eigen::MatrixXd& Vd) {
@@ -172,6 +209,8 @@ inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& Vf,
               (1.0/epsilon) * (Vd *Vd.transpose());
   }
   
+  daicpCov = makePD(daicpCov);
+
   return daicpCov;
 }
 
@@ -399,6 +438,9 @@ inline Eigen::VectorXd computeUpdateStep(
     const Eigen::MatrixXd& Vf) {
   
   // Compute update in well-conditioned space: Δxf ← (A^T A)^{-1} A^T b
+  // [Note] b does not need to be scaled. 
+  // Since A is the scaled A, we are solving the (A^T A) dx = A^T b.
+  // The right-hand side is scaled by A directly.
   const Eigen::MatrixXd AtA = A.transpose() * A;
   
   Eigen::VectorXd delta_x_f;

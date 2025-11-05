@@ -470,7 +470,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result covariance: \n" << T_r_v_icp_edge.cov();
 
       // ##################################### (1) Filter-based prior fusion ###################################### // 
-      // [method 1] filter-based fusion 
+      // // [method 1] filter-based fusion 
       // // compute the residual 
       // Eigen::Matrix<double, 6, 1> residual = lgmath::se3::tran2vec(T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix());
       // Eigen::Matrix4d T_res = T_r_v.matrix().inverse() * T_r_v_icp_edge.matrix();
@@ -519,106 +519,82 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
       // ##################################### Filter-based prior fusion (END) ###################################### //
 
+      // ##################################### STEAM-based prior fusion ###################################### // 
+      // Create fresh variables for the joint optimization
+      // T_r_v variable (what we want to estimate)
+      const auto T_r_v_joint_var = SE3StateVar::MakeShared(T_r_v);
+      // Fixed transform variables
+      const auto T_s_r_joint_var = SE3StateVar::MakeShared(T_s_r); 
+      T_s_r_joint_var->locked() = true;
+      const auto T_v_m_joint_var = SE3StateVar::MakeShared(T_v_m); 
+      T_v_m_joint_var->locked() = true;
+      // Compound transform: T_m_s = (T_s_r * T_r_v * T_v_m)^{-1}
+      const auto T_m_s_joint_eval = inverse(compose(T_s_r_joint_var, compose(T_r_v_joint_var, T_v_m_joint_var)));
 
-      // ################## WNOA Prior fusion (debugging) ################## //
-      // the following code add WNOA prior to T_r_v. 
-      // It might be easier to put it on T_m_s directly, which is the output of DA-ICP.
-      const auto &query_stamp_wnoa = *qdata.stamp;
-      double dt = (query_stamp_wnoa - timestamp_wnoa_prev_) * 1e-9;
-      EdgeTransform T_r_v_wnoa_fused;
-      if (timestamp_wnoa_prev_ == 0 || dt <= 0.0 || dt > 2.0) {
-        // First frame or invalid dt - no motion prior available
-        CLOG(DEBUG, "lidar.localization_daicp") << "WNOA: First frame or invalid dt, using DAICP result directly";
+      // Initialize the joint optimization problem
+      OptimizationProblem joint_problem(config_->num_threads);
+      joint_problem.addStateVariable(T_r_v_joint_var);
+      // Add prior cost term (from odometry/previous estimate)
+      auto prior_loss_func = L2LossFunc::MakeShared();
+      auto prior_noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
+      auto T_r_v_prior_meas = SE3StateVar::MakeShared(T_r_v); 
+      T_r_v_prior_meas->locked() = true;
+      auto prior_error_func = tran2vec(compose(T_r_v_prior_meas, inverse(T_r_v_joint_var)));
+      auto prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(prior_error_func, prior_noise_model, prior_loss_func);
+      joint_problem.addCostTerm(prior_cost_term);
+      // Add DA-ICP measurement cost term
+      // Create a "measurement" from the DA-ICP result T_m_s
+      auto daicp_loss_func = L2LossFunc::MakeShared();
 
-        // the edge transformation of T_m_s from DA-ICP 
-        T_r_v_wnoa_fused =  T_s_r.inverse() * T_m_s_icp_edge.inverse() * T_v_m.inverse();
+      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] daicp is not PD sometimes
 
-        // Initialize WNOA state: [pose, velocity] in SE(3) x R^6
-        T_r_v_wnoa_prev_edge_ = T_r_v_wnoa_fused;
-        velocity_wnoa_prev_ = Eigen::Matrix<double,6,1>::Zero(); // [ω, v] in body frame
-        // Initialize 12x12 covariance: P = [P_xx, P_xv; P_vx, P_vv]
-        P_wnoa_12x12_ = Eigen::Matrix<double,12,12>::Identity() * 1e-6;
-        P_wnoa_12x12_.block<6,6>(0,0) = T_r_v_wnoa_fused.cov(); // P_xx from DAICP
-        P_wnoa_12x12_.block<6,6>(6,6) *= 1e-3; // P_vv: initial velocity uncertainty
-        // P_xv and P_vx start as zero (no initial correlation)
-        timestamp_wnoa_prev_ = query_stamp_wnoa;
-      } else {
-        // Apply true WNOA motion model
-        CLOG(DEBUG, "lidar.localization_daicp") << "WNOA: Applying true WNOA filter, dt = " << dt << "s";
+      Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
+
+      CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
+      CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << daicp_cov.diagonal().transpose();
+      CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP dummy covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
+      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
+
+      auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value()); 
+      T_m_s_daicp_meas->locked() = true;
+      
+      // Error function: log(T_m_s_measured^{-1} * T_m_s_predicted)
+      // where T_m_s_predicted = (T_s_r * T_r_v * T_v_m)^{-1}
+      auto daicp_error_func = tran2vec(compose(inverse(T_m_s_daicp_meas), T_m_s_joint_eval));
+      auto daicp_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(daicp_error_func, daicp_noise_model, daicp_loss_func);
+      joint_problem.addCostTerm(daicp_cost_term);
+      
+      // Solve the joint optimization problem
+      GaussNewtonSolver::Params joint_params;
+      joint_params.verbose = false;  // Set to true for debugging
+      joint_params.max_iterations = 10;
+      GaussNewtonSolver joint_solver(joint_problem, joint_params);
+      
+      Eigen::Matrix4d T_r_v_steam;
+      // try {
+        joint_solver.optimize();
         
-        // --- 1. WNOA State Prediction ---
-        // State: [X, v] where X ∈ SE(3), v ∈ R^6 (body-frame [ω, v_linear])
-        // Motion increment from velocity: ξ = v * dt
-        Eigen::Matrix<double,6,1> xi_increment = velocity_wnoa_prev_ * dt;
-        EdgeTransform T_motion_increment(lgmath::se3::vec2tran(xi_increment), Eigen::Matrix<double,6,6>::Zero());
-        // Predicted pose: X_pred = X_prev ⊞ (v * dt)
-        EdgeTransform T_r_v_predicted = T_motion_increment * T_r_v_wnoa_prev_edge_;
-        // Predicted velocity: v_pred = v_prev (constant velocity assumption)
-        Eigen::Matrix<double,6,1> velocity_predicted = velocity_wnoa_prev_;
-        // --- 2. WNOA Covariance Prediction ---
-        // Discrete-time WNOA matrices (left-invariant form)
-        Eigen::Matrix<double,12,12> Phi = Eigen::Matrix<double,12,12>::Identity();
-        Phi.block<6,6>(0,6) = dt * Eigen::Matrix<double,6,6>::Identity(); // [I, dt*I; 0, I]
-        // Process noise covariance Q_c in continuous time (acceleration noise)
-        Eigen::Matrix<double,6,6> Q_c = Eigen::Matrix<double,6,6>::Identity();
-        Q_c.diagonal() << 0.05, 0.05, 0.05, 0.5, 0.5, 0.5; // [rad²/s³, m²/s³] - [ω, v] order
-        // Q_c.diagonal() << 0.01, 0.01, 0.001, 0.1, 0.1, 0.01;
-        // Discrete WNOA process noise matrix Q_d
-        Eigen::Matrix<double,12,12> Q_d = Eigen::Matrix<double,12,12>::Zero();
-        Q_d.block<6,6>(0,0) = (dt*dt*dt/3.0) * Q_c;    // Δt³/3 * Q_c for pose-pose
-        Q_d.block<6,6>(0,6) = (dt*dt/2.0) * Q_c;       // Δt²/2 * Q_c for pose-velocity
-        Q_d.block<6,6>(6,0) = (dt*dt/2.0) * Q_c;       // Δt²/2 * Q_c for velocity-pose
-        Q_d.block<6,6>(6,6) = dt * Q_c;                // Δt * Q_c for velocity-velocity
-        // Predicted covariance: P_pred = Φ * P * Φ^T + Q_d
-        Eigen::Matrix<double,12,12> P_predicted = Phi * P_wnoa_12x12_ * Phi.transpose() + Q_d;
-        // --- 3. DAICP Measurement Update ---
-        // Convert DAICP measurement to T_r_v space
-        EdgeTransform T_r_v_daicp = T_s_r.inverse() * T_m_s_icp_edge.inverse() * T_v_m.inverse();
-        // Measurement model: z = [X_measured, 0] (pose measurement, no velocity measurement)
-        // Measurement matrix H = [I_6x6, 0_6x6] selects pose part
-        Eigen::Matrix<double,6,12> H = Eigen::Matrix<double,6,12>::Zero();
-        H.block<6,6>(0,0) = Eigen::Matrix<double,6,6>::Identity();
-        // Left-invariant residual: r = Log(Z * X_pred^{-1})
-        EdgeTransform T_residual = T_r_v_daicp * T_r_v_predicted.inverse();
-        Eigen::Matrix<double,6,1> residual = lgmath::se3::tran2vec(T_residual.matrix());
-        // Measurement noise covariance (from DAICP, mapped to residual space)
-        Eigen::Matrix<double,6,6> R_measurement = 
-            lgmath::se3::tranAd(T_r_v_predicted.matrix().inverse()) * 
-            T_r_v_daicp.cov() * 
-            lgmath::se3::tranAd(T_r_v_predicted.matrix().inverse()).transpose();
-        // Innovation covariance: S = H * P_pred * H^T + R
-        Eigen::Matrix<double,6,6> S = H * P_predicted * H.transpose() + R_measurement;
-        // Kalman gain: K = P_pred * H^T * S^{-1}
-        Eigen::Matrix<double,12,6> K = P_predicted * H.transpose() * S.inverse();
-        // --- 4. State Update ---
-        // Extract pose and velocity corrections
-        Eigen::Matrix<double,6,1> delta_pose = K.block<6,6>(0,0) * residual;
-        Eigen::Matrix<double,6,1> delta_velocity = K.block<6,6>(6,0) * residual;
-        // Left-multiplicative pose update
-        EdgeTransform T_pose_correction(lgmath::se3::vec2tran(delta_pose), Eigen::Matrix<double,6,6>::Zero());
-        EdgeTransform T_r_v_updated = T_pose_correction * T_r_v_predicted;
-        // Additive velocity update
-        Eigen::Matrix<double,6,1> velocity_updated = velocity_predicted + delta_velocity;
-        // --- 5. Covariance Update (Joseph form) ---
-        Eigen::Matrix<double,12,12> I_12 = Eigen::Matrix<double,12,12>::Identity();
-        Eigen::Matrix<double,12,12> IKH = I_12 - K * H;
-        Eigen::Matrix<double,12,12> P_updated = IKH * P_predicted * IKH.transpose() + 
-                                              K * R_measurement * K.transpose();
-        // Create final fused result
-        T_r_v_wnoa_fused = EdgeTransform(T_r_v_updated.matrix(), P_updated.block<6,6>(0,0));
-        // --- 6. Store state for next iteration ---
-        T_r_v_wnoa_prev_edge_ = T_r_v_wnoa_fused;
-        velocity_wnoa_prev_ = velocity_updated;
-        P_wnoa_12x12_ = P_updated;
-        timestamp_wnoa_prev_ = query_stamp_wnoa;
+        // Get the covariance after joint optimization
+        Covariance joint_covariance(joint_solver);
         
-        CLOG(DEBUG, "lidar.localization_daicp") << "WNOA fusion complete. Residual norm: " << residual.norm();
-        CLOG(DEBUG, "lidar.localization_daicp") << "WNOA updated velocity [ω, v]: [" << velocity_updated.transpose() << "]";
-        CLOG(DEBUG, "lidar.localization_daicp") << "WNOA pose uncertainty trace: " << P_updated.block<6,6>(0,0).trace();
-        CLOG(DEBUG, "lidar.localization_daicp") << "WNOA velocity uncertainty trace: " << P_updated.block<6,6>(6,6).trace();
-      }
+        // Create the fused result
+        // T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));
 
-      // ################## WNOA Prior fusion (END) ################## //
+        T_r_v_steam = T_r_v_joint_var->value().matrix();
+        // CLOG(DEBUG, "lidar.localization_daicp") << "STEAM fusion successful. Fused T_r_v: \n" << T_r_v_icp.matrix();
+        // CLOG(DEBUG, "lidar.localization_daicp") << "Fused covariance trace: " << T_r_v_icp.cov().trace();
+        
+      // } catch (std::runtime_error& e) {
+      //   CLOG(WARNING, "lidar.localization_daicp") << "STEAM joint optimization failed: " << e.what();
+      //   CLOG(WARNING, "lidar.localization_daicp") << "Falling back to DA-ICP only result";
+      //   // Fallback to DA-ICP only result
+      //   // T_r_v_icp = T_r_v_icp_edge;
+      //   T_r_v_steam = T_r_v_icp_edge.matrix(); // do not fuse prior
+      // }
+
+
+      // ##################################### STEAM-based prior fusion (END)###################################### // 
+
 
       // ============================= NO Prior Fusion =========================== //   
       // Decode T_r_v from optimized T_m_s_var
@@ -628,12 +604,15 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
       // ============================================================================= // 
 
-      auto T_r_v_select = T_r_v_icp_edge.matrix(); // do not fuse prior
+      // auto T_r_v_select = T_r_v_icp_edge.matrix(); // do not fuse prior
       //// [Debugging]
       // auto T_r_v_select = T_r_v_post;             // fuse the prior
-      // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
-      // dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6;  // [x,y,z,rx,ry,rz]
-      // auto T_r_v_select = T_r_v_wnoa_fused.matrix(); // WNOA fused result
+      
+      /// [Debugging]
+      auto T_r_v_select = T_r_v_steam;        // STEAM-based fusion
+      
+      Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
+      dummy_cov.diagonal() << 0.001, 0.001, 0.001, 1e-4, 1e-4, 1e-3;  // [x,y,z,rx,ry,rz]
 
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
@@ -655,14 +634,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } else {
         // --- accept DA-ICP result
-        T_r_v_icp = EdgeTransform(T_r_v_select, T_r_v_icp_edge.cov());
+        // T_r_v_icp = EdgeTransform(T_r_v_select, T_r_v_icp_edge.cov());
         // T_r_v_icp = EdgeTransform(T_r_v_post, T_r_v_post_cov);  // [debug] fuse prior
         // T_r_v_icp = EdgeTransform(T_r_v_select, dummy_cov);     // [debug] use dummy covariance 
 
-        // T_r_v_icp = EdgeTransform(T_r_v_wnoa_fused.matrix(), T_r_v_wnoa_fused.cov());
-
-        // [For debugging] the covariance somehow affects the estimation a lot. 
-        // This is weird since we do not use the this cov in WNOA. Debug here!!! 
+        T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance
 
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       }
