@@ -28,7 +28,6 @@
 #include "vtr_radar/modules/odometry/odometry_gt_module.hpp"
 
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
-#include "vtr_radar/modules/odometry/odometry_se3_icp_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_map_maintenance_module.hpp"
 #include "vtr_radar/modules/odometry/vertex_test_module.hpp"
 
