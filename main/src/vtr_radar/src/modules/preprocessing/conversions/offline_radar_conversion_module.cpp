@@ -26,9 +26,6 @@ namespace radar {
 
 using namespace tactic;
 
-/// boreas navtech radar upgrade time
-static constexpr int64_t upgrade_time = 1632182400000000000;
-
 auto OfflineRadarConversionModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
@@ -66,14 +63,8 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Vector2d vel_meas;
   double yaw_meas = -1000.0;
 
-  /// \note for now we retrieve radar resolution from load_radar function
-#if false
   // Set radar resolution
   float radar_resolution = config_->radar_resolution;
-#else
-  // use the first timestamp to determine the resolution
-  float radar_resolution = *qdata.stamp > upgrade_time ? 0.04381 : 0.0596;
-#endif
   float cart_resolution = config_->cart_resolution;
 
   // Load scan, times, azimuths from scan
