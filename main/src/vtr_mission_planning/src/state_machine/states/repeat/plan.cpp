@@ -89,17 +89,25 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
       try {
         path = bfs->hshmat_plan(persistent_loc.v, waypoints_.front());
         CLOG(INFO, "mission.state_machine") << "HSHMAT: Masked plan succeeded with " << path.size() << " vertices";
+        if (auto cb = getCallback(state_machine))
+          cb->notifyRerouteStatus("reroute_success");
       } catch (const std::exception &e) {
         CLOG(WARNING, "mission.state_machine")
             << "HSHMAT: Masked plan failed: '" << e.what()
             << "'. Falling back to unmasked route computation.";
+        if (auto cb = getCallback(state_machine))
+          cb->notifyRerouteStatus("reroute_mask_failed");
         try {
           path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
           CLOG(INFO, "mission.state_machine") << "HSHMAT: Unmasked fallback succeeded with " << path.size() << " vertices";
+          if (auto cb = getCallback(state_machine))
+            cb->notifyRerouteStatus("reroute_fallback_used");
         } catch (const std::exception &e2) {
           CLOG(ERROR, "mission.state_machine")
               << "HSHMAT: Unmasked plan also failed: '" << e2.what()
               << "'. Keeping previous path; skipping setPath.";
+          if (auto cb = getCallback(state_machine))
+            cb->notifyRerouteStatus("reroute_failed");
           // Do not throw; leave without updating path to avoid crashing
           if (bfs && !bfs->permanentBan()) bfs->clearBannedEdges();
           Parent::onExit(state_machine, new_state);

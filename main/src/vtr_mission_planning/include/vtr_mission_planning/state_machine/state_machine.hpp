@@ -19,6 +19,7 @@
 #pragma once
 
 #include <condition_variable>
+#include <string>
 
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning/state_machine/event.hpp"
@@ -36,6 +37,7 @@ class StateMachineCallback {
  public:
   PTR_TYPEDEFS(StateMachineCallback);
   virtual void stateSuccess() = 0;
+  virtual void notifyRerouteStatus(const std::string& status) {}
 };
 
 class StateMachineInterface {

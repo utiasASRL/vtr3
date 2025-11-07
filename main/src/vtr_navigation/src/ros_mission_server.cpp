@@ -33,6 +33,7 @@ void ROSMissionServer::start(
   server_state_pub_ = node->create_publisher<ServerStateMsg>("server_state", 1);
   server_state_srv_ = node->create_service<ServerStateSrv>("server_state_srv", std::bind(&ROSMissionServer::serverStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
   mission_command_sub_ = node->create_subscription<MissionCommandMsg>("mission_command", rclcpp::SystemDefaultsQoS(), std::bind(&ROSMissionServer::handleCommand, this, std::placeholders::_1), sub_opt);
+  reroute_status_pub_ = node->create_publisher<std_msgs::msg::String>("/vtr/reroute_status", rclcpp::QoS(10));
   // clang-format on
 }
 
@@ -142,6 +143,13 @@ void ROSMissionServer::serverStateChanged() {
   }
   //
   if (server_state_pub_) server_state_pub_->publish(server_state_msg_);
+}
+
+void ROSMissionServer::notifyRerouteStatus(const std::string& status) {
+  if (!reroute_status_pub_) return;
+  std_msgs::msg::String msg;
+  msg.data = status;
+  reroute_status_pub_->publish(msg);
 }
 
 }  // namespace navigation

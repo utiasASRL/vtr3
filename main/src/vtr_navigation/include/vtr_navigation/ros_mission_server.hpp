@@ -29,6 +29,7 @@
 #include "vtr_navigation_msgs/msg/mission_command.hpp"
 #include "vtr_navigation_msgs/msg/server_state.hpp"
 #include "vtr_navigation_msgs/srv/server_state.hpp"
+#include "std_msgs/msg/string.hpp"
 
 namespace vtr {
 namespace mission_planning {
@@ -106,12 +107,14 @@ class ROSMissionServer : public mission_planning::MissionServer<
       const std::shared_ptr<ServerStateSrv::Request>,
       std::shared_ptr<ServerStateSrv::Response> response) const;
   void serverStateChanged() override;
+  void notifyRerouteStatus(const std::string& status) override;
 
  private:
   rclcpp::CallbackGroup::SharedPtr callback_group_;
   rclcpp::Subscription<MissionCommandMsg>::SharedPtr mission_command_sub_;
   rclcpp::Publisher<ServerStateMsg>::SharedPtr server_state_pub_;
   rclcpp::Service<ServerStateSrv>::SharedPtr server_state_srv_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr reroute_status_pub_;
 
  private:
   /** \brief cached server state message, protected by mission server mutex */

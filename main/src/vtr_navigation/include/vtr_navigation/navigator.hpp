@@ -30,6 +30,7 @@
 #include "std_msgs/msg/string.hpp" // Hshmat: for ChatGPT decision subscription
 #include <chrono> // Hshmat: for debouncing obstacle detection
 #include <optional> // Hshmat: for debouncing obstacle detection
+#include <mutex>
 
 #ifdef VTR_ENABLE_VISION
 #include "message_filters/subscriber.h"
@@ -163,11 +164,18 @@ typedef message_filters::sync_policies::ApproximateTime<
   // Hshmat: ChatGPT decision subscriber
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr chatgpt_decision_sub_;
   std::string latest_chatgpt_decision_;  // "wait" or "reroute"
+  Mutex chatgpt_mutex_;
+  rclcpp::Time last_decision_time_;
+  rclcpp::Time obstacle_start_time_;
+  bool obstacle_active_ = false;
+  bool waiting_for_decision_logged_ = false;
+  std::string active_decision_;
   
   // Hshmat: Publisher for pausing robot (zero velocity)
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pause_cmd_pub_;
   bool robot_paused_;  // Track if robot is currently paused
   bool waiting_for_reroute_;  // Track if we're waiting for a replanned route
+  bool processing_obstacle_;  // Track if we're currently processing an obstacle detection
   
   // Hshmat: ChatGPT configuration and publisher
   bool use_chatgpt_;  // Whether to query ChatGPT (if false, default to reroute)
