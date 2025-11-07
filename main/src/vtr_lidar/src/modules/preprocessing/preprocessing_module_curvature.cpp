@@ -387,16 +387,16 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
   if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow) {
     is_repeating = true;
   }
-  CLOG(DEBUG, "lidar.preprocessing_curvature")
-      << "is repeating: " << (is_repeating ? "true" : "false")
-      << ", config_->downsample_teach_map: " << (config_->downsample_teach_map ? "true" : "false");
+  // CLOG(DEBUG, "lidar.preprocessing_curvature")
+  //     << "is repeating: " << (is_repeating ? "true" : "false")
+  //     << ", config_->downsample_teach_map: " << (config_->downsample_teach_map ? "true" : "false");
 
   auto final_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>();
   if (is_repeating || config_->downsample_teach_map) {
     // If repeating or downsample_teach_map is true, use different voxel sizes for planar vs feature-rich clusters
-    CLOG(DEBUG, "lidar.preprocessing_curvature")
-        << "Downsampling each cluster separately using plane_voxel_size: " << config_->plane_voxel_size
-        << " and feature_voxel_size: " << config_->feature_voxel_size;
+    // CLOG(DEBUG, "lidar.preprocessing_curvature")
+    //     << "Downsampling each cluster separately using plane_voxel_size: " << config_->plane_voxel_size
+    //     << " and feature_voxel_size: " << config_->feature_voxel_size;
     for (auto label : unique_labels) {
       std::vector<int> cluster_indices;
       for (size_t i = 0; i < labels.size(); ++i)
@@ -412,9 +412,9 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
         mean_curvature += pt.curvature;
       mean_curvature /= static_cast<double>(cluster_cloud->size());
 
-      CLOG(DEBUG, "lidar.preprocessing_curvature")
-          << "cluster " << label << " size: " << cluster_cloud->size()
-          << ", mean curvature: " << mean_curvature;
+      // CLOG(DEBUG, "lidar.preprocessing_curvature")
+      //     << "cluster " << label << " size: " << cluster_cloud->size()
+      //     << ", mean curvature: " << mean_curvature;
 
       float voxel_size = (std::abs(mean_curvature) < config_->ground_plane_threshold) 
                                                       ? config_->plane_voxel_size

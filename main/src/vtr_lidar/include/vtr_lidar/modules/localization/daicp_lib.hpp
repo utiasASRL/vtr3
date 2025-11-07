@@ -144,9 +144,28 @@ inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov
     if (llt.info() == Eigen::Success) {
         return cov;  // Already positive definite
     }
-    
-    CLOG(DEBUG, "lidar.localization_daicp") << "Covariance matrix is not positive definite, fixing...";
-    
+
+    // Try LDLT decomposition (handles semi-definite cases)
+    Eigen::LDLT<Eigen::Matrix<double, 6, 6>> ldlt(cov);
+    if (ldlt.info() == Eigen::Success) {
+        // Regularize by clamping very small or negative diagonal elements
+        Eigen::Matrix<double, 6, 1> D = ldlt.vectorD();
+        bool modified = false;
+        for (int i = 0; i < D.size(); ++i) {
+            if (D(i) < min_eigenvalue) {
+                D(i) = min_eigenvalue;
+                modified = true;
+            }
+        }
+        if (modified)
+            CLOG(DEBUG, "lidar.localization_daicp") << "Regularized LDLT diagonal values";
+
+        // Reconstruct: cov_PD = P * D * Pᵀ
+        Eigen::Matrix<double, 6, 6> P = ldlt.transpositionsP() * Eigen::Matrix<double, 6, 6>::Identity();
+        Eigen::Matrix<double, 6, 6> cov_pd = P * D.asDiagonal() * P.transpose();
+        return cov_pd;
+    } 
+
     // Use eigenvalue decomposition to fix
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigensolver(cov);
     if (eigensolver.info() != Eigen::Success) {
@@ -174,9 +193,10 @@ inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov
     return eigenvectors * eigenvalues.asDiagonal() * eigenvectors.transpose();
 }
 
-inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& Vf, 
+inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
+                                              const Eigen::Matrix<double, 6, 6>& Vf, 
                                               const Eigen::VectorXd& eigen_vf, 
-                                              const Eigen::MatrixXd& Vd) {
+                                              const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
   // Apply solution remapping + regularization in covariance matrix
   
   // Find non-zero columns in Vf
@@ -195,7 +215,7 @@ inline Eigen::MatrixXd computeDaicpCovariance(const Eigen::MatrixXd& Vf,
     eigen_vf_reduced(i) = eigen_vf(valid_cols[i]);
   }
   
-  Eigen::MatrixXd daicpCov;
+  Eigen::Matrix<double, 6, 6> daicpCov;
   if (Vd.cols() == 0) {
     // No degenerate directions
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
@@ -252,7 +272,7 @@ inline void computeJacobianResidualInformation(
     const Eigen::Matrix4Xf& map_mat,
     const Eigen::Matrix4Xf& map_normals_mat,
     const Eigen::Matrix4d& T_combined,
-    const Eigen::MatrixXd& T_ms_prior,
+    const Eigen::Matrix4d& T_ms_prior,
     Eigen::MatrixXd& A,
     Eigen::VectorXd& b,
     Eigen::MatrixXd& W_inv,
@@ -279,7 +299,7 @@ inline void computeJacobianResidualInformation(
   double sum_flat_range = 0.0;
   int valid_count  = 0;
   // using OpenMP reduction to safely accumulate sum_flat_range and valid_count
-  #pragma omp parallel for reduction(+:sum_flat_range,valid_count) schedule(dynamic, 10) num_threads(daicp_num_thread)
+  #pragma omp parallel for reduction(+:sum_flat_range,valid_count) schedule(static) num_threads(daicp_num_thread)
   for (int i = 0; i < n_points; ++i) {
     const auto& ind = sample_inds[i];
     
@@ -388,26 +408,27 @@ inline void computeJacobianResidualInformation(
 
 inline void constructWellConditionedDirections(
     const Eigen::VectorXd& eigenvalues,
-    const Eigen::MatrixXd& eigenvectors,
+    const Eigen::Matrix<double, 6, 6>& eigenvectors,
     double eigenvalue_threshold,
-    Eigen::MatrixXd& V,
-    Eigen::MatrixXd& Vf,
+    Eigen::Matrix<double, 6, 6>& V,
+    Eigen::Matrix<double, 6, 6>& Vf,
     Eigen::VectorXd& eigen_vf,
-    Eigen::MatrixXd& Vd) {
-  
+    Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
+
   const int n_dims = eigenvalues.size();
   
   // V is the full eigenvector matrix (each column is an eigenvector)
   V = eigenvectors;
 
   // Initialize Vf, Vd, eigen_vf as zeros
-  Vf = Eigen::MatrixXd::Zero(n_dims, n_dims);
-  Vd = Eigen::MatrixXd::Zero(n_dims, n_dims);
-  eigen_vf = Eigen::VectorXd::Zero(6);
+  Vf.setZero();
+  Vd = Eigen::Matrix<double, 6, Eigen::Dynamic>::Zero(6, n_dims);
+  eigen_vf.setZero(n_dims);
 
-  // Debug logging for eigenvalues and threshold
-  CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalues: [" << eigenvalues.transpose() << "]";
-  CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalue threshold: " << eigenvalue_threshold;  
+
+  // // Debug logging for eigenvalues and threshold
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalues: [" << eigenvalues.transpose() << "]";
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalue threshold: " << eigenvalue_threshold;  
 
   // Find well-conditioned directions using the threshold
   std::vector<bool> well_conditioned_mask(n_dims);
@@ -434,8 +455,8 @@ inline void constructWellConditionedDirections(
 inline Eigen::VectorXd computeUpdateStep(
     const Eigen::MatrixXd& A,
     const Eigen::VectorXd& b,
-    const Eigen::MatrixXd& V,
-    const Eigen::MatrixXd& Vf) {
+    const Eigen::Matrix<double, 6, 6>& V,
+    const Eigen::Matrix<double, 6, 6>& Vf) {
   
   // Compute update in well-conditioned space: Δxf ← (A^T A)^{-1} A^T b
   // [Note] b does not need to be scaled. 
@@ -479,23 +500,23 @@ inline Eigen::VectorXd computeUpdateStep(
 }
 
 inline bool computeEigenvalueDecomposition(
-    const Eigen::MatrixXd& H,
+    const Eigen::Matrix<double, 6, 6>& H,
     Eigen::VectorXd& eigenvalues,
-    Eigen::MatrixXd& eigenvectors) {
-  
+    Eigen::Matrix<double, 6, 6>& eigenvectors) {
+
   // Add regularization 
   const double reg_val = 1e-12;
-  Eigen::MatrixXd H_reg = H + reg_val * Eigen::MatrixXd::Identity(H.rows(), H.cols());
+  Eigen::Matrix<double, 6, 6> H_reg = H + reg_val * Eigen::Matrix<double, 6, 6>::Identity(H.rows(), H.cols());
 
   try {
     // Primary method: SelfAdjointEigenSolver
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigen_solver(H_reg);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigen_solver(H_reg);
 
     if (eigen_solver.info() != Eigen::Success) {
       CLOG(WARNING, "lidar.localization_daicp") << "Eigenvalue decomposition failed, trying SVD fallback";
       
       // Fallback to SVD 
-      Eigen::JacobiSVD<Eigen::MatrixXd> svd(H_reg, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      Eigen::JacobiSVD<Eigen::Matrix<double, 6, 6>> svd(H_reg, Eigen::ComputeFullU | Eigen::ComputeFullV);
       eigenvalues = svd.singularValues();
       eigenvectors = svd.matrixU();
       
@@ -523,7 +544,7 @@ inline bool computeEigenvalueDecomposition(
               [](const auto& a, const auto& b) { return a.first > b.first; });
     
     Eigen::VectorXd sorted_eigenvalues(eigenvalues.size());
-    Eigen::MatrixXd sorted_eigenvectors(eigenvectors.rows(), eigenvectors.cols());
+    Eigen::Matrix<double, 6, 6> sorted_eigenvectors(eigenvectors.rows(), eigenvectors.cols());
     
     for (int i = 0; i < eigenvalues.size(); ++i) {
       sorted_eigenvalues(i) = eigen_pairs[i].first;
@@ -565,12 +586,12 @@ inline double computeThreshold(const Eigen::VectorXd& eigenvalues,
   
   const double eigenvalue_threshold = max_eigenval / cond_num_thresh_ratio;
 
-  CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
 
   // Print relative condition numbers
   for (int i = 0; i < eigenvalues.size(); ++i) {
     double cond_num = (eigenvalues(i) > 1e-15) ? (max_eigenval / eigenvalues(i)) : std::numeric_limits<double>::infinity();
-    CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
+    // CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
   }
 
   return eigenvalue_threshold;
@@ -582,9 +603,9 @@ inline bool daGaussNewtonP2Plane(
     const Eigen::Matrix4Xf& map_mat,
     const Eigen::Matrix4Xf& map_normals_mat,
     steam::se3::SE3StateVar::Ptr T_var,
-    const Eigen::MatrixXd& T_ms_prior,
+    const Eigen::Matrix4d& T_ms_prior,
     const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
-    Eigen::MatrixXd& daicp_cov) {
+    Eigen::Matrix<double, 6, 6>& daicp_cov) {
   
   if (sample_inds.size() < 6) {
     CLOG(WARNING, "lidar.localization_daicp") << "Insufficient correspondences for Gauss-Newton";
@@ -663,18 +684,18 @@ inline bool daGaussNewtonP2Plane(
 
     // DEGENERACY-AWARE EIGENSPACE PROJECTION
     // compute original Hessian
-    Eigen::MatrixXd H_original = A.transpose() * W_inv * A;
+    Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
     // Construct inverse block scaling matrix: D_inv
-    Eigen::MatrixXd D_inv = Eigen::MatrixXd::Identity(6, 6);
-    D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead. 
+    Eigen::Matrix<double, 6, 6> D_inv = Eigen::Matrix<double, 6, 6>::Identity();
+    D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
     // translation scaling remains 1.0
     // Scale the jacobian
-    Eigen::MatrixXd A_scaled = A * D_inv;
+    Eigen::Matrix<double, 6, 6> A_scaled = A * D_inv;
     // Degeneracy analysis in eigenspace
-    Eigen::MatrixXd H_scaled = A_scaled.transpose() * W_inv * A_scaled;
+    Eigen::Matrix<double, 6, 6> H_scaled = A_scaled.transpose() * W_inv * A_scaled;
 
     Eigen::VectorXd eigenvalues;
-    Eigen::MatrixXd eigenvectors;
+    Eigen::Matrix<double, 6, 6> eigenvectors;
     bool eigen_success = computeEigenvalueDecomposition(H_scaled, eigenvalues, eigenvectors);
 
     if (!eigen_success) {
@@ -686,7 +707,8 @@ inline bool daGaussNewtonP2Plane(
     const double eigenvalue_threshold = computeThreshold(eigenvalues, config_->degeneracy_thresh);
     
     // Construct well-conditioned directions matrix 
-    Eigen::MatrixXd V, Vf, Vd;
+    Eigen::Matrix<double, 6, 6> V, Vf;
+    Eigen::Matrix<double, 6, Eigen::Dynamic> Vd;
     Eigen::VectorXd eigen_vf;
     constructWellConditionedDirections(eigenvalues, eigenvectors, eigenvalue_threshold, 
                                        V, Vf, eigen_vf, Vd);
@@ -694,7 +716,7 @@ inline bool daGaussNewtonP2Plane(
     // Compute update step using eigenspace projection
     Eigen::VectorXd delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
     // Compute the scaled covariance matrix
-    Eigen::MatrixXd daicp_cov_scaled = computeDaicpCovariance(Vf, eigen_vf, Vd);
+    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(Vf, eigen_vf, Vd);
     
     // Unscale the parameters and covariance
     Eigen::VectorXd delta_params = D_inv * delta_params_scaled;

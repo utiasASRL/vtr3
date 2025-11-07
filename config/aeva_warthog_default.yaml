@@ -71,9 +71,9 @@
       y: -0.0071
       z: -0.0049
     queue_size: 1
-    graph_map:
-      origin_lat: 43.7822
-      origin_lng: -79.4661
+    graph_projection:
+      origin_lat: 45.517944
+      origin_lng: -73.393167
       origin_theta: 1.3
       scale: 1.0
     tactic:
@@ -239,7 +239,7 @@
         prior_threshold: 0.5        # m/s
         ransac_min_range: 5.0       # m
         integration_steps: 100
-        zero_vel_tol: 0.03
+        zero_vel_tol: 0.1
         gyro_cov: [1.43918122e-04,1.65332526e-04,4.68710201e-05]
         # prior
         P0inv: [1e4, 1e4, 1e4, 1e6, 1e6, 1e6]
@@ -332,26 +332,27 @@
         ### daicp
         max_gn_iter: 2
         # daicp - degeneracy threshold
-        degeneracy_thresh: 100.0              # we use condition number to set the threshold
+        degeneracy_thresh: 80.0              # we use condition number to set the threshold
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
         sigma_el: 0.000523599                 # elevation noise std (0.03 degrees)
         # prior fusion
+        use_pfuison: true                     # whether to use prior fusion
         max_pfusion_iter: 1                   # max iterations for prior fusion
         use_L2_loss: false                    # whether to use L2 loss in prior fusion
-        robust_loss: 0.5                      # parameter for robust loss function in prior fusion
+        robust_loss: 0.1                      # parameter for robust loss function in prior fusion
         # refinement
-        refined_max_iter: 50
+        refined_max_iter: 6
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
         # outlier rejection
-        trans_outlier_thresh: 10.5             # threshold on translation outlier rejection
-        rot_outlier_thresh: 10.2               # threshold on rotation outlier rejection
+        trans_outlier_thresh: 0.5             # threshold on translation outlier rejection
+        rot_outlier_thresh: 0.2               # threshold on rotation outlier rejection
         min_matched_ratio: 0.45
         # online gyro bias estimation
-        calc_gy_bias: true
+        calc_gy_bias: false
         calc_gy_bias_thresh: 10.0             # [s]
 
       safe_corridor:

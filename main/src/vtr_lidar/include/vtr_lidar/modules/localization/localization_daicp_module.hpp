@@ -47,6 +47,7 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     double zero_gradient_thresh = 1e-8;         // zero gradient threshold for convergence
     double inner_tolerance = 1e-6;              // tolerance for gauss-newton solver
     // prior fusion
+    bool use_pfuison = true;                    // whether to use prior fusion
     int max_pfusion_iter = 1;                   // max iterations for prior fusion
     bool use_L2_loss = true;                    // whether to use L2 loss in prior fusion
     double robust_loss = 0.5;                   // parameter for robust loss function in prior fusion

@@ -40,6 +40,7 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->zero_gradient_thresh = node->declare_parameter<double>(param_prefix + ".zero_gradient_thresh", config->zero_gradient_thresh);
   config->inner_tolerance = node->declare_parameter<double>(param_prefix + ".inner_tolerance", config->inner_tolerance);
   // prior fusion
+  config->use_pfuison = node->declare_parameter<bool>(param_prefix + ".use_pfuison", true);
   config->max_pfusion_iter = node->declare_parameter<int>(param_prefix + ".max_pfusion_iter", config->max_pfusion_iter);
   config->use_L2_loss = node->declare_parameter<bool>(param_prefix + ".use_L2_loss", config->use_L2_loss);
   config->robust_loss = node->declare_parameter<double>(param_prefix + ".robust_loss", config->robust_loss);
@@ -367,7 +368,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     T_s_m_edge = T_s_r * T_r_v * T_v_m;
     EdgeTransform T_m_s_edge = T_s_m_edge.inverse();
     // Initialize output covariance matrix
-    Eigen::MatrixXd daicp_cov = Eigen::MatrixXd::Zero(6, 6);
+    Eigen::Matrix<double, 6, 6> daicp_cov = Eigen::MatrixXd::Zero(6, 6);
 
     Eigen::Matrix<double, 4, 4> T_m_s_prior = T_m_s_edge.matrix();
     bool optimization_success = daicp_lib::daGaussNewtonP2Plane(
@@ -533,9 +534,16 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       Eigen::Matrix4d T_r_v_steam;
       T_r_v_steam = T_r_v_joint_var->value().matrix();
       // ##################################### STEAM-based prior fusion (END)###################################### // 
-      
+
+      const auto T_s_m_optimized = T_m_s_var->value().inverse();
+      const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
+      auto T_r_v_daicp = SE3StateVar::MakeShared(T_r_v_decoded);
+
       /// TODO: clean the code here
-      auto T_r_v_select = T_r_v_steam;        // STEAM-based fusion
+      auto T_r_v_select = 
+        config_->use_pfuison
+        ? T_r_v_joint_var->value()          // STEAM-based fusion
+        : T_r_v_daicp->value();             // DA-ICP only
 
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
@@ -543,6 +551,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
       const double translation_diff = T_diff_vec.head<3>().norm();
       const double rotation_diff = T_diff_vec.tail<3>().norm();
+
+      CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
+      CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
+      CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
+                                              << (rotation_diff * 180.0 / M_PI) << " deg)";
 
       // OUTLIER REJECTION: larger than 0.3m or 0.2rad (11.5deg)
       if ((translation_diff) > config_->trans_outlier_thresh || (rotation_diff) > config_->rot_outlier_thresh) {
