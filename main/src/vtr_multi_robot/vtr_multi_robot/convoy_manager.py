@@ -27,14 +27,14 @@ class ConvoyManager(Node):
   def __init__(self):
     super().__init__('convoy_manager')
     self.declare_parameter('robots', ["r1"])
-    self.declare_parameter('path_planning.follow_distance', 2.0)
+    self.declare_parameter('path_planning.bicycle_mpc_follower.follow_distance', 2.0)
     self.declare_parameter('odometry.mapping.map_voxel_size', 0.3)
-    self.declare_parameter('path_planning.distance_margin', 0.5)
+    self.declare_parameter('path_planning.bicycle_mpc_follower.distance_margin', 0.5)
     self.declare_parameter('path_planning.wheelbase', 0.5)
     self.declare_parameter('path_planning.max_ang_vel', 0.46)
     self._corridor_width = 0.2 # meters, appears to be decided by VTR, so this is set internally for now
-    self._follow_distance = self.get_parameter('path_planning.follow_distance').value
-    self._distance_margin = self.get_parameter('path_planning.distance_margin').value
+    self._follow_distance = self.get_parameter('path_planning.bicycle_mpc_follower.follow_distance').value
+    self._distance_margin = self.get_parameter('path_planning.bicycle_mpc_follower.distance_margin').value
     self._wheelbase = self.get_parameter('path_planning.wheelbase').value
     self._max_ang_vel = self.get_parameter('path_planning.max_ang_vel').value
     
