@@ -59,9 +59,38 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   // online gyroscope bias
   config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
   config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
+  // visualization
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
 
   // clang-format on
   return config;
+}
+
+// Helper function to convert EdgeTransform to PoseStamped
+geometry_msgs::msg::PoseStamped edgeTransformToPoseStamped(
+    const tactic::EdgeTransform& T,
+    const std::string& frame_id,
+    const rclcpp::Time& stamp) {
+  
+  geometry_msgs::msg::PoseStamped pose;
+  pose.header.frame_id = frame_id;
+  pose.header.stamp = stamp;
+  
+  // Extract translation
+  Eigen::Vector3d trans = T.matrix().block<3,1>(0,3);
+  pose.pose.position.x = trans.x();
+  pose.pose.position.y = trans.y();
+  pose.pose.position.z = trans.z();
+  
+  // Extract rotation as quaternion
+  Eigen::Matrix3d rot = T.matrix().block<3,3>(0,0);
+  Eigen::Quaterniond q(rot);
+  pose.pose.orientation.x = q.x();
+  pose.pose.orientation.y = q.y();
+  pose.pose.orientation.z = q.z();
+  pose.pose.orientation.w = q.w();
+  
+  return pose;
 }
 
 void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
@@ -85,6 +114,18 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   CLOG(DEBUG, "lidar.localization_daicp") << "####### Query point cloud has " << query_points.size() << " points.";
   CLOG(DEBUG, "lidar.localization_daicp") << "######### Map point cloud has " << point_map.size() << " points.";
+
+  // Initialize publishers for visualization
+  if (config_->visualize && !publisher_initialized_) {
+    auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+    prior_pose_pub_ = qdata.node->create_publisher<geometry_msgs::msg::PoseStamped>(
+        "daicp/prior_pose", 5);
+    daicp_pose_pub_ = qdata.node->create_publisher<geometry_msgs::msg::PoseStamped>(
+        "daicp/daicp_result_pose", 5);
+    
+    publisher_initialized_ = true;
+    CLOG(INFO, "lidar.localization_daicp") << "Visualization publishers initialized";
+  }
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -132,7 +173,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// perform initial alignment
   {
-    const auto T_m_s = T_m_s_var->value().matrix().cast<float>();
+    // const auto T_m_s = T_m_s_var->value().matrix().cast<float>();
+    const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
     aligned_mat = T_m_s * query_mat;
     aligned_norms_mat = T_m_s * query_norms_mat;
   }
@@ -179,12 +221,14 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     sample_inds.resize(query_points.size());
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i; 
     timer[0]->stop();
+
     // find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     // use curvature data association if the ptcloud has curvature info, else use spatial only
-    if (aligned_points[sample_inds[0].first].curvature != 0) {
-      
+    
+    // if (aligned_points[sample_inds[0].first].curvature != 0) {
+    if (false) { // turn out for debug  
       /// get normalization scales
       // NOTE: speed vs. accuracy tradeoff - limit to 1k samples to prevent overwighting areas with high point density.
       //       this is especially important for curvature estimation where high-density regions can dominate the sample.
@@ -234,7 +278,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       int replace_count = 0; // debug info
 
       timer[1]->start();
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (size_t i = 0; i < sample_inds.size(); ++i) {
         int tid = omp_get_thread_num();
         auto &idxs = knn_idx_buf[tid];
@@ -322,7 +366,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       /// find nearest neighbours and distances
       timer[1]->start();
       std::vector<float> nn_dists(sample_inds.size());
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (size_t i = 0; i < sample_inds.size(); i++) {
         KDTreeResultSet result_set(1);
         result_set.init(&sample_inds[i].second, &nn_dists[i]);
@@ -460,7 +504,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-
       //=========================== Fusion with PRIOR =========================== //
       // // the edge transformation of T_m_s from DA-ICP
       // EdgeTransform T_m_s_icp_edge(T_m_s_var->value(), daicp_cov);
@@ -508,8 +551,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
       auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
       CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
-      CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << daicp_cov.diagonal().transpose();
-      CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP dummy covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
+      CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
 
       auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value()); 
       T_m_s_daicp_meas->locked() = true;
@@ -545,6 +587,35 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         ? T_r_v_joint_var->value()          // STEAM-based fusion
         : T_r_v_daicp->value();             // DA-ICP only
 
+      // ========== VISUALIZATION CODE ==========
+      if (config_->visualize && publisher_initialized_) {
+        auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+        
+        // Get timestamp for visualization
+        rclcpp::Time viz_stamp = qdata.node->now();
+        std::string frame_id = "world";
+        
+        // Get the world to vertex transform from the localization chain
+        // T_w_v is the transform from vertex frame to world frame
+        const auto T_w_v = output.chain->pose(*qdata.sid_loc);
+        
+        // Convert the three T_r_v transforms to world frame: T_w_r = T_w_v * T_v_r = T_w_v * T_r_v^{-1}
+        EdgeTransform T_r_v_prior_edge = T_r_v;  // Prior from odometry
+        EdgeTransform T_r_v_daicp_edge(T_r_v_daicp->value());  // DAICP result (before fusion)
+        
+        // Transform to world frame for visualization
+        EdgeTransform T_w_r_prior = T_w_v * T_r_v_prior_edge.inverse();
+        EdgeTransform T_w_r_daicp = T_w_v * T_r_v_daicp_edge.inverse();
+        
+        auto prior_pose = edgeTransformToPoseStamped(T_w_r_prior, frame_id, viz_stamp);
+        auto daicp_pose = edgeTransformToPoseStamped(T_w_r_daicp, frame_id, viz_stamp);
+        
+        // Publish individual poses
+        prior_pose_pub_->publish(prior_pose);
+        daicp_pose_pub_->publish(daicp_pose);
+      }
+      // ========== END VISUALIZATION CODE ==========
+
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
       const auto T_diff = T_r_v_select * T_r_v_prior.inverse();
@@ -552,10 +623,10 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const double translation_diff = T_diff_vec.head<3>().norm();
       const double rotation_diff = T_diff_vec.tail<3>().norm();
 
-      CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
-      CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
-      CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
-                                              << (rotation_diff * 180.0 / M_PI) << " deg)";
+      // CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
+      // CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
+      // CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
+      //                                         << (rotation_diff * 180.0 / M_PI) << " deg)";
 
       // OUTLIER REJECTION: larger than 0.3m or 0.2rad (11.5deg)
       if ((translation_diff) > config_->trans_outlier_thresh || (rotation_diff) > config_->rot_outlier_thresh) {

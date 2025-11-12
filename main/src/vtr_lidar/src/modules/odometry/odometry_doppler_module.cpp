@@ -473,12 +473,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
   const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
-  CLOG(DEBUG, "lidar.odometry_doppler") << "********Previous velocity estimate: " << prev_w_m_r_in_r_odo.transpose();
-  CLOG(DEBUG, "lidar.odometry_doppler") << "********Current velocity estimate: " << w_m_r_in_r_eval_.transpose();
+  // CLOG(DEBUG, "lidar.odometry_doppler") << "********Previous velocity estimate: " << prev_w_m_r_in_r_odo.transpose();
+  // CLOG(DEBUG, "lidar.odometry_doppler") << "********Current velocity estimate: " << w_m_r_in_r_eval_.transpose();
 
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Current velocity difference: " << vel_diff.transpose();
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Current translational velocity difference: " << trans_vel_diff_norm;
-  CLOG(DEBUG, "lidar.odometry_doppler") << "Current rotational velocity difference: " << rot_vel_diff_norm;
+  // CLOG(DEBUG, "lidar.odometry_doppler") << "Current velocity difference: " << vel_diff.transpose();
+  // CLOG(DEBUG, "lidar.odometry_doppler") << "Current translational velocity difference: " << trans_vel_diff_norm;
+  // CLOG(DEBUG, "lidar.odometry_doppler") << "Current rotational velocity difference: " << rot_vel_diff_norm;
 
   if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
     CLOG(WARNING, "lidar.odometry_doppler") << "Velocity difference between initial and final is too large: " << vel_diff_norm << " translational velocity difference: " << trans_vel_diff_norm << " rotational velocity difference: " << rot_vel_diff_norm;
@@ -574,8 +574,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   // save the covariance matrix for the current frame
   cov_T_k = P_int;                           
 
-  CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_eval: " << T_temp.matrix();
-  CLOG(DEBUG, "lidar.odometry_doppler") << "w_m_r_in_r_eval: " << w_temp.transpose();
+  // CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_eval: " << T_temp.matrix();
+  // CLOG(DEBUG, "lidar.odometry_doppler") << "w_m_r_in_r_eval: " << w_temp.transpose();
 
   const auto T_r_m_eval = SE3StateVar::MakeShared(T_temp);
 
@@ -590,10 +590,10 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_query = nullptr;
     Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_query = nullptr;
       
-    CLOG(DEBUG, "lidar.odometry_doppler") << "using VTR preprocessed point cloud";
+    // CLOG(DEBUG, "lidar.odometry_doppler") << "using VTR preprocessed point cloud";
     const auto &vtr_points = *qdata.preprocessed_point_cloud;
 
-    CLOG(DEBUG, "lidar.odometry_doppler") << "vtr_points size: " << vtr_points.size();
+    // CLOG(DEBUG, "lidar.odometry_doppler") << "vtr_points size: " << vtr_points.size();
 
     // outputs - create shallow copy
     pcl::PointCloud<PointWithInfo> aligned_points(vtr_points);
@@ -653,10 +653,10 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
     *qdata.odo_success = true;
 
-    CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_v_odo: " << *qdata.T_r_v_odo;
-    CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_v_odo.cov(): " << (*qdata.T_r_v_odo).cov().diagonal().transpose();
-    CLOG(DEBUG, "lidar.odometry_doppler") << "w_v_r_in_r_odo: " << *qdata.w_v_r_in_r_odo;
-    CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_odo: " << *qdata.T_r_m_odo;
+    // CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_v_odo: " << *qdata.T_r_v_odo;
+    // CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_v_odo.cov(): " << (*qdata.T_r_v_odo).cov().diagonal().transpose();
+    // CLOG(DEBUG, "lidar.odometry_doppler") << "w_v_r_in_r_odo: " << *qdata.w_v_r_in_r_odo;
+    // CLOG(DEBUG, "lidar.odometry_doppler") << "T_r_m_odo: " << *qdata.T_r_m_odo;
   } 
 
   if (frame_count > 0 && !estimate_reasonable) {

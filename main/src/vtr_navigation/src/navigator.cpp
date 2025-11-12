@@ -309,7 +309,7 @@ if (pipeline->name() == "radar") {
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/aeva/sensor/imu");
 
   // ----- compute gyro bias
-  gyro_bias_ = loadGyroBias(gyro_topic);
+  // gyro_bias_ = loadGyroBias(gyro_topic);
   // gyro_bias_ << -0.0115121, -0.00701742, -0.00503122;     // temp hardcoded value for offline testing
   // gyro_bias_ << -0.0112692, -0.00706693, -0.00526226;     // loop3 large
   // gyro_bias_ << -0.0112731, -0.00725823, -0.00593503;     // fig 8 run1
@@ -321,7 +321,7 @@ if (pipeline->name() == "radar") {
   // gyro_bias_ << -0.010032, -0.00850306, -0.0056976;       // 1105 csa_trial07
   // gyro_bias_ << -0.0101937, -0.0086163, -0.00574637;      // 1105 csa_trial08
   // gyro_bias_ << -0.00981954, -0.00985235, -0.00636593;    // 1106 csa_trial25
-  // gyro_bias_ << -0.0093843, -0.00980831, -0.0063434;    // 1106 csa_trial26
+  gyro_bias_ << -0.0093843, -0.00980831, -0.0063434;    // 1106 csa_trial26
 
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 

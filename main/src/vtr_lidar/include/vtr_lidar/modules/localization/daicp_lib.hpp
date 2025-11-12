@@ -207,6 +207,9 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
     }
   }
   
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Vf (6x6):\n" << Vf;
+  // CLOG(DEBUG, "lidar.localization_daicp") << "eigen_vf: [" << eigen_vf.transpose() << "]";
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Vd :\n" << Vd;
   // Extract non-zero parts
   Eigen::MatrixXd Vf_reduced(Vf.rows(), valid_cols.size());
   Eigen::VectorXd eigen_vf_reduced(valid_cols.size());
@@ -215,11 +218,16 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
     eigen_vf_reduced(i) = eigen_vf(valid_cols[i]);
   }
   
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Vf_reduced (6x" << Vf_reduced.cols() << "):\n" << Vf_reduced;
+  // CLOG(DEBUG, "lidar.localization_daicp") << "eigen_vf_reduced: [" << eigen_vf_reduced.transpose() << "]";
+
   Eigen::Matrix<double, 6, 6> daicpCov;
-  if (Vd.cols() == 0) {
+  if ((Vf_reduced.cols() == 6) && (Vd.cols() == 0)) {
     // No degenerate directions
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
   } else {
+    CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and " 
+                                           << Vd.cols() << " degenerate directions.";
     // With degenerate directions
     // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
     // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
@@ -228,8 +236,21 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
               (1.0/epsilon) * (Vd *Vd.transpose());
   }
-  
-  daicpCov = makePD(daicpCov);
+
+  CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov: \n" << daicpCov;
+  // [Debug] Perform eigen decomposition to check positive definiteness
+  // --- the daicpCov is PD with all eigenvalues > 0.
+  // Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigensolver(daicpCov);
+  // if (eigensolver.info() == Eigen::Success) {
+  //   Eigen::VectorXd daicpCov_eigenvalues = eigensolver.eigenvalues();
+  //   CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov eigenvalues: [" << daicpCov_eigenvalues.transpose() << "]";
+  // } else {
+  //   CLOG(WARNING, "lidar.localization_daicp") << "Failed to compute eigenvalues for daicpCov";
+  // }
+  // // daicpCov = makePD(daicpCov);
+  // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
+  // dummy_cov.diagonal() << 0.1, 0.1, 0.1, 1e-2, 1e-2, 1e-2;  // [x,y,z,rx,ry,rz]
+  // daicpCov = dummy_cov; 
 
   return daicpCov;
 }
@@ -296,10 +317,10 @@ inline void computeJacobianResidualInformation(
                                                    sigma_el * sigma_el).asDiagonal();
   
   // --- parallel accumulation for mean range ---
-  double sum_flat_range = 0.0;
+  double sum_range = 0.0;
   int valid_count  = 0;
-  // using OpenMP reduction to safely accumulate sum_flat_range and valid_count
-  #pragma omp parallel for reduction(+:sum_flat_range,valid_count) schedule(static) num_threads(daicp_num_thread)
+  // using OpenMP reduction to safely accumulate sum_range and valid_count
+  #pragma omp parallel for reduction(+:sum_range,valid_count) schedule(static) num_threads(daicp_num_thread)
   for (int i = 0; i < n_points; ++i) {
     const auto& ind = sample_inds[i];
     
@@ -326,17 +347,17 @@ inline void computeJacobianResidualInformation(
     // Get lidar scan point in lidar frame for noise modeling
     const Eigen::Vector3d p_lidar = (T_ms_prior.inverse() * source_pt_hom).head<3>();
     
-    // Compute range, flat_range, azimuth, elevation in lidar frame
+    // Compute range, azimuth, elevation in lidar frame
     const double range = p_lidar.norm();
-    const double flat_range = std::sqrt(p_lidar(0)*p_lidar(0) + p_lidar(1)*p_lidar(1));
+    // const double flat_range = std::sqrt(p_lidar(0)*p_lidar(0) + p_lidar(1)*p_lidar(1));
     const double azimuth = std::atan2(p_lidar(1), p_lidar(0));
     const double elevation = std::atan2(p_lidar(2), std::sqrt(p_lidar(0)*p_lidar(0) + p_lidar(1)*p_lidar(1)));
     
     // Compute covariance for this measurement
     const Eigen::Matrix3d Sigma_pL_i = computeRangeBearingCovariance(range, azimuth, elevation, Sigma_du);
     
-    // accumulate flat_range for ell_mr
-    if (std::isfinite(flat_range)) { sum_flat_range += flat_range; valid_count += 1; }
+    // accumulate range for ell_mr
+    if (std::isfinite(range)) { sum_range += range; valid_count += 1; }
 
     // ===== 3. Compute Information Weight for this point =====
     // Jacobians for variance terms:
@@ -402,8 +423,8 @@ inline void computeJacobianResidualInformation(
   }
 
   // mean flat range -> scaling parameter
-  const double mean_flat_range = (valid_count > 0) ? (sum_flat_range / valid_count) : 0.0;
-  ell_mr = mean_flat_range;  // simplest: 1 rad ~ ell_mr meters
+  const double mean_range = (valid_count > 0) ? (sum_range / valid_count) : 0.0;
+  ell_mr = mean_range;  // simplest: 1 rad ~ ell_mr meters
 }
 
 inline void constructWellConditionedDirections(
@@ -578,20 +599,19 @@ inline double computeThreshold(const Eigen::VectorXd& eigenvalues,
 
   const double max_eigenval = eigenvalues.maxCoeff();
 
-  // const double eigenvalue_threshold = -1000.0;       // [DEBUG] default back to point-to-plane icp
-
   // ----- Compute threshold based on condition number ratio
   // A direction is well-conditioned if: max_eigenval / eigenval < cond_num_thresh_ratio
   // Rearranging: eigenval > max_eigenval / cond_num_thresh_ratio
-  
   const double eigenvalue_threshold = max_eigenval / cond_num_thresh_ratio;
 
   // CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
 
+  // const double eigenvalue_threshold = -1000.0;       // [DEBUG] default back to point-to-plane icp
+
   // Print relative condition numbers
   for (int i = 0; i < eigenvalues.size(); ++i) {
     double cond_num = (eigenvalues(i) > 1e-15) ? (max_eigenval / eigenvalues(i)) : std::numeric_limits<double>::infinity();
-    // CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
+    CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
   }
 
   return eigenvalue_threshold;
@@ -683,8 +703,8 @@ inline bool daGaussNewtonP2Plane(
     }
 
     // DEGENERACY-AWARE EIGENSPACE PROJECTION
-    // compute original Hessian
-    Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
+    // --- compute original Hessian
+    // Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
     // Construct inverse block scaling matrix: D_inv
     Eigen::Matrix<double, 6, 6> D_inv = Eigen::Matrix<double, 6, 6>::Identity();
     D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.

@@ -6,6 +6,12 @@
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 // #include "vtr_tactic/types.hpp"
+
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 namespace vtr {
 
 namespace lidar {
@@ -66,6 +72,8 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     // online gyroscope bias
     bool calc_gy_bias = false;
     float calc_gy_bias_thresh = 1.0;
+    // visualization
+    bool visualize = false;
 
     // handcrafted degeneracy threshold
     // double eigenvalue_threshold = 100.0;
@@ -89,6 +97,14 @@ class LocalizationDAICPModule : public tactic::BaseModule {
             const tactic::TaskExecutor::Ptr &executor) override;
             
   Config::ConstPtr config_;
+
+  // -------------------- //
+  // Visualization publishers
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr prior_pose_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr daicp_pose_pub_;
+
+  // ------------------- //
 
   VTR_REGISTER_MODULE_DEC_TYPE(LocalizationDAICPModule);
 };
