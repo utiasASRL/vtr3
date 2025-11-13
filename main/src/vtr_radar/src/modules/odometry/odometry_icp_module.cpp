@@ -708,8 +708,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto diff_T_trans = diff_T.head<2>().norm();
   const auto diff_T_rot = fabs(diff_T(2));
 
-  CLOG(DEBUG, "radar.odometry_icp") << "T_r_m_prev: " << T_r_m_prev;
-  CLOG(DEBUG, "radar.odometry_icp") << "T_r_m_query: " << T_r_m_query;
   CLOG(DEBUG, "radar.odometry_icp") << "Current transformation difference: " << diff_T.transpose();
   CLOG(DEBUG, "radar.odometry_icp") << "Current velocity difference: " << vel_diff.transpose();
 
