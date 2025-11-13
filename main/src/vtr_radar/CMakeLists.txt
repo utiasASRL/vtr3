@@ -30,6 +30,7 @@ find_package(vtr_tactic REQUIRED)
 find_package(vtr_radar_msgs REQUIRED)
 
 find_package(navtech_msgs REQUIRED)
+find_package(spinning_radar_doppler REQUIRED)
 
 if(DEFINED VTR_ENABLE_RADAR)
 

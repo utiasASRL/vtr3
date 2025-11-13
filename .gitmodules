@@ -6,3 +6,6 @@
 	path = main/src/deps/lgmath
 	url = https://github.com/utiasASRL/lgmath.git
 	branch = master
+[submodule "main/src/deps/spinning-radar-doppler"]
+	path = main/src/deps/spinning-radar-doppler
+	url = git@github.com:utiasASRL/spinning-radar-doppler.git
