@@ -61,7 +61,24 @@ class BFSPlanner : public RoutePlannerInterface {
   /** \brief Clear any temporarily banned edges. */
   void clearBannedEdges() { banned_edges_.clear(); }
 
- private:
+  /** \brief Set whether to use time-based edge costs in masked planning. */
+  void setUseTimeCost(const bool use) { use_time_cost_ = use; }
+  bool useTimeCost() const { return use_time_cost_; }
+
+  /** \brief Set the nominal robot speed (m/s) used to convert distance to time. */
+  void setNominalSpeed(const double speed_mps) { nominal_speed_mps_ = speed_mps; }
+  double nominalSpeed() const { return nominal_speed_mps_; }
+
+  /** \brief Replace the extra per-edge delay costs (seconds). */
+  void setExtraEdgeCosts(
+      const std::unordered_map<tactic::EdgeId, double> &edge_costs) {
+    extra_edge_costs_ = edge_costs;
+  }
+
+  /** \brief Clear the extra per-edge delay costs. */
+  void clearExtraEdgeCosts() { extra_edge_costs_.clear(); }
+
+private:
   /** \brief Helper to get a shared pointer to the graph */
   GraphPtr getGraph() const;
   /** \brief Returns a privileged graph (only contains teach routes) */
@@ -77,6 +94,13 @@ class BFSPlanner : public RoutePlannerInterface {
   bool use_masked_ = false;
   /** \brief If true, do not clear bans after replans. */
   bool permanent_ban_ = false;
+
+  /** \brief If true, use distance/time-based weights instead of unit weights. */
+  bool use_time_cost_ = false;
+  /** \brief Nominal robot speed in m/s for converting distance to time. */
+  double nominal_speed_mps_ = 0.5;
+  /** \brief Extra delay (seconds) applied to specific edges, e.g., obstacle delays. */
+  std::unordered_map<tactic::EdgeId, double> extra_edge_costs_;
 };
 
 }  // namespace route_planning

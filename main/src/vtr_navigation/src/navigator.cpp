@@ -18,6 +18,7 @@
  */
 #include "vtr_navigation/navigator.hpp"
 
+#include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <algorithm>
@@ -120,14 +121,30 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);
   if (auto bfs_ptr = std::dynamic_pointer_cast<BFSPlanner>(route_planner_)) {
-    const bool reroute_enable = node_->declare_parameter<bool>("route_planning.enable_reroute", false);
-    const bool permanent_ban = node_->declare_parameter<bool>("route_planning.permanent_ban", false);
-    // When reroute is enabled, always use masked BFS
+    const bool reroute_enable =
+        node_->declare_parameter<bool>("route_planning.enable_reroute", false);
+    const bool permanent_ban =
+        node_->declare_parameter<bool>("route_planning.permanent_ban", false);
+    replanner_type_ = node_->declare_parameter<std::string>(
+        "route_planning.replanner_type", std::string("masked_bfs"));
+    nominal_speed_mps_ = node_->declare_parameter<double>(
+        "route_planning.nominal_speed_mps", 0.5);
+    delay_person_seconds_ = node_->declare_parameter<double>(
+        "route_planning.obstacle_delay_person", 5.0);
+    delay_chair_seconds_ = node_->declare_parameter<double>(
+        "route_planning.obstacle_delay_chair", 60.0);
+
     bfs_ptr->setUseMasked(reroute_enable);
-    // Permanent ban controlled separately
     bfs_ptr->setPermanentBan(permanent_ban);
-    CLOG(INFO, "navigation") << "Route planning config: enable_reroute=" << reroute_enable 
-                             << ", permanent_ban=" << permanent_ban;
+    bfs_ptr->setNominalSpeed(nominal_speed_mps_);
+
+    CLOG(INFO, "navigation")
+        << "Route planning config: enable_reroute=" << reroute_enable
+        << ", permanent_ban=" << permanent_ban
+        << ", replanner_type=" << replanner_type_
+        << ", nominal_speed_mps=" << nominal_speed_mps_
+        << ", delay_person_seconds=" << delay_person_seconds_
+        << ", delay_chair_seconds=" << delay_chair_seconds_;
   }
 
   /// mission server
@@ -417,10 +434,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         }
       });
 
-  // Hshmat: Track following route ids for mapping to BFS edge blacklist (if needed)
+  // Hshmat: Track following route ids for mapping to replanner edges.
   following_route_sub_ = node_->create_subscription<vtr_navigation_msgs::msg::GraphRoute>(
       "following_route", rclcpp::QoS(10),
       [this](const vtr_navigation_msgs::msg::GraphRoute::SharedPtr route) {
+        if (!route) return;
+
         // Check if route changed (replanning occurred)
         bool route_changed = false;
         if (route->ids.size() != following_route_ids_.size()) {
@@ -433,41 +452,66 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             }
           }
         }
-        
+
         // Log if replanning completed
         if (route_changed && waiting_for_reroute_ && !route->ids.empty()) {
           waiting_for_reroute_ = false;
           if (decision_accepting_) {
             if (robot_paused_) {
-              CLOG(INFO, "mission.state_machine") << "Navigator: reroute committed with new route. Resuming navigation.";
+              CLOG(INFO, "mission.state_machine")
+                  << "Navigator: reroute committed with new route. Resuming navigation.";
               setRobotPaused(false);
             }
             pending_reroute_resume_ = false;
           } else {
             pending_reroute_resume_ = true;
-            CLOG(INFO, "mission.state_machine") << "Navigator: reroute committed but decision node still speaking. Waiting for release.";
+            CLOG(INFO, "mission.state_machine")
+                << "Navigator: reroute committed but decision node still speaking. Waiting for release.";
           }
         } else if (!route_changed && waiting_for_reroute_ && !route->ids.empty()) {
           waiting_for_reroute_ = false;
           if (!obstacle_active_) {
             if (decision_accepting_) {
               if (robot_paused_) {
-                CLOG(INFO, "mission.state_machine") << "Navigator: route unchanged but obstacle cleared - resuming original path.";
+                CLOG(INFO, "mission.state_machine")
+                    << "Navigator: route unchanged but obstacle cleared - resuming original path.";
                 setRobotPaused(false);
               }
               pending_reroute_resume_ = false;
             } else {
               pending_reroute_resume_ = true;
-              CLOG(INFO, "mission.state_machine") << "Navigator: route unchanged, waiting for decision node release.";
+              CLOG(INFO, "mission.state_machine")
+                  << "Navigator: route unchanged, waiting for decision node release.";
             }
           } else {
-            CLOG(INFO, "mission.state_machine") << "Navigator: route unchanged and obstacle still active - remaining paused.";
+            CLOG(INFO, "mission.state_machine")
+                << "Navigator: route unchanged and obstacle still active - remaining paused.";
             pending_reroute_resume_ = false;
           }
         }
-        
+
         following_route_ids_.assign(route->ids.begin(), route->ids.end());
       });
+
+  // Hshmat: Occupancy grid from path obstacle detector (red cells = on-path obstacles).
+  obstacle_grid_sub_ =
+      node_->create_subscription<nav_msgs::msg::OccupancyGrid>(
+          "/vtr/path_obs_detection/path_obstacle_costmap",
+          rclcpp::SystemDefaultsQoS(),
+          [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+            if (!msg) return;
+            last_obstacle_grid_ = *msg;
+          },
+          sub_opt);
+
+  // Hshmat: Obstacle type (person/chair/...) from decision node.
+  obstacle_type_sub_ = node_->create_subscription<std_msgs::msg::String>(
+      "/vtr/obstacle_type", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::String::SharedPtr msg) {
+        if (!msg) return;
+        last_obstacle_type_ = msg->data;
+      },
+      sub_opt);
 
 #ifdef VTR_ENABLE_LIDAR
 if (pipeline->name() == "lidar"){
@@ -586,6 +630,44 @@ void Navigator::setRobotPaused(bool paused) {
   }
 }
 
+double Navigator::obstacleTypeDelaySeconds() const {
+  const std::string type = last_obstacle_type_;
+  if (type == "person" || type == "human") return delay_person_seconds_;
+  if (type == "chair") return delay_chair_seconds_;
+  // Default: treat unknown as static obstacle with larger delay.
+  return delay_chair_seconds_;
+}
+
+double Navigator::estimateObstacleExtentFromGrid() const {
+  constexpr double kDefaultExtent = 0.5;
+  if (last_obstacle_grid_.data.empty() || last_obstacle_grid_.info.resolution <= 0.0)
+    return kDefaultExtent;
+
+  const auto &info = last_obstacle_grid_.info;
+  const double res = info.resolution;
+  const double origin_x = info.origin.position.x;
+  bool found = false;
+  double min_x = std::numeric_limits<double>::max();
+  double max_x = -std::numeric_limits<double>::max();
+
+  for (uint32_t y = 0; y < info.height; ++y) {
+    for (uint32_t x = 0; x < info.width; ++x) {
+      const int idx = y * info.width + x;
+      if (idx < 0 || static_cast<size_t>(idx) >= last_obstacle_grid_.data.size())
+        continue;
+      if (last_obstacle_grid_.data[idx] != 100) continue;  // only on-path cells
+      const double cell_x = origin_x + (static_cast<double>(x) + 0.5) * res;
+      min_x = std::min(min_x, cell_x);
+      max_x = std::max(max_x, cell_x);
+      found = true;
+    }
+  }
+
+  if (!found) return kDefaultExtent;
+
+  const double extent = std::max(res, max_x - min_x + res);
+  return std::max(0.1, extent);
+}
 void Navigator::triggerReroute() {
   if (waiting_for_reroute_) {
     CLOG(DEBUG, "mission.state_machine")
@@ -634,27 +716,13 @@ void Navigator::triggerReroute() {
   active_decision_ = "reroute";
   pending_reroute_resume_ = true;
 
+  // Determine edges affected by the obstacle range along the path.
+  std::vector<vtr::tactic::EdgeId> affected_edges;
   try {
     CLOG(INFO, "mission.state_machine")
-        << "⏱ TIMING: Sending Signal::ObstacleDetected to state machine NOW";
-    state_machine_->handle(std::make_shared<mission_planning::Event>(
-        mission_planning::Signal::ObstacleDetected));
-    CLOG(INFO, "mission.state_machine")
-        << "⏱ TIMING: Signal::ObstacleDetected handled, state machine processing...";
-  } catch (const std::exception &e) {
-    CLOG(WARNING, "navigation")
-        << "Failed to send ObstacleDetected: " << e.what();
-  }
-
-  // Ban edges based on CURRENT obstacle position (from this message)
-  try {
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Step 4b - Banning edges in current route";
+        << "HSHMAT: Step 4b - Evaluating edges along current route for obstacle overlap";
     const auto loc = tactic_->getPersistentLoc();
     const auto current_vid = loc.v;
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Current vertex: " << current_vid;
-
     int idx = -1;
     for (size_t i = 0; i < following_route_ids_.size(); ++i) {
       if (vtr::tactic::VertexId(following_route_ids_[i]) == current_vid) {
@@ -666,18 +734,15 @@ void Navigator::triggerReroute() {
         << "HSHMAT: Found current vertex at route index: " << idx;
 
     if (idx >= 0) {
-      std::vector<vtr::tactic::EdgeId> banned;
-
-      // Distance-based banning: ban edges ONLY where the obstacle is located
-      const double obstacle_extent_m = 0.5;
+      const double obstacle_extent_m = estimateObstacleExtentFromGrid();
       const double obstacle_start = last_obstacle_distance_;
-      const double obstacle_end = last_obstacle_distance_ + obstacle_extent_m;
+      const double obstacle_end = obstacle_start + obstacle_extent_m;
       double accumulated_distance = 0.0;
 
       CLOG(INFO, "mission.state_machine")
           << "HSHMAT: Obstacle detected at " << last_obstacle_distance_
           << " m ahead, banning edges in range [" << obstacle_start << " m, "
-          << obstacle_end << " m] (assumed extent: " << obstacle_extent_m
+          << obstacle_end << " m] (extent from grid: " << obstacle_extent_m
           << " m)";
 
       for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size());
@@ -698,16 +763,16 @@ void Navigator::triggerReroute() {
                 (edge_end > obstacle_start && edge_start < obstacle_end);
 
             if (edge_in_obstacle_range) {
-              banned.emplace_back(v1, v2);
+              affected_edges.emplace_back(v1, v2);
               CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Banning edge " << v1 << " -> " << v2
-                  << " (edge range: [" << edge_start << " m, " << edge_end
-                  << " m], overlaps obstacle range)";
+                  << "HSHMAT: Edge " << v1 << " -> " << v2
+                  << " overlaps obstacle range (edge range: [" << edge_start
+                  << " m, " << edge_end << " m])";
             } else {
               CLOG(DEBUG, "mission.state_machine")
                   << "HSHMAT: Skipping edge " << v1 << " -> " << v2
                   << " (edge range: [" << edge_start << " m, " << edge_end
-                  << " m], outside obstacle range)";
+                  << " m])";
             }
 
             if (edge_start >= obstacle_end) {
@@ -726,30 +791,67 @@ void Navigator::triggerReroute() {
         }
       }
       CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: Total edges banned: " << banned.size();
-
-      if (!banned.empty()) {
-        auto bfs_ptr =
-            std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(
-                route_planner_);
-        if (bfs_ptr) {
-          bfs_ptr->addBannedEdges(banned);
-          bfs_ptr->setUseMasked(true);
-          CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: Successfully added " << banned.size()
-              << " banned edges to BFS planner, masked planning enabled";
-        } else {
-          CLOG(WARNING, "mission.state_machine")
-              << "HSHMAT: Could not cast route planner to BFSPlanner";
-        }
-      }
+          << "HSHMAT: Total edges affected: " << affected_edges.size();
     } else {
       CLOG(WARNING, "mission.state_machine")
           << "HSHMAT: Could not find current vertex in following route";
     }
   } catch (const std::exception &e) {
     CLOG(WARNING, "navigation")
-        << "Failed to set banned edges: " << e.what();
+        << "Failed to evaluate obstacle edges: " << e.what();
+  }
+
+  // Configure the planner based on replanner_type_.
+  try {
+    auto bfs_ptr =
+        std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(
+            route_planner_);
+    if (bfs_ptr) {
+      if (replanner_type_ == "deterministic_timecost") {
+        // Time-based replanning: penalize affected edges instead of outright banning.
+        std::unordered_map<vtr::tactic::EdgeId, double> delays;
+        const double delay_sec = obstacleTypeDelaySeconds();
+        for (const auto &e : affected_edges) {
+          delays[e] = delay_sec;
+        }
+        bfs_ptr->clearExtraEdgeCosts();
+        bfs_ptr->setExtraEdgeCosts(delays);
+        bfs_ptr->setUseTimeCost(true);
+        bfs_ptr->setUseMasked(true);
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: deterministic_timecost replanner configured with delay="
+            << delay_sec << "s on " << delays.size() << " edges.";
+      } else {
+        // Legacy masked BFS: ban affected edges.
+        if (!affected_edges.empty()) {
+          bfs_ptr->addBannedEdges(affected_edges);
+          bfs_ptr->setUseMasked(true);
+          bfs_ptr->setUseTimeCost(false);
+          bfs_ptr->clearExtraEdgeCosts();
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: masked_bfs replanner: banned " << affected_edges.size()
+              << " edges (grid-based).";
+        }
+      }
+    } else {
+      CLOG(WARNING, "mission.state_machine")
+          << "HSHMAT: Could not cast route planner to BFSPlanner";
+    }
+  } catch (const std::exception &e) {
+    CLOG(WARNING, "navigation")
+        << "Failed to configure replanner in triggerReroute: " << e.what();
+  }
+
+  try {
+    CLOG(INFO, "mission.state_machine")
+        << "⏱ TIMING: Sending Signal::ObstacleDetected to state machine NOW";
+    state_machine_->handle(std::make_shared<mission_planning::Event>(
+        mission_planning::Signal::ObstacleDetected));
+    CLOG(INFO, "mission.state_machine")
+        << "⏱ TIMING: Signal::ObstacleDetected handled, state machine processing...";
+  } catch (const std::exception &e) {
+    CLOG(WARNING, "navigation")
+        << "Failed to send ObstacleDetected: " << e.what();
   }
 }
 
@@ -974,3 +1076,4 @@ void Navigator::cameraCallback(
 
 }  // namespace navigation
 }  // namespace vtr
+

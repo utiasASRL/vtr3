@@ -72,43 +72,66 @@ auto BFSPlanner::path(const VertexId &from, const VertexId &to) -> PathType {
 //   if you later need distance-based weights, plug an appropriate evaluator.
 // - This function does not mutate the graph; it only constrains search.
 auto BFSPlanner::hshmat_plan(const VertexId &from, const VertexId &to) -> PathType {
+  using namespace vtr::pose_graph::eval;
+
   const auto priv_graph = getPrivilegedGraph();
-  // Start with a permissive mask (everything allowed), then optionally
-  // replace it with a lambda-based mask that filters only banned edges.
-  vtr::pose_graph::eval::mask::Ptr mask = std::make_shared<vtr::pose_graph::eval::mask::ConstEval>(true, true);
+
+  // --- Mask: filter banned edges, leave vertices enabled ---
+  mask::Ptr mask_eval = std::make_shared<mask::ConstEval>(true, true);
   if (!banned_edges_.empty()) {
     struct Local {
-      // Build a mask that yields false for any edge in 'banned_edges'. Vertices
-      // remain allowed (true). The GRAPH template parameter for the evaluator
-      // is the type of the subgraph used by Dijkstra (tactic::GraphBase).
-      static vtr::pose_graph::eval::mask::Ptr makeMask(
+      static mask::Ptr makeMask(
           const GraphBasePtr &graph,
           const std::unordered_set<vtr::tactic::VertexId> &banned_vertices,
           const std::unordered_set<vtr::tactic::EdgeId> &banned_edges) {
         using namespace vtr::pose_graph::eval::mask;
-        // Edge predicate: return true if edge NOT in banned set; false otherwise.
-        auto edgeFcn = [&, graph](const vtr::tactic::GraphBase &g, const vtr::tactic::EdgeId &e) -> ReturnType {
-          (void)graph; // unused
+        auto edgeFcn = [&, graph](const vtr::tactic::GraphBase &g,
+                                  const vtr::tactic::EdgeId &e) -> ReturnType {
+          (void)graph;
+          (void)g;
           return banned_edges.count(e) == 0;
         };
-        // Vertex predicate: currently leave all vertices enabled.
-        auto vertexFcn = [&, graph](const vtr::tactic::GraphBase &g, const vtr::tactic::VertexId &v) -> ReturnType {
-          (void)graph; // unused
-          // could exclude vertices too if needed
+        auto vertexFcn = [&, graph](const vtr::tactic::GraphBase &g,
+                                    const vtr::tactic::VertexId &v) -> ReturnType {
+          (void)graph;
+          (void)g;
+          (void)v;
           return true;
         };
-        // variable::Eval lets us construct a mask from the two lambdas above.
-        return std::make_shared<variable::Eval<vtr::tactic::GraphBase>>( *graph, edgeFcn, vertexFcn);
+        return std::make_shared<variable::Eval<vtr::tactic::GraphBase>>(*graph, edgeFcn,
+                                                                        vertexFcn);
       }
     };
-    mask = Local::makeMask(priv_graph, {}, banned_edges_);
+    mask_eval = Local::makeMask(priv_graph, {}, banned_edges_);
   }
 
-  // Run Dijkstra with:
-  // - weights: constant (1, 1) to keep behavior equivalent to unweighted BFS;
-  // - mask: the edge filter assembled above so banned edges are never expanded.
-  const auto computed_path = priv_graph->dijkstraSearch(
-      from, to, std::make_shared<vtr::pose_graph::eval::weight::ConstEval>(1.f, 1.f), mask);
+  // --- Weights: either unit weights (legacy BFS) or time-based costs ---
+  weight::Ptr weight_eval;
+  if (!use_time_cost_) {
+    // Legacy behaviour: constant weights to mimic BFS.
+    weight_eval = std::make_shared<weight::ConstEval>(1.f, 1.f);
+  } else {
+    // Distance-based weight on edges, zero on vertices.
+    auto distance_eval =
+        std::make_shared<weight::distance::Eval<vtr::tactic::GraphBase>>(*priv_graph);
+
+    // Convert distance (meters) to time (seconds) using nominal speed.
+    const double inv_speed =
+        (nominal_speed_mps_ > 1e-6) ? (1.0 / nominal_speed_mps_) : 1.0;
+    auto travel_time_eval = vtr::pose_graph::eval::Mul(distance_eval, inv_speed);
+
+    // Extra delays per edge (seconds).
+    auto delay_eval = std::make_shared<weight::MapEval>();
+    for (const auto &kv : extra_edge_costs_) {
+      delay_eval->ref(kv.first) = kv.second;
+    }
+
+    // Total weight = travel time + delay.
+    weight_eval = vtr::pose_graph::eval::Add(travel_time_eval, delay_eval);
+  }
+
+  const auto computed_path =
+      priv_graph->dijkstraSearch(from, to, weight_eval, mask_eval);
   // Convert the traversal result to the expected PathType (list of VertexId).
   PathType rval;
   rval.reserve(computed_path->numberOfVertices());

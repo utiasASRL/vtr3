@@ -28,6 +28,8 @@
 #include "std_msgs/msg/bool.hpp" // Hshmat: for mapping following route ids to BFS edge blacklist
 #include "std_msgs/msg/float64.hpp" // Hshmat: for obstacle distance subscription
 #include "std_msgs/msg/string.hpp" // Hshmat: for ChatGPT decision subscription
+#include "nav_msgs/msg/occupancy_grid.hpp"
+#include <limits>
 #include <chrono> // Hshmat: for debouncing obstacle detection
 #include <optional> // Hshmat: for debouncing obstacle detection
 #include <mutex>
@@ -161,6 +163,12 @@ typedef message_filters::sync_policies::ApproximateTime<
   // Hshmat: Following route subscriber (for mapping path to vertex ids)
   rclcpp::Subscription<vtr_navigation_msgs::msg::GraphRoute>::SharedPtr following_route_sub_;
   std::vector<uint64_t> following_route_ids_;
+  // Hshmat: Occupancy grid from path obstacle detector (red cells = on-path obstacles)
+  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr obstacle_grid_sub_;
+  nav_msgs::msg::OccupancyGrid last_obstacle_grid_;
+  // Hshmat: Obstacle type (e.g., "person", "chair") from decision node
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr obstacle_type_sub_;
+  std::string last_obstacle_type_ = "unknown";
   
   // Hshmat: ChatGPT decision subscriber
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr chatgpt_decision_sub_;
@@ -185,6 +193,16 @@ typedef message_filters::sync_policies::ApproximateTime<
   
   void setRobotPaused(bool paused);
   void triggerReroute();  // Centralized reroute flow (state machine + banned edges)
+  // Estimate obstacle extent (meters) from the latest occupancy grid.
+  double estimateObstacleExtentFromGrid() const;
+  // Map last_obstacle_type_ to an expected delay (seconds).
+  double obstacleTypeDelaySeconds() const;
+
+  // Replanner configuration (selected via parameters/YAML).
+  std::string replanner_type_ = "masked_bfs";  // e.g., "masked_bfs", "deterministic_timecost"
+  double nominal_speed_mps_ = 0.5;
+  double delay_person_seconds_ = 0.0;
+  double delay_chair_seconds_ = 60.0;
 
   // Hshmat: ChatGPT configuration and publisher
   bool use_chatgpt_;  // Whether to query ChatGPT (if false, default to reroute)
