@@ -338,7 +338,7 @@
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
         sigma_el: 0.000523599                 # elevation noise std (0.03 degrees)
         # prior fusion
-        use_pfuison: true                     # whether to use prior fusion
+        use_pfuison: false                     # whether to use prior fusion
         max_pfusion_iter: 3                   # max iterations for prior fusion
         use_L2_loss: false                    # whether to use L2 loss in prior fusion
         robust_loss: 0.1                      # parameter for robust loss function in prior fusion
@@ -355,8 +355,6 @@
         # online gyro bias estimation
         calc_gy_bias: false
         calc_gy_bias_thresh: 10.0             # [s]
-        # visualization
-        visualize: true
 
       safe_corridor:
         type: lidar.safe_corridor
