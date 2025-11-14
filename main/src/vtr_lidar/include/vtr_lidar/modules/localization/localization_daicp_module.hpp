@@ -57,6 +57,7 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     int max_pfusion_iter = 1;                   // max iterations for prior fusion
     bool use_L2_loss = true;                    // whether to use L2 loss in prior fusion
     double robust_loss = 0.5;                   // parameter for robust loss function in prior fusion
+    bool verbose = false;
     // refinement
     size_t refined_max_iter = 20;               // we use a fixed number of iters for now
     float refined_max_pairing_dist = 2.0;

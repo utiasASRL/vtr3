@@ -332,6 +332,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     }
     timer[6]->stop();
   }
+  
 
   /// Dump timing info
   CLOG(DEBUG, "lidar.localization_icp") << "Dump timing info inside loop: ";

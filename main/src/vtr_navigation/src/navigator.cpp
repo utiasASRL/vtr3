@@ -321,7 +321,7 @@ if (pipeline->name() == "radar") {
   // gyro_bias_ << -0.010032, -0.00850306, -0.0056976;       // 1105 csa_trial07
   // gyro_bias_ << -0.0101937, -0.0086163, -0.00574637;      // 1105 csa_trial08
   // gyro_bias_ << -0.00981954, -0.00985235, -0.00636593;    // 1106 csa_trial25
-  gyro_bias_ << -0.0093843, -0.00980831, -0.0063434;    // 1106 csa_trial26
+  gyro_bias_ << -0.0093843, -0.00980831, -0.0063434;       // 1106 csa_trial26
 
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 

@@ -44,7 +44,6 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->max_pfusion_iter = node->declare_parameter<int>(param_prefix + ".max_pfusion_iter", config->max_pfusion_iter);
   config->use_L2_loss = node->declare_parameter<bool>(param_prefix + ".use_L2_loss", config->use_L2_loss);
   config->robust_loss = node->declare_parameter<double>(param_prefix + ".robust_loss", config->robust_loss);
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   // refinement
   config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
   config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
@@ -144,18 +143,12 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   /// Create and add the T_robot_map variable, here m = vertex frame.
   const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
 
-  /// use odometry as a prior
-  WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
-  if (*qdata.odo_success && output.chain->isLocalized()) {
-    auto loss_func = L2LossFunc::MakeShared();
-    auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
-    auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
-    auto error_func = tran2vec(compose(T_r_v_meas, inverse(T_r_v_var)));
-    prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func);
-  }
-
   /// compound transform for alignment (sensor to point map transform)
   const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
+
+  /// Create T_m_s_var for direct point cloud alignment optimization
+  const auto initial_T_m_s = T_m_s_eval->evaluate();
+  auto T_m_s_var = SE3StateVar::MakeShared(initial_T_m_s);
 
   /// Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
@@ -165,6 +158,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+
+  /// the aligned_mat and aligned_norms_mat store the aligned points and normals which
+  /// will be updated during the optimization
   auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
@@ -177,6 +173,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// perform initial alignment
   {
+    // const auto T_m_s = T_m_s_var->value().matrix().cast<float>();
     const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
     aligned_mat = T_m_s * query_mat;
     aligned_norms_mat = T_m_s * query_norms_mat;
@@ -211,7 +208,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   bool refinement_stage = false;
   int refinement_step = 0;
 
-  CLOG(DEBUG, "lidar.localization_daicp") << "Start the Degeneracy-Aware [DEBUG] ICP optimization loop. [simple point-to-plane]";
+  // convert the covariance back to [x,y,z,roll,pitch,yaw] order
+  Eigen::PermutationMatrix<6> Pm;
+  Pm.indices() << 3, 4, 5, 0, 1, 2;
+
+  CLOG(DEBUG, "lidar.localization_daicp") << "Start the Degeneracy-Aware ICP optimization loop.";
   // outer loop
   for (int step = 0;; step++) {
     // index of the corresponding points
@@ -224,8 +225,10 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
-    // use curvature data association if the ptcloud has curvature info, else use spatial only   
+    // use curvature data association if the ptcloud has curvature info, else use spatial only
+    
     if (aligned_points[sample_inds[0].first].curvature != 0) {
+    // if (false) { // turn out for debug  
       /// get normalization scales
       // NOTE: speed vs. accuracy tradeoff - limit to 1k samples to prevent overwighting areas with high point density.
       //       this is especially important for curvature estimation where high-density regions can dominate the sample.
@@ -390,69 +393,57 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
     }
 
-    /// Degeneracy-Aware ICP point-to-plane optimization [debug]
+    /// Degeneracy-Aware ICP point-to-plane optimization
     timer[3]->start();
 
-    // initialize problem
-    OptimizationProblem problem(config_->num_threads);
-    // add variables
-    problem.addStateVariable(T_r_v_var);
-    // add prior cost terms
-    if (prior_cost_term != nullptr && *qdata.odo_success) problem.addCostTerm(prior_cost_term);
+    // /// ########################### Gauss-Newton solver ########################### ///
+    // bool optimization_success = daicp_lib::daGaussNewtonP2Plane(filtered_sample_inds, 
+    //                                                             query_mat,
+    //                                                             map_mat,
+    //                                                             map_normals_mat,
+    //                                                             T_m_s_var,
+    //                                                             max_gn_iter,
+    //                                                             inner_tolerance);
+    // /// ########################################################################### ///
 
-    // shared loss function
-    auto loss_func = L2LossFunc::MakeShared();
-    // cost terms and noise model
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (const auto &ind : filtered_sample_inds) {
-      // --- noise model for point to plane (scalar error)
-      if (point_map[ind.second].normal_score <= 0.0) continue;
-      Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-      
-      // For point-to-plane, we have a scalar error, so 1x1 information matrix
-      Eigen::Matrix<double, 1, 1> W_scalar;
-      W_scalar(0, 0) = point_map[ind.second].normal_score;  // Use normal score as information weight
-      auto noise_model = StaticNoiseModel<1>::MakeShared(W_scalar, NoiseType::INFORMATION);
 
-      // query and reference point
-      const auto qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
-      const auto ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+    /// ########################### Gauss-Newton solver ########################### ///
+    // Initialize output covariance matrix
+    Eigen::Matrix<double, 6, 6> daicp_cov = Eigen::MatrixXd::Zero(6, 6);
 
-      // point-to-plane error evaluator
-      const auto error_func = p2p::p2planeError(T_m_s_eval, ref_pt, qry_pt, nrm);
+    bool optimization_success = daicp_lib::daGaussNewtonP2Plane(
+        // inputs
+        filtered_sample_inds, 
+        query_mat,
+        map_mat,
+        map_normals_mat,
+        // state to be optimized
+        T_m_s_var,
+        // configuration
+        config_,
+        // output
+        daicp_cov
+      );
+    // convert the covariance back to [x,y,z,roll,pitch,yaw] order
+    daicp_cov = Pm.transpose() * daicp_cov * Pm;
+    /// ########################################################################### ///
 
-      // create cost term and add to problem (note: p2plane returns 1x1, not 3x1)
-      auto cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func);
-
-#pragma omp critical(loc_icp_add_p2p_error_cost)
-      problem.addCostTerm(cost);
-    }
-    
-    // optimize
-    GaussNewtonSolver::Params params;
-    params.verbose = config_->verbose;
-    params.max_iterations = (unsigned int)config_->max_pfusion_iter;
-    GaussNewtonSolver solver(problem, params);
-    try{
-      solver.optimize();
-    } catch (std::runtime_error& e) {
-      CLOG(WARNING, "lidar.localization_icp") <<  "Steam failed.\n e.what(): " << e.what();
+    if (!optimization_success) {
+      CLOG(WARNING, "lidar.localization_daicp") << "Gauss-Newton optimization failed at step " << step;
       break;
     }
-    Covariance covariance(solver);
+
     timer[3]->stop();
 
-
-    /// Alignment
+    /// Alignment, update aligned_mat and aligned_norms_mat
     timer[4]->start();
     {
-      const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
+      const auto T_m_s = T_m_s_var->value().matrix().cast<float>();
       aligned_mat = T_m_s * query_mat;
       aligned_norms_mat = T_m_s * query_norms_mat;
     }
-
-    // Update all result matrices
-    const auto T_m_s = T_m_s_eval->evaluate().matrix();
+    /// save the transformation results
+    const auto T_m_s = T_m_s_var->value().matrix();
     if (step == 0)
       all_tfs = Eigen::MatrixXd(T_m_s);
     else {
@@ -481,20 +472,18 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       mean_dR += (dR_b - mean_dR) / avg_tot;
     }
 
-    // Refininement incremental
+    // Refinement incremental
     if (refinement_stage) refinement_step++;
 
     // Stop condition
     if (!refinement_stage && step >= first_steps) {
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
-        CLOG(DEBUG, "lidar.localization_icp") << "Initial alignment takes " << step << " steps.";
+        CLOG(DEBUG, "lidar.localization_daicp") << "Initial alignment takes " << step << " steps.";
 
         // enter the second refine stage
         refinement_stage = true;
-
         max_it = step + config_->refined_max_iter;
-
         // reduce the max distance
         max_pair_d = config_->refined_max_pairing_dist;
         max_pair_d2 = max_pair_d * max_pair_d;
@@ -509,16 +498,153 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      // result
-      T_r_v_icp = EdgeTransform(T_r_v_var->value(), covariance.query(T_r_v_var));
-      matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      //=========================== Fusion with PRIOR =========================== //
+      // // the edge transformation of T_m_s from DA-ICP
+      // EdgeTransform T_m_s_icp_edge(T_m_s_var->value(), daicp_cov);
+      // // the edge transformation of T_r_v computed from DA-ICP
+      // EdgeTransform T_r_v_icp_edge;   
+      // T_r_v_icp_edge =  T_s_r.inverse() * T_m_s_icp_edge.inverse() * T_v_m.inverse();
+
+      // // [DEBUGGING] print out the matrix and covariance
+      // CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result T_r_v_icp: \n" << T_r_v_icp_edge.matrix();
+      // CLOG(DEBUG, "lidar.localization_daicp") << "================= DA-ICP result covariance: \n" << T_r_v_icp_edge.cov();
+
+      // ##################################### STEAM-based prior fusion ###################################### // 
+      // Create fresh variables for the joint optimization
+      // T_r_v variable (what we want to estimate)
+      const auto T_r_v_joint_var = SE3StateVar::MakeShared(T_r_v);
+      // Fixed transform variables
+      const auto T_s_r_joint_var = SE3StateVar::MakeShared(T_s_r); 
+      T_s_r_joint_var->locked() = true;
+      const auto T_v_m_joint_var = SE3StateVar::MakeShared(T_v_m); 
+      T_v_m_joint_var->locked() = true;
+      // Compound transform: T_m_s = (T_s_r * T_r_v * T_v_m)^{-1}
+      const auto T_m_s_joint_eval = inverse(compose(T_s_r_joint_var, compose(T_r_v_joint_var, T_v_m_joint_var)));
+
+      // Initialize the joint optimization problem
+      OptimizationProblem joint_problem(config_->num_threads);
+      joint_problem.addStateVariable(T_r_v_joint_var);
+      // Add prior cost term (from odometry/previous estimate)
+      auto prior_loss_func = L2LossFunc::MakeShared();
+      auto prior_noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
+      auto T_r_v_prior_meas = SE3StateVar::MakeShared(T_r_v); 
+      T_r_v_prior_meas->locked() = true;
+      auto prior_error_func = tran2vec(compose(T_r_v_prior_meas, inverse(T_r_v_joint_var)));
+      auto prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(prior_error_func, prior_noise_model, prior_loss_func);
+      joint_problem.addCostTerm(prior_cost_term);
+      // Add DA-ICP measurement cost term
+      // Create a "measurement" from the DA-ICP result T_m_s
+      std::shared_ptr<BaseLossFunc> daicp_loss_func;
+      if (config_->use_L2_loss) {
+        daicp_loss_func = L2LossFunc::MakeShared();
+      } else {
+        daicp_loss_func = CauchyLossFunc::MakeShared(config_->robust_loss);
+      }
+
+      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
+      Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
+      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
+      CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
+      CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
+
+      auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value()); 
+      T_m_s_daicp_meas->locked() = true;
+      
+      // Error function: log(T_m_s_measured^{-1} * T_m_s_predicted)
+      // where T_m_s_predicted = (T_s_r * T_r_v * T_v_m)^{-1}
+      auto daicp_error_func = tran2vec(compose(inverse(T_m_s_daicp_meas), T_m_s_joint_eval));
+      auto daicp_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(daicp_error_func, daicp_noise_model, daicp_loss_func);
+      joint_problem.addCostTerm(daicp_cost_term);
+      
+      // Solve the joint optimization problem
+      GaussNewtonSolver::Params joint_params;
+      joint_params.verbose = false;  // Set to true for debugging
+      joint_params.max_iterations = config_->max_pfusion_iter;
+      GaussNewtonSolver joint_solver(joint_problem, joint_params);
+      
+      joint_solver.optimize();        
+      // Get the covariance after joint optimization
+      Covariance joint_covariance(joint_solver);
+      // Create the fused result
+      // T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));
+      Eigen::Matrix4d T_r_v_steam;
+      T_r_v_steam = T_r_v_joint_var->value().matrix();
+      // ##################################### STEAM-based prior fusion (END)###################################### // 
+
+      const auto T_s_m_optimized = T_m_s_var->value().inverse();
+      const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
+      auto T_r_v_daicp = SE3StateVar::MakeShared(T_r_v_decoded);
+
+      /// TODO: clean the code here
+      auto T_r_v_select = 
+        config_->use_pfuison
+        ? T_r_v_joint_var->value()          // STEAM-based fusion
+        : T_r_v_daicp->value();             // DA-ICP only
+
+      // ========== VISUALIZATION CODE ==========
+      if (config_->visualize && publisher_initialized_) {
+        auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+        
+        // Get timestamp for visualization
+        rclcpp::Time viz_stamp = qdata.node->now();
+        std::string frame_id = "world";
+        
+        // Get the world to vertex transform from the localization chain
+        // T_w_v is the transform from vertex frame to world frame
+        const auto T_w_v = output.chain->pose(*qdata.sid_loc);
+        
+        // Convert the three T_r_v transforms to world frame: T_w_r = T_w_v * T_v_r = T_w_v * T_r_v^{-1}
+        EdgeTransform T_r_v_prior_edge = T_r_v;  // Prior from odometry
+        EdgeTransform T_r_v_daicp_edge(T_r_v_daicp->value());  // DAICP result (before fusion)
+        
+        // Transform to world frame for visualization
+        EdgeTransform T_w_r_prior = T_w_v * T_r_v_prior_edge.inverse();
+        EdgeTransform T_w_r_daicp = T_w_v * T_r_v_daicp_edge.inverse();
+        
+        auto prior_pose = edgeTransformToPoseStamped(T_w_r_prior, frame_id, viz_stamp);
+        auto daicp_pose = edgeTransformToPoseStamped(T_w_r_daicp, frame_id, viz_stamp);
+        
+        // Publish individual poses
+        prior_pose_pub_->publish(prior_pose);
+        daicp_pose_pub_->publish(daicp_pose);
+      }
+      // ========== END VISUALIZATION CODE ==========
+
+      // -------- Check difference between prior and computed T_r_v
+      const auto T_r_v_prior = T_r_v_var->value();
+      const auto T_diff = T_r_v_select * T_r_v_prior.inverse();
+      const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
+      const double translation_diff = T_diff_vec.head<3>().norm();
+      const double rotation_diff = T_diff_vec.tail<3>().norm();
+
+      // CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
+      // CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
+      // CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
+      //                                         << (rotation_diff * 180.0 / M_PI) << " deg)";
+
+      // OUTLIER REJECTION: larger than 0.3m or 0.2rad (11.5deg)
+      if ((translation_diff) > config_->trans_outlier_thresh || (rotation_diff) > config_->rot_outlier_thresh) {
+        CLOG(WARNING, "lidar.localization_daicp") << "Significant difference detected in T_r_v, fall back to odometry:";
+        CLOG(DEBUG, "lidar.localization_daicp") << "Prior vs Computed T_r_v comparison:";
+        CLOG(DEBUG, "lidar.localization_daicp") << "  Translation difference: " << translation_diff << " m";
+        CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation difference: " << rotation_diff << " rad (" 
+                                                << (rotation_diff * 180.0 / M_PI) << " deg)";
+        // fallback to using prior
+        T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+        matched_points_ratio = 1.0f;  // dummy value to indicate success
+      } else {
+        // --- accept DA-ICP result
+        T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance
+        matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+      }
+
       //
-      CLOG(DEBUG, "lidar.localization_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
+      CLOG(DEBUG, "lidar.localization_daicp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "lidar.localization_icp") << "ICP did not converge to the specified threshold.";
+        CLOG(WARNING, "lidar.localization_daicp") << "DA-ICP did not converge to the specified threshold.";
         if (!refinement_stage) {
-          CLOG(WARNING, "lidar.localization_icp") << "ICP did not enter refinement stage at all.";
+          CLOG(WARNING, "lidar.localization_daicp") << "DA-ICP did not enter refinement stage at all.";
         }
       }
       break;

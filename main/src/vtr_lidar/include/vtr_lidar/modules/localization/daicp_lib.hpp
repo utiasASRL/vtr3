@@ -293,7 +293,6 @@ inline void computeJacobianResidualInformation(
     const Eigen::Matrix4Xf& map_mat,
     const Eigen::Matrix4Xf& map_normals_mat,
     const Eigen::Matrix4d& T_combined,
-    const Eigen::Matrix4d& T_ms_prior,
     Eigen::MatrixXd& A,
     Eigen::VectorXd& b,
     Eigen::MatrixXd& W_inv,
@@ -345,7 +344,7 @@ inline void computeJacobianResidualInformation(
     
     // ===== 2. Compute Sigma_pL_s for this point =====
     // Get lidar scan point in lidar frame for noise modeling
-    const Eigen::Vector3d p_lidar = (T_ms_prior.inverse() * source_pt_hom).head<3>();
+    const Eigen::Vector3d p_lidar = source_pt_original;
     
     // Compute range, azimuth, elevation in lidar frame
     const double range = p_lidar.norm();
@@ -370,11 +369,8 @@ inline void computeJacobianResidualInformation(
     const Eigen::Vector3d d = source_pt_transformed - target_pt;
     const Eigen::RowVector3d J_n = d.transpose();                        // 1x3
 
-    // --- Map-point covariance (choose a reasonable model) ---
-    // If you have a per-point map covariance, use it here; otherwise use an isotropic model.
-    // Example: tie it to voxel size and plane fit quality.
-    // const double sigma_map = std::max(0.5 * voxel_size, 1.0e-3); // [m]
-    const double sigma_map = 0.02;  // meters
+    // --- Map-point covariance  ---
+    const double sigma_map = 0.01;  // meters
     const Eigen::Matrix3d Sigma_q_i = (sigma_map * sigma_map) * Eigen::Matrix3d::Identity();
 
     // --- Normal covariance (tangent-plane, PSD) ---
@@ -623,7 +619,6 @@ inline bool daGaussNewtonP2Plane(
     const Eigen::Matrix4Xf& map_mat,
     const Eigen::Matrix4Xf& map_normals_mat,
     steam::se3::SE3StateVar::Ptr T_var,
-    const Eigen::Matrix4d& T_ms_prior,
     const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
     Eigen::Matrix<double, 6, 6>& daicp_cov) {
   
@@ -657,17 +652,19 @@ inline bool daGaussNewtonP2Plane(
     
     double ell_mr = 0.0;
 
-    // [NOTE] here we use T_ms_prior to compute the lidar point noise model. 
-    // The lidar meas. noise should be consistent and invariant to the optimization state. 
-    // It can be simplied to be the first value of initial_T_var (TODO).
+    // Compute Jacobian, residuals, and information matrix
+    // Note: Measurement noise is computed from the original sensor measurements (query_mat),
+    // which are independent of the state estimate, as it should be.
     computeJacobianResidualInformation(sample_inds, query_mat, map_mat, map_normals_mat,
-                                       T_combined, T_ms_prior, A, b, W_inv, ell_mr, config_);
+                                       T_combined, A, b, W_inv, ell_mr, config_);
 
     // --------- [DEBUG]: disable weighting
     // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());
 
     // --- [DEBUG]
     // ell_mr = 1.0;  // Disable scaling for debugging
+
+    CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
 
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
     curr_cost = 0.5 * b.transpose() * W_inv * b;
