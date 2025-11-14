@@ -158,6 +158,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   obstacle_active_ = false;
   waiting_for_decision_logged_ = false;
   active_decision_.clear();
+  decision_accepting_ = true;
+  pending_clear_resume_ = false;
+  pending_reroute_resume_ = false;
   const auto clock_type = node_->get_clock()->get_clock_type();
   last_decision_time_ = rclcpp::Time(0, 0, clock_type);
   obstacle_start_time_ = rclcpp::Time(0, 0, clock_type);
@@ -183,6 +186,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // Hshmat: Create publisher for emergency stop (zero velocity)
   pause_cmd_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>(
       "/j100_0365/platform/cmd_vel_unstamped", rclcpp::SystemDefaultsQoS());
+  pause_state_pub_ = node_->create_publisher<std_msgs::msg::Bool>(
+      "/vtr/navigation_pause", rclcpp::SystemDefaultsQoS());
+  {
+    std_msgs::msg::Bool msg;
+    msg.data = false;
+    pause_state_pub_->publish(msg);
+  }
   
   // Hshmat: Subscribe to ChatGPT decision for wait vs reroute strategy
   chatgpt_decision_sub_ = node_->create_subscription<std_msgs::msg::String>(
@@ -198,6 +208,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           latest_chatgpt_decision_ = decision;
           last_decision_time_ = now;
         }
+        waiting_for_decision_ = false;
         processing_obstacle_ = false;  // Clear processing flag when decision arrives
         waiting_for_decision_logged_ = false;
         CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Received decision from detector: '" << decision << "'";
@@ -205,6 +216,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'ChatGPT enabled. Decision: " << decision << ".'";
         } else {
           CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'ChatGPT disabled. Decision: " << decision << ".'";
+        }
+        if (decision == "reroute") {
+          CLOG(INFO, "mission.state_machine")
+              << "Navigator: triggering reroute flow directly from decision subscriber.";
+          triggerReroute();
         }
       });
   
@@ -217,6 +233,27 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         last_obstacle_distance_ = msg->data;
         CLOG(DEBUG, "mission.state_machine") << "📏 Obstacle distance updated: " << last_obstacle_distance_ << " m along path";
       }, sub_opt);
+  decision_accepting_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
+      "/vtr/decision_accepting", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        if (!msg) return;
+        decision_accepting_ = msg->data;
+        if (!decision_accepting_) return;
+        if (pending_clear_resume_) {
+          pending_clear_resume_ = false;
+          if (robot_paused_) {
+            CLOG(INFO, "mission.state_machine") << "Navigator: decision node released hold after obstacle clear.";
+            setRobotPaused(false);
+          }
+        }
+        if (pending_reroute_resume_) {
+          pending_reroute_resume_ = false;
+          if (robot_paused_) {
+            CLOG(INFO, "mission.state_machine") << "Navigator: decision node released hold after reroute.";
+            setRobotPaused(false);
+          }
+        }
+      });
   
   // Hshmat: Subscribe to obstacle status to trigger replanning during Repeat::Follow
   obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
@@ -225,46 +262,67 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         if (!msg) return;
         
         if (!msg->data) {
-          if (robot_paused_) {
-            CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Obstacle cleared (obstacle_status=false)";
-            CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'Obstacle cleared. Resuming.'";
-            CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot was paused due to WAIT decision, will now resume normal navigation";
-            robot_paused_ = false;
+          if (waiting_for_decision_) {
+            CLOG(INFO, "mission.state_machine") << "Navigator: obstacle status cleared but decision still pending; ignoring.";
+            return;
+          }
+          if (waiting_for_reroute_) {
+            CLOG(INFO, "mission.state_machine") << "Navigator: obstacle cleared while reroute pending; holding reroute latch.";
+            obstacle_active_ = true;
+            pending_clear_resume_ = false;
+            pending_reroute_resume_ = true;
+            return;
+          }
+          bool has_pending_decision = false;
+          {
+            LockGuard lock(chatgpt_mutex_);
+            has_pending_decision = !latest_chatgpt_decision_.empty();
+          }
+          if (has_pending_decision && !decision_accepting_) {
+            CLOG(INFO, "mission.state_machine") << "Navigator: obstacle status flickered low while decision pending; ignoring.";
+            return;
           }
           obstacle_active_ = false;
           active_decision_.clear();
           waiting_for_decision_logged_ = false;
+          waiting_for_decision_ = false;
           processing_obstacle_ = false;
-          // Reset reroute waiting state on obstacle clear to allow future reroutes
           waiting_for_reroute_ = false;
+          if (robot_paused_) {
+            if (decision_accepting_) {
+              CLOG(INFO, "mission.state_machine") << "Navigator: obstacle cleared and decision node ready. Resuming navigation.";
+              setRobotPaused(false);
+            } else {
+              pending_clear_resume_ = true;
+              CLOG(INFO, "mission.state_machine") << "Navigator: obstacle cleared but decision node still announcing. Waiting for release.";
+            }
+          } else {
+            pending_clear_resume_ = false;
+          }
+          pending_reroute_resume_ = false;
           return;
         }
 
-        if (!obstacle_active_) {
+        if (!obstacle_active_ && !waiting_for_reroute_) {
           obstacle_active_ = true;
           obstacle_start_time_ = node_->get_clock()->now();
           active_decision_.clear();
           processing_obstacle_ = false;
           waiting_for_decision_logged_ = false;
+          waiting_for_decision_ = true;
           // Starting a new obstacle episode; ensure previous reroute wait is cleared
           waiting_for_reroute_ = false;
           if (use_chatgpt_) {
             LockGuard lock(chatgpt_mutex_);
-            latest_chatgpt_decision_.clear();
-            last_decision_time_ = rclcpp::Time(0, 0, node_->get_clock()->get_clock_type());
+            if (decision_accepting_) {
+              latest_chatgpt_decision_.clear();
+              last_decision_time_ = rclcpp::Time(0, 0, node_->get_clock()->get_clock_type());
+            }
             
             // Only pause robot if we need to wait for ChatGPT/human decision
             // In operator mode (use_chatgpt_=false), we use default_decision immediately, so no pause needed
             CLOG(INFO, "mission.state_machine") << "HSHMAT: Publishing ZERO velocity to stop robot while waiting for human/ChatGPT decision";
-            geometry_msgs::msg::Twist stop_cmd;
-            stop_cmd.linear.x = 0.0;
-            stop_cmd.linear.y = 0.0;
-            stop_cmd.linear.z = 0.0;
-            stop_cmd.angular.x = 0.0;
-            stop_cmd.angular.y = 0.0;
-            stop_cmd.angular.z = 0.0;
-            pause_cmd_pub_->publish(stop_cmd);
-            robot_paused_ = true;  // Mark robot as paused while asking
+            setRobotPaused(true);  // Mark robot as paused while asking
           }
           
           CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
@@ -343,160 +401,19 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Decision is WAIT - Pausing robot instead of replanning";
           CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Publishing ZERO velocity to stop robot";
 
-          geometry_msgs::msg::Twist stop_cmd;
-          stop_cmd.linear.x = 0.0;
-          stop_cmd.linear.y = 0.0;
-          stop_cmd.linear.z = 0.0;
-          stop_cmd.angular.x = 0.0;
-          stop_cmd.angular.y = 0.0;
-          stop_cmd.angular.z = 0.0;
-          pause_cmd_pub_->publish(stop_cmd);
-
-          robot_paused_ = true;
+          setRobotPaused(true);
           active_decision_ = "wait";
           CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Robot stopped. Will wait for obstacle to clear (obstacle_status=false)";
           CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Not triggering replanning - obstacle may move on its own";
           return;
         } else if (decision == "reroute") {
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Decision is REROUTE - Proceeding with replanning logic";
-          
-          // Check CURRENT obstacle status to decide whether to ban edges or just continue
-          // If obstacle cleared while we were waiting, just continue on path
-          if (!msg->data) {
-            CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Obstacle already cleared while waiting for decision";
-            CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Continuing on current path (no replanning needed)";
-            obstacle_active_ = false;
-            active_decision_.clear();
-            processing_obstacle_ = false;
-            robot_paused_ = false;  // Unpause so robot can continue
-            return;
-          }
-          
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Obstacle still present, will ban edges and replan";
-          waiting_for_reroute_ = true;
-          active_decision_ = "reroute";
-          
-          // Unpause robot so it can execute the reroute once planning completes
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Unpausing robot to allow reroute execution";
-          robot_paused_ = false;
+          CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Decision is REROUTE - Proceeding with rerouting logic";
+          triggerReroute();
+          return;
         } else {
           CLOG(WARNING, "mission.state_machine") << "HSHMAT-ChatGPT: No valid decision received (got '" << decision << "'), defaulting to REROUTE";
-          waiting_for_reroute_ = true;
-          active_decision_ = "reroute";
-          decision = "reroute";
-        }
-        // Only respond during Repeat::Follow. Ignore in Teach or other modes.
-        try {
-          const std::string curr = state_machine_->name();
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 3 - Checking state mode: " << curr;
-          const bool in_repeat = curr.find("Repeat") != std::string::npos;
-          const bool in_follow = curr.find("Follow") != std::string::npos;
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: State analysis - in_repeat=" << (in_repeat ? "true" : "false") << ", in_follow=" << (in_follow ? "true" : "false");
-          if (!(in_repeat && in_follow)) {
-            CLOG(INFO, "mission.state_machine") << "HSHMAT: Not in Repeat::Follow mode, ignoring obstacle";
-            return;
-          }
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Confirmed in Repeat::Follow mode, proceeding with rerouting";
-        } catch (...) { return; }
-        // Forward event to state machine
-        try {
-          CLOG(INFO, "mission.state_machine") << "⏱ TIMING: Sending Signal::ObstacleDetected to state machine NOW";
-          state_machine_->handle(std::make_shared<mission_planning::Event>(
-              mission_planning::Signal::ObstacleDetected));
-          CLOG(INFO, "mission.state_machine") << "⏱ TIMING: Signal::ObstacleDetected handled, state machine processing...";
-        } catch (const std::exception &e) {
-          CLOG(WARNING, "navigation") << "Failed to send ObstacleDetected: " << e.what();
-        }
-
-        // Ban edges based on CURRENT obstacle position (from this message)
-        try {
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 4b - Banning edges in current route";
-          const auto loc = tactic_->getPersistentLoc();
-          const auto current_vid = loc.v;
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Current vertex: " << current_vid;
-          
-          // Find current vertex in following route ids
-          int idx = -1;
-          for (size_t i = 0; i < following_route_ids_.size(); ++i) {
-            if (vtr::tactic::VertexId(following_route_ids_[i]) == current_vid) { idx = static_cast<int>(i); break; }
-          }
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Found current vertex at route index: " << idx;
-          
-          if (idx >= 0) {
-            std::vector<vtr::tactic::EdgeId> banned;
-            
-            // Distance-based banning: ban edges ONLY where the obstacle is located
-            // Assume obstacle extends for a reasonable length (configurable)
-            const double obstacle_extent_m = 0.5; // Assume obstacle is 2m long
-            const double obstacle_start = last_obstacle_distance_;
-            const double obstacle_end = last_obstacle_distance_ + obstacle_extent_m;
-            double accumulated_distance = 0.0;
-            
-            CLOG(INFO, "mission.state_machine") << "HSHMAT: Obstacle detected at " << last_obstacle_distance_ 
-                                                 << " m ahead, banning edges in range [" << obstacle_start 
-                                                 << " m, " << obstacle_end << " m] (assumed extent: " 
-                                                 << obstacle_extent_m << " m)";
-            
-            for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size()); ++i) {
-              vtr::tactic::VertexId v1(following_route_ids_[i]);
-              vtr::tactic::VertexId v2(following_route_ids_[i+1]);
-              
-              // Query edge length from graph
-              double edge_length = 0.0;
-              try {
-                auto edge_ptr = graph_->at(vtr::tactic::EdgeId(v1, v2));
-                if (edge_ptr) {
-                  // Get euclidean distance from transform
-                  edge_length = edge_ptr->T().r_ab_inb().norm();
-                  double edge_start = accumulated_distance;
-                  double edge_end = accumulated_distance + edge_length;
-                  accumulated_distance = edge_end;
-                  
-                  // Check if this edge overlaps with the obstacle range [obstacle_start, obstacle_end]
-                  bool edge_in_obstacle_range = (edge_end > obstacle_start && edge_start < obstacle_end);
-                  
-                  if (edge_in_obstacle_range) {
-                    banned.emplace_back(v1, v2);
-                    CLOG(INFO, "mission.state_machine") << "HSHMAT: Banning edge " << v1 << " -> " << v2 
-                                                         << " (edge range: [" << edge_start << " m, " << edge_end 
-                                                         << " m], overlaps obstacle range)";
-                  } else {
-                    CLOG(DEBUG, "mission.state_machine") << "HSHMAT: Skipping edge " << v1 << " -> " << v2 
-                                                          << " (edge range: [" << edge_start << " m, " << edge_end 
-                                                          << " m], outside obstacle range)";
-                  }
-                  
-                  // Stop searching once we're past the obstacle
-                  if (edge_start >= obstacle_end) {
-                    CLOG(INFO, "mission.state_machine") << "HSHMAT: Passed obstacle range, stopping edge search";
-                    break;
-                  }
-                } else {
-                  CLOG(WARNING, "mission.state_machine") << "HSHMAT: Edge " << v1 << " -> " << v2 << " not found in graph";
-                }
-              } catch (const std::exception &e) {
-                CLOG(WARNING, "mission.state_machine") << "HSHMAT: Failed to query edge " << v1 << " -> " << v2 << ": " << e.what();
-              }
-            }
-            CLOG(INFO, "mission.state_machine") << "HSHMAT: Total edges banned: " << banned.size();
-            
-            if (!banned.empty()) {
-              auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_);
-              if (bfs_ptr) {
-                // Permanent add (single-flag semantics)
-                bfs_ptr->addBannedEdges(banned);
-                // Ensure masked is on
-                bfs_ptr->setUseMasked(true);
-                CLOG(INFO, "mission.state_machine") << "HSHMAT: Successfully added " << banned.size() << " banned edges to BFS planner, masked planning enabled";
-              } else {
-                CLOG(WARNING, "mission.state_machine") << "HSHMAT: Could not cast route planner to BFSPlanner";
-              }
-            }
-          } else {
-            CLOG(WARNING, "mission.state_machine") << "HSHMAT: Could not find current vertex in following route";
-          }
-        } catch (const std::exception &e) {
-          CLOG(WARNING, "navigation") << "Failed to set banned edges: " << e.what();
+          triggerReroute();
+          return;
         }
       });
 
@@ -519,11 +436,34 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         
         // Log if replanning completed
         if (route_changed && waiting_for_reroute_ && !route->ids.empty()) {
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
-          CLOG(INFO, "mission.state_machine") << "⏱ TIMING: New following_route published NOW (" << route->ids.size() << " vertices) - topological replanning complete";
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'Replanning complete. Resuming.'";
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
           waiting_for_reroute_ = false;
+          if (decision_accepting_) {
+            if (robot_paused_) {
+              CLOG(INFO, "mission.state_machine") << "Navigator: reroute committed with new route. Resuming navigation.";
+              setRobotPaused(false);
+            }
+            pending_reroute_resume_ = false;
+          } else {
+            pending_reroute_resume_ = true;
+            CLOG(INFO, "mission.state_machine") << "Navigator: reroute committed but decision node still speaking. Waiting for release.";
+          }
+        } else if (!route_changed && waiting_for_reroute_ && !route->ids.empty()) {
+          waiting_for_reroute_ = false;
+          if (!obstacle_active_) {
+            if (decision_accepting_) {
+              if (robot_paused_) {
+                CLOG(INFO, "mission.state_machine") << "Navigator: route unchanged but obstacle cleared - resuming original path.";
+                setRobotPaused(false);
+              }
+              pending_reroute_resume_ = false;
+            } else {
+              pending_reroute_resume_ = true;
+              CLOG(INFO, "mission.state_machine") << "Navigator: route unchanged, waiting for decision node release.";
+            }
+          } else {
+            CLOG(INFO, "mission.state_machine") << "Navigator: route unchanged and obstacle still active - remaining paused.";
+            pending_reroute_resume_ = false;
+          }
         }
         
         following_route_ids_.assign(route->ids.begin(), route->ids.end());
@@ -624,6 +564,193 @@ if (pipeline->name() == "radar") {
   thread_count_ = 1;
   process_thread_ = std::thread(&Navigator::process, this);
   CLOG(INFO, "navigation") << "VT&R3 initialization done!";
+}
+
+void Navigator::setRobotPaused(bool paused) {
+  if (robot_paused_ == paused) return;
+  robot_paused_ = paused;
+  if (paused && pause_cmd_pub_) {
+    geometry_msgs::msg::Twist stop_cmd;
+    stop_cmd.linear.x = 0.0;
+    stop_cmd.linear.y = 0.0;
+    stop_cmd.linear.z = 0.0;
+    stop_cmd.angular.x = 0.0;
+    stop_cmd.angular.y = 0.0;
+    stop_cmd.angular.z = 0.0;
+    pause_cmd_pub_->publish(stop_cmd);
+  }
+  if (pause_state_pub_) {
+    std_msgs::msg::Bool msg;
+    msg.data = paused;
+    pause_state_pub_->publish(msg);
+  }
+}
+
+void Navigator::triggerReroute() {
+  if (waiting_for_reroute_) {
+    CLOG(DEBUG, "mission.state_machine")
+        << "HSHMAT: triggerReroute called but reroute already pending; ignoring.";
+    return;
+  }
+
+  bool reroute_enable = false;
+  try {
+    reroute_enable =
+        node_->get_parameter("route_planning.enable_reroute").get_value<bool>();
+  } catch (...) {
+  }
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT: Step 2 - Checking reroute config: enable_reroute="
+      << (reroute_enable ? "true" : "false");
+  if (!reroute_enable) {
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Rerouting disabled, ignoring reroute decision";
+    return;
+  }
+
+  // Only respond during Repeat.* modes (Follow, Plan, MetricLoc, etc.).
+  try {
+    const std::string curr = state_machine_->name();
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Step 3 - Checking state mode: " << curr;
+    const bool in_repeat = curr.find("Repeat") != std::string::npos;
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: State analysis - in_repeat="
+        << (in_repeat ? "true" : "false");
+    if (!in_repeat) {
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: Not in Repeat mode, ignoring reroute decision";
+      return;
+    }
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: In Repeat mode (" << curr
+        << "), proceeding with rerouting";
+  } catch (...) {
+    return;
+  }
+
+  // At this point we are committed to attempting a reroute.
+  waiting_for_reroute_ = true;
+  active_decision_ = "reroute";
+  pending_reroute_resume_ = true;
+
+  try {
+    CLOG(INFO, "mission.state_machine")
+        << "⏱ TIMING: Sending Signal::ObstacleDetected to state machine NOW";
+    state_machine_->handle(std::make_shared<mission_planning::Event>(
+        mission_planning::Signal::ObstacleDetected));
+    CLOG(INFO, "mission.state_machine")
+        << "⏱ TIMING: Signal::ObstacleDetected handled, state machine processing...";
+  } catch (const std::exception &e) {
+    CLOG(WARNING, "navigation")
+        << "Failed to send ObstacleDetected: " << e.what();
+  }
+
+  // Ban edges based on CURRENT obstacle position (from this message)
+  try {
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Step 4b - Banning edges in current route";
+    const auto loc = tactic_->getPersistentLoc();
+    const auto current_vid = loc.v;
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Current vertex: " << current_vid;
+
+    int idx = -1;
+    for (size_t i = 0; i < following_route_ids_.size(); ++i) {
+      if (vtr::tactic::VertexId(following_route_ids_[i]) == current_vid) {
+        idx = static_cast<int>(i);
+        break;
+      }
+    }
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Found current vertex at route index: " << idx;
+
+    if (idx >= 0) {
+      std::vector<vtr::tactic::EdgeId> banned;
+
+      // Distance-based banning: ban edges ONLY where the obstacle is located
+      const double obstacle_extent_m = 0.5;
+      const double obstacle_start = last_obstacle_distance_;
+      const double obstacle_end = last_obstacle_distance_ + obstacle_extent_m;
+      double accumulated_distance = 0.0;
+
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: Obstacle detected at " << last_obstacle_distance_
+          << " m ahead, banning edges in range [" << obstacle_start << " m, "
+          << obstacle_end << " m] (assumed extent: " << obstacle_extent_m
+          << " m)";
+
+      for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size());
+           ++i) {
+        vtr::tactic::VertexId v1(following_route_ids_[i]);
+        vtr::tactic::VertexId v2(following_route_ids_[i + 1]);
+
+        double edge_length = 0.0;
+        try {
+          auto edge_ptr = graph_->at(vtr::tactic::EdgeId(v1, v2));
+          if (edge_ptr) {
+            edge_length = edge_ptr->T().r_ab_inb().norm();
+            double edge_start = accumulated_distance;
+            double edge_end = accumulated_distance + edge_length;
+            accumulated_distance = edge_end;
+
+            bool edge_in_obstacle_range =
+                (edge_end > obstacle_start && edge_start < obstacle_end);
+
+            if (edge_in_obstacle_range) {
+              banned.emplace_back(v1, v2);
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: Banning edge " << v1 << " -> " << v2
+                  << " (edge range: [" << edge_start << " m, " << edge_end
+                  << " m], overlaps obstacle range)";
+            } else {
+              CLOG(DEBUG, "mission.state_machine")
+                  << "HSHMAT: Skipping edge " << v1 << " -> " << v2
+                  << " (edge range: [" << edge_start << " m, " << edge_end
+                  << " m], outside obstacle range)";
+            }
+
+            if (edge_start >= obstacle_end) {
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: Passed obstacle range, stopping edge search";
+              break;
+            }
+          } else {
+            CLOG(WARNING, "mission.state_machine")
+                << "HSHMAT: Edge " << v1 << " -> " << v2 << " not found in graph";
+          }
+        } catch (const std::exception &e) {
+          CLOG(WARNING, "mission.state_machine")
+              << "HSHMAT: Failed to query edge " << v1 << " -> " << v2
+              << ": " << e.what();
+        }
+      }
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: Total edges banned: " << banned.size();
+
+      if (!banned.empty()) {
+        auto bfs_ptr =
+            std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(
+                route_planner_);
+        if (bfs_ptr) {
+          bfs_ptr->addBannedEdges(banned);
+          bfs_ptr->setUseMasked(true);
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: Successfully added " << banned.size()
+              << " banned edges to BFS planner, masked planning enabled";
+        } else {
+          CLOG(WARNING, "mission.state_machine")
+              << "HSHMAT: Could not cast route planner to BFSPlanner";
+        }
+      }
+    } else {
+      CLOG(WARNING, "mission.state_machine")
+          << "HSHMAT: Could not find current vertex in following route";
+    }
+  } catch (const std::exception &e) {
+    CLOG(WARNING, "navigation")
+        << "Failed to set banned edges: " << e.what();
+  }
 }
 
 

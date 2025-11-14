@@ -154,6 +154,7 @@ typedef message_filters::sync_policies::ApproximateTime<
 
   // Hshmat: Obstacle status subscriber
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr obstacle_status_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr decision_accepting_sub_;
   // Hshmat: Obstacle distance subscriber (distance along path to nearest obstacle)
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr obstacle_distance_sub_;
   double last_obstacle_distance_;  // meters along path where obstacle detected
@@ -170,13 +171,21 @@ typedef message_filters::sync_policies::ApproximateTime<
   bool obstacle_active_ = false;
   bool waiting_for_decision_logged_ = false;
   std::string active_decision_;
+  bool decision_accepting_ = true;
+  bool pending_clear_resume_ = false;
+  bool pending_reroute_resume_ = false;
+  bool waiting_for_decision_ = false;
   
   // Hshmat: Publisher for pausing robot (zero velocity)
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pause_cmd_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pause_state_pub_;
   bool robot_paused_;  // Track if robot is currently paused
   bool waiting_for_reroute_;  // Track if we're waiting for a replanned route
   bool processing_obstacle_;  // Track if we're currently processing an obstacle detection
   
+  void setRobotPaused(bool paused);
+  void triggerReroute();  // Centralized reroute flow (state machine + banned edges)
+
   // Hshmat: ChatGPT configuration and publisher
   bool use_chatgpt_;  // Whether to query ChatGPT (if false, default to reroute)
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr use_chatgpt_pub_;
