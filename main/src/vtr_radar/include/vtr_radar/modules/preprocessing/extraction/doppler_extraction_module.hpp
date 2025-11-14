@@ -50,14 +50,14 @@ class DopplerExtractionModule : public tactic::BaseModule {
     double maxr = 200;
     double beta_corr_fact = 0.944;
     int pad_num = 100;
+    double max_velocity = 50.0;
 
     // Filter params
-    double sigma_gauss = 15;
+    double sigma_gauss = 15.0;
     double z_q = 2.5;
 
     // RANSAC params
-    int vel_dim = 2;
-    int ransac_max_iter = 1000;
+    int ransac_max_iter = 100;
     double ransac_threshold = 0.5;
     double ransac_prior_threshold = 0.5;
 
@@ -65,7 +65,6 @@ class DopplerExtractionModule : public tactic::BaseModule {
     int opt_max_iter = 100;
     double opt_threshold = 1.0e-6;
     double cauchy_rho = 0.8;
-    double trim_dist = 1000.0;
     double x_bias_slope = 0.0;
     double x_bias_intercept = 0.0;
     double y_bias_slope = 0.0;

@@ -30,6 +30,7 @@ find_package(vtr_tactic REQUIRED)
 find_package(vtr_radar REQUIRED)
 find_package(vtr_lidar REQUIRED)
 find_package(vtr_torch REQUIRED)
+find_package(spinning_radar_doppler REQUIRED)
 
 if(DEFINED VTR_ENABLE_LIDAR AND DEFINED VTR_ENABLE_RADAR)
 

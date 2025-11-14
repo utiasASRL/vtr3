@@ -24,6 +24,7 @@
 #include <opencv2/core/cvstd_wrapper.hpp>
 
 #include "vtr_radar/utils/utils.hpp"
+#include <srd/extractor/doppler_extractor.hpp>
 #include <pcl/common/common.h>
 #include <cmath> 
 #include <filesystem>
@@ -34,355 +35,31 @@ namespace vtr {
 namespace radar {
 namespace {
 
-void cen_filter(cv::Mat &signal, int sigma_gauss, int z_q) {
-  const int signal_len = signal.cols;
-  double max_val;
-  double min_val;
-  cv::minMaxLoc(signal, &min_val, &max_val, NULL, NULL);
+srd::extractor::DopplerExtractor::Options load_extractor_options(const DopplerExtractionModule::Config &config) {
+  srd::extractor::DopplerExtractor::Options options;
+  options.radar_res = config.radar_resolution;
+  options.f_t = config.f_t;
+  options.meas_freq = config.meas_freq;
+  options.del_f = config.del_f;
+  options.min_range = config.minr;
+  options.max_range = config.maxr;
+  options.beta_corr_fact = config.beta_corr_fact;
+  options.pad_num = config.pad_num;
+  options.max_velocity = config.max_velocity;
+  options.sigma_gauss = config.sigma_gauss;
+  options.z_q = config.z_q;
+  options.ransac_max_iter = config.ransac_max_iter;
+  options.ransac_threshold = config.ransac_threshold;
+  options.ransac_prior_threshold = config.ransac_prior_threshold;
+  options.opt_max_iter = config.opt_max_iter;
+  options.opt_threshold = config.opt_threshold;
+  options.cauchy_rho = config.cauchy_rho;
+  options.x_bias_slope = config.x_bias_slope;
+  options.x_bias_intercept = config.x_bias_intercept;
+  options.y_bias_slope = config.y_bias_slope;
+  options.y_bias_intercept = config.y_bias_intercept;
 
-  // First, subtract mean of signal
-  cv::Mat q = signal.clone();
-  float mean = 0;
-  int num_mean = 0;
-  for (int i = 0; i < signal_len; ++i) {
-      mean += signal.at<float>(0, i);
-      num_mean++;
-  }
-  mean /= num_mean;
-  for (int i = 0; i < signal_len; ++i) {  
-      q.at<float>(0, i) = signal.at<float>(0, i) - mean;
-  }
-
-  // Apply a gaussian filter
-  // TODO: binomial filter may be more efficient
-  int fsize = sigma_gauss * 2 * 3;
-  if (fsize % 2 == 0) fsize += 1;
-  const int mu = fsize / 2;
-  const float sig_sqr = sigma_gauss * sigma_gauss;
-  cv::Mat filter = cv::Mat::zeros(1, fsize, CV_32F);
-  float s = 0;
-  for (int i = 0; i < fsize; ++i) {
-      filter.at<float>(0, i) = exp(-0.5 * (i - mu) * (i - mu) / sig_sqr);
-      s += filter.at<float>(0, i);
-  }
-  filter /= s;
-  cv::Mat p;
-  cv::filter2D(q, p, -1, filter, cv::Point(-1, -1), 0, cv::BORDER_REFLECT101);
-
-  // Estimate variance of noise at each azimuth
-  double sigma_q = 0;
-  int nonzero = 0;
-  for (int i = 0; i < signal_len; ++i) {
-      float n = q.at<float>(0, i);
-      if (n < 0) {
-          sigma_q += 2 * (n * n);
-          nonzero++;
-      }
-  }
-  if (nonzero)
-      sigma_q = 0.1 * sqrt(sigma_q / nonzero);
-  else
-      sigma_q = 0.034;
-  // Compute threshold for zeroing out signal
-  const double thres = z_q * sigma_q;
-
-  // Filter based on distributions
-  cv::Mat pow_0;
-  cv::Mat pow_p;
-  cv::Mat pow_qp;
-  cv::Mat n0;
-  cv::Mat npp;
-  cv::Mat nqp;
-  cv::pow(0.0 * p / sigma_q, 2, pow_0);
-  cv::pow(p / sigma_q, 2, pow_p);
-  cv::pow((q - p) / sigma_q, 2, pow_qp);
-
-  cv::exp(-0.5 * pow_0, n0);
-  cv::exp(-0.5 * pow_p, npp);
-  cv::exp(-0.5 * pow_qp, nqp);
-
-  //cv::divide(nqp, n0, nqp);
-  //cv::divide(npp, n0, npp);
-
-  const cv::Mat y = q.mul(1 - nqp) + p.mul(nqp - npp);
-
-  // // Zero out signal below threshold
-  cv::Mat mask = y > thres;
-  mask.convertTo(mask, CV_32F);
-  mask /= 255;
-  signal = y.mul(mask);
-}
-
-void extract_doppler(
-  const cv::Mat &fft_data,
-  const std::vector<double> &azimuths,
-  const std::vector<int64_t> &timestamps,
-  const std::vector<bool> &chirps,
-  DopplerScan &doppler_scan,
-  const DopplerExtractionModule::Config &config) {
-
-  const int N = fft_data.rows;
-  const int range_bins = fft_data.cols;
-
-  // Load parameters
-  const double radar_resolution = config.radar_resolution; // meters/pixel
-  const int minr = config.minr; // meters
-  int maxr = config.maxr; // meters
-  const double beta_up = config.beta_corr_fact * config.f_t / (config.del_f * config.meas_freq);
-  const double beta_down = -beta_up;
-
-  const int pad_num = config.pad_num;
-  // Filter parameters
-  const int sigma_gauss = config.sigma_gauss;
-  const int z_q = config.z_q;
-
-  // Handle case where we want to use entire range
-  if (maxr <= 0) {
-    maxr = range_bins * radar_resolution;
-  }
-  const int minr_pix = minr / radar_resolution;
-  const int maxr_pix = maxr / radar_resolution;
-
-  DopplerScan doppler_scan_temp = doppler_scan;
-  auto fft_data_copy = fft_data.clone();
-  cv::Point max_idx;
-  double del_r = 0;
-  for (int i = 0; i < N - 1; ++i) {
-    double u_val = 0;
-    double u_az = 0;
-    long double u_time = 0;
-
-    // Load in current and subsequent signal
-    
-    cv::Mat az_i = fft_data_copy.row(i).colRange(minr_pix, maxr_pix);
-    cv::Mat az_i1 = fft_data_copy.row(i+1).colRange(minr_pix, maxr_pix);
-    // timer[1].second->stop();
-
-    // Filter the signals
-    if (i == 0) {
-        cen_filter(az_i, sigma_gauss, z_q);
-    }
-    cen_filter(az_i1, sigma_gauss, z_q);
-
-    // Check if az_i or az_i1 is all zeros
-    if (cv::countNonZero(az_i) == 0 || cv::countNonZero(az_i1) == 0) {
-      CLOG(WARNING, "radar.doppler_extractor") << "az_i or az_i1 is all zeros";
-      continue;
-    }
-
-    // Cross-correlate the signals
-    cv::Mat corr;
-    // Pad az_i1 by 0's before and after
-    cv::Mat az_i1_padded = cv::Mat::zeros(1, az_i.cols + 2*pad_num, CV_32F);
-    az_i1.copyTo(az_i1_padded.colRange(pad_num, az_i.cols + pad_num));
-    // Perform cross-correlation
-    cv::matchTemplate(az_i, az_i1_padded, corr, cv::TM_CCORR_NORMED);
-    cv::minMaxLoc(corr, NULL, NULL, NULL, &max_idx);
-
-    // Compute shift and velocity
-    del_r = (max_idx.x - pad_num) / 2.0;
-
-    // If chirps[i] is true, then this chirp corresponds to an up chirp
-    if (chirps[i]) {
-      u_val = del_r * radar_resolution / beta_up;
-    } else {
-      u_val = del_r * radar_resolution / beta_down;
-    }
-
-    // Skip obvious outliers
-    if (u_val > 30) {
-        continue;
-    }
-
-    // Compute the intermediate azimuth
-    u_az = (azimuths[i] + azimuths[i+1]) / 2.0;
-
-    // Compute the intermediate time
-    // Convert timestamps to seconds
-    long double t1 = static_cast<long double>(timestamps[i]) / 1e6;
-    long double t2 = static_cast<long double>(timestamps[i+1]) / 1e6;
-    u_time = static_cast<int64_t>((t1 + t2) / 2.0 * 1e6);
-
-    Azimuth u_i; // Initialize azimuth struct to be added to doppler_scan
-    u_i.azimuth = u_az;
-    u_i.timestamp = u_time;
-    u_i.radial_velocity = u_val;
-    u_i.azimuth_idx = i;
-    // std::cout << "u_i: " << u_i.azimuth << " " << u_time - timestamps[0] << " " << u_i.radial_velocity << std::endl;
-    doppler_scan_temp.push_back(u_i);
-  }
-
-  doppler_scan = doppler_scan_temp;
-}
-
-void ransac_scan(
-  DopplerScan &doppler_scan,
-  Eigen::Vector2d &prior_model,
-  const DopplerExtractionModule::Config &config) {
-  // Load parameters
-  int vel_dim = 2;
-  int ransac_max_iter = config.ransac_max_iter;
-  double ransac_threshold = config.ransac_threshold;
-  double ransac_prior_threshold = config.ransac_prior_threshold;
-  int num_meas = doppler_scan.size();
-  int best_num_inlier = 0;
-
-  // Check feasibility
-  if (doppler_scan.size() < 2) {
-    CLOG(WARNING, "radar.doppler_extractor") << "Not enough points to perform RANSAC";
-    return;
-  }
-
-  Eigen::VectorXd residuals;
-  Eigen::VectorXd b = Eigen::VectorXd::Zero(num_meas);
-  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(num_meas, vel_dim);
-  for (int i = 0; i < num_meas; ++i) {
-    b(i) = doppler_scan[i].radial_velocity;
-    A(i, 0) = cos(doppler_scan[i].azimuth);
-    A(i, 1) = sin(doppler_scan[i].azimuth);
-  }
-
-  std::vector<int> inlier_mask = std::vector<int>(num_meas, 0);
-  std::vector<int> best_inlier_mask = std::vector<int>(num_meas, 0);
-  Eigen::VectorXd model;
-  Eigen::VectorXd best_model;
-
-  for (int iter = 0; iter < ransac_max_iter; ++iter) {
-      // Randomly sample 2 points
-      std::vector<int> idx;
-      for (int i = 0; i < 2; ++i) {
-          idx.push_back(rand() % A.rows());
-      }
-
-      Eigen::MatrixXd A_sample = Eigen::MatrixXd::Zero(2, vel_dim);
-      Eigen::VectorXd b_sample = Eigen::VectorXd::Zero(2);
-      for (int i = 0; i < 2; ++i) {
-          A_sample.row(i) = A.row(idx[i]);
-          b_sample(i) = b(idx[i]);
-      }
-
-      // Fit line to sample
-      model = A_sample.inverse() * b_sample;
-
-      // Reject models that are too different to prior
-      double prior_model_err = (model - prior_model).norm();
-      if (prior_model_err > ransac_prior_threshold) {
-          continue;
-      }
-
-      // Compute residuals
-      residuals = A * model - b;
-
-      // Compute inliers
-      for (int i = 0; i < residuals.size(); ++i) {
-          if (std::abs(residuals(i)) < ransac_threshold) {
-              inlier_mask[i] = 1;
-          } else {
-              inlier_mask[i] = 0;
-          }
-      }
-
-      int num_inlier = Eigen::Map<Eigen::ArrayXi>(inlier_mask.data(), inlier_mask.size()).count();
-
-      if (num_inlier > best_num_inlier) {
-          best_num_inlier = num_inlier;
-          best_inlier_mask = inlier_mask;
-          best_model = model;
-      }
-  }
-
-  // If we have less than 10 inliers, then just use the prior model
-  if (best_num_inlier < 10) {
-      residuals = A * prior_model - b;
-      for (int i = 0; i < residuals.size(); ++i) {
-          if (std::abs(residuals(i)) < ransac_threshold) {
-              inlier_mask[i] = 1;
-          } else {
-              inlier_mask[i] = 0;
-          }
-      }
-      best_inlier_mask = inlier_mask;
-  }
-
-  // Remove outliers
-  DopplerScan ransac_scan;
-  for (int i = 0; i < num_meas; ++i) {
-      if (best_inlier_mask[i]) {
-          ransac_scan.push_back(doppler_scan[i]);
-      }
-  }
-  
-  // Overwrite doppler_scan with ransac_scan
-  doppler_scan = ransac_scan;
-}
-
-Eigen::Vector2d registerScan(
-  const DopplerScan &doppler_scan,
-  Eigen::Vector2d &prior_model,
-  const DopplerExtractionModule::Config &config) {
-  // Load in parameters for easy reference
-  int vel_dim = 2;
-  int num_meas = doppler_scan.size();
-
-  // initialize doppler measurement residual and A/b matrices for least squares
-  Eigen::VectorXd residuals = Eigen::VectorXd::Zero(num_meas);
-  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(num_meas, vel_dim);
-  Eigen::VectorXd b = Eigen::VectorXd::Zero(num_meas);
-  for (int i = 0; i < num_meas; ++i) {
-    b(i) = doppler_scan[i].radial_velocity;
-    A(i, 0) = cos(doppler_scan[i].azimuth);
-    A(i, 1) = sin(doppler_scan[i].azimuth);
-  }
-
-  // compute cauchy weights based on latest residual
-  Eigen::VectorXd w_inv_diag = Eigen::VectorXd::Ones(num_meas);
-  Eigen::VectorXd cauchy_w = Eigen::VectorXd::Ones(num_meas);
-  Eigen::VectorXd trim_w = Eigen::VectorXd::Ones(num_meas);
-  Eigen::VectorXd varpi_prev = Eigen::VectorXd::Zero(vel_dim);
-  Eigen::VectorXd varpi_curr = Eigen::VectorXd::Zero(vel_dim);
-  Eigen::MatrixXd lhs = Eigen::MatrixXd::Zero(vel_dim, vel_dim);
-  Eigen::VectorXd rhs = Eigen::VectorXd::Zero(vel_dim);
-
-  // Load in initial guess to be used for the first iteration
-  varpi_prev = prior_model;
-  varpi_curr = varpi_prev;
-
-  // Decide on cauchy rho based on the velocity
-  double cauchy_rho = config.cauchy_rho;
-  double trim_dist = config.trim_dist;
-
-  // run least squares on Ax = b
-  for (int iter = 0; iter < config.opt_max_iter; ++iter) {
-    // compute new cauchy weights
-    residuals = A * varpi_curr - b;
-    cauchy_w = 1.0 / (1.0 + ( residuals.array() / cauchy_rho ).square());
-
-    // Implement trim weight where errors above 0.5 have weight of 0
-    //trim_w = (residuals.array().abs() < trim_dist).cast<double>();
-
-    w_inv_diag = cauchy_w.array();
-
-    lhs = A.transpose() * w_inv_diag.asDiagonal() * A;
-    rhs = A.transpose() * w_inv_diag.asDiagonal() * b;
-
-    // solve
-    varpi_prev = varpi_curr;
-    varpi_curr = lhs.inverse() * rhs;
-    
-    // Check for convergence
-    if ((varpi_curr - varpi_prev).norm() < config.opt_threshold) {
-      break;
-    }
-  }
-
-  // Only correct bias in x if we're confident we're moving
-  // This bias is calibrated only for x_vel > 0.2
-  if (std::abs(varpi_curr(0)) > 0.2) {
-    varpi_curr(0) = varpi_curr(0) + varpi_curr(0) * config.x_bias_slope + config.x_bias_intercept;
-  }
-  varpi_curr(1) = varpi_curr(1) + varpi_curr(1) * config.y_bias_slope + config.y_bias_intercept;
-
-  return varpi_curr;
+  return options;
 }
 
 }  // namespace
@@ -403,6 +80,7 @@ auto DopplerExtractionModule::Config::fromROS(
   config->maxr = node->declare_parameter<double>(param_prefix + ".signal" + ".maxr", config->maxr);
   config->beta_corr_fact = node->declare_parameter<double>(param_prefix + ".signal" + ".beta_corr_fact", config->beta_corr_fact);
   config->pad_num = node->declare_parameter<int>(param_prefix + ".signal" + ".pad_num", config->pad_num);
+  config->max_velocity = node->declare_parameter<double>(param_prefix + ".signal" + ".max_velocity", config->max_velocity);
   // Filter params
   config->sigma_gauss = node->declare_parameter<double>(param_prefix + ".filter" + ".sigma_gauss", config->sigma_gauss);
   config->z_q = node->declare_parameter<double>(param_prefix + ".filter" + ".z_q", config->z_q);
@@ -414,7 +92,6 @@ auto DopplerExtractionModule::Config::fromROS(
   config->opt_max_iter = node->declare_parameter<int>(param_prefix + ".optimization" + ".max_iter", config->opt_max_iter);
   config->opt_threshold = node->declare_parameter<double>(param_prefix + ".optimization" + ".threshold", config->opt_threshold);
   config->cauchy_rho = node->declare_parameter<double>(param_prefix + ".optimization" + ".cauchy_rho", config->cauchy_rho);
-  config->trim_dist = node->declare_parameter<double>(param_prefix + ".optimization" + ".trim_dist", config->trim_dist);
   config->x_bias_slope = node->declare_parameter<double>(param_prefix + ".optimization" + ".x_bias_slope", config->x_bias_slope);
   config->x_bias_intercept = node->declare_parameter<double>(param_prefix + ".optimization" + ".x_bias_intercept", config->x_bias_intercept);
   config->y_bias_slope = node->declare_parameter<double>(param_prefix + ".optimization" + ".y_bias_slope", config->y_bias_slope);
@@ -430,9 +107,6 @@ void DopplerExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   if(!qdata.radar_data) return;
-
-  // create a reference to the output DopplerScan
-  auto &doppler_scan = *(qdata.doppler_scan.emplace());
 
   // get the data from the radar cache
   cv::Mat fft_scan = qdata.radar_data->fft_scan;
@@ -454,8 +128,19 @@ void DopplerExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     }  
   }
 
+  // create a reference to the output DopplerScan
+  auto &doppler_scan = *(qdata.doppler_scan.emplace());
+  const auto opts = load_extractor_options(*config_);
+  srd::extractor::DopplerExtractor extractor(opts);
+
   // Extract the doppler data
-  extract_doppler(fft_scan, azimuth_angles, azimuth_times, up_chirps, doppler_scan, *config_);
+  extractor.extract_doppler(
+    fft_scan,
+    azimuth_angles,
+    azimuth_times,
+    up_chirps,
+    doppler_scan);
+
   // RANSAC the doppler data
   auto prior_model = Eigen::Vector2d(0, 0);
   auto &w_m_r_in_r_odo_prior = qdata.w_m_r_in_r_odo_prior;
@@ -465,13 +150,14 @@ void DopplerExtractionModule::run_(QueryCache &qdata0, OutputCache &,
   } else {
     prior_model.setZero();
   }
-  ransac_scan(doppler_scan, prior_model, *config_);
-  // Publish the doppler data
+  extractor.ransac_scan(doppler_scan, prior_model);
 
-  Eigen::Vector2d varpi = registerScan(doppler_scan, prior_model, *config_);
+  // Register the doppler scan to get final velocity estimate
+  Eigen::Vector2d varpi = extractor.register_scan(doppler_scan, prior_model);
 
   // Check if we have negative velocity forward and flip everything
   if (varpi(0) < -0.5) {
+    CLOG(WARNING, "radar.doppler_extractor") << "Negative forward velocity detected, flipping doppler measurements.";
     for (auto &d : doppler_scan) {
       d.radial_velocity = -d.radial_velocity;
     }

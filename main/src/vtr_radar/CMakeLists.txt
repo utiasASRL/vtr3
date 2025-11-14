@@ -50,7 +50,7 @@ ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
   nav_msgs
-  lgmath steam
+  lgmath steam spinning_radar_doppler
   vtr_common vtr_logging vtr_tactic vtr_radar_msgs
 )
 
