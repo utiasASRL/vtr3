@@ -17,29 +17,6 @@ namespace daicp_lib_p2plane {
 inline int daicp_num_thread = 8;
 
 // =================== Print Functions ===================
-inline void printEigenvalues(const Eigen::VectorXd& eigenvalues, 
-                             const std::string& label = "Eigenvalues") {
-  CLOG(DEBUG, "lidar.localization_daicp") << label << ": [" << eigenvalues.transpose() << "]";
-}
-
-inline void printWellConditionedDirections(const Eigen::VectorXd& eigenvalues, 
-                                           double threshold) {
-  std::string directions_str = "Well-conditioned directions: [";
-  for (int i = 0; i < eigenvalues.size(); ++i) {
-    directions_str += (eigenvalues(i) > threshold) ? "True" : "False";
-    if (i < eigenvalues.size() - 1) directions_str += ", ";
-  }
-  directions_str += "]";
-  CLOG(DEBUG, "lidar.localization_daicp") << directions_str;
-}
-
-inline void printCovarianceInfo(const Eigen::MatrixXd& daicp_cov) {
-  const Eigen::VectorXd diagonal = daicp_cov.diagonal();
-  const Eigen::VectorXd std_dev = diagonal.cwiseSqrt();
-  
-  CLOG(DEBUG, "lidar.localization_daicp") << "Final covariance P diagonal (roll, pitch, yaw, x, y, z): [" << diagonal.transpose() << "]";
-  CLOG(DEBUG, "lidar.localization_daicp") << "Final std (roll, pitch, yaw, x, y, z): [" << std_dev.transpose() << "]";
-}
 
 inline lgmath::se3::Transformation 
 paramsToTransformationMatrix(const Eigen::VectorXd& params) {
@@ -424,11 +401,10 @@ inline bool GaussNewtonP2Plane(
 
     // --------- [DEBUG]: disable weighting
     // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());
-
     // --- [DEBUG]
-    ell_mr = 1.0;  // Disable scaling for debugging
+    // ell_mr = 1.0;  // Disable scaling for debugging
 
-    CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
+    // CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
 
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
     curr_cost = 0.5 * b.transpose() * W_inv * b;
@@ -457,11 +433,6 @@ inline bool GaussNewtonP2Plane(
       converged = true;
       termination_reason = "CONVERGED_ZERO_GRADIENT";
     }
-    
-    if (converged) {
-      CLOG(DEBUG, "lidar.localization_daicp") << "Converged after " << (gn_iter) << " iterations: " << termination_reason;
-      break;
-    }
 
     // DEGENERACY-AWARE EIGENSPACE PROJECTION
     // Construct inverse block scaling matrix: D_inv
@@ -469,22 +440,18 @@ inline bool GaussNewtonP2Plane(
     D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
     // translation scaling remains 1.0
     // Scale the jacobian
-    Eigen::Matrix<double, 6, 6> A_scaled = A * D_inv;
+    Eigen::MatrixXd A_scaled = A * D_inv;
     // Degeneracy analysis in eigenspace
     Eigen::Matrix<double, 6, 6> H_scaled = A_scaled.transpose() * W_inv * A_scaled;
     
-
     // Compute update step using eigenspace projection
     Eigen::VectorXd delta_params_scaled = computeSimpleUpdateStep(A_scaled, b);
     // Compute the scaled covariance matrix
     Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeP2PlaneCovariance(H_scaled);
 
-    
     // Unscale the parameters and covariance
     Eigen::VectorXd delta_params = D_inv * delta_params_scaled;
     daicp_cov = D_inv * daicp_cov_scaled * D_inv.transpose();
-    // --- Debug-print covariance information
-    // printCovarianceInfo(daicp_cov);
     
     // Accumulate parameters 
     accumulated_params += delta_params;
@@ -493,13 +460,18 @@ inline bool GaussNewtonP2Plane(
     // Check parameter change convergence AFTER applying the update
     double param_change = delta_params.norm();
     
-    // Check convergence (but allow at least one iteration to see progress)
+    // Check parameter change convergence (after at least one iteration)
     if (gn_iter > 0 && param_change < config_->inner_tolerance) {
       converged = true;
       termination_reason = "CONVERGED_PARAMETER_CHANGE";
       break;
     }
-    
+    // check convergence
+    if (converged) {
+      CLOG(DEBUG, "lidar.localization_daicp") << "Converged after " << gn_iter + 1 << " iterations: " 
+                                              << termination_reason;
+      break;
+    }
     // Update cost for next iteration
     prev_cost = curr_cost;
   }
@@ -516,12 +488,20 @@ inline bool GaussNewtonP2Plane(
       static_cast<Eigen::Matrix4d>(current_transformation.matrix() * initial_T_var.matrix())
   );
   
+  // CLOG(DEBUG, "lidar.localization_daicp") << " current_transformation:\n" << current_transformation.matrix();
+  // CLOG(DEBUG, "lidar.localization_daicp") << " initial_T_var:\n" << initial_T_var.matrix();  
+  // CLOG(DEBUG, "lidar.localization_daicp") << " final_transformation:\n" << final_transformation.matrix();
+
+
   // Calculate the actual delta from initial to final for STEAM update
   Eigen::Matrix4d delta_for_steam = final_transformation.matrix() * initial_T_var.matrix().inverse();
   Eigen::Matrix<double, 6, 1> delta_vec_steam = lgmath::se3::tran2vec(delta_for_steam);
   
   // Apply the update to T_var using STEAM's update mechanism
   T_var->update(delta_vec_steam);
+
+  // CLOG(DEBUG, "lidar.localization_daicp") << " updated T_m_s_var:\n" << T_var->value().matrix();
+
 
   return true;
 }

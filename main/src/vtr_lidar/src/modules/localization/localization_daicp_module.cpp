@@ -349,6 +349,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
     }
 
+    timer[3]->start();
     /// ########################### Gauss-Newton solver ########################### ///
     // Initialize output covariance matrix
     Eigen::Matrix<double, 6, 6> daicp_cov = Eigen::MatrixXd::Zero(6, 6);
@@ -356,9 +357,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     bool optimization_success = daicp_lib_p2plane::GaussNewtonP2Plane(
         // inputs
         filtered_sample_inds, 
-        query_mat,
-        map_mat,
-        map_normals_mat,
+        query_mat,             // source points
+        map_mat,               // target points
+        map_normals_mat,       // target normals
         // state to be optimized
         T_m_s_var,
         // configuration
@@ -446,10 +447,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       // T_r_v variable (what we want to estimate)
       const auto T_r_v_joint_var = SE3StateVar::MakeShared(T_r_v);
       // Fixed transform variables
-      const auto T_s_r_joint_var = SE3StateVar::MakeShared(T_s_r); 
-      T_s_r_joint_var->locked() = true;
-      const auto T_v_m_joint_var = SE3StateVar::MakeShared(T_v_m); 
-      T_v_m_joint_var->locked() = true;
+      const auto T_s_r_joint_var = SE3StateVar::MakeShared(T_s_r); T_s_r_joint_var->locked() = true;
+      const auto T_v_m_joint_var = SE3StateVar::MakeShared(T_v_m); T_v_m_joint_var->locked() = true;
       // Compound transform: T_m_s = (T_s_r * T_r_v * T_v_m)^{-1}
       const auto T_m_s_joint_eval = inverse(compose(T_s_r_joint_var, compose(T_r_v_joint_var, T_v_m_joint_var)));
 
@@ -459,8 +458,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       // Add prior cost term (from odometry/previous estimate)
       auto prior_loss_func = L2LossFunc::MakeShared();
       auto prior_noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
-      auto T_r_v_prior_meas = SE3StateVar::MakeShared(T_r_v); 
-      T_r_v_prior_meas->locked() = true;
+      auto T_r_v_prior_meas = SE3StateVar::MakeShared(T_r_v);  T_r_v_prior_meas->locked() = true;
       auto prior_error_func = tran2vec(compose(T_r_v_prior_meas, inverse(T_r_v_joint_var)));
       auto prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(prior_error_func, prior_noise_model, prior_loss_func);
       joint_problem.addCostTerm(prior_cost_term);
@@ -473,14 +471,13 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         daicp_loss_func = CauchyLossFunc::MakeShared(config_->robust_loss);
       }
 
-      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
-      Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
-      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
-      CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
-      CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
+      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
+      // Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
+      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
+      // CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
+      // CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
 
-      auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value()); 
-      T_m_s_daicp_meas->locked() = true;
+      auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value());  T_m_s_daicp_meas->locked() = true;
       
       // Error function: log(T_m_s_measured^{-1} * T_m_s_predicted)
       // where T_m_s_predicted = (T_s_r * T_r_v * T_v_m)^{-1}
@@ -497,25 +494,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       joint_solver.optimize();        
       // Get the covariance after joint optimization
       Covariance joint_covariance(joint_solver);
-      // Create the fused result
-      // T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));
-      Eigen::Matrix4d T_r_v_steam;
-      T_r_v_steam = T_r_v_joint_var->value().matrix();
-      // ##################################### STEAM-based prior fusion (END)###################################### // 
-
-      const auto T_s_m_optimized = T_m_s_var->value().inverse();
-      const auto T_r_v_decoded = T_s_r.inverse() * T_s_m_optimized * T_v_m.inverse();
-      auto T_r_v_daicp = SE3StateVar::MakeShared(T_r_v_decoded);
-
-      /// TODO: clean the code here
-      auto T_r_v_select = 
-        config_->use_pfuison
-        ? T_r_v_joint_var->value()          // STEAM-based fusion
-        : T_r_v_daicp->value();             // DA-ICP only
 
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
-      const auto T_diff = T_r_v_select * T_r_v_prior.inverse();
+      const auto T_r_v_steam = T_r_v_joint_var->value();
+      const auto T_diff = T_r_v_steam * T_r_v_prior.inverse();
       const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
       const double translation_diff = T_diff_vec.head<3>().norm();
       const double rotation_diff = T_diff_vec.tail<3>().norm();

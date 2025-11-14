@@ -339,12 +339,12 @@
         sigma_el: 0.000523599                 # elevation noise std (0.03 degrees)
         # prior fusion
         use_pfuison: false                     # whether to use prior fusion
-        max_pfusion_iter: 3                   # max iterations for prior fusion
+        max_pfusion_iter: 2                   # max iterations for prior fusion
         use_L2_loss: false                    # whether to use L2 loss in prior fusion
         robust_loss: 0.1                      # parameter for robust loss function in prior fusion
         verbose: false
         # refinement
-        refined_max_iter: 50                  # DAICP outer loop iterations
+        refined_max_iter: 30                  # DAICP outer loop iterations
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
