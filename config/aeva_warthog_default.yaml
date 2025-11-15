@@ -186,7 +186,7 @@
         downsample_teach_map: false # whether to downsample the frames used in **map building**. in repeat, always downsample plane and feature separately 
                                     # if false, use feature_voxel_size for whole frame
                                     # if true, downsample pleane and features separately using plane_voxel_size and feature_voxel_size
-        plane_voxel_size: 1.0       # voxel size for plane
+        plane_voxel_size: 3.0       # voxel size for plane
         feature_voxel_size: 0.3     # voxel size for feature
 
         # clustering parameters
@@ -326,7 +326,7 @@
         initial_max_iter: 4
         # data association
         lambda: 1.0                           # weight for spatial vs curvature in correspondence search: 0 = all curvature, 1 = equal weight after normalization
-        curvature_similarity_thresh: 100.0    # threshold on curvature difference for correspondence rejection
+        curvature_similarity_thresh: 120.0    # threshold on curvature difference for correspondence rejection
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
         ### daicp
@@ -338,7 +338,7 @@
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
         sigma_el: 0.000523599                 # elevation noise std (0.03 degrees)
         # prior fusion
-        use_pfuison: false                     # whether to use prior fusion
+        use_pfuison: true                     # whether to use prior fusion (always fuse prior, this param is not used)
         max_pfusion_iter: 2                   # max iterations for prior fusion
         use_L2_loss: false                    # whether to use L2 loss in prior fusion
         robust_loss: 0.1                      # parameter for robust loss function in prior fusion
@@ -349,7 +349,7 @@
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
         # outlier rejection
-        trans_outlier_thresh: 0.3             # threshold on translation outlier rejection
+        trans_outlier_thresh: 0.5             # threshold on translation outlier rejection
         rot_outlier_thresh: 0.2               # threshold on rotation outlier rejection
         min_matched_ratio: 0.45             
         # online gyro bias estimation

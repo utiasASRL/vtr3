@@ -664,7 +664,7 @@ inline bool daGaussNewtonP2Plane(
     // --- [DEBUG]
     // ell_mr = 1.0;  // Disable scaling for debugging
 
-    CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
+    // CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
 
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
     curr_cost = 0.5 * b.transpose() * W_inv * b;
@@ -693,11 +693,6 @@ inline bool daGaussNewtonP2Plane(
       converged = true;
       termination_reason = "CONVERGED_ZERO_GRADIENT";
     }
-    
-    if (converged) {
-      CLOG(DEBUG, "lidar.localization_daicp") << "Converged after " << (gn_iter) << " iterations: " << termination_reason;
-      break;
-    }
 
     // DEGENERACY-AWARE EIGENSPACE PROJECTION
     // --- compute original Hessian
@@ -707,7 +702,7 @@ inline bool daGaussNewtonP2Plane(
     D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
     // translation scaling remains 1.0
     // Scale the jacobian
-    Eigen::Matrix<double, 6, 6> A_scaled = A * D_inv;
+    Eigen::MatrixXd A_scaled = A * D_inv;
     // Degeneracy analysis in eigenspace
     Eigen::Matrix<double, 6, 6> H_scaled = A_scaled.transpose() * W_inv * A_scaled;
 
@@ -754,7 +749,11 @@ inline bool daGaussNewtonP2Plane(
       termination_reason = "CONVERGED_PARAMETER_CHANGE";
       break;
     }
-    
+    // check convergence
+    if (converged) {
+      CLOG(DEBUG, "lidar.localization_daicp") << "Converged after " << (gn_iter) << " iterations: " << termination_reason;
+      break;
+    }
     // Update cost for next iteration
     prev_cost = curr_cost;
   }

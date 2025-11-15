@@ -1,5 +1,5 @@
 #include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
-#include "vtr_lidar/modules/localization/daicp_lib.hpp"
+#include "vtr_lidar/modules/localization/daicp_lib_p2plane.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
@@ -354,7 +354,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // Initialize output covariance matrix
     Eigen::Matrix<double, 6, 6> daicp_cov = Eigen::MatrixXd::Zero(6, 6);
 
-    bool optimization_success = daicp_lib::daGaussNewtonP2Plane(
+    bool optimization_success = daicp_lib_p2plane::GaussNewtonP2Plane(
         // inputs
         filtered_sample_inds, 
         query_mat,             // source points
@@ -471,9 +471,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         daicp_loss_func = CauchyLossFunc::MakeShared(config_->robust_loss);
       }
 
-      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
-      Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
-      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
+      auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
+      // Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
+      // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
       // CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
       // CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
 
