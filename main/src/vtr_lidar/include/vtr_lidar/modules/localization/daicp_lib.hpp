@@ -136,6 +136,110 @@ inline Eigen::Matrix3d computeRangeBearingCovariance(double d, double az, double
   return JA * Sigma_du * JA.transpose();
 }
 
+// =================== Block Scaling Functions ===================
+inline std::pair<Eigen::Matrix3d, Eigen::Matrix3d> schurComplementMarginalization(const Eigen::MatrixXd& H) {
+  // Apply Schur complement marginalization to obtain marginalized information matrices
+  // H is 6x6: [H_theta_theta, H_theta_t; H_t_theta, H_tt]
+  
+  // Extract blocks
+  Eigen::Matrix3d H_theta_theta = H.block<3, 3>(0, 0);  // rotation block
+  Eigen::Matrix3d H_theta_t = H.block<3, 3>(0, 3);      // rotation-translation block
+  Eigen::Matrix3d H_t_theta = H.block<3, 3>(3, 0);      // translation-rotation block
+  Eigen::Matrix3d H_tt = H.block<3, 3>(3, 3);           // translation block
+  
+  const double reg_val = 1e-12;
+  
+  // Marginalized rotation information: H_marg_theta = H_theta_theta - H_theta_t * H_tt^{-1} * H_t_theta
+  Eigen::Matrix3d H_marg_theta;
+  try {
+    Eigen::Matrix3d H_tt_inv = (H_tt + reg_val * Eigen::Matrix3d::Identity()).inverse();
+    H_marg_theta = H_theta_theta - H_theta_t * H_tt_inv * H_t_theta;
+  } catch (const std::exception& e) {
+    // Use pseudo-inverse if singular
+    Eigen::JacobiSVD<Eigen::Matrix3d> svd(H_tt + reg_val * Eigen::Matrix3d::Identity(), 
+                                          Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d H_tt_pinv = svd.matrixV() * svd.singularValues().cwiseInverse().asDiagonal() * svd.matrixU().transpose();
+    H_marg_theta = H_theta_theta - H_theta_t * H_tt_pinv * H_t_theta;
+  }
+  
+  // Marginalized translation information: H_marg_t = H_tt - H_t_theta * H_theta_theta^{-1} * H_theta_t
+  Eigen::Matrix3d H_marg_t;
+  try {
+    Eigen::Matrix3d H_theta_theta_inv = (H_theta_theta + reg_val * Eigen::Matrix3d::Identity()).inverse();
+    H_marg_t = H_tt - H_t_theta * H_theta_theta_inv * H_theta_t;
+  } catch (const std::exception& e) {
+    // Use pseudo-inverse if singular
+    Eigen::JacobiSVD<Eigen::Matrix3d> svd(H_theta_theta + reg_val * Eigen::Matrix3d::Identity(), 
+                                          Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d H_theta_theta_pinv = svd.matrixV() * svd.singularValues().cwiseInverse().asDiagonal() * svd.matrixU().transpose();
+    H_marg_t = H_tt - H_t_theta * H_theta_theta_pinv * H_theta_t;
+  }
+  
+  // Ensure positive semidefinite
+  // H_marg_theta = makePSD(H_marg_theta);
+  // H_marg_t = makePSD(H_marg_t);
+  
+  return std::make_pair(H_marg_theta, H_marg_t);
+}
+
+inline double computeScalingFactorTrace(const Eigen::Matrix3d& H_marg_theta, const Eigen::Matrix3d& H_marg_t) {
+  // Compute scaling factor using the trace method
+  double tr_theta = H_marg_theta.trace();
+  double tr_t = H_marg_t.trace();
+  
+  if (tr_t < 1e-12) {
+    std::cout << "[WARNING] Translation trace is very small (" << tr_t << "), using default scaling" << std::endl;
+    return 1.0;
+  }
+  
+  return std::sqrt(tr_theta / tr_t);
+}
+
+inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta, const Eigen::Matrix3d& H_marg_t) {
+
+  // Compute scaling factor using the max eigenvalue method
+  // regularization step
+  const double reg_val = 1e-12;
+  Eigen::Matrix3d H_marg_theta_reg = H_marg_theta + reg_val * Eigen::Matrix3d::Identity();
+  Eigen::Matrix3d H_marg_t_reg = H_marg_t + reg_val * Eigen::Matrix3d::Identity();
+  
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_theta(H_marg_theta_reg);
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_t(H_marg_t_reg);
+  
+  // Sort eigenvalues in descending order for consistent output
+  Eigen::Vector3d eigvals_theta = solver_theta.eigenvalues();
+  Eigen::Vector3d eigvals_t = solver_t.eigenvalues();
+  
+  std::sort(eigvals_theta.data(), eigvals_theta.data() + 3, std::greater<double>());
+  std::sort(eigvals_t.data(), eigvals_t.data() + 3, std::greater<double>());
+  
+  double max_theta = eigvals_theta(0);
+  double max_t = eigvals_t(0);
+  
+  // // Debug print eigenvalues with same format as Python
+  // std::cout << BLUE << "Eigenvalues theta: [";
+  // for (int i = 0; i < 3; ++i) {
+  //   std::cout << std::fixed << std::setprecision(4) << eigvals_theta(i);
+  //   if (i < 2) std::cout << ", ";
+  // }
+  // std::cout << "]" << RESET << std::endl;
+  
+  // std::cout << BLUE << "Eigenvalues t: [";
+  // for (int i = 0; i < 3; ++i) {
+  //   std::cout << std::fixed << std::setprecision(4) << eigvals_t(i);
+  //   if (i < 2) std::cout << ", ";
+  // }
+  // std::cout << "]" << RESET << std::endl;
+  
+  if (max_t < 1e-12) {
+    std::cout << "[WARNING] Translation max eigenvalue is very small (" << max_t << "), using default scaling" << std::endl;
+    return 1.0;
+  }
+  
+  return std::sqrt(max_theta / max_t);
+}
+
+
 // =================== Covariance Computation ===================
 inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov, 
                                           double min_eigenvalue = 1e-6) {
@@ -237,7 +341,8 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
               (1.0/epsilon) * (Vd *Vd.transpose());
   }
 
-  CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov: \n" << daicpCov;
+  // CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov: \n" << daicpCov;
+
   // [Debug] Perform eigen decomposition to check positive definiteness
   // --- the daicpCov is PD with all eigenvalues > 0.
   // Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigensolver(daicpCov);
@@ -600,7 +705,7 @@ inline double computeThreshold(const Eigen::VectorXd& eigenvalues,
   // Rearranging: eigenval > max_eigenval / cond_num_thresh_ratio
   const double eigenvalue_threshold = max_eigenval / cond_num_thresh_ratio;
 
-  // CLOG(DEBUG, "lidar.localization_daicp") << "Decode Threshold: " << eigenvalue_threshold;
+  CLOG(DEBUG, "lidar.localization_daicp") << "Relative Condition Number Threshold: " << cond_num_thresh_ratio;
 
   // const double eigenvalue_threshold = -1000.0;       // [DEBUG] default back to point-to-plane icp
 
@@ -663,8 +768,17 @@ inline bool daGaussNewtonP2Plane(
 
     // --- [DEBUG]
     // ell_mr = 1.0;  // Disable scaling for debugging
+    CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
 
-    // CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
+    // Compute original Hessian
+    Eigen::MatrixXd H_original = A.transpose() * W_inv * A;
+    // Apply Schur complement marginalization
+    auto [H_marg_theta, H_marg_t] = schurComplementMarginalization(H_original);
+    // Compute scaling factor
+    // ell_mr = computeScalingFactorTrace(H_marg_theta, H_marg_t);
+    ell_mr = computeScalingFactorMax(H_marg_theta, H_marg_t);
+
+    CLOG(DEBUG, "lidar.localization_daicp") << "----------------------use H_the/H_t, ell_mr:   " << ell_mr;
 
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
     curr_cost = 0.5 * b.transpose() * W_inv * b;
@@ -720,7 +834,7 @@ inline bool daGaussNewtonP2Plane(
     
     // Construct well-conditioned directions matrix 
     Eigen::Matrix<double, 6, 6> V, Vf;
-    Eigen::Matrix<double, 6, Eigen::Dynamic> Vd;
+    Eigen::Matrix<double, 6, Eigen::Dynamic> Vd;s
     Eigen::VectorXd eigen_vf;
     constructWellConditionedDirections(eigenvalues, eigenvectors, eigenvalue_threshold, 
                                        V, Vf, eigen_vf, Vd);
@@ -739,7 +853,15 @@ inline bool daGaussNewtonP2Plane(
     // Accumulate parameters 
     accumulated_params += delta_params;
     // Convert accumulated parameters to transformation
-    current_transformation = paramsToTransformationMatrix(accumulated_params);
+    // current_transformation = paramsToTransformationMatrix(accumulated_params);
+
+    // try this (This also works)
+    Eigen::Matrix<double, 6, 1> xi;
+    xi << accumulated_params[3], accumulated_params[4], accumulated_params[5],
+          accumulated_params[0], accumulated_params[1], accumulated_params[2];
+    current_transformation = lgmath::se3::Transformation(lgmath::se3::vec2tran(xi));
+
+
     // Check parameter change convergence AFTER applying the update
     double param_change = delta_params.norm();
     

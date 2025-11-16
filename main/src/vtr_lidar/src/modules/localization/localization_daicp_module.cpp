@@ -517,6 +517,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         // --- accept DA-ICP result
         T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
+
+        /// check for the covariance 
+        CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
+        CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
+        CLOG(DEBUG, "lidar.localization_daicp") << "Joint optimized T_r_v covariance diagonal: " << joint_covariance.query(T_r_v_joint_var).diagonal().transpose();
       }
 
       //
