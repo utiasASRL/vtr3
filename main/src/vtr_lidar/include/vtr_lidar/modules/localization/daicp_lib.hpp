@@ -834,7 +834,7 @@ inline bool daGaussNewtonP2Plane(
     
     // Construct well-conditioned directions matrix 
     Eigen::Matrix<double, 6, 6> V, Vf;
-    Eigen::Matrix<double, 6, Eigen::Dynamic> Vd;s
+    Eigen::Matrix<double, 6, Eigen::Dynamic> Vd;
     Eigen::VectorXd eigen_vf;
     constructWellConditionedDirections(eigenvalues, eigenvectors, eigenvalue_threshold, 
                                        V, Vf, eigen_vf, Vd);
@@ -855,7 +855,8 @@ inline bool daGaussNewtonP2Plane(
     // Convert accumulated parameters to transformation
     // current_transformation = paramsToTransformationMatrix(accumulated_params);
 
-    // try this (This also works)
+    // Lgmath uses [tx, ty, tz, rx, ry, rz] ordering.
+    // It works the same as "paramsToTransformationMatrix".
     Eigen::Matrix<double, 6, 1> xi;
     xi << accumulated_params[3], accumulated_params[4], accumulated_params[5],
           accumulated_params[0], accumulated_params[1], accumulated_params[2];
