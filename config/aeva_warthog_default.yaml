@@ -320,7 +320,7 @@
         type: lidar.localization_daicp
         # general
         num_threads: 8
-        target_loc_time: 100.0                # [ms]
+        target_loc_time: 60.0                # [ms]
         # iteration control
         first_num_steps: 2
         initial_max_iter: 4
@@ -343,7 +343,7 @@
         use_L2_loss: false                    # whether to use L2 loss in prior fusion
         robust_loss: 0.1                      # parameter for robust loss function in prior fusion
         # refinement
-        refined_max_iter: 6
+        refined_max_iter: 15
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
