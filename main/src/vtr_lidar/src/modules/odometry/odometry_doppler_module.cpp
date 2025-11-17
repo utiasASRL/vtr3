@@ -159,6 +159,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Inputs
   auto &query_stamp = *qdata.stamp;
+  auto &timestamp_odo = *qdata.timestamp_odo;
   const auto &query_points = *qdata.doppler_preprocessed_point_cloud; // point cloud after preprocess
   const auto &T_s_r = *qdata.T_s_r;                   // external calib, T from robot to lidar
   const auto &T_s_r_gyro = *qdata.T_s_r_gyro;         // external calib, T from robot to gyro
@@ -207,6 +208,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   frame_end_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
   // current state time
   auto query_time = static_cast<int64_t>(query_stamp);
+  // last frame time
+  auto prev_query_time = static_cast<int64_t>(timestamp_odo);
   // last state time
   auto prev_time = static_cast<int64_t>(timestamp_prior);
 
@@ -226,7 +229,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(prev_w_m_r_in_r_odo);
   trajectory->add(knot_time, prev_T_r_m_var, prev_w_m_r_in_r_var);
 
-  if (prev_time == query_time && frame_count > 0) {
+  if (prev_query_time == query_time && frame_count > 0) {
     CLOG(WARNING, "lidar.odometry_doppler") << "Skipping point cloud with duplicate stamp";
     *qdata.odo_success = false;
     return;
