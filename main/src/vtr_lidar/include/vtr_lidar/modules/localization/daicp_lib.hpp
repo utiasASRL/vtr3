@@ -14,8 +14,6 @@ class LocalizationDAICPModule;
 
 namespace daicp_lib {
 
-inline int daicp_num_thread = 8;
-
 // =================== Print Functions ===================
 inline void printEigenvalues(const Eigen::VectorXd& eigenvalues, 
                              const std::string& label = "Eigenvalues") {
@@ -39,62 +37,6 @@ inline void printCovarianceInfo(const Eigen::MatrixXd& daicp_cov) {
   
   CLOG(DEBUG, "lidar.localization_daicp") << "Final covariance P diagonal (roll, pitch, yaw, x, y, z): [" << diagonal.transpose() << "]";
   CLOG(DEBUG, "lidar.localization_daicp") << "Final std (roll, pitch, yaw, x, y, z): [" << std_dev.transpose() << "]";
-}
-
-inline lgmath::se3::Transformation 
-paramsToTransformationMatrix(const Eigen::VectorXd& params) {
-  if (params.size() != 6) {
-    CLOG(ERROR, "lidar.localization_daicp") << "Invalid parameter size: " << params.size();
-    return lgmath::se3::Transformation();
-  }
-  
-  const double rx = params(0), ry = params(1), rz = params(2);
-  const Eigen::Vector3d translation = params.tail<3>();
-  
-  // For very small angles, use linearized form for numerical stability
-  if (std::max({std::abs(rx), std::abs(ry), std::abs(rz)}) < 0.1) {
-    // Small angle approximation
-    Eigen::Matrix3d R;
-    R << 1, -rz, ry,
-         rz, 1, -rx,
-         -ry, rx, 1;
-    
-    // Ensure orthogonality using SVD
-    Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    R = svd.matrixU() * svd.matrixV().transpose();
-    
-    // Build 4x4 transformation matrix
-    Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-    T.block<3, 3>(0, 0) = R;
-    T.block<3, 1>(0, 3) = translation;
-    
-    return lgmath::se3::Transformation(T);
-  } else {
-    // Full rotation matrix computation for larger angles
-    // Individual rotation matrices
-    Eigen::Matrix3d Rx, Ry, Rz;
-    Rx << 1, 0, 0,
-          0, std::cos(rx), -std::sin(rx),
-          0, std::sin(rx), std::cos(rx);
-    
-    Ry << std::cos(ry), 0, std::sin(ry),
-          0, 1, 0,
-          -std::sin(ry), 0, std::cos(ry);
-    
-    Rz << std::cos(rz), -std::sin(rz), 0,
-          std::sin(rz), std::cos(rz), 0,
-          0, 0, 1;
-    
-    // Combined rotation (ZYX order)
-    Eigen::Matrix3d R = Rz * Ry * Rx;
-    
-    // Build 4x4 transformation matrix
-    Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-    T.block<3, 3>(0, 0) = R;
-    T.block<3, 1>(0, 3) = translation;
-    
-    return lgmath::se3::Transformation(T);
-  }
 }
 
 // =================== Range/Bearing Noise Model Utilities ===================
@@ -189,54 +131,38 @@ inline double computeScalingFactorTrace(const Eigen::Matrix3d& H_marg_theta, con
   
   if (tr_t < 1e-12) {
     std::cout << "[WARNING] Translation trace is very small (" << tr_t << "), using default scaling" << std::endl;
-    return 1.0;
+    return 20.0; // mid-range for 40 meter lidar
   }
   
   return std::sqrt(tr_theta / tr_t);
 }
 
-inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta, const Eigen::Matrix3d& H_marg_t) {
+inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta,
+                                      const Eigen::Matrix3d& H_marg_t)
+{
+    constexpr double reg_val = 1e-12;
 
-  // Compute scaling factor using the max eigenvalue method
-  // regularization step
-  const double reg_val = 1e-12;
-  Eigen::Matrix3d H_marg_theta_reg = H_marg_theta + reg_val * Eigen::Matrix3d::Identity();
-  Eigen::Matrix3d H_marg_t_reg = H_marg_t + reg_val * Eigen::Matrix3d::Identity();
-  
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_theta(H_marg_theta_reg);
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_t(H_marg_t_reg);
-  
-  // Sort eigenvalues in descending order for consistent output
-  Eigen::Vector3d eigvals_theta = solver_theta.eigenvalues();
-  Eigen::Vector3d eigvals_t = solver_t.eigenvalues();
-  
-  std::sort(eigvals_theta.data(), eigvals_theta.data() + 3, std::greater<double>());
-  std::sort(eigvals_t.data(), eigvals_t.data() + 3, std::greater<double>());
-  
-  double max_theta = eigvals_theta(0);
-  double max_t = eigvals_t(0);
-  
-  // // Debug print eigenvalues with same format as Python
-  // std::cout << BLUE << "Eigenvalues theta: [";
-  // for (int i = 0; i < 3; ++i) {
-  //   std::cout << std::fixed << std::setprecision(4) << eigvals_theta(i);
-  //   if (i < 2) std::cout << ", ";
-  // }
-  // std::cout << "]" << RESET << std::endl;
-  
-  // std::cout << BLUE << "Eigenvalues t: [";
-  // for (int i = 0; i < 3; ++i) {
-  //   std::cout << std::fixed << std::setprecision(4) << eigvals_t(i);
-  //   if (i < 2) std::cout << ", ";
-  // }
-  // std::cout << "]" << RESET << std::endl;
-  
-  if (max_t < 1e-12) {
-    std::cout << "[WARNING] Translation max eigenvalue is very small (" << max_t << "), using default scaling" << std::endl;
-    return 1.0;
-  }
-  
-  return std::sqrt(max_theta / max_t);
+    // Add tiny diagonal regularization (fast: avoids a new matrix allocation)
+    Eigen::Matrix3d H_theta = H_marg_theta;
+    H_theta.diagonal().array() += reg_val;
+
+    Eigen::Matrix3d H_t = H_marg_t;
+    H_t.diagonal().array() += reg_val;
+
+    // Fastest 3x3 symmetric eigen decomposition in Eigen
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_theta(H_theta, Eigen::EigenvaluesOnly);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_t(H_t, Eigen::EigenvaluesOnly);
+
+    // Eigenvalues are sorted in ASCENDING order: [λ_min, λ_mid, λ_max]
+    const double max_theta = solver_theta.eigenvalues()(2);
+    const double max_t     = solver_t.eigenvalues()(2);
+
+    if (max_t < 1e-12) {
+        std::cout << "[WARNING] Translation max eigenvalue very small (" << max_t << "), using default scaling\n";
+        return 20.0; // mid-range for 40 meter lidar
+    }
+
+    return std::sqrt(max_theta / max_t);
 }
 
 
@@ -400,16 +326,8 @@ inline void computeJacobianResidualInformation(
     const Eigen::Matrix4d& T_combined,
     Eigen::MatrixXd& A,
     Eigen::VectorXd& b,
-    Eigen::MatrixXd& W_inv,
-    double& ell_mr,
+    Eigen::VectorXd& W_inv,
     const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_) {
-
-  const int n_points = static_cast<int>(sample_inds.size());
-  
-  // Initialize outputs
-  A.resize(n_points, 6);
-  b.resize(n_points);
-  W_inv = Eigen::MatrixXd::Zero(n_points, n_points);
   
   // Lidar range and bearing noise model parameters
   const double sigma_d = config_->sigma_d;          // range noise std (2cm)
@@ -420,52 +338,46 @@ inline void computeJacobianResidualInformation(
                                                    sigma_az * sigma_az,
                                                    sigma_el * sigma_el).asDiagonal();
   
-  // --- parallel accumulation for mean range ---
-  double sum_range = 0.0;
-  int valid_count  = 0;
   // using OpenMP reduction to safely accumulate sum_range and valid_count
-  #pragma omp parallel for reduction(+:sum_range,valid_count) schedule(static) num_threads(daicp_num_thread)
-  for (int i = 0; i < n_points; ++i) {
+#pragma omp parallel for schedule(static) num_threads(config_->num_threads)
+  for (uint i = 0; i < sample_inds.size(); ++i) {
     const auto& ind = sample_inds[i];
-    
+      
+    Eigen::VectorXd jacobian(6);
+    Eigen::Vector3d target_pt, target_normal;
+    Eigen::Matrix3d Sigma_q_i, Sigma_n_i, Sigma_pL_i, Sigma_p_world;
+    Eigen::Vector4d source_pt_hom;
+    Eigen::Matrix3d R_combined = T_combined.block<3,3>(0,0);
+
     // Get original source point and transform it with combined transformation
     const Eigen::Vector3d source_pt_original = query_mat.block<3, 1>(0, ind.first).cast<double>();
-    Eigen::Vector4d source_pt_hom;
-    source_pt_hom << source_pt_original, 1.0;
+    source_pt_hom = Eigen::Vector4d(source_pt_original(0), source_pt_original(1), source_pt_original(2), 1.0);
     const Eigen::Vector3d source_pt_transformed = (T_combined * source_pt_hom).head<3>();
-
     
     // Get target point and normal
-    const Eigen::Vector3d target_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
-    const Eigen::Vector3d target_normal = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+    target_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
+    target_normal = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
     const Eigen::Vector3d n_t = target_normal.normalized();
     
     // ===== 1. Compute Jacobian and Residual =====
-    const Eigen::VectorXd jacobian = computeP2PlaneJacobian(source_pt_transformed, n_t);
+    jacobian = computeP2PlaneJacobian(source_pt_transformed, n_t);
     A.row(i) = jacobian.transpose();
     
     // Compute residual (point-to-plane distance)
     b(i) = n_t.dot(target_pt - source_pt_transformed);
     
     // ===== 2. Compute Sigma_pL_s for this point =====
-    // Get lidar scan point in lidar frame for noise modeling
-    const Eigen::Vector3d p_lidar = source_pt_original;
-    
     // Compute range, azimuth, elevation in lidar frame
-    const double range = p_lidar.norm();
+    const double range = source_pt_original.norm();
     // const double flat_range = std::sqrt(p_lidar(0)*p_lidar(0) + p_lidar(1)*p_lidar(1));
-    const double azimuth = std::atan2(p_lidar(1), p_lidar(0));
-    const double elevation = std::atan2(p_lidar(2), std::sqrt(p_lidar(0)*p_lidar(0) + p_lidar(1)*p_lidar(1)));
-    
-    // Compute covariance for this measurement
-    const Eigen::Matrix3d Sigma_pL_i = computeRangeBearingCovariance(range, azimuth, elevation, Sigma_du);
-    
-    // accumulate range for ell_mr
-    if (std::isfinite(range)) { sum_range += range; valid_count += 1; }
+    const double azimuth = std::atan2(source_pt_original(1), source_pt_original(0));
+    const double elevation = std::atan2(source_pt_original(2), std::sqrt(source_pt_original(0)*source_pt_original(0) + source_pt_original(1)*source_pt_original(1)));
 
+    // Compute covariance for this measurement
+    Sigma_pL_i = computeRangeBearingCovariance(range, azimuth, elevation, Sigma_du);
+    
     // ===== 3. Compute Information Weight for this point =====
     // Jacobians for variance terms:
-    const Eigen::Matrix3d R_combined = T_combined.block<3,3>(0,0); // Rotation part of T_combined
     // J_p = n^T R   (since residual uses R p + t)
     const Eigen::RowVector3d J_p = (n_t.transpose() * R_combined);      // 1x3
     // J_q = -n^T
@@ -476,18 +388,18 @@ inline void computeJacobianResidualInformation(
 
     // --- Map-point covariance  ---
     const double sigma_map = 0.01;  // meters
-    const Eigen::Matrix3d Sigma_q_i = (sigma_map * sigma_map) * Eigen::Matrix3d::Identity();
+    Sigma_q_i = (sigma_map * sigma_map) * Eigen::Matrix3d::Identity();
 
     // --- Normal covariance (tangent-plane, PSD) ---
     // Uncertainty only in directions orthogonal to n_t.
     const double sigma_n = 0.03; // e.g., a small angle in radians mapped to length via ||d||
                                 // typical: normal_sigma ~ 0.02 to 0.05 (tuned)
     const Eigen::Matrix3d Pn = Eigen::Matrix3d::Identity() - n_t * n_t.transpose();
-    const Eigen::Matrix3d Sigma_n_i = (sigma_n * sigma_n) * Pn;
+    Sigma_n_i = (sigma_n * sigma_n) * Pn;
 
     // --- Transform LiDAR point covariance to the target/map frame ---
     // Sigma_p (world) = R * Sigma_p (lidar) * R^T   (R: lidar->world here equals R_combined if p_lidar was in lidar frame)
-    const Eigen::Matrix3d Sigma_p_world = R_combined * Sigma_pL_i * R_combined.transpose();
+    Sigma_p_world = R_combined * Sigma_pL_i * R_combined.transpose();
 
     // --- Scalar residual variance ---
     double cov_r = 0.0;
@@ -520,12 +432,8 @@ inline void computeJacobianResidualInformation(
     //     << "  | JnΣnJn^T=" << (J_n * Sigma_n_i    * J_n.transpose())(0,0);
 
     // Store weight (diagonal of W_inv)
-    W_inv(i, i) = w;
+    W_inv(i) = w;
   }
-
-  // mean flat range -> scaling parameter
-  const double mean_range = (valid_count > 0) ? (sum_range / valid_count) : 0.0;
-  ell_mr = mean_range;  // simplest: 1 rad ~ ell_mr meters
 }
 
 inline void constructWellConditionedDirections(
@@ -578,47 +486,25 @@ inline Eigen::VectorXd computeUpdateStep(
     const Eigen::MatrixXd& A,
     const Eigen::VectorXd& b,
     const Eigen::Matrix<double, 6, 6>& V,
-    const Eigen::Matrix<double, 6, 6>& Vf) {
-  
-  // Compute update in well-conditioned space: Δxf ← (A^T A)^{-1} A^T b
-  // [Note] b does not need to be scaled. 
-  // Since A is the scaled A, we are solving the (A^T A) dx = A^T b.
-  // The right-hand side is scaled by A directly.
-  const Eigen::MatrixXd AtA = A.transpose() * A;
-  
-  Eigen::VectorXd delta_x_f;
-  try {
-    // Use pseudoinverse for robustness
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(AtA, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    
-    // Compute pseudoinverse manually with tolerance
-    const double tolerance = 1e-14;
-    Eigen::VectorXd singular_values = svd.singularValues();
-    
-    // Create diagonal matrix with inverse of non-zero singular values
-    Eigen::MatrixXd S_inv = Eigen::MatrixXd::Zero(singular_values.size(), singular_values.size());
-    for (int i = 0; i < singular_values.size(); ++i) {
-      if (singular_values(i) > tolerance) {
-        S_inv(i, i) = 1.0 / singular_values(i);
-      }
+    const Eigen::Matrix<double, 6, 6>& Vf)
+{
+    // Compute RHS once
+    const Eigen::VectorXd Atb = A.transpose() * b;
+
+    // Solve (AᵀA) Δx = Aᵀ b using the normal-equation Cholesky decomposition.
+    Eigen::VectorXd delta_x_f;
+    Eigen::LLT<Eigen::MatrixXd> llt(A.transpose() * A);
+
+    if (llt.info() == Eigen::Success) {
+        delta_x_f = llt.solve(Atb);
+    } else {
+        // LAST-RESORT fallback: SVD(A)
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        delta_x_f = svd.solve(b);
     }
-    
-    // Reconstruct pseudoinverse: AtA_pinv = V * S_inv * U^T
-    Eigen::MatrixXd AtA_pinv = svd.matrixV() * S_inv * svd.matrixU().transpose();
-    delta_x_f = AtA_pinv * A.transpose() * b;
-    
-  } catch (const std::exception& e) {
-    // Fallback to least squares 
-    // SVD failed, using least squares fallback
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    delta_x_f = svd.solve(b);
-  }
-  
-  // Apply degeneracy-aware projection
-  // delta_x_projected = V @ (Vf.T @ delta_x_f)
-  const Eigen::VectorXd delta_x_projected = V * (Vf.transpose() * delta_x_f);
-  
-  return delta_x_projected;
+
+    // Project degeneracies
+    return V * (Vf.transpose() * delta_x_f);
 }
 
 inline bool computeEigenvalueDecomposition(
@@ -749,40 +635,32 @@ inline bool daGaussNewtonP2Plane(
   for (int gn_iter = 0; gn_iter < config_->max_gn_iter && !converged; ++gn_iter) {
     // Build jacobian and residual for current transformation
     Eigen::MatrixXd A(sample_inds.size(), 6);
-    Eigen::MatrixXd W_inv(sample_inds.size(), sample_inds.size());
+    Eigen::VectorXd W_inv;
+    W_inv.resize(sample_inds.size());
     Eigen::VectorXd b(sample_inds.size());
     
     // Compose with initial transformation: final_T = current_T * initial_T
     const Eigen::Matrix4d T_combined = current_transformation.matrix() * initial_T_var.matrix();
-    
-    double ell_mr = 0.0;
 
     // Compute Jacobian, residuals, and information matrix
     // Note: Measurement noise is computed from the original sensor measurements (query_mat),
     // which are independent of the state estimate, as it should be.
     computeJacobianResidualInformation(sample_inds, query_mat, map_mat, map_normals_mat,
-                                       T_combined, A, b, W_inv, ell_mr, config_);
-
-    // --------- [DEBUG]: disable weighting
-    // W_inv = Eigen::MatrixXd::Identity(W_inv.rows(), W_inv.cols());
-
-    // --- [DEBUG]
-    // ell_mr = 1.0;  // Disable scaling for debugging
-    CLOG(DEBUG, "lidar.localization_daicp") << "---------------------- ell_mr:   " << ell_mr;
+                                       T_combined, A, b, W_inv, config_);
 
     // Compute original Hessian
-    Eigen::MatrixXd H_original = A.transpose() * W_inv * A;
+    Eigen::MatrixXd H_original = A.transpose() * W_inv.asDiagonal() * A;
     // Apply Schur complement marginalization
     auto [H_marg_theta, H_marg_t] = schurComplementMarginalization(H_original);
     // Compute scaling factor
     // ell_mr = computeScalingFactorTrace(H_marg_theta, H_marg_t);
-    ell_mr = computeScalingFactorMax(H_marg_theta, H_marg_t);
+    double ell_mr = computeScalingFactorMax(H_marg_theta, H_marg_t);
 
     CLOG(DEBUG, "lidar.localization_daicp") << "----------------------use H_the/H_t, ell_mr:   " << ell_mr;
 
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
-    curr_cost = 0.5 * b.transpose() * W_inv * b;
-    const Eigen::VectorXd weighted_gradient = A.transpose() * W_inv * b;
+    curr_cost = 0.5 * b.transpose() * W_inv.asDiagonal() * b;
+    const Eigen::VectorXd weighted_gradient = A.transpose() * W_inv.asDiagonal() * b;
     const double grad_norm = weighted_gradient.norm();
     
     // STEAM-style convergence checking
@@ -818,7 +696,7 @@ inline bool daGaussNewtonP2Plane(
     // Scale the jacobian
     Eigen::MatrixXd A_scaled = A * D_inv;
     // Degeneracy analysis in eigenspace
-    Eigen::Matrix<double, 6, 6> H_scaled = A_scaled.transpose() * W_inv * A_scaled;
+    Eigen::Matrix<double, 6, 6> H_scaled = A_scaled.transpose() * W_inv.asDiagonal() * A_scaled;
 
     Eigen::VectorXd eigenvalues;
     Eigen::Matrix<double, 6, 6> eigenvectors;
@@ -853,10 +731,8 @@ inline bool daGaussNewtonP2Plane(
     // Accumulate parameters 
     accumulated_params += delta_params;
     // Convert accumulated parameters to transformation
-    // current_transformation = paramsToTransformationMatrix(accumulated_params);
 
     // Lgmath uses [tx, ty, tz, rx, ry, rz] ordering.
-    // It works the same as "paramsToTransformationMatrix".
     Eigen::Matrix<double, 6, 1> xi;
     xi << accumulated_params[3], accumulated_params[4], accumulated_params[5],
           accumulated_params[0], accumulated_params[1], accumulated_params[2];

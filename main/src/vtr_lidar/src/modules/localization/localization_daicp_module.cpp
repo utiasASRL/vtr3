@@ -184,7 +184,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     std::vector<float> nn_dists(sample_inds.size());
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     // use curvature data association if the ptcloud has curvature info, else use spatial only   
-    if (aligned_points[sample_inds[0].first].curvature != 0) {
+    CLOG(DEBUG, "lidar.localization_daicp") << "first pt curv: " << aligned_points[sample_inds[0].first].curvature;
+    if (aligned_points[sample_inds[0].first].curvature) {
       /// get normalization scales
       // NOTE: speed vs. accuracy tradeoff - limit to 1k samples to prevent overwighting areas with high point density.
       //       this is especially important for curvature estimation where high-density regions can dominate the sample.
@@ -322,7 +323,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       /// find nearest neighbours and distances
       timer[1]->start();
       std::vector<float> nn_dists(sample_inds.size());
-      #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+  #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (size_t i = 0; i < sample_inds.size(); i++) {
         KDTreeResultSet result_set(1);
         result_set.init(&sample_inds[i].second, &nn_dists[i]);

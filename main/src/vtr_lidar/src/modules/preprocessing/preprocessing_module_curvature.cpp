@@ -145,7 +145,7 @@ void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithIn
 
     // Early planar skip
     if (lambda0 / (lambda1 + 1e-9f) < 1e-3f) {
-      (*cloud)[i].curvature = 0.0f;
+      (*cloud)[i].curvature = 1e-6f;
       continue;
     }
 
