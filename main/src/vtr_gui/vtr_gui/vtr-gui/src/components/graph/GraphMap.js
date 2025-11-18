@@ -27,6 +27,11 @@ import { kdTree } from "kd-tree-javascript";
 import {fetchWithTimeout} from "../../index"
 
 import ToolsMenu from "../tools/ToolsMenu";
+import VoiceControl from "../tools/VoiceControl";
+import MicIcon from "@mui/icons-material/Mic"; 
+import MicOffIcon from "@mui/icons-material/MicOff";
+
+
 import GoalManager from "../goal/GoalManager";
 import TaskQueue from "../task_queue/TaskQueue";
 
@@ -120,6 +125,7 @@ class GraphMap extends React.Component {
     this.state = {
       /// goal manager
       server_state: "EMPTY",
+      current_goal_state: "UNKNOWN",
       waypoints_map: new Map(),
       display_waypoints_map: new Map(),
       goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
@@ -143,8 +149,16 @@ class GraphMap extends React.Component {
       /// whether the path selection will be the whole path (for annotation)
       annotate_full: true,
       in_select_mode: false,
+      listening: true,
+      confirmed: false,
+      confirmingId: null,
+      confirmingName: "",
     };
     this.fetchMapCenter()
+
+    this.goalManagerRef = React.createRef();
+  this.goalFinishAnnounced = false; // prevent repeated goal announcements while finishing
+
     /// leaflet map
     this.map = null; // leaflet map instance
 
@@ -188,6 +202,106 @@ class GraphMap extends React.Component {
     // waypoint marker generator
     this.WaypointMarkers = this.displayWaypointMarkers.bind(this);
   }
+
+  toggleListening() {
+    this.setState(s => ({ listening: !s.listening }));
+  }
+
+  speak(text, onend) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.onstart = () => this.setState({ listening: false });
+    utter.onend = () => {
+      this.setState({ listening: true });
+      if (onend) onend();
+    };
+    window.speechSynthesis.speak(utter);
+  }
+
+  handleVoiceCommand(goalName) {
+    const nameLower = goalName.trim().toLowerCase();
+    const { display_waypoints_map } = this.state;
+
+    // find an exact match in display_waypoints_map
+    const match = Array.from(display_waypoints_map.entries())
+      .find(([id, nm]) => nm.toLowerCase() === nameLower);
+
+    if (!match) {
+      console.warn(`[Voice] unknown waypoint: "${goalName}"`);
+      this.speak(`I don't know the waypoint with the name "${goalName}". Please specify`);
+      return;
+    }
+
+    const [id, nm] = match;
+    console.debug(`[Voice] matched "${nm}" → vertex ${id}, sending to GoalManager…`);
+    this.speak(`Going to ${nm}.`);
+
+    const gm = this.goalManagerRef.current;
+    if (!gm || typeof gm.goToWaypointIds !== "function") {
+      console.error("[Voice] no GoalManager.goToWaypointIds available!");
+      return;
+    }
+
+    // call our new helper on the GoalManager
+    gm.goToWaypointIds([id]);
+  }
+
+  /**
+   * Voice command: “robot add waypoint as <name>”
+   * Find closest graph vertex to the robot’s current pose,
+   * name it, push to server, and render on‐map.
+   */
+  handleVoiceAddWaypoint(waypointName) {
+    // 1) get robot’s lat/lng
+    const robotPos = this.robot_marker.marker.getLatLng();
+    // 2) find nearest vertex
+    const { target } = this.getClosestVertex(robotPos);
+    if (!target) {
+      this.speak("Sorry, I can't find a nearby vertex to add a waypoint.");
+      return;
+    }
+    const id = target.id;
+
+    // 3) update React state and server
+    this.setState(state => {
+      const disp = new Map(state.display_waypoints_map);
+      const wps  = new Map(state.waypoints_map);
+      disp.set(id, waypointName);
+      wps.set(id, waypointName);
+      // emit to backend exactly how handleMapClick does:
+      this.handleUpdateWaypoint(id, 0, waypointName);
+      return {
+        display_waypoints_map: disp,
+        waypoints_map: wps
+      };
+    }, () => {
+      // 4) optionally confirm
+      this.speak(`Added waypoint ${waypointName}.`);
+    });
+  }
+
+  /**
+ * Voice command: “cancel the current goal”
+ */
+  handleVoiceCancelCurrentGoal() {
+    const { curr_goal_idx, goals } = this.state;
+    // nothing to cancel?
+    if (curr_goal_idx === -1) {
+      this.speak("There is no active goal to cancel.");
+      return;
+    }
+
+    const goal = goals[curr_goal_idx];
+    this.speak(`Cancelling current goal.`);
+    // delegate to the GoalManager via its ref
+    const gm = this.goalManagerRef.current;
+    if (gm && typeof gm.cancelGoal === "function") {
+      // GoalManager.cancelGoal expects the goal object
+      gm.cancelGoal(goal);
+    } else {
+      console.error("[Voice] GoalManager.cancelGoal not available");
+    }
+  }
+
 
   componentDidMount() {
     // Socket IO
@@ -304,6 +418,9 @@ class GraphMap extends React.Component {
   }
 
   render() {
+    // pull it out of state
+    const { display_waypoints_map } = this.state;
+    
     const { socket } = this.props;
     const {
       server_state,
@@ -319,7 +436,9 @@ class GraphMap extends React.Component {
       merge_ids,
       move_graph_change,
       move_robot_vertex,
-      map_center
+      map_center,
+      listening,
+      confirmed
     } = this.state;
     const imageBounds = [
       [43.660511, -79.397019], // Bottom-left coordinates of the image
@@ -327,6 +446,37 @@ class GraphMap extends React.Component {
     ];
     return (
       <>
+        {/* ─── Mic toggle UI ─── */}
+        <Box sx={{ 
+          position: "fixed", 
+          top: 60, 
+          right: 20, 
+          zIndex: 1000, 
+          bgcolor: "rgba(255, 0, 0, 0.8)",
+          border: "1px solid red",
+          }}>
+
+          <IconButton
+            color={listening ? "primary" : "default"}
+            onClick={this.toggleListening.bind(this)}
+          >
+            {listening ? <MicIcon /> : <MicOffIcon />}
+          </IconButton>
+        </Box>
+
+        {/* ─── VoiceControl hook ─── */}
+        {/* <VoiceControl
+          enabled={listening}
+          onVoiceCommand={this.handleVoiceCommand.bind(this)}
+        /> */}
+
+        <VoiceControl
+          enabled={this.state.listening}
+          onVoiceCommand={this.handleVoiceCommand.bind(this)}
+          onAddWaypoint={this.handleVoiceAddWaypoint.bind(this)}
+          onCancelCurrentGoal={this.handleVoiceCancelCurrentGoal.bind(this)}
+        />
+
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
         <MapContainer
           center={[map_center.lat, map_center.lng]}
@@ -390,6 +540,7 @@ class GraphMap extends React.Component {
           />
         </Box>
         <GoalManager
+          ref={this.goalManagerRef}
           socket={socket}
           currentTool={current_tool}
           selectTool={this.selectTool.bind(this)}
@@ -756,7 +907,20 @@ class GraphMap extends React.Component {
         break;
       }
     }
-    this.setState({ server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx });
+    const nextGoalState = data.current_goal_state || "UNKNOWN";
+    if (!this.goalFinishAnnounced && nextGoalState === "FINISHING") {
+      this.goalFinishAnnounced = true;
+      this.speak("Goal reached.");
+    }
+    if (nextGoalState !== "FINISHING") {
+      this.goalFinishAnnounced = false;
+    }
+    this.setState({
+      server_state: data.server_state,
+      goals: data.goals,
+      curr_goal_idx: curr_goal_idx,
+      current_goal_state: nextGoalState,
+    });
   }
 
   graphUpdateCallback(graph_update) {
@@ -981,7 +1145,6 @@ class GraphMap extends React.Component {
         return [...this.id2vertex.keys()];
       }
     };
-
 
     let getRotationAngle = (p1, p2) => {
       let point1 = this.map.project(this.id2vertex.get(p1));

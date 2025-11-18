@@ -17,7 +17,7 @@
 
 import React from "react";
 
-import { Box, Button, Drawer, List, easing } from "@mui/material";
+import { Box, Button, Drawer, List, easing, IconButton} from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StorageIcon from "@mui/icons-material/Storage";
@@ -28,14 +28,26 @@ import GoalCurrent from "./GoalCurrent";
 import GoalForm from "./GoalForm";
 import AnnotateSlider from "../tools/AnnotateSlider";
 
+import VoiceControl from "../tools/VoiceControl";
+import MicIcon from "@mui/icons-material/Mic"; 
+import MicOffIcon from "@mui/icons-material/MicOff";
+
 //
 const GOAL_PANEL_WIDTH = 300;
 
 class GoalManager extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { goal_panel_open: false };
+    this.state = {
+      goal_panel_open: false,
+      listening: true,
+    }
   }
+
+  toggleListening() {
+    this.setState(s => ({ listening: !s.listening }));
+  }
+    
 
   render() {
     const {
@@ -54,7 +66,7 @@ class GoalManager extends React.Component {
       followingRouteIds,
       mergeIds,
     } = this.props;
-    const { goal_panel_open } = this.state;
+    const { goal_panel_open, listening } = this.state;
 
     let stateBox;
 
@@ -101,6 +113,30 @@ class GoalManager extends React.Component {
 
     return (
       <>
+        {/* Mic toggle button */}
+        {/* <Box sx={{ 
+          position: "fixed", 
+          top: 60, 
+          right: 20, 
+          zIndex: 1000, 
+          bgcolor: "rgba(255, 0, 0, 0.8)",
+          border: "1px solid red",
+          }}>
+
+          <IconButton
+            color={listening ? "primary" : "default"}
+            onClick={this.toggleListening.bind(this)}
+          >
+            {listening ? <MicIcon /> : <MicOffIcon />}
+          </IconButton>
+        </Box> */}
+
+        {/* Only run VoiceControl when listening */}
+        {/* <VoiceControl
+          enabled={listening}                             
+          onVoiceCommand={this.handleVoiceCommand.bind(this)}
+        /> */}
+
         {/* Start, Pause and Clear buttons */}
         <Box
           sx={{
@@ -256,6 +292,50 @@ class GoalManager extends React.Component {
     console.debug("Sending annotate slider change signal with type:", type);
     this.props.socket.emit("command/change_env_info", { terrain_type: type });
   }
+
+  // VoiceControl
+  /* Handle “warthog go to <name>” voice commands */
+  handleVoiceCommand(goalName) {
+    // add the target with the goalName to the waypoint    
+    // log exisiting named goals
+    console.log("!!!! Goals:", this.props.goals);
+    console.log("WaypointsMap:", waypointsMap);
+    // console.log("Entries:", Object.entries(waypointsMap));
+    console.debug("Voice‑cmd goal:", goalName);
+    const { waypointsMap, setNewGoalType, setNewGoalWaypoints } = this.props;
+
+    // match spoken name to waypoint IDs
+    const ids = Object.entries(waypointsMap)
+      .filter(([, wp]) => wp.name.toLowerCase() === goalName.toLowerCase())
+      .map(([id]) => id);
+
+    if (ids.length > 0) {
+      setNewGoalType("REPEAT");
+      setNewGoalWaypoints(ids);
+      this.beginGoals();
+    } else {
+      console.warn(`Unknown waypoint: "${goalName}"`);
+    }
+  }
+
+  /*
+   * Programmatically add a “repeat” goal and kick off execution.
+   */
+  goToWaypointIds(ids) {
+    console.log("[Voice] adding repeat goal with ids:", ids);
+    // 1) build exactly the same goal object that GoalForm.addGoal emits
+    const goal = {
+      type: "repeat",
+      waypoints: ids,
+      pause_before: 0,
+      pause_after:  0
+    };
+    // 2) send it to the server
+    this.props.socket.emit("command/add_goal", goal);
+    // 3) once it’s in the queue, start execution
+    this.beginGoals();
+  }
+
 
 }
 

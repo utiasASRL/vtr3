@@ -14,16 +14,17 @@ windows:
     shell_command_before:
       - source /opt/ros/humble/setup.bash
       - source ${VTRSRC}/main/install/setup.bash
+      # - source /home/ic/ASRL/vtr3/warthog_onboard/ros2_ws/install/setup.bash
       - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
     panes:
+      # - ros2 run tf_relay relay # required for GD warthog
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=ouster_warthog_default.yaml
+        base_params:=ouster_warthog_default_gd.yaml
         start_new_graph:=false
         use_sim_time:=false
         planner:="cbit"
         model_dir:=${VTRROOT}/models
-        
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -43,3 +44,12 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
+
+  - window_name: tf_relay
+    layout: main-horizontal
+    shell_command_before:
+      - source /opt/ros/humble/setup.bash
+      - source ${VTRSRC}/main/install/setup.bash
+      - source /home/ic/ASRL/vtr3/warthog_onboard/ros2_ws/install/setup.bash
+    panes:
+      - ros2 run tf_relay relay # required for GD warthog

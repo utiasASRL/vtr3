@@ -358,6 +358,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
   // START OF MPC CODE
   // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
+  // change the max vel here!
   if (cbit_path_ptr->size() != 0)
   {
 
