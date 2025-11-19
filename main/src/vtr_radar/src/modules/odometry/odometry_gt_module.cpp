@@ -193,7 +193,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
       Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
       abar.normalize();
       // If up chirp azimuth, subtract Doppler shift
-      if (up_chirp) { 
+      if (up_chirp) {
         aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
       } else {
         aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;

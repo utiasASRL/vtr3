@@ -98,7 +98,6 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
 
   // Doppler paper stuff
   tactic::Cache<Eigen::Vector2d> vel_meas;
-  tactic::Cache<double> yaw_meas;
   tactic::Cache<DopplerScan> doppler_scan;
 };
 

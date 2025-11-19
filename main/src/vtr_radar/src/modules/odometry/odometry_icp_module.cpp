@@ -704,10 +704,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   const auto T_r_m_prev = T_r_m_odo_2d;
   const auto T_r_m_query = T_r_m_eval->value();
-  const auto diff_T = (T_r_m_query.inverse() * T_r_m_prev).vec();
+  const auto diff_T = (T_r_m_prev * T_r_m_query.inverse()).vec();
   const auto diff_T_trans = diff_T.head<2>().norm();
   const auto diff_T_rot = fabs(diff_T(2));
-  
+
   CLOG(DEBUG, "radar.odometry_icp") << "Current transformation difference: " << diff_T.transpose();
   CLOG(DEBUG, "radar.odometry_icp") << "Current velocity difference: " << vel_diff.transpose();
 
