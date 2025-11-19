@@ -83,6 +83,9 @@ void LidarPipeline::reset() {
   cov_prior_ = nullptr;
   timestamp_prior_ = nullptr;
 
+  T_s_world_gt_prev_ = nullptr;
+  v_s_gt_prev_ = nullptr;
+
   // localization cached data
   submap_loc_ = nullptr;
 }
@@ -114,6 +117,9 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->cov_prior = cov_prior_;
     qdata->timestamp_prior = timestamp_prior_;
 
+    // Groundtruth stuff
+    qdata->T_s_world_gt_prev = T_s_world_gt_prev_;
+    qdata->v_s_gt_prev = v_s_gt_prev_;
   }
 
   for (const auto &module : odometry_)
@@ -126,6 +132,8 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
     T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
+    T_s_world_gt_prev_ = qdata->T_s_world_gt_prev.ptr();
+    v_s_gt_prev_ = qdata->v_s_gt_prev.ptr();
     timestamp_prior_ = qdata->timestamp_prior.ptr();
     w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
     cov_prior_ = qdata->cov_prior.ptr();

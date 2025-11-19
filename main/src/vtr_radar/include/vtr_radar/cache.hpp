@@ -56,6 +56,12 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const tactic::EdgeTransform> T_s_r_wheel;
   tactic::Cache<std::vector<std::pair<rclcpp::Time, double>>> wheel_meas;
 
+  // groundtruth
+  tactic::Cache<lgmath::se3::Transformation> T_s_world_gt;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> v_s_gt;
+  tactic::Cache<lgmath::se3::Transformation> T_s_world_gt_prev;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> v_s_gt_prev;
+
   // radar raw data
   tactic::Cache<RadarData> radar_data;
 
