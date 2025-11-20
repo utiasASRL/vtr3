@@ -60,9 +60,8 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   // online gyroscope bias
   config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
   config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
-  // visualization
-  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
-
+  // curvature ratio threshold to default to odometry 
+  config->curv_ratio_thresh = node->declare_parameter<float>(param_prefix + ".curv_ratio_thresh", config->curv_ratio_thresh);
   // clang-format on
   return config;
 }
@@ -525,9 +524,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } 
-      else if (cur_ratio > 0.97) {
+      else if (cur_ratio > config_->curv_ratio_thresh) {
         // fallback to using prior
-        CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio too high: " << cur_ratio << ", fall back to odometry.";
+        CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio: " << cur_ratio << "larger than threshold: " << config_->curv_ratio_thresh << ", fall back to odometry.";
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       }

@@ -68,8 +68,8 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     // online gyroscope bias
     bool calc_gy_bias = false;
     float calc_gy_bias_thresh = 1.0;
-    // visualization
-    bool visualize = false;
+    // curvature ratio threshold to default to odometry
+    float curv_ratio_thresh = 0.95;           
 
     // handcrafted degeneracy threshold
     // double eigenvalue_threshold = 100.0;
