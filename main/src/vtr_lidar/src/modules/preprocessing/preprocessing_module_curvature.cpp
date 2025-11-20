@@ -412,9 +412,9 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
         mean_curvature += pt.curvature;
       mean_curvature /= static_cast<double>(cluster_cloud->size());
 
-      // CLOG(DEBUG, "lidar.preprocessing_curvature")
-      //     << "cluster " << label << " size: " << cluster_cloud->size()
-      //     << ", mean curvature: " << mean_curvature;
+      CLOG(DEBUG, "lidar.preprocessing_curvature")
+          << "cluster " << label << " size: " << cluster_cloud->size()
+          << ", mean curvature: " << mean_curvature;
 
       float voxel_size = (std::abs(mean_curvature) < config_->ground_plane_threshold) 
                                                       ? config_->plane_voxel_size

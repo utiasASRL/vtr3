@@ -77,6 +77,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     return;
   }
 
+
   // Inputs
   // const auto &query_stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
@@ -88,6 +89,15 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   CLOG(DEBUG, "lidar.localization_daicp") << "####### Query point cloud has " << query_points.size() << " points.";
   CLOG(DEBUG, "lidar.localization_daicp") << "######### Map point cloud has " << point_map.size() << " points.";
+
+  // check curvature 
+  int cur_num = 0;
+  for (const auto& pt : query_points) {
+    if (pt.curvature < 0.1)
+      cur_num++;
+  }
+  float cur_ratio = static_cast<float>(cur_num) / static_cast<float>(query_points.size());
+  CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio: " << cur_ratio;
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -514,7 +524,14 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         // fallback to using prior
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
-      } else {
+      } 
+      else if (cur_ratio > 0.97) {
+        // fallback to using prior
+        CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio too high: " << cur_ratio << ", fall back to odometry.";
+        T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+        matched_points_ratio = 1.0f;  // dummy value to indicate success
+      }
+      else {
         // --- accept DA-ICP result
         T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance
         matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
