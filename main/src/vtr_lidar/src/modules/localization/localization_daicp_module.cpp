@@ -95,6 +95,13 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     if (pt.curvature < 0.1)
       cur_num++;
   }
+  // --- try parallel version, slower than serial version ---
+  // #pragma omp simd reduction(+:cur_num)
+  // for (int i = 0; i < static_cast<int>(query_points.size()); ++i) {
+  //   if (query_points[i].curvature < 0.1)
+  //     cur_num++;
+  // }
+
   float cur_ratio = static_cast<float>(cur_num) / static_cast<float>(query_points.size());
   CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio: " << cur_ratio;
 
