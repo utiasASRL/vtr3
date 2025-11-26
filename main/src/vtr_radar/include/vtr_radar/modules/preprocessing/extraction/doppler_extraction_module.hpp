@@ -40,7 +40,7 @@ class DopplerExtractionModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     // General radar params
-    double radar_resolution = 0.0438;
+    double radar_resolution = 0.04381;
     double f_t = 76.04e9;    // Hz, start frequency ramp
     double meas_freq = 1600; // Hz, number of measurements per second
     double del_f = 893.0e6;  // Hz, frequency span during ramp
