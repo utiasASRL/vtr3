@@ -102,6 +102,11 @@ void RadarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
+  // Prior velocity can be used in preprocessing (e.g., Doppler extraction)
+  auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
+  if (sliding_map_odo_ != nullptr) {
+    qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
+  }
   for (const auto &module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
