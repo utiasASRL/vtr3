@@ -71,7 +71,7 @@ auto DopplerExtractionModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   // General radar params
-  config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar" + ".radar_resolution", config->radar_resolution);
+  config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar" + ".radar_res", config->radar_resolution);
   config->f_t = node->declare_parameter<double>(param_prefix + ".radar" + ".f_t", config->f_t);
   config->meas_freq = node->declare_parameter<double>(param_prefix + ".radar" + ".meas_freq", config->meas_freq);
   config->del_f = node->declare_parameter<double>(param_prefix + ".radar" + ".del_f", config->del_f);
@@ -143,12 +143,12 @@ void DopplerExtractionModule::run_(QueryCache &qdata0, OutputCache &,
 
   // RANSAC the doppler data
   auto prior_model = Eigen::Vector2d(0, 0);
-  auto &w_m_r_in_r_odo_prior = qdata.w_m_r_in_r_odo_prior;
-  if (w_m_r_in_r_odo_prior) {
-    prior_model(0) = (*w_m_r_in_r_odo_prior)(0);
-    prior_model(1) = (*w_m_r_in_r_odo_prior)(1);
+  if (!qdata.w_m_r_in_r_odo_prior) {
+    CLOG(WARNING, "radar.doppler_extractor") << "No prior odometry available for Doppler extraction, using zero prior.";
   } else {
-    prior_model.setZero();
+    auto &w_m_r_in_r_odo_prior = *qdata.w_m_r_in_r_odo_prior;
+    prior_model(0) = -w_m_r_in_r_odo_prior(0);
+    prior_model(1) = -w_m_r_in_r_odo_prior(1);
   }
   extractor.ransac_scan(doppler_scan, prior_model);
 
@@ -165,7 +165,7 @@ void DopplerExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     varpi(1) = -varpi(1);
   }
 
-  CLOG(DEBUG, "radar.doppler_extractor") << "Doppler data size: " << doppler_scan.size() << ", varpi: " << varpi.transpose();  
+  CLOG(DEBUG, "radar.doppler_extractor") << "Doppler data size: " << doppler_scan.size() << ", varpi: " << varpi.transpose();
   qdata.vel_meas = varpi;
 }
 
