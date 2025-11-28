@@ -75,6 +75,18 @@ class BFSPlanner : public RoutePlannerInterface {
     extra_edge_costs_ = edge_costs;
   }
 
+  /** \brief Incrementally add extra per-edge delay costs (seconds).
+   *
+   * If an edge already has a delay, the new delay is added on top
+   * (this allows multiple obstacles to accumulate time penalties).
+   */
+  void addExtraEdgeCosts(
+      const std::unordered_map<tactic::EdgeId, double> &edge_costs) {
+    for (const auto &kv : edge_costs) {
+      extra_edge_costs_[kv.first] += kv.second;
+    }
+  }
+
   /** \brief Clear the extra per-edge delay costs. */
   void clearExtraEdgeCosts() { extra_edge_costs_.clear(); }
 

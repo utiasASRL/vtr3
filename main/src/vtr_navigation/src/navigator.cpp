@@ -814,8 +814,13 @@ void Navigator::triggerReroute() {
         for (const auto &e : affected_edges) {
           delays[e] = delay_sec;
         }
-        bfs_ptr->clearExtraEdgeCosts();
-        bfs_ptr->setExtraEdgeCosts(delays);
+        // IMPORTANT:
+        //  - Do NOT clear existing extra edge costs here.
+        //    We want to accumulate time penalties from previous obstacles
+        //    (e.g., chairs) so that a later "person" with 0s delay does not
+        //    silently remove the older delays.
+        //  - Instead, incrementally add delays for the currently affected edges.
+        bfs_ptr->addExtraEdgeCosts(delays);
         bfs_ptr->setUseTimeCost(true);
         bfs_ptr->setUseMasked(true);
         CLOG(INFO, "mission.state_machine")
