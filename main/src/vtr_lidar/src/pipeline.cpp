@@ -85,6 +85,7 @@ void LidarPipeline::reset() {
 
   // localization cached data
   submap_loc_ = nullptr;
+  gyro_bias_ = nullptr;
 }
 
 void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
@@ -121,6 +122,7 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->timestamp_odo = timestamp_odo_;
     qdata->T_r_m_odo = T_r_m_odo_;
     qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_;
+    qdata->gyro_bias = gyro_bias_;
 
     // Prior stuff
     qdata->T_r_m_odo_prior = T_r_m_odo_prior_;
@@ -155,6 +157,7 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+    gyro_bias_ = qdata->gyro_bias.ptr();
     T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
     timestamp_prior_ = qdata->timestamp_prior.ptr();
     w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
@@ -169,13 +172,19 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // set the current map for localization
-  if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
+  if (submap_loc_ != nullptr) {
+    qdata->submap_loc = submap_loc_;
+    qdata->gyro_bias = gyro_bias_;
+  }
 
   for (const auto &module : localization_)
     module->run(*qdata0, *output0, graph, executor);
 
   /// store the current map for localization
-  if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();
+  if (qdata->submap_loc) {
+    submap_loc_ = qdata->submap_loc.ptr();
+    gyro_bias_ = qdata->gyro_bias.ptr();
+  }
 }
 
 void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,

@@ -48,16 +48,13 @@ auto PreprocessingDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &
   config->min_dist = node->declare_parameter<double>(param_prefix + ".min_dist", config->min_dist);
   config->max_dist = node->declare_parameter<double>(param_prefix + ".max_dist", config->num_cols);
   //
-  config->active_lidars = node->declare_parameter<std::vector<bool>>(param_prefix + ".active_lidars", config->active_lidars);
   config->root_path = node->declare_parameter<std::string>(param_prefix + ".root_path", config->root_path);
-  config->model_name = node->declare_parameter<std::string>(param_prefix + ".model_name", config->model_name);
+  // config->model_name = node->declare_parameter<std::string>(param_prefix + ".model_name", config->model_name);
   config->downsample_steps = node->declare_parameter<int>(param_prefix + ".downsample_steps", config->downsample_steps);
-  //
   config->bias_input_feat =node->declare_parameter<std::vector<std::string>>(param_prefix + ".bias_input_feat", config->bias_input_feat);
   config->var_input_feat = node->declare_parameter<std::vector<std::string>>(param_prefix + ".var_input_feat", config->var_input_feat);
   config->bias_polyorder = node->declare_parameter<int>(param_prefix + ".bias_polyorder", config->bias_polyorder);
   config->var_polyorder = node->declare_parameter<int>(param_prefix + ".var_polyorder", config->var_polyorder);
-  config->median_sensorid = node->declare_parameter<int>(param_prefix + ".median_sensorid", config->median_sensorid);
   //
   config->calc_median = node->declare_parameter<bool>(param_prefix + ".calc_median", config->calc_median);
   config->calc_pseudovar = node->declare_parameter<bool>(param_prefix + ".calc_pseudovar", config->calc_pseudovar);
@@ -154,18 +151,10 @@ void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const Point
       val = scaleValue(point.rho, config_->min_dist, config_->max_dist);  // note: range is calculated in preprocess function of DopplerFilter
     else if (feat_string[i] == "intensity")
       val = scaleValue(point.intensity, -70.0, 0.0);
-    else if (feat_string[i] == "medianrv") {
-      if (config_->median_sensorid == 0)
-        val = scaleValue(dop_median, -30.0, 1.0); // for forward-facing sensor
-      else if (config_->median_sensorid == 3)
-        val = scaleValue(dop_median, -1.0, 30.0); // for back-facing sensor
-      else
-        throw std::runtime_error("[DopplerImageCalib::buildFeatVec] Unexpected median_sensorid!");
-    }
-    else if (feat_string[i] == "rv_var5") // TODO: handle variable
+    else if (feat_string[i] == "medianrv")
+      val = scaleValue(dop_median, -30.0, 1.0); // for forward-facing sensor
+    else if (feat_string[i] == "rv_var5")
       val = scaleValue(std::min(1.0 / sqrt(dop_pseudovar), 200.0), 0.0, 200.0);
-    else if (feat_string[i] == "rv_stddev5") // TODO: handle variable
-      val = scaleValue(sqrt(dop_pseudovar), 0.0, 1.0);
     else
       throw std::runtime_error("[DopplerImageCalib::buildFeatVec] Unknown feature!");
     feat(i) = val;  // set value
@@ -220,12 +209,11 @@ bool PreprocessingDopplerModule::computePseudovar(double& pseudovar, const std::
 
 PreprocessingDopplerModule::PreprocessingDopplerModule(const Config::ConstPtr &config, const std::shared_ptr<tactic::ModuleFactory> &module_factory, const std::string &name) : tactic::BaseModule(module_factory, name), config_(config) {
   // init weights
-  std::string bias_shape = config_->root_path + "/" + config_->model_name + "/bias_shape.txt"; 
-  std::string binary = config_->root_path + "/" + config_->model_name + "/bias.bin";
+  std::string bias_shape = config_->root_path + "/bias_shape.txt"; 
+  std::string binary = config_->root_path + "/bias.bin";
   initImgWeight(true, config, bias_shape, binary, bias_weights_);
-  
-  std::string var_shape = config_->root_path + "/" + config_->model_name + "/var_shape.txt"; 
-  std::string var = config_->root_path + "/" + config_->model_name + "/var.bin";
+  std::string var_shape = config_->root_path + "/var_shape.txt";
+  std::string var = config_->root_path + "/var.bin";
   initImgWeight(false, config, var_shape, var, var_weights_);
 
   // check if we need to calculate median Doppler velocity
@@ -235,7 +223,7 @@ PreprocessingDopplerModule::PreprocessingDopplerModule(const Config::ConstPtr &c
   for (const auto& feat: config_->var_input_feat) {
     if (feat == "medianrv")
       config_->calc_median = true;
-    if (feat == "rv_var5")  // TODO: handle variable parameter in string
+    if (feat == "rv_var5")
       config_->calc_pseudovar = true;
   }
 }
@@ -287,7 +275,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "lidar.preprocessing_doppler") << "num active sensors " << num_active_sensors;
 
-  std::vector<PointImg> imgs(num_active_sensors, empty_img);
+  std::vector<PointImg> imgs(1, empty_img);
   int pt_count = 0;  // keeps track of total # points to reserve later
   std::vector<double> dop_vels; // doppler median
 
@@ -338,7 +326,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::VectorXd bias_feat(config_->bias_input_feat.size());
   Eigen::VectorXd var_feat(config_->var_input_feat.size());
   int dscount = 0;
-  for (size_t s = 0; s < num_active_sensors; ++s) {
+  for (size_t s = 0; s < 1; ++s) {
     for (size_t r = 0; r < config_->num_rows; ++r) {
       for (size_t c = 0; c < config_->num_cols; ++c) {
         if (imgs[s][r][c] != nullptr) {
