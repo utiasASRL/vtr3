@@ -54,8 +54,6 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->trans_outlier_thresh = node->declare_parameter<float>(param_prefix + ".trans_outlier_thresh", config->trans_outlier_thresh);
   config->rot_outlier_thresh = node->declare_parameter<float>(param_prefix + ".rot_outlier_thresh", config->rot_outlier_thresh);
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
-  // curvature ratio threshold to default to odometry 
-  config->curv_ratio_thresh = node->declare_parameter<float>(param_prefix + ".curv_ratio_thresh", config->curv_ratio_thresh);
   // clang-format on
   return config;
 }
@@ -117,6 +115,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   const lgmath::se3::Transformation T_s_v = T_s_r * T_r_v * T_v_m;
   const lgmath::se3::Transformation initial_T_m_s = T_s_v.inverse();
   
+  const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
   /// Create T_m_s_var for direct point cloud alignment optimization
   auto T_m_s_var = SE3StateVar::MakeShared(initial_T_m_s);
 
