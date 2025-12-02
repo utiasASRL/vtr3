@@ -181,13 +181,25 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   // Set up timestamps
   // This is the general odometry timestamp
   // Should be the same as the above if only radar is used, but can be different if we also use gyro
+  const auto &timestamp_odo_general = *qdata.timestamp_odo; 
   auto timestamp_odo_new = *qdata.stamp;
   Time scan_time(static_cast<int64_t>(scan_stamp));
+  Time odo_time_general(static_cast<int64_t>(timestamp_odo_general));
   const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
   //const auto frame_start_time = std::min_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
   const auto frame_start_time = timestamp_prior;
   const auto frame_end_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
 
+  // Let's check if our odometry estimate already passed the time stamp of the radar scan
+  // If this is the case, we want to estimate the odometry at this time, not at the time of the scan
+  // This avoids jumping 'back' in time to the last radar scan, when we already extrapolated the state using gyro
+  // Instead the radar scan is then incorporated as a past measurement to correct this extrapolated state
+  // If the query stamp is more recent than the last odometry estimate, we proceed as usual
+  if(odo_time_general.seconds() > scan_time.seconds())
+  {
+    CLOG(DEBUG, "radar.odometry_icp") << "Last odometry and gyro preintegration update is more recent than radar scan.";
+    timestamp_odo_new = *qdata.timestamp_odo;
+  }
 
   // clang-format off
   /// trajectory smoothing
