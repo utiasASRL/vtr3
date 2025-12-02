@@ -64,6 +64,7 @@ class Navigator {
   /** \brief ROS-handle for communication */
   const rclcpp::Node::SharedPtr node_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_sbc_;
+  double tf_timeout_ = 2.0;
 
   /// robot and sensor specific stuff, these are set in constructor, so no need
   /// to lock

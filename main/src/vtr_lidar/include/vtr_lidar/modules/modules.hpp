@@ -21,7 +21,7 @@
 
 #include "vtr_lidar/modules/preprocessing/conversions/aeva_conversion_module.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/aeva_conversion_module_v2.hpp"
-#include "vtr_lidar/modules/preprocessing/conversions/honeycomb_conversion_module_v2.hpp"
+// #include "vtr_lidar/modules/preprocessing/conversions/honeycomb_conversion_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/velodyne_conversion_module.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/velodyne_conversion_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/ouster_conversion_module.hpp"
