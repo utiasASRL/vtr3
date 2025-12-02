@@ -49,8 +49,6 @@ class OdometryGyroModule : public tactic::BaseModule {
     // gyro cov weight
     double gyro_cov = 0.1;
 
-    double gyro_bias = 0.0;
-
 
     // Steam optimization parameters 
     bool verbose = false;
