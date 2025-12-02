@@ -95,18 +95,31 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   /////        we can use lgmath instead of STEAM to compute initial_T_m_s.  
   // clang-format off
   /// Create robot to sensor transform variable, fixed.
-  const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r); T_s_r_var->locked() = true;
-  const auto T_v_m_var = SE3StateVar::MakeShared(T_v_m); T_v_m_var->locked() = true;
+  // const auto T_s_r_var = SE3StateVar::MakeShared(T_s_r); T_s_r_var->locked() = true;
+  // const auto T_v_m_var = SE3StateVar::MakeShared(T_v_m); T_v_m_var->locked() = true;
 
-  /// Create and add the T_robot_map variable, here m = vertex frame.
-  const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
+  // /// Create and add the T_robot_map variable, here m = vertex frame.
+  // const auto T_r_v_var = SE3StateVar::MakeShared(T_r_v);
 
-  /// compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
+  // /// compound transform for alignment (sensor to point map transform)
+  // const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
 
+  // /// Create T_m_s_var for direct point cloud alignment optimization
+  // const auto initial_T_m_s = T_m_s_eval->evaluate();
+  // auto T_m_s_var = SE3StateVar::MakeShared(initial_T_m_s);
+  //// =================================================================================
+
+
+  //// ============================= clean up ==========================================
+  ///// Compute initial T_m_s using lgmath 
+  // clang-format off
+  /// T_m_s = (T_s_r * T_r_v * T_v_m)^{-1}
+  const lgmath::se3::Transformation T_s_v = T_s_r * T_r_v * T_v_m;
+  const lgmath::se3::Transformation initial_T_m_s = T_s_v.inverse();
+  
   /// Create T_m_s_var for direct point cloud alignment optimization
-  const auto initial_T_m_s = T_m_s_eval->evaluate();
   auto T_m_s_var = SE3StateVar::MakeShared(initial_T_m_s);
+
   //// =================================================================================
 
   /// Initialize aligned points for matching (Deep copy of targets)
@@ -129,7 +142,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// perform initial alignment
   {
-    const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
+    // const auto T_m_s = T_m_s_eval->evaluate().matrix().cast<float>();
+    // clean up
+    const auto T_m_s = initial_T_m_s.matrix().cast<float>();
     aligned_mat = T_m_s * query_mat;
     aligned_norms_mat = T_m_s * query_norms_mat;
   }
