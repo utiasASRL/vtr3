@@ -34,8 +34,8 @@
       #- ouster
         
         # mission planner
-      # - mission.server
-      # - mission.state_machine
+      #- mission.server
+      - mission.state_machine
 
         # pose graph
       #- pose_graph
@@ -44,7 +44,7 @@
       #- lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
-      #- lidar.odometry_icp
+      - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
