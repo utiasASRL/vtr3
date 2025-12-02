@@ -35,6 +35,7 @@
 // #include "vtr_lidar/modules/odometry/sample_module.hpp"
 
 #include "vtr_lidar/modules/localization/localization_icp_module.hpp"
+#include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
 #include "vtr_lidar/modules/localization/localization_map_recall_module.hpp"
 
 #include "vtr_lidar/modules/pointmap/dynamic_detection_module.hpp"
