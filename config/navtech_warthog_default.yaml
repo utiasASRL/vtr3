@@ -4,29 +4,28 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-      - navigation
-      - radar.pipeline
+      #- navigation
       # - navigation.sensor_input
       - radar.online_converter
       - radar.pc_extractor
-      # - radar.odometry_icp
-      # - radar.odometry_gyro
-      # - radar.odometry_preintegration
-      # - radar.localization_icp
+      - radar.odometry_icp
+      - radar.localization_icp
       # - tactic
       # - tactic.pipeline
-      # - tactic.module
+      - tactic.module
       # - mpc.debug
       # - cbit.control
-      - mission.state_machine
-      - mission.server
+      #- mission.state_machine
+      #- mission.server
     robot_frame: w200_0066_base_link #w200_0066_base_link
     env_info_topic: env_info
     radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
-    queue_size: 10
+    gyro_bias: 
+      z: 0.004203267148472062 # 0.004203267148472062
+    queue_size: 100
     graph_map:
       origin_lat: 43.7822 # UTIAS: 43.78220
       origin_lng: -79.4661 # UTIAS: -79.4661
@@ -64,8 +63,6 @@
         - extraction
         - filtering
       odometry:
-        - gyro # you can turn off gyro and preintegration here
-        - preintegration
         - icp
         - mapping
         - vertex_test
@@ -81,21 +78,25 @@
     preprocessing:
       conversion:
         type: radar.online_converter
+        radar_resolution: 0.040308
+        encoder_bin_size: 16000 # encoder bin size
       extraction:
         type: radar.pc_extractor
         radar_resolution: 0.040308 # 0307827  # RAS3 0.161231 #0.044
-        detector: kstrongest #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
-        minr: 1.0 # mininum detection distance
+        detector: kpeaks #modified_cacfar # choose detector \in (kstrongest, cen2018, cacfar, oscfar, modified_cacfar,caso_cfar)
+        minr: 2.0 # mininum detection distance
         maxr: 69.0 # maximum detection distance
-        encoder_bin_size: 16000 # encoder bin size
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.0 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
-        kstrong:
+        range_offset: 0.0 # -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
+        kpeaks:
+          kstrong: 4
+          threshold2: 0.0
+          threshold3: 0.25
+        kstrongest:
           kstrong: 4 # k-strongest per azimuth to retain was 12
-          threshold2: 0.0 # threshold for k-strongest (mult of mean)
-          threshold3: 0.225 # treshold for k-strongest (constant)
+          static_threshold: 0.3
         cen2018:
           zq: 2.5
           sigma: 8
@@ -137,57 +138,39 @@
         rho_scale: 1.0 # when finding neighbors, set rho to log(rho) / rho_scale
 
         num_sample_linearity: 5000 # max number of sample after filtering based on linearity
-        min_linearity_score: 0.2 # min linearity score (negative value means no filtering)
+        min_linearity_score: -1.0 # min linearity score (negative value means no filtering)
 
         visualize: true
 
     odometry:
-      gyro:
-        type: radar.odometry_gyro
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
-        gyro_cov: 1e-7
-
-        # steam parameters #TOTUNE
-        verbose: false
-        max_iterations: 3
-        
-      preintegration:
-        type: radar.odometry_preintegration
-
       icp:
         type: radar.odometry_icp
 
         # continuous time estimation
-        use_trajectory_estimation: true
         traj_num_extra_states: 0
-        traj_lock_prev_pose: true      #- obstacle detection.cbit
-      #- grizzly_controller_tests.cbit
-      #- ouster
-        traj_lock_prev_vel: true
-        traj_qc_diag: [1.0, 0.0001, 0.0001, 0.0001, 0.0001, 0.01]
+        traj_qc_diag: [1.0, 0.001, 0.0001, 0.0001, 0.0001, 0.001]
 
         # ICP parameters # TOTUNE
-        num_threads: 8 # 8
+        num_threads: 10 # 8
         first_num_steps: 2 # 2
         initial_max_iter: 4 # 4
-        initial_max_pairing_dist: 5.0 # 5.0
-        initial_max_planar_dist: 5.0 # 5.0
-        refined_max_iter: 500 # 50
-        refined_max_pairing_dist: 5.0 # 5.0
-        refined_max_planar_dist: 5.0 # 5.0
+        initial_max_pairing_dist: 1.5 # 5.0 # now same as lidar
+        initial_max_planar_dist: 1.0 # 5.0
+        refined_max_iter: 50 # 50
+        refined_max_pairing_dist: 1.0 # 5.0
+        refined_max_planar_dist: 0.3 # 5.0
         averaging_num_steps: 5 # 5
         huber_delta: 1.0 # 1.0
-        cauchy_k: 0.8
-        
-        #gyro preintegration
-        preint_cov: 1e-7
+        cauchy_k: 0.2 # was 0.8
+        remove_orientation: false
 
         # steam parameters #TOTUNE
         verbose: false
-        max_iterations: 3
+        max_iterations: 1
+        # gyro_cov: 1e-4
 
         # threshold #TOTUNE
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.40
 
         visualize: true
 
@@ -199,14 +182,14 @@
         crop_range_front: 80.0
         back_over_front_ratio: 1.0
 
-        point_life_time: 3.0
+        point_life_time: 5.0
 
         visualize: true
 
       vertex_test:
         type: radar.vertex_test
 
-        max_translation: 0.3
+        max_translation: 0.2
         max_rotation: 10.0
 
       memory:
@@ -227,24 +210,24 @@
 
         use_pose_prior: true
         # ICP parameters #TO TUNE
-        num_threads: 8 # 8
+        num_threads: 10 # 8
         first_num_steps: 4 # 2
         initial_max_iter: 8 # 4
-        initial_max_pairing_dist: 5.0 # 5.0
-        initial_max_planar_dist: 5.0 # 5.0
-        refined_max_iter: 500 # 50
-        refined_max_pairing_dist: 5.0 # 5.0
-        refined_max_planar_dist: 5.0 # 5.0
+        initial_max_pairing_dist: 1.5 # 5.0
+        initial_max_planar_dist: 1.0 # 5.0
+        refined_max_iter: 50 # 50
+        refined_max_pairing_dist: 1.0 # 5.0
+        refined_max_planar_dist: 0.3 # 5.0
         averaging_num_steps: 5 # 5
         huber_delta: 1.0 # 1.0
-        cauchy_k: 0.8
+        cauchy_k: 0.2
 
         # steam parameters #TOTUNE
         verbose: false
         max_iterations: 3
 
         # threshold #TOTUNE
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.30
 
       memory:
         type: "graph_mem_manager"
