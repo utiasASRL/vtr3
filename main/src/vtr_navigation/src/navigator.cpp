@@ -352,12 +352,10 @@ void Navigator::radarCallback(
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
 
-  // CLOG(DEBUG, "navigation") << "Sam: In the callback: Created radar query cache";
-
   LockGuard lock(mutex_);
 
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
+  if (queue_.size() > max_queue_size_) {
     CLOG(WARNING, "navigation")
         << "Dropping old message because the queue is full.";
     queue_.pop();
@@ -401,9 +399,6 @@ void Navigator::gyroCallback(
   Timestamp timestamp_gyro = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
   CLOG(DEBUG, "navigation") << "Received gyro data with stamp " << timestamp_gyro;
-
-  // Convert message to query_data format and store into query_data
-  // auto query_data = std::make_shared<radar::RadarQueryCache>();
 
   LockGuard lock(mutex_);
   msg->angular_velocity.x -= gyro_bias_[0];

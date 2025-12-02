@@ -160,7 +160,7 @@
         initial_max_iter: 4 # 4
         initial_max_pairing_dist: 1.5 # 5.0 # now same as lidar
         initial_max_planar_dist: 1.0 # 5.0
-        refined_max_iter: 50 # 50
+        refined_max_iter: 15 # 50
         refined_max_pairing_dist: 1.0 # 5.0
         refined_max_planar_dist: 0.3 # 5.0
         averaging_num_steps: 5 # 5
@@ -193,7 +193,7 @@
       vertex_test:
         type: radar.vertex_test
 
-        max_translation: 0.2
+        max_translation: 0.4
         max_rotation: 10.0
 
       memory:
@@ -217,9 +217,9 @@
         num_threads: 10 # 8
         first_num_steps: 4 # 2
         initial_max_iter: 8 # 4
-        initial_max_pairing_dist: 1.5 # 5.0
+        initial_max_pairing_dist: 10.0 # 5.0
         initial_max_planar_dist: 1.0 # 5.0
-        refined_max_iter: 50 # 50
+        refined_max_iter: 10 # 50
         refined_max_pairing_dist: 1.0 # 5.0
         refined_max_planar_dist: 0.3 # 5.0
         averaging_num_steps: 5 # 5
