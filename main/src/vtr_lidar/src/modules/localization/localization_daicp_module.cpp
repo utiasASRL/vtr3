@@ -9,6 +9,28 @@ using namespace tactic;
 using namespace steam;
 using namespace steam::se3;
 
+namespace {
+// Helper function to create a DAICPConfig from LocalizationDAICPModule::Config
+std::shared_ptr<const daicp_lib::DAICPConfig> 
+createDAICPConfig(const std::shared_ptr<const LocalizationDAICPModule::Config>& loc_config) {
+  auto config = std::make_shared<daicp_lib::DAICPConfig>();
+  
+  config->num_threads = loc_config->num_threads;
+  config->max_gn_iter = loc_config->max_gn_iter;
+  config->degeneracy_thresh = loc_config->degeneracy_thresh;
+  config->sigma_d = loc_config->sigma_d;
+  config->sigma_az = loc_config->sigma_az;
+  config->sigma_el = loc_config->sigma_el;
+  config->abs_cost_thresh = loc_config->abs_cost_thresh;
+  config->abs_cost_change_thresh = loc_config->abs_cost_change_thresh;
+  config->rel_cost_change_thresh = loc_config->rel_cost_change_thresh;
+  config->zero_gradient_thresh = loc_config->zero_gradient_thresh;
+  config->inner_tolerance = loc_config->inner_tolerance;
+  
+  return config;
+}
+}  // namespace
+
 auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string &param_prefix)
     -> ConstPtr {
@@ -243,7 +265,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         // state to be optimized
         T_m_s_var,
         // configuration
-        config_,
+        createDAICPConfig(config_),
         // output
         daicp_cov
       );

@@ -10,9 +10,22 @@
 namespace vtr {
 namespace lidar {
 
-class LocalizationDAICPModule;
-
 namespace daicp_lib {
+
+// =================== DAICP Configuration ===================
+struct DAICPConfig {
+  int num_threads = 4;
+  int max_gn_iter = 10;
+  double degeneracy_thresh = 1e6;
+  double sigma_d = 0.02;
+  double sigma_az = 0.03 * M_PI / 180.0;
+  double sigma_el = 0.03 * M_PI / 180.0;
+  double abs_cost_thresh = 1e-4;
+  double abs_cost_change_thresh = 1e-4;
+  double rel_cost_change_thresh = 1e-4;
+  double zero_gradient_thresh = 1e-4;
+  double inner_tolerance = 1e-4;
+};
 
 // =================== Print Functions ===================
 inline void printEigenvalues(const Eigen::VectorXd& eigenvalues, 
@@ -327,7 +340,7 @@ inline void computeJacobianResidualInformation(
     Eigen::MatrixXd& A,
     Eigen::VectorXd& b,
     Eigen::VectorXd& W_inv,
-    const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_) {
+    const std::shared_ptr<const DAICPConfig>& config_) {
   
   // Lidar range and bearing noise model parameters
   const double sigma_d = config_->sigma_d;          // range noise std (2cm)
@@ -610,7 +623,7 @@ inline bool daGaussNewtonP2Plane(
     const Eigen::Matrix4Xf& map_mat,
     const Eigen::Matrix4Xf& map_normals_mat,
     steam::se3::SE3StateVar::Ptr T_var,
-    const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
+    const std::shared_ptr<const DAICPConfig>& config_,
     Eigen::Matrix<double, 6, 6>& daicp_cov) {
   
   if (sample_inds.size() < 6) {
