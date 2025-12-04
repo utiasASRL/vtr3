@@ -58,11 +58,11 @@
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
 
-    robot_frame: w200_0066_base_link
+    robot_frame: os_sensor
     env_info_topic: env_info
-    lidar_frame: w200_0066_os_lidar
+    lidar_frame: os_sensor
     lidar_topic: /ouster/points
-    gyro_frame: w200_0066_os_imu
+    gyro_frame: os_imu
     gyro_topic: /ouster/imu
     gyro_bias:
       x: 0.0
