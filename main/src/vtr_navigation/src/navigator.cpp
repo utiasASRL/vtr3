@@ -154,11 +154,12 @@ if (pipeline->name() == "lidar"){
   tf_sbc_->sendTransform(msg);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
-
+  const auto odometry_topic = node_->declare_parameter<std::string>("lidar_odometry_topic", "/lidar_odometry");
 
   auto lidar_qos = rclcpp::QoS(max_queue_size_);
   lidar_qos.reliable();
   lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  odometry_sub_ = node_->create_subscription<nav_msgs::msg::Odometry>(odometry_topic, lidar_qos, std::bind(&Navigator::lidarOdometryCallback, this, std::placeholders::_1), sub_opt);
 }
 #endif
 #ifdef VTR_ENABLE_VISION
@@ -326,6 +327,11 @@ void Navigator::lidarCallback(
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
 
+  if (last_lidar_odom_ != nullptr) {
+    query_data->lidar_odom_msg = last_lidar_odom_;
+    last_lidar_odom_ == nullptr;
+  }
+
   query_data->gyro_msgs.emplace(gyro_msgs_);
   gyro_msgs_.clear();
 
@@ -337,6 +343,19 @@ void Navigator::lidarCallback(
   queue_.push(query_data);
   cv_set_or_stop_.notify_one();
 };
+
+void Navigator::lidarOdometryCallback(
+    const nav_msgs::msg::Odometry::SharedPtr msg) {
+
+  // set the timestamp
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+  CLOG(DEBUG, "navigation") << "Received a lidar odometry with stamp " << timestamp;
+
+  LockGuard lock(mutex_);
+  last_lidar_odom_ = msg;
+};
+
 #endif
 
 // Radar callback: Similar to Lidar, we need to know what to do when a radar message is received

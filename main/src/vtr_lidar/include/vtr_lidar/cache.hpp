@@ -20,6 +20,7 @@
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 
 #include "vtr_lidar/data_types/costmap.hpp"
 #include "vtr_lidar/data_types/point.hpp"
@@ -35,6 +36,7 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
 
   // input
   tactic::Cache<const sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros
+  tactic::Cache<const nav_msgs::msg::Odometry> lidar_odom_msg;  // ros
   tactic::Cache<const Eigen::MatrixXd> points;  // alternative input non-ros
   tactic::Cache<const tactic::EdgeTransform> T_s_r;
 

@@ -35,6 +35,7 @@
 
 #ifdef VTR_ENABLE_LIDAR
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #endif
 
 #ifdef VTR_ENABLE_RADAR
@@ -79,9 +80,12 @@ class Navigator {
   const std::string &lidar_frame() const { return lidar_frame_; }
   const tactic::EdgeTransform &T_lidar_robot() const { return T_lidar_robot_; }
   void lidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  void lidarOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub_;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_sub_;
   std::string lidar_frame_;
   tactic::EdgeTransform T_lidar_robot_;
+  nav_msgs::msg::Odometry::SharedPtr last_lidar_odom_;
 #endif
 
 #ifdef VTR_ENABLE_RADAR 
