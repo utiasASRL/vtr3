@@ -93,7 +93,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->W_icp << w_icp[0], 0, 0, w_icp[1];
 
   const auto doppler_bias = node->declare_parameter<std::vector<double>>(param_prefix + ".doppler_bias", {1.0, 1.0});
-  if (w_icp.size() != 2) {
+  if (doppler_bias.size() != 2) {
     std::string err{"doppler_bias malformed. Must be 2 elements!"};
     CLOG(ERROR, "radar.odometry_icp") << err;
     throw std::invalid_argument{err};
@@ -485,6 +485,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // Load in transform between gyro and robot frame
       const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
 
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (const auto &gyro_msg : *qdata.gyro_msgs) {
         // Load in gyro measurement and timestamp
         const auto yaw_meas = gyro_msg.angular_velocity.z;
@@ -510,7 +511,10 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, yaw_meas_r);
         const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
 
+#pragma omp critical(odo_icp_add_gyro_error_cost)
+{
         problem.addCostTerm(gyro_cost);
+}
       }
     }
 
@@ -524,6 +528,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // Get velocity measurements in sensor frame
       const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
       const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+
+      CLOG(DEBUG, "radar.odometry_icp") << "Adding velocity measurement to optimization with vel_meas: " << vel_meas.transpose();
 
       Eigen::Matrix<double, 2, 2> W_vel = Eigen::Matrix<double, 2, 2>::Identity();
       W_vel.block<1, 1>(0, 0) *= pow(config_->vel_fwd_std, 2);
