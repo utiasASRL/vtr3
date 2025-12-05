@@ -45,10 +45,12 @@
       #- lidar.preprocessing
       #- lidar.ouster_converter
       - lidar.odometry_icp
+      - lidar.odometry_daicp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
-      #- lidar.localization_icp
+      - lidar.localization_icp
+      - lidar.localization_daicp
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging
@@ -56,11 +58,11 @@
       #- lidar.obstacle_detection
       #- lidar.terrain_assessment
 
-    robot_frame: w200_0066_base_link
+    robot_frame: os_sensor
     env_info_topic: env_info
-    lidar_frame: w200_0066_os_lidar
+    lidar_frame: os_sensor
     lidar_topic: /ouster/points
-    gyro_frame: w200_0066_os_imu
+    gyro_frame: os_imu
     gyro_topic: /ouster/imu
     gyro_bias:
       x: 0.0
@@ -103,7 +105,8 @@
         - conversion
         - filtering
       odometry:
-        - icp
+        # - icp
+        - daicp
         - mapping
         - vertex_test
         #- intra_exp_merging
@@ -180,6 +183,77 @@
         min_matched_ratio: 0.0
         visualize: true
         gyro_cov: 1e-3
+      daicp:
+        type: lidar.odometry_daicp
+        
+        # continuous time estimation
+        use_trajectory_estimation: false
+        traj_num_extra_states: 0
+        traj_qc_diag:
+          - 1.0
+          - 0.1
+          - 0.1
+          - 0.1
+          - 0.1
+          - 1.0
+        
+        # general
+        num_threads: 8
+        verbose: false
+        visualize: true
+        
+        # iteration control
+        first_num_steps: 2
+        initial_max_iter: 4
+        
+        # data association
+        initial_max_pairing_dist: 1.5
+        initial_max_planar_dist: 1.0
+        
+        # refinement
+        refined_max_iter: 20
+        refined_max_pairing_dist: 1.0
+        refined_max_planar_dist: 0.3
+        averaging_num_steps: 2
+        
+        # convergence thresholds
+        trans_diff_thresh: 0.01
+        rot_diff_thresh: 0.001745329  # 0.1 degrees in radians
+        
+        ### daicp
+        max_gn_iter: 1
+        
+        # daicp - degeneracy threshold
+        degeneracy_thresh: 80.0
+        
+        # daicp - range and bearing noise model
+        sigma_d: 0.02
+        sigma_az: 0.000523599
+        sigma_el: 0.000523599
+        
+        # daicp - convergence checks (inner loop)
+        abs_cost_thresh: 1.0e-4
+        abs_cost_change_thresh: 1.0e-4
+        rel_cost_change_thresh: 1.0e-4
+        zero_gradient_thresh: 1.0e-4
+        inner_tolerance: 1.0e-4
+        
+        # prior fusion
+        max_pfusion_iter: 2
+        use_L2_loss: false
+        robust_loss: 0.1
+        max_iterations: 1
+        
+        # gyro fusion
+        gyro_cov: 1.0e-3
+        remove_orientation: false
+        
+        # success criteria
+        min_matched_ratio: 0.45
+        max_trans_vel_diff: 1000.0
+        max_rot_vel_diff: 1000.0
+        max_trans_diff: 1000.0
+        max_rot_diff: 1000.0     
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
