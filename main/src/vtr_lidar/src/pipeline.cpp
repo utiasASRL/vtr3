@@ -137,12 +137,25 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     CLOG(WARNING, "lidar.pipeline") << "Using lidar odometry message for odometry estimation.";
     auto lidar_odom_msg = *(qdata->lidar_odom_msg);
     auto pose = lidar_odom_msg.pose.pose;
-    //CLOG(WARNING, "lidar.pipeline") << "Lidar odometry pose: " << pose;
-    Eigen::Affine3d pose_eigen;
-    tf2::fromMsg(pose, pose_eigen);
-    Eigen::Matrix4d pose_matrix_eigen = pose_eigen.matrix();
-    auto T_r_m_odo = EdgeTransform(pose_matrix_eigen);
+    auto position = pose.position;
+    auto orientation = pose.orientation;
+    CLOG(WARNING, "lidar.pipeline") << "Lidar odometry pose: " << position.x << ", " << position.y << ", " << position.z << ", "
+                                   << orientation.w << ", "
+                                   << orientation.x << ", "
+                                   << orientation.y << ", "
+                                   << orientation.z;
+    Eigen::Vector3d position_eigen(position.x, position.y, position.z);
+    Eigen::Matrix3d rotation_eigen =
+        Eigen::Quaterniond(orientation.w, orientation.x, orientation.y, orientation.z)
+            .toRotationMatrix();
 
+    Eigen::Matrix4d T_ba = Eigen::Matrix4d::Identity();
+    T_ba.topLeftCorner<3, 3>() = rotation_eigen;
+    T_ba.topRightCorner<3, 1>() = position_eigen;
+    // Convert odometry to VTR coordinate frame
+    auto T_r_m_odo = EdgeTransform(T_ba).inverse();
+
+    // auto T_r_m_odo = EdgeTransform(T_ba);
     auto pose_cov = lidar_odom_msg.pose.covariance;
     auto twist = lidar_odom_msg.twist.twist;
     auto twist_cov = lidar_odom_msg.twist.covariance;
@@ -155,10 +168,13 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
     auto &sliding_map_odo = *qdata->sliding_map_odo;
     auto T_r_v = T_r_m_odo * sliding_map_odo.T_vertex_this().inverse();
+    
+    //auto T_r_v = T_r_m_odo * sliding_map_odo.T_vertex_this().inverse();
     CLOG(WARNING, "lidar.pipeline") << "Computed T_r_v_odo: " << T_r_v.vec().transpose();
     CLOG(WARNING, "lidar.pipeline") << "From T_r_m_odo: " << T_r_m_odo.vec().transpose();
+    CLOG(WARNING, "lidar.pipeline") << "And sliding map T_vertex_this: " << sliding_map_odo.T_vertex_this().vec().transpose();
 
-    *qdata->T_r_m_odo_prior = T_r_m_odo;
+    *qdata->T_r_m_odo_prior = T_r_m_odo_prior;
     *qdata->T_r_m_odo = T_r_m_odo;
     *qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_new;
     *qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_prior_new;
@@ -189,19 +205,6 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       module->run(*qdata0, *output0, graph, executor);
 
     }
-    
-    
-    //qdata->T_r_m_odo_prior = pose_matrix;
-    // w twist
-    //*qdata.w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_new;
-    //*qdata.cov_prior = cov_prior_new;
-    //*qdata.timestamp_prior = frame_end_time;
-    
-    //*qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-    //*qdata.T_r_v_odo = T_vertex_this().inverse();
-    //*qdata.T_r_m_odo = lidar_odom_msg->pose->pose;
-    //*qdata.timestamp_odo = query_stamp;
-
 
     return;
   }
@@ -212,10 +215,14 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   // store the current sliding map for odometry
   if (qdata->sliding_map_odo) {
     sliding_map_odo_ = qdata->sliding_map_odo.ptr();
+    CLOG(WARNING, "lidar.pipeline") << "Storing sliding_map_odo_ " << sliding_map_odo_->T_vertex_this().vec().transpose();
     timestamp_odo_ = qdata->timestamp_odo.ptr();
     T_r_m_odo_ = qdata->T_r_m_odo.ptr();
+    CLOG(WARNING, "lidar.pipeline") << "Storing T_r_m_odo_: " << (*T_r_m_odo_).vec().transpose();
     w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+    CLOG(WARNING, "lidar.pipeline") << "Storing w_m_r_in_r_odo_: " << (*w_m_r_in_r_odo_).transpose();
     T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
+    CLOG(WARNING, "lidar.pipeline") << "Storing T_r_m_odo_prior_: " << (*T_r_m_odo_prior_).vec().transpose();
     T_s_world_gt_prev_ = qdata->T_s_world_gt_prev.ptr();
     v_s_gt_prev_ = qdata->v_s_gt_prev.ptr();
     timestamp_prior_ = qdata->timestamp_prior.ptr();
