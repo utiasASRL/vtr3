@@ -388,9 +388,9 @@ void OdometryDAICPModule::run_(QueryCache &qdata0, OutputCache &,
     // Add DAICP measurement cost
     std::shared_ptr<BaseLossFunc> daicp_loss_func;
     // if (config_->use_L2_loss) {
-    daicp_loss_func = L2LossFunc::MakeShared();
+    // daicp_loss_func = L2LossFunc::MakeShared();
     // } else {
-    //   daicp_loss_func = CauchyLossFunc::MakeShared(config_->robust_loss);
+      daicp_loss_func = CauchyLossFunc::MakeShared(config_->robust_loss);
     // }
     
     // convert the covariance back to [x,y,z,roll,pitch,yaw] order
@@ -582,6 +582,9 @@ void OdometryDAICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto diff_T = (T_r_m_eval_initial * T_r_m_query.inverse()).vec();
   const auto diff_T_trans = diff_T.head<3>().norm();
   const auto diff_T_rot = diff_T.tail<3>().norm();
+
+  CLOG(DEBUG, "lidar.odometry_daicp") << "Initial transformation: \n" << T_r_m_eval_initial.matrix();
+  CLOG(DEBUG, "lidar.odometry_daicp") << "Final transformation: \n" << T_r_m_query.matrix();
   
   CLOG(DEBUG, "lidar.odometry_daicp") << "Current transformation difference: " << diff_T.transpose();
   CLOG(DEBUG, "lidar.odometry_daicp") << "Current velocity difference: " << vel_diff.transpose();
