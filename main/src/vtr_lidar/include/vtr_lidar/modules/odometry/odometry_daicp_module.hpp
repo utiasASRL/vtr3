@@ -19,7 +19,7 @@ class OdometryDAICPModule : public tactic::BaseModule {
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.odometry_icp";
+  static constexpr auto static_name = "lidar.odometry_daicp";
 
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
