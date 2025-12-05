@@ -298,6 +298,9 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (current_vertex_id_.isValid())
     updatePersistentLoc(*qdata->stamp, *qdata->vid_odo, *qdata->T_r_v_odo,
                         true);
+  else
+    CLOG(WARNING, "tactic")
+        << "Not updating persistent localization since current vertex id is invalid.";
 
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;

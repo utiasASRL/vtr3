@@ -24,6 +24,15 @@
 namespace vtr {
 namespace lidar {
 
+template <class PointT>
+void cart2pol(pcl::PointCloud<PointT> &point_cloud) {
+  for (auto &p : point_cloud) {
+    p.rho = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = std::atan2(std::sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = std::atan2(p.y, p.x);
+  }
+}
+
 using namespace tactic;
 
 auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
@@ -128,6 +137,7 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     CLOG(WARNING, "lidar.pipeline") << "Using lidar odometry message for odometry estimation.";
     auto lidar_odom_msg = *(qdata->lidar_odom_msg);
     auto pose = lidar_odom_msg.pose.pose;
+    //CLOG(WARNING, "lidar.pipeline") << "Lidar odometry pose: " << pose;
     Eigen::Affine3d pose_eigen;
     tf2::fromMsg(pose, pose_eigen);
     Eigen::Matrix4d pose_matrix_eigen = pose_eigen.matrix();
@@ -145,12 +155,41 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
     auto &sliding_map_odo = *qdata->sliding_map_odo;
     auto T_r_v = T_r_m_odo * sliding_map_odo.T_vertex_this().inverse();
+    CLOG(WARNING, "lidar.pipeline") << "Computed T_r_v_odo: " << T_r_v.vec().transpose();
+    CLOG(WARNING, "lidar.pipeline") << "From T_r_m_odo: " << T_r_m_odo.vec().transpose();
 
     *qdata->T_r_m_odo_prior = T_r_m_odo;
     *qdata->T_r_m_odo = T_r_m_odo;
     *qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_new;
     *qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_prior_new;
     *qdata->T_r_v_odo = T_r_v;
+
+    const auto &query_points = *qdata->preprocessed_point_cloud;
+    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+    cart2pol(*undistorted_point_cloud);
+    qdata->undistorted_point_cloud = undistorted_point_cloud;
+
+    // store the current sliding map for odometry
+    if (qdata->sliding_map_odo) {
+      sliding_map_odo_ = qdata->sliding_map_odo.ptr();
+      timestamp_odo_ = qdata->timestamp_odo.ptr();
+      T_r_m_odo_ = qdata->T_r_m_odo.ptr();
+      w_m_r_in_r_odo_ = qdata->w_m_r_in_r_odo.ptr();
+      T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
+      T_s_world_gt_prev_ = qdata->T_s_world_gt_prev.ptr();
+      v_s_gt_prev_ = qdata->v_s_gt_prev.ptr();
+      timestamp_prior_ = qdata->timestamp_prior.ptr();
+      w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
+      cov_prior_ = qdata->cov_prior.ptr();
+    }
+    qdata->odo_success = true;
+    for (const auto &module : odometry_){
+      if (module->name() == "lidar.odometry_daicp")
+        continue;
+      module->run(*qdata0, *output0, graph, executor);
+
+    }
+    
     
     //qdata->T_r_m_odo_prior = pose_matrix;
     // w twist
@@ -163,7 +202,7 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     //*qdata.T_r_m_odo = lidar_odom_msg->pose->pose;
     //*qdata.timestamp_odo = query_stamp;
 
-    qdata->odo_success = true;
+
     return;
   }
 
@@ -211,7 +250,7 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   /// update current map vertex id and transform
   sliding_map_odo_->T_vertex_this() = *T_r_m_odo_;
   sliding_map_odo_->vertex_id() = *qdata->vid_odo;
-  CLOG(DEBUG, "lidar.pipeline") << "Saving data to vertex" << vertex;
+  CLOG(WARNING, "lidar.pipeline") << "Saving data to vertex" << vertex;
 
 
   /// store the live frame point cloud

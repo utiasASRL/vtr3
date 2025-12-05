@@ -329,7 +329,7 @@ void Navigator::lidarCallback(
 
   if (last_lidar_odom_ != nullptr) {
     query_data->lidar_odom_msg = last_lidar_odom_;
-    last_lidar_odom_ = nullptr;
+    //last_lidar_odom_ = nullptr;
   }
 
   query_data->gyro_msgs.emplace(gyro_msgs_);
