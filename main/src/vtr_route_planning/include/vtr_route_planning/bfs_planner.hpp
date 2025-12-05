@@ -90,6 +90,15 @@ class BFSPlanner : public RoutePlannerInterface {
   /** \brief Clear the extra per-edge delay costs. */
   void clearExtraEdgeCosts() { extra_edge_costs_.clear(); }
 
+  /** \brief Debug helper: compute total time cost of a given path (seconds).
+   *
+   * Cost is computed using the same model as masked planning:
+   *   travel_time (distance / nominal_speed) + extra_edge_delay.
+   * The total extra delay along the path is returned via delay_out.
+   * This is intended for logging/inspection only.
+   */
+  double debugPathTotalCost(const PathType &path, double &delay_out) const;
+
 private:
   /** \brief Helper to get a shared pointer to the graph */
   GraphPtr getGraph() const;

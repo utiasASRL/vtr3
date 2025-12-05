@@ -54,9 +54,9 @@
       enable_reroute: true   # Enable obstacle-triggered rerouting
       permanent_ban: false   # Keep bans across replanning attempts
       replanner_type: "deterministic_timecost"  # or "masked_bfs"
-      nominal_speed_mps: 0.5                    # robot nominal forward speed (m/s)
+      nominal_speed_mps: 0.8                    # robot nominal forward speed (m/s)
       obstacle_delay_person: 0.0                # extra delay (s) for person obstacles
-      obstacle_delay_chair: 600.0                # extra delay (s) for chair/ static obstacles
+      obstacle_delay_chair: 10000.0                # extra delay (s) for chair/ static obstacles
     graph_projection:
       # # UTIAS coordinates (original)
       # origin_lat: 43.7822  # UTIAS

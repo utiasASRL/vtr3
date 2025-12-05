@@ -23,6 +23,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 
 #include "vtr_common/utils/filesystem.hpp"
 #include "vtr_navigation/command_publisher.hpp"
@@ -211,8 +212,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     pause_state_pub_->publish(msg);
   }
   
-  // Hshmat: Subscribe to ChatGPT decision for wait vs reroute strategy
-  chatgpt_decision_sub_ = node_->create_subscription<std_msgs::msg::String>(
+  // Hshmat: Subscribe to obstacle decision ("wait" or "reroute") from the
+  // obstacle decision node. The decision node may internally use ChatGPT or
+  // other logic, but from the navigator's perspective this is a generic
+  // obstacle decision signal.
+  obstacle_decision_sub_ = node_->create_subscription<std_msgs::msg::String>(
       "/vtr/chatgpt_decision", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::String::SharedPtr msg) {
         if (!msg) return;
@@ -222,18 +226,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         {
           LockGuard lock(chatgpt_mutex_);
-          latest_chatgpt_decision_ = decision;
+          latest_obstacle_decision_ = decision;
           last_decision_time_ = now;
         }
         waiting_for_decision_ = false;
         processing_obstacle_ = false;  // Clear processing flag when decision arrives
         waiting_for_decision_logged_ = false;
-        CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Received decision from detector: '" << decision << "'";
-        if (use_chatgpt_) {
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'ChatGPT enabled. Decision: " << decision << ".'";
-        } else {
-          CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Robot says: 'ChatGPT disabled. Decision: " << decision << ".'";
-        }
+        CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: Received obstacle decision from detector: '" << decision << "'";
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT-TTS: Robot says: 'Decision source "
+            << (use_chatgpt_ ? "uses ChatGPT internally" : "does not use ChatGPT")
+            << ". Decision: " << decision << ".'";
         if (decision == "reroute") {
           CLOG(INFO, "mission.state_machine")
               << "Navigator: triggering reroute flow directly from decision subscriber.";
@@ -293,7 +296,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           bool has_pending_decision = false;
           {
             LockGuard lock(chatgpt_mutex_);
-            has_pending_decision = !latest_chatgpt_decision_.empty();
+            has_pending_decision = !latest_obstacle_decision_.empty();
           }
           if (has_pending_decision && !decision_accepting_) {
             CLOG(INFO, "mission.state_machine") << "Navigator: obstacle status flickered low while decision pending; ignoring.";
@@ -319,8 +322,20 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           pending_reroute_resume_ = false;
           return;
         }
-
+        
         if (!obstacle_active_ && !waiting_for_reroute_) {
+          // Let the decision node own the notion of "episodes".
+          // If it is still announcing / processing a previous obstacle
+          // (decision_accepting_ == false), ignore new obstacle_status
+          // signals here to avoid triggering multiple reroutes inside
+          // a single episode.
+          if (!decision_accepting_) {
+            CLOG(DEBUG, "mission.state_machine")
+                << "Navigator: /vtr/obstacle_status=true but decision node "
+                << "is not accepting new decisions; ignoring this obstacle signal.";
+            return;
+          }
+          
           obstacle_active_ = true;
           obstacle_start_time_ = node_->get_clock()->now();
           active_decision_.clear();
@@ -332,7 +347,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           if (use_chatgpt_) {
             LockGuard lock(chatgpt_mutex_);
             if (decision_accepting_) {
-              latest_chatgpt_decision_.clear();
+              latest_obstacle_decision_.clear();
               last_decision_time_ = rclcpp::Time(0, 0, node_->get_clock()->get_clock_type());
             }
             
@@ -347,11 +362,21 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           CLOG(INFO, "mission.state_machine") << "HSHMAT-TTS: ============================================================";
         }
 
+        // In ChatGPT-enabled mode, the actual decision ("wait" vs "reroute")
+        // and the call to triggerReroute() are handled exclusively by the
+        // /vtr/chatgpt_decision subscriber. Here we only manage the high-level
+        // obstacle episode bookkeeping and pausing the robot. This avoids a
+        // second reroute being triggered from a cached decision when
+        // /vtr/obstacle_status flickers near the reroute join point.
+        if (use_chatgpt_) {
+          return;
+        }
+
         std::string decision_snapshot;
         rclcpp::Time decision_time_snapshot;
         {
           LockGuard lock(chatgpt_mutex_);
-          decision_snapshot = latest_chatgpt_decision_;
+          decision_snapshot = latest_obstacle_decision_;
           decision_time_snapshot = last_decision_time_;
         }
 
@@ -826,6 +851,15 @@ void Navigator::triggerReroute() {
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT: deterministic_timecost replanner configured with delay="
             << delay_sec << "s on " << delays.size() << " edges.";
+        // Debug: log which edges are getting delays
+        if (!delays.empty()) {
+          std::stringstream ss;
+          ss << "HSHMAT: Edges with delay " << delay_sec << "s: ";
+          for (const auto &kv : delays) {
+            ss << kv.first << " ";
+          }
+          CLOG(INFO, "mission.state_machine") << ss.str();
+        }
       } else {
         // Legacy masked BFS: ban affected edges.
         if (!affected_edges.empty()) {

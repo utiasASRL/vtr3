@@ -19,6 +19,7 @@ def generate_launch_description():
         "namespace": 'vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
+        "prefix": 'nice -n 0',  # HSHMAT: High priority for localization (0 = default, but higher than detector/decision at +10)
         # "prefix": 'xterm -e gdb -ex run --args',
         #"prefix": 'valgrind --tool=callgrind',
     }

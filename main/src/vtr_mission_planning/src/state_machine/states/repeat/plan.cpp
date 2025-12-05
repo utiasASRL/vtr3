@@ -88,7 +88,41 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
           << (bfs->permanentBan() ? "true" : "false");
       try {
         path = bfs->hshmat_plan(persistent_loc.v, waypoints_.front());
-        CLOG(INFO, "mission.state_machine") << "HSHMAT: Masked plan succeeded with " << path.size() << " vertices";
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: Masked plan succeeded with " << path.size() << " vertices";
+
+        // Debug: report total time cost (travel time + extra delay) of the
+        // masked path. This uses the same cost model as deterministic_timecost:
+        // distance/nominal_speed + per-edge extra delays.
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: DEBUG - Checking path cost (bfs=" << (bfs ? "valid" : "null") 
+            << ", path.size()=" << path.size() << ")";
+        if (bfs && !path.empty()) {
+          double delay_sec = 0.0;
+          const double total_cost = bfs->debugPathTotalCost(path, delay_sec);
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: ========== PATH COST ANALYSIS ==========";
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: Masked path total cost=" << total_cost
+              << " s (base travel time + extra delay=" << delay_sec
+              << " s, nominal_speed=" << bfs->nominalSpeed()
+              << " m/s, use_time_cost=" << (bfs->useTimeCost() ? "true" : "false")
+              << ")";
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: Path has " << path.size() << " vertices from "
+              << persistent_loc.v << " to " << waypoints_.front();
+          if (delay_sec > 0.0) {
+            CLOG(WARNING, "mission.state_machine")
+                << "HSHMAT: ⚠️  Path includes " << delay_sec 
+                << "s of extra delay penalties!";
+          } else {
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT: ✓ Path has no extra delays (all edges clean)";
+          }
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: =========================================";
+        }
+
         if (auto cb = getCallback(state_machine))
           cb->notifyRerouteStatus("reroute_success");
       } catch (const std::exception &e) {

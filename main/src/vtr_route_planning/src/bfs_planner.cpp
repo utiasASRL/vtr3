@@ -141,6 +141,70 @@ auto BFSPlanner::hshmat_plan(const VertexId &from, const VertexId &to) -> PathTy
   return rval;
 }
 
+auto BFSPlanner::debugPathTotalCost(const PathType &path, double &delay_out) const
+    -> double {
+  delay_out = 0.0;
+  if (path.size() < 2) return 0.0;
+
+  auto priv_graph = getPrivilegedGraph();
+  const double inv_speed =
+      (nominal_speed_mps_ > 1e-6) ? (1.0 / nominal_speed_mps_) : 1.0;
+
+  double total_cost = 0.0;
+  double total_base_time = 0.0;
+  
+  // Debug: log per-edge breakdown for first few and last few edges
+  const size_t log_first_n = 5;
+  const size_t log_last_n = 5;
+  const bool log_all = (path.size() <= 100);  // Log all if path is short
+  
+  for (size_t i = 0; i + 1 < path.size(); ++i) {
+    vtr::tactic::VertexId v1(path[i]);
+    vtr::tactic::VertexId v2(path[i + 1]);
+    vtr::tactic::EdgeId eid(v1, v2);
+    
+    double edge_len = 0.0;
+    double extra_delay = 0.0;
+    try {
+      auto edge_ptr = priv_graph->at(eid);
+      if (edge_ptr) {
+        edge_len = edge_ptr->T().r_ab_inb().norm();
+      }
+    } catch (const std::exception &) {
+      // If we can't find the edge, treat length and delay as zero to avoid
+      // throwing in debug logging.
+    }
+
+    double base_cost = use_time_cost_ ? edge_len * inv_speed : 1.0;
+    auto it = extra_edge_costs_.find(eid);
+    if (it != extra_edge_costs_.end()) {
+      extra_delay = it->second;
+    }
+
+    total_cost += base_cost + extra_delay;
+    total_base_time += base_cost;
+    delay_out += extra_delay;
+    
+    // Log per-edge details for debugging
+    bool should_log = log_all || (i < log_first_n) || 
+                      (i + 1 >= path.size() - log_last_n);
+    if (should_log && extra_delay > 0.0) {
+      CLOG(INFO, "route_planning.bfs")
+          << "  Edge " << eid << ": len=" << edge_len 
+          << "m, base_time=" << base_cost << "s, delay=" << extra_delay 
+          << "s, total=" << (base_cost + extra_delay) << "s";
+    }
+  }
+  
+  // Summary log
+  CLOG(INFO, "route_planning.bfs")
+      << "Path cost breakdown: total=" << total_cost << "s "
+      << "(base_time=" << total_base_time << "s, extra_delay=" << delay_out 
+      << "s), path_length=" << path.size() << " vertices";
+  
+  return total_cost;
+}
+
 auto BFSPlanner::getGraph() const -> GraphPtr {
   if (auto graph_acquired = graph_.lock())
     return graph_acquired;

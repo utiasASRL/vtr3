@@ -170,9 +170,9 @@ typedef message_filters::sync_policies::ApproximateTime<
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr obstacle_type_sub_;
   std::string last_obstacle_type_ = "unknown";
   
-  // Hshmat: ChatGPT decision subscriber
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr chatgpt_decision_sub_;
-  std::string latest_chatgpt_decision_;  // "wait" or "reroute"
+  // Hshmat: Decision subscriber (from obstacle decision node: "wait" or "reroute")
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr obstacle_decision_sub_;
+  std::string latest_obstacle_decision_;  // "wait" or "reroute"
   Mutex chatgpt_mutex_;
   rclcpp::Time last_decision_time_;
   rclcpp::Time obstacle_start_time_;
