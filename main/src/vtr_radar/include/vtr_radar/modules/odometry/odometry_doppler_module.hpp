@@ -49,6 +49,19 @@ class OdometryDopplerModule : public tactic::BaseModule {
     int num_threads = 4;
     // Threshold for zeroing out velocity
     double zero_velocity_threshold = 0.1;
+    // Whether to optimize the pose estimate using STEAM
+    // If false, direct discrete=time integration is used
+    bool optimize = true;
+    // Doppler bias
+    Eigen::Vector2d doppler_bias = Eigen::Vector2d::Zero();
+
+    int max_iter = 20;
+    bool verbose = false;
+    double gyro_cov = 1e-3;
+    double dopp_cauchy_k = 0.8;
+    double dopp_meas_std = 1.0;
+    int integration_steps = 100;
+    int traj_num_extra_states = 0;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -66,6 +79,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
   double yaw_rate_prev_ = 0.0;  // Last gyro yaw rate from previous frame
   double preint_yaw_ = 0.0;
   double yaw_rate_avg_prev_ = 0.0;
+  Eigen::Matrix4d T_r_delta_prev_ = Eigen::Matrix4d::Identity();
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
