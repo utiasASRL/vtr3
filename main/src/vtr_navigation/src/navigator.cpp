@@ -154,7 +154,7 @@ if (pipeline->name() == "lidar"){
   tf_sbc_->sendTransform(msg);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
-  const auto odometry_topic = node_->declare_parameter<std::string>("lidar_odometry_topic", "/lidar_odometry");
+  const auto odometry_topic = node_->declare_parameter<std::string>("lidar_odometry_topic", "/Odometry");
 
   auto lidar_qos = rclcpp::QoS(max_queue_size_);
   lidar_qos.reliable();
@@ -329,7 +329,7 @@ void Navigator::lidarCallback(
 
   if (last_lidar_odom_ != nullptr) {
     query_data->lidar_odom_msg = last_lidar_odom_;
-    last_lidar_odom_ == nullptr;
+    last_lidar_odom_ = nullptr;
   }
 
   query_data->gyro_msgs.emplace(gyro_msgs_);
@@ -350,7 +350,7 @@ void Navigator::lidarOdometryCallback(
   // set the timestamp
   Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
-  CLOG(DEBUG, "navigation") << "Received a lidar odometry with stamp " << timestamp;
+  CLOG(WARNING, "navigation") << "Received a lidar odometry with stamp " << timestamp;
 
   LockGuard lock(mutex_);
   last_lidar_odom_ = msg;

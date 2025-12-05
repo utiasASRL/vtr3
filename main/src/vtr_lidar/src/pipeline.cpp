@@ -122,6 +122,51 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->v_s_gt_prev = v_s_gt_prev_;
   }
 
+  auto &odom_msg = qdata->lidar_odom_msg.ptr();
+
+  if (odom_msg != nullptr) {
+    CLOG(WARNING, "lidar.pipeline") << "Using lidar odometry message for odometry estimation.";
+    auto lidar_odom_msg = *(qdata->lidar_odom_msg);
+    auto pose = lidar_odom_msg.pose.pose;
+    Eigen::Affine3d pose_eigen;
+    tf2::fromMsg(pose, pose_eigen);
+    Eigen::Matrix4d pose_matrix_eigen = pose_eigen.matrix();
+    auto T_r_m_odo = EdgeTransform(pose_matrix_eigen);
+
+    auto pose_cov = lidar_odom_msg.pose.covariance;
+    auto twist = lidar_odom_msg.twist.twist;
+    auto twist_cov = lidar_odom_msg.twist.covariance;
+
+    auto T_r_m_odo_prior = *qdata->T_r_m_odo_prior;;
+    // w twist
+    Eigen::Matrix<double, 6, 1> w_m_r_in_r_odo_prior_new;
+    w_m_r_in_r_odo_prior_new << twist.linear.x, twist.linear.y, twist.linear.z,
+        twist.angular.x, twist.angular.y, twist.angular.z;
+
+    auto &sliding_map_odo = *qdata->sliding_map_odo;
+    auto T_r_v = T_r_m_odo * sliding_map_odo.T_vertex_this().inverse();
+
+    *qdata->T_r_m_odo_prior = T_r_m_odo;
+    *qdata->T_r_m_odo = T_r_m_odo;
+    *qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_new;
+    *qdata->w_m_r_in_r_odo = w_m_r_in_r_odo_prior_new;
+    *qdata->T_r_v_odo = T_r_v;
+    
+    //qdata->T_r_m_odo_prior = pose_matrix;
+    // w twist
+    //*qdata.w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_new;
+    //*qdata.cov_prior = cov_prior_new;
+    //*qdata.timestamp_prior = frame_end_time;
+    
+    //*qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+    //*qdata.T_r_v_odo = T_vertex_this().inverse();
+    //*qdata.T_r_m_odo = lidar_odom_msg->pose->pose;
+    //*qdata.timestamp_odo = query_stamp;
+
+    qdata->odo_success = true;
+    return;
+  }
+
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
 

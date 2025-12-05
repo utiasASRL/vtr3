@@ -85,7 +85,7 @@ class Navigator {
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_sub_;
   std::string lidar_frame_;
   tactic::EdgeTransform T_lidar_robot_;
-  nav_msgs::msg::Odometry::SharedPtr last_lidar_odom_;
+  nav_msgs::msg::Odometry::SharedPtr last_lidar_odom_ = nullptr;
 #endif
 
 #ifdef VTR_ENABLE_RADAR 
