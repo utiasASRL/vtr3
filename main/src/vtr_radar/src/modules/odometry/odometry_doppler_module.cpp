@@ -354,7 +354,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
     // Save leftover delta
     T_r_delta_prev_ = T_r_delta_temp;
-    std::cout << "T_r_delta_temp: \n" << T_r_delta_temp << std::endl;
 
     // Save the velocity estimate
     w_v_r_in_r = vec2Dto3D(trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->value());
