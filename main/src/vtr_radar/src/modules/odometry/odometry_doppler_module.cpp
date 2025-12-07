@@ -254,12 +254,21 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     // Sometimes there may be gyro dropout for a frame, in which case we rely on
     // the prior to fix our orientation
     if (qdata.gyro_msgs) {
+      // Load in transform between gyro and robot frame
+      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (const auto &gyro_msg : *qdata.gyro_msgs) {
         // Load in gyro measurement and timestamp
         const auto yaw_meas = gyro_msg.angular_velocity.z;
         const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
         const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
+
+        // Transform gyro measurement into robot frame
+        Eigen::VectorXd gyro_meas_g(3);
+        gyro_meas_g << 0, 0, gyro_msg.angular_velocity.z;
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r =  T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
+        const double yaw_meas_r = gyro_meas_r(2);
 
         // Interpolate velocity measurement at gyro stamp
         auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
@@ -271,7 +280,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
         const auto loss_func = L2LossFunc::MakeShared();
         Eigen::Matrix<double, 1, 1> W_gyro = config_->gyro_cov * Eigen::Matrix<double, 1, 1>::Identity();
         const auto noise_model = StaticNoiseModel<1>::MakeShared(W_gyro);
-        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, yaw_meas);
+        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, yaw_meas_r);
         const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
 
 #pragma omp critical(odo_dopp_add_gyro_error_cost)
@@ -379,14 +388,21 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     bool past_scan_time = false;
     double yaw_rate_avg = 0.0;
     if (qdata.gyro_msgs) {
-
+      // Load in transform between gyro and robot frame
+      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
       for (const auto &gyro_msg : *qdata.gyro_msgs) {
-        // Load in gyro yaw rate
-        const double yaw_rate_curr = gyro_msg.angular_velocity.z;
-        const double yaw_rate_use = (yaw_rate_curr + yaw_rate_prev_) / 2.0;
-        // Load timestamp
+        // Load in gyro measurement and timestamp
+        const auto yaw_meas = gyro_msg.angular_velocity.z;
         const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
         const auto gyro_stamp_time = gyro_stamp.seconds();
+
+        // Transform gyro measurement into robot frame
+        Eigen::VectorXd gyro_meas_g(3);
+        gyro_meas_g << 0, 0, gyro_msg.angular_velocity.z;
+        const Eigen::Matrix<double, 3, 1> gyro_meas_r =  T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
+        const double yaw_rate_curr = gyro_meas_r(2);
+
+        const double yaw_rate_use = (yaw_rate_curr + yaw_rate_prev_) / 2.0;
 
         // Check if we're just before the scan stamp
         if (gyro_stamp_time > scan_stamp_s && !past_scan_time) {
@@ -468,9 +484,20 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     w_v_r_in_r(1) = -v_r_v_in_r(1);
     // For our yaw rate, just use the middle gyro measurement
     // It doesn't affect pose so purely for velocity "estimation"
-    const double yaw_r_v_in_r = qdata.gyro_msgs->at(qdata.gyro_msgs->size() / 2).angular_velocity.z;
-    w_v_r_in_r(5) = -yaw_r_v_in_r;
+    if (qdata.gyro_msgs) {
+      const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+      Eigen::VectorXd gyro_meas_g(3);
+      gyro_meas_g << 0, 0, qdata.gyro_msgs->at(qdata.gyro_msgs->size() / 2).angular_velocity.z;
+      const Eigen::Matrix<double, 3, 1> gyro_meas_r =  T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
+      w_v_r_in_r(5) = -gyro_meas_r(2);
+    } else {
+      w_v_r_in_r(5) = -yaw_rate_avg_prev_;
+    }
   }
+
+  CLOG(DEBUG, "radar.odometry_doppler") << "T_r_delta:\n" << T_r_delta;
+  CLOG(DEBUG, "radar.odometry_doppler") << "w_v_r_in_r:\n" << w_v_r_in_r.transpose();
+    
 
   // Propgate state
   *qdata.T_r_v_odo = T_r_delta * *qdata.T_r_v_odo;
