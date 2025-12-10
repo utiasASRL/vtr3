@@ -110,6 +110,8 @@ auto BFSPlanner::hshmat_plan(const VertexId &from, const VertexId &to) -> PathTy
   if (!use_time_cost_) {
     // Legacy behaviour: constant weights to mimic BFS.
     weight_eval = std::make_shared<weight::ConstEval>(1.f, 1.f);
+    CLOG(INFO, "route_planning")
+        << "HSHMAT-DEBUG: Using legacy BFS (constant weights), NOT using time costs";
   } else {
     // Distance-based weight on edges, zero on vertices.
     auto distance_eval =
@@ -124,14 +126,39 @@ auto BFSPlanner::hshmat_plan(const VertexId &from, const VertexId &to) -> PathTy
     auto delay_eval = std::make_shared<weight::MapEval>();
     for (const auto &kv : extra_edge_costs_) {
       delay_eval->ref(kv.first) = kv.second;
+      CLOG(INFO, "route_planning")
+          << "HSHMAT-DEBUG: Setting delay for edge " << kv.first 
+          << " = " << kv.second << "s";
     }
 
     // Total weight = travel time + delay.
     weight_eval = vtr::pose_graph::eval::Add(travel_time_eval, delay_eval);
+    
+    CLOG(INFO, "route_planning")
+        << "HSHMAT-DEBUG: About to run Dijkstra with " 
+        << extra_edge_costs_.size() << " edges having delays, "
+        << "use_time_cost=" << (use_time_cost_ ? "true" : "false")
+        << ", nominal_speed=" << nominal_speed_mps_ << " m/s";
   }
 
+  // HSHMAT-DEBUG: Test weight evaluator on the delayed edges to verify delays are applied
+  if (use_time_cost_ && !extra_edge_costs_.empty()) {
+    CLOG(INFO, "route_planning")
+        << "HSHMAT-DEBUG: Testing weight evaluator on delayed edges:";
+    for (const auto &kv : extra_edge_costs_) {
+      double weight = (*weight_eval)[kv.first];
+      CLOG(INFO, "route_planning")
+          << "HSHMAT-DEBUG: Edge " << kv.first << " weight=" << weight 
+          << " (should include delay=" << kv.second << "s)";
+    }
+  }
+  
   const auto computed_path =
       priv_graph->dijkstraSearch(from, to, weight_eval, mask_eval);
+  
+  CLOG(INFO, "route_planning")
+      << "HSHMAT-DEBUG: Dijkstra returned path with " 
+      << (computed_path ? computed_path->numberOfVertices() : 0) << " vertices";
   // Convert the traversal result to the expected PathType (list of VertexId).
   PathType rval;
   rval.reserve(computed_path->numberOfVertices());

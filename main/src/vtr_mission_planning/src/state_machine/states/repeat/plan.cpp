@@ -157,7 +157,13 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
     // Note: For rerouting, we keep permanent bans but clear them after successful planning
     // to allow future rerouting to work properly
     if (bfs && !bfs->permanentBan()) {
+      CLOG(INFO, "mission.state_machine") 
+          << "HSHMAT-DEBUG: Clearing banned edges (permanentBan=false). "
+          << "Extra edge costs BEFORE clear: " << (bfs ? "checking..." : "bfs is null");
       bfs->clearBannedEdges();
+      // NOTE: We do NOT clear extra_edge_costs here - they should persist for deterministic_timecost
+      CLOG(INFO, "mission.state_machine") 
+          << "HSHMAT-DEBUG: Banned edges cleared. Extra edge costs should still be set.";
     } else if (bfs && bfs->permanentBan()) {
       // If permanentBan() is true, we keep banned edges across replans.
       CLOG(INFO, "mission.state_machine") << "HSHMAT: Permanent ban is enabled, not clearing banned edges";

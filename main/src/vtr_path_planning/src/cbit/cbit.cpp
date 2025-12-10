@@ -410,7 +410,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
     }
 
-    mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
+    mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;      CLOG(DEBUG, "cbit.control") << "p_rollout: " << p_rollout.back();
     mpcConfig.low_barrier_q = referenceInfo.barrier_q_min;
     
     mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
@@ -428,6 +428,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
       for(int i = 0; i < mpc_res["pose"].columns(); i++) {
         const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
         mpc_poses.push_back(T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2]));
+        CLOG(DEBUG, "cbit.control") << "mpc_poses: " << T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2]);
       }
 
       CLOG(INFO, "cbit.control") << "Successfully solved MPC problem";
