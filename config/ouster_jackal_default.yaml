@@ -24,23 +24,23 @@
       - cbit.obstacle_filtering # for luka
       #- grizzly_controller_tests.cbit
         # mpc
-      # - mpc.speed_scheduler
+      - mpc.speed_scheduler
       - mpc.debug
       - test
-      #- mpc.solver
+      - mpc.solver
         # path planner
       # - cbit_planner.path_planning
         # pose graph
       #- pose_graph
         # lidar pipeline
-      #- lidar.pipeline
+      - lidar.pipeline
       #- lidar.honeycomb_converter
       # - lidar.preprocessing
-      #- lidar.odometry_icp
+      - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
-      #- lidar.localization_icp
+      - lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging
@@ -374,8 +374,8 @@
         costmap_history: 15 
 
       speed_scheduler:
-        planar_curv_weight: 2.50
-        profile_curv_weight: 0.5 
+        planar_curv_weight: 0.0
+        profile_curv_weight: 0.0
         eop_weight: 1.0
         min_vel: 0.5
 

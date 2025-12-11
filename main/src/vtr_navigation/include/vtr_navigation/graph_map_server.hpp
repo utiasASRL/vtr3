@@ -129,6 +129,16 @@ class GraphMapServer : public tactic::Graph::Callback,
                          const tactic::Localization& target) override;
   void pathUpdated(const VertexId::Vector& path) override;
 
+ public:
+  /// \brief Get vertex position relative to a reference vertex (meters).
+  ///
+  /// Returns (x, y, theta) in meters, representing the position of 'vid'
+  /// in the coordinate frame of 'ref_vid'. Use this with the trunk vertex
+  /// to get positions that can be transformed via TF "loc vertex frame".
+  /// Thread-safe: acquires the internal mutex.
+  std::tuple<double, double, double> getVertexRelativeTo(
+      const VertexId& vid, const VertexId& ref_vid) const;
+
  private:
   /// these functions are called by functions above, do not lock mutex inside
   /** \brief Helper to get a shared pointer to the graph */

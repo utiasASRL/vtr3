@@ -193,6 +193,39 @@ void GraphMapServer::annotateRouteCallback(
   graph_state_pub_->publish(graph_state_);
 }
 
+std::tuple<double, double, double>
+GraphMapServer::getVertexRelativeTo(const VertexId& vid, const VertexId& ref_vid) const {
+  SharedLock lock(mutex_);
+  
+  auto it_vid = vid2tf_map_.find(vid);
+  auto it_ref = vid2tf_map_.find(ref_vid);
+  
+  if (it_vid == vid2tf_map_.end()) {
+    std::stringstream err;
+    err << "GraphMapServer::getVertexRelativeTo: vertex " << vid << " not found";
+    CLOG(ERROR, "navigation.graph_map_server") << err.str();
+    throw std::runtime_error{err.str()};
+  }
+  if (it_ref == vid2tf_map_.end()) {
+    std::stringstream err;
+    err << "GraphMapServer::getVertexRelativeTo: ref vertex " << ref_vid << " not found";
+    CLOG(ERROR, "navigation.graph_map_server") << err.str();
+    throw std::runtime_error{err.str()};
+  }
+  
+  // vid2tf_map_ stores T_vertex_root
+  // We want T_ref_vid = position of vid in ref's frame
+  // T_ref_vid = T_ref_root * T_root_vid
+  //           = vid2tf_map_[ref] * vid2tf_map_[vid].inverse()
+  Eigen::Matrix4d T_ref_vid = it_ref->second.matrix() * it_vid->second.inverse().matrix();
+  
+  double x = T_ref_vid(0, 3);
+  double y = T_ref_vid(1, 3);
+  double theta = std::atan2(T_ref_vid(1, 0), T_ref_vid(0, 0));
+  
+  return std::make_tuple(x, y, theta);
+}
+
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   CLOG(DEBUG, "navigation.graph_map_server")
       << "Received move graph request: <" << msg->lng << ", " << msg->lat

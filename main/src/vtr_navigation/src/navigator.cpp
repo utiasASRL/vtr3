@@ -21,6 +21,7 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
 #include <algorithm>
 #include <cctype>
 #include <sstream>
@@ -87,6 +88,10 @@ EdgeTransform loadTransform(const std::string& source_frame,
 Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   el::Helpers::setThreadName("navigator");
   CLOG(INFO, "navigation") << "Starting VT&R3 system - hello!";
+
+  /// TF buffer and listener for coordinate transforms
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   /// data storage directory (must have been set at this moment)
   auto data_dir = node_->get_parameter("data_dir").get_value<std::string>();
@@ -693,6 +698,211 @@ double Navigator::estimateObstacleExtentFromGrid() const {
   const double extent = std::max(res, max_x - min_x + res);
   return std::max(0.1, extent);
 }
+
+/// HSHMAT: Build per-edge delay costs based on the latest obstacle grid.
+/// - Edges that pass through "red" cells (on-path obstacles) receive a delay
+///   based on the current obstacle type (person/chair).
+/// - Edges that pass through "orange" cells (off-path connected region) within
+///   the local costmap window receive a very large delay, so that Dijkstra
+///   will strongly prefer routes that avoid them.
+///
+/// Chain: VertexId -> trunk frame -> lidar frame -> grid cell
+/// TF publishes "loc vertex frame" for the trunk vertex.
+///
+/// NOTE: This function is conservative and may examine many edges; it is only
+/// called when we are committed to rerouting.
+static std::unordered_map<vtr::tactic::EdgeId, double>
+buildObstacleEdgeDelays(
+    const tactic::Graph::Ptr &graph,
+    const GraphMapServer::Ptr &graph_map_server,
+    const nav_msgs::msg::OccupancyGrid &grid,
+    const std::vector<vtr::tactic::EdgeId> &active_edges,
+    const double active_delay_sec,
+    const double huge_delay_sec,
+    const std::shared_ptr<tf2_ros::Buffer> &tf_buffer,
+    const vtr::tactic::VertexId &trunk_vid) {
+  using vtr::tactic::EdgeId;
+  std::unordered_map<EdgeId, double> delays;
+
+  if (!graph || grid.data.empty() || grid.info.resolution <= 0.0)
+    return delays;
+
+  if (!trunk_vid.isValid()) {
+    CLOG(WARNING, "navigation")
+        << "HSHMAT: buildObstacleEdgeDelays called with invalid trunk vertex";
+    return delays;
+  }
+
+  const auto &info = grid.info;
+  const double res = info.resolution;
+  const double origin_x = info.origin.position.x;
+  const double origin_y = info.origin.position.y;
+  const uint32_t w = info.width;
+  const uint32_t h = info.height;
+  const std::string grid_frame = grid.header.frame_id;
+
+  // TF publishes trunk vertex as "loc vertex frame"
+  const std::string trunk_frame = "loc vertex frame";
+  
+  // Get transform from trunk frame to grid frame (lidar)
+  geometry_msgs::msg::TransformStamped tf_trunk_to_grid;
+  bool have_tf = false;
+  if (tf_buffer && !grid_frame.empty()) {
+    try {
+      tf_trunk_to_grid = tf_buffer->lookupTransform(
+          grid_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
+      have_tf = true;
+      CLOG(DEBUG, "navigation")
+          << "HSHMAT-TF: Got transform " << trunk_frame << " -> " << grid_frame;
+    } catch (const tf2::TransformException &ex) {
+      CLOG(WARNING, "navigation")
+          << "HSHMAT-TF: Cannot transform " << trunk_frame << " -> " << grid_frame
+          << ": " << ex.what() << ". Skipping edge delay computation.";
+      return delays;
+    }
+  } else {
+    CLOG(WARNING, "navigation")
+        << "HSHMAT: No TF buffer or empty grid frame";
+    return delays;
+  }
+
+  auto inBounds = [&](int ix, int iy) {
+    return ix >= 0 && iy >= 0 &&
+           ix < static_cast<int>(w) && iy < static_cast<int>(h);
+  };
+
+  // Transform a point from trunk frame to grid frame (lidar)
+  auto transformPoint = [&](double x_trunk, double y_trunk, double &x_grid, double &y_grid) -> bool {
+    geometry_msgs::msg::PointStamped pt_in, pt_out;
+    pt_in.header.frame_id = trunk_frame;
+    pt_in.point.x = x_trunk;
+    pt_in.point.y = y_trunk;
+    pt_in.point.z = 0.0;
+    try {
+      tf2::doTransform(pt_in, pt_out, tf_trunk_to_grid);
+      x_grid = pt_out.point.x;
+      y_grid = pt_out.point.y;
+      return true;
+    } catch (...) {
+      return false;
+    }
+  };
+
+  auto edgeHitsCellType = [&](const EdgeId &e,
+                              bool &hits_red,
+                              bool &hits_orange) -> void {
+    hits_red = false;
+    hits_orange = false;
+
+    auto edge_ptr = graph->at(e);
+    if (!edge_ptr) return;
+
+    const auto v1 = e.from();
+    const auto v2 = e.to();
+    double x1_trunk, y1_trunk, t1;
+    double x2_trunk, y2_trunk, t2;
+    try {
+      // Get vertex positions relative to trunk vertex
+      std::tie(x1_trunk, y1_trunk, t1) = graph_map_server->getVertexRelativeTo(v1, trunk_vid);
+      std::tie(x2_trunk, y2_trunk, t2) = graph_map_server->getVertexRelativeTo(v2, trunk_vid);
+    } catch (...) {
+      return;
+    }
+
+    // Transform vertices from trunk frame to lidar frame
+    double x1, y1, x2, y2;
+    if (!transformPoint(x1_trunk, y1_trunk, x1, y1) ||
+        !transformPoint(x2_trunk, y2_trunk, x2, y2)) {
+      return;
+    }
+
+    // Quick AABB check against grid bounds
+    const double min_x = std::min(x1, x2);
+    const double max_x = std::max(x1, x2);
+    const double min_y = std::min(y1, y2);
+    const double max_y = std::max(y1, y2);
+
+    const double grid_min_x = origin_x;
+    const double grid_max_x = origin_x + static_cast<double>(w) * res;
+    const double grid_min_y = origin_y;
+    const double grid_max_y = origin_y + static_cast<double>(h) * res;
+
+    if (max_x < grid_min_x || min_x > grid_max_x ||
+        max_y < grid_min_y || min_y > grid_max_y) {
+      return;
+    }
+
+    // Sample along the segment between v1 and v2 inside the grid window.
+    const double dx = x2 - x1;
+    const double dy = y2 - y1;
+    const double length = std::sqrt(dx * dx + dy * dy);
+    if (length < 1e-3) return;
+
+    const int num_samples =
+        std::max(1, static_cast<int>(std::ceil(length / res)));
+    for (int k = 0; k <= num_samples; ++k) {
+      const double t = static_cast<double>(k) / num_samples;
+      const double sx = x1 + t * dx;
+      const double sy = y1 + t * dy;
+      const int ix = static_cast<int>(std::floor((sx - origin_x) / res));
+      const int iy = static_cast<int>(std::floor((sy - origin_y) / res));
+      if (!inBounds(ix, iy)) continue;
+      const int idx = iy * static_cast<int>(w) + ix;
+      if (idx < 0 || static_cast<size_t>(idx) >= grid.data.size()) continue;
+
+      const int8_t cell = grid.data[idx];
+      if (cell == 100) hits_red = true;
+      else if (cell == 50) hits_orange = true;
+
+      if (hits_red && hits_orange) return;
+    }
+  };
+
+  // First, assign delays for active (on-path) obstacle edges.
+  for (const auto &e : active_edges) {
+    delays[e] = active_delay_sec;
+  }
+
+  // Next, scan all edges in the graph and assign huge delays for any edge
+  // that passes through an orange (off-path) or red obstacle cell within the
+  // local grid window, unless it is already tagged as an active obstacle edge.
+  int edges_scanned = 0;
+  int edges_with_huge_delay = 0;
+  auto guard = graph->guard();
+  for (auto it = graph->beginEdge(), ite = graph->endEdge(); it != ite; ++it) {
+    const EdgeId e = *it;
+    ++edges_scanned;
+    if (delays.find(e) != delays.end()) continue;  // already has active delay
+
+    bool hits_red = false, hits_orange = false;
+    edgeHitsCellType(e, hits_red, hits_orange);
+    if (hits_red || hits_orange) {
+      delays[e] = huge_delay_sec;
+      ++edges_with_huge_delay;
+      CLOG(DEBUG, "navigation")
+          << "HSHMAT-EDGE-DELAY: Edge " << e << " hits "
+          << (hits_red ? "RED" : "") << (hits_orange ? "ORANGE" : "")
+          << " -> huge_delay=" << huge_delay_sec << "s";
+    }
+  }
+
+  // Summary logging
+  const int active_count = static_cast<int>(active_edges.size());
+  CLOG(INFO, "navigation")
+      << "HSHMAT-EDGE-DELAYS SUMMARY: grid_frame=" << grid.header.frame_id
+      << ", grid_size=" << w << "x" << h
+      << ", resolution=" << res << "m"
+      << ", origin=(" << origin_x << ", " << origin_y << ")"
+      << ", edges_scanned=" << edges_scanned
+      << ", active_edges=" << active_count
+      << " (delay=" << active_delay_sec << "s)"
+      << ", huge_delay_edges=" << edges_with_huge_delay
+      << " (delay=" << huge_delay_sec << "s)"
+      << ", total_delayed=" << delays.size();
+
+  return delays;
+}
+
 void Navigator::triggerReroute() {
   if (waiting_for_reroute_) {
     CLOG(DEBUG, "mission.state_machine")
@@ -817,6 +1027,7 @@ void Navigator::triggerReroute() {
       }
       CLOG(INFO, "mission.state_machine")
           << "HSHMAT: Total edges affected: " << affected_edges.size();
+
     } else {
       CLOG(WARNING, "mission.state_machine")
           << "HSHMAT: Could not find current vertex in following route";
@@ -826,6 +1037,45 @@ void Navigator::triggerReroute() {
         << "Failed to evaluate obstacle edges: " << e.what();
   }
 
+  // Get trunk vertex for coordinate transforms
+  vtr::tactic::VertexId trunk_vid;
+  try {
+    const auto loc = tactic_->getPersistentLoc();
+    trunk_vid = loc.v;
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Trunk vertex for TF: " << trunk_vid;
+  } catch (const std::exception &e) {
+    CLOG(WARNING, "mission.state_machine")
+        << "HSHMAT: Could not get trunk vertex: " << e.what();
+  }
+
+  // Log grid info for debugging
+  if (!last_obstacle_grid_.data.empty()) {
+    const auto &info = last_obstacle_grid_.info;
+    const std::string grid_frame = last_obstacle_grid_.header.frame_id;
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Obstacle grid info - frame=" << grid_frame
+        << ", size=" << info.width << "x" << info.height
+        << ", resolution=" << info.resolution << "m"
+        << ", origin=(" << info.origin.position.x << ", " << info.origin.position.y << ")";
+    
+    // Log if TF is available for trunk -> grid_frame transform
+    if (tf_buffer_) {
+      const std::string trunk_frame = "loc vertex frame";
+      try {
+        auto tf = tf_buffer_->lookupTransform(grid_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: TF available: " << trunk_frame << " -> " << grid_frame
+            << ", translation=(" << tf.transform.translation.x << ", " 
+            << tf.transform.translation.y << ", " << tf.transform.translation.z << ")";
+      } catch (const tf2::TransformException &ex) {
+        CLOG(WARNING, "mission.state_machine")
+            << "HSHMAT: TF NOT available: " << trunk_frame << " -> " << grid_frame
+            << " (" << ex.what() << ")";
+      }
+    }
+  }
+
   // Configure the planner based on replanner_type_.
   try {
     auto bfs_ptr =
@@ -833,23 +1083,25 @@ void Navigator::triggerReroute() {
             route_planner_);
     if (bfs_ptr) {
       if (replanner_type_ == "deterministic_timecost") {
-        // Time-based replanning: penalize affected edges instead of outright banning.
-        std::unordered_map<vtr::tactic::EdgeId, double> delays;
+        // Time-based replanning: build per-edge delays directly from the
+        // obstacle grid. Edges that intersect the active obstacle (red cells)
+        // get a type-dependent delay (person vs chair). Edges that intersect
+        // any other obstacle cell (orange or red) inside the local grid
+        // window get a huge delay so that Dijkstra naturally avoids them.
+        //
+        // Chain: VertexId -> trunk frame -> lidar frame -> grid cell
         const double delay_sec = obstacleTypeDelaySeconds();
-        for (const auto &e : affected_edges) {
-          delays[e] = delay_sec;
-        }
-        // IMPORTANT:
-        //  - Replace (not accumulate) extra edge costs for this obstacle episode.
-        //    Each obstacle episode should have its own delays, not accumulate
-        //    from previous episodes. This ensures we only penalize edges from
-        //    the current obstacle, not stale delays from past obstacles.
+        const double huge_delay_sec = 1e6;  // effectively "blocked"
+        auto delays = buildObstacleEdgeDelays(
+            graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
+            delay_sec, huge_delay_sec, tf_buffer_, trunk_vid);
         bfs_ptr->setExtraEdgeCosts(delays);
         bfs_ptr->setUseTimeCost(true);
         bfs_ptr->setUseMasked(true);
         CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: deterministic_timecost replanner configured with delay="
-            << delay_sec << "s on " << delays.size() << " edges.";
+            << "HSHMAT: deterministic_timecost replanner configured with "
+            << delays.size() << " delayed edges (active_delay=" << delay_sec
+            << "s, huge_delay=" << huge_delay_sec << "s).";
         // Debug: log which edges are getting delays
         if (!delays.empty()) {
           std::stringstream ss;

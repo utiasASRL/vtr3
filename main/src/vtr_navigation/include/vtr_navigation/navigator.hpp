@@ -42,6 +42,9 @@
 #endif
 
 #include "vtr_common/conversions/tf2_ros_eigen.hpp"
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #ifdef VTR_ENABLE_LIDAR
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -74,6 +77,10 @@ class Navigator {
   /** \brief ROS-handle for communication */
   const rclcpp::Node::SharedPtr node_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_sbc_;
+
+  /// TF buffer/listener for coordinate transforms (e.g., map -> lidar)
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
   /// robot and sensor specific stuff, these are set in constructor, so no need
   /// to lock
