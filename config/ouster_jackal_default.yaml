@@ -7,40 +7,38 @@
       # - navigation.graph_map_server
       # - navigation.command
         # tactic
-      - tactic # for luka
-      - tactic.pipeline # for luka
-      - tactic.module # GOOD speed on to check; for luka
-      # - tactic.module.live_mem_manager # for luka
-      # - tactic.module.graph_mem_manager # for luka
+      #- tactic
+      # - tactic.pipeline
+      # - tactic.module # GOOD speed on to check
+      # - tactic.module.live_mem_manager
+      # - tactic.module.graph_mem_manager
       - mission.state_machine
       - mission.server
       - navigator
-      - route_planning  # HSHMAT: Enable route planning logs (including route_planning.bfs)
         # planner manager
-      - cbit.control # for luka
-      - cbit.debug # for luka 
-      - cbit.path_planning # for luka
-      - cbit.visualization # for luka
-      - cbit.obstacle_filtering # for luka
+      # - cbit.control
+      # - cbit.debug
+      # - cbit.path_planning
+      # - cbit.visualization
+      #- cbit.obstacle_filtering
       #- grizzly_controller_tests.cbit
         # mpc
-      - mpc.speed_scheduler
-      - mpc.debug
-      - test
-      - mpc.solver
+      # - mpc.speed_scheduler
+      # - mpc.debug
+      #- mpc.solver
         # path planner
       # - cbit_planner.path_planning
         # pose graph
       #- pose_graph
         # lidar pipeline
-      - lidar.pipeline
+      #- lidar.pipeline
       #- lidar.honeycomb_converter
       # - lidar.preprocessing
-      - lidar.odometry_icp
+      #- lidar.odometry_icp
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
-      - lidar.localization_icp
+      #- lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging
@@ -67,9 +65,9 @@
       # origin_lat: 43.660837  # Myhal Centre (accurate coordinates)
       # origin_lng: -79.396485 # Myhal Centre (accurate coordinates)
       # # Robot starting position (adjusted 0.5m left, 0.2m up)
-      origin_lat: 43.6607740  # increasing this seems to move up on the map
-      origin_lng: -79.3966100 # increasing this seems to move left on the map
-      origin_theta: 1.9
+      origin_lat: 43.6606838  # Robot starting position + 0.2m north
+      origin_lng: -79.3965537 # Robot starting position + 0.5m west
+      origin_theta: 1.3
       scale: 1.0
       gps_topic: "/novatel/fix"
     tactic:
@@ -80,8 +78,8 @@
       task_queue_num_threads: 1
       task_queue_size: -1
       
-      route_completion_translation_threshold: 0.10 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
-      route_completion_angle_threshold: 0.1 #0.26
+      route_completion_translation_threshold: 0.00001 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
+      route_completion_angle_threshold: 0.00001 #0.26
 
       chain:
         min_cusp_distance: 1.5
@@ -343,7 +341,7 @@
 
     path_planning:
       type: cbit
-      control_period: 100 # ms
+      control_period: 30 # ms
       cbit:
         obstacle_avoidance: false
         obs_padding: 0.0
@@ -374,10 +372,10 @@
         costmap_history: 15 
 
       speed_scheduler:
-        planar_curv_weight: 0.0
-        profile_curv_weight: 0.0
+        planar_curv_weight: 2.50
+        profile_curv_weight: 0.5 
         eop_weight: 1.0
-        min_vel: 0.5
+        min_vel: 0.95 #0.5
 
       mpc:
         # Controller Params

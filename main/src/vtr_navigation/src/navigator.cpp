@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+#include <unordered_set>
 
 #include "vtr_common/utils/filesystem.hpp"
 #include "vtr_navigation/command_publisher.hpp"
@@ -733,36 +734,57 @@ buildObstacleEdgeDelays(
     return delays;
   }
 
+  // Build a set of active edges for fast lookup
+  std::unordered_set<EdgeId> active_edges_set(active_edges.begin(), active_edges.end());
+
   const auto &info = grid.info;
   const double res = info.resolution;
   const double origin_x = info.origin.position.x;
   const double origin_y = info.origin.position.y;
   const uint32_t w = info.width;
   const uint32_t h = info.height;
-  const std::string grid_frame = grid.header.frame_id;
 
   // TF publishes trunk vertex as "loc vertex frame"
   const std::string trunk_frame = "loc vertex frame";
   
-  // Get transform from trunk frame to grid frame (lidar)
+  // Use "lidar" frame (published by VTR) instead of grid.header.frame_id (os_lidar)
+  // because VTR's TF tree connects: world -> loc vertex frame -> robot -> lidar
+  // while the Ouster driver publishes os_lidar in a separate tree.
+  const std::string lidar_frame = "lidar";
+  
+  // Get transform from trunk frame to lidar frame
   geometry_msgs::msg::TransformStamped tf_trunk_to_grid;
   bool have_tf = false;
-  if (tf_buffer && !grid_frame.empty()) {
+  if (tf_buffer) {
     try {
       tf_trunk_to_grid = tf_buffer->lookupTransform(
-          grid_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
+          lidar_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
       have_tf = true;
       CLOG(DEBUG, "navigation")
-          << "HSHMAT-TF: Got transform " << trunk_frame << " -> " << grid_frame;
+          << "HSHMAT-TF: Got transform " << trunk_frame << " -> " << lidar_frame;
     } catch (const tf2::TransformException &ex) {
       CLOG(WARNING, "navigation")
-          << "HSHMAT-TF: Cannot transform " << trunk_frame << " -> " << grid_frame
-          << ": " << ex.what() << ". Skipping edge delay computation.";
+          << "HSHMAT-TF: Cannot transform " << trunk_frame << " -> " << lidar_frame
+          << ": " << ex.what() << ". Assigning active_delay to all active edges without grid check.";
+      // If TF fails, fall back to assigning active_delay_sec to all active_edges
+      for (const auto &e : active_edges) {
+        delays[e] = active_delay_sec;
+      }
+      CLOG(INFO, "navigation")
+          << "HSHMAT: Added " << active_edges.size() << " active edges with delay="
+          << active_delay_sec << "s (no TF, no grid check)";
       return delays;
     }
   } else {
     CLOG(WARNING, "navigation")
-        << "HSHMAT: No TF buffer or empty grid frame";
+        << "HSHMAT: No TF buffer, assigning active_delay to all active edges without grid check";
+    // If no TF buffer, fall back to assigning active_delay_sec to all active_edges
+    for (const auto &e : active_edges) {
+      delays[e] = active_delay_sec;
+    }
+    CLOG(INFO, "navigation")
+        << "HSHMAT: Added " << active_edges.size() << " active edges with delay="
+        << active_delay_sec << "s (no TF buffer, no grid check)";
     return delays;
   }
 
@@ -797,8 +819,8 @@ buildObstacleEdgeDelays(
     auto edge_ptr = graph->at(e);
     if (!edge_ptr) return;
 
-    const auto v1 = e.from();
-    const auto v2 = e.to();
+    const auto v1 = e.id1();
+    const auto v2 = e.id2();
     double x1_trunk, y1_trunk, t1;
     double x2_trunk, y2_trunk, t2;
     try {
@@ -858,46 +880,63 @@ buildObstacleEdgeDelays(
     }
   };
 
-  // First, assign delays for active (on-path) obstacle edges.
+  // FIRST: Assign active_delay_sec to all active edges (initially detected blocking edges).
+  // These edges were already identified as blocking the current path, no grid check needed.
   for (const auto &e : active_edges) {
     delays[e] = active_delay_sec;
   }
+  const int active_count = static_cast<int>(active_edges.size());
+  CLOG(INFO, "navigation")
+      << "HSHMAT: Added " << active_count << " active edges with delay="
+      << active_delay_sec << "s (no grid check needed)";
 
-  // Next, scan all edges in the graph and assign huge delays for any edge
-  // that passes through an orange (off-path) or red obstacle cell within the
-  // local grid window, unless it is already tagged as an active obstacle edge.
+  // SECOND: Scan all OTHER edges (not active edges) and check if they hit RED or ORANGE cells.
+  // If they do, assign huge_delay_sec to discourage using those alternative paths.
   int edges_scanned = 0;
   int edges_with_huge_delay = 0;
-  auto guard = graph->guard();
-  for (auto it = graph->beginEdge(), ite = graph->endEdge(); it != ite; ++it) {
-    const EdgeId e = *it;
-    ++edges_scanned;
-    if (delays.find(e) != delays.end()) continue;  // already has active delay
-
-    bool hits_red = false, hits_orange = false;
-    edgeHitsCellType(e, hits_red, hits_orange);
-    if (hits_red || hits_orange) {
-      delays[e] = huge_delay_sec;
-      ++edges_with_huge_delay;
-      CLOG(DEBUG, "navigation")
-          << "HSHMAT-EDGE-DELAY: Edge " << e << " hits "
-          << (hits_red ? "RED" : "") << (hits_orange ? "ORANGE" : "")
-          << " -> huge_delay=" << huge_delay_sec << "s";
+  
+  if (have_tf) {
+    auto guard = graph->guard();
+    for (auto it = graph->beginEdge(), ite = graph->endEdge(); it != ite; ++it) {
+      const EdgeId e = it->id();
+      ++edges_scanned;
+      
+      // Skip active edges - they're already handled above
+      if (active_edges_set.find(e) != active_edges_set.end()) {
+        continue;
+      }
+      
+      // Check if this edge hits RED or ORANGE cells
+      bool hits_red = false, hits_orange = false;
+      edgeHitsCellType(e, hits_red, hits_orange);
+      
+      if (hits_red || hits_orange) {
+        delays[e] = huge_delay_sec;
+        ++edges_with_huge_delay;
+        CLOG(DEBUG, "navigation")
+            << "HSHMAT-EDGE-DELAY: Edge " << e << " hits "
+            << (hits_red ? "RED" : "") << (hits_orange ? "ORANGE" : "")
+            << " -> huge_delay=" << huge_delay_sec << "s";
+      }
     }
+  } else {
+    // No TF: can't check grid, so only active edges get delays
+    CLOG(WARNING, "navigation")
+        << "HSHMAT: No TF, skipping grid-based edge scanning for alternative paths";
   }
 
   // Summary logging
-  const int active_count = static_cast<int>(active_edges.size());
   CLOG(INFO, "navigation")
       << "HSHMAT-EDGE-DELAYS SUMMARY: grid_frame=" << grid.header.frame_id
       << ", grid_size=" << w << "x" << h
       << ", resolution=" << res << "m"
       << ", origin=(" << origin_x << ", " << origin_y << ")"
+      << ", have_tf=" << (have_tf ? "true" : "false")
       << ", edges_scanned=" << edges_scanned
       << ", active_edges=" << active_count
-      << " (delay=" << active_delay_sec << "s)"
+      << " (delay=" << active_delay_sec << "s, no grid check)"
       << ", huge_delay_edges=" << edges_with_huge_delay
-      << " (delay=" << huge_delay_sec << "s)"
+      << " (delay=" << huge_delay_sec << "s, from grid check)"
       << ", total_delayed=" << delays.size();
 
   return delays;
@@ -1104,12 +1143,18 @@ void Navigator::triggerReroute() {
             << "s, huge_delay=" << huge_delay_sec << "s).";
         // Debug: log which edges are getting delays
         if (!delays.empty()) {
-          std::stringstream ss;
-          ss << "HSHMAT: Edges with delay " << delay_sec << "s: ";
+          std::stringstream ss_active, ss_huge;
+          ss_active << "HSHMAT: Edges with delay " << delay_sec << "s: ";
+          ss_huge << "HSHMAT: Edges with delay " << huge_delay_sec << "s: ";
           for (const auto &kv : delays) {
-            ss << kv.first << " ";
+            if (kv.second == huge_delay_sec) {
+              ss_huge << kv.first << " ";
+            } else {
+              ss_active << kv.first << " ";
+            }
           }
-          CLOG(INFO, "mission.state_machine") << ss.str();
+          CLOG(INFO, "mission.state_machine") << ss_active.str();
+          CLOG(INFO, "mission.state_machine") << ss_huge.str();
         }
       } else {
         // Legacy masked BFS: ban affected edges.
