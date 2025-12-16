@@ -896,10 +896,10 @@ buildObstacleEdgeDelays(
   int edges_with_huge_delay = 0;
   
   if (have_tf) {
-    auto guard = graph->guard();
-    for (auto it = graph->beginEdge(), ite = graph->endEdge(); it != ite; ++it) {
+  auto guard = graph->guard();
+  for (auto it = graph->beginEdge(), ite = graph->endEdge(); it != ite; ++it) {
       const EdgeId e = it->id();
-      ++edges_scanned;
+    ++edges_scanned;
       
       // Skip active edges - they're already handled above
       if (active_edges_set.find(e) != active_edges_set.end()) {
@@ -907,17 +907,17 @@ buildObstacleEdgeDelays(
       }
       
       // Check if this edge hits RED or ORANGE cells
-      bool hits_red = false, hits_orange = false;
-      edgeHitsCellType(e, hits_red, hits_orange);
+    bool hits_red = false, hits_orange = false;
+    edgeHitsCellType(e, hits_red, hits_orange);
       
-      if (hits_red || hits_orange) {
-        delays[e] = huge_delay_sec;
-        ++edges_with_huge_delay;
-        CLOG(DEBUG, "navigation")
-            << "HSHMAT-EDGE-DELAY: Edge " << e << " hits "
-            << (hits_red ? "RED" : "") << (hits_orange ? "ORANGE" : "")
-            << " -> huge_delay=" << huge_delay_sec << "s";
-      }
+    if (hits_red || hits_orange) {
+      delays[e] = huge_delay_sec;
+      ++edges_with_huge_delay;
+      CLOG(DEBUG, "navigation")
+          << "HSHMAT-EDGE-DELAY: Edge " << e << " hits "
+          << (hits_red ? "RED" : "") << (hits_orange ? "ORANGE" : "")
+          << " -> huge_delay=" << huge_delay_sec << "s";
+    }
     }
   } else {
     // No TF: can't check grid, so only active edges get delays
@@ -1151,7 +1151,7 @@ void Navigator::triggerReroute() {
               ss_huge << kv.first << " ";
             } else {
               ss_active << kv.first << " ";
-            }
+          }
           }
           CLOG(INFO, "mission.state_machine") << ss_active.str();
           CLOG(INFO, "mission.state_machine") << ss_huge.str();
