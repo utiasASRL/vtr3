@@ -214,11 +214,14 @@ typedef message_filters::sync_policies::ApproximateTime<
   // - If obstacle_costs.source == "file": uses priors loaded from route_cfg_.obstacle_cost_file.
   double expectedObstacleDurationSeconds() const;
   void loadObstaclePriorsFromFile();
+  // Update file-based obstacle priors from a completed WAIT episode (online learning).
+  // Only runs when route_cfg_.update_obstacle_priors==true and obstacle_cost_source=="file".
+  void updateObstaclePriorFromWaitEpisode(const std::string &type, double actual_wait_sec);
 
   struct RoutePlanningConfig {
     bool enable_reroute = false;
     bool memory = false;
-    bool update_obstacle_priors = false;  // reserved (file-only)
+    bool update_obstacle_priors = false;  // file-only: updates go to a per-launch runtime YAML
     std::string planner_with_memory = "time_dependent_shortest_path";
     std::string planner_without_memory = "dijkstra";
     double nominal_speed_mps = 0.5;
@@ -233,6 +236,10 @@ typedef message_filters::sync_policies::ApproximateTime<
     double screening_lookahead_m = 5.0;
     std::string obstacle_cost_source = "file";  // "vlm" | "file"
     std::string obstacle_cost_file = "obstacles.yaml";
+    // Online prior update settings (applied only when decision==wait and obstacle clears).
+    double obstacle_prior_update_alpha = 0.2;
+    double obstacle_prior_update_min_sec = 0.0;
+    double obstacle_prior_update_max_sec = 600.0;
   };
   RoutePlanningConfig route_cfg_;
   // Newest-overrides semantics: on a new detection for an edge, we overwrite the interval.
@@ -241,6 +248,14 @@ typedef message_filters::sync_policies::ApproximateTime<
   // File-based obstacle priors (seconds). Used only when obstacle_cost_source == "file".
   std::unordered_map<std::string, double> obstacle_priors_sec_;
   double obstacle_default_prior_sec_ = 60.0;
+  // If update_obstacle_priors==true, we create a per-launch runtime file (in the same
+  // directory as the base file) and write updated priors there. The base YAML is never modified.
+  std::string obstacle_priors_base_path_;     // expanded path used for reading
+  std::string obstacle_priors_runtime_path_;  // per-launch writable path (empty if disabled/unavailable)
+
+  // Wait-episode measurement (used to update priors only when decision==wait).
+  double wait_episode_start_sec_ = -1.0;  // <0 means inactive
+  std::string wait_episode_type_ = "unknown";
 
   // VLM-based expected duration (seconds). Used only when obstacle_cost_source == "vlm".
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr obstacle_expected_duration_sub_;

@@ -26,6 +26,11 @@
 #include <cctype>
 #include <sstream>
 #include <unordered_set>
+#include <fstream>
+#include <iomanip>
+#include <filesystem>
+#include <ctime>
+#include <unistd.h>
 
 #include "vtr_common/utils/filesystem.hpp"
 #include "yaml-cpp/yaml.h"
@@ -85,6 +90,67 @@ EdgeTransform loadTransform(const std::string& source_frame,
   return T_source_target;
 }
 
+std::string nowStampForFilename() {
+  const auto now = std::chrono::system_clock::now();
+  const std::time_t t = std::chrono::system_clock::to_time_t(now);
+  std::tm tm{};
+  localtime_r(&t, &tm);
+  std::ostringstream ss;
+  ss << std::put_time(&tm, "%Y%m%d_%H%M%S");
+  return ss.str();
+}
+
+std::string makeRuntimePriorsPathNextToBase(const std::string &base_path) {
+  namespace fs = std::filesystem;
+  const fs::path base(base_path);
+  const fs::path dir = base.has_parent_path() ? base.parent_path() : fs::path(".");
+  const int pid = static_cast<int>(::getpid());
+  const std::string stamp = nowStampForFilename();
+  const std::string fname = "obstacles_runtime_" + stamp + "_" + std::to_string(pid) + ".yaml";
+  return (dir / fname).string();
+}
+
+bool writeObstaclePriorsYamlAtomic(const std::string &path,
+                                  const double default_sec,
+                                  const std::unordered_map<std::string, double> &priors_sec,
+                                  std::string *err_msg = nullptr) {
+  try {
+    namespace fs = std::filesystem;
+    const fs::path out_path(path);
+    const fs::path tmp_path = out_path.string() + ".tmp";
+
+    YAML::Emitter out;
+    out << YAML::BeginMap;
+    out << YAML::Key << "default" << YAML::Value << default_sec;
+    out << YAML::Key << "obstacles" << YAML::Value << YAML::BeginMap;
+    for (const auto &kv : priors_sec) {
+      out << YAML::Key << kv.first << YAML::Value << kv.second;
+    }
+    out << YAML::EndMap;  // obstacles
+    out << YAML::EndMap;  // root
+
+    std::ofstream f(tmp_path, std::ios::out | std::ios::trunc);
+    if (!f.is_open()) {
+      if (err_msg) *err_msg = "failed to open tmp file for write";
+      return false;
+    }
+    f << out.c_str() << "\n";
+    f.close();
+
+    std::error_code ec;
+    fs::rename(tmp_path, out_path, ec);
+    if (ec) {
+      fs::remove(tmp_path, ec);
+      if (err_msg) *err_msg = "rename failed: " + ec.message();
+      return false;
+    }
+    return true;
+  } catch (const std::exception &e) {
+    if (err_msg) *err_msg = e.what();
+    return false;
+  }
+}
+
 }  // namespace
 
 Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
@@ -142,6 +208,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       node_->declare_parameter<bool>("route_planning.memory", false);
   route_cfg_.update_obstacle_priors =
       node_->declare_parameter<bool>("route_planning.update_obstacle_priors", false);
+  route_cfg_.obstacle_prior_update_alpha =
+      node_->declare_parameter<double>("route_planning.obstacle_costs.update_alpha", 0.2);
+  route_cfg_.obstacle_prior_update_min_sec =
+      node_->declare_parameter<double>("route_planning.obstacle_costs.update_min_sec", 0.0);
+  route_cfg_.obstacle_prior_update_max_sec =
+      node_->declare_parameter<double>("route_planning.obstacle_costs.update_max_sec", 600.0);
   route_cfg_.planner_with_memory = node_->declare_parameter<std::string>(
       "route_planning.planner.with_memory", std::string("time_dependent_shortest_path"));
   route_cfg_.planner_without_memory = node_->declare_parameter<std::string>(
@@ -167,7 +239,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       << ", screening_lookahead_m=" << route_cfg_.screening_lookahead_m
       << ", obstacle_costs.source='" << route_cfg_.obstacle_cost_source << "'"
       << ", obstacle_costs.file='" << route_cfg_.obstacle_cost_file << "'"
-      << ", update_obstacle_priors=" << (route_cfg_.update_obstacle_priors ? "true" : "false");
+      << ", update_obstacle_priors=" << (route_cfg_.update_obstacle_priors ? "true" : "false")
+      << ", obstacle_costs.update_alpha=" << route_cfg_.obstacle_prior_update_alpha
+      << ", obstacle_costs.update_min_sec=" << route_cfg_.obstacle_prior_update_min_sec
+      << ", obstacle_costs.update_max_sec=" << route_cfg_.obstacle_prior_update_max_sec;
 
   const std::string planner_name =
       route_cfg_.memory ? route_cfg_.planner_with_memory
@@ -198,6 +273,24 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   if (route_cfg_.obstacle_cost_source == "file") {
     loadObstaclePriorsFromFile();
+    // If enabled, create a per-launch runtime priors file next to the base YAML.
+    // We will write updated priors to this runtime file (base file is never modified).
+    if (route_cfg_.update_obstacle_priors) {
+      obstacle_priors_runtime_path_.clear();
+      const std::string runtime_path = makeRuntimePriorsPathNextToBase(obstacle_priors_base_path_);
+      std::string err;
+      if (writeObstaclePriorsYamlAtomic(runtime_path, obstacle_default_prior_sec_, obstacle_priors_sec_, &err)) {
+        obstacle_priors_runtime_path_ = runtime_path;
+        CLOG(INFO, "navigation")
+            << "Obstacle priors updater enabled: base='" << obstacle_priors_base_path_
+            << "', runtime='" << obstacle_priors_runtime_path_ << "'";
+      } else {
+        CLOG(WARNING, "navigation")
+            << "Obstacle priors updater enabled but failed to create runtime priors file next to base='"
+            << obstacle_priors_base_path_ << "': " << err
+            << ". Updates will still be applied in-memory, but will not be persisted.";
+      }
+    }
   }
 
   /// mission server
@@ -289,7 +382,21 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             << "HSHMAT-TTS: Robot says: 'Decision source "
             << (use_chatgpt_ ? "uses ChatGPT internally" : "does not use ChatGPT")
             << ". Decision: " << decision << ".'";
-        if (decision == "reroute") {
+        if (decision == "wait") {
+          // Enter WAIT mode and start measuring actual wait duration for online prior updates.
+          active_decision_ = "wait";
+          wait_episode_type_ = last_obstacle_type_;
+          wait_episode_start_sec_ = now.seconds();
+          // The obstacle_status callback already pauses the robot at episode start in ChatGPT mode,
+          // but keep this idempotent to avoid any timing corner cases.
+          setRobotPaused(true);
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: Decision=WAIT. Starting wait timer for obstacle_type='"
+              << wait_episode_type_ << "'";
+        } else if (decision == "reroute") {
+          active_decision_ = "reroute";
+          // Not a wait episode.
+          wait_episode_start_sec_ = -1.0;
           CLOG(INFO, "mission.state_machine")
               << "Navigator: triggering reroute flow directly from decision subscriber.";
           triggerReroute();
@@ -366,6 +473,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             return;
           }
           obstacle_active_ = false;
+          // If this episode ended after a WAIT decision, measure the actual wait time and
+          // update file-based obstacle priors (per-type) if enabled.
+          if (wait_episode_start_sec_ >= 0.0) {
+            const double now_sec = node_->get_clock()->now().seconds();
+            const double actual_wait_sec = now_sec - wait_episode_start_sec_;
+            updateObstaclePriorFromWaitEpisode(wait_episode_type_, actual_wait_sec);
+          }
+          wait_episode_start_sec_ = -1.0;
           active_decision_.clear();
           waiting_for_decision_logged_ = false;
           waiting_for_decision_ = false;
@@ -422,6 +537,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           obstacle_active_ = true;
           obstacle_start_time_ = node_->get_clock()->now();
           active_decision_.clear();
+          wait_episode_type_ = "unknown";
+          wait_episode_start_sec_ = -1.0;
           processing_obstacle_ = false;
           waiting_for_decision_logged_ = false;
           waiting_for_decision_ = true;
@@ -467,7 +584,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Latest decision = '" << (decision_snapshot.empty() ? "NONE" : decision_snapshot) << "'";
 
         if (processing_obstacle_) {
-          CLOG(DEBUG, "mission.state_machine") << "HSHMAT: Already processing obstacle detection (decision='" << active_decision_ << "'), ignoring duplicate signal";
+          // active_decision_ reflects the last applied decision for this obstacle episode.
+          CLOG(DEBUG, "mission.state_machine")
+              << "HSHMAT: Already processing obstacle detection (decision='"
+              << (active_decision_.empty() ? "unknown" : active_decision_)
+              << "'), ignoring duplicate signal";
           return;
         }
 
@@ -527,15 +648,21 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
           setRobotPaused(true);
           active_decision_ = "wait";
+          wait_episode_type_ = last_obstacle_type_;
+          wait_episode_start_sec_ = node_->get_clock()->now().seconds();
           CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Robot stopped. Will wait for obstacle to clear (obstacle_status=false)";
           CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Not triggering replanning - obstacle may move on its own";
           return;
         } else if (decision == "reroute") {
           CLOG(INFO, "mission.state_machine") << "HSHMAT-ChatGPT: Decision is REROUTE - Proceeding with rerouting logic";
+          active_decision_ = "reroute";
+          wait_episode_start_sec_ = -1.0;
           triggerReroute();
           return;
         } else {
           CLOG(WARNING, "mission.state_machine") << "HSHMAT-ChatGPT: No valid decision received (got '" << decision << "'), defaulting to REROUTE";
+          active_decision_ = "reroute";
+          wait_episode_start_sec_ = -1.0;
           triggerReroute();
           return;
         }
@@ -769,6 +896,7 @@ void Navigator::loadObstaclePriorsFromFile() {
 
   std::string path = route_cfg_.obstacle_cost_file;
   path = common::utils::expand_user(common::utils::expand_env(path));
+  obstacle_priors_base_path_ = path;
 
   try {
     YAML::Node root = YAML::LoadFile(path);
@@ -816,6 +944,53 @@ double Navigator::expectedObstacleDurationSeconds() const {
   }
 
   return obstacle_default_prior_sec_;
+}
+
+void Navigator::updateObstaclePriorFromWaitEpisode(const std::string &type_in,
+                                                  const double actual_wait_sec_in) {
+  // Only update priors when using file-based durations.
+  if (route_cfg_.obstacle_cost_source != "file") return;
+  if (!route_cfg_.update_obstacle_priors) return;
+
+  // Normalize key.
+  std::string type = type_in;
+  std::transform(type.begin(), type.end(), type.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if (type.empty()) return;
+  if (type == "human") type = "person";
+
+  const double actual_wait_sec = std::max(0.0, actual_wait_sec_in);
+  const double alpha = std::min(1.0, std::max(0.0, route_cfg_.obstacle_prior_update_alpha));
+
+  const double min_sec = route_cfg_.obstacle_prior_update_min_sec;
+  const double max_sec = route_cfg_.obstacle_prior_update_max_sec;
+
+  const double old_prior =
+      (obstacle_priors_sec_.count(type) ? obstacle_priors_sec_.at(type) : obstacle_default_prior_sec_);
+  double new_prior = (1.0 - alpha) * old_prior + alpha * actual_wait_sec;
+  new_prior = std::min(max_sec, std::max(min_sec, new_prior));
+
+  obstacle_priors_sec_[type] = new_prior;
+
+  bool persisted = false;
+  std::string err;
+  if (!obstacle_priors_runtime_path_.empty()) {
+    persisted = writeObstaclePriorsYamlAtomic(obstacle_priors_runtime_path_,
+                                             obstacle_default_prior_sec_,
+                                             obstacle_priors_sec_, &err);
+  } else {
+    err = "runtime priors path is empty";
+  }
+
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT: Obstacle prior update (WAIT): type='" << type
+      << "', actual_wait=" << actual_wait_sec << "s"
+      << ", prior_old=" << old_prior << "s"
+      << ", prior_new=" << new_prior << "s"
+      << ", alpha=" << alpha
+      << ", persisted=" << (persisted ? "true" : "false")
+      << (persisted ? "" : (", err=" + err))
+      << (obstacle_priors_runtime_path_.empty() ? "" : (", runtime='" + obstacle_priors_runtime_path_ + "'"));
 }
 
 double Navigator::estimateObstacleExtentFromGrid() const {
@@ -1285,7 +1460,6 @@ void Navigator::triggerReroute() {
 
   // At this point we are committed to attempting a reroute.
   waiting_for_reroute_ = true;
-  active_decision_ = "reroute";
   pending_reroute_resume_ = true;
 
   // Determine edges affected by the obstacle range along the path.
