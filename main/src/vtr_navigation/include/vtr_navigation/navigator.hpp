@@ -197,6 +197,7 @@ typedef message_filters::sync_policies::ApproximateTime<
   bool pending_clear_resume_ = false;
   bool pending_reroute_resume_ = false;
   bool waiting_for_decision_ = false;
+  bool last_obstacle_status_msg_ = false;
   
   // Hshmat: Publisher for pausing robot (zero velocity)
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pause_cmd_pub_;

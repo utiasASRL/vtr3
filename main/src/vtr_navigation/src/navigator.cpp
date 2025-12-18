@@ -382,7 +382,36 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             << "HSHMAT-TTS: Robot says: 'Decision source "
             << (use_chatgpt_ ? "uses ChatGPT internally" : "does not use ChatGPT")
             << ". Decision: " << decision << ".'";
-        if (decision == "wait") {
+        if (decision == "abort") {
+          // Decision node aborted this episode (e.g., insufficient data).
+          // Clear the "waiting for decision" latch so obstacle_status=false can end the episode.
+          active_decision_ = "abort";
+          waiting_for_decision_ = false;
+          processing_obstacle_ = false;
+          waiting_for_decision_logged_ = false;
+          wait_episode_start_sec_ = -1.0;
+
+          // If the obstacle has already cleared (false-positive that we already ignored once),
+          // proactively resume now or latch resume until decision_accepting_==true.
+          if (!last_obstacle_status_msg_) {
+            CLOG(INFO, "mission.state_machine")
+                << "Navigator: received decision=abort and obstacle_status=false; ending episode and resuming.";
+            obstacle_active_ = false;
+            waiting_for_reroute_ = false;
+            active_decision_.clear();
+
+            if (robot_paused_) {
+              if (decision_accepting_) {
+                setRobotPaused(false);
+              } else {
+                pending_clear_resume_ = true;
+              }
+            }
+          } else {
+            CLOG(INFO, "mission.state_machine")
+                << "Navigator: received decision=abort but obstacle_status=true; staying paused and waiting for retry/clear.";
+          }
+        } else if (decision == "wait") {
           // Enter WAIT mode and start measuring actual wait duration for online prior updates.
           active_decision_ = "wait";
           wait_episode_type_ = last_obstacle_type_;
@@ -450,6 +479,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
         if (!msg) return;
+        last_obstacle_status_msg_ = msg->data;
         
         if (!msg->data) {
           if (waiting_for_decision_) {
