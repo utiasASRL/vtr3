@@ -51,12 +51,37 @@
     lidar_frame: os_lidar
     lidar_topic: /ouster/points
     route_planning:
-      enable_reroute: true   # Enable obstacle-triggered rerouting
-      permanent_ban: false   # Keep bans across replanning attempts
-      replanner_type: "deterministic_timecost"  # or "masked_bfs"
-      nominal_speed_mps: 0.8                    # robot nominal forward speed (m/s)
-      obstacle_delay_person: 0.0                # extra delay (s) for person obstacles
-      obstacle_delay_chair: 10000.0                # extra delay (s) for chair/ static obstacles
+      # =========================
+      # User toggles
+      # =========================
+      enable_reroute: true            # If false -> never reroute
+      memory: true                    # true = remember past obstacles
+      update_obstacle_priors: false   # only applicable when obstacle_costs.source = file
+
+      # =========================
+      # Planner behavior
+      # =========================
+      planner:
+        with_memory: "time_dependent_shortest_path"
+        without_memory: "dijkstra"
+
+      # =========================
+      # Robot model
+      # =========================
+      nominal_speed_mps: 0.5          # robot nominal forward speed (m/s)
+
+      # =========================
+      # Distances / lookahead (meters)
+      # =========================
+      screening_lookahead_m: 0.0
+      verify_blockage_lookahead_m: 0.0
+
+      # =========================
+      # Obstacle costs
+      # =========================
+      obstacle_costs:
+        source: "file"               # vlm | file
+        file: "/home/asrl/ASRL/vtr3/src/config/obstacles.yaml"  # used only if source = file
     graph_projection:
       # # UTIAS coordinates (original)
       # origin_lat: 43.7822  # UTIAS

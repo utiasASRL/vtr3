@@ -29,6 +29,7 @@
 #include "std_msgs/msg/float64.hpp" // Hshmat: for obstacle distance subscription
 #include "std_msgs/msg/string.hpp" // Hshmat: for ChatGPT decision subscription
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include <unordered_map>
 #include <limits>
 #include <chrono> // Hshmat: for debouncing obstacle detection
 #include <optional> // Hshmat: for debouncing obstacle detection
@@ -61,6 +62,12 @@
 
 namespace vtr {
 namespace navigation {
+
+/** \brief Remembered blockage interval for TDSP (seconds in ROS clock domain). */
+struct EdgeBlockageInterval {
+  double start_sec = 0.0;
+  double end_sec = 0.0;
+};
 
 class Navigator {
  public:
@@ -202,14 +209,44 @@ typedef message_filters::sync_policies::ApproximateTime<
   void triggerReroute();  // Centralized reroute flow (state machine + banned edges)
   // Estimate obstacle extent (meters) from the latest occupancy grid.
   double estimateObstacleExtentFromGrid() const;
-  // Map last_obstacle_type_ to an expected delay (seconds).
-  double obstacleTypeDelaySeconds() const;
+  // Map last_obstacle_type_ to an expected blockage duration (seconds).
+  // - If obstacle_costs.source == "vlm": uses the latest duration published by the decision system.
+  // - If obstacle_costs.source == "file": uses priors loaded from route_cfg_.obstacle_cost_file.
+  double expectedObstacleDurationSeconds() const;
+  void loadObstaclePriorsFromFile();
 
-  // Replanner configuration (selected via parameters/YAML).
-  std::string replanner_type_ = "masked_bfs";  // e.g., "masked_bfs", "deterministic_timecost"
-  double nominal_speed_mps_ = 0.5;
-  double delay_person_seconds_ = 0.0;
-  double delay_chair_seconds_ = 60.0;
+  struct RoutePlanningConfig {
+    bool enable_reroute = false;
+    bool memory = false;
+    bool update_obstacle_priors = false;  // reserved (file-only)
+    std::string planner_with_memory = "time_dependent_shortest_path";
+    std::string planner_without_memory = "dijkstra";
+    double nominal_speed_mps = 0.5;
+    // When using TDSP memory, we opportunistically validate remembered blockages
+    // against the current local obstacle grid within this radius around the robot.
+    // If an edge is predicted blocked but the local grid indicates it is free,
+    // we erase the remembered blockage interval for that edge.
+    double verify_blockage_lookahead_m = 5.0;
+    // When screening alternative routes (orange/red edges in the local grid), only
+    // consider edges within this radius around the robot. This prevents far-away
+    // edges from being permanently penalized due to a local obstacle window.
+    double screening_lookahead_m = 5.0;
+    std::string obstacle_cost_source = "file";  // "vlm" | "file"
+    std::string obstacle_cost_file = "obstacles.yaml";
+  };
+  RoutePlanningConfig route_cfg_;
+  // Newest-overrides semantics: on a new detection for an edge, we overwrite the interval.
+  std::unordered_map<vtr::tactic::EdgeId, EdgeBlockageInterval> edge_blockages_;
+
+  // File-based obstacle priors (seconds). Used only when obstacle_cost_source == "file".
+  std::unordered_map<std::string, double> obstacle_priors_sec_;
+  double obstacle_default_prior_sec_ = 60.0;
+
+  // VLM-based expected duration (seconds). Used only when obstacle_cost_source == "vlm".
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr obstacle_expected_duration_sub_;
+  double last_obstacle_expected_duration_sec_ = 0.0;
+
+  // Lookahead radii are configured via route_planning.* parameters (YAML).
 
   // Hshmat: ChatGPT configuration and publisher
   bool use_chatgpt_;  // Whether to query ChatGPT (if false, default to reroute)

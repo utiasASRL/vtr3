@@ -1,0 +1,16 @@
+## Obstacle duration priors (seconds).
+##
+## This file is consumed by vtr_navigation when:
+##   route_planning.obstacle_costs.source = "file"
+##
+## Notes
+## - Values are expected blockage durations used for rerouting decisions.
+## - The Navigator treats the newest detection as authoritative (overwrite),
+##   i.e., if an edge is re-detected with a different type later, the new type's
+##   duration fully replaces the previous blockage estimate for that edge.
+
+default: 60.0
+obstacles:
+  person: 0.0
+  human: 0.0
+  chair: 6000.0

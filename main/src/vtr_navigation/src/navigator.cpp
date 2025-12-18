@@ -28,6 +28,7 @@
 #include <unordered_set>
 
 #include "vtr_common/utils/filesystem.hpp"
+#include "yaml-cpp/yaml.h"
 #include "vtr_navigation/command_publisher.hpp"
 #include "vtr_navigation/task_queue_server.hpp"
 #include "vtr_path_planning/factory.hpp"
@@ -126,32 +127,77 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
                            std::make_shared<CommandPublisher>(node_));
 
   /// route planner
-  route_planner_ = std::make_shared<BFSPlanner>(graph_);
-  if (auto bfs_ptr = std::dynamic_pointer_cast<BFSPlanner>(route_planner_)) {
-    const bool reroute_enable =
-        node_->declare_parameter<bool>("route_planning.enable_reroute", false);
-    const bool permanent_ban =
-        node_->declare_parameter<bool>("route_planning.permanent_ban", false);
-    replanner_type_ = node_->declare_parameter<std::string>(
-        "route_planning.replanner_type", std::string("masked_bfs"));
-    nominal_speed_mps_ = node_->declare_parameter<double>(
-        "route_planning.nominal_speed_mps", 0.5);
-    delay_person_seconds_ = node_->declare_parameter<double>(
-        "route_planning.obstacle_delay_person", 5.0);
-    delay_chair_seconds_ = node_->declare_parameter<double>(
-        "route_planning.obstacle_delay_chair", 60.0);
+  // -------------------------------------------------------------------------
+  // Route planning configuration (new schema).
+  //
+  // The key "if/else" lives here:
+  // - If memory=false -> we construct a Dijkstra-like planner (BFSPlanner with time cost).
+  // - If memory=true  -> we construct a FIFO time-dependent shortest path (TDSPPlanner).
+  //
+  // The state machine is planner-agnostic and always calls route_planner_->path(...).
+  // -------------------------------------------------------------------------
+  route_cfg_.enable_reroute =
+      node_->declare_parameter<bool>("route_planning.enable_reroute", false);
+  route_cfg_.memory =
+      node_->declare_parameter<bool>("route_planning.memory", false);
+  route_cfg_.update_obstacle_priors =
+      node_->declare_parameter<bool>("route_planning.update_obstacle_priors", false);
+  route_cfg_.planner_with_memory = node_->declare_parameter<std::string>(
+      "route_planning.planner.with_memory", std::string("time_dependent_shortest_path"));
+  route_cfg_.planner_without_memory = node_->declare_parameter<std::string>(
+      "route_planning.planner.without_memory", std::string("dijkstra"));
+  route_cfg_.nominal_speed_mps =
+      node_->declare_parameter<double>("route_planning.nominal_speed_mps", 0.5);
+  route_cfg_.verify_blockage_lookahead_m =
+      node_->declare_parameter<double>("route_planning.verify_blockage_lookahead_m", 5.0);
+  route_cfg_.screening_lookahead_m =
+      node_->declare_parameter<double>("route_planning.screening_lookahead_m", 5.0);
+  route_cfg_.obstacle_cost_source = node_->declare_parameter<std::string>(
+      "route_planning.obstacle_costs.source", std::string("file"));
+  route_cfg_.obstacle_cost_file = node_->declare_parameter<std::string>(
+      "route_planning.obstacle_costs.file", std::string("obstacles.yaml"));
 
-    bfs_ptr->setUseMasked(reroute_enable);
-    bfs_ptr->setPermanentBan(permanent_ban);
-    bfs_ptr->setNominalSpeed(nominal_speed_mps_);
+  CLOG(INFO, "navigation")
+      << "Route planning config: enable_reroute=" << (route_cfg_.enable_reroute ? "true" : "false")
+      << ", memory=" << (route_cfg_.memory ? "true" : "false")
+      << ", planner.with_memory='" << route_cfg_.planner_with_memory << "'"
+      << ", planner.without_memory='" << route_cfg_.planner_without_memory << "'"
+      << ", nominal_speed_mps=" << route_cfg_.nominal_speed_mps
+      << ", verify_blockage_lookahead_m=" << route_cfg_.verify_blockage_lookahead_m
+      << ", screening_lookahead_m=" << route_cfg_.screening_lookahead_m
+      << ", obstacle_costs.source='" << route_cfg_.obstacle_cost_source << "'"
+      << ", obstacle_costs.file='" << route_cfg_.obstacle_cost_file << "'"
+      << ", update_obstacle_priors=" << (route_cfg_.update_obstacle_priors ? "true" : "false");
 
-    CLOG(INFO, "navigation")
-        << "Route planning config: enable_reroute=" << reroute_enable
-        << ", permanent_ban=" << permanent_ban
-        << ", replanner_type=" << replanner_type_
-        << ", nominal_speed_mps=" << nominal_speed_mps_
-        << ", delay_person_seconds=" << delay_person_seconds_
-        << ", delay_chair_seconds=" << delay_chair_seconds_;
+  const std::string planner_name =
+      route_cfg_.memory ? route_cfg_.planner_with_memory
+                        : route_cfg_.planner_without_memory;
+
+  if (planner_name == "time_dependent_shortest_path") {
+    // TDSP (label-setting / Dijkstra-like on earliest-arrival labels).
+    auto tdsp = std::make_shared<vtr::route_planning::TDSPPlanner>(graph_);
+    tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
+    tdsp->setNowSecCallback([this]() { return node_->get_clock()->now().seconds(); });
+    route_planner_ = tdsp;
+  } else if (planner_name == "dijkstra") {
+    // Dijkstra-like (BFSPlanner + masked Dijkstra + time-based weights).
+    auto bfs = std::make_shared<vtr::route_planning::BFSPlanner>(graph_);
+    bfs->setNominalSpeed(route_cfg_.nominal_speed_mps);
+    bfs->setUseMasked(route_cfg_.enable_reroute);
+    route_planner_ = bfs;
+  } else {
+    // Default to dijkstra for unknown planner names (safe fallback).
+    CLOG(WARNING, "navigation")
+        << "Unknown planner name '" << planner_name
+        << "'. Falling back to 'dijkstra'.";
+    auto bfs = std::make_shared<vtr::route_planning::BFSPlanner>(graph_);
+    bfs->setNominalSpeed(route_cfg_.nominal_speed_mps);
+    bfs->setUseMasked(route_cfg_.enable_reroute);
+    route_planner_ = bfs;
+  }
+
+  if (route_cfg_.obstacle_cost_source == "file") {
+    loadObstaclePriorsFromFile();
   }
 
   /// mission server
@@ -259,6 +305,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         last_obstacle_distance_ = msg->data;
         CLOG(DEBUG, "mission.state_machine") << "📏 Obstacle distance updated: " << last_obstacle_distance_ << " m along path";
       }, sub_opt);
+
+  // Optional: expected duration published by decision system when
+  // route_planning.obstacle_costs.source == "vlm". Message is in seconds.
+  obstacle_expected_duration_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
+      "/vtr/obstacle_expected_duration_sec", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::Float64::SharedPtr msg) {
+        if (!msg) return;
+        last_obstacle_expected_duration_sec_ = msg->data;
+      }, sub_opt);
+
+  // Lookahead radii are configured via route_planning.* parameters (YAML).
   decision_accepting_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/decision_accepting", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
@@ -314,6 +371,26 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           waiting_for_decision_ = false;
           processing_obstacle_ = false;
           waiting_for_reroute_ = false;
+
+          // Episode cleanup:
+          // - Dijkstra mode: keep reroute mode enabled, but clear the last episode's penalties
+          //   so the cleared obstacle does not keep affecting future plans.
+          // - TDSP mode: clear per-episode static (huge) screening delays; only remembered blockage intervals persist.
+          try {
+            if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: Episode cleanup (Dijkstra): clearing episode penalties (extra delays, timecost).";
+              bfs_ptr->clearExtraEdgeCosts();
+              bfs_ptr->setUseTimeCost(false);
+            } else if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner_)) {
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: Episode cleanup (TDSP): clearing static screening delays; keeping remembered blockage intervals.";
+              tdsp->setStaticEdgeDelays({});
+            }
+          } catch (...) {
+            // Best-effort; do not disrupt episode transitions if a dynamic cast fails.
+          }
+
           if (robot_paused_) {
             if (decision_accepting_) {
               CLOG(INFO, "mission.state_machine") << "Navigator: obstacle cleared and decision node ready. Resuming navigation.";
@@ -411,8 +488,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           CLOG(INFO, "mission.state_machine") << "HSHMAT: Robot paused but fresh decision available, proceeding to process it";
         }
 
-        bool reroute_enable = false;
-        try { reroute_enable = node_->get_parameter("route_planning.enable_reroute").get_value<bool>(); } catch (...) {}
+        const bool reroute_enable = route_cfg_.enable_reroute;
         CLOG(INFO, "mission.state_machine") << "HSHMAT: Step 2 - Checking reroute config: enable_reroute=" << (reroute_enable ? "true" : "false");
         if (!reroute_enable) {
           CLOG(INFO, "mission.state_machine") << "HSHMAT: Rerouting disabled, ignoring obstacle";
@@ -556,10 +632,36 @@ if (pipeline->name() == "lidar"){
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
-  auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
-  msg.header.frame_id = "robot";
-  msg.child_frame_id = "lidar";
-  tf_sbc_->sendTransform(msg);
+  // Publish a static TF for the configured robot/lidar frames (best-effort).
+  // This is helpful when upstream sensors publish in a disconnected tree (e.g., os_sensor/os_lidar).
+  //
+  // Note: T_lidar_robot_ is obtained from TF lookup (lidar_frame_ <- robot_frame_). If TF is missing,
+  // loadTransform falls back to identity, which still provides a consistent tree for internal use.
+  {
+    auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.matrix()));
+    msg.header.frame_id = robot_frame_;
+    msg.child_frame_id = lidar_frame_;
+    tf_sbc_->sendTransform(msg);
+  }
+  // Also publish a stable "lidar" alias if the configured lidar_frame_ is different.
+  // This preserves legacy consumers (including route_screening fallbacks) that
+  // assume a frame literally named "lidar" exists in the tree.
+  if (lidar_frame_ != "lidar") {
+    auto msg_alias = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.matrix()));
+    msg_alias.header.frame_id = robot_frame_;
+    msg_alias.child_frame_id = "lidar";
+    tf_sbc_->sendTransform(msg_alias);
+  }
+  // If robot_frame_ is not literally "robot", also publish an identity alias
+  // robot -> robot_frame_ to connect common downstream consumers that assume "robot".
+  if (robot_frame_ != "robot") {
+    geometry_msgs::msg::TransformStamped alias;
+    alias.header.stamp = node_->get_clock()->now();
+    alias.header.frame_id = "robot";
+    alias.child_frame_id = robot_frame_;
+    alias.transform.rotation.w = 1.0;
+    tf_sbc_->sendTransform(alias);
+  }
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
 
@@ -578,8 +680,8 @@ if (pipeline->name() == "stereo") {
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_camera_robot_.inverse().matrix()));
-  msg.header.frame_id = "robot";
-  msg.child_frame_id = "camera";
+  msg.header.frame_id = robot_frame_;
+  msg.child_frame_id = camera_frame_;
   tf_sbc_->sendTransform(msg);
   // camera images subscription
   const auto right_image_topic = node_->declare_parameter<std::string>("camera_right_topic", "/image_right");
@@ -661,12 +763,59 @@ void Navigator::setRobotPaused(bool paused) {
   }
 }
 
-double Navigator::obstacleTypeDelaySeconds() const {
+void Navigator::loadObstaclePriorsFromFile() {
+  obstacle_priors_sec_.clear();
+  obstacle_default_prior_sec_ = 60.0;
+
+  std::string path = route_cfg_.obstacle_cost_file;
+  path = common::utils::expand_user(common::utils::expand_env(path));
+
+  try {
+    YAML::Node root = YAML::LoadFile(path);
+
+    if (root["default"]) {
+      obstacle_default_prior_sec_ = root["default"].as<double>();
+    }
+
+    YAML::Node map = root["obstacles"] ? root["obstacles"] : root;
+    if (map && map.IsMap()) {
+      for (auto it = map.begin(); it != map.end(); ++it) {
+        const std::string key = it->first.as<std::string>();
+        // Skip the "default" key if the file is a flat map.
+        if (key == "default") continue;
+        obstacle_priors_sec_[key] = it->second.as<double>();
+      }
+    }
+
+    CLOG(INFO, "navigation")
+        << "Loaded obstacle priors from '" << path << "': "
+        << obstacle_priors_sec_.size() << " entries, default="
+        << obstacle_default_prior_sec_ << "s";
+  } catch (const std::exception &e) {
+    CLOG(WARNING, "navigation")
+        << "Failed to load obstacle priors from '" << path
+        << "': " << e.what() << ". Using defaults only.";
+  }
+}
+
+double Navigator::expectedObstacleDurationSeconds() const {
+  // VLM source: take the latest duration published by the decision system.
+  if (route_cfg_.obstacle_cost_source == "vlm") {
+    return last_obstacle_expected_duration_sec_;
+  }
+
+  // File source: look up by obstacle type, else default.
   const std::string type = last_obstacle_type_;
-  if (type == "person" || type == "human") return delay_person_seconds_;
-  if (type == "chair") return delay_chair_seconds_;
-  // Default: treat unknown as static obstacle with larger delay.
-  return delay_chair_seconds_;
+  auto it = obstacle_priors_sec_.find(type);
+  if (it != obstacle_priors_sec_.end()) return it->second;
+
+  // Common aliases.
+  if (type == "human") {
+    auto it2 = obstacle_priors_sec_.find("person");
+    if (it2 != obstacle_priors_sec_.end()) return it2->second;
+  }
+
+  return obstacle_default_prior_sec_;
 }
 
 double Navigator::estimateObstacleExtentFromGrid() const {
@@ -721,7 +870,8 @@ buildObstacleEdgeDelays(
     const double active_delay_sec,
     const double huge_delay_sec,
     const std::shared_ptr<tf2_ros::Buffer> &tf_buffer,
-    const vtr::tactic::VertexId &trunk_vid) {
+    const vtr::tactic::VertexId &trunk_vid,
+    const double screening_radius_m) {
   using vtr::tactic::EdgeId;
   std::unordered_map<EdgeId, double> delays;
 
@@ -733,6 +883,9 @@ buildObstacleEdgeDelays(
         << "HSHMAT: buildObstacleEdgeDelays called with invalid trunk vertex";
     return delays;
   }
+
+  // Optional screening radius: only apply grid-based screening to edges near the robot.
+  // Note: active edges are always included regardless of radius.
 
   // Build a set of active edges for fast lookup
   std::unordered_set<EdgeId> active_edges_set(active_edges.begin(), active_edges.end());
@@ -747,33 +900,21 @@ buildObstacleEdgeDelays(
   // TF publishes trunk vertex as "loc vertex frame"
   const std::string trunk_frame = "loc vertex frame";
   
-  // Use "lidar" frame (published by VTR) instead of grid.header.frame_id (os_lidar)
-  // because VTR's TF tree connects: world -> loc vertex frame -> robot -> lidar
-  // while the Ouster driver publishes os_lidar in a separate tree.
-  const std::string lidar_frame = "lidar";
+  // Use the occupancy grid's published frame.
+  const std::string grid_frame = grid.header.frame_id;
   
-  // Get transform from trunk frame to lidar frame
+  // Get transform from trunk frame to grid frame
   geometry_msgs::msg::TransformStamped tf_trunk_to_grid;
   bool have_tf = false;
   if (tf_buffer) {
     try {
       tf_trunk_to_grid = tf_buffer->lookupTransform(
-          lidar_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
+          grid_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
       have_tf = true;
       CLOG(DEBUG, "navigation")
-          << "HSHMAT-TF: Got transform " << trunk_frame << " -> " << lidar_frame;
+          << "HSHMAT-TF: Got transform " << trunk_frame << " -> " << grid_frame;
     } catch (const tf2::TransformException &ex) {
-      CLOG(WARNING, "navigation")
-          << "HSHMAT-TF: Cannot transform " << trunk_frame << " -> " << lidar_frame
-          << ": " << ex.what() << ". Assigning active_delay to all active edges without grid check.";
-      // If TF fails, fall back to assigning active_delay_sec to all active_edges
-      for (const auto &e : active_edges) {
-        delays[e] = active_delay_sec;
-      }
-      CLOG(INFO, "navigation")
-          << "HSHMAT: Added " << active_edges.size() << " active edges with delay="
-          << active_delay_sec << "s (no TF, no grid check)";
-      return delays;
+      // No TF: can't check grid for alternative paths; active edges still get delays below.
     }
   } else {
     CLOG(WARNING, "navigation")
@@ -793,7 +934,7 @@ buildObstacleEdgeDelays(
            ix < static_cast<int>(w) && iy < static_cast<int>(h);
   };
 
-  // Transform a point from trunk frame to grid frame (lidar)
+  // Transform a point from trunk frame to grid/eval frame.
   auto transformPoint = [&](double x_trunk, double y_trunk, double &x_grid, double &y_grid) -> bool {
     geometry_msgs::msg::PointStamped pt_in, pt_out;
     pt_in.header.frame_id = trunk_frame;
@@ -831,12 +972,29 @@ buildObstacleEdgeDelays(
       return;
     }
 
-    // Transform vertices from trunk frame to lidar frame
-    double x1, y1, x2, y2;
+    // Transform vertices from trunk frame to grid frame
+    double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0;
     if (!transformPoint(x1_trunk, y1_trunk, x1, y1) ||
         !transformPoint(x2_trunk, y2_trunk, x2, y2)) {
       return;
     }
+
+    // Optional screening radius: only apply grid-based screening to edges near the robot.
+    //
+    // Semantics:
+    // - screening_radius_m == 0.0 => screen 0m ahead => ignore all non-active edges.
+    // - screening_radius_m  > 0.0 => only screen edges within this radius of the robot (in trunk frame).
+    //
+    // Note: active edges are always included regardless of radius.
+    if (active_edges_set.count(e) == 0) {
+      const double d1 = std::sqrt(x1 * x1 + y1 * y1);
+      const double d2 = std::sqrt(x2 * x2 + y2 * y2);
+      if (std::min(d1, d2) >= screening_radius_m) {
+        return;
+      }
+    }
+
+    // Check segment against the grid window.
 
     // Quick AABB check against grid bounds
     const double min_x = std::min(x1, x2);
@@ -942,6 +1100,151 @@ buildObstacleEdgeDelays(
   return delays;
 }
 
+/// HSHMAT: Opportunistically verify TDSP remembered blockages against the current
+/// local obstacle grid within a radius around the robot. If an edge was predicted
+/// blocked until some future time, but the local grid indicates it does not
+/// intersect any obstacle cells (RED/ORANGE), we erase its blockage interval.
+///
+/// This is intentionally conservative:
+/// - Only checks edges whose endpoints are near the robot (within radius_m).
+/// - Only checks edges that fall inside the current grid window (via the same
+///   sampling used by buildObstacleEdgeDelays).
+static size_t pruneRememberedBlockagesUsingGrid(
+    std::unordered_map<vtr::tactic::EdgeId, vtr::navigation::EdgeBlockageInterval> &blockages,
+    const tactic::Graph::Ptr &graph,
+    const GraphMapServer::Ptr &graph_map_server,
+    const nav_msgs::msg::OccupancyGrid &grid,
+    const std::shared_ptr<tf2_ros::Buffer> &tf_buffer,
+    const vtr::tactic::VertexId &trunk_vid,
+    const double now_sec,
+    const double radius_m) {
+  using vtr::tactic::EdgeId;
+
+  if (!graph || !graph_map_server || grid.data.empty() || grid.info.resolution <= 0.0)
+    return 0;
+  if (!tf_buffer) return 0;
+  if (!trunk_vid.isValid()) return 0;
+  if (radius_m <= 0.0) return 0;
+
+  const auto &info = grid.info;
+  const double res = info.resolution;
+  const double origin_x = info.origin.position.x;
+  const double origin_y = info.origin.position.y;
+  const uint32_t w = info.width;
+  const uint32_t h = info.height;
+
+  const std::string trunk_frame = "loc vertex frame";
+  const std::string grid_frame = grid.header.frame_id;
+
+  geometry_msgs::msg::TransformStamped tf_trunk_to_grid;
+  try {
+    tf_trunk_to_grid = tf_buffer->lookupTransform(
+        grid_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
+  } catch (...) {
+    return 0;
+  }
+
+  auto inBounds = [&](int ix, int iy) {
+    return ix >= 0 && iy >= 0 && ix < static_cast<int>(w) && iy < static_cast<int>(h);
+  };
+
+  auto transformPoint = [&](double x_trunk, double y_trunk, double &x_grid, double &y_grid) -> bool {
+    geometry_msgs::msg::PointStamped pt_in, pt_out;
+    pt_in.header.frame_id = trunk_frame;
+    pt_in.point.x = x_trunk;
+    pt_in.point.y = y_trunk;
+    pt_in.point.z = 0.0;
+    try {
+      tf2::doTransform(pt_in, pt_out, tf_trunk_to_grid);
+      x_grid = pt_out.point.x;
+      y_grid = pt_out.point.y;
+      return true;
+    } catch (...) {
+      return false;
+    }
+  };
+
+  auto edgeHitsRedOrOrange = [&](const EdgeId &e) -> bool {
+    const auto v1 = e.id1();
+    const auto v2 = e.id2();
+
+    double x1_trunk, y1_trunk, t1;
+    double x2_trunk, y2_trunk, t2;
+    try {
+      std::tie(x1_trunk, y1_trunk, t1) = graph_map_server->getVertexRelativeTo(v1, trunk_vid);
+      std::tie(x2_trunk, y2_trunk, t2) = graph_map_server->getVertexRelativeTo(v2, trunk_vid);
+    } catch (...) {
+      return true;  // if we can't test, keep blockage (conservative)
+    }
+
+    double x1, y1, x2, y2;
+    if (!transformPoint(x1_trunk, y1_trunk, x1, y1) ||
+        !transformPoint(x2_trunk, y2_trunk, x2, y2)) {
+      return true;  // conservative
+    }
+
+    // Only consider edges near the robot within radius_m.
+    const double d1 = std::sqrt(x1 * x1 + y1 * y1);
+    const double d2 = std::sqrt(x2 * x2 + y2 * y2);
+    if (std::min(d1, d2) > radius_m) return true;  // out of scope -> keep blockage
+
+    // AABB check against grid bounds
+    const double min_x = std::min(x1, x2);
+    const double max_x = std::max(x1, x2);
+    const double min_y = std::min(y1, y2);
+    const double max_y = std::max(y1, y2);
+
+    const double grid_min_x = origin_x;
+    const double grid_max_x = origin_x + static_cast<double>(w) * res;
+    const double grid_min_y = origin_y;
+    const double grid_max_y = origin_y + static_cast<double>(h) * res;
+
+    if (max_x < grid_min_x || min_x > grid_max_x || max_y < grid_min_y || min_y > grid_max_y) {
+      return true;  // not in grid window -> can't validate -> keep blockage
+    }
+
+    const double dx = x2 - x1;
+    const double dy = y2 - y1;
+    const double length = std::sqrt(dx * dx + dy * dy);
+    if (length < 1e-3) return true;
+
+    const int num_samples = std::max(1, static_cast<int>(std::ceil(length / res)));
+    for (int k = 0; k <= num_samples; ++k) {
+      const double t = static_cast<double>(k) / num_samples;
+      const double sx = x1 + t * dx;
+      const double sy = y1 + t * dy;
+      const int ix = static_cast<int>(std::floor((sx - origin_x) / res));
+      const int iy = static_cast<int>(std::floor((sy - origin_y) / res));
+      if (!inBounds(ix, iy)) continue;
+      const int idx = iy * static_cast<int>(w) + ix;
+      if (idx < 0 || static_cast<size_t>(idx) >= grid.data.size()) continue;
+      const int8_t cell = grid.data[idx];
+      if (cell == 100 || cell == 50) return true;
+    }
+
+    // No RED/ORANGE intersections found in the current local grid -> consider free now.
+    return false;
+  };
+
+  size_t removed = 0;
+  for (auto it = blockages.begin(); it != blockages.end();) {
+    if (it->second.end_sec <= now_sec) {
+      it = blockages.erase(it);
+      ++removed;
+      continue;
+    }
+
+    if (!edgeHitsRedOrOrange(it->first)) {
+      it = blockages.erase(it);
+      ++removed;
+      continue;
+    }
+    ++it;
+  }
+
+  return removed;
+}
+
 void Navigator::triggerReroute() {
   if (waiting_for_reroute_) {
     CLOG(DEBUG, "mission.state_machine")
@@ -949,12 +1252,7 @@ void Navigator::triggerReroute() {
     return;
   }
 
-  bool reroute_enable = false;
-  try {
-    reroute_enable =
-        node_->get_parameter("route_planning.enable_reroute").get_value<bool>();
-  } catch (...) {
-  }
+  const bool reroute_enable = route_cfg_.enable_reroute;
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: Step 2 - Checking reroute config: enable_reroute="
       << (reroute_enable ? "true" : "false");
@@ -1115,62 +1413,144 @@ void Navigator::triggerReroute() {
     }
   }
 
-  // Configure the planner based on replanner_type_.
+  // Configure the planner based on the new config.
+  //
+  // - Dijkstra mode: preserves the old "deterministic_timecost" behavior by
+  //   assigning a fixed per-edge delay (seconds) on affected edges.
+  // - TDSP mode: assigns blockage *intervals* (start,end) on affected edges and
+  //   runs FIFO label-setting TDSP, so the planner can reason about clearing
+  //   (e.g., arriving after end time).
+  //
+  // Route screening behavior:
+  // - We always mark the currently-followed (active) edges in the obstacle range
+  //   as "blocked" (Dijkstra: active_delay_sec; TDSP: blockage interval).
+  // - We also scan other edges that intersect ORANGE/RED cells in the local
+  //   obstacle grid and assign them a huge static delay (1e6s). This is the
+  //   "route screening" mechanism that prevents rerouting onto other routes
+  //   that are also obstructed in the same local window.
   try {
-    auto bfs_ptr =
-        std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(
-            route_planner_);
-    if (bfs_ptr) {
-      if (replanner_type_ == "deterministic_timecost") {
-        // Time-based replanning: build per-edge delays directly from the
-        // obstacle grid. Edges that intersect the active obstacle (red cells)
-        // get a type-dependent delay (person vs chair). Edges that intersect
-        // any other obstacle cell (orange or red) inside the local grid
-        // window get a huge delay so that Dijkstra naturally avoids them.
-        //
-        // Chain: VertexId -> trunk frame -> lidar frame -> grid cell
-        const double delay_sec = obstacleTypeDelaySeconds();
-        const double huge_delay_sec = 1e6;  // effectively "blocked"
-        auto delays = buildObstacleEdgeDelays(
-            graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
-            delay_sec, huge_delay_sec, tf_buffer_, trunk_vid);
-        bfs_ptr->setExtraEdgeCosts(delays);
-        bfs_ptr->setUseTimeCost(true);
-        bfs_ptr->setUseMasked(true);
-        CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: deterministic_timecost replanner configured with "
-            << delays.size() << " delayed edges (active_delay=" << delay_sec
-            << "s, huge_delay=" << huge_delay_sec << "s).";
-        // Debug: log which edges are getting delays
-        if (!delays.empty()) {
-          std::stringstream ss_active, ss_huge;
-          ss_active << "HSHMAT: Edges with delay " << delay_sec << "s: ";
-          ss_huge << "HSHMAT: Edges with delay " << huge_delay_sec << "s: ";
-          for (const auto &kv : delays) {
-            if (kv.second == huge_delay_sec) {
-              ss_huge << kv.first << " ";
-            } else {
-              ss_active << kv.first << " ";
-          }
-          }
-          CLOG(INFO, "mission.state_machine") << ss_active.str();
-          CLOG(INFO, "mission.state_machine") << ss_huge.str();
-        }
-      } else {
-        // Legacy masked BFS: ban affected edges.
-        if (!affected_edges.empty()) {
-          bfs_ptr->addBannedEdges(affected_edges);
-          bfs_ptr->setUseMasked(true);
-          bfs_ptr->setUseTimeCost(false);
-          bfs_ptr->clearExtraEdgeCosts();
+    const double huge_delay_sec = 1e6;  // effectively "blocked"
+    const double dur_sec = expectedObstacleDurationSeconds();
+
+    // Prune expired blockages (best-effort).
+    const double now_sec = node_->get_clock()->now().seconds();
+    for (auto it = edge_blockages_.begin(); it != edge_blockages_.end();) {
+      if (it->second.end_sec <= now_sec) it = edge_blockages_.erase(it);
+      else ++it;
+    }
+
+    if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner_)) {
+      // Before applying new obstacle windows, opportunistically verify existing
+      // remembered blockages in the local grid window (within a radius). If an
+      // edge is predicted blocked but the grid suggests it is now free, erase it.
+      const double radius_m = route_cfg_.verify_blockage_lookahead_m;
+      if (radius_m > 0.0) {
+        const size_t removed = pruneRememberedBlockagesUsingGrid(
+            edge_blockages_, graph_, graph_map_server_, last_obstacle_grid_, tf_buffer_, trunk_vid,
+            now_sec, radius_m);
+        if (removed > 0) {
           CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: masked_bfs replanner: banned " << affected_edges.size()
-              << " edges (grid-based).";
+              << "HSHMAT: TDSP blockage verification removed " << removed
+              << " remembered blockage(s) as 'free now' within radius "
+              << radius_m << "m";
         }
+      }
+
+      // TDSP: static delays come only from non-active edges via grid checks.
+      // Active/affected edges have *no* static delay; they are handled as time windows.
+      auto static_delays = buildObstacleEdgeDelays(
+          graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
+          /*active_delay_sec=*/0.0, huge_delay_sec, tf_buffer_, trunk_vid,
+          /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
+      tdsp->setStaticEdgeDelays(static_delays);
+      tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
+
+      // Newest-overrides: overwrite the blockage interval for each affected edge.
+      for (const auto &e : affected_edges) {
+        edge_blockages_[e] = EdgeBlockageInterval{now_sec, now_sec + dur_sec};
+      }
+
+      // Convert blockage map into TDSPPlanner type.
+      std::unordered_map<vtr::tactic::EdgeId, vtr::route_planning::TDSPPlanner::BlockageInterval> b;
+      b.reserve(edge_blockages_.size());
+      for (const auto &kv : edge_blockages_) {
+        b.emplace(kv.first, vtr::route_planning::TDSPPlanner::BlockageInterval{kv.second.start_sec, kv.second.end_sec});
+      }
+      tdsp->setEdgeBlockages(b);
+
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: TDSP replanner configured: affected_edges="
+          << affected_edges.size() << ", static_delays=" << static_delays.size()
+          << ", duration=" << dur_sec << "s, remembered_blockages=" << b.size();
+
+      // Detailed TDSP logging (mission.state_machine): which edges are blocked and how much time remains.
+      if (!affected_edges.empty()) {
+        std::stringstream ss;
+        ss << "HSHMAT: TDSP blocked edges (newest overwrite, remaining_sec): ";
+        for (const auto &e : affected_edges) {
+          double rem = 0.0;
+          auto it = edge_blockages_.find(e);
+          if (it != edge_blockages_.end()) {
+            rem = std::max(0.0, it->second.end_sec - now_sec);
+          }
+          ss << e << "(rem=" << rem << "s) ";
+        }
+        CLOG(INFO, "mission.state_machine") << ss.str();
+      }
+      if (!static_delays.empty()) {
+        std::stringstream ss_huge;
+        size_t huge_cnt = 0;
+        ss_huge << "HSHMAT: TDSP route-screening edges with huge_delay=" << huge_delay_sec << "s: ";
+        for (const auto &kv : static_delays) {
+          if (kv.second == huge_delay_sec) {
+            ++huge_cnt;
+            ss_huge << kv.first << " ";
+          }
+        }
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: TDSP route-screening: huge_edges=" << huge_cnt
+            << " (static_delays total=" << static_delays.size() << ")";
+        if (huge_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_huge.str();
+      }
+    } else if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
+      // Dijkstra/timecost: preserve deterministic_timecost behavior.
+      auto delays = buildObstacleEdgeDelays(
+          graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
+          /*active_delay_sec=*/dur_sec, huge_delay_sec, tf_buffer_, trunk_vid,
+          /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
+      bfs_ptr->setExtraEdgeCosts(delays);
+      bfs_ptr->setUseTimeCost(true);
+      bfs_ptr->setUseMasked(true);
+      bfs_ptr->setNominalSpeed(route_cfg_.nominal_speed_mps);
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: Dijkstra(timecost) replanner configured with "
+          << delays.size() << " delayed edges (active_delay=" << dur_sec
+          << "s, huge_delay=" << huge_delay_sec << "s).";
+
+      // Detailed Dijkstra logging (mission.state_machine): preserve old deterministic_timecost edge lists.
+      if (!delays.empty()) {
+        std::stringstream ss_active, ss_huge;
+        size_t active_cnt = 0, huge_cnt = 0;
+        ss_active << "HSHMAT: Dijkstra edges with active_delay=" << dur_sec << "s: ";
+        ss_huge << "HSHMAT: Dijkstra edges with huge_delay=" << huge_delay_sec << "s: ";
+        for (const auto &kv : delays) {
+          if (kv.second == huge_delay_sec) {
+            ++huge_cnt;
+            ss_huge << kv.first << " ";
+          } else if (kv.second > 0.0) {
+            ++active_cnt;
+            ss_active << kv.first << " ";
+          }
+        }
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: Dijkstra delayed edges summary: active=" << active_cnt
+            << ", huge=" << huge_cnt << ", total=" << delays.size();
+        if (active_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_active.str();
+        if (huge_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_huge.str();
       }
     } else {
       CLOG(WARNING, "mission.state_machine")
-          << "HSHMAT: Could not cast route planner to BFSPlanner";
+          << "HSHMAT: Unknown route planner type; cannot apply reroute costs.";
     }
   } catch (const std::exception &e) {
     CLOG(WARNING, "navigation")

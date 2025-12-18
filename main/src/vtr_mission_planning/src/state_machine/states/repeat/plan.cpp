@@ -18,6 +18,9 @@
  */
 #include "vtr_mission_planning/state_machine/states/repeat/plan.hpp"
 #include "vtr_route_planning/bfs_planner.hpp"
+#include "vtr_route_planning/tdsp_planner.hpp"
+
+#include <sstream>
 
 namespace vtr {
 namespace mission_planning {
@@ -71,109 +74,78 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
     CLOG(INFO, "mission.state_machine")
         << "Current vertex: " << persistent_loc.v
         << ", waypoints: " << waypoints_;
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Plan::onExit - Starting route computation (planner-agnostic)";
 
-    auto bfs = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner);
     PathType path;
-    const bool using_masked = bfs && bfs->useMasked();
-    
-    CLOG(INFO, "mission.state_machine") << "HSHMAT: Plan::onExit - Starting route computation";
-    CLOG(INFO, "mission.state_machine") << "HSHMAT: Using masked planning: " << (using_masked ? "true" : "false");
-    
-    if (using_masked) {
-      // Use masked Dijkstra honoring banned edges; if it fails (e.g., no route
-      // exists under current mask), log and fall back to unmasked planning.
-      CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: Attempting masked plan from " << persistent_loc.v << " to "
-          << waypoints_.front() << ", permanentBan="
-          << (bfs->permanentBan() ? "true" : "false");
-      try {
-        path = bfs->hshmat_plan(persistent_loc.v, waypoints_.front());
-        CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: Masked plan succeeded with " << path.size() << " vertices";
-
-        // Debug: report total time cost (travel time + extra delay) of the
-        // masked path. This uses the same cost model as deterministic_timecost:
-        // distance/nominal_speed + per-edge extra delays.
-        CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: DEBUG - Checking path cost (bfs=" << (bfs ? "valid" : "null") 
-            << ", path.size()=" << path.size() << ")";
-        if (bfs && !path.empty()) {
-          double delay_sec = 0.0;
-          const double total_cost = bfs->debugPathTotalCost(path, delay_sec);
-          CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: ========== PATH COST ANALYSIS ==========";
-          CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: Masked path total cost=" << total_cost
-              << " s (base travel time + extra delay=" << delay_sec
-              << " s, nominal_speed=" << bfs->nominalSpeed()
-              << " m/s, use_time_cost=" << (bfs->useTimeCost() ? "true" : "false")
-              << ")";
-          CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: Path has " << path.size() << " vertices from "
-              << persistent_loc.v << " to " << waypoints_.front();
-          if (delay_sec > 0.0) {
-            CLOG(WARNING, "mission.state_machine")
-                << "HSHMAT: ⚠️  Path includes " << delay_sec 
-                << "s of extra delay penalties!";
-          } else {
-            CLOG(INFO, "mission.state_machine")
-                << "HSHMAT: ✓ Path has no extra delays (all edges clean)";
-          }
-          CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: =========================================";
-        }
-
-        if (auto cb = getCallback(state_machine))
-          cb->notifyRerouteStatus("reroute_success");
-      } catch (const std::exception &e) {
-        CLOG(WARNING, "mission.state_machine")
-            << "HSHMAT: Masked plan failed: '" << e.what()
-            << "'. Falling back to unmasked route computation.";
-        if (auto cb = getCallback(state_machine))
-          cb->notifyRerouteStatus("reroute_mask_failed");
-        try {
-          path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
-          CLOG(INFO, "mission.state_machine") << "HSHMAT: Unmasked fallback succeeded with " << path.size() << " vertices";
-          if (auto cb = getCallback(state_machine))
-            cb->notifyRerouteStatus("reroute_fallback_used");
-        } catch (const std::exception &e2) {
-          CLOG(ERROR, "mission.state_machine")
-              << "HSHMAT: Unmasked plan also failed: '" << e2.what()
-              << "'. Keeping previous path; skipping setPath.";
-          if (auto cb = getCallback(state_machine))
-            cb->notifyRerouteStatus("reroute_failed");
-          // Do not throw; leave without updating path to avoid crashing
-          if (bfs && !bfs->permanentBan()) bfs->clearBannedEdges();
-          Parent::onExit(state_machine, new_state);
-          return;
-        }
-      }
-    } else {
-      CLOG(INFO, "mission.state_machine") << "HSHMAT: Using unmasked planning";
+    try {
       path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
-      CLOG(INFO, "mission.state_machine") << "HSHMAT: Unmasked plan completed with " << path.size() << " vertices";
+    } catch (const std::exception &e) {
+      CLOG(ERROR, "mission.state_machine")
+          << "HSHMAT: Route planning failed: '" << e.what()
+          << "'. Keeping previous path; skipping setPath.";
+      if (auto cb = getCallback(state_machine))
+        cb->notifyRerouteStatus("reroute_failed");
+      Parent::onExit(state_machine, new_state);
+      return;
     }
-    // Clear bans only if not permanent (reroute disabled)
-    // Note: For rerouting, we keep permanent bans but clear them after successful planning
-    // to allow future rerouting to work properly
-    if (bfs && !bfs->permanentBan()) {
-      CLOG(INFO, "mission.state_machine") 
-          << "HSHMAT-DEBUG: Clearing banned edges (permanentBan=false). "
-          << "Extra edge costs BEFORE clear: " << (bfs ? "checking..." : "bfs is null");
-      bfs->clearBannedEdges();
-      // NOTE: We do NOT clear extra_edge_costs here - they should persist for deterministic_timecost
-      CLOG(INFO, "mission.state_machine") 
-          << "HSHMAT-DEBUG: Banned edges cleared. Extra edge costs should still be set.";
-    } else if (bfs && bfs->permanentBan()) {
-      // If permanentBan() is true, we keep banned edges across replans.
-      CLOG(INFO, "mission.state_machine") << "HSHMAT: Permanent ban is enabled, not clearing banned edges";
-      // bfs->clearBannedEdges();
+
+    // ---------------------------------------------------------------------
+    // Logging: planned path + ETA / cost breakdown (mission.state_machine).
+    // This restores the "usual" debugging info from the previous implementation,
+    // while keeping the state machine planner-agnostic.
+    // ---------------------------------------------------------------------
+    auto format_path_preview = [](const PathType &p, const size_t n = 6) -> std::string {
+      std::stringstream ss;
+      if (p.empty()) return "<empty>";
+      if (p.size() <= 2 * n) {
+        for (const auto &v : p) ss << v << " ";
+        return ss.str();
+      }
+      for (size_t i = 0; i < n; ++i) ss << p[i] << " ";
+      ss << "... ";
+      for (size_t i = p.size() - n; i < p.size(); ++i) ss << p[i] << " ";
+      return ss.str();
+    };
+
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Planned path preview: " << format_path_preview(path)
+        << " (vertices=" << path.size() << ")";
+
+    // If planner is BFSPlanner (Dijkstra/timecost), reuse its existing debug helper.
+    if (auto bfs = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner)) {
+      if (!path.empty()) {
+        double delay_sec = 0.0;
+        const double total_cost = bfs->debugPathTotalCost(path, delay_sec);
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: Planned path time-to-goal (Dijkstra/timecost): total="
+            << total_cost << "s (extra_delay=" << delay_sec
+            << "s, nominal_speed=" << bfs->nominalSpeed()
+            << " m/s, use_time_cost=" << (bfs->useTimeCost() ? "true" : "false")
+            << ")";
+      }
+    }
+
+    // If planner is TDSP, compute ETA using the same FIFO arc-arrival model.
+    if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner)) {
+      if (!path.empty()) {
+        const double depart_sec = tdsp->nowSec();
+        double wait_sec = 0.0, travel_sec = 0.0, static_sec = 0.0;
+        const double arrive_sec =
+            tdsp->debugPathArrivalTimeSec(path, depart_sec, wait_sec, travel_sec, static_sec);
+        const double eta_sec = std::isfinite(arrive_sec) ? std::max(0.0, arrive_sec - depart_sec)
+                                                         : std::numeric_limits<double>::infinity();
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: Planned path time-to-goal (TDSP/FIFO): eta=" << eta_sec
+            << "s (wait=" << wait_sec << "s, travel=" << travel_sec
+            << "s, static_delay=" << static_sec << "s, nominal_speed="
+            << tdsp->nominalSpeed() << " m/s)";
+      }
     }
 
     CLOG(INFO, "mission.state_machine")
-        << "Plan computed (masked=" << (using_masked ? "true" : "false")
-        << ") with " << path.size() << " vertices. From " << persistent_loc.v
-        << " to " << waypoints_.front();
+        << "Plan computed with " << path.size() << " vertices. From "
+        << persistent_loc.v << " to " << waypoints_.front();
     tactic->setPath(path, 0, persistent_loc.T, true);
     
     // Hshmat: Update waypoints to match the new computed path for consistent following

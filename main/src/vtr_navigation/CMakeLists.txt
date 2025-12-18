@@ -24,6 +24,7 @@ find_package(vtr_path_planning REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_navigation_msgs REQUIRED)
 find_package(vtr_torch REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
 find_package(vtr_radar_lidar REQUIRED)
@@ -78,6 +79,10 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
   sensor_msgs  # for visualization only
   vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
   vtr_radar_lidar vtr_radar vtr_lidar vtr_vision
+)
+
+target_link_libraries(${PROJECT_NAME}_navigator
+  yaml-cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_navigator

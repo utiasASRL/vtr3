@@ -29,6 +29,7 @@
   <depend>vtr_vision</depend>
   <depend>vtr_radar</depend>
   <depend>vtr_radar_lidar</depend>
+  <depend>yaml-cpp</depend>
 
 
   <test_depend>ament_cmake_gtest</test_depend>

@@ -33,23 +33,33 @@ auto BFSPlanner::path(const VertexId &from, const VertexId::List &to,
 
   const auto priv_graph = getPrivilegedGraph();
 
-  auto rval = path(priv_graph, from, to.front());
-  idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
+  PathType rval;
+  VertexId curr = from;
 
-  auto from_iter = to.begin();
-  auto to_iter = std::next(from_iter);
-  for (; to_iter != to.end(); ++from_iter, ++to_iter) {
-    const auto segment = path(priv_graph, *from_iter, *to_iter);
-    if (segment.size() > 0){
-      rval.insert(rval.end(), std::next(segment.begin()), segment.end());
-      idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
+  for (const auto &wp : to) {
+    PathType segment;
+    if (use_masked_) {
+      segment = hshmat_plan(curr, wp);
+    } else {
+      segment = path(priv_graph, curr, wp);
     }
+
+    if (!segment.empty()) {
+      if (rval.empty()) {
+        rval = segment;
+      } else {
+        rval.insert(rval.end(), std::next(segment.begin()), segment.end());
+      }
+    }
+    idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
+    curr = wp;
   }
 
   return rval;
 }
 
 auto BFSPlanner::path(const VertexId &from, const VertexId &to) -> PathType {
+  if (use_masked_) return hshmat_plan(from, to);
   return path(getPrivilegedGraph(), from, to);
 }
 
