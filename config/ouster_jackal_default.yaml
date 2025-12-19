@@ -90,9 +90,9 @@
       # origin_lat: 43.660837  # Myhal Centre (accurate coordinates)
       # origin_lng: -79.396485 # Myhal Centre (accurate coordinates)
       # # Robot starting position (adjusted 0.5m left, 0.2m up)
-      origin_lat: 43.6606838  # Robot starting position + 0.2m north
-      origin_lng: -79.3965537 # Robot starting position + 0.5m west
-      origin_theta: 1.3
+      origin_lat: 43.6607740  # increasing this seems to move up on the map
+      origin_lng: -79.3966100 # increasing this seems to move left on the map
+      origin_theta: 1.9
       scale: 1.0
       gps_topic: "/novatel/fix"
     tactic:
@@ -103,8 +103,8 @@
       task_queue_num_threads: 1
       task_queue_size: -1
       
-      route_completion_translation_threshold: 0.00001 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
-      route_completion_angle_threshold: 0.00001 #0.26
+      route_completion_translation_threshold: 0.01 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
+      route_completion_angle_threshold: 0.0349066 #0.26
 
       chain:
         min_cusp_distance: 1.5
@@ -409,9 +409,9 @@
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.25 # JH: I think this is planning time step which I need to be 0.25s for DRL model.
-        forward_vel: 1.0 #hsh, used to be0.9
-        max_lin_vel: 1.0 # hsh, used to be 1.0 #1.0
-        max_ang_vel: 1.0 # hsh, used to be 1.0 #1.0
+        forward_vel: 0.5 #hsh, used to be0.9
+        max_lin_vel: 0.5 # hsh, used to be 1.0 #1.0
+        max_ang_vel: 0.5 # hsh, used to be 1.0 #1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 

@@ -78,17 +78,17 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
         << "HSHMAT: Plan::onExit - Starting route computation (planner-agnostic)";
 
     PathType path;
-    try {
-      path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+        try {
+          path = route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
     } catch (const std::exception &e) {
-      CLOG(ERROR, "mission.state_machine")
+          CLOG(ERROR, "mission.state_machine")
           << "HSHMAT: Route planning failed: '" << e.what()
-          << "'. Keeping previous path; skipping setPath.";
-      if (auto cb = getCallback(state_machine))
-        cb->notifyRerouteStatus("reroute_failed");
-      Parent::onExit(state_machine, new_state);
-      return;
-    }
+              << "'. Keeping previous path; skipping setPath.";
+          if (auto cb = getCallback(state_machine))
+            cb->notifyRerouteStatus("reroute_failed");
+          Parent::onExit(state_machine, new_state);
+          return;
+        }
 
     // ---------------------------------------------------------------------
     // Logging: planned path + ETA / cost breakdown (mission.state_machine).
@@ -135,7 +135,7 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
             tdsp->debugPathArrivalTimeSec(path, depart_sec, wait_sec, travel_sec, static_sec);
         const double eta_sec = std::isfinite(arrive_sec) ? std::max(0.0, arrive_sec - depart_sec)
                                                          : std::numeric_limits<double>::infinity();
-        CLOG(INFO, "mission.state_machine")
+      CLOG(INFO, "mission.state_machine") 
             << "HSHMAT: Planned path time-to-goal (TDSP/FIFO): eta=" << eta_sec
             << "s (wait=" << wait_sec << "s, travel=" << travel_sec
             << "s, static_delay=" << static_sec << "s, nominal_speed="

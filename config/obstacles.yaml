@@ -11,7 +11,15 @@
 
 default: 60.0
 obstacles:
-  person: 0.0
-  human: 0.0
-  group_of_people: 600.0
+  person: 30.0
+  human: 30.0
+  group_of_people: 6000.0
+  door: 6000.0
   chair: 6000.0
+  table: 6000.0
+  shelf: 6000.0
+  cabinet: 6000.0
+  desk: 6000.0
+  bed: 6000.0
+  sofa: 6000.0
+

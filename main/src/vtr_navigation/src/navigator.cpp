@@ -203,7 +203,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // The state machine is planner-agnostic and always calls route_planner_->path(...).
   // -------------------------------------------------------------------------
   route_cfg_.enable_reroute =
-      node_->declare_parameter<bool>("route_planning.enable_reroute", false);
+        node_->declare_parameter<bool>("route_planning.enable_reroute", false);
   route_cfg_.memory =
       node_->declare_parameter<bool>("route_planning.memory", false);
   route_cfg_.update_obstacle_priors =
@@ -281,7 +281,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       std::string err;
       if (writeObstaclePriorsYamlAtomic(runtime_path, obstacle_default_prior_sec_, obstacle_priors_sec_, &err)) {
         obstacle_priors_runtime_path_ = runtime_path;
-        CLOG(INFO, "navigation")
+    CLOG(INFO, "navigation")
             << "Obstacle priors updater enabled: base='" << obstacle_priors_base_path_
             << "', runtime='" << obstacle_priors_runtime_path_ << "'";
       } else {
@@ -798,7 +798,7 @@ if (pipeline->name() == "lidar"){
     auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.matrix()));
     msg.header.frame_id = robot_frame_;
     msg.child_frame_id = lidar_frame_;
-    tf_sbc_->sendTransform(msg);
+  tf_sbc_->sendTransform(msg);
   }
   // Also publish a stable "lidar" alias if the configured lidar_frame_ is different.
   // This preserves legacy consumers (including route_screening fallbacks) that
@@ -1633,7 +1633,7 @@ void Navigator::triggerReroute() {
   //   "route screening" mechanism that prevents rerouting onto other routes
   //   that are also obstructed in the same local window.
   try {
-    const double huge_delay_sec = 1e6;  // effectively "blocked"
+        const double huge_delay_sec = 1e6;  // effectively "blocked"
     const double dur_sec = expectedObstacleDurationSeconds();
 
     // Prune expired blockages (best-effort).
@@ -1718,26 +1718,26 @@ void Navigator::triggerReroute() {
       }
     } else if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
       // Dijkstra/timecost: preserve deterministic_timecost behavior.
-      auto delays = buildObstacleEdgeDelays(
-          graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
+        auto delays = buildObstacleEdgeDelays(
+            graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
           /*active_delay_sec=*/dur_sec, huge_delay_sec, tf_buffer_, trunk_vid,
           /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
-      bfs_ptr->setExtraEdgeCosts(delays);
-      bfs_ptr->setUseTimeCost(true);
-      bfs_ptr->setUseMasked(true);
+        bfs_ptr->setExtraEdgeCosts(delays);
+        bfs_ptr->setUseTimeCost(true);
+        bfs_ptr->setUseMasked(true);
       bfs_ptr->setNominalSpeed(route_cfg_.nominal_speed_mps);
-      CLOG(INFO, "mission.state_machine")
+        CLOG(INFO, "mission.state_machine")
           << "HSHMAT: Dijkstra(timecost) replanner configured with "
           << delays.size() << " delayed edges (active_delay=" << dur_sec
-          << "s, huge_delay=" << huge_delay_sec << "s).";
+            << "s, huge_delay=" << huge_delay_sec << "s).";
 
       // Detailed Dijkstra logging (mission.state_machine): preserve old deterministic_timecost edge lists.
-      if (!delays.empty()) {
+        if (!delays.empty()) {
         std::stringstream ss_active, ss_huge;
         size_t active_cnt = 0, huge_cnt = 0;
         ss_active << "HSHMAT: Dijkstra edges with active_delay=" << dur_sec << "s: ";
         ss_huge << "HSHMAT: Dijkstra edges with huge_delay=" << huge_delay_sec << "s: ";
-        for (const auto &kv : delays) {
+          for (const auto &kv : delays) {
           if (kv.second == huge_delay_sec) {
             ++huge_cnt;
             ss_huge << kv.first << " ";
@@ -1746,7 +1746,7 @@ void Navigator::triggerReroute() {
             ss_active << kv.first << " ";
           }
         }
-        CLOG(INFO, "mission.state_machine")
+          CLOG(INFO, "mission.state_machine")
             << "HSHMAT: Dijkstra delayed edges summary: active=" << active_cnt
             << ", huge=" << huge_cnt << ", total=" << delays.size();
         if (active_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_active.str();

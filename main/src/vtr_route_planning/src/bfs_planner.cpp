@@ -48,7 +48,7 @@ auto BFSPlanner::path(const VertexId &from, const VertexId::List &to,
       if (rval.empty()) {
         rval = segment;
       } else {
-        rval.insert(rval.end(), std::next(segment.begin()), segment.end());
+      rval.insert(rval.end(), std::next(segment.begin()), segment.end());
       }
     }
     idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
