@@ -42,14 +42,13 @@ torch::Tensor getKeypointDisparities(torch::Tensor disparity,
 
   namespace F = torch::nn::functional;
   auto options = F::GridSampleFuncOptions().mode(
-                     torch::kBilinear).padding_mode(torch::kBorder).align_corners(false);
+                     torch::kNearest).padding_mode(torch::kBorder).align_corners(false);
 
 
-  CLOG(INFO, "stereo.learned_features") << "disparity:" << disparity.sizes();
-  CLOG(INFO, "stereo.learned_features") << "kp_norm:" << keypoints_norm.sizes();
-  
+  auto output = F::grid_sample(disparity.contiguous(), keypoints_norm.contiguous(), options).reshape({-1});
 
-  return F::grid_sample(disparity, keypoints_norm, options).reshape({-1});
+  return output;
+  // return F::grid_sample(disparity, keypoints_norm, options).reshape({-1});
 
 }
 
@@ -232,23 +231,20 @@ torch::Tensor LFE::getDisparity(const cv::Mat& left, const cv::Mat& right,
 ////////////////////////////////////////////////////////////////////////////////
 torch::Tensor LFE::getDisparityTensor(const cv::Mat& disp) {
 
-  float disparity_multiplier = 1.0f;
-  if (disp.type() == CV_16S) {
-    disparity_multiplier = 16.0f;
-  }
-  cv::Mat floatDisp;
-  disp.convertTo(floatDisp, CV_32F, 1.0f / disparity_multiplier);
+  // CLOG(DEBUG, "stereo.learned_features") << "disp_type " << disp.type();
+  // float disparity_multiplier = 16.0f;
+
+  // cv::Mat floatDisp;
+  // disp.convertTo(floatDisp, CV_32F, 1.0f / disparity_multiplier);
 
   //Crop the image
-  cv::Mat disp_cropped;
-  floatDisp.copyTo(disp_cropped);
   //floatDisp(cv::Rect(48, 0, 464, 384)).copyTo(disp_cropped);
 
   // Convert the cv image to a tensor
-  torch::Tensor disp_tensor = torch::from_blob(disp_cropped.data, 
-                                              {disp_cropped.rows, 
-                                               disp_cropped.cols, 1},  
-                                               torch::kFloat); 
+  torch::Tensor disp_tensor = torch::from_blob(disp.data, 
+                                              {disp.rows, 
+                                               disp.cols, 1},  
+                                               torch::kInt16).toType(torch::kFloat) / 16.0f; 
 
   // torch::Tensor disp_tensor = torch::from_blob(floatDisp.data, 
   //                                             {floatDisp.rows, 
@@ -258,7 +254,7 @@ torch::Tensor LFE::getDisparityTensor(const cv::Mat& disp) {
   disp_tensor = disp_tensor.permute({(2), (0), (1)});
   disp_tensor.unsqueeze_(0);
 
-  return disp_tensor;
+  return disp_tensor.contiguous();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -337,7 +333,8 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
 
   // we're about to use the gpu, lock
   std::unique_lock<std::mutex> lock(gpu_mutex_);
-  
+  torch::NoGradGuard no_grad;
+
   // Convert the cv image to a tensor
   torch::Tensor image_tensor = torch::from_blob(image_cropped.data, 
                                                {image_cropped.rows, 
@@ -545,7 +542,7 @@ ChannelFeatures LFE::learnedFeaturesToStereoKeypoints(
   auto point_desc_tensor_ptr = point_desc_valid.contiguous().data_ptr<float>();
 
   left_feat.descriptors = cv::Mat(num_valid, descriptor_size, CV_32F, 
-                                  point_desc_tensor_ptr);
+                                  point_desc_tensor_ptr).clone();
 
   return channel;
 }
@@ -639,6 +636,10 @@ ChannelFeatures LFE::extractStereoFeaturesDisp(const cv::Mat &left_img,
 
   // Get disparity for each keypoint
   torch::Tensor disparity = getDisparityTensor(disp);
+
+  // // torch::Tensor disparity_testing = torch::zeros({1,1,377,512});
+  // torch::Tensor disparity_testing = disparity.clone();
+
   torch::Tensor point_disparities = getKeypointDisparities(disparity, 
                                                            keypoints);
   // return channel;
