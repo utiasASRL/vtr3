@@ -262,7 +262,7 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
     // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
     // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
     // Consider to use the prior covariance in degenerated directions. 
-    const double epsilon = 1e-3;  
+    const double epsilon = 1e-2;  
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
               (1.0/epsilon) * (Vd *Vd.transpose());
   }
@@ -309,11 +309,10 @@ inline Eigen::VectorXd computeP2PlaneJacobian(
   // Translation Jacobian: normal vector
   const Eigen::Vector3d translation_jacobian = n;
   
-  // Combine into 6D vector [rotation_jacobian, translation_jacobian]
+  // Combine into 6D vector [translation_jacobian, rotation_jacobian]
   Eigen::VectorXd jacobian(6);
-  jacobian.head<3>() = rotation_jacobian;
-  jacobian.tail<3>() = translation_jacobian;
-  
+  jacobian.head<3>() = translation_jacobian;
+  jacobian.tail<3>() = rotation_jacobian;
   return jacobian;
 }
 
@@ -731,13 +730,8 @@ inline bool daGaussNewtonP2Plane(
     // Accumulate parameters 
     accumulated_params += delta_params;
     // Convert accumulated parameters to transformation
-
-    // Lgmath uses [tx, ty, tz, rx, ry, rz] ordering.
-    Eigen::Matrix<double, 6, 1> xi;
-    xi << accumulated_params[3], accumulated_params[4], accumulated_params[5],
-          accumulated_params[0], accumulated_params[1], accumulated_params[2];
-    current_transformation = lgmath::se3::Transformation(lgmath::se3::vec2tran(xi));
-
+    // [NOTE]: Lgmath uses [tx, ty, tz, rx, ry, rz] ordering.
+    current_transformation = lgmath::se3::Transformation(lgmath::se3::vec2tran(accumulated_params));
 
     // Check parameter change convergence AFTER applying the update
     double param_change = delta_params.norm();

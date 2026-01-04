@@ -182,10 +182,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   bool refinement_stage = false;
   int refinement_step = 0;
 
-  // convert the covariance back to [x,y,z,roll,pitch,yaw] order
-  Eigen::PermutationMatrix<6> Pm;
-  Pm.indices() << 3, 4, 5, 0, 1, 2;
-
   CLOG(DEBUG, "lidar.localization_daicp") << "Start the Degeneracy-Aware [DEBUG] ICP optimization loop. [customized point-to-plane]";
   // outer loop
   for (int step = 0;; step++) {
@@ -384,8 +380,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         // output
         daicp_cov
       );
-    // convert the covariance back to [x,y,z,roll,pitch,yaw] order
-    daicp_cov = Pm.transpose() * daicp_cov * Pm;
+    // [note] the covariance order is [x,y,z,roll,pitch,yaw]
     /// ########################################################################### ///
 
     if (!optimization_success) {
@@ -531,12 +526,12 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } 
-      else if (cur_ratio > config_->curv_ratio_thresh) {
-        // fallback to using prior
-        CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio: " << cur_ratio << "larger than threshold: " << config_->curv_ratio_thresh << ", fall back to odometry.";
-        T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
-        matched_points_ratio = 1.0f;  // dummy value to indicate success
-      }
+      // else if (cur_ratio > config_->curv_ratio_thresh) {
+      //   // fallback to using prior
+      //   CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio: " << cur_ratio << "larger than threshold: " << config_->curv_ratio_thresh << ", fall back to odometry.";
+      //   T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+      //   matched_points_ratio = 1.0f;  // dummy value to indicate success
+      // }
       else {
         // --- accept DA-ICP result
         T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance

@@ -186,13 +186,13 @@
         downsample_teach_map: false # whether to downsample the frames used in **map building**. in repeat, always downsample plane and feature separately 
                                     # if false, use feature_voxel_size for whole frame (default)
                                     # if true, downsample plane and features separately using plane_voxel_size and feature_voxel_size
-        plane_voxel_size: 1.0       # voxel size for plane
+        plane_voxel_size: 2.0       # voxel size for plane
         feature_voxel_size: 0.3     # voxel size for feature
 
         # clustering parameters
         t: 4.0
         d_prime: 2.0
-        ground_plane_threshold: 0.3 # max curvature to be considered as ground
+        ground_plane_threshold: 0.7 # max curvature to be considered as ground
         min_points_threshold: 3    # minimum number of points to keep a cluster
 
         visualize: true
@@ -314,7 +314,7 @@
         max_iterations: 1
         min_matched_ratio: 0.45
         target_loc_time: 100.0
-        calc_gy_bias: true
+        calc_gy_bias: false
         calc_gy_bias_thresh: 10.0            # [s]
       daicp:
         type: lidar.localization_daicp
@@ -332,7 +332,7 @@
         ### daicp
         max_gn_iter: 1
         # daicp - degeneracy threshold
-        degeneracy_thresh: 2000.0              # we use condition number to set the threshold
+        degeneracy_thresh: 80.0              # we use condition number to set the threshold
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
