@@ -195,8 +195,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
-    // [new] data association with high curvature
-    std::vector<bool> high_curv_match;
     // use curvature data association if the ptcloud has curvature info, else use spatial only   
     CLOG(DEBUG, "lidar.localization_daicp") << "first pt curv: " << aligned_points[sample_inds[0].first].curvature;
     if (aligned_points[sample_inds[0].first].curvature) {
@@ -316,29 +314,18 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       if (!filtered_sample_inds.empty()) {
         std::vector<std::pair<size_t, size_t>> curvature_filtered_sample_inds;
         curvature_filtered_sample_inds.reserve(filtered_sample_inds.size());
-        // [new]: high curvature matching 
-        high_curv_match.reserve(filtered_sample_inds.size());
-        const float high_curv_thresh = 0.8f;  //  make this a config parameter
-
         for (size_t i = 0; i < filtered_sample_inds.size(); i++) {
           float src_curv = aligned_points[filtered_sample_inds[i].first].curvature;
           float tgt_curv = point_map[filtered_sample_inds[i].second].curvature;
           if (std::abs(src_curv - tgt_curv) < config_->curvature_similarity_thresh) {
             curvature_filtered_sample_inds.emplace_back(filtered_sample_inds[i]);
-            // [new]: high curvature matching detection
-            bool is_high_curv = (std::abs(src_curv) > high_curv_thresh) && 
-                                (std::abs(tgt_curv) > high_curv_thresh);
-            high_curv_match.push_back(is_high_curv);
           }
         }
         filtered_sample_inds = std::move(curvature_filtered_sample_inds);
         CLOG(DEBUG, "lidar.localization_daicp") << "Curvature filtering done, filtered to " << filtered_sample_inds.size() << " pairs.";
-        CLOG(DEBUG, "lidar.localization_daicp") << "High-curvature matches: " 
-                                              << std::count(high_curv_match.begin(), high_curv_match.end(), true);
       } else {
         // fallback: no points passed distance filter
         filtered_sample_inds.clear();
-        high_curv_match.clear();
       }
       CLOG(DEBUG, "lidar.localization_daicp") << "Filtered " << sample_inds.size() << " point pairs to "
                                           << filtered_sample_inds.size() << " pairs.";
@@ -371,7 +358,6 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
           }
         }
       }
-      high_curv_match.resize(filtered_sample_inds.size(), false);  // no curvature info, all false
       timer[2]->stop();
       CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
     }
