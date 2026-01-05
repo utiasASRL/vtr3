@@ -328,6 +328,10 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
             // [new]: high curvature matching detection
             bool is_high_curv = (std::abs(src_curv) > high_curv_thresh) && 
                                 (std::abs(tgt_curv) > high_curv_thresh);
+
+            // [debug] 
+            // is_high_curv = true;   // debug p2p only
+            // is_high_curv = false;  // debug p2plane only
             high_curv_match.push_back(is_high_curv);
           }
         }
@@ -383,7 +387,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
     bool optimization_success = daicp_lib::daGaussNewtonP2Plane(
         // inputs
-        filtered_sample_inds, 
+        filtered_sample_inds,  // point correspondences
+        high_curv_match,       // high curvature match flags 
         query_mat,             // source points
         map_mat,               // target points
         map_normals_mat,       // target normals
