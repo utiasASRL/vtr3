@@ -376,7 +376,8 @@ inline void computeJacobianResidualInformation(
   if (use_adaptive) {
     const int high_curv_count = std::count(high_curv_match.begin(), high_curv_match.end(), true);
     CLOG(INFO, "lidar.localization_daicp") << "Adaptive mode: " << high_curv_count 
-                                            << " P2P (3D), " << (sample_inds.size() - high_curv_count) 
+                                            << " P2Point, " << (sample_inds.size() - high_curv_count) 
+                                            << " ----- "
                                             << " P2Plane, total rows: " << total_rows;
   }
   
