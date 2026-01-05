@@ -653,6 +653,7 @@ inline double computeThreshold(const Eigen::VectorXd& eigenvalues,
   return eigenvalue_threshold;
 }
 
+// ==== we don't need this function now.
 inline bool daGaussNewtonP2Plane(
     const std::vector<std::pair<size_t, size_t>>& sample_inds,
     const std::vector<bool>& high_curv_match,

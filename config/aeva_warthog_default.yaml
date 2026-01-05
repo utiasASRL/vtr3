@@ -332,7 +332,7 @@
         ### daicp
         max_gn_iter: 1
         # daicp - degeneracy threshold
-        degeneracy_thresh: 80.0              # we use condition number to set the threshold
+        degeneracy_thresh: 80.0               # we use condition number to set the threshold
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
@@ -357,6 +357,8 @@
         calc_gy_bias_thresh: 10.0             # [s]
         # curvature ratio threshold to default to odometry
         curv_ratio_thresh: 0.98
+        # threshold to consider a point as high curvature -> use p2point jacobian
+        high_curv_thresh: 0.8                  
 
       safe_corridor:
         type: lidar.safe_corridor

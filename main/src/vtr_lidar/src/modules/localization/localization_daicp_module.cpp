@@ -62,6 +62,8 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
   // curvature ratio threshold to default to odometry 
   config->curv_ratio_thresh = node->declare_parameter<float>(param_prefix + ".curv_ratio_thresh", config->curv_ratio_thresh);
+  // 
+  config->high_curv_thresh = node->declare_parameter<float>(param_prefix + ".high_curv_thresh", config->high_curv_thresh);
   // clang-format on
   return config;
 }
@@ -195,7 +197,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
-    // [new] data association with high curvature
+    // data association with high curvature
     std::vector<bool> high_curv_match;
     // use curvature data association if the ptcloud has curvature info, else use spatial only   
     CLOG(DEBUG, "lidar.localization_daicp") << "first pt curv: " << aligned_points[sample_inds[0].first].curvature;
@@ -316,18 +318,17 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       if (!filtered_sample_inds.empty()) {
         std::vector<std::pair<size_t, size_t>> curvature_filtered_sample_inds;
         curvature_filtered_sample_inds.reserve(filtered_sample_inds.size());
-        // [new]: high curvature matching 
+        // high curvature matching 
         high_curv_match.reserve(filtered_sample_inds.size());
-        const float high_curv_thresh = 0.8f;  //  make this a config parameter
 
         for (size_t i = 0; i < filtered_sample_inds.size(); i++) {
           float src_curv = aligned_points[filtered_sample_inds[i].first].curvature;
           float tgt_curv = point_map[filtered_sample_inds[i].second].curvature;
           if (std::abs(src_curv - tgt_curv) < config_->curvature_similarity_thresh) {
             curvature_filtered_sample_inds.emplace_back(filtered_sample_inds[i]);
-            // [new]: high curvature matching detection
-            bool is_high_curv = (std::abs(src_curv) > high_curv_thresh) && 
-                                (std::abs(tgt_curv) > high_curv_thresh);
+            // high curvature matching detection
+            bool is_high_curv = (std::abs(src_curv) > config_->high_curv_thresh) && 
+                                (std::abs(tgt_curv) > config_->high_curv_thresh);
 
             // [debug] 
             // is_high_curv = true;   // debug p2p only
