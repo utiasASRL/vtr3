@@ -22,9 +22,9 @@ jobs:
         with:
           submodules: recursive
       - name: Pull the Docker image
-        run: docker pull vtr3:latest
+        run: docker pull utiasasrl/vtr3:latest
       - name: run container
-        run: docker run -td --name vtr3 --privileged -v `pwd`:/home/asrl/vtr3:rw vtr3:latest
+        run: docker run -td --name vtr3 --privileged -v `pwd`:/home/asrl/vtr3:rw utiasasrl/vtr3:latest
       - name: colcon build
         run: docker exec -w /home/asrl/vtr3/main vtr3 bash -c "source
           /opt/ros/humble/setup.sh && colcon build --symlink-install
