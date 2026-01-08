@@ -9,6 +9,8 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'Dockerfile' # Only push if the Dockerfile changes
 
 jobs:
   docker:
