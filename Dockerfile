@@ -32,8 +32,8 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models \
   GRIZZLY=${VTRROOT}/grizzly \
-  WARTHOG=${VTRROOT}/warthog \
-  VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+  WARTHOG=${VTRROOT}/warthog
+ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
