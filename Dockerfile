@@ -32,8 +32,8 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models \
   GRIZZLY=${VTRROOT}/grizzly \
-  WARTHOG=${VTRROOT}/warthog \
-  VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+  WARTHOG=${VTRROOT}/warthog
+ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
@@ -97,7 +97,7 @@ RUN apt update && apt install -q -y \
   libbluetooth-dev libcwiid-dev \
   python3-colcon-common-extensions \
   virtualenv \
-  texlive-latex-extra \
+  unzip \
   clang-format
 
 ## Install python dependencies
@@ -167,8 +167,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   
 ##Install LibTorch
 RUN curl https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip --output libtorch.zip
-RUN unzip libtorch.zip -d /opt/torch
-RUN rm libtorch.zip
+RUN unzip libtorch.zip -d /opt/torch && rm /libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
@@ -184,7 +183,7 @@ ENV PYTHONPATH=${PYTHONPATH}:/usr/local
 ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 
 
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
 
 RUN apt install -q -y vim htop
 
