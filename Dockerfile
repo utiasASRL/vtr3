@@ -97,6 +97,7 @@ RUN apt update && apt install -q -y \
   libbluetooth-dev libcwiid-dev \
   python3-colcon-common-extensions \
   virtualenv \
+  unzip \
   clang-format
 
 ## Install python dependencies
