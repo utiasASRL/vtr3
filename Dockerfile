@@ -97,7 +97,6 @@ RUN apt update && apt install -q -y \
   libbluetooth-dev libcwiid-dev \
   python3-colcon-common-extensions \
   virtualenv \
-  texlive-latex-extra \
   clang-format
 
 ## Install python dependencies
@@ -167,8 +166,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   
 ##Install LibTorch
 RUN curl https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip --output libtorch.zip
-RUN unzip libtorch.zip -d /opt/torch
-RUN rm libtorch.zip
+RUN unzip libtorch.zip -d /opt/torch && rm /libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV CMAKE_PREFIX_PATH=$TORCH_LIB:$CMAKE_PREFIX_PATH
