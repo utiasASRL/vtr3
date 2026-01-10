@@ -184,9 +184,7 @@ ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 
 
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
-
 RUN apt install -q -y vim htop
-
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
