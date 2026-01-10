@@ -19,8 +19,8 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 30000
-          temp-reserve-mb: 5000
+          root-reserve-mb: 40000
+          temp-reserve-mb: 1000
           swap-size-mb: 2048
           remove-dotnet: "true"
           remove-android: "true"
@@ -39,5 +39,5 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v6
         with:
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: utiasasrl/vtr3:latest
