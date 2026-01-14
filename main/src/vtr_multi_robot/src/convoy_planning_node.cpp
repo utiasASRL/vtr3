@@ -94,7 +94,9 @@ class ConvoyPlanningNode : public rclcpp::Node {
                             [this, robot](const ServerState::SharedPtr msg) {
                               this->onServerState(robot, msg);
                             },
-                            sub_options)});
+                            sub_options),
+                          declare_parameter<std::string>(robot + ".leader_mpc"),
+                          declare_parameter<std::string>(robot + ".follower_mpc")});
     }
 
     // Subscriber: example command topic for convoy control
@@ -108,8 +110,10 @@ class ConvoyPlanningNode : public rclcpp::Node {
   struct RobotInfo {
 
     RobotInfo(const std::string& name0, rclcpp::Publisher<MissionCommand>::SharedPtr mission_pub0,
-      rclcpp::Client<RobotStateSrv>::SharedPtr state_srv0, rclcpp::Subscription<ServerState>::SharedPtr server_sub0) :
-         name{name0}, mission_pub{mission_pub0}, state_srv{state_srv0}, server_sub{server_sub0} {}
+      rclcpp::Client<RobotStateSrv>::SharedPtr state_srv0, rclcpp::Subscription<ServerState>::SharedPtr server_sub0,
+      std::string leader_mpc, std::string follower_mpc) :
+         name{name0}, mission_pub{mission_pub0}, state_srv{state_srv0}, server_sub{server_sub0},
+         leader_mpc_ {leader_mpc}, follower_mpc_{follower_mpc} {}
     
 
     void selectController() {
@@ -117,7 +121,7 @@ class ConvoyPlanningNode : public rclcpp::Node {
       select_controller.type = MissionCommand::ADD_GOAL;
       select_controller.goal_handle.type = Goal::SELECT_CONTROLLER;
       select_controller.goal_handle.controller_name =
-          (isLeader) ? "bicycle_mpc" : "bicycle_mpc_follower";
+          (isLeader) ? leader_mpc_ : follower_mpc_;
       mission_pub->publish(select_controller);
       CLOG(DEBUG, "convoy_route")
           << "Publishing controller "
@@ -157,6 +161,8 @@ class ConvoyPlanningNode : public rclcpp::Node {
     rclcpp::Publisher<MissionCommand>::SharedPtr mission_pub;
     rclcpp::Client<RobotStateSrv>::SharedPtr state_srv;
     rclcpp::Subscription<ServerState>::SharedPtr server_sub;
+    std::string leader_mpc_;
+    std::string follower_mpc_;
     bool isLeader = false;    
     bool paused = false;
 

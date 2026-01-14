@@ -50,9 +50,9 @@
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
         control_period: 100
-        follow_distance: 2.75
+        follow_distance: 5.0
         distance_margin: 0.5
-        waypoint_selection: euclidean
+        waypoint_selection: arclength
         longitudinal_control:
           kp: 2.0
           ki: 0.5
@@ -127,6 +127,8 @@
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
       #- lidar.leader_locator
+
+
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
@@ -139,5 +141,32 @@
     bicycle_mpc_follower:
       leader_namespace:
         /mr_green 
+/col_mustard/vtr/navigator:
+  ros__parameters:
+   path_planning:
+    bicycle_mpc_follower:
+      leader_namespace:
+        /mr_green
+/mrs_peacock/vtr/navigator:
+  ros__parameters:
+   path_planning:
+    bicycle_mpc_follower:
+      leader_namespace:
+        /mr_green  
+
+/vtr/convoy_manager:
+  ros__parameters:
+    mr_green:
+      leader_mpc: bicycle_mpc
+      follower_mpc: bicycle_mpc_follower
+    prof_plum:
+      leader_mpc: bicycle_mpc
+      follower_mpc: bicycle_mpc_follower
+    col_mustard:
+      leader_mpc: bicycle_mpc
+      follower_mpc: bicycle_mpc_follower
+    mrs_peacock:
+      leader_mpc: bicycle_mpc
+      follower_mpc: bicycle_mpc_follower
 
     

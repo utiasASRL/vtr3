@@ -176,7 +176,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
 
   mpcConfig->VF = abs(leader_vel_(0));
   if (config_->waypoint_selection == "external_dist") {
-    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : dist.head<2>().norm();
+    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
     const double error = distance - config_->following_offset;
     if (abs(chain->leaf_velocity()(0)) > 0.05)
       errorIntegrator += error * config_->control_period / 1000.0;
