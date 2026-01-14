@@ -134,10 +134,6 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     }
     return false;
   }
-  if (recentLeaderPath_ == nullptr) {
-    CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
-    return false;
-  }
 
   if (recentLeaderPath_ == nullptr) {
     CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
@@ -180,8 +176,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
 
   mpcConfig->VF = abs(leader_vel_(0));
   if (config_->waypoint_selection == "external_dist") {
-    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data :   CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << internal_dist.data << " at stamp " << curr_time;
-;
+    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : dist.head<2>().norm();
     const double error = distance - config_->following_offset;
     if (abs(chain->leaf_velocity()(0)) > 0.05)
       errorIntegrator += error * config_->control_period / 1000.0;

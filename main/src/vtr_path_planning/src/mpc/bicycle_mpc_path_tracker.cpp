@@ -131,11 +131,11 @@ void BicycleMPCPathTracker::loadMPCConfig(
     // TODO: make these parameters configurable
     mpc_config->vel_max(0) = 0.5*config_->max_lin_vel;
     mpc_config->vel_min(0) = -0.5*config_->max_lin_vel;
-    //mpc_config->R1 = 0.0;
-    //mpc_config->R2 = 0.0;
-    //mpc_config->Acc_R1 = 0.0;
-    //mpc_config->Acc_R2 = 0.0;
-    //mpc_config->Q_f = 0.0;
+    mpc_config->R1 = 0.0;
+    mpc_config->R2 = 0.0;
+    mpc_config->Acc_R1 = 0.0;
+    mpc_config->Acc_R2 = 0.0;
+    mpc_config->Q_f = 0.0;
   }
 }
 
@@ -160,11 +160,6 @@ void BicycleMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const 
     if (mpc_config->eop_index > -1) {
       mpc_config->Q_f = 10000.0;
       mpc_config->cost_weights[mpc_config->eop_index] *= mpc_config->Q_f;
-      if (mpc_config->eop_index < 3) { 
-        mpc_config->Q_lon = 100;
-        mpc_config->R1 = 0;
-        mpc_config->Acc_R1 = 0;
-      }
     }
   }
 }
