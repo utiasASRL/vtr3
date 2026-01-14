@@ -589,6 +589,26 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     *qdata.T_r_m_odo = T_r_m_eval->value();
     *qdata.timestamp_odo = query_stamp;
+
+    {
+      // Append the current pose to a CSV file: timestamp, row0(0), row0(1), ..., row3(3)
+      std::ofstream ofs("/home/katya/ASRL/poses.csv", std::ios::app);  
+      if (!ofs) {
+        CLOG(WARNING, "lidar.odometry_icp") << "Unable to open poses.csv for appending.";
+      } else {
+        // Use the query stamp as the timestamp field
+        const long long ts = static_cast<long long>(query_stamp);
+        const Eigen::Matrix4d M = T_r_m_eval->value().matrix();
+        ofs << ts;
+        for (int r = 0; r < 4; ++r) {
+          for (int c = 0; c < 4; ++c) {
+            ofs << ',' << M(r, c);
+          }
+        }
+        ofs << '\n';
+        ofs.close();
+      }
+    }
     
     *qdata.odo_success = true;
   } else {

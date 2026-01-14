@@ -247,8 +247,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   clock_str.push_back("Undistortion ...... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
 
-  std::vector<double> total_time_timer(clock_str.size(), 0.0);
-
   timer[0]->start();
   // *********** RANSAC ***********
   // precompute for full solve

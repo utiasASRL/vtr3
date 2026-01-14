@@ -24,6 +24,8 @@
 #include "vtr_lidar/filters/voxel_downsample.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+
 #include <random>
 
 namespace vtr {
@@ -145,7 +147,7 @@ void PreprocessingCurvatureModule::compute_curvature(pcl::PointCloud<PointWithIn
 
     // Early planar skip
     if (lambda0 / (lambda1 + 1e-9f) < 1e-3f) {
-      (*cloud)[i].curvature = 1e-6f;
+      (*cloud)[i].curvature = 1e-12f;
       continue;
     }
 
@@ -443,12 +445,116 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "lidar.preprocessing_curvature")
       << "final downsampled point cloud size: " << filtered_point_cloud->size();
 
+  // if (config_->visualize) {
+  //   pcl::PointCloud<pcl::PointXYZI>::Ptr vis_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+  //   vis_cloud->resize(filtered_point_cloud->size());
+
+  //   for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+  //       vis_cloud->points[i].x = filtered_point_cloud->points[i].x;
+  //       vis_cloud->points[i].y = filtered_point_cloud->points[i].y;
+  //       vis_cloud->points[i].z = filtered_point_cloud->points[i].z;
+  //       vis_cloud->points[i].intensity = std::isfinite(filtered_point_cloud->points[i].curvature)
+  //                                         ? filtered_point_cloud->points[i].curvature
+  //                                         : 0.0f;
+  //   }
+
+  //   sensor_msgs::msg::PointCloud2 msg;
+  //   pcl::toROSMsg(*vis_cloud, msg);
+  //   msg.header.frame_id = "lidar";
+  //   filtered_pub_->publish(msg);
+  // }
+
+  // if (config_->visualize) {
+  //   pcl::PointCloud<pcl::PointXYZI>::Ptr vis_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+  //   vis_cloud->resize(filtered_point_cloud->size());
+
+  //   // Find min and max curvature
+  //   float curv_min = std::numeric_limits<float>::max();
+  //   float curv_max = std::numeric_limits<float>::lowest();
+  //   for (const auto& pt : *filtered_point_cloud) {
+  //       if (std::isfinite(pt.curvature)) {
+  //           curv_min = std::min(curv_min, pt.curvature);
+  //           curv_max = std::max(curv_max, pt.curvature);
+  //       }
+  //   }
+  //   float range = std::max(1e-6f, curv_max - curv_min);  // avoid divide by zero
+
+  //   for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+  //       vis_cloud->points[i].x = filtered_point_cloud->points[i].x;
+  //       vis_cloud->points[i].y = filtered_point_cloud->points[i].y;
+  //       vis_cloud->points[i].z = filtered_point_cloud->points[i].z;
+
+  //       if (std::isfinite(filtered_point_cloud->points[i].curvature)) {
+  //           // normalize curvature to [0,1]
+  //           vis_cloud->points[i].intensity = (filtered_point_cloud->points[i].curvature - curv_min) / range;
+  //       } else {
+  //           vis_cloud->points[i].intensity = 0.0f;
+  //       }
+  //   }
+
+  //   sensor_msgs::msg::PointCloud2 msg;
+  //   pcl::toROSMsg(*vis_cloud, msg);
+  //   msg.header.frame_id = "lidar";
+  //   filtered_pub_->publish(msg);
+  // }
+
   if (config_->visualize) {
-    PointCloudMsg msg;
-    pcl::toROSMsg(*filtered_point_cloud, msg);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr vis_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+    vis_cloud->resize(filtered_point_cloud->size());
+
+    // Compute min and max curvature in the cloud
+    float curv_min = std::numeric_limits<float>::max();
+    float curv_max = std::numeric_limits<float>::lowest();
+    for (const auto& pt : *filtered_point_cloud) {
+        if (std::isfinite(pt.curvature)) {
+            curv_min = std::min(curv_min, pt.curvature);
+            curv_max = std::max(curv_max, pt.curvature);
+        }
+    }
+
+    // Use absolute maximum for symmetric coloring around zero
+    float abs_max = std::max(std::abs(curv_min), std::abs(curv_max));
+
+    for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+        const auto& pt = filtered_point_cloud->points[i];
+
+        pcl::PointXYZRGB p;
+        p.x = pt.x;
+        p.y = pt.y;
+        p.z = pt.z;
+
+        float c = std::isfinite(pt.curvature) ? pt.curvature : 0.0f;
+
+        // Normalize curvature to [-1,1]
+        float c_norm = std::max(-1.0f, std::min(1.0f, c / abs_max));
+
+        uint8_t r, g, b;
+
+        if (c_norm < 0.0f) {
+            // Negative curvature -> blue to white
+            r = static_cast<uint8_t>(255 * (1.0f + c_norm));
+            g = static_cast<uint8_t>(255 * (1.0f + c_norm));
+            b = 255;
+        } else {
+            // Positive curvature -> white to red
+            r = 255;
+            g = static_cast<uint8_t>(255 * (1.0f - c_norm));
+            b = static_cast<uint8_t>(255 * (1.0f - c_norm));
+        }
+
+        p.r = r;
+        p.g = g;
+        p.b = b;
+
+        vis_cloud->points[i] = p;
+    }
+
+    sensor_msgs::msg::PointCloud2 msg;
+    pcl::toROSMsg(*vis_cloud, msg);
     msg.header.frame_id = "lidar";
     filtered_pub_->publish(msg);
-  }
+}
+
 
   qdata.preprocessed_point_cloud = filtered_point_cloud;
 }
