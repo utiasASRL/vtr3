@@ -139,6 +139,17 @@ class GraphMapServer : public tactic::Graph::Callback,
   std::tuple<double, double, double> getVertexRelativeTo(
       const VertexId& vid, const VertexId& ref_vid) const;
 
+  /// \brief Check if a specific vertex has its transform-to-root cached.
+  /// This is needed for computing relative transforms to/from this vertex.
+  bool hasVertexTransformCached(const VertexId& vid) const;
+
+  /// \brief Check if ALL vertices in the graph have transforms cached.
+  bool areAllVertexTransformsCached() const;
+
+  /// \brief Ensure vertex transforms are computed and cached for ALL vertices.
+  /// This populates vid2tf_map_ for any missing vertices using graph traversal.
+  void ensureVertexTransformsCached();
+
  private:
   /// these functions are called by functions above, do not lock mutex inside
   /** \brief Helper to get a shared pointer to the graph */

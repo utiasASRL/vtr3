@@ -226,6 +226,77 @@ GraphMapServer::getVertexRelativeTo(const VertexId& vid, const VertexId& ref_vid
   return std::make_tuple(x, y, theta);
 }
 
+// HSHMAT: Check if a specific vertex has its transform cached
+bool GraphMapServer::hasVertexTransformCached(const VertexId& vid) const {
+  SharedLock lock(mutex_);
+  return vid2tf_map_.count(vid) != 0;
+}
+
+// HSHMAT: Check if ALL vertices have transforms cached (for route screening)
+bool GraphMapServer::areAllVertexTransformsCached() const {
+  // Check if ALL vertices in the graph have transforms cached
+  SharedLock lock(mutex_);
+
+  auto graph = getGraph();
+  if (!graph || graph->numberOfVertices() == 0) {
+    return true; // No vertices means no problem
+  }
+
+  for (auto it = graph->beginVertex(), ite = graph->endVertex(); it != ite; ++it) {
+    if (vid2tf_map_.count(it->id()) == 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// HSHMAT: Ensure ALL vertices have transforms cached, populating missing ones via graph traversal
+void GraphMapServer::ensureVertexTransformsCached() {
+  // Ensure ALL vertices have transforms by populating missing ones
+  // This uses updatePrivilegedFrame to compute transforms via graph traversal
+  UniqueLock lock(mutex_);
+
+  auto graph = getGraph();
+  if (!graph || graph->numberOfVertices() == 0) {
+    return;
+  }
+
+  // Check which vertices are missing transforms
+  std::vector<VertexId> missing_vertices;
+  for (auto it = graph->beginVertex(), ite = graph->endVertex(); it != ite; ++it) {
+    if (vid2tf_map_.count(it->id()) == 0) {
+      missing_vertices.push_back(it->id());
+    }
+  }
+
+  if (!missing_vertices.empty()) {
+    CLOG(INFO, "navigation.graph_map_server")
+        << "Populating transforms for " << missing_vertices.size() << " vertices";
+
+    // Use updatePrivilegedFrame to compute missing transforms
+    // This traverses the graph from root and computes transforms via edge composition
+    const auto map_info = graph->getMapInfo();
+    const auto root_vid = VertexId(map_info.root_vid);
+
+    // Create privileged graph (teach routes only)
+    using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+    auto priv_eval = std::make_shared<PrivEval>(*graph);
+    auto priv_graph = graph->getSubgraph(priv_eval);
+
+    // Populate missing transforms in vid2tf_map_
+    pose_graph::updatePrivilegedFrame<tactic::GraphBase>(priv_graph, root_vid, vid2tf_map_);
+
+    // Update projection functions now that we have more transforms
+    updateVertexProjection();
+
+    CLOG(INFO, "navigation.graph_map_server")
+        << "Populated transforms, cache now has " << vid2tf_map_.size() << " entries";
+  } else {
+    CLOG(DEBUG, "navigation.graph_map_server")
+        << "All " << graph->numberOfVertices() << " vertices have transforms cached";
+  }
+}
+
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   CLOG(DEBUG, "navigation.graph_map_server")
       << "Received move graph request: <" << msg->lng << ", " << msg->lat

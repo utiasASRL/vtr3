@@ -9,7 +9,7 @@
         # tactic
       #- tactic
       # - tactic.pipeline
-      # - tactic.module # GOOD speed on to check
+      - tactic.module # GOOD speed on to check
       # - tactic.module.live_mem_manager
       # - tactic.module.graph_mem_manager
       - mission.state_machine
@@ -23,9 +23,9 @@
       #- cbit.obstacle_filtering
       #- grizzly_controller_tests.cbit
         # mpc
-      # - mpc.speed_scheduler
+      - mpc.speed_scheduler
       # - mpc.debug
-      #- mpc.solver
+      - mpc.solver
         # path planner
       # - cbit_planner.path_planning
         # pose graph
@@ -68,7 +68,7 @@
       # =========================
       # Robot model
       # =========================
-      nominal_speed_mps: 0.5          # robot nominal forward speed (m/s)
+      nominal_speed_mps: 0.95          # robot nominal forward speed (m/s)
 
       # =========================
       # Distances / lookahead (meters)
@@ -409,9 +409,9 @@
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.25 # JH: I think this is planning time step which I need to be 0.25s for DRL model.
-        forward_vel: 0.5 #hsh, used to be0.9
-        max_lin_vel: 0.5 # hsh, used to be 1.0 #1.0
-        max_ang_vel: 0.5 # hsh, used to be 1.0 #1.0
+        forward_vel: 0.95 #hsh, used to be0.9
+        max_lin_vel: 0.95 # hsh, used to be 1.0 #1.0
+        max_ang_vel: 0.95 # hsh, used to be 1.0 #1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 

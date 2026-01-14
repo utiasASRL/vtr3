@@ -90,6 +90,7 @@ EdgeTransform loadTransform(const std::string& source_frame,
   return T_source_target;
 }
 
+// Hshmat: Helper functions for obstacle priors
 std::string nowStampForFilename() {
   const auto now = std::chrono::system_clock::now();
   const std::time_t t = std::chrono::system_clock::to_time_t(now);
@@ -100,6 +101,7 @@ std::string nowStampForFilename() {
   return ss.str();
 }
 
+// Hshmat: Helper functions for obstacle priors
 std::string makeRuntimePriorsPathNextToBase(const std::string &base_path) {
   namespace fs = std::filesystem;
   const fs::path base(base_path);
@@ -110,6 +112,7 @@ std::string makeRuntimePriorsPathNextToBase(const std::string &base_path) {
   return (dir / fname).string();
 }
 
+// Hshmat: Helper functions for obstacle priors
 bool writeObstaclePriorsYamlAtomic(const std::string &path,
                                   const double default_sec,
                                   const std::unordered_map<std::string, double> &priors_sec,
@@ -481,35 +484,44 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         if (!msg) return;
         last_obstacle_status_msg_ = msg->data;
         
+        // ===== OBSTACLE CLEARED (msg->data == false) =====
+        // Handle the case where obstacle detector says "no obstacle present"
         if (!msg->data) {
+          // CASE 1: Decision still pending - ignore premature clear signals
+          // (Decision node might be analyzing the obstacle)
           if (waiting_for_decision_) {
             CLOG(INFO, "mission.state_machine") << "Navigator: obstacle status cleared but decision still pending; ignoring.";
             return;
           }
+          // CASE 2: Reroute in progress - hold the reroute operation
+          // (Don't cancel reroute just because obstacle temporarily cleared)
           if (waiting_for_reroute_) {
             CLOG(INFO, "mission.state_machine") << "Navigator: obstacle cleared while reroute pending; holding reroute latch.";
-            obstacle_active_ = true;
-            pending_clear_resume_ = false;
-            pending_reroute_resume_ = true;
+            obstacle_active_ = true;           // Keep obstacle state active
+            pending_clear_resume_ = false;    // Don't resume on clear
+            pending_reroute_resume_ = true;   // Do resume after reroute
             return;
           }
+          // CASE 3: Check for decision node communication in progress 
           bool has_pending_decision = false;
           {
             LockGuard lock(chatgpt_mutex_);
             has_pending_decision = !latest_obstacle_decision_.empty();
           }
+          // If decision was made but announcement still in progress, ignore clear
           if (has_pending_decision && !decision_accepting_) {
             CLOG(INFO, "mission.state_machine") << "Navigator: obstacle status flickered low while decision pending; ignoring.";
             return;
           }
+          // ===== SAFE TO CLEAR OBSTACLE STATE =====
           obstacle_active_ = false;
-          // If this episode ended after a WAIT decision, measure the actual wait time and
-          // update file-based obstacle priors (per-type) if enabled.
+          // Update obstacle wait time statistics for machine learning
           if (wait_episode_start_sec_ >= 0.0) {
             const double now_sec = node_->get_clock()->now().seconds();
             const double actual_wait_sec = now_sec - wait_episode_start_sec_;
             updateObstaclePriorFromWaitEpisode(wait_episode_type_, actual_wait_sec);
           }
+          // Reset all episode-related state variables
           wait_episode_start_sec_ = -1.0;
           active_decision_.clear();
           waiting_for_decision_logged_ = false;
@@ -517,10 +529,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           processing_obstacle_ = false;
           waiting_for_reroute_ = false;
 
-          // Episode cleanup:
-          // - Dijkstra mode: keep reroute mode enabled, but clear the last episode's penalties
-          //   so the cleared obstacle does not keep affecting future plans.
-          // - TDSP mode: clear per-episode static (huge) screening delays; only remembered blockage intervals persist.
+          // ===== EPISODE CLEANUP: Remove obstacle penalties from route planner =====
+          // This prevents cleared obstacles from affecting future navigation
           try {
             if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
               CLOG(INFO, "mission.state_machine")
@@ -533,14 +543,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
               tdsp->setStaticEdgeDelays({});
             }
           } catch (...) {
-            // Best-effort; do not disrupt episode transitions if a dynamic cast fails.
+            // Best-effort cleanup - don't crash if planner type casting fails
           }
 
+          // ===== RESUME NAVIGATION (if robot was paused) =====
           if (robot_paused_) {
             if (decision_accepting_) {
+              // Decision node is ready - safe to resume immediately
               CLOG(INFO, "mission.state_machine") << "Navigator: obstacle cleared and decision node ready. Resuming navigation.";
               setRobotPaused(false);
             } else {
+              // Decision node still busy (announcing) - wait for it to finish
               pending_clear_resume_ = true;
               CLOG(INFO, "mission.state_machine") << "Navigator: obstacle cleared but decision node still announcing. Waiting for release.";
             }
@@ -569,7 +582,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           active_decision_.clear();
           wait_episode_type_ = "unknown";
           wait_episode_start_sec_ = -1.0;
-          processing_obstacle_ = false;
+          processing_obstacle_ = false; 
           waiting_for_decision_logged_ = false;
           waiting_for_decision_ = true;
           // Starting a new obstacle episode; ensure previous reroute wait is cleared
@@ -1023,34 +1036,60 @@ void Navigator::updateObstaclePriorFromWaitEpisode(const std::string &type_in,
       << (obstacle_priors_runtime_path_.empty() ? "" : (", runtime='" + obstacle_priors_runtime_path_ + "'"));
 }
 
+/**
+ * Estimate the spatial extent (width) of obstacles from the occupancy grid.
+ * This is used to determine how much of the path is blocked by obstacles.
+ *
+ * @return The estimated obstacle extent in meters along the path direction.
+ */
 double Navigator::estimateObstacleExtentFromGrid() const {
+  // Default extent if we can't compute from grid data
   constexpr double kDefaultExtent = 0.5;
+
+  // Validate grid data exists and has valid resolution
   if (last_obstacle_grid_.data.empty() || last_obstacle_grid_.info.resolution <= 0.0)
     return kDefaultExtent;
 
   const auto &info = last_obstacle_grid_.info;
-  const double res = info.resolution;
-  const double origin_x = info.origin.position.x;
+  const double res = info.resolution;  // Grid cell size in meters
+  const double origin_x = info.origin.position.x;  // Grid origin X coordinate
   bool found = false;
+
+  // Initialize bounds to find min/max X coordinates of obstacles
   double min_x = std::numeric_limits<double>::max();
   double max_x = -std::numeric_limits<double>::max();
 
+  // Scan through all grid cells
   for (uint32_t y = 0; y < info.height; ++y) {
     for (uint32_t x = 0; x < info.width; ++x) {
       const int idx = y * info.width + x;
+
+      // Bounds checking
       if (idx < 0 || static_cast<size_t>(idx) >= last_obstacle_grid_.data.size())
         continue;
-      if (last_obstacle_grid_.data[idx] != 100) continue;  // only on-path cells
+
+      // Only consider on-path obstacles (value 100 from path_obstacle_detector)
+      if (last_obstacle_grid_.data[idx] != 100) continue;
+
+      // Convert grid coordinates to world coordinates
+      // cell_x = origin_x + (x + 0.5) * resolution
       const double cell_x = origin_x + (static_cast<double>(x) + 0.5) * res;
+
+      // Update bounds
       min_x = std::min(min_x, cell_x);
       max_x = std::max(max_x, cell_x);
       found = true;
     }
   }
 
+  // If no on-path obstacles found, return default
   if (!found) return kDefaultExtent;
 
+  // Calculate extent: distance from leftmost to rightmost obstacle
+  // Add resolution to account for cell width, ensure at least 1 cell
   const double extent = std::max(res, max_x - min_x + res);
+
+  // Ensure minimum reasonable extent (at least 10cm)
   return std::max(0.1, extent);
 }
 
@@ -1108,6 +1147,13 @@ buildObstacleEdgeDelays(
   // Use the occupancy grid's published frame.
   const std::string grid_frame = grid.header.frame_id;
   
+  // ===== CRITICAL: Ensure vertex transforms are cached =====
+  // Route screening requires transforms for ALL vertices that might be screened.
+  // ensureVertexTransformsCached() populates any missing transforms via graph traversal.
+  if (graph_map_server) {
+    graph_map_server->ensureVertexTransformsCached();
+  }
+
   // Get transform from trunk frame to grid frame
   geometry_msgs::msg::TransformStamped tf_trunk_to_grid;
   bool have_tf = false;
@@ -1450,13 +1496,28 @@ static size_t pruneRememberedBlockagesUsingGrid(
   return removed;
 }
 
+/**
+ * Initiates the rerouting process when obstacles are detected on the planned path.
+ *
+ * This function performs several key steps:
+ * 1. Validates that rerouting is enabled and we're in an appropriate state
+ * 2. Identifies which graph edges are affected by the obstacle
+ * 3. Configures the route planner to avoid blocked paths
+ * 4. Signals the mission state machine to execute the reroute
+ *
+ * The function supports both Dijkstra (BFS) and TDSP (Time-Dependent) planners
+ * with different strategies for handling temporary vs permanent blockages.
+ */
 void Navigator::triggerReroute() {
+  // ===== STEP 1: VALIDATION CHECKS =====
+  // Prevent duplicate rerouting attempts if one is already in progress
   if (waiting_for_reroute_) {
     CLOG(DEBUG, "mission.state_machine")
         << "HSHMAT: triggerReroute called but reroute already pending; ignoring.";
     return;
   }
 
+  // Check if rerouting is enabled in the configuration
   const bool reroute_enable = route_cfg_.enable_reroute;
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: Step 2 - Checking reroute config: enable_reroute="
@@ -1467,7 +1528,9 @@ void Navigator::triggerReroute() {
     return;
   }
 
-  // Only respond during Repeat.* modes (Follow, Plan, MetricLoc, etc.).
+  // ===== STEP 3: STATE MACHINE MODE VALIDATION =====
+  // Rerouting only makes sense during navigation modes (Repeat.Follow, etc.)
+  // Not during teach modes or other non-navigation states
   try {
     const std::string curr = state_machine_->name();
     CLOG(INFO, "mission.state_machine")
@@ -1485,21 +1548,27 @@ void Navigator::triggerReroute() {
         << "HSHMAT: In Repeat mode (" << curr
         << "), proceeding with rerouting";
   } catch (...) {
-    return;
+    return;  // Safely ignore if state machine query fails
   }
 
-  // At this point we are committed to attempting a reroute.
-  waiting_for_reroute_ = true;
-  pending_reroute_resume_ = true;
+  // ===== STEP 4: COMMIT TO REROUTING =====
+  // All validation passed - we're now committed to attempting a reroute
+  waiting_for_reroute_ = true;     // Block duplicate reroute attempts
+  pending_reroute_resume_ = true;  // We'll resume navigation after reroute completes
 
-  // Determine edges affected by the obstacle range along the path.
+  // ===== STEP 4b: IDENTIFY AFFECTED GRAPH EDGES =====
+  // Find which edges in the pose graph are blocked by the obstacle
+  // These edges represent robot poses that pass through the blocked area
   std::vector<vtr::tactic::EdgeId> affected_edges;
   try {
+    // Find the robot's current position in the planned route
     CLOG(INFO, "mission.state_machine")
         << "HSHMAT: Step 4b - Evaluating edges along current route for obstacle overlap";
-    const auto loc = tactic_->getPersistentLoc();
-    const auto current_vid = loc.v;
-    int idx = -1;
+    const auto loc = tactic_->getPersistentLoc();  // Current robot localization
+    const auto current_vid = loc.v;                // Current vertex ID
+    int idx = -1;  // Index of current vertex in the route
+
+    // Search through the following route to find where the robot currently is
     for (size_t i = 0; i < following_route_ids_.size(); ++i) {
       if (vtr::tactic::VertexId(following_route_ids_[i]) == current_vid) {
         idx = static_cast<int>(i);
@@ -1510,10 +1579,11 @@ void Navigator::triggerReroute() {
         << "HSHMAT: Found current vertex at route index: " << idx;
 
     if (idx >= 0) {
+      // Calculate the spatial extent of the obstacle along the path
       const double obstacle_extent_m = estimateObstacleExtentFromGrid();
-      const double obstacle_start = last_obstacle_distance_;
-      const double obstacle_end = obstacle_start + obstacle_extent_m;
-      double accumulated_distance = 0.0;
+      const double obstacle_start = last_obstacle_distance_;          // Distance to start of obstacle
+      const double obstacle_end = obstacle_start + obstacle_extent_m; // Distance to end of obstacle
+      double accumulated_distance = 0.0;  // Running total distance along path
 
       CLOG(INFO, "mission.state_machine")
           << "HSHMAT: Obstacle detected at " << last_obstacle_distance_
@@ -1521,24 +1591,35 @@ void Navigator::triggerReroute() {
           << obstacle_end << " m] (extent from grid: " << obstacle_extent_m
           << " m)";
 
+      // ===== ITERATE THROUGH ROUTE EDGES FROM CURRENT POSITION =====
+      // Walk along the planned route starting from robot's current position
+      // Check each edge to see if it overlaps with the obstacle region
       for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size());
            ++i) {
-        vtr::tactic::VertexId v1(following_route_ids_[i]);
-        vtr::tactic::VertexId v2(following_route_ids_[i + 1]);
+        // Get consecutive vertices that form an edge in the route
+        vtr::tactic::VertexId v1(following_route_ids_[i]);     // From vertex
+        vtr::tactic::VertexId v2(following_route_ids_[i + 1]); // To vertex
 
         double edge_length = 0.0;
         try {
+          // Look up the edge in the pose graph to get its length
           auto edge_ptr = graph_->at(vtr::tactic::EdgeId(v1, v2));
           if (edge_ptr) {
+            // Calculate the 3D distance between the two robot poses
             edge_length = edge_ptr->T().r_ab_inb().norm();
-            double edge_start = accumulated_distance;
-            double edge_end = accumulated_distance + edge_length;
-            accumulated_distance = edge_end;
 
+            // Calculate where this edge falls along the path
+            double edge_start = accumulated_distance;        // Start distance of this edge
+            double edge_end = accumulated_distance + edge_length; // End distance of this edge
+            accumulated_distance = edge_end;  // Update running total
+
+            // Check if this edge overlaps with the obstacle region
+            // Edge overlaps if: edge_end > obstacle_start AND edge_start < obstacle_end
             bool edge_in_obstacle_range =
                 (edge_end > obstacle_start && edge_start < obstacle_end);
 
             if (edge_in_obstacle_range) {
+              // This edge is blocked - add it to the affected edges list
               affected_edges.emplace_back(v1, v2);
               CLOG(INFO, "mission.state_machine")
                   << "HSHMAT: Edge " << v1 << " -> " << v2
@@ -1551,6 +1632,7 @@ void Navigator::triggerReroute() {
                   << " m])";
             }
 
+            // Optimization: stop searching once we've passed the obstacle
             if (edge_start >= obstacle_end) {
               CLOG(INFO, "mission.state_machine")
                   << "HSHMAT: Passed obstacle range, stopping edge search";
@@ -1578,7 +1660,9 @@ void Navigator::triggerReroute() {
         << "Failed to evaluate obstacle edges: " << e.what();
   }
 
-  // Get trunk vertex for coordinate transforms
+  // ===== STEP 5: SETUP COORDINATE TRANSFORMS =====
+  // Get the trunk vertex (robot's persistent localization reference)
+  // This is needed for transforming between different coordinate frames
   vtr::tactic::VertexId trunk_vid;
   try {
     const auto loc = tactic_->getPersistentLoc();
@@ -1590,7 +1674,8 @@ void Navigator::triggerReroute() {
         << "HSHMAT: Could not get trunk vertex: " << e.what();
   }
 
-  // Log grid info for debugging
+  // ===== DEBUGGING: LOG OBSTACLE GRID INFORMATION =====
+  // Log details about the obstacle grid for debugging rerouting issues
   if (!last_obstacle_grid_.data.empty()) {
     const auto &info = last_obstacle_grid_.info;
     const std::string grid_frame = last_obstacle_grid_.header.frame_id;
@@ -1600,14 +1685,15 @@ void Navigator::triggerReroute() {
         << ", resolution=" << info.resolution << "m"
         << ", origin=(" << info.origin.position.x << ", " << info.origin.position.y << ")";
     
-    // Log if TF is available for trunk -> grid_frame transform
+    // Check if coordinate transforms are available for grid operations
+    // This determines if we can map between robot poses and obstacle grid coordinates
     if (tf_buffer_) {
       const std::string trunk_frame = "loc vertex frame";
       try {
         auto tf = tf_buffer_->lookupTransform(grid_frame, trunk_frame, tf2::TimePointZero, tf2::durationFromSec(0.1));
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT: TF available: " << trunk_frame << " -> " << grid_frame
-            << ", translation=(" << tf.transform.translation.x << ", " 
+            << ", translation=(" << tf.transform.translation.x << ", "
             << tf.transform.translation.y << ", " << tf.transform.translation.z << ")";
       } catch (const tf2::TransformException &ex) {
         CLOG(WARNING, "mission.state_machine")
@@ -1617,23 +1703,23 @@ void Navigator::triggerReroute() {
     }
   }
 
-  // Configure the planner based on the new config.
+  // ===== STEP 6: CONFIGURE ROUTE PLANNER FOR OBSTACLE AVOIDANCE =====
+  // Set up the path planner to avoid the identified blocked edges
+  // Supports two planner types with different obstacle handling strategies:
   //
-  // - Dijkstra mode: preserves the old "deterministic_timecost" behavior by
-  //   assigning a fixed per-edge delay (seconds) on affected edges.
-  // - TDSP mode: assigns blockage *intervals* (start,end) on affected edges and
-  //   runs FIFO label-setting TDSP, so the planner can reason about clearing
-  //   (e.g., arriving after end time).
+  // DIJKSTRA MODE: Simple cost-based routing
+  // - Assigns fixed time delays to blocked edges
+  // - Planner finds lowest-cost path around obstacles
   //
-  // Route screening behavior:
-  // - We always mark the currently-followed (active) edges in the obstacle range
-  //   as "blocked" (Dijkstra: active_delay_sec; TDSP: blockage interval).
-  // - We also scan other edges that intersect ORANGE/RED cells in the local
-  //   obstacle grid and assign them a huge static delay (1e6s). This is the
-  //   "route screening" mechanism that prevents rerouting onto other routes
-  //   that are also obstructed in the same local window.
+  // TDSP MODE: Time-aware routing with clearance prediction
+  // - Uses time intervals for temporary blockages
+  // - Can plan paths that arrive after obstacles clear
+  //
+  // ROUTE SCREENING: Prevents rerouting onto other blocked paths
+  // - Scans obstacle grid for additional blocked edges
+  // - Assigns huge penalties to prevent using obstructed alternatives
   try {
-        const double huge_delay_sec = 1e6;  // effectively "blocked"
+    const double huge_delay_sec = 1e6;  // effectively "blocked"
     const double dur_sec = expectedObstacleDurationSeconds();
 
     // Prune expired blockages (best-effort).
@@ -1643,10 +1729,11 @@ void Navigator::triggerReroute() {
       else ++it;
     }
 
+    // ===== CONFIGURE TDSP (Time-Dependent Shortest Path) PLANNER =====
+    // This is a TYPE CHECK, not object creation!
     if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner_)) {
-      // Before applying new obstacle windows, opportunistically verify existing
-      // remembered blockages in the local grid window (within a radius). If an
-      // edge is predicted blocked but the grid suggests it is now free, erase it.
+      // TDSP can remember blockages over time and predict when they'll clear
+      // First, verify if any remembered blockages are now actually clear
       const double radius_m = route_cfg_.verify_blockage_lookahead_m;
       if (radius_m > 0.0) {
         const size_t removed = pruneRememberedBlockagesUsingGrid(
@@ -1660,47 +1747,54 @@ void Navigator::triggerReroute() {
         }
       }
 
-      // TDSP: static delays come only from non-active edges via grid checks.
-      // Active/affected edges have *no* static delay; they are handled as time windows.
+      // Configure obstacle avoidance for TDSP planner:
+      // - Active edges (currently blocked path): Use time windows, not static delays
+      // - Other nearby edges: Use static huge delays to prevent rerouting onto blocked paths
       auto static_delays = buildObstacleEdgeDelays(
           graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
           /*active_delay_sec=*/0.0, huge_delay_sec, tf_buffer_, trunk_vid,
           /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
-      tdsp->setStaticEdgeDelays(static_delays);
+      tdsp->setStaticEdgeDelays(static_delays);  // Route screening delays
       tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
 
-      // Newest-overrides: overwrite the blockage interval for each affected edge.
+      // Set up time-based blockage intervals for the currently affected edges
+      // TDSP can plan paths that wait for obstacles to clear
       for (const auto &e : affected_edges) {
+        // Create blockage interval: [now, now + expected_obstacle_duration]
         edge_blockages_[e] = EdgeBlockageInterval{now_sec, now_sec + dur_sec};
       }
 
-      // Convert blockage map into TDSPPlanner type.
+      // Convert our blockage map to TDSP's expected format
       std::unordered_map<vtr::tactic::EdgeId, vtr::route_planning::TDSPPlanner::BlockageInterval> b;
       b.reserve(edge_blockages_.size());
       for (const auto &kv : edge_blockages_) {
         b.emplace(kv.first, vtr::route_planning::TDSPPlanner::BlockageInterval{kv.second.start_sec, kv.second.end_sec});
       }
-      tdsp->setEdgeBlockages(b);
+      tdsp->setEdgeBlockages(b);  // Tell TDSP about time-based blockages
 
+      // Log TDSP configuration summary
       CLOG(INFO, "mission.state_machine")
           << "HSHMAT: TDSP replanner configured: affected_edges="
           << affected_edges.size() << ", static_delays=" << static_delays.size()
           << ", duration=" << dur_sec << "s, remembered_blockages=" << b.size();
 
-      // Detailed TDSP logging (mission.state_machine): which edges are blocked and how much time remains.
+      // ===== DETAILED TDSP LOGGING =====
+      // Log which edges are blocked and how much time remains until they clear
       if (!affected_edges.empty()) {
         std::stringstream ss;
-        ss << "HSHMAT: TDSP blocked edges (newest overwrite, remaining_sec): ";
+        ss << "HSHMAT: TDSP blocked edges (remaining time until clear): ";
         for (const auto &e : affected_edges) {
           double rem = 0.0;
           auto it = edge_blockages_.find(e);
           if (it != edge_blockages_.end()) {
             rem = std::max(0.0, it->second.end_sec - now_sec);
           }
-          ss << e << "(rem=" << rem << "s) ";
+          ss << e << "(" << rem << "s) ";
         }
         CLOG(INFO, "mission.state_machine") << ss.str();
       }
+
+      // Log route screening edges (other paths that are also blocked)
       if (!static_delays.empty()) {
         std::stringstream ss_huge;
         size_t huge_cnt = 0;
@@ -1712,55 +1806,68 @@ void Navigator::triggerReroute() {
           }
         }
         CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: TDSP route-screening: huge_edges=" << huge_cnt
-            << " (static_delays total=" << static_delays.size() << ")";
+            << "HSHMAT: TDSP route-screening: " << huge_cnt << " heavily penalized edges"
+            << " (total static delays: " << static_delays.size() << ")";
         if (huge_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_huge.str();
       }
+    // ===== CONFIGURE DIJKSTRA/BFS PLANNER =====
     } else if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
-      // Dijkstra/timecost: preserve deterministic_timecost behavior.
-        auto delays = buildObstacleEdgeDelays(
-            graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
+      // Traditional Dijkstra algorithm with time-based edge costs
+      // All affected edges get the same delay (deterministic behavior)
+      auto delays = buildObstacleEdgeDelays(
+          graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
           /*active_delay_sec=*/dur_sec, huge_delay_sec, tf_buffer_, trunk_vid,
           /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
-        bfs_ptr->setExtraEdgeCosts(delays);
-        bfs_ptr->setUseTimeCost(true);
-        bfs_ptr->setUseMasked(true);
+
+      bfs_ptr->setExtraEdgeCosts(delays);    // Apply edge delays/costs
+      bfs_ptr->setUseTimeCost(true);         // Use time-based costs instead of unit costs
+      bfs_ptr->setUseMasked(true);           // Enable masked planning (avoid banned edges)
       bfs_ptr->setNominalSpeed(route_cfg_.nominal_speed_mps);
-        CLOG(INFO, "mission.state_machine")
+
+      CLOG(INFO, "mission.state_machine")
           << "HSHMAT: Dijkstra(timecost) replanner configured with "
           << delays.size() << " delayed edges (active_delay=" << dur_sec
-            << "s, huge_delay=" << huge_delay_sec << "s).";
+          << "s, huge_delay=" << huge_delay_sec << "s).";
 
-      // Detailed Dijkstra logging (mission.state_machine): preserve old deterministic_timecost edge lists.
-        if (!delays.empty()) {
+      // ===== DETAILED DIJKSTRA LOGGING =====
+      // Log which edges have what type of delays applied
+      if (!delays.empty()) {
         std::stringstream ss_active, ss_huge;
         size_t active_cnt = 0, huge_cnt = 0;
         ss_active << "HSHMAT: Dijkstra edges with active_delay=" << dur_sec << "s: ";
         ss_huge << "HSHMAT: Dijkstra edges with huge_delay=" << huge_delay_sec << "s: ";
-          for (const auto &kv : delays) {
+
+        for (const auto &kv : delays) {
           if (kv.second == huge_delay_sec) {
             ++huge_cnt;
-            ss_huge << kv.first << " ";
+            ss_huge << kv.first << " ";      // Route screening edges
           } else if (kv.second > 0.0) {
             ++active_cnt;
-            ss_active << kv.first << " ";
+            ss_active << kv.first << " ";    // Currently blocked edges
           }
         }
-          CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: Dijkstra delayed edges summary: active=" << active_cnt
-            << ", huge=" << huge_cnt << ", total=" << delays.size();
+
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: Dijkstra delayed edges: " << active_cnt << " active, "
+            << huge_cnt << " route-screening (total: " << delays.size() << ")";
         if (active_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_active.str();
         if (huge_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_huge.str();
       }
     } else {
+      // Fallback: Unknown planner type - log warning but continue
       CLOG(WARNING, "mission.state_machine")
           << "HSHMAT: Unknown route planner type; cannot apply reroute costs.";
     }
+
   } catch (const std::exception &e) {
+    // Planner configuration failed - log but don't crash the system
     CLOG(WARNING, "navigation")
         << "Failed to configure replanner in triggerReroute: " << e.what();
   }
 
+  // ===== STEP 7: NOTIFY MISSION STATE MACHINE =====
+  // Signal the high-level mission planner that obstacle rerouting is ready
+  // The state machine will handle the actual route transition
   try {
     CLOG(INFO, "mission.state_machine")
         << "⏱ TIMING: Sending Signal::ObstacleDetected to state machine NOW";
