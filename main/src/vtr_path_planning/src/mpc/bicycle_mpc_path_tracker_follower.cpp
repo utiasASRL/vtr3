@@ -263,7 +263,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     last_pose = curr_pose;
 
   }
-  vis_->publishReferencePoses(referenceInfo.poses);
+  vis_->publishReferencePoses(referenceInfo.poses, curr_time);
   leader_world_poses.insert(leader_world_poses.begin(), T_w_l );
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig->DT);
 

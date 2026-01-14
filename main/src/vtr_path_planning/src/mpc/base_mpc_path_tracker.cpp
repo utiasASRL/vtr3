@@ -237,7 +237,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
                          const lgmath::se3::Transformation& T_p_r_extp,
                          const double state_p,
                          RobotState& robot_state,
-                         const tactic::Timestamp& ) {
+                         const tactic::Timestamp& curr_time) {
 
   auto& chain = robot_state.chain.ptr();
   std::vector<double> p_rollout;
@@ -280,7 +280,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     last_pose = curr_pose;
   }
 
-  vis_->publishReferencePoses(referenceInfo.poses);
+  vis_->publishReferencePoses(referenceInfo.poses, curr_time);
 
   if (end_ind == 0)
     end_ind = 1;

@@ -259,18 +259,19 @@ void VisualizationUtils::visualize(
         corridor_pub_r_->publish(corridor_right);
     }
 
-    publishReferencePoses(reference_pose_vec);
+    publishReferencePoses(reference_pose_vec, stamp);
 
     
     return;
 }
 
     // Attempting to Publish the reference poses used in the mpc optimization as a pose array
-    void VisualizationUtils::publishReferencePoses(const std::vector<lgmath::se3::Transformation>& ref_poses) {
+    void VisualizationUtils::publishReferencePoses(const std::vector<lgmath::se3::Transformation>& ref_poses, const tactic::Timestamp& stamp) {
 
         // create a PoseArray message
         geometry_msgs::msg::PoseArray pose_array_msg;
         pose_array_msg.header.frame_id = "world";
+        pose_array_msg.header.stamp = rclcpp::Time(stamp);
 
         // fill the PoseArray with some sample poses
         for (size_t i = 0; i < ref_poses.size(); i++) {
