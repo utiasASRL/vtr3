@@ -16,7 +16,7 @@ windows:
       - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr 
     panes:
       - >
-        ros2 launch vtr_navigation vtr.launch.py
+        ros2 launch vtr_navigation vtr_hunters.launch.py
         base_params:=ouster_hunter_default.yaml
         start_new_graph:=false
         use_sim_time:=false
