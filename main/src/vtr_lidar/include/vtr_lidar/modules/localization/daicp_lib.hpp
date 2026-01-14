@@ -382,7 +382,7 @@ inline void computeJacobianResidualInformation(
   }
   
   // ==== Noise model parameters ==== //
-  const double sigma_p2p = 0.02;  // point-to-point noise std (meters)
+  const double sigma_p2p = 0.03;  // point-to-point noise std (meters)
   const double w_inv_p2p = 1.0 / (sigma_p2p * sigma_p2p);
   
   const double sigma_d = config_->sigma_d;

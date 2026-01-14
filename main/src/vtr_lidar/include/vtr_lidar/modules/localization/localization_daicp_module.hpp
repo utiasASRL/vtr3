@@ -72,8 +72,6 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     float curv_ratio_thresh = 0.95;           
     // threshold to consider a point as high curvature
     float high_curv_thresh = 0.8;               
-    // handcrafted degeneracy threshold
-    // double eigenvalue_threshold = 100.0;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
