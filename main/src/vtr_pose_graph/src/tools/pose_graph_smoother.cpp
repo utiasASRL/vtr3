@@ -7,7 +7,14 @@ using namespace vtr::pose_graph;
 int main(int argc, char const *argv[])
 {
   vtr::logging::configureLogging("", true, {"pose_graph.smoothing"});
-  auto graph = std::make_shared<RCGraph>("/home/alec/ASRL/vtr3/temp/lelr/autonav_mission/graph");
+
+
+  if (argc != 2) {
+    CLOG(ERROR, "pose_graph.smoothing") << "Wrong number of arguments! Call as ros2 run vtr_pose_graph vtr_pose_graph_smoother /file/path/graph";
+    return 1;
+  }
+
+  auto graph = std::make_shared<RCGraph>(argv[1]);
   
   CLOG(DEBUG, "pose_graph.smoothing") << "Smoothing loaded graph!";
   GraphSmoother<RCVertex, RCEdge> sm{graph};
