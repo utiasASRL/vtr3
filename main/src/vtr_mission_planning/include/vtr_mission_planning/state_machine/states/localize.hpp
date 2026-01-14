@@ -35,8 +35,19 @@ class Localize : public BaseState {
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
-};
 
+  /** \brief Set the list of waypoints to that defines the allowable search space */
+  void setWaypoints(
+      const std::list<VertexId> &waypoints,
+      const std::list<uint64_t> &waypoint_seq = std::list<uint64_t>());
+
+ protected:
+  /** \brief vertex ids that the robot is trying to get to */
+  std::list<VertexId> waypoints_;
+  /** \brief vertex of sequence ids of the waypoints along the current path */
+  std::list<uint64_t> waypoint_seq_;
+
+};
 }  // namespace mission_planning
 }  // namespace vtr
 

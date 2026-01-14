@@ -67,7 +67,8 @@ enum class PipelineMode : uint8_t {
   RepeatMetricLoc,  //
   RepeatFollow,     // Repeat - path following
   LocalizeMetricLoc, // Localize - Metric localization
-  LocalizeTopoloc   // Localize - Topological localization
+  LocalizeTopoloc,   // Localize - Topological localization
+  PauseSpin,        // Pause - Spin in place
 };
 std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 

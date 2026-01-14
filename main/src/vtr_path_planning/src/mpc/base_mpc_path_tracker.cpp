@@ -40,6 +40,7 @@ auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr conf
   config->profile_curv_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
   config->eop_weight = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_weight", config->eop_weight);
   config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
+  config->eop_min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.eop_min_vel", config->min_vel);
 
   // CONTROLLER PARAMS
   config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
@@ -175,6 +176,8 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 
   lgmath::se3::Transformation T0 = T_p_r_extp;
   mpcConfig->T0 = tf_to_global(T0);
+  CLOG(DEBUG, "cbit.control") << "Rover position: " << mpcConfig->T0; 
+
 
   CLOG(DEBUG, "cbit.control")
       << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
@@ -182,7 +185,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   // TODO refactor to accept the chain and use the curvature of the links
   mpcConfig->VF = ScheduleSpeed(
       chain,
-      {base_config_->forward_vel, base_config_->min_vel, base_config_->planar_curv_weight,
+      {base_config_->forward_vel, base_config_->min_vel, base_config_->eop_min_vel, base_config_->planar_curv_weight,
        base_config_->profile_curv_weight, base_config_->eop_weight, 7}, dir_switch);
 
   loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, curr_time);
@@ -198,6 +201,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 
     for (int i = 0; i < mpc_res["pose"].columns(); i++) {
       const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
+      CLOG(DEBUG, "cbit.control") << "Rolled out poses " << pose_i;
       mpc_poses.push_back(std::make_pair(curr_time + i*mpcConfig->DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
     }
   
@@ -277,6 +281,9 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
   }
 
   vis_->publishReferencePoses(referenceInfo.poses);
+
+  if (end_ind == 0)
+    end_ind = 1;
   mpcConfig->eop_index = end_ind;
 
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;

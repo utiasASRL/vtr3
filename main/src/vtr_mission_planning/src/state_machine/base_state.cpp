@@ -56,7 +56,7 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
       [[fallthrough]];
     case Action::Reset:
       // Goal canceled so we reset the statemachine
-      // getGoals(state_machine).clear();
+      getGoals(state_machine).clear();
       success = false;
       break;
     case Action::EndGoal:
@@ -79,6 +79,8 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
       getGoals(state_machine).push_front(event.goal);
       break;
     case Action::ForceAddVertex:
+      break;
+    case Action::ExitPause:
       break;
   }
   // If we ever finish our list of goals, drop into Idle automatically

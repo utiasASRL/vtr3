@@ -71,8 +71,7 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
       << ", total rotation: " << rotation_distance;
 
   if (translation_distance >= config_->max_translation ||
-      rotation_distance >= config_->max_rotation || 
-      *qdata.force_add_vertex) {
+      rotation_distance >= config_->max_rotation) {
     result = VertexTestResult::CREATE_VERTEX;
   }
 }

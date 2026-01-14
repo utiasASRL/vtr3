@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2025, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,16 +13,17 @@
 // limitations under the License.
 
 /**
- * \file follow.cpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file spin.cpp
+ * \author Luka Antonyshyn, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_mission_planning/state_machine/states/repeat/follow.hpp"
+#include "vtr_mission_planning/state_machine/states/pause/spin.hpp"
 
 namespace vtr {
 namespace mission_planning {
-namespace repeat {
+namespace pause {
 
-StateInterface::Ptr Follow::nextStep(const StateInterface &new_state) const {
+StateInterface::Ptr Spin::nextStep(
+    const StateInterface &new_state) const {
   // If where we are going is not a child, delegate to the parent
   if (!InChain(new_state)) return Parent::nextStep(new_state);
 
@@ -30,7 +31,8 @@ StateInterface::Ptr Follow::nextStep(const StateInterface &new_state) const {
   return nullptr;
 }
 
-void Follow::processGoals(StateMachine &state_machine, const Event &event) {
+void Spin::processGoals(StateMachine &state_machine,
+                                  const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
@@ -39,47 +41,30 @@ void Follow::processGoals(StateMachine &state_machine, const Event &event) {
   }
 
   switch (event.action) {
-    case Action::Continue: {
-      const auto tactic = getTactic(state_machine);
-      if (tactic->routeCompleted()) {
-        CLOG(INFO, "mission.state_machine")
-            << "Path has been completed; ending the current goal.";
-        getPathPlanner(state_machine)->setRunning(false);
-        return Parent::processGoals(state_machine, Event(Action::EndGoal));
-      }
-      // If we have passed a waypoint, remove it from the list
-      while (!waypoint_seq_.empty()) {
-        CLOG(INFO, "mission.state_machine")
-            << "Front waypoint is: " << waypoints_.front()
-            << ", id: " << waypoint_seq_.front();
-        if (!tactic->passedSeqId(waypoint_seq_.front())) break;
-        CLOG(INFO, "mission.state_machine")
-            << "Popping waypoint " << waypoints_.front()
-            << ", id: " << waypoint_seq_.front();
-        waypoints_.pop_front();
-        waypoint_seq_.pop_front();
-      }
-    }
+    case Action::Continue:
+    {
       [[fallthrough]];
+    }
     default:
       return Parent::processGoals(state_machine, event);
   }
 }
 
-void Follow::onExit(StateMachine &state_machine, StateInterface &new_state) {
+void Spin::onExit(StateMachine &state_machine,
+                            StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
   if (InChain(new_state) && !IsType(new_state)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
-  getPathPlanner(state_machine)->setRunning(false);
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onExit(state_machine, new_state);
 }
 
-void Follow::onEntry(StateMachine &state_machine, StateInterface &old_state) {
+void Spin::onEntry(StateMachine &state_machine,
+                             StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
   if (InChain(old_state) && !IsType(old_state)) return;
 
@@ -89,9 +74,8 @@ void Follow::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-  getPathPlanner(state_machine)->setRunning(true);
 }
 
-}  // namespace repeat
+}  // namespace localize 
 }  // namespace mission_planning
 }  // namespace vtr

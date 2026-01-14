@@ -94,11 +94,12 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
   followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
 
+  estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
   leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
 
-
 BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
+
 void BicycleMPCPathTrackerFollower::loadMPCConfig(
     CasadiBicycleMPCFollower::Config::Ptr mpc_config, const bool isReversing, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) { 
   BicycleMPCPathTracker::loadMPCConfig(mpc_config, isReversing, w_p_r_in_r, applied_vel);
@@ -114,13 +115,22 @@ CasadiMPC::Config::Ptr BicycleMPCPathTrackerFollower::getMPCConfig(const bool is
   return mpcConfig;
 }
 
+void BicycleMPCPathTrackerFollower::setRunning(const bool running) {
+  if (!running) {
+    leader_root_ = tactic::VertexId::Invalid();
+  }
+  BicycleMPCPathTracker::setRunning(running);
+}
+
+
 bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& curr_time){
   if (leader_root_ == tactic::VertexId::Invalid()){
-    if (!hasRequestedLeaderRoute_){
+    if (!hasRequestedLeaderRoute_ || robot_state_->node->now() - requestTime_ > rclcpp::Duration(1, 0)){
       CLOG(INFO, "cbit.control") << "Leader root not yet set. Calling service";
       auto request = std::make_shared<FollowingRouteSrv::Request>();
       leaderRouteSrv_->async_send_request(request, std::bind(&BicycleMPCPathTrackerFollower::leaderRouteCallback, this, std::placeholders::_1));
       hasRequestedLeaderRoute_ = true;
+      requestTime_ = robot_state_->node->now();
     }
     return false;
   }
@@ -157,13 +167,16 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   const auto leaderPath_copy = *leaderPathInterp_;
   const auto T_w_l = T_fw_lw_ * leaderPath_copy.at(curr_time);
   const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_l;
-  const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
-  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist;
-  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << dist.head<2>().norm() << " at stamp " << curr_time;
+  const Eigen::Vector<double, 3> dist_vec = T_f_l.r_ab_inb();
+  FloatMsg internal_dist;
+  internal_dist.data = dist_vec.head<2>().norm();
+  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist_vec;
+  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << internal_dist.data << " at stamp " << curr_time;
+  estimatedDistancePub_->publish(internal_dist);
 
   mpcConfig->VF = abs(leader_vel_(0));
   if (config_->waypoint_selection == "external_dist") {
-    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : dist.head<2>().norm();
+    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
     const double error = distance - config_->following_offset;
     if (abs(chain->leaf_velocity()(0)) > 0.05)
       errorIntegrator += error * config_->control_period / 1000.0;
@@ -306,7 +319,10 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
     const auto follower_root = robot_state_->chain->sequence().front();
     CLOG(INFO, "mpc.follower") << "Follower's root to: " << follower_root;
 
-    auto connected = graph_->dijkstraSearch(follower_root, leader_root_);
+
+    auto eval =
+          std::make_shared<pose_graph::eval::mask::privileged::Eval<tactic::GraphBase>>(*graph_);
+    auto connected = graph_->dijkstraSearch(follower_root, leader_root_, std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
     
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;

@@ -39,6 +39,7 @@ enum class Action : int8_t {
   EndGoal,  // User indication that a goal is complete (eg. mapping/repair is
            // done now)
   ForceAddVertex, // Add a vertex at the robot's current pose during a teach
+  ExitPause,    // Exit the pause state and resume previous activity
 };
 
 std::ostream& operator<<(std::ostream& os, const Action& action);
@@ -68,10 +69,12 @@ struct Event {
   static Event::Ptr StartTeach();
   static Event::Ptr StartMerge(const std::vector<VertexId>& match_window);
   static Event::Ptr StartRepeat(const std::list<VertexId>& waypoints);
-  static Event::Ptr StartLocalize();
+  static Event::Ptr StartLocalize(const std::list<VertexId>& search_range);
+  static Event::Ptr StartPause();
   static Event::Ptr SwitchController(const std::string& new_controller);
 
   static Event::Ptr Reset();
+  static Event::Ptr EndGoal();
 
   std::string signalName() const;
   std::string actionName() const;

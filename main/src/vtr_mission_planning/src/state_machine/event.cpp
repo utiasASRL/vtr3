@@ -48,6 +48,9 @@ std::ostream& operator<<(std::ostream& os, const Action& action) {
     case Action::ForceAddVertex:
       os << "ForceAddVertex";
       return os;
+    case Action::ExitPause:
+      os << "ExitPause";
+      return os;
   };
 
   // GCC seems to complain when this isn't here
@@ -94,8 +97,14 @@ Event::Ptr Event::StartRepeat(const std::list<VertexId>& waypoints) {
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
-Event::Ptr Event::StartLocalize() {
+Event::Ptr Event::StartLocalize(const std::list<VertexId>& search_range) {
   auto tmp = std::make_shared<localize::MetricLocalize>();
+  tmp->setWaypoints(search_range);
+  return std::make_shared<Event>(Action::NewGoal, tmp);
+}
+
+Event::Ptr Event::StartPause() {
+  auto tmp = std::make_shared<pause::Spin>();
   return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
@@ -106,6 +115,8 @@ Event::Ptr Event::SwitchController(const std::string& new_controller) {
 }
 
 Event::Ptr Event::Reset() { return std::make_shared<Event>(Action::Reset); }
+
+Event::Ptr Event::EndGoal() { return std::make_shared<Event>(Action::EndGoal); }
 
 std::string Event::signalName() const {
   std::stringstream ss;

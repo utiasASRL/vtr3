@@ -24,7 +24,7 @@ from vtr_navigation_msgs.srv import FollowingRoute as FollowingRouteSrv
 from vtr_navigation_msgs.srv import TaskQueueState as TaskQueueStateSrv
 from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRoute
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
-from vtr_navigation_msgs.msg import MissionCommand, ServerState
+from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 from vtr_navigation_msgs.msg import TaskQueueUpdate
 from vtr_pose_graph_msgs.srv import MapInfo as MapInfoSrv
 from diagnostic_msgs.msg import DiagnosticStatus
@@ -52,6 +52,7 @@ class MultiRobotVTRUI(ROSManager):
     """Sets up necessary ROS communications"""
     self._robot_ids = args[0]
     self._robot_namespaces = {robot_id: "/" + robot_id + "/vtr/" for robot_id in self._robot_ids}
+    self._robot_index = None 
     # graph state
     self._graph_state_cli = {}
     self._graph_state_sub = {}
@@ -127,6 +128,8 @@ class MultiRobotVTRUI(ROSManager):
     # Additional data we might want
     self._diagnostics_sub = self.create_subscription(DiagnosticStatus, '/vtr/mr_diagnostics', self.diagnostics_callback, 10)
 
+    self._multi_robot_planner_pub = self.create_publisher(MissionCommand, '/vtr/convoy_command', 1)
+
     # map center
     self._map_info_cli = self.create_client(MapInfoSrv, namespace + "map_info_srv")
     while not self._map_info_cli.wait_for_service(timeout_sec=1.0):
@@ -161,10 +164,13 @@ class MultiRobotVTRUI(ROSManager):
 
   @ROSManager.on_ros
   def get_robot_state(self, robot_id):
-    return self._robot_state_cli[robot_id].call(RobotStateSrv.Request()).robot_state
+    robot_state = self._robot_state_cli[robot_id].call(RobotStateSrv.Request()).robot_state
+    self._robot_index = robot_state.index if robot_state.index >= 0 else self._robot_index
+    return robot_state
 
   @ROSManager.on_ros
   def robot_state_callback(self, robot_state, robot_id):
+    self._robot_index = robot_state.index if robot_state.index >= 0 else self._robot_index
     print(f"[MultiRobotVTRUI] robot_state_callback called for {robot_id}")
     self.notify("robot_state", robot_state=robot_state, robot_id=robot_id)
 
@@ -218,11 +224,15 @@ class MultiRobotVTRUI(ROSManager):
 
   @ROSManager.on_ros
   def add_goal(self, msg):
+    if msg.type == MissionCommand.ADD_GOAL and msg.goal_handle.type == GoalHandle.REPEAT:
+      msg.vertex = self._robot_index
+      self._multi_robot_planner_pub.publish(msg)
+      return
     for robot_id in self._robot_ids:
       self._mission_command_pub[robot_id].publish(msg)
 
   @ROSManager.on_ros
-  def cancel_goal(self, msg, robot_id):
+  def cancel_goal(self, msg, robot_id=None):
     vtr_ui_logger.info("[MultiRobotVTRUI]: Cancelling goal for robot " + (robot_id if robot_id is not None else "all robots"))
     if robot_id is not None:
       name = self._mission_command_pub[robot_id].topic_name

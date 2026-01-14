@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2025, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,31 +13,37 @@
 // limitations under the License.
 
 /**
- * \file plan.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file pause.hpp
+ * \author Luka Antonyshyn, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "vtr_mission_planning/state_machine/states/repeat.hpp"
+#include "vtr_mission_planning/state_machine/base_state.hpp"
 
 namespace vtr {
 namespace mission_planning {
-namespace repeat {
 
-class Plan : public Repeat {
+class Pause : public BaseState {
  public:
-  PTR_TYPEDEFS(Plan);
-  INHERITANCE_TESTS(Plan, StateInterface);
-  using Parent = Repeat;
+  PTR_TYPEDEFS(Pause);
+  INHERITANCE_TESTS(Pause, StateInterface);
+  using Parent = BaseState;
 
-  std::string name() const override { return Parent::name() + "::Plan"; }
-  PipelineMode pipeline() const override { return PipelineMode::Idle; }
+  std::string name() const override { return Parent::name() + "::Pause"; }
+  StateInterface::Ptr entryState() const override;
   StateInterface::Ptr nextStep(const StateInterface &) const override;
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
+
+  /** \brief Set the persistent loc id */
+  void setVertexId(const VertexId &v) { vertex_id_ = v; }
+
+ private:
+  VertexId vertex_id_ = VertexId::Invalid();
 };
 
-}  // namespace repeat
 }  // namespace mission_planning
 }  // namespace vtr
+
+#include "vtr_mission_planning/state_machine/states/pause/spin.hpp"

@@ -67,6 +67,7 @@ Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
       output_(output),
       chain_(std::make_shared<LocalizationChain>(config_->chain_config, graph)),
       graph_(graph),
+      smoother_(graph),
       callback_(callback) {
   //
   output_->chain = chain_;  // shared pointing to the same chain, no copy
@@ -96,6 +97,7 @@ void Tactic::addRun(const bool) {
   // re-initialize the pose records for visualization
   T_w_v_odo_ = EdgeTransform(true);
   T_w_v_loc_ = EdgeTransform(true);
+  T_m_w_ = EdgeTransform(true);
   // re-initialize the pipeline
   pipeline_->reset();
   //
@@ -105,12 +107,14 @@ void Tactic::addRun(const bool) {
 void Tactic::finishRun() {
   // saving graph here is optional as we save at destruction, just to avoid
   // unexpected data loss
+  smoother_.runBranchSmoothing();
   graph_->save();
   //
   callback_->endRun();
 }
 
 void Tactic::setForceAddVertex(const bool force_add_vertex) {
+  CLOG(DEBUG, "tactic") << "Forcing a new vertex";
   force_add_vertex_ = force_add_vertex;
 }
 
@@ -122,7 +126,14 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   auto lock = chain_->guard();
   //
   chain_->setSequence(path);
-  if (path.size() > 0) chain_->expand();
+  if (path.size() > 0) {
+    chain_->expand();
+    auto eval =
+          std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph_);
+    auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front(), std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
+    T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(VertexId(0, 0)), connected->end(), EdgeTransform(true));
+    CLOG(INFO, "tactic") << "Setting tf from root to " << T_m_w_;
+  }
   // used as initial guess for trunk
   chain_->resetTrunk(trunk_sid);
   // used as initial guess for localization
@@ -180,6 +191,7 @@ bool Tactic::routeCompleted() const {
   const auto angle_180 = atan2(-T_leaf_target_matrix(1, 0), -T_leaf_target_matrix(0, 0));
 
   CLOG(DEBUG, "tactic.eop") << "Translation: " << translation;
+  CLOG(DEBUG, "tactic.eop") << "Sequence left " << chain_->sequence().size() - 1 - chain_->trunkSequenceId(); 
   if (chain_->trunkSequenceId() < chain_->sequence().size() - 2) {
     return false;
   }
@@ -216,7 +228,6 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   qdata->vid_odo.emplace(current_vertex_id_);
   qdata->vertex_test_result.emplace(VertexTestResult::DO_NOTHING);
   qdata->odo_success.emplace(false);
-  qdata->force_add_vertex.emplace(force_add_vertex_);
   if (force_add_vertex_) force_add_vertex_ = false;
 
   switch (pipeline_mode_) {
@@ -235,7 +246,7 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
     case PipelineMode::RepeatFollow:
       return repeatFollowOdometryMapping(qdata);
     case PipelineMode::LocalizeMetricLoc:
-      return repeatFollowOdometryMapping(qdata);
+      return localizeMetricLocOdometryMapping(qdata);
     default:
       return true;
   }
@@ -293,7 +304,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -310,7 +321,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;
-  if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+  if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
@@ -396,7 +407,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -412,7 +423,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Check if we should create a new vertex
   const auto& vertex_test_result = *qdata->vertex_test_result;
-  if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+  if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
                   *(qdata->env_info));
@@ -491,7 +502,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain without updating trunk (because in
@@ -561,7 +572,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -631,7 +642,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   if (config_->visualize) {
     const auto lock = chain_->guard();
     callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
-                                   T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
   }
 
   // Update odometry in localization chain, also update estimated closest
@@ -682,6 +693,51 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   return config_->localization_skippable;
 }
 
+bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
+  // Prior assumes no motion since last processed frame
+  qdata->T_r_v_odo.emplace(chain_->T_leaf_petiole());
+  qdata->w_v_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
+  CLOG(DEBUG, "tactic") << "Prior transformation from robot to odometry vertex"
+                        << *qdata->vid_odo << " (i.e., T_v_r odometry): "
+                        << (*qdata->T_r_v_odo).inverse().vec().transpose();
+
+  // Get relative pose estimate and whether a vertex should be created
+  pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
+  CLOG(DEBUG, "tactic")
+      << "Estimated transformation from robot to odometry vertex"
+      << *qdata->vid_odo << " (i.e., T_v_r odometry): "
+      << (*qdata->T_r_v_odo).inverse().vec().transpose();
+
+  // Rviz visualization
+  if (config_->visualize) {
+    const auto lock = chain_->guard();
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->T_r_v_odo,
+                                   T_m_w_ * T_w_v_odo_, *qdata->w_v_r_in_r_odo);
+  }
+
+  // Update odometry in localization chain, also update estimated closest
+  // trunk without looking backwards
+  chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_v_r_in_r_odo,
+                                       *qdata->T_r_v_odo, true, false);
+
+  // Update persistent localization, "isLocalized" says whether we have
+  // localized yet
+  const auto [trunk_vid, T_leaf_trunk, localized] = [&]() {
+    auto lock = chain_->guard();
+    return std::make_tuple(chain_->trunkVertexId(), chain_->T_leaf_trunk(),
+                           chain_->isLocalized());
+  }();
+  updatePersistentLoc(*qdata->stamp, trunk_vid, T_leaf_trunk, localized);
+
+  // Initialize localization
+  auto lock = chain_->guard();
+  qdata->vid_loc.emplace(chain_->trunkVertexId());
+  qdata->sid_loc.emplace(chain_->trunkSequenceId());
+  qdata->T_r_v_loc.emplace(chain_->T_leaf_trunk());
+
+  return config_->localization_skippable;
+}
+
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
   *output_->odometry_success = *qdata->odo_success;
   switch (pipeline_mode_) {
@@ -700,7 +756,7 @@ bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
     case PipelineMode::RepeatFollow:
       return repeatFollowLocalization(qdata);
     case PipelineMode::LocalizeMetricLoc:
-      return repeatFollowLocalization(qdata);
+      return localizeMetricLocLocalization(qdata);
     default:
       return true;
   }
@@ -886,6 +942,41 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   //
   if (config_->visualize)
     callback_->publishLocalizationRviz(*qdata->stamp, T_w_v_loc_);
+
+  return true;
+}
+
+bool Tactic::localizeMetricLocLocalization(const QueryCache::Ptr& qdata) {
+  // Prior is set in odometry and mapping thread
+  CLOG(DEBUG, "tactic")
+      << "Prior transformation from robot to localization vertex ("
+      << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "
+      << (*qdata->T_r_v_loc).inverse().vec().transpose();
+
+  // Run the localizer against the closest vertex
+  qdata->loc_success.emplace(false);
+  pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+  CLOG(DEBUG, "tactic")
+      << "Estimated transformation from robot to localization vertex ("
+      << *(qdata->vid_loc) << ") (i.e., T_v_r localization): "
+      << (*qdata->T_r_v_loc).inverse().vec().transpose();
+  if (!(*qdata->loc_success)) {
+    CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
+                             "and localization chain.";
+
+    return true;
+  }
+
+  // Compute map vertex to odometry vertex transform (i.e., subtract odometry)
+  const auto T_v_odo_loc = (*qdata->T_r_v_odo).inverse() * (*qdata->T_r_v_loc);
+  CLOG(DEBUG, "tactic") << "Estimated transformation from odometry vertex "
+                        << *qdata->vid_odo << " to localization vertex "
+                        << *qdata->vid_loc << " (i.e., T_v_loc_odo): "
+                        << T_v_odo_loc.inverse().vec().transpose();
+
+  // Update the transform
+  chain_->updateBranchToTwigTransform(*qdata->vid_odo, *qdata->vid_loc,
+                                      *qdata->sid_loc, T_v_odo_loc, true, true);
 
   return true;
 }

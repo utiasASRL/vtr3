@@ -86,6 +86,8 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
                  const Callback::Ptr& callback);
   ~BicycleMPCPathTrackerFollower() override;
 
+  void setRunning(const bool running) override;
+
  protected:
   void initializeRoute(RobotState& robot_state);
 
@@ -104,6 +106,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
                            const tactic::Timestamp& curr_time) override;
 
   std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
+
 
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTrackerFollower);
@@ -129,7 +132,9 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   void leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
   rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
+  rclcpp::Time requestTime_;
 
+  rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
   FloatMsg::SharedPtr recentLeaderDist_;
   rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
   void onLeaderDist(const FloatMsg::SharedPtr distance);

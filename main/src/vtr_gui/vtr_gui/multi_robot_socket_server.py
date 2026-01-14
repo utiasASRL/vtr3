@@ -77,6 +77,11 @@ def handle_cancel_goal(data):
   logger.info(f'Received cancel goal command for robot {robot_id}', data)
   build_remote().cancel_goal(data, robot_id)
 
+@socketio.on('command/cancel_all_goals')
+def handle_cancel_all_goals():
+  logger.info('Received cancel all goals command')
+  build_remote().cancel_all_goals()
+
 @socketio.on('command/begin_goals')
 def handle_begin_goals():
   logger.info('Received begin goals command')

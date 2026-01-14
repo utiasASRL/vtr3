@@ -43,6 +43,8 @@ DynamicPathPlanner::DynamicPathPlanner(const Config::ConstPtr& config,
     factory_ = std::make_shared<ROSPathPlannerFactory>(robot_state->node.ptr());
     active_planner_ = factory_->get("path_planning." + config->default_planner, robot_state_, graph_, callback_);
     controllers_used_.emplace(config->default_planner);
+    CLOG(INFO, DynamicPathPlanner::static_name) << "In dynamic path planning mode.";
+
 }
 
 DynamicPathPlanner::~DynamicPathPlanner() { stop(); }
