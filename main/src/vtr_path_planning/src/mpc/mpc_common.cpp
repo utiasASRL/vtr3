@@ -194,10 +194,22 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
     }
   }
 
-std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
+std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, bool force_no_extrapolation) {
   double state_interp = 0;
   auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
   auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
+  if(force_no_extrapolation)
+  {
+	  while(state_interp > 1.0) {
+		  double state_interp_old = state_interp;
+		  segment = findClosestSegment(T_wr, chain, segment.start_sid);
+		  path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
+		  if(std::abs(state_interp_old - state_interp) < 1e-3)
+		  {
+			  break;
+		  }
+	  }
+  }
   return std::make_pair(segment.dir, chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid)));
 }
 

@@ -257,7 +257,7 @@
         # Controller Params
         extrapolate_robot_pose: true
         mpc_verbosity: false
-        forward_vel: 0.75
+        forward_vel: 1.00
         max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
         max_ang_vel: 0.46
         max_ang_acc: 0.89
@@ -277,7 +277,7 @@
           r1: 0.0
           r2: 3.0
           racc1: 4.0
-          racc2: 5.0
+          racc2: 40.0
           q_f: 1.0 # Multiplier for terminal cost
         reverse:
           q_lat: 10.0
