@@ -149,11 +149,14 @@ PoseResultHomotopy generateFollowerReferencePosesArclength(const TransformList& 
   double cur_arclength = 0.0;
 
   double p_start = robot_p - 1.0;
+  int seq_id = chain->trunkSequenceId();
 
   for(double p = p_start; p < final_leader_p_value; p += 0.02) {
-    tactic::SegmentInfo closestSegment = findClosestSegment(p, chain, chain->trunkSequenceId());
+    tactic::SegmentInfo closestSegment = findClosestSegment(p, chain, seq_id);
+    //CLOG(WARNING, "mpc_follower_arclength") << closestSegment.start_sid << ", " << closestSegment.end_sid << ", " << chain->size(); 
     double interp = std::clamp((p - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
     lgmath::se3::Transformation pose = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
+    seq_id = closestSegment.start_sid;
 
     if(p == p_start) 
     {
@@ -208,7 +211,7 @@ PoseResultHomotopy generateFollowerReferencePosesArclength(const TransformList& 
         seg_idx = std::distance(arclength_map.begin(), it);
       }
     }
-    
+    //CLOG(WARNING, "mpc_follower_arclength") << seg_idx << ", " << interp_value.size() << ", " << segments.size();
     auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(segments[seg_idx].start_sid));
     auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(segments[seg_idx].end_sid));
     double interp_width = (1 - interp_value[seg_idx]) * width1 + interp_value[seg_idx] * width2;
