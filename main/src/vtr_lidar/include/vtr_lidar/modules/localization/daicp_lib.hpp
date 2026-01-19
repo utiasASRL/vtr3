@@ -81,13 +81,15 @@ inline Eigen::Matrix3d computeRangeBearingCovariance(double d, double az, double
 // =================== Block Scaling Functions ===================
 inline std::pair<Eigen::Matrix3d, Eigen::Matrix3d> schurComplementMarginalization(const Eigen::MatrixXd& H) {
   // Apply Schur complement marginalization to obtain marginalized information matrices
-  // H is 6x6: [H_theta_theta, H_theta_t; H_t_theta, H_tt]
+  // H is 6x6 with [translation, orientation] ordering:
+  // H = [H_tt,           H_t_theta; 
+  //      H_theta_t,      H_theta_theta]
   
-  // Extract blocks
-  Eigen::Matrix3d H_theta_theta = H.block<3, 3>(0, 0);  // rotation block
-  Eigen::Matrix3d H_theta_t = H.block<3, 3>(0, 3);      // rotation-translation block
-  Eigen::Matrix3d H_t_theta = H.block<3, 3>(3, 0);      // translation-rotation block
-  Eigen::Matrix3d H_tt = H.block<3, 3>(3, 3);           // translation block
+  // Extract blocks 
+  Eigen::Matrix3d H_tt = H.block<3, 3>(0, 0);           // translation block
+  Eigen::Matrix3d H_t_theta = H.block<3, 3>(0, 3);      // translation-rotation block
+  Eigen::Matrix3d H_theta_t = H.block<3, 3>(3, 0);      // rotation-translation block
+  Eigen::Matrix3d H_theta_theta = H.block<3, 3>(3, 3);  // rotation block
   
   const double reg_val = 1e-12;
   
@@ -382,7 +384,7 @@ inline void computeJacobianResidualInformation(
   }
   
   // ==== Noise model parameters ==== //
-  const double sigma_p2p = 0.03;  // point-to-point noise std (meters)
+  const double sigma_p2p = 0.05;  // point-to-point noise std (meters)
   const double w_inv_p2p = 1.0 / (sigma_p2p * sigma_p2p);
   
   const double sigma_d = config_->sigma_d;
@@ -463,7 +465,7 @@ inline void computeJacobianResidualInformation(
       const Eigen::Vector3d d = source_pt_transformed - target_pt;
       const Eigen::RowVector3d J_n = d.transpose();
       
-      const double sigma_map = 0.01;
+      const double sigma_map = 0.02;
       const Eigen::Matrix3d Sigma_q_i = (sigma_map * sigma_map) * Eigen::Matrix3d::Identity();
       
       const double sigma_n = 0.03;
@@ -746,7 +748,10 @@ inline bool daGaussNewtonP2Plane(
     // Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
     // Construct inverse block scaling matrix: D_inv
     Eigen::Matrix<double, 6, 6> D_inv = Eigen::Matrix<double, 6, 6>::Identity();
-    D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
+    // NOTE: Parameter ordering is [translation, orientation]
+    // D = [1, 1, 1, ell_mr, ell_mr, ell_mr]
+    // D_inv = [1, 1, 1, 1/ell_mr, 1/ell_mr, 1/ell_mr]
+    D_inv.block<3, 3>(3, 3) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
     // translation scaling remains 1.0
     // Scale the jacobian
     Eigen::MatrixXd A_scaled = A * D_inv;
@@ -910,8 +915,11 @@ inline bool daGaussNewton(
     // --- compute original Hessian
     // Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
     // Construct inverse block scaling matrix: D_inv
+    // NOTE: Parameter ordering is [translation, orientation]
+    // D = [1, 1, 1, ell_mr, ell_mr, ell_mr]
+    // D_inv = [1, 1, 1, 1/ell_mr, 1/ell_mr, 1/ell_mr]
     Eigen::Matrix<double, 6, 6> D_inv = Eigen::Matrix<double, 6, 6>::Identity();
-    D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
+    D_inv.block<3, 3>(3, 3) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
     // translation scaling remains 1.0
     // Scale the jacobian
     Eigen::MatrixXd A_scaled = A * D_inv;

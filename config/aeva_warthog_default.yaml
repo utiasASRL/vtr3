@@ -334,14 +334,14 @@
         # daicp - degeneracy threshold
         degeneracy_thresh: 80.0               # we use condition number to set the threshold
         # daicp - range and bearing noise model
-        sigma_d: 0.03                         # range noise std (3cm)
+        sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
         sigma_el: 0.000523599                 # elevation noise std (0.03 degrees)
         # prior fusion
         use_pfuison: true       #TODO remove  # whether to use prior fusion (always fuse prior, this param is not used)
         max_pfusion_iter: 2                   # max iterations for prior fusion
         use_L2_loss: false                    # whether to use L2 loss in prior fusion
-        robust_loss: 0.1                      # parameter for robust loss function in prior fusion
+        robust_loss: 0.05                      # parameter for robust loss function in prior fusion
         verbose: false
         # refinement
         refined_max_iter: 20                  # DAICP outer loop iterations
