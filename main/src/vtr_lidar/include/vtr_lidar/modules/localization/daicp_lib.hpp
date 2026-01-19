@@ -6,6 +6,7 @@
 #include "vtr_logging/logging.hpp"
 #include <iostream>
 #include <vector>
+#include "daicp_qp_lib.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -81,13 +82,15 @@ inline Eigen::Matrix3d computeRangeBearingCovariance(double d, double az, double
 // =================== Block Scaling Functions ===================
 inline std::pair<Eigen::Matrix3d, Eigen::Matrix3d> schurComplementMarginalization(const Eigen::MatrixXd& H) {
   // Apply Schur complement marginalization to obtain marginalized information matrices
-  // H is 6x6: [H_theta_theta, H_theta_t; H_t_theta, H_tt]
+  // H is 6x6 with [translation, orientation] ordering:
+  // H = [H_tt,           H_t_theta; 
+  //      H_theta_t,      H_theta_theta]
   
-  // Extract blocks
-  Eigen::Matrix3d H_theta_theta = H.block<3, 3>(0, 0);  // rotation block
-  Eigen::Matrix3d H_theta_t = H.block<3, 3>(0, 3);      // rotation-translation block
-  Eigen::Matrix3d H_t_theta = H.block<3, 3>(3, 0);      // translation-rotation block
-  Eigen::Matrix3d H_tt = H.block<3, 3>(3, 3);           // translation block
+  // Extract blocks 
+  Eigen::Matrix3d H_tt = H.block<3, 3>(0, 0);           // translation block
+  Eigen::Matrix3d H_t_theta = H.block<3, 3>(0, 3);      // translation-rotation block
+  Eigen::Matrix3d H_theta_t = H.block<3, 3>(3, 0);      // rotation-translation block
+  Eigen::Matrix3d H_theta_theta = H.block<3, 3>(3, 3);  // rotation block
   
   const double reg_val = 1e-12;
   
@@ -909,9 +912,12 @@ inline bool daGaussNewton(
     // DEGENERACY-AWARE EIGENSPACE PROJECTION
     // --- compute original Hessian
     // Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
-    // Construct inverse block scaling matrix: D_inv
+    // Construct the inverse of the block scaling matrix: D_inv
+    // NOTE: Parameter ordering is [translation, orientation]
+    // D = [1, 1, 1, ell_mr, ell_mr, ell_mr]
+    // D_inv = [1, 1, 1, 1/ell_mr, 1/ell_mr, 1/ell_mr]
     Eigen::Matrix<double, 6, 6> D_inv = Eigen::Matrix<double, 6, 6>::Identity();
-    D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
+    D_inv.block<3, 3>(3, 3) *= (1.0 / ell_mr);  // rotation scaling inverse (last 3x3 block)
     // translation scaling remains 1.0
     // Scale the jacobian
     Eigen::MatrixXd A_scaled = A * D_inv;
@@ -939,6 +945,46 @@ inline bool daGaussNewton(
 
     // Compute update step using eigenspace projection
     Eigen::VectorXd delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
+
+    // =================== solve the optimization problem ===================
+    bool verbose = false;
+    static daicp_qp::CachedQPSolver qp_solver(verbose);
+    Eigen::VectorXd delta_params_scaled;
+    if (Vd.cols() > 0) {
+      // Constraint bounds: 1cm translation, 0.01 rad in rotation 
+      Eigen::VectorXd epsilon_dx(6);
+      epsilon_dx << 0.01, 0.01, 0.01, 0.01, 0.01, 0.01;  // TODO: move to config file
+      // Scale rotation part to match scaled coordinate space
+      // we compute: epsilon_de_scale = D*epsilon_dx 
+      epsilon_dx.tail<3>() *= ell_mr;  
+      if (verbose) {
+        CLOG(DEBUG, "lidar.localization_daicp") << "Solving constrained QP with " << Vd.cols() << " degenerate directions";
+      }
+      
+      // Solve the QP problem with OSQP
+      daicp_qp::QPSolverResult result = qp_solver.solve(A_scaled, b, W_inv, Vd, epsilon_dx);
+      
+      if (result.success) {
+        delta_params_scaled = result.x_optimal;
+        if (verbose) {
+          CLOG(DEBUG, "lidar.localization_daicp") << "QP solved successfully in " 
+                << result.solve_time << "s (" << result.iterations << " iterations)";
+        }
+      } else {
+          // Last resort: unconstrained solution with projection
+          CLOG(WARNING, "lidar.localization_daicp") << "Both QP solvers failed, using unconstrained solution";
+          delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
+        }
+      }
+    } else {
+      // No degenerate directions, solve unconstrained
+      if (verbose) {
+        CLOG(DEBUG, "lidar.localization_daicp") << "No degeneracy detected, using unconstrained update";
+      }
+      delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
+    }
+    // ======================================================================
+
     // Compute the scaled covariance matrix
     Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(Vf, eigen_vf, Vd);
     
