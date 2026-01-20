@@ -703,7 +703,7 @@ inline bool daGaussNewton(
     // ell_mr = computeScalingFactorTrace(H_marg_theta, H_marg_t);
     double ell_mr = computeScalingFactorMax(H_marg_theta, H_marg_t);
 
-    CLOG(DEBUG, "lidar.localization_daicp") << "----------------------use H_the/H_t, ell_mr:   " << ell_mr;
+    CLOG(DEBUG, "lidar.localization_daicp") << "----------------------use H_theta/H_t, ell_mr:   " << ell_mr;
 
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
     curr_cost = 0.5 * b.transpose() * W_inv.asDiagonal() * b;
