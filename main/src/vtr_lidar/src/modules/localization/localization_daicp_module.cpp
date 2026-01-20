@@ -386,7 +386,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // Initialize output covariance matrix
     Eigen::Matrix<double, 6, 6> daicp_cov = Eigen::MatrixXd::Zero(6, 6);
 
-    bool optimization_success = daicp_lib::daGaussNewtonP2Plane(
+    bool optimization_success = daicp_lib::daGaussNewton(
         // inputs
         filtered_sample_inds,  // point correspondences
         high_curv_match,       // high curvature match flags 
