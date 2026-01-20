@@ -769,7 +769,6 @@ inline bool daGaussNewton(
 
     // =================== solve the optimization problem ===================
     bool verbose = true;
-    static daicp_qp::CachedQPSolver qp_solver(verbose);
     Eigen::VectorXd delta_params_scaled;
     if (Vd.cols() > 0) {
       // Constraint bounds: 1cm translation, 0.01 rad in rotation 
@@ -782,8 +781,14 @@ inline bool daGaussNewton(
         CLOG(DEBUG, "lidar.localization_daicp") << "Solving constrained QP with " << Vd.cols() << " degenerate directions";
       }
       
-      // Solve the QP problem with OSQP
-      daicp_qp::QPSolverResult result = qp_solver.solve(A_scaled, b, W_inv, Vd, epsilon_dx);
+      // Compute QP matrices from least-squares problem
+      // minimize: ||A*x - b||^2_W = x^T * (A^T W A) * x - 2 * (A^T W b)^T * x + b^T W b
+      // This gives: H = 2*A^T*W*A, g = -2*A^T*W*b
+      Eigen::MatrixXd F = 2.0 * A_scaled.transpose() * W_inv.asDiagonal() * A_scaled;
+      Eigen::VectorXd f = -2.0 * A_scaled.transpose() * W_inv.asDiagonal() * b;
+      
+      // Solve the QP problem with qrqp (QR-based active-set method - most reliable)
+      daicp_qp::QPSolverResult result = daicp_qp::solveConstrainedQPConic(F, f, Vd, epsilon_dx, "qrqp", verbose);
       
       if (result.success) {
         delta_params_scaled = result.x_optimal;

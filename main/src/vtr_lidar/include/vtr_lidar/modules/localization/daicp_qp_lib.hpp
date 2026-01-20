@@ -22,6 +22,7 @@
 #include <casadi/casadi.hpp>
 #include <iostream>
 #include <vector>
+#include <map>
 #include <chrono>
 #include <cmath>
 #include "vtr_logging/logging.hpp"
@@ -60,24 +61,17 @@ inline casadi::DM eigenToCasadiDM(const Eigen::MatrixXd& eigen_mat) {
 //     return Eigen::Map<Eigen::VectorXd>(data.data(), data.size());
 // }
 inline Eigen::VectorXd casadiDMToEigen(const casadi::DM& casadi_vec) {
-    // BEST: Direct construction from std::vector (safe + fast)
-    std::vector<double> data = casadi_vec.get_elements();
-    Eigen::VectorXd result(data.size());
-    std::memcpy(result.data(), data.data(), data.size() * sizeof(double));
-    return result;
-}
-// Helper function 
-inline void updateCasadiDM(casadi::DM& casadi_mat, const Eigen::MatrixXd& eigen_mat) {
-    // Element-wise assignment (safe, respects CasADi's internal structure)
-    for (int i = 0; i < eigen_mat.rows(); ++i) {
-        for (int j = 0; j < eigen_mat.cols(); ++j) {
-            casadi_mat(i, j) = eigen_mat(i, j);
-        }
+    // Safe conversion: copy element by element
+    const int size = casadi_vec.size1() * casadi_vec.size2();
+    Eigen::VectorXd result(size);
+    for (int i = 0; i < size; ++i) {
+        result(i) = static_cast<double>(casadi_vec(i));
     }
+    return result;
 }
 
 inline void printQPProblemInfo(const Eigen::MatrixXd& F, 
-                               const Eigen::VectorXd& f,
+                               const Eigen::VectorXd& /* f */,
                                const Eigen::MatrixXd& Vd,
                                const Eigen::VectorXd& epsilon_dx) {
     CLOG(DEBUG, "lidar.localization_daicp") << "=== DA-ICP QP Problem Setup ===";
@@ -94,47 +88,28 @@ inline void printQPProblemInfo(const Eigen::MatrixXd& F,
         << epsilon_dx(5) * 180.0 / M_PI << "°]";
 }
 
-// =================== Cached QP Solver Class ===================
-/**
- * @brief Cached QP solver that reuses solver objects across iterations
- * 
- * This class dramatically improves performance by:
- * 1. Caching the CasADi solver function (avoids expensive reconstruction)
- * 2. Pre-allocating CasADi DM matrices (avoids repeated memory allocation)
- * 3. Using in-place updates when possible
- * 
- * Usage:
- *   CachedQPSolver solver;
- *   for (int iter = 0; iter < max_iters; ++iter) {
- *       auto result = solver.solve(A, b, W_inv, Vd, epsilon_dx);
- *   }
- */
-class CachedQPSolver {
-private:
-    // Cached solver objects
-    casadi::Function osqp_solver_;
+// =================== Static Solver Cache ===================
+// Cache multiple solvers for different problem dimensions to avoid repeated creation/destruction
+struct QRQPSolverCache {
+    std::map<std::pair<int, int>, casadi::Function> solvers;  // Map from (n, k) to solver
     
-    // Pre-allocated matrices (updated in-place)
-    casadi::DM H_casadi_;
-    casadi::DM g_casadi_;
-    casadi::DM A_casadi_;
-    casadi::DM lba_casadi_;
-    casadi::DM uba_casadi_;
-    casadi::DM lbx_casadi_;
-    casadi::DM ubx_casadi_;
-    
-    // Cache state
-    int cached_n_;           // Problem size (should be 6)
-    int cached_k_;           // Number of constraints
-    bool osqp_initialized_;
-    bool verbose_;
-    
-    void initializeOSQP(int n, int k) {
-        if (osqp_initialized_ && cached_n_ == n && cached_k_ == k) {
-            return;  // Already initialized with correct dimensions
+    casadi::Function getSolver(int n, int k, bool verbose) {
+        auto key = std::make_pair(n, k);
+        
+        // Check if solver for this dimension already exists
+        auto it = solvers.find(key);
+        if (it != solvers.end()) {
+            if (verbose) {
+                CLOG(DEBUG, "lidar.localization_daicp") << "Reusing cached solver for n=" << n << ", k=" << k;
+            }
+            return it->second;
         }
         
-        // Create QP structure
+        // Create new solver for this dimension
+        if (verbose) {
+            CLOG(DEBUG, "lidar.localization_daicp") << "Creating new solver for n=" << n << ", k=" << k;
+        }
+        
         casadi::Sparsity H_sparsity = casadi::Sparsity::dense(n, n);
         casadi::Sparsity A_sparsity = (k > 0) ? casadi::Sparsity::dense(k, n) : casadi::Sparsity(0, n);
         
@@ -142,153 +117,26 @@ private:
         qp["h"] = H_sparsity;
         qp["a"] = A_sparsity;
         
-        // OSQP options
         casadi::Dict opts;
-        casadi::Dict osqp_opts;
-        osqp_opts["verbose"] = verbose_;
-        osqp_opts["polish"] = true;
-        osqp_opts["eps_abs"] = 1e-8;
-        osqp_opts["eps_rel"] = 1e-8;
-        opts["osqp"] = osqp_opts;
+        opts["max_iter"] = 100;
+        opts["constr_viol_tol"] = 1e-8;
+        opts["dual_inf_tol"] = 1e-8;
+        opts["print_problem"] = verbose;
+        opts["print_header"] = verbose;
+        opts["print_iter"] = verbose;
         
-        osqp_solver_ = casadi::conic("qp_solver_osqp", "osqp", qp, opts);
+        casadi::Function solver = casadi::conic("qrqp_solver", "qrqp", qp, opts);
         
-        // Pre-allocate matrices
-        H_casadi_ = casadi::DM::zeros(n, n);
-        g_casadi_ = casadi::DM::zeros(n, 1);
-        A_casadi_ = casadi::DM::zeros(k, n);
-        lba_casadi_ = casadi::DM::zeros(k, 1);
-        uba_casadi_ = casadi::DM::zeros(k, 1);
-        lbx_casadi_ = casadi::DM::zeros(n, 1);
-        ubx_casadi_ = casadi::DM::zeros(n, 1);
-        
-        // Set unbounded box constraints on x (won't change)
-        for (int i = 0; i < n; ++i) {
-            lbx_casadi_(i) = -std::numeric_limits<double>::infinity();
-            ubx_casadi_(i) = std::numeric_limits<double>::infinity();
-        }
-        
-        cached_n_ = n;
-        cached_k_ = k;
-        osqp_initialized_ = true;
-    }
-    
-public:
-    CachedQPSolver(bool verbose = false) 
-        : cached_n_(0), cached_k_(0), 
-          osqp_initialized_(false), 
-          verbose_(verbose) {}
-    
-    /**
-     * @brief Solve QP using cached OSQP solver
-     */
-    QPSolverResult solveOSQP(
-        const Eigen::MatrixXd& F,
-        const Eigen::VectorXd& f,
-        const Eigen::MatrixXd& Vd,
-        const Eigen::VectorXd& epsilon_c) {
-        
-        QPSolverResult result;
-        auto start_time = std::chrono::high_resolution_clock::now();
-        
-        try {
-            const int n = F.rows();
-            const int k = Vd.cols();
-            
-            // Initialize or verify solver
-            initializeOSQP(n, k);
-            // Ensure Hessian symmetry
-            Eigen::MatrixXd H = 0.5 * (F + F.transpose());
-            // Update matrices in-place (fast!)
-            updateCasadiDM(H_casadi_, H);
-            updateCasadiDM(g_casadi_, f);
-            if (k > 0) {
-                Eigen::MatrixXd Vd_T = Vd.transpose();
-                updateCasadiDM(A_casadi_, Vd_T);
-                // Update constraint bounds
-                for (int i = 0; i < k; ++i) {
-                    lba_casadi_(i) = -epsilon_c(i);
-                    uba_casadi_(i) = epsilon_c(i);
-                }
-            }
-            // Solve
-            casadi::DMDict arg;
-            arg["h"] = H_casadi_;
-            arg["g"] = g_casadi_;
-            arg["a"] = A_casadi_;
-            arg["lba"] = lba_casadi_;
-            arg["uba"] = uba_casadi_;
-            arg["lbx"] = lbx_casadi_;
-            arg["ubx"] = ubx_casadi_;
-            casadi::DMDict sol = osqp_solver_(arg);
-            // Extract solution
-            result.x_optimal = casadiDMToEigen(sol.at("x"));
-            result.objective_value = static_cast<double>(sol.at("cost"));
-            result.success = true;
-            result.solver_status = "osqp: optimal";
-            // Get statistics
-            casadi::Dict stats = osqp_solver_.stats();
-            if (stats.find("iter_count") != stats.end()) {
-                result.iterations = static_cast<int>(stats.at("iter_count"));
-            }
-        } catch (const std::exception& e) {
-            result.success = false;
-            result.solver_status = std::string("osqp error: ") + e.what();
-        }
-        auto end_time = std::chrono::high_resolution_clock::now();
-        result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
-        
-        return result;
-    }
-    
-    /**
-     * @brief Solve DA-ICP QP problem with caching (RECOMMENDED for iteration loops)
-     * 
-     * This is the high-level interface that handles:
-     * - Computing QP matrices from A, b, W_inv
-     * - Computing epsilon_c from Vd and epsilon_dx
-     * - Calling the appropriate cached solver
-     * 
-     * @param A Jacobian matrix (n_correspondences × 6)
-     * @param b Residual vector (n_correspondences)
-     * @param W_inv Information weights (n_correspondences)
-     * @param Vd Degenerate directions matrix (6 × k)
-     * @param epsilon_dx Per-DOF constraint bounds (6 × 1)
-     * @return QPSolverResult with solution and metadata
-     */
-    QPSolverResult solve(
-        const Eigen::MatrixXd& A,
-        const Eigen::VectorXd& b,
-        const Eigen::VectorXd& W_inv,
-        const Eigen::MatrixXd& Vd,
-        const Eigen::VectorXd& epsilon_dx) {
-        
-        // Compute QP matrices
-        Eigen::MatrixXd F = 2.0 * A.transpose() * W_inv.asDiagonal() * A;
-        Eigen::VectorXd f = -2.0 * A.transpose() * W_inv.asDiagonal() * b;
-        
-        // Compute constraint bounds
-        const int k = Vd.cols();
-        Eigen::VectorXd epsilon_c(k);
-        for (int i = 0; i < k; ++i) {
-            epsilon_c(i) = std::abs(Vd.col(i).dot(epsilon_dx));
-        }
-        if (verbose_ && k > 0) {
-            CLOG(DEBUG, "lidar.localization_daicp") << "Cached solver: " << k << " degenerate directions";
-        }
-        // Solve using cached OSQP solver
-        return solveOSQP(F, f, Vd, epsilon_c);
-    }
-    
-    /**
-     * @brief Reset cached solvers (call if problem structure changes significantly)
-     */
-    void reset() {
-        osqp_initialized_ = false;
-        cached_n_ = 0;
-        cached_k_ = 0;
+        // Store in cache and return
+        solvers[key] = solver;
+        return solver;
     }
 };
+
+static QRQPSolverCache& getQRQPCache() {
+    static QRQPSolverCache cache;
+    return cache;
+}
 
 // =================== Constrained QP Solver (CasADi Conic Interface) ===================
 inline QPSolverResult solveConstrainedQPConic(
@@ -325,14 +173,24 @@ inline QPSolverResult solveConstrainedQPConic(
                 CLOG(DEBUG, "lidar.localization_daicp") << "  Direction " << (i+1) 
                     << ": ±" << epsilon_c(i);
             }
+            CLOG(DEBUG, "lidar.localization_daicp") << "Converting matrices to CasADi format...";
+            CLOG(DEBUG, "lidar.localization_daicp") << "  H: " << H.rows() << "x" << H.cols();
+            CLOG(DEBUG, "lidar.localization_daicp") << "  f: " << f.size();
+            CLOG(DEBUG, "lidar.localization_daicp") << "  Vd: " << Vd.rows() << "x" << Vd.cols();
         }
         
         // Convert Eigen matrices to CasADi DM
         casadi::DM H_casadi = eigenToCasadiDM(H);
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "  H_casadi created";
+        
         casadi::DM g_casadi = eigenToCasadiDM(f);
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "  g_casadi created";
+        
         casadi::DM A_casadi = eigenToCasadiDM(Vd.transpose()); // Constraint matrix A = Vd^T
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "  A_casadi created";
         
         // Create structured QP using sparsity patterns
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "Creating QP structure...";
         casadi::SpDict qp;
         qp["h"] = H_casadi.sparsity();
         qp["a"] = A_casadi.sparsity();
@@ -346,12 +204,38 @@ inline QPSolverResult solveConstrainedQPConic(
             osqp_opts["eps_abs"] = 1e-8;
             osqp_opts["eps_rel"] = 1e-8;
             opts["osqp"] = osqp_opts;
+        } else if (solver_name == "qrqp") {
+            // qrqp is a QR-based active-set QP solver (pure C++, no external dependencies)
+            opts["max_iter"] = 100;
+            opts["constr_viol_tol"] = 1e-8;
+            opts["dual_inf_tol"] = 1e-8;
+        } else if (solver_name == "nlpsol") {
+            // nlpsol wraps NLP solvers (like IPOPT) for the conic interface
+            opts["nlpsol"] = "ipopt";  // Use IPOPT as the backend
+            casadi::Dict ipopt_opts;
+            ipopt_opts["ipopt.print_level"] = verbose ? 5 : 0;
+            ipopt_opts["ipopt.max_iter"] = 100;
+            ipopt_opts["ipopt.tol"] = 1e-6;
+            ipopt_opts["ipopt.acceptable_tol"] = 1e-4;
+            ipopt_opts["print_time"] = false;
+            opts["nlpsol_options"] = ipopt_opts;
         } else if (solver_name == "qpoases") {
             opts["printLevel"] = verbose ? "high" : "none";
         }
         
-        // Create conic solver
-        casadi::Function solver = casadi::conic("qp_solver", solver_name, qp, opts);
+        // Create or retrieve cached solver
+        casadi::Function solver;
+        if (solver_name == "qrqp") {
+            // Use cached solver for qrqp to avoid repeated creation/destruction
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "Getting qrqp solver (n=" << n << ", k=" << k << ")...";
+            solver = getQRQPCache().getSolver(n, k, verbose);
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "qrqp solver ready";
+        } else {
+            // For other solvers, create fresh instance
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "Creating " << solver_name << " solver...";
+            solver = casadi::conic("qp_solver", solver_name, qp, opts);
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << solver_name << " solver created successfully";
+        }
         
         // ========== Prepare Constraint Bounds ==========
         // CasADi conic interface uses the standard form:
