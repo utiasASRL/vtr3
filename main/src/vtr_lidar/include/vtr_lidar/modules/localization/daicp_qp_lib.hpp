@@ -55,15 +55,25 @@ inline casadi::DM eigenToCasadiDM(const Eigen::MatrixXd& eigen_mat) {
     return casadi::DM(casadi::Sparsity::dense(eigen_mat.rows(), eigen_mat.cols()), data);
 }
 
+// inline Eigen::VectorXd casadiDMToEigen(const casadi::DM& casadi_vec) {
+//     std::vector<double> data = casadi_vec.get_elements();
+//     return Eigen::Map<Eigen::VectorXd>(data.data(), data.size());
+// }
 inline Eigen::VectorXd casadiDMToEigen(const casadi::DM& casadi_vec) {
+    // BEST: Direct construction from std::vector (safe + fast)
     std::vector<double> data = casadi_vec.get_elements();
-    return Eigen::Map<Eigen::VectorXd>(data.data(), data.size());
+    Eigen::VectorXd result(data.size());
+    std::memcpy(result.data(), data.data(), data.size() * sizeof(double));
+    return result;
 }
-// Helper function for in-place update without reconstruction
+// Helper function 
 inline void updateCasadiDM(casadi::DM& casadi_mat, const Eigen::MatrixXd& eigen_mat) {
-    const double* src = eigen_mat.data();
-    double* dst = casadi_mat.ptr();
-    std::copy(src, src + eigen_mat.size(), dst);
+    // Element-wise assignment (safe, respects CasADi's internal structure)
+    for (int i = 0; i < eigen_mat.rows(); ++i) {
+        for (int j = 0; j < eigen_mat.cols(); ++j) {
+            casadi_mat(i, j) = eigen_mat(i, j);
+        }
+    }
 }
 
 inline void printQPProblemInfo(const Eigen::MatrixXd& F, 

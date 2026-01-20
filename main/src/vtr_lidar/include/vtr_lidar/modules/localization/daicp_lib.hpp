@@ -385,7 +385,7 @@ inline void computeJacobianResidualInformation(
   }
   
   // ==== Noise model parameters ==== //
-  const double sigma_p2p = 0.03;  // point-to-point noise std (meters)
+  const double sigma_p2p = 0.05;  // point-to-point noise std (meters)
   const double w_inv_p2p = 1.0 / (sigma_p2p * sigma_p2p);
   
   const double sigma_d = config_->sigma_d;
@@ -656,182 +656,6 @@ inline double computeThreshold(const Eigen::VectorXd& eigenvalues,
   return eigenvalue_threshold;
 }
 
-// ==== we don't need this function now.
-inline bool daGaussNewtonP2Plane(
-    const std::vector<std::pair<size_t, size_t>>& sample_inds,
-    const std::vector<bool>& high_curv_match,
-    const Eigen::Matrix4Xf& query_mat,
-    const Eigen::Matrix4Xf& map_mat,
-    const Eigen::Matrix4Xf& map_normals_mat,
-    steam::se3::SE3StateVar::Ptr T_var,
-    const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
-    Eigen::Matrix<double, 6, 6>& daicp_cov) {
-  
-  if (sample_inds.size() < 6) {
-    CLOG(WARNING, "lidar.localization_daicp") << "Insufficient correspondences for Gauss-Newton";
-    return false;
-  }
-
-  // Start with identity transformation for the Gauss-Newton process
-  lgmath::se3::Transformation current_transformation = lgmath::se3::Transformation(); // Identity
-  Eigen::VectorXd accumulated_params = Eigen::VectorXd::Zero(6);
-  
-  // Get initial transformation from T_var to apply later
-  const lgmath::se3::Transformation initial_T_var = T_var->value();
-  
-  // Variables for convergence tracking
-  double prev_cost = std::numeric_limits<double>::max();
-  double curr_cost = 0.0;
-  bool converged = false;
-  std::string termination_reason = "";
-  
-  // Inner loop Gauss-Newton iterations with degeneracy-aware updates
-  for (int gn_iter = 0; gn_iter < config_->max_gn_iter && !converged; ++gn_iter) {
-    // --- Build jacobian and residual for current transformation
-    // Eigen::MatrixXd A(sample_inds.size(), 6);
-    // Eigen::VectorXd W_inv;
-    // W_inv.resize(sample_inds.size());
-    // Eigen::VectorXd b(sample_inds.size());
-    
-    // the dimension will be computed in "computeJacobianResidualInformation" function
-    Eigen::MatrixXd A;
-    Eigen::VectorXd b, W_inv;
-    // Compose with initial transformation: final_T = current_T * initial_T
-    const Eigen::Matrix4d T_combined = current_transformation.matrix() * initial_T_var.matrix();
-
-    // Compute Jacobian, residuals, and information matrix
-    // Note: Measurement noise is computed from the original sensor measurements (query_mat),
-    // which are independent of the state estimate, as it should be.
-    computeJacobianResidualInformation(sample_inds, high_curv_match,
-                                       query_mat, map_mat, map_normals_mat,
-                                       T_combined, A, b, W_inv, config_);
-
-    // Compute original Hessian
-    Eigen::MatrixXd H_original = A.transpose() * W_inv.asDiagonal() * A;
-    // Apply Schur complement marginalization
-    auto [H_marg_theta, H_marg_t] = schurComplementMarginalization(H_original);
-    // Compute scaling factor
-    // ell_mr = computeScalingFactorTrace(H_marg_theta, H_marg_t);
-    double ell_mr = computeScalingFactorMax(H_marg_theta, H_marg_t);
-
-    CLOG(DEBUG, "lidar.localization_daicp") << "----------------------use H_the/H_t, ell_mr:   " << ell_mr;
-
-    // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
-    curr_cost = 0.5 * b.transpose() * W_inv.asDiagonal() * b;
-    const Eigen::VectorXd weighted_gradient = A.transpose() * W_inv.asDiagonal() * b;
-    const double grad_norm = weighted_gradient.norm();
-    
-    // STEAM-style convergence checking
-    // 1. Check absolute cost threshold
-    if (curr_cost <= config_->abs_cost_thresh) {
-      converged = true;
-      termination_reason = "CONVERGED_ABSOLUTE_COST";
-    }
-    // 2. Check absolute cost change (after first iteration)
-    else if (gn_iter > 0 && std::abs(prev_cost - curr_cost) <= config_->abs_cost_change_thresh) {
-      converged = true;
-      termination_reason = "CONVERGED_ABSOLUTE_COST_CHANGE";
-    }
-    // 3. Check relative cost change (after first iteration)
-    else if (gn_iter > 0 && prev_cost > 0 && 
-             std::abs(prev_cost - curr_cost) / prev_cost <= config_->rel_cost_change_thresh) {
-      converged = true;
-      termination_reason = "CONVERGED_RELATIVE_COST_CHANGE";
-    }
-    // 4. Check zero gradient
-    else if (grad_norm < config_->zero_gradient_thresh) {
-      converged = true;
-      termination_reason = "CONVERGED_ZERO_GRADIENT";
-    }
-
-    // DEGENERACY-AWARE EIGENSPACE PROJECTION
-    // --- compute original Hessian
-    // Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
-    // Construct inverse block scaling matrix: D_inv
-    Eigen::Matrix<double, 6, 6> D_inv = Eigen::Matrix<double, 6, 6>::Identity();
-    D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
-    // translation scaling remains 1.0
-    // Scale the jacobian
-    Eigen::MatrixXd A_scaled = A * D_inv;
-    // Degeneracy analysis in eigenspace
-    Eigen::Matrix<double, 6, 6> H_scaled = A_scaled.transpose() * W_inv.asDiagonal() * A_scaled;
-
-    Eigen::VectorXd eigenvalues;
-    Eigen::Matrix<double, 6, 6> eigenvectors;
-    bool eigen_success = computeEigenvalueDecomposition(H_scaled, eigenvalues, eigenvectors);
-
-    if (!eigen_success) {
-      CLOG(WARNING, "lidar.localization_daicp") << "Gauss-Newton eigenvalue decomposition failed";
-      return false;
-    }
-    
-    // Compute unified threshold
-    const double eigenvalue_threshold = computeThreshold(eigenvalues, config_->degeneracy_thresh);
-    
-    // Construct well-conditioned directions matrix 
-    Eigen::Matrix<double, 6, 6> V, Vf;
-    Eigen::Matrix<double, 6, Eigen::Dynamic> Vd;
-    Eigen::VectorXd eigen_vf;
-    constructWellConditionedDirections(eigenvalues, eigenvectors, eigenvalue_threshold, 
-                                       V, Vf, eigen_vf, Vd);
-
-    // Compute update step using eigenspace projection
-    Eigen::VectorXd delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
-    // Compute the scaled covariance matrix
-    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(Vf, eigen_vf, Vd);
-    
-    // Unscale the parameters and covariance
-    Eigen::VectorXd delta_params = D_inv * delta_params_scaled;
-    daicp_cov = D_inv * daicp_cov_scaled * D_inv.transpose();
-    // --- Debug-print covariance information
-    // printCovarianceInfo(daicp_cov);
-    
-    // Accumulate parameters 
-    accumulated_params += delta_params;
-    // Convert accumulated parameters to transformation
-    // [NOTE]: Lgmath uses [tx, ty, tz, rx, ry, rz] ordering.
-    current_transformation = lgmath::se3::Transformation(lgmath::se3::vec2tran(accumulated_params));
-
-    // Check parameter change convergence AFTER applying the update
-    double param_change = delta_params.norm();
-    
-    // Check convergence (but allow at least one iteration to see progress)
-    if (gn_iter > 0 && param_change < config_->inner_tolerance) {
-      converged = true;
-      termination_reason = "CONVERGED_PARAMETER_CHANGE";
-      break;
-    }
-    // check convergence
-    if (converged) {
-      CLOG(DEBUG, "lidar.localization_daicp") << "Converged after " << (gn_iter) << " iterations: " << termination_reason;
-      break;
-    }
-    // Update cost for next iteration
-    prev_cost = curr_cost;
-  }
-  
-  // Check if terminated due to max iterations
-  if (!converged) {
-    // Maximum Gauss-Newton iterations reached
-    termination_reason = "MAX_ITERATIONS";
-  }
-  
-  // Update T_var with the final transformation
-  // Compose the delta transformation with the initial transformation: T_final = delta_T * T_initial
-  const lgmath::se3::Transformation final_transformation = lgmath::se3::Transformation(
-      static_cast<Eigen::Matrix4d>(current_transformation.matrix() * initial_T_var.matrix())
-  );
-  
-  // Calculate the actual delta from initial to final for STEAM update
-  Eigen::Matrix4d delta_for_steam = final_transformation.matrix() * initial_T_var.matrix().inverse();
-  Eigen::Matrix<double, 6, 1> delta_vec_steam = lgmath::se3::tran2vec(delta_for_steam);
-  
-  // Apply the update to T_var using STEAM's update mechanism
-  T_var->update(delta_vec_steam);
-
-  return true;
-}
-
 inline bool daGaussNewton(
   const std::vector<std::pair<size_t, size_t>>& sample_inds,
   const std::vector<bool>& high_curv_match,
@@ -943,11 +767,8 @@ inline bool daGaussNewton(
     constructWellConditionedDirections(eigenvalues, eigenvectors, eigenvalue_threshold, 
                                        V, Vf, eigen_vf, Vd);
 
-    // Compute update step using eigenspace projection
-    Eigen::VectorXd delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
-
     // =================== solve the optimization problem ===================
-    bool verbose = false;
+    bool verbose = true;
     static daicp_qp::CachedQPSolver qp_solver(verbose);
     Eigen::VectorXd delta_params_scaled;
     if (Vd.cols() > 0) {
@@ -971,11 +792,10 @@ inline bool daGaussNewton(
                 << result.solve_time << "s (" << result.iterations << " iterations)";
         }
       } else {
-          // Last resort: unconstrained solution with projection
-          CLOG(WARNING, "lidar.localization_daicp") << "Both QP solvers failed, using unconstrained solution";
+          // Last resort: revert back to solution remapping without constraints
+          CLOG(WARNING, "lidar.localization_daicp") << "QP solvers failed, reverting back to solution remapping";
           delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
         }
-      }
     } else {
       // No degenerate directions, solve unconstrained
       if (verbose) {
@@ -1037,6 +857,184 @@ inline bool daGaussNewton(
 
   return true;
 }
+
+
+// ==== we don't need this function now.
+// inline bool daGaussNewtonP2Plane(
+//     const std::vector<std::pair<size_t, size_t>>& sample_inds,
+//     const std::vector<bool>& high_curv_match,
+//     const Eigen::Matrix4Xf& query_mat,
+//     const Eigen::Matrix4Xf& map_mat,
+//     const Eigen::Matrix4Xf& map_normals_mat,
+//     steam::se3::SE3StateVar::Ptr T_var,
+//     const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
+//     Eigen::Matrix<double, 6, 6>& daicp_cov) {
+  
+//   if (sample_inds.size() < 6) {
+//     CLOG(WARNING, "lidar.localization_daicp") << "Insufficient correspondences for Gauss-Newton";
+//     return false;
+//   }
+
+//   // Start with identity transformation for the Gauss-Newton process
+//   lgmath::se3::Transformation current_transformation = lgmath::se3::Transformation(); // Identity
+//   Eigen::VectorXd accumulated_params = Eigen::VectorXd::Zero(6);
+  
+//   // Get initial transformation from T_var to apply later
+//   const lgmath::se3::Transformation initial_T_var = T_var->value();
+  
+//   // Variables for convergence tracking
+//   double prev_cost = std::numeric_limits<double>::max();
+//   double curr_cost = 0.0;
+//   bool converged = false;
+//   std::string termination_reason = "";
+  
+//   // Inner loop Gauss-Newton iterations with degeneracy-aware updates
+//   for (int gn_iter = 0; gn_iter < config_->max_gn_iter && !converged; ++gn_iter) {
+//     // --- Build jacobian and residual for current transformation
+//     // Eigen::MatrixXd A(sample_inds.size(), 6);
+//     // Eigen::VectorXd W_inv;
+//     // W_inv.resize(sample_inds.size());
+//     // Eigen::VectorXd b(sample_inds.size());
+    
+//     // the dimension will be computed in "computeJacobianResidualInformation" function
+//     Eigen::MatrixXd A;
+//     Eigen::VectorXd b, W_inv;
+//     // Compose with initial transformation: final_T = current_T * initial_T
+//     const Eigen::Matrix4d T_combined = current_transformation.matrix() * initial_T_var.matrix();
+
+//     // Compute Jacobian, residuals, and information matrix
+//     // Note: Measurement noise is computed from the original sensor measurements (query_mat),
+//     // which are independent of the state estimate, as it should be.
+//     computeJacobianResidualInformation(sample_inds, high_curv_match,
+//                                        query_mat, map_mat, map_normals_mat,
+//                                        T_combined, A, b, W_inv, config_);
+
+//     // Compute original Hessian
+//     Eigen::MatrixXd H_original = A.transpose() * W_inv.asDiagonal() * A;
+//     // Apply Schur complement marginalization
+//     auto [H_marg_theta, H_marg_t] = schurComplementMarginalization(H_original);
+//     // Compute scaling factor
+//     // ell_mr = computeScalingFactorTrace(H_marg_theta, H_marg_t);
+//     double ell_mr = computeScalingFactorMax(H_marg_theta, H_marg_t);
+
+//     CLOG(DEBUG, "lidar.localization_daicp") << "----------------------use H_the/H_t, ell_mr:   " << ell_mr;
+
+//     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
+//     curr_cost = 0.5 * b.transpose() * W_inv.asDiagonal() * b;
+//     const Eigen::VectorXd weighted_gradient = A.transpose() * W_inv.asDiagonal() * b;
+//     const double grad_norm = weighted_gradient.norm();
+    
+//     // STEAM-style convergence checking
+//     // 1. Check absolute cost threshold
+//     if (curr_cost <= config_->abs_cost_thresh) {
+//       converged = true;
+//       termination_reason = "CONVERGED_ABSOLUTE_COST";
+//     }
+//     // 2. Check absolute cost change (after first iteration)
+//     else if (gn_iter > 0 && std::abs(prev_cost - curr_cost) <= config_->abs_cost_change_thresh) {
+//       converged = true;
+//       termination_reason = "CONVERGED_ABSOLUTE_COST_CHANGE";
+//     }
+//     // 3. Check relative cost change (after first iteration)
+//     else if (gn_iter > 0 && prev_cost > 0 && 
+//              std::abs(prev_cost - curr_cost) / prev_cost <= config_->rel_cost_change_thresh) {
+//       converged = true;
+//       termination_reason = "CONVERGED_RELATIVE_COST_CHANGE";
+//     }
+//     // 4. Check zero gradient
+//     else if (grad_norm < config_->zero_gradient_thresh) {
+//       converged = true;
+//       termination_reason = "CONVERGED_ZERO_GRADIENT";
+//     }
+
+//     // DEGENERACY-AWARE EIGENSPACE PROJECTION
+//     // --- compute original Hessian
+//     // Eigen::Matrix<double, 6, 6>  H_original = A.transpose() * W_inv * A;
+//     // Construct inverse block scaling matrix: D_inv
+//     Eigen::Matrix<double, 6, 6> D_inv = Eigen::Matrix<double, 6, 6>::Identity();
+//     D_inv.block<3, 3>(0, 0) *= (1.0 / ell_mr);  // rotation scaling, use the mean range distance instead.
+//     // translation scaling remains 1.0
+//     // Scale the jacobian
+//     Eigen::MatrixXd A_scaled = A * D_inv;
+//     // Degeneracy analysis in eigenspace
+//     Eigen::Matrix<double, 6, 6> H_scaled = A_scaled.transpose() * W_inv.asDiagonal() * A_scaled;
+
+//     Eigen::VectorXd eigenvalues;
+//     Eigen::Matrix<double, 6, 6> eigenvectors;
+//     bool eigen_success = computeEigenvalueDecomposition(H_scaled, eigenvalues, eigenvectors);
+
+//     if (!eigen_success) {
+//       CLOG(WARNING, "lidar.localization_daicp") << "Gauss-Newton eigenvalue decomposition failed";
+//       return false;
+//     }
+    
+//     // Compute unified threshold
+//     const double eigenvalue_threshold = computeThreshold(eigenvalues, config_->degeneracy_thresh);
+    
+//     // Construct well-conditioned directions matrix 
+//     Eigen::Matrix<double, 6, 6> V, Vf;
+//     Eigen::Matrix<double, 6, Eigen::Dynamic> Vd;
+//     Eigen::VectorXd eigen_vf;
+//     constructWellConditionedDirections(eigenvalues, eigenvectors, eigenvalue_threshold, 
+//                                        V, Vf, eigen_vf, Vd);
+
+//     // Compute update step using eigenspace projection
+//     Eigen::VectorXd delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
+//     // Compute the scaled covariance matrix
+//     Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(Vf, eigen_vf, Vd);
+    
+//     // Unscale the parameters and covariance
+//     Eigen::VectorXd delta_params = D_inv * delta_params_scaled;
+//     daicp_cov = D_inv * daicp_cov_scaled * D_inv.transpose();
+//     // --- Debug-print covariance information
+//     // printCovarianceInfo(daicp_cov);
+    
+//     // Accumulate parameters 
+//     accumulated_params += delta_params;
+//     // Convert accumulated parameters to transformation
+//     // [NOTE]: Lgmath uses [tx, ty, tz, rx, ry, rz] ordering.
+//     current_transformation = lgmath::se3::Transformation(lgmath::se3::vec2tran(accumulated_params));
+
+//     // Check parameter change convergence AFTER applying the update
+//     double param_change = delta_params.norm();
+    
+//     // Check convergence (but allow at least one iteration to see progress)
+//     if (gn_iter > 0 && param_change < config_->inner_tolerance) {
+//       converged = true;
+//       termination_reason = "CONVERGED_PARAMETER_CHANGE";
+//       break;
+//     }
+//     // check convergence
+//     if (converged) {
+//       CLOG(DEBUG, "lidar.localization_daicp") << "Converged after " << (gn_iter) << " iterations: " << termination_reason;
+//       break;
+//     }
+//     // Update cost for next iteration
+//     prev_cost = curr_cost;
+//   }
+  
+//   // Check if terminated due to max iterations
+//   if (!converged) {
+//     // Maximum Gauss-Newton iterations reached
+//     termination_reason = "MAX_ITERATIONS";
+//   }
+  
+//   // Update T_var with the final transformation
+//   // Compose the delta transformation with the initial transformation: T_final = delta_T * T_initial
+//   const lgmath::se3::Transformation final_transformation = lgmath::se3::Transformation(
+//       static_cast<Eigen::Matrix4d>(current_transformation.matrix() * initial_T_var.matrix())
+//   );
+  
+//   // Calculate the actual delta from initial to final for STEAM update
+//   Eigen::Matrix4d delta_for_steam = final_transformation.matrix() * initial_T_var.matrix().inverse();
+//   Eigen::Matrix<double, 6, 1> delta_vec_steam = lgmath::se3::tran2vec(delta_for_steam);
+  
+//   // Apply the update to T_var using STEAM's update mechanism
+//   T_var->update(delta_vec_steam);
+
+//   return true;
+// }
+
 
 }  // daicp_lib
 }  // namespace lidar

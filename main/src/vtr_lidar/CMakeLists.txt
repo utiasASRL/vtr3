@@ -22,6 +22,8 @@ find_package(visualization_msgs REQUIRED)
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 
+find_package(casadi REQUIRED)
+
 find_package(vtr_common REQUIRED)
 find_package(vtr_lidar_msgs REQUIRED)
 find_package(vtr_logging REQUIRED)
@@ -55,10 +57,11 @@ file(GLOB_RECURSE PIPELINE_SRC
 )
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
+target_link_libraries(${PROJECT_NAME}_pipeline casadi)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions pcl_ros
   nav_msgs visualization_msgs
-  lgmath steam vtr_torch
+  lgmath steam vtr_torch casadi
   vtr_logging vtr_tactic vtr_lidar_msgs
 )
 
