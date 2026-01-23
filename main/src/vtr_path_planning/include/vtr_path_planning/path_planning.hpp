@@ -24,5 +24,4 @@
 #include "vtr_path_planning/mpc/unicycle_mpc_path_tracker_follower.hpp"
 #include "vtr_path_planning/mpc/bicycle_mpc_path_tracker.hpp"
 #include "vtr_path_planning/mpc/bicycle_mpc_path_tracker_follower.hpp"
-#include "vtr_path_planning/mpc/bicycle_mpc_path_tracker_joint.hpp"
 #include "vtr_path_planning/dynamic_path_planner.hpp"
