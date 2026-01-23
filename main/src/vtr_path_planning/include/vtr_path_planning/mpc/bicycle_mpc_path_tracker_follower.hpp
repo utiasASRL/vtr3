@@ -92,11 +92,11 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   void initializeRoute(RobotState& robot_state);
 
   void loadMPCConfig(
-      CasadiBicycleMPCFollower::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+      CasadiBicycleMPCFollower::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing);
 
   CasadiMPC::Config::Ptr getMPCConfig(
-      const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
-  
+      Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing) override;
+
   virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
 
   virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,

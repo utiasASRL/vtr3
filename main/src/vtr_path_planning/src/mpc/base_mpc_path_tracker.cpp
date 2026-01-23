@@ -53,7 +53,7 @@ auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr conf
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
-  config->alpha = node->declare_parameter<float>(prefix + ".mpc.alpha", config->alpha)
+  config->alpha = node->declare_parameter<float>(prefix + ".mpc.alpha", config->alpha);
 }
 
 // Subclasses must implement their own Config::fromROS.
@@ -169,7 +169,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   bool isReverse = (dir == tactic::Direction::Backward);
   bool dir_switch = segment_info.direction_switch;
 
-  auto mpcConfig = getMPCConfig(isReverse, w_p_r_in_r, applied_vel_);
+  auto mpcConfig = getMPCConfig(w_p_r_in_r, applied_vel_, isReverse);
 
   if (!isMPCStateValid(mpcConfig, curr_time)){
     return Command();

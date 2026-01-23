@@ -80,17 +80,22 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
   ~BicycleMPCPathTracker() override;
 
  protected:
-  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
+ 
   void loadMPCConfig(
-      CasadiBicycleMPC::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+      CasadiBicycleMPC::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel,
+                            const bool isReversing);
+  virtual CasadiMPC::Config::Ptr getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel,
+                            const bool isReversing) override;
+
   virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
-  virtual CasadiMPC::Config::Ptr getMPCConfig(
-      const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
+  
   void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                             const lgmath::se3::Transformation& T_p_r_extp,
-                           const double state_p,
-                           RobotState& robot_state, 
-                           const tactic::Timestamp& curr_time) override;
+                            const double state_p,
+                            RobotState& robot_state, 
+                            const tactic::Timestamp& curr_time) override;
+
+  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
 
  private: 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(BicycleMPCPathTracker);

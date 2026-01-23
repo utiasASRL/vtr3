@@ -45,6 +45,7 @@ class CasadiMPC {
       DM vel_max;
       DM vel_min;
       DM previous_vel;
+      double alpha = 0.0; // used for the unicycle model
       std::vector<DM> cost_weights;
       int eop_index = -1; // index of the end of path in the reference poses
 
@@ -68,7 +69,18 @@ public:
 
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
-    double alpha = 0.0; // used for the unicycle model
+
+    double Q_x = 0.0;
+    double Q_y = 0.0;
+    double Q_th = 0.0;
+    double R1 = 0.0;
+    double R2 = 0.0;
+    double Acc_R1 = 0.0;
+    double Acc_R2 = 0.0;
+    double lin_acc_max = 1.0; // m/s^2
+    double ang_acc_max = 1.0;
+
+
     Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
         : CasadiMPC::Config(nStates, nControl, N, DT) {
     };
