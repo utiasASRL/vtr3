@@ -280,6 +280,22 @@ void VisualizationUtils::visualize(
         }
         ref_pose_pub_->publish(pose_array_msg);
     }
+
+    // Attempting to Publish the reference poses used in the mpc optimization as a pose array
+    void VisualizationUtils::publishLocalReferencePoses(const std::vector<lgmath::se3::Transformation>& ref_poses, const tactic::Timestamp& stamp) {
+
+        // create a PoseArray message
+        geometry_msgs::msg::PoseArray pose_array_msg;
+        pose_array_msg.header.frame_id = "world";
+        pose_array_msg.header.stamp = rclcpp::Time(stamp);
+
+        // fill the PoseArray with some sample poses
+        for (size_t i = 0; i < ref_poses.size(); i++) {
+            auto T1 = ref_poses[i].matrix();
+            pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T1)));
+        }
+        ref_pose_pub_->publish(pose_array_msg);
+    }
     
 
     void VisualizationUtils::publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {

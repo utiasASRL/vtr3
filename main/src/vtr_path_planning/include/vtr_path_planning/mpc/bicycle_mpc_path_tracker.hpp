@@ -59,8 +59,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     double r_racc1 = 0.0;
     double r_q_f = 0.0;
 
-    double alpha = 0.6;
-
     int failure_threshold = 5;
     int recovery_steps = 15;
 

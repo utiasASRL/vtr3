@@ -53,6 +53,7 @@ auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr conf
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
+  config->alpha = node->declare_parameter<float>(prefix + ".mpc.alpha", config->alpha)
 }
 
 // Subclasses must implement their own Config::fromROS.
@@ -247,8 +248,12 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
 
   mpcConfig->reference_poses.clear();
   auto referenceInfo = generateHomotopyReference(p_rollout, chain, T_w_p*T_p_r_extp);
+  std::vector<lgmath::se3::Transformation> local_reference_poses;
+  
   for (const auto& Tf : referenceInfo.poses) {
     mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() * Tf));
+    local_reference_poses.push_back(T_w_p.inverse() * Tf);
+    
     CLOG(DEBUG, "cbit.control")
         << "Adding reference pose: " << tf_to_global(T_w_p.inverse() * Tf);
   }
@@ -257,6 +262,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
   mpcConfig->cost_weights.clear();
   mpcConfig->cost_weights.push_back(1.0);
   auto last_pose = (T_w_p.inverse()*referenceInfo.poses[0]).vec();
+  
   int end_ind = -1;
   auto weighting = 1.0;
   for (int i = 1; i < mpcConfig->N; i++) {
@@ -281,6 +287,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
   }
 
   vis_->publishReferencePoses(referenceInfo.poses, curr_time);
+  vis_->publishLocalReferencePoses(local_reference_poses, curr_time);
 
   if (end_ind == 0)
     end_ind = 1;

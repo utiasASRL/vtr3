@@ -74,7 +74,8 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
       << ", r2: " << config->f_r2
       << ", racc1: " << config->f_racc1
       << ", racc2: " << config->f_racc2
-      << ", q_f: " << config->f_q_f;
+      << ", q_f: " << config->f_q_f
+      << ", alpha: " << config->alpha;
 
   CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse costs: "
       << "q_lat: " << config->r_q_lat
@@ -109,7 +110,7 @@ void BicycleMPCPathTracker::loadMPCConfig(
   mpc_config->vel_max(0) = isReversing ? 0.0 : config_->max_lin_vel;
   mpc_config->vel_min(0) = isReversing ? -config_->max_lin_vel : 0.0;
   mpc_config->vel_max(1) = config_->max_ang_vel;
-  mpc_config->vel_min(1) = -config_->max_ang_vel;
+  mpc_config->vel_min(1)   = -config_->max_ang_vel;
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), applied_vel(1)};
   mpc_config->wheelbase = config_->wheelbase;
 
@@ -156,12 +157,6 @@ void BicycleMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const 
                          const tactic::Timestamp& t) {
   auto mpc_config = std::static_pointer_cast<CasadiBicycleMPC::Config>(mpcConfig);
   BaseMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
-  if (mpc_config != nullptr) {
-    if (mpc_config->eop_index > -1) {
-      mpc_config->Q_f = 10000.0;
-      mpc_config->cost_weights[mpc_config->eop_index] *= mpc_config->Q_f;
-    }
-  }
 }
 
 std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {

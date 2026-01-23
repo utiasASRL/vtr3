@@ -56,7 +56,9 @@ class BaseMPCPathTracker : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
+    double alpha = 0.6; // First order lag
     bool repeat_flipped = false;
+
 
     // Detection threshold to set MPC weights to zero
     double end_of_path_distance_threshold = 0.01;
