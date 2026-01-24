@@ -89,7 +89,7 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPC::solve(const CasadiMPC::Conf
 
   if(stats["success"].as_bool() == false) { 
     CLOG(WARNING, "mpc.solver") << "Casadi error: " << stats["return_status"];
-    // throw std::logic_error("Casadi was unable to find a feasible solution. Barrier constraint likely violated");
+    throw std::logic_error("Casadi was unable to find a feasible solution. Barrier constraint likely violated");
   }
   
   std::map<std::string, DM> output;
