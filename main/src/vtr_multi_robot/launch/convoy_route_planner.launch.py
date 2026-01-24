@@ -21,6 +21,8 @@ def generate_launch_description():
             namespace='vtr',
             parameters=[
                 PathJoinSubstitution([vtr_temp, 'setup_params.yaml']),
+                PathJoinSubstitution([config_dir, LaunchConfiguration('base_params')]),
+                PathJoinSubstitution([config_dir, LaunchConfiguration('convoy_params')]),
                 {'robot_names': LaunchConfiguration('robots'),
                  'log_enabled': ["convoy_route"]}
             ]

@@ -160,7 +160,7 @@
         /col_mustard
       follow_distance: 5.0  
 
-/vtr/convoy_manager:
+/vtr/convoy_planning_node:
   ros__parameters:
     mr_green:
       leader_mpc: bicycle_mpc
