@@ -4,24 +4,8 @@ sys.dont_write_bytecode = True
 import casadi as ca
 from casadi import sin, cos, pi
 
+
 #Compile Time Constants (Could use params to set!)
-
-# Pose Covariance
-Q_x = 20
-Q_y = 20
-Q_theta = 5
-# Command Covariance
-R1 = 1.0 #0.1
-R2 = 1.0 #0.1
-
-# Distance Covariance
-# Q_dist = 0 
-Q_dist = 500
-
-# Acceleration Cost Covariance
-Acc_R1 = 10
-Acc_R2 = 1 #0.01
-
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
@@ -72,10 +56,21 @@ init_vel = ca.SX.sym('init_vel', n_controls)
 follower_ref_poses = ca.SX.sym('ref_poses_f', n_states*N)
 leader_ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
 d = ca.SX.sym('d', 1)
-
-P = ca.vertcat(init_pose, follower_ref_poses, init_vel, leader_ref_poses, d)
+Q_dist = ca.SX.sym('Q_dist', 1)
 
 measured_velo = init_vel
+
+# Configurable cost paramets
+Q_x = ca.SX.sym('Q_x', 1)
+Q_y = ca.SX.sym('Q_y', 1)
+Q_theta = ca.SX.sym('Q_theta', 1)
+R1 = ca.SX.sym('R1', 1)
+R2 = ca.SX.sym('R2', 1)
+Acc_R1 = ca.SX.sym('Acc_R1', 1)
+Acc_R2 = ca.SX.sym('Acc_R2', 1)
+
+P = ca.vertcat(init_pose, follower_ref_poses, measured_velo,            # Base MPC
+               leader_ref_poses, d, Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_dist)    # Weights for tuning
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
