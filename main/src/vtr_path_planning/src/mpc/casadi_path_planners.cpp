@@ -161,6 +161,22 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   
   arg["p"] = vertcat(arg["p"], mpcConf.distance);
 
+  arg["p"] = vertcat(arg["p"], mpcConf.Q_x);
+  
+  arg["p"] = vertcat(arg["p"], mpcConf.Q_y);
+  
+  arg["p"] = vertcat(arg["p"], mpcConf.Q_th);
+  
+  arg["p"] = vertcat(arg["p"], mpcConf.R1);
+  
+  arg["p"] = vertcat(arg["p"], mpcConf.R2);
+  
+  arg["p"] = vertcat(arg["p"], mpcConf.Acc_R1);
+  
+  arg["p"] = vertcat(arg["p"], mpcConf.Acc_R2);
+
+  arg["p"] = vertcat(arg["p"], mpcConf.Q_dist);
+
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
 

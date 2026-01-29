@@ -21,7 +21,7 @@
 #include <vtr_logging/logging.hpp>
 #include <vtr_common/conversions/ros_lgmath.hpp>
 #include <vtr_tactic/types.hpp>
-#include <vtr_path_planning/base_path_planner.hpp>
+#include <vtr_path_planning/mpc/unicycle_mpc_path_tracker.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
 #include <vtr_path_planning/mpc/follower_common.hpp>
@@ -29,9 +29,17 @@
 #include <vtr_path_planning/cbit/visualization_utils.hpp>
 
 #include <rclcpp/rclcpp.hpp>
-#include <nav_msgs/msg/path.hpp>
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
 #include <vtr_navigation_msgs/srv/graph_state.hpp>
+#include <vtr_navigation_msgs/srv/following_route.hpp>
+#include "std_msgs/msg/float32.hpp"
+
+// #include <nav_msgs/msg/path.hpp>
+// #include <vtr_navigation_msgs/msg/graph_route.hpp>
+// #include <vtr_navigation_msgs/srv/graph_state.hpp>
+
+
+
 
 namespace vtr {
 namespace path_planning {
@@ -95,7 +103,7 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
       CasadiUnicycleMPCFollower::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
 
   CasadiMPC::Config::Ptr getMPCConfig(
-      Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
+      Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool) override;
 
   virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
   

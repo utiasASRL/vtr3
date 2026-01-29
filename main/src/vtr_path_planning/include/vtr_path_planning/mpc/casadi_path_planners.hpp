@@ -107,7 +107,7 @@ class CasadiUnicycleMPCFollower : public CasadiMPC {
 public:
   PTR_TYPEDEFS(CasadiUnicycleMPCFollower);
 
-  struct Config : public CasadiMPC::Config {
+  struct Config : public CasadiUnicycleMPC::Config {
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
@@ -115,8 +115,10 @@ public:
     std::vector<DM> leader_reference_poses;
     double distance = 0.5;
     double distance_margin = 1.0;
+    double Q_dist = 1.0;
+
     Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
-        : CasadiMPC::Config(nStates, nControl, N, DT) {
+        : CasadiUnicycleMPC::Config(nStates, nControl, N, DT) {
     };
   };
 

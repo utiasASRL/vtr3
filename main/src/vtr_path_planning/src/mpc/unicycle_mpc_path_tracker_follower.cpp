@@ -30,12 +30,12 @@ using namespace std::chrono_literals;
 
 namespace vtr::path_planning {
 
-namespace {
-// Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
-Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim) {
-  return {std::clamp(applied_vel(0), -v_lim, v_lim), std::clamp(applied_vel(1), -w_lim, w_lim)};
-}
-}
+// namespace {
+// // Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
+// Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim) {
+//   return {std::clamp(applied_vel(0), -v_lim, v_lim), std::clamp(applied_vel(1), -w_lim, w_lim)};
+// }
+// }
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto UnicycleMPCPathTrackerFollower::Config::loadConfig(UnicycleMPCPathTrackerFollower::Config::Ptr config, 
@@ -124,8 +124,8 @@ void UnicycleMPCPathTrackerFollower::loadMPCConfig(
   // mpc_config->recovery = false;
 }
 
-CasadiMPC::Config::Ptr UnicycleMPCPathTrackerFollower::getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
-  auto mpcConfig = std::make_shared<CasadiBicycleMPCFollower::Config>();
+CasadiMPC::Config::Ptr UnicycleMPCPathTrackerFollower::getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool) {
+  auto mpcConfig = std::make_shared<CasadiUnicycleMPCFollower::Config>();
   loadMPCConfig(mpcConfig, w_p_r_in_r, applied_vel);
   return mpcConfig;
 }
@@ -165,7 +165,7 @@ bool UnicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, con
   return true;
 }
 
-void initializeRoute(RobotState& robot_state);
+// void initializeRoute(RobotState& robot_state);
 
 
 void UnicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
