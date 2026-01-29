@@ -58,11 +58,7 @@ auto UnicycleMPCPathTrackerFollower::Config::loadConfig(UnicycleMPCPathTrackerFo
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto UnicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
-<<<<<<< HEAD
-  auto base_config = std::static_pointer_cast<BasePathPlanner::Config>(config);
-  *base_config =  *BasePathPlanner::Config::fromROS(node, prefix);
-  loadConfig(config, node, prefix);
-=======
+
   auto base_config = std::static_pointer_cast<UnicycleMPCPathTracker::Config>(config);
   *base_config =  *UnicycleMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
@@ -79,7 +75,7 @@ auto UnicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedP
     << ", following_offset: " << config->following_offset
     << ", distance_margin: " << config->distance_margin
     << ", leader_namespace: " << config->leader_namespace;
->>>>>>> ed6e3ab492990a8aa96a18df219e2ef8e2ecff7b
+
 
   return config;
 }
@@ -185,7 +181,6 @@ bool UnicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, con
 }
 
 // void initializeRoute(RobotState& robot_state);
-
 
 void UnicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                           const lgmath::se3::Transformation& T_p_r_extp,
@@ -577,8 +572,4 @@ void UnicycleMPCPathTrackerFollower::onLeaderDist(const FloatMsg::SharedPtr dist
   recentLeaderDist_ = distance;
 }
 
-<<<<<<< HEAD
 }  // namespace vtr::path_planning
-=======
-}  // namespace vtr::path_planning
->>>>>>> ed6e3ab492990a8aa96a18df219e2ef8e2ecff7b
