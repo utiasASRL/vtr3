@@ -32,11 +32,6 @@ void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFoll
                            const std::string& prefix) {
 
   // MPC Configs:
-  // PID PARAMETERS
-  config->kp = node->declare_parameter<double>(prefix + ".longitudinal_control.kp", config->kp);
-  config->ki = node->declare_parameter<double>(prefix + ".longitudinal_control.ki", config->ki);
-  config->kd = node->declare_parameter<double>(prefix + ".longitudinal_control.kd", config->kd);
-
   // Follower params
   config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
@@ -175,28 +170,28 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   estimatedDistancePub_->publish(internal_dist);
 
   mpcConfig->VF = abs(leader_vel_(0));
-  if (config_->waypoint_selection == "external_dist") {
-    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
-    const double error = distance - config_->following_offset;
-    if (abs(chain->leaf_velocity()(0)) > 0.05)
-      errorIntegrator += error * config_->control_period / 1000.0;
-    else
-      errorIntegrator = 0;
+  // if (config_->waypoint_selection == "external_dist") {
+  //   const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
+  //   const double error = distance - config_->following_offset;
+  //   if (abs(chain->leaf_velocity()(0)) > 0.05)
+  //     errorIntegrator += error * config_->control_period / 1000.0;
+  //   else
+  //     errorIntegrator = 0;
 
-    mpcConfig->VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_) / ((float)config_->control_period / 1000.0);
-    if (abs(mpcConfig->VF) > config_->max_lin_vel)
-      mpcConfig->VF = sgn(mpcConfig->VF) * config_->max_lin_vel;
+  //   mpcConfig->VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_) / ((float)config_->control_period / 1000.0);
+  //   if (abs(mpcConfig->VF) > config_->max_lin_vel)
+  //     mpcConfig->VF = sgn(mpcConfig->VF) * config_->max_lin_vel;
     
-    lastError_ = error;
-    CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig->VF;
+  //   lastError_ = error;
+  //   CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig->VF;
 
-    //TODO revert to max and min
-    mpcConfig->vel_max = {mpcConfig->VF, config_->max_ang_vel};
-    mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
-    follower_mpc_config->lin_acc_max = 1000;
-    follower_mpc_config->distance_margin = 1000;
-    follower_mpc_config->Q_dist = 0;
-  }
+  //   //TODO revert to max and min
+  //   mpcConfig->vel_max = {mpcConfig->VF, config_->max_ang_vel};
+  //   mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
+  //   follower_mpc_config->lin_acc_max = 1000;
+  //   follower_mpc_config->distance_margin = 1000;
+  //   follower_mpc_config->Q_dist = 0;
+  // }
   
   for (int i = 0; i < mpcConfig->N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
@@ -298,6 +293,7 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
     const Transformation T_w_p1 =  tfFromPoseMessage(path->poses[1].pose);
     const auto dt = rclcpp::Time(path->poses[1].header.stamp) - rclcpp::Time(path->poses[0].header.stamp);
     auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
+    // TODO: Remove 1m/s threshold 
     if (vel(0, 0) > 1.0) {
       CLOG(WARNING, "mpc.follower") << "Erroneous velocity " << vel << " capped to nominal forward speed. DT=" << dt.seconds();
       leader_vel_ << config_->forward_vel, 0.0;

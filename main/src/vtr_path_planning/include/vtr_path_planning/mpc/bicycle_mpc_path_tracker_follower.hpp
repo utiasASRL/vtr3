@@ -64,11 +64,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     double f_q_dist = 1.0;
     double r_q_dist = 1.0;
 
-    //Distance PID Gains
-    double kp = 1.0;
-    double kd = 0.0;
-    double ki = 0.0;
-
     // Misc
     int command_history_length = 100;
 
@@ -115,6 +110,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   CasadiBicycleMPCFollower solver_;
   tactic::GraphBase::Ptr graph_;
 
+  // POTENTIALLY DELETE -> Inherited from some base class
   RobotState::Ptr robot_state_;
 
   PathMsg::SharedPtr recentLeaderPath_;
