@@ -6,10 +6,6 @@ from casadi import sin, cos, pi
 
 
 #Compile Time Constants (Could use params to set!)
-<<<<<<< HEAD
-=======
-
->>>>>>> ed6e3ab492990a8aa96a18df219e2ef8e2ecff7b
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
@@ -60,9 +56,7 @@ measured_velo = ca.SX.sym('measured_velo', n_controls)
 follower_ref_poses = ca.SX.sym('ref_poses_f', n_states*N)
 leader_ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
 d = ca.SX.sym('d', 1)
-<<<<<<< HEAD
 Q_dist = ca.SX.sym('Q_dist', 1)
-=======
 
 # Configurable cost parameters
 Q_x = ca.SX.sym('Q_x', 1)
@@ -73,7 +67,6 @@ R1 = ca.SX.sym('R1', 1)
 R2 = ca.SX.sym('R2', 1)
 Acc_R1 = ca.SX.sym('Acc_R1', 1)
 Acc_R2 = ca.SX.sym('Acc_R2', 1)
->>>>>>> ed6e3ab492990a8aa96a18df219e2ef8e2ecff7b
 
 P = ca.vertcat(init_pose, follower_ref_poses, measured_velo, leader_ref_poses, d,
                Q_x, Q_y, Q_theta, Q_dist, R1, R2, Acc_R1, Acc_R2)
