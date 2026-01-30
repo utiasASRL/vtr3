@@ -43,6 +43,7 @@ auto UnicycleMPCPathTracker::Config::loadConfig(UnicycleMPCPathTracker::Config::
   config->r1    = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
   config->r2    = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
   config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
+  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
 }
 
 auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
@@ -87,8 +88,7 @@ void UnicycleMPCPathTracker::loadMPCConfig(
   mpc_config->vel_min(1)   = -config_->max_ang_vel;
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5,0)};
 
-  // Set the MPC costs based on if we're reversing or not
-  mpc_config->Q_y    = config_->q_x;
+  mpc_config->Q_x    = config_->q_x;
   mpc_config->Q_y    = config_->q_y;
   mpc_config->Q_th   = config_->q_th;
   mpc_config->R1     = config_->r1; 
