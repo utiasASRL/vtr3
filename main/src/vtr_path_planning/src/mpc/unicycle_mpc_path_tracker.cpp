@@ -43,16 +43,6 @@ auto UnicycleMPCPathTracker::Config::loadConfig(UnicycleMPCPathTracker::Config::
   config->r1    = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
   config->r2    = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
   config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
-
-  // MPC Configs:
-  // SPEED SCHEDULER PARAMETERS
-  config->q_x   = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
-  config->q_y   = node->declare_parameter<double>(prefix + ".mpc.q_y", config->q_y);
-  config->q_th  = node->declare_parameter<double>(prefix + ".mpc.q_th", config->q_th);
-  config->r1    = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
-  config->r2    = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
-  config->racc1 = node->declare_parameter<double>(prefix + ".mpc.racc1", config->racc1);
-  config->racc2 = node->declare_parameter<double>(prefix + ".mpc.racc2", config->racc2);
 }
 
 auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
