@@ -141,7 +141,8 @@
    path_planning:
     bicycle_mpc_follower:
       leader_namespace:
-        /prof_plum 
+        # /prof_plum 
+        /mrs_peacock
       follow_distance: 5.0
 
 /col_mustard/vtr/navigator:
@@ -157,7 +158,8 @@
    path_planning:
     bicycle_mpc_follower:
       leader_namespace:
-        /col_mustard
+        # /col_mustard
+        /mr_green
       follow_distance: 5.0  
 
 /vtr/convoy_planning_node:

@@ -2,7 +2,8 @@
 session_name: vtr_convoy_manager
 environment:
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
-  ROBOTS: "[prof_plum,mr_green,col_mustard,mrs_peacock]" # Figure out how to easily make this configurable
+  ROBOTS: "[mr_green,mrs_peacock]" # Figure out how to easily make this configurable
+  # ROBOTS: "[prof_plum,mr_green,col_mustard,mrs_peacock]" # Figure out how to easily make this configurable
 
 start_directory: ${VTRDATA}
 suppress_history: false
@@ -16,7 +17,7 @@ windows:
       - ros2 run vtr_gui multi_robot_socket_client --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
       - ros2 run vtr_gui multi_robot_socket_server --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
       - ros2 run vtr_gui multi_robot_web_server --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
-      - ros2 run vtr_gui setup_server --ros-args -r __ns:=/vtr --num-robots 4
+      - ros2 run vtr_gui setup_server --ros-args -r __ns:=/vtr --num-robots 2
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: convoy_manager
