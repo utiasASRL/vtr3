@@ -117,7 +117,7 @@
     unicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 1.0
+      follow_distance: 2.0
 
 /mr_green/vtr/navigator:
   ros__parameters:
@@ -126,7 +126,7 @@
       leader_namespace:
         # /prof_plum 
         /mrs_peacock
-      follow_distance: 1.0
+      follow_distance: 2.0
 
 /col_mustard/vtr/navigator:
   ros__parameters:
@@ -143,7 +143,7 @@
       leader_namespace:
         # /col_mustard
         /mr_green
-      follow_distance: 1.0  
+      follow_distance: 2.0  
 
 /vtr/convoy_planning_node:
   ros__parameters:
