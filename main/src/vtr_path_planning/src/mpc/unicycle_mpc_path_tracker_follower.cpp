@@ -61,6 +61,19 @@ auto UnicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedP
   auto base_config = std::static_pointer_cast<UnicycleMPCPathTracker::Config>(config);
   *base_config =  *UnicycleMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
+ 
+    CLOG(DEBUG, "cbit.control") << "Unicycle MPC parameters: "
+    << "q_x: " << config->q_x
+    << ", q_y: " << config->q_y
+    << ", q_th: " << config->q_th
+    << ", r1: " << config->r1
+    << ", r2: " << config->r2
+    << ", racc1: " << config->racc1
+    << ", racc2: " << config->racc2
+    << ", q_dist: " << config->q_dist
+    << ", following_offset: " << config->following_offset
+    << ", distance_margin: " << config->distance_margin
+    << ", leader_namespace: " << config->leader_namespace;
 
   return config;
 }
@@ -166,7 +179,6 @@ bool UnicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, con
 }
 
 // void initializeRoute(RobotState& robot_state);
-
 
 void UnicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                           const lgmath::se3::Transformation& T_p_r_extp,

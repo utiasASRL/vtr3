@@ -120,6 +120,7 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   arg["ubx"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 1);
   arg["lbx"].set(-DM::inf(), true, Slice(0, mpcConf.nStates*(mpcConf.N+1)));
   arg["ubx"].set(DM::inf(), true, Slice(0, mpcConf.nStates*(mpcConf.N+1)));
+ 
   
   // Velocity constraints
   arg["ubx"].set(mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
@@ -127,9 +128,12 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   arg["lbx"].set(-mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   arg["lbx"].set(-mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
 
+
+  
   arg["lbg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N, 1);
   arg["ubg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N, 1);
 
+  
   if (mpcConf.up_barrier_q.size() > 0 && mpcConf.low_barrier_q.size() > 0) {
     arg["ubg"].set(DM(mpcConf.up_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
     arg["lbg"].set(DM(mpcConf.low_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
@@ -143,14 +147,18 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   arg["x0"] = reshape(repmat(mpcConf.T0, 1, mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1), 1);
   arg["x0"] = vertcat(arg["x0"], DM::zeros(mpcConf.nControl* mpcConf.N, 1));
 
+  
   arg["p"] = mpcConf.T0;
 
+  
   for(int i = 0; i < mpcConf.N; i++) {
       arg["p"] = vertcat(arg["p"],
           mpcConf.reference_poses.at(i));
   }
+  
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
 
+  
   for(int i = 0; i < mpcConf.N; i++) {
       arg["p"] = vertcat(arg["p"],
           mpcConf.leader_reference_poses.at(i));
@@ -166,6 +174,7 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_dist));
 
+  CLOG(ERROR, "mpc.solver") << mpcConf.Q_dist << mpcConf.Acc_R2 << mpcConf.Acc_R1 << mpcConf.R1 << mpcConf.R2 << mpcConf.Q_th << mpcConf.Q_y << mpcConf.Q_x << mpcConf.distance; 
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
 

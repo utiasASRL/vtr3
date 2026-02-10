@@ -4,39 +4,40 @@
       chain:
         alpha: 0.0
     path_planning:
-      type: unicycle_mpc
-      control_period: 100 # ms
-
-      speed_scheduler:
-        planar_curv_weight: 0.0
-        profile_curv_weight: 0.0 
-        eop_weight: 1.0
-        min_vel: 0.5
-      mpc:
-        # Controller Params
-        extrapolate_robot_pose: false
-        mpc_verbosity: false
-        forward_vel: 1.0
-        max_lin_vel: 1.5
-        max_ang_vel: 0.5
-        max_ang_acc: 5.0
-        ang_alpha: 0.811
-        lin_alpha: 0.0
-        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
-        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
-
-        vehicle_model: "unicycle"
-
-        q_x: 10.0
-        q_y: 10.0
-        q_th: 5.0
-        r1: 1.0
-        r2: 1.0
-        racc1: 0.1
-        racc2: 0.5
-
-        # Misc
-        command_history_length: 100
+      unicycle_mpc:
+        type: unicycle_mpc
+        control_period: 100 # ms
+     
+        speed_scheduler:
+          planar_curv_weight: 0.0
+          profile_curv_weight: 0.0 
+          eop_weight: 1.0
+          min_vel: 0.5
+        mpc:
+          # Controller Params
+          extrapolate_robot_pose: false
+          mpc_verbosity: false
+          forward_vel: 1.0
+          max_lin_vel: 1.5
+          max_ang_vel: 0.5
+          max_ang_acc: 5.0
+          ang_alpha: 0.811
+          lin_alpha: 0.0
+          robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+          robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+     
+          vehicle_model: "unicycle"
+     
+          q_x: 10.0
+          q_y: 10.0
+          q_th: 5.0
+          r1: 1.0
+          r2: 1.0
+          racc1: 0.1
+          racc2: 0.5
+     
+          # Misc
+          command_history_length: 100
 
       unicycle_mpc_follower:
         type: unicycle_mpc_follower
@@ -88,7 +89,7 @@
       - mpc.debug
       - mpc.solver
       - mpc.follower
-      #- mpc.follower.target
+      - mpc.follower.target
       - mpc.follower.pid
         # path planner
       #- cbit_planner.path_planning

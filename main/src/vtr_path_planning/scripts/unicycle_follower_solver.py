@@ -4,8 +4,8 @@ sys.dont_write_bytecode = True
 import casadi as ca
 from casadi import sin, cos, pi
 
-
 #Compile Time Constants (Could use params to set!)
+
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
@@ -52,30 +52,27 @@ last_controls = ca.vertcat(
 
 # column vector for storing initial state and target states + initial velocity
 init_pose = ca.SX.sym('init_pose', n_states)
-init_vel = ca.SX.sym('init_vel', n_controls)
+measured_velo = ca.SX.sym('measured_velo', n_controls)
 follower_ref_poses = ca.SX.sym('ref_poses_f', n_states*N)
 leader_ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
 d = ca.SX.sym('d', 1)
-Q_dist = ca.SX.sym('Q_dist', 1)
 
-measured_velo = init_vel
-
-# Configurable cost paramets
+# Configurable cost parameters
 Q_x = ca.SX.sym('Q_x', 1)
 Q_y = ca.SX.sym('Q_y', 1)
 Q_theta = ca.SX.sym('Q_theta', 1)
+Q_dist = ca.SX.sym('Q_dist', 1) # ?
 R1 = ca.SX.sym('R1', 1)
 R2 = ca.SX.sym('R2', 1)
 Acc_R1 = ca.SX.sym('Acc_R1', 1)
 Acc_R2 = ca.SX.sym('Acc_R2', 1)
 
-P = ca.vertcat(init_pose, follower_ref_poses, measured_velo,            # Base MPC
-               leader_ref_poses, d, Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_dist)    # Weights for tuning
+P = ca.vertcat(init_pose, follower_ref_poses, measured_velo, leader_ref_poses, d,
+               Q_x, Q_y, Q_theta, Q_dist, R1, R2, Acc_R1, Acc_R2)
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
-
-D = ca.DM(Q_dist)
+D = Q_dist
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
@@ -121,6 +118,7 @@ cost_fn = cost_fn \
         + so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2]) * Q_theta * so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2])
 
 cost_fn = cost_fn + D * (ca.norm_2((st_next[:2] - leader_ref_poses[n_states*(k):n_states*(k+1)-1])) - d)**2 
+
 k1 = motion_model(st, con, last_vel)
 k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -167,13 +165,13 @@ for k in range(0, N):
     st_next = X[:, k+1]
     g = ca.vertcat(g,ca.norm_2((st_next[:2] - leader_ref_poses[n_states*(k):n_states*(k+1)-1])))
 
-
-
 #Acceleration constraints
 cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
 for k in range(1, N):
     cost_fn += (U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1])
 
+print("follower g.shape ", g.shape)
+print("cost_function ", cost_fn)
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1
@@ -196,4 +194,4 @@ opts = {
     'print_time': 0
 }
 
-solver = ca.nlpsol('solve_unicycle_mpc', 'ipopt', nlp_prob, opts)	
+solver = ca.nlpsol('solve_unicycle_follower_mpc', 'ipopt', nlp_prob, opts)	
