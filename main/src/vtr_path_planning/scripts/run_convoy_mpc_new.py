@@ -12,8 +12,17 @@ from unicycle_follower_solver import solver as solver_follower
 p_init_l = 0
 p_init_f = 5.45
 
+x_init_l = 0
+y_init_l = 0
+theta_init_l = 0
+
+x_init_f = 0
+y_init_f = 0
+theta_init_f = 0
+
 dist = 5.0
 dist_margin = 2.0
+
 
 v_max = 1.5
 v_min = -1.5
@@ -24,6 +33,21 @@ v_ref = 1.0
 lin_acc_max = 1.00
 ang_acc_max = 0.5
 
+#CHANGES
+Q_x = 5.0
+Q_y = 5.0
+Q_theta = 1.5
+Q_dist = 1.0
+
+# Input costs
+R1 = 0.0
+R2 = 0.0 
+
+Q_f = 1.0
+
+# Acceleration Cost
+Acc_R1 = 1.0
+Acc_R2 = 1.0
 
 sim_time = 100      # simulation time
 
@@ -219,10 +243,41 @@ if __name__ == '__main__':
         # leader init speed
         args_l['p'] = ca.vertcat(args_l['p'],
                        ca.DM(last_u_l,))
+        
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Q_x,))
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Q_y,))
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Q_theta,))
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(R1,))
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(R2,))
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Acc_R1,))
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Acc_R2,))
 
         # desired distance
         args_f['p'] = ca.vertcat(args_f['p'],
                        ca.DM(dist,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_x,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_y,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_theta,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_dist,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(R1,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(R2,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Acc_R1,))
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Acc_R2,))
         
         
         u0_l = ca.DM.zeros((n_controls, N))  # initial control
