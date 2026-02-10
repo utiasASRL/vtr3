@@ -251,6 +251,7 @@
         vertex_life_span: 5
         window_size: 3
     
+
     path_planning:
       type: unicycle_mpc
       control_period: 100 # ms
@@ -274,6 +275,14 @@
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
         vehicle_model: "unicycle"
+
+        q_x: 10.0
+        q_y: 10.0
+        q_th: 5.0
+        r1: 1.0
+        r2: 1.0
+        racc1: 0.1
+        racc2: 0.5
 
         # Misc
         command_history_length: 100

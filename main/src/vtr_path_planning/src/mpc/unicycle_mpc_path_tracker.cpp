@@ -37,7 +37,6 @@ Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, do
 auto UnicycleMPCPathTracker::Config::loadConfig(UnicycleMPCPathTracker::Config::Ptr config, 
 		           const rclcpp::Node::SharedPtr& node,
                            const std::string& prefix)->void{
-
   // MPC Configs:
   // SPEED SCHEDULER PARAMETERS
   config->q_x   = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
@@ -92,7 +91,7 @@ void UnicycleMPCPathTracker::loadMPCConfig(
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5,0)};
 
   // Set the MPC costs based on if we're reversing or not
-  mpc_config->Q_y    = config_->q_x;
+  mpc_config->Q_x    = config_->q_x;
   mpc_config->Q_y    = config_->q_y;
   mpc_config->Q_th   = config_->q_th;
   mpc_config->R1     = config_->r1; 
