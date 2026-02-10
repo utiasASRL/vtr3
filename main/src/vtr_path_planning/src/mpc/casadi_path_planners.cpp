@@ -179,9 +179,7 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_dist));
-<<<<<<< HEAD
 
-<<<<<<< HEAD
   arg["p"] = vertcat(arg["p"], mpcConf.Q_x);
   
   arg["p"] = vertcat(arg["p"], mpcConf.Q_y);
@@ -198,13 +196,6 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
 
   arg["p"] = vertcat(arg["p"], mpcConf.Q_dist);
 
-=======
-  CLOG(ERROR, "mpc.solver") << mpcConf.Q_dist << mpcConf.Acc_R2 << mpcConf.Acc_R1 << mpcConf.R1 << mpcConf.R2 << mpcConf.Q_th << mpcConf.Q_y << mpcConf.Q_x << mpcConf.distance; 
->>>>>>> ed6e3ab492990a8aa96a18df219e2ef8e2ecff7b
-=======
-
-  CLOG(ERROR, "mpc.solver") << mpcConf.Q_dist << mpcConf.Acc_R2 << mpcConf.Acc_R1 << mpcConf.R1 << mpcConf.R2 << mpcConf.Q_th << mpcConf.Q_y << mpcConf.Q_x << mpcConf.distance; 
->>>>>>> 4c801dcc (mrs_peacock remote)
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
 
