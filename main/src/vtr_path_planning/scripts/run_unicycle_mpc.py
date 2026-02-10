@@ -21,6 +21,20 @@ v_ref = 0.5*v_max
 lin_acc_max = 1.00
 ang_acc_max = 0.5
 
+Q_x = 5
+Q_y = 5
+Q_theta = 1.5
+
+# Input costs
+R1 = 0.0
+R2 = 0.0 
+
+Q_f = 1.0
+
+# Acceleration Cost
+Acc_R1 = 1.0
+Acc_R2 = 1
+
 
 sim_time = 100      # simulation time
 
@@ -129,6 +143,34 @@ if __name__ == '__main__':
         
         args['p'] = ca.vertcat(args['p'],
                        ca.DM(last_u,))
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_x)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_y)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_theta)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(R1)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(R2)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Acc_R1)
+                )
+
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Acc_R2)
+                )
         
         u0 = ca.DM.zeros((n_controls, N))  # initial control
         X0 = ca.repmat(state_init, 1, N+1)         # initial state full
