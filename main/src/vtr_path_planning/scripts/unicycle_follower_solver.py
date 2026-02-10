@@ -58,22 +58,6 @@ leader_ref_poses = ca.SX.sym('ref_poses_l', n_states*N)
 d = ca.SX.sym('d', 1)
 
 # Configurable cost parameters
-<<<<<<< HEAD
-Q_x = ca.SX.sym('Q_x', 1)
-Q_y = ca.SX.sym('Q_y', 1)
-Q_theta = ca.SX.sym('Q_theta', 1)
-Q_dist = ca.SX.sym('Q_dist', 1) # ?
-R1 = ca.SX.sym('R1', 1)
-R2 = ca.SX.sym('R2', 1)
-Acc_R1 = ca.SX.sym('Acc_R1', 1)
-Acc_R2 = ca.SX.sym('Acc_R2', 1)
-
-P = ca.vertcat(init_pose, follower_ref_poses, measured_velo, leader_ref_poses, d,
-               Q_x, Q_y, Q_theta, Q_dist, R1, R2, Acc_R1, Acc_R2)
-
-# Configurable cost paramets
-=======
->>>>>>> ed6e3ab4 (unicycle follower sim)
 Q_x = ca.SX.sym('Q_x', 1)
 Q_y = ca.SX.sym('Q_y', 1)
 Q_theta = ca.SX.sym('Q_theta', 1)
