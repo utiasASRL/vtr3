@@ -42,11 +42,8 @@
         type: unicycle_mpc_follower
         control_period: 100
         distance_margin: 0.5
+        q_dist: 1.0
         waypoint_selection: arclength
-        longitudinal_control:
-          kp: 2.0
-          ki: 0.5
-          kd: 0.0
         speed_scheduler:
           planar_curv_weight: 0.0
           profile_curv_weight: 1.0 
@@ -77,7 +74,6 @@
           r2: 1.0
           racc1: 0.1
           racc2: 0.5
-          q_f: 1.0 # Multiplier for terminal cost
 
     log_enabled:
       #- tactic.module

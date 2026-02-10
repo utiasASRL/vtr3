@@ -137,11 +137,8 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
     arg["ubg"].set(DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
     arg["lbg"].set(-DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
   }
-
   arg["ubg"].set(DM(mpcConf.distance + mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1)+mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N));
   arg["lbg"].set(DM(mpcConf.distance - mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1)+mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N));
-
-
 
   arg["x0"] = reshape(repmat(mpcConf.T0, 1, mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1), 1);
   arg["x0"] = vertcat(arg["x0"], DM::zeros(mpcConf.nControl* mpcConf.N, 1));
@@ -150,7 +147,7 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
 
   for(int i = 0; i < mpcConf.N; i++) {
       arg["p"] = vertcat(arg["p"],
-          mpcConf.follower_reference_poses.at(i));
+          mpcConf.reference_poses.at(i));
   }
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
 
@@ -159,23 +156,15 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
           mpcConf.leader_reference_poses.at(i));
   }
   
-  arg["p"] = vertcat(arg["p"], mpcConf.distance);
-
-  arg["p"] = vertcat(arg["p"], mpcConf.Q_x);
-  
-  arg["p"] = vertcat(arg["p"], mpcConf.Q_y);
-  
-  arg["p"] = vertcat(arg["p"], mpcConf.Q_th);
-  
-  arg["p"] = vertcat(arg["p"], mpcConf.R1);
-  
-  arg["p"] = vertcat(arg["p"], mpcConf.R2);
-  
-  arg["p"] = vertcat(arg["p"], mpcConf.Acc_R1);
-  
-  arg["p"] = vertcat(arg["p"], mpcConf.Acc_R2);
-
-  arg["p"] = vertcat(arg["p"], mpcConf.Q_dist);
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.distance));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_th));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.R1));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_dist));
 
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
@@ -501,7 +490,7 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCJoint::solve(const CasadiMPC::
 
   arg["p"] = vertcat(arg["p"], mpcConf.T0_follower);  
   for(int i = 0; i < mpcConf.N; i++) {
-      auto pose_i = mpcConf.follower_reference_poses.at(i);
+      auto pose_i = mpcConf.reference_poses.at(i);
       if(mpcConf.repeat_flipped)
       {
         pose_i(2) += M_PI;
