@@ -13,7 +13,7 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr -p ip_address:=192.168.2.42
     panes:
       - >
         ros2 launch vtr_navigation vtr_hunters.launch.py
@@ -22,4 +22,4 @@ windows:
         use_sim_time:=false
         planner:="dynamic_path_planner"
         model_dir:=${VTRROOT}/models
-        override_params:=convoy_params.yaml
+        override_params:=convoy_params_unicycle.yaml

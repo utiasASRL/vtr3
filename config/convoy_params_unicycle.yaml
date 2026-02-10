@@ -4,51 +4,43 @@
       chain:
         alpha: 0.0
     path_planning:
-      bicycle_mpc:
-        type: bicycle_mpc
-        control_period: 100
+      unicycle_mpc:
+        type: unicycle_mpc
+        control_period: 100 # ms
+     
         speed_scheduler:
           planar_curv_weight: 0.0
-          profile_curv_weight: 1.0 
+          profile_curv_weight: 0.0 
           eop_weight: 1.0
           min_vel: 0.5
         mpc:
           # Controller Params
-          extrapolate_robot_pose: true
+          extrapolate_robot_pose: false
           mpc_verbosity: false
-          forward_vel: 0.75
-          max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
-          max_ang_vel: 0.46
-          max_ang_acc: 0.89
-          ang_alpha: 0.0
+          forward_vel: 1.0
+          max_lin_vel: 1.5
+          max_ang_vel: 0.5
+          max_ang_acc: 5.0
+          ang_alpha: 0.811
           lin_alpha: 0.0
-          max_lin_acc: 0.5
-          vehicle_model: "bicycle"
-          wheelbase: 0.65
-          recovery_steps: 15
-          failure_threshold: 5
+          robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+          robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+     
+          vehicle_model: "unicycle"
+     
+          q_x: 10.0
+          q_y: 10.0
+          q_th: 5.0
+          r1: 1.0
+          r2: 1.0
+          racc1: 0.1
+          racc2: 0.5
+     
+          # Misc
+          command_history_length: 100
 
-          # Tunable controller parameters(Currently only works for the Bicycle)
-          forward:
-            q_lat: 10.0
-            q_lon: 4.0
-            q_th: 7.0
-            r1: 0.0
-            r2: 3.0
-            racc1: 4.0
-            racc2: 5.0
-            q_f: 1.0 # Multiplier for terminal cost
-          reverse:
-            q_lat: 10.0
-            q_lon: 3.0
-            q_th: 7.0
-            r1: 0.1
-            r2: 1.0
-            racc1: 2.0
-            racc2: 3.5
-            q_f: 1.0 # Multiplier for terminal cost
-      bicycle_mpc_follower:
-        type: bicycle_mpc_follower
+      unicycle_mpc_follower:
+        type: unicycle_mpc_follower
         control_period: 100
         distance_margin: 0.5
         waypoint_selection: arclength
@@ -65,37 +57,29 @@
           # Controller Params
           extrapolate_robot_pose: true
           mpc_verbosity: false
-          forward_vel: 0.75
+          forward_vel: 1.0
           max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
-          max_ang_vel: 0.46
-          max_ang_acc: 0.89
-          ang_alpha: 0.0
+          max_ang_vel: 0.5
+          max_ang_acc: 5.0
+          ang_alpha: 0.811
           lin_alpha: 0.0
+          robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+          robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
           max_lin_acc: 0.5
-          vehicle_model: "bicycle"
-          wheelbase: 0.65
+          vehicle_model: "unicycle"
           recovery_steps: 15
           failure_threshold: 5
 
           # Tunable controller parameters(Currently only works for the Bicycle)
-          forward:
-            q_lat: 10.0
-            q_lon: 4.0
-            q_th: 7.0
-            r1: 0.0
-            r2: 3.0
-            racc1: 4.0
-            racc2: 5.0
-            q_f: 1.0 # Multiplier for terminal cost
-          reverse:
-            q_lat: 10.0
-            q_lon: 3.0
-            q_th: 7.0
-            r1: 0.1
-            r2: 1.0
-            racc1: 2.0
-            racc2: 3.5
-            q_f: 1.0 # Multiplier for terminal cost
+          q_x: 10.0
+          q_y: 10.0
+          q_th: 5.0
+          r1: 1.0
+          r2: 1.0
+          racc1: 0.1
+          racc2: 0.5
+          q_f: 1.0 # Multiplier for terminal cost
+
     log_enabled:
       #- tactic.module
       - mission.state_machine
@@ -109,7 +93,7 @@
       - mpc.debug
       - mpc.solver
       - mpc.follower
-      #- mpc.follower.target
+      - mpc.follower.target
       - mpc.follower.pid
         # path planner
       #- cbit_planner.path_planning
@@ -131,24 +115,24 @@
 /prof_plum/vtr/navigator:
   ros__parameters:
    path_planning:
-    bicycle_mpc_follower:
+    unicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 5.0
+      follow_distance: 2.0
 
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
-    bicycle_mpc_follower:
+    unicycle_mpc_follower:
       leader_namespace:
         # /prof_plum 
         /mrs_peacock
-      follow_distance: 5.0
+      follow_distance: 2.0
 
 /col_mustard/vtr/navigator:
   ros__parameters:
    path_planning:
-    bicycle_mpc_follower:
+    unicycle_mpc_follower:
       leader_namespace:
         /prof_plum
       follow_distance: 23.4
@@ -156,25 +140,25 @@
 /mrs_peacock/vtr/navigator:
   ros__parameters:
    path_planning:
-    bicycle_mpc_follower:
+    unicycle_mpc_follower:
       leader_namespace:
         # /col_mustard
         /mr_green
-      follow_distance: 5.0  
+      follow_distance: 2.0  
 
 /vtr/convoy_planning_node:
   ros__parameters:
     mr_green:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
+      leader_mpc: unicycle_mpc
+      follower_mpc: unicycle_mpc_follower
     prof_plum:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
+      leader_mpc: unicycle_mpc
+      follower_mpc: unicycle_mpc_follower
     col_mustard:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
+      leader_mpc: unicycle_mpc
+      follower_mpc: unicycle_mpc_follower
     mrs_peacock:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
+      leader_mpc: unicycle_mpc
+      follower_mpc: unicycle_mpc_follower
 
     

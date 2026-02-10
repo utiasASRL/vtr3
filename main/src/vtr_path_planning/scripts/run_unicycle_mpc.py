@@ -97,7 +97,7 @@ ubg[n_states*(N+1):n_states*(N+1)+N] = 0.5
 # lbg[n_states*(N+1)+N+1::2] = -ang_acc_max * step_horizon
 # ubg[n_states*(N+1)+N+1::2] = ang_acc_max * step_horizon
 
-print(lbx.shape)
+print(lbg.shape, ubg.shape, lbx.shape, ubx.shape)
 
 args = {
     'lbg': lbg,
@@ -180,7 +180,7 @@ if __name__ == '__main__':
             ca.reshape(X0, n_states*(N+1), 1),
             ca.reshape(u0, n_controls*N, 1)
         )
-
+        
         sol = solver(
             x0=args['x0'],
             lbx=args['lbx'],
