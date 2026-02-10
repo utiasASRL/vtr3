@@ -119,16 +119,26 @@ def so2_error(ref, current):
     rel_m = theta_to_so2(ref).T @ theta_to_so2(current)
     return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
+def calc_cost(ref, X, con, k, cost):
+    dx = X[0, k+1] - follower_ref_poses[n_states*k]
+    dy = X[1, k+1] - follower_ref_poses[n_states*k + 1]
+    theta_ref = follower_ref_poses[n_states*k + 2]
+    e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
+    e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
+    cost += Q_x * e_lat**2 + Q_y * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
+    cost += Q_dist * (ca.norm_2((X[:2, k+1] - leader_ref_poses[n_states*k:n_states*k + 2])) - d)**2
+    return cost
+
 #for initial
 k = 0
 st = X[:, k]
 con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
-cost_fn = cost_fn \
-        + (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]).T @ Q @ (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]) \
-        + con.T @ R @ con \
-        + so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2]) * Q_theta * so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2])
+# cost_fn = cost_fn \
+#         + (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]).T @ Q @ (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]) \
+#         + con.T @ R @ con \
+#         + so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2]) * Q_theta * so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2])
 
 cost_fn = cost_fn + D * (ca.norm_2((st_next[:2] - leader_ref_poses[n_states*(k):n_states*(k+1)-1])) - d)**2 
 
@@ -148,15 +158,15 @@ for k in range(1, N):
 
     con = U[:, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
-    cost_fn = cost_fn \
-        + (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]).T @ Q @ (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]) \
-        + con.T @ R @ con \
-        + so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2]) * Q_theta * so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2])
+    # cost_fn = cost_fn \
+    #     + (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]).T @ Q @ (st_next[:2] - follower_ref_poses[n_states*(k):n_states*(k+1)-1]) \
+    #     + con.T @ R @ con \
+    #     + so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2]) * Q_theta * so2_error(follower_ref_poses[n_states*(k) + 2], st_next[2])
 
 
-    #if (k < N-1):
-    cost_fn = cost_fn + D * (ca.norm_2((st_next[:2] - leader_ref_poses[n_states*(k):n_states*(k+1)-1])) - d)**2 
-    
+    # #if (k < N-1):
+    # cost_fn = cost_fn + D * (ca.norm_2((st_next[:2] - leader_ref_poses[n_states*(k):n_states*(k+1)-1])) - d)**2 
+    cost_fn = calc_cost(P, X, con, k, cost_fn)
     k1 = motion_model(st, con, last_vel)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -168,6 +178,9 @@ for k in range(1, N):
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
 
+# for k in range(N):
+#     theta_k = follower_ref_poses[n_states*(k) + 2]
+#     g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k+1)] - follower_ref_poses[n_states*(k): n_states*(k)+2]))
 for k in range(N):
     theta_k = follower_ref_poses[n_states*(k) + 2]
     g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, (k+1)] - follower_ref_poses[n_states*(k): n_states*(k)+2]))
@@ -180,8 +193,14 @@ for k in range(0, N):
 
 #Acceleration constraints
 cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
-for k in range(1, N):
+g = ca.vertcat(g, U[0, 0])
+g = ca.vertcat(g, U[1, 0])
+for k in range(1, N-1):
     cost_fn += (U[:, k] - U[:, k-1]).T @ R_acc @ (U[:, k] - U[:, k-1])
+    # Add acceleration constraints
+    g = ca.vertcat(g, U[0, k] - U[0, k-1])
+    # Angular acceleration constraints
+    g = ca.vertcat(g, U[1, k] - U[1, k-1])
 
 print("follower g.shape ", g.shape)
 print("cost_function ", cost_fn)
