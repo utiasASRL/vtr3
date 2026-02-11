@@ -55,8 +55,8 @@ auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node
   loadConfig(config, node, prefix);
 
   CLOG(DEBUG, "cbit.control") << "Unicycle MPC parameters: "
-      << "q_lat: " << config->q_x
-      << ", q_lon: " << config->q_y
+      << "q_x: " << config->q_x
+      << ", q_y: " << config->q_y
       << ", q_th: " << config->q_th
       << ", r1: " << config->r1
       << ", r2: " << config->r2

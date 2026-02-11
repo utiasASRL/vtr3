@@ -111,7 +111,6 @@ public:
     PTR_TYPEDEFS(Config);
     // These values are defined the python code and exported
     // TODO add an automatic way to keep the code in sync
-    std::vector<DM> follower_reference_poses;
     std::vector<DM> leader_reference_poses;
     double distance = 0.5;
     double distance_margin = 1.0;

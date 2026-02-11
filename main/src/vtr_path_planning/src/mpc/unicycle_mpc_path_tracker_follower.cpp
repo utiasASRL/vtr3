@@ -58,7 +58,6 @@ auto UnicycleMPCPathTrackerFollower::Config::loadConfig(UnicycleMPCPathTrackerFo
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto UnicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
-
   auto base_config = std::static_pointer_cast<UnicycleMPCPathTracker::Config>(config);
   *base_config =  *UnicycleMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);

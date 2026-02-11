@@ -141,14 +141,8 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
     arg["ubg"].set(DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
     arg["lbg"].set(-DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
   }
-
-  
-  
   arg["ubg"].set(DM(mpcConf.distance + mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1)+mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N));
   arg["lbg"].set(DM(mpcConf.distance - mpcConf.distance_margin), true, Slice(mpcConf.nStates*(mpcConf.N+1)+mpcConf.N, mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.N));
-
-
-  
 
   arg["x0"] = reshape(repmat(mpcConf.T0, 1, mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1), 1);
   arg["x0"] = vertcat(arg["x0"], DM::zeros(mpcConf.nControl* mpcConf.N, 1));
@@ -179,22 +173,6 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_dist));
-
-  // arg["p"] = vertcat(arg["p"], mpcConf.Q_x);
-  
-  // arg["p"] = vertcat(arg["p"], mpcConf.Q_y);
-  
-  // arg["p"] = vertcat(arg["p"], mpcConf.Q_th);
-  
-  // arg["p"] = vertcat(arg["p"], mpcConf.R1);
-  
-  // arg["p"] = vertcat(arg["p"], mpcConf.R2);
-  
-  // arg["p"] = vertcat(arg["p"], mpcConf.Acc_R1);
-  
-  // arg["p"] = vertcat(arg["p"], mpcConf.Acc_R2);
-
-  // arg["p"] = vertcat(arg["p"], mpcConf.Q_dist);
 
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
