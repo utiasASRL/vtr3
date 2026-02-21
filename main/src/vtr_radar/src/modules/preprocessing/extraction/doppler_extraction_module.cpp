@@ -150,20 +150,12 @@ void DopplerExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     prior_model(0) = -w_m_r_in_r_odo_prior(0);
     prior_model(1) = -w_m_r_in_r_odo_prior(1);
   }
+  CLOG(DEBUG, "radar.doppler_extractor") << "Registering doppler scan with prior model: " << prior_model.transpose();
   extractor.ransac_scan(doppler_scan, prior_model);
 
   // Register the doppler scan to get final velocity estimate
   Eigen::Vector2d varpi = extractor.register_scan(doppler_scan, prior_model);
-
-  // Check if we have negative velocity forward and flip everything
-  if (varpi(0) < -0.5) {
-    CLOG(WARNING, "radar.doppler_extractor") << "Negative forward velocity detected, flipping doppler measurements.";
-    for (auto &d : doppler_scan) {
-      d.radial_velocity = -d.radial_velocity;
-    }
-    varpi(0) = -varpi(0);
-    varpi(1) = -varpi(1);
-  }
+  CLOG(DEBUG, "radar.doppler_extractor") << "Estimated varpi: " << varpi.transpose();
 
   CLOG(DEBUG, "radar.doppler_extractor") << "Doppler data size: " << doppler_scan.size() << ", varpi: " << varpi.transpose();
   qdata.vel_meas = varpi;
