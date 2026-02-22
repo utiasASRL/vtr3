@@ -50,7 +50,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
     // Threshold for zeroing out velocity
     double zero_velocity_threshold = 0.1;
     // Whether to optimize the pose estimate using STEAM
-    // If false, direct discrete=time integration is used
+    // If false, direct discrete-time integration is used
     bool optimize = true;
     // Doppler bias
     Eigen::Vector2d doppler_bias = Eigen::Vector2d::Zero();
