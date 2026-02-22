@@ -498,7 +498,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, "radar.odometry_doppler") << "w_v_r_in_r:\n" << w_v_r_in_r.transpose();
     
 
-  // Propgate state
+  // Propagate state
   *qdata.T_r_v_odo = T_r_delta * *qdata.T_r_v_odo;
   *qdata.T_r_m_odo = T_r_delta * T_r_m_prev;
   *qdata.T_r_m_odo_radar = T_r_delta * T_r_m_prev;
