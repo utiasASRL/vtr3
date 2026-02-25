@@ -277,6 +277,13 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
     graph_->write<OdometryResult>("odometry_result",
                                   "vtr_tactic_msgs/msg/OdometryResult", msg);
+
+    using edgeLM = storage::LockableMessage<EdgeResult>;
+    auto edg_result = std::make_shared<EdgeResult>(
+        *qdata->stamp, T_w_v_odo_ * (*qdata->T_r_v_odo).inverse());
+    auto edge_msg = std::make_shared<edgeLM>(edg_result, *qdata->stamp);
+    graph_->write<EdgeResult>("edge",
+      "vtr_posegraph_msgs/msg/Edge", edge_msg);
   }
 
   // save odometry velocity result
@@ -901,7 +908,8 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
     auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
     graph_->write<LocalizationResult>(
         "localization_result", "vtr_tactic_msgs/msg/LocalizationResult", msg);
-  }
+      
+}
 
   if (!(*qdata->loc_success)) {
     CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "

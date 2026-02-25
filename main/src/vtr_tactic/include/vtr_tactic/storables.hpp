@@ -21,6 +21,7 @@
 #include "vtr_tactic/types.hpp"
 #include "vtr_tactic_msgs/msg/localization_result.hpp"
 #include "vtr_tactic_msgs/msg/odometry_result.hpp"
+#include "vtr_pose_graph_msgs/msg/edge.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -34,6 +35,25 @@ class OdometryResult {
   OdometryResultMsg toStorable() const;
 
   OdometryResult(const Timestamp& timestamp, const EdgeTransform& T_world_robot)
+      : timestamp_{timestamp}, T_world_robot_{T_world_robot} {}
+
+ private:
+  /** \brief Timestamp of the frame to localize */
+  Timestamp timestamp_;
+
+  /** \brief Transformation from vertex local frame to robot live frame */
+  EdgeTransform T_world_robot_;
+};
+
+class EdgeResult {
+ public:
+  using EdgeResultMsg = vtr_pose_graph_msgs::msg::Edge;
+
+  static std::shared_ptr<EdgeResult> fromStorable(
+      const EdgeResultMsg& storable);
+  EdgeResultMsg toStorable() const;
+
+  EdgeResult(const Timestamp& timestamp, const EdgeTransform& T_world_robot)
       : timestamp_{timestamp}, T_world_robot_{T_world_robot} {}
 
  private:

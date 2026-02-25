@@ -40,6 +40,23 @@ auto OdometryResult::toStorable() const -> OdometryResultMsg {
   return storable;
 }
 
+std::shared_ptr<EdgeResult> EdgeResult::fromStorable(
+    const vtr_pose_graph_msgs::msg::Edge& storable) {
+  // const auto timestamp = storable.timestamp;
+  EdgeTransform T_world_robot;
+  common::conversions::fromROSMsg(storable.t_to_from, T_world_robot);
+
+  auto data = std::make_shared<EdgeResult>(0, T_world_robot);
+  return data;
+}
+
+auto EdgeResult::toStorable() const -> EdgeResultMsg {
+  vtr_pose_graph_msgs::msg::Edge storable;
+  // storable.timestamp = timestamp_;
+  common::conversions::toROSMsg(T_world_robot_, storable.t_to_from);
+  return storable;
+}
+
 std::shared_ptr<LocalizationResult> LocalizationResult::fromStorable(
     const LocalizationResultMsg& storable) {
   const auto timestamp = storable.timestamp;

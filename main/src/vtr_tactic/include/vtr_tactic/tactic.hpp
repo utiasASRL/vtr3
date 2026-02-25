@@ -29,7 +29,7 @@
 #include "vtr_tactic/task_queue.hpp"
 #include "vtr_tactic/types.hpp"
 #include "geometry_msgs/msg/twist.hpp"
-
+#include "vtr_pose_graph_msgs/msg/edge.hpp"
 namespace vtr {
 namespace tactic {
 
