@@ -71,7 +71,7 @@ auto DopplerExtractionModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   // General radar params
-  config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar" + ".radar_res", config->radar_resolution);
+  config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar" + ".radar_resolution", config->radar_resolution);
   config->f_t = node->declare_parameter<double>(param_prefix + ".radar" + ".f_t", config->f_t);
   config->meas_freq = node->declare_parameter<double>(param_prefix + ".radar" + ".meas_freq", config->meas_freq);
   config->del_f = node->declare_parameter<double>(param_prefix + ".radar" + ".del_f", config->del_f);
