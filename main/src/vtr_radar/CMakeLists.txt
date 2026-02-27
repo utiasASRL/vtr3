@@ -74,7 +74,7 @@ ament_export_dependencies(
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
   nav_msgs visualization_msgs
-  lgmath steam
+  lgmath steam spinning_radar_doppler
   vtr_common vtr_logging vtr_tactic vtr_radar_msgs navtech_msgs
 )
 
