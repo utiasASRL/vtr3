@@ -267,7 +267,7 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.05
+        min_matched_ratio: 0.3
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0

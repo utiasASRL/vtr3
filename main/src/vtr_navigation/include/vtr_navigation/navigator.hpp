@@ -69,6 +69,40 @@ struct EdgeBlockageInterval {
   double end_sec = 0.0;
 };
 
+/**
+ * \brief HSHMAT: Obstacle handling state machine.
+ *
+ * Provides a clearer view of the obstacle episode lifecycle, replacing the
+ * previous "boolean soup" of flags (obstacle_active_, waiting_for_decision_,
+ * waiting_for_reroute_, processing_obstacle_, etc.).
+ *
+ * States:
+ *   Idle              - No obstacle episode active. Robot may be moving normally.
+ *   WaitingForDecision- Obstacle detected, robot paused, awaiting decision from
+ *                       the decision node (wait/reroute).
+ *   WaitingForClear   - Decision was "wait". Robot remains paused until the
+ *                       obstacle clears (obstacle_status=false).
+ *   RerouteInProgress - Decision was "reroute". Route planner is computing a new
+ *                       path. Robot remains paused until reroute completes.
+ */
+enum class ObstacleState {
+  Idle,
+  WaitingForDecision,
+  WaitingForClear,
+  RerouteInProgress
+};
+
+// HSHMAT: Helper to convert ObstacleState to string for logging
+inline const char* obstacleStateToString(ObstacleState s) {
+  switch (s) {
+    case ObstacleState::Idle: return "Idle";
+    case ObstacleState::WaitingForDecision: return "WaitingForDecision";
+    case ObstacleState::WaitingForClear: return "WaitingForClear";
+    case ObstacleState::RerouteInProgress: return "RerouteInProgress";
+  }
+  return "Unknown";
+}
+
 class Navigator {
  public:
   using Mutex = std::mutex;
@@ -168,9 +202,8 @@ typedef message_filters::sync_policies::ApproximateTime<
   ROSMissionServer::Ptr mission_server_;
   mission_planning::StateMachine::Ptr state_machine_;
 
-  // Hshmat: Obstacle status subscriber
+  // HSHMAT: Obstacle status subscriber
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr obstacle_status_sub_;
-  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr decision_accepting_sub_;
   // Hshmat: Obstacle distance subscriber (distance along path to nearest obstacle)
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr obstacle_distance_sub_;
   double last_obstacle_distance_;  // meters along path where obstacle detected
@@ -184,27 +217,20 @@ typedef message_filters::sync_policies::ApproximateTime<
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr obstacle_type_sub_;
   std::string last_obstacle_type_ = "unknown";
   
-  // Hshmat: Decision subscriber (from obstacle decision node: "wait" or "reroute")
+  // HSHMAT: Decision subscriber (from obstacle decision node: "wait" or "reroute")
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr obstacle_decision_sub_;
-  std::string latest_obstacle_decision_;  // "wait" or "reroute"
   Mutex chatgpt_mutex_;
-  rclcpp::Time last_decision_time_;
   rclcpp::Time obstacle_start_time_;
-  bool obstacle_active_ = false;
-  bool waiting_for_decision_logged_ = false;
-  std::string active_decision_;
-  bool decision_accepting_ = true;
-  bool pending_clear_resume_ = false;
-  bool pending_reroute_resume_ = false;
-  bool waiting_for_decision_ = false;
-  bool last_obstacle_status_msg_ = false;
   
-  // Hshmat: Publisher for pausing robot (zero velocity)
+  // HSHMAT: FSM state - single source of truth for obstacle episode lifecycle
+  ObstacleState obstacle_state_ = ObstacleState::Idle;
+  std::string active_decision_;  // "wait" or "reroute" - the decision for current episode
+  bool last_obstacle_status_msg_ = false;  // Raw sensor value for edge cases
+  
+  // HSHMAT: Publisher for pausing robot (zero velocity)
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pause_cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pause_state_pub_;
-  bool robot_paused_;  // Track if robot is currently paused
-  bool waiting_for_reroute_;  // Track if we're waiting for a replanned route
-  bool processing_obstacle_;  // Track if we're currently processing an obstacle detection
+  bool robot_paused_ = false;  // Track if robot is currently paused
   
   void setRobotPaused(bool paused);
   void triggerReroute();  // Centralized reroute flow (state machine + banned edges)
