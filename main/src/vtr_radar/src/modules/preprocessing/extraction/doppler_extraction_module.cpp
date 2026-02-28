@@ -385,123 +385,6 @@ Eigen::Vector2d registerScan(
   return varpi_curr;
 }
 
-Eigen::Matrix3d toRoll(const double &r) {
-  Eigen::Matrix3d roll;
-  roll << 1, 0, 0, 0, cos(r), sin(r), 0, -sin(r), cos(r);
-  return roll;
-}
-
-Eigen::Matrix3d toPitch(const double &p) {
-  Eigen::Matrix3d pitch;
-  pitch << cos(p), 0, -sin(p), 0, 1, 0, sin(p), 0, cos(p);
-  return pitch;
-}
-
-Eigen::Matrix3d toYaw(const double &y) {
-  Eigen::Matrix3d yaw;
-  yaw << cos(y), sin(y), 0, -sin(y), cos(y), 0, 0, 0, 1;
-  return yaw;
-}
-
-Eigen::Matrix3d rpy2rot(const double &r, const double &p, const double &y) {
-  return toRoll(r) * toPitch(p) * toYaw(y);
-}
-
-// void load_gt_pose(std::ifstream &pose_stream, Eigen::Matrix<double, 6, 1> &v_gt) {
-//   std::string gt_pose;
-//   std::getline(pose_stream, gt_pose);
-//   std::stringstream ss(gt_pose);
-//   std::vector<double> gt;
-//   for (std::string str; std::getline(ss, str, ',');)
-//           gt.push_back(std::stod(str));
-  
-//   Eigen::Matrix4d T_ab = Eigen::Matrix4d::Identity();
-//   T_ab.block<3, 3>(0, 0) = rpy2rot(gt[7], gt[8], gt[9]);
-//   T_ab.block<3, 1>(0, 3) << gt[1], gt[2], gt[3];
-
-//   // Save ground truth linear velocity
-//   Eigen::Vector4d v_a_tilde(gt[4], gt[5], gt[6], 1);
-//   Eigen::Vector4d v_b_tilde = T_ab.transpose() * v_a_tilde;
-//   v_gt.head<3>() = v_b_tilde.block<3, 1>(0, 0);
-
-//   // Save ground truth angular velocity (its saved as angvel_z,angvel_y,angvel_x)
-//   v_gt.tail<3>() << gt[12], gt[11], gt[10];
-// }
-
-double quadraticInterpolation(int64_t t, int64_t t0, double v0, int64_t t1, double v1, int64_t t2, double v2) {
-  double td = static_cast<double>(t);
-  double td0 = static_cast<double>(t0);
-  double td1 = static_cast<double>(t1);
-  double td2 = static_cast<double>(t2);
-
-  double L0 = ((td - td1) * (td - td2)) / ((td0 - td1) * (td0 - td2));
-  double L1 = ((td - td0) * (td - td2)) / ((td1 - td0) * (td1 - td2));
-  double L2 = ((td - td0) * (td - td1)) / ((td2 - td0) * (td2 - td1));
-
-  return v0 * L0 + v1 * L1 + v2 * L2;
-}
-
-Eigen::Matrix<double, 2, 1> getVel(std::vector<double> &gt) {
-  Eigen::Matrix4d T_ab = Eigen::Matrix4d::Identity();
-  T_ab.block<3, 3>(0, 0) = rpy2rot(std::round(gt[7] / M_PI) * M_PI, std::round(gt[8] / M_PI) * M_PI, gt[9]); // RPY assumed in radians
-  T_ab.block<3, 1>(0, 3) << gt[1], gt[2], gt[3];
-
-  // Linear velocity in B
-  Eigen::Vector4d v_a_tilde(gt[4], gt[5], gt[6], 1);
-  Eigen::Vector4d v_b_tilde = T_ab.transpose() * v_a_tilde;
-  Eigen::Matrix<double, 2, 1> v_gt = v_b_tilde.head<2>();
-  return v_gt;
-
-  // // Angular velocity in B
-  // v_gt.tail<3>() << gt[12], gt[11], gt[10];
-}
-
-bool load_gt_velocities(std::ifstream &pose_stream, std::vector<Eigen::Matrix<double, 2, 1>> &v_gts, std::vector<int64_t> azimuth_timestamps, int64_t target_timestamp) {
-  std::string line;
-  std::vector<double> prev_gt;
-  std::vector<double> gt;
-  std::vector<double> next_gt;
-  while (std::getline(pose_stream, line)) {
-      std::stringstream ss(line);
-      gt = std::vector<double>();
-      for (std::string str; std::getline(ss, str, ','); )
-          gt.push_back(std::stod(str));
-
-      if (gt[0] == target_timestamp/1000) {
-        if (std::getline(pose_stream, line)) {
-          std::getline(pose_stream, line);
-          std::stringstream ss(line);
-          for (std::string str; std::getline(ss, str, ','); )
-            next_gt.push_back(std::stod(str));
-        }
-
-        if (prev_gt.empty() || next_gt.empty()) {
-          v_gts = std::vector<Eigen::Matrix<double, 2, 1>>(azimuth_timestamps.size(), Eigen::Matrix<double, 2, 1>::Zero());
-        } else {
-          const auto v_prev = getVel(prev_gt);
-          const auto time_prev = prev_gt[0];
-          const auto v_curr = getVel(gt);
-          const auto time_curr = gt[0];
-          const auto v_next = getVel(next_gt);
-          const auto time_next = next_gt[0];
-          // Interpolate velocity at azimuth timestamps
-          for (size_t ii = 0; ii < azimuth_timestamps.size(); ++ii) {
-            const auto t_az = azimuth_timestamps[ii] / 1000;
-            const double v_fwd = quadraticInterpolation(t_az-time_prev, 0, v_prev[0], time_curr-time_prev, v_curr[0], time_next-time_prev, v_next[0]);
-            const double v_bwd = quadraticInterpolation(t_az-time_next, 0, v_next[1], time_curr-time_next, v_curr[1], time_prev-time_next, v_prev[1]);
-            v_gts.push_back(Eigen::Matrix<double, 2, 1>(v_fwd, v_bwd));
-          }
-        }
-
-        return true;
-      } else {
-        prev_gt = gt;
-      }
-  }
-
-  return false; // timestamp not found
-}
-
 }  // namespace
 
 using namespace tactic;
@@ -571,64 +454,33 @@ void DopplerExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     }  
   }
 
-  // // Extract the doppler data
-  // extract_doppler(fft_scan, azimuth_angles, azimuth_times, up_chirps, doppler_scan, *config_);
-  // // RANSAC the doppler data
-  // auto prior_model = Eigen::Vector2d(0, 0);
-  // auto &w_m_r_in_r_odo_prior = qdata.w_m_r_in_r_odo_prior;
-  // if (w_m_r_in_r_odo_prior) {
-  //   prior_model(0) = (*w_m_r_in_r_odo_prior)(0);
-  //   prior_model(1) = (*w_m_r_in_r_odo_prior)(1);
-  // } else {
-  //   prior_model.setZero();
-  // }
-  // ransac_scan(doppler_scan, prior_model, *config_);
-  // // Publish the doppler data
+  // Extract the doppler data
+  extract_doppler(fft_scan, azimuth_angles, azimuth_times, up_chirps, doppler_scan, *config_);
+  // RANSAC the doppler data
+  auto prior_model = Eigen::Vector2d(0, 0);
+  auto &w_m_r_in_r_odo_prior = qdata.w_m_r_in_r_odo_prior;
+  if (w_m_r_in_r_odo_prior) {
+    prior_model(0) = (*w_m_r_in_r_odo_prior)(0);
+    prior_model(1) = (*w_m_r_in_r_odo_prior)(1);
+  } else {
+    prior_model.setZero();
+  }
+  ransac_scan(doppler_scan, prior_model, *config_);
+  // Publish the doppler data
 
-  // Eigen::Vector2d varpi = registerScan(doppler_scan, prior_model, *config_);
+  Eigen::Vector2d varpi = registerScan(doppler_scan, prior_model, *config_);
 
-  // CLOG(DEBUG, "radar.doppler_extractor") << "Doppler data size: " << doppler_scan.size() << ", varpi: " << varpi.transpose();
-  // const auto &vel_meas = *qdata.vel_meas;
-  
-  // qdata.vel_meas = varpi;
-
-  // Load in gt for testing
-  const auto &sequence_name = *qdata.seq_name;
-  const fs::path pose_file = fs::path("/home/dl/Documents/phd/dev/doppler_radar/data/vtr_data") / sequence_name / "applanix" / "radar_poses.csv";
-
-  std::ifstream pose_stream(pose_file, std::ios::in);
-  std::string header;
-  std::getline(pose_stream, header);
-  std::vector<Eigen::Matrix<double, 2, 1>> w_r_v_radar_gts;
-  // Eigen::Matrix<double, 6, 1> w_r_v_robot;
-  bool found_gt = load_gt_velocities(pose_stream, w_r_v_radar_gts, azimuth_times, *qdata.stamp);
-
-  if (!found_gt) {
-    CLOG(ERROR, "radar.doppler_extractor") << "Ground truth not found for timestamp: " << *qdata.stamp;
+  // Check if we have negative velocity forward and flip everything
+  if (varpi(0) < -0.5) {
+    for (auto &d : doppler_scan) {
+      d.radial_velocity = -d.radial_velocity;
+    }
+    varpi(0) = -varpi(0);
+    varpi(1) = -varpi(1);
   }
 
-  // const auto &T_s_r = *qdata.T_s_r;
-  // // Transform v_gt to the radar frame
-  // w_r_v_radar(2) = 0;
-  // w_r_v_radar(3) = 0;
-  // w_r_v_radar(4) = 0;
-  // w_r_v_robot = lgmath::se3::tranAd(T_s_r.matrix().inverse()) * w_r_v_radar;
-
-  qdata.vel_meas = w_r_v_radar_gts[azimuth_times.size() / 2];
-
-  CLOG(DEBUG, "radar.doppler_extractor") << w_r_v_radar_gts[azimuth_times.size() / 2];
-
-  // Fill up doppler_scan with gt data
-  for (size_t ii = 0; ii < azimuth_angles.size(); ++ii) {
-    const Eigen::Vector2d v_gt = w_r_v_radar_gts[ii];
-    Azimuth u_ii;
-    u_ii.azimuth = azimuth_angles[ii];
-    u_ii.timestamp = azimuth_times[ii];
-    u_ii.radial_velocity = v_gt[0] * std::cos(u_ii.azimuth) + v_gt[1] * std::sin(u_ii.azimuth);
-    u_ii.azimuth_idx = ii;
-    doppler_scan.push_back(u_ii);
-  }
-
+  CLOG(DEBUG, "radar.doppler_extractor") << "Doppler data size: " << doppler_scan.size() << ", varpi: " << varpi.transpose();  
+  qdata.vel_meas = varpi;
 }
 
 }  // namespace radar

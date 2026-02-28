@@ -49,14 +49,15 @@ using namespace vtr::mission_planning;
 namespace {
 
 EdgeTransform loadTransform(const std::string& source_frame,
-                            const std::string& target_frame) {
+                            const std::string& target_frame,
+                            const double tf_timeout) {
   auto clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
   if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),
-                             tf2::durationFromSec(5))) {
+                             tf2::durationFromSec(tf_timeout))) {
     auto tf_source_target = tf_buffer.lookupTransform(
-        source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(5));
+        source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(tf_timeout));
     tf2::Stamped<tf2::Transform> tf2_source_target;
     tf2::fromMsg(tf_source_target, tf2_source_target);
     EdgeTransform T_source_target(
@@ -128,6 +129,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
+  tf_timeout_ = node_->declare_parameter<double>("tf_timeout", tf_timeout_);
   // robot frame
   robot_frame_ = node_->declare_parameter<std::string>("robot_frame", "robot");
   // environment info
@@ -140,9 +142,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  gyro_bias_ = node_->declare_parameter<double>("gyro_bias", gyro_bias_);
-  T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
-  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
+  gyro_bias_ = {
+    node_->declare_parameter<double>("gyro_bias.x", 0.0),
+    node_->declare_parameter<double>("gyro_bias.y", 0.0),
+    node_->declare_parameter<double>("gyro_bias.z", 0.0)};
+  T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_, tf_timeout_);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
@@ -163,7 +168,7 @@ if (pipeline->name() == "stereo") {
   using namespace std::placeholders;
 
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "camera");
-  T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
+  T_camera_robot_ = loadTransform(camera_frame_, robot_frame_, tf_timeout_);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_camera_robot_.inverse().matrix()));
@@ -191,10 +196,13 @@ if (pipeline->name() == "radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  gyro_bias_ = node_->declare_parameter<double>("gyro_bias", gyro_bias_);
+  gyro_bias_ = {
+      node_->declare_parameter<double>("gyro_bias.x", 0.0),
+      node_->declare_parameter<double>("gyro_bias.y", 0.0),
+      node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   // there are a radar and gyro frames
-  T_radar_robot_ = loadTransform(radar_frame_, robot_frame_);
-  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
+  T_radar_robot_ = loadTransform(radar_frame_, robot_frame_, tf_timeout_);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_);
   // static transform make a shared pointer to the static transform broadcaster
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg_radar = tf2::eigenToTransform(Eigen::Affine3d(T_radar_robot_.inverse().matrix()));
@@ -215,7 +223,7 @@ if (pipeline->name() == "radar") {
 #endif
 
   // Subscribe to the imu topic 
-  auto gyro_qos = rclcpp::QoS(max_queue_size_);
+  auto gyro_qos = rclcpp::QoS(100);
   gyro_qos.reliable();
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
   gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
@@ -346,12 +354,10 @@ void Navigator::radarCallback(
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
 
-  // CLOG(DEBUG, "navigation") << "Sam: In the callback: Created radar query cache";
-
   LockGuard lock(mutex_);
 
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  if (queue_.size() > max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
+  if (queue_.size() > max_queue_size_) {
     CLOG(WARNING, "navigation")
         << "Dropping old message because the queue is full.";
     queue_.pop();
@@ -396,11 +402,10 @@ void Navigator::gyroCallback(
 
   CLOG(DEBUG, "navigation") << "Received gyro data with stamp " << timestamp_gyro;
 
-  // Convert message to query_data format and store into query_data
-  // auto query_data = std::make_shared<radar::RadarQueryCache>();
-
   LockGuard lock(mutex_);
-  msg->angular_velocity.z -= gyro_bias_;
+  msg->angular_velocity.x -= gyro_bias_[0];
+  msg->angular_velocity.y -= gyro_bias_[1];
+  msg->angular_velocity.z -= gyro_bias_[2];
   gyro_msgs_.push_back(*msg);
 }
 

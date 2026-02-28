@@ -39,8 +39,11 @@
 
 #ifdef VTR_ENABLE_RADAR
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
-#include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#endif
+
+#if defined(VTR_ENABLE_RADAR ) || defined(VTR_ENABLE_LIDAR)
+#include "sensor_msgs/msg/imu.hpp"
 #endif
 
 namespace vtr {
@@ -61,6 +64,7 @@ class Navigator {
   /** \brief ROS-handle for communication */
   const rclcpp::Node::SharedPtr node_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_sbc_;
+  double tf_timeout_ = 2.0;
 
   /// robot and sensor specific stuff, these are set in constructor, so no need
   /// to lock
@@ -89,7 +93,9 @@ class Navigator {
   rclcpp::Subscription<navtech_msgs::msg::RadarBScanMsg>::SharedPtr radar_sub_;
   std::string radar_frame_;
   tactic::EdgeTransform T_radar_robot_;
-  
+#endif
+ 
+#if defined(VTR_ENABLE_RADAR ) || defined(VTR_ENABLE_LIDAR)
   // gyro
   using ImuMsg = sensor_msgs::msg::Imu;
   const std::string &gyro_frame() const { return gyro_frame_; }
@@ -99,7 +105,7 @@ class Navigator {
   std::string gyro_frame_;
   tactic::EdgeTransform T_gyro_robot_;
   std::vector<ImuMsg> gyro_msgs_;
-  double gyro_bias_ = 0.0;
+  std::array<double, 3> gyro_bias_ = {0.0, 0.0, 0.0};
 #endif
 
 #ifdef VTR_ENABLE_VISION

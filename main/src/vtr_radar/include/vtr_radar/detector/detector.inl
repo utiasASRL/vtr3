@@ -35,6 +35,72 @@ bool sort_asc_by_second(const std::pair<int, float> &a,
 }
 
 } // namespace
+//  K-peaks implementation with scale correction due to range quantization errors
+template <class PointT>
+void KPeaks<PointT>::run(const cv::Mat &raw_scan, const float &res,
+                             const std::vector<int64_t> &azimuth_times,
+                             const std::vector<double> &azimuth_angles,
+                             const std::vector<bool> &up_chirps,
+                             pcl::PointCloud<PointT> &pointcloud) {
+  pointcloud.clear();
+  const int rows = raw_scan.rows;
+  const int cols = raw_scan.cols;
+  auto mincol = minr_ / res;
+  if (mincol > cols || mincol < 0) mincol = 0;
+  auto maxcol = maxr_ / res;
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
+  for (int i = 0; i < rows; ++i) {
+    std::vector<std::pair<float, int>> intens;
+    const float thres = threshold3_;
+    // 1. Collect threshold-exceeding points (in column order)
+    for (int j = mincol; j < maxcol; ++j) {
+      if (raw_scan.at<float>(i, j) >= thres) {
+        intens.emplace_back(raw_scan.at<float>(i, j), j);
+      }
+    }
+    if (!intens.empty()) {
+      // 2. Group adjacent bins into peaks
+      std::vector<std::pair<float, std::vector<int>>> peaks;
+      float current_max = intens[0].first;
+      std::vector<int> current_bins = {intens[0].second};
+      for (size_t idx = 1; idx < intens.size(); ++idx) {
+        const int current_j = intens[idx].second;
+        if (current_j == current_bins.back() + 1) {
+          // Continuation of current peak
+          current_max = std::max(current_max, intens[idx].first);
+          current_bins.push_back(current_j);
+        } else {
+          // Finalize current peak
+          peaks.emplace_back(current_max, current_bins);
+          current_max = intens[idx].first;
+          current_bins = {current_j};
+        }
+      }
+      peaks.emplace_back(current_max, current_bins);  // Add last peak
+      // 3. Sort peaks by maximum intensity
+      std::sort(peaks.begin(), peaks.end(),
+               [](const auto& a, const auto& b) { return a.first > b.first; });
+      // 4. Select top-k peaks with averaged positions
+      const double azimuth = azimuth_angles[i];
+      const int64_t time = azimuth_times[i];
+      pcl::PointCloud<PointT> polar_time;
+      for (int p = 0; p < std::min(kstrong_, (int)peaks.size()); ++p) {
+        const auto& peak = peaks[p];
+        const float avg_j = std::accumulate(peak.second.begin(),
+                                           peak.second.end(), 0.0f)
+                           / peak.second.size();
+        PointT point;
+        point.rho = (avg_j * res) + static_cast<float>(range_offset_);
+        point.phi = azimuth;
+        point.theta = 0;
+        point.timestamp = time;
+        polar_time.push_back(point);
+      }
+      pointcloud.insert(pointcloud.end(), polar_time.begin(), polar_time.end());
+    }
+  }
+}
+
 
 // K-strongest implementation as per Elliot's paper
 template <class PointT>

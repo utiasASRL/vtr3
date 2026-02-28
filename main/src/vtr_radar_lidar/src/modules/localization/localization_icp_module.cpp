@@ -61,7 +61,7 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
+void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                  const Graph::Ptr &,
                                  const TaskExecutor::Ptr &) {
   auto &radar_qdata = dynamic_cast<radar::RadarQueryCache &>(qdata0);
@@ -207,7 +207,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   /// use odometry as a prior
   WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
-  if (config_->use_pose_prior) {
+  if (config_->use_pose_prior && output.chain->isLocalized()) {
     auto loss_func = L2LossFunc::MakeShared();
     auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
     auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
@@ -320,7 +320,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &,
     problem.addStateVariable(T_r_v_var);
 
     // add prior cost terms
-    if (config_->use_pose_prior) problem.addCostTerm(prior_cost_term);
+    if (prior_cost_term != nullptr) problem.addCostTerm(prior_cost_term);
 
     // shared loss function
     // auto loss_func = HuberLossFunc::MakeShared(config_->huber_delta);

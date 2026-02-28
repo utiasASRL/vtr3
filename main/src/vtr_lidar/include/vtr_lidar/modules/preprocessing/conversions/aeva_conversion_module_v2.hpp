@@ -1,4 +1,4 @@
-// Copyright 2023, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,43 +13,41 @@
 // limitations under the License.
 
 /**
- * \file sample_module.hpp
- * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
+ * \file aeva_conversion_module_v2.hpp
+ * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-// Include PyTorch headers FIRST to avoid namespace conflicts with ROS/std
-#include <vtr_torch/modules/torch_module.hpp>
-
-// Now include other VTR headers
+#include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
-#include "vtr_lidar/cache.hpp"
-#include <vector>
 
 namespace vtr {
 namespace lidar {
 
-/** \brief Load and store Torch Models */
-class TestNNModule : public nn::TorchModule {
+/** \brief A specialized point cloud converter for data from Aeva LiDAR. */
+class AevaConversionModuleV2 : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(TestNNModule);    
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "torch.sample";
+  static constexpr auto static_name = "lidar.aeva_converter_v2";
 
   /** \brief Config parameters. */
-  struct Config : public nn::TorchModule::Config {
+  struct Config : public BaseModule::Config {
     PTR_TYPEDEFS(Config);
+
+    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  TestNNModule(
+  AevaConversionModuleV2(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : nn::TorchModule{config, module_factory, name}, config_(config) {}
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
@@ -58,9 +56,12 @@ class TestNNModule : public nn::TorchModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(TestNNModule);
+  /** \brief for visualization only */
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pub_;
 
+  VTR_REGISTER_MODULE_DEC_TYPE(AevaConversionModuleV2);
 };
 
-}  // namespace nn
+}  // namespace lidar
 }  // namespace vtr
