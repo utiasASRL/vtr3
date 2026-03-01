@@ -78,18 +78,16 @@ struct EdgeBlockageInterval {
  *
  * States:
  *   Idle              - No obstacle episode active. Robot may be moving normally.
- *   WaitingForDecision- Obstacle detected, robot paused, awaiting decision from
- *                       the decision node (wait/reroute).
- *   WaitingForClear   - Decision was "wait". Robot remains paused until the
- *                       obstacle clears (obstacle_status=false).
- *   RerouteInProgress - Decision was "reroute". Route planner is computing a new
- *                       path. Robot remains paused until reroute completes.
+ *   WaitingForDecision- Obstacle detected, robot paused, decision node is processing
+ *                       (includes ChatGPT query and reroute attempt). Robot resumes
+ *                       when decision node sends episode_complete (for reroute case).
+ *   WaitingForClear   - Decision was "wait" (no alternate path). Robot remains paused
+ *                       until obstacle clears, then decision node sends episode_complete.
  */
 enum class ObstacleState {
   Idle,
   WaitingForDecision,
-  WaitingForClear,
-  RerouteInProgress
+  WaitingForClear
 };
 
 // HSHMAT: Helper to convert ObstacleState to string for logging
@@ -98,7 +96,6 @@ inline const char* obstacleStateToString(ObstacleState s) {
     case ObstacleState::Idle: return "Idle";
     case ObstacleState::WaitingForDecision: return "WaitingForDecision";
     case ObstacleState::WaitingForClear: return "WaitingForClear";
-    case ObstacleState::RerouteInProgress: return "RerouteInProgress";
   }
   return "Unknown";
 }
@@ -204,6 +201,8 @@ typedef message_filters::sync_policies::ApproximateTime<
 
   // HSHMAT: Obstacle status subscriber
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr obstacle_status_sub_;
+  // HSHMAT: Episode complete subscriber - decision node signals when robot can resume
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr episode_complete_sub_;
   // Hshmat: Obstacle distance subscriber (distance along path to nearest obstacle)
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr obstacle_distance_sub_;
   double last_obstacle_distance_;  // meters along path where obstacle detected

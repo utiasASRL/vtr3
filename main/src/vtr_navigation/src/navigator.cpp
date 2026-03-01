@@ -354,14 +354,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   }
   
   // HSHMAT: Subscribe to obstacle decision ("wait" or "reroute") from the
-  // obstacle decision node. The decision node may internally use ChatGPT or
-  // other logic, but from the navigator's perspective this is a generic
-  // obstacle decision signal.
+  // obstacle decision node. The decision node handles the reroute attempt and
+  // determines the final decision. Navigator just logs and waits for episode_complete.
   //
   // FSM transitions handled here:
-  //   WaitingForDecision -> WaitingForClear   (if decision="wait")
-  //   WaitingForDecision -> RerouteInProgress (if decision="reroute")
-  //   WaitingForDecision -> Idle              (if decision="abort" and obstacle cleared)
+  //   WaitingForDecision -> WaitingForClear (if decision="wait")
+  //   WaitingForDecision -> Idle            (if decision="abort" and obstacle cleared)
+  //   For "reroute": stay in WaitingForDecision until episode_complete arrives
   obstacle_decision_sub_ = node_->create_subscription<std_msgs::msg::String>(
       "/vtr/chatgpt_decision", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::String::SharedPtr msg) {
@@ -407,17 +406,16 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           active_decision_ = "wait";
           wait_episode_type_ = last_obstacle_type_;
           wait_episode_start_sec_ = now.seconds();
-          setRobotPaused(true);
           CLOG(INFO, "mission.state_machine")
               << "HSHMAT: Decision=WAIT. FSM: WaitingForDecision -> WaitingForClear. "
               << "Waiting for obstacle_type='" << wait_episode_type_ << "' to clear.";
         } else if (decision == "reroute") {
-          // HSHMAT: FSM transition -> RerouteInProgress
-          obstacle_state_ = ObstacleState::RerouteInProgress;
+          // HSHMAT: Decision node will handle the reroute and send episode_complete.
+          // Stay in WaitingForDecision - episode_complete will transition us to Idle.
           active_decision_ = "reroute";
           wait_episode_start_sec_ = -1.0;
           CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: Decision=REROUTE. FSM: WaitingForDecision -> RerouteInProgress.";
+              << "HSHMAT: Decision=REROUTE. Staying in WaitingForDecision until episode_complete.";
           triggerReroute();
         }
       });
@@ -441,11 +439,55 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         last_obstacle_expected_duration_sec_ = msg->data;
       }, sub_opt);
 
+  // HSHMAT: Subscribe to episode_complete from decision node.
+  // This is the ONLY signal that triggers Navigator to resume navigation.
+  // Decision node publishes this after all speech is complete.
+  episode_complete_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
+      "/vtr/episode_complete", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        if (!msg || !msg->data) return;
+        
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: Received episode_complete from decision node. "
+            << "FSM=" << obstacleStateToString(obstacle_state_);
+        
+        // Only process if we're in an active episode
+        if (obstacle_state_ == ObstacleState::Idle) {
+          CLOG(DEBUG, "mission.state_machine")
+              << "HSHMAT: Ignoring episode_complete - already Idle.";
+          return;
+        }
+        
+        // Episode cleanup: remove obstacle penalties from route planner
+        try {
+          if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT: Episode cleanup (Dijkstra): clearing penalties.";
+            bfs_ptr->clearExtraEdgeCosts();
+            bfs_ptr->setUseTimeCost(false);
+          } else if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner_)) {
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT: Episode cleanup (TDSP): clearing static delays.";
+            tdsp->setStaticEdgeDelays({});
+          }
+        } catch (...) {}
+        
+        // Transition to Idle and resume
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: Episode complete. FSM: " << obstacleStateToString(obstacle_state_) 
+            << " -> Idle. Resuming navigation.";
+        obstacle_state_ = ObstacleState::Idle;
+        active_decision_.clear();
+        wait_episode_start_sec_ = -1.0;
+        
+        if (robot_paused_) {
+          setRobotPaused(false);
+        }
+      });
+
   // HSHMAT: Subscribe to obstacle status - FSM-based handling
-  // FSM transitions handled here:
-  //   Idle -> WaitingForDecision (on obstacle detected)
-  //   WaitingForClear -> Idle    (on obstacle cleared)
-  //   RerouteInProgress -> Idle  (on obstacle cleared, if route not changed yet)
+  // Navigator PAUSES on obstacle detection, but NEVER resumes here.
+  // Resume only happens via episode_complete from decision node.
   obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
@@ -457,66 +499,30 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             << ", FSM=" << obstacleStateToString(obstacle_state_);
 
         // ===== OBSTACLE CLEARED (msg->data == false) =====
+        // Navigator does NOT resume here - decision node will send episode_complete after speech
         if (!msg->data) {
           switch (obstacle_state_) {
             case ObstacleState::Idle:
-              // Already idle, nothing to do
               return;
 
             case ObstacleState::WaitingForDecision:
-              // HSHMAT: Obstacle cleared before decision arrived.
-              // Stay in WaitingForDecision - let decision node handle this.
-              // When decision arrives, it will see last_obstacle_status_msg_=false.
+              // Obstacle cleared before/during decision processing - decision node will handle
               CLOG(INFO, "mission.state_machine")
                   << "HSHMAT: Obstacle cleared while WaitingForDecision. "
-                  << "Staying in state until decision arrives.";
+                  << "Decision node will handle.";
               return;
 
             case ObstacleState::WaitingForClear:
-              // HSHMAT: This is the expected path - obstacle cleared after we decided to wait.
+              // Obstacle cleared - log but DON'T resume. Wait for episode_complete.
               CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Obstacle cleared! FSM: WaitingForClear -> Idle.";
+                  << "HSHMAT: Obstacle cleared! Waiting for decision node to finish speech.";
               
-              // Update obstacle wait time statistics for machine learning
+              // Update wait time statistics
               if (wait_episode_start_sec_ >= 0.0) {
                 const double now_sec = node_->get_clock()->now().seconds();
                 const double actual_wait_sec = now_sec - wait_episode_start_sec_;
                 updateObstaclePriorFromWaitEpisode(wait_episode_type_, actual_wait_sec);
               }
-              
-              // Reset episode state
-              obstacle_state_ = ObstacleState::Idle;
-              wait_episode_start_sec_ = -1.0;
-              active_decision_.clear();
-
-              // Episode cleanup: remove obstacle penalties from route planner
-              try {
-                if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
-                  CLOG(INFO, "mission.state_machine")
-                      << "HSHMAT: Episode cleanup (Dijkstra): clearing penalties.";
-                  bfs_ptr->clearExtraEdgeCosts();
-                  bfs_ptr->setUseTimeCost(false);
-                } else if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner_)) {
-                  CLOG(INFO, "mission.state_machine")
-                      << "HSHMAT: Episode cleanup (TDSP): clearing static delays.";
-                  tdsp->setStaticEdgeDelays({});
-                }
-              } catch (...) {}
-
-              // Resume navigation
-              if (robot_paused_) {
-                CLOG(INFO, "mission.state_machine")
-                    << "HSHMAT: Resuming navigation after obstacle cleared.";
-                setRobotPaused(false);
-              }
-              return;
-
-            case ObstacleState::RerouteInProgress:
-              // HSHMAT: Obstacle cleared while reroute is computing.
-              // Let the reroute complete - don't cancel it mid-flight.
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Obstacle cleared while RerouteInProgress. "
-                  << "Allowing reroute to complete.";
               return;
           }
           return;
@@ -557,10 +563,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
               CLOG(INFO, "mission.state_machine")
                   << "HSHMAT: FSM: WaitingForDecision -> WaitingForClear (default).";
             } else {
-              obstacle_state_ = ObstacleState::RerouteInProgress;
+              // Reroute: stay in WaitingForDecision, triggerReroute, wait for episode_complete
               active_decision_ = "reroute";
               CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: FSM: WaitingForDecision -> RerouteInProgress (default).";
+                  << "HSHMAT: Default decision=reroute. Triggering reroute, awaiting episode_complete.";
               triggerReroute();
             }
           }
@@ -592,37 +598,19 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           }
         }
 
-        // HSHMAT: FSM-based reroute completion handling
-        // FSM transition: RerouteInProgress -> Idle (on route changed or unchanged if obstacle cleared)
-        if (obstacle_state_ == ObstacleState::RerouteInProgress && !route->ids.empty()) {
+        // HSHMAT: Log route changes during reroute, but DON'T resume here.
+        // Resume only happens via episode_complete from decision node.
+        // Note: During reroute, FSM stays in WaitingForDecision.
+        if (obstacle_state_ == ObstacleState::WaitingForDecision && 
+            active_decision_ == "reroute" && !route->ids.empty()) {
           if (route_changed) {
-            // Route changed - reroute succeeded
             CLOG(INFO, "mission.state_machine")
-                << "HSHMAT: Reroute committed with new route. FSM: RerouteInProgress -> Idle.";
-            obstacle_state_ = ObstacleState::Idle;
-            active_decision_.clear();
-            if (robot_paused_) {
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Resuming navigation on new route.";
-              setRobotPaused(false);
-            }
+                << "HSHMAT: Reroute produced new route. "
+                << "Waiting for decision node to announce and send episode_complete.";
           } else {
-            // Route unchanged - check if obstacle cleared
-            if (!last_obstacle_status_msg_) {
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Route unchanged but obstacle cleared. FSM: RerouteInProgress -> Idle.";
-              obstacle_state_ = ObstacleState::Idle;
-              active_decision_.clear();
-              if (robot_paused_) {
-                CLOG(INFO, "mission.state_machine")
-                    << "HSHMAT: Resuming navigation on original route.";
-                setRobotPaused(false);
-              }
-            } else {
-              // Obstacle still present and route unchanged - stay paused
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Route unchanged and obstacle still active. Remaining paused.";
-            }
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT: Reroute produced same route. "
+                << "Decision node will switch to wait mode.";
           }
         }
 
@@ -1368,8 +1356,8 @@ static size_t pruneRememberedBlockagesUsingGrid(
  * with different strategies for handling temporary vs permanent blockages.
  */
 void Navigator::triggerReroute() {
-  // HSHMAT: Validate FSM state - must be in RerouteInProgress
-  if (obstacle_state_ != ObstacleState::RerouteInProgress) {
+  // HSHMAT: Validate FSM state - should be WaitingForDecision with reroute decision
+  if (obstacle_state_ != ObstacleState::WaitingForDecision) {
     CLOG(WARNING, "mission.state_machine")
         << "HSHMAT: triggerReroute called but FSM is "
         << obstacleStateToString(obstacle_state_) << "; ignoring.";
@@ -1383,8 +1371,9 @@ void Navigator::triggerReroute() {
       << (reroute_enable ? "true" : "false");
   if (!reroute_enable) {
     CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Rerouting disabled, returning to Idle.";
-    obstacle_state_ = ObstacleState::Idle;
+        << "HSHMAT: Rerouting disabled. Falling back to wait.";
+    obstacle_state_ = ObstacleState::WaitingForClear;
+    active_decision_ = "wait";
     return;
   }
 
@@ -1396,18 +1385,20 @@ void Navigator::triggerReroute() {
     const bool in_repeat = curr.find("Repeat") != std::string::npos;
     if (!in_repeat) {
       CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: Not in Repeat mode, returning to Idle.";
-      obstacle_state_ = ObstacleState::Idle;
+          << "HSHMAT: Not in Repeat mode. Falling back to wait.";
+      obstacle_state_ = ObstacleState::WaitingForClear;
+      active_decision_ = "wait";
       return;
     }
     CLOG(INFO, "mission.state_machine")
         << "HSHMAT: In Repeat mode (" << curr << "), proceeding with reroute.";
   } catch (...) {
-    obstacle_state_ = ObstacleState::Idle;
+    obstacle_state_ = ObstacleState::WaitingForClear;
+    active_decision_ = "wait";
     return;
   }
 
-  // HSHMAT: FSM already in RerouteInProgress, proceeding with reroute logic
+  // HSHMAT: Proceeding with reroute logic (FSM stays in WaitingForDecision)
 
   // ===== STEP 4b: IDENTIFY AFFECTED GRAPH EDGES =====
   // Find which edges in the pose graph are blocked by the obstacle
