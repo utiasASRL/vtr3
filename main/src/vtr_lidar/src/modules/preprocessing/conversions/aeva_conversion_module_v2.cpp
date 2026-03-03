@@ -36,7 +36,7 @@ auto AevaConversionModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node
   return config;
 }
 
-void aevaCart2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
+void aevaCar2Pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
     for (size_t i = 0; i < point_cloud.size(); i++) {
       auto &p = point_cloud[i];
       auto &pm1 = i > 0 ? point_cloud[i - 1] : point_cloud[i];
@@ -93,7 +93,7 @@ void AevaConversionModuleV2::run_(QueryCache &qdata0, OutputCache &,
   auto filtered_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
 
   // Aeva has no polar coordinates, so compute them manually.
-  aevaCart2Pol(*filtered_point_cloud);
+  aevaCar2Pol(*filtered_point_cloud);
 
   // Output
   qdata.raw_point_cloud = filtered_point_cloud;

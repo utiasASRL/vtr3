@@ -81,10 +81,8 @@ void AevaConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point.intensity = points(idx, 4);
     point.timestamp = static_cast<int64_t>(points(idx, 5));
     // IDs
-    point.beam_id = points(idx, 6);
     point.line_id = points(idx, 7);
     point.face_id = points(idx, 8);
-    point.sensor_id = points(idx, 9);
   }
   
   aevaCart2Pol(*point_cloud);

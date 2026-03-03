@@ -125,19 +125,16 @@ void PreprocessingDopplerModule::initImgWeight(bool set_dims, const Config::Cons
   unsigned float_offset = 4;
   auto getFloatFromByteArray = [](char *byteArray, unsigned index) -> float { return *((float *)(byteArray + index)); };
 
-  for (size_t sensor = 0; sensor < dims(0); ++sensor) {
-    for (size_t row = 0; row < dims(1); ++row) {
-      for (size_t col = 0; col < dims(2); ++col) {
-        for (size_t face = 0; face < dims(3); ++face) {
-          for (size_t d = 0; d < dims(4); ++d) {  
-            int offset = d + dims(4)*face + dims(4)*dims(3)*col 
-              + dims(4)*dims(3)*dims(2)*row + dims(4)*dims(3)*dims(2)*dims(1)*sensor;
-            weights[sensor][face][row][col](d) = getFloatFromByteArray(buffer.data(), offset * float_offset);
-          } // d
-        } // face
-      } // col
-    } // row
-  } // sensor
+  for (size_t row = 0; row < dims(1); ++row) {
+    for (size_t col = 0; col < dims(2); ++col) {
+      for (size_t face = 0; face < dims(3); ++face) {
+        for (size_t d = 0; d < dims(4); ++d) {  
+          int offset = d + dims(4)*face + dims(4)*dims(3)*col + dims(4)*dims(3)*dims(2)*row;
+          weights[0][face][row][col](d) = getFloatFromByteArray(buffer.data(), offset * float_offset);
+        } // d
+      } // face
+    } // col
+  } // row
 }
 
 void PreprocessingDopplerModule::buildFeatVec(Eigen::VectorXd& feat, const PointWithInfo& point, 
@@ -260,21 +257,7 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   // initialize empty grid (2D img filled with null pointers)
   PointImg empty_img(config_->num_rows, std::vector<const PointWithInfo*>(config_->num_cols, nullptr));
 
-  // create an image for each active sensor
-  int num_active_sensors = 0; 
-  int img_count = 0;
-  
-  std::unordered_map<int, int> sid2iid; // mapping from sensor id to img id
-  for (size_t sensorid = 0; sensorid < config_->active_lidars.size(); ++sensorid) {
-    if (config_->active_lidars[sensorid]) {
-      ++num_active_sensors;
-      sid2iid[sensorid] = img_count;
-      ++img_count;
-    }
-  }
-
-  CLOG(DEBUG, "lidar.preprocessing_doppler") << "num active sensors " << num_active_sensors;
-
+  // create an image for the one aeva sensor
   std::vector<PointImg> imgs(1, empty_img);
   int pt_count = 0;  // keeps track of total # points to reserve later
   std::vector<double> dop_vels; // doppler median
@@ -293,20 +276,23 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       continue;
 
     // determine column
-    int img_id = sid2iid[filtered_point_cloud[i].sensor_id];
     const short col = (config_->num_cols - 1) - int((azimuth - config_->azimuth_start)/config_->azimuth_res);
-    
-    if (col < 0 || col >= imgs[img_id][filtered_point_cloud[i].line_id].size())
+
+    // bounds check for line_id and col
+    const int line_id = filtered_point_cloud[i].line_id;
+    if (line_id < 0 || line_id >= config_->num_rows)
       continue;
-    
+    if (col < 0 || col >= imgs[0][line_id].size())
+      continue;
+
     // picking the closest in elevation
-    if (imgs[img_id][filtered_point_cloud[i].line_id][col] == nullptr) {
+    if (imgs[0][line_id][col] == nullptr) {
       // keep first measurement in bin
-      imgs[img_id][filtered_point_cloud[i].line_id][col] = &filtered_point_cloud[i];
+      imgs[0][line_id][col] = &filtered_point_cloud[i];
       ++pt_count;
 
       // stack velocities for median calculation
-      if (config_->calc_median && filtered_point_cloud[i].sensor_id == config_->median_sensorid)
+      if (config_->calc_median)
         dop_vels.push_back(filtered_point_cloud[i].radial_velocity);
     }
   }
@@ -326,37 +312,34 @@ void PreprocessingDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::VectorXd bias_feat(config_->bias_input_feat.size());
   Eigen::VectorXd var_feat(config_->var_input_feat.size());
   int dscount = 0;
-  for (size_t s = 0; s < 1; ++s) {
-    for (size_t r = 0; r < config_->num_rows; ++r) {
-      for (size_t c = 0; c < config_->num_cols; ++c) {
-        if (imgs[s][r][c] != nullptr) {
+  for (size_t r = 0; r < config_->num_rows; ++r) {
+    for (size_t c = 0; c < config_->num_cols; ++c) {
+      if (imgs[0][r][c] != nullptr) {
 
-          // step downsample after image projection
-          ++dscount;
-          if (dscount % config_->downsample_steps != 0)
+        // step downsample after image projection
+        ++dscount;
+        if (dscount % config_->downsample_steps != 0)
+          continue;
+
+        // pseudo-variance
+        double pseudovar = 1.0;
+        if (config_->calc_pseudovar) {
+          bool varflag = computePseudovar(pseudovar, imgs[0][r], c, pseudo_var_hwidth_, 9999);
+          if (!varflag)
             continue;
-
-          // pseudo-variance
-          double pseudovar = 1.0;
-          if (config_->calc_pseudovar) {
-            bool varflag = computePseudovar(pseudovar, imgs[s][r], c, pseudo_var_hwidth_, 9999);
-            if (!varflag)
-              continue;
-          }
-
-          // pushback if we have data in this elevation-azimuth bin
-          out_frame.push_back(*imgs[s][r][c]);
-          
-          // build features
-          buildFeatVec(bias_feat, out_frame.back(), config_->bias_input_feat, dop_median, pseudovar);
-          buildFeatVec(var_feat, out_frame.back(), config_->var_input_feat, dop_median, pseudovar);
-
-          // apply linear regression model
-          int sensorid = out_frame.back().sensor_id;
-          int faceid = out_frame.back().face_id;
-          out_frame.back().radial_velocity -= computeModel(bias_feat, bias_weights_[sensorid][faceid][r][c], config_->bias_polyorder);
-          out_frame.back().ivariance = exp(computeModel(var_feat, var_weights_[sensorid][faceid][0][0], config_->var_polyorder)); // TODO: when var is also a grid/image
         }
+
+        // pushback if we have data in this elevation-azimuth bin
+        out_frame.push_back(*imgs[0][r][c]);
+        
+        // build features
+        buildFeatVec(bias_feat, out_frame.back(), config_->bias_input_feat, dop_median, pseudovar);
+        buildFeatVec(var_feat, out_frame.back(), config_->var_input_feat, dop_median, pseudovar);
+
+        // apply linear regression model
+        int faceid = out_frame.back().face_id;
+        out_frame.back().radial_velocity -= computeModel(bias_feat, bias_weights_[0][faceid][r][c], config_->bias_polyorder);
+        out_frame.back().ivariance = exp(computeModel(var_feat, var_weights_[0][faceid][0][0], config_->var_polyorder)); // TODO: when var is also a grid/image
       }
     }
   }
