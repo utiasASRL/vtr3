@@ -278,12 +278,12 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     graph_->write<OdometryResult>("odometry_result",
                                   "vtr_tactic_msgs/msg/OdometryResult", msg);
 
-    using edgeLM = storage::LockableMessage<EdgeResult>;
-    auto edg_result = std::make_shared<EdgeResult>(
-        *qdata->stamp, T_w_v_odo_ * (*qdata->T_r_v_odo).inverse());
-    auto edge_msg = std::make_shared<edgeLM>(edg_result, *qdata->stamp);
-    graph_->write<EdgeResult>("edge",
-      "vtr_posegraph_msgs/msg/Edge", edge_msg);
+    // using edgeLM = storage::LockableMessage<EdgeResult>;
+    // auto edg_result = std::make_shared<EdgeResult>(
+    //     *qdata->stamp, T_w_v_odo_ * (*qdata->T_r_v_odo).inverse());
+    // auto edge_msg = std::make_shared<edgeLM>(edg_result, *qdata->stamp);
+    // graph_->write<EdgeResult>("edge",
+    //   "vtr_posegraph_msgs/msg/Edge", edge_msg);
   }
 
   // save odometry velocity result
