@@ -226,11 +226,15 @@ if (pipeline->name() == "radar") {
 }
 #endif
 
-  // Subscribe to the imu topic 
-  auto gyro_qos = rclcpp::QoS(100);
-  gyro_qos.reliable();
-  const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
-  gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
+  auto gyro_enabled = node_->declare_parameter<bool>("gyro_enabled", false);
+
+  if (gyro_enabled) {
+    // Subscribe to the imu topic
+    auto gyro_qos = rclcpp::QoS(100);
+    gyro_qos.reliable();
+    const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
+    gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
+  }
 
 
   /// This creates a thread to process the sensor input
