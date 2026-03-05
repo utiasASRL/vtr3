@@ -25,10 +25,12 @@
 #include "vtr_route_planning/bfs_planner.hpp" // Hshmat: for mapping following route ids to BFS edge blacklist
 #include "vtr_tactic/tactic.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp" //Hshmat: for mapping following route ids to BFS edge blacklist
+#include "vtr_navigation_msgs/msg/server_state.hpp" // HSHMAT: for resetting obstacle state on Repeat start
 #include "std_msgs/msg/bool.hpp" // Hshmat: for mapping following route ids to BFS edge blacklist
 #include "std_msgs/msg/float64.hpp" // Hshmat: for obstacle distance subscription
 #include "std_msgs/msg/string.hpp" // Hshmat: for ChatGPT decision subscription
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "vtr_navigation/wait_strategy.hpp"  // HSHMAT: Strategy pattern for wait time decisions
 #include <unordered_map>
 #include <limits>
 #include <chrono> // Hshmat: for debouncing obstacle detection
@@ -73,29 +75,27 @@ struct EdgeBlockageInterval {
  * \brief HSHMAT: Obstacle handling state machine.
  *
  * Provides a clearer view of the obstacle episode lifecycle, replacing the
- * previous "boolean soup" of flags (obstacle_active_, waiting_for_decision_,
- * waiting_for_reroute_, processing_obstacle_, etc.).
+ * previous "boolean soup" of flags.
  *
  * States:
- *   Idle              - No obstacle episode active. Robot may be moving normally.
- *   WaitingForDecision- Obstacle detected, robot paused, decision node is processing
- *                       (includes ChatGPT query and reroute attempt). Robot resumes
- *                       when decision node sends episode_complete (for reroute case).
- *   WaitingForClear   - Decision was "wait" (no alternate path). Robot remains paused
- *                       until obstacle clears, then decision node sends episode_complete.
+ *   Idle      - No obstacle episode active. Robot may be moving normally.
+ *   Waiting   - Obstacle detected, robot paused, waiting for obstacle to clear
+ *               or timer to expire (W* seconds). Timer runs countdown.
+ *   Rerouting - Timer expired (or immediate reroute), computing alternate route.
+ *               Transitions to Idle after route change completes.
  */
 enum class ObstacleState {
   Idle,
-  WaitingForDecision,
-  WaitingForClear
+  Waiting,
+  Rerouting
 };
 
 // HSHMAT: Helper to convert ObstacleState to string for logging
 inline const char* obstacleStateToString(ObstacleState s) {
   switch (s) {
     case ObstacleState::Idle: return "Idle";
-    case ObstacleState::WaitingForDecision: return "WaitingForDecision";
-    case ObstacleState::WaitingForClear: return "WaitingForClear";
+    case ObstacleState::Waiting: return "Waiting";
+    case ObstacleState::Rerouting: return "Rerouting";
   }
   return "Unknown";
 }
@@ -201,8 +201,6 @@ typedef message_filters::sync_policies::ApproximateTime<
 
   // HSHMAT: Obstacle status subscriber
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr obstacle_status_sub_;
-  // HSHMAT: Episode complete subscriber - decision node signals when robot can resume
-  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr episode_complete_sub_;
   // Hshmat: Obstacle distance subscriber (distance along path to nearest obstacle)
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr obstacle_distance_sub_;
   double last_obstacle_distance_;  // meters along path where obstacle detected
@@ -212,27 +210,50 @@ typedef message_filters::sync_policies::ApproximateTime<
   // Hshmat: Occupancy grid from path obstacle detector (red cells = on-path obstacles)
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr obstacle_grid_sub_;
   nav_msgs::msg::OccupancyGrid last_obstacle_grid_;
-  // Hshmat: Obstacle type (e.g., "person", "chair") from decision node
+  // Hshmat: Obstacle type (e.g., "person", "chair") from VLM/decision node
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr obstacle_type_sub_;
   std::string last_obstacle_type_ = "unknown";
   
-  // HSHMAT: Decision subscriber (from obstacle decision node: "wait" or "reroute")
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr obstacle_decision_sub_;
-  Mutex chatgpt_mutex_;
-  rclcpp::Time obstacle_start_time_;
-  
   // HSHMAT: FSM state - single source of truth for obstacle episode lifecycle
+  Mutex obstacle_mutex_;
   ObstacleState obstacle_state_ = ObstacleState::Idle;
-  std::string active_decision_;  // "wait" or "reroute" - the decision for current episode
-  bool last_obstacle_status_msg_ = false;  // Raw sensor value for edge cases
+  bool last_obstacle_status_msg_ = false;  // Raw sensor value
+  rclcpp::Time obstacle_start_time_;  // When current episode started
+  
+  // HSHMAT: Wait strategy - determines W* (how long to wait before rerouting)
+  std::unique_ptr<WaitStrategy> wait_strategy_;
+  WaitStrategyConfig wait_strategy_config_;
+  double current_W_star_ = 0.0;  // Current wait time limit (seconds)
+  
+  // HSHMAT: Wait timer for countdown
+  rclcpp::TimerBase::SharedPtr wait_timer_;
+  std::vector<int> countdown_intervals_;  // Announce at these seconds remaining
+  int next_countdown_idx_ = 0;  // Index into countdown_intervals_
+  void onWaitTimerTick();  // Called every second during waiting
+  
+  // HSHMAT: Server state subscriber - reset obstacle state on Repeat start
+  rclcpp::Subscription<vtr_navigation_msgs::msg::ServerState>::SharedPtr server_state_sub_;
+  uint8_t last_goal_state_ = 0;
+  void resetObstacleState();
   
   // HSHMAT: Publisher for pausing robot (zero velocity)
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pause_cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pause_state_pub_;
-  bool robot_paused_ = false;  // Track if robot is currently paused
+  bool robot_paused_ = false;
+  
+  // HSHMAT: Speech publisher (announces obstacle events)
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr speech_pub_;
+  void speak(const std::string& text);
+  
+  // HSHMAT: Episode management
+  void startObstacleEpisode();  // Idle -> Waiting/Rerouting
+  void onObstacleCleared();     // Obstacle cleared during Waiting
+  void onWaitTimeout();         // W* expired, Waiting -> Rerouting
+  void completeEpisode();       // Episode ends -> Idle
+  double computeTravelTime(bool ban_blocked_edge);  // For learned strategy
   
   void setRobotPaused(bool paused);
-  void triggerReroute();  // Centralized reroute flow (state machine + banned edges)
+  void triggerReroute();  // Centralized reroute flow
   // Estimate obstacle extent (meters) from the latest occupancy grid.
   double estimateObstacleExtentFromGrid() const;
   // Map last_obstacle_type_ to an expected blockage duration (seconds).
@@ -289,12 +310,7 @@ typedef message_filters::sync_policies::ApproximateTime<
 
   // Lookahead radii are configured via route_planning.* parameters (YAML).
 
-  // Hshmat: ChatGPT configuration and publisher
-  bool use_chatgpt_;  // Whether to query ChatGPT (if false, default to reroute)
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr use_chatgpt_pub_;
-  std::string default_decision_;  // "wait" or "reroute" fallback when ChatGPT disabled
-  
-  // Hshmat: Debouncing for obstacle detection
+  // HSHMAT: Debouncing for obstacle detection
   std::optional<std::chrono::steady_clock::time_point> last_obstacle_time_;
 
   /// Threading

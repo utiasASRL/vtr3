@@ -82,6 +82,46 @@
       obstacle_costs:
         source: "file"               # vlm | file
         file: "/home/asrl/ASRL/vtr3/src/config/obstacles.yaml"  # used only if source = file
+
+      # =========================
+      # HSHMAT: Obstacle Wait Strategy
+      # =========================
+      # Controls how long to wait vs when to reroute
+      obstacle_strategy:
+        # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned
+        type: "learned"
+        
+        # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
+        default_W_max: 120.0
+        W_max_per_type:
+          person: 60.0      # People typically move within 1 min
+          chair: 300.0      # Chairs rarely move on their own
+          cart: 90.0        # Carts may be moved by someone
+          door: 30.0        # Doors typically open/close quickly
+          unknown: 60.0     # Default for unrecognized obstacles
+        
+        # For rule_based strategy: obstacle types to wait for (others will reroute)
+        wait_types: ["person"]
+        
+        # For learned strategy
+        W_grid_points: 100    # Number of W candidates in grid search
+        T_grid_points: 50     # Number of time points for J(W) integration
+        
+        # Survival model data file (persists across runs)
+        survival_data_file: "${VTRDATA}/survival_samples.yaml"
+        
+        # Seed samples for new obstacle types (uncensored durations in seconds)
+        # Used to initialize the survival model before collecting real data
+        seed_samples:
+          person: [5.0, 10.0, 15.0, 20.0, 30.0]
+          chair: [300.0]
+          cart: [30.0, 60.0, 90.0]
+          door: [5.0, 10.0, 15.0]
+          unknown: [30.0, 60.0]
+        
+        # Speech settings for countdown announcements (learned strategy)
+        countdown_intervals: [60, 30, 15, 10, 5]  # Announce when this many seconds remain
+
     graph_projection:
       # # UTIAS coordinates (original)
       # origin_lat: 43.7822  # UTIAS

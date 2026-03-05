@@ -69,8 +69,12 @@ ament_target_dependencies(${PROJECT_NAME}_task_queue_server
   vtr_common vtr_logging vtr_mission_planning vtr_navigation_msgs
 )
 
-file(GLOB_RECURSE SRC src/navigator.cpp)
-add_library(${PROJECT_NAME}_navigator ${SRC})
+# HSHMAT: Navigator library with survival model and wait strategy
+add_library(${PROJECT_NAME}_navigator
+  src/navigator.cpp
+  src/survival_model.cpp
+  src/wait_strategy.cpp
+)
 
 
 find_package(vtr_radar_lidar REQUIRED)
