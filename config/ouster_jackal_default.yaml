@@ -89,7 +89,7 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned
-        type: "learned"
+        type: "always_wait"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         default_W_max: 120.0

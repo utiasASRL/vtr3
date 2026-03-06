@@ -409,6 +409,27 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   speech_pub_ = node_->create_publisher<std_msgs::msg::String>(
       "/vtr/speech", rclcpp::SystemDefaultsQoS());
   
+  // HSHMAT: Publisher to tell Python decision node whether to use ChatGPT.
+  // Latched (transient_local) so the decision node gets the value immediately on startup.
+  use_chatgpt_pub_ = node_->create_publisher<std_msgs::msg::Bool>(
+      "/vtr/use_chatgpt", latched_qos);
+  
+  // HSHMAT: Publish use_chatgpt based on strategy type.
+  // Only rule_based and learned need ChatGPT for obstacle type classification.
+  // always_wait, always_detour, and greedy_ctp don't care about obstacle type.
+  {
+    std_msgs::msg::Bool chatgpt_msg;
+    if (wait_strategy_) {
+      StrategyType stype = wait_strategy_->type();
+      chatgpt_msg.data = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED);
+    } else {
+      chatgpt_msg.data = false;  // Default to false if no strategy
+    }
+    use_chatgpt_pub_->publish(chatgpt_msg);
+    CLOG(INFO, "navigation") << "HSHMAT: Published use_chatgpt=" << (chatgpt_msg.data ? "true" : "false")
+                             << " based on strategy type.";
+  }
+  
   // HSHMAT: Subscribe to speech completion signal from decision node
   speech_done_ = true;
   speech_done_sub_ = node_->create_subscription<std_msgs::msg::Bool>(

@@ -249,6 +249,11 @@ typedef message_filters::sync_policies::ApproximateTime<
   void speak(const std::string& text);
   void speakAndWait(const std::string& text, double timeout_sec = 10.0);
   
+  // HSHMAT: Publisher to tell Python decision node whether to use ChatGPT.
+  // false for always_wait, always_detour, greedy_ctp (Navigator handles all logic)
+  // true for rule_based, learned (need obstacle type from ChatGPT)
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr use_chatgpt_pub_;
+  
   // HSHMAT: Episode management
   void startObstacleEpisode();  // Idle -> Waiting/Rerouting
   void onObstacleCleared();     // Obstacle cleared during Waiting
