@@ -33,6 +33,7 @@
 #include <filesystem>
 #include <ctime>
 #include <unistd.h>
+#include <thread>  // HSHMAT: for speakAndWait sleep
 
 #include "vtr_common/utils/filesystem.hpp"
 #include "yaml-cpp/yaml.h"
@@ -395,6 +396,18 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       "/vtr/navigation_pause", latched_qos);
   speech_pub_ = node_->create_publisher<std_msgs::msg::String>(
       "/vtr/speech", rclcpp::SystemDefaultsQoS());
+  
+  // HSHMAT: Subscribe to speech completion signal from decision node
+  speech_done_ = true;
+  speech_done_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
+      "/vtr/speech_done", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        if (msg && msg->data) {
+          speech_done_ = true;
+          CLOG(DEBUG, "mission.state_machine") << "HSHMAT: Speech completed signal received.";
+        }
+      }, sub_opt);
+  
   {
     std_msgs::msg::Bool msg;
     msg.data = false;
@@ -674,11 +687,36 @@ void Navigator::setRobotPaused(bool paused) {
 
 void Navigator::speak(const std::string& text) {
   if (speech_pub_ && !text.empty()) {
+    speech_done_ = false;
     std_msgs::msg::String msg;
     msg.data = text;
     speech_pub_->publish(msg);
     CLOG(INFO, "mission.state_machine") << "HSHMAT Speech: " << text;
   }
+}
+
+void Navigator::speakAndWait(const std::string& text, double timeout_sec) {
+  // HSHMAT: Speak and block until speech is done (or timeout).
+  // This ensures robot doesn't move while speaking.
+  if (text.empty()) return;
+  
+  speak(text);
+  
+  // Wait for speech_done_ signal with timeout
+  auto start = std::chrono::steady_clock::now();
+  auto timeout = std::chrono::duration<double>(timeout_sec);
+  
+  while (!speech_done_) {
+    auto elapsed = std::chrono::steady_clock::now() - start;
+    if (elapsed >= timeout) {
+      CLOG(WARNING, "mission.state_machine")
+          << "HSHMAT: speakAndWait timeout after " << timeout_sec << "s for: " << text;
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  }
+  
+  CLOG(DEBUG, "mission.state_machine") << "HSHMAT: speakAndWait completed for: " << text;
 }
 
 void Navigator::resetObstacleState() {
@@ -829,7 +867,9 @@ void Navigator::onObstacleCleared() {
   // Also update old prior system if enabled
   updateObstaclePriorFromWaitEpisode(wait_episode_type_, elapsed);
   
-  speak("Obstacle cleared.");
+  // HSHMAT: Speak and WAIT for speech to complete BEFORE resuming robot
+  // This ensures the robot doesn't start moving while saying "Obstacle cleared"
+  speakAndWait("Obstacle cleared.", 5.0);
   completeEpisode();
 }
 

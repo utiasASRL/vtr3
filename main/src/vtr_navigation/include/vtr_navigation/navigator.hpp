@@ -36,6 +36,7 @@
 #include <chrono> // Hshmat: for debouncing obstacle detection
 #include <optional> // Hshmat: for debouncing obstacle detection
 #include <mutex>
+#include <atomic>  // HSHMAT: for speech_done_ flag
 
 #ifdef VTR_ENABLE_VISION
 #include "message_filters/subscriber.h"
@@ -243,7 +244,10 @@ typedef message_filters::sync_policies::ApproximateTime<
   
   // HSHMAT: Speech publisher (announces obstacle events)
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr speech_pub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr speech_done_sub_;
+  std::atomic<bool> speech_done_{true};
   void speak(const std::string& text);
+  void speakAndWait(const std::string& text, double timeout_sec = 10.0);
   
   // HSHMAT: Episode management
   void startObstacleEpisode();  // Idle -> Waiting/Rerouting

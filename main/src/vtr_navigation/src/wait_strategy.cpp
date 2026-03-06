@@ -61,12 +61,16 @@ WaitDecision LearnedStrategy::computeWaitTime(const std::string& obs_type, doubl
     return WaitDecision::waitForever("Obstacle " + obs_type + ". Waiting.");
   }
   
-  // Get travel times
-  double A_goal = get_travel_time_(false);   // Time if obstacle clears (no ban)
-  double A_avoid = get_travel_time_(true);   // Time if we reroute (ban blocked edge)
+  // Get travel times (simplified: assume constant A_goal and A_avoid)
+  // In simulation we compute A_goal(t) for each t, but on real robot that's expensive
+  // A_goal = travel time if obstacle clears now (we proceed on original path)
+  // A_avoid = travel time if we reroute now (banned edge)
+  double A_goal = get_travel_time_(false);
+  double A_avoid = get_travel_time_(true);
   
-  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: A_goal=" << A_goal
-                            << ", A_avoid=" << A_avoid << ", W_max=" << W_max;
+  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: A_goal=" << A_goal
+                            << ", A_avoid=" << A_avoid << ", W_max=" << W_max
+                            << ", elapsed=" << elapsed;
   
   // If no alternative route, must wait
   if (A_avoid >= 1e9 || std::isinf(A_avoid)) {
@@ -74,19 +78,96 @@ WaitDecision LearnedStrategy::computeWaitTime(const std::string& obs_type, doubl
     return WaitDecision::waitForever("Obstacle " + obs_type + ". No alternate route. Waiting.");
   }
   
-  // If detour is actually faster, always detour
+  // If detour is faster than going straight (even without obstacle), always detour
   if (A_avoid <= A_goal) {
     CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Detour is faster, rerouting immediately";
     return WaitDecision::detour("Obstacle " + obs_type + ". Rerouting.");
   }
   
-  // Grid search for optimal W*
-  double best_W = 0.0;
-  double best_J = std::numeric_limits<double>::infinity();
+  // ========================================================================
+  // HSHMAT: J(W) computation matching Python simulation algorithm
+  //
+  // The algorithm:
+  // 1. Create T_grid of clearance times: t_1, t_2, ..., t_n over [0, W_max]
+  // 2. For each t_i, compute probability mass p(t_i) = S(t_{i-1}) - S(t_i)
+  // 3. Compute contribution: contrib[i] = p(t_i) * (t_i + A_goal)
+  // 4. Compute prefix sum: cum[i] = sum_{j<=i} contrib[j]
+  // 5. For each W in W_grid:
+  //    - clear_term = cum[k] where k = largest index with t_k <= W
+  //    - avoid_term = S(W) * (W + A_avoid)
+  //    - J(W) = clear_term + avoid_term
+  // 6. W* = argmin J(W)
+  //
+  // Note: On real robot, A_goal is constant (no time-dependent TDSP).
+  // This is equivalent to A_goal(t) = A_goal for all t.
+  // ========================================================================
   
-  for (int i = 0; i <= config_.W_grid_points; ++i) {
-    double W = (static_cast<double>(i) / config_.W_grid_points) * W_max;
-    double J = computeJ(obs_type, W, elapsed, A_goal, A_avoid);
+  const int n_T = std::max(16, config_.T_grid_points);
+  const int n_W = std::max(16, config_.W_grid_points);
+  
+  // Step 1: Create T_grid of clearance times
+  std::vector<double> t_clear(n_T);
+  double dt = W_max / n_T;
+  for (int i = 0; i < n_T; ++i) {
+    t_clear[i] = (i + 1) * dt;  // Right endpoints: dt, 2*dt, ..., W_max
+  }
+  
+  // Step 2-3: Compute probability masses and contributions
+  std::vector<double> contrib(n_T);
+  for (int i = 0; i < n_T; ++i) {
+    double t_left = i * dt;
+    double t_right = (i + 1) * dt;
+    
+    double S_left, S_right;
+    if (elapsed > 0.0) {
+      S_left = survival_model_.conditionalSurvival(obs_type, t_left, elapsed);
+      S_right = survival_model_.conditionalSurvival(obs_type, t_right, elapsed);
+    } else {
+      S_left = survival_model_.survival(obs_type, t_left);
+      S_right = survival_model_.survival(obs_type, t_right);
+    }
+    
+    double prob_mass = std::max(0.0, S_left - S_right);
+    // If obstacle clears at t_right, total time = t_right (wait) + A_goal (travel)
+    contrib[i] = prob_mass * (t_right + A_goal);
+  }
+  
+  // Step 4: Compute prefix sums
+  std::vector<double> cum(n_T);
+  cum[0] = contrib[0];
+  for (int i = 1; i < n_T; ++i) {
+    cum[i] = cum[i - 1] + contrib[i];
+  }
+  
+  // Step 5-6: Find optimal W*
+  double best_W = 0.0;
+  double best_J = A_avoid;  // J(0) = A_avoid (immediate reroute)
+  
+  for (int i = 0; i <= n_W; ++i) {
+    double W = (static_cast<double>(i) / n_W) * W_max;
+    
+    // Find clear_term using prefix sum
+    // k = largest index such that t_clear[k] <= W
+    double clear_term = 0.0;
+    if (W > 0.0) {
+      // Binary search for k
+      auto it = std::upper_bound(t_clear.begin(), t_clear.end(), W);
+      if (it != t_clear.begin()) {
+        int k = static_cast<int>(std::distance(t_clear.begin(), it)) - 1;
+        clear_term = cum[k];
+      }
+    }
+    
+    // Compute S(W) for avoid term
+    double S_W;
+    if (elapsed > 0.0) {
+      S_W = survival_model_.conditionalSurvival(obs_type, W, elapsed);
+    } else {
+      S_W = survival_model_.survival(obs_type, W);
+    }
+    
+    double avoid_term = S_W * (W + A_avoid);
+    double J = clear_term + avoid_term;
     
     if (J < best_J) {
       best_J = J;
@@ -113,56 +194,10 @@ WaitDecision LearnedStrategy::computeWaitTime(const std::string& obs_type, doubl
 
 double LearnedStrategy::computeJ(const std::string& obs_type, double W, double elapsed,
                                   double A_goal, double A_avoid) const {
-  // J(W) = clear_term + avoid_term
-  // 
-  // clear_term = integral from 0 to W of: p(t) * (t + A_goal) dt
-  //            = sum over t_i of: (S(t_i-1) - S(t_i)) * (t_i + A_goal)
-  //
-  // avoid_term = S(W) * (W + A_avoid)
-  //
-  // For conditional (elapsed > 0), use conditional survival S(t | T > elapsed)
-  
-  if (W <= 0.0) {
-    // Immediate detour: cost = A_avoid
-    return A_avoid;
-  }
-  
-  double clear_term = 0.0;
-  double dt = W / config_.T_grid_points;
-  
-  for (int i = 0; i < config_.T_grid_points; ++i) {
-    double t_left = i * dt;
-    double t_right = (i + 1) * dt;
-    double t_mid = (t_left + t_right) / 2.0;
-    
-    // Probability mass in this interval
-    double S_left, S_right;
-    if (elapsed > 0.0) {
-      S_left = survival_model_.conditionalSurvival(obs_type, t_left, elapsed);
-      S_right = survival_model_.conditionalSurvival(obs_type, t_right, elapsed);
-    } else {
-      S_left = survival_model_.survival(obs_type, t_left);
-      S_right = survival_model_.survival(obs_type, t_right);
-    }
-    
-    double prob_mass = S_left - S_right;
-    if (prob_mass > 0.0) {
-      // If clears at t_mid, total time = t_mid (wait) + A_goal (travel)
-      clear_term += prob_mass * (t_mid + A_goal);
-    }
-  }
-  
-  // Avoid term: probability still blocked at W, then reroute
-  double S_W;
-  if (elapsed > 0.0) {
-    S_W = survival_model_.conditionalSurvival(obs_type, W, elapsed);
-  } else {
-    S_W = survival_model_.survival(obs_type, W);
-  }
-  
-  double avoid_term = S_W * (W + A_avoid);
-  
-  return clear_term + avoid_term;
+  // This function is now unused - J(W) is computed inline in computeWaitTime
+  // using prefix sums for efficiency. Kept for interface compatibility.
+  (void)obs_type; (void)W; (void)elapsed; (void)A_goal; (void)A_avoid;
+  return 0.0;
 }
 
 std::string LearnedStrategy::buildWaitSpeech(const std::string& obs_type, double W_star) const {
