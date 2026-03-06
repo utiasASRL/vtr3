@@ -17,12 +17,8 @@
  * \brief Strategy pattern for obstacle wait time decisions.
  * 
  * HSHMAT: Implements different strategies for deciding how long to wait
- * when an obstacle is encountered:
- * - AlwaysWait: Wait indefinitely until obstacle clears
- * - AlwaysDetour: Immediately reroute (W* = 0)
- * - RuleBased: Wait for certain obstacle types, detour for others
- * - GreedyCTP: Immediately reroute, permanently ban blocked edges
- * - Learned: Compute optimal W* using survival model and TDSP
+ * when an obstacle is encountered. The Learned strategy uses time-dependent
+ * TDSP exactly matching the Python simulation.
  */
 #pragma once
 
@@ -33,6 +29,9 @@
 #include <functional>
 
 #include "vtr_navigation/survival_model.hpp"
+#include "vtr_navigation/obstacle_memory.hpp"
+#include "vtr_route_planning/ew_tdsp_planner.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace navigation {
@@ -78,13 +77,21 @@ struct WaitStrategyConfig {
   std::string survival_data_file;  // Path to survival data
   std::map<std::string, std::vector<double>> seed_samples;  // Initial samples per type
   
-  // Travel time function (provided by Navigator)
-  // Returns time to reach goal from current position, optionally with edge banned
-  std::function<double(bool ban_blocked_edge)> get_travel_time;
+  // Obstacle parameters
+  double p_block = 0.05;     // Probability of obstacle on any edge
+  std::map<std::string, double> type_weights;  // Probability distribution over types
+  
+  // Robot speed (for computing edge travel times)
+  double robot_speed_mps = 1.0;
   
   double getWMax(const std::string& obs_type) const {
     auto it = W_max_per_type.find(obs_type);
     return (it != W_max_per_type.end()) ? it->second : default_W_max;
+  }
+  
+  double getTypeWeight(const std::string& obs_type) const {
+    auto it = type_weights.find(obs_type);
+    return (it != type_weights.end()) ? it->second : 1.0 / std::max(1.0, static_cast<double>(type_weights.size()));
   }
 };
 
@@ -134,13 +141,25 @@ class WaitStrategy {
   
   /**
    * \brief Compute optimal wait time for an obstacle.
+   * 
+   * For Learned strategy, this needs context about the graph and current position.
+   * Simple strategies (always_wait, etc.) ignore these parameters.
+   * 
    * \param obs_type Obstacle type (e.g., "person", "chair")
-   * \param elapsed Time already waited (for re-evaluation)
+   * \param blocked_edges Set of edges blocked by current obstacle
+   * \param current_vertex Current robot position
+   * \param goal_vertex Goal position
+   * \param t_now Current global time
+   * \param obstacle_t_first When obstacle was first observed (for conditional survival)
    * \return WaitDecision with W* and speech
    */
   virtual WaitDecision computeWaitTime(
       const std::string& obs_type,
-      double elapsed = 0.0) = 0;
+      const EdgeIdSet& blocked_edges,
+      const tactic::VertexId& current_vertex,
+      const tactic::VertexId& goal_vertex,
+      double t_now,
+      double obstacle_t_first = 0.0) = 0;
   
   /**
    * \brief Called when obstacle clears (for updating models).
@@ -157,14 +176,34 @@ class WaitStrategy {
   virtual void onRerouteTimeout(const std::string& obs_type, double wait_duration) {}
   
   /**
+   * \brief Update memory after a censored wait (for Learned strategy).
+   */
+  virtual void updateMemoryAfterCensoredWait(const EdgeIdSet& blocked_edges, double t_after_wait) {}
+  
+  /**
+   * \brief Clear memory for an edge (obstacle actually cleared).
+   */
+  virtual void clearMemoryForEdge(const EdgeId& edge) {}
+  
+  /**
+   * \brief Reset all memory (called at start of new Repeat).
+   */
+  virtual void resetMemory() {}
+  
+  /**
    * \brief For greedy CTP: check if an edge is permanently banned.
    */
-  virtual bool isEdgePermanentlyBanned(uint64_t edge_id) const { return false; }
+  virtual bool isEdgePermanentlyBanned(const EdgeId& edge) const { return false; }
   
   /**
    * \brief For greedy CTP: mark edge as permanently banned.
    */
-  virtual void banEdgePermanently(uint64_t edge_id) {}
+  virtual void banEdgePermanently(const EdgeId& edge) {}
+  
+  /**
+   * \brief Clear all permanently banned edges (for new run).
+   */
+  virtual void clearPermanentBans() {}
   
   /**
    * \brief Get strategy type.
@@ -175,6 +214,13 @@ class WaitStrategy {
    * \brief Get the survival model (if any).
    */
   virtual SurvivalModel* survivalModel() { return nullptr; }
+  
+  /**
+   * \brief Set graph access functions (for Learned strategy TDSP).
+   */
+  virtual void setGraphAccess(
+      route_planning::NeighborsFn get_neighbors,
+      route_planning::TravelTimeFn get_travel_time) {}
 };
 
 /**
@@ -182,7 +228,13 @@ class WaitStrategy {
  */
 class AlwaysWaitStrategy : public WaitStrategy {
  public:
-  WaitDecision computeWaitTime(const std::string& obs_type, double elapsed) override {
+  WaitDecision computeWaitTime(
+      const std::string& obs_type,
+      const EdgeIdSet& blocked_edges,
+      const tactic::VertexId& current_vertex,
+      const tactic::VertexId& goal_vertex,
+      double t_now,
+      double obstacle_t_first) override {
     return WaitDecision::waitForever("Obstacle detected. Waiting.");
   }
   
@@ -194,7 +246,13 @@ class AlwaysWaitStrategy : public WaitStrategy {
  */
 class AlwaysDetourStrategy : public WaitStrategy {
  public:
-  WaitDecision computeWaitTime(const std::string& obs_type, double elapsed) override {
+  WaitDecision computeWaitTime(
+      const std::string& obs_type,
+      const EdgeIdSet& blocked_edges,
+      const tactic::VertexId& current_vertex,
+      const tactic::VertexId& goal_vertex,
+      double t_now,
+      double obstacle_t_first) override {
     return WaitDecision::detour("Obstacle detected. Rerouting.");
   }
   
@@ -209,7 +267,13 @@ class RuleBasedStrategy : public WaitStrategy {
   explicit RuleBasedStrategy(const std::set<std::string>& wait_types)
       : wait_types_(wait_types) {}
   
-  WaitDecision computeWaitTime(const std::string& obs_type, double elapsed) override {
+  WaitDecision computeWaitTime(
+      const std::string& obs_type,
+      const EdgeIdSet& blocked_edges,
+      const tactic::VertexId& current_vertex,
+      const tactic::VertexId& goal_vertex,
+      double t_now,
+      double obstacle_t_first) override {
     if (wait_types_.count(obs_type) > 0) {
       return WaitDecision::waitForever("Obstacle " + obs_type + ". Waiting.");
     } else {
@@ -228,66 +292,106 @@ class RuleBasedStrategy : public WaitStrategy {
  */
 class GreedyCTPStrategy : public WaitStrategy {
  public:
-  WaitDecision computeWaitTime(const std::string& obs_type, double elapsed) override {
+  WaitDecision computeWaitTime(
+      const std::string& obs_type,
+      const EdgeIdSet& blocked_edges,
+      const tactic::VertexId& current_vertex,
+      const tactic::VertexId& goal_vertex,
+      double t_now,
+      double obstacle_t_first) override {
+    // Mark all blocked edges as permanently banned
+    for (const auto& edge : blocked_edges) {
+      banned_edges_.insert(edge);
+    }
     return WaitDecision::detour("Obstacle detected. Rerouting.");
   }
   
-  bool isEdgePermanentlyBanned(uint64_t edge_id) const override {
-    return banned_edges_.count(edge_id) > 0;
+  bool isEdgePermanentlyBanned(const EdgeId& edge) const override {
+    return banned_edges_.count(edge) > 0;
   }
   
-  void banEdgePermanently(uint64_t edge_id) override {
-    banned_edges_.insert(edge_id);
+  void banEdgePermanently(const EdgeId& edge) override {
+    banned_edges_.insert(edge);
   }
+  
+  void clearPermanentBans() override { banned_edges_.clear(); }
   
   StrategyType type() const override { return StrategyType::GREEDY_CTP; }
   
-  void clearBannedEdges() { banned_edges_.clear(); }
-  
  private:
-  std::set<uint64_t> banned_edges_;
+  EdgeIdSet banned_edges_;
 };
 
 /**
- * \brief Learned strategy: compute optimal W* using survival model.
+ * \brief Learned strategy: compute optimal W* using survival model and time-dependent TDSP.
  * 
- * Minimizes expected time to goal:
- *   J(W) = clear_term + avoid_term
- * where:
- *   clear_term = sum over t < W of: p(clear at t) * A_goal(t)
- *   avoid_term = S(W) * A_avoid(W)
+ * HSHMAT: This exactly matches the Python simulation algorithm:
+ * 
+ * J(W) = clear_term + avoid_term
+ * 
+ * clear_term = sum_{t < W} p(t) * A_goal(t0 + t)
+ *   - p(t) = probability obstacle clears at time t (from survival model)
+ *   - A_goal(t0 + t) = earliest arrival at goal if obstacle clears at t0+t
+ *   - Computed via TDSP with override_availability = t0 + t for the blocked edge
+ * 
+ * avoid_term = S(W) * A_avoid(t0 + W)
+ *   - S(W) = probability obstacle still blocked at time W
+ *   - A_avoid(t0 + W) = earliest arrival at goal if we reroute at time t0+W
+ *   - Computed via TDSP with blocked edge forbidden, start_time = t0 + W
+ * 
+ * Expected wait on edges WITHOUT memory (potential new obstacles):
+ *   E[wait] = p_block * sum_types(prob_type * mean_duration_type)
+ * 
+ * Expected wait on edges WITH memory (we saw it, gave up):
+ *   E[wait] = P(still blocked) * E[remaining | blocked] + P(cleared) * E[wait | new]
  */
 class LearnedStrategy : public WaitStrategy {
  public:
   explicit LearnedStrategy(const WaitStrategyConfig& config);
   
-  WaitDecision computeWaitTime(const std::string& obs_type, double elapsed) override;
+  WaitDecision computeWaitTime(
+      const std::string& obs_type,
+      const EdgeIdSet& blocked_edges,
+      const tactic::VertexId& current_vertex,
+      const tactic::VertexId& goal_vertex,
+      double t_now,
+      double obstacle_t_first) override;
   
   void onObstacleCleared(const std::string& obs_type, double wait_duration) override;
   void onRerouteTimeout(const std::string& obs_type, double wait_duration) override;
   
+  void updateMemoryAfterCensoredWait(const EdgeIdSet& blocked_edges, double t_after_wait) override;
+  void clearMemoryForEdge(const EdgeId& edge) override;
+  void resetMemory() override;
+  
   StrategyType type() const override { return StrategyType::LEARNED; }
   SurvivalModel* survivalModel() override { return &survival_model_; }
   
-  /**
-   * \brief Set the travel time function (called by Navigator).
-   */
-  void setTravelTimeFunction(std::function<double(bool)> func) {
-    get_travel_time_ = func;
+  void setGraphAccess(
+      route_planning::NeighborsFn get_neighbors,
+      route_planning::TravelTimeFn get_travel_time) override {
+    get_neighbors_ = get_neighbors;
+    get_travel_time_ = get_travel_time;
   }
   
  private:
   /**
-   * \brief Compute J(W) for a given wait time.
-   * \param obs_type Obstacle type
-   * \param W Wait time candidate
-   * \param elapsed Time already waited
-   * \param A_goal Travel time if obstacle clears
-   * \param A_avoid Travel time if we reroute
-   * \return Expected total time
+   * \brief Compute expected wait time for a fresh edge (no memory).
    */
-  double computeJ(const std::string& obs_type, double W, double elapsed,
-                  double A_goal, double A_avoid) const;
+  double computeExpectedWaitForNewObstacle() const;
+  
+  /**
+   * \brief Compute expected wait time for an edge.
+   * Accounts for edges with memory (saw obstacle, gave up) vs fresh edges.
+   */
+  double computeExpectedWaitForEdge(const EdgeId& edge, double planned_arrival_time) const;
+  
+  /**
+   * \brief Create expected wait function for TDSP.
+   */
+  route_planning::ExpectedWaitFn createExpectedWaitFn(
+      double t0,
+      const EdgeId& exclude_edge = EdgeId::Invalid()) const;
   
   /**
    * \brief Build speech for waiting.
@@ -296,7 +400,12 @@ class LearnedStrategy : public WaitStrategy {
   
   WaitStrategyConfig config_;
   SurvivalModel survival_model_;
-  std::function<double(bool)> get_travel_time_;
+  ObstacleMemoryManager memory_;
+  route_planning::EWTDSPPlanner tdsp_planner_;
+  
+  // Graph access functions
+  route_planning::NeighborsFn get_neighbors_;
+  route_planning::TravelTimeFn get_travel_time_;
 };
 
 /**

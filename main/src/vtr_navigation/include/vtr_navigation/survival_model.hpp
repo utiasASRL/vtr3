@@ -107,10 +107,19 @@ class SurvivalModel {
   /**
    * \brief Compute mean survival time for an obstacle type.
    * \param obs_type Obstacle type
-   * \param W_max Maximum time to integrate to
+   * \param W_max Maximum time to integrate to (default 300s)
    * \return Expected time until obstacle clears
    */
-  double meanSurvivalTime(const std::string& obs_type, double W_max) const;
+  double meanSurvivalTime(const std::string& obs_type, double W_max = 300.0) const;
+  
+  /**
+   * \brief Compute conditional expected time E[T | T > elapsed].
+   * \param obs_type Obstacle type
+   * \param elapsed Time already waited
+   * \param W_max Maximum time to integrate to (default 300s)
+   * \return Expected total clearance time given we've waited elapsed seconds
+   */
+  double conditionalExpectedTime(const std::string& obs_type, double elapsed, double W_max = 300.0) const;
   
   /**
    * \brief Get the maximum observed event time for an obstacle type.

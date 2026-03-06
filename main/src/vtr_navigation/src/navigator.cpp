@@ -19,6 +19,7 @@
 #include "vtr_navigation/navigator.hpp"
 #include "vtr_navigation/survival_model.hpp"
 #include "vtr_navigation/wait_strategy.hpp"
+#include "vtr_navigation/obstacle_memory.hpp"
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/float64.hpp>
@@ -377,15 +378,26 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       strategy_type = StrategyType::LEARNED;
     }
     
+    // Load p_block and type_weights for learned strategy
+    wait_strategy_config_.p_block = node_->declare_parameter<double>(
+        "route_planning.obstacle_strategy.p_block", 0.05);
+    wait_strategy_config_.robot_speed_mps = route_cfg_.nominal_speed_mps;
+    
+    // Type weights (probability distribution over obstacle types)
+    // Default: assume "person" is most common
+    wait_strategy_config_.type_weights["person"] = 0.6;
+    wait_strategy_config_.type_weights["chair"] = 0.2;
+    wait_strategy_config_.type_weights["cart"] = 0.1;
+    wait_strategy_config_.type_weights["door"] = 0.1;
+    
     wait_strategy_ = createWaitStrategy(strategy_type, wait_strategy_config_);
     CLOG(INFO, "navigation") << "HSHMAT: Initialized wait strategy: " 
                               << strategyTypeToString(strategy_type)
-                              << ", W_max=" << wait_strategy_config_.default_W_max << "s";
+                              << ", W_max=" << wait_strategy_config_.default_W_max << "s"
+                              << ", p_block=" << wait_strategy_config_.p_block;
     
-    // For learned strategy, set up travel time function
-    if (auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get())) {
-      learned->setTravelTimeFunction([this](bool ban) { return computeTravelTime(ban); });
-    }
+    // For learned strategy, set up graph access (done after graph is available)
+    // This will be called in setupLearnedStrategyGraphAccess()
   }
   
   // HSHMAT: Create publishers
@@ -747,11 +759,147 @@ void Navigator::resetObstacleState() {
   }
   
   // Clear greedy CTP banned edges if applicable
-  if (auto* greedy = dynamic_cast<GreedyCTPStrategy*>(wait_strategy_.get())) {
-    greedy->clearBannedEdges();
+  if (wait_strategy_) {
+    wait_strategy_->clearPermanentBans();
+    wait_strategy_->resetMemory();
   }
   
+  // Clear current blocked edges
+  current_blocked_edges_.clear();
+  
   CLOG(INFO, "mission.state_machine") << "HSHMAT: Obstacle state reset complete.";
+}
+
+void Navigator::setupLearnedStrategyGraphAccess() {
+  // HSHMAT: Set up graph access functions for Learned strategy's TDSP
+  if (!wait_strategy_ || !graph_) return;
+  
+  auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
+  if (!learned) return;
+  
+  // Create neighbors function
+  auto get_neighbors = [this](const tactic::VertexId& v) -> std::vector<tactic::VertexId> {
+    std::vector<tactic::VertexId> neighbors;
+    if (!graph_) return neighbors;
+    
+    try {
+      using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+      auto priv_eval = std::make_shared<PrivEval>(*graph_);
+      auto priv_graph = graph_->getSubgraph(priv_eval);
+      
+      for (const auto& n : priv_graph->neighbors(v)) {
+        neighbors.push_back(n);
+      }
+    } catch (...) {}
+    
+    return neighbors;
+  };
+  
+  // Create travel time function (edge length / speed)
+  auto get_travel_time = [this](const tactic::EdgeId& e) -> double {
+    if (!graph_) return std::numeric_limits<double>::infinity();
+    
+    try {
+      using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+      auto priv_eval = std::make_shared<PrivEval>(*graph_);
+      auto priv_graph = graph_->getSubgraph(priv_eval);
+      
+      auto edge_ptr = priv_graph->at(e);
+      if (edge_ptr) {
+        double len_m = edge_ptr->T().r_ab_inb().norm();
+        double speed = wait_strategy_config_.robot_speed_mps;
+        if (speed > 1e-6) {
+          return len_m / speed;
+        }
+      }
+    } catch (...) {}
+    
+    return std::numeric_limits<double>::infinity();
+  };
+  
+  learned->setGraphAccess(get_neighbors, get_travel_time);
+  CLOG(INFO, "navigation") << "HSHMAT: Set up graph access for LearnedStrategy.";
+}
+
+EdgeIdSet Navigator::computeBlockedEdges() const {
+  // HSHMAT: Compute which edges are currently blocked by the obstacle
+  // Based on obstacle distance and extent along the route
+  EdgeIdSet blocked;
+  
+  if (following_route_ids_.empty() || !graph_) {
+    return blocked;
+  }
+  
+  try {
+    // Get current localization
+    auto loc = tactic_->getPersistentLoc();
+    if (!loc.v.isValid()) return blocked;
+    
+    const auto current_vid = loc.v;
+    int idx = -1;
+    
+    // Find current position in route
+    for (size_t i = 0; i < following_route_ids_.size(); ++i) {
+      if (tactic::VertexId(following_route_ids_[i]) == current_vid) {
+        idx = static_cast<int>(i);
+        break;
+      }
+    }
+    
+    if (idx < 0) return blocked;
+    
+    // Estimate obstacle extent
+    const double obstacle_extent_m = estimateObstacleExtentFromGrid();
+    const double obstacle_start = last_obstacle_distance_;
+    const double obstacle_end = obstacle_start + std::max(0.5, obstacle_extent_m);
+    
+    // Walk through route edges and find which are blocked
+    double cumulative_dist = 0.0;
+    using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+    auto priv_eval = std::make_shared<PrivEval>(*graph_);
+    auto priv_graph = graph_->getSubgraph(priv_eval);
+    
+    for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size()); ++i) {
+      tactic::VertexId v1(following_route_ids_[i]);
+      tactic::VertexId v2(following_route_ids_[i + 1]);
+      
+      double edge_length = 0.0;
+      try {
+        auto edge_ptr = priv_graph->at(tactic::EdgeId(v1, v2));
+        if (edge_ptr) {
+          edge_length = edge_ptr->T().r_ab_inb().norm();
+        }
+      } catch (...) {}
+      
+      double edge_start_dist = cumulative_dist;
+      double edge_end_dist = cumulative_dist + edge_length;
+      
+      // Check if this edge overlaps with obstacle
+      if (edge_end_dist > obstacle_start && edge_start_dist < obstacle_end) {
+        blocked.insert(tactic::EdgeId(v1, v2));
+      }
+      
+      cumulative_dist = edge_end_dist;
+      
+      // Stop if we've passed the obstacle
+      if (cumulative_dist > obstacle_end + 10.0) break;
+    }
+  } catch (const std::exception& e) {
+    CLOG(WARNING, "navigation") << "HSHMAT: Error computing blocked edges: " << e.what();
+  }
+  
+  return blocked;
+}
+
+tactic::VertexId Navigator::getCurrentVertex() const {
+  if (!tactic_) return tactic::VertexId::Invalid();
+  auto loc = tactic_->getPersistentLoc();
+  return loc.v.isValid() ? loc.v : tactic::VertexId::Invalid();
+}
+
+tactic::VertexId Navigator::getGoalVertex() const {
+  if (following_route_ids_.empty()) return tactic::VertexId::Invalid();
+  return tactic::VertexId(following_route_ids_.back());
 }
 
 void Navigator::startObstacleEpisode() {
@@ -770,8 +918,27 @@ void Navigator::startObstacleEpisode() {
   // Pause robot immediately
   setRobotPaused(true);
   
-  // Compute W* using the configured strategy
-  WaitDecision decision = wait_strategy_->computeWaitTime(last_obstacle_type_, 0.0);
+  // Compute which edges are blocked by this obstacle
+  current_blocked_edges_ = computeBlockedEdges();
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT: Blocked edges count: " << current_blocked_edges_.size();
+  
+  // Get current and goal vertices for TDSP
+  tactic::VertexId current_v = getCurrentVertex();
+  tactic::VertexId goal_v = getGoalVertex();
+  double t_now = node_->get_clock()->now().seconds();
+  
+  // Ensure graph access is set up for learned strategy
+  setupLearnedStrategyGraphAccess();
+  
+  // Compute W* using the configured strategy (new interface)
+  WaitDecision decision = wait_strategy_->computeWaitTime(
+      last_obstacle_type_,
+      current_blocked_edges_,
+      current_v,
+      goal_v,
+      t_now,
+      0.0);  // obstacle_t_first = 0 for new obstacle
   current_W_star_ = decision.W_star;
   
   CLOG(INFO, "mission.state_machine")
@@ -784,12 +951,6 @@ void Navigator::startObstacleEpisode() {
   if (!decision.should_wait || current_W_star_ <= 0.0) {
     // Immediate reroute
     obstacle_state_ = ObstacleState::Rerouting;
-    
-    // For greedy CTP, ban the blocked edges permanently
-    if (wait_strategy_->type() == StrategyType::GREEDY_CTP) {
-      // TODO: Get blocked edge IDs and call wait_strategy_->banEdgePermanently()
-    }
-    
     triggerReroute();
   } else {
     // Wait with timer
@@ -919,34 +1080,6 @@ void Navigator::completeEpisode() {
   wait_episode_start_sec_ = -1.0;
   
   setRobotPaused(false);
-}
-
-double Navigator::computeTravelTime(bool ban_blocked_edge) {
-  // HSHMAT: Compute travel time to goal for learned strategy
-  // This is called by the LearnedStrategy to get A_goal and A_avoid
-  
-  // TODO: Implement properly using TDSP or route planner
-  // For now, return estimates based on remaining route distance
-  
-  if (following_route_ids_.empty() || !graph_) {
-    return 1000.0;  // Large value if no route
-  }
-  
-  // Estimate based on route length and nominal speed
-  double route_distance = 0.0;
-  for (size_t i = 0; i + 1 < following_route_ids_.size(); ++i) {
-    // Simplified: assume 5m per edge
-    route_distance += 5.0;
-  }
-  
-  double travel_time = route_distance / route_cfg_.nominal_speed_mps;
-  
-  if (ban_blocked_edge) {
-    // Add penalty for detour (simplified estimate)
-    travel_time += 30.0;  // Assume 30s penalty for detour
-  }
-  
-  return travel_time;
 }
 
 void Navigator::loadObstaclePriorsFromFile() {

@@ -254,7 +254,15 @@ typedef message_filters::sync_policies::ApproximateTime<
   void onObstacleCleared();     // Obstacle cleared during Waiting
   void onWaitTimeout();         // W* expired, Waiting -> Rerouting
   void completeEpisode();       // Episode ends -> Idle
-  double computeTravelTime(bool ban_blocked_edge);  // For learned strategy
+  
+  // HSHMAT: Graph access for Learned strategy
+  void setupLearnedStrategyGraphAccess();  // Set up TDSP callbacks
+  EdgeIdSet computeBlockedEdges() const;   // Get edges blocked by current obstacle
+  tactic::VertexId getCurrentVertex() const;  // Get current robot position
+  tactic::VertexId getGoalVertex() const;     // Get goal vertex
+  
+  // Current blocked edges (computed in startObstacleEpisode)
+  EdgeIdSet current_blocked_edges_;
   
   void setRobotPaused(bool paused);
   void triggerReroute();  // Centralized reroute flow

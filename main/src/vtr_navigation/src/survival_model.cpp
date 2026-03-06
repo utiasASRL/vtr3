@@ -288,6 +288,39 @@ double SurvivalModel::meanSurvivalTime(const std::string& obs_type, double W_max
   return integral;
 }
 
+double SurvivalModel::conditionalExpectedTime(const std::string& obs_type, double elapsed, double W_max) const {
+  // E[T | T > elapsed] = elapsed + integral from elapsed to W_max of S(t | T > elapsed) dt
+  // where S(t | T > elapsed) = S(t) / S(elapsed)
+  //
+  // E[T | T > elapsed] = elapsed + integral from elapsed to W_max of (S(t) / S(elapsed)) dt
+  //                    = elapsed + (1/S(elapsed)) * integral from elapsed to W_max of S(t) dt
+  
+  double S_elapsed = survival(obs_type, elapsed);
+  if (S_elapsed <= 1e-15) {
+    // All observations cleared before elapsed - return elapsed as best estimate
+    return elapsed;
+  }
+  
+  // Integrate S(t) from elapsed to W_max
+  const int steps = 100;
+  double range = W_max - elapsed;
+  if (range <= 0) {
+    return elapsed;
+  }
+  double dt = range / steps;
+  double integral = 0.0;
+  
+  double S_prev = survival(obs_type, elapsed);
+  for (int i = 1; i <= steps; ++i) {
+    double t = elapsed + i * dt;
+    double S_curr = survival(obs_type, t);
+    integral += 0.5 * (S_prev + S_curr) * dt;
+    S_prev = S_curr;
+  }
+  
+  return elapsed + integral / S_elapsed;
+}
+
 double SurvivalModel::maxObservedEventTime(const std::string& obs_type) const {
   std::lock_guard<std::mutex> lock(mutex_);
   
