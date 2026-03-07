@@ -123,8 +123,9 @@ class Navigator {
 
   /// robot and sensor specific stuff, these are set in constructor, so no need
   /// to lock
-  rclcpp::CallbackGroup::SharedPtr callback_group_;
-  rclcpp::CallbackGroup::SharedPtr obstacle_callback_group_;  // HSHMAT: Separate group for obstacle handling
+  rclcpp::CallbackGroup::SharedPtr callback_group_;           // HSHMAT: For obstacle FSM logic (mutually exclusive)
+  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_;    // HSHMAT: For sensors (reentrant, never blocked)
+  rclcpp::CallbackGroup::SharedPtr obstacle_callback_group_;  // HSHMAT: For non-critical obstacle subs
   // robot
   const std::string &robot_frame() const { return robot_frame_; }
   std::string robot_frame_;

@@ -310,12 +310,23 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   /// robot and sensor transformation, subscription
   // clang-format off
+  
+  // HSHMAT: Callback group for obstacle FSM logic (obstacle_status, following_route, reroute_status)
+  // MutuallyExclusive ensures these callbacks don't run concurrently, preventing race conditions
+  // when speakAndWait blocks and CLEARED signals arrive.
   callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
   
-  // HSHMAT: Separate callback group for obstacle handling to avoid blocking sensor callbacks
-  // Using MutuallyExclusive so only ONE obstacle callback runs at a time (prevents duplicate handling)
+  // HSHMAT: Separate callback group for sensor callbacks (lidar, radar, gyro)
+  // These must NEVER be blocked by obstacle handling / speech - critical for localization.
+  // Reentrant allows multiple sensor callbacks to run concurrently if needed.
+  sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  auto sensor_sub_opt = rclcpp::SubscriptionOptions();
+  sensor_sub_opt.callback_group = sensor_callback_group_;
+  
+  // HSHMAT: Callback group for non-critical obstacle-related subscriptions (server_state, obstacle_grid)
+  // MutuallyExclusive so only ONE runs at a time, but independent of FSM logic group.
   obstacle_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto obstacle_sub_opt = rclcpp::SubscriptionOptions();
   obstacle_sub_opt.callback_group = obstacle_callback_group_;
@@ -472,7 +483,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       }, sub_opt);
 
   // HSHMAT: Subscribe to obstacle status - handles detection and clearing
-  // Uses separate callback group to avoid blocking sensor callbacks during speakAndWait
+  // Uses SAME callback group as following_route so they are mutually exclusive.
+  // This ensures onNoAlternateRoute() completes (including speakAndWait) before any
+  // obstacle callback can fire, preventing race conditions with CLEARED signals.
   obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
@@ -502,8 +515,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           if (msg->data) {
             // === DETECTED ===
             if (obstacle_state_ == ObstacleState::Idle) {
-              // 500ms cooldown after successful reroute so path detector can update to new planning_path
-              const double cooldown_sec = 0.5;
+              // Cooldown after episode completes so CBIT path planner can stabilize on new route.
+              // CBIT often reports "no valid solution" briefly after route changes, causing the
+              // path detector to publish stale/incorrect paths and trigger false DETECTED signals.
+              // 1.5s is sufficient for CBIT to compute a valid local path on the new route.
+              const double cooldown_sec = 1.0;
               double elapsed = (node_->get_clock()->now() - reroute_complete_time_).seconds();
               if (elapsed < cooldown_sec) {
                 CLOG(DEBUG, "mission.state_machine")
@@ -547,7 +563,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         } else if (should_handle_cleared) {
           handleObstacleCleared(state_snapshot);
         }
-      }, obstacle_sub_opt);
+      }, sub_opt);  // Same callback group as following_route - mutually exclusive
 
   // HSHMAT: Track following route ids for mapping to replanner edges.
   following_route_sub_ = node_->create_subscription<vtr_navigation_msgs::msg::GraphRoute>(
@@ -723,7 +739,7 @@ if (pipeline->name() == "lidar"){
 
   auto lidar_qos = rclcpp::QoS(max_queue_size_);
   lidar_qos.reliable();
-  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, lidar_qos, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sensor_sub_opt);
 }
 #endif
 #ifdef VTR_ENABLE_VISION
@@ -781,7 +797,7 @@ if (pipeline->name() == "radar") {
   // not sure if the  radar data rate is low as well
   auto radar_qos = rclcpp::QoS(max_queue_size_);
   radar_qos.reliable();
-  radar_sub_ = node_->create_subscription<navtech_msgs::msg::RadarBScanMsg>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sub_opt);
+  radar_sub_ = node_->create_subscription<navtech_msgs::msg::RadarBScanMsg>(radar_topic, radar_qos, std::bind(&Navigator::radarCallback, this, std::placeholders::_1), sensor_sub_opt);
 }
 #endif
 
@@ -789,7 +805,7 @@ if (pipeline->name() == "radar") {
   auto gyro_qos = rclcpp::QoS(100);
   gyro_qos.reliable();
   const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
-  gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
+  gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sensor_sub_opt);
 
 
   /// This creates a thread to process the sensor input
@@ -1034,26 +1050,36 @@ bool Navigator::routesSameRemaining(
     const std::vector<uint64_t>& snapshot,
     const std::vector<uint64_t>& new_route,
     const tactic::VertexId& current_vid) const {
+  // Compare remaining path from current vertex to goal in both routes.
+  // E.g. snapshot [1,2,3,4], new_route [3,4], current at 3 -> both have [3,4] remaining -> same.
   if (snapshot.empty() || new_route.empty() || !current_vid.isValid())
     return snapshot.empty() && new_route.empty();
-  // Find index of current vertex in snapshot (remaining = from current to goal)
+
+  // Find current vertex in snapshot
+  bool found_snap = false;
   size_t idx_snap = 0;
   for (size_t i = 0; i < snapshot.size(); ++i) {
     if (tactic::VertexId(snapshot[i]) == current_vid) {
       idx_snap = i;
+      found_snap = true;
       break;
     }
-    if (i == snapshot.size() - 1) return false;  // current not in snapshot
   }
-  // Find index of current vertex in new_route (planner often returns from current to goal)
+  if (!found_snap) return false;
+
+  // Find current vertex in new_route
+  bool found_new = false;
   size_t idx_new = 0;
   for (size_t i = 0; i < new_route.size(); ++i) {
     if (tactic::VertexId(new_route[i]) == current_vid) {
       idx_new = i;
+      found_new = true;
       break;
     }
-    if (i == new_route.size() - 1) return false;  // current not in new route
   }
+  if (!found_new) return false;
+
+  // Compare remaining segments
   const size_t len_snap = snapshot.size() - idx_snap;
   const size_t len_new = new_route.size() - idx_new;
   if (len_snap != len_new) return false;
@@ -1258,12 +1284,10 @@ void Navigator::onRerouteComplete(bool alternate_found) {
     LockGuard lock(obstacle_mutex_);
     if (obstacle_state_ != ObstacleState::Rerouting || !alternate_found) return;
     no_alternate_exists_ = false;
-    // Set cooldown time - give path detector time to update to new planning_path (500ms)
-    reroute_complete_time_ = node_->get_clock()->now();
   }
   
   CLOG(INFO, "mission.state_machine") << "HSHMAT: Reroute completed successfully.";
-  completeEpisode();
+  completeEpisode();  // Sets cooldown in completeEpisode()
 }
 
 void Navigator::onNoAlternateRoute() {
@@ -1433,6 +1457,9 @@ void Navigator::completeEpisode() {
     no_alternate_exists_ = false;
     awaiting_new_route_ = false;
     announcing_no_alternate_ = false;
+    // 500ms cooldown: ignore DETECTED signals while path detector updates to new route.
+    // Without this, resuming after "obstacle cleared" immediately re-triggers an episode.
+    reroute_complete_time_ = node_->get_clock()->now();
   }
   
   setRobotPaused(false);
