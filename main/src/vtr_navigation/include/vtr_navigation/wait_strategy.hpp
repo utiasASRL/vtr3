@@ -289,6 +289,10 @@ class RuleBasedStrategy : public WaitStrategy {
 
 /**
  * \brief Greedy CTP: reroute immediately, permanently ban blocked edges.
+ * 
+ * When all alternate paths are exhausted (no valid path to goal), falls back
+ * to waiting mode. Tracks this state so subsequent detections on the last
+ * valid path just wait silently.
  */
 class GreedyCTPStrategy : public WaitStrategy {
  public:
@@ -303,6 +307,12 @@ class GreedyCTPStrategy : public WaitStrategy {
     for (const auto& edge : blocked_edges) {
       banned_edges_.insert(edge);
     }
+    
+    // If we've already exhausted all paths, just wait
+    if (no_valid_path_) {
+      return WaitDecision::waitForever("Obstacle detected. Waiting.");
+    }
+    
     return WaitDecision::detour("Obstacle detected. Rerouting.");
   }
   
@@ -314,12 +324,23 @@ class GreedyCTPStrategy : public WaitStrategy {
     banned_edges_.insert(edge);
   }
   
-  void clearPermanentBans() override { banned_edges_.clear(); }
+  void clearPermanentBans() override { 
+    banned_edges_.clear(); 
+    no_valid_path_ = false;
+  }
+  
+  // Called by Navigator when reroute fails (no alternate path found)
+  void onNoValidPath() {
+    no_valid_path_ = true;
+  }
+  
+  bool hasNoValidPath() const { return no_valid_path_; }
   
   StrategyType type() const override { return StrategyType::GREEDY_CTP; }
   
  private:
   EdgeIdSet banned_edges_;
+  bool no_valid_path_ = false;  // True when all paths exhausted
 };
 
 /**

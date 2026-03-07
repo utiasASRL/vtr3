@@ -124,6 +124,7 @@ class Navigator {
   /// robot and sensor specific stuff, these are set in constructor, so no need
   /// to lock
   rclcpp::CallbackGroup::SharedPtr callback_group_;
+  rclcpp::CallbackGroup::SharedPtr obstacle_callback_group_;  // HSHMAT: Separate group for obstacle handling
   // robot
   const std::string &robot_frame() const { return robot_frame_; }
   std::string robot_frame_;
@@ -232,6 +233,20 @@ typedef message_filters::sync_policies::ApproximateTime<
   int next_countdown_idx_ = 0;  // Index into countdown_intervals_
   void onWaitTimerTick();  // Called every second during waiting
   
+  // HSHMAT: Reroute detection - save route snapshot when reroute requested
+  std::vector<uint64_t> reroute_snapshot_route_;  // Full route when reroute was requested
+  bool awaiting_new_route_ = false;               // True after triggerReroute until new route arrives
+  bool no_alternate_exists_ = false;              // True when planner determined no alternate route
+  bool announcing_no_alternate_ = false;          // True while speaking "No alternate path" (blocks handleObstacleCleared)
+  rclcpp::Time reroute_complete_time_;            // When last successful reroute completed (for 500ms cooldown)
+  
+  void handleObstacleCleared(ObstacleState previous_state);   // Handle obstacle cleared event (FSM dispatch)
+  void onRerouteComplete(bool alternate_found);   // Handle successful reroute 
+  void onNoAlternateRoute();                      // Handle when no alternate route exists
+  
+  // HSHMAT: Reroute status subscription (for detecting planner failures)
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr reroute_status_sub_;
+  
   // HSHMAT: Server state subscriber - reset obstacle state on Repeat start
   rclcpp::Subscription<vtr_navigation_msgs::msg::ServerState>::SharedPtr server_state_sub_;
   uint8_t last_goal_state_ = 0;
@@ -265,6 +280,13 @@ typedef message_filters::sync_policies::ApproximateTime<
   EdgeIdSet computeBlockedEdges() const;   // Get edges blocked by current obstacle
   tactic::VertexId getCurrentVertex() const;  // Get current robot position
   tactic::VertexId getGoalVertex() const;     // Get goal vertex
+  
+  /** \brief True if remaining path from current vertex to goal is the same in both routes.
+   * E.g. snapshot [1,2,3,4], new_route [3,4], current at 3 -> same. No 3s timeout. */
+  bool routesSameRemaining(
+      const std::vector<uint64_t>& snapshot,
+      const std::vector<uint64_t>& new_route,
+      const tactic::VertexId& current_vid) const;
   
   // Current blocked edges (computed in startObstacleEpisode)
   EdgeIdSet current_blocked_edges_;

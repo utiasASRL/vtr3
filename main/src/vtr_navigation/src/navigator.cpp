@@ -313,6 +313,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
+  
+  // HSHMAT: Separate callback group for obstacle handling to avoid blocking sensor callbacks
+  // Using MutuallyExclusive so only ONE obstacle callback runs at a time (prevents duplicate handling)
+  obstacle_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto obstacle_sub_opt = rclcpp::SubscriptionOptions();
+  obstacle_sub_opt.callback_group = obstacle_callback_group_;
   // robot frame
   robot_frame_ = node_->declare_parameter<std::string>("robot_frame", "robot");
   // environment info
@@ -326,6 +332,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   obstacle_state_ = ObstacleState::Idle;
   const auto clock_type = node_->get_clock()->get_clock_type();
   obstacle_start_time_ = rclcpp::Time(0, 0, clock_type);
+  reroute_complete_time_ = rclcpp::Time(0, 0, clock_type);  // Initialize to epoch (cooldown won't trigger)
   current_W_star_ = 0.0;
   
   // HSHMAT: Load wait strategy configuration
@@ -464,34 +471,83 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         last_obstacle_expected_duration_sec_ = msg->data;
       }, sub_opt);
 
-  // HSHMAT: Subscribe to obstacle status - new strategy-based handling
-  // On obstacle detection: compute W*, start timer, wait or reroute immediately
-  // On obstacle cleared: if in Waiting state, complete episode
+  // HSHMAT: Subscribe to obstacle status - handles detection and clearing
+  // Uses separate callback group to avoid blocking sensor callbacks during speakAndWait
   obstacle_status_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/obstacle_status", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
         if (!msg) return;
-        LockGuard lock(obstacle_mutex_);
-        last_obstacle_status_msg_ = msg->data;
         
-        CLOG(DEBUG, "mission.state_machine")
-            << "HSHMAT: obstacle_status=" << (msg->data ? "true" : "false")
-            << ", FSM=" << obstacleStateToString(obstacle_state_);
+        // SIMPLE LOGIC:
+        // 1. DETECTED + Idle -> start episode (transition to Waiting, then process)
+        // 1. DETECTED + Idle -> start episode (after cooldown)
+        // 2. DETECTED + non-Idle -> IGNORE (already handling an episode)
+        // 4. CLEARED + Waiting -> handle cleared (for always_wait)
+        // 5. CLEARED + Rerouting with no_alternate_exists_ -> handle cleared (resume)
+        // 6. CLEARED + Rerouting without no_alternate_exists_ -> IGNORE (let reroute finish)
+        
+        bool should_start_episode = false;
+        bool should_handle_cleared = false;
+        ObstacleState state_snapshot;
+        
+        {
+          LockGuard lock(obstacle_mutex_);
+          last_obstacle_status_msg_ = msg->data;
+          state_snapshot = obstacle_state_;
+          
+          CLOG(DEBUG, "mission.state_machine")
+              << "HSHMAT: obstacle_status=" << (msg->data ? "DETECTED" : "CLEARED")
+              << ", FSM=" << obstacleStateToString(obstacle_state_);
 
-        // ===== OBSTACLE CLEARED =====
-        if (!msg->data) {
-          if (obstacle_state_ == ObstacleState::Waiting) {
-            onObstacleCleared();
+          if (msg->data) {
+            // === DETECTED ===
+            if (obstacle_state_ == ObstacleState::Idle) {
+              // 500ms cooldown after successful reroute so path detector can update to new planning_path
+              const double cooldown_sec = 0.5;
+              double elapsed = (node_->get_clock()->now() - reroute_complete_time_).seconds();
+              if (elapsed < cooldown_sec) {
+                CLOG(DEBUG, "mission.state_machine")
+                    << "HSHMAT: Ignoring DETECTED during post-reroute cooldown (" << elapsed << "s < " << cooldown_sec << "s)";
+                return;
+              }
+              obstacle_state_ = ObstacleState::Waiting;
+              should_start_episode = true;
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: DETECTED + Idle -> starting episode";
+            } else {
+              // Already in episode - ignore
+              CLOG(DEBUG, "mission.state_machine")
+                  << "HSHMAT: Ignoring DETECTED - already in episode (FSM=" 
+                  << obstacleStateToString(obstacle_state_) << ")";
+            }
+          } else {
+            // === CLEARED ===
+            if (obstacle_state_ == ObstacleState::Waiting) {
+              // Obstacle cleared while waiting (always_wait) - handle it
+              should_handle_cleared = true;
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: CLEARED + Waiting -> handling";
+            } else if (obstacle_state_ == ObstacleState::Rerouting) {
+              // Only care about CLEARED if we're stuck with no alternate
+              if (no_alternate_exists_ && !announcing_no_alternate_) {
+                should_handle_cleared = true;
+                CLOG(INFO, "mission.state_machine")
+                    << "HSHMAT: CLEARED + Rerouting (no_alternate) -> handling";
+              } else {
+                CLOG(DEBUG, "mission.state_machine")
+                    << "HSHMAT: Ignoring CLEARED during reroute computation";
+              }
+            }
           }
-          return;
         }
-
-        // ===== OBSTACLE DETECTED =====
-        if (obstacle_state_ == ObstacleState::Idle) {
+        // Lock released
+        
+        if (should_start_episode) {
           startObstacleEpisode();
+        } else if (should_handle_cleared) {
+          handleObstacleCleared(state_snapshot);
         }
-        // Ignore if already in Waiting or Rerouting
-      }, sub_opt);
+      }, obstacle_sub_opt);
 
   // HSHMAT: Track following route ids for mapping to replanner edges.
   following_route_sub_ = node_->create_subscription<vtr_navigation_msgs::msg::GraphRoute>(
@@ -499,28 +555,71 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       [this](const vtr_navigation_msgs::msg::GraphRoute::SharedPtr route) {
         if (!route) return;
         
-        LockGuard lock(obstacle_mutex_);
-        
-        // Check if route changed (replanning occurred)
-        bool route_changed = (route->ids.size() != following_route_ids_.size());
-        if (!route_changed) {
-          for (size_t i = 0; i < route->ids.size(); ++i) {
-            if (route->ids[i] != following_route_ids_[i]) {
-              route_changed = true;
-              break;
+        bool call_reroute_complete = false;
+        bool call_no_alternate = false;
+        {
+          // Use scoped lock
+          LockGuard lock(obstacle_mutex_);
+          
+          // HSHMAT: During reroute, check if planner produced a different route than our snapshot.
+          if (obstacle_state_ == ObstacleState::Rerouting && awaiting_new_route_ && !route->ids.empty()) {
+            const tactic::VertexId current_vid = getCurrentVertex();
+            const bool same_remaining = !reroute_snapshot_route_.empty() && current_vid.isValid()
+                && routesSameRemaining(reroute_snapshot_route_, route->ids, current_vid);
+            
+            if (reroute_snapshot_route_.empty()) {
+              // Snapshot was empty (e.g. route not yet received when reroute triggered).
+              CLOG(DEBUG, "mission.state_machine")
+                  << "HSHMAT: Route snapshot was empty, ignoring this route for reroute detection";
+            } else if (same_remaining) {
+              // Remaining path from current to goal is the same -> no alternate
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: Route same (remaining path from current) - no alternate route.";
+              awaiting_new_route_ = false;
+              call_no_alternate = true;
+            } else {
+              // Different remaining path -> alternate found
+              CLOG(INFO, "mission.state_machine")
+                  << "HSHMAT: Reroute SUCCESS - planner produced different route!";
+              awaiting_new_route_ = false;
+              following_route_ids_.assign(route->ids.begin(), route->ids.end());
+              call_reroute_complete = true;
             }
           }
-        }
 
-        // HSHMAT: If we're rerouting and route changed, complete the episode
-        if (obstacle_state_ == ObstacleState::Rerouting && route_changed && !route->ids.empty()) {
-          CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: Reroute complete - new route received.";
-          completeEpisode();
+          if (!call_reroute_complete) {
+            following_route_ids_.assign(route->ids.begin(), route->ids.end());
+          }
         }
-
-        following_route_ids_.assign(route->ids.begin(), route->ids.end());
+        // Lock released - call handlers outside lock
+        
+        if (call_reroute_complete) {
+          onRerouteComplete(true);
+        } else if (call_no_alternate) {
+          onNoAlternateRoute();
+        }
       }, sub_opt);
+
+  // HSHMAT: Subscribe to reroute status - detect when planner fails to find alternate route
+  // Uses separate callback group to avoid blocking sensor callbacks
+  reroute_status_sub_ = node_->create_subscription<std_msgs::msg::String>(
+      "/vtr/reroute_status", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::String::SharedPtr msg) {
+        if (!msg) return;
+        
+        // Use UniqueLock so we can release before blocking speakAndWait in onNoAlternateRoute
+        UniqueLock lock(obstacle_mutex_);
+        
+        if (msg->data == "reroute_failed" && obstacle_state_ == ObstacleState::Rerouting && awaiting_new_route_) {
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: Received reroute_failed - no alternate route exists.";
+          awaiting_new_route_ = false;
+          no_alternate_exists_ = true;
+          // Release lock before blocking call
+          lock.unlock();
+          onNoAlternateRoute();
+        }
+      }, obstacle_sub_opt);
 
   // Hshmat: Occupancy grid from path obstacle detector (red cells = on-path obstacles).
   obstacle_grid_sub_ =
@@ -543,6 +642,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       sub_opt);
 
   // HSHMAT: Subscribe to server state to reset obstacle FSM when Repeat starts.
+  // Uses separate callback group to avoid blocking sensor callbacks
   using ServerStateMsg = vtr_navigation_msgs::msg::ServerState;
   last_goal_state_ = 0;
   server_state_sub_ = node_->create_subscription<ServerStateMsg>(
@@ -573,7 +673,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           }
         }
       },
-      sub_opt);
+      obstacle_sub_opt);
 
 #ifdef VTR_ENABLE_LIDAR
 if (pipeline->name() == "lidar"){
@@ -788,6 +888,13 @@ void Navigator::resetObstacleState() {
   // Clear current blocked edges
   current_blocked_edges_.clear();
   
+  // Clear reroute tracking
+  reroute_snapshot_route_.clear();
+  awaiting_new_route_ = false;
+  no_alternate_exists_ = false;
+  announcing_no_alternate_ = false;
+  reroute_complete_time_ = rclcpp::Time(0, 0, node_->get_clock()->get_clock_type());
+  
   CLOG(INFO, "mission.state_machine") << "HSHMAT: Obstacle state reset complete.";
 }
 
@@ -923,116 +1030,204 @@ tactic::VertexId Navigator::getGoalVertex() const {
   return tactic::VertexId(following_route_ids_.back());
 }
 
-void Navigator::startObstacleEpisode() {
-  // HSHMAT: Called when obstacle detected (FSM in Idle state)
-  CLOG(INFO, "mission.state_machine")
-      << "HSHMAT: ============================================================";
-  CLOG(INFO, "mission.state_machine")
-      << "HSHMAT: OBSTACLE DETECTED! Type='" << last_obstacle_type_ << "'";
-  CLOG(INFO, "mission.state_machine")
-      << "HSHMAT: ============================================================";
-  
-  obstacle_start_time_ = node_->get_clock()->now();
-  wait_episode_type_ = last_obstacle_type_;
-  wait_episode_start_sec_ = obstacle_start_time_.seconds();
-  
-  // Pause robot immediately
-  setRobotPaused(true);
-  
-  // Compute which edges are blocked by this obstacle
-  current_blocked_edges_ = computeBlockedEdges();
-  CLOG(INFO, "mission.state_machine")
-      << "HSHMAT: Blocked edges count: " << current_blocked_edges_.size();
-  
-  // Get current and goal vertices for TDSP
-  tactic::VertexId current_v = getCurrentVertex();
-  tactic::VertexId goal_v = getGoalVertex();
-  double t_now = node_->get_clock()->now().seconds();
-  
-  // Ensure graph access is set up for learned strategy
-  setupLearnedStrategyGraphAccess();
-  
-  // Compute W* using the configured strategy (new interface)
-  WaitDecision decision = wait_strategy_->computeWaitTime(
-      last_obstacle_type_,
-      current_blocked_edges_,
-      current_v,
-      goal_v,
-      t_now,
-      0.0);  // obstacle_t_first = 0 for new obstacle
-  current_W_star_ = decision.W_star;
-  
-  CLOG(INFO, "mission.state_machine")
-      << "HSHMAT: Strategy=" << strategyTypeToString(wait_strategy_->type())
-      << ", W*=" << current_W_star_ << "s, should_wait=" << decision.should_wait;
-  
-  // Announce
-  speak(decision.speech);
-  
-  if (!decision.should_wait || current_W_star_ <= 0.0) {
-    // Immediate reroute
-    obstacle_state_ = ObstacleState::Rerouting;
-    triggerReroute();
-  } else {
-    // Wait with timer
-    obstacle_state_ = ObstacleState::Waiting;
-    
-    // Set up countdown announcements
-    next_countdown_idx_ = 0;
-    for (size_t i = 0; i < countdown_intervals_.size(); ++i) {
-      if (countdown_intervals_[i] < current_W_star_) {
-        next_countdown_idx_ = static_cast<int>(i);
-        break;
-      }
+bool Navigator::routesSameRemaining(
+    const std::vector<uint64_t>& snapshot,
+    const std::vector<uint64_t>& new_route,
+    const tactic::VertexId& current_vid) const {
+  if (snapshot.empty() || new_route.empty() || !current_vid.isValid())
+    return snapshot.empty() && new_route.empty();
+  // Find index of current vertex in snapshot (remaining = from current to goal)
+  size_t idx_snap = 0;
+  for (size_t i = 0; i < snapshot.size(); ++i) {
+    if (tactic::VertexId(snapshot[i]) == current_vid) {
+      idx_snap = i;
+      break;
     }
+    if (i == snapshot.size() - 1) return false;  // current not in snapshot
+  }
+  // Find index of current vertex in new_route (planner often returns from current to goal)
+  size_t idx_new = 0;
+  for (size_t i = 0; i < new_route.size(); ++i) {
+    if (tactic::VertexId(new_route[i]) == current_vid) {
+      idx_new = i;
+      break;
+    }
+    if (i == new_route.size() - 1) return false;  // current not in new route
+  }
+  const size_t len_snap = snapshot.size() - idx_snap;
+  const size_t len_new = new_route.size() - idx_new;
+  if (len_snap != len_new) return false;
+  for (size_t k = 0; k < len_snap; ++k) {
+    if (snapshot[idx_snap + k] != new_route[idx_new + k]) return false;
+  }
+  return true;
+}
+
+void Navigator::startObstacleEpisode() {
+  // HSHMAT: Called when obstacle detected
+  // NOTE: obstacle_state_ is already set to Waiting by caller as a guard against re-entry
+  
+  try {
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: ============================================================";
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: OBSTACLE DETECTED! Type='" << last_obstacle_type_ << "'";
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: ============================================================";
     
-    // Start 1-second timer for countdown
-    wait_timer_ = node_->create_wall_timer(
-        std::chrono::seconds(1),
-        [this]() { onWaitTimerTick(); });
+    obstacle_start_time_ = node_->get_clock()->now();
+    wait_episode_type_ = last_obstacle_type_;
+    wait_episode_start_sec_ = obstacle_start_time_.seconds();
+    
+    // Pause robot immediately
+    setRobotPaused(true);
+    
+    // Compute which edges are blocked by this obstacle
+    current_blocked_edges_ = computeBlockedEdges();
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Blocked edges count: " << current_blocked_edges_.size();
+    
+    // Get current and goal vertices for TDSP
+    tactic::VertexId current_v = getCurrentVertex();
+    tactic::VertexId goal_v = getGoalVertex();
+    double t_now = node_->get_clock()->now().seconds();
+    
+    // Ensure graph access is set up for learned strategy
+    setupLearnedStrategyGraphAccess();
+    
+    // Compute W* using the configured strategy (new interface)
+    CLOG(INFO, "mission.state_machine") << "HSHMAT: Computing wait decision...";
+    WaitDecision decision = wait_strategy_->computeWaitTime(
+        last_obstacle_type_,
+        current_blocked_edges_,
+        current_v,
+        goal_v,
+        t_now,
+        0.0);  // obstacle_t_first = 0 for new obstacle
+    current_W_star_ = decision.W_star;
     
     CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: FSM: Idle -> Waiting. Timer started for " << current_W_star_ << "s.";
+        << "HSHMAT: Strategy=" << strategyTypeToString(wait_strategy_->type())
+        << ", W*=" << current_W_star_ << "s, should_wait=" << decision.should_wait
+        << ", speech='" << decision.speech << "'";
+    
+    if (!decision.should_wait || current_W_star_ <= 0.0) {
+      // Immediate reroute - speak and WAIT before triggering reroute
+      // This ensures speech completes before robot might start moving
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: Starting speakAndWait for reroute...";
+      speakAndWait(decision.speech, 5.0);
+      CLOG(INFO, "mission.state_machine") << "HSHMAT: speakAndWait completed, triggering reroute...";
+      {
+        LockGuard lock(obstacle_mutex_);
+        obstacle_state_ = ObstacleState::Rerouting;
+      }
+      triggerReroute();
+    } else {
+      // Waiting - non-blocking speak is fine since robot stays paused
+      speak(decision.speech);
+      
+      {
+        LockGuard lock(obstacle_mutex_);
+        obstacle_state_ = ObstacleState::Waiting;  // Confirm final state
+        
+        // Set up countdown announcements
+        next_countdown_idx_ = 0;
+        for (size_t i = 0; i < countdown_intervals_.size(); ++i) {
+          if (countdown_intervals_[i] < current_W_star_) {
+            next_countdown_idx_ = static_cast<int>(i);
+            break;
+          }
+        }
+      }
+      
+      // Start 1-second timer for countdown (uses obstacle callback group)
+      wait_timer_ = node_->create_wall_timer(
+          std::chrono::seconds(1),
+          [this]() { onWaitTimerTick(); },
+          obstacle_callback_group_);
+      
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: FSM: Idle -> Waiting. Timer started for " << current_W_star_ << "s.";
+    }
+  } catch (const std::exception& e) {
+    CLOG(ERROR, "mission.state_machine")
+        << "HSHMAT: Exception in startObstacleEpisode: " << e.what();
+    // Reset to Idle on error
+    {
+      LockGuard lock(obstacle_mutex_);
+      obstacle_state_ = ObstacleState::Idle;
+    }
+    setRobotPaused(false);
+  } catch (...) {
+    CLOG(ERROR, "mission.state_machine")
+        << "HSHMAT: Unknown exception in startObstacleEpisode";
+    // Reset to Idle on error
+    {
+      LockGuard lock(obstacle_mutex_);
+      obstacle_state_ = ObstacleState::Idle;
+    }
+    setRobotPaused(false);
   }
 }
 
 void Navigator::onWaitTimerTick() {
-  LockGuard lock(obstacle_mutex_);
+  bool should_timeout = false;
+  bool should_announce = false;
+  int announce_seconds = 0;
   
-  if (obstacle_state_ != ObstacleState::Waiting) {
-    if (wait_timer_) {
-      wait_timer_->cancel();
-      wait_timer_.reset();
+  {
+    LockGuard lock(obstacle_mutex_);
+    
+    if (obstacle_state_ != ObstacleState::Waiting) {
+      if (wait_timer_) {
+        wait_timer_->cancel();
+        wait_timer_.reset();
+      }
+      return;
     }
-    return;
+    
+    double elapsed = (node_->get_clock()->now() - obstacle_start_time_).seconds();
+    double remaining = current_W_star_ - elapsed;
+    
+    CLOG(DEBUG, "mission.state_machine")
+        << "HSHMAT: Wait tick - elapsed=" << elapsed << "s, remaining=" << remaining << "s";
+    
+    // Check for countdown announcements
+    if (next_countdown_idx_ < static_cast<int>(countdown_intervals_.size())) {
+      int next_announce = countdown_intervals_[next_countdown_idx_];
+      if (remaining <= next_announce && remaining > next_announce - 1) {
+        should_announce = true;
+        announce_seconds = next_announce;
+        next_countdown_idx_++;
+      }
+    }
+    
+    // Check for timeout
+    if (remaining <= 0.0) {
+      should_timeout = true;
+    }
+  }
+  // Lock released
+  
+  if (should_announce) {
+    speak(std::to_string(announce_seconds) + " seconds left.");
   }
   
-  double elapsed = (node_->get_clock()->now() - obstacle_start_time_).seconds();
-  double remaining = current_W_star_ - elapsed;
-  
-  CLOG(DEBUG, "mission.state_machine")
-      << "HSHMAT: Wait tick - elapsed=" << elapsed << "s, remaining=" << remaining << "s";
-  
-  // Check for countdown announcements
-  if (next_countdown_idx_ < static_cast<int>(countdown_intervals_.size())) {
-    int next_announce = countdown_intervals_[next_countdown_idx_];
-    if (remaining <= next_announce && remaining > next_announce - 1) {
-      speak(std::to_string(next_announce) + " seconds left.");
-      next_countdown_idx_++;
-    }
-  }
-  
-  // Check for timeout
-  if (remaining <= 0.0) {
+  if (should_timeout) {
     onWaitTimeout();
   }
 }
 
 void Navigator::onObstacleCleared() {
   // HSHMAT: Called when obstacle clears during Waiting state
-  if (obstacle_state_ != ObstacleState::Waiting) return;
-  
-  double elapsed = (node_->get_clock()->now() - obstacle_start_time_).seconds();
+  // NOTE: State is still Waiting - we keep it that way during speech to block new episodes
+  double elapsed;
+  std::string episode_type;
+  {
+    LockGuard lock(obstacle_mutex_);
+    elapsed = (node_->get_clock()->now() - obstacle_start_time_).seconds();
+    episode_type = wait_episode_type_;
+  }
   
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: Obstacle cleared after " << elapsed << "s (W*=" << current_W_star_ << "s)";
@@ -1044,38 +1239,172 @@ void Navigator::onObstacleCleared() {
   }
   
   // Record uncensored sample for learned strategy
-  wait_strategy_->onObstacleCleared(wait_episode_type_, elapsed);
+  wait_strategy_->onObstacleCleared(episode_type, elapsed);
   
   // Also update old prior system if enabled
-  updateObstaclePriorFromWaitEpisode(wait_episode_type_, elapsed);
+  updateObstaclePriorFromWaitEpisode(episode_type, elapsed);
   
   // HSHMAT: Speak and WAIT for speech to complete BEFORE resuming robot
   // This ensures the robot doesn't start moving while saying "Obstacle cleared"
+  // State remains Waiting/Rerouting during speech to block new obstacle detections
   speakAndWait("Obstacle cleared.", 5.0);
+  // NOW complete episode (sets state to Idle)
   completeEpisode();
+}
+
+void Navigator::onRerouteComplete(bool alternate_found) {
+  // Called when reroute succeeds (alternate route found)
+  {
+    LockGuard lock(obstacle_mutex_);
+    if (obstacle_state_ != ObstacleState::Rerouting || !alternate_found) return;
+    no_alternate_exists_ = false;
+    // Set cooldown time - give path detector time to update to new planning_path (500ms)
+    reroute_complete_time_ = node_->get_clock()->now();
+  }
+  
+  CLOG(INFO, "mission.state_machine") << "HSHMAT: Reroute completed successfully.";
+  completeEpisode();
+}
+
+void Navigator::onNoAlternateRoute() {
+  // Called when planner determines no alternate route exists
+  StrategyType strategy_type;
+  {
+    LockGuard lock(obstacle_mutex_);
+    if (obstacle_state_ != ObstacleState::Rerouting) return;
+    strategy_type = wait_strategy_ ? wait_strategy_->type() : StrategyType::ALWAYS_WAIT;
+    no_alternate_exists_ = true;  // Mark for handleObstacleCleared
+    announcing_no_alternate_ = true;  // Block handleObstacleCleared during announcement
+  }
+  
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT: onNoAlternateRoute - strategy=" << strategyTypeToString(strategy_type);
+  
+  switch (strategy_type) {
+    case StrategyType::ALWAYS_DETOUR: {
+      // Announce no alternate, wait for obstacle to clear
+      speakAndWait("No alternate path to goal. Waiting.", 5.0);
+      
+      // Speech done - NOW we start caring about obstacle status
+      // Any changes during speech are ignored
+      {
+        LockGuard lock(obstacle_mutex_);
+        announcing_no_alternate_ = false;
+      }
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: 'No alternate' announcement complete - now waiting for obstacle to clear.";
+      // Stay in Rerouting state - obstacle_status callback will handle resuming
+      break;
+    }
+      
+    case StrategyType::GREEDY_CTP: {
+      // Mark no valid path, stay stuck forever (correct CTP behavior)
+      auto* greedy = dynamic_cast<GreedyCTPStrategy*>(wait_strategy_.get());
+      if (greedy) greedy->onNoValidPath();
+      speakAndWait("No valid path to goal.", 5.0);
+      {
+        LockGuard lock(obstacle_mutex_);
+        announcing_no_alternate_ = false;
+      }
+      // Stay in Rerouting state - never resume
+      break;
+    }
+    
+    default:
+      // Other strategies: resume on original path
+      {
+        LockGuard lock(obstacle_mutex_);
+        no_alternate_exists_ = false;
+        announcing_no_alternate_ = false;
+      }
+      speakAndWait("No alternate path. Resuming.", 5.0);
+      completeEpisode();
+      break;
+  }
+}
+
+void Navigator::handleObstacleCleared(ObstacleState previous_state) {
+  // Called when obstacle clears during an episode
+  // Only called from obstacle_status callback in two cases:
+  // 1. previous_state == Waiting (always_wait path cleared)
+  // 2. previous_state == Rerouting AND no_alternate_exists_ (waiting for clearance)
+  // NOTE: Called WITHOUT lock held
+  
+  StrategyType strategy_type;
+  {
+    LockGuard lock(obstacle_mutex_);
+    strategy_type = wait_strategy_ ? wait_strategy_->type() : StrategyType::ALWAYS_WAIT;
+  }
+  
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT: handleObstacleCleared - previous_state=" << obstacleStateToString(previous_state)
+      << ", strategy=" << strategyTypeToString(strategy_type);
+  
+  if (previous_state == ObstacleState::Waiting) {
+    // Obstacle cleared while waiting (always_wait strategy)
+    onObstacleCleared();
+    return;
+  }
+  
+  if (previous_state == ObstacleState::Rerouting) {
+    // Obstacle cleared while waiting for no-alternate
+    // (Callback already verified no_alternate_exists_ && !announcing_no_alternate_)
+    
+    if (strategy_type == StrategyType::GREEDY_CTP) {
+      // greedy_ctp stays stuck forever - ignore clearing
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: greedy_ctp stays stuck - ignoring obstacle cleared.";
+      return;
+    }
+    
+    // For always_detour (and others): resume now
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT: Obstacle cleared (no alternate existed) - resuming.";
+    {
+      LockGuard lock(obstacle_mutex_);
+      no_alternate_exists_ = false;
+      awaiting_new_route_ = false;
+    }
+    speakAndWait("Obstacle cleared.", 5.0);
+    completeEpisode();
+    return;
+  }
+  
+  // Shouldn't reach here
+  CLOG(WARNING, "mission.state_machine")
+      << "HSHMAT: handleObstacleCleared called with unexpected state: " 
+      << obstacleStateToString(previous_state);
 }
 
 void Navigator::onWaitTimeout() {
   // HSHMAT: Called when W* expires without obstacle clearing
-  if (obstacle_state_ != ObstacleState::Waiting) return;
-  
-  double elapsed = (node_->get_clock()->now() - obstacle_start_time_).seconds();
+  double elapsed;
+  std::string episode_type;
+  {
+    LockGuard lock(obstacle_mutex_);
+    if (obstacle_state_ != ObstacleState::Waiting) return;
+    
+    elapsed = (node_->get_clock()->now() - obstacle_start_time_).seconds();
+    episode_type = wait_episode_type_;
+    
+    // Stop timer
+    if (wait_timer_) {
+      wait_timer_->cancel();
+      wait_timer_.reset();
+    }
+    
+    obstacle_state_ = ObstacleState::Rerouting;
+  }
+  // Lock released
   
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: Wait timeout after " << elapsed << "s (W*=" << current_W_star_ << "s). Rerouting.";
   
-  // Stop timer
-  if (wait_timer_) {
-    wait_timer_->cancel();
-    wait_timer_.reset();
-  }
-  
   // Record censored sample for learned strategy
-  wait_strategy_->onRerouteTimeout(wait_episode_type_, elapsed);
+  wait_strategy_->onRerouteTimeout(episode_type, elapsed);
   
   speak("Time limit exceeded. Rerouting.");
   
-  obstacle_state_ = ObstacleState::Rerouting;
   triggerReroute();
 }
 
@@ -1096,9 +1425,15 @@ void Navigator::completeEpisode() {
     } catch (...) {}
   }
   
-  obstacle_state_ = ObstacleState::Idle;
-  current_W_star_ = 0.0;
-  wait_episode_start_sec_ = -1.0;
+  {
+    LockGuard lock(obstacle_mutex_);
+    obstacle_state_ = ObstacleState::Idle;
+    current_W_star_ = 0.0;
+    wait_episode_start_sec_ = -1.0;
+    no_alternate_exists_ = false;
+    awaiting_new_route_ = false;
+    announcing_no_alternate_ = false;
+  }
   
   setRobotPaused(false);
 }
@@ -1679,12 +2014,15 @@ static size_t pruneRememberedBlockagesUsingGrid(
  * with different strategies for handling temporary vs permanent blockages.
  */
 void Navigator::triggerReroute() {
-  // HSHMAT: Validate FSM state - should be Rerouting
-  if (obstacle_state_ != ObstacleState::Rerouting) {
-    CLOG(WARNING, "mission.state_machine")
-        << "HSHMAT: triggerReroute called but FSM is "
-        << obstacleStateToString(obstacle_state_) << "; ignoring.";
-    return;
+  // HSHMAT: Validate FSM state and config - should be Rerouting
+  {
+    LockGuard lock(obstacle_mutex_);
+    if (obstacle_state_ != ObstacleState::Rerouting) {
+      CLOG(WARNING, "mission.state_machine")
+          << "HSHMAT: triggerReroute called but FSM is "
+          << obstacleStateToString(obstacle_state_) << "; ignoring.";
+      return;
+    }
   }
 
   // Check if rerouting is enabled in configuration
@@ -1694,9 +2032,13 @@ void Navigator::triggerReroute() {
       << (reroute_enable ? "true" : "false");
   if (!reroute_enable) {
     CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Rerouting disabled. Falling back to wait forever.";
-    obstacle_state_ = ObstacleState::Waiting;
-    current_W_star_ = std::numeric_limits<double>::infinity();
+        << "HSHMAT: Rerouting disabled. Falling back to wait for obstacle to clear.";
+    speak("Rerouting disabled. Waiting for obstacle to clear.");
+    {
+      LockGuard lock(obstacle_mutex_);
+      obstacle_state_ = ObstacleState::Waiting;
+      current_W_star_ = std::numeric_limits<double>::infinity();
+    }
     return;
   }
 
@@ -1708,20 +2050,40 @@ void Navigator::triggerReroute() {
     const bool in_repeat = curr.find("Repeat") != std::string::npos;
     if (!in_repeat) {
       CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: Not in Repeat mode. Falling back to wait forever.";
-      obstacle_state_ = ObstacleState::Waiting;
-      current_W_star_ = std::numeric_limits<double>::infinity();
+          << "HSHMAT: Not in Repeat mode (" << curr << "). Falling back to wait for obstacle to clear.";
+      speak("Cannot reroute now. Waiting for obstacle to clear.");
+      {
+        LockGuard lock(obstacle_mutex_);
+        obstacle_state_ = ObstacleState::Waiting;
+        current_W_star_ = std::numeric_limits<double>::infinity();
+      }
       return;
     }
     CLOG(INFO, "mission.state_machine")
         << "HSHMAT: In Repeat mode (" << curr << "), proceeding with reroute.";
   } catch (...) {
-    obstacle_state_ = ObstacleState::Waiting;
-    current_W_star_ = std::numeric_limits<double>::infinity();
+    CLOG(WARNING, "mission.state_machine")
+        << "HSHMAT: Failed to get state machine name. Falling back to wait.";
+    speak("Cannot reroute now. Waiting for obstacle to clear.");
+    {
+      LockGuard lock(obstacle_mutex_);
+      obstacle_state_ = ObstacleState::Waiting;
+      current_W_star_ = std::numeric_limits<double>::infinity();
+    }
     return;
   }
 
   // HSHMAT: Proceeding with reroute logic (FSM stays in Rerouting until route changes)
+  
+  // HSHMAT: Save snapshot of current route to detect when planner produces different route
+  {
+    LockGuard lock(obstacle_mutex_);
+    reroute_snapshot_route_ = following_route_ids_;
+    awaiting_new_route_ = true;
+  }
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT: Saved route snapshot (" << reroute_snapshot_route_.size() 
+      << " vertices) for reroute detection.";
 
   // ===== STEP 4b: IDENTIFY AFFECTED GRAPH EDGES =====
   // Find which edges in the pose graph are blocked by the obstacle
