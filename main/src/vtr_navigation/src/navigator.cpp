@@ -594,12 +594,35 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
               awaiting_new_route_ = false;
               call_no_alternate = true;
             } else {
-              // Different remaining path -> alternate found
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Reroute SUCCESS - planner produced different route!";
-              awaiting_new_route_ = false;
-              following_route_ids_.assign(route->ids.begin(), route->ids.end());
-              call_reroute_complete = true;
+              // Different remaining path -> check if route goes through banned edges (greedy_ctp)
+              bool route_uses_banned_edge = false;
+              if (wait_strategy_ && wait_strategy_->type() == StrategyType::GREEDY_CTP) {
+                // Check if any edge in the new route is permanently banned
+                for (size_t i = 0; i + 1 < route->ids.size(); ++i) {
+                  tactic::EdgeId edge(tactic::VertexId(route->ids[i]), tactic::VertexId(route->ids[i + 1]));
+                  if (wait_strategy_->isEdgePermanentlyBanned(edge)) {
+                    route_uses_banned_edge = true;
+                    CLOG(INFO, "mission.state_machine")
+                        << "HSHMAT: New route uses banned edge " << edge << " - no valid alternate.";
+                    break;
+                  }
+                }
+              }
+              
+              if (route_uses_banned_edge) {
+                // Route goes through banned edge -> treat as no alternate
+                CLOG(INFO, "mission.state_machine")
+                    << "HSHMAT: Route uses permanently banned edges - no valid alternate route.";
+                awaiting_new_route_ = false;
+                call_no_alternate = true;
+              } else {
+                // Truly different route without banned edges -> success
+                CLOG(INFO, "mission.state_machine")
+                    << "HSHMAT: Reroute SUCCESS - planner produced different route!";
+                awaiting_new_route_ = false;
+                following_route_ids_.assign(route->ids.begin(), route->ids.end());
+                call_reroute_complete = true;
+              }
             }
           }
 
@@ -2285,6 +2308,26 @@ void Navigator::triggerReroute() {
       else ++it;
     }
 
+    // ===== GREEDY CTP: Collect permanently banned edges =====
+    // For greedy_ctp strategy, all edges that have been blocked in this mission
+    // should remain banned permanently (until mission ends).
+    std::vector<vtr::tactic::EdgeId> permanently_banned_edges;
+    if (wait_strategy_ && wait_strategy_->type() == StrategyType::GREEDY_CTP) {
+      auto* greedy = dynamic_cast<GreedyCTPStrategy*>(wait_strategy_.get());
+      if (greedy) {
+        // First, add current affected edges to permanent ban list
+        for (const auto& e : affected_edges) {
+          greedy->banEdgePermanently(e);
+        }
+        // Collect all permanently banned edges
+        for (const auto& edge : greedy->getBannedEdges()) {
+          permanently_banned_edges.push_back(edge);
+        }
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: greedy_ctp - permanently banned edges: " << permanently_banned_edges.size();
+      }
+    }
+
     // ===== CONFIGURE TDSP (Time-Dependent Shortest Path) PLANNER =====
     // This is a TYPE CHECK, not object creation!
     if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner_)) {
@@ -2310,7 +2353,13 @@ void Navigator::triggerReroute() {
           graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
           /*active_delay_sec=*/0.0, huge_delay_sec, tf_buffer_, trunk_vid,
           /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
-      tdsp->setStaticEdgeDelays(static_delays);  // Route screening delays
+      
+      // Apply greedy_ctp permanent bans as huge delays
+      for (const auto& e : permanently_banned_edges) {
+        static_delays[e] = huge_delay_sec;
+      }
+      
+      tdsp->setStaticEdgeDelays(static_delays);  // Route screening delays + permanent bans
       tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
 
       // Set up time-based blockage intervals for the currently affected edges
@@ -2375,7 +2424,12 @@ void Navigator::triggerReroute() {
           /*active_delay_sec=*/dur_sec, huge_delay_sec, tf_buffer_, trunk_vid,
           /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
 
-      bfs_ptr->setExtraEdgeCosts(delays);    // Apply edge delays/costs
+      // Apply greedy_ctp permanent bans as huge delays
+      for (const auto& e : permanently_banned_edges) {
+        delays[e] = huge_delay_sec;
+      }
+
+      bfs_ptr->setExtraEdgeCosts(delays);    // Apply edge delays/costs + permanent bans
       bfs_ptr->setUseTimeCost(true);         // Use time-based costs instead of unit costs
       bfs_ptr->setUseMasked(true);           // Enable masked planning (avoid banned edges)
       bfs_ptr->setNominalSpeed(route_cfg_.nominal_speed_mps);

@@ -336,6 +336,9 @@ class GreedyCTPStrategy : public WaitStrategy {
   
   bool hasNoValidPath() const { return no_valid_path_; }
   
+  // Get all permanently banned edges (for applying to route planner)
+  const EdgeIdSet& getBannedEdges() const { return banned_edges_; }
+  
   StrategyType type() const override { return StrategyType::GREEDY_CTP; }
   
  private:
