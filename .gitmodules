@@ -1,8 +1,11 @@
 [submodule "steam"]
-	path = main/src/deps/steam
-	url = ../steam.git
-	branch = master
+    path = main/src/deps/steam
+    url = ../steam.git
+    branch = master
 [submodule "lgmath"]
-	path = main/src/deps/lgmath
-	url = ../lgmath.git
-	branch = master
+    path = main/src/deps/lgmath
+    url = ../lgmath.git
+    branch = master
+[submodule "spinning-radar-doppler"]
+    path = main/src/deps/spinning-radar-doppler
+    url = ../spinning-radar-doppler.git
