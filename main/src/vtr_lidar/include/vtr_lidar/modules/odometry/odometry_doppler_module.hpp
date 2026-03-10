@@ -51,7 +51,6 @@ class OdometryDopplerModule : public tactic::BaseModule {
         Eigen::Matrix<double, 6, 1>::Ones();
     //
     int num_threads = 4;
-    int loc_threshold = 1;
     
     // doppler odom parameters
     long int ransac_seed = 0;

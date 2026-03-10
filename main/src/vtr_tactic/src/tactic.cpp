@@ -847,7 +847,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
 
-  if (qdata->loc_flag)
+  if (*qdata->loc_flag)
     pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
 
   CLOG(DEBUG, "tactic")
