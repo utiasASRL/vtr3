@@ -9,12 +9,12 @@
         #- navigation.command
     
         # tactic
-      #- tactic
-      #- tactic.pipeline
-      #- tactic.eop
-      #- tactic.module
-      #- tactic.module.live_mem_manager
-      #- tactic.module.graph_mem_manager
+        #- tactic
+        #- tactic.pipeline
+        #- tactic.eop
+        #- tactic.module
+        #- tactic.module.live_mem_manager
+      - tactic.module.graph_mem_manager
 
       # path planner
       #- path_planning
@@ -34,11 +34,11 @@
       #- ouster
         
         # mission planner
-      - mission.server
-      - mission.state_machine
+        #- mission.server
+        #- mission.state_machine
 
         # pose graph
-      #- pose_graph
+      - pose_graph
 
         # lidar pipeline
       #- lidar.pipeline

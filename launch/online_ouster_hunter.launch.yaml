@@ -2,8 +2,7 @@
 session_name: vtr_online_ouster_hunter
 
 environment:
-  RMW_IMPLEMENTATION: rmw_zenoh_cpp
-  ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
+  ROBOT_NAME: mr_green
 
 start_directory: ${VTRTEMP}
 suppress_history: false
@@ -41,10 +40,10 @@ windows:
     panes:
       - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
 
-  - window_name: rviz2
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
+  # - window_name: rviz2
+  #   layout: main-horizontal
+  #   shell_command_before:
+  #     - source ${VTRSRC}/main/install/setup.bash
+  #   panes:
+  #     - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
 

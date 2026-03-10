@@ -26,6 +26,8 @@
 #include "vtr_pose_graph_msgs/msg/map_info.hpp"
 #include "vtr_pose_graph_msgs/msg/timestamp.hpp"
 
+#include <queue>
+
 namespace vtr {
 namespace pose_graph {
 
@@ -75,6 +77,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   virtual ~RCGraph() { if(!read_only_) save(); }
 
   void save();
+  void saveLive();
 
   /** \brief Return a blank vertex with the next available Id */
   VertexPtr addVertex(const Timestamp& time);
@@ -111,6 +114,8 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   void saveVertices();
   void saveEdges();
 
+  void saveVerticesLive();
+
  private:
   using Base::mutex_;
 
@@ -131,6 +136,8 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   mutable std::shared_mutex map_info_mutex_;
   MapInfoMsg map_info_ = MapInfoMsg();
+
+  std::queue<VertexPtr> vertices_to_write_;
 };
 
 template <typename DataType>

@@ -108,8 +108,10 @@ void Tactic::finishRun() {
   // saving graph here is optional as we save at destruction, just to avoid
   // unexpected data loss
   smoother_.runBranchSmoothing();
-  graph_->save();
-  //
+    CLOG(ERROR, "tactic") << "Not an ERROR, FINISHED RUN";
+  // graph_->save(); // [ANTHONY] REMEMBER THIS LINE
+  graph_->saveLive();
+
   callback_->endRun();
 }
 
@@ -358,6 +360,9 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   qdata->vid_loc.emplace(chain_->trunkVertexId());
   qdata->sid_loc.emplace(chain_->trunkSequenceId());
   qdata->T_r_v_loc.emplace(chain_->T_leaf_trunk());
+
+
+  graph_->save();
 
   return config_->localization_skippable;
 }
@@ -1014,6 +1019,9 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
   if (!previous_vertex_id.isValid()) return;
   (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
                         EdgeType::Temporal, manual, T_r_v);
+
+  // Write new vertex to disk
+  graph_->saveLive();
 }
 
 void Tactic::updatePersistentLoc(const Timestamp& t, const VertexId& v,

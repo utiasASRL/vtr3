@@ -113,7 +113,8 @@ RUN pip3 install \
   eventlet \
   python-socketio \
   python-socketio[client] \
-  websocket-client
+  websocket-client \ 
+  asrl-pylgmath
 
 
 #added by sherry
@@ -188,7 +189,7 @@ ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
 RUN apt install -q -y vim htop
-RUN apt install -y ros-humble-rmw-zenoh-cpp
+RUN apt install -q -y ros-humble-rmw-zenoh-cpp
 
 
 ## Switch to specified user

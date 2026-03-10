@@ -61,10 +61,28 @@ void RCGraph::save() {
   saveVertices();
   saveEdges();
   CLOG(INFO, "pose_graph") << "Saving pose graph - DONE!";
+
+}
+
+void RCGraph::saveLive() {
+  std::unique_lock lock(mutex_);
+  if(read_only_) { 
+    CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
+    return;
+  }
+  CLOG(INFO, "pose_graph") << "Saving live pose graph";
+  // saveGraphIndex();
+  saveVerticesLive();
+  // saveEdges();
+  CLOG(INFO, "pose_graph") << "Saving live pose graph - DONE! Q len: " << vertices_to_write_.size();
+
 }
 
 auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
-  return GraphType::addVertex(time, name2accessor_map_);
+  // OLD:   return GraphType::addVertex(time, name2accessor_map_);
+  auto vertex = GraphType::addVertex(time, name2accessor_map_);
+  vertices_to_write_.push(vertex);
+  return vertex;
 }
 
 void RCGraph::loadGraphIndex() {
@@ -162,6 +180,23 @@ void RCGraph::saveVertices() {
   VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
   for (auto it = vertices_.begin(); it != vertices_.end(); ++it)
     accessor.write(it->second->serialize());
+}
+
+void RCGraph::saveVerticesLive() {
+  if(read_only_) { 
+    CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
+    return;
+  }
+
+  // save any unsaved data first
+  CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
+  VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
+  while (!vertices_to_write_.empty()){
+    auto vertex = vertices_to_write_.front();
+    vertices_to_write_.pop();
+    vertex->unload();
+    accessor.write(vertex->serialize());
+  }  
 }
 
 void RCGraph::saveEdges() {
