@@ -54,6 +54,7 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
 
   if (!publisher_initialized_) {
     distance_pub_ = qdata.node->create_publisher<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile());
+    transform_pub_ = qdata.node->create_publisher<TransformMsg>("leader_transform", rclcpp::QoS(1).best_effort().durability_volatile());
     publisher_initialized_ = true;
   }
 
@@ -105,7 +106,18 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
 
   Eigen::Vector4d leader_in_follower = T_s_r.inverse().matrix() * leader_position;
   leader_in_follower(2) -= 10.75*0.0254;
-
+  
+  // Calculate the leader pose in the follower frame
+  Eigen::Affine3d T_leader_follower = Eigen::Affine3d::Identity();
+  T_leader_follower.translation() = leader_in_follower.head<3>();
+  // Plate is mounted with normal facing toward the follower, so we can construct the rotation matrix from the normal vector
+  Eigen::Vector3d x_axis = normal.cross(Eigen::Vector3d::UnitX()).normalized();
+  Eigen::Vector3d y_axis = normal.cross(x_axis).normalized();
+  Eigen::Matrix3d R;
+  R.col(0) = x_axis;
+  R.col(1) = y_axis;
+  R.col(2) = normal;
+  T_leader_follower.linear() = R;
 
   CLOG(DEBUG, static_name)
       << "Plane fit of Model coefficients: " << coefficients->values[0] << " " 
@@ -122,6 +134,12 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
     FloatMsg dist_msg;
     dist_msg.data = leader_dist;
     distance_pub_->publish(dist_msg);
+
+    Eigen::Affine3d T(T_leader_follower.matrix());
+    TransformMsg msg = tf2::eigenToTransform(T);
+    msg.header.frame_id = "base_link";
+    msg.header.stamp = rclcpp::Time(stamp);
+    transform_pub_->publish(msg);
   }
 }
 

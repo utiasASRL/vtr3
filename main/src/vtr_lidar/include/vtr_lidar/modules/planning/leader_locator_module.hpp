@@ -23,6 +23,7 @@
 #include "tf2_ros/transform_broadcaster.h"
 
 #include "std_msgs/msg/float32.hpp"
+#include <geometry_msgs/msg/pose.hpp>
 
 #include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
@@ -37,6 +38,7 @@ class LeaderLocator : public tactic::BaseModule {
   PTR_TYPEDEFS(LeaderLocator);
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
   using FloatMsg = std_msgs::msg::Float32;
+  using TransformMsg = geometry_msgs::msg::TransformStamped;
 
   static constexpr auto static_name = "lidar.leader_locator";
 
@@ -71,6 +73,7 @@ class LeaderLocator : public tactic::BaseModule {
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
   rclcpp::Publisher<FloatMsg>::SharedPtr distance_pub_;
+  rclcpp::Publisher<TransformMsg>::SharedPtr transform_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(LeaderLocator);
 
