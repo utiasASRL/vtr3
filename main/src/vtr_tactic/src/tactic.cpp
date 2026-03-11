@@ -1017,7 +1017,7 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
 
   // Add the new edge
   if (!previous_vertex_id.isValid()) return;
-  (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
+  auto edge = graph_->addEdge(previous_vertex_id, current_vertex_id_,
                         EdgeType::Temporal, manual, T_r_v);
 
   // Write new vertex to disk

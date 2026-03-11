@@ -81,6 +81,9 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   /** \brief Return a blank vertex with the next available Id */
   VertexPtr addVertex(const Timestamp& time);
+  EdgePtr addEdge(const VertexId& from, const VertexId& to,
+                  const EdgeType& type, const bool manual,
+                  const EdgeTransform& T_to_from);
 
   /** \brief Get the map display calibration */
   MapInfoMsg getMapInfo() const {
@@ -115,6 +118,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   void saveEdges();
 
   void saveVerticesLive();
+  void saveEdgesLive();
 
  private:
   using Base::mutex_;
@@ -138,6 +142,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   MapInfoMsg map_info_ = MapInfoMsg();
 
   std::queue<VertexPtr> vertices_to_write_;
+  std::queue<EdgePtr> edges_to_write_;
 };
 
 template <typename DataType>

@@ -73,8 +73,8 @@ void RCGraph::saveLive() {
   CLOG(INFO, "pose_graph") << "Saving live pose graph";
   // saveGraphIndex();
   saveVerticesLive();
-  // saveEdges();
-  CLOG(INFO, "pose_graph") << "Saving live pose graph - DONE! Q len: " << vertices_to_write_.size();
+  saveEdgesLive();
+  CLOG(INFO, "pose_graph") << "Saving live pose graph - DONE!";
 
 }
 
@@ -83,6 +83,14 @@ auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
   auto vertex = GraphType::addVertex(time, name2accessor_map_);
   vertices_to_write_.push(vertex);
   return vertex;
+}
+
+auto RCGraph::addEdge(const VertexId& from, const VertexId& to,
+                      const EdgeType& type, const bool manual,
+                      const EdgeTransform& T_to_from) -> EdgePtr {
+  auto edge = GraphType::addEdge(from, to, type, manual, T_to_from);  // call base
+  edges_to_write_.push(edge);
+  return edge;
 }
 
 void RCGraph::loadGraphIndex() {
@@ -189,7 +197,7 @@ void RCGraph::saveVerticesLive() {
   }
 
   // save any unsaved data first
-  CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
+  CLOG(DEBUG, "pose_graph") << "Saving vertices to disk, Vertex Q len : " << vertices_to_write_.size();
   VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
   while (!vertices_to_write_.empty()){
     auto vertex = vertices_to_write_.front();
@@ -209,6 +217,23 @@ void RCGraph::saveEdges() {
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
   for (auto it = edges_.begin(); it != edges_.end(); ++it)
     accessor.write(it->second->serialize());
+}
+
+void RCGraph::saveEdgesLive() {
+  if(read_only_) { 
+    CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
+    return;
+  }
+
+  // save any unsaved data first
+  CLOG(DEBUG, "pose_graph") << "Saving Edges to disk, Edge Q len : " << edges_to_write_.size();
+  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
+  // save all but current edge
+  while (edges_to_write_.size() > 1){
+    auto edge = edges_to_write_.front();
+    edges_to_write_.pop();
+    accessor.write(edge->serialize());
+  }  
 }
 
 }  // namespace pose_graph
