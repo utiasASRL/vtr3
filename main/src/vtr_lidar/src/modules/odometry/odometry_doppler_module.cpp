@@ -118,6 +118,9 @@ OdometryDopplerModule::OdometryDopplerModule(const Config::ConstPtr &config,
   temp_wnoa.bottomRows<6>() = Eigen::Matrix<double, 6, 6>::Identity();
   wnoa_lhs_ = temp_wnoa * config_->Qkinv * temp_wnoa.transpose();
 
+  // precompute gyro inverse covariance
+  gyro_cov_inv_ = config_->gyro_cov.inverse();
+
   // ransac generator
   random_engine_ = std::mt19937_64(size_t(config_->ransac_seed));
 }
@@ -226,8 +229,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   clock_str.push_back("Undistortion ...... ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
 
-  std::vector<double> total_time_timer(clock_str.size(), 0.0);
-
   timer[0]->start();
   // *********** RANSAC ***********
   // precompute for full solve
@@ -258,7 +259,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       auto curr_gyro = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
       curr_gyro -= gyro_bias;
       double gy = (R_sv.transpose() * -1.0 * curr_gyro)(2); // rotate measurement to vehicle frame, extract z dim
-      double gyvar = (R_sv.transpose() * config_->gyro_cov.inverse() * R_sv)(2, 2); // rotate covariance, extract z dim
+      double gyvar = (R_sv.transpose() * gyro_cov_inv_ * R_sv)(2, 2); // rotate covariance, extract z dim
       lhs_gyro(2, 2) += gyvar;
       rhs_gyro(2) += gy / gyvar;
     }
@@ -423,8 +424,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       Ggyro.leftCols<6>() = (1.0 - alpha)*Cgyro;
       Ggyro.rightCols<6>() = alpha*Cgyro;
 
-      lhs += Ggyro.transpose() * config_->gyro_cov.inverse() * Ggyro;
-      rhs += Ggyro.transpose() * config_->gyro_cov.inverse() * (-1.0 * curr_gyro);
+      lhs += Ggyro.transpose() * gyro_cov_inv_ * Ggyro;
+      rhs += Ggyro.transpose() * gyro_cov_inv_ * (-1.0 * curr_gyro);
     }
   }
 
@@ -472,80 +473,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   timer[2]->start();
-  // // *********** NUM INTEGRATE ***********
-  // const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();
-
-  // // get velocity knots
-  // Eigen::Matrix<double,6,1> knot1 = Eigen::Matrix<double,6,1>::Zero();
-  // double dt = 0.1;
-  // if (frame_count > 0) {
-  //   knot1 = prev_w_m_r_in_r_odo;
-  //   dt = (frame_end_time - prev_time) / 1e9;
-  // }
-  // Eigen::Matrix<double,6,1> knot2 = w_temp;
-
-  // // mask to zero when stationary
-  // if (std::fabs(knot1(0)) < config_->zero_vel_tol)
-  //   knot1 = Eigen::Matrix<double,6,1>::Zero();
-  // if (std::fabs(knot2(0)) < config_->zero_vel_tol)
-  //   knot2 = Eigen::Matrix<double,6,1>::Zero();
-
-  // // integrate between the knots
-  // double dtt = dt/static_cast<double>(config_->integration_steps+1);
-  // std::vector<double> step_times;
-  // for (int s = 1; s <= config_->integration_steps; ++s) {
-  //   step_times.push_back(s * dtt);
-  // }
-  // double t_rel_query = static_cast<double>(query_time - prev_time) / 1e9;
-  // CLOG(DEBUG, "lidar.odometry_doppler") << "t_rel_query: " << t_rel_query;
-  // if (t_rel_query > 0.0 && t_rel_query < dt) {
-  //   step_times.push_back(t_rel_query);
-  // }
-  // std::sort(step_times.begin(), step_times.end());
-  // step_times.erase(std::unique(step_times.begin(), step_times.end()), step_times.end());
-  // CLOG(DEBUG, "lidar.odometry_doppler") << "number of step times: " << step_times.size();
-  // CLOG(DEBUG, "lidar.odometry_doppler") << "step times: " << step_times;
-
-
-  // Eigen::Matrix4d T_21 = Eigen::Matrix4d::Identity(); 
-  // // cov of T_integrated, start from T_k
-  // if (frame_count == 0) {
-  //   cov_T_k = config_->P0;
-  // } 
-  // Eigen::Matrix<double,6,6> P_int = cov_T_k;
-  // Eigen::Matrix<double,6,6> P_T_tau = Eigen::Matrix<double,6,6>::Zero();
-  // // query state
-  // Eigen::Matrix4d T_query = Eigen::Matrix4d::Identity();
-  // Eigen::Matrix<double,6,6> P_query = Eigen::Matrix<double,6,6>::Zero();
-  // Eigen::Matrix<double,6,1> w_query = Eigen::Matrix<double,6,1>::Zero();
-
-  // for (double t : step_times) {
-  //   double alpha = t/dt;  // (tau - t_k) / (t_k+1 - t_k)
-  //   Eigen::Matrix<double,6,1> vinterp = (1.0-alpha)*knot1 + alpha*knot2;
-  //   // interp cov
-  //   Eigen::Matrix<double,6,6> cov_interp = (1.0-alpha) * (1.0-alpha) * cov_k_k1.topLeftCorner<6,6>() + 
-  //                                          alpha * (1.0-alpha)* (cov_k_k1.topRightCorner<6,6>() + cov_k_k1.bottomLeftCorner<6,6>()) +
-  //                                          alpha * alpha * cov_k_k1.bottomRightCorner<6,6>() +
-  //                                          (1.0-alpha) * t * Qc;
-  //   // update the integrated P_T_tau
-  //   Eigen::Matrix<double,6,1> phi_interp = dtt * vinterp; // phi = v * dt    
-  //   Eigen::Matrix<double,6,6> J_left = lgmath::se3::vec2jac(phi_interp);  // left Jacobian of phi_interp
-  //   Eigen::Matrix<double,4,4> phi_matrix = lgmath::se3::vec2tran(phi_interp);
-  //   P_T_tau = dtt * dtt * J_left * cov_interp * J_left.transpose() + 
-  //              lgmath::se3::tranAd(phi_matrix) * P_int * lgmath::se3::tranAd(phi_matrix).transpose();                                 
-  //   // update the integrated covariance P_int for next iteration
-  //   P_int = P_T_tau;
-  //   // update the integrated transform
-  //   T_21 = lgmath::se3::vec2tran(phi_interp)*T_21;
-
-  //   if (t == t_rel_query) {
-  //     // save the covariance at query time
-  //     T_query = T_21 * prev_T_r_m_odo.matrix();
-  //     P_query = P_int; 
-  //     w_query = vinterp;
-
-  //   }
-  // }
 
   // *********** NUM INTEGRATE ***********
   const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();
@@ -588,9 +515,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix<double,6,6> P_int = cov_T_k;
   Eigen::Matrix<double,6,6> P_T_tau = Eigen::Matrix<double,6,6>::Zero();
   
-  // Eigen::Matrix4d T_query = Eigen::Matrix4d::Identity();
-  // Eigen::Matrix<double,6,6> P_query = Eigen::Matrix<double,6,6>::Zero();
-  // Eigen::Matrix<double,6,1> w_query = Eigen::Matrix<double,6,1>::Zero();
+  /Eigen::Matrix<double,6,6> P_query = Eigen::Matrix<double,6,6>::Zero();
 
   // Integrate between the sorted time-points
   for (size_t i = 1; i < step_times.size(); ++i) {
@@ -618,12 +543,10 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     P_int = P_T_tau;
     T_21 = lgmath::se3::vec2tran(phi_interp) * T_21;
 
-    // // Floating point safe comparison for query time
-    // if (std::abs(t - t_rel_query) < 1e-9) {
-    //   T_query = T_21 * prev_T_r_m_odo.matrix();
-    //   P_query = P_int; 
-    //   w_query = vinterp;
-    // }
+    // Floating point safe comparison for query time
+    if (std::abs(t - t_rel_query) < 1e-9) {
+      P_query = P_int; 
+    }
   }
 
   EdgeTransform T_temp;
