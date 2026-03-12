@@ -234,10 +234,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // clang-format off
   /// trajectory smoothing (these are 2D since we want to optimize in 2D)
-  Evaluable<lgmath::se2::Transformation>::ConstPtr T_r_m_eval = nullptr;
-  Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
-  Evaluable<lgmath::se2::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
-  Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
   lgmath::se2::Transformation T_s_ms_odo_prior_new;
   Eigen::Matrix<double, 3, 1> w_ms_s_in_s_odo_prior_new;
   Eigen::Matrix<double, 6, 6> cov_prior_new;
@@ -268,15 +264,11 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   trajectory->addStatePrior(Time(frame_start_time), T_s_ms_odo_prior_2d, w_ms_s_in_s_odo_prior_2d, cov_prior_2d);
 
   // General radar odometry (at scan time)
-  T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
-  w_m_r_in_r_eval = trajectory->getVelocityInterpolator(scan_time);
   T_s_ms_eval = trajectory->getPoseInterpolator(scan_time);
   w_ms_s_in_s_eval = trajectory->getVelocityInterpolator(scan_time);
 
   // Odometry at extrapolated state (might be the same as above, but not necessarily, if we have gyro)
   Time extp_time(static_cast<int64_t>(timestamp_odo_new));
-  T_r_m_eval_extp = trajectory->getPoseInterpolator(extp_time);
-  w_m_r_in_r_eval_extp = trajectory->getVelocityInterpolator(extp_time);
   T_s_ms_eval_extp = trajectory->getPoseInterpolator(extp_time);
   w_ms_s_in_s_eval_extp = trajectory->getVelocityInterpolator(extp_time);
 
