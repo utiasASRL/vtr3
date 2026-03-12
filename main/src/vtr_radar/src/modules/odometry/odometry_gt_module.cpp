@@ -139,9 +139,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
   const auto v_s_gt_prev_2d = vec3Dto2D(v_s_gt_prev);
   const auto Ad_T_r_s = lgmath::se3::tranAd(T_s_r.inverse().matrix());
   const auto v_r_gt = Ad_T_r_s * v_s_gt;
-  const auto v_r_gt_prev = Ad_T_r_s * v_s_gt_prev;
   const auto v_r_gt_2d = vec3Dto2D(v_r_gt);
-  const auto v_r_gt_prev_2d = vec3Dto2D(v_r_gt_prev);
 
   // Compute odometry change from groundtruth
   auto T_r_s = T_s_r.inverse();
