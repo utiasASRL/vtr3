@@ -51,6 +51,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
         Eigen::Matrix<double, 6, 1>::Ones();
     //
     int num_threads = 4;
+    int loc_threshold = 1;
     
     // doppler odom parameters
     long int ransac_seed = 0;
@@ -62,14 +63,16 @@ class OdometryDopplerModule : public tactic::BaseModule {
     int integration_steps = 100;
     double zero_vel_tol = 0.03;
 
+    // gyro
     Eigen::Matrix<double, 3, 3> gyro_cov =
         Eigen::Matrix<double, 3, 3>::Identity();
 
     // inverse covariances
-    Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Identity(); 
-    Eigen::Matrix<double, 6, 6> P0inv = Eigen::Matrix<double, 6, 6>::Identity();
-    Eigen::Matrix<double, 6, 6> Qzinv = Eigen::Matrix<double, 6, 6>::Identity();
-
+    Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Zero(); 
+    Eigen::Matrix<double, 6, 6> P0inv = Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 6, 6> Qzinv = Eigen::Matrix<double, 6, 6>::Zero();
+    // init covariance
+    Eigen::Matrix<double, 6, 6> P0 = Eigen::Matrix<double, 6, 6>::Zero();
     // Success criteria
     float max_trans_vel_diff = 1000.0; // m/s
     float max_rot_vel_diff = 1000.0; // m/s
@@ -100,6 +103,11 @@ class OdometryDopplerModule : public tactic::BaseModule {
   // save linear system
   Eigen::Matrix<double, 6, 6> last_lhs_;
   Eigen::Matrix<double, 6, 1> last_rhs_;
+
+  // save for covariance of body centric velocity
+  Eigen::Matrix<double, 12, 12> cov_k_k1;     // covariance of x_k, x_k+1
+  Eigen::Matrix<double, 6, 6> Qc;             // matrix version of Qc_diag
+  Eigen::Matrix<double, 6, 6> cov_T_k;        // covariance of pose T_k
 
   // gyro inverse covariance
   Eigen::Matrix3d gyro_invcov_;
