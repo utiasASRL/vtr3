@@ -131,21 +131,21 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (!qdata.sliding_map_odo) {
     // First frame
-    const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();  
+    // const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();  
     // clang-format off
     // undistorted preprocessed point cloud
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.doppler_preprocessed_point_cloud);
     cart2pol(*undistorted_point_cloud);
     qdata.undistorted_point_cloud = undistorted_point_cloud;
-    //
+    // Initialize current state
     qdata.timestamp_odo.emplace(*qdata.stamp);
-    qdata.T_r_m_odo.emplace(identityMatrix, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
+    qdata.T_r_m_odo.emplace(Eigen::Matrix4d::Identity().eval(), Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
     qdata.w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     // Initialize prior values
     qdata.T_r_m_odo_prior.emplace(lgmath::se3::Transformation());
     qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     qdata.timestamp_prior.emplace(*qdata.stamp);
-    //
+    // Initialize gyro bias
     qdata.gyro_bias.emplace(Eigen::Vector3d::Zero());
     //
     *qdata.odo_success = true;
@@ -314,8 +314,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     // 2 DOF solve
     Eigen::Matrix2d lhs2d;
     lhs2d << lhs_ransac(0, 0), lhs_ransac(0, 2), lhs_ransac(2, 0), lhs_ransac(2, 2);
-    if (fabs(lhs2d.determinant()) < 1e-7)
-      continue; // not invertible
+    if (fabs(lhs2d.determinant()) < 1e-7) continue; // not invertible
 
     Eigen::Vector2d rhs2d;
     rhs2d << rhs_ransac(0), rhs_ransac(2);
@@ -324,9 +323,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     curr_varpi << varpi2d(0), 0.0, varpi2d(1);
 
     // check that curr varpi close enough to prev varpi
-    if (std::abs(varpi2d(0) - prev_w_m_r_in_r_odo(0)) > config_->prior_threshold){
-      continue;
-    }
+    if (std::abs(varpi2d(0) - prev_w_m_r_in_r_odo(0)) > config_->prior_threshold) continue;
 
     // calculate error and inliers 
     auto errors = meas_precompute_all - ransac_precompute_all.col(0)*curr_varpi(0) 
@@ -514,8 +511,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   } 
   Eigen::Matrix<double,6,6> P_int = cov_T_k;
   Eigen::Matrix<double,6,6> P_T_tau = Eigen::Matrix<double,6,6>::Zero();
-  
-  /Eigen::Matrix<double,6,6> P_query = Eigen::Matrix<double,6,6>::Zero();
+  Eigen::Matrix<double,6,6> P_query = Eigen::Matrix<double,6,6>::Zero();
 
   // Integrate between the sorted time-points
   for (size_t i = 1; i < step_times.size(); ++i) {
@@ -544,23 +540,15 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     T_21 = lgmath::se3::vec2tran(phi_interp) * T_21;
 
     // Floating point safe comparison for query time
-    if (std::abs(t - t_rel_query) < 1e-9) {
-      P_query = P_int; 
-    }
+    if (std::abs(t - t_rel_query) < 1e-9) P_query = P_int; 
   }
 
   EdgeTransform T_temp;
   // output latest pose
-  if (frame_count == 0) {
-    T_temp = EdgeTransform(identityMatrix, P_int);
-  } else {
-    T_temp = EdgeTransform(T_21 * prev_T_r_m_odo, P_int);
-  }
-
+  T_temp = EdgeTransform((frame_count == 0) ? identityMatrix : (T_21 * prev_T_r_m_odo), P_int);
+  const auto T_r_m_eval = SE3StateVar::MakeShared(T_temp);
   // save the covariance matrix for the current frame
   cov_T_k = P_int;                           
-
-  const auto T_r_m_eval = SE3StateVar::MakeShared(T_temp);
 
   // end num integrate
   timer[2]->stop();
@@ -570,6 +558,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   if (frame_count > 0 &&
       estimate_reasonable) {
 
+    // add estimated state at the end of the frame as a knot to the trajectory
     Time knot_time(frame_end_time);
     const auto T_r_m_var = SE3StateVar::MakeShared(T_r_m_eval->value());
     const auto w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_temp);
@@ -580,13 +569,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_query = nullptr;
     T_r_m_query = trajectory->getPoseInterpolator(Time(query_time));
     w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
-    // T_r_m_query = SE3StateVar::MakeShared(EdgeTransform(T_query, P_query));
-    // w_m_r_in_r_query = VSpaceStateVar<6>::MakeShared(w_query);
 
     // compound transform for alignment (sensor to point map transform)
     const auto T_s_m_query = compose(T_s_r_var, T_r_m_query);
       
     if (loc_flag && qdata.preprocessed_point_cloud) {
+      // only if we're localizing this frame
       const auto &vtr_points = *qdata.preprocessed_point_cloud;
 
       // outputs - create shallow copy
@@ -618,6 +606,7 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
       qdata.undistorted_point_cloud = undistorted_point_cloud;
     } else {
+      // otherwise just output a dummy point cloud
       CLOG(DEBUG, "lidar.odometry_doppler") << "no point cloud saved";
       inlier_frame.resize(1);
       auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(inlier_frame);
@@ -625,13 +614,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       qdata.undistorted_point_cloud = undistorted_point_cloud;
     }
 
+    // outputs at frame stamp time
     *qdata.T_r_m_odo = EdgeTransform(T_r_m_query->value(), P_query);
     *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
 
-    auto &sliding_map_odo = *qdata.sliding_map_odo;
-
     EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, P_query);
-
+    auto &sliding_map_odo = *qdata.sliding_map_odo;
     *qdata.T_r_v_odo = T_r_m_dop * sliding_map_odo.T_vertex_this().inverse(); // T_r_m * T_m_v
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     *qdata.timestamp_odo = query_stamp;
@@ -654,11 +642,9 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       }
       if (gyro_count > 0) {
         gyro_bias_update /= static_cast<double>(gyro_count);
-        CLOG(WARNING, "lidar.odometry_doppler") << "Gyro bias update: " << gyro_bias_update.transpose();
         if (gyro_bias_update.norm() < 2 * gyro_bias.norm()) { // avoid large jumps
           float alpha = 0.01;
           *qdata.gyro_bias = gyro_bias * (1-alpha) + gyro_bias_update * alpha;
-          CLOG(WARNING, "lidar.odometry_doppler") << "Updated gyro bias to: " << qdata.gyro_bias->transpose();
         }
       }
     }

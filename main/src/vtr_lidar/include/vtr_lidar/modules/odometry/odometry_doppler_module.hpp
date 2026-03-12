@@ -110,7 +110,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
   Eigen::Matrix<double, 6, 6> cov_T_k;        // covariance of pose T_k
 
   // gyro inverse covariance
-  Eigen::Matrix3d gyro_invcov_;
+  Eigen::Matrix3d gyro_cov_inv_;
 
   void run_(tactic::QueryCache &qdata, 
             tactic::OutputCache &output,
