@@ -588,9 +588,9 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix<double,6,6> P_int = cov_T_k;
   Eigen::Matrix<double,6,6> P_T_tau = Eigen::Matrix<double,6,6>::Zero();
   
-  Eigen::Matrix4d T_query = Eigen::Matrix4d::Identity();
-  Eigen::Matrix<double,6,6> P_query = Eigen::Matrix<double,6,6>::Zero();
-  Eigen::Matrix<double,6,1> w_query = Eigen::Matrix<double,6,1>::Zero();
+  // Eigen::Matrix4d T_query = Eigen::Matrix4d::Identity();
+  // Eigen::Matrix<double,6,6> P_query = Eigen::Matrix<double,6,6>::Zero();
+  // Eigen::Matrix<double,6,1> w_query = Eigen::Matrix<double,6,1>::Zero();
 
   // Integrate between the sorted time-points
   for (size_t i = 1; i < step_times.size(); ++i) {
@@ -618,12 +618,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     P_int = P_T_tau;
     T_21 = lgmath::se3::vec2tran(phi_interp) * T_21;
 
-    // Floating point safe comparison for query time
-    if (std::abs(t - t_rel_query) < 1e-9) {
-      T_query = T_21 * prev_T_r_m_odo.matrix();
-      P_query = P_int; 
-      w_query = vinterp;
-    }
+    // // Floating point safe comparison for query time
+    // if (std::abs(t - t_rel_query) < 1e-9) {
+    //   T_query = T_21 * prev_T_r_m_odo.matrix();
+    //   P_query = P_int; 
+    //   w_query = vinterp;
+    // }
   }
 
   EdgeTransform T_temp;
@@ -655,10 +655,10 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     // interpolate state at query time
     Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_query = nullptr;
     Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_query = nullptr;
-    // T_r_m_query = trajectory->getPoseInterpolator(Time(query_time));
-    // w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
-    T_r_m_query = SE3StateVar::MakeShared(EdgeTransform(T_query, P_query));
-    w_m_r_in_r_query = VSpaceStateVar<6>::MakeShared(w_query);
+    T_r_m_query = trajectory->getPoseInterpolator(Time(query_time));
+    w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
+    // T_r_m_query = SE3StateVar::MakeShared(EdgeTransform(T_query, P_query));
+    // w_m_r_in_r_query = VSpaceStateVar<6>::MakeShared(w_query);
 
     // compound transform for alignment (sensor to point map transform)
     const auto T_s_m_query = compose(T_s_r_var, T_r_m_query);
@@ -702,8 +702,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
       qdata.undistorted_point_cloud = undistorted_point_cloud;
     }
 
-    *qdata.T_r_m_odo = EdgeTransform(prev_T_r_m_odo, P_query);
-    *qdata.w_m_r_in_r_odo = prev_w_m_r_in_r_odo;
+    *qdata.T_r_m_odo = EdgeTransform(T_r_m_query->value(), P_query);
+    *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
 
     auto &sliding_map_odo = *qdata.sliding_map_odo;
 
