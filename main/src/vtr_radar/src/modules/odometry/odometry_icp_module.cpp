@@ -297,10 +297,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// create kd-tree of the map
   // Transform point map (currently in map frame m) into map sensor frame (ms) for matching.
   const auto T_s_r_mat_f = T_s_r.matrix().cast<float>();
-  for (unsigned i = 0; i < point_map_copy.size(); ++i) {
-    map_mat.block<4, 1>(0, i) = T_s_r_mat_f * map_mat.block<4, 1>(0, i);
-    map_normals_mat.block<4, 1>(0, i) = T_s_r_mat_f * map_normals_mat.block<4, 1>(0, i);
-  }
+  map_mat = T_s_r_mat_f * map_mat;
+  map_normals_mat = T_s_r_mat_f * map_normals_mat;
 
   CLOG(DEBUG, "radar.odometry_icp") << "Start building a kd-tree of the map.";
   NanoFLANNAdapter<PointWithInfo> adapter(point_map_copy);
