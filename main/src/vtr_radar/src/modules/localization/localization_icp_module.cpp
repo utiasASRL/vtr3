@@ -128,11 +128,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
   const auto map_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  // const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// create kd-tree of the map
   CLOG(DEBUG, "radar.localization_icp") << "Start building a kd-tree of the map.";
@@ -145,7 +142,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   {
     const auto T_m_s = T_m_s_eval->evaluate().toSE3().matrix().cast<float>();
     aligned_mat = T_m_s * query_mat;
-    aligned_norms_mat = T_m_s * query_norms_mat;
   }
 
   using Stopwatch = common::timing::Stopwatch<>;
@@ -256,7 +252,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     {
       const auto T_m_s = T_m_s_eval->evaluate().toSE3().matrix().cast<float>();
       aligned_mat = T_m_s * query_mat;
-      aligned_norms_mat = T_m_s * query_norms_mat;
     }
 
     // Update all result matrices
