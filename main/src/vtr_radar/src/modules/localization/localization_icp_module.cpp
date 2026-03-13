@@ -89,10 +89,14 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
-  // Extract 2D transforms
-  const lgmath::se2::Transformation T_s_r_2d = T_s_r.toSE2();
-  const lgmath::se2::Transformation T_r_v_2d = T_r_v.toSE2();
-  const lgmath::se2::Transformation T_v_m_2d = T_v_m.toSE2();
+  // We want to run ICP in the sensor frame to do proper SE(2)
+  // We thus transform both the vertex and robot frame into the radar frame and do ICP there.
+  // The final result can then be easily transformed back to the vertex frame.
+  const auto T_vs_m = T_s_r * T_v_m;
+  const auto T_s_vs = T_s_r * T_r_v * T_s_r.inverse();
+  // Note that T_s_vs may not be perfectly 2D, but we chop off the 2D parts since for radar-only
+  // estimation it is impossible for us to observe a full 3D pose
+  const auto T_s_vs_2d = T_s_vs.toSE2();
 
   /// Parameters
   int first_steps = config_->first_num_steps;
@@ -103,25 +107,19 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   KDTreeSearchParams search_params;
 
   // clang-format off
-  /// Create robot to sensor transform variable, fixed.
-  const auto T_s_r_var = SE2StateVar::MakeShared(T_s_r_2d); T_s_r_var->locked() = true;
-  const auto T_v_m_var = SE2StateVar::MakeShared(T_v_m_2d); T_v_m_var->locked() = true;
-
   /// Create and add the T_robot_map variable, here m = vertex frame.
-  const auto T_r_v_var = SE2StateVar::MakeShared(T_r_v_2d);
+  const auto T_s_vs_var = SE2StateVar::MakeShared(T_s_vs_2d);
+  const auto T_vs_s_eval = inverse(T_s_vs_var);
 
   /// use odometry as a prior
   WeightedLeastSqCostTerm<3>::Ptr prior_cost_term = nullptr;
   if (config_->use_pose_prior && output.chain->isLocalized()) {
     auto loss_func = L2LossFunc::MakeShared();
-    auto noise_model = StaticNoiseModel<3>::MakeShared(cov3Dto2D(T_r_v.cov()));
-    auto T_r_v_meas = SE2StateVar::MakeShared(T_r_v_2d); T_r_v_meas->locked() = true;
-    auto error_func = tran2vec(compose(T_r_v_meas, inverse(T_r_v_var)));
+    auto noise_model = StaticNoiseModel<3>::MakeShared(cov3Dto2D(T_s_vs.cov()));
+    auto T_s_vs_meas = SE2StateVar::MakeShared(T_s_vs_2d); T_s_vs_meas->locked() = true;
+    auto error_func = tran2vec(compose(T_s_vs_meas, inverse(T_s_vs_var)));
     prior_cost_term = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func);
   }
-
-  /// compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, compose(T_r_v_var, T_v_m_var)));
 
   /// Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
@@ -140,8 +138,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
   /// perform initial alignment
   {
-    const auto T_m_s = T_m_s_eval->evaluate().toSE3().matrix().cast<float>();
-    aligned_mat = T_m_s * query_mat;
+    const auto T_s_m = T_s_vs_var->evaluate().toSE3() * T_vs_m;
+    const auto T_s_m_mat_f = T_s_m.inverse().matrix().cast<float>();
+    aligned_mat = T_s_m_mat_f * query_mat;
   }
 
   using Stopwatch = common::timing::Stopwatch<>;
@@ -163,6 +162,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   timer.emplace_back(std::make_unique<Stopwatch>(false));
 
   // ICP results
+  EdgeTransform T_s_vs_icp;
   EdgeTransform T_r_v_icp;
   float matched_points_ratio = 0.0;
 
@@ -211,7 +211,7 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     OptimizationProblem problem(config_->num_threads);
 
     // add variables
-    problem.addStateVariable(T_r_v_var);
+    problem.addStateVariable(T_s_vs_var);
 
     // add prior cost terms
     if (prior_cost_term != nullptr) problem.addCostTerm(prior_cost_term);
@@ -227,9 +227,14 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
       // query and reference point
       const auto qry_pt = query_mat.block<2, 1>(0, ind.first).cast<double>();
-      const auto ref_pt = map_mat.block<2, 1>(0, ind.second).cast<double>();
+      const auto ref_pt_vs = T_vs_m * map_mat.block<4, 1>(0, ind.second).cast<double>();
+      const auto ref_pt = ref_pt_vs.block<2, 1>(0, 0);
+      const auto error_func = p2p::p2pSE2Error(T_vs_s_eval, ref_pt, qry_pt);
 
-      const auto error_func = p2p::p2pSE2Error(T_m_s_eval, ref_pt, qry_pt);
+      if (step == 0 && ind.first == 0) {
+        CLOG(DEBUG, "radar.localization_icp") << "First query point: " <<  query_mat.block<4, 1>(0, ind.first).transpose();
+        CLOG(DEBUG, "radar.localization_icp") << "First reference point: " << ref_pt_vs.transpose();
+      }
 
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<2>::MakeShared(error_func, noise_model, loss_func);
@@ -250,18 +255,19 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Alignment
     timer[4]->start();
     {
-      const auto T_m_s = T_m_s_eval->evaluate().toSE3().matrix().cast<float>();
-      aligned_mat = T_m_s * query_mat;
+      const auto T_s_m = T_s_vs_var->evaluate().toSE3() * T_vs_m;
+      const auto T_s_m_mat_f = T_s_m.inverse().matrix().cast<float>();
+      aligned_mat = T_s_m_mat_f * query_mat;
     }
 
     // Update all result matrices
-    const auto T_m_s = T_m_s_eval->evaluate().matrix();
+    const auto T_vs_s = T_vs_s_eval->evaluate().matrix();
     if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_m_s);
+      all_tfs = Eigen::MatrixXd(T_vs_s);
     else {
       Eigen::MatrixXd temp(all_tfs.rows() + 3, 3);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(3) = Eigen::MatrixXd(T_m_s);
+      temp.bottomRows(3) = Eigen::MatrixXd(T_vs_s);
       all_tfs = temp;
     }
     timer[4]->stop();
@@ -312,8 +318,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
       // result
-      const Eigen::Matrix3d cov_var = covariance.query(T_r_v_var);
-      T_r_v_icp = EdgeTransform(T_r_v_var->value().toSE3(), cov2Dto3D(cov_var));
+      const Eigen::Matrix3d cov_var = covariance.query(T_s_vs_var);
+      T_s_vs_icp = EdgeTransform(T_s_vs_var->value().toSE3(), cov2Dto3D(cov_var));
+      T_r_v_icp = T_s_r.inverse() * T_s_vs_icp * T_s_r;
       matched_points_ratio = (float)filtered_sample_inds.size() / (float)sample_inds.size();
       //
       CLOG(DEBUG, "radar.localization_icp") << "Total number of steps: " << step << ", with matched ratio " << matched_points_ratio;
