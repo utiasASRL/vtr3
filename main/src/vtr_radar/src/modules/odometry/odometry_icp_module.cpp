@@ -275,23 +275,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   /// Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
+  /// Eigen matrix of original data (only shallow copy of ref clouds)
+  const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+
   /// Deep copy of map points (since we will be transforming them for matching)
   pcl::PointCloud<PointWithInfo> point_map_copy(point_map);
   auto map_mat = point_map_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto map_normals_mat = point_map_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-  /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-  auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
-
-  /// create kd-tree of the map
   // Transform point map (currently in map frame m) into map sensor frame (ms) for matching.
   const auto T_s_r_mat_f = T_s_r.matrix().cast<float>();
   map_mat = T_s_r_mat_f * map_mat;
-  map_normals_mat = T_s_r_mat_f * map_normals_mat;
 
+  /// create kd-tree of the map
   CLOG(DEBUG, "radar.odometry_icp") << "Start building a kd-tree of the map.";
   NanoFLANNAdapter<PointWithInfo> adapter(point_map_copy);
   KDTreeParams tree_params(10 /* max leaf */);
@@ -333,7 +329,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // Transform to 3D for point manipulation
     const auto T_ms_s = T_ms_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
     aligned_mat.block<4, 1>(0, i) = T_ms_s * aligned_mat.block<4, 1>(0, i);
-    aligned_norms_mat.block<4, 1>(0, i) = T_ms_s * query_norms_mat.block<4, 1>(0, i);
   }
   // aligned_mat is now motion/Doppler undistorted and in the same ms frame
   // map_mat is now in ms frame as well
@@ -607,7 +602,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       // Transform to 3D for point manipulation
       const auto T_ms_s = T_ms_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
       aligned_mat.block<4, 1>(0, i) = T_ms_s * aligned_mat.block<4, 1>(0, i);
-      aligned_norms_mat.block<4, 1>(0, i) = T_ms_s * query_norms_mat.block<4, 1>(0, i);
     }
     // aligned_mat is now in ms frame using latest estimate
 
@@ -748,7 +742,6 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     // undistort the preprocessed pointcloud to eval state (at query timestamp)
     const auto T_s_ms = T_s_ms_eval->evaluate().toSE3().matrix().cast<float>();
     aligned_mat = T_s_ms * aligned_mat;
-    aligned_norms_mat = T_s_ms * aligned_norms_mat;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
