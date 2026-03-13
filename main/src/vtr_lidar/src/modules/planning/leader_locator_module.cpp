@@ -37,6 +37,7 @@ auto LeaderLocator::Config::fromROS(
   config->minimum_distance = node->declare_parameter<float>(param_prefix + ".minimum_distance", config->minimum_distance);
   config->intensity_threshold = node->declare_parameter<float>(param_prefix + ".intensity_threshold", config->intensity_threshold);
   config->publish = node->declare_parameter<bool>(param_prefix + ".publish", config->publish);
+  config->extrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".extrinsic", std::vector<double>{-3.5, 0.0, 0.273});
 
   // clang-format on
   return config;
@@ -54,7 +55,6 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
 
   if (!publisher_initialized_) {
     distance_pub_ = qdata.node->create_publisher<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile());
-    transform_pub_ = qdata.node->create_publisher<TransformMsg>("leader_transform", rclcpp::QoS(1).best_effort().durability_volatile());
     publisher_initialized_ = true;
   }
 
@@ -102,22 +102,11 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
   };
   normal.normalize();
   Eigen::Vector4d leader_position = centroid.cast<double>();
-  leader_position.head<3>() += 0.0454*normal;
+  leader_position.head<3>() += config_->extrinsic.at(0)*normal;
 
   Eigen::Vector4d leader_in_follower = T_s_r.inverse().matrix() * leader_position;
-  leader_in_follower(2) -= 10.75*0.0254;
-  
-  // Calculate the leader pose in the follower frame
-  Eigen::Affine3d T_leader_follower = Eigen::Affine3d::Identity();
-  T_leader_follower.translation() = leader_in_follower.head<3>();
-  // Plate is mounted with normal facing toward the follower, so we can construct the rotation matrix from the normal vector
-  Eigen::Vector3d x_axis = normal.cross(Eigen::Vector3d::UnitX()).normalized();
-  Eigen::Vector3d y_axis = normal.cross(x_axis).normalized();
-  Eigen::Matrix3d R;
-  R.col(0) = x_axis;
-  R.col(1) = y_axis;
-  R.col(2) = normal;
-  T_leader_follower.linear() = R;
+  leader_in_follower(2) -= config_->extrinsic.at(2);
+
 
   CLOG(DEBUG, static_name)
       << "Plane fit of Model coefficients: " << coefficients->values[0] << " " 
@@ -134,12 +123,6 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
     FloatMsg dist_msg;
     dist_msg.data = leader_dist;
     distance_pub_->publish(dist_msg);
-
-    Eigen::Affine3d T(T_leader_follower.matrix());
-    TransformMsg msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "base_link";
-    msg.header.stamp = rclcpp::Time(stamp);
-    transform_pub_->publish(msg);
   }
 }
 

@@ -53,6 +53,8 @@ class LeaderLocator : public tactic::BaseModule {
     float intensity_threshold = 0;
     bool publish = true;
 
+    std::vector<double> extrinsic;
+
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
