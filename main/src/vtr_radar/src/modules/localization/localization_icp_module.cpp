@@ -92,10 +92,9 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // We want to run ICP in the sensor frame to do proper SE(2)
   // We thus transform both the vertex and robot frame into the radar frame and do ICP there.
   // The final result can then be easily transformed back to the vertex frame.
-  const auto T_vs_m = T_s_r * T_v_m;
-  const auto T_s_vs = T_s_r * T_r_v * T_s_r.inverse();
   // Note that T_s_vs may not be perfectly 2D, but we chop off the 2D parts since for radar-only
   // estimation it is impossible for us to observe a full 3D pose
+  const auto T_s_vs = T_s_r * T_r_v * T_s_r.inverse();
   const auto T_s_vs_2d = T_s_vs.toSE2();
 
   /// Parameters
@@ -125,22 +124,29 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
+  /// Deep copy of map points (since we will be transforming them for matching)
+  pcl::PointCloud<PointWithInfo> point_map_copy(point_map);
+  auto map_mat = point_map_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+
+  // Transform point map (currently in map frame m) into vertex sensor frame (vs) for matching.
+  const auto T_vs_m = T_s_r * T_v_m;
+  const auto T_vs_m_mat_f = T_vs_m.matrix().cast<float>();
+  map_mat = T_vs_m_mat_f * map_mat;
+
   /// create kd-tree of the map
   CLOG(DEBUG, "radar.localization_icp") << "Start building a kd-tree of the map.";
-  NanoFLANNAdapter<PointWithInfo> adapter(point_map);
+  NanoFLANNAdapter<PointWithInfo> adapter(point_map_copy);
   KDTreeParams tree_params(/* max leaf */ 10);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   /// perform initial alignment
   {
-    const auto T_s_m = T_s_vs_var->evaluate().toSE3() * T_vs_m;
-    const auto T_s_m_mat_f = T_s_m.inverse().matrix().cast<float>();
-    aligned_mat = T_s_m_mat_f * query_mat;
+    const auto T_vs_s_mat_f = T_s_vs_var->evaluate().toSE3().inverse().matrix().cast<float>();
+    aligned_mat = T_vs_s_mat_f * query_mat;
   }
 
   using Stopwatch = common::timing::Stopwatch<>;
@@ -227,14 +233,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
 
       // query and reference point
       const auto qry_pt = query_mat.block<2, 1>(0, ind.first).cast<double>();
-      const auto ref_pt_vs = T_vs_m * map_mat.block<4, 1>(0, ind.second).cast<double>();
-      const auto ref_pt = ref_pt_vs.block<2, 1>(0, 0);
+      const auto ref_pt = map_mat.block<2, 1>(0, ind.second).cast<double>();
       const auto error_func = p2p::p2pSE2Error(T_vs_s_eval, ref_pt, qry_pt);
-
-      if (step == 0 && ind.first == 0) {
-        CLOG(DEBUG, "radar.localization_icp") << "First query point: " <<  query_mat.block<4, 1>(0, ind.first).transpose();
-        CLOG(DEBUG, "radar.localization_icp") << "First reference point: " << ref_pt_vs.transpose();
-      }
 
       // create cost term and add to problem
       auto cost = WeightedLeastSqCostTerm<2>::MakeShared(error_func, noise_model, loss_func);
@@ -255,9 +255,8 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
     /// Alignment
     timer[4]->start();
     {
-      const auto T_s_m = T_s_vs_var->evaluate().toSE3() * T_vs_m;
-      const auto T_s_m_mat_f = T_s_m.inverse().matrix().cast<float>();
-      aligned_mat = T_s_m_mat_f * query_mat;
+      const auto T_vs_s_mat_f = T_s_vs_var->evaluate().toSE3().inverse().matrix().cast<float>();
+      aligned_mat = T_vs_s_mat_f * query_mat;
     }
 
     // Update all result matrices
