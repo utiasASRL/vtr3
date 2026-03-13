@@ -37,7 +37,7 @@ auto LeaderLocator::Config::fromROS(
   config->minimum_distance = node->declare_parameter<float>(param_prefix + ".minimum_distance", config->minimum_distance);
   config->intensity_threshold = node->declare_parameter<float>(param_prefix + ".intensity_threshold", config->intensity_threshold);
   config->publish = node->declare_parameter<bool>(param_prefix + ".publish", config->publish);
-  config->extrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".extrinsic", std::vector<double>{-3.5, 0.0, 0.273});
+  config->extrinsic = node->declare_parameter<std::vector<double>>(param_prefix + ".extrinsic", std::vector<double>{0.0, 0.0, 0.0});
 
   // clang-format on
   return config;
