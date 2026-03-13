@@ -164,12 +164,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   std::sort(timestamps.begin(), timestamps.end());
   timestamps.erase(std::unique(timestamps.begin(), timestamps.end()), timestamps.end());
 
-  //log the timestamps
-  CLOG(INFO, "lidar.odometry_wheel") << "Timestamps: ";
-  for (const auto &ts : timestamps) {
-    CLOG(INFO, "lidar.odometry_wheel") << rclcpp::Time(ts).nanoseconds();
-  }
-
   // Initialize current and next timestamps
   rclcpp::Time curr_time(timestamps[0]);
   rclcpp::Time next_time(timestamps[1]);
@@ -213,8 +207,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     next_wheel_time = wheel_meas[ptr_pulse + 1].first;
 
     if (timestamps[i] < next_est_stamp){
-      if (next_time.seconds() >= next_gyro_time.seconds()) ptr_ang++;
-      if (next_time.seconds() >= next_wheel_time.seconds()) ptr_pulse++;
+      if (next_time.seconds() >= next_gyro_time.seconds() && ptr_ang + 2 < (int)gyro_msgs.size()) ptr_ang++;
+      if (next_time.seconds() >= next_wheel_time.seconds() && ptr_pulse + 2 < (int)wheel_meas.size()) ptr_pulse++;
       continue;
     }
 
@@ -260,7 +254,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
       
       total_dist += dist;
 
-      delta_pos = current_theta * Eigen::Vector3d(dist, 0, 0); // check this
+      delta_pos = current_theta * Eigen::Vector3d(0, dist, 0); // check this
       
     } else {
       delta_pos = Eigen::Vector3d::Zero();
@@ -291,7 +285,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     current_theta = current_theta * lgmath::so3::vec2rot(ang); // update orientation
 
     delta_time += next_time.seconds() - curr_time.seconds();
-    linear_velocity += Eigen::Vector3d(dist, 0, 0);
+    linear_velocity += Eigen::Vector3d(0, dist, 0);
     angular_velocity += ang;
 
     // save first estimated pose
@@ -327,9 +321,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
       w_last.block<3, 1>(3, 0) = angular_velocity / delta_time;
     }
 
-    if (next_time.seconds() >= next_wheel_time.seconds()) ptr_pulse++;
-
-    if (next_time.seconds() >= next_gyro_time.seconds()) ptr_ang++;
+    if (next_time.seconds() >= next_wheel_time.seconds() && ptr_pulse + 2 < (int)wheel_meas.size()) ptr_pulse++;
+    if (next_time.seconds() >= next_gyro_time.seconds() && ptr_ang + 2 < (int)gyro_msgs.size()) ptr_ang++;
 
   } // end estimation loop 
 
@@ -350,6 +343,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (query_stamp <= first_est_stamp) {
     // If the query time is before the first timestamp, use the first timestamp
+    CLOG(WARNING, "lidar.odometry_wheel") << "Query time is before first timestamp, using first estimated pose.";
     T_r_m_eval = T_r_m_eval_first;
     w_query = w_first;
   }

@@ -83,7 +83,7 @@ class OdometryWheelModule : public tactic::BaseModule {
   int64_t last_wheel_stamp = 0;
 
   Eigen::Vector3d current_p = Eigen::Vector3d::Zero();
-  Eigen::Matrix3d current_theta = lgmath::so3::vec2rot(Eigen::Vector3d(0, 0, 0));
+  Eigen::Matrix3d current_theta = lgmath::so3::vec2rot(Eigen::Vector3d(0, 0, M_PI / 2));
 
 
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
