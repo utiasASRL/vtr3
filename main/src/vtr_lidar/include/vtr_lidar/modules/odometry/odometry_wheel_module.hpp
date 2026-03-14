@@ -74,7 +74,7 @@ class OdometryWheelModule : public tactic::BaseModule {
   double total_dist = 0.0;
   double max_bias = 0.0;
 
-  std::vector<sensor_msgs::msg::Imu> last_gyro_msg;
+  sensor_msgs::msg::Imu last_gyro_msg;
   std::pair<rclcpp::Time, double> last_wheel_meas;
   
   int64_t last_bias_time = 0;

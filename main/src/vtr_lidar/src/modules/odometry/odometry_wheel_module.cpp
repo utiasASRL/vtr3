@@ -120,15 +120,23 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   int ptr_ang = 0;
   int ptr_pulse = 0;
   if (frame_count > 0) {
+    // add last gyro and wheel measurement to the beginning of the current measurement list
+    gyro_msgs.insert(gyro_msgs.begin(), last_gyro_msg);
+    wheel_meas.insert(wheel_meas.begin(), last_wheel_meas);
+
+    CLOG(DEBUG, "lidar.odometry_wheel") << "Added last gyro and wheel measurement to the beginning of the current measurement list.";
+
     // Advance ptr_ang until gyro_msgs[ptr_ang].header.stamp matches last_gyro_stamp
     while (ptr_ang + 1 < gyro_msgs.size() &&
       rclcpp::Time(gyro_msgs[ptr_ang].header.stamp).nanoseconds() < rclcpp::Time(last_gyro_stamp).nanoseconds()) {
       ptr_ang++;
+      CLOG(DEBUG, "lidar.odometry_wheel") << "Advancing gyro pointer to index " << ptr_ang;
     }
     // Advance ptr_pulse until wheel_meas[ptr_pulse].first matches last_wheel_stamp
     while (ptr_pulse + 1 < wheel_meas.size() &&
       wheel_meas[ptr_pulse].first.nanoseconds() < rclcpp::Time(last_wheel_stamp).nanoseconds()) {
       ptr_pulse++;
+      CLOG(DEBUG, "lidar.odometry_wheel") << "Advancing wheel pointer to index " << ptr_pulse;
     }
   }
 
@@ -175,6 +183,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
   const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
   int64_t last_pt_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
+  CLOG(DEBUG, "lidar.odometry_wheel") << "Last point timestamp: " << last_pt_time;
 
   // Find the largest timestamp less than last_pt_time
   auto it = std::lower_bound(timestamps.begin(), timestamps.end(), last_pt_time);
@@ -329,6 +338,9 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   next_est_stamp = next_time.nanoseconds();
   last_gyro_stamp = curr_gyro_time.nanoseconds();
   last_wheel_stamp = curr_wheel_time.nanoseconds();
+
+  last_gyro_msg = gyro_msgs.back();
+  last_wheel_meas = wheel_meas.back();
 
   // transform estimated pose to map frame
   // at first time
