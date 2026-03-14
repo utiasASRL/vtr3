@@ -251,32 +251,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       << ", obstacle_costs.update_min_sec=" << route_cfg_.obstacle_prior_update_min_sec
       << ", obstacle_costs.update_max_sec=" << route_cfg_.obstacle_prior_update_max_sec;
 
-  const std::string planner_name =
-      route_cfg_.memory ? route_cfg_.planner_with_memory
-                        : route_cfg_.planner_without_memory;
-
-  if (planner_name == "time_dependent_shortest_path") {
-    // TDSP (label-setting / Dijkstra-like on earliest-arrival labels).
-    auto tdsp = std::make_shared<vtr::route_planning::TDSPPlanner>(graph_);
-    tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
-    tdsp->setNowSecCallback([this]() { return node_->get_clock()->now().seconds(); });
-    route_planner_ = tdsp;
-  } else if (planner_name == "dijkstra") {
-    // Dijkstra-like (BFSPlanner + masked Dijkstra + time-based weights).
-    auto bfs = std::make_shared<vtr::route_planning::BFSPlanner>(graph_);
-    bfs->setNominalSpeed(route_cfg_.nominal_speed_mps);
-    bfs->setUseMasked(route_cfg_.enable_reroute);
-    route_planner_ = bfs;
-  } else {
-    // Default to dijkstra for unknown planner names (safe fallback).
-    CLOG(WARNING, "navigation")
-        << "Unknown planner name '" << planner_name
-        << "'. Falling back to 'dijkstra'.";
-    auto bfs = std::make_shared<vtr::route_planning::BFSPlanner>(graph_);
-    bfs->setNominalSpeed(route_cfg_.nominal_speed_mps);
-    bfs->setUseMasked(route_cfg_.enable_reroute);
-    route_planner_ = bfs;
-  }
+  // HSHMAT: Always use TDSP planner - it supports both modes:
+  // - Memoryless mode: Only static_delays, no time intervals (like Dijkstra)
+  // - Memory mode: Time-dependent blockages that expire (for LEARNED strategy only)
+  // The strategy type determines which mode to use at runtime in triggerReroute().
+  auto tdsp = std::make_shared<vtr::route_planning::TDSPPlanner>(graph_);
+  tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
+  tdsp->setNowSecCallback([this]() { return node_->get_clock()->now().seconds(); });
+  route_planner_ = tdsp;
+  
+  CLOG(INFO, "navigation")
+      << "HSHMAT: Using TDSP planner (memoryless/memory mode selected by strategy at runtime)";
 
   if (route_cfg_.obstacle_cost_source == "file") {
     loadObstaclePriorsFromFile();
@@ -358,11 +343,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         "route_planning.obstacle_strategy.T_grid_points", 50);
     wait_strategy_config_.survival_data_file = node_->declare_parameter<std::string>(
         "route_planning.obstacle_strategy.survival_data_file", "");
+    wait_strategy_config_.obstacle_stats_dir = node_->declare_parameter<std::string>(
+        "route_planning.obstacle_strategy.obstacle_stats_dir", "");
     
-    // Expand environment variables in survival_data_file path
+    // Expand environment variables in paths
     if (!wait_strategy_config_.survival_data_file.empty()) {
       wait_strategy_config_.survival_data_file = 
           common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.survival_data_file));
+    }
+    if (!wait_strategy_config_.obstacle_stats_dir.empty()) {
+      wait_strategy_config_.obstacle_stats_dir = 
+          common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.obstacle_stats_dir));
     }
     
     // Load wait_types for rule_based strategy
@@ -449,6 +440,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   }
   
   // HSHMAT: Subscribe to speech completion signal from decision node
+  // NOTE: This must NOT use the MutuallyExclusive callback_group_ (sub_opt) because
+  // speakAndWait blocks while waiting for speech_done_. If speech_done_sub_ is in the
+  // same group, the callback can never run while speakAndWait is blocked.
   speech_done_ = true;
   speech_done_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
       "/vtr/speech_done", rclcpp::SystemDefaultsQoS(),
@@ -457,7 +451,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           speech_done_ = true;
           CLOG(DEBUG, "mission.state_machine") << "HSHMAT: Speech completed signal received.";
         }
-      }, sub_opt);
+      });
   
   {
     std_msgs::msg::Bool msg;
@@ -492,15 +486,16 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         if (!msg) return;
         
         // SIMPLE LOGIC:
-        // 1. DETECTED + Idle -> start episode (transition to Waiting, then process)
         // 1. DETECTED + Idle -> start episode (after cooldown)
         // 2. DETECTED + non-Idle -> IGNORE (already handling an episode)
-        // 4. CLEARED + Waiting -> handle cleared (for always_wait)
-        // 5. CLEARED + Rerouting with no_alternate_exists_ -> handle cleared (resume)
-        // 6. CLEARED + Rerouting without no_alternate_exists_ -> IGNORE (let reroute finish)
+        // 3. CLEARED + Waiting -> handle cleared (for always_wait)
+        // 4. CLEARED + Rerouting with no_alternate_exists_ -> handle cleared (resume)
+        // 5. CLEARED + Rerouting without no_alternate_exists_ -> IGNORE (let reroute finish)
+        // 6. CLEARED + AwaitingClassification -> IGNORE (wait for VLM)
         
         bool should_start_episode = false;
         bool should_handle_cleared = false;
+        bool should_speak_detected = false;  // For VLM strategies: say "Obstacle detected." immediately
         ObstacleState state_snapshot;
         
         {
@@ -526,10 +521,26 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
                     << "HSHMAT: Ignoring DETECTED during post-reroute cooldown (" << elapsed << "s < " << cooldown_sec << "s)";
                 return;
               }
-              obstacle_state_ = ObstacleState::Waiting;
-              should_start_episode = true;
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: DETECTED + Idle -> starting episode";
+              
+              // Check if strategy needs VLM classification (rule_based or learned)
+              StrategyType stype = wait_strategy_ ? wait_strategy_->type() : StrategyType::ALWAYS_WAIT;
+              bool needs_vlm = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED);
+              
+              if (needs_vlm) {
+                // Wait for VLM to classify obstacle before making decision
+                obstacle_state_ = ObstacleState::AwaitingClassification;
+                last_obstacle_type_ = "unknown";  // Reset to detect fresh classification
+                setRobotPaused(true);
+                should_speak_detected = true;  // Say "Obstacle detected." immediately
+                CLOG(INFO, "mission.state_machine")
+                    << "HSHMAT: DETECTED + Idle -> AwaitingClassification (waiting for VLM)";
+              } else {
+                // Strategies that don't need VLM (always_wait, always_detour, greedy_ctp)
+                obstacle_state_ = ObstacleState::Waiting;
+                should_start_episode = true;
+                CLOG(INFO, "mission.state_machine")
+                    << "HSHMAT: DETECTED + Idle -> starting episode";
+              }
             } else {
               // Already in episode - ignore
               CLOG(DEBUG, "mission.state_machine")
@@ -538,7 +549,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             }
           } else {
             // === CLEARED ===
-            if (obstacle_state_ == ObstacleState::Waiting) {
+            if (obstacle_state_ == ObstacleState::AwaitingClassification) {
+              // Obstacle cleared while waiting for VLM - ignore (wait for VLM to respond)
+              CLOG(DEBUG, "mission.state_machine")
+                  << "HSHMAT: Ignoring CLEARED during VLM classification";
+            } else if (obstacle_state_ == ObstacleState::Waiting) {
               // Obstacle cleared while waiting (always_wait) - handle it
               should_handle_cleared = true;
               CLOG(INFO, "mission.state_machine")
@@ -557,6 +572,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           }
         }
         // Lock released
+        
+        if (should_speak_detected) {
+          // For VLM strategies: say "Obstacle detected." immediately while VLM classifies
+          speakAndWait("Obstacle detected.", 3.0);
+        }
         
         if (should_start_episode) {
           startObstacleEpisode();
@@ -577,60 +597,31 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           // Use scoped lock
           LockGuard lock(obstacle_mutex_);
           
-          // HSHMAT: During reroute, check if planner produced a different route than our snapshot.
+          // HSHMAT: During reroute, accept the new route from the planner.
+          // With setBannedEdges, the planner guarantees the path avoids banned edges.
+          // If no path exists, plan.cpp catches the exception and calls onNoAlternateRoute.
           if (obstacle_state_ == ObstacleState::Rerouting && awaiting_new_route_ && !route->ids.empty()) {
-            const tactic::VertexId current_vid = getCurrentVertex();
-            const bool same_remaining = !reroute_snapshot_route_.empty() && current_vid.isValid()
-                && routesSameRemaining(reroute_snapshot_route_, route->ids, current_vid);
-            
-            if (reroute_snapshot_route_.empty()) {
-              // Snapshot was empty (e.g. route not yet received when reroute triggered).
-              CLOG(DEBUG, "mission.state_machine")
-                  << "HSHMAT: Route snapshot was empty, ignoring this route for reroute detection";
-            } else if (same_remaining) {
-              // Remaining path from current to goal is the same -> no alternate
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Route same (remaining path from current) - no alternate route.";
-              awaiting_new_route_ = false;
-              call_no_alternate = true;
-            } else {
-              // Different remaining path -> check if route goes through banned edges (greedy_ctp)
-              bool route_uses_banned_edge = false;
-              if (wait_strategy_ && wait_strategy_->type() == StrategyType::GREEDY_CTP) {
-                // Check if any edge in the new route is permanently banned
-                for (size_t i = 0; i + 1 < route->ids.size(); ++i) {
-                  tactic::EdgeId edge(tactic::VertexId(route->ids[i]), tactic::VertexId(route->ids[i + 1]));
-                  if (wait_strategy_->isEdgePermanentlyBanned(edge)) {
-                    route_uses_banned_edge = true;
-                    CLOG(INFO, "mission.state_machine")
-                        << "HSHMAT: New route uses banned edge " << edge << " - no valid alternate.";
-                    break;
-                  }
-                }
-              }
-              
-              if (route_uses_banned_edge) {
-                // Route goes through banned edge -> treat as no alternate
-                CLOG(INFO, "mission.state_machine")
-                    << "HSHMAT: Route uses permanently banned edges - no valid alternate route.";
-                awaiting_new_route_ = false;
-                call_no_alternate = true;
-              } else {
-                // Truly different route without banned edges -> success
-                CLOG(INFO, "mission.state_machine")
-                    << "HSHMAT: Reroute SUCCESS - planner produced different route!";
-                awaiting_new_route_ = false;
-                following_route_ids_.assign(route->ids.begin(), route->ids.end());
-                call_reroute_complete = true;
-              }
-            }
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT: Reroute SUCCESS - new path has " << route->ids.size() << " vertices";
+            awaiting_new_route_ = false;
+            following_route_ids_.assign(route->ids.begin(), route->ids.end());
+            call_reroute_complete = true;
           }
 
-          if (!call_reroute_complete) {
+          // Only update following_route_ids_ if we're NOT rejecting the route
+          // (i.e., not calling no_alternate and not during a failed reroute)
+          if (!call_reroute_complete && !call_no_alternate) {
             following_route_ids_.assign(route->ids.begin(), route->ids.end());
           }
         }
         // Lock released - call handlers outside lock
+        
+        // HSHMAT: Track edge traversals for learned policy statistics
+        // Do this outside the lock to avoid blocking
+        tactic::VertexId current_v = getCurrentVertex();
+        if (current_v.isValid()) {
+          trackEdgeTraversal(current_v);
+        }
         
         if (call_reroute_complete) {
           onRerouteComplete(true);
@@ -672,11 +663,29 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           sub_opt);
 
   // Hshmat: Obstacle type (person/chair/...) from VLM/decision node.
+  // For rule_based/learned strategies, this triggers startObstacleEpisode when VLM responds.
   obstacle_type_sub_ = node_->create_subscription<std_msgs::msg::String>(
       "/vtr/obstacle_type", rclcpp::SystemDefaultsQoS(),
       [this](const std_msgs::msg::String::SharedPtr msg) {
         if (!msg) return;
-        last_obstacle_type_ = msg->data;
+        
+        bool should_start_episode = false;
+        {
+          LockGuard lock(obstacle_mutex_);
+          last_obstacle_type_ = msg->data;
+          
+          // If awaiting VLM classification, this triggers the episode
+          if (obstacle_state_ == ObstacleState::AwaitingClassification) {
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT: VLM classified obstacle as '" << msg->data << "' - starting episode";
+            obstacle_state_ = ObstacleState::Waiting;
+            should_start_episode = true;
+          }
+        }
+        
+        if (should_start_episode) {
+          startObstacleEpisode();
+        }
       },
       sub_opt);
 
@@ -896,7 +905,16 @@ void Navigator::resetObstacleState() {
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: Resetting obstacle state. Previous FSM=" << obstacleStateToString(obstacle_state_);
   
-  // Stop any running timer
+  // Save learned strategy data before resetting (preserves statistics from previous run)
+  if (wait_strategy_ && wait_strategy_->type() == StrategyType::LEARNED) {
+    auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
+    if (learned) {
+      learned->saveData();
+      CLOG(INFO, "navigation") << "HSHMAT: Saved learned strategy data before reset";
+    }
+  }
+  
+  // Stop any running timers
   if (wait_timer_) {
     wait_timer_->cancel();
     wait_timer_.reset();
@@ -908,6 +926,9 @@ void Navigator::resetObstacleState() {
   last_obstacle_type_ = "unknown";
   wait_episode_start_sec_ = -1.0;
   wait_episode_type_ = "unknown";
+  
+  // Reset edge traversal tracking for new run
+  last_tracked_vertex_ = tactic::VertexId::Invalid();
   
   // Ensure robot is not paused
   if (robot_paused_) {
@@ -1069,6 +1090,27 @@ tactic::VertexId Navigator::getGoalVertex() const {
   return tactic::VertexId(following_route_ids_.back());
 }
 
+void Navigator::trackEdgeTraversal(const tactic::VertexId& new_vertex) {
+  // Track edge traversals for learned policy statistics
+  // Only count if we have a valid previous vertex and it's different
+  if (!new_vertex.isValid()) return;
+  
+  if (last_tracked_vertex_.isValid() && last_tracked_vertex_ != new_vertex) {
+    // Robot moved from last_tracked_vertex_ to new_vertex - count this edge
+    if (wait_strategy_ && wait_strategy_->type() == StrategyType::LEARNED) {
+      auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
+      if (learned && learned->obstacleStats()) {
+        learned->obstacleStats()->recordEdgeTraversal();
+        CLOG(DEBUG, "navigation") << "HSHMAT: Edge traversal recorded: " 
+                                  << last_tracked_vertex_ << " -> " << new_vertex
+                                  << " (total: " << learned->obstacleStats()->totalEdgesTraversed() << ")";
+      }
+    }
+  }
+  
+  last_tracked_vertex_ = new_vertex;
+}
+
 bool Navigator::routesSameRemaining(
     const std::vector<uint64_t>& snapshot,
     const std::vector<uint64_t>& new_route,
@@ -1133,8 +1175,13 @@ void Navigator::startObstacleEpisode() {
     
     // Compute which edges are blocked by this obstacle
     current_blocked_edges_ = computeBlockedEdges();
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Blocked edges count: " << current_blocked_edges_.size();
+    {
+      std::stringstream ss;
+      ss << "HSHMAT: Blocked edges (" << current_blocked_edges_.size() << "): ";
+      for (const auto& e : current_blocked_edges_) ss << e << " ";
+      ss << " [current_v=" << getCurrentVertex() << "]";
+      CLOG(INFO, "mission.state_machine") << ss.str();
+    }
     
     // Get current and goal vertices for TDSP
     tactic::VertexId current_v = getCurrentVertex();
@@ -1172,8 +1219,11 @@ void Navigator::startObstacleEpisode() {
       }
       triggerReroute();
     } else {
-      // Waiting - non-blocking speak is fine since robot stays paused
-      speak(decision.speech);
+      // Waiting - must use speakAndWait so we don't process CLEARED until
+      // "person. Waiting." (etc.) finishes. Otherwise a speech_done from the
+      // wait announcement can be mistaken for "Obstacle cleared." and the
+      // robot would move before saying "Obstacle cleared."
+      speakAndWait(decision.speech, 5.0);
       
       {
         LockGuard lock(obstacle_mutex_);
@@ -1310,7 +1360,7 @@ void Navigator::onRerouteComplete(bool alternate_found) {
   }
   
   CLOG(INFO, "mission.state_machine") << "HSHMAT: Reroute completed successfully.";
-  completeEpisode();  // Sets cooldown in completeEpisode()
+  completeEpisode();
 }
 
 void Navigator::onNoAlternateRoute() {
@@ -1357,8 +1407,23 @@ void Navigator::onNoAlternateRoute() {
       break;
     }
     
+    case StrategyType::RULE_BASED:
+    case StrategyType::LEARNED: {
+      // HSHMAT: Same as ALWAYS_DETOUR - wait for obstacle to clear
+      // These strategies attempted reroute but failed; wait for original path to clear
+      speakAndWait("No alternate path to goal. Waiting.", 5.0);
+      {
+        LockGuard lock(obstacle_mutex_);
+        announcing_no_alternate_ = false;
+      }
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: 'No alternate' announcement complete - now waiting for obstacle to clear.";
+      // Stay in Rerouting state - obstacle_status callback will handle resuming
+      break;
+    }
+    
     default:
-      // Other strategies: resume on original path
+      // Unknown strategies: resume on original path (fallback)
       {
         LockGuard lock(obstacle_mutex_);
         no_alternate_exists_ = false;
@@ -2135,123 +2200,50 @@ void Navigator::triggerReroute() {
       << "HSHMAT: Saved route snapshot (" << reroute_snapshot_route_.size() 
       << " vertices) for reroute detection.";
 
-  // ===== STEP 4b: IDENTIFY AFFECTED GRAPH EDGES =====
-  // Find which edges in the pose graph are blocked by the obstacle
-  // These edges represent robot poses that pass through the blocked area
+  // ===== STEP 4b: RECOMPUTE BLOCKED EDGES WITH CURRENT LOCALIZATION =====
+  // Recompute blocked edges now, using the current (refined) localization.
+  // During the speech delay, localization may have caught up with the true position.
+  // Using stale blocked edges from detection time can cause issues when the robot's
+  // localization estimate changed (e.g., robot was at vertex 16 at detection but 
+  // localization refined to vertex 14 by planning time).
+  EdgeIdSet fresh_blocked = computeBlockedEdges();
+  
+  // Also update current_blocked_edges_ for consistency with route validation
+  {
+    LockGuard lock(obstacle_mutex_);
+    current_blocked_edges_ = fresh_blocked;
+  }
+  
   std::vector<vtr::tactic::EdgeId> affected_edges;
-  try {
-    // Find the robot's current position in the planned route
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Step 4b - Evaluating edges along current route for obstacle overlap";
-    const auto loc = tactic_->getPersistentLoc();  // Current robot localization
-    const auto current_vid = loc.v;                // Current vertex ID
-    int idx = -1;  // Index of current vertex in the route
-
-    // Search through the following route to find where the robot currently is
-    for (size_t i = 0; i < following_route_ids_.size(); ++i) {
-      if (vtr::tactic::VertexId(following_route_ids_[i]) == current_vid) {
-        idx = static_cast<int>(i);
-        break;
-      }
-    }
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Found current vertex at route index: " << idx;
-
-    if (idx >= 0) {
-      // Calculate the spatial extent of the obstacle along the path
-      const double obstacle_extent_m = estimateObstacleExtentFromGrid();
-      const double obstacle_start = last_obstacle_distance_;          // Distance to start of obstacle
-      const double obstacle_end = obstacle_start + obstacle_extent_m; // Distance to end of obstacle
-      double accumulated_distance = 0.0;  // Running total distance along path
-
-      CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: Obstacle detected at " << last_obstacle_distance_
-          << " m ahead, banning edges in range [" << obstacle_start << " m, "
-          << obstacle_end << " m] (extent from grid: " << obstacle_extent_m
-          << " m)";
-
-      // ===== ITERATE THROUGH ROUTE EDGES FROM CURRENT POSITION =====
-      // Walk along the planned route starting from robot's current position
-      // Check each edge to see if it overlaps with the obstacle region
-      for (int i = idx; i + 1 < static_cast<int>(following_route_ids_.size());
-           ++i) {
-        // Get consecutive vertices that form an edge in the route
-        vtr::tactic::VertexId v1(following_route_ids_[i]);     // From vertex
-        vtr::tactic::VertexId v2(following_route_ids_[i + 1]); // To vertex
-
-        double edge_length = 0.0;
-        try {
-          // Look up the edge in the pose graph to get its length
-          auto edge_ptr = graph_->at(vtr::tactic::EdgeId(v1, v2));
-          if (edge_ptr) {
-            // Calculate the 3D distance between the two robot poses
-            edge_length = edge_ptr->T().r_ab_inb().norm();
-
-            // Calculate where this edge falls along the path
-            double edge_start = accumulated_distance;        // Start distance of this edge
-            double edge_end = accumulated_distance + edge_length; // End distance of this edge
-            accumulated_distance = edge_end;  // Update running total
-
-            // Check if this edge overlaps with the obstacle region
-            // Edge overlaps if: edge_end > obstacle_start AND edge_start < obstacle_end
-            bool edge_in_obstacle_range =
-                (edge_end > obstacle_start && edge_start < obstacle_end);
-
-            if (edge_in_obstacle_range) {
-              // This edge is blocked - add it to the affected edges list
-              affected_edges.emplace_back(v1, v2);
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Edge " << v1 << " -> " << v2
-                  << " overlaps obstacle range (edge range: [" << edge_start
-                  << " m, " << edge_end << " m])";
-            } else {
-              CLOG(DEBUG, "mission.state_machine")
-                  << "HSHMAT: Skipping edge " << v1 << " -> " << v2
-                  << " (edge range: [" << edge_start << " m, " << edge_end
-                  << " m])";
-            }
-
-            // Optimization: stop searching once we've passed the obstacle
-            if (edge_start >= obstacle_end) {
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: Passed obstacle range, stopping edge search";
-              break;
-            }
-          } else {
-            CLOG(WARNING, "mission.state_machine")
-                << "HSHMAT: Edge " << v1 << " -> " << v2 << " not found in graph";
-          }
-        } catch (const std::exception &e) {
-          CLOG(WARNING, "mission.state_machine")
-              << "HSHMAT: Failed to query edge " << v1 << " -> " << v2
-              << ": " << e.what();
-        }
-      }
-      CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: Total edges affected: " << affected_edges.size();
-
-    } else {
-      CLOG(WARNING, "mission.state_machine")
-          << "HSHMAT: Could not find current vertex in following route";
-    }
-  } catch (const std::exception &e) {
-    CLOG(WARNING, "navigation")
-        << "Failed to evaluate obstacle edges: " << e.what();
+  affected_edges.reserve(fresh_blocked.size());
+  for (const auto& e : fresh_blocked) {
+    affected_edges.push_back(e);
+  }
+  
+  {
+    std::stringstream ss;
+    ss << "HSHMAT: Recomputed blocked edges (" << affected_edges.size() << "): ";
+    for (const auto& e : affected_edges) ss << e << " ";
+    ss << " [current_v=" << getCurrentVertex() << "]";
+    CLOG(INFO, "mission.state_machine") << ss.str();
   }
 
-  // ===== STEP 5: SETUP COORDINATE TRANSFORMS =====
-  // Get the trunk vertex (robot's persistent localization reference)
-  // This is needed for transforming between different coordinate frames
+  // Get trunk vertex for TF lookups (still need current position for transforms)
   vtr::tactic::VertexId trunk_vid;
   try {
     const auto loc = tactic_->getPersistentLoc();
     trunk_vid = loc.v;
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Trunk vertex for TF: " << trunk_vid;
-  } catch (const std::exception &e) {
-    CLOG(WARNING, "mission.state_machine")
-        << "HSHMAT: Could not get trunk vertex: " << e.what();
+  } catch (...) {
+    trunk_vid = vtr::tactic::VertexId::Invalid();
   }
+  
+  if (affected_edges.empty()) {
+    CLOG(WARNING, "mission.state_machine")
+        << "HSHMAT: No blocked edges from detection time - cannot reroute";
+  }
+  
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT: Trunk vertex for TF: " << trunk_vid;
 
   // ===== DEBUGGING: LOG OBSTACLE GRID INFORMATION =====
   // Log details about the obstacle grid for debugging rerouting issues
@@ -2300,22 +2292,34 @@ void Navigator::triggerReroute() {
   try {
     const double huge_delay_sec = 1e6;  // effectively "blocked"
     const double dur_sec = expectedObstacleDurationSeconds();
-
-    // Prune expired blockages (best-effort).
     const double now_sec = node_->get_clock()->now().seconds();
-    for (auto it = edge_blockages_.begin(); it != edge_blockages_.end();) {
-      if (it->second.end_sec <= now_sec) it = edge_blockages_.erase(it);
-      else ++it;
+
+    // ALWAYS_DETOUR is memoryless: clear all remembered blockages so only the
+    // current obstacle is avoided (no memory of past obstacles).
+    if (wait_strategy_ && wait_strategy_->type() == StrategyType::ALWAYS_DETOUR) {
+      edge_blockages_.clear();
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: always_detour - cleared edge_blockages_ (memoryless)";
+    } else {
+      // Other strategies: prune only expired blockages (best-effort).
+      for (auto it = edge_blockages_.begin(); it != edge_blockages_.end();) {
+        if (it->second.end_sec <= now_sec) it = edge_blockages_.erase(it);
+        else ++it;
+      }
     }
 
     // ===== GREEDY CTP: Collect permanently banned edges =====
     // For greedy_ctp strategy, all edges that have been blocked in this mission
     // should remain banned permanently (until mission ends).
+    // 
+    // Note: The affected_edges were already added to banned_edges_ during 
+    // computeWaitTime() in startObstacleEpisode(). We call banEdgePermanently()
+    // again here for safety (it's idempotent since banned_edges_ is a set).
     std::vector<vtr::tactic::EdgeId> permanently_banned_edges;
     if (wait_strategy_ && wait_strategy_->type() == StrategyType::GREEDY_CTP) {
       auto* greedy = dynamic_cast<GreedyCTPStrategy*>(wait_strategy_.get());
       if (greedy) {
-        // First, add current affected edges to permanent ban list
+        // Ban edges NOW with accurate localization (not at detection time)
         for (const auto& e : affected_edges) {
           greedy->banEdgePermanently(e);
         }
@@ -2328,141 +2332,80 @@ void Navigator::triggerReroute() {
       }
     }
 
-    // ===== CONFIGURE TDSP (Time-Dependent Shortest Path) PLANNER =====
-    // This is a TYPE CHECK, not object creation!
+    // ===== CONFIGURE TDSP PLANNER =====
     if (auto tdsp = std::dynamic_pointer_cast<vtr::route_planning::TDSPPlanner>(route_planner_)) {
-      // TDSP can remember blockages over time and predict when they'll clear
-      // First, verify if any remembered blockages are now actually clear
-      const double radius_m = route_cfg_.verify_blockage_lookahead_m;
-      if (radius_m > 0.0) {
-        const size_t removed = pruneRememberedBlockagesUsingGrid(
-            edge_blockages_, graph_, graph_map_server_, last_obstacle_grid_, tf_buffer_, trunk_vid,
-            now_sec, radius_m);
-        if (removed > 0) {
-          CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: TDSP blockage verification removed " << removed
-              << " remembered blockage(s) as 'free now' within radius "
-              << radius_m << "m";
+      const StrategyType st = wait_strategy_ ? wait_strategy_->type() : StrategyType::ALWAYS_WAIT;
+      
+      // Build the set of edges to ban
+      std::unordered_set<vtr::tactic::EdgeId> edges_to_ban;
+      
+      if (st == StrategyType::GREEDY_CTP) {
+        // GREEDY_CTP: Simply ban all permanently banned edges. That's it.
+        for (const auto& e : permanently_banned_edges) {
+          edges_to_ban.insert(e);
         }
-      }
-
-      // Configure obstacle avoidance for TDSP planner:
-      // - Active edges (currently blocked path): Use time windows, not static delays
-      // - Other nearby edges: Use static huge delays to prevent rerouting onto blocked paths
-      auto static_delays = buildObstacleEdgeDelays(
-          graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
-          /*active_delay_sec=*/0.0, huge_delay_sec, tf_buffer_, trunk_vid,
-          /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
-      
-      // Apply greedy_ctp permanent bans as huge delays
-      for (const auto& e : permanently_banned_edges) {
-        static_delays[e] = huge_delay_sec;
-      }
-      
-      tdsp->setStaticEdgeDelays(static_delays);  // Route screening delays + permanent bans
-      tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
-
-      // Set up time-based blockage intervals for the currently affected edges
-      // TDSP can plan paths that wait for obstacles to clear
-      for (const auto &e : affected_edges) {
-        // Create blockage interval: [now, now + expected_obstacle_duration]
-        edge_blockages_[e] = EdgeBlockageInterval{now_sec, now_sec + dur_sec};
-      }
-
-      // Convert our blockage map to TDSP's expected format
-      std::unordered_map<vtr::tactic::EdgeId, vtr::route_planning::TDSPPlanner::BlockageInterval> b;
-      b.reserve(edge_blockages_.size());
-      for (const auto &kv : edge_blockages_) {
-        b.emplace(kv.first, vtr::route_planning::TDSPPlanner::BlockageInterval{kv.second.start_sec, kv.second.end_sec});
-      }
-      tdsp->setEdgeBlockages(b);  // Tell TDSP about time-based blockages
-
-      // Log TDSP configuration summary
-      CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: TDSP replanner configured: affected_edges="
-          << affected_edges.size() << ", static_delays=" << static_delays.size()
-          << ", duration=" << dur_sec << "s, remembered_blockages=" << b.size();
-
-      // ===== DETAILED TDSP LOGGING =====
-      // Log which edges are blocked and how much time remains until they clear
-      if (!affected_edges.empty()) {
-        std::stringstream ss;
-        ss << "HSHMAT: TDSP blocked edges (remaining time until clear): ";
+        tdsp->setBannedEdges(edges_to_ban);
+        tdsp->setStaticEdgeDelays({});
+        tdsp->setEdgeBlockages({});
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: greedy_ctp - banned " << edges_to_ban.size() << " edges";
+            
+      } else if (st == StrategyType::ALWAYS_DETOUR || st == StrategyType::RULE_BASED) {
+        // ALWAYS_DETOUR / RULE_BASED: Ban current blocked edges only (memoryless)
+        for (const auto& e : affected_edges) {
+          edges_to_ban.insert(e);
+        }
+        tdsp->setBannedEdges(edges_to_ban);
+        tdsp->setStaticEdgeDelays({});
+        tdsp->setEdgeBlockages({});
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: " << strategyTypeToString(st) << " - banned " << edges_to_ban.size() << " edges";
+            
+      } else if (st == StrategyType::LEARNED) {
+        // LEARNED: Use time-dependent blockages (can wait for obstacle to clear)
         for (const auto &e : affected_edges) {
-          double rem = 0.0;
-          auto it = edge_blockages_.find(e);
-          if (it != edge_blockages_.end()) {
-            rem = std::max(0.0, it->second.end_sec - now_sec);
-          }
-          ss << e << "(" << rem << "s) ";
+          edge_blockages_[e] = EdgeBlockageInterval{now_sec, now_sec + dur_sec};
         }
-        CLOG(INFO, "mission.state_machine") << ss.str();
-      }
-
-      // Log route screening edges (other paths that are also blocked)
-      if (!static_delays.empty()) {
-        std::stringstream ss_huge;
-        size_t huge_cnt = 0;
-        ss_huge << "HSHMAT: TDSP route-screening edges with huge_delay=" << huge_delay_sec << "s: ";
-        for (const auto &kv : static_delays) {
-          if (kv.second == huge_delay_sec) {
-            ++huge_cnt;
-            ss_huge << kv.first << " ";
-          }
+        std::unordered_map<vtr::tactic::EdgeId, vtr::route_planning::TDSPPlanner::BlockageInterval> b;
+        for (const auto &kv : edge_blockages_) {
+          b.emplace(kv.first, vtr::route_planning::TDSPPlanner::BlockageInterval{kv.second.start_sec, kv.second.end_sec});
         }
+        tdsp->setBannedEdges({});
+        tdsp->setStaticEdgeDelays({});
+        tdsp->setEdgeBlockages(b);
         CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: TDSP route-screening: " << huge_cnt << " heavily penalized edges"
-            << " (total static delays: " << static_delays.size() << ")";
-        if (huge_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_huge.str();
+            << "HSHMAT: learned - " << b.size() << " time-dependent blockages";
+            
+      } else {
+        // ALWAYS_WAIT or unknown: no special planner config
+        tdsp->setBannedEdges({});
+        tdsp->setStaticEdgeDelays({});
+        tdsp->setEdgeBlockages({});
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT: " << strategyTypeToString(st) << " - no edge bans";
       }
-    // ===== CONFIGURE DIJKSTRA/BFS PLANNER =====
+      
+      tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
+    // ===== CONFIGURE BFS PLANNER =====
     } else if (auto bfs_ptr = std::dynamic_pointer_cast<vtr::route_planning::BFSPlanner>(route_planner_)) {
-      // Traditional Dijkstra algorithm with time-based edge costs
-      // All affected edges get the same delay (deterministic behavior)
-      auto delays = buildObstacleEdgeDelays(
-          graph_, graph_map_server_, last_obstacle_grid_, affected_edges,
-          /*active_delay_sec=*/dur_sec, huge_delay_sec, tf_buffer_, trunk_vid,
-          /*screening_radius_m=*/route_cfg_.screening_lookahead_m);
-
-      // Apply greedy_ctp permanent bans as huge delays
-      for (const auto& e : permanently_banned_edges) {
-        delays[e] = huge_delay_sec;
-      }
-
-      bfs_ptr->setExtraEdgeCosts(delays);    // Apply edge delays/costs + permanent bans
-      bfs_ptr->setUseTimeCost(true);         // Use time-based costs instead of unit costs
-      bfs_ptr->setUseMasked(true);           // Enable masked planning (avoid banned edges)
-      bfs_ptr->setNominalSpeed(route_cfg_.nominal_speed_mps);
-
-      CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: Dijkstra(timecost) replanner configured with "
-          << delays.size() << " delayed edges (active_delay=" << dur_sec
-          << "s, huge_delay=" << huge_delay_sec << "s).";
-
-      // ===== DETAILED DIJKSTRA LOGGING =====
-      // Log which edges have what type of delays applied
-      if (!delays.empty()) {
-        std::stringstream ss_active, ss_huge;
-        size_t active_cnt = 0, huge_cnt = 0;
-        ss_active << "HSHMAT: Dijkstra edges with active_delay=" << dur_sec << "s: ";
-        ss_huge << "HSHMAT: Dijkstra edges with huge_delay=" << huge_delay_sec << "s: ";
-
-        for (const auto &kv : delays) {
-          if (kv.second == huge_delay_sec) {
-            ++huge_cnt;
-            ss_huge << kv.first << " ";      // Route screening edges
-          } else if (kv.second > 0.0) {
-            ++active_cnt;
-            ss_active << kv.first << " ";    // Currently blocked edges
-          }
+      const StrategyType st = wait_strategy_ ? wait_strategy_->type() : StrategyType::ALWAYS_WAIT;
+      
+      // Build edges to ban
+      std::vector<vtr::tactic::EdgeId> edges_to_ban;
+      if (st == StrategyType::GREEDY_CTP) {
+        for (const auto& e : permanently_banned_edges) {
+          edges_to_ban.push_back(e);
         }
-
-        CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: Dijkstra delayed edges: " << active_cnt << " active, "
-            << huge_cnt << " route-screening (total: " << delays.size() << ")";
-        if (active_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_active.str();
-        if (huge_cnt > 0) CLOG(INFO, "mission.state_machine") << ss_huge.str();
+      } else if (st == StrategyType::ALWAYS_DETOUR || st == StrategyType::RULE_BASED) {
+        for (const auto& e : affected_edges) {
+          edges_to_ban.push_back(e);
+        }
       }
+      
+      bfs_ptr->setBannedEdges(edges_to_ban);
+      bfs_ptr->setNominalSpeed(route_cfg_.nominal_speed_mps);
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: BFS planner - banned " << edges_to_ban.size() << " edges";
     } else {
       // Fallback: Unknown planner type - log warning but continue
       CLOG(WARNING, "mission.state_machine")

@@ -89,7 +89,7 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned
-        type: "always_wait"
+        type: "learned"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         default_W_max: 120.0
@@ -109,6 +109,10 @@
         
         # Survival model data file (persists across runs)
         survival_data_file: "${VTRDATA}/survival_samples.yaml"
+        
+        # Directory for persistent obstacle statistics (location-specific)
+        # Statistics improve over time: p_block, p_obs_type learned from data
+        obstacle_stats_dir: "${VTRDATA}/obstacle_stats"
         
         # Seed samples for new obstacle types (uncensored durations in seconds)
         # Used to initialize the survival model before collecting real data

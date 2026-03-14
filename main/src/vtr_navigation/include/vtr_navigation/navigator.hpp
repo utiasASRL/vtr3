@@ -87,6 +87,7 @@ struct EdgeBlockageInterval {
  */
 enum class ObstacleState {
   Idle,
+  AwaitingClassification,  // HSHMAT: Waiting for VLM to classify obstacle (rule_based/learned)
   Waiting,
   Rerouting
 };
@@ -95,6 +96,7 @@ enum class ObstacleState {
 inline const char* obstacleStateToString(ObstacleState s) {
   switch (s) {
     case ObstacleState::Idle: return "Idle";
+    case ObstacleState::AwaitingClassification: return "AwaitingClassification";
     case ObstacleState::Waiting: return "Waiting";
     case ObstacleState::Rerouting: return "Rerouting";
   }
@@ -291,6 +293,10 @@ typedef message_filters::sync_policies::ApproximateTime<
   
   // Current blocked edges (computed in startObstacleEpisode)
   EdgeIdSet current_blocked_edges_;
+  
+  // HSHMAT: Edge traversal tracking for learned policy statistics
+  tactic::VertexId last_tracked_vertex_;  // For counting edge traversals
+  void trackEdgeTraversal(const tactic::VertexId& new_vertex);
   
   void setRobotPaused(bool paused);
   void triggerReroute();  // Centralized reroute flow

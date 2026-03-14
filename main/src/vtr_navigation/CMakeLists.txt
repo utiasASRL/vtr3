@@ -69,12 +69,13 @@ ament_target_dependencies(${PROJECT_NAME}_task_queue_server
   vtr_common vtr_logging vtr_mission_planning vtr_navigation_msgs
 )
 
-# HSHMAT: Navigator library with survival model, wait strategy, and obstacle memory
+# HSHMAT: Navigator library with survival model, wait strategy, obstacle memory, and stats
 add_library(${PROJECT_NAME}_navigator
   src/navigator.cpp
   src/survival_model.cpp
   src/wait_strategy.cpp
   src/obstacle_memory.cpp
+  src/obstacle_stats.cpp
 )
 
 

@@ -30,6 +30,7 @@
 
 #include "vtr_navigation/survival_model.hpp"
 #include "vtr_navigation/obstacle_memory.hpp"
+#include "vtr_navigation/obstacle_stats.hpp"
 #include "vtr_route_planning/ew_tdsp_planner.hpp"
 #include "vtr_tactic/types.hpp"
 
@@ -75,9 +76,10 @@ struct WaitStrategyConfig {
   int W_grid_points = 100;   // Number of W candidates for grid search
   int T_grid_points = 50;    // Number of time points for integration
   std::string survival_data_file;  // Path to survival data
+  std::string obstacle_stats_dir;  // Directory for persistent obstacle statistics
   std::map<std::string, std::vector<double>> seed_samples;  // Initial samples per type
   
-  // Obstacle parameters
+  // Obstacle parameters (defaults, overridden by learned stats when available)
   double p_block = 0.05;     // Probability of obstacle on any edge
   std::map<std::string, double> type_weights;  // Probability distribution over types
   
@@ -274,10 +276,11 @@ class RuleBasedStrategy : public WaitStrategy {
       const tactic::VertexId& goal_vertex,
       double t_now,
       double obstacle_t_first) override {
+    // Speech format: "[type]. Waiting/Rerouting." (Navigator already said "Obstacle detected.")
     if (wait_types_.count(obs_type) > 0) {
-      return WaitDecision::waitForever("Obstacle " + obs_type + ". Waiting.");
+      return WaitDecision::waitForever(obs_type + ". Waiting.");
     } else {
-      return WaitDecision::detour("Obstacle " + obs_type + ". Rerouting.");
+      return WaitDecision::detour(obs_type + ". Rerouting.");
     }
   }
   
@@ -303,10 +306,9 @@ class GreedyCTPStrategy : public WaitStrategy {
       const tactic::VertexId& goal_vertex,
       double t_now,
       double obstacle_t_first) override {
-    // Mark all blocked edges as permanently banned
-    for (const auto& edge : blocked_edges) {
-      banned_edges_.insert(edge);
-    }
+    // NOTE: Don't ban edges here! Edges are banned in triggerReroute() after
+    // we recompute with accurate localization. Banning here with potentially
+    // stale localization causes extra edges to be permanently banned.
     
     // If we've already exhausted all paths, just wait
     if (no_valid_path_) {
@@ -391,6 +393,16 @@ class LearnedStrategy : public WaitStrategy {
   StrategyType type() const override { return StrategyType::LEARNED; }
   SurvivalModel* survivalModel() override { return &survival_model_; }
   
+  /**
+   * \brief Get global obstacle statistics (for Navigator to record edge traversals).
+   */
+  GlobalObstacleStats* obstacleStats() { return &obstacle_stats_; }
+  
+  /**
+   * \brief Save all persistent data (survival model + obstacle stats).
+   */
+  void saveData();
+  
   void setGraphAccess(
       route_planning::NeighborsFn get_neighbors,
       route_planning::TravelTimeFn get_travel_time) override {
@@ -401,6 +413,7 @@ class LearnedStrategy : public WaitStrategy {
  private:
   /**
    * \brief Compute expected wait time for a fresh edge (no memory).
+   * Uses learned p_block and p_obs_type from obstacle_stats_.
    */
   double computeExpectedWaitForNewObstacle() const;
   
@@ -425,6 +438,7 @@ class LearnedStrategy : public WaitStrategy {
   WaitStrategyConfig config_;
   SurvivalModel survival_model_;
   ObstacleMemoryManager memory_;
+  GlobalObstacleStats obstacle_stats_;
   route_planning::EWTDSPPlanner tdsp_planner_;
   
   // Graph access functions

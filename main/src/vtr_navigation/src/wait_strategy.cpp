@@ -42,6 +42,16 @@ LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
     survival_model_.loadFromFile(config_.survival_data_file);
   }
   
+  // Load existing obstacle statistics
+  if (!config_.obstacle_stats_dir.empty()) {
+    std::string stats_file = config_.obstacle_stats_dir + "/obstacle_stats.yaml";
+    obstacle_stats_.loadFromFile(stats_file);
+  }
+  
+  // Set defaults for obstacle stats (used when not enough data)
+  obstacle_stats_.setDefaultPBlock(config_.p_block);
+  obstacle_stats_.setDefaultTypeWeights(config_.type_weights);
+  
   // Add seed samples
   for (const auto& kv : config_.seed_samples) {
     // Only add seeds if we don't have enough data yet
@@ -53,21 +63,46 @@ LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
   CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Initialized with "
                            << config_.W_grid_points << " W grid points, "
                            << config_.T_grid_points << " T grid points, "
-                           << "p_block=" << config_.p_block;
+                           << "p_block=" << obstacle_stats_.p_block()
+                           << " (default=" << config_.p_block << ")"
+                           << ", edges_traversed=" << obstacle_stats_.totalEdgesTraversed()
+                           << ", episodes=" << obstacle_stats_.totalObstacleEpisodes();
+}
+
+void LearnedStrategy::saveData() {
+  // Save survival model
+  if (!config_.survival_data_file.empty()) {
+    survival_model_.saveToFile(config_.survival_data_file);
+  }
+  
+  // Save obstacle statistics
+  if (!config_.obstacle_stats_dir.empty()) {
+    std::string stats_file = config_.obstacle_stats_dir + "/obstacle_stats.yaml";
+    obstacle_stats_.saveToFile(stats_file);
+  }
 }
 
 double LearnedStrategy::computeExpectedWaitForNewObstacle() const {
-  // E[wait | new obstacle] = p_block * sum_types(prob_type * mean_duration_type)
+  // E[wait | new obstacle] = p_block * sum_types(p_obs_type * mean_duration_type)
+  // Uses learned statistics when available, falls back to config defaults
   double expected_wait = 0.0;
   
-  for (const auto& kv : config_.type_weights) {
+  // Get type distribution (learned or default)
+  auto type_dist = obstacle_stats_.getTypeDistribution();
+  if (type_dist.empty()) {
+    // Fall back to config
+    type_dist = config_.type_weights;
+  }
+  
+  for (const auto& kv : type_dist) {
     const std::string& obs_type = kv.first;
     double prob_type = kv.second;
     double mean_duration = survival_model_.meanSurvivalTime(obs_type);
     expected_wait += prob_type * mean_duration;
   }
   
-  return config_.p_block * expected_wait;
+  // Use learned p_block (falls back to default if not enough data)
+  return obstacle_stats_.p_block() * expected_wait;
 }
 
 double LearnedStrategy::computeExpectedWaitForEdge(
@@ -161,7 +196,7 @@ WaitDecision LearnedStrategy::computeWaitTime(
   // Check if graph access is available
   if (!get_neighbors_ || !get_travel_time_) {
     CLOG(WARNING, "navigation") << "HSHMAT LearnedStrategy: No graph access, defaulting to wait";
-    return WaitDecision::waitForever("Obstacle " + obs_type + ". Waiting.");
+    return WaitDecision::waitForever(obs_type + ". Waiting.");
   }
   
   // Record this obstacle in memory
@@ -205,7 +240,7 @@ WaitDecision LearnedStrategy::computeWaitTime(
   
   if (!result_avoid0.success || !std::isfinite(result_avoid0.arrival_time)) {
     CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: No alternate route, must wait";
-    return WaitDecision::waitForever("Obstacle " + obs_type + ". No alternate route. Waiting.");
+    return WaitDecision::waitForever(obs_type + ". Waiting.");
   }
   
   // ========================================================================
@@ -342,7 +377,7 @@ WaitDecision LearnedStrategy::computeWaitTime(
   
   // Check if W* is effectively 0 (should detour immediately)
   if (best_W < 1e-3) {
-    return WaitDecision::detour("Obstacle " + obs_type + ". Rerouting.");
+    return WaitDecision::detour(obs_type + ". Rerouting.");
   }
   
   // Round to nice number for speech
@@ -352,8 +387,9 @@ WaitDecision LearnedStrategy::computeWaitTime(
 }
 
 std::string LearnedStrategy::buildWaitSpeech(const std::string& obs_type, double W_star) const {
+  // Speech format: "[type]. Waiting [time]." (Navigator already said "Obstacle detected.")
   std::ostringstream ss;
-  ss << "Obstacle " << obs_type << ". Waiting ";
+  ss << obs_type << ". Waiting ";
   
   int seconds = static_cast<int>(W_star);
   if (seconds >= 60) {
@@ -376,26 +412,30 @@ void LearnedStrategy::onObstacleCleared(const std::string& obs_type, double wait
   // Uncensored sample: we observed the actual clearance time
   survival_model_.addSample(obs_type, wait_duration, false);
   
-  // Save to file
-  if (!config_.survival_data_file.empty()) {
-    survival_model_.saveToFile(config_.survival_data_file);
-  }
+  // Record episode in global stats
+  obstacle_stats_.recordObstacleEpisode(obs_type);
+  
+  // Save all data
+  saveData();
   
   CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Recorded uncensored sample for "
-                           << obs_type << ": " << wait_duration << "s";
+                           << obs_type << ": " << wait_duration << "s"
+                           << " (total episodes: " << obstacle_stats_.totalObstacleEpisodes() << ")";
 }
 
 void LearnedStrategy::onRerouteTimeout(const std::string& obs_type, double wait_duration) {
   // Censored sample: we rerouted before obstacle cleared
   survival_model_.addSample(obs_type, wait_duration, true);
   
-  // Save to file
-  if (!config_.survival_data_file.empty()) {
-    survival_model_.saveToFile(config_.survival_data_file);
-  }
+  // Record episode in global stats
+  obstacle_stats_.recordObstacleEpisode(obs_type);
+  
+  // Save all data
+  saveData();
   
   CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Recorded censored sample for "
-                           << obs_type << ": " << wait_duration << "s";
+                           << obs_type << ": " << wait_duration << "s"
+                           << " (total episodes: " << obstacle_stats_.totalObstacleEpisodes() << ")";
 }
 
 void LearnedStrategy::updateMemoryAfterCensoredWait(
