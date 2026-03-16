@@ -101,6 +101,7 @@ void Tactic::addRun(const bool) {
   // re-initialize the pipeline
   pipeline_->reset();
   //
+  graph_->saveGraphIndex();
   callback_->startRun();
 }
 

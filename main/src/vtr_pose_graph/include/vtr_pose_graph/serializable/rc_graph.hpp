@@ -104,6 +104,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   template <typename DataType>
   void write(const std::string& stream_name, const std::string& stream_type,
              const typename storage::LockableMessage<DataType>::Ptr& message);
+  void saveGraphIndex();
 
  private:
   /** \brief Helper methods for loading from disk */
@@ -113,7 +114,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   void buildSimpleGraph();
 
   /** \brief Helper methods for saving to disk */
-  void saveGraphIndex();
+  // void saveGraphIndex();
   void saveVertices();
   void saveEdges();
 
