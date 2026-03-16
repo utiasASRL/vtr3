@@ -129,6 +129,22 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
+  // Check if the required data is initialized
+  if (!qdata.doppler_preprocessed_point_cloud ||
+      !qdata.gyro_msgs) {
+    CLOG_IF(!qdata.doppler_preprocessed_point_cloud, WARNING, "lidar.odometry_doppler") << "Doppler preprocessed point cloud not initialized. Frame marked as failed.";
+    CLOG_IF(!qdata.gyro_msgs, WARNING, "lidar.odometry_doppler") << "Gyro messages not initialized. Frame marked as failed.";
+
+    const auto &points = qdata.preprocessed_point_cloud ? *qdata.preprocessed_point_cloud : *qdata.doppler_preprocessed_point_cloud;
+    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(points);
+    cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+    qdata.undistorted_point_cloud = undistorted_point_cloud;
+    
+    *qdata.odo_success = false;
+    frame_count++;
+    return;
+  }
+
   if (!qdata.sliding_map_odo) {
     // First frame
     // const Eigen::Matrix4d& identityMatrix = Eigen::Matrix4d::Identity();  
@@ -151,22 +167,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = true;
     // clang-format on
     frame_count = 0;
-  }
-
-  // Check if the required data is initialized
-  if (!qdata.doppler_preprocessed_point_cloud ||
-      !qdata.gyro_msgs) {
-    CLOG_IF(!qdata.doppler_preprocessed_point_cloud, WARNING, "lidar.odometry_doppler") << "Doppler preprocessed point cloud not initialized. Frame marked as failed.";
-    CLOG_IF(!qdata.gyro_msgs, WARNING, "lidar.odometry_doppler") << "Gyro messages not initialized. Frame marked as failed.";
-
-    const auto &points = qdata.preprocessed_point_cloud ? *qdata.preprocessed_point_cloud : *qdata.doppler_preprocessed_point_cloud;
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(points);
-    cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
-    qdata.undistorted_point_cloud = undistorted_point_cloud;
-    
-    *qdata.odo_success = false;
-    frame_count++;
-    return;
   }
 
   // Inputs
