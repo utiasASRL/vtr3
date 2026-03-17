@@ -66,6 +66,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
     // gyro
     Eigen::Matrix<double, 3, 3> gyro_cov =
         Eigen::Matrix<double, 3, 3>::Identity();
+    bool estimate_bias = false;
 
     // inverse covariances
     Eigen::Matrix<double, 6, 6> Qkinv = Eigen::Matrix<double, 6, 6>::Zero(); 

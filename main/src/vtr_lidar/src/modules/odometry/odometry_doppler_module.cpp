@@ -73,6 +73,7 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->gyro_cov = Eigen::DiagonalMatrix<double, 3>(gyro_cov_vec[0], gyro_cov_vec[1], gyro_cov_vec[2]);
+  config->estimate_bias = node->declare_parameter<bool>(param_prefix + ".estimate_bias", config->estimate_bias);
   //
   config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
   config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
@@ -639,8 +640,9 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = true;
 
     // update gyro bias estimate if forward velocity estimate is approximately zero
-    if (qdata.gyro_msgs && 
+    if (config_->estimate_bias && qdata.gyro_msgs && 
         std::fabs(w_temp(0)) < config_->zero_vel_tol) {
+      CLOG(DEBUG, "lidar.odometry_doppler") << "Updating gyro bias estimate";
       int gyro_count = 0;
       Eigen::Vector3d gyro_bias_update = Eigen::Vector3d::Zero();
       for (const auto &gyro_msg : *qdata.gyro_msgs) {
