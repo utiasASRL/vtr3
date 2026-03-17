@@ -574,11 +574,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     // interpolate state at query time
     Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_query = nullptr;
     Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_query = nullptr;
-    T_r_m_query = trajectory->getPoseInterpolator(Time(query_time));
-    w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
+    // T_r_m_query = trajectory->getPoseInterpolator(Time(query_time));
+    // w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
 
     // compound transform for alignment (sensor to point map transform)
-    const auto T_s_m_query = compose(T_s_r_var, T_r_m_query);
+    const auto T_prev = SE3StateVar::MakeShared(prev_T_r_m_odo);
+    const auto T_s_m_query = compose(T_s_r_var, T_prev);
       
     if (loc_flag && qdata.preprocessed_point_cloud) {
       // only if we're localizing this frame
@@ -622,8 +623,8 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     // outputs at frame stamp time
-    *qdata.T_r_m_odo = EdgeTransform(T_r_m_query->value(), P_query);
-    *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
+    *qdata.T_r_m_odo = prev_T_r_m_odo; // EdgeTransform(T_r_m_query->value(), P_query);
+    *qdata.w_m_r_in_r_odo = prev_w_m_r_in_r_odo; // w_m_r_in_r_query->value();
 
     EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, P_query);
     auto &sliding_map_odo = *qdata.sliding_map_odo;
