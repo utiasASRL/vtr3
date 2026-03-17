@@ -100,8 +100,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     const auto &query_points = *qdata.preprocessed_point_cloud;
     const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
     qdata.timestamp_prior.emplace(std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp);
-    //
-
     // clang-format on
   }
 
@@ -165,11 +163,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Initialize trajectory
   const_vel::Interface::Ptr trajectory = nullptr;
-  // add qc to query data for visualization
-  //traj_qc_diag = [1.0, 0.001, 0.001, 0.001, 0.001, 1.0]
   Eigen::Matrix<double, 6, 1> traj_qc_diag = Eigen::Matrix<double, 6, 1>::Ones();
-  traj_qc_diag << 1.0, 0.001, 0.001, 0.001, 0.001, 1.0;
-
+  traj_qc_diag << 1.0, 0.001, 0.001, 0.001, 0.001, 1.0; // to do: move to config
   trajectory = const_vel::Interface::MakeShared(traj_qc_diag);
 
   if (qdata.sliding_map_odo) {
