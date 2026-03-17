@@ -65,6 +65,22 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
                                const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
+  // Check if the required data is initialized
+  if (!qdata.gyro_msgs || !qdata.wheel_meas) {
+    CLOG_IF(!qdata.gyro_msgs, WARNING, "lidar.odometry_wheel") << "No gyro messages found, cannot run odometry.";
+    CLOG_IF(!qdata.wheel_meas, WARNING, "lidar.odometry_wheel") << "No wheel messages found, cannot run odometry.";
+    
+    if (qdata.preprocessed_point_cloud) {
+      const auto &points = *qdata.preprocessed_point_cloud;
+      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(points);
+      cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+      qdata.undistorted_point_cloud = undistorted_point_cloud;
+    }
+    
+    *qdata.odo_success = false;
+    return;
+  }
+
   if (!qdata.sliding_map_odo) {
     CLOG(INFO, "lidar.odometry_wheel") << "First frame.";
     // clang-format off
@@ -87,12 +103,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     //
 
     // clang-format on
-  }
-
-  if (!qdata.gyro_msgs || !qdata.wheel_meas) {
-    CLOG_IF(!qdata.gyro_msgs, WARNING, "lidar.odometry_wheel") << "No gyro messages found, cannot run odometry.";
-    CLOG_IF(!qdata.wheel_meas, WARNING, "lidar.odometry_wheel") << "No wheel messages found, cannot run odometry.";
-    return;
   }
 
   // Inputs
