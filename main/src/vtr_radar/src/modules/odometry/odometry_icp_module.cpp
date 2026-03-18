@@ -180,12 +180,25 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   auto &point_map = sliding_map_odo.point_cloud();
 
-  // Extract 2D transforms
-  const lgmath::se2::Transformation T_s_r_2d = T_s_r.toSE2();
-  const lgmath::se2::Transformation T_r_m_odo_2d = T_r_m_odo.toSE2();
-  const Eigen::Matrix<double, 3, 1> w_m_r_in_r_odo_2d = vec3Dto2D(w_m_r_in_r_odo);
-  const lgmath::se2::Transformation T_r_m_odo_prior_2d = T_r_m_odo_prior.toSE2();
-  const Eigen::Matrix<double, 3, 1> w_m_r_in_r_odo_prior_2d = vec3Dto2D(w_m_r_in_r_odo_prior);
+  // We want to do ICP within the sensor frame to keep it 2D
+  // This means that we want the map transformed into the sensor frame (ms)
+  // and the estimation frame to be the sensor frame (s)
+  const_vel_se2::Interface::Ptr trajectory = const_vel_se2::Interface::MakeShared(config_->traj_qc_diag);
+  Evaluable<lgmath::se2::Transformation>::ConstPtr T_s_ms_eval = nullptr;
+  Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_ms_s_in_s_eval = nullptr;
+  Evaluable<lgmath::se2::Transformation>::ConstPtr T_s_ms_eval_extp = nullptr;
+  Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_ms_s_in_s_eval_extp = nullptr;
+
+  // Initialize common transforms
+  const auto T_r_s = T_s_r.inverse();
+  const auto Ad_T_r_s = lgmath::se3::tranAd(T_r_s.matrix());
+  const auto Ad_T_s_r = lgmath::se3::tranAd(T_s_r.matrix());
+  const auto T_s_ms_odo_prior = T_s_r * T_r_m_odo_prior * T_r_s;
+  const auto T_s_ms_odo_prior_2d = T_s_ms_odo_prior.toSE2();
+  const Eigen::Matrix<double, 6, 1> w_m_s_in_s_odo_prior = Ad_T_s_r * w_m_r_in_r_odo_prior;
+  const Eigen::Matrix<double, 3, 1> w_ms_s_in_s_odo_prior_2d = vec3Dto2D(w_m_s_in_s_odo_prior);
+
+  // cov_prior is in T_s_ms frame already for simplicity
   const Eigen::Matrix<double, 6, 6> cov_prior_2d = cov3Dto2D(cov_prior);
 
   // Parameters
@@ -209,13 +222,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // clang-format off
   /// trajectory smoothing (these are 2D since we want to optimize in 2D)
-  Evaluable<lgmath::se2::Transformation>::ConstPtr T_r_m_eval = nullptr;
-  Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
-  Evaluable<lgmath::se2::Transformation>::ConstPtr T_r_m_eval_extp = nullptr;
-  Evaluable<Eigen::Matrix<double, 3, 1>>::ConstPtr w_m_r_in_r_eval_extp = nullptr;
-  const_vel_se2::Interface::Ptr trajectory = const_vel_se2::Interface::MakeShared(config_->traj_qc_diag);
-  lgmath::se2::Transformation T_r_m_odo_prior_new;
-  Eigen::Matrix<double, 3, 1> w_m_r_in_r_odo_prior_new;
+  lgmath::se2::Transformation T_s_ms_odo_prior_new;
+  Eigen::Matrix<double, 3, 1> w_ms_s_in_s_odo_prior_new;
   Eigen::Matrix<double, 6, 6> cov_prior_new;
   std::vector<StateVarBase::Ptr> state_vars;
 
@@ -227,55 +235,56 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     const int64_t knot_time_stamp = (i == num_states - 1) ? frame_end_time : frame_start_time + i * time_diff;
     Time knot_time(static_cast<int64_t>(knot_time_stamp));
     const Eigen::Matrix<double, 6, 1> xi_m_r_in_r_odo((knot_time - timestamp_prior).seconds() * w_m_r_in_r_odo_prior);
-    const auto T_r_m_odo_extp = (tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo_prior).toSE2();
-    const std::string T_r_m_var_name = "T_r_m_" + std::to_string(i);
-    const auto T_r_m_var = SE2StateVar::MakeShared(T_r_m_odo_extp, T_r_m_var_name);
-    const std::string w_m_r_in_r_var_name = "w_m_r_in_r_" + std::to_string(i);
-    const auto w_m_r_in_r_var = VSpaceStateVar<3>::MakeShared(w_m_r_in_r_odo_prior_2d, w_m_r_in_r_var_name);
-    trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
-    state_vars.emplace_back(T_r_m_var);
-    state_vars.emplace_back(w_m_r_in_r_var);
+    const auto T_r_m_odo_extp = tactic::EdgeTransform(xi_m_r_in_r_odo) * T_r_m_odo_prior;
+    const auto T_s_ms_odo_extp = T_s_r * T_r_m_odo_extp * T_r_s;
+    const auto T_s_ms_odo_extp_2d = T_s_ms_odo_extp.toSE2();
+    const std::string T_s_ms_var_name = "T_s_ms_" + std::to_string(i);
+    const auto T_s_ms_var = SE2StateVar::MakeShared(T_s_ms_odo_extp_2d, T_s_ms_var_name);
+    const std::string w_ms_s_in_s_var_name = "w_ms_s_in_s_" + std::to_string(i);
+    const auto w_ms_s_in_s_var = VSpaceStateVar<3>::MakeShared(w_ms_s_in_s_odo_prior_2d, w_ms_s_in_s_var_name);
+    trajectory->add(knot_time, T_s_ms_var, w_ms_s_in_s_var);
+    state_vars.emplace_back(T_s_ms_var);
+    state_vars.emplace_back(w_ms_s_in_s_var);
   }
 
   // Set up priors
   CLOG(DEBUG, "radar.odometry_icp") << "Adding prior to trajectory.";
-  trajectory->addStatePrior(Time(frame_start_time), T_r_m_odo_prior_2d, w_m_r_in_r_odo_prior_2d, cov_prior_2d);
+  trajectory->addStatePrior(Time(frame_start_time), T_s_ms_odo_prior_2d, w_ms_s_in_s_odo_prior_2d, cov_prior_2d);
 
   // General radar odometry (at scan time)
-  T_r_m_eval = trajectory->getPoseInterpolator(scan_time);
-  w_m_r_in_r_eval = trajectory->getVelocityInterpolator(scan_time);
+  T_s_ms_eval = trajectory->getPoseInterpolator(scan_time);
+  w_ms_s_in_s_eval = trajectory->getVelocityInterpolator(scan_time);
 
   // Odometry at extrapolated state (might be the same as above, but not necessarily, if we have gyro)
   Time extp_time(static_cast<int64_t>(timestamp_odo_new));
-  T_r_m_eval_extp = trajectory->getPoseInterpolator(extp_time);
-  w_m_r_in_r_eval_extp = trajectory->getVelocityInterpolator(extp_time);
-
-  /// Create robot to sensor transform variable, fixed.
-  const auto T_s_r_var = SE2StateVar::MakeShared(T_s_r_2d);
-  T_s_r_var->locked() = true;
-  /// compound transform for alignment (sensor to point map transform)
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
+  T_s_ms_eval_extp = trajectory->getPoseInterpolator(extp_time);
+  w_ms_s_in_s_eval_extp = trajectory->getVelocityInterpolator(extp_time);
 
   /// Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
+
+  /// Deep copy of map points (since we will be transforming them for matching)
+  pcl::PointCloud<PointWithInfo> point_map_copy(point_map);
+  auto map_mat = point_map_copy.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+
+  // Transform point map (currently in map frame m) into map sensor frame (ms) for matching.
+  const auto T_s_r_mat_f = T_s_r.matrix().cast<float>();
+  map_mat = T_s_r_mat_f * map_mat;
 
   /// create kd-tree of the map
   CLOG(DEBUG, "radar.odometry_icp") << "Start building a kd-tree of the map.";
-  NanoFLANNAdapter<PointWithInfo> adapter(point_map);
+  NanoFLANNAdapter<PointWithInfo> adapter(point_map_copy);
   KDTreeParams tree_params(10 /* max leaf */);
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
   /// perform initial alignment
   CLOG(DEBUG, "radar.odometry_icp") << "Start initial alignment.";
+  // First, do Doppler undistortion
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
   for (unsigned i = 0; i < query_points.size(); ++i) {
     aligned_mat.block<4, 1>(0, i) = query_mat.block<4, 1>(0, i);
@@ -285,31 +294,33 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     for (unsigned i = 0; i < query_points.size(); ++i) {
       const auto &qry_time = query_points[i].timestamp;
       const auto &up_chirp = query_points[i].up_chirp;
-      const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-      const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-      const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
-      // Still create 3D v_m_s_in_s but just with a 0 z component
-      const Eigen::Vector3f v_m_s_in_s = Eigen::Vector3f(w_m_s_in_s(0), w_m_s_in_s(1), 0.0f);
+      const auto w_ms_s_in_s_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+      const auto w_ms_s_in_s = w_ms_s_in_s_intp_eval->evaluate().matrix().cast<float>();
+      // Still create 3D v_ms_s_in_s but just with a 0 z component
+      const Eigen::Vector3f v_ms_s_in_s = Eigen::Vector3f(w_ms_s_in_s(0), w_ms_s_in_s(1), 0.0f);
       Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
       abar.normalize();
       // If up chirp azimuth, subtract Doppler shift
       if (up_chirp) { 
-        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+        aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_ms_s_in_s;
       } else {
-        aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
+        aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_ms_s_in_s;
       }
     }
   }
+  // Next, transform all points to the same ms frame
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
   for (unsigned i = 0; i < query_points.size(); i++) {
     const auto &qry_time = query_points[i].timestamp;
-    const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-    const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+    const auto T_s_ms_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+    const auto T_ms_s_intp_eval = inverse(T_s_ms_intp_eval);
     // Transform to 3D for point manipulation
-    const auto T_m_s = T_m_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
-    aligned_mat.block<4, 1>(0, i) = T_m_s * aligned_mat.block<4, 1>(0, i);
-    aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
+    const auto T_ms_s = T_ms_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
+    aligned_mat.block<4, 1>(0, i) = T_ms_s * aligned_mat.block<4, 1>(0, i);
   }
+  // aligned_mat is now motion/Doppler undistorted and in the same ms frame
+  // map_mat is now in ms frame as well
+  // query_mat is in sensor frame
 
   using Stopwatch = common::timing::Stopwatch<>;
   std::vector<std::unique_ptr<Stopwatch>> timer;
@@ -331,6 +342,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   // ICP results
   EdgeTransform T_r_m_icp;
+  EdgeTransform T_s_ms_icp;
   float matched_points_ratio = 0.0;
 
   // Convergence variables
@@ -406,20 +418,19 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
       auto icp_error_func = [&]() -> Evaluable<Eigen::Matrix<double, 2, 1>>::Ptr {
         const auto &qry_time = query_points[ind.first].timestamp;
-        const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-        const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+        const auto T_s_ms_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+        const auto T_ms_s_intp_eval = inverse(T_s_ms_intp_eval);
         if (beta != 0) {
-          const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-          const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+          const auto w_ms_s_in_s_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
           const auto &up_chirp = query_points[ind.first].up_chirp;
           if (up_chirp) {
-            return p2p::p2pSE2ErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
+            return p2p::p2pSE2ErrorDoppler(T_ms_s_intp_eval, w_ms_s_in_s_intp_eval, ref_pt, qry_pt, beta, rm_ori);
           } else {
-            return p2p::p2pSE2ErrorDoppler(T_m_s_intp_eval, w_m_s_in_s_intp_eval, ref_pt, qry_pt, -beta, rm_ori);
+            return p2p::p2pSE2ErrorDoppler(T_ms_s_intp_eval, w_ms_s_in_s_intp_eval, ref_pt, qry_pt, -beta, rm_ori);
           }
           
         } else {
-          return p2p::p2pSE2Error(T_m_s_intp_eval, ref_pt, qry_pt, rm_ori);
+          return p2p::p2pSE2Error(T_ms_s_intp_eval, ref_pt, qry_pt, rm_ori);
         }
       }();
 
@@ -445,8 +456,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const Eigen::Matrix<double, 1, 1> radial_velocity_vec = radial_velocity * Eigen::Matrix<double, 1, 1>::Ones();
 
         // Get velocity in radar frame
-        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(dopp_time));
-        const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+        const auto w_ms_s_in_s_intp_eval = trajectory->getVelocityInterpolator(Time(dopp_time));
 
         // Generate empty bias state (for now)
         Eigen::Matrix<double, 3, 1> b_zero = Eigen::Matrix<double, 3, 1>::Zero();
@@ -457,7 +467,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         // Form error terms
         const auto loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
         const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->dopp_meas_std));
-        const auto error_func = se2::RadialVelErrorEvaluator::MakeShared(w_m_s_in_s_intp_eval, bias, azimuth, radial_velocity_vec);
+        const auto error_func = se2::RadialVelErrorEvaluator::MakeShared(w_ms_s_in_s_intp_eval, bias, azimuth, radial_velocity_vec);
         const auto doppler_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "doppler_cost" + std::to_string(azimuth_idx));
 
         // Add cost term to problem
@@ -480,14 +490,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const rclcpp::Time gyro_stamp(gyro_msg.header.stamp);
         const auto gyro_stamp_time = static_cast<int64_t>(gyro_stamp.nanoseconds());
 
-        // Transform gyro measurement into robot frame
+        // Transform gyro measurement into sensor (radar) frame
         Eigen::VectorXd gyro_meas_g(3);
         gyro_meas_g << 0, 0, yaw_meas;
-        const Eigen::Matrix<double, 3, 1> gyro_meas_r =  T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
-        const double yaw_meas_r = gyro_meas_r(2);
+        const Eigen::Matrix<double, 3, 1> gyro_meas_s = T_s_r.matrix().block<3, 3>(0, 0) * T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose() * gyro_meas_g;
+        const double yaw_meas_s = gyro_meas_s(2);
 
         // Interpolate velocity measurement at gyro stamp
-        auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
+        auto w_ms_s_in_s_intp_eval = trajectory->getVelocityInterpolator(Time(gyro_stamp_time));
 
         // Generate empty bias state
         Eigen::Matrix<double, 3, 1> b_zero = Eigen::Matrix<double, 3, 1>::Zero();
@@ -496,7 +506,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         const auto loss_func = L2LossFunc::MakeShared();
         Eigen::Matrix<double, 1, 1> W_gyro = config_->gyro_cov * Eigen::Matrix<double, 1, 1>::Identity();
         const auto noise_model = StaticNoiseModel<1>::MakeShared(W_gyro);
-        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, yaw_meas_r);
+        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_ms_s_in_s_intp_eval, bias, yaw_meas_s);
         const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost" + std::to_string(gyro_stamp_time));
 
 #pragma omp critical(odo_icp_add_gyro_error_cost)
@@ -514,8 +524,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
       const auto &vel_meas = *qdata.vel_meas;
       // Get velocity measurements in sensor frame
-      const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(scan_time);
-      const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+      const auto w_ms_s_in_s_intp_eval = trajectory->getVelocityInterpolator(scan_time);
 
       CLOG(DEBUG, "radar.odometry_icp") << "Adding velocity measurement to optimization with vel_meas: " << vel_meas.transpose();
 
@@ -525,7 +534,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       const auto vel_noise_model = StaticNoiseModel<2>::MakeShared(W_vel);
       const auto vel_loss_func = CauchyLossFunc::MakeShared(config_->dopp_cauchy_k);
       // Minus sign because vel_meas is v_s_m_in_s, but we want v_m_s_in_s
-      const auto vel_err_func = se2::LinearVelErrorEvaluator::MakeShared(-vel_meas, w_m_s_in_s_intp_eval);
+      const auto vel_err_func = se2::LinearVelErrorEvaluator::MakeShared(-vel_meas, w_ms_s_in_s_intp_eval);
 
       const auto vel_cost = WeightedLeastSqCostTerm<2>::MakeShared(vel_err_func, vel_noise_model, vel_loss_func, "vel_cost");
       problem.addCostTerm(vel_cost);
@@ -559,40 +568,39 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       for (unsigned i = 0; i < query_points.size(); ++i) {
         const auto &qry_time = query_points[i].timestamp;
         const auto &up_chirp = query_points[i].up_chirp;
-        const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-        const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
-        const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
-        // Still create 3D v_m_s_in_s but just with a 0 z component
-        const Eigen::Vector3f v_m_s_in_s = Eigen::Vector3f(w_m_s_in_s(0), w_m_s_in_s(1), 0.0f);
+        const auto w_ms_s_in_s_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
+        const auto w_ms_s_in_s = w_ms_s_in_s_intp_eval->evaluate().matrix().cast<float>();
+        // Still create 3D v_ms_s_in_s but just with a 0 z component
+        const Eigen::Vector3f v_ms_s_in_s = Eigen::Vector3f(w_ms_s_in_s(0), w_ms_s_in_s(1), 0.0f);
         Eigen::Vector3f abar = aligned_mat.block<3, 1>(0, i);
         abar.normalize();
         if (up_chirp) {
-          aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_m_s_in_s;
+          aligned_mat.block<3, 1>(0, i) -= beta * abar * abar.transpose() * v_ms_s_in_s;
         } else {
-          aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_m_s_in_s;
+          aligned_mat.block<3, 1>(0, i) += beta * abar * abar.transpose() * v_ms_s_in_s;
         }
       }
     }
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (unsigned i = 0; i < query_points.size(); i++) {
       const auto &qry_time = query_points[i].timestamp;
-      const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-      const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+      const auto T_s_ms_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+      const auto T_ms_s_intp_eval = inverse(T_s_ms_intp_eval);
 
       // Transform to 3D for point manipulation
-      const auto T_m_s = T_m_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
-      aligned_mat.block<4, 1>(0, i) = T_m_s * aligned_mat.block<4, 1>(0, i);
-      aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
+      const auto T_ms_s = T_ms_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
+      aligned_mat.block<4, 1>(0, i) = T_ms_s * aligned_mat.block<4, 1>(0, i);
     }
+    // aligned_mat is now in ms frame using latest estimate
 
     // Update all result matrices
-    const auto T_m_s = T_m_s_eval->evaluate().matrix();
+    const auto T_ms_s = T_s_ms_eval->evaluate().matrix().inverse();
     if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_m_s);
+      all_tfs = Eigen::MatrixXd(T_ms_s);
     else {
       Eigen::MatrixXd temp(all_tfs.rows() + 3, 3);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(3) = Eigen::MatrixXd(T_m_s);
+      temp.bottomRows(3) = Eigen::MatrixXd(T_ms_s);
       all_tfs = temp;
     }
     timer[4]->stop();
@@ -644,11 +652,13 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
          mean_dR < config_->rot_diff_thresh) || 
          solver_failed) {
       // result
-      Eigen::Matrix<double, 3, 3> T_r_m_cov = Eigen::Matrix<double, 3, 3>::Identity();
-      T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<3, 3>(0, 0);
+      Eigen::Matrix<double, 3, 3> T_s_ms_cov = Eigen::Matrix<double, 3, 3>::Identity();
+      T_s_ms_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(timestamp_odo_new))).block<3, 3>(0, 0);
       // Save 3D edge transform result
-      Eigen::Matrix<double, 6, 6> T_r_m_cov_3d = cov2Dto3D(T_r_m_cov);
-      T_r_m_icp = EdgeTransform(T_r_m_eval_extp->value().toSE3(), T_r_m_cov_3d);
+      Eigen::Matrix<double, 6, 6> T_s_ms_cov_3d = cov2Dto3D(T_s_ms_cov);
+      T_s_ms_icp = EdgeTransform(T_s_ms_eval_extp->value().toSE3(), T_s_ms_cov_3d);
+      // Transform result to robot frame
+      T_r_m_icp = T_r_s * T_s_ms_icp * T_s_r;
 
       // Marginalize out all but last 2 states for prior
       std::vector<StateVarBase::Ptr> state_vars_marg;
@@ -660,8 +670,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       GaussNewtonSolver solver_marg(problem, params);
       solver_marg.optimize();
       Covariance covariance_marg(solver_marg);
-      T_r_m_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
-      w_m_r_in_r_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
+      T_s_ms_odo_prior_new =  trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->pose()->evaluate();
+      w_ms_s_in_s_odo_prior_new = trajectory->get(Time(static_cast<int64_t>(frame_end_time)))->velocity()->evaluate();
       cov_prior_new = trajectory->getCovariance(covariance_marg, Time(static_cast<int64_t>(frame_end_time))).block<6, 6>(0, 0);
       cov_prior_new = 0.5 * (cov_prior_new + cov_prior_new.transpose());
 
@@ -690,15 +700,12 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   // Outputs
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
-  const auto &w_m_r_in_r_eval_ = trajectory->getVelocityInterpolator(Time(static_cast<int64_t>(scan_stamp)))->evaluate().matrix();
-  const auto vel_diff = w_m_r_in_r_eval_ - w_m_r_in_r_odo_2d;
+  const auto vel_diff = w_ms_s_in_s_odo_prior_new - w_ms_s_in_s_odo_prior_2d;
   const auto vel_diff_norm = vel_diff.norm();
   const auto trans_vel_diff_norm = vel_diff.head<2>().norm();
   const auto rot_vel_diff_norm = fabs(vel_diff(2));;
 
-  const auto T_r_m_prev = T_r_m_odo_2d;
-  const auto T_r_m_query = T_r_m_eval->value();
-  const auto diff_T = (T_r_m_prev * T_r_m_query.inverse()).vec();
+  const auto diff_T = (T_s_ms_odo_prior_2d * T_s_ms_odo_prior_new.inverse()).vec();
   const auto diff_T_trans = diff_T.head<2>().norm();
   const auto diff_T_rot = fabs(diff_T(2));
 
@@ -721,9 +728,8 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (matched_points_ratio > config_->min_matched_ratio && estimate_reasonable && !solver_failed) {
     // undistort the preprocessed pointcloud to eval state (at query timestamp)
-    const auto T_s_m = T_m_s_eval->evaluate().toSE3().matrix().inverse().cast<float>();
-    aligned_mat = T_s_m * aligned_mat;
-    aligned_norms_mat = T_s_m * aligned_norms_mat;
+    const auto T_s_ms = T_s_ms_eval->evaluate().toSE3().matrix().cast<float>();
+    aligned_mat = T_s_ms * aligned_mat;
 
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
@@ -731,16 +737,17 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
 
     // store trajectory info
     // odometry at radar scan
-    *qdata.w_m_r_in_r_odo_radar = vec2Dto3D(w_m_r_in_r_eval->value());
-
-    // odometry at extrapolated time
-    *qdata.w_m_r_in_r_odo = vec2Dto3D(w_m_r_in_r_eval_extp->value());
-    // odometry at radar scan
-    *qdata.T_r_m_odo_radar = T_r_m_eval->value().toSE3();
+    const auto T_r_m_odo_radar = T_r_s * T_s_ms_eval->value().toSE3() * T_s_r;
+    const auto w_m_r_in_r_odo_radar = Ad_T_r_s * vec2Dto3D(w_ms_s_in_s_eval->value());
+    *qdata.T_r_m_odo_radar = T_r_m_odo_radar;
+    *qdata.w_m_r_in_r_odo_radar = w_m_r_in_r_odo_radar;
     *qdata.timestamp_odo_radar = scan_stamp;
 
-    // odometry at extr. time
-    *qdata.T_r_m_odo = T_r_m_eval_extp->value().toSE3();
+    // odometry at extrapolated time
+    const auto T_r_m_odo_extp = T_r_s * T_s_ms_eval_extp->value().toSE3() * T_s_r;
+    const auto w_m_r_in_r_odo_extp = Ad_T_r_s * vec2Dto3D(w_ms_s_in_s_eval_extp->value());
+    *qdata.T_r_m_odo = T_r_m_odo_extp;
+    *qdata.w_m_r_in_r_odo = w_m_r_in_r_odo_extp;
     *qdata.timestamp_odo = timestamp_odo_new;
 
     CLOG(DEBUG, "radar.odometry_icp") << "T_m_r is: " << qdata.T_r_m_odo->inverse().vec().transpose();
@@ -750,8 +757,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
     /// \todo double check that we can indeed treat m same as v for velocity
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-    *qdata.T_r_m_odo_prior = T_r_m_odo_prior_new.toSE3();
-    *qdata.w_m_r_in_r_odo_prior = vec2Dto3D(w_m_r_in_r_odo_prior_new);
+    *qdata.T_r_m_odo_prior = T_r_s * T_s_ms_odo_prior_new.toSE3() * T_s_r;
+    *qdata.w_m_r_in_r_odo_prior = Ad_T_r_s * vec2Dto3D(w_ms_s_in_s_odo_prior_new);
+    // cov_prior_new is in T_s_ms frame, keep it this way for simplicity
     *qdata.cov_prior = cov2Dto3D(cov_prior_new);
     *qdata.timestamp_prior = frame_end_time;
 

@@ -120,8 +120,7 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     return;
   }
 
-  CLOG(DEBUG, "radar.odometry_gt")
-      << "Retrieve input data and setup evaluators.";
+  CLOG(DEBUG, "radar.odometry_gt") << "Retrieve input data and setup evaluators.";
 
   // Inputs (these are all 3D to be consistent with other pipelines)
   const auto &scan_stamp = *qdata.stamp;
@@ -136,34 +135,31 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &timestamp_prev = *qdata.timestamp_prior;
 
   // Compute velocity in robot frame
-  const auto Ad_T_r_s = lgmath::se2::tranAd(T_s_r.inverse().toSE2().matrix());
   const auto v_s_gt_2d = vec3Dto2D(v_s_gt);
-  const auto v_r_gt_2d = Ad_T_r_s * v_s_gt_2d;
   const auto v_s_gt_prev_2d = vec3Dto2D(v_s_gt_prev);
-  const auto v_r_gt_prev_2d = Ad_T_r_s * v_s_gt_prev_2d;
+  const auto Ad_T_r_s = lgmath::se3::tranAd(T_s_r.inverse().matrix());
+  const auto v_r_gt = Ad_T_r_s * v_s_gt;
+  const auto v_r_gt_2d = vec3Dto2D(v_r_gt);
 
   // Compute odometry change from groundtruth
   auto T_r_s = T_s_r.inverse();
-  auto del_T_r = (T_r_s * T_s_world_gt * T_s_world_gt_prev.inverse() * T_s_r).toSE2().toSE3();
+  auto del_T_s = (T_s_world_gt * T_s_world_gt_prev.inverse()).toSE2().toSE3(); // Enforce only SE2 change in sensor frame
+  auto del_T_r = (T_r_s *del_T_s * T_s_r);
 
   // Compute new odometry at radar scan time
   auto T_r_m_new = del_T_r * T_r_m_odo_prev;
 
   // Create trajectory for undistortion
+  // We want the trajectory to be in the sensor frame since that's the frame that is 2D
+  // These two transforms resolve the robot frame and the map frame (rooted at a specific robot pose) to the sensor frame
+  auto T_s_ms_odo_prev = (T_s_r * T_r_m_odo_prev * T_s_r.inverse()).toSE2();
+  auto T_s_ms_new = (T_s_r * T_r_m_new * T_s_r.inverse()).toSE2();
   const_vel_se2::Interface::Ptr trajectory = const_vel_se2::Interface::MakeShared(config_->traj_qc_diag);
   // Add poses and velocities to trajectory
-  trajectory->add(Time(timestamp_prev), SE2StateVar::MakeShared(T_r_m_odo_prev.toSE2()),
-                  VSpaceStateVar<3>::MakeShared(v_r_gt_prev_2d));
-  trajectory->add(Time(scan_stamp), SE2StateVar::MakeShared(T_r_m_new.toSE2()),
-                  VSpaceStateVar<3>::MakeShared(v_r_gt_2d));
-  
-  // Create robot to sensor transform variable, fixed.
-  const auto T_s_r_var = SE2StateVar::MakeShared(T_s_r.toSE2());
-  T_s_r_var->locked() = true;
-
-  // Compound transform for alignment (sensor to point map transform)
-  Evaluable<lgmath::se2::Transformation>::ConstPtr T_r_m_eval = trajectory->getPoseInterpolator(scan_stamp);
-  const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
+  trajectory->add(Time(timestamp_prev), SE2StateVar::MakeShared(T_s_ms_odo_prev),
+                  VSpaceStateVar<3>::MakeShared(v_s_gt_prev_2d));
+  trajectory->add(Time(scan_stamp), SE2StateVar::MakeShared(T_s_ms_new),
+                  VSpaceStateVar<3>::MakeShared(v_s_gt_2d));
 
   // Initialize aligned points for matching (Deep copy of targets)
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
@@ -185,8 +181,8 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
     for (unsigned i = 0; i < query_points.size(); ++i) {
       const auto &qry_time = query_points[i].timestamp;
       const auto &up_chirp = query_points[i].up_chirp;
-      const auto w_m_r_in_r_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
-      const auto w_m_s_in_s_intp_eval = compose_velocity(T_s_r_var, w_m_r_in_r_intp_eval);
+      // Velocity for this traj is already in the sensor frame
+      const auto w_m_s_in_s_intp_eval = trajectory->getVelocityInterpolator(Time(qry_time));
       const auto w_m_s_in_s = w_m_s_in_s_intp_eval->evaluate().matrix().cast<float>();
       // Still create 3D v_m_s_in_s but just with a 0 z component
       const Eigen::Vector3f v_m_s_in_s = Eigen::Vector3f(w_m_s_in_s(0), w_m_s_in_s(1), 0.0f);
@@ -200,21 +196,19 @@ void OdometryGTModule::run_(QueryCache &qdata0, OutputCache &,
       }
     }
   }
+
+  // Transform each point to the sensor frame at the query timestamp using the trajectory
+  // This undistorts the point cloud to the query timestamp
+  const auto T_squery_ms = trajectory->getPoseInterpolator(Time(scan_stamp));
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
   for (unsigned i = 0; i < query_points.size(); i++) {
     const auto &qry_time = query_points[i].timestamp;
-    const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-    const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+    const auto T_s_ms_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
     // Transform to 3D for point manipulation
-    const auto T_m_s = T_m_s_intp_eval->evaluate().toSE3().matrix().cast<float>();
-    aligned_mat.block<4, 1>(0, i) = T_m_s * aligned_mat.block<4, 1>(0, i);
-    aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
+    const auto T_squery_s = compose(T_squery_ms, inverse(T_s_ms_intp_eval))->evaluate().toSE3().matrix().cast<float>();
+    aligned_mat.block<4, 1>(0, i) = T_squery_s * aligned_mat.block<4, 1>(0, i);
+    aligned_norms_mat.block<4, 1>(0, i) = T_squery_s * query_norms_mat.block<4, 1>(0, i);
   }
-
-  // undistort the preprocessed pointcloud to eval state (at query timestamp)
-  const auto T_s_m = T_m_s_eval->evaluate().toSE3().matrix().inverse().cast<float>();
-  aligned_mat = T_s_m * aligned_mat;
-  aligned_norms_mat = T_s_m * aligned_norms_mat;
 
   auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
   cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
