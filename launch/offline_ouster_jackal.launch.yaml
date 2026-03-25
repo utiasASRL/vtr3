@@ -2,8 +2,9 @@
 session_name: vtr_offline_ouster_jackal
 
 environment:
-  CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
-  # ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+  RMW_IMPLEMENTATION: rmw_cyclonedds_cpp 
+  # CYCLONEDDS_URI: ${VTRSRC}/config/my_cyclone_config.xml # custom dds configs
+  ROS_DOMAIN_ID: "0"  # set this to a unique number when multiple ROS2 dependent system running on the same network
 
 start_directory: ${VTRTEMP}
 
@@ -21,9 +22,8 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=ouster_jackal_default.yaml
-        data_dir:=${VTRTEMP}/lidar
         model_dir:=${VTRMODELS}
-        start_new_graph:=true
+        start_new_graph:=false
         use_sim_time:=true
         planner:="cbit"
 

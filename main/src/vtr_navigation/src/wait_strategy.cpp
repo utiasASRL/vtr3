@@ -37,15 +37,15 @@ namespace navigation {
 
 LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
     : config_(config) {
-  // Load existing survival data
-  if (!config_.survival_data_file.empty()) {
-    survival_model_.loadFromFile(config_.survival_data_file);
-  }
-  
-  // Load existing obstacle statistics
-  if (!config_.obstacle_stats_dir.empty()) {
-    std::string stats_file = config_.obstacle_stats_dir + "/obstacle_stats.yaml";
-    obstacle_stats_.loadFromFile(stats_file);
+  // Derive file paths from learned_data_dir
+  // Structure: learned_data_dir/survival_stats.yaml, learned_data_dir/obstacle_stats.yaml
+  if (!config_.learned_data_dir.empty()) {
+    survival_stats_file_ = config_.learned_data_dir + "/survival_stats.yaml";
+    obstacle_stats_file_ = config_.learned_data_dir + "/obstacle_stats.yaml";
+    
+    // Load existing data
+    survival_model_.loadFromFile(survival_stats_file_);
+    obstacle_stats_.loadFromFile(obstacle_stats_file_);
   }
   
   // Set defaults for obstacle stats (used when not enough data)
@@ -66,20 +66,18 @@ LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
                            << "p_block=" << obstacle_stats_.p_block()
                            << " (default=" << config_.p_block << ")"
                            << ", edges_traversed=" << obstacle_stats_.totalEdgesTraversed()
-                           << ", episodes=" << obstacle_stats_.totalObstacleEpisodes();
+                           << ", episodes=" << obstacle_stats_.totalObstacleEpisodes()
+                           << ", data_dir=" << config_.learned_data_dir;
 }
 
 void LearnedStrategy::saveData() {
+  if (config_.learned_data_dir.empty()) return;
+  
   // Save survival model
-  if (!config_.survival_data_file.empty()) {
-    survival_model_.saveToFile(config_.survival_data_file);
-  }
+  survival_model_.saveToFile(survival_stats_file_);
   
   // Save obstacle statistics
-  if (!config_.obstacle_stats_dir.empty()) {
-    std::string stats_file = config_.obstacle_stats_dir + "/obstacle_stats.yaml";
-    obstacle_stats_.saveToFile(stats_file);
-  }
+  obstacle_stats_.saveToFile(obstacle_stats_file_);
 }
 
 double LearnedStrategy::computeExpectedWaitForNewObstacle() const {
@@ -214,13 +212,16 @@ WaitDecision LearnedStrategy::computeWaitTime(
                            << ", blocked_edges=" << blocked_edges.size()
                            << ", W_max=" << W_max
                            << ", elapsed=" << elapsed
-                           << ", conditional=" << use_conditional;
+                           << ", conditional=" << use_conditional
+                           << ", current_v=" << current_vertex
+                           << ", goal_v=" << goal_vertex;
   
   // Get one edge to use as the "blocked edge" for TDSP
   // All edges in blocked_edges are treated as one obstacle group
   EdgeId blocked_edge = EdgeId::Invalid();
   if (!blocked_edges.empty()) {
     blocked_edge = *blocked_edges.begin();
+    CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Using blocked_edge=" << blocked_edge;
   }
   
   // Convert blocked_edges to forbidden set
@@ -228,20 +229,24 @@ WaitDecision LearnedStrategy::computeWaitTime(
   for (const auto& e : blocked_edges) {
     forbidden_for_avoid.insert(e);
   }
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: forbidden_for_avoid has " << forbidden_for_avoid.size() << " edges";
   
   // ========================================================================
   // Step 1: Check if detour exists at all (A_avoid at t0)
   // ========================================================================
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 1 - checking detour existence...";
   auto ew_fn = createExpectedWaitFn(t_now, EdgeId::Invalid());
   auto result_avoid0 = tdsp_planner_.earliestArrival(
       current_vertex, goal_vertex, t_now,
       get_neighbors_, get_travel_time_, ew_fn,
       forbidden_for_avoid);
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 1 complete - detour check done";
   
   if (!result_avoid0.success || !std::isfinite(result_avoid0.arrival_time)) {
     CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: No alternate route, must wait";
     return WaitDecision::waitForever(obs_type + ". Waiting.");
   }
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Detour exists, arrival=" << result_avoid0.arrival_time;
   
   // ========================================================================
   // Step 2: Compute A_goal(t0 + t_clear[i]) for T_grid_points using TDSP
@@ -260,12 +265,14 @@ WaitDecision LearnedStrategy::computeWaitTime(
   // Expected wait function for A_goal: exclude the blocked edge
   auto ew_fn_goal = createExpectedWaitFn(t_now, blocked_edge);
   
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 2 - computing A_goal batch (" << n_T << " points)...";
   // Batch compute A_goal for all override times
   std::vector<double> A_goal_arrivals = tdsp_planner_.batchOverrideArrivals(
       current_vertex, goal_vertex, t_now,
       get_neighbors_, get_travel_time_, ew_fn_goal,
       blocked_edge, override_times,
       {});  // No forbidden edges for A_goal
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 2 complete - A_goal batch done";
   
   // ========================================================================
   // Step 3: Compute A_avoid(t0 + W[j]) for W_grid_points using TDSP
@@ -280,15 +287,18 @@ WaitDecision LearnedStrategy::computeWaitTime(
     avoid_start_times[i] = t_now + W_candidates[i];
   }
   
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 3 - computing A_avoid batch (" << (n_W+1) << " points)...";
   // Batch compute A_avoid for all start times
   std::vector<double> A_avoid_arrivals = tdsp_planner_.batchStartTimeArrivals(
       current_vertex, goal_vertex, avoid_start_times,
       get_neighbors_, get_travel_time_, ew_fn,
       forbidden_for_avoid);
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 3 complete - A_avoid batch done";
   
   // ========================================================================
   // Step 4: Compute probability masses p(t) = S(t_{i-1}) - S(t_i)
   // ========================================================================
+  CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 4 - computing probability masses...";
   std::vector<double> prob_masses(n_T);
   for (int i = 0; i < n_T; ++i) {
     double t_left = i * dt;
@@ -372,8 +382,29 @@ WaitDecision LearnedStrategy::computeWaitTime(
     }
   }
   
-  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Optimal W*=" << best_W
-                           << "s with J=" << best_J << " for " << obs_type;
+  // ========================================================================
+  // EPISODE SUMMARY - structured logging for debugging learned policy
+  // ========================================================================
+  {
+    double A_avoid_0 = result_avoid0.arrival_time - t_now;
+    double S_Wmax = use_conditional ? 
+        (survival_model_.survival(obs_type, elapsed) > 1e-15 ? 
+         survival_model_.survival(obs_type, W_max + elapsed) / survival_model_.survival(obs_type, elapsed) : 0.0)
+        : survival_model_.survival(obs_type, W_max);
+    
+    CLOG(INFO, "navigation") << "========== LEARNED POLICY EPISODE SUMMARY ==========";
+    CLOG(INFO, "navigation") << "  Obstacle type:     " << obs_type;
+    CLOG(INFO, "navigation") << "  Blocked edges:     " << blocked_edges.size();
+    CLOG(INFO, "navigation") << "  Position:          v=" << current_vertex << " -> goal=" << goal_vertex;
+    CLOG(INFO, "navigation") << "  W_max:             " << W_max << "s";
+    CLOG(INFO, "navigation") << "  Elapsed (if cont): " << elapsed << "s";
+    CLOG(INFO, "navigation") << "  A_avoid(t0):       " << A_avoid_0 << "s (immediate detour time)";
+    CLOG(INFO, "navigation") << "  S(W_max):          " << S_Wmax << " (prob still blocked after max wait)";
+    CLOG(INFO, "navigation") << "  --> OPTIMAL W*:    " << best_W << "s";
+    CLOG(INFO, "navigation") << "  --> J(W*):         " << best_J << "s (expected arrival time)";
+    CLOG(INFO, "navigation") << "  --> DECISION:      " << (best_W < 1e-3 ? "REROUTE NOW" : ("WAIT " + std::to_string(static_cast<int>(std::ceil(best_W))) + "s"));
+    CLOG(INFO, "navigation") << "=====================================================";
+  }
   
   // Check if W* is effectively 0 (should detour immediately)
   if (best_W < 1e-3) {

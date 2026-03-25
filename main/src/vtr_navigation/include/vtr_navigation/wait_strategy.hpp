@@ -75,8 +75,7 @@ struct WaitStrategyConfig {
   // Learned
   int W_grid_points = 100;   // Number of W candidates for grid search
   int T_grid_points = 50;    // Number of time points for integration
-  std::string survival_data_file;  // Path to survival data
-  std::string obstacle_stats_dir;  // Directory for persistent obstacle statistics
+  std::string learned_data_dir;  // Directory for learned policy data (survival_stats.yaml, obstacle_stats.yaml)
   std::map<std::string, std::vector<double>> seed_samples;  // Initial samples per type
   
   // Obstacle parameters (defaults, overridden by learned stats when available)
@@ -440,6 +439,10 @@ class LearnedStrategy : public WaitStrategy {
   ObstacleMemoryManager memory_;
   GlobalObstacleStats obstacle_stats_;
   route_planning::EWTDSPPlanner tdsp_planner_;
+  
+  // Derived file paths from learned_data_dir
+  std::string survival_stats_file_;
+  std::string obstacle_stats_file_;
   
   // Graph access functions
   route_planning::NeighborsFn get_neighbors_;

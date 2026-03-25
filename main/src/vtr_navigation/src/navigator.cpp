@@ -341,19 +341,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         "route_planning.obstacle_strategy.W_grid_points", 100);
     wait_strategy_config_.T_grid_points = node_->declare_parameter<int>(
         "route_planning.obstacle_strategy.T_grid_points", 50);
-    wait_strategy_config_.survival_data_file = node_->declare_parameter<std::string>(
-        "route_planning.obstacle_strategy.survival_data_file", "");
-    wait_strategy_config_.obstacle_stats_dir = node_->declare_parameter<std::string>(
-        "route_planning.obstacle_strategy.obstacle_stats_dir", "");
+    wait_strategy_config_.learned_data_dir = node_->declare_parameter<std::string>(
+        "route_planning.obstacle_strategy.learned_data_dir", "");
     
-    // Expand environment variables in paths
-    if (!wait_strategy_config_.survival_data_file.empty()) {
-      wait_strategy_config_.survival_data_file = 
-          common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.survival_data_file));
-    }
-    if (!wait_strategy_config_.obstacle_stats_dir.empty()) {
-      wait_strategy_config_.obstacle_stats_dir = 
-          common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.obstacle_stats_dir));
+    // Expand environment variables in path
+    if (!wait_strategy_config_.learned_data_dir.empty()) {
+      wait_strategy_config_.learned_data_dir = 
+          common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.learned_data_dir));
     }
     
     // Load wait_types for rule_based strategy
@@ -965,17 +959,24 @@ void Navigator::setupLearnedStrategyGraphAccess() {
   auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
   if (!learned) return;
   
-  // Create neighbors function
-  auto get_neighbors = [this](const tactic::VertexId& v) -> std::vector<tactic::VertexId> {
+  // Create privileged subgraph ONCE and capture by shared_ptr for all queries
+  // This avoids expensive getSubgraph() calls on every neighbor/edge lookup
+  using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+  auto priv_eval = std::make_shared<PrivEval>(*graph_);
+  auto priv_graph = std::make_shared<decltype(graph_->getSubgraph(priv_eval))>(graph_->getSubgraph(priv_eval));
+  
+  // Capture robot speed by value
+  double robot_speed = wait_strategy_config_.robot_speed_mps;
+  
+  // Create neighbors function (captures priv_graph by shared_ptr)
+  auto get_neighbors = [priv_graph](const tactic::VertexId& v) -> std::vector<tactic::VertexId> {
     std::vector<tactic::VertexId> neighbors;
-    if (!graph_) return neighbors;
+    if (!priv_graph || !(*priv_graph)) {
+      return neighbors;
+    }
     
     try {
-      using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
-      auto priv_eval = std::make_shared<PrivEval>(*graph_);
-      auto priv_graph = graph_->getSubgraph(priv_eval);
-      
-      for (const auto& n : priv_graph->neighbors(v)) {
+      for (const auto& n : (*priv_graph)->neighbors(v)) {
         neighbors.push_back(n);
       }
     } catch (...) {}
@@ -983,21 +984,18 @@ void Navigator::setupLearnedStrategyGraphAccess() {
     return neighbors;
   };
   
-  // Create travel time function (edge length / speed)
-  auto get_travel_time = [this](const tactic::EdgeId& e) -> double {
-    if (!graph_) return std::numeric_limits<double>::infinity();
+  // Create travel time function (captures priv_graph by shared_ptr)
+  auto get_travel_time = [priv_graph, robot_speed](const tactic::EdgeId& e) -> double {
+    if (!priv_graph || !(*priv_graph)) {
+      return std::numeric_limits<double>::infinity();
+    }
     
     try {
-      using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
-      auto priv_eval = std::make_shared<PrivEval>(*graph_);
-      auto priv_graph = graph_->getSubgraph(priv_eval);
-      
-      auto edge_ptr = priv_graph->at(e);
+      auto edge_ptr = (*priv_graph)->at(e);
       if (edge_ptr) {
         double len_m = edge_ptr->T().r_ab_inb().norm();
-        double speed = wait_strategy_config_.robot_speed_mps;
-        if (speed > 1e-6) {
-          return len_m / speed;
+        if (robot_speed > 1e-6) {
+          return len_m / robot_speed;
         }
       }
     } catch (...) {}
@@ -1006,7 +1004,7 @@ void Navigator::setupLearnedStrategyGraphAccess() {
   };
   
   learned->setGraphAccess(get_neighbors, get_travel_time);
-  CLOG(INFO, "navigation") << "HSHMAT: Set up graph access for LearnedStrategy.";
+  CLOG(INFO, "navigation") << "HSHMAT: Set up graph access for LearnedStrategy (cached subgraph).";
 }
 
 EdgeIdSet Navigator::computeBlockedEdges() const {

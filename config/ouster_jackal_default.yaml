@@ -89,7 +89,7 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned
-        type: "learned"
+        type: "always_wait"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         default_W_max: 120.0
@@ -104,15 +104,13 @@
         wait_types: ["person"]
         
         # For learned strategy
-        W_grid_points: 100    # Number of W candidates in grid search
-        T_grid_points: 50     # Number of time points for J(W) integration
+        W_grid_points: 20     # Number of W candidates in grid search (reduced for faster debugging)
+        T_grid_points: 20     # Number of time points for J(W) integration (reduced for faster debugging)
         
-        # Survival model data file (persists across runs)
-        survival_data_file: "${VTRDATA}/survival_samples.yaml"
-        
-        # Directory for persistent obstacle statistics (location-specific)
-        # Statistics improve over time: p_block, p_obs_type learned from data
-        obstacle_stats_dir: "${VTRDATA}/obstacle_stats"
+        # Directory for learned policy data (environment-specific)
+        # Contains: survival_stats.yaml (Kaplan-Meier samples), obstacle_stats.yaml (p_block, type counts)
+        # Example: ${VTRDATA}/myhal_fifthfloor or ${VTRDATA}/utias_hallway
+        learned_data_dir: "${VTRDATA}/myhal_fifthfloor"
         
         # Seed samples for new obstacle types (uncensored durations in seconds)
         # Used to initialize the survival model before collecting real data
