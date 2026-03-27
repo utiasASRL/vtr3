@@ -89,21 +89,22 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned
-        type: "always_wait"
+        type: "learned"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         default_W_max: 120.0
         W_max_per_type:
-          person: 60.0      # People typically move within 1 min
-          chair: 300.0      # Chairs rarely move on their own
-          cart: 90.0        # Carts may be moved by someone
-          door: 30.0        # Doors typically open/close quickly
+          person: 50.0      # People typically move within 1 min
+          cart: 100.0        # Carts may be moved by someone
+          chair: 200.0      # Chairs rarely move on their own
+          door: 400.0        # Doors typically open/close quickly
           unknown: 60.0     # Default for unrecognized obstacles
-        
+
         # For rule_based strategy: obstacle types to wait for (others will reroute)
         wait_types: ["person"]
         
         # For learned strategy
+        p_block: 0.01         # Default probability of obstacle on any edge (used until enough data collected)
         W_grid_points: 20     # Number of W candidates in grid search (reduced for faster debugging)
         T_grid_points: 20     # Number of time points for J(W) integration (reduced for faster debugging)
         
@@ -115,11 +116,16 @@
         # Seed samples for new obstacle types (uncensored durations in seconds)
         # Used to initialize the survival model before collecting real data
         seed_samples:
-          person: [5.0, 10.0, 15.0, 20.0, 30.0]
-          chair: [300.0]
-          cart: [30.0, 60.0, 90.0]
-          door: [5.0, 10.0, 15.0]
+          person: [5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 50.0]
+          cart: [30.0, 60.0, 100.0]
+          chair: [10.0, 50.0, 100.0, 200.0]
+          door: [100.0, 200.0, 400.0]
           unknown: [30.0, 60.0]
+        
+        # Debug visualization for learned policy
+        # Saves plots of S(t), A_goal(C), A_avoid(W), J(W) on each obstacle episode
+        debug_plot_policy: true  # Set to true to enable
+        # debug_plot_dir: "${VTRDATA}/myhal_fifthfloor/debug_plots"  # Optional, defaults to learned_data_dir/debug_plots
         
         # Speech settings for countdown announcements (learned strategy)
         countdown_intervals: [60, 30, 15, 10, 5]  # Announce when this many seconds remain
@@ -132,7 +138,7 @@
       # origin_lat: 43.660837  # Myhal Centre (accurate coordinates)
       # origin_lng: -79.396485 # Myhal Centre (accurate coordinates)
       # # Robot starting position (adjusted 0.5m left, 0.2m up)
-      origin_lat: 43.6607740  # increasing this seems to move up on the map
+      origin_lat: 43.6605500  # increasing this seems to move up on the map
       origin_lng: -79.3966100 # increasing this seems to move left on the map
       origin_theta: 1.9
       scale: 1.0

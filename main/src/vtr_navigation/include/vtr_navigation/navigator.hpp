@@ -232,6 +232,7 @@ typedef message_filters::sync_policies::ApproximateTime<
   
   // HSHMAT: Wait timer for countdown
   rclcpp::TimerBase::SharedPtr wait_timer_;
+
   std::vector<int> countdown_intervals_;  // Announce at these seconds remaining
   int next_countdown_idx_ = 0;  // Index into countdown_intervals_
   void onWaitTimerTick();  // Called every second during waiting
@@ -283,6 +284,9 @@ typedef message_filters::sync_policies::ApproximateTime<
   EdgeIdSet computeBlockedEdges() const;   // Get edges blocked by current obstacle
   tactic::VertexId getCurrentVertex() const;  // Get current robot position
   tactic::VertexId getGoalVertex() const;     // Get goal vertex
+
+  /** Index of \p v in following_route_ids_ (first match), or -1. Caller must hold obstacle_mutex_ if concurrent. */
+  int followingRouteIndexOf(const tactic::VertexId& v) const;
   
   /** \brief True if remaining path from current vertex to goal is the same in both routes.
    * E.g. snapshot [1,2,3,4], new_route [3,4], current at 3 -> same. No 3s timeout. */
@@ -294,9 +298,9 @@ typedef message_filters::sync_policies::ApproximateTime<
   // Current blocked edges (computed in startObstacleEpisode)
   EdgeIdSet current_blocked_edges_;
   
-  // HSHMAT: Edge traversal tracking for learned policy statistics
-  tactic::VertexId last_tracked_vertex_;  // For counting edge traversals
-  void trackEdgeTraversal(const tactic::VertexId& new_vertex);
+  // Learned p_block: index along stored following_route_ids_. On obstacle: add (idx - last_path_index_), then last_path_index_=idx.
+  // New repeat -> 0. Each following_route that replaces the path -> re-anchor to current vertex index (reroute included).
+  int last_path_index_ = 0;
   
   void setRobotPaused(bool paused);
   void triggerReroute();  // Centralized reroute flow

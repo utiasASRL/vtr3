@@ -144,7 +144,7 @@ class GlobalObstacleStats {
   std::map<std::string, int> type_counts_;
   
   // Defaults to use when we don't have enough data
-  double default_p_block_ = 0.05;
+  double default_p_block_ = -1.0;  // Must be set via setDefaultPBlock() from YAML config
   std::map<std::string, double> default_type_weights_;
 };
 

@@ -337,6 +337,20 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         "route_planning.obstacle_strategy.type", "learned");
     wait_strategy_config_.default_W_max = node_->declare_parameter<double>(
         "route_planning.obstacle_strategy.default_W_max", 120.0);
+    
+    // Load per-type W_max values
+    const std::vector<std::string> wmax_types = {"person", "chair", "cart", "door", "unknown"};
+    for (const auto& type : wmax_types) {
+      try {
+        double wmax = node_->declare_parameter<double>(
+            "route_planning.obstacle_strategy.W_max_per_type." + type,
+            wait_strategy_config_.default_W_max);
+        wait_strategy_config_.W_max_per_type[type] = wmax;
+      } catch (...) {
+        // Use default
+      }
+    }
+    
     wait_strategy_config_.W_grid_points = node_->declare_parameter<int>(
         "route_planning.obstacle_strategy.W_grid_points", 100);
     wait_strategy_config_.T_grid_points = node_->declare_parameter<int>(
@@ -371,6 +385,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       countdown_intervals_ = {60, 30, 15, 10, 5};
     }
     
+    // Load debug plotting configuration
+    wait_strategy_config_.debug_plot_policy = node_->declare_parameter<bool>(
+        "route_planning.obstacle_strategy.debug_plot_policy", false);
+    wait_strategy_config_.debug_plot_dir = node_->declare_parameter<std::string>(
+        "route_planning.obstacle_strategy.debug_plot_dir", "");
+    // Expand environment variables in debug_plot_dir
+    if (!wait_strategy_config_.debug_plot_dir.empty()) {
+      wait_strategy_config_.debug_plot_dir = 
+          common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.debug_plot_dir));
+    }
+    
     // Create the strategy
     StrategyType strategy_type;
     try {
@@ -393,6 +418,24 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     wait_strategy_config_.type_weights["cart"] = 0.1;
     wait_strategy_config_.type_weights["door"] = 0.1;
     
+    // Load seed samples for survival model initialization
+    // These provide initial estimates before we collect real data
+    const std::vector<std::string> seed_types = {"person", "chair", "cart", "door", "unknown"};
+    for (const auto& type : seed_types) {
+      try {
+        auto samples = node_->declare_parameter<std::vector<double>>(
+            "route_planning.obstacle_strategy.seed_samples." + type,
+            std::vector<double>{});
+        if (!samples.empty()) {
+          wait_strategy_config_.seed_samples[type] = samples;
+          CLOG(DEBUG, "navigation") << "HSHMAT: Loaded " << samples.size() 
+                                    << " seed samples for '" << type << "'";
+        }
+      } catch (...) {
+        // Type not configured, skip
+      }
+    }
+    
     wait_strategy_ = createWaitStrategy(strategy_type, wait_strategy_config_);
     CLOG(INFO, "navigation") << "HSHMAT: Initialized wait strategy: " 
                               << strategyTypeToString(strategy_type)
@@ -402,7 +445,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     // For learned strategy, set up graph access (done after graph is available)
     // This will be called in setupLearnedStrategyGraphAccess()
   }
-  
+
   // HSHMAT: Create publishers
   pause_cmd_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>(
       "/j100_0365/platform/cmd_vel_unstamped", rclcpp::SystemDefaultsQoS());
@@ -588,12 +631,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         bool call_reroute_complete = false;
         bool call_no_alternate = false;
         {
-          // Use scoped lock
           LockGuard lock(obstacle_mutex_);
           
           // HSHMAT: During reroute, accept the new route from the planner.
-          // With setBannedEdges, the planner guarantees the path avoids banned edges.
-          // If no path exists, plan.cpp catches the exception and calls onNoAlternateRoute.
           if (obstacle_state_ == ObstacleState::Rerouting && awaiting_new_route_ && !route->ids.empty()) {
             CLOG(INFO, "mission.state_machine")
                 << "HSHMAT: Reroute SUCCESS - new path has " << route->ids.size() << " vertices";
@@ -603,18 +643,20 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           }
 
           // Only update following_route_ids_ if we're NOT rejecting the route
-          // (i.e., not calling no_alternate and not during a failed reroute)
           if (!call_reroute_complete && !call_no_alternate) {
             following_route_ids_.assign(route->ids.begin(), route->ids.end());
           }
         }
-        // Lock released - call handlers outside lock
+        // Lock released
         
-        // HSHMAT: Track edge traversals for learned policy statistics
-        // Do this outside the lock to avoid blocking
-        tactic::VertexId current_v = getCurrentVertex();
-        if (current_v.isValid()) {
-          trackEdgeTraversal(current_v);
+        // Re-anchor learned edge stats baseline to current position on this path.
+        // No lock needed: same MutuallyExclusive callback group as obstacle_status.
+        if (!following_route_ids_.empty()) {
+          const tactic::VertexId cur = getCurrentVertex();
+          const int ri = followingRouteIndexOf(cur);
+          last_path_index_ = (ri >= 0) ? ri : 0;
+          CLOG(DEBUG, "navigation") << "HSHMAT: following_route stored (" << following_route_ids_.size()
+                                    << " verts), last_path_index_=" << last_path_index_;
         }
         
         if (call_reroute_complete) {
@@ -921,8 +963,8 @@ void Navigator::resetObstacleState() {
   wait_episode_start_sec_ = -1.0;
   wait_episode_type_ = "unknown";
   
-  // Reset edge traversal tracking for new run
-  last_tracked_vertex_ = tactic::VertexId::Invalid();
+  // Reset learned edge stats baseline for new repeat
+  last_path_index_ = 0;
   
   // Ensure robot is not paused
   if (robot_paused_) {
@@ -1088,25 +1130,14 @@ tactic::VertexId Navigator::getGoalVertex() const {
   return tactic::VertexId(following_route_ids_.back());
 }
 
-void Navigator::trackEdgeTraversal(const tactic::VertexId& new_vertex) {
-  // Track edge traversals for learned policy statistics
-  // Only count if we have a valid previous vertex and it's different
-  if (!new_vertex.isValid()) return;
-  
-  if (last_tracked_vertex_.isValid() && last_tracked_vertex_ != new_vertex) {
-    // Robot moved from last_tracked_vertex_ to new_vertex - count this edge
-    if (wait_strategy_ && wait_strategy_->type() == StrategyType::LEARNED) {
-      auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
-      if (learned && learned->obstacleStats()) {
-        learned->obstacleStats()->recordEdgeTraversal();
-        CLOG(DEBUG, "navigation") << "HSHMAT: Edge traversal recorded: " 
-                                  << last_tracked_vertex_ << " -> " << new_vertex
-                                  << " (total: " << learned->obstacleStats()->totalEdgesTraversed() << ")";
-      }
+int Navigator::followingRouteIndexOf(const tactic::VertexId& v) const {
+  if (!v.isValid() || following_route_ids_.empty()) return -1;
+  for (size_t i = 0; i < following_route_ids_.size(); ++i) {
+    if (tactic::VertexId(following_route_ids_[i]) == v) {
+      return static_cast<int>(i);
     }
   }
-  
-  last_tracked_vertex_ = new_vertex;
+  return -1;
 }
 
 bool Navigator::routesSameRemaining(
@@ -1185,6 +1216,33 @@ void Navigator::startObstacleEpisode() {
     tactic::VertexId current_v = getCurrentVertex();
     tactic::VertexId goal_v = getGoalVertex();
     double t_now = node_->get_clock()->now().seconds();
+
+    // Learned p_block: edges along stored path since last obstacle (or since route anchor).
+    // Example: first obstacle at index 23 -> +23, last_path_index_=23; next at 40 -> +17.
+    // No lock needed: same MutuallyExclusive callback group handles following_route + obstacle_status.
+    if (wait_strategy_ && wait_strategy_->type() == StrategyType::LEARNED) {
+      const int idx_in_route = followingRouteIndexOf(current_v);
+      if (idx_in_route >= 0) {
+        const int baseline = last_path_index_;
+        int edge_delta = idx_in_route - baseline;
+        if (edge_delta < 0) edge_delta = 0;
+        last_path_index_ = idx_in_route;
+        
+        if (edge_delta > 0) {
+          auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
+          if (learned && learned->obstacleStats()) {
+            learned->obstacleStats()->recordEdgeTraversals(edge_delta);
+            CLOG(INFO, "navigation") << "HSHMAT: Learned obstacle_stats: +" << edge_delta
+                                      << " edges (path index " << baseline << " -> " << idx_in_route << ")";
+          }
+        }
+      } else if (!following_route_ids_.empty()) {
+        CLOG(WARNING, "navigation")
+            << "HSHMAT: Current vertex " << current_v
+            << " not found in following_route (" << following_route_ids_.size()
+            << " verts); edge count for this episode skipped.";
+      }
+    }
     
     // Ensure graph access is set up for learned strategy
     setupLearnedStrategyGraphAccess();

@@ -323,16 +323,14 @@ class GraphMap extends React.Component {
       move_robot_vertex,
       map_center
     } = this.state;
+    // Overlay center (lat, lng) and half-sizes (in degrees)
+    // Tweak these to move / resize the Myhal floorplan overlay:
+    const overlayCenter = { lat: 43.660600, lng: -79.396520 };
+    const overlayHalfHeight = 0.0003;  // half of north-south span (~28m total)
+    const overlayHalfWidth = 0.0005;  // half of east-west span (~73m total)
     const imageBounds = [
-      // UTIAS bounds (original - commented out)
-      // [43.660511, -79.397019], // Bottom-left coordinates of UTIAS
-      // [43.661091, -79.395995], // Top-right coordinates of UTIAS
-      // // Myhal Centre bounds (accurate coordinates for floor plan overlay)
-      // [43.660737, -79.396585], // Bottom-left: 100m south-west of Myhal centre
-      // [43.660937, -79.396385], // Top-right: 100m north-east of Myhal centre
-      // Myhal Centre bounds (back to precise satellite coordinates)
-      [43.660583, -79.396722], // Bottom-left: 43°39'38.1"N 79°23'48.2"W
-      [43.661083, -79.396361], // Top-right: 43°39'39.9"N 79°23'46.9"W
+      [overlayCenter.lat - overlayHalfHeight, overlayCenter.lng - overlayHalfWidth], // SW
+      [overlayCenter.lat + overlayHalfHeight, overlayCenter.lng + overlayHalfWidth], // NE
     ];
     return (
       <>

@@ -25,6 +25,9 @@
 #include <iomanip>
 #include <algorithm>
 #include <numeric>
+#include <fstream>
+#include <filesystem>
+#include <regex>
 
 #include "vtr_logging/logging.hpp"
 
@@ -60,6 +63,27 @@ LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
     }
   }
   
+  // Initialize debug plotting if enabled
+  if (config_.debug_plot_policy) {
+    debug_plot_dir_ = config_.debug_plot_dir.empty() 
+        ? config_.learned_data_dir + "/debug_plots"
+        : config_.debug_plot_dir;
+    
+    // Create directory if it doesn't exist
+    try {
+      std::filesystem::create_directories(debug_plot_dir_);
+    } catch (const std::exception& e) {
+      CLOG(WARNING, "navigation") << "HSHMAT LearnedStrategy: Failed to create debug_plot_dir: " << e.what();
+    }
+    
+    // Detect run number from existing files
+    run_number_ = detectRunNumber();
+    episode_count_ = 0;
+    
+    CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Debug plotting enabled, dir=" 
+                             << debug_plot_dir_ << ", run=" << run_number_;
+  }
+  
   CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Initialized with "
                            << config_.W_grid_points << " W grid points, "
                            << config_.T_grid_points << " T grid points, "
@@ -76,7 +100,7 @@ void LearnedStrategy::saveData() {
   // Save survival model
   survival_model_.saveToFile(survival_stats_file_);
   
-  // Save obstacle statistics
+  // Save obstacle statistics (includes edge count and episode counts)
   obstacle_stats_.saveToFile(obstacle_stats_file_);
 }
 
@@ -157,15 +181,15 @@ double LearnedStrategy::computeExpectedWaitForEdge(
 
 route_planning::ExpectedWaitFn LearnedStrategy::createExpectedWaitFn(
     double t0,
-    const EdgeId& exclude_edge) const {
+    const EdgeIdSet& exclude_edges) const {
   
   // Capture necessary data for the lambda
   double ew_fresh = computeExpectedWaitForNewObstacle();
   
-  return [this, t0, exclude_edge, ew_fresh](const EdgeId& edge, double arrival_at_u) -> double {
-    // If this is the exclude_edge (for A_goal), use no expected wait
+  return [this, t0, exclude_edges, ew_fresh](const EdgeId& edge, double arrival_at_u) -> double {
+    // If this edge is in the exclude set (for A_goal), use no expected wait
     // (the override mechanism handles when the blocked edge clears)
-    if (exclude_edge.isValid() && edge == exclude_edge) {
+    if (exclude_edges.count(edge) > 0) {
       return 0.0;
     }
     
@@ -235,7 +259,7 @@ WaitDecision LearnedStrategy::computeWaitTime(
   // Step 1: Check if detour exists at all (A_avoid at t0)
   // ========================================================================
   CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 1 - checking detour existence...";
-  auto ew_fn = createExpectedWaitFn(t_now, EdgeId::Invalid());
+  auto ew_fn = createExpectedWaitFn(t_now, {});  // No exclusions for avoid path
   auto result_avoid0 = tdsp_planner_.earliestArrival(
       current_vertex, goal_vertex, t_now,
       get_neighbors_, get_travel_time_, ew_fn,
@@ -262,8 +286,10 @@ WaitDecision LearnedStrategy::computeWaitTime(
     override_times[i] = t_now + t_clear[i];  // Global availability time
   }
   
-  // Expected wait function for A_goal: exclude the blocked edge
-  auto ew_fn_goal = createExpectedWaitFn(t_now, blocked_edge);
+  // Expected wait function for A_goal: exclude ALL blocked edges from expected wait
+  // (the override mechanism handles when the primary blocked edge clears, and all
+  // blocked edges are assumed to clear together since they're one obstacle)
+  auto ew_fn_goal = createExpectedWaitFn(t_now, blocked_edges);
   
   CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Step 2 - computing A_goal batch (" << n_T << " points)...";
   // Batch compute A_goal for all override times
@@ -344,6 +370,9 @@ WaitDecision LearnedStrategy::computeWaitTime(
   double best_W = 0.0;
   double best_J = A_avoid_arrivals[0] - t_now;  // J(0) = A_avoid(t0) - t0 = immediate detour time
   
+  // Collect J values for debug plotting
+  std::vector<double> J_values(n_W + 1);
+  
   for (int i = 0; i <= n_W; ++i) {
     double W = W_candidates[i];
     
@@ -375,6 +404,7 @@ WaitDecision LearnedStrategy::computeWaitTime(
     double avoid_term = S_W * A_avoid_elapsed;
     
     double J = clear_term + avoid_term;
+    J_values[i] = J;
     
     if (J < best_J) {
       best_J = J;
@@ -392,18 +422,65 @@ WaitDecision LearnedStrategy::computeWaitTime(
          survival_model_.survival(obs_type, W_max + elapsed) / survival_model_.survival(obs_type, elapsed) : 0.0)
         : survival_model_.survival(obs_type, W_max);
     
+    // Compute detailed statistics for the avoid path
+    double p_block_val = obstacle_stats_.p_block();
+    double ew_fresh = computeExpectedWaitForNewObstacle();
+    
+    // Compute pure travel time (no expected waits) along the avoid path
+    // by calling TDSP with zero expected-wait function
+    auto zero_ew_fn = [](const EdgeId&, double) -> double { return 0.0; };
+    auto pure_travel_result = tdsp_planner_.earliestArrival(
+        current_vertex, goal_vertex, t_now,
+        get_neighbors_, get_travel_time_, zero_ew_fn,
+        forbidden_for_avoid);
+    double pure_travel_time = pure_travel_result.success ? 
+        (pure_travel_result.arrival_time - t_now) : -1.0;
+    int avoid_path_length = pure_travel_result.success ? 
+        static_cast<int>(pure_travel_result.path.size()) - 1 : -1;  // edges = vertices - 1
+    
+    // Expected wait added by TDSP = A_avoid - pure_travel
+    double total_expected_wait = A_avoid_0 - pure_travel_time;
+    double avg_ew_per_edge = (avoid_path_length > 0) ? 
+        (total_expected_wait / avoid_path_length) : 0.0;
+    
+    // Get type distribution info
+    auto type_dist = obstacle_stats_.getTypeDistribution();
+    double mean_survival_this_type = survival_model_.meanSurvivalTime(obs_type);
+    
     CLOG(INFO, "navigation") << "========== LEARNED POLICY EPISODE SUMMARY ==========";
     CLOG(INFO, "navigation") << "  Obstacle type:     " << obs_type;
     CLOG(INFO, "navigation") << "  Blocked edges:     " << blocked_edges.size();
     CLOG(INFO, "navigation") << "  Position:          v=" << current_vertex << " -> goal=" << goal_vertex;
     CLOG(INFO, "navigation") << "  W_max:             " << W_max << "s";
     CLOG(INFO, "navigation") << "  Elapsed (if cont): " << elapsed << "s";
+    CLOG(INFO, "navigation") << "  ---------- AVOID PATH STATS ----------";
     CLOG(INFO, "navigation") << "  A_avoid(t0):       " << A_avoid_0 << "s (immediate detour time)";
+    CLOG(INFO, "navigation") << "  Avoid path length: " << avoid_path_length << " edges";
+    CLOG(INFO, "navigation") << "  Pure travel time:  " << pure_travel_time << "s (no expected waits)";
+    CLOG(INFO, "navigation") << "  Total E[wait]:     " << total_expected_wait << "s (added by TDSP)";
+    CLOG(INFO, "navigation") << "  Avg E[wait]/edge:  " << avg_ew_per_edge << "s";
+    CLOG(INFO, "navigation") << "  ---------- LEARNED PARAMS ----------";
+    CLOG(INFO, "navigation") << "  p_block:           " << p_block_val 
+                             << (obstacle_stats_.hasEnoughData(100, 5) ? " (learned)" : " (default)");
+    CLOG(INFO, "navigation") << "  E[wait|new obs]:   " << ew_fresh << "s (p_block * E[type * duration])";
+    CLOG(INFO, "navigation") << "  Mean survival("<<obs_type<<"): " << mean_survival_this_type << "s";
+    CLOG(INFO, "navigation") << "  Edges traversed:   " << obstacle_stats_.totalEdgesTraversed();
+    CLOG(INFO, "navigation") << "  Obstacle episodes: " << obstacle_stats_.totalObstacleEpisodes();
+    CLOG(INFO, "navigation") << "  ---------- DECISION ----------";
     CLOG(INFO, "navigation") << "  S(W_max):          " << S_Wmax << " (prob still blocked after max wait)";
     CLOG(INFO, "navigation") << "  --> OPTIMAL W*:    " << best_W << "s";
     CLOG(INFO, "navigation") << "  --> J(W*):         " << best_J << "s (expected arrival time)";
     CLOG(INFO, "navigation") << "  --> DECISION:      " << (best_W < 1e-3 ? "REROUTE NOW" : ("WAIT " + std::to_string(static_cast<int>(std::ceil(best_W))) + "s"));
     CLOG(INFO, "navigation") << "=====================================================";
+  }
+  
+  // ========================================================================
+  // Debug plotting (if enabled)
+  // ========================================================================
+  if (config_.debug_plot_policy) {
+    saveDebugPlots(obs_type, W_max, elapsed, use_conditional,
+                   t_clear, A_goal_arrivals, W_candidates, A_avoid_arrivals,
+                   prob_masses, J_values, t_now, best_W, best_J);
   }
   
   // Check if W* is effectively 0 (should detour immediately)
@@ -484,6 +561,219 @@ void LearnedStrategy::clearMemoryForEdge(const EdgeId& edge) {
 
 void LearnedStrategy::resetMemory() {
   memory_.reset();
+}
+
+int LearnedStrategy::detectRunNumber() const {
+  int max_run = 0;
+  
+  if (!std::filesystem::exists(debug_plot_dir_)) {
+    return 1;
+  }
+  
+  // Scan for files matching pattern run{N}_episode{M}_*.png or .csv
+  std::regex run_pattern(R"(run(\d+)_episode\d+)");
+  
+  try {
+    for (const auto& entry : std::filesystem::directory_iterator(debug_plot_dir_)) {
+      if (!entry.is_regular_file()) continue;
+      
+      std::string filename = entry.path().filename().string();
+      std::smatch match;
+      if (std::regex_search(filename, match, run_pattern)) {
+        int run_num = std::stoi(match[1].str());
+        max_run = std::max(max_run, run_num);
+      }
+    }
+  } catch (const std::exception& e) {
+    CLOG(WARNING, "navigation") << "HSHMAT LearnedStrategy: Error scanning debug_plot_dir: " << e.what();
+  }
+  
+  return max_run + 1;  // Next run number
+}
+
+void LearnedStrategy::saveDebugPlots(
+    const std::string& obs_type,
+    double W_max,
+    double elapsed,
+    bool use_conditional,
+    const std::vector<double>& t_clear,
+    const std::vector<double>& A_goal_arrivals,
+    const std::vector<double>& W_candidates,
+    const std::vector<double>& A_avoid_arrivals,
+    const std::vector<double>& prob_masses,
+    const std::vector<double>& J_values,
+    double t_now,
+    double best_W,
+    double best_J) {
+  
+  ++episode_count_;
+  
+  std::string prefix = debug_plot_dir_ + "/run" + std::to_string(run_number_) 
+                     + "_episode" + std::to_string(episode_count_);
+  
+  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Saving debug plots to " << prefix << "_*.csv";
+  
+  // === Save data to CSV files for external plotting ===
+  
+  // 1. Survival function S(t)
+  {
+    std::ofstream f(prefix + "_survival.csv");
+    // Prefix header with '#' so gnuplot treats it as a comment.
+    f << "# t,S_t,p_t\n";
+    f << std::fixed << std::setprecision(6);
+    
+    const int n_pts = 200;
+    for (int i = 0; i <= n_pts; ++i) {
+      double t = (static_cast<double>(i) / n_pts) * W_max;
+      double S_t;
+      if (use_conditional && elapsed > 0.0) {
+        double S_elapsed = survival_model_.survival(obs_type, elapsed);
+        S_t = (S_elapsed > 1e-15) ? survival_model_.survival(obs_type, t + elapsed) / S_elapsed : 0.0;
+      } else {
+        S_t = survival_model_.survival(obs_type, t);
+      }
+      // PDF approximation: -dS/dt (finite difference)
+      double p_t = 0.0;
+      if (i > 0) {
+        double t_prev = (static_cast<double>(i - 1) / n_pts) * W_max;
+        double S_prev;
+        if (use_conditional && elapsed > 0.0) {
+          double S_elapsed = survival_model_.survival(obs_type, elapsed);
+          S_prev = (S_elapsed > 1e-15) ? survival_model_.survival(obs_type, t_prev + elapsed) / S_elapsed : 0.0;
+        } else {
+          S_prev = survival_model_.survival(obs_type, t_prev);
+        }
+        double dt = W_max / n_pts;
+        p_t = std::max(0.0, (S_prev - S_t) / dt);
+      }
+      f << t << "," << S_t << "," << p_t << "\n";
+    }
+    f.close();
+  }
+  
+  // 2. A_goal(C) - arrival time at goal as function of clearance time C
+  {
+    std::ofstream f(prefix + "_Agoal.csv");
+    f << "# C,A_goal_elapsed\n";
+    f << std::fixed << std::setprecision(6);
+    
+    for (size_t i = 0; i < t_clear.size(); ++i) {
+      double A_goal_elapsed = A_goal_arrivals[i] - t_now;
+      f << t_clear[i] << "," << A_goal_elapsed << "\n";
+    }
+    f.close();
+  }
+  
+  // 3. A_avoid(W) - arrival time at goal if rerouting at wait time W
+  {
+    std::ofstream f(prefix + "_Aavoid.csv");
+    f << "# W,A_avoid_elapsed\n";
+    f << std::fixed << std::setprecision(6);
+    
+    for (size_t i = 0; i < W_candidates.size(); ++i) {
+      double A_avoid_elapsed = A_avoid_arrivals[i] - t_now;
+      f << W_candidates[i] << "," << A_avoid_elapsed << "\n";
+    }
+    f.close();
+  }
+  
+  // 4. Probability masses p(t) for each bin
+  {
+    std::ofstream f(prefix + "_prob_masses.csv");
+    f << "# bin,t_left,t_right,p_mass\n";
+    f << std::fixed << std::setprecision(6);
+    
+    double dt = W_max / t_clear.size();
+    for (size_t i = 0; i < prob_masses.size(); ++i) {
+      double t_left = i * dt;
+      double t_right = (i + 1) * dt;
+      f << i << "," << t_left << "," << t_right << "," << prob_masses[i] << "\n";
+    }
+    f.close();
+  }
+  
+  // 5. J(W) - the objective function
+  {
+    std::ofstream f(prefix + "_J.csv");
+    f << "# W,J,best\n";
+    f << std::fixed << std::setprecision(6);
+    
+    for (size_t i = 0; i < W_candidates.size() && i < J_values.size(); ++i) {
+      int is_best = (std::abs(W_candidates[i] - best_W) < 1e-6) ? 1 : 0;
+      f << W_candidates[i] << "," << J_values[i] << "," << is_best << "\n";
+    }
+    f.close();
+  }
+  
+  // 6. Summary metadata
+  {
+    std::ofstream f(prefix + "_summary.yaml");
+    f << "# Debug plot summary for run " << run_number_ << " episode " << episode_count_ << "\n";
+    f << "obs_type: " << obs_type << "\n";
+    f << "W_max: " << W_max << "\n";
+    f << "elapsed: " << elapsed << "\n";
+    f << "use_conditional: " << (use_conditional ? "true" : "false") << "\n";
+    f << "t_now: " << std::fixed << std::setprecision(3) << t_now << "\n";
+    f << "best_W: " << best_W << "\n";
+    f << "best_J: " << best_J << "\n";
+    f << "n_T_points: " << t_clear.size() << "\n";
+    f << "n_W_points: " << W_candidates.size() << "\n";
+    f.close();
+  }
+  
+  // === Generate gnuplot script for easy visualization ===
+  {
+    std::ofstream f(prefix + "_plot.gp");
+    f << "# Gnuplot script for learned policy debug visualization\n";
+    f << "# Run with: gnuplot " << prefix << "_plot.gp\n\n";
+    f << "set terminal pngcairo size 1600,1200 enhanced font 'Arial,12'\n";
+    f << "set output '" << prefix << "_combined.png'\n\n";
+    // CSV files are comma-separated; tell gnuplot how to split columns.
+    f << "set datafile separator ','\n\n";
+    f << "set multiplot layout 2,2 title 'Learned Policy: " << obs_type 
+      << " (run " << run_number_ << " ep " << episode_count_ << ")' font ',14'\n\n";
+    
+    // Plot 1: Survival function
+    f << "set title 'Survival Function S(t)'\n";
+    f << "set xlabel 'Time (s)'\n";
+    f << "set ylabel 'Probability'\n";
+    f << "set yrange [0:1.1]\n";
+    f << "plot '" << prefix << "_survival.csv' using 1:2 with lines lw 2 title 'S(t)',\\\n";
+    f << "     '' using 1:3 with lines lw 2 title 'p(t) (PDF)'\n\n";
+    
+    // Plot 2: A_goal(C)
+    f << "set title 'A_{goal}(C) - Arrival if clearing at C'\n";
+    f << "set xlabel 'Clearance time C (s)'\n";
+    f << "set ylabel 'Arrival time (s from now)'\n";
+    f << "set autoscale y\n";
+    f << "plot '" << prefix << "_Agoal.csv' using 1:2 with linespoints lw 2 pt 7 ps 0.5 title 'A_{goal}(C)'\n\n";
+    
+    // Plot 3: A_avoid(W)
+    f << "set title 'A_{avoid}(W) - Arrival if rerouting at W'\n";
+    f << "set xlabel 'Wait time W (s)'\n";
+    f << "set ylabel 'Arrival time (s from now)'\n";
+    f << "plot '" << prefix << "_Aavoid.csv' using 1:2 with linespoints lw 2 pt 7 ps 0.5 title 'A_{avoid}(W)'\n\n";
+    
+    // Plot 4: J(W) objective
+    f << "set title 'J(W) - Objective Function (W* = " << std::fixed << std::setprecision(1) << best_W << "s)'\n";
+    f << "set xlabel 'Wait time W (s)'\n";
+    f << "set ylabel 'Expected arrival time (s)'\n";
+    f << "set arrow from " << best_W << ",graph 0 to " << best_W << ",graph 1 nohead lc rgb 'red' lw 2\n";
+    f << "plot '" << prefix << "_J.csv' using 1:2 with linespoints lw 2 pt 7 ps 0.5 title 'J(W)'\n\n";
+    
+    f << "unset multiplot\n";
+    f << "unset arrow\n";
+    f.close();
+  }
+  
+  // Try to run gnuplot if available
+  std::string gp_cmd = "gnuplot " + prefix + "_plot.gp 2>/dev/null";
+  int ret = std::system(gp_cmd.c_str());
+  if (ret == 0) {
+    CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Generated plot: " << prefix << "_combined.png";
+  } else {
+    CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: gnuplot not available or failed, CSV files saved for manual plotting";
+  }
 }
 
 // ============================================================================

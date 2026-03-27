@@ -79,11 +79,15 @@ struct WaitStrategyConfig {
   std::map<std::string, std::vector<double>> seed_samples;  // Initial samples per type
   
   // Obstacle parameters (defaults, overridden by learned stats when available)
-  double p_block = 0.05;     // Probability of obstacle on any edge
+  double p_block = -1.0;     // Probability of obstacle on any edge (set from YAML)
   std::map<std::string, double> type_weights;  // Probability distribution over types
   
   // Robot speed (for computing edge travel times)
   double robot_speed_mps = 1.0;
+  
+  // Debug visualization
+  bool debug_plot_policy = false;  // Save plots of S(t), A_goal(C), A_avoid(W), J(W) on each episode
+  std::string debug_plot_dir;      // Directory for debug plots (defaults to learned_data_dir/debug_plots)
   
   double getWMax(const std::string& obs_type) const {
     auto it = W_max_per_type.find(obs_type);
@@ -424,15 +428,41 @@ class LearnedStrategy : public WaitStrategy {
   
   /**
    * \brief Create expected wait function for TDSP.
+   * \param exclude_edges Edges to exclude from expected wait (return 0 for these).
+   *        Used for A_goal computation where blocked edges are handled by override.
    */
   route_planning::ExpectedWaitFn createExpectedWaitFn(
       double t0,
-      const EdgeId& exclude_edge = EdgeId::Invalid()) const;
+      const EdgeIdSet& exclude_edges = {}) const;
   
   /**
    * \brief Build speech for waiting.
    */
   std::string buildWaitSpeech(const std::string& obs_type, double W_star) const;
+  
+  /**
+   * \brief Save debug plots of the policy computation for this episode.
+   * Generates plots of S(t), A_goal(C), A_avoid(W), and J(W).
+   */
+  void saveDebugPlots(
+      const std::string& obs_type,
+      double W_max,
+      double elapsed,
+      bool use_conditional,
+      const std::vector<double>& t_clear,
+      const std::vector<double>& A_goal_arrivals,
+      const std::vector<double>& W_candidates,
+      const std::vector<double>& A_avoid_arrivals,
+      const std::vector<double>& prob_masses,
+      const std::vector<double>& J_values,
+      double t_now,
+      double best_W,
+      double best_J);
+  
+  /**
+   * \brief Detect run number by scanning existing files in debug_plot_dir.
+   */
+  int detectRunNumber() const;
   
   WaitStrategyConfig config_;
   SurvivalModel survival_model_;
@@ -443,6 +473,11 @@ class LearnedStrategy : public WaitStrategy {
   // Derived file paths from learned_data_dir
   std::string survival_stats_file_;
   std::string obstacle_stats_file_;
+  
+  // Debug plot tracking
+  std::string debug_plot_dir_;
+  int run_number_ = 1;
+  int episode_count_ = 0;
   
   // Graph access functions
   route_planning::NeighborsFn get_neighbors_;
