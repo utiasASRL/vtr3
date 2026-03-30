@@ -56,6 +56,11 @@ auto OdometryWheelModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->min_time_bias_count = node->declare_parameter<double>(param_prefix + ".min_time_bias_count", 200.0);
   config->wheel_parameter = node->declare_parameter<double>(param_prefix + ".wheel_parameter", 5e-04);
   //
+  config->max_trans_vel_diff = node->declare_parameter<float>(param_prefix + ".max_trans_vel_diff", config->max_trans_vel_diff);
+  config->max_rot_vel_diff = node->declare_parameter<float>(param_prefix + ".max_rot_vel_diff", config->max_rot_vel_diff);
+  config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
+  config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
+  //
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -95,7 +100,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     //
     qdata.T_r_m_odo_prior.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
-    qdata.cov_prior.emplace(Eigen::Matrix<double, 12, 12>::Identity());
     // Initialize timestamp equal to the end of the first frame
     const auto &query_points = *qdata.preprocessed_point_cloud;
     const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
@@ -168,9 +172,9 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   trajectory = const_vel::Interface::MakeShared(traj_qc_diag);
 
   if (qdata.sliding_map_odo) {
-    CLOG(INFO, "lidar.odometry_wheel") << "Initializing trajectory.";
     // add previous state to trajectory
     auto prev_T_r_m_var = SE3StateVar::MakeShared(T_r_m_odo_prior);
+    prev_T_r_m_var->locked() = true;
     auto prev_w_m_r_in_r_var = VSpaceStateVar<6>::MakeShared(w_m_r_in_r_odo_prior);
     trajectory->add(Time(timestamp_prior), prev_T_r_m_var, prev_w_m_r_in_r_var); 
   }
@@ -213,7 +217,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   // Find the largest timestamp less than last_pt_time
   auto it = std::lower_bound(timestamps.begin(), timestamps.end(), last_pt_time);
   int64_t last_timestamp = (it == timestamps.begin()) ? *it : *(it - 1);
-  int64_t first_est_stamp = next_est_stamp;
+  int64_t first_est_stamp = 0;
+  int64_t last_est_time = 0;
 
   Time first_time(static_cast<int64_t>(next_est_stamp));
   Time last_time(static_cast<int64_t>(last_timestamp));
@@ -229,6 +234,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix<double, 6, 1> w_last = Eigen::Matrix<double, 6, 1>::Zero();
 
   // estimation loop
+  bool first_estimated = true;
   for (int i = 0; i < timestamps.size()-1; ++i) {
     if (timestamps[i] > last_timestamp) continue;
 
@@ -261,6 +267,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Vector3d next_gyro_wheel = T_wheel_imu.matrix().block<3, 3>(0, 0).cast<double>() * next_gyro_meas;
 
     const int diff_pulse_count = wheel_meas[ptr_pulse+1].second - wheel_meas[ptr_pulse].second;
+    double diff_pulse_time = next_wheel_time.seconds() - curr_wheel_time.seconds();
 
     double t0_ang = curr_time.seconds() - curr_gyro_time.seconds();
     double t1_ang = next_time.seconds() - curr_gyro_time.seconds();
@@ -280,7 +287,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Vector3d ang = mean_ang_vel * (next_time.seconds() - curr_time.seconds());
 
     if (diff_pulse_count != 0) {
-      double diff_pulse_time = next_wheel_time.seconds() - curr_wheel_time.seconds();
 
       double t0_pulse = curr_time.seconds() - curr_wheel_time.seconds();
       double t1_pulse = next_time.seconds() - curr_wheel_time.seconds();
@@ -319,41 +325,62 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     current_p += delta_pos;
     current_theta = current_theta * lgmath::so3::vec2rot(ang); // update orientation
 
-    delta_time += next_time.seconds() - curr_time.seconds();
-    linear_velocity += Eigen::Vector3d(0, dist, 0);
-    angular_velocity += ang;
+    // linear interpolation at current time
+    double t_interp = curr_time.seconds() - curr_gyro_time.seconds();
+    double ratio = std::clamp(t_interp / diff_ang_vel_time, 0.0, 1.0);
+    Eigen::Vector3d instant_gyro_wheel = curr_gyro_wheel + diff_ang_vel * ratio;
 
+    const double alpha = 0.2;
+    double raw_pulse_rate = (diff_pulse_time > 1e-6) ? (diff_pulse_count / diff_pulse_time) : 0.0;
+
+    // only filter if we have a valid time step
+    if (diff_pulse_time > 1e-6) {
+        filtered_pulse_rate_ = (alpha * raw_pulse_rate) + ((1.0 - alpha) * filtered_pulse_rate_);
+    }
+
+    double v_fwd = filtered_pulse_rate_ * config_->wheel_parameter;
+    Eigen::Vector3d v_wheel(0.0, v_fwd, 0.0);
+    Eigen::Vector3d omega_wheel = instant_gyro_wheel;
+
+    Eigen::Matrix3d R_r_wheel = T_s_r_wheel.matrix().inverse().block<3, 3>(0, 0).cast<double>();
+    Eigen::Matrix<double, 6, 1> w_robot = Eigen::Matrix<double, 6, 1>::Zero();
+    w_robot.block<3, 1>(0, 0) = R_r_wheel * v_wheel;
+    w_robot.block<3, 1>(3, 0) = R_r_wheel * omega_wheel;
+    
     // save first estimated pose
-    if (timestamps[i] == first_est_stamp) {
+    if (first_estimated) {
+      first_est_stamp = timestamps[i];
+      CLOG(INFO, "lidar.odometry_wheel") << "Saving first estimated pose at timestamp: " << first_est_stamp;
       Eigen::Matrix4d first_trans = Eigen::Matrix4d::Identity();
       first_trans.block<3, 3>(0, 0) = current_theta;
       first_trans.block<3, 1>(0, 3) = current_p; // T_m_wheel
-      T_first = EdgeTransform(first_trans, Eigen::Matrix<double, 6, 6>::Identity());
+      T_first = EdgeTransform(first_trans, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
 
-      w_first.block<3, 1>(0, 0) = linear_velocity / delta_time;
-      w_first.block<3, 1>(3, 0) = angular_velocity / delta_time;
+      first_estimated = false;
+      w_first = w_robot;
     }
 
     // save estimated pose at scan time
     if (timestamps[i] == query_stamp) {
+      CLOG(INFO, "lidar.odometry_wheel") << "Saving estimated pose at scan time: " << query_stamp;
       Eigen::Matrix4d trans = Eigen::Matrix4d::Identity();
       trans.block<3, 3>(0, 0) = current_theta;
       trans.block<3, 1>(0, 3) = current_p; // T_m_wheel
-      T_est = EdgeTransform(trans, Eigen::Matrix<double, 6, 6>::Identity()); // equal to output of python version!
+      T_est = EdgeTransform(trans, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
 
-      w_query.block<3, 1>(0, 0) = linear_velocity / delta_time;
-      w_query.block<3, 1>(3, 0) = angular_velocity / delta_time;
+      w_query = w_robot;
     }
 
     // save last estimated pose
-    if (timestamps[i] == last_timestamp) {
+    if (timestamps[i+1] == last_timestamp) {
+      last_est_time = timestamps[i];
+      CLOG(INFO, "lidar.odometry_wheel") << "Saving last estimated pose at timestamp: " << last_timestamp;
       Eigen::Matrix4d last_trans = Eigen::Matrix4d::Identity();
       last_trans.block<3, 3>(0, 0) = current_theta;
       last_trans.block<3, 1>(0, 3) = current_p; // T_m_wheel
-      T_last = EdgeTransform(last_trans, Eigen::Matrix<double, 6, 6>::Identity());
+      T_last = EdgeTransform(last_trans, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
 
-      w_last.block<3, 1>(0, 0) = linear_velocity / delta_time;
-      w_last.block<3, 1>(3, 0) = angular_velocity / delta_time;
+      w_last = w_robot;
     }
 
     if (next_time.seconds() >= next_wheel_time.seconds() && ptr_pulse + 2 < (int)wheel_meas.size()) ptr_pulse++;
@@ -379,16 +406,49 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   const auto T_m_s_wheel_last = SE3StateVar::MakeShared(T_last); // T_map_wheel
   auto T_r_m_eval_last = inverse(compose(T_m_s_wheel_last, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
 
-  if (query_stamp <= first_est_stamp) {
+  if (query_stamp <= next_est_stamp) {
     // If the query time is before the first timestamp, use the first timestamp
     CLOG(WARNING, "lidar.odometry_wheel") << "Query time is before first timestamp, using first estimated pose.";
     T_r_m_eval = T_r_m_eval_first;
     w_query = w_first;
   }
 
-  // auto vel_first = compose_velocity(SE3StateVar::MakeShared(T_s_r_wheel.inverse()), VSpaceStateVar<6>::MakeShared(-w_first));
-  auto vel_query = compose_velocity(SE3StateVar::MakeShared(T_s_r_wheel.inverse()), VSpaceStateVar<6>::MakeShared(-w_query));
-  auto vel_last = compose_velocity(SE3StateVar::MakeShared(T_s_r_wheel.inverse()), VSpaceStateVar<6>::MakeShared(-w_last));
+  auto vel_query = VSpaceStateVar<6>::MakeShared(-w_query);
+  auto vel_last = VSpaceStateVar<6>::MakeShared(-w_last);
+
+
+  bool estimate_reasonable = true;
+  // Check if change between initial and final velocity is reasonable
+  const auto &w_m_r_in_r_prev = *qdata.w_m_r_in_r_odo_prior;
+  const auto &w_m_r_in_r_new = vel_query->value();
+  const auto vel_diff = w_m_r_in_r_new - w_m_r_in_r_prev;
+  const auto vel_diff_norm = vel_diff.norm();
+  const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
+  const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
+
+  const auto T_r_m_query = T_r_m_eval->value();
+  const auto diff_T = (T_r_m_odo_prior * T_r_m_query.inverse()).vec();
+  const auto diff_T_trans = diff_T.head<3>().norm();
+  const auto diff_T_rot = diff_T.tail<3>().norm();
+  
+  CLOG(DEBUG, "lidar.odometry_wheel") << "Current transformation difference: " << diff_T.transpose();
+  CLOG(DEBUG, "lidar.odometry_wheel") << "Diff_T_trans: " << diff_T_trans << " , Diff_T_rot: " << diff_T_rot;
+  CLOG(DEBUG, "lidar.odometry_wheel") << "Current velocity difference: " << vel_diff.transpose();
+  CLOG(DEBUG, "lidar.odometry_wheel") << "Translational velocity diff: " << trans_vel_diff_norm << " , Rotational velocity diff: " << rot_vel_diff_norm;
+
+  if (trans_vel_diff_norm > config_->max_trans_vel_diff || rot_vel_diff_norm > config_->max_rot_vel_diff) {
+    CLOG(WARNING, "lidar.odometry_wheel") << "Velocity difference between initial and final is too large: " << vel_diff_norm << ". Translational velocity difference: " << trans_vel_diff_norm << ". Rotational velocity difference: " << rot_vel_diff_norm;
+    estimate_reasonable = false;
+  }
+
+  if (diff_T_trans > config_->max_trans_diff) {
+    CLOG(WARNING, "lidar.odometry_wheel") << "Transformation difference between initial and final translation is too large. Transform difference vector: " << diff_T.transpose();
+    estimate_reasonable = false;
+  }
+  if (diff_T_rot > config_->max_rot_diff) {
+    CLOG(WARNING, "lidar.odometry_wheel") << "Transformation difference between initial and final rotation is too large. Transform difference vector: " << diff_T.transpose();
+    estimate_reasonable = false;
+  }
 
   *qdata.T_r_m_odo = T_r_m_eval->value();
   *qdata.w_m_r_in_r_odo = vel_query->value(); 
@@ -398,11 +458,11 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
   *qdata.T_r_m_odo_prior = T_r_m_eval_last->value();
   *qdata.w_m_r_in_r_odo_prior = vel_last->value();
-  *qdata.timestamp_prior = last_timestamp;
+  *qdata.timestamp_prior = last_est_time;
 
   if (qdata.sliding_map_odo) {
     auto &sliding_map_odo = *qdata.sliding_map_odo;
-    EdgeTransform T_r_m(T_r_m_eval->value(), Eigen::Matrix<double, 6, 6>::Identity());
+    EdgeTransform T_r_m(T_r_m_eval->value(), Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     *qdata.T_r_v_odo = T_r_m * sliding_map_odo.T_vertex_this().inverse();
 
@@ -421,9 +481,17 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
     auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-    // trajectory->add(first_time, T_r_m_eval_first, VSpaceStateVar<6>::MakeShared(vel_first->value()));   // add first pose to trajectory
-    // trajectory->add(last_time, T_r_m_eval_last, VSpaceStateVar<6>::MakeShared(vel_last->value()));      // add last pose to trajectory
-    trajectory->add(Time(query_stamp), T_r_m_eval, VSpaceStateVar<6>::MakeShared(vel_query->value()));  // add query pose to trajectory
+    // CLOG all the trajectory info
+    CLOG(DEBUG, "lidar.odometry_wheel") << "last timestamp: " << last_est_time;
+    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "T_r_m_eval_last" << std::endl << T_r_m_eval_last->value().matrix();
+    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "vel_last" << std::endl << vel_last->value().transpose();
+
+    CLOG(DEBUG, "lidar.odometry_wheel") << "query timestamp: " << query_stamp;
+    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "T_r_m_eval" << std::endl << T_r_m_eval->value().matrix();
+    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "vel_query" << std::endl << vel_query->value().transpose();
+
+    trajectory->add(Time(last_est_time), T_r_m_eval_last, VSpaceStateVar<6>::MakeShared(vel_last->value()));      // add last pose to trajectory
+    trajectory->add(Time(query_stamp), T_r_m_eval, VSpaceStateVar<6>::MakeShared(vel_query->value()));            // add query pose to trajectory
 
     CLOG(DEBUG, "lidar.odometry_wheel") << "query_points[i].timestamp: " << std::endl << query_points[0].timestamp << " to " << query_points[query_points.size()-1].timestamp;
     CLOG(DEBUG, "lidar.odometry_wheel") << "query_stamp: " << std::endl << query_stamp;
