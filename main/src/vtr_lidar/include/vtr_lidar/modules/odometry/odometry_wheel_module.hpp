@@ -52,6 +52,11 @@ class OdometryWheelModule : public tactic::BaseModule {
     Eigen::Matrix<double, 1, 6> wheel_cov =
         Eigen::Matrix<double, 1, 6>::Ones() * 1e-3;
 
+    float max_trans_vel_diff = 1000.0; // m/s
+    float max_rot_vel_diff = 1000.0; // m/s
+    float max_trans_diff = 1000.0; // m
+    float max_rot_diff = 1000.0; // rad
+
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
@@ -83,8 +88,9 @@ class OdometryWheelModule : public tactic::BaseModule {
   int64_t last_wheel_stamp = 0;
 
   Eigen::Vector3d current_p = Eigen::Vector3d::Zero();
-  Eigen::Matrix3d current_theta = lgmath::so3::vec2rot(Eigen::Vector3d(0, 0, -M_PI/2));
+  Eigen::Matrix3d current_theta = lgmath::so3::vec2rot(Eigen::Vector3d(0, 0, M_PI/2));
 
+  double filtered_pulse_rate_ = 0.0;
 
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
