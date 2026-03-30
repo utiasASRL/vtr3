@@ -138,16 +138,16 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->v_s_gt_prev = v_s_gt_prev_;
   }
 
-  /// check if we are using doppler odometry
-  bool doppler_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
-    return module->name() == "lidar.odometry_doppler";
+  /// check if we are using doppler or wheel odometry
+  bool check_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
+    return module->name() == "lidar.odometry_doppler" || module->name() == "lidar.odometry_wheel";
   });
 
   for (const auto &module : odometry_) {
-    if (doppler_odometry &&
+    if (check_odometry &&
         module->name() == "lidar.odometry_map_maintenance_v2") {
-      // if we are using doppler odometry, always skip map building
-      CLOG(DEBUG, "lidar.pipeline") << "Attention! Doppler odometry is being used, skip map building.";
+      // if we are using doppler or wheel odometry, always skip map building
+      CLOG(DEBUG, "lidar.pipeline") << "Attention! Doppler or Wheel odometry is being used, skip map building.";
       if (!qdata->sliding_map_odo) {
         CLOG(DEBUG, "lidar.pipeline") << "Initializing sliding map with default voxel size.";
         qdata->sliding_map_odo.emplace(0.2);
