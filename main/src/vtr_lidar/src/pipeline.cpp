@@ -97,15 +97,15 @@ void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
-  /// check if we are using doppler odometry
-  bool doppler_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
-    return module->name() == "lidar.odometry_doppler";
+  /// check if we are using doppler or wheel odometry
+  bool check_odometry = std::any_of(odometry_.begin(), odometry_.end(), [](const auto &module) {
+    return module->name() == "lidar.odometry_doppler" || module->name() == "lidar.odometry_wheel";
   });
 
   for (const auto &module : preprocessing_) {
     if (module->name() == "lidar.preprocessing" &&
-        doppler_odometry && !*qdata->loc_flag) {
-      // if we are using doppler odometry, always skip preprocessing unless localization flag is enabled for current frame
+        check_odometry && !*qdata->loc_flag) {
+      // if we are using doppler or wheel odometry, always skip preprocessing unless localization flag is enabled for current frame
       CLOG(DEBUG, "lidar.pipeline") << "Attention! Not localizing current frame, skip preprocessing.";
       continue;
     }
