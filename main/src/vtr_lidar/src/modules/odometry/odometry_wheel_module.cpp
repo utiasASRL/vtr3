@@ -90,7 +90,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     CLOG(INFO, "lidar.odometry_wheel") << "First frame.";
     // clang-format off
     // undistorted preprocessed point cloud
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.preprocessed_point_cloud);
+    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
     cart2pol(*undistorted_point_cloud);
     qdata.undistorted_point_cloud = undistorted_point_cloud;
     //    
@@ -101,7 +101,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.T_r_m_odo_prior.emplace(EdgeTransform(true));
     qdata.w_m_r_in_r_odo_prior.emplace(Eigen::Matrix<double, 6, 1>::Zero());
     // Initialize timestamp equal to the end of the first frame
-    const auto &query_points = *qdata.preprocessed_point_cloud;
+    const auto &query_points = *qdata.raw_point_cloud;
     const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
     qdata.timestamp_prior.emplace(std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp);
     // clang-format on
@@ -109,7 +109,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Inputs
   const auto &query_stamp = *qdata.stamp;
-  const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &T_s_r = *qdata.T_s_r; // T_lidar_robot
   const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
   const auto &T_s_r_wheel = *qdata.T_s_r_wheel; // T_wheel_robot
@@ -123,6 +122,9 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   // Load in measurements
   auto &gyro_msgs = *qdata.gyro_msgs;
   auto &wheel_meas = *qdata.wheel_meas;
+
+  // Load in localization flag
+  bool loc_flag = *qdata.loc_flag;
 
   double bias_alpha;
   double min_bias_init_count;
@@ -190,14 +192,12 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Save unique measurement times
   std::vector<int64_t> timestamps;
-  const rclcpp::Time query_time(query_stamp);
   for (const auto &gyro_msg : gyro_msgs) {
     timestamps.push_back(static_cast<int64_t>(rclcpp::Time(gyro_msg.header.stamp).nanoseconds()));
   }
   for (const auto &wheel_set : wheel_meas) {
     timestamps.push_back(static_cast<int64_t>(wheel_set.first.nanoseconds()));
   }
-  timestamps.push_back(static_cast<int64_t>(query_time.nanoseconds()));
   std::sort(timestamps.begin(), timestamps.end());
   timestamps.erase(std::unique(timestamps.begin(), timestamps.end()), timestamps.end());
 
@@ -210,19 +210,9 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   rclcpp::Time next_gyro_time(gyro_msgs[ptr_ang + 1].header.stamp);
   rclcpp::Time next_wheel_time(wheel_meas[ptr_pulse + 1].first);
 
-  const auto compare_time = [](const auto &a, const auto &b) { return a.timestamp < b.timestamp; };
-  int64_t last_pt_time = std::max_element(query_points.begin(), query_points.end(), compare_time)->timestamp;
-  CLOG(DEBUG, "lidar.odometry_wheel") << "Last point timestamp: " << last_pt_time;
-
   // Find the largest timestamp less than last_pt_time
-  auto it = std::lower_bound(timestamps.begin(), timestamps.end(), last_pt_time);
-  int64_t last_timestamp = (it == timestamps.begin()) ? *it : *(it - 1);
-  int64_t first_est_stamp = 0;
-  int64_t last_est_time = 0;
-
-  Time first_time(static_cast<int64_t>(next_est_stamp));
-  Time last_time(static_cast<int64_t>(last_timestamp));
-  Time q_time(static_cast<int64_t>(query_stamp));
+  int64_t last_timestamp = timestamps[-1];
+  auto query_time = static_cast<int64_t>(query_stamp);
 
   // Initialize variables for velocity estimation
   double delta_time = 0.0;
@@ -234,9 +224,9 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix<double, 6, 1> w_last = Eigen::Matrix<double, 6, 1>::Zero();
 
   // estimation loop
-  bool first_estimated = true;
+  Eigen::Matrix<double, 6, 1> w_robot = Eigen::Matrix<double, 6, 1>::Zero();
   for (int i = 0; i < timestamps.size()-1; ++i) {
-    if (timestamps[i] > last_timestamp) continue;
+    // if (timestamps[i] > last_timestamp) continue;
 
     // get the current and next timestamps
     curr_time = rclcpp::Time(timestamps[i]);
@@ -343,50 +333,21 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Vector3d omega_wheel = instant_gyro_wheel;
 
     Eigen::Matrix3d R_r_wheel = T_s_r_wheel.matrix().inverse().block<3, 3>(0, 0).cast<double>();
-    Eigen::Matrix<double, 6, 1> w_robot = Eigen::Matrix<double, 6, 1>::Zero();
     w_robot.block<3, 1>(0, 0) = R_r_wheel * v_wheel;
     w_robot.block<3, 1>(3, 0) = R_r_wheel * omega_wheel;
     
-    // save first estimated pose
-    if (first_estimated) {
-      first_est_stamp = timestamps[i];
-      CLOG(INFO, "lidar.odometry_wheel") << "Saving first estimated pose at timestamp: " << first_est_stamp;
-      Eigen::Matrix4d first_trans = Eigen::Matrix4d::Identity();
-      first_trans.block<3, 3>(0, 0) = current_theta;
-      first_trans.block<3, 1>(0, 3) = current_p; // T_m_wheel
-      T_first = EdgeTransform(first_trans, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
-
-      first_estimated = false;
-      w_first = w_robot;
-    }
-
-    // save estimated pose at scan time
-    if (timestamps[i] == query_stamp) {
-      CLOG(INFO, "lidar.odometry_wheel") << "Saving estimated pose at scan time: " << query_stamp;
-      Eigen::Matrix4d trans = Eigen::Matrix4d::Identity();
-      trans.block<3, 3>(0, 0) = current_theta;
-      trans.block<3, 1>(0, 3) = current_p; // T_m_wheel
-      T_est = EdgeTransform(trans, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
-
-      w_query = w_robot;
-    }
-
-    // save last estimated pose
-    if (timestamps[i+1] == last_timestamp) {
-      last_est_time = timestamps[i];
-      CLOG(INFO, "lidar.odometry_wheel") << "Saving last estimated pose at timestamp: " << last_timestamp;
-      Eigen::Matrix4d last_trans = Eigen::Matrix4d::Identity();
-      last_trans.block<3, 3>(0, 0) = current_theta;
-      last_trans.block<3, 1>(0, 3) = current_p; // T_m_wheel
-      T_last = EdgeTransform(last_trans, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
-
-      w_last = w_robot;
-    }
-
     if (next_time.seconds() >= next_wheel_time.seconds() && ptr_pulse + 2 < (int)wheel_meas.size()) ptr_pulse++;
     if (next_time.seconds() >= next_gyro_time.seconds() && ptr_ang + 2 < (int)gyro_msgs.size()) ptr_ang++;
 
   } // end estimation loop 
+
+  // save last estimated pose timestamp and measurement for next iteration
+  int64_t last_est_time = curr_time.nanoseconds();
+  Eigen::Matrix4d last_trans = Eigen::Matrix4d::Identity();
+  last_trans.block<3, 3>(0, 0) = current_theta;
+  last_trans.block<3, 1>(0, 3) = current_p; // T_m_wheel
+  T_last = EdgeTransform(last_trans, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
+  w_last = w_robot;
 
   next_est_stamp = next_time.nanoseconds();
   last_gyro_stamp = curr_gyro_time.nanoseconds();
@@ -395,39 +356,22 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   last_gyro_msg = gyro_msgs.back();
   last_wheel_meas = wheel_meas.back();
 
-  // transform estimated pose to map frame
-  // at first time
-  const auto T_m_s_wheel_first = SE3StateVar::MakeShared(T_first); // T_map_wheel
-  auto T_r_m_eval_first = inverse(compose(T_m_s_wheel_first, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
-  // at scan time
-  const auto T_m_s_wheel = SE3StateVar::MakeShared(T_est); // T_map_wheel
-  auto T_r_m_eval = inverse(compose(T_m_s_wheel, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
-  // at last time
+  // transform estimated pose to map frame at last time
   const auto T_m_s_wheel_last = SE3StateVar::MakeShared(T_last); // T_map_wheel
   auto T_r_m_eval_last = inverse(compose(T_m_s_wheel_last, T_s_r_wh_var)); // T_map_wheel * T_wheel_robot
-
-  if (query_stamp <= next_est_stamp) {
-    // If the query time is before the first timestamp, use the first timestamp
-    CLOG(WARNING, "lidar.odometry_wheel") << "Query time is before first timestamp, using first estimated pose.";
-    T_r_m_eval = T_r_m_eval_first;
-    w_query = w_first;
-  }
-
-  auto vel_query = VSpaceStateVar<6>::MakeShared(-w_query);
   auto vel_last = VSpaceStateVar<6>::MakeShared(-w_last);
-
 
   bool estimate_reasonable = true;
   // Check if change between initial and final velocity is reasonable
   const auto &w_m_r_in_r_prev = *qdata.w_m_r_in_r_odo_prior;
-  const auto &w_m_r_in_r_new = vel_query->value();
+  const auto &w_m_r_in_r_new = vel_last->value();
   const auto vel_diff = w_m_r_in_r_new - w_m_r_in_r_prev;
   const auto vel_diff_norm = vel_diff.norm();
   const auto trans_vel_diff_norm = vel_diff.head<3>().norm();
   const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
-  const auto T_r_m_query = T_r_m_eval->value();
-  const auto diff_T = (T_r_m_odo_prior * T_r_m_query.inverse()).vec();
+  const auto T_r_m_new = T_r_m_eval_last->value();
+  const auto diff_T = (T_r_m_odo_prior * T_r_m_new.inverse()).vec();
   const auto diff_T_trans = diff_T.head<3>().norm();
   const auto diff_T_rot = diff_T.tail<3>().norm();
   
@@ -450,71 +394,98 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     estimate_reasonable = false;
   }
 
-  *qdata.T_r_m_odo = T_r_m_eval->value();
-  *qdata.w_m_r_in_r_odo = vel_query->value(); 
-  *qdata.timestamp_odo = query_stamp;
-  CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "T_r_m_eval: " << std::endl << T_r_m_eval->value().matrix();
-  CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "w_m_r_in_r_odo: " << std::endl << qdata.w_m_r_in_r_odo->transpose();
 
-  *qdata.T_r_m_odo_prior = T_r_m_eval_last->value();
-  *qdata.w_m_r_in_r_odo_prior = vel_last->value();
-  *qdata.timestamp_prior = last_est_time;
+  if (estimate_reasonable) {
 
-  if (qdata.sliding_map_odo) {
-    auto &sliding_map_odo = *qdata.sliding_map_odo;
-    EdgeTransform T_r_m(T_r_m_eval->value(), Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
-    *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-    *qdata.T_r_v_odo = T_r_m * sliding_map_odo.T_vertex_this().inverse();
+    // add estimated state at the end of the frame as a knot to the trajectory
+    trajectory->add(Time(last_est_time), T_r_m_eval_last, VSpaceStateVar<6>::MakeShared(vel_last->value()));
 
-    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "T_r_v_odo: "<< std::endl  << qdata.T_r_v_odo->matrix();
-    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "sliding map T: " << std::endl << sliding_map_odo.T_vertex_this().matrix();
+    // interpolate state at query time
+    Evaluable<lgmath::se3::Transformation>::ConstPtr T_r_m_query = nullptr;
+    Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_query = nullptr;
+    T_r_m_query = trajectory->getPoseInterpolator(Time(query_time));
+    w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
 
     // compound transform for alignment (sensor to point map transform)
-    const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval)); // lidar
+    const auto T_s_m_query = compose(T_s_r_var, T_r_m_query);
 
-    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "T_m_s_eval: " << std::endl << T_m_s_eval->evaluate().matrix();
+    *qdata.T_r_m_odo = EdgeTransform(T_r_m_query->value(), Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
+    *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
+    *qdata.timestamp_odo = query_stamp;
 
-    // outputs - create shallow copy
-    pcl::PointCloud<PointWithInfo> aligned_points(query_points);
-    const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());  
-    auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-    // CLOG all the trajectory info
-    CLOG(DEBUG, "lidar.odometry_wheel") << "last timestamp: " << last_est_time;
-    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "T_r_m_eval_last" << std::endl << T_r_m_eval_last->value().matrix();
-    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "vel_last" << std::endl << vel_last->value().transpose();
+    if (loc_flag && qdata.preprocessed_point_cloud && qdata.sliding_map_odo) {
+      CLOG(DEBUG, "lidar.odometry_wheel") << "localizing: processing point cloud with estimated pose at query time";
+      // only if we're localizing this frame
+      const auto &query_points = *qdata.preprocessed_point_cloud;
 
-    CLOG(DEBUG, "lidar.odometry_wheel") << "query timestamp: " << query_stamp;
-    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "T_r_m_eval" << std::endl << T_r_m_eval->value().matrix();
-    CLOG(DEBUG, "lidar.odometry_wheel") << std::endl << "vel_query" << std::endl << vel_query->value().transpose();
+      // outputs - create shallow copy
+      pcl::PointCloud<PointWithInfo> aligned_points(query_points);
+      const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      const auto query_norms_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());  
+      auto aligned_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      auto aligned_norms_mat = aligned_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
 
-    trajectory->add(Time(last_est_time), T_r_m_eval_last, VSpaceStateVar<6>::MakeShared(vel_last->value()));      // add last pose to trajectory
-    trajectory->add(Time(query_stamp), T_r_m_eval, VSpaceStateVar<6>::MakeShared(vel_query->value()));            // add query pose to trajectory
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (unsigned i = 0; i < query_points.size(); i++) {
+        const auto &qry_time = query_points[i].timestamp;
+        const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+        const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+        const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
 
-    CLOG(DEBUG, "lidar.odometry_wheel") << "query_points[i].timestamp: " << std::endl << query_points[0].timestamp << " to " << query_points[query_points.size()-1].timestamp;
-    CLOG(DEBUG, "lidar.odometry_wheel") << "query_stamp: " << std::endl << query_stamp;
-    for (unsigned i = 0; i < query_points.size(); i++) {
-      const auto &qry_time = query_points[i].timestamp;
-      const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-      const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-      const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
-      aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
-      aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
+        aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
+        aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
+      }
+
+      // undistort the preprocessed pointcloud
+      const auto T_s_m = T_s_m_query->evaluate().matrix().cast<float>();
+      aligned_mat = T_s_m * aligned_mat;
+      aligned_norms_mat = T_s_m * aligned_norms_mat;
+      
+      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
+      cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+      qdata.undistorted_point_cloud = undistorted_point_cloud;
+
+      EdgeTransform T_r_m(*qdata.T_r_m_odo, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
+      auto &sliding_map_odo = *qdata.sliding_map_odo;
+      *qdata.T_r_v_odo = T_r_m * sliding_map_odo.T_vertex_this().inverse(); // T_r_m * T_m_v
+      *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
+
+    } else {
+      // if not localizing, just save the estimated pose and velocity at query time without transforming the point cloud
+      CLOG(DEBUG, "lidar.odometry_wheel") << "not localizing: skip point cloud processing, saving estimated pose and velocity";
+      const auto &query_points = *qdata.raw_point_cloud;
+      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+      cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+      qdata.undistorted_point_cloud = undistorted_point_cloud;
     }
 
-    // undistort the preprocessed pointcloud
-    const auto T_s_m = T_m_s_eval->evaluate().matrix().inverse().cast<float>();
-    aligned_mat = T_s_m * aligned_mat;
-    aligned_norms_mat = T_s_m * aligned_norms_mat;
-    
-    auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
-    cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
-    qdata.undistorted_point_cloud = undistorted_point_cloud;
+    *qdata.T_r_m_odo_prior = T_r_m_eval_last->value();
+    *qdata.w_m_r_in_r_odo_prior = vel_last->value();
+    *qdata.timestamp_prior = last_est_time;
+
+    *qdata.odo_success = true;
+  } else {
+    CLOG(WARNING, "lidar.odometry_wheel") << "Wheel-Odometer Odometry failed";
+    if (loc_flag && qdata.preprocessed_point_cloud) {
+      CLOG(DEBUG, "lidar.odometry_wheel") << "using VTR preprocessed point cloud";
+      const auto &query_points = *qdata.preprocessed_point_cloud;
+      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+      cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+      qdata.undistorted_point_cloud = undistorted_point_cloud;
+      CLOG(DEBUG, "lidar.odometry_wheel") << "undistorted_point_cloud size: " << undistorted_point_cloud->size();
+    } else {
+      CLOG(DEBUG, "lidar.odometry_wheel") << "no point cloud saved";
+      const auto &query_points = *qdata.raw_point_cloud;
+      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+      cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+      qdata.undistorted_point_cloud = undistorted_point_cloud;
+      CLOG(DEBUG, "lidar.odometry_wheel") << "undistorted_point_cloud size: " << undistorted_point_cloud->size();
+    }
+    *qdata.odo_success = false;  
   }
-  
-  *qdata.odo_success = true;
+
+
   // clang-format on
 }
 
