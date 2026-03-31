@@ -608,7 +608,6 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     w_m_r_in_r_query = trajectory->getVelocityInterpolator(Time(query_time));
 
     // compound transform for alignment (sensor to point map transform)
-    const auto T_prev = SE3StateVar::MakeShared(prev_T_r_m_odo);
     const auto T_s_m_query = compose(T_s_r_var, T_r_m_query);
       
     if (loc_flag && qdata.preprocessed_point_cloud) {
@@ -655,12 +654,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
     // outputs at frame stamp time
     *qdata.T_r_m_odo = EdgeTransform(T_r_m_query->value(), P_query);
     *qdata.w_m_r_in_r_odo = w_m_r_in_r_query->value();
+    *qdata.timestamp_odo = query_stamp;
 
     EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, P_query);
     auto &sliding_map_odo = *qdata.sliding_map_odo;
     *qdata.T_r_v_odo = T_r_m_dop * sliding_map_odo.T_vertex_this().inverse(); // T_r_m * T_m_v
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-    *qdata.timestamp_odo = query_stamp;
 
     *qdata.T_r_m_odo_prior = T_r_m_eval->value();
     *qdata.w_m_r_in_r_odo_prior = knot2;
