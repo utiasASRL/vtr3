@@ -1,5 +1,18 @@
 /**:
   ros__parameters:
+    pipeline:
+      preprocessing:
+        - conversion
+        - filtering
+        - locate_leader
+    preprocessing:
+      locate_leader:
+        type: lidar.leader_locator
+        maximum_distance: 5.0
+        minimum_distance: 0.0
+        extrinsic: [0.0454,0.0,0.25]
+        intensity_threshold: 10000.0
+        publish: true
     tactic:
       chain:
         alpha: 0.0
@@ -36,7 +49,7 @@
             r1: 0.0
             r2: 3.0
             racc1: 4.0
-            racc2: 5.0
+            racc2: 10.0
             q_f: 1.0 # Multiplier for terminal cost
           reverse:
             q_lat: 10.0
@@ -50,8 +63,8 @@
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
         control_period: 100
-        distance_margin: 0.5
-        waypoint_selection: arclength
+        distance_margin: 10.0
+        waypoint_selection: euclidean 
         longitudinal_control:
           kp: 2.0
           ki: 0.5
@@ -98,21 +111,21 @@
             q_f: 1.0 # Multiplier for terminal cost
     log_enabled:
       #- tactic.module
-      - mission.state_machine
-      - mission.server
+      #- mission.state_machine
+      #- mission.server
         # planner manager
       - cbit.control
-      #- cbit.debug
-      #- cbit.path_planning
+      - cbit.debug
+      - cbit.path_planning
         # mpc
-      #- mpc.speed_scheduler
+      - mpc.speed_scheduler
       - mpc.debug
       - mpc.solver
       - mpc.follower
-      #- mpc.follower.target
+      - mpc.follower.target
       - mpc.follower.pid
         # path planner
-      #- cbit_planner.path_planning
+      - cbit_planner.path_planning
         # pose graph
       #- pose_graph
         # lidar pipeline
@@ -125,7 +138,7 @@
       #- lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
-      #- lidar.leader_locator
+      - lidar.leader_locator
 
 
 /prof_plum/vtr/navigator:
@@ -134,7 +147,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 5.0
+      follow_distance: 2.5
 
 /mr_green/vtr/navigator:
   ros__parameters:
@@ -142,7 +155,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /prof_plum 
-      follow_distance: 5.0
+      follow_distance: 2.5
 
 /col_mustard/vtr/navigator:
   ros__parameters:
@@ -150,15 +163,15 @@
     bicycle_mpc_follower:
       leader_namespace:
         /prof_plum
-      follow_distance: 23.4
+      follow_distance: 2.5
 
 /mrs_peacock/vtr/navigator:
   ros__parameters:
    path_planning:
     bicycle_mpc_follower:
       leader_namespace:
-        /col_mustard
-      follow_distance: 5.0  
+        /prof_plum
+      follow_distance: 2.5
 
 /vtr/convoy_planning_node:
   ros__parameters:

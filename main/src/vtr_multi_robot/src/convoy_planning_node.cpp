@@ -65,13 +65,6 @@ class ConvoyPlanningNode : public rclcpp::Node {
     std::vector<std::string> robot_names =
         declare_parameter<std::vector<std::string>>("robot_names");
 
-    if (robot_names.size() != 2) {
-      CLOG(ERROR, "convoy_command")
-          << "Convoy is only implemented for 2 robots so far.";
-      throw std::runtime_error(
-          "Convoy is only implemented for 2 robots so far.");
-    }
-
     const auto data_dir = declare_parameter<std::string>("data_dir");
     graph_ = tactic::Graph::MakeShared(
         data_dir + "/graph", true, std::make_shared<tactic::Graph::Callback>(),
@@ -171,7 +164,7 @@ class ConvoyPlanningNode : public rclcpp::Node {
   };
 
   void onCommand(const MissionCommand::SharedPtr msg) {
-    CLOG(INFO, "convoy_route") << "Received msg";
+    CLOG(ERROR, "convoy_route") << "Received msg";
     if (msg->type != MissionCommand::ADD_GOAL ||
         msg->goal_handle.type != Goal::REPEAT) {
       CLOG(INFO, "convoy_route") << "Invalid message type";
@@ -242,11 +235,15 @@ class ConvoyPlanningNode : public rclcpp::Node {
       CLOG(DEBUG, "convoy_route")
           << "Robot " << robots.front().name << " is the leader";
       robots.front().setLeader();
-      robots.back().setFollower();
+      for (int i = 1; i < robots.size(); ++i ) {
+          robots.at(i).setFollower();
+      }
     } else {
       CLOG(DEBUG, "convoy_route")
           << "Robot " << robots.back().name << " is the leader";
-      robots.front().setFollower();
+      for (int i = 0; i < robots.size() - 1; ++i ) {
+          robots.at(i).setFollower();
+      }
       robots.back().setLeader();
     }
 
@@ -303,7 +300,7 @@ class ConvoyPlanningNode : public rclcpp::Node {
   }
 
   // Members
-  std::list<RobotInfo> robots;
+  std::vector<RobotInfo> robots;
   rclcpp::Subscription<MissionCommand>::SharedPtr command_sub_;
   tactic::Graph::Ptr graph_;
   BFSPlanner::Ptr route_planner_;
