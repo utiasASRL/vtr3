@@ -81,7 +81,9 @@ class PreprocessingCurvatureModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr filtered_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr dist_filtered_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr curv_filtered_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr unif_filtered_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(PreprocessingCurvatureModule);
 };

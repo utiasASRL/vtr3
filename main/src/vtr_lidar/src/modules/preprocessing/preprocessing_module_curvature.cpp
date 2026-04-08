@@ -313,7 +313,11 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
 
   // Create a publisher for visualization if needed
   if (config_->visualize && !publisher_initialized_) {
-    filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("filtered_point_cloud", 5);
+    // clang-format off
+    dist_filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("dist_filtered_point_cloud", 5);
+    curv_filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("curv_filtered_point_cloud", 5);
+    unif_filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("unif_filtered_point_cloud", 5);
+    // clang-format on
     publisher_initialized_ = true;
   }
 
@@ -372,6 +376,25 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
   remove_small_clusters(filtered_point_cloud, cluster_ids);
   timer[3]->stop();
 
+  auto unif_filtered_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*filtered_point_cloud);
+  if (config_->visualize) {
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(*unif_filtered_point_cloud, pc2_msg);
+    pc2_msg.header.frame_id = "lidar"; //"lidar" for honeycomb
+    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    dist_filtered_pub_->publish(pc2_msg);
+  }
+  
+  voxelDownsample(*unif_filtered_point_cloud, 0.3);
+  
+  if (config_->visualize) {
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(*unif_filtered_point_cloud, pc2_msg);
+    pc2_msg.header.frame_id = "lidar"; //"lidar" for honeycomb
+    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    unif_filtered_pub_->publish(pc2_msg);
+  }
+
   // extract labels
   std::vector<int> labels(filtered_point_cloud->size());
   for (size_t i = 0; i < filtered_point_cloud->size(); ++i)
@@ -418,6 +441,13 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
           << "cluster " << label << " size: " << cluster_cloud->size()
           << ", mean curvature: " << mean_curvature;
 
+      for (const auto& pt : *cluster_cloud) {
+        // set face_id to cluster label
+        const_cast<PointWithInfo&>(pt).face_id = label;
+        // set ivariance to mean curvature
+        const_cast<PointWithInfo&>(pt).ivariance = static_cast<float>(mean_curvature);
+      }
+
       float voxel_size = (std::abs(mean_curvature) < config_->ground_plane_threshold) 
                                                       ? config_->plane_voxel_size
                                                       : config_->feature_voxel_size;
@@ -444,6 +474,14 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
 
   CLOG(DEBUG, "lidar.preprocessing_curvature")
       << "final downsampled point cloud size: " << filtered_point_cloud->size();
+
+  if (config_->visualize) {
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(*filtered_point_cloud, pc2_msg);
+    pc2_msg.header.frame_id = "lidar"; //"lidar" for honeycomb
+    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+    curv_filtered_pub_->publish(pc2_msg);
+  }
 
   // if (config_->visualize) {
   //   pcl::PointCloud<pcl::PointXYZI>::Ptr vis_cloud(new pcl::PointCloud<pcl::PointXYZI>());
@@ -486,7 +524,7 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
 
   //       if (std::isfinite(filtered_point_cloud->points[i].curvature)) {
   //           // normalize curvature to [0,1]
-  //           vis_cloud->points[i].intensity = (filtered_point_cloud->points[i].curvature - curv_min) / range;
+  //           vis_cloud->points[i].intensity = std::abs((filtered_point_cloud->points[i].curvature - curv_min) / range);
   //       } else {
   //           vis_cloud->points[i].intensity = 0.0f;
   //       }
@@ -498,62 +536,62 @@ void PreprocessingCurvatureModule::run_(QueryCache &qdata0, OutputCache &,
   //   filtered_pub_->publish(msg);
   // }
 
-  if (config_->visualize) {
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr vis_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
-    vis_cloud->resize(filtered_point_cloud->size());
+//   if (config_->visualize) {
+//     pcl::PointCloud<pcl::PointXYZRGB>::Ptr vis_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+//     vis_cloud->resize(filtered_point_cloud->size());
 
-    // Compute min and max curvature in the cloud
-    float curv_min = std::numeric_limits<float>::max();
-    float curv_max = std::numeric_limits<float>::lowest();
-    for (const auto& pt : *filtered_point_cloud) {
-        if (std::isfinite(pt.curvature)) {
-            curv_min = std::min(curv_min, pt.curvature);
-            curv_max = std::max(curv_max, pt.curvature);
-        }
-    }
+//     // Compute min and max curvature in the cloud
+//     float curv_min = std::numeric_limits<float>::max();
+//     float curv_max = std::numeric_limits<float>::lowest();
+//     for (const auto& pt : *filtered_point_cloud) {
+//         if (std::isfinite(pt.curvature)) {
+//             curv_min = std::min(curv_min, pt.curvature);
+//             curv_max = std::max(curv_max, pt.curvature);
+//         }
+//     }
 
-    // Use absolute maximum for symmetric coloring around zero
-    float abs_max = std::max(std::abs(curv_min), std::abs(curv_max));
+//     // Use absolute maximum for symmetric coloring around zero
+//     float abs_max = std::max(std::abs(curv_min), std::abs(curv_max));
 
-    for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
-        const auto& pt = filtered_point_cloud->points[i];
+//     for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
+//         const auto& pt = filtered_point_cloud->points[i];
 
-        pcl::PointXYZRGB p;
-        p.x = pt.x;
-        p.y = pt.y;
-        p.z = pt.z;
+//         pcl::PointXYZRGB p;
+//         p.x = pt.x;
+//         p.y = pt.y;
+//         p.z = pt.z;
 
-        float c = std::isfinite(pt.curvature) ? pt.curvature : 0.0f;
+//         float c = std::isfinite(pt.curvature) ? pt.curvature : 0.0f;
 
-        // Normalize curvature to [-1,1]
-        float c_norm = std::max(-1.0f, std::min(1.0f, c / abs_max));
+//         // Normalize curvature to [-1,1]
+//         float c_norm = std::max(-1.0f, std::min(1.0f, c / abs_max));
 
-        uint8_t r, g, b;
+//         uint8_t r, g, b;
 
-        if (c_norm < 0.0f) {
-            // Negative curvature -> blue to white
-            r = static_cast<uint8_t>(255 * (1.0f + c_norm));
-            g = static_cast<uint8_t>(255 * (1.0f + c_norm));
-            b = 255;
-        } else {
-            // Positive curvature -> white to red
-            r = 255;
-            g = static_cast<uint8_t>(255 * (1.0f - c_norm));
-            b = static_cast<uint8_t>(255 * (1.0f - c_norm));
-        }
+//         if (c_norm < 0.0f) {
+//             // Negative curvature -> blue to white
+//             r = static_cast<uint8_t>(255 * (1.0f + c_norm));
+//             g = static_cast<uint8_t>(255 * (1.0f + c_norm));
+//             b = 255;
+//         } else {
+//             // Positive curvature -> white to red
+//             r = 255;
+//             g = static_cast<uint8_t>(255 * (1.0f - c_norm));
+//             b = static_cast<uint8_t>(255 * (1.0f - c_norm));
+//         }
 
-        p.r = r;
-        p.g = g;
-        p.b = b;
+//         p.r = r;
+//         p.g = g;
+//         p.b = b;
 
-        vis_cloud->points[i] = p;
-    }
+//         vis_cloud->points[i] = p;
+//     }
 
-    sensor_msgs::msg::PointCloud2 msg;
-    pcl::toROSMsg(*vis_cloud, msg);
-    msg.header.frame_id = "lidar";
-    filtered_pub_->publish(msg);
-}
+//     sensor_msgs::msg::PointCloud2 msg;
+//     pcl::toROSMsg(*vis_cloud, msg);
+//     msg.header.frame_id = "lidar";
+//     filtered_pub_->publish(msg);
+// }
 
 
   qdata.preprocessed_point_cloud = filtered_point_cloud;

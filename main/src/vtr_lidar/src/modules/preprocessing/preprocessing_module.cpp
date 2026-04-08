@@ -101,7 +101,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("filtered_point_cloud", 5);
+    filtered_pub_ = qdata.node->create_publisher<PointCloudMsg>("norm_filtered_point_cloud", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -265,7 +265,7 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   /// Output
-  qdata.preprocessed_point_cloud = filtered_point_cloud;
+  //qdata.preprocessed_point_cloud = filtered_point_cloud;
 }
 
 }  // namespace lidar
