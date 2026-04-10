@@ -93,9 +93,17 @@ void OdometryMapMaintenanceModuleV2::run_(QueryCache &qdata0, OutputCache &,
   normal_mat = T_m_s * normal_mat;
 
   // update the map with new points and refresh their life time
-  auto update_cb = [&config = config_](bool, PointWithInfo &curr_pt,
-                                       const PointWithInfo &) {
+  auto update_cb = [&config = config_](bool is_new, PointWithInfo &curr_pt,
+                                       const PointWithInfo &new_pt) {
     curr_pt.life_time = config->point_life_time;
+
+    // average the intensity of a point if it appears multiple times
+    if (is_new) {
+        curr_pt.total_obs = 1.0f;
+    } else {
+        curr_pt.flex14 = (curr_pt.flex14 * curr_pt.total_obs + new_pt.flex14) / (curr_pt.total_obs + 1.0f);
+        curr_pt.total_obs += 1.0f;
+    }
   };
   sliding_map_odo.update(points, update_cb);
 

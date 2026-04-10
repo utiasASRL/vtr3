@@ -87,6 +87,7 @@ void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(idx).x = points(idx, 0);
     point_cloud->at(idx).y = points(idx, 1);
     point_cloud->at(idx).z = points(idx, 2);
+    point_cloud->at(idx).intensity = points(idx, 3);
     
     // pointwise timestamp
     point_cloud->at(idx).timestamp =
