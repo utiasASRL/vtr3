@@ -92,6 +92,8 @@ class OdometryWheelModule : public tactic::BaseModule {
 
   double filtered_pulse_rate_ = 0.0;
 
+  bool first_frame_ = true;
+
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;

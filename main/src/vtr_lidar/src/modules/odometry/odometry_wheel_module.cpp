@@ -414,7 +414,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.timestamp_odo = query_stamp;
 
 
-    if (loc_flag && qdata.preprocessed_point_cloud && qdata.sliding_map_odo) {
+    if (loc_flag && qdata.preprocessed_point_cloud) {
       CLOG(DEBUG, "lidar.odometry_wheel") << "localizing: processing point cloud with estimated pose at query time";
       // only if we're localizing this frame
       const auto &query_points = *qdata.preprocessed_point_cloud;
@@ -445,19 +445,20 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
       auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
       cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
       qdata.undistorted_point_cloud = undistorted_point_cloud;
+    } else {
+      // if not localizing, just save the estimated pose and velocity at query time without transforming the point cloud
+      CLOG(DEBUG, "lidar.odometry_wheel") << "not localizing: skip point cloud processing, saving estimated pose and velocity";
+      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>();
+      undistorted_point_cloud->resize(1); // create a dummy point cloud with one point since we won't be using it for localization
+      cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+      qdata.undistorted_point_cloud = undistorted_point_cloud;
+    }
 
+    if (!first_frame_) {
       EdgeTransform T_r_m(*qdata.T_r_m_odo, Eigen::Matrix<double, 6, 6>::Identity() * 1e-3);
       auto &sliding_map_odo = *qdata.sliding_map_odo;
       *qdata.T_r_v_odo = T_r_m * sliding_map_odo.T_vertex_this().inverse(); // T_r_m * T_m_v
       *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
-
-    } else {
-      // if not localizing, just save the estimated pose and velocity at query time without transforming the point cloud
-      CLOG(DEBUG, "lidar.odometry_wheel") << "not localizing: skip point cloud processing, saving estimated pose and velocity";
-      const auto &query_points = *qdata.raw_point_cloud;
-      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
-      cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
-      qdata.undistorted_point_cloud = undistorted_point_cloud;
     }
 
     *qdata.T_r_m_odo_prior = T_r_m_eval_last->value();
@@ -476,8 +477,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
       CLOG(DEBUG, "lidar.odometry_wheel") << "undistorted_point_cloud size: " << undistorted_point_cloud->size();
     } else {
       CLOG(DEBUG, "lidar.odometry_wheel") << "no point cloud saved";
-      const auto &query_points = *qdata.raw_point_cloud;
-      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+      auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>();
+      undistorted_point_cloud->resize(1); // create a dummy point cloud with one point since we won't be using it for localization
       cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
       qdata.undistorted_point_cloud = undistorted_point_cloud;
       CLOG(DEBUG, "lidar.odometry_wheel") << "undistorted_point_cloud size: " << undistorted_point_cloud->size();
@@ -485,6 +486,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.odo_success = false;  
   }
 
+  first_frame_ = false;
 
   // clang-format on
 }
