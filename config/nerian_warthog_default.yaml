@@ -81,7 +81,7 @@
     pipeline:
       type: stereo
 
-      preprocessing: ["adapter","extraction", "triangulation"]
+      preprocessing: ["adapter", "extraction", "triangulation"]
       odometry: ["recall", "matcher", "ransac", "keyframe_optimize", "vertex_test"]
       bundle_adjustment: ["recall", "steam"]
       localization:

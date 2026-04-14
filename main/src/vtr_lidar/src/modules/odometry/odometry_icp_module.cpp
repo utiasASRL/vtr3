@@ -483,6 +483,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
       T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
 
       // Marginalize out all but last 2 states for prior
+      // state_vars[0] = T at frame start, state_vars[1] = w at frame start
+      // state_vars[2] = T at frame end,   state_vars[3] = w at frame end
+      // Each state has a pose + velocity pair, so we want to keep the last 2 state_vars (lidar_frame_end pose and velocity) and marginalize out the rest
       std::vector<StateVarBase::Ptr> state_vars_marg;
       for (int i = 0; i < num_states*2 - 2; ++i) {
         state_vars_marg.push_back(state_vars[i]);
