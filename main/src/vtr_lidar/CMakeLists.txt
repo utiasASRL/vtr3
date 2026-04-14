@@ -28,6 +28,9 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
 find_package(vtr_torch REQUIRED)
 
+# opencv for intensity image feature detection
+find_package(OpenCV REQUIRED)
+
 if(DEFINED VTR_ENABLE_LIDAR)
 
 ## C++ Libraries
@@ -46,6 +49,7 @@ ament_target_dependencies(${PROJECT_NAME}_components
   nav_msgs
   lgmath steam
   vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
+  OpenCV
 )
 
 # pipelines and modules
@@ -60,6 +64,7 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
   nav_msgs visualization_msgs
   lgmath steam vtr_torch
   vtr_logging vtr_tactic vtr_lidar_msgs
+  OpenCV
 )
 
 # additional tools for experiments
@@ -78,6 +83,7 @@ ament_export_dependencies(
   nav_msgs visualization_msgs
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs vtr_torch
+  OpenCV
 )
 
 install(
@@ -118,6 +124,10 @@ if(BUILD_TESTING)
   target_link_libraries(test_point_map ${PROJECT_NAME}_pipeline)
   ament_add_gmock(test_multi_exp_point_map test/test_multi_exp_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_multi_exp_point_map ${PROJECT_NAME}_pipeline)
+
+  # intensity features
+  ament_add_gmock(test_intensity_features test/test_intensity_features.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_intensity_features ${PROJECT_NAME}_pipeline)
 
   find_package(Boost REQUIRED)
   find_package(PCL REQUIRED)
