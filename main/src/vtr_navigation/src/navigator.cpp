@@ -83,6 +83,30 @@ EdgeTransform loadTransform(const std::string& source_frame,
         << " has been set to" << T_source_target_;
     return T_source_target_;
   }
+  // Ouster IMU 
+  if (source_frame == "w200_0066_os_imu") {
+
+    Eigen::Matrix4d T_imu_lidar; // T_imu_lidar
+    T_imu_lidar << -1, 0, 0, -0.006253,
+                   0, -1, 0,  0.011775,    
+                   0,  0, 1,  0.03055,
+                   0,  0, 0,  1;
+
+    Eigen::Matrix4d T_lidar_robot; // T_imu_lidar
+    T_lidar_robot <<   -1,  0,  0,  0.025,
+                        0,  1,  0,  0.002,
+                        0,  0, -1,  0.84282,
+                        0,  0,  0,  1;
+
+    Eigen::Matrix4d T_source_target = T_imu_lidar * T_lidar_robot;
+
+    EdgeTransform T_source_target_(T_source_target);
+    T_source_target_.setCovariance(Eigen::Matrix<double, 6, 6>::Identity() * 1e-6);
+    CLOG(DEBUG, "navigation")
+        << "Transform from " << target_frame << " to " << source_frame
+        << " has been set to" << T_source_target_;
+    return T_source_target_;
+  }
   if (source_frame == "w200_0066_aeva_lidar") {
     Eigen::Matrix4d T_source_target; // T_aeva_robot
 
@@ -130,42 +154,6 @@ EdgeTransform loadTransform(const std::string& source_frame,
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity() * 1e-6);
   return T_source_target;
 }
-
-Eigen::Vector3d loadGyroBias(const std::string& temp_gyro_topic) {
-  std::vector<Eigen::Vector3d> gyro_samples;
-  std::mutex mtx;
-
-  // Create a temporary node for spinning
-  auto temp_node = rclcpp::Node::make_shared("gyro_bias_loader_node");
-
-  auto gyro_sub = temp_node->create_subscription<sensor_msgs::msg::Imu>(
-    temp_gyro_topic, rclcpp::QoS(100).reliable(),
-    [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
-      std::lock_guard<std::mutex> lock(mtx);
-      gyro_samples.emplace_back(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
-    });
-
-  auto start = temp_node->now();
-  rclcpp::Rate rate(100);
-  CLOG(DEBUG, "navigation") << "before gyro bias loading, waiting for messages...";
-  while ((temp_node->now() - start).seconds() < 10.0) {
-    CLOG(DEBUG, "navigation") << "waiting for gyro messages..."; 
-    rclcpp::spin_some(temp_node);
-    rate.sleep();
-  }
-
-  Eigen::Vector3d avg = Eigen::Vector3d::Zero();
-  {
-    std::lock_guard<std::mutex> lock(mtx);
-    if (!gyro_samples.empty()) {
-      for (const auto& v : gyro_samples) avg += v;
-      avg /= gyro_samples.size();
-    }
-  }
-
-  CLOG(DEBUG, "navigation") << "Gyro bias loaded: " << avg.transpose();
-  return avg;
-}  
 
 }  // namespace
 
@@ -232,6 +220,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
+  gyro_bias_ = {
+    node_->declare_parameter<double>("gyro_bias.x", 0.0),
+    node_->declare_parameter<double>("gyro_bias.y", 0.0),
+    node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_);
   // static transform
@@ -306,12 +298,7 @@ if (pipeline->name() == "radar") {
 
   auto gyro_qos = rclcpp::QoS(100);
   gyro_qos.reliable();
-  const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/aeva/sensor/imu");
-
-  // ----- compute gyro bias
-  // gyro_bias_ = loadGyroBias(gyro_topic);
-  // gyro_bias_ << -0.0100866, -0.00756348, -0.00556666;      // yzd trial02
-  gyro_bias_ << 0.0, 0.0, 0.0;      // ouster testing
+  const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
 
   CLOG(INFO, "navigation") << "Gyro bias loaded: " << gyro_bias_.transpose();
 

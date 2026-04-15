@@ -6,7 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /TF1
-        - /TF1/Frames1
         - /Teach Path1/Topic1
         - /MPC Solution1
         - /MPC Tracking Reference Poses1
@@ -160,6 +159,13 @@ Visualization Manager:
                   {}
           w200_0066_imu_0_link:
             {}
+        world:
+          odo vertex frame:
+            robot:
+              lidar:
+                {}
+          world (offset):
+            {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -174,7 +180,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 0; 255; 0
       Max Intensity: 0.09950866550207138
@@ -195,7 +201,7 @@ Visualization Manager:
         Value: /vtr/raw_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -208,7 +214,7 @@ Visualization Manager:
       Color: 0; 255; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 999999
@@ -229,7 +235,7 @@ Visualization Manager:
         Value: /vtr/filtered_point_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -276,7 +282,7 @@ Visualization Manager:
       Color: 255; 0; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 3
@@ -297,7 +303,7 @@ Visualization Manager:
         Value: /vtr/submap_loc
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -310,7 +316,7 @@ Visualization Manager:
       Color: 0; 255; 127
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -331,7 +337,7 @@ Visualization Manager:
         Value: /vtr/submap_odo
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
@@ -667,7 +673,7 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 5237
+      Max Intensity: 5364
       Min Color: 0; 0; 0
       Min Intensity: 1
       Name: PointCloud2
@@ -703,7 +709,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 189; 189; 189
-    Fixed Frame: w200_0066_base_link
+    Fixed Frame: world
     Frame Rate: 30
   Name: root
   Tools:
@@ -746,25 +752,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/ThirdPersonFollower
-      Distance: 49.49272155761719
+      Distance: 33.552459716796875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.02147054672241211
-        Y: -2.798203468322754
-        Z: 0.005932643078267574
+        X: -11.462757110595703
+        Y: -2.979158401489258
+        Z: 0.005904226563870907
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5447975397109985
+      Pitch: 0.23479825258255005
       Target Frame: robot
       Value: ThirdPersonFollower (rviz_default_plugins)
-      Yaw: 2.611361026763916
+      Yaw: 3.0163650512695312
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453

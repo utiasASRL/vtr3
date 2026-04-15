@@ -109,8 +109,8 @@
         - filtering
         - intensity_feature_extraction
       odometry:
-        - icp         
-        # - livo       # lidar-inertial-visual odometry
+        # - icp         
+        - livo       # lidar-inertial-visual odometry
         - mapping
         - vertex_test
         #- intra_exp_merging
@@ -245,7 +245,7 @@
 
         # lidar intensity visual parameters
         use_lidar:  true            # turn on/off lidar ICP cost terms, for debugging
-        use_visual: false           # turn on/off visual feature cost terms, for debugging
+        use_visual: true           # turn on/off visual feature cost terms, for debugging
         sigma_pixel: 1.0
         reproj_loss_sigma: 1.0
         ransac_max_iterations: 200
