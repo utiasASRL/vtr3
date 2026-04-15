@@ -11,7 +11,7 @@ Panels:
         - /MPC Solution1
         - /MPC Tracking Reference Poses1
       Splitter Ratio: 0.4507042169570923
-    Tree Height: 1391
+    Tree Height: 928
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -29,7 +29,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Visualization Manager:
   Class: ""
   Displays:
@@ -63,73 +63,57 @@ Visualization Manager:
       Frame Timeout: 99999
       Frames:
         All Enabled: false
-        base_link:
-          Value: true
-        chassis_link:
-          Value: true
-        diff_link:
-          Value: true
-        front_left_wheel_link:
-          Value: true
-        front_right_wheel_link:
-          Value: true
-        imu_link:
-          Value: true
-        left_diff_unit_headlight_link:
-          Value: true
-        left_diff_unit_link:
-          Value: true
-        left_diff_unit_taillight_link:
-          Value: true
         lidar:
           Value: false
-        loc vertex frame:
-          Value: true
-        loc vertex frame (offset):
-          Value: false
-        navtech_base:
-          Value: true
-        nerian_left:
-          Value: true
-        nerian_stereo:
-          Value: true
-        novatel:
-          Value: true
         odo vertex frame:
           Value: false
-        odom:
-          Value: true
-        os_imu:
-          Value: true
-        os_lidar:
-          Value: true
-        os_sensor:
-          Value: true
-        os_sensor_base_link:
-          Value: true
-        os_sensor_baseplate:
-          Value: true
-        planning frame:
-          Value: false
-        rear_left_wheel_link:
-          Value: true
-        rear_right_wheel_link:
-          Value: true
-        right_diff_unit_headlight_link:
-          Value: true
-        right_diff_unit_link:
-          Value: true
-        right_diff_unit_taillight_link:
-          Value: true
         robot:
           Value: true
-        robot planning:
-          Value: false
-        robot planning (extrapolated) mpc:
+        w200_0066_base_link:
           Value: true
-        sensor_tower:
+        w200_0066_chassis_link:
           Value: true
-        top_chassis_link:
+        w200_0066_chassis_top_link:
+          Value: true
+        w200_0066_default_mount:
+          Value: true
+        w200_0066_diff_link:
+          Value: true
+        w200_0066_imu_0_link:
+          Value: true
+        w200_0066_left_diff_unit_headlight_link:
+          Value: true
+        w200_0066_left_diff_unit_link:
+          Value: true
+        w200_0066_left_diff_unit_taillight_link:
+          Value: true
+        w200_0066_navtech_base:
+          Value: true
+        w200_0066_nerian_left:
+          Value: true
+        w200_0066_nerian_stereo:
+          Value: true
+        w200_0066_novatel:
+          Value: true
+        w200_0066_odom:
+          Value: true
+        w200_0066_os_imu:
+          Value: true
+        w200_0066_os_lidar:
+          Value: true
+        w200_0066_os_sensor:
+          Value: true
+        w200_0066_os_sensor_base_link:
+          Value: true
+        w200_0066_os_sensor_baseplate:
+          Value: true
+        w200_0066_right_diff_unit_headlight_link:
+          Value: true
+        w200_0066_right_diff_unit_link:
+          Value: true
+        w200_0066_right_diff_unit_taillight_link:
+          Value: true
+        w200_0066_sensor_tower:
           Value: true
         world:
           Value: false
@@ -141,21 +125,41 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        world:
-          loc vertex frame:
-            {}
-          odo vertex frame:
-            robot:
-              lidar:
+        w200_0066_odom:
+          w200_0066_base_link:
+            w200_0066_chassis_link:
+              w200_0066_chassis_top_link:
+                w200_0066_sensor_tower:
+                  w200_0066_novatel:
+                    {}
+                  w200_0066_os_sensor_base_link:
+                    w200_0066_os_sensor_baseplate:
+                      w200_0066_os_sensor:
+                        w200_0066_navtech_base:
+                          {}
+                        w200_0066_nerian_stereo:
+                          w200_0066_nerian_left:
+                            {}
+                        w200_0066_os_imu:
+                          {}
+                        w200_0066_os_lidar:
+                          {}
+              w200_0066_default_mount:
                 {}
-          planning frame:
-            robot planning:
-              {}
-            robot planning (extrapolated) mpc:
-              {}
-          world (offset):
-            loc vertex frame (offset):
-              {}
+              w200_0066_diff_link:
+                {}
+              w200_0066_left_diff_unit_link:
+                w200_0066_left_diff_unit_headlight_link:
+                  {}
+                w200_0066_left_diff_unit_taillight_link:
+                  {}
+              w200_0066_right_diff_unit_link:
+                w200_0066_right_diff_unit_headlight_link:
+                  {}
+                w200_0066_right_diff_unit_taillight_link:
+                  {}
+          w200_0066_imu_0_link:
+            {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -568,7 +572,7 @@ Visualization Manager:
       Class: rviz_default_plugins/Map
       Color Scheme: costmap
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: Obstacle Detections
       Topic:
         Depth: 5
@@ -584,7 +588,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/change_detection_costmap_updates
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.699999988079071
       Class: rviz_default_plugins/Map
       Color Scheme: raw
@@ -648,10 +652,58 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/mpc_ref_pose_array_homotopy
       Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 5237
+      Min Color: 0; 0; 0
+      Min Intensity: 1
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /ouster/points
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/liv_intensity_image
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 189; 189; 189
-    Fixed Frame: world
+    Fixed Frame: w200_0066_base_link
     Frame Rate: 30
   Name: root
   Tools:
@@ -694,25 +746,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/ThirdPersonFollower
-      Distance: 16.207958221435547
+      Distance: 49.49272155761719
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -9.903048515319824
-        Y: -2.746500015258789
-        Z: 0.005913601256906986
+        X: 0.02147054672241211
+        Y: -2.798203468322754
+        Z: 0.005932643078267574
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5547972917556763
+      Pitch: 0.5447975397109985
       Target Frame: robot
       Value: ThirdPersonFollower (rviz_default_plugins)
-      Yaw: 3.401355266571045
+      Yaw: 2.611361026763916
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -917,10 +969,12 @@ Visualization Manager:
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1536
+  Height: 1403
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd000000040000000000000281000005aafc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000005aa000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c0000005aafc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003b000005aa000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d0065010000000000000450000000000000000000000565000005aa00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Image:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd0000000400000000000002ad000003dbfc0200000007fc0000003d000001a20000000000fffffffaffffffff0100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000000ffffffff0000008c00fffffffb0000001200530065006c0065006300740069006f006e0000000000000002530000006c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c0061007900730100000185000003db000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001c0000003dbfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730100000185000003db000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b2000000000000000000000002000009be00000144fc0100000002fb0000000a0049006d0061006700650100000000000009be0000005a00fffffffb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d0065010000000000000450000000000000000000000545000003db00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -929,6 +983,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 2482
-  X: 78
-  Y: 27
+  Width: 2494
+  X: 2626
+  Y: 0

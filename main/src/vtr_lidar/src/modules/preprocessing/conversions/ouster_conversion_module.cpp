@@ -114,6 +114,9 @@ void OusterConversionModule::run_(QueryCache &qdata0, OutputCache &,
   auto filtered_point_cloud =
       std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
 
+  // Store the unfiltered cloud (full hardware grid) for intensity image creation
+  qdata.unfiltered_point_cloud = point_cloud;
+
   /// Range cropping
   if (config_->filter_warthog_points){
     std::vector<int> indices;

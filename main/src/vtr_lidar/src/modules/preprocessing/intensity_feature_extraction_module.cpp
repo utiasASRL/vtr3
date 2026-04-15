@@ -158,14 +158,14 @@ void IntensityFeatureExtractionModule::run_(
     initialized_ = true;
   }
 
-  // Need raw point cloud (before filtering/downsampling)
-  if (!qdata.raw_point_cloud.valid()) {
+  // Need unfiltered point cloud (full hardware grid) for image creation
+  if (!qdata.unfiltered_point_cloud.valid()) {
     CLOG(WARNING, "lidar.intensity_feature_extraction")
-        << "No raw point cloud available, skipping feature extraction";
+        << "No unfiltered point cloud available, skipping feature extraction";
     return;
   }
 
-  const auto& raw_cloud = *qdata.raw_point_cloud;
+  const auto& raw_cloud = *qdata.unfiltered_point_cloud;
 
   // Step 1: Generate intensity + range images using OusterProjector
   cv::Mat intensity_image_f32, range_image, pixel_to_point_index;
@@ -196,6 +196,8 @@ void IntensityFeatureExtractionModule::run_(
   }
 
   // Step 4: Detect ORB features and back-project to 3D
+  //   pixel_to_point_index maps into the unfiltered cloud, which has 
+  //   the same size as the hardware grid (rows_ × cols_)
   auto features = feature_manager_->detectFeatures(
       intensity_image_u8, pixel_to_point_index, raw_cloud, mask_);
 
@@ -207,9 +209,11 @@ void IntensityFeatureExtractionModule::run_(
   // Step 5: Store in cache for downstream modules
   // Note: we must keep copies for publishing before moving
   cv::Mat intensity_for_pub, range_for_pub;
+  std::vector<cv::KeyPoint> keypoints_for_pub;
   if (config_->visualize) {
     intensity_for_pub = intensity_image_u8.clone();
     range_for_pub = range_image.clone();
+    keypoints_for_pub = features.keypoints;  // copy before move
   }
   qdata.intensity_image.emplace(std::move(intensity_image_u8));
   qdata.range_image.emplace(std::move(range_image));
@@ -220,13 +224,13 @@ void IntensityFeatureExtractionModule::run_(
   if (config_->visualize) {
     if (!publisher_initialized_) {
       intensity_pub_ =
-          qdata.node->create_publisher<ImageMsg>("intensity_image", 5);
+          qdata.node->create_publisher<ImageMsg>("liv_intensity_image", 5);
       range_pub_ =
-          qdata.node->create_publisher<ImageMsg>("range_image", 5);
+          qdata.node->create_publisher<ImageMsg>("liv_range_image", 5);
       publisher_initialized_ = true;
     }
 
-    // Publish intensity image (8-bit grayscale, with mask overlay)
+    // Publish intensity image (8-bit grayscale, with mask + feature overlay)
     cv::Mat intensity_vis;
     cv::cvtColor(intensity_for_pub, intensity_vis, cv::COLOR_GRAY2BGR);
     // Draw mask rectangles as translucent teal overlays
@@ -236,6 +240,31 @@ void IntensityFeatureExtractionModule::run_(
       cv::addWeighted(roi, 0.6, teal, 0.4, 0.0, roi);
       cv::rectangle(intensity_vis, rect, cv::Scalar(128, 128, 0), 1,
                      cv::LINE_AA);
+    }
+    // Draw ORB feature overlay (circles + gradient direction, matching LIVO)
+    {
+      cv::Mat dx, dy;
+      cv::Sobel(intensity_for_pub, dx, CV_32F, 1, 0, 3);
+      cv::Sobel(intensity_for_pub, dy, CV_32F, 0, 1, 3);
+      const cv::Scalar feat_color(0, 140, 255);  // orange (BGR)
+      for (const auto& kp : keypoints_for_pub) {
+        const int cx = static_cast<int>(std::round(kp.pt.x));
+        const int cy = static_cast<int>(std::round(kp.pt.y));
+        if (cx < 0 || cx >= intensity_vis.cols ||
+            cy < 0 || cy >= intensity_vis.rows)
+          continue;
+        const int radius = std::clamp(static_cast<int>(kp.size * 0.2f), 2, 6);
+        const float gx = dx.ptr<float>(cy)[cx];
+        const float gy = dy.ptr<float>(cy)[cx];
+        const float grad_len = std::sqrt(gx * gx + gy * gy) + 1e-6f;
+        const cv::Point tip(
+            cx + static_cast<int>(radius * gx / grad_len),
+            cy + static_cast<int>(radius * gy / grad_len));
+        cv::circle(intensity_vis, cv::Point(cx, cy), radius, feat_color, 1,
+                   cv::LINE_AA);
+        cv::line(intensity_vis, cv::Point(cx, cy), tip, feat_color, 1,
+                 cv::LINE_AA);
+      }
     }
     cv_bridge::CvImage intensity_msg;
     intensity_msg.header.frame_id = "lidar";

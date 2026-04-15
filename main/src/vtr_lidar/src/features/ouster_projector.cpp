@@ -180,10 +180,15 @@ bool OusterProjector::projectPoint(const Eigen::Vector3d& point, Eigen::Vector2d
 
   if (greater == elevation_angles_.end()) {
     uv.y() = static_cast<double>(rows_) - 1.0;
+  } else if (smaller == elevation_angles_.end()) {
+    // theta is at or very near the last (lowest) elevation angle
+    uv.y() = static_cast<double>(rows_) - 1.0;
   } else {
+    double denom = *greater - *smaller;
     uv.y() = static_cast<double>(
         std::distance(elevation_angles_.begin(), greater));
-    uv.y() += (*greater - theta) / (*greater - *smaller);
+    if (std::abs(denom) > 1e-12)
+      uv.y() += (*greater - theta) / denom;
   }
 
   return isFOV(uv);

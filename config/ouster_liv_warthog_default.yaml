@@ -45,10 +45,14 @@
       #- lidar.preprocessing
       #- lidar.ouster_converter
       - lidar.odometry_icp
+      - lidar.odometry_liv
+      - lidar.intensity_feature_extraction
       #- lidar.odometry_map_maintenance
       #- lidar.vertex_test
       #- lidar.localization_map_recall
       #- lidar.localization_icp
+      - lidar.localization_liv
+      - lidar.localization_map_recall_lv
       #- lidar.intra_exp_merging
       #- lidar.dynamic_detection
       #- lidar.inter_exp_merging
@@ -105,8 +109,8 @@
         - filtering
         - intensity_feature_extraction
       odometry:
-        # - icp         
-        - livo       # lidar-inertial-visual odometry
+        - icp         
+        # - livo       # lidar-inertial-visual odometry
         - mapping
         - vertex_test
         #- intra_exp_merging
@@ -115,7 +119,8 @@
         - memory
       localization:
         - recall_lv
-        - icp
+        # - icp
+        - liv
         #- safe_corridor
         #- change_detection_sync
         - memory
@@ -171,7 +176,7 @@
         fast_threshold: 20
         min_range: 0.5
         max_range: 100.0
-        visualize: false
+        visualize: true
         rotate_image: true  # lidar is mounted upside-down on warthog. rotate image for visualization.
         # Rectangular mask regions [x, y, w, h, ...] to block warthog body occlusions
         mask_rects: [115, 0, 30,  75,
@@ -240,7 +245,7 @@
 
         # lidar intensity visual parameters
         use_lidar:  true            # turn on/off lidar ICP cost terms, for debugging
-        use_visual: true           # turn on/off visual feature cost terms, for debugging
+        use_visual: false           # turn on/off visual feature cost terms, for debugging
         sigma_pixel: 1.0
         reproj_loss_sigma: 1.0
         ransac_max_iterations: 200
@@ -323,6 +328,28 @@
         max_iterations: 1
         min_matched_ratio: 0.45
         target_loc_time: 15.0
+      liv:
+        type: lidar.localization_liv
+        use_pose_prior: true
+        # ICP parameters (same as icp module)
+        num_threads: 8
+        first_num_steps: 2
+        initial_max_iter: 4
+        initial_max_pairing_dist: 1.5
+        initial_max_planar_dist: 1.0
+        refined_max_iter: 50
+        refined_max_pairing_dist: 1.0
+        refined_max_planar_dist: 0.3
+        averaging_num_steps: 2
+        verbose: false
+        max_iterations: 1
+        min_matched_ratio: 0.45
+        target_loc_time: 15.0
+        # Visual (LIV) parameters
+        use_visual: true
+        use_lidar: true
+        sigma_pixel: 1.0
+        reproj_loss_sigma: 1.0
       safe_corridor:
         type: lidar.safe_corridor
         lookahead_distance: 5.0

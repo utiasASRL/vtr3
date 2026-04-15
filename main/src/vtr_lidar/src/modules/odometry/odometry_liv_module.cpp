@@ -196,10 +196,11 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     *qdata.odo_success = true;
     // clang-format on
 
-    // Store current features as prev for next frame
+    // Store current features as prev for next frame (use = to overwrite
+    // any existing value injected by the pipeline)
     if (qdata.live_intensity_features.valid()) {
       auto feat_copy = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
-      qdata.prev_intensity_features.emplace(feat_copy);
+      qdata.prev_intensity_features = feat_copy;
     }
     return;
   }
@@ -335,6 +336,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       bf_matcher->knnMatch(curr_feat.descriptors, prev_feat_ptr->descriptors,
                            knn_matches, 2);
 
+      // Current scan duration (seconds) — the inter-frame time baseline
+      const double scan_duration =
+          static_cast<double>(frame_end_time - frame_start_time) * 1e-9;
+
       // Apply ratio test and build VisualMatch list
       for (const auto& match_pair : knn_matches) {
         if (match_pair.size() < 2) continue;
@@ -350,14 +355,21 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
           const Eigen::Vector3d& p1 = prev_feat_ptr->points_3d.col(prev_idx);
           if (p1.norm() < 0.5) continue;
 
+          // Analytically project p1 and the current 3D point to get y1, y2
+          // in the same coordinate space that projectPoint/backProject use.
+          // This is critical: MD-RANSAC calls projectPoint internally,
+          // so y2 must be in analytical projection coordinates, not LUT pixels.
+          Eigen::Vector2d y1_proj, y2_proj;
+          if (!projector_->projectPoint(p1, y1_proj)) continue;
+
+          const Eigen::Vector3d& p2 = curr_feat.points_3d.col(curr_idx);
+          if (p2.norm() < 0.5) continue;
+          if (!projector_->projectPoint(p2, y2_proj)) continue;
+
           VisualMatch vm;
           vm.p1 = p1;
-
-          // Use keypoint pixel coordinates as measurements
-          vm.y1 << prev_feat_ptr->keypoints[prev_idx].pt.x,
-                    prev_feat_ptr->keypoints[prev_idx].pt.y;
-          vm.y2 << curr_feat.keypoints[curr_idx].pt.x,
-                    curr_feat.keypoints[curr_idx].pt.y;
+          vm.y1 = y1_proj;
+          vm.y2 = y2_proj;
 
           // Timestamps
           vm.timestamp_1 = (prev_idx < static_cast<int>(prev_feat_ptr->timestamps.size()))
@@ -367,8 +379,15 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
                                ? curr_feat.timestamps[curr_idx]
                                : frame_end_time;
 
-          // dt = time from frame_start to current feature observation (seconds)
-          vm.dt = static_cast<double>(vm.timestamp_2 - frame_start_time) * 1e-9;
+          // Per-match dt: total time from when p1 was observed (in prev scan)
+          // to when y2 was observed (in current scan).
+          // = scan_duration + (f2_relative_time - f1_relative_time)
+          // where relative times are offsets within each scan.
+          const double f1_dt = static_cast<double>(vm.timestamp_1 - frame_start_time) * 1e-9;
+          const double f2_dt = static_cast<double>(vm.timestamp_2 - frame_start_time) * 1e-9;
+          vm.dt = scan_duration + f2_dt - f1_dt;
+          if (vm.dt < 1e-6) vm.dt = scan_duration;  // safety floor
+
           vm.prev_idx = prev_idx;
           vm.curr_idx = curr_idx;
 
@@ -726,9 +745,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   }
 
   // ── Update prev_intensity_features for next frame ──
+  // Use = to overwrite any existing value injected by the pipeline
   if (qdata.live_intensity_features.valid()) {
     auto feat_copy = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
-    qdata.prev_intensity_features.emplace(feat_copy);
+    qdata.prev_intensity_features = feat_copy;
   }
   // clang-format on
 }

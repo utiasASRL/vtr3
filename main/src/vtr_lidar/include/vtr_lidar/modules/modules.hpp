@@ -42,6 +42,7 @@
 
 #include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
 #include "vtr_lidar/modules/localization/localization_icp_module.hpp"
+#include "vtr_lidar/modules/localization/localization_liv_module.hpp"
 #include "vtr_lidar/modules/localization/localization_map_recall_module.hpp"
 #include "vtr_lidar/modules/localization/localization_map_recall_module_lv.hpp"
 

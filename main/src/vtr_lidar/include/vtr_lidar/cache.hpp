@@ -53,6 +53,8 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
 
   // preprocessing
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+  /// Unfiltered point cloud (full hardware grid, for intensity image creation)
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> unfiltered_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> doppler_preprocessed_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> nn_point_cloud;
@@ -62,7 +64,7 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<cv::Mat> intensity_image;
   /// Range image (CV_32F) for back-projection
   tactic::Cache<cv::Mat> range_image;
-  /// Maps pixel (row,col) → index into raw_point_cloud (-1 if empty)
+  /// Maps pixel (row,col) → index into unfiltered_point_cloud (-1 if empty)
   tactic::Cache<cv::Mat> pixel_to_point_index;
   /// Current frame ORB features
   tactic::Cache<IntensityFeatures> live_intensity_features;
