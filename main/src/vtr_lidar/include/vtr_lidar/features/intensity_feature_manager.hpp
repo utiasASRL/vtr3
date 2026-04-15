@@ -35,6 +35,13 @@ struct IntensityFeatureManagerConfig {
   float min_range = 0.5f;
   float max_range = 100.0f;
 
+  // Grid-based detection (spatial spread)
+  int grid_rows = 2;          ///< vertical grid divisions
+  int grid_cols = 8;          ///< horizontal grid divisions
+  int max_per_cell = 100;     ///< max features retained per grid cell
+  int edge_threshold = 4;     ///< ORB edgeThreshold (small for narrow cells)
+  int patch_size = 15;        ///< ORB patchSize (small for narrow cells)
+
   // Matching
   float match_distance_threshold = 50.0f;  // Hamming distance
   float match_ratio_threshold = 0.8f;      // Lowe's ratio test

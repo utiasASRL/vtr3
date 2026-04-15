@@ -170,12 +170,18 @@
         ae_lo_frac: 0.1
         ae_hi_frac: 0.1
         # ORB detection
-        max_features: 500
-        nlevels: 8
+        max_features: 1000
+        nlevels: 4
         scale_factor: 1.2
-        fast_threshold: 20
+        fast_threshold: 10
         min_range: 0.5
         max_range: 100.0
+        # Grid-based detection for spatial spread (parallel)
+        grid_rows: 2            # 128/2 = 64 px per cell vertically
+        grid_cols: 8            # 1024/8 = 128 px per cell horizontally
+        max_per_cell: 100       # max features kept per grid cell
+        edge_threshold: 4       # small for narrow cells
+        patch_size: 15          # small for narrow cells
         visualize: true
         rotate_image: true  # lidar is mounted upside-down on warthog. rotate image for visualization.
         # Rectangular mask regions [x, y, w, h, ...] to block warthog body occlusions

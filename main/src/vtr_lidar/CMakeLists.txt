@@ -31,6 +31,7 @@ find_package(vtr_torch REQUIRED)
 # opencv for intensity image feature detection
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(OpenMP)
 
 if(DEFINED VTR_ENABLE_LIDAR)
 
@@ -53,6 +54,9 @@ ament_target_dependencies(${PROJECT_NAME}_components
   vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
   OpenCV
 )
+if(OpenMP_CXX_FOUND)
+  target_link_libraries(${PROJECT_NAME}_components OpenMP::OpenMP_CXX)
+endif()
 
 # pipelines and modules
 file(GLOB_RECURSE PIPELINE_SRC

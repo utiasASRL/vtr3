@@ -10,6 +10,7 @@
 #include <opencv2/imgproc.hpp>
 #include <cmath>
 #include <algorithm>
+#include <omp.h>
 
 namespace vtr {
 namespace lidar {
@@ -17,16 +18,17 @@ namespace lidar {
 IntensityFeatureManager::IntensityFeatureManager(
     const IntensityFeatureManagerConfig::ConstPtr& config)
     : config_(config) {
-  // Create ORB detector
+  // The main orb_detector_ is kept for matchFeatures (BFMatcher).
+  // For grid detection, each thread creates its own ORB instance.
   orb_detector_ = cv::ORB::create(
-      config_->max_features,
+      std::max(config_->max_per_cell * 2, 100),
       config_->scale_factor,
       config_->nlevels,
-      31,                        // edgeThreshold
+      config_->edge_threshold,
       0,                         // firstLevel
       2,                         // WTA_K
       cv::ORB::HARRIS_SCORE,
-      31,                        // patchSize
+      config_->patch_size,
       config_->fast_threshold);
 
   // Create BFMatcher for ORB (Hamming distance)
@@ -91,18 +93,134 @@ IntensityFeatures IntensityFeatureManager::detectFeatures(
   features.image_width = intensity_image.cols;
   features.image_height = intensity_image.rows;
 
-  // Detect ORB keypoints and compute descriptors
+  const int rows = intensity_image.rows;
+  const int cols = intensity_image.cols;
+  const int grid_rows = config_->grid_rows;
+  const int grid_cols = config_->grid_cols;
+  const int num_cells = grid_rows * grid_cols;
+  const int cell_h = rows / grid_rows;
+  const int cell_w = cols / grid_cols;
+
+  // Fair per-cell budget: equal share of global cap, clamped to max_per_cell
+  const int cell_budget = std::min(config_->max_per_cell,
+                                   (config_->max_features + num_cells - 1) / num_cells);
+
+  // Per-cell results (one slot per cell, no data races)
+  std::vector<std::vector<cv::KeyPoint>> cell_kps_vec(num_cells);
+  std::vector<cv::Mat> cell_desc_vec(num_cells);
+
+  #pragma omp parallel
+  {
+    // Thread-local ORB detector (cv::ORB is NOT thread-safe)
+    auto orb_local = cv::ORB::create(
+        std::max(config_->max_per_cell * 2, 100),
+        config_->scale_factor,
+        config_->nlevels,
+        config_->edge_threshold,
+        0, 2, cv::ORB::HARRIS_SCORE,
+        config_->patch_size,
+        config_->fast_threshold);
+
+    #pragma omp for schedule(dynamic)
+    for (int ci = 0; ci < num_cells; ++ci) {
+      const int gr = ci / grid_cols;
+      const int gc = ci % grid_cols;
+
+      // Cell region (last row/col absorbs remainder pixels)
+      const int x0 = gc * cell_w;
+      const int y0 = gr * cell_h;
+      const int x1 = (gc == grid_cols - 1) ? cols : x0 + cell_w;
+      const int y1 = (gr == grid_rows - 1) ? rows : y0 + cell_h;
+      cv::Rect cell_rect(x0, y0, x1 - x0, y1 - y0);
+
+      cv::Mat cell_img = intensity_image(cell_rect);
+      cv::Mat cell_mask = mask.empty() ? cv::Mat() : mask(cell_rect);
+
+      // Detect in this cell
+      std::vector<cv::KeyPoint> cell_kps;
+      cv::Mat cell_desc;
+      orb_local->detectAndCompute(cell_img, cell_mask, cell_kps, cell_desc);
+
+      // Sort by response (strongest first) and keep top cell_budget
+      if (static_cast<int>(cell_kps.size()) > cell_budget) {
+        std::vector<std::pair<float, int>> scored;
+        scored.reserve(cell_kps.size());
+        for (int i = 0; i < static_cast<int>(cell_kps.size()); ++i)
+          scored.emplace_back(cell_kps[i].response, i);
+        std::partial_sort(scored.begin(),
+                          scored.begin() + cell_budget,
+                          scored.end(),
+                          [](const auto& a, const auto& b) {
+                            return a.first > b.first;
+                          });
+
+        std::vector<cv::KeyPoint> top_kps;
+        cv::Mat top_desc;
+        top_kps.reserve(cell_budget);
+        for (int k = 0; k < cell_budget; ++k) {
+          top_kps.push_back(cell_kps[scored[k].second]);
+          if (!cell_desc.empty())
+            top_desc.push_back(cell_desc.row(scored[k].second));
+        }
+        cell_kps = std::move(top_kps);
+        cell_desc = top_desc;
+      }
+
+      // Shift keypoint coordinates from cell-local to full-image
+      for (auto& kp : cell_kps) {
+        kp.pt.x += static_cast<float>(x0);
+        kp.pt.y += static_cast<float>(y0);
+      }
+
+      cell_kps_vec[ci] = std::move(cell_kps);
+      cell_desc_vec[ci] = cell_desc;
+    }
+  }  // end #pragma omp parallel
+
+  // Merge per-cell results
   std::vector<cv::KeyPoint> all_keypoints;
   cv::Mat all_descriptors;
-  orb_detector_->detectAndCompute(intensity_image,
-                                   mask.empty() ? cv::noArray() : mask,
-                                   all_keypoints, all_descriptors);
+  for (int ci = 0; ci < num_cells; ++ci) {
+    all_keypoints.insert(all_keypoints.end(),
+                         cell_kps_vec[ci].begin(), cell_kps_vec[ci].end());
+    if (!cell_desc_vec[ci].empty()) {
+      if (all_descriptors.empty())
+        all_descriptors = cell_desc_vec[ci];
+      else
+        cv::vconcat(all_descriptors, cell_desc_vec[ci], all_descriptors);
+    }
+  }
+
+  // Global cap: keep top max_features by response
+  if (static_cast<int>(all_keypoints.size()) > config_->max_features) {
+    std::vector<std::pair<float, int>> scored;
+    scored.reserve(all_keypoints.size());
+    for (int i = 0; i < static_cast<int>(all_keypoints.size()); ++i)
+      scored.emplace_back(all_keypoints[i].response, i);
+    std::partial_sort(scored.begin(),
+                      scored.begin() + config_->max_features,
+                      scored.end(),
+                      [](const auto& a, const auto& b) {
+                        return a.first > b.first;
+                      });
+
+    std::vector<cv::KeyPoint> kept_kps;
+    cv::Mat kept_desc;
+    kept_kps.reserve(config_->max_features);
+    for (int k = 0; k < config_->max_features; ++k) {
+      kept_kps.push_back(all_keypoints[scored[k].second]);
+      if (!all_descriptors.empty())
+        kept_desc.push_back(all_descriptors.row(scored[k].second));
+    }
+    all_keypoints = std::move(kept_kps);
+    all_descriptors = kept_desc;
+  }
 
   // Filter: keep only keypoints with valid 3D back-projection
   std::vector<cv::KeyPoint> valid_keypoints;
   cv::Mat valid_descriptors;
   std::vector<Eigen::Vector3d> valid_points;
-  std::vector<int> valid_cloud_indices;  // indices into cloud for timestamps
+  std::vector<int> valid_cloud_indices;
 
   for (size_t i = 0; i < all_keypoints.size(); ++i) {
     const auto& kp = all_keypoints[i];

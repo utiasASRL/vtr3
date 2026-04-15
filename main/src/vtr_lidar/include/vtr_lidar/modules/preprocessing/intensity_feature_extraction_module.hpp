@@ -48,6 +48,13 @@ class IntensityFeatureExtractionModule : public tactic::BaseModule {
     float min_range = 0.5f;
     float max_range = 100.0f;
 
+    // Grid-based detection (spatial spread)
+    int grid_rows = 2;          ///< vertical grid divisions
+    int grid_cols = 8;          ///< horizontal grid divisions
+    int max_per_cell = 100;     ///< max features retained per grid cell
+    int edge_threshold = 4;     ///< ORB edgeThreshold (small for narrow cells)
+    int patch_size = 15;        ///< ORB patchSize (small for narrow cells)
+
     bool visualize = false;
     /// Rotate published images 180° (for upside-down mounted lidars)
     bool rotate_image = false;

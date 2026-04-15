@@ -84,6 +84,11 @@ auto IntensityFeatureExtractionModule::Config::fromROS(
   config->fast_threshold = node->declare_parameter<int>(param_prefix + ".fast_threshold", config->fast_threshold);
   config->min_range = static_cast<float>(node->declare_parameter<double>(param_prefix + ".min_range", config->min_range));
   config->max_range = static_cast<float>(node->declare_parameter<double>(param_prefix + ".max_range", config->max_range));
+  config->grid_rows = node->declare_parameter<int>(param_prefix + ".grid_rows", config->grid_rows);
+  config->grid_cols = node->declare_parameter<int>(param_prefix + ".grid_cols", config->grid_cols);
+  config->max_per_cell = node->declare_parameter<int>(param_prefix + ".max_per_cell", config->max_per_cell);
+  config->edge_threshold = node->declare_parameter<int>(param_prefix + ".edge_threshold", config->edge_threshold);
+  config->patch_size = node->declare_parameter<int>(param_prefix + ".patch_size", config->patch_size);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   config->rotate_image = node->declare_parameter<bool>(param_prefix + ".rotate_image", config->rotate_image);
 
@@ -131,6 +136,11 @@ void IntensityFeatureExtractionModule::run_(
     fm_config->fast_threshold = config_->fast_threshold;
     fm_config->min_range = config_->min_range;
     fm_config->max_range = config_->max_range;
+    fm_config->grid_rows = config_->grid_rows;
+    fm_config->grid_cols = config_->grid_cols;
+    fm_config->max_per_cell = config_->max_per_cell;
+    fm_config->edge_threshold = config_->edge_threshold;
+    fm_config->patch_size = config_->patch_size;
     feature_manager_ = std::make_shared<IntensityFeatureManager>(fm_config);
 
     // Build mask image from rectangular mask regions
@@ -266,6 +276,7 @@ void IntensityFeatureExtractionModule::run_(
                  cv::LINE_AA);
       }
     }
+
     cv_bridge::CvImage intensity_msg;
     intensity_msg.header.frame_id = "lidar";
     intensity_msg.encoding = "bgr8";
@@ -273,6 +284,15 @@ void IntensityFeatureExtractionModule::run_(
       cv::rotate(intensity_vis, intensity_msg.image, cv::ROTATE_180);
     else
       intensity_msg.image = intensity_vis;
+
+    // Draw feature count as blue text in top-left corner
+    {
+      const std::string text = std::to_string(keypoints_for_pub.size()) + " features";
+      const cv::Scalar blue(255, 128, 0);  // blue in BGR
+      cv::putText(intensity_msg.image, text, cv::Point(10, 20),
+                  cv::FONT_HERSHEY_SIMPLEX, 0.5, blue, 1, cv::LINE_AA);
+    }
+
     intensity_pub_->publish(*intensity_msg.toImageMsg());
 
     // Publish range image (normalize to 8-bit for visualization)
