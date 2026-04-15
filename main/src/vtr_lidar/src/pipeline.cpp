@@ -84,6 +84,7 @@ void LidarPipeline::reset() {
   w_m_r_in_r_odo_prior_ = nullptr;
   cov_prior_ = nullptr;
   timestamp_prior_ = nullptr;
+  prev_intensity_features_ = nullptr;
 
   // localization cached data
   submap_loc_ = nullptr;
@@ -122,6 +123,11 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
 
   }
 
+  // Inject prev_intensity_features for LIV odometry
+  if (prev_intensity_features_ != nullptr) {
+    qdata->prev_intensity_features = prev_intensity_features_;
+  }
+
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
 
@@ -136,6 +142,11 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     timestamp_prior_ = qdata->timestamp_prior.ptr();
     w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
     cov_prior_ = qdata->cov_prior.ptr();
+  }
+
+  // Capture prev_intensity_features for next frame
+  if (qdata->prev_intensity_features.valid()) {
+    prev_intensity_features_ = qdata->prev_intensity_features.ptr();
   }
 }
 

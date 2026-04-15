@@ -110,6 +110,9 @@ class LidarPipeline : public tactic::BasePipeline {
   std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior_;
   std::shared_ptr<Eigen::Matrix<double, 12, 12>> cov_prior_;
 
+  /** \brief Previous-frame intensity features for LIV odometry */
+  std::shared_ptr<std::shared_ptr<IntensityFeatures>> prev_intensity_features_;
+
   /// localization cached data
   /** \brief Current submap for localization */
   std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;

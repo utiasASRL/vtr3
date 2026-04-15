@@ -46,6 +46,14 @@ inline auto IntensityFeatures::fromStorable(const IntensityFeaturesMsg& msg) -> 
     result->points_3d(2, i) = msg.points_3d[i * 3 + 2];
   }
 
+  // Timestamps
+  result->timestamps.resize(N);
+  if (static_cast<int>(msg.timestamps.size()) >= N) {
+    for (int i = 0; i < N; ++i) {
+      result->timestamps[i] = msg.timestamps[i];
+    }
+  }
+
   return result;
 }
 
@@ -85,6 +93,12 @@ inline auto IntensityFeatures::toStorable() const -> IntensityFeaturesMsg {
     msg.points_3d[i * 3 + 0] = points_3d(0, i);
     msg.points_3d[i * 3 + 1] = points_3d(1, i);
     msg.points_3d[i * 3 + 2] = points_3d(2, i);
+  }
+
+  // Timestamps
+  msg.timestamps.resize(N);
+  for (int i = 0; i < N; ++i) {
+    msg.timestamps[i] = (i < static_cast<int>(timestamps.size())) ? timestamps[i] : 0;
   }
 
   return msg;

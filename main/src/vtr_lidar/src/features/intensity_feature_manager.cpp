@@ -102,6 +102,7 @@ IntensityFeatures IntensityFeatureManager::detectFeatures(
   std::vector<cv::KeyPoint> valid_keypoints;
   cv::Mat valid_descriptors;
   std::vector<Eigen::Vector3d> valid_points;
+  std::vector<int> valid_cloud_indices;  // indices into cloud for timestamps
 
   for (size_t i = 0; i < all_keypoints.size(); ++i) {
     const auto& kp = all_keypoints[i];
@@ -122,14 +123,17 @@ IntensityFeatures IntensityFeatureManager::detectFeatures(
     valid_keypoints.push_back(kp);
     valid_descriptors.push_back(all_descriptors.row(static_cast<int>(i)));
     valid_points.emplace_back(pt.x, pt.y, pt.z);
+    valid_cloud_indices.push_back(pt_idx);
   }
 
   // Package results
   features.keypoints = std::move(valid_keypoints);
   features.descriptors = valid_descriptors.clone();
   features.points_3d.resize(3, valid_points.size());
+  features.timestamps.resize(valid_points.size());
   for (size_t i = 0; i < valid_points.size(); ++i) {
     features.points_3d.col(i) = valid_points[i];
+    features.timestamps[i] = cloud[valid_cloud_indices[i]].timestamp;
   }
 
   return features;

@@ -36,6 +36,8 @@ class IntensityFeatures {
   cv::Mat descriptors;
   /// 3D positions of each feature in the sensor frame (3 x N)
   Eigen::Matrix<double, 3, Eigen::Dynamic> points_3d;
+  /// Per-feature timestamps (nanoseconds, same clock as PointWithInfo::timestamp)
+  std::vector<int64_t> timestamps;
   /// Image dimensions
   int image_width = 0;
   int image_height = 0;

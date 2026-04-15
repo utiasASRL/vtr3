@@ -21,3 +21,6 @@ uint32 descriptor_cols
 
 # 3D positions: flattened [x, y, z] per feature (3 * N doubles)
 float64[] points_3d
+
+# Per-feature timestamps (nanoseconds, int64, N values)
+int64[] timestamps

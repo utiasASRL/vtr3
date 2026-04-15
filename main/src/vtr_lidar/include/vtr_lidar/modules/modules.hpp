@@ -35,6 +35,7 @@
 
 #include "vtr_lidar/modules/odometry/odometry_doppler_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
+#include "vtr_lidar/modules/odometry/odometry_liv_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module_v2.hpp"
 #include "vtr_lidar/modules/odometry/vertex_test_module.hpp"
 // #include "vtr_lidar/modules/odometry/sample_module.hpp"
@@ -42,6 +43,7 @@
 #include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
 #include "vtr_lidar/modules/localization/localization_icp_module.hpp"
 #include "vtr_lidar/modules/localization/localization_map_recall_module.hpp"
+#include "vtr_lidar/modules/localization/localization_map_recall_module_lv.hpp"
 
 #include "vtr_lidar/modules/pointmap/dynamic_detection_module.hpp"
 #include "vtr_lidar/modules/pointmap/inter_exp_merging_module_v2.hpp"
