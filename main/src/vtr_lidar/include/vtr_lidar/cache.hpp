@@ -21,7 +21,10 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
+#include <opencv2/core.hpp>
+
 #include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/data_types/intensity_features.hpp"
 #include "vtr_lidar/data_types/point.hpp"
 #include "vtr_lidar/data_types/pointmap.hpp"
 #include "vtr_tactic/cache.hpp"
@@ -53,6 +56,20 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> doppler_preprocessed_point_cloud;
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> nn_point_cloud;
+
+  // ===== Intensity Image Visual Features =====
+  /// Intensity image (CV_8U) generated from lidar point cloud
+  tactic::Cache<cv::Mat> intensity_image;
+  /// Range image (CV_32F) for back-projection
+  tactic::Cache<cv::Mat> range_image;
+  /// Maps pixel (row,col) → index into raw_point_cloud (-1 if empty)
+  tactic::Cache<cv::Mat> pixel_to_point_index;
+  /// Current frame ORB features
+  tactic::Cache<IntensityFeatures> live_intensity_features;
+  /// Previous keyframe ORB features (persists across frames for tracking)
+  tactic::Cache<std::shared_ptr<IntensityFeatures>> prev_intensity_features;
+  /// Map ORB features recalled from graph (for localization)
+  tactic::Cache<std::vector<IntensityFeatures>> map_intensity_features;
 
   // odometry & mapping
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;

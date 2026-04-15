@@ -21,6 +21,8 @@
 #include "vtr_lidar/data_types/pointmap_pointer.hpp"
 #include "vtr_tactic/modules/factory.hpp"
 
+#include "vtr_lidar/data_types/intensity_features.hpp"
+
 namespace vtr {
 namespace lidar {
 
@@ -217,6 +219,30 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
         "nn_point_cloud", "vtr_lidar_msgs/msg/PointScan", nn_scan_odo_msg);
 
     CLOG(DEBUG, "lidar.pipeline") << "Saved nn pointcloud to vertex" << vertex;
+  }
+
+  /// ===== NEW: Save intensity features to vertex =====
+  if (qdata->live_intensity_features.valid()) {
+    auto features_ptr =
+        std::make_shared<IntensityFeatures>(*qdata->live_intensity_features);
+    // Transform features from sensor frame to vertex frame
+    // The 3D points are in the sensor frame, need T_vertex_sensor = T_s_r^{-1}
+    const auto T_v_s = qdata->T_s_r->inverse();
+    const auto C_v_s = T_v_s.matrix().block<3, 3>(0, 0);
+    const auto r_v_s = T_v_s.matrix().block<3, 1>(0, 3);
+    features_ptr->points_3d = C_v_s * features_ptr->points_3d;
+    features_ptr->points_3d.colwise() += r_v_s;
+
+    using IntensityFeaturesLM =
+        storage::LockableMessage<IntensityFeatures>;
+    auto features_msg =
+        std::make_shared<IntensityFeaturesLM>(features_ptr, *qdata->stamp);
+    vertex->insert<IntensityFeatures>(
+        "intensity_features", "vtr_lidar_msgs/msg/IntensityFeatures",
+        features_msg);
+    CLOG(DEBUG, "lidar.pipeline")
+        << "Saved " << features_ptr->size()
+        << " intensity features to vertex " << vertex;
   }
 
   /// save the sliding map as vertex submap if we have traveled far enough

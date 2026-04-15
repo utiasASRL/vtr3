@@ -15,6 +15,7 @@
   <depend>eigen</depend>
   <depend>PCL</depend>
   <depend>OpenCV</depend>
+  <depend>cv_bridge</depend>
 
   <depend>rclcpp</depend>
   <depend>rclpy</depend>

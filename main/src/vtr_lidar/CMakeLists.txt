@@ -30,6 +30,7 @@ find_package(vtr_torch REQUIRED)
 
 # opencv for intensity image feature detection
 find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 if(DEFINED VTR_ENABLE_LIDAR)
 
@@ -42,6 +43,7 @@ include_directories(PUBLIC
 # components
 file(GLOB_RECURSE COMPONENTS_SRC
   src/data_types/*.cpp
+  src/features/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
@@ -64,7 +66,7 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
   nav_msgs visualization_msgs
   lgmath steam vtr_torch
   vtr_logging vtr_tactic vtr_lidar_msgs
-  OpenCV
+  OpenCV cv_bridge
 )
 
 # additional tools for experiments
@@ -83,7 +85,7 @@ ament_export_dependencies(
   nav_msgs visualization_msgs
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs vtr_torch
-  OpenCV
+  OpenCV cv_bridge
 )
 
 install(

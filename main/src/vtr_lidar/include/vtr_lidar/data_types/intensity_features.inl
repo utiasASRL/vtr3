@@ -10,7 +10,7 @@
 namespace vtr {
 namespace lidar {
 
-auto IntensityFeatures::fromStorable(const IntensityFeaturesMsg& msg) -> Ptr {
+inline auto IntensityFeatures::fromStorable(const IntensityFeaturesMsg& msg) -> Ptr {
   auto result = std::make_shared<IntensityFeatures>();
 
   const int N = static_cast<int>(msg.num_features);
@@ -49,7 +49,7 @@ auto IntensityFeatures::fromStorable(const IntensityFeaturesMsg& msg) -> Ptr {
   return result;
 }
 
-auto IntensityFeatures::toStorable() const -> IntensityFeaturesMsg {
+inline auto IntensityFeatures::toStorable() const -> IntensityFeaturesMsg {
   IntensityFeaturesMsg msg;
 
   const int N = size();
