@@ -640,6 +640,21 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       // Result
       Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
+
+      // Guard: ensure covariance is positive definite before storing
+      {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigsolver(
+            T_r_m_cov, Eigen::EigenvaluesOnly);
+        const double min_eig = eigsolver.eigenvalues().minCoeff();
+        if (min_eig <= 0 || T_r_m_cov.norm() > 1e6) {
+          CLOG(WARNING, "lidar.odometry_liv")
+              << "Odometry covariance is degenerate (min eigenvalue: "
+              << min_eig << ", norm: " << T_r_m_cov.norm()
+              << "). Replacing with identity.";
+          T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
+        }
+      }
+
       T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);
 
       // Marginalize

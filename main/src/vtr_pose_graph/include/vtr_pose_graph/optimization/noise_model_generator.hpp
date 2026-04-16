@@ -75,7 +75,20 @@ class NoiseModelGenerator<lgmath::se3::TransformationWithCovariance, 6>
       const lgmath::se3::TransformationWithCovariance& T) const override {
     if (T.covarianceSet()) {
       auto cov = T.cov();
-      if (cov.norm() > 0) return steam::StaticNoiseModel<6>::MakeShared(cov);
+      if (cov.norm() > 0) {
+        // Guard: ensure covariance is positive definite
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigsolver(
+            cov, Eigen::EigenvaluesOnly);
+        if (eigsolver.eigenvalues().minCoeff() <= 0) {
+          // Fall back to diagonal-only covariance
+          cov = cov.diagonal().asDiagonal();
+          if (cov.diagonal().minCoeff() <= 0) {
+            // Diagonal still not PD — use default model instead
+            return default_model_;
+          }
+        }
+        return steam::StaticNoiseModel<6>::MakeShared(cov);
+      }
     }
     return default_model_;
   }

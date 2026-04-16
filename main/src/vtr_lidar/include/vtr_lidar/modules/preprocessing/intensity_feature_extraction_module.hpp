@@ -37,6 +37,7 @@ class IntensityFeatureExtractionModule : public tactic::BaseModule {
     // Image processing
     bool use_reflectivity = false;
     bool use_auto_exposure = true;
+    bool use_sqrt_brighten = true;   ///< sqrt gamma lift after auto-exposure
     double ae_lo_frac = 0.1;
     double ae_hi_frac = 0.1;
 

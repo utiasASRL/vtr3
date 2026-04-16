@@ -192,7 +192,20 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
   WeightedLeastSqCostTerm<6>::Ptr prior_cost_term = nullptr;
   if (config_->use_pose_prior && *qdata.odo_success && output.chain->isLocalized()) {
     auto loss_func = L2LossFunc::MakeShared();
-    auto noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
+    // Guard: ensure covariance is positive definite before creating noise model
+    Eigen::Matrix<double, 6, 6> prior_cov = T_r_v.cov();
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigsolver(prior_cov, Eigen::EigenvaluesOnly);
+    if (eigsolver.eigenvalues().minCoeff() <= 0) {
+      CLOG(WARNING, "lidar.localization_liv")
+          << "T_r_v covariance is not positive definite (min eigenvalue: "
+          << eigsolver.eigenvalues().minCoeff() << "). Using diagonal only.";
+      prior_cov = prior_cov.diagonal().asDiagonal();
+      // If diagonal is still not PD, add a small regularizer
+      if (prior_cov.diagonal().minCoeff() <= 0) {
+        prior_cov += 1e-6 * Eigen::Matrix<double, 6, 6>::Identity();
+      }
+    }
+    auto noise_model = StaticNoiseModel<6>::MakeShared(prior_cov);
     auto T_r_v_meas = SE3StateVar::MakeShared(T_r_v); T_r_v_meas->locked() = true;
     auto error_func = tran2vec(compose(T_r_v_meas, inverse(T_r_v_var)));
     prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(error_func, noise_model, loss_func);

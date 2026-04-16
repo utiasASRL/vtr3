@@ -74,6 +74,7 @@ auto IntensityFeatureExtractionModule::Config::fromROS(
   // Image processing
   config->use_reflectivity = node->declare_parameter<bool>(param_prefix + ".use_reflectivity", config->use_reflectivity);
   config->use_auto_exposure = node->declare_parameter<bool>(param_prefix + ".use_auto_exposure", config->use_auto_exposure);
+  config->use_sqrt_brighten = node->declare_parameter<bool>(param_prefix + ".use_sqrt_brighten", config->use_sqrt_brighten);
   config->ae_lo_frac = node->declare_parameter<double>(param_prefix + ".ae_lo_frac", config->ae_lo_frac);
   config->ae_hi_frac = node->declare_parameter<double>(param_prefix + ".ae_hi_frac", config->ae_hi_frac);
 
@@ -191,9 +192,15 @@ void IntensityFeatureExtractionModule::run_(
     (*auto_exposure_)(img_eigen, true);
   }
 
+  // Step 2b: Sqrt gamma lift (brightens dark areas, matching LIVO pipeline)
+  if (config_->use_sqrt_brighten) {
+    intensity_image_f32.setTo(0.0f, intensity_image_f32 < 0.0f);
+    cv::sqrt(intensity_image_f32, intensity_image_f32);
+  }
+
   // Step 3: Convert to 8-bit for ORB detection
   cv::Mat intensity_image_u8;
-  if (config_->use_auto_exposure) {
+  if (config_->use_auto_exposure || config_->use_sqrt_brighten) {
     // After auto-exposure, values are in [0, 1]
     cv::Mat scaled;
     intensity_image_f32.convertTo(scaled, CV_32F, 255.0);

@@ -489,7 +489,19 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       joint_problem.addStateVariable(T_r_v_joint_var);
       // Add prior cost term (from odometry/previous estimate)
       auto prior_loss_func = L2LossFunc::MakeShared();
-      auto prior_noise_model = StaticNoiseModel<6>::MakeShared(T_r_v.cov());
+      // Guard: ensure covariance is positive definite before creating noise model
+      Eigen::Matrix<double, 6, 6> prior_cov = T_r_v.cov();
+      Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigsolver(prior_cov, Eigen::EigenvaluesOnly);
+      if (eigsolver.eigenvalues().minCoeff() <= 0) {
+        CLOG(WARNING, "lidar.localization_daicp")
+            << "T_r_v covariance is not positive definite (min eigenvalue: "
+            << eigsolver.eigenvalues().minCoeff() << "). Using diagonal only.";
+        prior_cov = prior_cov.diagonal().asDiagonal();
+        if (prior_cov.diagonal().minCoeff() <= 0) {
+          prior_cov += 1e-6 * Eigen::Matrix<double, 6, 6>::Identity();
+        }
+      }
+      auto prior_noise_model = StaticNoiseModel<6>::MakeShared(prior_cov);
       auto T_r_v_prior_meas = SE3StateVar::MakeShared(T_r_v);  T_r_v_prior_meas->locked() = true;
       auto prior_error_func = tran2vec(compose(T_r_v_prior_meas, inverse(T_r_v_joint_var)));
       auto prior_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(prior_error_func, prior_noise_model, prior_loss_func);

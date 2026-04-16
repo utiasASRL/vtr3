@@ -167,6 +167,7 @@
         # Image processing
         use_reflectivity: false
         use_auto_exposure: true
+        use_sqrt_brighten: true    # sqrt gamma lift after AE (brightens dark areas)
         ae_lo_frac: 0.1
         ae_hi_frac: 0.1
         # ORB detection
@@ -250,7 +251,7 @@
         gyro_cov: 1e-3
 
         # lidar intensity visual parameters
-        use_lidar:  true            # turn on/off lidar ICP cost terms, for debugging
+        use_lidar:  false            # turn on/off lidar ICP cost terms, for debugging
         use_visual: true           # turn on/off visual feature cost terms, for debugging
         sigma_pixel: 1.0
         reproj_loss_sigma: 1.0
@@ -353,7 +354,7 @@
         target_loc_time: 15.0
         # Visual (LIV) parameters
         use_visual: true
-        use_lidar: true
+        use_lidar: false
         sigma_pixel: 1.0
         reproj_loss_sigma: 1.0
       safe_corridor:
