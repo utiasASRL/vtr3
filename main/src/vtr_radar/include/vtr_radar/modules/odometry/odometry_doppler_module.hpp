@@ -75,7 +75,7 @@ class OdometryDopplerModule : public tactic::BaseModule {
 
  private:
   int64_t scan_stamp_prev_ = 0;
-  Eigen::Vector2d v_r_v_in_r_prev_ = Eigen::Vector2d::Zero(); // Extracted velocity from previous frame
+  Eigen::Vector2d v_s_v_in_s_prev_ = Eigen::Vector2d::Zero(); // Extracted velocity from previous frame
   double yaw_rate_prev_ = 0.0;  // Last gyro yaw rate from previous frame
   double preint_yaw_ = 0.0;
   double yaw_rate_avg_prev_ = 0.0;

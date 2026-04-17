@@ -93,7 +93,7 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.radar_data->azimuth_angles = azimuth_angles;  
   qdata.radar_data->up_chirps = up_chirps;
 
-                                   }
+  }
 
 }  // namespace radar
 }  // namespace vtr

@@ -83,6 +83,8 @@ class OdometryICPModule : public tactic::BaseModule {
     bool remove_orientation = false;
     Eigen::Matrix2d W_icp = Eigen::Matrix2d::Identity();
     double normal_score_threshold = 0.0;
+    // Threshold for zeroing out velocity
+    double zero_velocity_threshold = 0.1;
 
     /// Success criteria
     float min_matched_ratio = 0.4;

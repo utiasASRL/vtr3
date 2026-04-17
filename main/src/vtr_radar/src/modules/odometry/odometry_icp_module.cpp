@@ -81,6 +81,7 @@ auto OdometryICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->dopp_meas_std = node->declare_parameter<double>(param_prefix + ".dopp_meas_std", config->dopp_meas_std);
   config->vel_fwd_std = node->declare_parameter<double>(param_prefix + ".vel_fwd_std", config->vel_fwd_std);
   config->vel_side_std = node->declare_parameter<double>(param_prefix + ".vel_side_std", config->vel_side_std);
+  config->zero_velocity_threshold = node->declare_parameter<double>(param_prefix + ".zero_velocity_threshold", 0.1);
   config->use_p2pl = node->declare_parameter<bool>(param_prefix + ".use_p2pl", false);
   config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
   config->normal_score_threshold = node->declare_parameter<double>(param_prefix + ".normal_score_threshold", 0.0);
@@ -522,9 +523,14 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
         throw std::runtime_error("config_->use_vel_meas is true but velocity measurement not available.");
       }
 
-      const auto &vel_meas = *qdata.vel_meas;
+      auto &vel_meas = *qdata.vel_meas;
       // Get velocity measurements in sensor frame
       const auto w_ms_s_in_s_intp_eval = trajectory->getVelocityInterpolator(scan_time);
+
+      if (abs(vel_meas(0)) < config_->zero_velocity_threshold) {
+        // If the velocity is very low, we assume no movement
+        vel_meas = Eigen::Vector2d::Zero();
+      }
 
       CLOG(DEBUG, "radar.odometry_icp") << "Adding velocity measurement to optimization with vel_meas: " << vel_meas.transpose();
 
