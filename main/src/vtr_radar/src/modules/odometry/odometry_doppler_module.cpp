@@ -52,13 +52,6 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   // High-level parameters
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
   config->zero_velocity_threshold = node->declare_parameter<double>(param_prefix + ".zero_velocity_threshold", 0.1);
-  config->optimize = node->declare_parameter<bool>(param_prefix + ".optimize", true);
-
-  // CT trajectory optimization parameters
-  config->max_iter = node->declare_parameter<int>(param_prefix + ".max_iter", 20);
-  config->traj_num_extra_states = node->declare_parameter<int>(param_prefix + ".traj_num_extra_states", config->traj_num_extra_states);
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
-  config->integration_steps = node->declare_parameter<int>(param_prefix + ".integration_steps", 100);
 
   const auto qcd = node->declare_parameter<std::vector<double>>(param_prefix + ".traj_qc_diag", std::vector<double>());
   if (qcd.size() != 3) {
@@ -67,19 +60,6 @@ auto OdometryDopplerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
     throw std::invalid_argument{err};
   }
   config->traj_qc_diag << qcd[0], qcd[1], qcd[2];
-
-  const auto doppler_bias = node->declare_parameter<std::vector<double>>(param_prefix + ".doppler_bias", {1.0, 1.0});
-  if (doppler_bias.size() != 2) {
-    std::string err{"doppler_bias malformed. Must be 2 elements!"};
-    CLOG(ERROR, "radar.odometry_icp") << err;
-    throw std::invalid_argument{err};
-  }
-
-  // Noise and measurement model parameters
-  config->doppler_bias << doppler_bias[0], doppler_bias[1];
-  config->dopp_cauchy_k = node->declare_parameter<double>(param_prefix + ".dopp_cauchy_k", config->dopp_cauchy_k);
-  config->dopp_meas_std = node->declare_parameter<double>(param_prefix + ".dopp_meas_std", config->dopp_meas_std);
-  config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
 
   return config;
 }

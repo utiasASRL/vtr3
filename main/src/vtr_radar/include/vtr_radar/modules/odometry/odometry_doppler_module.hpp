@@ -42,26 +42,13 @@ class OdometryDopplerModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    // Undistortion trajectory parameters
-    Eigen::Matrix<double, 3, 1> traj_qc_diag =
-        Eigen::Matrix<double, 3, 1>::Ones();
     // Number of threads for pointcloud processing
     int num_threads = 4;
     // Threshold for zeroing out velocity
     double zero_velocity_threshold = 0.1;
-    // Whether to optimize the pose estimate using STEAM
-    // If false, direct discrete-time integration is used
-    bool optimize = true;
-    // Doppler bias
-    Eigen::Vector2d doppler_bias = Eigen::Vector2d::Zero();
-
-    int max_iter = 20;
-    bool verbose = false;
-    double gyro_cov = 1e-3;
-    double dopp_cauchy_k = 0.8;
-    double dopp_meas_std = 1.0;
-    int integration_steps = 100;
-    int traj_num_extra_states = 0;
+    // Undistortion trajectory parameters
+    Eigen::Matrix<double, 3, 1> traj_qc_diag =
+        Eigen::Matrix<double, 3, 1>::Ones();
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
