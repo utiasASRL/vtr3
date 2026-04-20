@@ -44,7 +44,7 @@
       #- lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
-      - lidar.odometry_icp
+      # - lidar.odometry_icp
       - lidar.odometry_liv
       - lidar.intensity_feature_extraction
       #- lidar.odometry_map_maintenance

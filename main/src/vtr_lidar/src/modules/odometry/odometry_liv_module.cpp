@@ -641,18 +641,30 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       Eigen::Matrix<double, 6, 6> T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
       T_r_m_cov = trajectory->getCovariance(covariance, Time(static_cast<int64_t>(query_stamp))).block<6, 6>(0, 0);
 
-      // Guard: ensure covariance is positive definite before storing
+      // Ensure the 6x6 covariance is positive definite and bounded before
+      // storing on edge. With visual-only constraints the Hessian can be
+      // near-singular, producing enormous covariance values that blow up
+      // further during edge composition (T_r_m * T_vertex_this^-1).
       {
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigsolver(
-            T_r_m_cov, Eigen::EigenvaluesOnly);
-        const double min_eig = eigsolver.eigenvalues().minCoeff();
-        if (min_eig <= 0 || T_r_m_cov.norm() > 1e6) {
-          CLOG(WARNING, "lidar.odometry_liv")
-              << "Odometry covariance is degenerate (min eigenvalue: "
-              << min_eig << ", norm: " << T_r_m_cov.norm()
-              << "). Replacing with identity.";
-          T_r_m_cov = Eigen::Matrix<double, 6, 6>::Identity();
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigsolver(T_r_m_cov);
+        Eigen::Matrix<double, 6, 1> eigvals = eigsolver.eigenvalues();
+        const double min_eig = eigvals.minCoeff();
+        const double max_eig = eigvals.maxCoeff();
+        // Cap: eigenvalues must be in [1e-8, 1.0]
+        // 1.0 corresponds to ~1 m or ~1 rad std dev — already very uncertain
+        constexpr double EIG_MIN = 1e-8;
+        constexpr double EIG_MAX = 1.0;
+        bool clamped = false;
+        if (min_eig <= 0 || max_eig > EIG_MAX) {
+          eigvals = eigvals.cwiseMax(EIG_MIN).cwiseMin(EIG_MAX);
+          T_r_m_cov = eigsolver.eigenvectors() * eigvals.asDiagonal()
+                      * eigsolver.eigenvectors().transpose();
+          clamped = true;
         }
+        CLOG(WARNING, "lidar.odometry_liv")
+            << "[COV-CHECK] T_r_m_cov min_eig=" << min_eig
+            << " max_eig=" << max_eig
+            << (clamped ? " [CLAMPED]" : "");
       }
 
       T_r_m_icp = EdgeTransform(T_r_m_eval->value(), T_r_m_cov);

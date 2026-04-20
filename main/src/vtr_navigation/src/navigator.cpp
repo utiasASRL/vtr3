@@ -231,7 +231,13 @@ if (pipeline->name() == "lidar"){
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
   msg.header.frame_id = "robot";
   msg.child_frame_id = "lidar";
-  tf_sbc_->sendTransform(msg);
+  // Also publish identity linking VTR's "robot" frame to the URDF base frame
+  // so that TF tree is connected: world → ... → robot → w200_0066_base_link
+  auto msg_base = tf2::eigenToTransform(Eigen::Affine3d(Eigen::Affine3d::Identity()));
+  msg_base.header.frame_id = "robot";
+  msg_base.child_frame_id = robot_frame_;
+  std::vector<geometry_msgs::msg::TransformStamped> static_tfs = {msg, msg_base};
+  tf_sbc_->sendTransform(static_tfs);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
 
