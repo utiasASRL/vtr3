@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <mutex>
 #include "sensor_msgs/msg/image.hpp"
 
 #include "vtr_tactic/modules/base_module.hpp"
@@ -56,11 +57,15 @@ class IntensityFeatureExtractionModule : public tactic::BaseModule {
     int edge_threshold = 4;     ///< ORB edgeThreshold (small for narrow cells)
     int patch_size = 15;        ///< ORB patchSize (small for narrow cells)
 
-    bool visualize = false;
+    bool show_features = false;
     /// Rotate published images 180° (for upside-down mounted lidars)
     bool rotate_image = false;
     /// Rectangular mask regions [x, y, w, h, ...] to block occluded areas
     std::vector<int> mask_rects;
+
+    /// Use Ouster driver's signal_image topic instead of projecting from pointcloud
+    bool use_signal_image = false;
+    std::string signal_image_topic = "/ouster/signal_image";
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr& node,
                             const std::string& param_prefix);
@@ -89,6 +94,12 @@ class IntensityFeatureExtractionModule : public tactic::BaseModule {
   cv::Mat mask_;
   /// Parsed rectangular mask regions (for visualization overlay)
   std::vector<cv::Rect> mask_rects_parsed_;
+
+  /// Signal image subscription (when use_signal_image is true)
+  rclcpp::Subscription<ImageMsg>::SharedPtr signal_image_sub_;
+  std::mutex signal_image_mutex_;
+  cv::Mat latest_signal_image_;
+  bool has_signal_image_ = false;
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;

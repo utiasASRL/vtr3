@@ -69,6 +69,7 @@ auto OdometryLIVModule::Config::fromROS(
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
 
   config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
+  config->use_gyro = node->declare_parameter<bool>(param_prefix + ".use_gyro", config->use_gyro);
   config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
 
   // ── Visual (LIV) ──
@@ -141,7 +142,6 @@ auto OdometryLIVModule::Config::fromROS(
   config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
   config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
 
-  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
 }
@@ -506,7 +506,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     }  // end if (use_lidar)
 
     // ── Gyro cost terms ──
-    if (qdata.gyro_msgs) {
+    if (config_->use_gyro && qdata.gyro_msgs) {
       const auto& T_s_r_gyro = *qdata.T_s_r_gyro;
       for (const auto& gyro_msg : *qdata.gyro_msgs) {
         const auto gyro_meas = Eigen::Vector3d(gyro_msg.angular_velocity.x, gyro_msg.angular_velocity.y, gyro_msg.angular_velocity.z);
@@ -756,6 +756,37 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
 
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
     *qdata.T_r_v_odo = T_r_m_icp * sliding_map_odo.T_vertex_this().inverse();
+
+    // Clamp the composed edge covariance. EdgeTransform operator* propagates
+    // covariance via adjoints, which can produce huge / non-PD matrices when
+    // T_vertex_this has large accumulated uncertainty. The pose-graph
+    // NoiseModelGenerator will later feed this into StaticNoiseModel<6>,
+    // which throws if not strictly PD.
+    {
+      Eigen::Matrix<double, 6, 6> edge_cov = qdata.T_r_v_odo->cov();
+      // Symmetrize first to suppress numerical asymmetry from Adj·Σ·Adjᵀ
+      edge_cov = 0.5 * (edge_cov + edge_cov.transpose());
+      Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigsolver(edge_cov);
+      Eigen::Matrix<double, 6, 1> eigvals = eigsolver.eigenvalues();
+      const double min_eig = eigvals.minCoeff();
+      const double max_eig = eigvals.maxCoeff();
+      constexpr double EDGE_EIG_MIN = 1e-8;
+      constexpr double EDGE_EIG_MAX = 1.0;
+      bool clamped = false;
+      if (min_eig <= EDGE_EIG_MIN || max_eig > EDGE_EIG_MAX) {
+        eigvals = eigvals.cwiseMax(EDGE_EIG_MIN).cwiseMin(EDGE_EIG_MAX);
+        edge_cov = eigsolver.eigenvectors() * eigvals.asDiagonal()
+                   * eigsolver.eigenvectors().transpose();
+        edge_cov = 0.5 * (edge_cov + edge_cov.transpose());
+        qdata.T_r_v_odo->setCovariance(edge_cov);
+        clamped = true;
+      }
+      CLOG(WARNING, "lidar.odometry_liv")
+          << "[EDGE-COV-CHECK] T_r_v_odo min_eig=" << min_eig
+          << " max_eig=" << max_eig
+          << (clamped ? " [CLAMPED]" : "");
+    }
+
     *qdata.T_r_m_odo = T_r_m_eval->value();
     *qdata.timestamp_odo = query_stamp;
 

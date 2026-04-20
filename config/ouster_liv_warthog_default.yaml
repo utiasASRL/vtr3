@@ -183,8 +183,8 @@
         max_per_cell: 100       # max features kept per grid cell
         edge_threshold: 4       # small for narrow cells
         patch_size: 15          # small for narrow cells
-        visualize: true
-        rotate_image: true  # lidar is mounted upside-down on warthog. rotate image for visualization.
+        show_features: true     # show the intensity image with detected features and converted range image. 
+        rotate_image: true      # lidar is mounted upside-down on warthog. rotate image for visualization.
         # Rectangular mask regions [x, y, w, h, ...] to block warthog body occlusions
         mask_rects: [115, 0, 30,  75,
                      145, 0, 35, 128,
@@ -192,6 +192,10 @@
                      650, 0, 40, 128,
                      845, 0, 35, 128,
                      880, 0, 30,  75]
+        # Use Ouster driver's signal_image topic instead of projecting from pointcloud
+        use_signal_image: true
+        signal_image_topic: "/ouster/signal_image"
+
     odometry:
       icp:
         type: lidar.odometry_icp
@@ -218,7 +222,6 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.0
-        visualize: true
         gyro_cov: 1e-3
 
       livo:
@@ -249,6 +252,7 @@
         max_iterations: 1
         min_matched_ratio: 0.0
         gyro_cov: 1e-3
+        use_gyro: true             # turn on/off gyro cost terms
 
         # lidar intensity visual parameters
         use_lidar:  false            # turn on/off lidar ICP cost terms, for debugging
@@ -262,7 +266,6 @@
         # OusterProjector sensor metadata (loaded from os_warthog.json via launch)
         u_shift: 0
         destagger: true
-        visualize: true
 
       mapping:
         type: lidar.odometry_map_maintenance_v2

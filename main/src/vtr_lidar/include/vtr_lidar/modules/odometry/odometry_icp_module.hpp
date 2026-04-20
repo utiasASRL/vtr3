@@ -79,8 +79,6 @@ class OdometryICPModule : public tactic::BaseModule {
     float max_trans_diff = 1000.0; // m
     float max_rot_diff = 1000.0; // rad
 
-    bool visualize = false;
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };

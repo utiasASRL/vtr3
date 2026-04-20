@@ -90,7 +90,7 @@ auto IntensityFeatureExtractionModule::Config::fromROS(
   config->max_per_cell = node->declare_parameter<int>(param_prefix + ".max_per_cell", config->max_per_cell);
   config->edge_threshold = node->declare_parameter<int>(param_prefix + ".edge_threshold", config->edge_threshold);
   config->patch_size = node->declare_parameter<int>(param_prefix + ".patch_size", config->patch_size);
-  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
+  config->show_features = node->declare_parameter<bool>(param_prefix + ".show_features", config->show_features);
   config->rotate_image = node->declare_parameter<bool>(param_prefix + ".rotate_image", config->rotate_image);
 
   // mask_rects: rectangular mask regions [x, y, w, h, ...]
@@ -99,6 +99,10 @@ auto IntensityFeatureExtractionModule::Config::fromROS(
   for (size_t i = 0; i < mask_rects_i64.size(); ++i) {
     config->mask_rects[i] = static_cast<int>(mask_rects_i64[i]);
   }
+
+  // Signal image subscription option
+  config->use_signal_image = node->declare_parameter<bool>(param_prefix + ".use_signal_image", config->use_signal_image);
+  config->signal_image_topic = node->declare_parameter<std::string>(param_prefix + ".signal_image_topic", config->signal_image_topic);
 
   // clang-format on
   return config;
@@ -166,6 +170,20 @@ void IntensityFeatureExtractionModule::run_(
           << "Loaded " << mask_rects_parsed_.size() << " mask rectangles";
     }
 
+    // Subscribe to external signal image if enabled
+    if (config_->use_signal_image) {
+      signal_image_sub_ = qdata.node->create_subscription<ImageMsg>(
+          config_->signal_image_topic, rclcpp::SensorDataQoS(),
+          [this](const ImageMsg::SharedPtr msg) {
+            auto cv_ptr = cv_bridge::toCvCopy(msg, "mono8");
+            std::lock_guard<std::mutex> lock(signal_image_mutex_);
+            latest_signal_image_ = cv_ptr->image;
+            has_signal_image_ = true;
+          });
+      CLOG(INFO, "lidar.intensity_feature_extraction")
+          << "Subscribed to signal image topic: " << config_->signal_image_topic;
+    }
+
     initialized_ = true;
   }
 
@@ -178,38 +196,59 @@ void IntensityFeatureExtractionModule::run_(
 
   const auto& raw_cloud = *qdata.unfiltered_point_cloud;
 
-  // Step 1: Generate intensity + range images using OusterProjector
-  cv::Mat intensity_image_f32, range_image, pixel_to_point_index;
-  projector_->createImages(raw_cloud, intensity_image_f32, range_image,
-                           pixel_to_point_index);
+  cv::Mat intensity_image_u8, range_image, pixel_to_point_index;
 
-  // Step 2: Apply auto-exposure (operates on float image, normalizes to [0,1])
-  if (config_->use_auto_exposure) {
-    // AutoExposure expects Eigen array view of the float image
-    Eigen::Map<img_t<float>> img_eigen(
-        reinterpret_cast<float*>(intensity_image_f32.data),
-        intensity_image_f32.rows, intensity_image_f32.cols);
-    (*auto_exposure_)(img_eigen, true);
-  }
+  // Always need range_image and pixel_to_point_index from projector
+  {
+    cv::Mat intensity_from_proj;
+    projector_->createImages(raw_cloud, intensity_from_proj, range_image,
+                             pixel_to_point_index);
 
-  // Step 2b: Sqrt gamma lift (brightens dark areas, matching LIVO pipeline)
-  if (config_->use_sqrt_brighten) {
-    intensity_image_f32.setTo(0.0f, intensity_image_f32 < 0.0f);
-    cv::sqrt(intensity_image_f32, intensity_image_f32);
-  }
+    bool use_projected_fallback = false;
+    if (config_->use_signal_image) {
+      // Use externally subscribed signal image
+      std::lock_guard<std::mutex> lock(signal_image_mutex_);
+      if (!has_signal_image_) {
+        // NOTE: In runtime, signal image may not have been received yet,
+        //       falling back to projected intensity image
+        CLOG(WARNING, "lidar.intensity_feature_extraction")
+            << "No signal image received yet, falling back to projected "
+               "intensity image for this frame";
+        use_projected_fallback = true;
+      } else {
+        intensity_image_u8 = latest_signal_image_.clone();
+      }
+    }
 
-  // Step 3: Convert to 8-bit for ORB detection
-  cv::Mat intensity_image_u8;
-  if (config_->use_auto_exposure || config_->use_sqrt_brighten) {
-    // After auto-exposure, values are in [0, 1]
-    cv::Mat scaled;
-    intensity_image_f32.convertTo(scaled, CV_32F, 255.0);
-    scaled.convertTo(intensity_image_u8, CV_8U);
-  } else {
-    // Raw intensity: normalize to 0-255
-    cv::normalize(intensity_image_f32, intensity_image_f32, 0, 255,
-                  cv::NORM_MINMAX);
-    intensity_image_f32.convertTo(intensity_image_u8, CV_8U);
+    if (!config_->use_signal_image || use_projected_fallback) {
+      // Use projected intensity image from point cloud
+      cv::Mat& intensity_image_f32 = intensity_from_proj;
+
+      // Step 2: Apply auto-exposure (operates on float image, normalizes to [0,1])
+      if (config_->use_auto_exposure) {
+        Eigen::Map<img_t<float>> img_eigen(
+            reinterpret_cast<float*>(intensity_image_f32.data),
+            intensity_image_f32.rows, intensity_image_f32.cols);
+        (*auto_exposure_)(img_eigen, true);
+      }
+
+      // Step 2b: Sqrt gamma lift (brightens dark areas, matching LIVO pipeline)
+      if (config_->use_sqrt_brighten) {
+        intensity_image_f32.setTo(0.0f, intensity_image_f32 < 0.0f);
+        cv::sqrt(intensity_image_f32, intensity_image_f32);
+      }
+
+      // Step 3: Convert to 8-bit for ORB detection
+      if (config_->use_auto_exposure || config_->use_sqrt_brighten) {
+        cv::Mat scaled;
+        intensity_image_f32.convertTo(scaled, CV_32F, 255.0);
+        scaled.convertTo(intensity_image_u8, CV_8U);
+      } else {
+        cv::normalize(intensity_image_f32, intensity_image_f32, 0, 255,
+                      cv::NORM_MINMAX);
+        intensity_image_f32.convertTo(intensity_image_u8, CV_8U);
+      }
+    }
   }
 
   // Step 4: Detect ORB features and back-project to 3D
@@ -227,7 +266,7 @@ void IntensityFeatureExtractionModule::run_(
   // Note: we must keep copies for publishing before moving
   cv::Mat intensity_for_pub, range_for_pub;
   std::vector<cv::KeyPoint> keypoints_for_pub;
-  if (config_->visualize) {
+  if (config_->show_features) {
     intensity_for_pub = intensity_image_u8.clone();
     range_for_pub = range_image.clone();
     keypoints_for_pub = features.keypoints;  // copy before move
@@ -238,7 +277,7 @@ void IntensityFeatureExtractionModule::run_(
   qdata.live_intensity_features.emplace(std::move(features));
 
   // Step 6: Publish images for visualization (following VTR convention)
-  if (config_->visualize) {
+  if (config_->show_features) {
     if (!publisher_initialized_) {
       intensity_pub_ =
           qdata.node->create_publisher<ImageMsg>("liv_intensity_image", 5);

@@ -67,6 +67,7 @@ class OdometryLIVModule : public tactic::BaseModule {
 
     // gyro weight
     double gyro_cov = 1e-3;
+    bool use_gyro = true;
     bool remove_orientation = false;
 
     // ────────── Visual (LIV) parameters ──────────
@@ -100,8 +101,6 @@ class OdometryLIVModule : public tactic::BaseModule {
     float max_rot_vel_diff = 1000.0;
     float max_trans_diff = 1000.0;
     float max_rot_diff = 1000.0;
-
-    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr& node,
                             const std::string& param_prefix);

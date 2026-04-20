@@ -178,7 +178,6 @@
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.0
-        visualize: true
         gyro_cov: 1e-3
       mapping:
         type: lidar.odometry_map_maintenance_v2
