@@ -571,6 +571,16 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     params.max_iterations = config_->max_iterations;
 
     GaussNewtonSolver solver(problem, params);
+
+    // [NEW] check for the constructed Hessian matrix and gradient vector for degeneracy. 
+    Eigen::SparseMatrix<double> swf_hessian;
+    Eigen::VectorXd swf_gradient_v;
+    problem.buildGaussNewtonTerms(swf_hessian, swf_gradient_v);
+    CLOG(INFO, "lidar.odometry_liv") << "swf_hessian: " << swf_hessian.rows() << " x " << swf_hessian.cols()
+                                     << " swf_gradient_v: size=" << swf_gradient_v.size();
+    // converted to normal dense matrix for operation. 
+    const Eigen::MatrixXd H_dense(swf_hessian);
+
     try {
       solver.optimize();
     } catch (const std::runtime_error& e) {

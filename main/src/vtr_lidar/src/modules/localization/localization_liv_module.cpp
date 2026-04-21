@@ -432,6 +432,16 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
     params.verbose = config_->verbose;
     params.max_iterations = config_->max_iterations;
     GaussNewtonSolver solver(problem, params);
+
+    // [NEW] check for the constructed Hessian matrix and gradient vector for degeneracy. 
+    Eigen::SparseMatrix<double> loc_hessian;
+    Eigen::VectorXd loc_gradient_v;
+    problem.buildGaussNewtonTerms(loc_hessian, loc_gradient_v);
+    CLOG(INFO, "lidar.localization_liv") << "loc_hessian: " << loc_hessian.rows() << " x " << loc_hessian.cols()
+                                         << " loc_gradient_v: size=" << loc_gradient_v.size();
+    // converted to normal dense matrix for operation. 
+    const Eigen::MatrixXd H_dense(loc_hessian);
+
     try {
       solver.optimize();
     } catch (std::runtime_error& e) {
