@@ -29,6 +29,10 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->max_gn_iter = node->declare_parameter<int>(param_prefix + ".max_gn_iter", config->max_gn_iter);
   // daicp - degeneracy threshold
   config->degeneracy_thresh = node->declare_parameter<double>(param_prefix + ".degeneracy_thresh", config->degeneracy_thresh);
+  // daicp - QP constraint bounds
+  config->qp_eps_trans = node->declare_parameter<double>(param_prefix + ".qp_eps_trans", config->qp_eps_trans);
+  config->qp_eps_rot = node->declare_parameter<double>(param_prefix + ".qp_eps_rot", config->qp_eps_rot);
+  config->qp_solver_name = node->declare_parameter<std::string>(param_prefix + ".qp_solver_name", config->qp_solver_name);
   // daicp - range and bearing noise model
   config->sigma_d = node->declare_parameter<double>(param_prefix + ".sigma_d", config->sigma_d);
   config->sigma_az = node->declare_parameter<double>(param_prefix + ".sigma_az", config->sigma_az);

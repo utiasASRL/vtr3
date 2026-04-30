@@ -192,7 +192,15 @@ inline QPSolverResult solveConstrainedQPConic(
         // Create structured QP using sparsity patterns
         if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "Creating QP structure...";
         casadi::SpDict qp;
-        qp["h"] = H_casadi.sparsity();
+        // OSQP requires the Hessian sparsity to be upper-triangular (it internally
+        // stores only the upper triangle). Passing a full dense pattern segfaults
+        // inside the plugin. For other CasADi conic plugins (qrqp, qpoases, nlpsol)
+        // we keep the dense pattern, which is fastest for small problems.
+        if (solver_name == "osqp") {
+            qp["h"] = casadi::Sparsity::upper(n);
+        } else {
+            qp["h"] = H_casadi.sparsity();
+        }
         qp["a"] = A_casadi.sparsity();
         
         // Solver options
@@ -275,7 +283,20 @@ inline QPSolverResult solveConstrainedQPConic(
         
         // Solve QP problem with CasADi conic interface
         casadi::DMDict arg;
-        arg["h"] = H_casadi;      // Hessian matrix
+        // For OSQP we declared an upper-triangular Hessian sparsity above; the
+        // numeric H must match that sparsity, otherwise the plugin will misread
+        // memory and segfault.
+        if (solver_name == "osqp") {
+            casadi::DM H_upper = casadi::DM::zeros(casadi::Sparsity::upper(n));
+            for (int j = 0; j < n; ++j) {
+                for (int i = 0; i <= j; ++i) {
+                    H_upper(i, j) = H(i, j);
+                }
+            }
+            arg["h"] = H_upper;
+        } else {
+            arg["h"] = H_casadi;      // Hessian matrix (full / dense)
+        }
         arg["g"] = g_casadi;      // Linear term
         arg["a"] = A_casadi;      // Constraint matrix A = Vd^T
         arg["lba"] = lba_casadi;  // Lower bounds on A*x (i.e., Vd^T*x)

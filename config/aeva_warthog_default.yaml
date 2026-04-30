@@ -333,6 +333,14 @@
         max_gn_iter: 1
         # daicp - degeneracy threshold
         degeneracy_thresh: 80.0               # we use condition number to set the threshold
+        # daicp - QP per-iter slack on |v_i^T x| in the degenerate subspace
+        # (x is the GN perturbation in scaled coords). Larger = looser
+        # constraint, closer to unconstrained step on borderline-degenerate
+        # frames in feature-rich environments.
+        qp_eps_trans: 0.05                    # [m]   per-iter translation cap
+        qp_eps_rot: 0.05                      # [rad] per-iter rotation cap (~2.9 deg)
+        # CasADi conic plugin: "qrqp" (recommended), "osqp", "qpoases", "nlpsol"
+        qp_solver_name: "qrqp"
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)

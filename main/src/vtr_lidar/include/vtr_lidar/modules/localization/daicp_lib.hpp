@@ -195,7 +195,7 @@ inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov
     // Try LDLT decomposition (handles semi-definite cases)
     Eigen::LDLT<Eigen::Matrix<double, 6, 6>> ldlt(cov);
     if (ldlt.info() == Eigen::Success) {
-        // Regularize by clamping very small or negative diagonal elements
+        // Regularize by clamping very small or negative diagonal elements of D
         Eigen::Matrix<double, 6, 1> D = ldlt.vectorD();
         bool modified = false;
         for (int i = 0; i < D.size(); ++i) {
@@ -207,9 +207,21 @@ inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov
         if (modified)
             CLOG(DEBUG, "lidar.localization_daicp") << "Regularized LDLT diagonal values";
 
-        // Reconstruct: cov_PD = P * D * Pᵀ
-        Eigen::Matrix<double, 6, 6> P = ldlt.transpositionsP() * Eigen::Matrix<double, 6, 6>::Identity();
-        Eigen::Matrix<double, 6, 6> cov_pd = P * D.asDiagonal() * P.transpose();
+        // Reconstruct: Eigen's LDLT satisfies  P * A * P^T = L * D * L^T
+        // Therefore                              A = P^T * (L * D * L^T) * P
+        // We rebuild with the clamped D.
+        const Eigen::Matrix<double, 6, 6> L =
+            ldlt.matrixL().toDenseMatrix();             // unit lower triangular
+        const Eigen::Matrix<double, 6, 6> LDLt =
+            L * D.asDiagonal() * L.transpose();         // L * D * L^T
+
+        // Apply the (inverse) permutation:  cov_pd = P^T * LDLt * P
+        Eigen::Matrix<double, 6, 6> cov_pd = LDLt;
+        cov_pd = ldlt.transpositionsP().transpose() * cov_pd;  // P^T * LDLt
+        cov_pd = cov_pd * ldlt.transpositionsP();              // (P^T * LDLt) * P
+
+        // Symmetrize to remove tiny numerical asymmetry
+        cov_pd = 0.5 * (cov_pd + cov_pd.transpose()).eval();
         return cov_pd;
     } 
 
@@ -537,25 +549,35 @@ inline void constructWellConditionedDirections(
 inline Eigen::VectorXd computeUpdateStep(
     const Eigen::MatrixXd& A,
     const Eigen::VectorXd& b,
+    const Eigen::VectorXd& W_inv,
     const Eigen::Matrix<double, 6, 6>& V,
     const Eigen::Matrix<double, 6, 6>& Vf)
 {
-    // Compute RHS once
-    const Eigen::VectorXd Atb = A.transpose() * b;
+    // Solve the WEIGHTED normal equations consistent with the QP cost:
+    //   min_x  0.5 * (A x - b)^T W_inv (A x - b)
+    //   =>     (A^T W_inv A) Δx = A^T W_inv b
+    // Note: previously this routine ignored W_inv, which made the unconstrained
+    // branch optimize a different cost than the constrained (QP) branch.
+    const Eigen::MatrixXd AtW = A.transpose() * W_inv.asDiagonal();
+    const Eigen::MatrixXd H   = AtW * A;
+    const Eigen::VectorXd Atb = AtW * b;
 
-    // Solve (AᵀA) Δx = Aᵀ b using the normal-equation Cholesky decomposition.
     Eigen::VectorXd delta_x_f;
-    Eigen::LLT<Eigen::MatrixXd> llt(A.transpose() * A);
-
-    if (llt.info() == Eigen::Success) {
-        delta_x_f = llt.solve(Atb);
+    // LDLT is numerically more forgiving than LLT for near-singular Hessians.
+    Eigen::LDLT<Eigen::MatrixXd> ldlt(H);
+    if (ldlt.info() == Eigen::Success) {
+        delta_x_f = ldlt.solve(Atb);
     } else {
-        // LAST-RESORT fallback: SVD(A)
-        Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-        delta_x_f = svd.solve(b);
+        // LAST-RESORT fallback: weighted SVD on whitened system
+        // sqrt(W) * A * x = sqrt(W) * b
+        const Eigen::VectorXd sqrtW = W_inv.cwiseSqrt();
+        const Eigen::MatrixXd Aw = sqrtW.asDiagonal() * A;
+        const Eigen::VectorXd bw = sqrtW.asDiagonal() * b;
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(Aw, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        delta_x_f = svd.solve(bw);
     }
 
-    // Project degeneracies
+    // Project onto well-conditioned subspace (solution remapping)
     return V * (Vf.transpose() * delta_x_f);
 }
 
@@ -771,12 +793,17 @@ inline bool daGaussNewton(
     bool verbose = true;
     Eigen::VectorXd delta_params_scaled;
     if (Vd.cols() > 0) {
-      // Constraint bounds: 1cm translation, 0.01 rad in rotation 
+      // Per-iter cap on |v_i^T x| in the degenerate subspace. x is the GN
+      // perturbation in *scaled* coordinates (rotation entries multiplied by
+      // ell_mr inside this function), and it is computed about the current
+      // iterate (which already incorporates the motion prior), so the bound
+      // remains centred at 0. Sourced from config so it can be tuned per
+      // environment without recompiling.
       Eigen::VectorXd epsilon_dx(6);
-      epsilon_dx << 0.01, 0.01, 0.01, 0.01, 0.01, 0.01;  // TODO: move to config file
-      // Scale rotation part to match scaled coordinate space
-      // we compute: epsilon_de_scale = D*epsilon_dx 
-      epsilon_dx.tail<3>() *= ell_mr;  
+      epsilon_dx << config_->qp_eps_trans, config_->qp_eps_trans, config_->qp_eps_trans,
+                    config_->qp_eps_rot,   config_->qp_eps_rot,   config_->qp_eps_rot;
+      // Bring the rotation slack into the same scaled space as A_scaled / x.
+      epsilon_dx.tail<3>() *= ell_mr;
       if (verbose) {
         CLOG(DEBUG, "lidar.localization_daicp") << "Solving constrained QP with " << Vd.cols() << " degenerate directions";
       }
@@ -787,8 +814,15 @@ inline bool daGaussNewton(
       Eigen::MatrixXd F = 2.0 * A_scaled.transpose() * W_inv.asDiagonal() * A_scaled;
       Eigen::VectorXd f = -2.0 * A_scaled.transpose() * W_inv.asDiagonal() * b;
       
-      // Solve the QP problem with qrqp (QR-based active-set method - most reliable)
-      daicp_qp::QPSolverResult result = daicp_qp::solveConstrainedQPConic(F, f, Vd, epsilon_dx, "qrqp", verbose);
+      // Solve the QP problem. Solver chosen via config_->qp_solver_name:
+      //   "qrqp"  : QR-based active-set solver (pure C++, no extra deps, very robust
+      //             on tiny dense problems). RECOMMENDED for this 6-D problem.
+      //   "osqp"  : ADMM-based first-order solver. Requires libcasadi_conic_osqp
+      //             built against a matching libosqp ABI; otherwise SIGSEGV at
+      //             solver construction. Also requires upper-triangular H sparsity
+      //             (handled in solveConstrainedQPConic).
+      daicp_qp::QPSolverResult result = daicp_qp::solveConstrainedQPConic(
+          F, f, Vd, epsilon_dx, config_->qp_solver_name, verbose);
       
       if (result.success) {
         delta_params_scaled = result.x_optimal;
@@ -799,14 +833,14 @@ inline bool daGaussNewton(
       } else {
           // Last resort: revert back to solution remapping without constraints
           CLOG(WARNING, "lidar.localization_daicp") << "QP solvers failed, reverting back to solution remapping";
-          delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
+          delta_params_scaled = computeUpdateStep(A_scaled, b, W_inv, V, Vf);
         }
     } else {
       // No degenerate directions, solve unconstrained
       if (verbose) {
         CLOG(DEBUG, "lidar.localization_daicp") << "No degeneracy detected, using unconstrained update";
       }
-      delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
+      delta_params_scaled = computeUpdateStep(A_scaled, b, W_inv, V, Vf);
     }
     // ======================================================================
 

@@ -37,6 +37,18 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     int max_gn_iter = 2;                        // max gauss-newton iterations per daicp step
     // daicp - degeneracy threshold
     double degeneracy_thresh = 100.0;           // use relative condition number to set eigenvalue threshold
+    // daicp - QP constraint bounds (per-iteration cap on |v_i^T x| in the
+    // degenerate subspace; x is the GN perturbation about the current iterate
+    // and is in *scaled* coords, i.e. rotation entries are multiplied by ell_mr
+    // inside daGaussNewton). Larger values = looser constraint = closer to the
+    // unconstrained step in borderline-degeneracy frames.
+    double qp_eps_trans = 0.05;                 // [m]   per-iter cap on translation projection
+    double qp_eps_rot   = 0.05;                 // [rad] per-iter cap on rotation projection (~2.9 deg)
+    // daicp - QP solver name (CasADi conic plugin). Supported:
+    //   "qrqp"  : QR-based active-set, pure C++, robust on tiny dense problems (recommended)
+    //   "osqp"  : ADMM first-order; needs matching libosqp ABI, upper-tri H sparsity
+    //   "qpoases", "nlpsol" (IPOPT) : also supported, see daicp_qp_lib.hpp
+    std::string qp_solver_name = "qrqp";
     // daicp - range and bearing noise model
     double sigma_d = 0.02;                      // range noise std (2cm)
     double sigma_az = M_PI / 180.0 * 0.03;      // azimuth noise std (0.03 degrees)
