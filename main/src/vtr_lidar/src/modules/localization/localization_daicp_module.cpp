@@ -255,7 +255,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       int replace_count = 0; // debug info
 
       timer[1]->start();
-      #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads) \
+                               reduction(+:replace_count)
       for (size_t i = 0; i < sample_inds.size(); ++i) {
         int tid = omp_get_thread_num();
         auto &idxs = knn_idx_buf[tid];
