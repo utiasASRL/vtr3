@@ -59,9 +59,6 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   // online gyroscope bias
   config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
   config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
-  // visualization
-  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
-
   // clang-format on
   return config;
 }
