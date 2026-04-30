@@ -160,8 +160,17 @@ inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta,
     const double max_theta = solver_theta.eigenvalues()(2);
     const double max_t     = solver_t.eigenvalues()(2);
 
-    if (max_t < 1e-12) {
-        std::cout << "[WARNING] Translation max eigenvalue very small (" << max_t << "), using default scaling\n";
+    // Guard against degenerate / non-PSD marginalized Hessians.
+    // If either max-eigenvalue is non-positive (Schur complement of a near-singular
+    // block can lose PSD-ness due to floating-point), or if the translation
+    // information is vanishingly small, fall back to a sane default rather than
+    // returning NaN (which propagates through D_inv -> H_scaled -> QP and crashes
+    // the solver later, see daicp_lib.hpp::computeThreshold and downstream QP).
+    if (max_t < 1e-12 || max_theta < 1e-12 ||
+        !std::isfinite(max_theta) || !std::isfinite(max_t)) {
+        std::cout << "[WARNING] computeScalingFactorMax: degenerate marginal Hessian "
+                  << "(max_theta=" << max_theta << ", max_t=" << max_t
+                  << "), using default scaling\n";
         return 20.0; // mid-range for 40 meter lidar
     }
 
