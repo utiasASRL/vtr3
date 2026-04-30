@@ -529,7 +529,7 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   const auto rot_vel_diff_norm = vel_diff.tail<3>().norm();
 
   const auto T_r_m_query = T_r_m_eval->value();
-  const auto diff_T = (T_r_m_query.inverse() * T_r_m_eval_initial).vec();
+  const auto diff_T = (T_r_m_eval_initial * T_r_m_query.inverse()).vec();
   const auto diff_T_trans = diff_T.head<3>().norm();
   const auto diff_T_rot = diff_T.tail<3>().norm();
   

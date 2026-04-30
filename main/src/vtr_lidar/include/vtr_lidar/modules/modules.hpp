@@ -21,7 +21,7 @@
 
 #include "vtr_lidar/modules/preprocessing/conversions/aeva_conversion_module.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/aeva_conversion_module_v2.hpp"
-#include "vtr_lidar/modules/preprocessing/conversions/honeycomb_conversion_module_v2.hpp"
+// #include "vtr_lidar/modules/preprocessing/conversions/honeycomb_conversion_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/velodyne_conversion_module.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/velodyne_conversion_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/ouster_conversion_module.hpp"
@@ -32,6 +32,7 @@
 
 #include "vtr_lidar/modules/odometry/odometry_doppler_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
+#include "vtr_lidar/modules/odometry/odometry_gt_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module_v2.hpp"
 #include "vtr_lidar/modules/odometry/vertex_test_module.hpp"
 // #include "vtr_lidar/modules/odometry/sample_module.hpp"

@@ -26,10 +26,10 @@
 #include "navtech_msgs/msg/radar_b_scan_msg.hpp"
 
 #include "vtr_radar/data_types/point.hpp"
-#include "vtr_radar/data_types/azimuth.hpp"
 #include "vtr_radar/data_types/pointmap.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
+#include "srd/srd.hpp"
 
 #include"vtr_radar/types.hpp"
 
@@ -55,6 +55,12 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   // wheel input
   tactic::Cache<const tactic::EdgeTransform> T_s_r_wheel;
   tactic::Cache<std::vector<std::pair<rclcpp::Time, double>>> wheel_meas;
+
+  // groundtruth
+  tactic::Cache<lgmath::se3::Transformation> T_s_world_gt;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> v_s_gt;
+  tactic::Cache<lgmath::se3::Transformation> T_s_world_gt_prev;
+  tactic::Cache<Eigen::Matrix<double, 6, 1>> v_s_gt_prev;
 
   // radar raw data
   tactic::Cache<RadarData> radar_data;
@@ -92,8 +98,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
 
   // Doppler paper stuff
   tactic::Cache<Eigen::Vector2d> vel_meas;
-  tactic::Cache<double> yaw_meas;
-  tactic::Cache<DopplerScan> doppler_scan;
+  tactic::Cache<srd::DopplerScan> doppler_scan;
 };
 
 struct RadarOutputCache : virtual public tactic::OutputCache {

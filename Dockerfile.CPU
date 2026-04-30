@@ -30,8 +30,8 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models \
   GRIZZLY=${VTRROOT}/grizzly \
-  WARTHOG=${VTRROOT}/warthog \
-  VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+  WARTHOG=${VTRROOT}/warthog
+ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
@@ -75,9 +75,11 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o
 ## Install VTR specific ROS2 dependencies
 RUN apt update && apt install -q -y \
   ros-humble-xacro \
+  ros-humble-vision-msgs \
   ros-humble-vision-opencv \
   ros-humble-perception-pcl ros-humble-pcl-ros \
-  ros-humble-rmw-cyclonedds-cpp
+  ros-humble-rmw-cyclonedds-cpp \
+  ros-humble-rosbag2-storage-mcap
 
 RUN apt install ros-humble-tf2-tools
 

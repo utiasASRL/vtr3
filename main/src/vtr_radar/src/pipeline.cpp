@@ -89,6 +89,9 @@ void RadarPipeline::reset() {
   cov_prior_ = nullptr;
   timestamp_prior_ = nullptr;
 
+  T_s_world_gt_prev_ = nullptr;
+  v_s_gt_prev_ = nullptr;
+
   submap_vid_odo_ = tactic::VertexId::Invalid();
   T_sv_m_odo_ = tactic::EdgeTransform(true);
   // localization cached data
@@ -99,6 +102,11 @@ void RadarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
+  // Prior velocity can be used in preprocessing (e.g., Doppler extraction)
+  auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
+  if (sliding_map_odo_ != nullptr) {
+    qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
+  }
   for (const auto &module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
@@ -125,6 +133,10 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->w_m_r_in_r_odo_prior = w_m_r_in_r_odo_prior_;
     qdata->cov_prior = cov_prior_;
     qdata->timestamp_prior = timestamp_prior_;
+
+    // Groundtruth stuff
+    qdata->T_s_world_gt_prev = T_s_world_gt_prev_;
+    qdata->v_s_gt_prev = v_s_gt_prev_;
   }
 
   for (const auto &module : odometry_)
@@ -143,6 +155,8 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
       T_r_m_odo_radar_ = qdata->T_r_m_odo_radar.ptr();
       w_m_r_in_r_odo_radar_ = qdata->w_m_r_in_r_odo_radar.ptr(); 
       T_r_m_odo_prior_ = qdata->T_r_m_odo_prior.ptr();
+      T_s_world_gt_prev_ = qdata->T_s_world_gt_prev.ptr();
+      v_s_gt_prev_ = qdata->v_s_gt_prev.ptr();
       timestamp_prior_ = qdata->timestamp_prior.ptr();
       w_m_r_in_r_odo_prior_ = qdata->w_m_r_in_r_odo_prior.ptr();
       cov_prior_ = qdata->cov_prior.ptr();

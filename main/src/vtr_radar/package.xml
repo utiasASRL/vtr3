@@ -25,6 +25,7 @@
 
   <depend>lgmath</depend>
   <depend>steam</depend>
+  <depend>spinning_radar_doppler</depend>
 
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
