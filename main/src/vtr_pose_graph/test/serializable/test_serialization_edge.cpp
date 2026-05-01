@@ -22,6 +22,10 @@
 
 #include "std_msgs/msg/string.hpp"
 
+#include <boost/uuid/uuid.hpp>             // uuid class
+#include <boost/uuid/uuid_generators.hpp>  // generators
+#include <boost/uuid/uuid_io.hpp>          // streaming operators etc.
+
 #include "vtr_logging/logging_init.hpp"
 #include "vtr_pose_graph/serializable/rc_edge.hpp"
 
@@ -31,6 +35,14 @@ using namespace vtr::pose_graph;
 using namespace vtr::storage;
 
 using StringMsg = std_msgs::msg::String;
+using Id = boost::uuids::uuid;
+
+static boost::uuids::random_generator gen;
+const uint64_t ID0 = *reinterpret_cast<const uint64_t*>(gen().data);
+const uint64_t ID1 = *reinterpret_cast<const uint64_t*>(gen().data);
+const uint64_t ID2 = *reinterpret_cast<const uint64_t*>(gen().data);
+const uint64_t ID3 = *reinterpret_cast<const uint64_t*>(gen().data);
+const uint64_t ID4 = *reinterpret_cast<const uint64_t*>(gen().data);
 
 namespace {
 
@@ -64,7 +76,7 @@ TransformMsg toMsg(const TransformT& T) {
 }  // namespace
 
 TEST(TestSerializationEdge, construct_spatial_edge_directly) {
-  VertexId to(0, 1), from(1, 3);
+  VertexId to(ID0, ID1), from(ID1, ID3);
 
   using TransformVecT = Eigen::Matrix<double, 6, 1>;
   TransformVecT transform_vec;
@@ -121,7 +133,7 @@ TEST(TestSerializationEdge, construct_spatial_edge_directly) {
 }
 
 TEST(TestSerializationEdge, simulate_load_spatial_edge_from_disk) {
-  VertexId to(0, 1), from(1, 3);
+  VertexId to(ID0, ID1), from(ID1, ID3);
 
   using TransformVecT = Eigen::Matrix<double, 6, 1>;
   TransformVecT transform_vec;
@@ -165,7 +177,7 @@ TEST(TestSerializationEdge, simulate_load_spatial_edge_from_disk) {
 }
 
 TEST(TestSerializationEdge, construct_temporal_edge_directly) {
-  VertexId from(3, 3), to(3, 4);
+  VertexId from(ID3, ID3), to(ID3, ID4);
 
   using TransformVecT = Eigen::Matrix<double, 6, 1>;
   TransformVecT transform_vec;
@@ -222,7 +234,7 @@ TEST(TestSerializationEdge, construct_temporal_edge_directly) {
 }
 
 TEST(TestSerializationEdge, simulate_load_temporal_edge_from_disk) {
-  VertexId from(3, 3), to(3, 4);
+  VertexId from(ID3, ID3), to(ID3, ID4);
 
   using TransformVecT = Eigen::Matrix<double, 6, 1>;
   TransformVecT transform_vec;
@@ -266,7 +278,7 @@ TEST(TestSerializationEdge, simulate_load_temporal_edge_from_disk) {
 }
 
 TEST(TestSerializationEdge, change_edge_transform) {
-  VertexId from(3, 3), to(3, 4);
+  VertexId from(ID3, ID3), to(ID3, ID4);
 
   using TransformVecT = Eigen::Matrix<double, 6, 1>;
   TransformVecT transform_vec;

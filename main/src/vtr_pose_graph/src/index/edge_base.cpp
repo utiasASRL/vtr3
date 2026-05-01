@@ -39,15 +39,15 @@ EdgeBase::EdgeBase(const VertexId& from_id, const VertexId& to_id,
       type_(type),
       manual_(manual),
       T_to_from_(T_to_from) {
-  if (from_.majorId() < to_.majorId()) {
-    CLOG(ERROR, "pose_graph")
-        << "Cannot create edge from " << from_ << " to " << to_
-        << " since the major id of the from vertex is smaller than the to "
-           "vertex";
-    throw std::invalid_argument(
-        "Spatial edges may only be added from higher run numbers to lower "
-        "ones");
-  }
+  // if (from_.majorId() < to_.majorId()) {
+  //   CLOG(ERROR, "pose_graph")
+  //       << "Cannot create edge from " << from_ << " to " << to_
+  //       << " since the major id of the from vertex is smaller than the to "
+  //          "vertex";
+  //   throw std::invalid_argument(
+  //       "Spatial edges may only be added from higher run numbers to lower "
+  //       "ones");
+  // }
 }
 
 EdgeId EdgeBase::id() const { return id_; }
