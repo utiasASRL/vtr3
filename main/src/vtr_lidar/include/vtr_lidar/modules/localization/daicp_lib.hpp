@@ -955,8 +955,34 @@ inline bool daGaussNewton(
     daicp_cov = D_inv * daicp_cov_scaled * D_inv.transpose();
     // --- Debug-print covariance information
     // printCovarianceInfo(daicp_cov);
-    
-    // Accumulate parameters 
+
+    // === Sanity-check the GN step before applying it ============================
+    // Numerical pathologies in W_inv / QP / scaling can occasionally produce a
+    // non-finite or absurdly large delta. If that propagates into vec2tran the
+    // resulting SE(3) matrix has entries ~1e100+, and the next call to tran2vec
+    // throws std::runtime_error from lgmath ("so3 logarithmic map failed..."),
+    // which uncaught will SIGABRT the whole vtr_navigation process. Catch it here
+    // and exit the GN loop with the last good iterate instead.
+    constexpr double kMaxStepNorm = 10.0;  // 10 m / 10 rad is already well beyond
+                                           // any reasonable per-iter ICP step
+    if (!delta_params.allFinite()) {
+      CLOG(WARNING, "lidar.localization_daicp")
+          << "GN step is non-finite (iter " << gn_iter
+          << "), aborting GN loop with last good iterate";
+      termination_reason = "ABORT_NON_FINITE_STEP";
+      break;
+    }
+    if (delta_params.norm() > kMaxStepNorm) {
+      CLOG(WARNING, "lidar.localization_daicp")
+          << "GN step too large (iter " << gn_iter
+          << ", norm=" << delta_params.norm()
+          << "), aborting GN loop with last good iterate";
+      termination_reason = "ABORT_LARGE_STEP";
+      break;
+    }
+    // ============================================================================
+
+    // Accumulate parameters
     accumulated_params += delta_params;
     // Convert accumulated parameters to transformation
     // [NOTE]: Lgmath uses [tx, ty, tz, rx, ry, rz] ordering.
@@ -993,7 +1019,36 @@ inline bool daGaussNewton(
   );
   // Calculate the actual delta from initial to final for STEAM update
   Eigen::Matrix4d delta_for_steam = final_transformation.matrix() * initial_T_var.matrix().inverse();
-  Eigen::Matrix<double, 6, 1> delta_vec_steam = lgmath::se3::tran2vec(delta_for_steam);
+
+  // === Final safety check before lgmath::tran2vec ============================
+  // tran2vec throws std::runtime_error when the rotation block is not a valid
+  // SO(3) (e.g. has NaN/Inf or non-orthonormal entries from a numerical
+  // blowup earlier in the GN loop). An uncaught throw here aborts the whole
+  // vtr_navigation process, so guard it explicitly and return false instead -
+  // the caller (localization_daicp_module) breaks out of the outer ICP loop
+  // and keeps the last good T_m_s_var on warning.
+  if (!delta_for_steam.allFinite()) {
+    CLOG(ERROR, "lidar.localization_daicp")
+        << "Final delta transformation is non-finite; skipping STEAM update."
+        << " termination_reason=" << termination_reason;
+    return false;
+  }
+  Eigen::Matrix<double, 6, 1> delta_vec_steam;
+  try {
+    delta_vec_steam = lgmath::se3::tran2vec(delta_for_steam);
+  } catch (const std::exception& e) {
+    CLOG(ERROR, "lidar.localization_daicp")
+        << "lgmath::tran2vec failed (" << e.what()
+        << "); skipping STEAM update. termination_reason=" << termination_reason;
+    return false;
+  }
+  if (!delta_vec_steam.allFinite()) {
+    CLOG(ERROR, "lidar.localization_daicp")
+        << "tran2vec produced non-finite delta; skipping STEAM update.";
+    return false;
+  }
+  // ===========================================================================
+
   // Apply the update to T_var using STEAM's update mechanism
   T_var->update(delta_vec_steam);
 

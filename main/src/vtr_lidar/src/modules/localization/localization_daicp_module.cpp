@@ -473,7 +473,24 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       Eigen::Matrix4d T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
       Eigen::Matrix4d T1 = all_tfs.block<4, 4>(all_tfs.rows() - 8, 0);
       Eigen::Matrix4d diffT = T2 * T1.inverse();
-      Eigen::Matrix<double, 6, 1> diffT_vec = lgmath::se3::tran2vec(diffT);
+      // Defensive: tran2vec throws std::runtime_error on non-finite / invalid
+      // SO(3). Don't let it crash the whole vtr_navigation process - skip
+      // this convergence-tracking update and break out of the ICP loop.
+      if (!diffT.allFinite()) {
+        CLOG(WARNING, "lidar.localization_daicp")
+            << "Non-finite inter-step transformation diff at step " << step
+            << "; aborting ICP loop.";
+        break;
+      }
+      Eigen::Matrix<double, 6, 1> diffT_vec;
+      try {
+        diffT_vec = lgmath::se3::tran2vec(diffT);
+      } catch (const std::exception& e) {
+        CLOG(WARNING, "lidar.localization_daicp")
+            << "lgmath::tran2vec failed at convergence check (" << e.what()
+            << "); aborting ICP loop at step " << step;
+        break;
+      }
       float dT_b = diffT_vec.block<3, 1>(0, 0).norm();
       float dR_b = diffT_vec.block<3, 1>(3, 0).norm();
 
