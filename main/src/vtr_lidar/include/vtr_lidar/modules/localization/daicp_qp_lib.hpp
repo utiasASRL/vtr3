@@ -154,10 +154,39 @@ inline QPSolverResult solveConstrainedQPConic(
         const int n = F.rows();
         const int k = Vd.cols();
         
+        // ===== INPUT VALIDATION (defense against qrqp abort/SIGSEGV) =====
+        // CasADi's qrqp plugin can hard-abort (calls std::abort, not throw)
+        // when given non-finite, near-zero, or rank-deficient inputs. We
+        // pre-screen here and bail out cleanly so the caller can fall back
+        // to the unconstrained solution.
+        if (!F.allFinite() || !f.allFinite() || !Vd.allFinite() || !epsilon_dx.allFinite()) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP input contains non-finite values (F.finite=" << F.allFinite()
+                << ", f.finite=" << f.allFinite()
+                << ", Vd.finite=" << Vd.allFinite()
+                << ", eps.finite=" << epsilon_dx.allFinite()
+                << "), skipping constrained QP";
+            result.success = false;
+            result.solver_status = "input_non_finite";
+            auto end_time = std::chrono::high_resolution_clock::now();
+            result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+            return result;
+        }
+        if (n != F.cols() || n <= 0 || k < 0 || k > n) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP input has invalid shape (F=" << F.rows() << "x" << F.cols()
+                << ", k=" << k << ", n=" << n << ")";
+            result.success = false;
+            result.solver_status = "input_bad_shape";
+            auto end_time = std::chrono::high_resolution_clock::now();
+            result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+            return result;
+        }
+
         // Ensure Hessian symmetry
         Eigen::MatrixXd H = 0.5 * (F + F.transpose());
-        
-        // Compute constraint bounds as LINEAR PROJECTION 
+
+        // Compute constraint bounds as LINEAR PROJECTION
         // For each degenerate direction v_i, the bound is: |v_i^T * epsilon_dx|
         // We take absolute value because v_i can point in either direction
         Eigen::VectorXd epsilon_c(k);
@@ -166,6 +195,26 @@ inline QPSolverResult solveConstrainedQPConic(
             // Linear projection: |v_i^T * epsilon_dx|
             epsilon_c(i) = std::abs(v_i.dot(epsilon_dx));
         }
+
+        // Floor extremely small bounds. Constraint widths < 1e-6 effectively
+        // pin x to zero in that direction and have triggered hard aborts in
+        // qrqp's active-set logic on rank-deficient problems. The caller's
+        // `computeUpdateStep` fallback handles these directions correctly.
+        constexpr double kMinBoundWidth = 1e-6;
+        bool tightened_bounds = false;
+        for (int i = 0; i < k; ++i) {
+            if (!std::isfinite(epsilon_c(i)) || epsilon_c(i) < kMinBoundWidth) {
+                epsilon_c(i) = kMinBoundWidth;
+                tightened_bounds = true;
+            }
+        }
+        if (tightened_bounds) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP: clamped degenerate-direction bound(s) to " << kMinBoundWidth
+                << " to avoid qrqp instability";
+        }
+        // ================================================================
+
         
         if (verbose) {
             CLOG(DEBUG, "lidar.localization_daicp") << "Constraint bounds per degenerate direction:";
@@ -309,6 +358,21 @@ inline QPSolverResult solveConstrainedQPConic(
         // Extract solution
         result.x_optimal = casadiDMToEigen(sol.at("x"));
         result.objective_value = static_cast<double>(sol.at("cost"));
+
+        // ===== POST-SOLVE SANITY CHECK =====
+        // Even when the solver returns "ok", the result can be NaN/Inf on
+        // ill-posed problems (esp. with active-set qrqp on near-rank-deficient
+        // KKT). Treat that as failure so the caller falls back.
+        if (!result.x_optimal.allFinite() || !std::isfinite(result.objective_value)) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP returned non-finite solution (status=ok), treating as failure";
+            result.success = false;
+            result.solver_status = "non_finite_solution";
+            result.x_optimal.setZero();
+            auto end_time = std::chrono::high_resolution_clock::now();
+            result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+            return result;
+        }
         result.success = true;
         result.solver_status = solver_name + ": optimal";
         
@@ -322,8 +386,23 @@ inline QPSolverResult solveConstrainedQPConic(
         
     } catch (const std::exception& e) {
         CLOG(ERROR, "lidar.localization_daicp") << "QP solver failed: " << e.what();
+        // Also write to stderr in case the spdlog buffer is lost on later abort
+        std::cerr << "[ERROR] DA-ICP QP solver threw std::exception: "
+                  << e.what() << std::endl;
         result.success = false;
         result.solver_status = std::string("error: ") + e.what();
+        result.x_optimal.setZero();
+    } catch (...) {
+        // Catch any non-std exception (e.g. raw casadi internals or
+        // implementation-specific types). Without this, an unknown throw
+        // type calls std::terminate -> abort.
+        CLOG(ERROR, "lidar.localization_daicp")
+            << "QP solver failed with unknown (non-std) exception";
+        std::cerr << "[ERROR] DA-ICP QP solver threw unknown exception type"
+                  << std::endl;
+        result.success = false;
+        result.solver_status = "error: unknown_exception";
+        result.x_optimal.setZero();
     }
     
     auto end_time = std::chrono::high_resolution_clock::now();

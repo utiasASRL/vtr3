@@ -341,6 +341,11 @@
         qp_eps_rot: 0.05                      # [rad] per-iter rotation cap (~2.9 deg)
         # CasADi conic plugin: "qrqp" (recommended), "osqp", "qpoases", "nlpsol"
         qp_solver_name: "qrqp"
+        # daicp - degenerate-direction covariance scaling
+        # In each degenerate direction v_i, set sigma_i^2 = alpha * v_i^T Sigma_prior v_i.
+        #   alpha = 1e1  -> ~9%   lidar weight
+        #   alpha = 1.0  -> 50%   lidar weight (treat lidar like prior; not recommended)
+        degenerate_cov_alpha: 20.0
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)

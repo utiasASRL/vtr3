@@ -23,13 +23,15 @@ inline void printEigenvalues(const Eigen::VectorXd& eigenvalues,
 
 inline void printWellConditionedDirections(const Eigen::VectorXd& eigenvalues, 
                                            double threshold) {
-  std::string directions_str = "Well-conditioned directions: [";
-  for (int i = 0; i < eigenvalues.size(); ++i) {
-    directions_str += (eigenvalues(i) > threshold) ? "True" : "False";
-    if (i < eigenvalues.size() - 1) directions_str += ", ";
-  }
-  directions_str += "]";
-  CLOG(DEBUG, "lidar.localization_daicp") << directions_str;
+  // Per-GN-iter chatter; uncomment for active QP debugging.
+  (void)eigenvalues; (void)threshold;
+  // std::string directions_str = "Well-conditioned directions: [";
+  // for (int i = 0; i < eigenvalues.size(); ++i) {
+  //   directions_str += (eigenvalues(i) > threshold) ? "True" : "False";
+  //   if (i < eigenvalues.size() - 1) directions_str += ", ";
+  // }
+  // directions_str += "]";
+  // CLOG(DEBUG, "lidar.localization_daicp") << directions_str;
 }
 
 inline void printCovarianceInfo(const Eigen::MatrixXd& daicp_cov) {
@@ -131,12 +133,15 @@ inline double computeScalingFactorTrace(const Eigen::Matrix3d& H_marg_theta, con
   // Compute scaling factor using the trace method
   double tr_theta = H_marg_theta.trace();
   double tr_t = H_marg_t.trace();
-  
-  if (tr_t < 1e-12) {
-    std::cout << "[WARNING] Translation trace is very small (" << tr_t << "), using default scaling" << std::endl;
+
+  if (!std::isfinite(tr_theta) || !std::isfinite(tr_t) ||
+      tr_t < 1e-12 || tr_theta < 1e-12) {
+    std::cout << "[WARNING] computeScalingFactorTrace: degenerate marginal Hessian "
+              << "(tr_theta=" << tr_theta << ", tr_t=" << tr_t
+              << "), using default scaling" << std::endl;
     return 20.0; // mid-range for 40 meter lidar
   }
-  
+
   return std::sqrt(tr_theta / tr_t);
 }
 
@@ -144,6 +149,15 @@ inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta,
                                       const Eigen::Matrix3d& H_marg_t)
 {
     constexpr double reg_val = 1e-12;
+    constexpr double kDefaultScale = 20.0; // mid-range for 40 meter lidar
+
+    // Reject non-finite inputs up front (Schur complement of a near-singular
+    // block can produce inf/NaN entries before we even get to the eigensolver).
+    if (!H_marg_theta.allFinite() || !H_marg_t.allFinite()) {
+        std::cout << "[WARNING] computeScalingFactorMax: non-finite marginal Hessian, "
+                  << "using default scaling\n";
+        return kDefaultScale;
+    }
 
     // Add tiny diagonal regularization (fast: avoids a new matrix allocation)
     Eigen::Matrix3d H_theta = H_marg_theta;
@@ -155,6 +169,12 @@ inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta,
     // Fastest 3x3 symmetric eigen decomposition in Eigen
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_theta(H_theta, Eigen::EigenvaluesOnly);
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_t(H_t, Eigen::EigenvaluesOnly);
+
+    if (solver_theta.info() != Eigen::Success || solver_t.info() != Eigen::Success) {
+        std::cout << "[WARNING] computeScalingFactorMax: eigensolver failed, "
+                  << "using default scaling\n";
+        return kDefaultScale;
+    }
 
     // Eigenvalues are sorted in ASCENDING order: [λ_min, λ_mid, λ_max]
     const double max_theta = solver_theta.eigenvalues()(2);
@@ -171,10 +191,16 @@ inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta,
         std::cout << "[WARNING] computeScalingFactorMax: degenerate marginal Hessian "
                   << "(max_theta=" << max_theta << ", max_t=" << max_t
                   << "), using default scaling\n";
-        return 20.0; // mid-range for 40 meter lidar
+        return kDefaultScale;
     }
 
-    return std::sqrt(max_theta / max_t);
+    const double scale = std::sqrt(max_theta / max_t);
+    if (!std::isfinite(scale)) {
+        std::cout << "[WARNING] computeScalingFactorMax: non-finite scale "
+                  << scale << ", using default scaling\n";
+        return kDefaultScale;
+    }
+    return scale;
 }
 
 // ======= compute the adaptive total number of rows ======= 
@@ -264,7 +290,9 @@ inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov
 inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
                                               const Eigen::Matrix<double, 6, 6>& Vf, 
                                               const Eigen::VectorXd& eigen_vf, 
-                                              const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
+                                              const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd,
+                                              const Eigen::Matrix<double, 6, 6>& prior_cov,
+                                              double degenerate_cov_alpha) {
   // Apply solution remapping + regularization in covariance matrix
   
   // Find non-zero columns in Vf
@@ -294,15 +322,28 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
     // No degenerate directions
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
   } else {
-    CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and " 
-                                           << Vd.cols() << " degenerate directions.";
-    // With degenerate directions
-    // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
-    // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
-    // Consider to use the prior covariance in degenerated directions. 
-    const double epsilon = 1e-2;  
-    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
-              (1.0/epsilon) * (Vd *Vd.transpose());
+    // Per-GN-iter; uncomment for degeneracy debug.
+    // CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and "
+    //                                        << Vd.cols() << " degenerate directions.";
+    //
+    // Covariance in degenerate directions is set proportional to the prior:
+    //   sigma_i^2 = alpha * v_i^T * Sigma_prior * v_i        (alpha >> 1)
+    // so STEAM's joint posterior gives the lidar weight 1/(1+alpha) along v_i.
+    // This is scale-invariant in the prior (large or small) and converges to
+    // the rank-deficient (Bayesian-correct) solution as alpha -> infinity.
+    //
+    // Floor on the projected prior variance: prevents a degenerate direction
+    // collapsing if the prior happens to be tiny in that direction (which
+    // would re-introduce the old "fictitious lidar information" failure mode).
+    constexpr double kMinPriorVar = 1e-6;
+    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
+    for (int i = 0; i < Vd.cols(); ++i) {
+      const Eigen::Matrix<double, 6, 1> v = Vd.col(i);
+      double prior_var = v.dot(prior_cov * v);
+      if (!std::isfinite(prior_var) || prior_var < kMinPriorVar) prior_var = kMinPriorVar;
+      const double sigma2_i = degenerate_cov_alpha * prior_var;
+      daicpCov.noalias() += sigma2_i * (v * v.transpose());
+    }
   }
 
   // CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov: \n" << daicpCov;
@@ -399,9 +440,8 @@ inline void computeJacobianResidualInformation(
   
   if (use_adaptive) {
     const int high_curv_count = std::count(high_curv_match.begin(), high_curv_match.end(), true);
-    CLOG(INFO, "lidar.localization_daicp") << "Adaptive mode: " << high_curv_count 
-                                            << " P2Point, " << (sample_inds.size() - high_curv_count) 
-                                            << " ----- "
+    CLOG(INFO, "lidar.localization_daicp") << "Adaptive mode: " << high_curv_count
+                                            << " P2Point, " << (sample_inds.size() - high_curv_count)
                                             << " P2Plane, total rows: " << total_rows;
   }
   
@@ -674,15 +714,12 @@ inline double computeThreshold(const Eigen::VectorXd& eigenvalues,
   // Rearranging: eigenval > max_eigenval / cond_num_thresh_ratio
   const double eigenvalue_threshold = max_eigenval / cond_num_thresh_ratio;
 
-  CLOG(DEBUG, "lidar.localization_daicp") << "Relative Condition Number Threshold: " << cond_num_thresh_ratio;
-
-  // const double eigenvalue_threshold = -1000.0;       // [DEBUG] default back to point-to-plane icp
-
-  // Print relative condition numbers
-  for (int i = 0; i < eigenvalues.size(); ++i) {
-    double cond_num = (eigenvalues(i) > 1e-15) ? (max_eigenval / eigenvalues(i)) : std::numeric_limits<double>::infinity();
-    CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
-  }
+  // Per-GN-iter spam; uncomment when actively debugging the QP path.
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Relative Condition Number Threshold: " << cond_num_thresh_ratio;
+  // for (int i = 0; i < eigenvalues.size(); ++i) {
+  //   double cond_num = (eigenvalues(i) > 1e-15) ? (max_eigenval / eigenvalues(i)) : std::numeric_limits<double>::infinity();
+  //   CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
+  // }
 
   return eigenvalue_threshold;
 }
@@ -695,6 +732,7 @@ inline bool daGaussNewton(
   const Eigen::Matrix4Xf& map_normals_mat,
   steam::se3::SE3StateVar::Ptr T_var,
   const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
+  const Eigen::Matrix<double, 6, 6>& prior_cov,
   Eigen::Matrix<double, 6, 6>& daicp_cov  ) {
 
   if (sample_inds.size() < 6) {
@@ -733,8 +771,8 @@ inline bool daGaussNewton(
     // Compute scaling factor
     // ell_mr = computeScalingFactorTrace(H_marg_theta, H_marg_t);
     double ell_mr = computeScalingFactorMax(H_marg_theta, H_marg_t);
-
-    CLOG(DEBUG, "lidar.localization_daicp") << "----------------------use H_theta/H_t, ell_mr:   " << ell_mr;
+    // Per-GN-iter; uncomment for QP scaling debug.
+    // CLOG(DEBUG, "lidar.localization_daicp") << "ell_mr: " << ell_mr;
 
     // Compute current weighted cost (0.5 * b^T * W_inv * b) and weighted gradient norm
     curr_cost = 0.5 * b.transpose() * W_inv.asDiagonal() * b;
@@ -799,7 +837,10 @@ inline bool daGaussNewton(
                                        V, Vf, eigen_vf, Vd);
 
     // =================== solve the optimization problem ===================
-    bool verbose = true;
+    // Per-iteration QP logs are *very* spammy (10+ lines per GN inner step,
+    // ~200/sec). Keep them off by default; flip to true only when actively
+    // debugging the QP path.
+    bool verbose = false;
     Eigen::VectorXd delta_params_scaled;
     if (Vd.cols() > 0) {
       // Per-iter cap on |v_i^T x| in the degenerate subspace. x is the GN
@@ -830,9 +871,40 @@ inline bool daGaussNewton(
       //             built against a matching libosqp ABI; otherwise SIGSEGV at
       //             solver construction. Also requires upper-triangular H sparsity
       //             (handled in solveConstrainedQPConic).
-      daicp_qp::QPSolverResult result = daicp_qp::solveConstrainedQPConic(
-          F, f, Vd, epsilon_dx, config_->qp_solver_name, verbose);
-      
+      daicp_qp::QPSolverResult result;
+      // Flush any buffered DEBUG logs so that, if qrqp aborts hard inside
+      // CasADi (which has historically called std::abort on certain
+      // rank-deficient KKT systems), we still see the lead-up in the log file.
+      el::Loggers::flushAll();
+      try {
+        result = daicp_qp::solveConstrainedQPConic(
+            F, f, Vd, epsilon_dx, config_->qp_solver_name, verbose);
+      } catch (const std::exception& e) {
+        // Defense in depth: solveConstrainedQPConic already catches inside,
+        // but in case anything escapes we still need a sane state.
+        CLOG(ERROR, "lidar.localization_daicp")
+            << "QP solver threw at call site: " << e.what()
+            << " - falling back to unconstrained solution";
+        result.success = false;
+        result.solver_status = std::string("call_site_error: ") + e.what();
+      } catch (...) {
+        CLOG(ERROR, "lidar.localization_daicp")
+            << "QP solver threw unknown exception at call site"
+            << " - falling back to unconstrained solution";
+        result.success = false;
+        result.solver_status = "call_site_error: unknown";
+      }
+      el::Loggers::flushAll();
+
+      // Even on "success", reject NaN/Inf solutions so we don't propagate
+      // garbage into the GN update.
+      if (result.success && !result.x_optimal.allFinite()) {
+        CLOG(WARNING, "lidar.localization_daicp")
+            << "QP returned non-finite x_optimal at call site, rejecting";
+        result.success = false;
+        result.solver_status = "non_finite_at_callsite";
+      }
+
       if (result.success) {
         delta_params_scaled = result.x_optimal;
         if (verbose) {
@@ -841,8 +913,21 @@ inline bool daGaussNewton(
         }
       } else {
           // Last resort: revert back to solution remapping without constraints
-          CLOG(WARNING, "lidar.localization_daicp") << "QP solvers failed, reverting back to solution remapping";
+          CLOG(WARNING, "lidar.localization_daicp")
+              << "QP solver failed (" << result.solver_status
+              << "), reverting back to solution remapping";
           delta_params_scaled = computeUpdateStep(A_scaled, b, W_inv, V, Vf);
+
+          // Final guard: if even the unconstrained remapping is non-finite,
+          // emit a zero step so that this GN iteration is a no-op rather
+          // than corrupting the running estimate. The outer loop's
+          // convergence/divergence checks will then terminate normally.
+          if (!delta_params_scaled.allFinite()) {
+            CLOG(ERROR, "lidar.localization_daicp")
+                << "Fallback remapping also produced non-finite step; "
+                << "using zero step for this GN iteration";
+            delta_params_scaled = Eigen::VectorXd::Zero(F.rows());
+          }
         }
     } else {
       // No degenerate directions, solve unconstrained
@@ -853,8 +938,17 @@ inline bool daGaussNewton(
     }
     // ======================================================================
 
-    // Compute the scaled covariance matrix
-    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(Vf, eigen_vf, Vd);
+    // Compute the scaled covariance matrix.
+    // Vd / Vf live in the scaled coordinate frame (rotation entries multiplied
+    // by ell_mr), so the prior must be expressed in the same frame before it
+    // can be projected onto a degenerate direction:
+    //   x_scaled = D * x        =>   Sigma_scaled = D * Sigma * D^T
+    // where D = diag(1,1,1, ell_mr, ell_mr, ell_mr).
+    Eigen::Matrix<double, 6, 6> D = Eigen::Matrix<double, 6, 6>::Identity();
+    D.block<3, 3>(3, 3) *= ell_mr;
+    const Eigen::Matrix<double, 6, 6> prior_cov_scaled = D * prior_cov * D.transpose();
+    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(
+        Vf, eigen_vf, Vd, prior_cov_scaled, config_->degenerate_cov_alpha);
     
     // Unscale the parameters and covariance
     Eigen::VectorXd delta_params = D_inv * delta_params_scaled;

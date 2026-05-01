@@ -44,6 +44,16 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     // unconstrained step in borderline-degeneracy frames.
     double qp_eps_trans = 0.05;                 // [m]   per-iter cap on translation projection
     double qp_eps_rot   = 0.05;                 // [rad] per-iter cap on rotation projection (~2.9 deg)
+    // daicp - covariance inflation factor for degenerate directions.
+    // The DA-ICP covariance along each unobservable direction v_d is set to
+    //   sigma^2 = degenerate_cov_alpha * v_d^T * Sigma_prior * v_d,
+    // so that in STEAM's joint posterior the lidar gets weight 1/(1+alpha)
+    // along that direction (i.e. the prior wins by a factor of alpha,
+    // independent of the prior's absolute scale).
+    //   alpha = 1e2  -> ~1% lidar weight (visible correction; default)
+    //   alpha = 1e3  -> ~0.1% lidar weight (soft pull)
+    //   alpha = 1e6+ -> rank-deficient limit (fully defer to prior)
+    double degenerate_cov_alpha = 1e2;
     // daicp - QP solver name (CasADi conic plugin). Supported:
     //   "qrqp"  : QR-based active-set, pure C++, robust on tiny dense problems (recommended)
     //   "osqp"  : ADMM first-order; needs matching libosqp ABI, upper-tri H sparsity
@@ -77,6 +87,11 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     float trans_outlier_thresh = 0.1;           // threshold on translation outlier rejection to default to odometry
     float rot_outlier_thresh = 0.001;           // threshold on rotation outlier rejection to default to odometry
     float min_matched_ratio = 0.4;              // success criteria
+    // correspondence-count floor: if fewer than this many pairs survive distance/curvature filtering,
+    // skip the GN solve and fall back to the odometry prior. Prevents rank-deficient Hessians
+    // (cond. number explosion) when the predicted T_r_v is so wrong that the distance filter
+    // rejects nearly all correspondences. 6 DoF -> need >> 6 pairs; 100 is a safe floor.
+    int min_pair_count = 100;
     // online gyroscope bias
     bool calc_gy_bias = false;
     float calc_gy_bias_thresh = 1.0;

@@ -33,6 +33,8 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->qp_eps_trans = node->declare_parameter<double>(param_prefix + ".qp_eps_trans", config->qp_eps_trans);
   config->qp_eps_rot = node->declare_parameter<double>(param_prefix + ".qp_eps_rot", config->qp_eps_rot);
   config->qp_solver_name = node->declare_parameter<std::string>(param_prefix + ".qp_solver_name", config->qp_solver_name);
+  // daicp - degenerate-direction covariance inflation factor
+  config->degenerate_cov_alpha = node->declare_parameter<double>(param_prefix + ".degenerate_cov_alpha", config->degenerate_cov_alpha);
   // daicp - range and bearing noise model
   config->sigma_d = node->declare_parameter<double>(param_prefix + ".sigma_d", config->sigma_d);
   config->sigma_az = node->declare_parameter<double>(param_prefix + ".sigma_az", config->sigma_az);
@@ -61,6 +63,7 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->trans_outlier_thresh = node->declare_parameter<float>(param_prefix + ".trans_outlier_thresh", config->trans_outlier_thresh);
   config->rot_outlier_thresh = node->declare_parameter<float>(param_prefix + ".rot_outlier_thresh", config->rot_outlier_thresh);
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
+  config->min_pair_count = node->declare_parameter<int>(param_prefix + ".min_pair_count", config->min_pair_count);
   // online gyroscope bias
   config->calc_gy_bias = node->declare_parameter<bool>(param_prefix + ".calc_gy_bias", config->calc_gy_bias);
   config->calc_gy_bias_thresh = node->declare_parameter<float>(param_prefix + ".calc_gy_bias_thresh", config->calc_gy_bias_thresh);
@@ -92,8 +95,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   // const auto &map_version = qdata.submap_loc->version();
   auto &point_map = qdata.submap_loc->point_cloud();
 
-  CLOG(DEBUG, "lidar.localization_daicp") << "####### Query point cloud has " << query_points.size() << " points.";
-  CLOG(DEBUG, "lidar.localization_daicp") << "######### Map point cloud has " << point_map.size() << " points.";
+  CLOG(DEBUG, "lidar.localization_daicp") << "Query: " << query_points.size()
+                                          << " pts, Map: " << point_map.size() << " pts.";
 
   // check curvature 
   int cur_num = 0;
@@ -204,7 +207,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // data association with high curvature
     std::vector<bool> high_curv_match;
     // use curvature data association if the ptcloud has curvature info, else use spatial only   
-    CLOG(DEBUG, "lidar.localization_daicp") << "first pt curv: " << aligned_points[sample_inds[0].first].curvature;
+    // CLOG(DEBUG, "lidar.localization_daicp") << "first pt curv: " << aligned_points[sample_inds[0].first].curvature;
     if (aligned_points[sample_inds[0].first].curvature) {
       /// get normalization scales
       // NOTE: speed vs. accuracy tradeoff - limit to 1k samples to prevent overwighting areas with high point density.
@@ -243,7 +246,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       float curv_scale = median(sample_abs_curv);
       if (curv_scale < 1e-9f) curv_scale = 1e-6f;        // fallback
 
-      CLOG(INFO, "lidar.localization_daicp") << "Normalization scales: spatial ≈ " << spatial_scale 
+      CLOG(DEBUG, "lidar.localization_daicp") << "Normalization scales: spatial ≈ " << spatial_scale 
                                               << " m, curvature ≈ " << curv_scale << " 1/m";
 
       /// find correspondences using spatial + curvature criteria
@@ -296,7 +299,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       }
       timer[1]->stop();
 
-      CLOG(DEBUG, "lidar.localization_daicp") << "Spatial+k-curv refinement done, found " << sample_inds.size() << " pairs, replaced " << replace_count << " neighbours";
+      // Per-iter; uncomment when debugging correspondence search.
+      // CLOG(DEBUG, "lidar.localization_daicp") << "Spatial+k-curv refinement done, found " << sample_inds.size() << " pairs, replaced " << replace_count << " neighbours";
 
       /// Filter point pairs based on distances metrics
       timer[2]->start();
@@ -317,7 +321,7 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         }
       }
 
-      CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
+      // CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
 
       // Second filter by curvature if available
       if (!filtered_sample_inds.empty()) {
@@ -342,16 +346,18 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
           }
         }
         filtered_sample_inds = std::move(curvature_filtered_sample_inds);
-        CLOG(DEBUG, "lidar.localization_daicp") << "Curvature filtering done, filtered to " << filtered_sample_inds.size() << " pairs.";
-        CLOG(DEBUG, "lidar.localization_daicp") << "High-curvature matches: " 
-                                              << std::count(high_curv_match.begin(), high_curv_match.end(), true);
+        // Per-iter; uncomment when debugging filtering pipeline.
+        // CLOG(DEBUG, "lidar.localization_daicp") << "Curvature filtering done, filtered to " << filtered_sample_inds.size() << " pairs.";
+        // CLOG(DEBUG, "lidar.localization_daicp") << "High-curvature matches: "
+        //                                       << std::count(high_curv_match.begin(), high_curv_match.end(), true);
       } else {
         // fallback: no points passed distance filter
         filtered_sample_inds.clear();
         high_curv_match.clear();
       }
-      CLOG(DEBUG, "lidar.localization_daicp") << "Filtered " << sample_inds.size() << " point pairs to "
-                                          << filtered_sample_inds.size() << " pairs.";
+      CLOG(DEBUG, "lidar.localization_daicp") << "Filtered " << sample_inds.size() << " pairs -> "
+                                          << filtered_sample_inds.size() << " (high-curv: "
+                                          << std::count(high_curv_match.begin(), high_curv_match.end(), true) << ").";
       timer[2]->stop();
 
     } else {
@@ -383,8 +389,28 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       }
       high_curv_match.resize(filtered_sample_inds.size(), false);  // no curvature info, all false
       timer[2]->stop();
-      CLOG(DEBUG, "lidar.localization_daicp") << "Distance filtering done, found " << filtered_sample_inds.size() << " pairs.";
+      CLOG(DEBUG, "lidar.localization_daicp") << "Filtered " << sample_inds.size() << " pairs -> "
+                                              << filtered_sample_inds.size() << " (no curvature).";
     }
+
+    // ====== Pair-count floor =========================================
+    // If too few correspondences survived filtering, the Hessian will be
+    // rank-deficient (cond[5] -> 1e8..1e10) and the QP solver may produce
+    // NaN scaling factors. Bail out early and trust the odometry prior.
+    // (Diagnosed in qp_test3 2026-04-30: filtered pairs collapsed to ~30
+    // when prior cov was inflated, producing inf eigenvalues / NaN bounds.)
+    if (static_cast<int>(filtered_sample_inds.size()) < config_->min_pair_count) {
+      CLOG(WARNING, "lidar.localization_daicp")
+          << "Insufficient correspondences after filtering ("
+          << filtered_sample_inds.size() << " < " << config_->min_pair_count
+          << ") at step " << step
+          << " - skipping DA-ICP and falling back to odometry prior.";
+      const auto T_r_v_prior = T_r_v_var->value();
+      T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+      matched_points_ratio = 1.0f;  // mark success-via-fallback (mirrors outlier-rejection branch)
+      break;
+    }
+    // =================================================================
 
     timer[3]->start();
     /// ########################### Gauss-Newton solver ########################### ///
@@ -402,6 +428,9 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_m_s_var,
         // configuration
         config_,
+        // prior covariance on T_r_v (used to size the DA-ICP covariance in
+        // degenerate directions: sigma_i^2 = alpha * v_i^T * Sigma_prior * v_i)
+        T_r_v.cov(),
         // output
         daicp_cov
       );
@@ -583,10 +612,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   }
 
   /// Dump timing info
-  CLOG(DEBUG, "lidar.localization_daicp") << "Dump timing info inside loop: ";
-  for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.localization_daicp") << clock_str[i] << timer[i]->count();
-  }
+  // Per-frame timing dump (~7 lines); uncomment when profiling.
+  // CLOG(DEBUG, "lidar.localization_daicp") << "Dump timing info inside loop: ";
+  // for (size_t i = 0; i < clock_str.size(); i++) {
+  //   CLOG(DEBUG, "lidar.localization_daicp") << clock_str[i] << timer[i]->count();
+  // }
 
   /// Outputs
   if (matched_points_ratio > config_->min_matched_ratio) {
