@@ -843,6 +843,13 @@ inline bool daGaussNewton(
     bool verbose = false;
     Eigen::VectorXd delta_params_scaled;
     if (Vd.cols() > 0) {
+      // [DIAG] One-shot per-GN-iter notice that we entered the QP path.
+      // Kept at INFO so it shows up without flipping `verbose`.
+      CLOG(INFO, "lidar.localization_daicp")
+          << "[DIAG] Degeneracy detected (" << Vd.cols()
+          << " direction(s)); using constrained QP solver ("
+          << config_->qp_solver_name << ").";
+
       // Per-iter cap on |v_i^T x| in the degenerate subspace. x is the GN
       // perturbation in *scaled* coordinates (rotation entries multiplied by
       // ell_mr inside this function), and it is computed about the current
