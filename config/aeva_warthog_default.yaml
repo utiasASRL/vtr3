@@ -187,7 +187,7 @@
                                     # if false, use feature_voxel_size for whole frame (default)
                                     # if true, downsample plane and features separately using plane_voxel_size and feature_voxel_size
         plane_voxel_size: 2.0       # voxel size for plane
-        feature_voxel_size: 0.1     # voxel size for feature
+        feature_voxel_size: 0.3     # voxel size for feature
 
         # clustering parameters
         t: 4.0
@@ -362,6 +362,9 @@
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
         # outlier rejection
+        # NOTE: bumped from 0.3/0.1 — initial map-prior gap on first localization
+        # frame is ~1.4 m, the old thresholds were rejecting every legitimate
+        # lidar correction and falling back to odometry, causing open-loop drift.
         trans_outlier_thresh: 0.3             # threshold on translation outlier rejection
         rot_outlier_thresh: 0.1               # threshold on rotation outlier rejection
         min_matched_ratio: 0.45             

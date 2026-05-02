@@ -557,26 +557,65 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
       Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
       auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
-      // CLOG(DEBUG, "lidar.localization_daicp") << "Prior cov T_r_v.cov(): " << T_r_v.cov().diagonal().transpose();
-      // CLOG(DEBUG, "lidar.localization_daicp") << "DA-ICP covariance diagonal: " << diag_daicp_cov.diagonal().transpose();
+      CLOG(INFO, "lidar.localization_daicp")
+          << "[DIAG] daicp_cov diag (full): [" << daicp_cov.diagonal().transpose() << "]";
+      CLOG(INFO, "lidar.localization_daicp")
+          << "[DIAG] prior  cov diag      : [" << T_r_v.cov().diagonal().transpose() << "]";
 
       auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value());  T_m_s_daicp_meas->locked() = true;
-      
+
+      // ============ [DIAG] What does DA-ICP alone (the lidar) say T_r_v should be? ============
+      // T_m_s = (T_s_r * T_r_v * T_v_m)^{-1}
+      // =>  T_r_v_lidar_only = T_s_r^{-1} * T_m_s^{-1} * T_v_m^{-1}
+      {
+        const auto T_m_s_meas = T_m_s_var->value();
+        const Eigen::Matrix4d T_r_v_lidar_mat =
+            T_s_r.matrix().inverse() * T_m_s_meas.matrix().inverse() * T_v_m.matrix().inverse();
+        const lgmath::se3::Transformation T_r_v_lidar(T_r_v_lidar_mat);
+        const auto T_r_v_prior_now = T_r_v_var->value();
+        const auto T_lidar_minus_prior = T_r_v_lidar * T_r_v_prior_now.inverse();
+        const Eigen::Matrix<double, 6, 1> dxi = lgmath::se3::tran2vec(T_lidar_minus_prior.matrix());
+        CLOG(INFO, "lidar.localization_daicp")
+            << "[DIAG] DA-ICP-only T_r_v vs prior:  trans=" << dxi.head<3>().norm()
+            << " m, rot=" << dxi.tail<3>().norm() << " rad";
+        CLOG(INFO, "lidar.localization_daicp")
+            << "[DIAG]   xi_lidar - xi_prior (rho/phi): [" << dxi.transpose() << "]";
+      }
+      // ========================================================================================
+
       // Error function: log(T_m_s_measured^{-1} * T_m_s_predicted)
       // where T_m_s_predicted = (T_s_r * T_r_v * T_v_m)^{-1}
       auto daicp_error_func = tran2vec(compose(inverse(T_m_s_daicp_meas), T_m_s_joint_eval));
       auto daicp_cost_term = WeightedLeastSqCostTerm<6>::MakeShared(daicp_error_func, daicp_noise_model, daicp_loss_func);
       joint_problem.addCostTerm(daicp_cost_term);
-      
+
+      // ============ [DIAG] cost contributions BEFORE solve ====================================
+      const double cost_prior_before = prior_cost_term->cost();
+      const double cost_daicp_before = daicp_cost_term->cost();
+      CLOG(INFO, "lidar.localization_daicp")
+          << "[DIAG] joint cost BEFORE: prior=" << cost_prior_before
+          << ", daicp=" << cost_daicp_before
+          << ", ratio(daicp/prior)=" << (cost_prior_before > 1e-12 ? cost_daicp_before / cost_prior_before : -1.0);
+      // ========================================================================================
+
       // Solve the joint optimization problem
       GaussNewtonSolver::Params joint_params;
-      joint_params.verbose = false;  // Set to true for debugging
+      joint_params.verbose = true;  // [DEBUG] inspect lidar vs prior cost contribution
       joint_params.max_iterations = config_->max_pfusion_iter;
       GaussNewtonSolver joint_solver(joint_problem, joint_params);
-      
-      joint_solver.optimize();        
+
+      joint_solver.optimize();
       // Get the covariance after joint optimization
       Covariance joint_covariance(joint_solver);
+
+      // ============ [DIAG] cost contributions AFTER solve =====================================
+      const double cost_prior_after = prior_cost_term->cost();
+      const double cost_daicp_after = daicp_cost_term->cost();
+      CLOG(INFO, "lidar.localization_daicp")
+          << "[DIAG] joint cost AFTER:  prior=" << cost_prior_after
+          << ", daicp=" << cost_daicp_after
+          << ", total_drop=" << ((cost_prior_before + cost_daicp_before) - (cost_prior_after + cost_daicp_after));
+      // ========================================================================================
 
       // -------- Check difference between prior and computed T_r_v
       const auto T_r_v_prior = T_r_v_var->value();
@@ -585,6 +624,12 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const auto T_diff_vec = lgmath::se3::tran2vec(T_diff.matrix());
       const double translation_diff = T_diff_vec.head<3>().norm();
       const double rotation_diff = T_diff_vec.tail<3>().norm();
+
+      // ============ [DIAG] joint posterior delta from prior ===================================
+      CLOG(INFO, "lidar.localization_daicp")
+          << "[DIAG] Joint posterior T_r_v vs prior:  trans=" << translation_diff
+          << " m, rot=" << rotation_diff << " rad";
+      // ========================================================================================
 
       // OUTLIER REJECTION: larger than 0.3m or 0.2rad (11.5deg)
       if ((translation_diff) > config_->trans_outlier_thresh || (rotation_diff) > config_->rot_outlier_thresh) {
