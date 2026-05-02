@@ -35,6 +35,7 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->qp_solver_name = node->declare_parameter<std::string>(param_prefix + ".qp_solver_name", config->qp_solver_name);
   // daicp - degenerate-direction covariance inflation factor
   config->degenerate_cov_alpha = node->declare_parameter<double>(param_prefix + ".degenerate_cov_alpha", config->degenerate_cov_alpha);
+  config->use_prior_prop_cov = node->declare_parameter<bool>(param_prefix + ".use_prior_prop_cov", config->use_prior_prop_cov);
   // daicp - range and bearing noise model
   config->sigma_d = node->declare_parameter<double>(param_prefix + ".sigma_d", config->sigma_d);
   config->sigma_az = node->declare_parameter<double>(param_prefix + ".sigma_az", config->sigma_az);

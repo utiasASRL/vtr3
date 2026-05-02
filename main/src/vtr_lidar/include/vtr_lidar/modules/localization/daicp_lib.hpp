@@ -365,6 +365,49 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
   return daicpCov;
 }
 
+
+inline Eigen::Matrix<double, 6, 6> computeDaicpCovarianceDefault(
+                                  const Eigen::Matrix<double, 6, 6>& Vf, 
+                                  const Eigen::VectorXd& eigen_vf, 
+                                  const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
+  // Apply solution remapping + regularization in covariance matrix
+  
+  // Find non-zero columns in Vf
+  std::vector<int> valid_cols;
+  for (int i = 0; i < Vf.cols(); ++i) {
+    if (Vf.col(i).norm() > 1e-12) {
+      valid_cols.push_back(i);
+    }
+  }
+
+  // Extract non-zero parts
+  Eigen::MatrixXd Vf_reduced(Vf.rows(), valid_cols.size());
+  Eigen::VectorXd eigen_vf_reduced(valid_cols.size());
+  for (size_t i = 0; i < valid_cols.size(); ++i) {
+    Vf_reduced.col(i) = Vf.col(valid_cols[i]);
+    eigen_vf_reduced(i) = eigen_vf(valid_cols[i]);
+  }
+
+  Eigen::Matrix<double, 6, 6> daicpCov;
+  if ((Vf_reduced.cols() == 6) && (Vd.cols() == 0)) {
+    // No degenerate directions
+    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
+  } else {
+    CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and " 
+                                           << Vd.cols() << " degenerate directions.";
+    // With degenerate directions
+    // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
+    // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
+    // Consider to use the prior covariance in degenerated directions. 
+    const double epsilon = 1e-3;  
+    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
+              (1.0/epsilon) * (Vd *Vd.transpose());
+  }
+
+  return daicpCov;
+}
+
+
 // =================== point-to-plane Jacobian Computation ===================
 inline Eigen::VectorXd computeP2PlaneJacobian(
     const Eigen::Vector3d& source_point, 
@@ -954,8 +997,9 @@ inline bool daGaussNewton(
     Eigen::Matrix<double, 6, 6> D = Eigen::Matrix<double, 6, 6>::Identity();
     D.block<3, 3>(3, 3) *= ell_mr;
     const Eigen::Matrix<double, 6, 6> prior_cov_scaled = D * prior_cov * D.transpose();
-    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(
-        Vf, eigen_vf, Vd, prior_cov_scaled, config_->degenerate_cov_alpha);
+    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = config_->use_prior_prop_cov
+        ? computeDaicpCovariance(Vf, eigen_vf, Vd, prior_cov_scaled, config_->degenerate_cov_alpha)
+        : computeDaicpCovarianceDefault(Vf, eigen_vf, Vd);
     
     // Unscale the parameters and covariance
     Eigen::VectorXd delta_params = D_inv * delta_params_scaled;

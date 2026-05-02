@@ -54,6 +54,11 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     //   alpha = 1e3  -> ~0.1% lidar weight (soft pull)
     //   alpha = 1e6+ -> rank-deficient limit (fully defer to prior)
     double degenerate_cov_alpha = 1e2;
+    // daicp - select degenerate-direction covariance computation:
+    //   true  -> computeDaicpCovariance        (prior-proportional, alpha-based)
+    //   false -> computeDaicpCovarianceDefault (legacy 1/epsilon * Vd Vd^T inflation)
+    // Use this to A/B compare the two covariance models.
+    bool use_prior_prop_cov = true;
     // daicp - QP solver name (CasADi conic plugin). Supported:
     //   "qrqp"  : QR-based active-set, pure C++, robust on tiny dense problems (recommended)
     //   "osqp"  : ADMM first-order; needs matching libosqp ABI, upper-tri H sparsity

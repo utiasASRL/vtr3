@@ -346,6 +346,10 @@
         #   alpha = 1e1  -> ~9%   lidar weight
         #   alpha = 1.0  -> 50%   lidar weight (treat lidar like prior; not recommended)
         degenerate_cov_alpha: 10.0
+        # daicp - select degenerate-direction covariance computation:
+        #   true  -> prior-proportional (alpha * v^T Sigma_prior v)
+        #   false -> legacy default     ((1/epsilon) * Vd Vd^T)
+        use_prior_prop_cov: true
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
