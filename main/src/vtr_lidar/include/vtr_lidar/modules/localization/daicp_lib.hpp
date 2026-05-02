@@ -883,7 +883,7 @@ inline bool daGaussNewton(
     // Per-iteration QP logs are *very* spammy (10+ lines per GN inner step,
     // ~200/sec). Keep them off by default; flip to true only when actively
     // debugging the QP path.
-    bool verbose = false;
+    bool verbose = true;
     Eigen::VectorXd delta_params_scaled;
     if (Vd.cols() > 0) {
       // [DIAG] One-shot per-GN-iter notice that we entered the QP path.
