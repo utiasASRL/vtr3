@@ -177,19 +177,14 @@ RUN mkdir -p ${HOMEDIR}/.casadi && cd ${HOMEDIR}/.casadi \
   && git clone https://github.com/utiasASRL/casadi.git .
 RUN cd ${HOMEDIR}/.casadi \
   && mkdir -p build && cd build \
-  && cmake build -DWITH_PYTHON=ON -DWITH_PYTHON3=ON -DWITH_OSQP=ON -DWITH_IPOPT=ON -DWITH_BUILD_IPOPT=ON -DWITH_BUILD_REQUIRED=ON -DWITH_SELFCONTAINED=ON .. \
+  && cmake build -DWITH_PYTHON=ON -DWITH_PYTHON3=ON -DWITH_IPOPT=ON -DWITH_BUILD_IPOPT=ON -DWITH_BUILD_REQUIRED=ON -DWITH_SELFCONTAINED=ON .. \
   && make -j${NUMPROC} install
 ENV PYTHONPATH=${PYTHONPATH}:/usr/local
 ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 
 
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
-
-RUN apt-get update && apt-get install -y \
-  vim \
-  htop \
-  && rm -rf /var/lib/apt/lists/*
-
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+RUN apt install -q -y vim htop
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
