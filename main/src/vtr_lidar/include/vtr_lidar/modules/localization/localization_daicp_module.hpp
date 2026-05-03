@@ -37,6 +37,13 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     int max_gn_iter = 2;                        // max gauss-newton iterations per daicp step
     // daicp - degeneracy threshold
     double degeneracy_thresh = 100.0;           // use relative condition number to set eigenvalue threshold
+    // daicp - select degenerate-direction covariance computation:
+    //   true  -> computeDaicpCovariance        (prior-proportional, alpha-based)
+    //   false -> computeDaicpCovarianceDefault (legacy 1/epsilon * Vd Vd^T inflation)
+    bool use_prior_prop_cov = true;
+    // daicp - covariance inflation factor for degenerate directions
+    // (only used when use_prior_prop_cov = true). sigma^2 = alpha * v^T Sigma_prior v
+    double degenerate_cov_alpha = 1e2;
     // daicp - range and bearing noise model
     double sigma_d = 0.02;                      // range noise std (2cm)
     double sigma_az = M_PI / 180.0 * 0.03;      // azimuth noise std (0.03 degrees)

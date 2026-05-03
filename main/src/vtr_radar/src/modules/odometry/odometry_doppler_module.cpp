@@ -506,9 +506,12 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
         const auto bias = VSpaceStateVar<6>::MakeShared(b_zero);
         bias->locked() = true;
         const auto loss_func = L2LossFunc::MakeShared();
-        const auto noise_model = StaticNoiseModel<1>::MakeShared(Eigen::Matrix<double, 1, 1>(config_->gyro_cov));
-        const auto error_func = imu::GyroErrorEvaluatorSE2::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
-        const auto gyro_cost = WeightedLeastSqCostTerm<1>::MakeShared(error_func, noise_model, loss_func, "gyro_cost_" + std::to_string(gyro_stamp_time));
+        // Use the SE(3) gyro evaluator since this module uses an SE(3) trajectory:
+        // velocity is 6x1, bias is 6x1, gyro_meas is 3x1, output is 3x1.
+        const auto noise_model = StaticNoiseModel<3>::MakeShared(
+            (Eigen::Matrix<double, 3, 1>::Constant(config_->gyro_cov)).asDiagonal());
+        const auto error_func = imu::GyroErrorEvaluator::MakeShared(w_m_r_in_r_intp_eval, bias, gyro_meas_r);
+        const auto gyro_cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model, loss_func, "gyro_cost_" + std::to_string(gyro_stamp_time));
 
         // problem.addCostTerm(gyro_cost);
       }

@@ -35,8 +35,8 @@ inline void printCovarianceInfo(const Eigen::MatrixXd& daicp_cov) {
   const Eigen::VectorXd diagonal = daicp_cov.diagonal();
   const Eigen::VectorXd std_dev = diagonal.cwiseSqrt();
   
-  CLOG(DEBUG, "lidar.localization_daicp") << "Final covariance P diagonal (roll, pitch, yaw, x, y, z): [" << diagonal.transpose() << "]";
-  CLOG(DEBUG, "lidar.localization_daicp") << "Final std (roll, pitch, yaw, x, y, z): [" << std_dev.transpose() << "]";
+  CLOG(DEBUG, "lidar.localization_daicp") << "Final covariance P diagonal (x, y, z, rx, ry, rz): [" << diagonal.transpose() << "]";
+  CLOG(DEBUG, "lidar.localization_daicp") << "Final std (x, y, z, rx, ry, rz): [" << std_dev.transpose() << "]";
 }
 
 // =================== Range/Bearing Noise Model Utilities ===================
@@ -242,7 +242,9 @@ inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov
 inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
                                               const Eigen::Matrix<double, 6, 6>& Vf, 
                                               const Eigen::VectorXd& eigen_vf, 
-                                              const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
+                                              const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd,
+                                              const Eigen::Matrix<double, 6, 6>& prior_cov,
+                                              double degenerate_cov_alpha) {
   // Apply solution remapping + regularization in covariance matrix
   
   // Find non-zero columns in Vf
@@ -272,13 +274,83 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
     // No degenerate directions
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
   } else {
+    // Per-GN-iter; uncomment for degeneracy debug.
+    // CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and "
+    //                                        << Vd.cols() << " degenerate directions.";
+    //
+    // Covariance in degenerate directions is set proportional to the prior:
+    //   sigma_i^2 = alpha * v_i^T * Sigma_prior * v_i        (alpha >> 1)
+    // so STEAM's joint posterior gives the lidar weight 1/(1+alpha) along v_i.
+    // This is scale-invariant in the prior (large or small) and converges to
+    // the rank-deficient (Bayesian-correct) solution as alpha -> infinity.
+    //
+    // Floor on the projected prior variance: prevents a degenerate direction
+    // collapsing if the prior happens to be tiny in that direction (which
+    // would re-introduce the old "fictitious lidar information" failure mode).
+    constexpr double kMinPriorVar = 1e3;
+    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
+    for (int i = 0; i < Vd.cols(); ++i) {
+      const Eigen::Matrix<double, 6, 1> v = Vd.col(i);
+      double prior_var = v.dot(prior_cov * v);
+      if (!std::isfinite(prior_var) || prior_var < kMinPriorVar) prior_var = kMinPriorVar;
+      const double sigma2_i = degenerate_cov_alpha * prior_var;
+      daicpCov.noalias() += sigma2_i * (v * v.transpose());
+    }
+  }
+
+  // CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov: \n" << daicpCov;
+
+  // [Debug] Perform eigen decomposition to check positive definiteness
+  // --- the daicpCov is PD with all eigenvalues > 0.
+  // Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigensolver(daicpCov);
+  // if (eigensolver.info() == Eigen::Success) {
+  //   Eigen::VectorXd daicpCov_eigenvalues = eigensolver.eigenvalues();
+  //   CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov eigenvalues: [" << daicpCov_eigenvalues.transpose() << "]";
+  // } else {
+  //   CLOG(WARNING, "lidar.localization_daicp") << "Failed to compute eigenvalues for daicpCov";
+  // }
+  // // daicpCov = makePD(daicpCov);
+  // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
+  // dummy_cov.diagonal() << 0.1, 0.1, 0.1, 1e-2, 1e-2, 1e-2;  // [x,y,z,rx,ry,rz]
+  // daicpCov = dummy_cov; 
+
+  return daicpCov;
+}
+
+inline Eigen::Matrix<double, 6, 6> computeDaicpCovarianceDefault(
+                                  const Eigen::Matrix<double, 6, 6>& Vf, 
+                                  const Eigen::VectorXd& eigen_vf, 
+                                  const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
+  // Apply solution remapping + regularization in covariance matrix
+  
+  // Find non-zero columns in Vf
+  std::vector<int> valid_cols;
+  for (int i = 0; i < Vf.cols(); ++i) {
+    if (Vf.col(i).norm() > 1e-12) {
+      valid_cols.push_back(i);
+    }
+  }
+  
+  // Extract non-zero parts
+  Eigen::MatrixXd Vf_reduced(Vf.rows(), valid_cols.size());
+  Eigen::VectorXd eigen_vf_reduced(valid_cols.size());
+  for (size_t i = 0; i < valid_cols.size(); ++i) {
+    Vf_reduced.col(i) = Vf.col(valid_cols[i]);
+    eigen_vf_reduced(i) = eigen_vf(valid_cols[i]);
+  }
+  
+  Eigen::Matrix<double, 6, 6> daicpCov;
+  if ((Vf_reduced.cols() == 6) && (Vd.cols() == 0)) {
+    // No degenerate directions
+    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
+  } else {
     CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and " 
                                            << Vd.cols() << " degenerate directions.";
     // With degenerate directions
     // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
     // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
     // Consider to use the prior covariance in degenerated directions. 
-    const double epsilon = 1e-2;  
+    const double epsilon = 1e-3;  
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
               (1.0/epsilon) * (Vd *Vd.transpose());
   }
@@ -664,6 +736,7 @@ inline bool daGaussNewton(
   const Eigen::Matrix4Xf& map_normals_mat,
   steam::se3::SE3StateVar::Ptr T_var,
   const std::shared_ptr<const vtr::lidar::LocalizationDAICPModule::Config>& config_,
+  const Eigen::Matrix<double, 6, 6>& prior_cov,
   Eigen::Matrix<double, 6, 6>& daicp_cov  ) {
 
   if (sample_inds.size() < 6) {
@@ -769,8 +842,16 @@ inline bool daGaussNewton(
 
     // Compute update step using eigenspace projection
     Eigen::VectorXd delta_params_scaled = computeUpdateStep(A_scaled, b, V, Vf);
-    // Compute the scaled covariance matrix
-    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = computeDaicpCovariance(Vf, eigen_vf, Vd);
+    // Compute the scaled covariance matrix.
+    // Vd / Vf live in the scaled coordinate frame (rotation entries multiplied
+    // by ell_mr), so the prior must be expressed in the same frame:
+    //   Sigma_scaled = D * Sigma * D^T,  D = diag(1,1,1, ell_mr, ell_mr, ell_mr)
+    Eigen::Matrix<double, 6, 6> D = Eigen::Matrix<double, 6, 6>::Identity();
+    D.block<3, 3>(3, 3) *= ell_mr;
+    const Eigen::Matrix<double, 6, 6> prior_cov_scaled = D * prior_cov * D.transpose();
+    Eigen::Matrix<double, 6, 6> daicp_cov_scaled = config_->use_prior_prop_cov
+        ? computeDaicpCovariance(Vf, eigen_vf, Vd, prior_cov_scaled, config_->degenerate_cov_alpha)
+        : computeDaicpCovarianceDefault(Vf, eigen_vf, Vd);
     
     // Unscale the parameters and covariance
     Eigen::VectorXd delta_params = D_inv * delta_params_scaled;

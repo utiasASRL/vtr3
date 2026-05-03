@@ -333,6 +333,11 @@
         max_gn_iter: 1
         # daicp - degeneracy threshold
         degeneracy_thresh: 80.0               # we use condition number to set the threshold
+        # daicp - select degenerate-direction covariance computation:
+        #   true  -> prior-proportional (alpha * v^T Sigma_prior v)
+        #   false -> legacy default     ((1/epsilon) * Vd Vd^T)
+        use_prior_prop_cov: true
+        degenerate_cov_alpha: 10.0
         # daicp - range and bearing noise model
         sigma_d: 0.02                         # range noise std (2cm)
         sigma_az: 0.000523599                 # azimuth noise std (0.03 degrees)
