@@ -335,7 +335,7 @@ inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
     // Floor on the projected prior variance: prevents a degenerate direction
     // collapsing if the prior happens to be tiny in that direction (which
     // would re-introduce the old "fictitious lidar information" failure mode).
-    constexpr double kMinPriorVar = 1e-6;
+    constexpr double kMinPriorVar = 1e3;
     daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
     for (int i = 0; i < Vd.cols(); ++i) {
       const Eigen::Matrix<double, 6, 1> v = Vd.col(i);
