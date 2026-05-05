@@ -29,6 +29,9 @@ auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &nod
   config->max_gn_iter = node->declare_parameter<int>(param_prefix + ".max_gn_iter", config->max_gn_iter);
   // daicp - degeneracy threshold
   config->degeneracy_thresh = node->declare_parameter<double>(param_prefix + ".degeneracy_thresh", config->degeneracy_thresh);
+  // daicp - covariance computation
+  config->use_prior_prop_cov = node->declare_parameter<bool>(param_prefix + ".use_prior_prop_cov", config->use_prior_prop_cov);
+  config->degenerate_cov_alpha = node->declare_parameter<double>(param_prefix + ".degenerate_cov_alpha", config->degenerate_cov_alpha);
   // daicp - range and bearing noise model
   config->sigma_d = node->declare_parameter<double>(param_prefix + ".sigma_d", config->sigma_d);
   config->sigma_az = node->declare_parameter<double>(param_prefix + ".sigma_az", config->sigma_az);
@@ -381,6 +384,8 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_m_s_var,
         // configuration
         config_,
+        // prior cov reordered from lgmath [x,y,z,rx,ry,rz] -> internal [rx,ry,rz,x,y,z] 
+        Pm * T_r_v.cov() * Pm.transpose(),
         // output
         daicp_cov
       );
