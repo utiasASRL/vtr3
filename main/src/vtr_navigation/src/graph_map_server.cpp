@@ -253,7 +253,6 @@ void GraphMapServer::poseCallback(const NavSatFix::ConstSharedPtr msg) {
     auto delta_lng = deltaLongToMetres(prev_coords.second, msg->latitude, prev_coords.first, msg->longitude);
     auto delta_lat = deltaLatToMetres(prev_coords.second, msg->latitude);
 
-    map_info.root_vid = 0;
     map_info.lng = (float) msg->longitude;
     map_info.lat = (float) msg->latitude;
     map_info.theta = (float) atan2(delta_lat, delta_lng);
@@ -309,13 +308,12 @@ void GraphMapServer::updateWaypointCallback(
 
 void GraphMapServer::vertexAdded(const VertexPtr& v) {
   if (getGraph()->numberOfVertices() > 1) return;
-  /// The first vertex is added
-  if ((uint64_t)v->id() != 0) {
-    std::string err{"First vertex added is not the root vertex"};
-    CLOG(ERROR, "navigation.graph_map_server") << err;
-    throw std::runtime_error{err};
-  };
+  /// The first vertex is added — record it as the root
   UniqueLock lock(mutex_);
+  auto graph = getGraph();
+  auto map_info = graph->getMapInfo();
+  map_info.root_vid = (uint64_t)v->id();
+  graph->setMapInfo(map_info);
   /// \note \todo currently privileged graph is extracted based on edges
   /// (manual/autonomous), at this moment we do not have any edge in the graph
   /// so privileged graph returns an empty graph, which is wrong. Solution is to
@@ -432,8 +430,7 @@ auto GraphMapServer::getPrivilegedGraph() const -> GraphBasePtr {
 }
 
 void GraphMapServer::optimizeGraph(const tactic::GraphBase::Ptr& priv_graph) {
-  const auto map_info = getGraph()->getMapInfo();
-  const auto root_vid = VertexId(map_info.root_vid);
+  const auto root_vid = getGraph()->root();
 
   pose_graph::PoseGraphOptimizer<tactic::GraphBase> optimizer(
       priv_graph, root_vid, vid2tf_map_);
@@ -456,6 +453,7 @@ void GraphMapServer::optimizeGraph(const tactic::GraphBase::Ptr& priv_graph) {
   }
 
   // update the graph state vertices and idx map
+  graph_state_.root_vid = (uint64_t)root_vid;
   auto& vertices = graph_state_.vertices;
   vertices.clear();
   vid2idx_map_.clear();
@@ -656,13 +654,6 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
     CLOG(ERROR, "navigation.graph_map_server") << ss.str();
     throw std::runtime_error{ss.str()};
   }
-  if (!(((uint64_t(to) - uint64_t(from)) == 1))) {
-    std::stringstream ss;
-    ss << "Temporal edge from " << from << " to " << to << " isn't continuous.";
-    CLOG(ERROR, "navigation.graph_map_server") << ss.str();
-    throw std::runtime_error{ss.str()};
-  }
-
   // vid2tfmap update
   vid2tf_map_[to] = T_to_from * vid2tf_map_.at(from);
 

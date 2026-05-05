@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <random>
+
 #include "vtr_pose_graph/index/callback_interface.hpp"
 #include "vtr_pose_graph/index/graph_base.hpp"
 
@@ -80,12 +82,12 @@ class Graph : public GraphBase<V, E> {
 
   using Base::edges_;
 
-  /** \brief The current maximum run index */
   BaseIdType curr_major_id_ = InvalidBaseId;
   BaseIdType curr_minor_id_ = InvalidBaseId;
 
-  /** \brief The current maximum run index */
   const CallbackPtr callback_;
+
+  std::mt19937 rng_{std::random_device{}()};
 
   /**
    * \brief Lock by methods that change graph structure, can be used externally

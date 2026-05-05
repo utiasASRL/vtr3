@@ -577,7 +577,7 @@ class GraphMap extends React.Component {
   loadGraphState(graph, center = false) {
     console.info("Loading the current pose graph state (full).");
     // root vid
-    this.root_vid = 0; // = graph.root_vid; /// \todo
+    this.root_vid = graph.root_vid;
     // id2vertex and kdtree
     this.id2vertex = new Map();
     let wps_map = new Map();
@@ -1541,7 +1541,9 @@ class GraphMap extends React.Component {
   }
 
   metres2pix(metres) {
-    let origin = L.latLng(this.id2vertex.get(this.root_vid));
+    let ref = this.id2vertex.get(this.root_vid) || this.id2vertex.values().next().value;
+    if (!ref) return metres;
+    let origin = L.latLng(ref);
     let origin_plus_metre = this.map.latLngToLayerPoint(L.latLng(origin.lat - 1, origin.lng));
     let metre_standard = origin_plus_metre.subtract(this.map.latLngToLayerPoint(origin));
     let factor = metre_standard.y * 0.000009;

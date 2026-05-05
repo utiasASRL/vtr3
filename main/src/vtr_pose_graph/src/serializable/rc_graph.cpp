@@ -52,16 +52,25 @@ RCGraph::RCGraph(const std::string& file_path, const bool load,
 
 void RCGraph::save() {
   std::unique_lock lock(mutex_);
-  if(read_only_) { 
+  if(read_only_) {
     CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
     return;
   }
   CLOG(INFO, "pose_graph") << "Saving pose graph";
   saveGraphIndex();
   saveVertices();
-  saveEdges();
+  // Flush any edges that saveEdgesLive() held back (always the last edge in the
+  // queue, which is withheld until the next vertex arrives to confirm it is complete).
+  if (!edges_to_write_.empty()) {
+    EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
+    while (!edges_to_write_.empty()) {
+      accessor.write(edges_to_write_.front()->serialize());
+      edges_to_write_.pop();
+    }
+  } else {
+    saveEdges();
+  }
   CLOG(INFO, "pose_graph") << "Saving pose graph - DONE!";
-
 }
 
 void RCGraph::saveLive() {
@@ -199,7 +208,8 @@ void RCGraph::saveVerticesLive() {
   // save any unsaved data first
   CLOG(DEBUG, "pose_graph") << "Saving vertices to disk, Vertex Q len : " << vertices_to_write_.size();
   VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
-  while (!vertices_to_write_.empty()){
+  // while (!vertices_to_write_.empty()){
+  while (vertices_to_write_.size() > 1){
     auto vertex = vertices_to_write_.front();
     vertices_to_write_.pop();
     vertex->unload();

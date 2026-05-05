@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file test_serialization_run.cpp
+ * \file test_serialization_graph.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gmock/gmock.h>
@@ -59,8 +59,6 @@ class TemporaryDirectoryFixture : public Test {
  public:
   TemporaryDirectoryFixture() {
     temp_dir_ = rcpputils::fs::create_temp_directory("tmp_test_dir").string();
-    // temp_dir_ = "/home/yuchen/ASRL/temp/test_pose_graph";
-    // rcpputils::fs::create_directories(temp_dir_);
     graph_dir_ = (rcpputils::fs::path(temp_dir_) / "graph").string();
   }
 
@@ -73,26 +71,19 @@ class TemporaryDirectoryFixture : public Test {
 };
 
 TEST_F(TemporaryDirectoryFixture, construct_empty_graph_and_save) {
-  // constructor initializes the ros message
   RCGraph graph(graph_dir_, false);
-  // destructor saves the graph
 }
 
 TEST_F(TemporaryDirectoryFixture, simulate_loading_graph_from_disk) {
-  // constructor initializes the message
   auto graph = std::make_shared<RCGraph>(graph_dir_, false);
 
   RCGraph::MapInfoMsg map_info;
   map_info.set = true;
-  graph->setMapInfo(map_info);  // this sets map info (map_info.set=true)
+  graph->setMapInfo(map_info);
 
-  // destructor saves the graph
   graph.reset();
 
-  // constructor loads graph
   graph = std::make_shared<RCGraph>(graph_dir_);
-
-  // destructor saves the graph
 }
 
 class GraphSerializationFixture : public TemporaryDirectoryFixture {
@@ -114,81 +105,74 @@ class GraphSerializationFixture : public TemporaryDirectoryFixture {
   GraphSerializationFixture() {
     graph_ = std::make_shared<RCGraph>(graph_dir_, false);
     // clang-format off
-    for (int idx = 0; idx < 5; ++idx) {
+    for (int i = 0; i < 5; ++i) {
       graph_->addRun();
-      graph_->addVertex(time_stamp_++);
-      graph_->addVertex(time_stamp_++);
-      graph_->addVertex(time_stamp_++);
-      graph_->addEdge(VertexId(idx, 0), VertexId(idx, 1), EdgeType::Temporal, false, trivialTransform(VertexId(idx, 0), VertexId(idx, 1)));
-      graph_->addEdge(VertexId(idx, 1), VertexId(idx, 2), EdgeType::Temporal, false, trivialTransform(VertexId(idx, 1), VertexId(idx, 2)));
+      vids_[i][0] = graph_->addVertex(time_stamp_++)->id();
+      vids_[i][1] = graph_->addVertex(time_stamp_++)->id();
+      vids_[i][2] = graph_->addVertex(time_stamp_++)->id();
+      graph_->addEdge(vids_[i][0], vids_[i][1], EdgeType::Temporal, false, trivialTransform(vids_[i][0], vids_[i][1]));
+      graph_->addEdge(vids_[i][1], vids_[i][2], EdgeType::Temporal, false, trivialTransform(vids_[i][1], vids_[i][2]));
     }
-    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), EdgeType::Spatial, false, trivialTransform(VertexId(1, 1), VertexId(0, 0)));
-    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), EdgeType::Spatial, false, trivialTransform(VertexId(2, 2), VertexId(1, 2)));
-    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), EdgeType::Spatial, false, trivialTransform(VertexId(3, 1), VertexId(2, 1)));
-    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), EdgeType::Spatial, false, trivialTransform(VertexId(4, 2), VertexId(3, 2)));
+    graph_->addEdge(vids_[1][1], vids_[0][0], EdgeType::Spatial, false, trivialTransform(vids_[1][1], vids_[0][0]));
+    graph_->addEdge(vids_[2][2], vids_[1][2], EdgeType::Spatial, false, trivialTransform(vids_[2][2], vids_[1][2]));
+    graph_->addEdge(vids_[3][1], vids_[2][1], EdgeType::Spatial, false, trivialTransform(vids_[3][1], vids_[2][1]));
+    graph_->addEdge(vids_[4][2], vids_[3][2], EdgeType::Spatial, false, trivialTransform(vids_[4][2], vids_[3][2]));
     // clang-format on
+  }
+
+  void verifyGraphStructure(RCGraph& graph) {
+    for (int i = 0; i < 5; ++i)
+      for (int j = 0; j < 3; ++j)
+        EXPECT_NO_THROW(graph.at(vids_[i][j]));
+
+    RCEdge::Ptr edge;
+    for (int i = 0; i < 5; ++i) {
+      edge = graph.at(EdgeId(vids_[i][0], vids_[i][1]));
+      verifyTransform(vids_[i][0], vids_[i][1], edge->T());
+      edge = graph.at(EdgeId(vids_[i][1], vids_[i][2]));
+      verifyTransform(vids_[i][1], vids_[i][2], edge->T());
+    }
+    edge = graph.at(EdgeId(vids_[1][1], vids_[0][0]));
+    verifyTransform(vids_[1][1], vids_[0][0], edge->T());
+    edge = graph.at(EdgeId(vids_[2][2], vids_[1][2]));
+    verifyTransform(vids_[2][2], vids_[1][2], edge->T());
+    edge = graph.at(EdgeId(vids_[3][1], vids_[2][1]));
+    verifyTransform(vids_[3][1], vids_[2][1], edge->T());
+    edge = graph.at(EdgeId(vids_[4][2], vids_[3][2]));
+    verifyTransform(vids_[4][2], vids_[3][2], edge->T());
+
+    EXPECT_EQ(graph.numberOfEdges(), (unsigned)14);
+    EXPECT_EQ(graph.numberOfVertices(), (unsigned)15);
   }
 
  public:
   std::shared_ptr<RCGraph> graph_;
   Timestamp time_stamp_ = 0;
+  VertexId vids_[5][3];
 };
-
-void verifyGraphStructure(RCGraph& graph) {
-  for (int run_idx = 0; run_idx < 5; run_idx++)
-    for (int vertex_idx = 0; vertex_idx < 3; vertex_idx++) {
-      EXPECT_NO_THROW(graph.at(VertexId(run_idx, vertex_idx)));
-    }
-
-  RCEdge::Ptr edge;
-  for (int idx = 0; idx < 5; ++idx) {
-    edge = graph.at(EdgeId(VertexId(idx, 0), VertexId(idx, 1)));
-    verifyTransform(VertexId(idx, 0), VertexId(idx, 1), edge->T());
-    edge = graph.at(EdgeId(VertexId(idx, 1), VertexId(idx, 2)));
-    verifyTransform(VertexId(idx, 1), VertexId(idx, 2), edge->T());
-  }
-  edge = graph.at(EdgeId(VertexId(1, 1), VertexId(0, 0)));
-  verifyTransform(VertexId(1, 1), VertexId(0, 0), edge->T());
-  edge = graph.at(EdgeId(VertexId(2, 2), VertexId(1, 2)));
-  verifyTransform(VertexId(2, 2), VertexId(1, 2), edge->T());
-  edge = graph.at(EdgeId(VertexId(3, 1), VertexId(2, 1)));
-  verifyTransform(VertexId(3, 1), VertexId(2, 1), edge->T());
-  edge = graph.at(EdgeId(VertexId(4, 2), VertexId(3, 2)));
-  verifyTransform(VertexId(4, 2), VertexId(3, 2), edge->T());
-
-  EXPECT_EQ(graph.numberOfEdges(), (unsigned)14);
-  EXPECT_EQ(graph.numberOfVertices(), (unsigned)15);
-}
 
 TEST_F(GraphSerializationFixture, SaveLoadSaveLoad) {
   verifyGraphStructure(*graph_);
 
-  // save graph to file
   graph_.reset();
 
-  // load again
   auto graph = std::make_shared<RCGraph>(graph_dir_);
   verifyGraphStructure(*graph);
 
-  // save again
   graph.reset();
 
-  // load again
   graph = std::make_shared<RCGraph>(graph_dir_);
   verifyGraphStructure(*graph);
 }
 
 TEST_F(GraphSerializationFixture, PostLoadSubGraphExtraction) {
-  // save graph to file
   graph_.reset();
 
-  // load again
   auto graph = std::make_shared<RCGraph>(graph_dir_);
   verifyGraphStructure(*graph);
 
-  VertexId root_id(0, 0);
   EXPECT_NO_THROW(graph->getSubgraph(
-      root_id, std::make_shared<eval::mask::ConstEval>(true, true)));
+      vids_[0][0], std::make_shared<eval::mask::ConstEval>(true, true)));
 
   int count = 0;
   for (auto it = graph->beginVertex(); it != graph->endVertex(); ++it) count++;
@@ -196,29 +180,25 @@ TEST_F(GraphSerializationFixture, PostLoadSubGraphExtraction) {
 }
 
 TEST_F(GraphSerializationFixture, SaveLoadModifySaveLoad) {
-  // save graph to file
   graph_.reset();
 
-  // load, modify and then save the graph
   auto graph = std::make_shared<RCGraph>(graph_dir_);
   graph->addRun();
-  graph->addVertex(time_stamp_++);
-  graph->addVertex(time_stamp_++);
-  graph->addVertex(time_stamp_++);
-  graph->addEdge(VertexId(5, 2), VertexId(0, 2), EdgeType::Spatial, false,
+  auto v0 = graph->addVertex(time_stamp_++);
+  auto v1 = graph->addVertex(time_stamp_++);
+  auto v2 = graph->addVertex(time_stamp_++);
+  graph->addEdge(v2->id(), vids_[0][2], EdgeType::Spatial, false,
                  EdgeTransform(true));
   graph.reset();
 
-  // load the graph again
   graph = std::make_shared<RCGraph>(graph_dir_);
   EXPECT_EQ(graph->numberOfVertices(), (unsigned)18);
-  EXPECT_NO_THROW(graph->at(EdgeId(VertexId(5, 2), VertexId(0, 2))));
+  EXPECT_NO_THROW(graph->at(EdgeId(v2->id(), vids_[0][2])));
   graph.reset();
 
-  // load the graph again
   graph = std::make_shared<RCGraph>(graph_dir_);
   EXPECT_EQ(graph->numberOfVertices(), (unsigned)18);
-  EXPECT_NO_THROW(graph->at(EdgeId(VertexId(5, 2), VertexId(0, 2))));
+  EXPECT_NO_THROW(graph->at(EdgeId(v2->id(), vids_[0][2])));
   graph.reset();
 }
 

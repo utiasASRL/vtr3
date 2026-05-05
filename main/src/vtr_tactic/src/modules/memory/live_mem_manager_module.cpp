@@ -35,16 +35,16 @@ void LiveMemManagerModule::run_(QueryCache &qdata, OutputCache &,
                                 const Graph::Ptr &,
                                 const TaskExecutor::Ptr &executor) {
   if (qdata.vid_odo->isValid() &&
-      qdata.vid_odo->minorId() >= (unsigned)config_->window_size &&
       *qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) {
-    const auto vid_to_unload =
-        VertexId(qdata.vid_odo->majorId(),
-                 qdata.vid_odo->minorId() - (unsigned)config_->window_size);
-    qdata.live_mem_async.emplace(vid_to_unload);
-
-    executor->dispatch(std::make_shared<Task>(
-        shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
-        Task::DepId{}, "Live Mem Manager", vid_to_unload));
+    vertex_window_.push_back(*qdata.vid_odo);
+    if ((int)vertex_window_.size() > config_->window_size) {
+      const auto vid_to_unload = vertex_window_.front();
+      vertex_window_.pop_front();
+      qdata.live_mem_async.emplace(vid_to_unload);
+      executor->dispatch(std::make_shared<Task>(
+          shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
+          Task::DepId{}, "Live Mem Manager", vid_to_unload));
+    }
   }
 }
 

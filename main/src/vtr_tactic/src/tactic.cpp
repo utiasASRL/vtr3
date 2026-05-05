@@ -100,18 +100,13 @@ void Tactic::addRun(const bool) {
   T_m_w_ = EdgeTransform(true);
   // re-initialize the pipeline
   pipeline_->reset();
-  //
-  graph_->saveGraphIndex();
   callback_->startRun();
 }
 
 void Tactic::finishRun() {
-  // saving graph here is optional as we save at destruction, just to avoid
-  // unexpected data loss
   smoother_.runBranchSmoothing();
-    CLOG(ERROR, "tactic") << "Not an ERROR, FINISHED RUN";
-  // graph_->save(); // [ANTHONY] REMEMBER THIS LINE
-  graph_->saveLive();
+  CLOG(ERROR, "tactic") << "Not an ERROR, FINISHED RUN";
+  graph_->save();
 
   callback_->endRun();
 }
@@ -133,8 +128,9 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
     chain_->expand();
     auto eval =
           std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph_);
-    auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front(), std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
-    T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(VertexId(0, 0)), connected->end(), EdgeTransform(true));
+    const auto graph_root = graph_->root();
+    auto connected = graph_->dijkstraSearch(graph_root, path.front(), std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
+    T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(graph_root), connected->end(), EdgeTransform(true));
     CLOG(INFO, "tactic") << "Setting tf from root to " << T_m_w_;
   }
   // used as initial guess for trunk

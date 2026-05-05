@@ -34,6 +34,7 @@ vtr_ui_logger = logging.getLogger('vtr_ui')  # set up in vtr_ui.py
 
 def graph_state_from_ros(ros_graph_state):
   return {
+      'root_vid': ros_graph_state.root_vid,
       'vertices': [{
           'id': v.id,
           'neighbors': [n for n in v.neighbors],

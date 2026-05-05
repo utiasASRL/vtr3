@@ -109,7 +109,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), pipeline,
                                      pipeline_output, graph_, graph_map_server_,
                                      std::make_shared<TaskQueueServer>(node_));
-  if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
+  {
+    const auto root = graph_->root();
+    if (root.isValid()) tactic_->setTrunk(root);
+  }
 
   /// path planner
   auto planner_factory = std::make_shared<ROSPathPlannerFactory>(node_);
