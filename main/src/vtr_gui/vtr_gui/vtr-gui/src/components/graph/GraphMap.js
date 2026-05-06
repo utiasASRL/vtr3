@@ -495,8 +495,9 @@ class GraphMap extends React.Component {
   }
 
   genDefaultWaypointName(id) {
-    let vl = parseInt(id % Math.pow(2, 32));
-    let vh = parseInt((id - vl) / Math.pow(2, 32));
+    let idBig = BigInt(id);
+    let vl = Number(idBig & 0xFFFFFFFFn);
+    let vh = Number(idBig >> 32n);
     return "WP-" + vh.toString() + "-" + vl.toString();
   }
 
@@ -1050,7 +1051,7 @@ class GraphMap extends React.Component {
     // set up and add the center marker
     let closest_vertices = this.kdtree.nearest(center_pos, 1);
     selector.vertex.c = closest_vertices ? closest_vertices[0][0] : center_pos;
-    selector.vertex.c = this.id2vertex.get(0);
+    selector.vertex.c = this.id2vertex.get(this.root_vid) || this.id2vertex.values().next().value;
     selector.marker.c = L.marker(selector.vertex.c, {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,

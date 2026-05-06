@@ -90,13 +90,19 @@ class GraphBase {
    * \brief Find the root vertex: the run-0 vertex with no incoming temporal
    * edge. Returns VertexId::Invalid() if the graph is empty.
    */
-  VertexId root() const {
+  virtual VertexId root() const {
     std::shared_lock lock(mutex_);
     VertexId::Set temporal_to_ids;
-    for (const auto& [eid, edge] : edges_)
+    VertexId::Set privileged_vids;
+    for (const auto& [eid, edge] : edges_) {
       if (edge->isTemporal()) temporal_to_ids.insert(edge->to());
+      if (edge->isManual()) {
+        privileged_vids.insert(edge->from());
+        privileged_vids.insert(edge->to());
+      }
+    }
     for (const auto& [vid, vertex] : vertices_)
-      if (vid.majorId() == 0 && temporal_to_ids.count(vid) == 0) return vid;
+      if (privileged_vids.count(vid) && temporal_to_ids.count(vid) == 0) return vid;
     return VertexId::Invalid();
   }
 

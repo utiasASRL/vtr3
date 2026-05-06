@@ -85,6 +85,15 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
                   const EdgeType& type, const bool manual,
                   const EdgeTransform& T_to_from);
 
+  /** \brief Returns the root vertex using the stored map_info root_vid */
+  VertexId root() const override {
+    std::shared_lock lock(map_info_mutex_);
+    const auto vid = VertexId(map_info_.root_vid);
+    std::shared_lock graph_lock(mutex_);
+    if (graph_.hasVertex(vid)) return vid;
+    return VertexId::Invalid();
+  }
+
   /** \brief Get the map display calibration */
   MapInfoMsg getMapInfo() const {
     std::shared_lock lock(map_info_mutex_);

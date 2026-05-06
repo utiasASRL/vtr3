@@ -37,7 +37,7 @@ BaseIdType Graph<V, E>::addRun() {
   std::unique_lock lock(mutex_);
 
   if ((curr_major_id_ == InvalidBaseId) || (curr_minor_id_ != InvalidBaseId)) {
-    ++curr_major_id_;
+    do { curr_major_id_ = rng_(); } while (curr_major_id_ == InvalidBaseId);
     curr_minor_id_ = InvalidBaseId;
   } else {
     CLOG(WARNING, "pose_graph")
@@ -89,16 +89,6 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
       (vertices_.find(to) == vertices_.end())) {
     CLOG(ERROR, "pose_graph") << "Adding edge between non-existent vertices";
     throw std::range_error("Adding edge between non-existent vertices");
-  }
-
-  if (from.majorId() < to.majorId()) {
-    CLOG(ERROR, "pose_graph")
-        << "Cannot add edge from " << from << " to " << to
-        << " since the major id of the from vertex is smaller than the to "
-           "vertex";
-    throw std::invalid_argument(
-        "Spatial edges may only be added from higher run numbers to lower "
-        "ones");
   }
 
   EdgeId eid(from, to);

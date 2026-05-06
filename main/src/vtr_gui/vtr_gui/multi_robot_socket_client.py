@@ -51,10 +51,10 @@ vtr_ui_logger.addHandler(hd)
 
 def graph_state_from_ros(ros_graph_state):
   return {
-      'root_vid': ros_graph_state.root_vid,
+      'root_vid': str(ros_graph_state.root_vid),
       'vertices': [{
-          'id': v.id,
-          'neighbors': [n for n in v.neighbors],
+          'id': str(v.id),
+          'neighbors': [str(n) for n in v.neighbors],
           'lng': v.lng,
           'lat': v.lat,
           'theta': v.theta,
@@ -62,11 +62,11 @@ def graph_state_from_ros(ros_graph_state):
           'name': v.name
       } for v in ros_graph_state.vertices],
       'fixed_routes': [{
-          'ids': [id for id in r.ids],
+          'ids': [str(id) for id in r.ids],
           'type': r.type
       } for r in ros_graph_state.fixed_routes],
       'active_routes': [{
-          'ids': [id for id in r.ids],
+          'ids': [str(id) for id in r.ids],
           'type': r.type
       } for r in ros_graph_state.active_routes],
   }
@@ -77,8 +77,8 @@ def graph_update_from_ros(ros_graph_update):
   vt = ros_graph_update.vertex_to
   return {
       'vertex_from': {
-          'id': vf.id,
-          'neighbors': [n for n in vf.neighbors],
+          'id': str(vf.id),
+          'neighbors': [str(n) for n in vf.neighbors],
           'lng': vf.lng,
           'lat': vf.lat,
           'theta': vf.theta,
@@ -86,8 +86,8 @@ def graph_update_from_ros(ros_graph_update):
           'name': vf.name
       },
       'vertex_to': {
-          'id': vt.id,
-          'neighbors': [n for n in vt.neighbors],
+          'id': str(vt.id),
+          'neighbors': [str(n) for n in vt.neighbors],
           'lng': vt.lng,
           'lat': vt.lat,
           'theta': vt.theta,
@@ -120,7 +120,7 @@ def map_info_from_ros(ros_map_info):
   }
 
 def following_route_from_ros(ros_following_route):
-  return {'ids': [id for id in ros_following_route.ids]}
+  return {'ids': [str(id) for id in ros_following_route.ids]}
 
 
 def goal_handle_from_ros(ros_goal_handle):
@@ -146,8 +146,8 @@ def goal_handle_from_ros(ros_goal_handle):
   goal_handle["pause_before"] = ros_goal_handle.pause_before / 1000.0
   # pause after
   goal_handle["pause_after"] = ros_goal_handle.pause_after / 1000.0
-  # waypointsk
-  goal_handle["waypoints"] = [x for x in ros_goal_handle.waypoints]
+  # waypoints
+  goal_handle["waypoints"] = [str(x) for x in ros_goal_handle.waypoints]
 
   return goal_handle
 
@@ -193,7 +193,7 @@ def task_queue_task_from_ros(ros_task_queue_task):
   return {
       'id': ros_task_queue_task.id,
       'name': ros_task_queue_task.name,
-      'vid': ros_task_queue_task.vid,
+      'vid': str(ros_task_queue_task.vid),
   }
 
 
