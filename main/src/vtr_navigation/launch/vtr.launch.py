@@ -19,6 +19,7 @@ def generate_launch_description():
         "namespace": 'vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
+        "remappings": [("command", "/w200_0066/cmd_vel")],
         # "prefix": 'xterm -e gdb -ex run --args',
         #"prefix": 'valgrind --tool=callgrind',
     }
