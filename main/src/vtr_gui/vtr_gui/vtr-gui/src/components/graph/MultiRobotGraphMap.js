@@ -580,9 +580,16 @@ class MultiRobotGraphMap extends React.Component {
   }
 
   genDefaultWaypointName(id) {
-    let idBig = BigInt(id);
-    let vl = Number(idBig & 0xFFFFFFFFn);
-    let vh = Number(idBig >> 32n);
+    let n = id.toString(), hexId = '';
+    while (n !== '0' && n !== '') {
+      let r = 0, q = '';
+      for (const d of n) { const c = r * 10 + +d; const qd = Math.floor(c / 16); r = c % 16; if (q || qd) q += qd; }
+      hexId = r.toString(16) + hexId;
+      n = q || '0';
+    }
+    const fullHex = (hexId || '0').padStart(16, '0');
+    const vh = parseInt(fullHex.substring(0, 8), 16);
+    const vl = parseInt(fullHex.substring(8), 16);
     return "WP-" + vh.toString() + "-" + vl.toString();
   }
 

@@ -495,11 +495,25 @@ class GraphMap extends React.Component {
   }
 
   genDefaultWaypointName(id) {
-    let idBig = BigInt(id);
-    let vl = Number(idBig & 0xFFFFFFFFn);
-    let vh = Number(idBig >> 32n);
-    return "WP-" + vh.toString() + "-" + vl.toString();
+      // Convert decimal string to hex via long division (avoids float64 precision loss)
+      let n = id.toString(), hexId = '';
+      while (n !== '0' && n !== '') {
+        let r = 0, q = '';
+        for (const d of n) { const c = r * 10 + +d; const qd = Math.floor(c / 16); r = c % 16; if (q || qd) q += qd; }
+        hexId = r.toString(16) + hexId;
+        n = q || '0';
+      }
+      var fullHex = (hexId || '0').padStart(16, '0');
+
+      var vhHex = fullHex.substring(0, 8);
+      var vlHex = fullHex.substring(8);
+
+      var vh = parseInt(vhHex, 16);
+      var vl = parseInt(vlHex, 16);
+
+      return "WP-" + vh.toString() + "-" + vl.toString();
   }
+
 
   handleMapClick(e) {
     // Only add waypoints when no tool is selected

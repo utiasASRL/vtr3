@@ -60,9 +60,7 @@ auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
     throw std::runtime_error("No run added");
   }
 
-  BaseIdType new_minor_id;
-  do { new_minor_id = rng_(); } while (new_minor_id == InvalidBaseId);
-  curr_minor_id_ = new_minor_id;
+  curr_minor_id_ = (curr_minor_id_ == InvalidBaseId) ? 0 : curr_minor_id_ + 1;
   VertexId vid(curr_major_id_, curr_minor_id_);
   graph_.addVertex(vid);
   auto vertex = Vertex::MakeShared(vid, std::forward<Args>(args)...);
