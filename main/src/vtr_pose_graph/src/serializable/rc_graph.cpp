@@ -57,7 +57,6 @@ void RCGraph::save() {
     return;
   }
   CLOG(INFO, "pose_graph") << "Saving pose graph";
-  saveGraphIndex();
   saveVertices();
   // Flush any edges that saveEdgesLive() held back (always the last edge in the
   // queue, which is withheld until the next vertex arrives to confirm it is complete).
@@ -91,6 +90,7 @@ auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
   // OLD:   return GraphType::addVertex(time, name2accessor_map_);
   auto vertex = GraphType::addVertex(time, name2accessor_map_);
   vertices_to_write_.push(vertex);
+  if (curr_minor_id_ == 0) saveGraphIndex();
   return vertex;
 }
 
@@ -148,7 +148,13 @@ void RCGraph::loadEdges() {
 
     auto edge_msg = msg->locked().get().getData();
     auto edge = RCEdge::MakeShared(edge_msg, msg);
-    edges_.insert(std::make_pair(edge->id(), edge));
+    const auto& eid = edge->id();
+    if (vertices_.find(eid.id1()) == vertices_.end() ||
+        vertices_.find(eid.id2()) == vertices_.end()) {
+      CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
+      continue;
+    }
+    edges_.insert(std::make_pair(eid, edge));
     CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
   }
 }
