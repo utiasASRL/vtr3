@@ -21,5 +21,6 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
         planner:="dynamic_path_planner"
+        command_topic:=/$ROBOT_NAME/cmd_vel
         model_dir:=${VTRROOT}/models
         override_params:=convoy_params.yaml

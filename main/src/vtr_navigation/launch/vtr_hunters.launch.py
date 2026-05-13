@@ -20,7 +20,6 @@ def generate_launch_description():
         "namespace": f'{robot_name}/vtr',
         "executable": 'vtr_navigation',
         "output": 'screen',
-        "remappings": [("command", f"/{robot_name}/cmd_vel")],
         #"prefix": 'xterm -e gdb -ex run --args',
     }
 
@@ -31,9 +30,11 @@ def generate_launch_description():
         DeclareLaunchArgument('start_new_graph', default_value='false', description='whether to start a new pose graph'),
         DeclareLaunchArgument('use_sim_time', default_value='false', description='use simulated time for playback'),
         DeclareLaunchArgument('planner', default_value='cbit', description='use no planner. Publish zero'),
+        DeclareLaunchArgument('command_topic', default_value='command', description='Topic for twist messages to be published on'),
         DeclareLaunchArgument('base_params', description='base parameter file (sensor, robot specific)'),
         DeclareLaunchArgument('override_params', default_value='', description='scenario specific parameter overrides'),
         Node(**commonNodeArgs,
+            remappings=[("command", LaunchConfiguration("command_topic"))],
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
               {

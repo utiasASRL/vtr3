@@ -1,6 +1,5 @@
 /**:
   ros__parameters:
-    command_topic: disabled
     path_planning:
       type: stationary
       

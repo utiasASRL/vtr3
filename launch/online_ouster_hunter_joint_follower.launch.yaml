@@ -21,6 +21,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
         planner:="stationary"
+        command_topic:=disabled
         model_dir:=${VTRROOT}/models
         override_params:=follower_params_joint.yaml
         
