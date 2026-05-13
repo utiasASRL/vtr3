@@ -244,8 +244,10 @@ double SurvivalModel::survival(const std::string& obs_type, double t) const {
   
   auto it = estimates_.find(obs_type);
   if (it == estimates_.end() || it->second.times.empty()) {
-    // No data - assume obstacle never clears (conservative)
-    return 1.0;
+    // No data - assume obstacle clears immediately (promotes exploration)
+    // With S(t)=0, expected wait is 0, so robot will try this path
+    // rather than avoiding it conservatively
+    return 0.0;
   }
   
   const KMEstimate& est = it->second;

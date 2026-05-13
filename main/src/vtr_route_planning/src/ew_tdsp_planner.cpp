@@ -136,15 +136,28 @@ std::vector<double> EWTDSPPlanner::batchOverrideArrivals(
     const std::vector<double>& override_times,
     const std::unordered_set<EdgeId, EdgeIdHash>& forbidden_edges) const {
   
+  // HSHMAT FIX: A_clear(t) semantics - robot cannot move until obstacle clears.
+  // Previously: started Dijkstra at start_time (t_now), allowing exploration of
+  //             other paths while waiting. This gave wrong A_clear values where
+  //             robot could take detours before the obstacle cleared.
+  // Now: start Dijkstra at override_time (t0 + t_clear), meaning robot waits
+  //      first, THEN moves. The blocked edge is now available (no override needed).
+  //
+  // This matches simulation: A_clear(t) = t0 + t + L_clr(t), where L_clr(t) is
+  // the minimum travel time from current position to goal, computed at time t0+t
+  // with the previously blocked edge now available.
+  
   std::vector<double> results;
   results.reserve(override_times.size());
 
   for (double t_override : override_times) {
+    // Start Dijkstra at t_override (when obstacle clears), not start_time
+    // The blocked edge is now available (no override or forbidden)
     auto result = earliestArrival(
-        start, goal, start_time,
+        start, goal, t_override,  // Start at clearance time, not t_now
         get_neighbors, get_travel_time, get_expected_wait,
         forbidden_edges,
-        override_edge, t_override);
+        std::nullopt, std::nullopt);  // No override - edge is now available
     results.push_back(result.arrival_time);
   }
 

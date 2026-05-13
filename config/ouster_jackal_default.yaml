@@ -68,7 +68,7 @@
       # =========================
       # Robot model
       # =========================
-      nominal_speed_mps: 0.95          # robot nominal forward speed (m/s)
+      nominal_speed_mps: 0.95        # robot nominal forward speed (m/s)
 
       # =========================
       # Distances / lookahead (meters)

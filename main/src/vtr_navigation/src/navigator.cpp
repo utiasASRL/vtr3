@@ -1235,6 +1235,24 @@ void Navigator::startObstacleEpisode() {
             CLOG(INFO, "navigation") << "HSHMAT: Learned obstacle_stats: +" << edge_delta
                                       << " edges (path index " << baseline << " -> " << idx_in_route << ")";
           }
+          
+          // HSHMAT: Clear memory for successfully traversed edges.
+          // If robot traversed an edge that was previously marked as blocked in memory,
+          // we now know it's free. This ensures memory stays consistent with reality.
+          // Clear memory for edges from baseline to idx_in_route.
+          if (learned && baseline >= 0 && idx_in_route > baseline) {
+            for (int i = baseline; i < idx_in_route && i + 1 < static_cast<int>(following_route_ids_.size()); ++i) {
+              tactic::VertexId v1(following_route_ids_[i]);
+              tactic::VertexId v2(following_route_ids_[i + 1]);
+              tactic::EdgeId edge(v1, v2);
+              learned->clearMemoryForEdge(edge);
+              // Also clear reverse edge
+              tactic::EdgeId edge_rev(v2, v1);
+              learned->clearMemoryForEdge(edge_rev);
+            }
+            CLOG(DEBUG, "navigation") << "HSHMAT: Cleared memory for " << edge_delta 
+                                      << " successfully traversed edges";
+          }
         }
       } else if (!following_route_ids_.empty()) {
         CLOG(WARNING, "navigation")
@@ -1571,7 +1589,17 @@ void Navigator::onWaitTimeout() {
   // Record censored sample for learned strategy
   wait_strategy_->onRerouteTimeout(episode_type, elapsed);
   
-  speak("Time limit exceeded. Rerouting.");
+  // HSHMAT: Update memory timestamp after censored wait.
+  // This updates t_last_confirmed so that future expected wait calculations
+  // use the correct conditional survival probability P(R > t | R > c).
+  // Without this, memory would be stale (c too old) and EW would be wrong.
+  double t_after_wait = node_->get_clock()->now().seconds();
+  wait_strategy_->updateMemoryAfterCensoredWait(current_blocked_edges_, t_after_wait);
+  CLOG(DEBUG, "navigation") << "HSHMAT: Updated memory for " << current_blocked_edges_.size()
+                            << " blocked edges after censored wait (t=" << t_after_wait << ")";
+  
+  // Use speakAndWait to ensure speech completes before robot starts moving
+  speakAndWait("Time limit exceeded. Rerouting.", 5.0);
   
   triggerReroute();
 }
