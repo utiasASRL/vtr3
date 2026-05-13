@@ -226,8 +226,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   // estimation loop
   Eigen::Matrix<double, 6, 1> w_robot = Eigen::Matrix<double, 6, 1>::Zero();
   for (int i = 0; i < timestamps.size()-1; ++i) {
-    // if (timestamps[i] > last_timestamp) continue;
-
     // get the current and next timestamps
     curr_time = rclcpp::Time(timestamps[i]);
     next_time = rclcpp::Time(timestamps[i+1]);
