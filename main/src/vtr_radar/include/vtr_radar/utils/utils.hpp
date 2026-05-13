@@ -26,10 +26,10 @@ namespace vtr {
 namespace radar {
 
 void load_radar(const std::string &path, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data, Eigen::Vector2d &vel_meas, double &yaw_meas);
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data);
 
 void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data, Eigen::Vector2d &vel_meas, double &yaw_meas);
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data);
 
 /** \brief Returns the cartesian image of a radar scan */
 // clang-format off

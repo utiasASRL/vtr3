@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module.hpp
- * \author Yuchen Wu, Keenan Burnett, Autonomous Space Robotics Lab (ASRL)
+ * \file odometry_doppler_module.hpp
+ * \author Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -30,7 +30,7 @@ namespace vtr {
 
 namespace radar {
 
-/** \brief ICP for odometry. */
+/** \brief Direct Doppler-based odometry. */
 class OdometryDopplerModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
@@ -42,54 +42,26 @@ class OdometryDopplerModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    // continuous-time estimation
-    bool use_vel_meas = false;
-    int traj_num_extra_states = 0;
-    Eigen::Matrix<double, 6, 1> traj_qc_diag =
-        Eigen::Matrix<double, 6, 1>::Ones();
-
-    // gyro weight
-    double gyro_cov = 1e-3;
-    bool estimate_gyro_bias = false;
-
-    /// ICP parameters
-    // number of threads for nearest neighbor search
+    // Undistortion trajectory parameters
+    Eigen::Matrix<double, 3, 1> traj_qc_diag =
+        Eigen::Matrix<double, 3, 1>::Ones();
+    // Number of threads for pointcloud processing
     int num_threads = 4;
-    // initial alignment config
-    size_t first_num_steps = 3;
-    size_t initial_max_iter = 100;
-    float initial_max_pairing_dist = 2.0;
-    float initial_max_planar_dist = 0.3;
-    // refined stage
-    size_t refined_max_iter = 10;  // we use a fixed number of iters for now
-    float refined_max_pairing_dist = 2.0;
-    float refined_max_planar_dist = 0.1;
-    // error calculation
-    float averaging_num_steps = 5;
-    float trans_diff_thresh = 0.01;              // threshold on variation of T
-    float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
-    // steam optimizer
+    // Threshold for zeroing out velocity
+    double zero_velocity_threshold = 0.1;
+    // Whether to optimize the pose estimate using STEAM
+    // If false, direct discrete-time integration is used
+    bool optimize = true;
+    // Doppler bias
+    Eigen::Vector2d doppler_bias = Eigen::Vector2d::Zero();
+
+    int max_iter = 20;
     bool verbose = false;
-    unsigned int max_iterations = 1;
-    double huber_delta = 1.0;
-    double cauchy_k = 0.5;
+    double gyro_cov = 1e-3;
     double dopp_cauchy_k = 0.8;
     double dopp_meas_std = 1.0;
-    double vel_fwd_std = 0.1;
-    double vel_side_std = 1.0;
-    bool use_p2pl = false;
-    bool remove_orientation = false;
-    Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
-    double normal_score_threshold = 0.0;
-
-    /// Success criteria
-    float min_matched_ratio = 0.4;
-    float max_trans_vel_diff = 1000.0; // m/s
-    float max_rot_vel_diff = 1000.0; // m/s
-    float max_trans_diff = 1000.0; // m
-    float max_rot_diff = 1000.0; // rad
-
-    bool visualize = false;
+    int integration_steps = 100;
+    int traj_num_extra_states = 0;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -102,6 +74,12 @@ class OdometryDopplerModule : public tactic::BaseModule {
       : tactic::BaseModule(module_factory, name), config_(config) {}
 
  private:
+  int64_t scan_stamp_prev_ = 0;
+  Eigen::Vector2d v_r_v_in_r_prev_ = Eigen::Vector2d::Zero(); // Extracted velocity from previous frame
+  double yaw_rate_prev_ = 0.0;  // Last gyro yaw rate from previous frame
+  double preint_yaw_ = 0.0;
+  double yaw_rate_avg_prev_ = 0.0;
+  Eigen::Matrix4d T_r_delta_prev_ = Eigen::Matrix4d::Identity();
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;

@@ -15,7 +15,6 @@ namespace nn {
     auto t_input = torch::from_blob(inputs.data(), shape).to(device);
     jit_inputs.push_back(t_input);
 
-
     auto output = network(jit_inputs);
 
     return output.toTensor().cpu();

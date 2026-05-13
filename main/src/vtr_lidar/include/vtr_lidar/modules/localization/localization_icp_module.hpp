@@ -60,9 +60,13 @@ class LocalizationICPModule : public tactic::BaseModule {
     // steam optimizer
     bool verbose = false;
     unsigned int max_iterations = 1;
+    Eigen::Matrix3d W_icp = Eigen::Matrix3d::Identity();
 
     /// Success criteria
     float min_matched_ratio = 0.4;
+    // Thresholds on change in estimate between prior and posterior to accept ICP result
+    float max_trans_diff = 100.0;  // Maximum translation difference between ICP result and initial guess in meters
+    float max_rot_diff = 0.5;      // Maximum rotation difference between ICP result and initial guess in radians
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);

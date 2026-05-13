@@ -18,10 +18,13 @@
  */
 #pragma once
 
+// Include PyTorch headers FIRST to avoid namespace conflicts with ROS/std
+#include <torch/script.h>
+
+// Now include VTR headers
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_common/utils/filesystem.hpp"
 #include "vtr_tactic/task_queue.hpp"
-#include <torch/script.h> 
 #include "vtr_torch/types.hpp"
 #include <vector>
 
