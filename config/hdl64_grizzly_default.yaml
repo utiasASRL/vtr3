@@ -24,7 +24,6 @@
       #- mpc.speed_scheduler
       #- mpc.debug
       #- mpc.solver
-      - mpc.follower
         # path planner
       #- cbit_planner.path_planning
         # pose graph
@@ -331,12 +330,9 @@
         profile_curv_weight: 0.0 
         eop_weight: 1.0
         min_vel: 0.5
-      follow_distance: 3.5
-      distance_margin: 100.0
-      leader_path_topic: /vtr/mpc_prediction
       mpc:
         # Controller Params
-        extrapolate_robot_pose: true
+        extrapolate_robot_pose: false
         mpc_verbosity: false
         forward_vel: 1.0
         max_lin_vel: 1.5

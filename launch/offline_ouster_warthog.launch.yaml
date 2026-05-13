@@ -1,5 +1,5 @@
 ## Online Lidar VTR3
-session_name: vtr_online_ouster_warthog
+session_name: vtr_offline_ouster_warthog
 
 
 start_directory: ${VTRTEMP}
