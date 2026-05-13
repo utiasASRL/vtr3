@@ -310,7 +310,7 @@ void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
 
   // set the timestamp
-  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec + timestamp_offset_;
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
   CLOG(DEBUG, "navigation") << "Received a lidar pointcloud with stamp " << timestamp;
 
