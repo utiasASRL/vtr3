@@ -41,7 +41,6 @@ import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
 import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
 import MoveGraphScaleRefSvg from "../../images/move-graph-scale-ref.svg";
 import MyhalPlan from "../../images/myhal-plan.svg"
-import CSAPlan from "../../images/CSA_AT_TopView.jpg"
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -350,7 +349,6 @@ class GraphMap extends React.Component {
           />
           {/* Add the ImageOverlay component to the map */}
           <ImageOverlay url={MyhalPlan} bounds={myhalImageBounds} />
-          <ImageOverlay url={CSAPlan} bounds={csaImageBounds} />
           <ZoomControl position="bottomright" />
           <this.WaypointMarkers />
         </MapContainer>
