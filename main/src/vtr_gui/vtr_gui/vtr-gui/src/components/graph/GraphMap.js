@@ -326,10 +326,6 @@ class GraphMap extends React.Component {
       [43.661091, -79.395995], // Top-right coordinates of the image
     ];
 
-    const csaImageBounds = [
-      [45.517540, -73.393919], // Bottom-left coordinates of the image
-      [45.518265, -73.392324], // Top-right coordinates of the image
-    ];
     return (
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
