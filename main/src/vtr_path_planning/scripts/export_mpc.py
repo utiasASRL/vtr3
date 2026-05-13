@@ -16,12 +16,10 @@ def gen_mv_mpc_cpp(controller, controller_name:str, src_path:str, inc_path:str) 
 
 src_path = os.path.join(os.getenv("VTRSRC"), 'main/src/vtr_path_planning/src/mpc/generated/')
 if not os.path.exists(src_path):
-    print(os.getcwd(), file=sys.stderr)
     os.mkdir(src_path)
 
 inc_path = os.path.join(os.getenv("VTRSRC"), 'main/src/vtr_path_planning/include/vtr_path_planning/mpc/generated/')
 if not os.path.exists(inc_path):
-    print(os.getcwd(), file=sys.stderr)
     os.mkdir(inc_path)
 
 gen_mv_mpc_cpp(uni_solver, 'unicycle', src_path, inc_path)
