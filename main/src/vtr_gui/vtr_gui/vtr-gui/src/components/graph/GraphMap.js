@@ -505,8 +505,8 @@ class GraphMap extends React.Component {
       }
       var fullHex = (hexId || '0').padStart(16, '0');
 
-      var vhHex = fullHex.substring(0, 8);
-      var vlHex = fullHex.substring(8);
+      var vhHex = fullHex.substring(0, 12);
+      var vlHex = fullHex.substring(12);
 
       var vh = parseInt(vhHex, 16);
       var vl = parseInt(vlHex, 16);

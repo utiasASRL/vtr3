@@ -588,8 +588,8 @@ class MultiRobotGraphMap extends React.Component {
       n = q || '0';
     }
     const fullHex = (hexId || '0').padStart(16, '0');
-    const vh = parseInt(fullHex.substring(0, 8), 16);
-    const vl = parseInt(fullHex.substring(8), 16);
+    const vh = parseInt(fullHex.substring(0, 12), 16);
+    const vl = parseInt(fullHex.substring(12), 16);
     return "WP-" + vh.toString() + "-" + vl.toString();
   }
 

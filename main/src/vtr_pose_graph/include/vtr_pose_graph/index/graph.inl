@@ -32,12 +32,12 @@ template <class V, class E>
 Graph<V, E>::Graph(const CallbackPtr& callback) : callback_(callback) {}
 
 template <class V, class E>
-BaseIdType Graph<V, E>::addRun() {
+MajorIdType Graph<V, E>::addRun() {
   ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
 
-  if ((curr_major_id_ == InvalidBaseId) || (curr_minor_id_ != InvalidBaseId)) {
-    do { curr_major_id_ = rng_(); } while (curr_major_id_ == InvalidBaseId);
+  if ((curr_major_id_ == InvalidMajorId) || (curr_minor_id_ != InvalidBaseId)) {
+    do { curr_major_id_ = rng_() & 0x0000FFFFFFFFFFFFull; } while (curr_major_id_ == InvalidMajorId);
     curr_minor_id_ = InvalidBaseId;
   } else {
     CLOG(WARNING, "pose_graph")
@@ -55,7 +55,7 @@ auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
   ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
 
-  if (curr_major_id_ == InvalidBaseId) {
+  if (curr_major_id_ == InvalidMajorId) {
     CLOG(ERROR, "pose_graph") << "No run added";
     throw std::runtime_error("No run added");
   }

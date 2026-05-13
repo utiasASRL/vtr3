@@ -57,7 +57,7 @@ class Graph : public GraphBase<V, E> {
   Graph(const CallbackPtr& callback = std::make_shared<Callback>());
 
   /** \brief Add a new run an increment the run id */
-  BaseIdType addRun();
+  MajorIdType addRun();
 
   /** \brief Return a blank vertex (current run) with the next available Id */
   template <class... Args>
@@ -82,12 +82,12 @@ class Graph : public GraphBase<V, E> {
 
   using Base::edges_;
 
-  BaseIdType curr_major_id_ = InvalidBaseId;
+  MajorIdType curr_major_id_ = InvalidMajorId;
   BaseIdType curr_minor_id_ = InvalidBaseId;
 
   const CallbackPtr callback_;
 
-  std::mt19937 rng_{std::random_device{}()};
+  std::mt19937_64 rng_{std::random_device{}()};
 
   /**
    * \brief Lock by methods that change graph structure, can be used externally
