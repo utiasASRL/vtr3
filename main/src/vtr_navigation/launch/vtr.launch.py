@@ -1,5 +1,4 @@
 import os
-import yaml
 import os.path as osp
 
 from launch.actions import DeclareLaunchArgument
