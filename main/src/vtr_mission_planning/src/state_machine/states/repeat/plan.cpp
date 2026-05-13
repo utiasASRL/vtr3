@@ -17,7 +17,6 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning/state_machine/states/repeat/plan.hpp"
-#include <algorithm>
 
 namespace vtr {
 namespace mission_planning {

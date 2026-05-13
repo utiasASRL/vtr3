@@ -197,8 +197,6 @@ def handle_task_queue_update(json):
   socketio.emit(u"task_queue/update", task_queue_update)
 
 
-
-
 def main():
   logger.info("Launching the socket server.")
   socketio.run(app, host=SOCKET_ADDRESS, port=SOCKET_PORT, use_reloader=False)
