@@ -55,6 +55,7 @@ def generate_launch_description():
             condition=LaunchConfigurationNotEquals('data_dir', '')
         ),
         Node(**commonNodeArgs,
+            remappings=[("command", LaunchConfiguration("command_topic"))],
             parameters=[
                 PathJoinSubstitution((config_dir, LaunchConfiguration("base_params"))),
                 PathJoinSubstitution((temp_dir, "setup_params.yaml")),
