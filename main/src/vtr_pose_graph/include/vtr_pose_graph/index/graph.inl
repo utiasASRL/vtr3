@@ -37,8 +37,8 @@ MajorIdType Graph<V, E>::addRun() {
   std::unique_lock lock(mutex_);
 
   CLOG(DEBUG, "pose_graph") << "ROBOT_ID: " << std::to_string(robot_id_);
-  if (robot_id_ > 16) {
-    CLOG(ERROR, "pose_graph") << "ROBOT_ID out of range: " << std::to_string(robot_id_) << std::flush;
+  if (robot_id_ > 15) {
+    CLOG(ERROR, "pose_graph") << "ROBOT_ID out of range: " << std::to_string(robot_id_);
     throw std::range_error("ROBOT_ID out of range");
   }
 
