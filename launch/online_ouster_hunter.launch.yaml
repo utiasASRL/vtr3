@@ -3,6 +3,7 @@ session_name: vtr_online_ouster_hunter
 
 environment:
   ROBOT_NAME: mr_green
+  ROBOT_ID: "15" # TODO: use robot-registry.yaml to automatically look up ID
 
 start_directory: ${VTRTEMP}
 suppress_history: false

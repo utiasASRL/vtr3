@@ -36,8 +36,16 @@ MajorIdType Graph<V, E>::addRun() {
   ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
 
+  CLOG(DEBUG, "pose_graph") << "ROBOT_ID: " << std::to_string(robot_id_);
+  if (robot_id_ > 16) {
+    CLOG(ERROR, "pose_graph") << "ROBOT_ID out of range: " << std::to_string(robot_id_) << std::flush;
+    throw std::range_error("ROBOT_ID out of range");
+  }
+
   if ((curr_major_id_ == InvalidMajorId) || (curr_minor_id_ != InvalidBaseId)) {
-    do { curr_major_id_ = rng_() & 0x0000FFFFFFFFFFFFull; } while (curr_major_id_ == InvalidMajorId);
+    do { 
+      curr_major_id_ = (rng_() & 0x00000FFFFFFFFFFFull) | (static_cast<MajorIdType>(robot_id_) << 44);
+    } while (curr_major_id_ == InvalidMajorId);
     curr_minor_id_ = InvalidBaseId;
   } else {
     CLOG(WARNING, "pose_graph")

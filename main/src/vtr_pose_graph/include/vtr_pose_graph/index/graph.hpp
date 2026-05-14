@@ -88,6 +88,7 @@ class Graph : public GraphBase<V, E> {
   const CallbackPtr callback_;
 
   std::mt19937_64 rng_{std::random_device{}()};
+  uint8_t robot_id_ = static_cast<uint8_t>(std::stoi(std::getenv("ROBOT_ID")));
 
   /**
    * \brief Lock by methods that change graph structure, can be used externally
