@@ -52,6 +52,11 @@ class OdometryWheelModule : public tactic::BaseModule {
     Eigen::Matrix<double, 1, 6> wheel_cov =
         Eigen::Matrix<double, 1, 6>::Ones() * 1e-3;
 
+    float max_trans_vel_diff = 1000.0;  // m/s
+    float max_rot_vel_diff = 1000.0;    // rad/s
+    float max_trans_diff = 1000.0;      // m
+    float max_rot_diff = 1000.0;        // rad
+
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
@@ -65,8 +70,7 @@ class OdometryWheelModule : public tactic::BaseModule {
       : tactic::BaseModule(module_factory, name), config_(config) {}
 
  protected:
-  int frame_count = 0;
-
+  // scalar z-axis gyro bias
   double gyr_bias = 0.0;
   int bias_counter = 0;
   bool bias_init = false;
@@ -77,8 +81,18 @@ class OdometryWheelModule : public tactic::BaseModule {
   sensor_msgs::msg::Imu last_gyro_msg;
   std::pair<rclcpp::Time, double> last_wheel_meas;
 
+  int64_t last_bias_time = 0;
+  int64_t next_est_stamp = 0;
+  int64_t last_gyro_stamp = 0;
+  int64_t last_wheel_stamp = 0;
+
+  // 2D pose state
   Eigen::Vector2d current_p = Eigen::Vector2d(0, 0);
   double current_theta = M_PI / 2;
+
+  double filtered_pulse_rate_ = 0.0;
+  
+  bool first_frame_ = true;
 
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,

@@ -126,12 +126,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   // Load in localization flag
   bool loc_flag = *qdata.loc_flag;
 
-  double bias_alpha;
-  double min_bias_init_count;
-  if (config_->estimate_bias) {
-    bias_alpha = config_->bias_alpha;
-    min_bias_init_count = config_->min_time_bias_count;
-  }
+  const double bias_alpha = config_->estimate_bias ? config_->bias_alpha : 0.0;
+  const double min_bias_init_count = config_->estimate_bias ? config_->min_time_bias_count : 0.0;
 
   // clang-format off
   // Create robot to sensor transform variable, fixed.
@@ -186,8 +182,6 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Vector3d delta_pos;
 
   // Initialize poses we add to the trajectory
-  EdgeTransform T_est; // estimated pose at stamp time
-  EdgeTransform T_first; // first estimated pose
   EdgeTransform T_last; // last estimated pose
 
   // Save unique measurement times
@@ -201,6 +195,15 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   std::sort(timestamps.begin(), timestamps.end());
   timestamps.erase(std::unique(timestamps.begin(), timestamps.end()), timestamps.end());
 
+  if (timestamps.size() < 2 ||
+      ptr_ang + 1 >= (int)gyro_msgs.size() ||
+      ptr_pulse + 1 >= (int)wheel_meas.size()) {
+    CLOG(WARNING, "lidar.odometry_wheel") << "Insufficient measurements to run odometry (timestamps=" << timestamps.size()
+      << ", gyro=" << gyro_msgs.size() << ", wheel=" << wheel_meas.size() << ").";
+    *qdata.odo_success = false;
+    return;
+  }
+
   // Initialize current and next timestamps
   rclcpp::Time curr_time(timestamps[0]);
   rclcpp::Time next_time(timestamps[1]);
@@ -210,17 +213,8 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
   rclcpp::Time next_gyro_time(gyro_msgs[ptr_ang + 1].header.stamp);
   rclcpp::Time next_wheel_time(wheel_meas[ptr_pulse + 1].first);
 
-  // Find the largest timestamp less than last_pt_time
-  int64_t last_timestamp = timestamps[-1];
   auto query_time = static_cast<int64_t>(query_stamp);
 
-  // Initialize variables for velocity estimation
-  double delta_time = 0.0;
-  Eigen::Vector3d linear_velocity = Eigen::Vector3d::Zero();
-  Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();
-  //
-  Eigen::Matrix<double, 6, 1> w_first = Eigen::Matrix<double, 6, 1>::Zero();
-  Eigen::Matrix<double, 6, 1> w_query = Eigen::Matrix<double, 6, 1>::Zero();
   Eigen::Matrix<double, 6, 1> w_last = Eigen::Matrix<double, 6, 1>::Zero();
 
   // estimation loop
@@ -315,7 +309,7 @@ void OdometryWheelModule::run_(QueryCache &qdata0, OutputCache &,
 
     // linear interpolation at current time
     double t_interp = curr_time.seconds() - curr_gyro_time.seconds();
-    double ratio = std::clamp(t_interp / diff_ang_vel_time, 0.0, 1.0);
+    double ratio = (diff_ang_vel_time > 0.0) ? std::clamp(t_interp / diff_ang_vel_time, 0.0, 1.0) : 0.0;
     Eigen::Vector3d instant_gyro_wheel = curr_gyro_wheel + diff_ang_vel * ratio;
 
     const double alpha = 0.2;

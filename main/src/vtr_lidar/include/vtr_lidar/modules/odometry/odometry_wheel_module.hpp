@@ -70,8 +70,6 @@ class OdometryWheelModule : public tactic::BaseModule {
       : tactic::BaseModule(module_factory, name), config_(config) {}
 
  protected:
-  int frame_count = 0;
-
   Eigen::Vector3d gyro_bias = Eigen::Vector3d::Zero();
   int bias_counter = 0;
   bool bias_init = false;
