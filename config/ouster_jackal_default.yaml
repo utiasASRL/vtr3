@@ -82,7 +82,7 @@
           person: 300.0      # People typically move within 5 min
           chair: 1000.0      # Chairs rarely move on their own
           bin: 1000.0        # Bins rarely move on their own
-          backpack: 1000.0   # Backpacks rarely move on their own
+          sonotube: 1000.0   # Sonotubes (portable fake pillars) rarely move on their own
 
         # For rule_based strategy: obstacle types to wait for (others will reroute)
         wait_types: ["person"]
@@ -103,7 +103,7 @@
         #   person: []
         #   chair: []
         #   bin: []
-        #   backpack: []
+        #   sonotube: []
         #   unknown: []
         
         # Debug visualization for learned policy

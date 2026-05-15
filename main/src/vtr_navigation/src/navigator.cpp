@@ -227,7 +227,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         "route_planning.obstacle_strategy.unknown_W_max", 120.0);
     
     // Load per-type W_max values (types not listed here fall back to unknown_W_max via getWMax)
-    const std::vector<std::string> wmax_types = {"person", "chair", "bin", "backpack"};
+    const std::vector<std::string> wmax_types = {"person", "chair", "sonotube", "bin"};
     for (const auto& type : wmax_types) {
       try {
         double wmax = node_->declare_parameter<double>(
@@ -302,11 +302,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     wait_strategy_config_.type_weights["person"] = 0.6;
     wait_strategy_config_.type_weights["chair"] = 0.15;
     wait_strategy_config_.type_weights["bin"] = 0.15;
-    wait_strategy_config_.type_weights["backpack"] = 0.1;
+    wait_strategy_config_.type_weights["sonotube"] = 0.1;
     
     // Load seed samples for survival model initialization
     // These provide initial estimates before we collect real data
-    const std::vector<std::string> seed_types = {"person", "chair", "bin", "backpack", "unknown"};
+    const std::vector<std::string> seed_types = {"person", "chair", "sonotube", "bin", "unknown"};
     for (const auto& type : seed_types) {
       try {
         auto samples = node_->declare_parameter<std::vector<double>>(
