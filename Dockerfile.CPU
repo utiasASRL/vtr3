@@ -35,6 +35,7 @@ ENV VTRSRC=${VTRROOT}/src \
 
 ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
 ENV MAKEFLAGS="-j2"
+ENV VTR_PIPELINE=RADAR-LIDAR
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc

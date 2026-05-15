@@ -34,8 +34,8 @@
       #- ouster
         
         # mission planner
-      - mission.server
-      - mission.state_machine
+      #- mission.server
+      #- mission.state_machine
 
         # pose graph
       #- pose_graph
