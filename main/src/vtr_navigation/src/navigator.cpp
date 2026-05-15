@@ -94,70 +94,6 @@ EdgeTransform loadTransform(const std::string& source_frame,
   return T_source_target;
 }
 
-// Hshmat: Helper functions for obstacle priors
-std::string nowStampForFilename() {
-  const auto now = std::chrono::system_clock::now();
-  const std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm tm{};
-  localtime_r(&t, &tm);
-  std::ostringstream ss;
-  ss << std::put_time(&tm, "%Y%m%d_%H%M%S");
-  return ss.str();
-}
-
-// Hshmat: Helper functions for obstacle priors
-std::string makeRuntimePriorsPathNextToBase(const std::string &base_path) {
-  namespace fs = std::filesystem;
-  const fs::path base(base_path);
-  const fs::path dir = base.has_parent_path() ? base.parent_path() : fs::path(".");
-  const int pid = static_cast<int>(::getpid());
-  const std::string stamp = nowStampForFilename();
-  const std::string fname = "obstacles_runtime_" + stamp + "_" + std::to_string(pid) + ".yaml";
-  return (dir / fname).string();
-}
-
-// Hshmat: Helper functions for obstacle priors
-bool writeObstaclePriorsYamlAtomic(const std::string &path,
-                                  const double default_sec,
-                                  const std::unordered_map<std::string, double> &priors_sec,
-                                  std::string *err_msg = nullptr) {
-  try {
-    namespace fs = std::filesystem;
-    const fs::path out_path(path);
-    const fs::path tmp_path = out_path.string() + ".tmp";
-
-    YAML::Emitter out;
-    out << YAML::BeginMap;
-    out << YAML::Key << "default" << YAML::Value << default_sec;
-    out << YAML::Key << "obstacles" << YAML::Value << YAML::BeginMap;
-    for (const auto &kv : priors_sec) {
-      out << YAML::Key << kv.first << YAML::Value << kv.second;
-    }
-    out << YAML::EndMap;  // obstacles
-    out << YAML::EndMap;  // root
-
-    std::ofstream f(tmp_path, std::ios::out | std::ios::trunc);
-    if (!f.is_open()) {
-      if (err_msg) *err_msg = "failed to open tmp file for write";
-      return false;
-    }
-    f << out.c_str() << "\n";
-    f.close();
-
-    std::error_code ec;
-    fs::rename(tmp_path, out_path, ec);
-    if (ec) {
-      fs::remove(tmp_path, ec);
-      if (err_msg) *err_msg = "rename failed: " + ec.message();
-      return false;
-    }
-    return true;
-  } catch (const std::exception &e) {
-    if (err_msg) *err_msg = e.what();
-    return false;
-  }
-}
-
 }  // namespace
 
 Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
@@ -211,79 +147,31 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // -------------------------------------------------------------------------
   route_cfg_.enable_reroute =
         node_->declare_parameter<bool>("route_planning.enable_reroute", false);
-  route_cfg_.memory =
-      node_->declare_parameter<bool>("route_planning.memory", false);
-  route_cfg_.update_obstacle_priors =
-      node_->declare_parameter<bool>("route_planning.update_obstacle_priors", false);
-  route_cfg_.obstacle_prior_update_alpha =
-      node_->declare_parameter<double>("route_planning.obstacle_costs.update_alpha", 0.2);
-  route_cfg_.obstacle_prior_update_min_sec =
-      node_->declare_parameter<double>("route_planning.obstacle_costs.update_min_sec", 0.0);
-  route_cfg_.obstacle_prior_update_max_sec =
-      node_->declare_parameter<double>("route_planning.obstacle_costs.update_max_sec", 600.0);
-  route_cfg_.planner_with_memory = node_->declare_parameter<std::string>(
-      "route_planning.planner.with_memory", std::string("time_dependent_shortest_path"));
-  route_cfg_.planner_without_memory = node_->declare_parameter<std::string>(
-      "route_planning.planner.without_memory", std::string("dijkstra"));
   route_cfg_.nominal_speed_mps =
       node_->declare_parameter<double>("route_planning.nominal_speed_mps", 0.5);
-  route_cfg_.verify_blockage_lookahead_m =
-      node_->declare_parameter<double>("route_planning.verify_blockage_lookahead_m", 5.0);
   route_cfg_.screening_lookahead_m =
-      node_->declare_parameter<double>("route_planning.screening_lookahead_m", 5.0);
-  route_cfg_.obstacle_cost_source = node_->declare_parameter<std::string>(
-      "route_planning.obstacle_costs.source", std::string("file"));
-  route_cfg_.obstacle_cost_file = node_->declare_parameter<std::string>(
-      "route_planning.obstacle_costs.file", std::string("obstacles.yaml"));
+      node_->declare_parameter<double>("route_planning.screening_lookahead_m", 0.0);
+  route_cfg_.verify_blockage_lookahead_m =
+      node_->declare_parameter<double>("route_planning.verify_blockage_lookahead_m", 0.0);
 
   CLOG(INFO, "navigation")
       << "Route planning config: enable_reroute=" << (route_cfg_.enable_reroute ? "true" : "false")
-      << ", memory=" << (route_cfg_.memory ? "true" : "false")
-      << ", planner.with_memory='" << route_cfg_.planner_with_memory << "'"
-      << ", planner.without_memory='" << route_cfg_.planner_without_memory << "'"
       << ", nominal_speed_mps=" << route_cfg_.nominal_speed_mps
-      << ", verify_blockage_lookahead_m=" << route_cfg_.verify_blockage_lookahead_m
       << ", screening_lookahead_m=" << route_cfg_.screening_lookahead_m
-      << ", obstacle_costs.source='" << route_cfg_.obstacle_cost_source << "'"
-      << ", obstacle_costs.file='" << route_cfg_.obstacle_cost_file << "'"
-      << ", update_obstacle_priors=" << (route_cfg_.update_obstacle_priors ? "true" : "false")
-      << ", obstacle_costs.update_alpha=" << route_cfg_.obstacle_prior_update_alpha
-      << ", obstacle_costs.update_min_sec=" << route_cfg_.obstacle_prior_update_min_sec
-      << ", obstacle_costs.update_max_sec=" << route_cfg_.obstacle_prior_update_max_sec;
+      << ", verify_blockage_lookahead_m=" << route_cfg_.verify_blockage_lookahead_m;
 
   // HSHMAT: Always use TDSP planner - it supports both modes:
   // - Memoryless mode: Only static_delays, no time intervals (like Dijkstra)
-  // - Memory mode: Time-dependent blockages that expire (for LEARNED strategy only)
-  // The strategy type determines which mode to use at runtime in triggerReroute().
+  // - Memory mode: Time-dependent blockages that expire (for non-LEARNED strategies)
+  // For LEARNED strategy, triggerReroute() uses the LearnedStrategy's EWTDSPPlanner
+  // which computes expected wait times from the survival model.
   auto tdsp = std::make_shared<vtr::route_planning::TDSPPlanner>(graph_);
   tdsp->setNominalSpeed(route_cfg_.nominal_speed_mps);
   tdsp->setNowSecCallback([this]() { return node_->get_clock()->now().seconds(); });
   route_planner_ = tdsp;
   
   CLOG(INFO, "navigation")
-      << "HSHMAT: Using TDSP planner (memoryless/memory mode selected by strategy at runtime)";
-
-  if (route_cfg_.obstacle_cost_source == "file") {
-    loadObstaclePriorsFromFile();
-    // If enabled, create a per-launch runtime priors file next to the base YAML.
-    // We will write updated priors to this runtime file (base file is never modified).
-    if (route_cfg_.update_obstacle_priors) {
-      obstacle_priors_runtime_path_.clear();
-      const std::string runtime_path = makeRuntimePriorsPathNextToBase(obstacle_priors_base_path_);
-      std::string err;
-      if (writeObstaclePriorsYamlAtomic(runtime_path, obstacle_default_prior_sec_, obstacle_priors_sec_, &err)) {
-        obstacle_priors_runtime_path_ = runtime_path;
-    CLOG(INFO, "navigation")
-            << "Obstacle priors updater enabled: base='" << obstacle_priors_base_path_
-            << "', runtime='" << obstacle_priors_runtime_path_ << "'";
-      } else {
-        CLOG(WARNING, "navigation")
-            << "Obstacle priors updater enabled but failed to create runtime priors file next to base='"
-            << obstacle_priors_base_path_ << "': " << err
-            << ". Updates will still be applied in-memory, but will not be persisted.";
-      }
-    }
-  }
+      << "HSHMAT: Using TDSP planner (LEARNED uses EWTDSPPlanner with survival model)";
 
   /// mission server
   mission_server_ = std::make_shared<ROSMissionServer>();
@@ -335,16 +223,16 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   {
     std::string strategy_str = node_->declare_parameter<std::string>(
         "route_planning.obstacle_strategy.type", "learned");
-    wait_strategy_config_.default_W_max = node_->declare_parameter<double>(
-        "route_planning.obstacle_strategy.default_W_max", 120.0);
+    wait_strategy_config_.unknown_W_max = node_->declare_parameter<double>(
+        "route_planning.obstacle_strategy.unknown_W_max", 120.0);
     
-    // Load per-type W_max values
-    const std::vector<std::string> wmax_types = {"person", "chair", "cart", "door", "unknown"};
+    // Load per-type W_max values (types not listed here fall back to unknown_W_max via getWMax)
+    const std::vector<std::string> wmax_types = {"person", "chair", "bin", "backpack"};
     for (const auto& type : wmax_types) {
       try {
         double wmax = node_->declare_parameter<double>(
             "route_planning.obstacle_strategy.W_max_per_type." + type,
-            wait_strategy_config_.default_W_max);
+            wait_strategy_config_.unknown_W_max);
         wait_strategy_config_.W_max_per_type[type] = wmax;
       } catch (...) {
         // Use default
@@ -406,21 +294,19 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       strategy_type = StrategyType::LEARNED;
     }
     
-    // Load p_block and type_weights for learned strategy
-    wait_strategy_config_.p_block = node_->declare_parameter<double>(
-        "route_planning.obstacle_strategy.p_block", 0.05);
+    // p_block is computed from data (obstacle_episodes / edges_traversed); no YAML default.
     wait_strategy_config_.robot_speed_mps = route_cfg_.nominal_speed_mps;
     
     // Type weights (probability distribution over obstacle types)
     // Default: assume "person" is most common
     wait_strategy_config_.type_weights["person"] = 0.6;
-    wait_strategy_config_.type_weights["chair"] = 0.2;
-    wait_strategy_config_.type_weights["cart"] = 0.1;
-    wait_strategy_config_.type_weights["door"] = 0.1;
+    wait_strategy_config_.type_weights["chair"] = 0.15;
+    wait_strategy_config_.type_weights["bin"] = 0.15;
+    wait_strategy_config_.type_weights["backpack"] = 0.1;
     
     // Load seed samples for survival model initialization
     // These provide initial estimates before we collect real data
-    const std::vector<std::string> seed_types = {"person", "chair", "cart", "door", "unknown"};
+    const std::vector<std::string> seed_types = {"person", "chair", "bin", "backpack", "unknown"};
     for (const auto& type : seed_types) {
       try {
         auto samples = node_->declare_parameter<std::vector<double>>(
@@ -439,8 +325,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     wait_strategy_ = createWaitStrategy(strategy_type, wait_strategy_config_);
     CLOG(INFO, "navigation") << "HSHMAT: Initialized wait strategy: " 
                               << strategyTypeToString(strategy_type)
-                              << ", W_max=" << wait_strategy_config_.default_W_max << "s"
-                              << ", p_block=" << wait_strategy_config_.p_block;
+                              << ", unknown_W_max=" << wait_strategy_config_.unknown_W_max << "s";
     
     // For learned strategy, set up graph access (done after graph is available)
     // This will be called in setupLearnedStrategyGraphAccess()
@@ -505,14 +390,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         last_obstacle_distance_ = msg->data;
       }, sub_opt);
 
-  // Optional: expected duration published by decision system (for TDSP)
-  obstacle_expected_duration_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
-      "/vtr/obstacle_expected_duration_sec", rclcpp::SystemDefaultsQoS(),
-      [this](const std_msgs::msg::Float64::SharedPtr msg) {
-        if (!msg) return;
-        last_obstacle_expected_duration_sec_ = msg->data;
-      }, sub_opt);
-
   // HSHMAT: Subscribe to obstacle status - handles detection and clearing
   // Uses SAME callback group as following_route so they are mutually exclusive.
   // This ensures onNoAlternateRoute() completes (including speakAndWait) before any
@@ -529,6 +406,15 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         // 4. CLEARED + Rerouting with no_alternate_exists_ -> handle cleared (resume)
         // 5. CLEARED + Rerouting without no_alternate_exists_ -> IGNORE (let reroute finish)
         // 6. CLEARED + AwaitingClassification -> IGNORE (wait for VLM)
+        
+        // If obstacle handling is disabled, ignore all obstacle messages entirely
+        // This makes teach-and-repeat work normally without any obstacle logic
+        if (!route_cfg_.enable_reroute) {
+          CLOG(DEBUG, "mission.state_machine")
+              << "HSHMAT: obstacle_status=" << (msg->data ? "DETECTED" : "CLEARED")
+              << " ignored (enable_reroute=false)";
+          return;
+        }
         
         bool should_start_episode = false;
         bool should_handle_cleared = false;
@@ -1411,11 +1297,8 @@ void Navigator::onObstacleCleared() {
     wait_timer_.reset();
   }
   
-  // Record uncensored sample for learned strategy
+  // Record uncensored sample for learned strategy (survival model)
   wait_strategy_->onObstacleCleared(episode_type, elapsed);
-  
-  // Also update old prior system if enabled
-  updateObstaclePriorFromWaitEpisode(episode_type, elapsed);
   
   // HSHMAT: Speak and WAIT for speech to complete BEFORE resuming robot
   // This ensures the robot doesn't start moving while saying "Obstacle cleared"
@@ -1637,108 +1520,6 @@ void Navigator::completeEpisode() {
   setRobotPaused(false);
 }
 
-void Navigator::loadObstaclePriorsFromFile() {
-  obstacle_priors_sec_.clear();
-  obstacle_default_prior_sec_ = 60.0;
-
-  std::string path = route_cfg_.obstacle_cost_file;
-  path = common::utils::expand_user(common::utils::expand_env(path));
-  obstacle_priors_base_path_ = path;
-
-  try {
-    YAML::Node root = YAML::LoadFile(path);
-
-    if (root["default"]) {
-      obstacle_default_prior_sec_ = root["default"].as<double>();
-    }
-
-    YAML::Node map = root["obstacles"] ? root["obstacles"] : root;
-    if (map && map.IsMap()) {
-      for (auto it = map.begin(); it != map.end(); ++it) {
-        const std::string key = it->first.as<std::string>();
-        // Skip the "default" key if the file is a flat map.
-        if (key == "default") continue;
-        obstacle_priors_sec_[key] = it->second.as<double>();
-      }
-    }
-
-    CLOG(INFO, "navigation")
-        << "Loaded obstacle priors from '" << path << "': "
-        << obstacle_priors_sec_.size() << " entries, default="
-        << obstacle_default_prior_sec_ << "s";
-  } catch (const std::exception &e) {
-    CLOG(WARNING, "navigation")
-        << "Failed to load obstacle priors from '" << path
-        << "': " << e.what() << ". Using defaults only.";
-  }
-}
-
-double Navigator::expectedObstacleDurationSeconds() const {
-  // VLM source: take the latest duration published by the decision system.
-  if (route_cfg_.obstacle_cost_source == "vlm") {
-    return last_obstacle_expected_duration_sec_;
-  }
-
-  // File source: look up by obstacle type, else default.
-  const std::string type = last_obstacle_type_;
-  auto it = obstacle_priors_sec_.find(type);
-  if (it != obstacle_priors_sec_.end()) return it->second;
-
-  // Common aliases.
-  if (type == "human") {
-    auto it2 = obstacle_priors_sec_.find("person");
-    if (it2 != obstacle_priors_sec_.end()) return it2->second;
-  }
-
-  return obstacle_default_prior_sec_;
-}
-
-void Navigator::updateObstaclePriorFromWaitEpisode(const std::string &type_in,
-                                                  const double actual_wait_sec_in) {
-  // Only update priors when using file-based durations.
-  if (route_cfg_.obstacle_cost_source != "file") return;
-  if (!route_cfg_.update_obstacle_priors) return;
-
-  // Normalize key.
-  std::string type = type_in;
-  std::transform(type.begin(), type.end(), type.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-  if (type.empty()) return;
-  if (type == "human") type = "person";
-
-  const double actual_wait_sec = std::max(0.0, actual_wait_sec_in);
-  const double alpha = std::min(1.0, std::max(0.0, route_cfg_.obstacle_prior_update_alpha));
-
-  const double min_sec = route_cfg_.obstacle_prior_update_min_sec;
-  const double max_sec = route_cfg_.obstacle_prior_update_max_sec;
-
-  const double old_prior =
-      (obstacle_priors_sec_.count(type) ? obstacle_priors_sec_.at(type) : obstacle_default_prior_sec_);
-  double new_prior = (1.0 - alpha) * old_prior + alpha * actual_wait_sec;
-  new_prior = std::min(max_sec, std::max(min_sec, new_prior));
-
-  obstacle_priors_sec_[type] = new_prior;
-
-  bool persisted = false;
-  std::string err;
-  if (!obstacle_priors_runtime_path_.empty()) {
-    persisted = writeObstaclePriorsYamlAtomic(obstacle_priors_runtime_path_,
-                                             obstacle_default_prior_sec_,
-                                             obstacle_priors_sec_, &err);
-  } else {
-    err = "runtime priors path is empty";
-  }
-
-  CLOG(INFO, "mission.state_machine")
-      << "HSHMAT: Obstacle prior update (WAIT): type='" << type
-      << "', actual_wait=" << actual_wait_sec << "s"
-      << ", prior_old=" << old_prior << "s"
-      << ", prior_new=" << new_prior << "s"
-      << ", alpha=" << alpha
-      << ", persisted=" << (persisted ? "true" : "false")
-      << (persisted ? "" : (", err=" + err))
-      << (obstacle_priors_runtime_path_.empty() ? "" : (", runtime='" + obstacle_priors_runtime_path_ + "'"));
-}
 
 /**
  * Estimate the spatial extent (width) of obstacles from the occupancy grid.
@@ -2224,23 +2005,6 @@ void Navigator::triggerReroute() {
     }
   }
 
-  // Check if rerouting is enabled in configuration
-  const bool reroute_enable = route_cfg_.enable_reroute;
-  CLOG(INFO, "mission.state_machine")
-      << "HSHMAT: triggerReroute - enable_reroute="
-      << (reroute_enable ? "true" : "false");
-  if (!reroute_enable) {
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: Rerouting disabled. Falling back to wait for obstacle to clear.";
-    speak("Rerouting disabled. Waiting for obstacle to clear.");
-    {
-      LockGuard lock(obstacle_mutex_);
-      obstacle_state_ = ObstacleState::Waiting;
-      current_W_star_ = std::numeric_limits<double>::infinity();
-    }
-    return;
-  }
-
   // Validate we're in navigation mode (Repeat.Follow, etc.)
   try {
     const std::string curr = state_machine_->name();
@@ -2375,15 +2139,18 @@ void Navigator::triggerReroute() {
   // - Assigns huge penalties to prevent using obstructed alternatives
   try {
     const double huge_delay_sec = 1e6;  // effectively "blocked"
-    const double dur_sec = expectedObstacleDurationSeconds();
     const double now_sec = node_->get_clock()->now().seconds();
 
-    // ALWAYS_DETOUR is memoryless: clear all remembered blockages so only the
-    // current obstacle is avoided (no memory of past obstacles).
-    if (wait_strategy_ && wait_strategy_->type() == StrategyType::ALWAYS_DETOUR) {
+    // ALWAYS_DETOUR and LEARNED are memoryless for routing purposes:
+    // When we decide to reroute, we ban only the current blocked edges.
+    // LEARNED strategy uses survival model only for W* decision (wait vs detour);
+    // the actual routing just needs to avoid the blocked edge.
+    if (wait_strategy_ && (wait_strategy_->type() == StrategyType::ALWAYS_DETOUR ||
+                           wait_strategy_->type() == StrategyType::LEARNED)) {
       edge_blockages_.clear();
       CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: always_detour - cleared edge_blockages_ (memoryless)";
+          << "HSHMAT: " << strategyTypeToString(wait_strategy_->type()) 
+          << " - cleared edge_blockages_ (memoryless routing)";
     } else {
       // Other strategies: prune only expired blockages (best-effort).
       for (auto it = edge_blockages_.begin(); it != edge_blockages_.end();) {
@@ -2434,8 +2201,12 @@ void Navigator::triggerReroute() {
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT: greedy_ctp - banned " << edges_to_ban.size() << " edges";
             
-      } else if (st == StrategyType::ALWAYS_DETOUR || st == StrategyType::RULE_BASED) {
-        // ALWAYS_DETOUR / RULE_BASED: Ban current blocked edges only (memoryless)
+      } else if (st == StrategyType::ALWAYS_DETOUR || st == StrategyType::RULE_BASED ||
+                 st == StrategyType::LEARNED) {
+        // ALWAYS_DETOUR / RULE_BASED / LEARNED: Ban current blocked edges only (memoryless)
+        // For LEARNED: The survival model is used for W* decision (wait vs detour), but
+        // once we've decided to reroute, we simply ban the blocked edges and find an alternate path.
+        // The expected-wait edge costs from the survival model were already used in computeWaitTime().
         for (const auto& e : affected_edges) {
           edges_to_ban.insert(e);
         }
@@ -2444,21 +2215,6 @@ void Navigator::triggerReroute() {
         tdsp->setEdgeBlockages({});
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT: " << strategyTypeToString(st) << " - banned " << edges_to_ban.size() << " edges";
-            
-      } else if (st == StrategyType::LEARNED) {
-        // LEARNED: Use time-dependent blockages (can wait for obstacle to clear)
-        for (const auto &e : affected_edges) {
-          edge_blockages_[e] = EdgeBlockageInterval{now_sec, now_sec + dur_sec};
-        }
-        std::unordered_map<vtr::tactic::EdgeId, vtr::route_planning::TDSPPlanner::BlockageInterval> b;
-        for (const auto &kv : edge_blockages_) {
-          b.emplace(kv.first, vtr::route_planning::TDSPPlanner::BlockageInterval{kv.second.start_sec, kv.second.end_sec});
-        }
-        tdsp->setBannedEdges({});
-        tdsp->setStaticEdgeDelays({});
-        tdsp->setEdgeBlockages(b);
-        CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: learned - " << b.size() << " time-dependent blockages";
             
       } else {
         // ALWAYS_WAIT or unknown: no special planner config

@@ -66,7 +66,7 @@ struct WaitDecision {
  */
 struct WaitStrategyConfig {
   // General
-  double default_W_max = 120.0;  // Default max wait time (seconds)
+  double unknown_W_max = 120.0;  // Fallback max wait time (s) for types not in W_max_per_type (and for "unknown")
   std::map<std::string, double> W_max_per_type;  // Per-type max wait
   
   // Rule-based
@@ -79,7 +79,8 @@ struct WaitStrategyConfig {
   std::map<std::string, std::vector<double>> seed_samples;  // Initial samples per type
   
   // Obstacle parameters (defaults, overridden by learned stats when available)
-  double p_block = -1.0;     // Probability of obstacle on any edge (set from YAML)
+  // p_block is no longer configured here: it is always computed from observed data
+  // (obstacle_episodes / edges_traversed; 0/0 -> 0) inside GlobalObstacleStats.
   std::map<std::string, double> type_weights;  // Probability distribution over types
   
   // Robot speed (for computing edge travel times)
@@ -91,7 +92,7 @@ struct WaitStrategyConfig {
   
   double getWMax(const std::string& obs_type) const {
     auto it = W_max_per_type.find(obs_type);
-    return (it != W_max_per_type.end()) ? it->second : default_W_max;
+    return (it != W_max_per_type.end()) ? it->second : unknown_W_max;
   }
   
   double getTypeWeight(const std::string& obs_type) const {

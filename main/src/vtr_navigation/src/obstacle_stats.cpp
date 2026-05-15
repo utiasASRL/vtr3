@@ -179,12 +179,8 @@ void GlobalObstacleStats::recordObstacleEpisode(const std::string& obs_type) {
 
 double GlobalObstacleStats::p_block() const {
   std::lock_guard<std::mutex> lock(mutex_);
-  
-  // Use default if not enough data
-  if (total_edges_traversed_ < 100 || total_obstacle_episodes_ < 5) {
-    return default_p_block_;
-  }
-  
+  // Always computed from data: episodes / edges, with 0/0 := 0.
+  if (total_edges_traversed_ <= 0) return 0.0;
   return static_cast<double>(total_obstacle_episodes_) / total_edges_traversed_;
 }
 

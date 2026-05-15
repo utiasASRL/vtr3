@@ -79,7 +79,8 @@ class GlobalObstacleStats {
   
   /**
    * \brief Get probability of obstacle on any edge.
-   * \return p_block = total_obstacle_episodes / total_edges_traversed
+   * \return p_block = total_obstacle_episodes / total_edges_traversed.
+   *         Returns 0.0 if no edges have been traversed yet (0/0 := 0).
    */
   double p_block() const;
   
@@ -125,11 +126,6 @@ class GlobalObstacleStats {
   void clear();
   
   /**
-   * \brief Set default p_block to use when we don't have enough data.
-   */
-  void setDefaultPBlock(double p) { default_p_block_ = p; }
-  
-  /**
    * \brief Set default type weights to use when we don't have enough data.
    */
   void setDefaultTypeWeights(const std::map<std::string, double>& weights) {
@@ -143,8 +139,7 @@ class GlobalObstacleStats {
   int total_obstacle_episodes_ = 0;
   std::map<std::string, int> type_counts_;
   
-  // Defaults to use when we don't have enough data
-  double default_p_block_ = -1.0;  // Must be set via setDefaultPBlock() from YAML config
+  // Default type-distribution to use when we don't have enough data
   std::map<std::string, double> default_type_weights_;
 };
 

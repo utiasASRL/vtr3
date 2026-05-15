@@ -51,8 +51,8 @@ LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
     obstacle_stats_.loadFromFile(obstacle_stats_file_);
   }
   
-  // Set defaults for obstacle stats (used when not enough data)
-  obstacle_stats_.setDefaultPBlock(config_.p_block);
+  // p_block is computed from data (no default). Type weights still have a default
+  // distribution for low-data regimes.
   obstacle_stats_.setDefaultTypeWeights(config_.type_weights);
   
   // Add seed samples
@@ -88,7 +88,6 @@ LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
                            << config_.W_grid_points << " W grid points, "
                            << config_.T_grid_points << " T grid points, "
                            << "p_block=" << obstacle_stats_.p_block()
-                           << " (default=" << config_.p_block << ")"
                            << ", edges_traversed=" << obstacle_stats_.totalEdgesTraversed()
                            << ", episodes=" << obstacle_stats_.totalObstacleEpisodes()
                            << ", data_dir=" << config_.learned_data_dir;
@@ -271,7 +270,7 @@ WaitDecision LearnedStrategy::computeWaitTime(
     return WaitDecision::waitForever(obs_type + ". Waiting.");
   }
   CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: Detour exists, arrival=" << result_avoid0.arrival_time;
-  
+
   // ========================================================================
   // Step 2: Compute A_goal(t0 + t_clear[i]) for T_grid_points using TDSP
   //         with override_availability = t0 + t_clear[i] for blocked_edge
@@ -411,6 +410,23 @@ WaitDecision LearnedStrategy::computeWaitTime(
       best_W = W;
     }
   }
+
+  // Cold-start: no KM samples for this type — S(t)=0 degenerates J(W); use W*=W_max,
+  // J*=A_goal(immediate clear)-t_now. Still run full grid above so debug plots are saved.
+  const bool cold_start_no_km = !survival_model_.hasData(obs_type);
+  if (cold_start_no_km) {
+    auto ew_fn_goal_cold = createExpectedWaitFn(t_now, blocked_edges);
+    auto result_goal0 = tdsp_planner_.earliestArrival(
+        current_vertex, goal_vertex, t_now,
+        get_neighbors_, get_travel_time_, ew_fn_goal_cold,
+        {});
+    double A_goal_0 = result_goal0.success ? result_goal0.arrival_time : (t_now + W_max);
+    best_W = W_max;
+    best_J = A_goal_0 - t_now;
+    CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: No KM data for '" << obs_type
+                             << "' — cold-start override W*=" << best_W
+                             << ", J*=A_goal(0)-t_now=" << best_J;
+  }
   
   // ========================================================================
   // EPISODE SUMMARY - structured logging for debugging learned policy
@@ -460,8 +476,9 @@ WaitDecision LearnedStrategy::computeWaitTime(
     CLOG(INFO, "navigation") << "  Total E[wait]:     " << total_expected_wait << "s (added by TDSP)";
     CLOG(INFO, "navigation") << "  Avg E[wait]/edge:  " << avg_ew_per_edge << "s";
     CLOG(INFO, "navigation") << "  ---------- LEARNED PARAMS ----------";
-    CLOG(INFO, "navigation") << "  p_block:           " << p_block_val 
-                             << (obstacle_stats_.hasEnoughData(100, 5) ? " (learned)" : " (default)");
+    CLOG(INFO, "navigation") << "  p_block:           " << p_block_val
+                             << " (episodes/edges = " << obstacle_stats_.totalObstacleEpisodes()
+                             << "/" << obstacle_stats_.totalEdgesTraversed() << ")";
     CLOG(INFO, "navigation") << "  E[wait|new obs]:   " << ew_fresh << "s (p_block * E[type * duration])";
     CLOG(INFO, "navigation") << "  Mean survival("<<obs_type<<"): " << mean_survival_this_type << "s";
     CLOG(INFO, "navigation") << "  Edges traversed:   " << obstacle_stats_.totalEdgesTraversed();

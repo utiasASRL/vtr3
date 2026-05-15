@@ -54,34 +54,17 @@
       # =========================
       # User toggles
       # =========================
-      enable_reroute: true            # If false -> never reroute
-      memory: true                    # true = remember past obstacles
-      update_obstacle_priors: false   # only applicable when obstacle_costs.source = file
-
-      # =========================
-      # Planner behavior
-      # =========================
-      planner:
-        with_memory: "time_dependent_shortest_path"
-        without_memory: "dijkstra"
+      enable_reroute: true            # If false -> normal teach-and-repeat (no obstacle handling)
 
       # =========================
       # Robot model
       # =========================
       nominal_speed_mps: 0.95        # robot nominal forward speed (m/s)
 
-      # =========================
-      # Distances / lookahead (meters)
-      # =========================
+      # grid-based screening of edges when building obstacle delays (0 = disabled)
       screening_lookahead_m: 0.0
+      # pruning remembered blockages when grid shows edge is clear (0 = disabled)
       verify_blockage_lookahead_m: 0.0
-
-      # =========================
-      # Obstacle costs
-      # =========================
-      obstacle_costs:
-        source: "file"               # vlm | file
-        file: "/home/asrl/ASRL/vtr3/src/config/obstacles.yaml"  # used only if source = file
 
       # =========================
       # HSHMAT: Obstacle Wait Strategy
@@ -92,35 +75,36 @@
         type: "learned"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
-        default_W_max: 120.0
+        # unknown_W_max is the fallback for any obstacle type not listed in W_max_per_type
+        # (including obstacles classified as "unknown")
+        unknown_W_max: 2000.0
         W_max_per_type:
-          person: 50.0      # People typically move within 1 min
-          cart: 100.0        # Carts may be moved by someone
-          chair: 200.0      # Chairs rarely move on their own
-          door: 400.0        # Doors typically open/close quickly
-          unknown: 60.0     # Default for unrecognized obstacles
+          person: 300.0      # People typically move within 5 min
+          chair: 1000.0      # Chairs rarely move on their own
+          bin: 1000.0        # Bins rarely move on their own
+          backpack: 1000.0   # Backpacks rarely move on their own
 
         # For rule_based strategy: obstacle types to wait for (others will reroute)
         wait_types: ["person"]
         
         # For learned strategy
-        p_block: 0.01         # Default probability of obstacle on any edge (used until enough data collected)
-        W_grid_points: 20     # Number of W candidates in grid search (reduced for faster debugging)
-        T_grid_points: 20     # Number of time points for J(W) integration (reduced for faster debugging)
+        # p_block is always computed from data as (obstacle_episodes / edges_traversed); 0/0 -> 0
+        W_grid_points: 100    # Number of W candidates in grid search
+        T_grid_points: 100    # Number of time points for J(W) integration
         
         # Directory for learned policy data (environment-specific)
         # Contains: survival_stats.yaml (Kaplan-Meier samples), obstacle_stats.yaml (p_block, type counts)
         # Example: ${VTRDATA}/myhal_fifthfloor or ${VTRDATA}/utias_hallway
-        learned_data_dir: "${VTRDATA}/myhal_fifthfloor"
+        # learned_data_dir: "${VTRDATA}/myhal_fifthfloor"
+        learned_data_dir: "${VTRDATA}/may14_debug"
         
-        # Seed samples for new obstacle types (uncensored durations in seconds)
-        # Used to initialize the survival model before collecting real data
-        seed_samples:
-          person: [5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 50.0]
-          cart: [30.0, 60.0, 100.0]
-          chair: [10.0, 50.0, 100.0, 200.0]
-          door: [100.0, 200.0, 400.0]
-          unknown: [30.0, 60.0]
+        # Seed samples (uncensored durations, seconds). Empty = no YAML prior; use survival_stats.yaml if present, else cold start.
+        # seed_samples:
+        #   person: []
+        #   chair: []
+        #   bin: []
+        #   backpack: []
+        #   unknown: []
         
         # Debug visualization for learned policy
         # Saves plots of S(t), A_goal(C), A_avoid(W), J(W) on each obstacle episode
