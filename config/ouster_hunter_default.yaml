@@ -9,7 +9,7 @@
         #- navigation.command
     
         # tactic
-      #- tactic
+      - tactic
       #- tactic.pipeline
       #- tactic.eop
       #- tactic.module
