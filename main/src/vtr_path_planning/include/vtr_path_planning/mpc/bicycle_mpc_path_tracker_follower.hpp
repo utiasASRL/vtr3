@@ -64,11 +64,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     double f_q_dist = 1.0;
     double r_q_dist = 1.0;
 
-    //Distance PID Gains
-    double kp = 1.0;
-    double kd = 0.0;
-    double ki = 0.0;
-
     // Misc
     int command_history_length = 100;
 
@@ -135,8 +130,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   rclcpp::Time requestTime_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
-  float lastError_ = 0;
-  float errorIntegrator = 0;
   bool hasRequestedLeaderRoute_ = false;
 
 

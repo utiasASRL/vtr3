@@ -37,7 +37,7 @@ void UnicycleMPCPathTrackerFollower::Config::loadConfig(UnicycleMPCPathTrackerFo
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);
   config->distance_margin = node->declare_parameter<double>(prefix + ".distance_margin", config->distance_margin);
 
-  config->q_dist = node->declare_parameter<double>(prefix + ".mpc.q_dist", config->f_q_dist);
+  config->q_dist = node->declare_parameter<double>(prefix + ".mpc.q_dist", config->q_dist);
 
   // Waypoint selection
   config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);
