@@ -189,8 +189,46 @@ ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
 
 RUN apt install -q -y vim htop
+
+# install Libtorrent, dependencies
+RUN apt-get update && apt-get install -y \
+    libssl-dev \
+    libboost-python-dev \
+    libboost-system-dev \
+    iputils-ping \
+    net-tools \
+    ca-certificates
+
+# Clone libtorrent RC_2_0
+WORKDIR $HOMEDIR
+RUN git clone --recursive https://github.com/arvidn/libtorrent.git -b RC_2_0
+
+WORKDIR $HOMEDIR/libtorrent/build
+RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DTORRENT_USE_ASSERTS=ON \
+      -Dpython-bindings=ON \
+      -Dencryption=ON \
+      -Ddht=ON \
+      -Dcrypto=openssl \
+      -Dextensions=ON \
+      -DPYTHON_EXECUTABLE=/usr/bin/python3.10 \
+      -DCMAKE_CXX_FLAGS="-DTORRENT_USE_OPENSSL=1" \
+      .. && \
+    make -j$(nproc)
+
+
+# 4. Verification Step inside the container
+RUN nm -D bindings/python/libtorrent*.so | grep -E "dht_put_item|ed25519"
+RUN cp $HOMEDIR/libtorrent/build/bindings/python/libtorrent*.so /usr/local/lib/python3.10/dist-packages/libtorrent.so
+
+# Install Zenoh router (zenohd)
+RUN echo "deb [trusted=yes] https://download.eclipse.org/zenoh/debian-repo /" | \
+    tee /etc/apt/sources.list.d/zenoh.list > /dev/null && \
+    apt-get update && \
+    printf '#!/bin/sh\nexit 0' > /usr/bin/systemctl && \
+    chmod +x /usr/bin/systemctl && \
+    apt-get install -y zenohd
+
+RUN pip3 install pynacl eclipse-zenoh msgpack zenoh-cli pprintpp
 RUN apt install -q -y ros-humble-rmw-zenoh-cpp
 
-
-## Switch to specified user
-USER ${USERID}:${GROUPID}
