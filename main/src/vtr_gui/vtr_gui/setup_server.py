@@ -110,13 +110,16 @@ def handle_robot_files(data):
   all_robot_files[data['namespace']] = (data['times'], data['files'])
 
   if (len(all_robot_files.keys()) == num_robots):
-    common_elements = {}
-    
+    common_files = set(all_robot_files[0].keys())
+
+    for _, robot_files in all_robot_files.values():
+      common_files.intersection_update(set(robot_files))
+
+    common_elements = {fname: 0 for fname in common_files}
+
     for robot_times, robot_files in all_robot_files.values():
       for t_i, file_i in zip(robot_times, robot_files):
-        if file_i not in common_elements.keys():
-          common_elements[file_i] = t_i
-        elif t_i > common_elements[file_i]:
+        if file_i in common_files and t_i > common_elements[file_i]:
           common_elements[file_i] = t_i
 
     logger.info('Broadcasting available subdirs')
