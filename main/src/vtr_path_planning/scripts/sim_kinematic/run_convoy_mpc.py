@@ -2,7 +2,7 @@ from time import time
 import casadi as ca
 import numpy as np
 import matplotlib.pyplot as plt
-from simulation_code import simulate_path_tracking_convoy
+from .simulation_code import simulate_path_tracking_convoy
 
 from unicycle_solver import solver, motion_model, alpha, N, step_horizon, n_states, n_controls
 from unicycle_follower_solver import solver as solver_follower

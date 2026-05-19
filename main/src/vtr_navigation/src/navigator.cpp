@@ -228,7 +228,7 @@ if (pipeline->name() == "radar") {
 }
 #endif
 
-  auto gyro_enabled = node_->declare_parameter<bool>("gyro_enabled", false);
+  auto gyro_enabled = node_->declare_parameter<bool>("gyro_enabled", true);
 
   if (gyro_enabled) {
     // Subscribe to the imu topic

@@ -67,6 +67,7 @@
       x: -0.004618
       y: -0.010622
       z: -0.003973
+    gyro_enabled: false
     graph_map:
       origin_lat: 43.7822
       origin_lng: -79.4661
