@@ -29,8 +29,6 @@ Q_theta = 1.5
 R1 = 0.0
 R2 = 0.0 
 
-Q_f = 1.0
-
 # Acceleration Cost
 Acc_R1 = 1.0
 Acc_R2 = 1

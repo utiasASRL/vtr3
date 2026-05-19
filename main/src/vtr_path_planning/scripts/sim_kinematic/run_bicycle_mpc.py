@@ -36,8 +36,6 @@ Q_theta = 0.5
 R1 = 0.0 
 R2 = 0.0 
 
-Q_f = 1.0
-
 # Acceleration Cost
 Acc_R1 = 1.0
 Acc_R2 = 5
@@ -185,9 +183,6 @@ if __name__ == '__main__':
                        ca.DM(Acc_R2)
                 )
 
-        args['p'] = ca.vertcat(args['p'],
-                       ca.DM(Q_f)
-                )
 
         u0 = ca.DM.zeros((n_controls, N))  # initial control
         X0 = ca.repmat(state_init, 1, N+1)         # initial state full

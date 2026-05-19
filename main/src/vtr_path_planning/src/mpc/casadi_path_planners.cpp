@@ -266,7 +266,6 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_f));
 
   auto res = solve_mpc(arg);
   auto stats = solve_mpc.stats();
@@ -379,7 +378,6 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCFollower::solve(const CasadiMP
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_f));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_dist));
 
   auto res = solve_mpc(arg);
@@ -511,7 +509,6 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCJoint::solve(const CasadiMPC::
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Acc_R2));
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_f));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_dist));
 
   auto res = solve_mpc(arg);

@@ -47,7 +47,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     double f_r2 = 0.0;
     double f_racc2 = 0.0;
     double f_racc1 = 0.0;
-    double f_q_f = 0.0;
 
     // MPC Costs
     double r_q_lat = 0.0;
@@ -57,7 +56,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     double r_r2 = 0.0;
     double r_racc2 = 0.0;
     double r_racc1 = 0.0;
-    double r_q_f = 0.0;
 
     int failure_threshold = 5;
     int recovery_steps = 15;

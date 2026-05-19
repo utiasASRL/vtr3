@@ -70,11 +70,10 @@ R1 = ca.SX.sym('R1', 1)
 R2 = ca.SX.sym('R2', 1)
 Acc_R1 = ca.SX.sym('Acc_R1', 1)
 Acc_R2 = ca.SX.sym('Acc_R2', 1)
-Q_f = ca.SX.sym('Q_f', 1)  # final state cost
 L = ca.SX.sym('wheel_base', 1)
 
 P = ca.vertcat(init_pose, ref_poses, measured_velo, cost_weights,               # Base MPC
-                L, Q_lat, Q_lon, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f)    # Weights for tuning
+                L, Q_lat, Q_lon, Q_theta, R1, R2, Acc_R1 , Acc_R2)    # Weights for tuning
 
 
 

@@ -155,7 +155,6 @@ public:
     double Acc_R2 = 0.0;
     double lin_acc_max = 1.0; // m/s^2
     double ang_acc_max = 1.0;
-    double Q_f = 0.0;
     bool repeat_flipped = false;
     bool recovery = false; 
 

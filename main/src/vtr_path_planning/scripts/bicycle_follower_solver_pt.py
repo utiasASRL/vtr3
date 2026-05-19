@@ -70,14 +70,13 @@ R1 = ca.SX.sym('R1', 1)
 R2 = ca.SX.sym('R2', 1)
 Acc_R1 = ca.SX.sym('Acc_R1', 1)
 Acc_R2 = ca.SX.sym('Acc_R2', 1)
-Q_f = ca.SX.sym('Q_f', 1)  # final state cost
 d = ca.SX.sym('d', 1)
 Q_dist = ca.SX.sym('Q_dist', 1)
 L = ca.SX.sym('wheel_base', 1)
 
 P = ca.vertcat(init_pose, follower_ref_poses, measured_velo,                # Base MPC
                 leader_ref_poses, d,                                      # Follower specific
-                L, Q_lat, Q_lon, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_f, Q_dist)    # Weights for tuning
+                L, Q_lat, Q_lon, Q_theta, R1, R2, Acc_R1 , Acc_R2, Q_dist)    # Weights for tuning
 
 
 # state weights matrix (Q_lat, Q_lon)

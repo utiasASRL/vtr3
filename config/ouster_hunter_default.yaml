@@ -279,7 +279,6 @@
           r2: 3.0
           racc1: 4.0
           racc2: 40.0
-          q_f: 1.0 # Multiplier for terminal cost
         reverse:
           q_lat: 10.0
           q_lon: 3.0
@@ -288,4 +287,3 @@
           r2: 1.0
           racc1: 2.0
           racc2: 3.5
-          q_f: 1.0 # Multiplier for terminal cost
