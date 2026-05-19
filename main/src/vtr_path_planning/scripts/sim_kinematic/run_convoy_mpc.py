@@ -1,3 +1,4 @@
+import sys
 from time import time
 import casadi as ca
 import numpy as np
@@ -24,6 +25,20 @@ v_ref = 1.0
 lin_acc_max = 1.00
 ang_acc_max = 0.5
 
+Q_x = 5
+Q_y = 5
+Q_theta = 1.5
+
+# Input costs
+R1 = 0.0
+R2 = 0.0 
+
+# Acceleration Cost
+Acc_R1 = 1.0
+Acc_R2 = 1
+
+# Distance Cost
+Q_dist = 5.0
 
 sim_time = 100      # simulation time
 
@@ -216,13 +231,75 @@ if __name__ == '__main__':
         state_target = ca.DM(path_mat[p_idx_l, :])
 
 
-        # leader init speed
+                # leader init speed
         args_l['p'] = ca.vertcat(args_l['p'],
                        ca.DM(last_u_l,))
+        
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Q_x)
+                )
 
-        # desired distance
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Q_y)
+                )
+
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Q_theta)
+                )
+
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(R1)
+                )
+
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(R2)
+                )
+
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Acc_R1)
+                )
+
+        args_l['p'] = ca.vertcat(args_l['p'],
+                       ca.DM(Acc_R2)
+                )
+        
         args_f['p'] = ca.vertcat(args_f['p'],
-                       ca.DM(dist,))
+                       ca.DM(dist)
+                )
+        
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_x)
+                )
+
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_y)
+                )
+
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_theta)
+                )
+
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(R1)
+                )
+
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(R2)
+                )
+
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Acc_R1)
+                )
+
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Acc_R2)
+                )
+        
+        args_f['p'] = ca.vertcat(args_f['p'],
+                       ca.DM(Q_dist)
+                )
+
+
         
         
         u0_l = ca.DM.zeros((n_controls, N))  # initial control
@@ -419,4 +496,4 @@ if __name__ == '__main__':
 
 
     # simulate
-    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, save=True)
+    simulate_path_tracking_convoy(cat_states_l, cat_controls_l, cat_states_f, cat_controls_f, times, step_horizon, N, path_mat, sys.argv[1] if len(sys.argv) > 1 else "")

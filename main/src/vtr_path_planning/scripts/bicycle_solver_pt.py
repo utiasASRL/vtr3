@@ -184,4 +184,4 @@ opts = {
     'print_time': 0
 }
 
-solver = ca.nlpsol('solve_bicycle_mpc', 'ipopt', nlp_prob, opts)
+solver = ca.nlpsol('solve_bicycle_follower_mpc', 'ipopt', nlp_prob, opts)

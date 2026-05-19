@@ -1,3 +1,5 @@
+import os
+
 import numpy as np 
 from numpy import sin, cos, pi
 import matplotlib.pyplot as plt
@@ -182,7 +184,7 @@ def simulate_path_tracking(cat_states, cat_controls, t, step_horizon, N, referen
     return
 
 
-def simulate_path_tracking_convoy(cat_states_1, cat_controls_1, cat_states_2, cat_controls_2, t, step_horizon, N, reference_path, save=False):
+def simulate_path_tracking_convoy(cat_states_1, cat_controls_1, cat_states_2, cat_controls_2, t, step_horizon, N, reference_path, save_path=""):
     def create_triangle(state=[0,0,0], h=1, w=0.5, update=False):
         x, y, th = state
         triangle = np.array([
@@ -289,7 +291,7 @@ def simulate_path_tracking_convoy(cat_states_1, cat_controls_1, cat_states_2, ca
     )
     plt.show()
 
-    if save == True:
-        sim.save('/home/sven/ASRL/vtr3/animation' + str(time()) +'.gif', writer='ffmpeg', fps=30)
+    if os.path.exists(save_path):
+        sim.save(save_path + '/animation' + str(time()) +'.gif', writer='ffmpeg', fps=30)
 
     return

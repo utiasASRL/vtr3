@@ -20,16 +20,15 @@ v_min = 0.0
 w_max = 0.339
 w_min = -0.339
 v_ref = 0.5*v_max
+wheel_base = 0.6
 
 lin_acc_max = 2.0
 ang_acc_max = 0.85
 
-# Tunable parameters
-L = 0.55
 
 # State costs
-Q_x = 5
-Q_y = 5
+Q_lat = 5
+Q_long = 5
 Q_theta = 0.5
 
 # Input costs
@@ -40,8 +39,8 @@ R2 = 0.0
 Acc_R1 = 1.0
 Acc_R2 = 5
 
-configuration = {x_init, y_init, theta_init, v_max, v_min, w_max, w_min, v_ref, lin_acc_max, ang_acc_max, L,
-                Q_x, Q_y, Q_theta, R1, R2, Acc_R1, Acc_R2}
+configuration = {x_init, y_init, theta_init, v_max, v_min, w_max, w_min, v_ref, lin_acc_max, ang_acc_max, wheel_base,
+                Q_lat, Q_long, Q_theta, R1, R2, Acc_R1, Acc_R2}
 
 sim_time = 100      # simulation time in seconds
 
@@ -49,7 +48,7 @@ sim_time = 100      # simulation time in seconds
 state_init = ca.DM([x_init, y_init, theta_init])        # initial state
 
 def shift_timestep(step, t0, state_init, u, f, last_u):
-    f_value = f(state_init, u[:, 0], last_u)
+    f_value = f(state_init, u[:, 0], last_u, wheel_base)
     next_state = ca.DM.full(state_init + (step * f_value))
     t0 = t0 + step
     u0 = ca.horzcat(
@@ -154,13 +153,20 @@ if __name__ == '__main__':
         
         args['p'] = ca.vertcat(args['p'],
                        ca.DM(last_u,))
+        
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(np.ones((N,)),))
 
         args['p'] = ca.vertcat(args['p'],
-                       ca.DM(Q_x)
+                       ca.DM(wheel_base)
+                )
+        
+        args['p'] = ca.vertcat(args['p'],
+                       ca.DM(Q_lat)
                 )
 
         args['p'] = ca.vertcat(args['p'],
-                       ca.DM(Q_y)
+                       ca.DM(Q_long)
                 )
 
         args['p'] = ca.vertcat(args['p'],
