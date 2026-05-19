@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file bicycle_mpc_path_tracker.cpp
+ * \file bicycle_mpc_path_tracker_follower.cpp
  * \author Luka Antonyshyn, Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 
@@ -32,11 +32,6 @@ void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFoll
                            const std::string& prefix) {
 
   // MPC Configs:
-  // PID PARAMETERS
-  config->kp = node->declare_parameter<double>(prefix + ".longitudinal_control.kp", config->kp);
-  config->ki = node->declare_parameter<double>(prefix + ".longitudinal_control.ki", config->ki);
-  config->kd = node->declare_parameter<double>(prefix + ".longitudinal_control.kd", config->kd);
-
   // Follower params
   config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
   config->following_offset = node->declare_parameter<double>(prefix + ".follow_distance", config->following_offset);

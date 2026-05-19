@@ -147,6 +147,7 @@
           r2: 3.0
           racc1: 4.0
           racc2: 5.0
+          q_dist: 0.0
     log_enabled:
       #- tactic.module
       #- mission.state_machine
@@ -197,6 +198,10 @@
   ros__parameters:
    path_planning:
     bicycle_mpc_follower:
+      leader_namespace:
+        /mr_green
+      follow_distance: 2.5
+    unicycle_mpc_follower:
       leader_namespace:
         /mr_green
       follow_distance: 2.5
