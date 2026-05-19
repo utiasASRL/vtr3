@@ -112,7 +112,7 @@ def handle_robot_files(data):
   if (len(all_robot_files.keys()) == num_robots):
     common_elements = {}
     
-    for robot_times, robot_files in all_robot_files:
+    for robot_times, robot_files in all_robot_files.values():
       for t_i, file_i in zip(robot_times, robot_files):
         if file_i not in common_elements.keys():
           common_elements[file_i] = t_i
