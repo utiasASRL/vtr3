@@ -91,7 +91,7 @@ void UnicycleMPCPathTracker::loadMPCConfig(
   mpc_config->Acc_R2 = config_->racc2; 
 }
 
-CasadiMPC::Config::Ptr UnicycleMPCPathTracker::getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool) {
+CasadiMPC::Config::Ptr UnicycleMPCPathTracker::getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool /*isReversing*/) {
   auto mpc_config = std::make_shared<CasadiUnicycleMPC::Config>();
   loadMPCConfig(mpc_config, w_p_r_in_r, applied_vel);
   return mpc_config;

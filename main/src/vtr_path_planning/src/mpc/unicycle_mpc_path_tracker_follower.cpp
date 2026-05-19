@@ -90,16 +90,16 @@ UnicycleMPCPathTrackerFollower::UnicycleMPCPathTrackerFollower(const Config::Con
 UnicycleMPCPathTrackerFollower::~UnicycleMPCPathTrackerFollower() {}
 
 void UnicycleMPCPathTrackerFollower::loadMPCConfig(
-    CasadiUnicycleMPCFollower::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing) {
-  UnicycleMPCPathTracker::loadMPCConfig(mpc_config, w_p_r_in_r, applied_vel, isReversing);
+    CasadiUnicycleMPCFollower::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
+  UnicycleMPCPathTracker::loadMPCConfig(mpc_config, w_p_r_in_r, applied_vel);
   mpc_config->Q_dist = config_->q_dist;
   mpc_config->distance = config_->following_offset;
   mpc_config->distance_margin = config_->distance_margin;
 }
 
-CasadiMPC::Config::Ptr UnicycleMPCPathTrackerFollower::getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing) {
+CasadiMPC::Config::Ptr UnicycleMPCPathTrackerFollower::getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool /*isReversing*/) {
   auto mpcConfig = std::make_shared<CasadiUnicycleMPCFollower::Config>();
-  loadMPCConfig(mpcConfig, w_p_r_in_r, applied_vel, isReversing);
+  loadMPCConfig(mpcConfig, w_p_r_in_r, applied_vel);
   return mpcConfig;
 }
 

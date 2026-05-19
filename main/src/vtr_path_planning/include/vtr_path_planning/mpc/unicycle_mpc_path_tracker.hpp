@@ -66,7 +66,7 @@ class UnicycleMPCPathTracker : public BaseMPCPathTracker {
  
   void loadMPCConfig(
       CasadiUnicycleMPC::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
-  virtual CasadiMPC::Config::Ptr getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool) override;
+  virtual CasadiMPC::Config::Ptr getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool /*isReversing*/) override;
 
   virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
   
