@@ -64,7 +64,7 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   *base_config =  *BaseMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
-  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward parameters: "
       << "q_lat: " << config->f_q_lat
       << ", q_lon: " << config->f_q_lon
       << ", q_th: " << config->f_q_th
@@ -74,7 +74,7 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
       << ", racc2: " << config->f_racc2
       << ", alpha: " << config->alpha;
 
-  CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse costs: "
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse parameters: "
       << "q_lat: " << config->r_q_lat
       << ", q_lon: " << config->r_q_lon
       << ", q_th: " << config->r_q_th
@@ -85,7 +85,7 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   return config;
 }
 
-// Declare class as inherited from the BasePathPlanner
+// Declare class as inherited from the BaseMPCPathTracker
 BicycleMPCPathTracker::BicycleMPCPathTracker(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const tactic::GraphBase::Ptr& graph,

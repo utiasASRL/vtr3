@@ -51,8 +51,8 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPC::solve(const CasadiMPC::Conf
   // Velocity constraints
   arg["ubx"].set(mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
   arg["ubx"].set(mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-  arg["lbx"].set(-mpcConf.vel_max(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-  arg["lbx"].set(-mpcConf.vel_max(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  arg["lbx"].set(mpcConf.vel_min(Slice(0)), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
+  arg["lbx"].set(mpcConf.vel_min(Slice(1)), true, Slice(mpcConf.nStates*(mpcConf.N+1)+1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
 
   arg["lbg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, 1);
   arg["ubg"] = DM::zeros(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N, 1);
@@ -254,7 +254,6 @@ std::map<std::string, casadi::DM> CasadiBicycleMPC::solve(const CasadiMPC::Confi
   arg["ubg"].set(mpcConf.previous_vel(Slice(1)) + mpcConf.ang_acc_max*mpcConf.DT, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 1, mpcConf.nStates*(mpcConf.N+1) + mpcConf.N + 2));
 
   arg["p"] = mpcConf.T0;
-
 
   for(int i = 0; i < mpcConf.N; i++) {
       arg["p"] = vertcat(arg["p"],

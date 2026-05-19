@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2024, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file cbit.cpp
- * \author Jordy Sehn, Autonomous Space Robotics Lab (ASRL)
+ * \file unicycle_mpc_path_tracker.cpp
+ * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 
 #include "vtr_path_planning/mpc/unicycle_mpc_path_tracker.hpp"
@@ -23,15 +23,7 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <vtr_path_planning/cbit/utils.hpp>
 
-namespace vtr {
-namespace path_planning {
-
-namespace {
-// Simple function for checking that the current output velocity command is saturated between our mechanical velocity limits
-Eigen::Vector2d saturateVel(const Eigen::Vector2d& applied_vel, double v_lim, double w_lim) {
-  return {std::clamp(applied_vel(0), -v_lim, v_lim), std::clamp(applied_vel(1), -w_lim, w_lim)};
-}
-}
+namespace vtr::path_planning {
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
 auto UnicycleMPCPathTracker::Config::loadConfig(UnicycleMPCPathTracker::Config::Ptr config, 
@@ -55,8 +47,8 @@ auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node
   loadConfig(config, node, prefix);
 
   CLOG(DEBUG, "cbit.control") << "Unicycle MPC parameters: "
-      << "q_lat: " << config->q_x
-      << ", q_lon: " << config->q_y
+      << "q_x: " << config->q_x
+      << ", q_y: " << config->q_y
       << ", q_th: " << config->q_th
       << ", r1: " << config->r1
       << ", r2: " << config->r2
@@ -90,7 +82,6 @@ void UnicycleMPCPathTracker::loadMPCConfig(
   mpc_config->vel_min(1)   = -config_->max_ang_vel;
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5,0)};
 
-  // Set the MPC costs based on if we're reversing or not
   mpc_config->Q_x    = config_->q_x;
   mpc_config->Q_y    = config_->q_y;
   mpc_config->Q_th   = config_->q_th;
@@ -127,5 +118,4 @@ std::map<std::string, casadi::DM> UnicycleMPCPathTracker::callSolver(CasadiMPC::
   return result;
 }
 
-}  // namespace path_planning
-}  // namespace vtr
+}  // namespace vtr::path_planning
