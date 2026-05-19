@@ -110,10 +110,14 @@ def handle_robot_files(data):
   all_robot_files[data['namespace']] = (data['times'], data['files'])
 
   if (len(all_robot_files.keys()) == num_robots):
-    common_files = set(all_robot_files[0].keys())
-
+    common_files = set(list(all_robot_files.values())[0][1])
+    print(common_files)
     for _, robot_files in all_robot_files.values():
+      print()
+      print(robot_files)
       common_files.intersection_update(set(robot_files))
+
+    print(common_files)
 
     common_elements = {fname: 0 for fname in common_files}
 
