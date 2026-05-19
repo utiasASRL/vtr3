@@ -578,7 +578,6 @@ bool MissionServer<GoalHandle>::clearCurrentGoal() {
       current_goal_state_ = GoalState::Empty;
       current_server_state_ = ServerState::Empty;
     } else {
-      // current_goal_id_ = goal_queue_.front();
       current_goal_state_ = GoalState::Finishing;
       return false;
     }

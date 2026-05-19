@@ -64,12 +64,6 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
   }
   try {
     auto xi_interp = (T_w_p0.inverse() * T_w_p1).vec() * ((time - t_0) / dt);
-    //CLOG(DEBUG, "mpc.follower") << "delta trans " << (T_w_p0.inverse() * T_w_p1).vec();
-    //CLOG(DEBUG, "mpc.follower") << "dt " << dt;
-    //CLOG(DEBUG, "mpc.follower") << "time " << time;
-    //CLOG(DEBUG, "mpc.follower") << "t_0 " << t_0;
-    //CLOG(DEBUG, "mpc.follower") << "xi" << xi_interp;
-    //CLOG(DEBUG, "mpc.follower") << "Interpolated pose " << T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
     return T_w_p0 * Transformation(Eigen::Matrix<double, 6, 1>(xi_interp));
   } catch (std::exception &e) {
     return T_w_p0;
@@ -88,7 +82,6 @@ PoseResultHomotopy generateFollowerReferencePosesEuclidean(const TransformList& 
   // Run through the path and find the pose that best fulfills the distance constraint
   std::vector<double> best_distance(leader_world_poses.size(), std::numeric_limits<double>::max());
   std::vector<double> best_width(leader_world_poses.size(), std::numeric_limits<double>::max());
-  // std::vector<int> leader_pose_done(leader_world_poses.size(), 0);
   std::vector<lgmath::se3::Transformation> best_pose(leader_world_poses.size());
 
 
@@ -153,7 +146,6 @@ PoseResultHomotopy generateFollowerReferencePosesArclength(const TransformList& 
 
   for(double p = p_start; p < final_leader_p_value; p += 0.02) {
     tactic::SegmentInfo closestSegment = findClosestSegment(p, chain, seq_id);
-    //CLOG(WARNING, "mpc_follower_arclength") << closestSegment.start_sid << ", " << closestSegment.end_sid << ", " << chain->size(); 
     double interp = std::clamp((p - chain->p(closestSegment.start_sid)) / (chain->p(closestSegment.end_sid) - chain->p(closestSegment.start_sid)), 0.0, 1.0);
     lgmath::se3::Transformation pose = interpolatePoses(interp, chain->pose(closestSegment.start_sid), chain->pose(closestSegment.end_sid));
     seq_id = closestSegment.start_sid;
@@ -211,7 +203,6 @@ PoseResultHomotopy generateFollowerReferencePosesArclength(const TransformList& 
         seg_idx = std::distance(arclength_map.begin(), it);
       }
     }
-    //CLOG(WARNING, "mpc_follower_arclength") << seg_idx << ", " << interp_value.size() << ", " << segments.size();
     auto width1 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(segments[seg_idx].start_sid));
     auto width2 = pose_graph::BasicPathBase::terrian_type_corridor_width(chain->query_terrain_type(segments[seg_idx].end_sid));
     double interp_width = (1 - interp_value[seg_idx]) * width1 + interp_value[seg_idx] * width2;

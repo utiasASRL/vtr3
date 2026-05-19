@@ -79,7 +79,8 @@ class SetupClient(Node):
   
   def handle_dirs(self):
     logger.info("Handling Dir")
-    data_var = {"namespace": os.getenv("ROBOT_NAME"), "files": vtr_setup.get_available_subdirs()}
+    sub_dirs = vtr_setup.get_available_subdirs()
+    data_var = {"namespace": os.getenv("ROBOT_NAME"), "files": sub_dirs, "times": [os.path.getmtime(p) for p in sub_dirs]}
     self._socketio.emit('notification/robot_data', data=data_var)
 
 

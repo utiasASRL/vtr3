@@ -1,18 +1,5 @@
 /**:
   ros__parameters:
-    pipeline:
-      preprocessing:
-        - conversion
-        - filtering
-        - locate_leader
-    preprocessing:
-      locate_leader:
-        type: lidar.leader_locator
-        maximum_distance: 5.0
-        minimum_distance: 0.0
-        extrinsic: [0.0454,0.0,0.25]
-        intensity_threshold: 10000.0
-        publish: true
     tactic:
       chain:
         alpha: 0.0
@@ -138,8 +125,6 @@
       #- lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
-      - lidar.leader_locator
-
 
 /prof_plum/vtr/navigator:
   ros__parameters:

@@ -52,7 +52,7 @@ socketio = flask_socketio.SocketIO(app,
 
 robots = []
 num_robots = 1
-robot_files = {}
+all_robot_files = {}
 
 @app.route('/')
 def main():
@@ -107,17 +107,21 @@ def handle_default_dir():
 
 @socketio.on('notification/robot_data')
 def handle_robot_files(data):
-  robot_files[data['namespace']] = set(data['files'])
-  if (len(robot_files.keys()) == num_robots):
-    common_elements = None
-    # Iterate through the rest of the sets and apply the intersection operator
-    for s in robot_files.values():
-      if common_elements is None:
-        common_elements = s
-      else:
-        common_elements = common_elements & s
+  all_robot_files[data['namespace']] = (data['times'], data['files'])
+
+  if (len(all_robot_files.keys()) == num_robots):
+    common_elements = {}
+    
+    for robot_times, robot_files in all_robot_files:
+      for t_i, file_i in zip(robot_times, robot_files):
+        if file_i not in common_elements.keys():
+          common_elements[file_i] = t_i
+        elif t_i > common_elements[file_i]:
+          common_elements[file_i] = t_i
+
     logger.info('Broadcasting available subdirs')
-    socketio.emit(u"notification/available_subdirs", list(common_elements))
+
+    socketio.emit(u"notification/available_subdirs", sorted(common_elements, key=common_elements.get, reverse=True))
 
 
 @socketio.on('command/request_available_subdirs')

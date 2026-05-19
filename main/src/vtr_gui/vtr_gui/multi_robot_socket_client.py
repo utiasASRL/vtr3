@@ -21,18 +21,6 @@ import socketio
 from vtr_navigation.multi_robot_vtr_ui import MultiRobotVTRUI
 from vtr_navigation.multi_robot_vtr_ui_builder import build_master
 
-'''
-from vtr_gui.socket_client import goal_handle_from_ros, \
-    graph_state_from_ros, graph_update_from_ros, \
-    following_route_from_ros, map_info_from_ros, \
-    task_queue_update_from_ros, task_queue_state_from_ros, \
-    task_queue_task_from_ros, robot_state_from_ros, \
-    server_state_from_ros, map_info_from_ros, \
-    goal_handle_from_ros, map_info_from_ros
-
-from vtr_gui.socket_client import SOCKET_ADDRESS, SOCKET_PORT, vtr_ui_logger
-'''
-
 from vtr_tactic_msgs.msg import EnvInfo
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, UpdateWaypoint
 from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle

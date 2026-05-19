@@ -95,7 +95,6 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
 
   estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
-  leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
 
 BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
@@ -175,29 +174,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   estimatedDistancePub_->publish(internal_dist);
 
   mpcConfig->VF = abs(leader_vel_(0));
-  if (config_->waypoint_selection == "external_dist") {
-    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
-    const double error = distance - config_->following_offset;
-    if (abs(chain->leaf_velocity()(0)) > 0.05)
-      errorIntegrator += error * config_->control_period / 1000.0;
-    else
-      errorIntegrator = 0;
 
-    mpcConfig->VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_) / ((float)config_->control_period / 1000.0);
-    if (abs(mpcConfig->VF) > config_->max_lin_vel)
-      mpcConfig->VF = sgn(mpcConfig->VF) * config_->max_lin_vel;
-    
-    lastError_ = error;
-    CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig->VF;
-
-    //TODO revert to max and min
-    mpcConfig->vel_max = {mpcConfig->VF, config_->max_ang_vel};
-    mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
-    follower_mpc_config->lin_acc_max = 1000;
-    follower_mpc_config->distance_margin = 1000;
-    follower_mpc_config->Q_dist = 0;
-  }
-  
   for (int i = 0; i < mpcConfig->N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
     follower_mpc_config->leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
@@ -258,8 +235,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
     }
     
-    if (config_->waypoint_selection != "external_dist")
-      mpcConfig->cost_weights.push_back(weighting);
+    mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
 
   }
@@ -333,10 +309,6 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
     hasRequestedLeaderRoute_ = false;
   }
-}
-
-void BicycleMPCPathTrackerFollower::onLeaderDist(const FloatMsg::SharedPtr distance) {
-  recentLeaderDist_ = distance;
 }
 
 }  // namespace vtr::path_planning
