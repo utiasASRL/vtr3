@@ -50,22 +50,26 @@ ament_target_dependencies(${PROJECT_NAME}_base
 execute_process(COMMAND ${PYTHON_EXECUTABLE} scripts/export_mpc.py
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-
-add_custom_command(OUTPUT "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
-                          "include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
-                          "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
-                          "include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
+         "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
+         "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
+         "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
-  DEPENDS "scripts/unicycle_solver.py"
-          "scripts/unicycle_follower_solver.py"
-          "scripts/bicycle_solver_pt.py"
-          "scripts/bicycle_follower_solver_pt.py")
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unicycle_solver.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unicycle_follower_solver.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_solver_pt.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_follower_solver_pt.py"
+)
 
 add_custom_target(generate_headers ALL
-DEPENDS "include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
-        "include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
-        "include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
-        "include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp")
+  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_mpc_solver.hpp"
+          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
+          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
+          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
+)
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp EXCLUDE src/mpc/generated/*)
 add_library(${PROJECT_NAME}_mpc ${SRC})
