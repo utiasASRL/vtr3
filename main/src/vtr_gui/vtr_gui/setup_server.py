@@ -75,7 +75,9 @@ def on_disconnect():
 @socketio.on('join')
 def on_join(data):
     robot_name = data['namespace']
-    if len(allowed_robots) == 0 or (len(allowed_robots) > 0 and robot_name in allowed_robots):
+    if len(allowed_robots) == 0:
+      allowed_robots.append(robot_name)
+    if robot_name in allowed_robots:
       active_robots.append(robot_name)
       join_room("robot")
       logger.info("Robot " + robot_name + " is connected.")

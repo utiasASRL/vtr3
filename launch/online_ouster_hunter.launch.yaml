@@ -33,7 +33,6 @@ windows:
       - ros2 run vtr_gui socket_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
       - ros2 run vtr_gui socket_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
       - ros2 run vtr_gui web_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
-      # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: setup_client
     layout: main-horizontal
@@ -41,11 +40,4 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
-
-  - window_name: rviz2
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    panes:
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
 
