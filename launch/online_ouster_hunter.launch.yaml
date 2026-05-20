@@ -13,7 +13,7 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr_hunters.launch.py
@@ -33,11 +33,5 @@ windows:
       - ros2 run vtr_gui socket_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
       - ros2 run vtr_gui socket_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
       - ros2 run vtr_gui web_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
-
-  - window_name: setup_client
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    panes:
-      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
 

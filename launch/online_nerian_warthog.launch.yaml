@@ -14,7 +14,7 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
@@ -32,6 +32,7 @@ windows:
       - ros2 run vtr_gui socket_client  --ros-args -r __ns:=/vtr
       - ros2 run vtr_gui socket_server  --ros-args -r __ns:=/vtr
       - ros2 run vtr_gui web_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
       # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: rviz2
