@@ -150,6 +150,10 @@ void BicycleMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const 
                          const tactic::Timestamp& t) {
   auto mpc_config = std::static_pointer_cast<CasadiBicycleMPC::Config>(mpcConfig);
   BaseMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
+
+  //Temporary to maintain functionality. TODO remove
+  mpcConfig->up_barrier_q.clear();
+  mpcConfig->low_barrier_q.clear();
 }
 
 std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {

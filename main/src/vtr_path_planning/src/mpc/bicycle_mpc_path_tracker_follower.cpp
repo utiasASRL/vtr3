@@ -241,6 +241,10 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->eop_index = end_ind;
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
   mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
+
+  //Temporary to maintain functionality. TODO remove
+  mpcConfig->up_barrier_q.clear();
+  mpcConfig->low_barrier_q.clear();
 }
 
 std::map<std::string, casadi::DM> BicycleMPCPathTrackerFollower::callSolver(CasadiMPC::Config::Ptr config) {
