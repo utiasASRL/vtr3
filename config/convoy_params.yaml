@@ -88,66 +88,6 @@
             r2: 1.0
             racc1: 2.0
             racc2: 3.5
-      unicycle_mpc:
-        type: unicycle_mpc
-        control_period: 100
-        speed_scheduler:
-          planar_curv_weight: 0.0
-          profile_curv_weight: 1.0 
-          eop_weight: 1.0
-          min_vel: 0.5
-        mpc:
-          # Controller Params
-          extrapolate_robot_pose: true
-          mpc_verbosity: false
-          forward_vel: 0.75
-          max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
-          max_ang_vel: 0.46
-          max_ang_acc: 0.89
-          ang_alpha: 0.0
-          lin_alpha: 0.0
-          max_lin_acc: 0.5
-          vehicle_model: "unicycle"
-          recovery_steps: 15
-          failure_threshold: 5
-          q_x: 10.0
-          q_y: 4.0
-          q_th: 7.0
-          r1: 0.0
-          r2: 3.0
-          racc1: 4.0
-          racc2: 5.0
-      unicycle_mpc_follower:
-        type: unicycle_mpc_follower
-        control_period: 100
-        distance_margin: 10.0
-        waypoint_selection: euclidean
-        speed_scheduler:
-          planar_curv_weight: 0.0
-          profile_curv_weight: 1.0 
-          eop_weight: 1.0
-          min_vel: 0.5
-        mpc:
-          # Controller Params
-          extrapolate_robot_pose: true
-          mpc_verbosity: false
-          forward_vel: 0.75
-          max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
-          max_ang_vel: 0.46
-          max_ang_acc: 0.89
-          ang_alpha: 0.0
-          lin_alpha: 0.0
-          max_lin_acc: 0.5
-          vehicle_model: "unicycle"
-
-          q_x: 10.0
-          q_y: 4.0
-          q_th: 7.0
-          r1: 0.0
-          r2: 3.0
-          racc1: 4.0
-          racc2: 5.0
-          q_dist: 0.0
     log_enabled:
       #- tactic.module
       #- mission.state_machine
@@ -201,10 +141,6 @@
       leader_namespace:
         /mr_green
       follow_distance: 2.5
-    unicycle_mpc_follower:
-      leader_namespace:
-        /mr_green
-      follow_distance: 2.5
 
 /mrs_peacock/vtr/navigator:
   ros__parameters:
@@ -223,8 +159,8 @@
       leader_mpc: bicycle_mpc
       follower_mpc: bicycle_mpc_follower
     col_mustard:
-      leader_mpc: unicycle_mpc
-      follower_mpc: unicycle_mpc_follower
+      leader_mpc: bicycle_mpc
+      follower_mpc: bicycle_mpc_follower
     mrs_peacock:
       leader_mpc: bicycle_mpc
       follower_mpc: bicycle_mpc_follower
