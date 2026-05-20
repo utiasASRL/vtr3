@@ -359,7 +359,7 @@ void Navigator::radarCallback(
   // set the timestamp
   Timestamp timestamp_radar = msg->b_scan_img.header.stamp.sec * 1e9 + msg->b_scan_img.header.stamp.nanosec;
 
-  CLOG(DEBUG, "navigation") << "Received a radar Image with stamp " << timestamp_radar;
+  CLOG(DEBUG, "navigation") << "Received a radar image with stamp " << timestamp_radar;
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
@@ -395,7 +395,7 @@ void Navigator::radarCallback(
   query_data->T_s_r.emplace(T_radar_robot_);
 
   // add to the queue and notify the processing thread
-  CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding radar message to the queue";
+  CLOG(DEBUG, "navigation") << "Adding radar message to the queue";
   queue_.push(query_data);
 
   cv_set_or_stop_.notify_one();

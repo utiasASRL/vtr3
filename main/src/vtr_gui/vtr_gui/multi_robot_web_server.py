@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import io
-import json
 import os
 import os.path as osp
 import logging

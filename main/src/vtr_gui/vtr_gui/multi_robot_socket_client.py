@@ -133,7 +133,7 @@ def goal_handle_from_ros(ros_goal_handle):
   goal_handle["pause_before"] = ros_goal_handle.pause_before / 1000.0
   # pause after
   goal_handle["pause_after"] = ros_goal_handle.pause_after / 1000.0
-  # waypointsk
+  # waypoints
   goal_handle["waypoints"] = [x for x in ros_goal_handle.waypoints]
 
   return goal_handle
