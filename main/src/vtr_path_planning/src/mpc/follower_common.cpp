@@ -45,7 +45,6 @@ PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) co
 
     up_it--;
     const Transformation T_w_p0 = up_it->second;
-    const double t_0 = up_it->first;
 
     return T_w_p0;
   }

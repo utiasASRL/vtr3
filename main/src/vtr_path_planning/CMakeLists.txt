@@ -78,25 +78,24 @@ ament_target_dependencies(${PROJECT_NAME}_mpc
 )
 
 
+file(GLOB_RECURSE GENERATED_MPC src/mpc/generated/*.cpp)
+set_source_files_properties(${GENERATED_MPC} PROPERTIES COMPILE_FLAGS "-w")
+
 add_library(solve_unicycle_mpc SHARED src/mpc/generated/unicycle_mpc_solver.cpp)
 add_dependencies(solve_unicycle_mpc generate_headers)
 target_link_libraries(solve_unicycle_mpc casadi)
-target_compile_options(solve_unicycle_mpc PRIVATE -W)
 
 add_library(solve_bicycle_mpc SHARED src/mpc/generated/bicycle_mpc_solver.cpp)
 add_dependencies(solve_bicycle_mpc generate_headers)
 target_link_libraries(solve_bicycle_mpc casadi)
-target_compile_options(solve_bicycle_mpc PRIVATE -W)
 
 add_library(solve_unicycle_follower_mpc SHARED src/mpc/generated/unicycle_follower_mpc_solver.cpp)
 add_dependencies(solve_unicycle_follower_mpc generate_headers)
 target_link_libraries(solve_unicycle_follower_mpc casadi)
-target_compile_options(solve_unicycle_follower_mpc PRIVATE -W)
 
 add_library(solve_bicycle_follower_mpc SHARED src/mpc/generated/bicycle_follower_mpc_solver.cpp)
 add_dependencies(solve_bicycle_follower_mpc generate_headers)
 target_link_libraries(solve_bicycle_follower_mpc casadi)
-target_compile_options(solve_bicycle_follower_mpc PRIVATE  -W)
 
 find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})

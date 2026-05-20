@@ -235,13 +235,13 @@ class ConvoyPlanningNode : public rclcpp::Node {
       CLOG(DEBUG, "convoy_route")
           << "Robot " << robots.front().name << " is the leader";
       robots.front().setLeader();
-      for (int i = 1; i < robots.size(); ++i ) {
+      for (size_t i = 1; i < robots.size(); ++i ) {
           robots.at(i).setFollower();
       }
     } else {
       CLOG(DEBUG, "convoy_route")
           << "Robot " << robots.back().name << " is the leader";
-      for (int i = 0; i < robots.size() - 1; ++i ) {
+      for (size_t i = 0; i < robots.size() - 1; ++i ) {
           robots.at(i).setFollower();
       }
       robots.back().setLeader();

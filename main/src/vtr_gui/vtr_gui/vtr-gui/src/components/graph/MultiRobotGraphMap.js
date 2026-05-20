@@ -170,7 +170,7 @@ class MultiRobotGraphMap extends React.Component {
     };
     // Initialize robot and target markers for each robot
     robotIds.forEach((id, idx) => {
-      // Assign a different icon for each robot, cycling if more than 6
+      // Assign a different icon for each robot, cycling if more than 5
       const iconIdx = idx % ROBOT_ICONS_ARRAY.length;
       this.state.robotMarkers[id] = {
         valid: false,

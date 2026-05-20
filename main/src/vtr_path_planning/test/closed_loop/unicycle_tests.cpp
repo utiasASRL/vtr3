@@ -268,7 +268,7 @@ TEST_P(ChainTest, NoiseFreeMPC) {
   graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 0), EdgeType::Spatial,
                       false, T_init);
 
-  for(unsigned i = 0; i < config.N; ++i) {
+  for(int i = 0; i < config.N; ++i) {
     auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
                       false, mpc_poses[i+1].inverse()*mpc_poses[i]);
@@ -386,7 +386,7 @@ TEST_P(ChainTest, NoisyMPC) {
   graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 0), EdgeType::Spatial,
                       false, T_init);
 
-  for(unsigned i = 0; i < config.N; ++i) {
+  for(int i = 0; i < config.N; ++i) {
     auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
                       false, mpc_poses[i+1].inverse()*mpc_poses[i]);
@@ -523,7 +523,7 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
   graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 2), EdgeType::Spatial,
                       false, T_init);
 
-  for(unsigned i = 0; i < config.N; ++i) {
+  for(int i = 0; i < config.N; ++i) {
     auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
                       false, mpc_poses[i+1].inverse()*mpc_poses[i]);

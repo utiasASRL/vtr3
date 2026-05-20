@@ -73,7 +73,7 @@ UnicycleMPCPathTracker::UnicycleMPCPathTracker(const Config::ConstPtr& config,
 UnicycleMPCPathTracker::~UnicycleMPCPathTracker() {}
 
 void UnicycleMPCPathTracker::loadMPCConfig(
-    CasadiUnicycleMPC::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
+    CasadiUnicycleMPC::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d /*applied_vel*/) {
   // Set the MPC parameters based on the configuration
   mpc_config->VF           = config_->forward_vel;
   mpc_config->vel_max(0)   = config_->max_lin_vel;
