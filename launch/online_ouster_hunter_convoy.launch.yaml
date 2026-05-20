@@ -23,4 +23,4 @@ windows:
         planner:="dynamic_path_planner"
         command_topic:=/$ROBOT_NAME/cmd_vel
         model_dir:=${VTRROOT}/models
-        override_params:=convoy_params.yaml
+        override_params:=hunter_convoy_params.yaml
