@@ -19,7 +19,18 @@ namespace lidar {
 namespace {
 
 /// Estimate constant body velocity from 3 matches via linearised model:
-///   p2 ≈ p1 + dt * [I  -[p1]×] · ω
+///   p2_fake - p1 ≈ dt * [I  -[p1]×] · ω   with  ω = [v; w]
+/// (from p2 = exp((dt·ω)^∧)·p1, first-order expansion)
+///
+/// NOTE: we deliberately use a *fake* p2 = backProject(y2, |p1|) instead of
+/// the true measured p2 = m.p2.  With the fake p2 (same range as p1),
+/// dp = p2_fake - p1 is purely tangential, so the 3-sample minimal solver
+/// effectively recovers a rotation-only twist.  This makes the inlier test
+/// in countInliers() a permissive "is this match consistent with the same
+/// rotation?" filter — exactly what we want from RANSAC.  Trying to recover
+/// full 6-DoF body velocity from only 3 points is geometrically poorly
+/// conditioned (especially in sharp turns) and produces a heavily biased
+/// inlier set that destabilises the downstream STEAM solve.
 bool estimateVelocity3(
     const std::vector<VisualMatch>& matches,
     const std::vector<int>& sample,
@@ -35,16 +46,15 @@ bool estimateVelocity3(
     const double range1 = m.p1.norm();
     if (range1 < 0.5) return false;
 
-    // Approximate p2 by back-projecting y2 at range of p1
-    const Eigen::Vector3d p2 = projector.backProject(m.y2, range1);
+    // Fake p2 at p1's range — rotation-dominated solver (see note above).
+    const Eigen::Vector3d p2_fake = projector.backProject(m.y2, range1);
 
-    // dp = p2 - p1 ≈ -dt * [I  -[p1]×] · ω
-    const Eigen::Vector3d dp = p2 - m.p1;
+    const Eigen::Vector3d dp = p2_fake - m.p1;
     const Eigen::Matrix3d p1x = lgmath::so3::hat(m.p1);
     const double dt = m.dt;
 
-    A.block<3, 3>(3 * s, 0) = -dt * Eigen::Matrix3d::Identity();
-    A.block<3, 3>(3 * s, 3) = dt * p1x;
+    A.block<3, 3>(3 * s, 0) =  dt * Eigen::Matrix3d::Identity();
+    A.block<3, 3>(3 * s, 3) = -dt * p1x;
     b.segment<3>(3 * s) = dp;
   }
 
@@ -68,8 +78,9 @@ void countInliers(
   for (size_t i = 0; i < matches.size(); ++i) {
     const auto& m = matches[i];
 
-    // Per-match transform: T_m = Exp(-dt * ω)
-    const Eigen::Matrix4d T_m = lgmath::se3::vec2tran(-m.dt * omega);
+    // Per-match transform: T_m = exp((dt·ω)^∧) maps p1 (in prev sensor frame)
+    // to its predicted location in the curr sensor frame.
+    const Eigen::Matrix4d T_m = lgmath::se3::vec2tran(m.dt * omega);
 
     // Predicted point in current frame
     const Eigen::Vector3d p2_hat =

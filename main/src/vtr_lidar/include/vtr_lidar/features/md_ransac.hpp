@@ -29,7 +29,8 @@ namespace lidar {
 /// A visual match between previous and current frame features.
 /// Used by MD-RANSAC and the reprojection error cost terms.
 struct VisualMatch {
-  Eigen::Vector3d p1 = Eigen::Vector3d::Zero();  ///< 3-D point in prev sensor frame
+  Eigen::Vector3d p1 = Eigen::Vector3d::Zero();  ///< 3-D point in prev sensor frame (motion-undistorted to frame_start_time)
+  Eigen::Vector3d p2 = Eigen::Vector3d::Zero();  ///< 3-D point in curr sensor frame at timestamp_2
   Eigen::Vector2d y1 = Eigen::Vector2d::Zero();  ///< pixel in previous frame
   Eigen::Vector2d y2 = Eigen::Vector2d::Zero();  ///< pixel in current frame
   int64_t timestamp_1 = 0;  ///< timestamp of p1

@@ -340,6 +340,16 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       const double scan_duration =
           static_cast<double>(frame_end_time - frame_start_time) * 1e-9;
 
+      // NOTE: we DO NOT motion-undistort p1 to frame_start_time using the
+      // previous frame's terminal velocity. Doing so creates a positive
+      // feedback loop in visual-only odometry: a noisy w_prior biases every
+      // p1 coherently, the solver "explains" the bias by shifting the pose,
+      // which corrupts the next frame's w_prior, and so on. The remaining
+      // sub-scan reference-time mismatch (p1 was observed at t1 inside the
+      // previous scan but the STEAM cost evaluates the prev pose at
+      // frame_start_time) is typically a few centimetres of distortion and
+      // is treated as part of the visual noise model.
+
       // Apply ratio test and build VisualMatch list
       for (const auto& match_pair : knn_matches) {
         if (match_pair.size() < 2) continue;
@@ -355,38 +365,33 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
           const Eigen::Vector3d& p1 = prev_feat_ptr->points_3d.col(prev_idx);
           if (p1.norm() < 0.5) continue;
 
-          // Analytically project p1 and the current 3D point to get y1, y2
-          // in the same coordinate space that projectPoint/backProject use.
-          // This is critical: MD-RANSAC calls projectPoint internally,
-          // so y2 must be in analytical projection coordinates, not LUT pixels.
-          Eigen::Vector2d y1_proj, y2_proj;
-          if (!projector_->projectPoint(p1, y1_proj)) continue;
-
           const Eigen::Vector3d& p2 = curr_feat.points_3d.col(curr_idx);
           if (p2.norm() < 0.5) continue;
+
+          // Analytical projections (must match projectPoint's coord system
+          // because MD-RANSAC and ReprojErrorEval call projectPoint
+          // internally — do NOT use raw LUT pixel coordinates here).
+          Eigen::Vector2d y1_proj, y2_proj;
+          if (!projector_->projectPoint(p1, y1_proj)) continue;
           if (!projector_->projectPoint(p2, y2_proj)) continue;
 
           VisualMatch vm;
-          vm.p1 = p1;
+          vm.p1 = p1;            // referenced to t1 (inside prev scan) -
+                                 // treated as if observed at frame_start_time
+          vm.p2 = p2;            // measured 3-D point at t2 (curr frame)
           vm.y1 = y1_proj;
           vm.y2 = y2_proj;
 
-          // Timestamps
-          vm.timestamp_1 = (prev_idx < static_cast<int>(prev_feat_ptr->timestamps.size()))
-                               ? prev_feat_ptr->timestamps[prev_idx]
-                               : frame_start_time;
+          // Feature timestamps (absolute, ns). We pin timestamp_1 to
+          // frame_start_time to keep dt non-negative and bounded by
+          // scan_duration — see note above on why we don't undistort p1.
+          vm.timestamp_1 = frame_start_time;
           vm.timestamp_2 = (curr_idx < static_cast<int>(curr_feat.timestamps.size()))
                                ? curr_feat.timestamps[curr_idx]
                                : frame_end_time;
 
-          // Per-match dt: total time from when p1 was observed (in prev scan)
-          // to when y2 was observed (in current scan).
-          // = scan_duration + (f2_relative_time - f1_relative_time)
-          // where relative times are offsets within each scan.
-          const double f1_dt = static_cast<double>(vm.timestamp_1 - frame_start_time) * 1e-9;
-          const double f2_dt = static_cast<double>(vm.timestamp_2 - frame_start_time) * 1e-9;
-          vm.dt = scan_duration + f2_dt - f1_dt;
-          if (vm.dt < 1e-6) vm.dt = scan_duration;  // safety floor
+          vm.dt = static_cast<double>(vm.timestamp_2 - vm.timestamp_1) * 1e-9;
+          if (vm.dt < 1e-6) vm.dt = 1e-6;  // safety floor
 
           vm.prev_idx = prev_idx;
           vm.curr_idx = curr_idx;
@@ -537,8 +542,18 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       for (const int idx : visual_inliers) {
         const auto& m = visual_matches[idx];
 
-        // Clamp measurement time to trajectory span
-        const int64_t t_meas = std::clamp(m.timestamp_2, frame_start_time, frame_end_time);
+        // When continuous-time estimation is off, evaluate the visual
+        // residual using only the two knot poses (frame_start_time and
+        // frame_end_time). This decouples the body velocity state from
+        // the visual cost: a single image pair cannot disambiguate
+        // "fast-then-slow" from constant velocity, so letting the visual
+        // residual depend on per-feature t_meas leaves velocity
+        // unobservable and the 24×24 Hessian rank-deficient → solver
+        // oscillates frame-to-frame.
+        const int64_t t_meas =
+            config_->use_trajectory_estimation
+                ? std::clamp(m.timestamp_2, frame_start_time, frame_end_time)
+                : frame_end_time;
         const Time t_m(static_cast<int64_t>(t_meas));
 
         // Build the transform that maps p1 (in sensor@prev) to sensor@curr:
