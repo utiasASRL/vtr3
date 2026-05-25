@@ -54,6 +54,25 @@ const ANNOTATE_LINE_COLOR = "#000000";
 const ANNOTATE_LINE_WIDTH = 0.5;
 const GRAPH_OPACITY = 0.9;
 
+const ID_COLORS = [
+  "#3cb44b", //  0 - mr_green
+  "#911eb4", //  1 - prof_plum
+  "#ffe119", //  2 - col_mustard
+  "#4363d8", //  3 - mrs_peacock
+  "#e6194b", //  4 - red
+  "#f58231", //  5 - orange
+  "#bfef45", //  6 - lime
+  "#42d4f4", //  7 - cyan
+  "#f032e6", //  8 - magenta
+  "#fabebe", //  9 - pink
+  "#ffd8b1", // 10 - apricot
+  "#fffac8", // 11 - cream
+  "#aaffc3", // 12 - mint
+  "#a9a9a9", // 13 - grey
+  "#ffffff", // 14 - white
+  "#000000", // 15 - black (avoid if using dark map tiles)
+];
+
 /// robot constants
 const ROBOT_OPACITY = 0.8;
 const ROBOT_UNLOCALIZED_OPACITY = 0.4;
@@ -445,7 +464,7 @@ class GraphMap extends React.Component {
   zoomEnd = () => {
     this.fixed_routes.forEach((route) => {
       route.polyline.setStyle({ 
-        color: ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length],
+        color: ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length],
         weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
         opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
         lineCap: "butt",
@@ -453,7 +472,7 @@ class GraphMap extends React.Component {
     });
     this.active_routes.forEach((route) => {
       route.polyline.setStyle({ 
-        color: ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length],
+        color: ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length],
         weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
         opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
         lineCap: "butt",
@@ -493,6 +512,29 @@ class GraphMap extends React.Component {
     if (res.length > 0) return { target: res[0][0], distance: res[0][1] };
     else return { target: null, distance: max_dist };
   }
+
+  getRobotId(vertexId) {
+    // Re-derive the hex ID the same way genDefaultWaypointName does
+    let n = vertexId.toString(), hexId = '';
+    while (n !== '0' && n !== '') {
+      let r = 0, q = '';
+      for (const d of n) { const c = r * 10 + +d; const qd = Math.floor(c / 16); r = c % 16; if (q || qd) q += qd; }
+      hexId = r.toString(16) + hexId;
+      n = q || '0';
+    }
+    const fullHex = (hexId || '0').padStart(16, '0');
+    return parseInt(fullHex.substring(0, 1), 16); // first 4 bits = first hex digit (0–15)
+  }
+
+  getModalRobotId(ids) {
+    // for colouring routes by the mode of IDs along the path
+    const idCounts = new Map();
+    ids.forEach((id) => {
+      const robotId = this.getRobotId(id);
+      idCounts.set(robotId, (idCounts.get(robotId) || 0) + 1);
+    });
+    return [...idCounts.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+}
 
   genDefaultWaypointName(id) {
       // Convert decimal string to hex via long division (avoids float64 precision loss)
@@ -571,8 +613,10 @@ class GraphMap extends React.Component {
   
   /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
   route2Polyline(route) {
+    // find the modal robot_id
+    const color = ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length];
     // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
-    let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
+    // let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
     let latlngs = route.ids.map((id) => {
       let v = this.id2vertex.get(id);
       return [v.lat, v.lng];
