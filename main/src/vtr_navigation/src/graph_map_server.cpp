@@ -567,6 +567,7 @@ void GraphMapServer::updateVertexType() {
         graph->at(vertex.id)
             ->retrieve<tactic::EnvInfo>("env_info",
                                         "vtr_tactic_msgs/msg/EnvInfo");
+    if (env_info_msg == nullptr) continue; // not yet populated
     vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
     graph->at(vertex.id)->SetTerrainType(vertex.type);
     int vertex_type = vertex.type;
@@ -582,6 +583,7 @@ void GraphMapServer::updateVertexName() {
         graph->at(VertexId(vertex.id))
             ->retrieve<tactic::WaypointName>("waypoint_name",
                                         "vtr_tactic_msgs/msg/WaypointName");
+    if (waypoint_name_msg == nullptr) continue; // not yet populated
     vertex.name = waypoint_name_msg->sharedLocked().get().getData().name;
   }
 }
