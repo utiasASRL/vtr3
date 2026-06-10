@@ -296,7 +296,6 @@ auto DataBubble<DataType>::retrieve(const Timestamp& time) -> MessagePtr {
         << time << " does not exist in cache or disk. Return a nullptr.";
     return nullptr;
     }
-  }
   return time2message_map_.at(time);
 }
 
