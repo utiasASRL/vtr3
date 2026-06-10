@@ -85,7 +85,7 @@ auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
 template <class V, class E>
 template <class... Args>
 auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
-                          const EdgeType& type, const bool manual,
+                          const EdgeType& type, const EdgeMode& mode,
                           const EdgeTransform& T_to_from, Args&&... args)
     -> EdgePtr {
   ChangeGuard change_guard(change_mutex_);
@@ -99,7 +99,7 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
 
   EdgeId eid(from, to);
   graph_.addEdge(eid);
-  auto edge = Edge::MakeShared(from, to, type, manual, T_to_from,
+  auto edge = Edge::MakeShared(from, to, type, mode, T_to_from,
                                std::forward<Args>(args)...);
   edges_.insert({eid, edge});
 

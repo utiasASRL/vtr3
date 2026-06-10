@@ -29,6 +29,9 @@ namespace pose_graph {
 enum class EdgeType { Temporal = 0, Spatial = 1, Undefined = 2 };
 static constexpr size_t NumEdgeType = 2;
 
+enum class EdgeMode { Autonomous = 0, Manual = 1, Unknown = 2 };
+static constexpr size_t NumEdgeMode = 2;
+
 using EdgeTransform = lgmath::se3::TransformationWithCovariance;
 
 class EdgeBase {
@@ -45,11 +48,11 @@ class EdgeBase {
 
   /** \brief Pseudo constructors to generate a shared pointer */
   static Ptr MakeShared(const VertexId& from_id, const VertexId& to_id,
-                        const EdgeType& type, const bool manual,
+                        const EdgeType& type, const EdgeMode& mode,
                         const EdgeTransform& T_to_from = EdgeTransform());
 
   EdgeBase(const VertexId& from_id, const VertexId& to_id, const EdgeType& type,
-           const bool manual, const EdgeTransform& T_to_from = EdgeTransform());
+           const EdgeMode& mode, const EdgeTransform& T_to_from = EdgeTransform());
 
   virtual ~EdgeBase() = default;
 
@@ -73,6 +76,9 @@ class EdgeBase {
 
   /** \brief Return true if the edge was driven autonomously */
   bool isAutonomous() const;
+
+  /** \brief Return true if the edge was driven autonomously */
+  bool isUnknown() const;
 
   /** \brief Return true if the edge is a temporal edge */
   bool isTemporal() const;
@@ -103,7 +109,7 @@ class EdgeBase {
   const EdgeType type_;
 
   /** \brief Whether this edge was manually driven or not */
-  const bool manual_;
+  const EdgeMode& mode_;
 
   /** \brief protects all non-const class members including: T_to_from_ */
   mutable std::shared_mutex mutex_;

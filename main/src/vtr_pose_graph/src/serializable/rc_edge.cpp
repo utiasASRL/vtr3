@@ -68,9 +68,9 @@ TransformMsg toMsg(const TransformT& T) {
 }  // namespace
 
 RCEdge::RCEdge(const VertexId& from_id, const VertexId& to_id,
-               const EdgeType& type, const bool manual,
+               const EdgeType& type, const EdgeMode& mode,
                const EdgeTransform& T_to_from)
-    : EdgeBase(from_id, to_id, type, manual, T_to_from) {
+    : EdgeBase(from_id, to_id, type, mode, T_to_from) {
   const auto data = std::make_shared<EdgeMsg>();
   msg_ = std::make_shared<storage::LockableMessage<EdgeMsg>>(data);
 }
@@ -80,7 +80,10 @@ RCEdge::RCEdge(const EdgeMsg& msg,
     : EdgeBase(msg.from_id, msg.to_id,
                msg.type.type == EdgeTypeMsg::TEMPORAL ? EdgeType::Temporal
                                                       : EdgeType::Spatial,
-               msg.mode.mode == EdgeModeMsg::MANUAL, fromMsg(msg.t_to_from)),
+               msg.mode.mode == EdgeModeMsg::MANUAL     ? EdgeMode::Manual :
+               msg.mode.mode == EdgeModeMsg::AUTONOMOUS ? EdgeMode::Autonomous
+                                                        : EdgeMode::Unknown,
+               fromMsg(msg.t_to_from)),
       msg_(msg_ptr) {}
 
 storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
@@ -92,7 +95,9 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
 
   // potentially updated info
   const auto type = static_cast<unsigned>(type_);
-  const auto mode = manual_ ? EdgeModeMsg::MANUAL : EdgeModeMsg::AUTONOMOUS;
+  const auto mode = (mode_ == EdgeMode::Manual)     ? EdgeModeMsg::MANUAL :
+                    (mode_ == EdgeMode::Autonomous) ? EdgeModeMsg::AUTONOMOUS 
+                                                    : EdgeModeMsg::UNKNOWN;  
   const auto from_id = (uint64_t)from_;
   const auto to_id = (uint64_t)to_;
 
@@ -140,7 +145,7 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
 
   CLOG(DEBUG, "pose_graph") << "Edge " << id_ << " -> ROS msg: "
                             << "from: " << from_ << ", to: " << to_
-                            << ", mode (0:auto, 1:manual): " << manual_
+                            // << ", mode (0:auto, 1:manual): " << mode_
                             << ", type (0:temporal, 1:spatial): " << type
                             << ", T_to_from: " << T_to_from_.vec().transpose()
                             << ", edge changed " << changed;

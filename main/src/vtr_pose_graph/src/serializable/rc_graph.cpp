@@ -95,9 +95,9 @@ auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
 }
 
 auto RCGraph::addEdge(const VertexId& from, const VertexId& to,
-                      const EdgeType& type, const bool manual,
+                      const EdgeType& type, const EdgeMode& mode,
                       const EdgeTransform& T_to_from) -> EdgePtr {
-  auto edge = GraphType::addEdge(from, to, type, manual, T_to_from);  // call base
+  auto edge = GraphType::addEdge(from, to, type, mode, T_to_from);  // call base
   edges_to_write_.push(edge);
   return edge;
 }

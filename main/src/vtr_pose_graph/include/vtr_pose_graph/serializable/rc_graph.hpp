@@ -82,7 +82,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   /** \brief Return a blank vertex with the next available Id */
   VertexPtr addVertex(const Timestamp& time);
   EdgePtr addEdge(const VertexId& from, const VertexId& to,
-                  const EdgeType& type, const bool manual,
+                  const EdgeType& type, const EdgeMode& mode,
                   const EdgeTransform& T_to_from);
 
   /** \brief Returns the root vertex using the stored map_info root_vid */

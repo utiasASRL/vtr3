@@ -110,13 +110,13 @@ class GraphSerializationFixture : public TemporaryDirectoryFixture {
       vids_[i][0] = graph_->addVertex(time_stamp_++)->id();
       vids_[i][1] = graph_->addVertex(time_stamp_++)->id();
       vids_[i][2] = graph_->addVertex(time_stamp_++)->id();
-      graph_->addEdge(vids_[i][0], vids_[i][1], EdgeType::Temporal, false, trivialTransform(vids_[i][0], vids_[i][1]));
-      graph_->addEdge(vids_[i][1], vids_[i][2], EdgeType::Temporal, false, trivialTransform(vids_[i][1], vids_[i][2]));
+      graph_->addEdge(vids_[i][0], vids_[i][1], EdgeType::Temporal, EdgeMode::Autonomous, trivialTransform(vids_[i][0], vids_[i][1]));
+      graph_->addEdge(vids_[i][1], vids_[i][2], EdgeType::Temporal, EdgeMode::Autonomous, trivialTransform(vids_[i][1], vids_[i][2]));
     }
-    graph_->addEdge(vids_[1][1], vids_[0][0], EdgeType::Spatial, false, trivialTransform(vids_[1][1], vids_[0][0]));
-    graph_->addEdge(vids_[2][2], vids_[1][2], EdgeType::Spatial, false, trivialTransform(vids_[2][2], vids_[1][2]));
-    graph_->addEdge(vids_[3][1], vids_[2][1], EdgeType::Spatial, false, trivialTransform(vids_[3][1], vids_[2][1]));
-    graph_->addEdge(vids_[4][2], vids_[3][2], EdgeType::Spatial, false, trivialTransform(vids_[4][2], vids_[3][2]));
+    graph_->addEdge(vids_[1][1], vids_[0][0], EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(vids_[1][1], vids_[0][0]));
+    graph_->addEdge(vids_[2][2], vids_[1][2], EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(vids_[2][2], vids_[1][2]));
+    graph_->addEdge(vids_[3][1], vids_[2][1], EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(vids_[3][1], vids_[2][1]));
+    graph_->addEdge(vids_[4][2], vids_[3][2], EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(vids_[4][2], vids_[3][2]));
     // clang-format on
   }
 
@@ -187,7 +187,7 @@ TEST_F(GraphSerializationFixture, SaveLoadModifySaveLoad) {
   auto v0 = graph->addVertex(time_stamp_++);
   auto v1 = graph->addVertex(time_stamp_++);
   auto v2 = graph->addVertex(time_stamp_++);
-  graph->addEdge(v2->id(), vids_[0][2], EdgeType::Spatial, false,
+  graph->addEdge(v2->id(), vids_[0][2], EdgeType::Spatial, EdgeMode::Autonomous,
                  EdgeTransform(true));
   graph.reset();
 

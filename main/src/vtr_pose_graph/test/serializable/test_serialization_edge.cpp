@@ -84,7 +84,7 @@ TEST(TestSerializationEdge, construct_spatial_edge_directly) {
   EdgeTransform transform(transform_vec);
   transform.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
 
-  RCEdge edge(from, to, EdgeType::Spatial, false, transform);
+  RCEdge edge(from, to, EdgeType::Spatial, EdgeMode::Autonomous, transform);
 
   // get the ROS message for the first time
   {
@@ -185,7 +185,7 @@ TEST(TestSerializationEdge, construct_temporal_edge_directly) {
   EdgeTransform transform(transform_vec);
   transform.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
 
-  RCEdge edge(from, to, EdgeType::Temporal, true, transform);
+  RCEdge edge(from, to, EdgeType::Temporal, EdgeMode::Manual, transform);
 
   // get the ROS message for the first time
   {
@@ -286,7 +286,7 @@ TEST(TestSerializationEdge, change_edge_transform) {
   EdgeTransform transform(transform_vec);
   transform.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
 
-  RCEdge edge(from, to, EdgeType::Temporal, true, transform);
+  RCEdge edge(from, to, EdgeType::Temporal, EdgeMode::Manual, transform);
 
   // get the ROS message for the first time
   {

@@ -65,7 +65,7 @@ void GraphSmoother<V, E>::smoothBranch(const EdgeId eid) const
           CLOG(DEBUG, "pose_graph.smoothing") << "Found connection between: " << new_edge << " that would be straight"; 
 
           if (!graph_->contains(new_edge)) {
-            graph_->addEdge(branch_id, t_nb, branch->type(), true, T_b_t);
+            graph_->addEdge(branch_id, t_nb, branch->type(), EdgeMode::Manual, T_b_t);
             CLOG(INFO, "pose_graph.smoothing") << "Added new edge" << new_edge; 
             return;
           }

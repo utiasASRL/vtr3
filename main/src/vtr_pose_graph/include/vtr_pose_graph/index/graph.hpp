@@ -66,7 +66,7 @@ class Graph : public GraphBase<V, E> {
   /** \brief Return a blank edge with the next available Id */
   template <class... Args>
   EdgePtr addEdge(const VertexId& from, const VertexId& to,
-                  const EdgeType& type, const bool manual,
+                  const EdgeType& type, const EdgeMode& mode,
                   const EdgeTransform& T_to_from, Args&&... args);
 
   /** \brief Lock to prevent graph change */

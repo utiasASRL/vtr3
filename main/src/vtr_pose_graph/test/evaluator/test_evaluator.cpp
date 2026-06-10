@@ -65,13 +65,13 @@ class EvaluatorTestFixture : public Test {
       graph_->addVertex();
       graph_->addVertex();
       graph_->addVertex();
-      graph_->addEdge(VertexId(idx, 0), VertexId(idx, 1), EdgeType::Temporal, false, trivialTransform(VertexId(idx, 0), VertexId(idx, 1)));
-      graph_->addEdge(VertexId(idx, 1), VertexId(idx, 2), EdgeType::Temporal, false, trivialTransform(VertexId(idx, 1), VertexId(idx, 2)));
+      graph_->addEdge(VertexId(idx, 0), VertexId(idx, 1), EdgeType::Temporal, EdgeMode::Autonomous, trivialTransform(VertexId(idx, 0), VertexId(idx, 1)));
+      graph_->addEdge(VertexId(idx, 1), VertexId(idx, 2), EdgeType::Temporal, EdgeMode::Autonomous, trivialTransform(VertexId(idx, 1), VertexId(idx, 2)));
     }
-    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), EdgeType::Spatial, false, trivialTransform(VertexId(1, 1), VertexId(0, 0)));
-    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), EdgeType::Spatial, false, trivialTransform(VertexId(2, 2), VertexId(1, 2)));
-    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), EdgeType::Spatial, false, trivialTransform(VertexId(3, 1), VertexId(2, 1)));
-    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), EdgeType::Spatial, false, trivialTransform(VertexId(4, 2), VertexId(3, 2)));
+    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(VertexId(1, 1), VertexId(0, 0)));
+    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(VertexId(2, 2), VertexId(1, 2)));
+    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(VertexId(3, 1), VertexId(2, 1)));
+    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), EdgeType::Spatial, EdgeMode::Autonomous, trivialTransform(VertexId(4, 2), VertexId(3, 2)));
     // clang-format on
   }
 
