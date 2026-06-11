@@ -21,6 +21,7 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "vtr_pose_graph/tools/pose_graph_smoother.hpp"
+#include "vtr_pose_graph/index/edge_base.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/pipeline_interface.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
@@ -42,7 +43,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   using RobotStateMutex = std::mutex;
   using RobotStateLock = std::unique_lock<RobotStateMutex>;
   using RobotStateGuard = std::lock_guard<RobotStateMutex>;
-
+  
   struct Config {
     PTR_TYPEDEFS(Config);
 
@@ -93,7 +94,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
                const EdgeTransform& T_twig_branch = EdgeTransform(true),
                const bool publish = false) override;
   void setTrunk(const VertexId& v = VertexId::Invalid()) override;
-  void connectToTrunk(const bool privileged = false) override;
+  void connectToTrunk(const EdgeMode& privileged = EdgeMode::Autonomous) override;
   /// \note following queries can be called without pipeline locked
   Localization getPersistentLoc() const override;
   bool isLocalized() const override;
@@ -128,7 +129,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
  private:
   /// pipeline helper functions and states
   void addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
-                     const bool manual, const EnvInfo& env_info);
+                     const EdgeMode& mode, const EnvInfo& env_info);
 
   /**
    * \brief Whether this is the first frame of this run, only used by

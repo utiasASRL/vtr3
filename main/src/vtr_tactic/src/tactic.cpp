@@ -156,7 +156,7 @@ void Tactic::setTrunk(const VertexId& v) {
   callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }
 
-void Tactic::connectToTrunk(const bool privileged) {
+void Tactic::connectToTrunk(const EdgeMode& privileged) {
   const auto [twig_vid, branch_vid, T_twig_branch] = [&]() {
     auto lock = chain_->guard();
     return std::make_tuple(chain_->twigVertexId(), chain_->branchVertexId(),
@@ -164,7 +164,7 @@ void Tactic::connectToTrunk(const bool privileged) {
   }();
   CLOG(INFO, "tactic") << "Adding connection " << twig_vid << " --> "
                        << branch_vid << ", privileged: " << std::boolalpha
-                       << privileged << ", with T_to_from: "
+                       << static_cast<unsigned>(privileged) << ", with T_to_from: "
                        << T_twig_branch.inverse().vec().transpose();
   graph_->addEdge(twig_vid, branch_vid, EdgeType::Spatial, privileged,
                   T_twig_branch.inverse());
@@ -329,7 +329,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Manual,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -434,7 +434,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Manual,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -530,7 +530,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Manual,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -602,7 +602,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), false,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Autonomous,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -672,7 +672,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), false,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Autonomous,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -749,6 +749,10 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
   *output_->odometry_success = *qdata->odo_success;
+
+  graph_->loadVerticesLive();
+  graph_->loadEdgesLive();
+
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
     /// maybe we can combine them at some point, but for now, consider leaving
@@ -934,7 +938,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
                           << *(qdata->vid_odo) << " and " << *(qdata->vid_loc)
                           << " to the graph.";
     graph_->addEdge(*(qdata->vid_odo), *(qdata->vid_loc), EdgeType::Spatial,
-                    false, T_v_odo_loc.inverse());
+                    EdgeMode::Autonomous, T_v_odo_loc.inverse());
     CLOG(DEBUG, "tactic") << "Done adding the spatial edge between "
                           << *(qdata->vid_odo) << " and " << *(qdata->vid_loc)
                           << " to the graph.";
@@ -992,7 +996,7 @@ bool Tactic::localizeMetricLocLocalization(const QueryCache::Ptr& qdata) {
 }
 
 void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
-                           const bool manual, const EnvInfo& env_info) {
+                           const EdgeMode& mode, const EnvInfo& env_info) {
   //
   const auto previous_vertex_id = current_vertex_id_;
 
@@ -1015,7 +1019,7 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
   // Add the new edge
   if (!previous_vertex_id.isValid()) return;
   auto edge = graph_->addEdge(previous_vertex_id, current_vertex_id_,
-                        EdgeType::Temporal, manual, T_r_v);
+                        EdgeType::Temporal, mode, T_r_v);
 
   // Write new vertex to disk
   graph_->saveLive();

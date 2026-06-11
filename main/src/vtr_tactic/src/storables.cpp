@@ -65,47 +65,5 @@ auto LocalizationResult::toStorable() const -> LocalizationResultMsg {
   return storable;
 }
 
-// std::shared_ptr<EdgeResult> EdgeResult::fromStorable(
-//       const EdgeResultMsg& storable) {
-      
-//     // --- EdgeType mapping ---
-//     EdgeType type;
-//     switch (storable.type.type) {
-//       case vtr_pose_graph_msgs::msg::EdgeType::TEMPORAL:
-//         type = EdgeType(vtr_pose_graph::EdgeType::TEMPORAL);
-//         break;
-
-//       case vtr_pose_graph_msgs::msg::EdgeType::SPATIAL:
-//         type = EdgeType(vtr_pose_graph::EdgeType::SPATIAL);
-//         break;
-
-//       case vtr_pose_graph_msgs::msg::EdgeType::UNKNOWN:
-//         type = EdgeType(vtr_pose_graph::EdgeType::UNKNOWN);
-//         break;
-
-//       default:
-//         throw std::runtime_error("Unknown EdgeType value");
-//     }
-
-//     const auto from_id = storable.from_id;
-//     const auto to_id = storable.to_id;
-//     bool mode = true;
-
-//     EdgeTransform T_to_from;
-//     common::conversions::fromROSMsg(storable.t_to_from, T_to_from);
-
-//     auto data =  std::make_shared<EdgeResult>(
-//         from_id, to_id, type, mode, T_to_from);
-//     return data;
-//   }
-
-  // auto EdgeResult::toStorable() const -> EdgeResultMsg {
-    // vtr_pose_graph_msgs::msg::Edge storable;
-  //   // storable.timestamp = timestamp_;
-  //   common::conversions::toROSMsg(T_world_robot_, storable.t_to_from);
-  //   return storable;
-  // }
-
-
 }  // namespace tactic
 }  // namespace vtr

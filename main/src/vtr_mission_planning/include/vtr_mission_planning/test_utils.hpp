@@ -57,8 +57,8 @@ struct TestTactic : public StateMachine::Tactic {
   void setForceAddVertex(const  bool) override {}
   void setTrunk(const tactic::VertexId&) override {}
   /// Called when trying to merge into existing path
-  void connectToTrunk(const bool privileged) override {
-    LOG(WARNING) << "Connecting to trunk with privileged " << privileged;
+  void connectToTrunk(const pose_graph::EdgeMode& privileged) override {
+    LOG(WARNING) << "Connecting to trunk with privileged " << static_cast<unsigned>(privileged);
   }
 
   tactic::Localization getPersistentLoc() const override { return loc_; }

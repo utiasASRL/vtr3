@@ -50,7 +50,7 @@ class ChainTest : public TestWithParam<SE2Pose>  {
   }
   ~ChainTest() override {}
 
-  void createConstantCurve(const EdgeTransform& T_wr0, const EdgeTransform& T_wrf, const Timestamp& t1, const Timestamp& t2, unsigned nodes=2, bool is_teach=true) {
+  void createConstantCurve(const EdgeTransform& T_wr0, const EdgeTransform& T_wrf, const Timestamp& t1, const Timestamp& t2, unsigned nodes=2, EdgeMode is_teach=EdgeMode::Manual) {
     ASSERT_GE(nodes, 2);
     ASSERT_GT(t2, t1);
 
@@ -80,7 +80,7 @@ class ChainTest : public TestWithParam<SE2Pose>  {
     createConstantCurve(tf_from_global(0, 0, 0), tf_from_global(20.0, 0.0, 0), 0, 10*1e9, 20);
     createConstantCurve(tf_from_global(20.5, 0, 0), tf_from_global(25.5, 5.0, M_PI_2), 10*1e9, 20*1e9, 20);
     graph_->addEdge(VertexId(0, 19), VertexId(0, 20), EdgeType::Temporal,
-                      true, tf_from_global(0.5, 0.0, 0).inverse());
+                      EdgeMode::Manual, tf_from_global(0.5, 0.0, 0).inverse());
 
 
     using PrivEvaluator = eval::mask::privileged::CachedEval<RCGraph>;
@@ -172,7 +172,7 @@ TEST_P(ChainTest, NoiseFreeMPC) {
   EdgeTransform T_init = tf_from_global(x_init, y_init, theta_init);
   graph_->addVertex(t_offset_);
   graph_->addEdge(VertexId(repeat_run, 0), VertexId(0, 0), EdgeType::Spatial,
-                      false, T_init);
+                      EdgeMode::Autonomous, T_init);
 
   ASSERT_GT(chain_->p(chain_->size() - 1), 0);
 
@@ -229,7 +229,7 @@ TEST_P(ChainTest, NoiseFreeMPC) {
       delta_TF.setZeroCovariance();
       auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);
       graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                        false, delta_TF);
+                        EdgeMode::Autonomous, delta_TF);
 
       chain_->updatePetioleToLeafTransform(t_offset_ + (i + 1) * config.DT * 1e9, P_tran * new_velo,
                                         delta_TF, false);
@@ -266,12 +266,12 @@ TEST_P(ChainTest, NoiseFreeMPC) {
   uint64_t mpc_rollout_run = graph_->addRun();
   graph_->addVertex(t_offset_);
   graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 0), EdgeType::Spatial,
-                      false, T_init);
+                      EdgeMode::Autonomous, T_init);
 
   for(unsigned i = 0; i < config.N; ++i) {
     auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                      false, mpc_poses[i+1].inverse()*mpc_poses[i]);
+                      EdgeMode::Autonomous, mpc_poses[i+1].inverse()*mpc_poses[i]);
   }
   
 }
@@ -290,7 +290,7 @@ TEST_P(ChainTest, NoisyMPC) {
   EdgeTransform T_init = tf_from_global(x_init, y_init, theta_init);
   graph_->addVertex(t_offset_);
   graph_->addEdge(VertexId(repeat_run, 0), VertexId(0, 0), EdgeType::Spatial,
-                      false, T_init);
+                      EdgeMode::Autonomous, T_init);
 
   ASSERT_GT(chain_->p(chain_->size() - 1), 0);
 
@@ -347,7 +347,7 @@ TEST_P(ChainTest, NoisyMPC) {
       delta_TF.setZeroCovariance();
       auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);
       graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                        false, delta_TF);
+                        EdgeMode::Autonomous, delta_TF);
 
       chain_->updatePetioleToLeafTransform(t_offset_ + (i + 1) * config.DT * 1e9, P_tran * new_velo,
                                         delta_TF, false);
@@ -384,12 +384,12 @@ TEST_P(ChainTest, NoisyMPC) {
   uint64_t mpc_rollout_run = graph_->addRun();
   graph_->addVertex(t_offset_);
   graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 0), EdgeType::Spatial,
-                      false, T_init);
+                      EdgeMode::Autonomous, T_init);
 
   for(unsigned i = 0; i < config.N; ++i) {
     auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                      false, mpc_poses[i+1].inverse()*mpc_poses[i]);
+                      EdgeMode::Autonomous, mpc_poses[i+1].inverse()*mpc_poses[i]);
   }
   
 }
@@ -410,7 +410,7 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
   EdgeTransform T_init = tf_from_global(x_init, y_init, theta_init);
   graph_->addVertex(t_offset_);
   graph_->addEdge(VertexId(repeat_run, 0), VertexId(0, 2), EdgeType::Spatial,
-                      false, T_init);
+                      EdgeMode::Autonomous, T_init);
 
   ASSERT_GT(chain_->p(chain_->size() - 1), 0);
 
@@ -480,7 +480,7 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
       delta_TF.setZeroCovariance();
       auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);
       graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                        false, delta_TF);
+                        EdgeMode::Autonomous, delta_TF);
 
       chain_->updatePetioleToLeafTransform(t_offset_ + (i + 1) * config.DT * 1e9, P_tran * new_velo,
                                         delta_TF, false);
@@ -521,12 +521,12 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
   uint64_t mpc_rollout_run = graph_->addRun();
   graph_->addVertex(t_offset_);
   graph_->addEdge(VertexId(mpc_rollout_run, 0), VertexId(0, 2), EdgeType::Spatial,
-                      false, T_init);
+                      EdgeMode::Autonomous, T_init);
 
   for(unsigned i = 0; i < config.N; ++i) {
     auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                      false, mpc_poses[i+1].inverse()*mpc_poses[i]);
+                      EdgeMode::Autonomous, mpc_poses[i+1].inverse()*mpc_poses[i]);
   }
 
 
@@ -534,12 +534,12 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
 
   auto new_vertex = graph_->addVertex(t_offset_);
   auto start_vertex = graph_->addEdge(new_vertex->id(), VertexId(0, 2), EdgeType::Spatial,
-                      false, target_poses_0.front());
+                      EdgeMode::Autonomous, target_poses_0.front());
   for(size_t i = 1; i < target_poses_0.size(); i++) {
     auto new_vertex = graph_->addVertex(t_offset_ + i * config.DT * 1e9);
           
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                      false, target_poses_0[i].inverse()*target_poses_0[i-1]);
+                      EdgeMode::Autonomous, target_poses_0[i].inverse()*target_poses_0[i-1]);
   }
 
   

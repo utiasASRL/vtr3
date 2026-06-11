@@ -42,7 +42,7 @@ using Vertex = pose_graph::RCVertex;
 using EdgeId = pose_graph::EdgeId;
 using Edge = pose_graph::RCEdge;
 using EdgeType = pose_graph::EdgeType;
-// using EdgeMode = pose_graph::EdgeMode;
+using EdgeMode = pose_graph::EdgeMode;
 using EdgeTransform = pose_graph::EdgeTransform;
 using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 template <class GraphT>

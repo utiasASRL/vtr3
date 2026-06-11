@@ -83,7 +83,6 @@ void RCGraph::saveLive() {
   saveVerticesLive();
   saveEdgesLive();
   CLOG(INFO, "pose_graph") << "Saving live pose graph - DONE!";
-
 }
 
 auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
@@ -135,6 +134,7 @@ void RCGraph::loadVertices() {
     auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
     vertices_.insert(std::make_pair(vertex->id(), vertex));
     CLOG(DEBUG, "pose_graph") << "- loaded vertex " << *vertex;
+    lastVertexIdx_ = index;
   }
 }
 
@@ -158,6 +158,31 @@ void RCGraph::loadEdges() {
     CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
   }
 }
+
+void RCGraph::loadVerticesLive() {
+  CLOG(DEBUG, "pose_graph") << "Live Loading vertices from disk";
+  CLOG(DEBUG, "pose_graph") << "Last Index:" << lastVertexIdx_;
+
+  VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", read_only_};
+  //========================================================================
+  int tempIdx = 0;
+  for (int index = lastVertexIdx_;; index++) {
+    const auto msg = accessor.readAtIndex(index);
+    if (!msg) break;
+
+    auto vertex_msg = msg->locked().get().getData();
+    auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
+    vertices_.insert(std::make_pair(vertex->id(), vertex));
+    CLOG(DEBUG, "pose_graph") << "- live loaded vertex " << *vertex;
+    tempIdx = index;
+  }
+  lastVertexIdx_ = tempIdx;
+}
+
+void RCGraph::loadEdgesLive() {
+  CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk";
+}
+
 
 void RCGraph::buildSimpleGraph() {
   // First add all vertices to the simple graph

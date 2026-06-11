@@ -95,9 +95,7 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
 
   // potentially updated info
   const auto type = static_cast<unsigned>(type_);
-  const auto mode = (mode_ == EdgeMode::Manual)     ? EdgeModeMsg::MANUAL :
-                    (mode_ == EdgeMode::Autonomous) ? EdgeModeMsg::AUTONOMOUS 
-                                                    : EdgeModeMsg::UNKNOWN;  
+  const auto mode = static_cast<unsigned>(mode_);
   const auto from_id = (uint64_t)from_;
   const auto to_id = (uint64_t)to_;
 
@@ -145,7 +143,7 @@ storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
 
   CLOG(DEBUG, "pose_graph") << "Edge " << id_ << " -> ROS msg: "
                             << "from: " << from_ << ", to: " << to_
-                            // << ", mode (0:auto, 1:manual): " << mode_
+                            << ", mode (0:auto, 1:manual): " << mode
                             << ", type (0:temporal, 1:spatial): " << type
                             << ", T_to_from: " << T_to_from_.vec().transpose()
                             << ", edge changed " << changed;

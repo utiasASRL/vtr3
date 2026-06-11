@@ -115,12 +115,21 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
              const typename storage::LockableMessage<DataType>::Ptr& message);
   void saveGraphIndex();
 
+  // TODO (Anthony): Make these private
+  int lastVertexIdx_ = 0;
+  void loadVerticesLive();
+  void loadEdgesLive();
+
  private:
   /** \brief Helper methods for loading from disk */
   void loadGraphIndex();
   void loadVertices();
   void loadEdges();
+
+
+
   void buildSimpleGraph();
+  void extendSimpleGraph();
 
   /** \brief Helper methods for saving to disk */
   // void saveGraphIndex();
