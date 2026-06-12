@@ -5,7 +5,6 @@
  * Spherical projection of an Ouster LiDAR point cloud into dense 2-D images.
  * Accounts for the Ouster beam offset (COIN-LIO model).
  *
- * Ported from LIVO (livo_ws/src/livo/include/projector.hpp).
  * Adapted to work with VTR's PointWithInfo and standalone config (no ROS node
  * dependency for construction).
  *

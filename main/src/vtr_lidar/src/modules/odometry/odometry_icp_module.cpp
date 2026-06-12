@@ -214,6 +214,9 @@ void OdometryICPModule::run_(QueryCache &qdata0, OutputCache &,
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
+  // [NOTE] in steam continuous-time estimation, we do not need to do motion undistortion. Instead we interpolate the state at each point's timestamp and then compute the residual using the original point cloud, query_points.  
+  // But for KNN search, we perform it on the motion undistorted point cloud, aligned_points, which is updated at each iteration.
+  // The submap data, point_map, is motion undistorted using the state at the end of the frame, T_r_m_eval. And the normals are computed based on the undistorted point cloud. This is done in the map maintenance module, odometry_map_maintenance_module_v2.cpp.
   const auto map_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   const auto map_normals_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::normal_offset());
   const auto query_mat = query_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());

@@ -10,8 +10,7 @@ from launch_ros.actions import Node
 
 
 def _json_to_params(json_path: str) -> dict:
-    """Recursively flatten nested JSON into dot-separated ROS parameter dict.
-    Ported from LIVO (livo_ws/src/livo/launch/livo.launch.py)."""
+    """Recursively flatten nested JSON into dot-separated ROS parameter dict."""
     with open(json_path, 'r') as f:
         data = json.load(f)
 
@@ -47,7 +46,7 @@ def generate_launch_description():
         #"prefix": 'valgrind --tool=callgrind',
     }
 
-    # Flatten Ouster sensor JSON into ROS params (same pattern as LIVO)
+    # Flatten Ouster sensor JSON into ROS params 
     sensor_json_default = osp.join(config_dir, 'os_warthog.json')
     sensor_params = {}
     if osp.isfile(sensor_json_default):

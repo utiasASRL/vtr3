@@ -11,7 +11,7 @@
  *   3. Reprojection error cost terms added alongside ICP p2p terms
  *
  * References:
- *   - LIVO: Lidar-Inertial-Visual Odometry (livo_ws)
+ *   - LIVO: Lidar-Inertial-Visual Odometry 
  *   - VTR3 odometry_icp_module.cpp (ASRL)
  */
 #pragma once
@@ -85,6 +85,20 @@ class OdometryLIVModule : public tactic::BaseModule {
     bool use_visual = true;
     /// Enable/disable lidar ICP cost terms (can run pure visual if false)
     bool use_lidar = true;
+
+    /// Enable/disable range cost terms on visual matches
+    bool use_range_cost = false;
+    /// Range measurement noise (metres, 1-σ)
+    double sigma_range = 0.1;
+    /// Cauchy loss function kernel width for range error
+    double range_loss_scale = 1.0;
+
+    /// Enable/disable kinematic regulation prior on each velocity knot
+    /// (penalizes lateral velocity, vertical velocity, roll & pitch rates)
+    bool use_kinematic_regulation = false;
+    /// 1-σ for [lateral vel, vertical vel, roll rate, pitch rate]
+    Eigen::Matrix<double, 4, 1> kinematic_regulation_sigma =
+        (Eigen::Matrix<double, 4, 1>() << 0.05, 0.01, 0.02, 0.02).finished();
 
     // ────────── OusterProjector sensor metadata ──────────
     int pixels_per_column = 128;

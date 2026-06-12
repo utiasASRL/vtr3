@@ -135,6 +135,9 @@ void OdometryMapMaintenanceModuleV2::run_(QueryCache &qdata0, OutputCache &,
     const auto &eigenvectors = es.eigenvectors();
     const auto &eigenvalues = es.eigenvalues();
 
+    // [WENDA] this part can be adapted to incorporate the point-to-surful style 
+    //         hybrid {p2p,p2line,p2plane} geometry estimation. 
+
     // normal direction
     curr_pt.getNormalVector3fMap() = Eigen::Vector3f(eigenvectors.col(0));
     // normal score

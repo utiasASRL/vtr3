@@ -16,7 +16,6 @@
  * The backward pass chains ∂e/∂T through the STEAM trajectory via the
  * standard odot / point2fs pattern.
  *
- * Follows the pattern of livo::ReprojErrorEval.
  */
 #pragma once
 

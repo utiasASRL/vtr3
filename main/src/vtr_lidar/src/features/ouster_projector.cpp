@@ -2,7 +2,6 @@
  * \file ouster_projector.cpp
  * \author Wenda Zhao, Autonomous Space Robotics Lab (ASRL)
  *
- * Ported from LIVO (livo_ws/src/livo/src/projector.cpp).
  * Adapted to work with VTR's PointWithInfo and standalone config.
  */
 #include "vtr_lidar/features/ouster_projector.hpp"

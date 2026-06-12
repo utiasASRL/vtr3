@@ -8,6 +8,7 @@
 #include "vtr_lidar/modules/odometry/odometry_liv_module.hpp"
 
 #include "vtr_lidar/features/md_ransac.hpp"
+#include "vtr_lidar/features/range_error_eval.hpp"
 #include "vtr_lidar/features/reproj_error_eval.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
@@ -80,6 +81,22 @@ auto OdometryLIVModule::Config::fromROS(
   config->ransac_min_inliers = node->declare_parameter<int>(param_prefix + ".ransac_min_inliers", config->ransac_min_inliers);
   config->use_visual = node->declare_parameter<bool>(param_prefix + ".use_visual", config->use_visual);
   config->use_lidar = node->declare_parameter<bool>(param_prefix + ".use_lidar", config->use_lidar);
+
+  // ── Range cost on visual matches ──
+  config->use_range_cost = node->declare_parameter<bool>(param_prefix + ".use_range_cost", config->use_range_cost);
+  config->sigma_range = node->declare_parameter<double>(param_prefix + ".sigma_range", config->sigma_range);
+  config->range_loss_scale = node->declare_parameter<double>(param_prefix + ".range_loss_scale", config->range_loss_scale);
+
+  // ── Kinematic regulation prior ──
+  config->use_kinematic_regulation = node->declare_parameter<bool>(param_prefix + ".use_kinematic_regulation", config->use_kinematic_regulation);
+  const auto kin_sigma = node->declare_parameter<std::vector<double>>(param_prefix + ".kinematic_regulation_sigma", std::vector<double>{0.05, 0.01, 0.02, 0.02});
+  if (kin_sigma.size() != 4) {
+    std::string err{"kinematic_regulation_sigma must have 4 elements!"};
+    CLOG(ERROR, "lidar.odometry_liv") << err;
+    throw std::invalid_argument{err};
+  }
+  for (int i = 0; i < 4; ++i)
+    config->kinematic_regulation_sigma(i) = std::max(kin_sigma[i], 1e-9);
 
   // ── OusterProjector sensor metadata ──
   // These come from the JSON file flattened at node level.
@@ -242,6 +259,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   Evaluable<Eigen::Matrix<double, 6, 1>>::ConstPtr w_m_r_in_r_eval = nullptr;
   const_vel::Interface::Ptr trajectory = nullptr;
   std::vector<StateVarBase::Ptr> state_vars;
+  std::vector<VSpaceStateVar<6>::Ptr> vel_state_vars;
   const int64_t num_states = config_->traj_num_extra_states + 2;
   lgmath::se3::Transformation T_r_m_odo_prior_new;
   Eigen::Matrix<double, 6, 1> w_m_r_in_r_odo_prior_new;
@@ -274,6 +292,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     trajectory->add(knot_time, T_r_m_var, w_m_r_in_r_var);
     state_vars.emplace_back(T_r_m_var);
     state_vars.emplace_back(w_m_r_in_r_var);
+    vel_state_vars.emplace_back(w_m_r_in_r_var);
   }
 
   // State prior
@@ -336,19 +355,17 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       bf_matcher->knnMatch(curr_feat.descriptors, prev_feat_ptr->descriptors,
                            knn_matches, 2);
 
-      // Current scan duration (seconds) — the inter-frame time baseline
-      const double scan_duration =
-          static_cast<double>(frame_end_time - frame_start_time) * 1e-9;
-
-      // NOTE: we DO NOT motion-undistort p1 to frame_start_time using the
-      // previous frame's terminal velocity. Doing so creates a positive
-      // feedback loop in visual-only odometry: a noisy w_prior biases every
-      // p1 coherently, the solver "explains" the bias by shifting the pose,
-      // which corrupts the next frame's w_prior, and so on. The remaining
-      // sub-scan reference-time mismatch (p1 was observed at t1 inside the
-      // previous scan but the STEAM cost evaluates the prev pose at
-      // frame_start_time) is typically a few centimetres of distortion and
-      // is treated as part of the visual noise model.
+      // Time handling (livo two-knot scheme): after each successful
+      // optimization, the live features are motion-undistorted to
+      // frame_end_time using the *optimized* trajectory before being stored
+      // as prev_intensity_features (see end of run_). Treating p1 as
+      // observed exactly at frame_start_time is therefore correct, not an
+      // approximation, and all residuals span only the current scan
+      // duration. (Undistorting with the optimized trajectory avoids the
+      // feedback loop that undistorting with the prior velocity would
+      // create.) If the previous frame failed, the raw features are stored
+      // and the boundary assumption degrades gracefully to the old
+      // approximation.
 
       // Apply ratio test and build VisualMatch list
       for (const auto& match_pair : knn_matches) {
@@ -376,15 +393,14 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
           if (!projector_->projectPoint(p2, y2_proj)) continue;
 
           VisualMatch vm;
-          vm.p1 = p1;            // referenced to t1 (inside prev scan) -
-                                 // treated as if observed at frame_start_time
+          vm.p1 = p1;            // undistorted to frame_start_time (prev scan end)
           vm.p2 = p2;            // measured 3-D point at t2 (curr frame)
           vm.y1 = y1_proj;
           vm.y2 = y2_proj;
 
-          // Feature timestamps (absolute, ns). We pin timestamp_1 to
-          // frame_start_time to keep dt non-negative and bounded by
-          // scan_duration — see note above on why we don't undistort p1.
+          // Feature timestamps (absolute, ns). p1 lives exactly at the scan
+          // boundary (frame_start_time) thanks to the undistortion above, so
+          // dt is non-negative and bounded by scan_duration.
           vm.timestamp_1 = frame_start_time;
           vm.timestamp_2 = (curr_idx < static_cast<int>(curr_feat.timestamps.size()))
                                ? curr_feat.timestamps[curr_idx]
@@ -406,12 +422,13 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       // Run MD-RANSAC
       if (visual_matches.size() >= 3) {
         Eigen::Matrix<double, 6, 1> ransac_omega;
-        bool ransac_ok = mdRansacSolve(
-            visual_matches, *projector_,
-            config_->ransac_max_iterations,
-            config_->ransac_inlier_threshold,
-            config_->ransac_min_inliers,
-            visual_inliers, ransac_omega);
+        bool ransac_ok = mdRansacSolve(visual_matches, 
+                                       *projector_,
+                                       config_->ransac_max_iterations,
+                                       config_->ransac_inlier_threshold,
+                                       config_->ransac_min_inliers,
+                                       visual_inliers, 
+                                       ransac_omega);
 
         if (ransac_ok) {
           num_visual_inliers = static_cast<int>(visual_inliers.size());
@@ -532,12 +549,42 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       }
     }
 
-    // ── Visual reprojection error cost terms (LIV addition) ──
+    // ── Kinematic regulation cost terms ──
+    // Penalizes lateral velocity, vertical velocity, roll rate and pitch
+    // rate on every velocity knot (nonholonomic ground-vehicle prior).
+    if (config_->use_kinematic_regulation) {
+      Eigen::Matrix<double, 4, 6> H = Eigen::Matrix<double, 4, 6>::Zero();
+      H(0, 1) = 1.0;  // lateral velocity: rho_y
+      H(1, 2) = 1.0;  // vertical velocity: rho_z
+      H(2, 3) = 1.0;  // roll rate: phi_x
+      H(3, 4) = 1.0;  // pitch rate: phi_y
+
+      Eigen::Matrix<double, 4, 4> kin_cov = Eigen::Matrix<double, 4, 4>::Zero();
+      kin_cov.diagonal() = config_->kinematic_regulation_sigma.array().square().matrix();
+      const auto noise_model_kin = StaticNoiseModel<4>::MakeShared(kin_cov);
+      const auto loss_func_kin = L2LossFunc::MakeShared();
+
+      for (const auto& w_var : vel_state_vars) {
+        auto selected_velocity = vspace::mmult<4, 6>(w_var, H);
+        auto error_func = vspace::vspace_error<4>(
+            selected_velocity, Eigen::Matrix<double, 4, 1>::Zero());
+        auto kin_cost = WeightedLeastSqCostTerm<4>::MakeShared(
+            error_func, noise_model_kin, loss_func_kin);
+        problem.addCostTerm(kin_cost);
+      }
+    }
+
+    // ── Visual reprojection + range error cost terms (lidar intensity image) ──
     if (config_->use_visual && !visual_inliers.empty() && projector_) {
       const Eigen::Matrix2d meas_cov =
           config_->sigma_pixel * config_->sigma_pixel * Eigen::Matrix2d::Identity();
       const auto noise_model_vis = StaticNoiseModel<2>::MakeShared(meas_cov);
       const auto loss_func_vis = CauchyLossFunc::MakeShared(config_->reproj_loss_sigma);
+
+      const Eigen::Matrix<double, 1, 1> range_cov =
+          Eigen::Matrix<double, 1, 1>::Constant(config_->sigma_range * config_->sigma_range);
+      const auto noise_model_range = StaticNoiseModel<1>::MakeShared(range_cov);
+      const auto loss_func_range = CauchyLossFunc::MakeShared(config_->range_loss_scale);
 
       for (const int idx : visual_inliers) {
         const auto& m = visual_matches[idx];
@@ -554,6 +601,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
             config_->use_trajectory_estimation
                 ? std::clamp(m.timestamp_2, frame_start_time, frame_end_time)
                 : frame_end_time;
+        
+        // NOTE: we need to take care of the time offset later. This is the reason we use md_ransac
+        // const int64_t t_meas = m.timestamp_2; 
+
         const Time t_m(static_cast<int64_t>(t_meas));
 
         // Build the transform that maps p1 (in sensor@prev) to sensor@curr:
@@ -573,6 +624,18 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
         auto cost = WeightedLeastSqCostTerm<2>::MakeShared(
             error_func, noise_model_vis, loss_func_vis);
         problem.addCostTerm(cost);
+
+        // Range error: e = ||p2|| - ||T · p1|| (shares T_scurr_sprev)
+        if (config_->use_range_cost) {
+          const double range2 = m.p2.norm();
+          if (range2 > 0.0 && std::isfinite(range2)) {
+            auto range_error_func = RangeErrorEval::MakeShared(
+                T_scurr_sprev, m.p1, range2);
+            auto range_cost = WeightedLeastSqCostTerm<1>::MakeShared(
+                range_error_func, noise_model_range, loss_func_range);
+            problem.addCostTerm(range_cost);
+          }
+        }
       }
 
       CLOG(DEBUG, "lidar.odometry_liv")
@@ -828,9 +891,32 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   }
 
   // ── Update prev_intensity_features for next frame ──
-  // Use = to overwrite any existing value injected by the pipeline
+  // Use = to overwrite any existing value injected by the pipeline.
+  //
+  // Time handling:
+  // on success, motion-undistort every feature 3-D point from its observation
+  // time to frame_end_time using the optimized trajectory, so the next frame
+  // can treat p1 as observed exactly at its frame_start_time. On failure,
+  // fall back to storing the raw features (boundary approximation).
   if (qdata.live_intensity_features.valid()) {
     auto feat_copy = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
+    if (config_->use_visual && *qdata.odo_success) {
+      const auto T_r_m_end_eval = trajectory->getPoseInterpolator(Time(static_cast<int64_t>(frame_end_time)));
+      const Eigen::Matrix4d T_s_m_end = compose(T_s_r_var, T_r_m_end_eval)->evaluate().matrix();
+      for (int i = 0; i < feat_copy->size(); ++i) {
+        const Eigen::Vector3d p = feat_copy->points_3d.col(i);
+        if (!p.allFinite() || p.norm() < 0.1) continue;
+        const int64_t t_feat = (i < static_cast<int>(feat_copy->timestamps.size()))
+            ? std::clamp(feat_copy->timestamps[i], frame_start_time, frame_end_time)
+            : frame_end_time;
+        const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(t_feat));
+        const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
+        const Eigen::Vector4d p_h = (Eigen::Vector4d() << p, 1.0).finished();
+        feat_copy->points_3d.col(i) = (T_s_m_end * T_m_s_t * p_h).head<3>();
+        if (i < static_cast<int>(feat_copy->timestamps.size()))
+          feat_copy->timestamps[i] = frame_end_time;  // now expressed at scan end
+      }
+    }
     qdata.prev_intensity_features = feat_copy;
   }
   // clang-format on

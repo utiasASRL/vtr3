@@ -27,7 +27,6 @@ auto IntensityFeatureExtractionModule::Config::fromROS(
   //   beam_intrinsics.beam_altitude_angles
   //   lidar_data_format.pixels_per_column
   // We declare them with defaults, then the launch-file overrides them.
-  // Same pattern as LIVO's livo_node.cpp + projector.cpp.
 
   // pixels_per_column (try both keys for compat with different JSON layouts)
   auto ppc = node->declare_parameter<int64_t>("lidar_data_format.pixels_per_column", 0);

@@ -3,7 +3,6 @@
  * \author Wenda Zhao, Autonomous Space Robotics Lab (ASRL)
  *
  * Motion-Distorted RANSAC implementation.
- * Reference: LIVO package (livo_ws/src/livo/src/md_ransac.cpp)
  */
 #include "vtr_lidar/features/md_ransac.hpp"
 

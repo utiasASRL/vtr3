@@ -13,7 +13,6 @@
  *   3. Count inliers  ‖y₂ − ŷ₂‖ < α
  *   4. Keep best model
  *
- * Reference: LIVO package (livo_ws/src/livo/src/md_ransac.cpp)
  */
 #pragma once
 
@@ -29,15 +28,15 @@ namespace lidar {
 /// A visual match between previous and current frame features.
 /// Used by MD-RANSAC and the reprojection error cost terms.
 struct VisualMatch {
-  Eigen::Vector3d p1 = Eigen::Vector3d::Zero();  ///< 3-D point in prev sensor frame (motion-undistorted to frame_start_time)
-  Eigen::Vector3d p2 = Eigen::Vector3d::Zero();  ///< 3-D point in curr sensor frame at timestamp_2
-  Eigen::Vector2d y1 = Eigen::Vector2d::Zero();  ///< pixel in previous frame
-  Eigen::Vector2d y2 = Eigen::Vector2d::Zero();  ///< pixel in current frame
-  int64_t timestamp_1 = 0;  ///< timestamp of p1
-  int64_t timestamp_2 = 0;  ///< timestamp of y2 (current frame feature)
-  double dt = 0.0;          ///< relative time offset (seconds)
-  int prev_idx = -1;        ///< index into previous frame features
-  int curr_idx = -1;        ///< index into current frame features
+  Eigen::Vector3d p1 = Eigen::Vector3d::Zero();  /// 3-D point in prev sensor frame (motion-undistorted to frame_start_time)
+  Eigen::Vector3d p2 = Eigen::Vector3d::Zero();  /// 3-D point in curr sensor frame at timestamp_2
+  Eigen::Vector2d y1 = Eigen::Vector2d::Zero();  /// pixel in previous frame
+  Eigen::Vector2d y2 = Eigen::Vector2d::Zero();  /// pixel in current frame
+  int64_t timestamp_1 = 0;  /// timestamp of p1
+  int64_t timestamp_2 = 0;  /// timestamp of y2 (current frame feature)
+  double dt = 0.0;          /// relative time offset (seconds)
+  int prev_idx = -1;        /// index into previous frame features
+  int curr_idx = -1;        /// index into current frame features
 };
 
 /**

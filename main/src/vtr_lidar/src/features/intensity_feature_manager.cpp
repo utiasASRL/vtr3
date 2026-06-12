@@ -15,8 +15,7 @@
 namespace vtr {
 namespace lidar {
 
-IntensityFeatureManager::IntensityFeatureManager(
-    const IntensityFeatureManagerConfig::ConstPtr& config)
+IntensityFeatureManager::IntensityFeatureManager(const IntensityFeatureManagerConfig::ConstPtr& config)
     : config_(config) {
   // The main orb_detector_ is kept for matchFeatures (BFMatcher).
   // For grid detection, each thread creates its own ORB instance.

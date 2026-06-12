@@ -255,13 +255,26 @@
         use_gyro: true             # turn on/off gyro cost terms
 
         # lidar intensity visual parameters
-        use_lidar:  false            # turn on/off lidar ICP cost terms, for debugging
+        use_lidar:  true            # turn on/off lidar ICP cost terms, for debugging
         use_visual: true           # turn on/off visual feature cost terms, for debugging
-        sigma_pixel: 3.0
-        reproj_loss_sigma: 2.0
+        sigma_pixel: 10.0
+        reproj_loss_sigma: 0.5
         ransac_max_iterations: 200
         ransac_inlier_threshold: 3.0   # rotation-only minimal solver — keep loose so translational parallax doesn't reject inliers
         ransac_min_inliers: 10
+
+        # range cost on visual matches (livo gn.range_residual)
+        use_range_cost: true
+        sigma_range: 0.1               # metres, 1-sigma
+        range_loss_scale: 1.0          # Cauchy kernel width
+
+        # kinematic regulation prior on each velocity knot (livo swf.kinematic_prior)
+        use_kinematic_regulation: true
+        kinematic_regulation_sigma:    # [lateral vel, vertical vel, roll rate, pitch rate]
+          - 0.05
+          - 0.01
+          - 0.02
+          - 0.02
 
         # OusterProjector sensor metadata (loaded from os_warthog.json via launch)
         u_shift: 0
@@ -357,7 +370,7 @@
         target_loc_time: 15.0
         # Visual (LIV) parameters
         use_visual: true
-        use_lidar: false
+        use_lidar: true
         sigma_pixel: 3.0
         reproj_loss_sigma: 2.0
       safe_corridor:
