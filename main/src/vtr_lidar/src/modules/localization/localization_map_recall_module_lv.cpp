@@ -10,6 +10,7 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 
+#include "vtr_lidar/data_types/intensity_feature_map.hpp"
 #include "vtr_lidar/data_types/intensity_features.hpp"
 #include "vtr_lidar/data_types/pointmap_pointer.hpp"
 
@@ -100,9 +101,49 @@ void LocalizationMapRecallModuleLV::run_(QueryCache &qdata0, OutputCache &,
                            qdata.submap_loc->T_vertex_this());
 
   // ════════════════════════════════════════════════════════════════════════
-  //  Recall intensity features from the current localization vertex
+  //  Recall the merged visual feature submap from the map vertex
+  //  (same vertex as the point submap; falls back to the legacy per-vertex
+  //  single-frame intensity features when the teach graph has no feature
+  //  submap, e.g. graphs taught before feature mapping existed)
   // ════════════════════════════════════════════════════════════════════════
-  {
+  bool feature_map_recalled = false;
+  try {
+    /// load the feature submap if we have switched to a new one
+    if (qdata.feature_map_loc &&
+        qdata.feature_map_loc->vertex_id() == pointmap_ptr.map_vid) {
+      feature_map_recalled = true;
+    } else {
+      auto map_vertex = graph->at(pointmap_ptr.map_vid);
+      const auto feature_map_msg = map_vertex->retrieve<IntensityFeatureMap>(
+          "intensity_feature_map", "vtr_lidar_msgs/msg/IntensityFeatureMap");
+      if (feature_map_msg != nullptr) {
+        auto locked_feature_map_msg = feature_map_msg->sharedLocked();
+        qdata.feature_map_loc = std::make_shared<IntensityFeatureMap>(
+            locked_feature_map_msg.get().getData());
+        feature_map_recalled = true;
+        CLOG(INFO, "lidar.localization_map_recall_lv")
+            << "Loaded feature submap with " << qdata.feature_map_loc->size()
+            << " landmarks from vertex " << pointmap_ptr.map_vid;
+      }
+    }
+  } catch (const std::exception& e) {
+    CLOG(WARNING, "lidar.localization_map_recall_lv")
+        << "Feature submap recall failed: " << e.what();
+    feature_map_recalled = false;
+  }
+
+  if (feature_map_recalled) {
+    /// update the feature-submap to vertex transformation (landmarks live in
+    /// the teach odometry map frame, anchored like the point submap)
+    qdata.T_v_m_feature_loc.emplace(
+        pointmap_ptr.T_v_this_map * qdata.feature_map_loc->T_vertex_this());
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  Legacy fallback: recall single-frame intensity features from the
+  //  current localization vertex
+  // ════════════════════════════════════════════════════════════════════════
+  if (!feature_map_recalled) {
     auto vertex = graph->at(vid_loc);
     const auto feat_msg = vertex->retrieve<IntensityFeatures>(
         "intensity_features", "vtr_lidar_msgs/msg/IntensityFeatures");

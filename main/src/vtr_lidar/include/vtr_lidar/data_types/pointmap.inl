@@ -70,6 +70,7 @@ auto PointMap<PointT>::toStorable() const -> PointMapMsg {
   return storable;
 }
 
+// [WENDA] this is the place for submap merging. 
 template <class PointT>
 template <class Callback>
 void PointMap<PointT>::update(const PointCloudType& point_cloud,

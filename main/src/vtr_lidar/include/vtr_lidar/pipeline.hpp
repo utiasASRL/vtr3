@@ -93,6 +93,8 @@ class LidarPipeline : public tactic::BasePipeline {
   /// odometry cached data
   /** \brief current sliding map for odometry */
   std::shared_ptr<PointMap<PointWithInfo>> sliding_map_odo_;
+  /** \brief current sliding visual feature map for odometry */
+  std::shared_ptr<IntensityFeatureMap> sliding_feature_map_odo_;
   /** \brief current timestamp*/
   std::shared_ptr<tactic::Timestamp> timestamp_odo_;
   /** \brief current pose and body velocity w.r.t the sliding map */
@@ -116,6 +118,8 @@ class LidarPipeline : public tactic::BasePipeline {
   /// localization cached data
   /** \brief Current submap for localization */
   std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;
+  /** \brief Current visual feature submap for localization */
+  std::shared_ptr<const IntensityFeatureMap> feature_map_loc_;
 
   VTR_REGISTER_PIPELINE_DEC_TYPE(LidarPipeline);
 };

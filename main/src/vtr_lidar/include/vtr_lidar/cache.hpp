@@ -24,6 +24,7 @@
 #include <opencv2/core.hpp>
 
 #include "vtr_lidar/data_types/costmap.hpp"
+#include "vtr_lidar/data_types/intensity_feature_map.hpp"
 #include "vtr_lidar/data_types/intensity_features.hpp"
 #include "vtr_lidar/data_types/point.hpp"
 #include "vtr_lidar/data_types/pointmap.hpp"
@@ -72,6 +73,11 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<std::shared_ptr<IntensityFeatures>> prev_intensity_features;
   /// Map ORB features recalled from graph (for localization)
   tactic::Cache<std::vector<IntensityFeatures>> map_intensity_features;
+  /// Live features motion-undistorted to scan end (sensor frame), produced by
+  /// odometry on success for the visual map maintenance module
+  tactic::Cache<IntensityFeatures> undistorted_intensity_features;
+  /// Sliding visual landmark map for odometry (odometry map frame)
+  tactic::Cache<IntensityFeatureMap> sliding_feature_map_odo;
 
   // odometry & mapping
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
@@ -91,6 +97,10 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;
   tactic::Cache<const bool> submap_loc_changed;
   tactic::Cache<const tactic::EdgeTransform> T_v_m_loc;
+  /// Merged visual landmark submap recalled from the teach graph
+  tactic::Cache<const IntensityFeatureMap> feature_map_loc;
+  /// Transform from the feature submap's map frame to the vid_loc vertex frame
+  tactic::Cache<const tactic::EdgeTransform> T_v_m_feature_loc;
 
   // intra exp merging async
   tactic::Cache<const tactic::VertexId> intra_exp_merging_async;

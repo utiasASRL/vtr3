@@ -74,6 +74,7 @@ void LidarPipeline::reset() {
   for (const auto &module : localization_) module->reset();
   // odometry cached data
   sliding_map_odo_ = nullptr;
+  sliding_feature_map_odo_ = nullptr;
   timestamp_odo_ = nullptr;
   T_r_m_odo_ = nullptr;
   w_m_r_in_r_odo_ = nullptr;
@@ -88,6 +89,7 @@ void LidarPipeline::reset() {
 
   // localization cached data
   submap_loc_ = nullptr;
+  feature_map_loc_ = nullptr;
   gyro_bias_ = nullptr;
 }
 
@@ -128,6 +130,11 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
     qdata->prev_intensity_features = prev_intensity_features_;
   }
 
+  // set the current sliding visual feature map for odometry
+  if (sliding_feature_map_odo_ != nullptr) {
+    qdata->sliding_feature_map_odo = sliding_feature_map_odo_;
+  }
+
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
 
@@ -148,6 +155,11 @@ void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   if (qdata->prev_intensity_features.valid()) {
     prev_intensity_features_ = qdata->prev_intensity_features.ptr();
   }
+
+  // store the current sliding visual feature map for odometry
+  if (qdata->sliding_feature_map_odo) {
+    sliding_feature_map_odo_ = qdata->sliding_feature_map_odo.ptr();
+  }
 }
 
 void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
@@ -161,6 +173,9 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
     qdata->submap_loc = submap_loc_;
     qdata->gyro_bias = gyro_bias_;
   }
+  if (feature_map_loc_ != nullptr) {
+    qdata->feature_map_loc = feature_map_loc_;
+  }
 
   for (const auto &module : localization_)
     module->run(*qdata0, *output0, graph, executor);
@@ -169,6 +184,9 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   if (qdata->submap_loc) {
     submap_loc_ = qdata->submap_loc.ptr();
     gyro_bias_ = qdata->gyro_bias.ptr();
+  }
+  if (qdata->feature_map_loc) {
+    feature_map_loc_ = qdata->feature_map_loc.ptr();
   }
 }
 
@@ -182,6 +200,11 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   /// update current map vertex id and transform
   sliding_map_odo_->T_vertex_this() = *T_r_m_odo_;
   sliding_map_odo_->vertex_id() = *qdata->vid_odo;
+  // keep the visual feature map anchored to the same vertex (shared frame)
+  if (sliding_feature_map_odo_ != nullptr) {
+    sliding_feature_map_odo_->T_vertex_this() = *T_r_m_odo_;
+    sliding_feature_map_odo_->vertex_id() = *qdata->vid_odo;
+  }
   CLOG(DEBUG, "lidar.pipeline") << "Saving data to vertex" << vertex;
 
 
@@ -290,6 +313,23 @@ void LidarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     vertex->insert<PointMap<PointWithInfo>>(
         "pointmap_v" + std::to_string(submap_odo->version()),
         "vtr_lidar_msgs/msg/PointMap", submap2_msg);
+
+    // save the visual feature submap alongside the point submap so both
+    // share the same vertex anchor and thresholds
+    if (sliding_feature_map_odo_ != nullptr &&
+        sliding_feature_map_odo_->size() > 0) {
+      auto feature_submap =
+          std::make_shared<IntensityFeatureMap>(*sliding_feature_map_odo_);
+      using FeatureMapLM = storage::LockableMessage<IntensityFeatureMap>;
+      auto feature_submap_msg =
+          std::make_shared<FeatureMapLM>(feature_submap, *qdata->stamp);
+      vertex->insert<IntensityFeatureMap>(
+          "intensity_feature_map", "vtr_lidar_msgs/msg/IntensityFeatureMap",
+          feature_submap_msg);
+      CLOG(DEBUG, "lidar.pipeline")
+          << "Saved feature submap with " << feature_submap->size()
+          << " landmarks to vertex " << *qdata->vid_odo;
+    }
 
     // save the submap vertex id and transform
     submap_vid_odo_ = *qdata->vid_odo;

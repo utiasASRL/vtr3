@@ -17,6 +17,14 @@ namespace lidar {
 
 namespace {
 
+/// A match between a live feature and a landmark in the sliding feature map.
+struct MapMatch {
+  Eigen::Vector3d p_map = Eigen::Vector3d::Zero();  /// landmark in map frame
+  Eigen::Vector2d y2 = Eigen::Vector2d::Zero();     /// observed projection
+  int64_t t2 = 0;                                   /// observation time (ns)
+  double range2 = 0.0;                              /// measured range (m)
+};
+
 template <class PointT>
 void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
   for (auto& p : point_cloud) {
@@ -81,6 +89,11 @@ auto OdometryLIVModule::Config::fromROS(
   config->ransac_min_inliers = node->declare_parameter<int>(param_prefix + ".ransac_min_inliers", config->ransac_min_inliers);
   config->use_visual = node->declare_parameter<bool>(param_prefix + ".use_visual", config->use_visual);
   config->use_lidar = node->declare_parameter<bool>(param_prefix + ".use_lidar", config->use_lidar);
+
+  // ── Feature map matching ──
+  config->use_feature_map_matching = node->declare_parameter<bool>(param_prefix + ".use_feature_map_matching", config->use_feature_map_matching);
+  config->map_match_max_px = node->declare_parameter<double>(param_prefix + ".map_match_max_px", config->map_match_max_px);
+  config->map_match_min_matches = node->declare_parameter<int>(param_prefix + ".map_match_min_matches", config->map_match_min_matches);
 
   // ── Range cost on visual matches ──
   config->use_range_cost = node->declare_parameter<bool>(param_prefix + ".use_range_cost", config->use_range_cost);
@@ -218,6 +231,9 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     if (qdata.live_intensity_features.valid()) {
       auto feat_copy = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
       qdata.prev_intensity_features = feat_copy;
+      // seed the visual feature map with the raw first frame (treated as
+      // observed at scan end, like the lidar map seeding)
+      if (config_->use_visual) qdata.undistorted_intensity_features = feat_copy;
     }
     return;
   }
@@ -446,6 +462,85 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  //  Feature map matching (live features ↔ sliding visual landmark map)
+  //
+  //  Map landmarks are timeless points in the odometry map frame, so the
+  //  visual costs become e = y2 − f(T_s_m(t2) · p_map): one interpolation at
+  //  the feature's observation time, no scan-boundary bookkeeping, and the
+  //  multi-scan landmarks provide longer feature tracks than frame-to-frame.
+  //  Outliers are gated by reprojection through the prior-extrapolated pose.
+  // ════════════════════════════════════════════════════════════════════════
+  std::vector<MapMatch> map_matches;
+
+  if (config_->use_visual && config_->use_feature_map_matching && projector_ &&
+      qdata.live_intensity_features.valid() && qdata.sliding_feature_map_odo &&
+      qdata.sliding_feature_map_odo->size() > 0) {
+    const auto& curr_feat = *qdata.live_intensity_features;
+    const auto& feature_map = *qdata.sliding_feature_map_odo;
+
+    if (!curr_feat.empty()) {
+      const cv::Mat map_descriptors = feature_map.descriptors();
+      const auto map_points = feature_map.points();  // 3 x N, map frame
+
+      auto bf_matcher_map = cv::BFMatcher::create(cv::NORM_HAMMING, false);
+      std::vector<std::vector<cv::DMatch>> knn_map_matches;
+      bf_matcher_map->knnMatch(curr_feat.descriptors, map_descriptors,
+                               knn_map_matches, 2);
+
+      // predicted sensor-from-map transform at scan end for outlier gating
+      const Eigen::Matrix4d T_s_m_pred =
+          T_s_r.matrix() *
+          trajectory->getPoseInterpolator(Time(frame_end_time))
+              ->evaluate().matrix();
+
+      for (const auto& match_pair : knn_map_matches) {
+        if (match_pair.size() < 2) continue;
+        const auto& best = match_pair[0];
+        const auto& second = match_pair[1];
+        if (best.distance > 50.0f || best.distance > 0.8f * second.distance)
+          continue;
+
+        const int curr_idx = best.queryIdx;
+        const int map_idx = best.trainIdx;
+
+        const Eigen::Vector3d& p2 = curr_feat.points_3d.col(curr_idx);
+        if (p2.norm() < 0.5) continue;
+        const Eigen::Vector3d p_map = map_points.col(map_idx);
+
+        // analytical projection of the live observation (same convention as
+        // the frame-to-frame path)
+        Eigen::Vector2d y2_proj;
+        if (!projector_->projectPoint(p2, y2_proj)) continue;
+
+        // gate by predicted reprojection error
+        const Eigen::Vector3d p_s_pred =
+            (T_s_m_pred * p_map.homogeneous()).head<3>();
+        Eigen::Vector2d y_pred;
+        if (!projector_->projectPoint(p_s_pred, y_pred)) continue;
+        if ((y_pred - y2_proj).norm() > config_->map_match_max_px) continue;
+
+        MapMatch m;
+        m.p_map = p_map;
+        m.y2 = y2_proj;
+        m.t2 = (curr_idx < static_cast<int>(curr_feat.timestamps.size()))
+                   ? curr_feat.timestamps[curr_idx]
+                   : frame_end_time;
+        m.range2 = p2.norm();
+        map_matches.push_back(m);
+      }
+
+      CLOG(DEBUG, "lidar.odometry_liv")
+          << "Feature map matches: " << map_matches.size() << " (map size "
+          << feature_map.size() << ")";
+    }
+  }
+
+  // Use map-based visual costs when enough map matches survived gating;
+  // otherwise fall back to the frame-to-frame inliers.
+  const bool use_map_costs =
+      static_cast<int>(map_matches.size()) >= config_->map_match_min_matches;
+
+  // ════════════════════════════════════════════════════════════════════════
   //  ICP optimisation loop (with visual cost terms)
   // ════════════════════════════════════════════════════════════════════════
   EdgeTransform T_r_m_icp;
@@ -575,7 +670,8 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     }
 
     // ── Visual reprojection + range error cost terms (lidar intensity image) ──
-    if (config_->use_visual && !visual_inliers.empty() && projector_) {
+    if (config_->use_visual && projector_ &&
+        (use_map_costs || !visual_inliers.empty())) {
       const Eigen::Matrix2d meas_cov =
           config_->sigma_pixel * config_->sigma_pixel * Eigen::Matrix2d::Identity();
       const auto noise_model_vis = StaticNoiseModel<2>::MakeShared(meas_cov);
@@ -586,6 +682,41 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       const auto noise_model_range = StaticNoiseModel<1>::MakeShared(range_cov);
       const auto loss_func_range = CauchyLossFunc::MakeShared(config_->range_loss_scale);
 
+      if (use_map_costs) {
+        // ── Map-based costs: e = y2 − f(T_s_m(t2) · p_map) ──
+        // Landmarks are timeless points in the map frame, so only the
+        // observation side is interpolated; no scan-boundary handling.
+        for (const auto& m : map_matches) {
+          const int64_t t_meas =
+              config_->use_trajectory_estimation
+                  ? std::clamp(m.t2, frame_start_time, frame_end_time)
+                  : frame_end_time;
+
+          auto T_r_m_t_eval =
+              trajectory->getPoseInterpolator(Time(static_cast<int64_t>(t_meas)));
+          auto T_s_m_eval = compose(T_s_r_var, T_r_m_t_eval);
+
+          auto error_func = ReprojErrorEval::MakeShared(
+              T_s_m_eval, m.p_map, m.y2, projector_);
+          auto cost = WeightedLeastSqCostTerm<2>::MakeShared(
+              error_func, noise_model_vis, loss_func_vis);
+          problem.addCostTerm(cost);
+
+          // Range error: e = ||p2|| - ||T_s_m(t2) · p_map||
+          if (config_->use_range_cost && m.range2 > 0.0 &&
+              std::isfinite(m.range2)) {
+            auto range_error_func = RangeErrorEval::MakeShared(
+                T_s_m_eval, m.p_map, m.range2);
+            auto range_cost = WeightedLeastSqCostTerm<1>::MakeShared(
+                range_error_func, noise_model_range, loss_func_range);
+            problem.addCostTerm(range_cost);
+          }
+        }
+
+        CLOG(DEBUG, "lidar.odometry_liv")
+            << "Added " << map_matches.size()
+            << " map-based visual cost terms (step " << step << ")";
+      } else {
       for (const int idx : visual_inliers) {
         const auto& m = visual_matches[idx];
 
@@ -640,7 +771,8 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
 
       CLOG(DEBUG, "lidar.odometry_liv")
           << "Added " << visual_inliers.size()
-          << " visual reprojection cost terms (step " << step << ")";
+          << " frame-to-frame visual cost terms (step " << step << ")";
+      }  // end if (use_map_costs) / else
     }
 
     // ── Solve ──
@@ -916,6 +1048,9 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
         if (i < static_cast<int>(feat_copy->timestamps.size()))
           feat_copy->timestamps[i] = frame_end_time;  // now expressed at scan end
       }
+      // expose the undistorted features (sensor frame at scan end) for the
+      // visual map maintenance module
+      qdata.undistorted_intensity_features = feat_copy;
     }
     qdata.prev_intensity_features = feat_copy;
   }

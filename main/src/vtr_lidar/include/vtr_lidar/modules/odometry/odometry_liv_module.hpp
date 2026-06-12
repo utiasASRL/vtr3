@@ -86,6 +86,16 @@ class OdometryLIVModule : public tactic::BaseModule {
     /// Enable/disable lidar ICP cost terms (can run pure visual if false)
     bool use_lidar = true;
 
+    /// Match live features against the sliding visual landmark map and build
+    /// the visual costs from map landmarks (falls back to frame-to-frame
+    /// matching when the map yields too few matches)
+    bool use_feature_map_matching = false;
+    /// Max pixel distance between predicted and observed projection when
+    /// gating map matches (uses the prior-extrapolated pose)
+    double map_match_max_px = 20.0;
+    /// Min number of map matches to use map-based costs
+    int map_match_min_matches = 10;
+
     /// Enable/disable range cost terms on visual matches
     bool use_range_cost = false;
     /// Range measurement noise (metres, 1-σ)

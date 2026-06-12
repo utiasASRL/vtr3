@@ -72,6 +72,9 @@ class LocalizationLIVModule : public tactic::BaseModule {
     bool use_visual = true;
     /// Enable/disable lidar ICP cost terms
     bool use_lidar = true;
+    /// Match against the merged visual feature submap recalled from the
+    /// teach graph (falls back to single-frame features when unavailable)
+    bool use_feature_map_matching = false;
 
     // ────────── OusterProjector sensor metadata ──────────
     int pixels_per_column = 128;

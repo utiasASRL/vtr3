@@ -67,6 +67,7 @@ auto LocalizationLIVModule::Config::fromROS(
   config->reproj_loss_sigma = node->declare_parameter<double>(param_prefix + ".reproj_loss_sigma", config->reproj_loss_sigma);
   config->use_visual = node->declare_parameter<bool>(param_prefix + ".use_visual", config->use_visual);
   config->use_lidar = node->declare_parameter<bool>(param_prefix + ".use_lidar", config->use_lidar);
+  config->use_feature_map_matching = node->declare_parameter<bool>(param_prefix + ".use_feature_map_matching", config->use_feature_map_matching);
 
   // ── OusterProjector sensor metadata ──
   config->pixels_per_column = node->declare_parameter<int>(param_prefix + ".pixels_per_column", config->pixels_per_column);
@@ -261,7 +262,62 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
   };
   std::vector<VisualLocMatch> visual_loc_matches;
 
-  if (config_->use_visual && projector_ &&
+  // ── Preferred path: match against the merged feature submap ──
+  // Landmarks are in the teach odometry map frame; pre-transform them into
+  // the vid_loc vertex frame with the fixed T_v_m_feature_loc so the
+  // existing single-pose cost structure (T_s_v · p_vertex) applies as-is.
+  const bool have_feature_map =
+      config_->use_feature_map_matching && qdata.feature_map_loc &&
+      qdata.feature_map_loc->size() > 0 && qdata.T_v_m_feature_loc;
+
+  if (config_->use_visual && projector_ && have_feature_map &&
+      qdata.live_intensity_features.valid() &&
+      !qdata.live_intensity_features->empty()) {
+    const auto& live_feat = *qdata.live_intensity_features;
+    const auto& feature_map = *qdata.feature_map_loc;
+
+    const cv::Mat map_descriptors = feature_map.descriptors();
+    const auto map_points = feature_map.points();  // 3 x N, teach map frame
+    const Eigen::Matrix4d T_v_mf = qdata.T_v_m_feature_loc->matrix();
+
+    auto bf_matcher = cv::BFMatcher::create(cv::NORM_HAMMING, false);
+    std::vector<std::vector<cv::DMatch>> knn_matches;
+    bf_matcher->knnMatch(live_feat.descriptors, map_descriptors,
+                         knn_matches, 2);
+
+    for (const auto& match_pair : knn_matches) {
+      if (match_pair.size() < 2) continue;
+      const auto& best = match_pair[0];
+      const auto& second = match_pair[1];
+
+      // Ratio test + absolute distance threshold
+      if (best.distance >= 50.0f || best.distance >= 0.8f * second.distance)
+        continue;
+
+      const int live_idx = best.queryIdx;
+      const int map_idx = best.trainIdx;
+
+      // Validate the live 3D point and get its analytical projection
+      const Eigen::Vector3d p_live = live_feat.points_3d.col(live_idx);
+      if (p_live.norm() < 0.5) continue;
+      Eigen::Vector2d y_live_proj;
+      if (!projector_->projectPoint(p_live, y_live_proj)) continue;
+
+      // Landmark into the vid_loc vertex frame (fixed transform)
+      const Eigen::Vector3d p_map = map_points.col(map_idx);
+      VisualLocMatch vm;
+      vm.p_vertex = (T_v_mf * p_map.homogeneous()).head<3>();
+      vm.y_live = y_live_proj;
+      visual_loc_matches.push_back(vm);
+    }
+
+    CLOG(DEBUG, "lidar.localization_liv")
+        << "Visual loc matches (feature submap): "
+        << visual_loc_matches.size() << " (live: " << live_feat.size()
+        << ", map landmarks: " << feature_map.size() << ")";
+  }
+  // ── Legacy fallback: single-frame features from the teach vertex ──
+  else if (config_->use_visual && projector_ &&
       qdata.live_intensity_features.valid() &&
       qdata.map_intensity_features.valid()) {
     const auto& live_feat = *qdata.live_intensity_features;
