@@ -109,7 +109,7 @@ class EdgeBase {
   const EdgeType type_;
 
   /** \brief Whether this edge was manually driven or not */
-  const EdgeMode& mode_;
+  const EdgeMode mode_;
 
   /** \brief protects all non-const class members including: T_to_from_ */
   mutable std::shared_mutex mutex_;
