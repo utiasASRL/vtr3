@@ -116,17 +116,20 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   void saveGraphIndex();
 
   // TODO (Anthony): Make these private
+  // keep track of .db3 cursors (watch for new data)
   int lastVertexIdx_ = 0;
+  int lastEdgeIdx_ = 0;
+
+  // keep track of topology only edges
   void loadVerticesLive();
   void loadEdgesLive();
+  void populateEdgesLive();
 
  private:
   /** \brief Helper methods for loading from disk */
   void loadGraphIndex();
   void loadVertices();
   void loadEdges();
-
-
 
   void buildSimpleGraph();
   void extendSimpleGraph();
@@ -162,6 +165,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   std::queue<VertexPtr> vertices_to_write_;
   std::queue<EdgePtr> edges_to_write_;
+  std::vector<int> topology_edges_;
 };
 
 template <typename DataType>

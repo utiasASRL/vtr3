@@ -121,6 +121,12 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   /// Set path and target localization
   CLOG(INFO, "tactic") << "Set path of size " << path.size();
   ///
+  CLOG(DEBUG, "tactic") << "LoadLive start (setPath)";
+  graph_->loadVerticesLive();
+  graph_->loadEdgesLive();
+  graph_->populateEdgesLive();
+  CLOG(DEBUG, "tactic") << "LoadLive end (setPath)";
+
   auto lock = chain_->guard();
   //
   chain_->setSequence(path);
@@ -223,6 +229,12 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
+  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_)";
+  graph_->loadVerticesLive();
+  graph_->loadEdgesLive();
+  graph_->populateEdgesLive();
+  CLOG(DEBUG, "tactic") << "LoadLive end (runOdometryMapping_)";
+
   // Setup caches
   qdata->vid_odo.emplace(current_vertex_id_);
   qdata->vertex_test_result.emplace(VertexTestResult::DO_NOTHING);
@@ -750,8 +762,11 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
   *output_->odometry_success = *qdata->odo_success;
 
+  CLOG(DEBUG, "tactic") << "LoadLive start (runLocalization_)";
   graph_->loadVerticesLive();
   graph_->loadEdgesLive();
+  graph_->populateEdgesLive();
+  CLOG(DEBUG, "tactic") << "LoadLive end (runLocalization_)";
 
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
@@ -1022,7 +1037,7 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
                         EdgeType::Temporal, mode, T_r_v);
 
   // Write new vertex to disk
-  graph_->saveLive();
+  // graph_->saveLive(); ANTHONY
 }
 
 void Tactic::updatePersistentLoc(const Timestamp& t, const VertexId& v,

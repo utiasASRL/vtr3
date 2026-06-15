@@ -154,6 +154,11 @@ void RCGraph::loadEdges() {
       CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
       continue;
     }
+    CLOG(DEBUG, "pose_graph") << "loadEdges(), edge mode is " << edge_msg.mode.mode;
+    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
+      topology_edges_.push_back(index);
+      CLOG(DEBUG, "pose_graph") << "Topology Edge inserted, len " << topology_edges_.size();
+    }
     edges_.insert(std::make_pair(eid, edge));
     CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
   }
@@ -161,10 +166,8 @@ void RCGraph::loadEdges() {
 
 void RCGraph::loadVerticesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading vertices from disk";
-  CLOG(DEBUG, "pose_graph") << "Last Index:" << lastVertexIdx_;
-
   VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", read_only_};
-  //========================================================================
+
   int tempIdx = 0;
   for (int index = lastVertexIdx_;; index++) {
     const auto msg = accessor.readAtIndex(index);
@@ -172,7 +175,7 @@ void RCGraph::loadVerticesLive() {
 
     auto vertex_msg = msg->locked().get().getData();
     auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
-    vertices_.insert(std::make_pair(vertex->id(), vertex));
+    // vertices_.insert(std::make_pair(vertex->id(), vertex)); ANTHONY
     CLOG(DEBUG, "pose_graph") << "- live loaded vertex " << *vertex;
     tempIdx = index;
   }
@@ -181,8 +184,51 @@ void RCGraph::loadVerticesLive() {
 
 void RCGraph::loadEdgesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk";
+  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", read_only_};
+  int tempIdx = 0;
+
+  for (int index = lastEdgeIdx_;; index++) {
+    const auto msg = accessor.readAtIndex(index);
+    if (!msg) break;
+    auto edge_msg = msg->locked().get().getData();
+    auto edge = RCEdge::MakeShared(edge_msg, msg);
+    const auto& eid = edge->id();
+    if (vertices_.find(eid.id1()) == vertices_.end() ||
+        vertices_.find(eid.id2()) == vertices_.end()) {
+      CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
+      continue;
+    }
+    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
+      topology_edges_.push_back(index);
+      CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
+    }
+    tempIdx = index;
+    // edges_.insert(std::make_pair(eid, edge)); ANTHONY
+    // CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
+  }
+  lastEdgeIdx_ = tempIdx;
 }
 
+void RCGraph::populateEdgesLive() {
+  CLOG(DEBUG, "pose_graph") << "Monitoring topology-only edges";
+  CLOG(DEBUG, "pose_graph") << "# topology edges: " << topology_edges_.size();
+  // Monitor edges that were topology, if new then call extendSimpleGraph()
+  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", read_only_};
+  for (auto it = topology_edges_.begin(); it != topology_edges_.end();) {
+    const auto msg = accessor.readAtIndex(*it);
+    if (!msg) break;
+    auto edge_msg = msg->locked().get().getData();
+    auto edge = RCEdge::MakeShared(edge_msg, msg);
+    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::MANUAL) {
+      extendSimpleGraph(edge);
+      *it = topology_edges_.back();
+      topology_edges_.pop_back();
+      CLOG(DEBUG, "pose_graph") << "popped topology edge";  
+    } else {
+      ++it;
+    }
+  }
+}
 
 void RCGraph::buildSimpleGraph() {
   // First add all vertices to the simple graph
@@ -192,6 +238,18 @@ void RCGraph::buildSimpleGraph() {
   for (auto it = edges_.begin(); it != edges_.end(); ++it)
     graph_.addEdge(it->first);
 }
+
+// void RCGraph::extendSimpleGraph(const EdgePtr& new_edge){
+//   // update the SimpleGraph with the new privileged edge
+//   const auto& eid = new_edge->id();
+//   CLOG(DEBUG, "pose_graph") << "extendSimpleGraph: edge candidate" << eid;
+//   if (graph_.hasVertex(eid.id1()) && graph_.hasVertex(eid.id2())) {
+//     graph_.addEdge(eid);
+//     CLOG(DEBUG, "pose_graph") << "extendSimpleGraph: added edge";
+//   } else {
+//     return;
+//   }
+// }
 
 void RCGraph::saveGraphIndex() {
   if(read_only_) { 
