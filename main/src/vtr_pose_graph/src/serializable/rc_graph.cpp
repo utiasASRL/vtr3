@@ -218,12 +218,16 @@ void RCGraph::populateEdgesLive() {
     const auto msg = accessor.readAtIndex(*it);
     if (!msg) break;
     auto edge_msg = msg->locked().get().getData();
-    auto edge = RCEdge::MakeShared(edge_msg, msg);
     if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::MANUAL) {
-      extendSimpleGraph(edge);
+      auto new_edge = RCEdge::MakeShared(edge_msg, msg);
+      const auto& eid = new_edge->id();
+      {
+        std::unique_lock lock(mutex_);
+        edges_.at(eid) = new_edge;
+      }
+      CLOG(ERROR, "pose_graph") << "populateEdgesLive: overwrote edge" << eid;
       *it = topology_edges_.back();
       topology_edges_.pop_back();
-      CLOG(DEBUG, "pose_graph") << "popped topology edge";  
     } else {
       ++it;
     }
@@ -238,18 +242,6 @@ void RCGraph::buildSimpleGraph() {
   for (auto it = edges_.begin(); it != edges_.end(); ++it)
     graph_.addEdge(it->first);
 }
-
-// void RCGraph::extendSimpleGraph(const EdgePtr& new_edge){
-//   // update the SimpleGraph with the new privileged edge
-//   const auto& eid = new_edge->id();
-//   CLOG(DEBUG, "pose_graph") << "extendSimpleGraph: edge candidate" << eid;
-//   if (graph_.hasVertex(eid.id1()) && graph_.hasVertex(eid.id2())) {
-//     graph_.addEdge(eid);
-//     CLOG(DEBUG, "pose_graph") << "extendSimpleGraph: added edge";
-//   } else {
-//     return;
-//   }
-// }
 
 void RCGraph::saveGraphIndex() {
   if(read_only_) { 

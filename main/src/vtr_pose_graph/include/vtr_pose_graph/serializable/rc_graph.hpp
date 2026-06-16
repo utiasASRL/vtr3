@@ -132,8 +132,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   void loadEdges();
 
   void buildSimpleGraph();
-  void extendSimpleGraph();
-
+  
   /** \brief Helper methods for saving to disk */
   // void saveGraphIndex();
   void saveVertices();
