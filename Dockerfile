@@ -229,6 +229,17 @@ RUN echo "deb [trusted=yes] https://download.eclipse.org/zenoh/debian-repo /" | 
     chmod +x /usr/bin/systemctl && \
     apt-get install -y zenohd
 
-RUN pip3 install pynacl eclipse-zenoh msgpack zenoh-cli pprintpp
+RUN pip3 install pynacl eclipse-zenoh msgpack zenoh-cli pprintpp pandas
 RUN apt install -q -y ros-humble-rmw-zenoh-cpp
+RUN pip3 install --upgrade matplotlib
 
+WORKDIR $HOMEDIR
+# 1. Switch back to your custom user context
+USER ${USERNAME}
+
+# 2. Safely write to their specific home directory bashrc
+RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ${HOMEDIR}/.bashrc
+RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ${HOMEDIR}/.bashrc
+RUN echo "source /opt/ros/humble/setup.bash; export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> ${HOMEDIR}/.bashrc
+
+# docker run -it --name vtr3   --privileged   --network=myNetwork -p 5200-5202:5200-5202  --ipc=host   -e DISPLAY=$DISPLAY   -v /tmp/.X11-unix:/tmp/.X11-unix   -v ${VTRROOT}:${VTRROOT}:rw   -v /dev:/dev   vtr3
