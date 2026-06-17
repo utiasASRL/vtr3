@@ -279,7 +279,8 @@ void GraphMapServer::updateWaypointCallback(
   if (waypoint_name_msg == nullptr) {
     CLOG(ERROR, "navigation.graph_map_server")
         << "Failed to retrieve waypoint_name for vertex " << msg->vertex_id;
-    throw std::runtime_error{"Failed to retrieve waypoint_name for vertex"};
+      return;
+    // throw std::runtime_error{"Failed to retrieve waypoint_name for vertex"};
   }
   auto locked_waypoint_name_msg_ref = waypoint_name_msg->locked();  // lock the msg
   auto& locked_waypoint_name_msg = locked_waypoint_name_msg_ref.get();
