@@ -145,9 +145,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   && mkdir -p ${HOMEDIR}/.matplotcpp/build && cd ${HOMEDIR}/.matplotcpp/build \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
   
-  
-# ##Install LibTorch
-
+# Setup LibTorch
 ENV LD_LIBRARY_PATH=/usr/local/lib/python3.10/dist-packages/torch/lib:${LD_LIBRARY_PATH}
 ENV CMAKE_PREFIX_PATH=/usr/local/lib/python3.10/dist-packages/torch
   
