@@ -42,6 +42,7 @@ class BFSPlanner : public RoutePlannerInterface {
   GraphPtr getGraph() const;
   /** \brief Returns a privileged graph (only contains teach routes) */
   GraphBasePtr getPrivilegedGraph() const;
+  GraphBasePtr getTopologyGraph() const;
   /** \brief Computes path from -> to given the privileged graph */
   PathType path(const GraphBasePtr &priv_graph, const VertexId &from,
                 const VertexId &to);

@@ -71,6 +71,14 @@ auto BFSPlanner::getPrivilegedGraph() const -> GraphBasePtr {
   return graph->getSubgraph(priv_eval);
 }
 
+auto BFSPlanner::getTopologyGraph() const -> GraphBasePtr {
+  // get the current privileged graph
+  const auto graph = getGraph();
+  using TopEval = tactic::TopologyEvaluator<tactic::GraphBase>;
+  auto top_eval = std::make_shared<TopEval>(*graph);
+  return graph->getSubgraph(top_eval);
+}
+
 auto BFSPlanner::path(const GraphBasePtr &priv_graph, const VertexId &from,
                       const VertexId &to) -> PathType {
   const auto computed_path = priv_graph->dijkstraSearch(from, to);
