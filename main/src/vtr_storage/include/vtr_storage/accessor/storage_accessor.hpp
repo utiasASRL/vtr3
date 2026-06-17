@@ -44,7 +44,7 @@ class StorageAccessor : public BaseReaderInterface, public BaseWriterInterface {
   ~StorageAccessor() override;
 
   void open(const std::string &uri, const bool read_only = false) override;
-  void close() override;
+  void close(const bool read_only = false) override;
 
   /// Reader
   std::shared_ptr<SerializedBagMessage> read_at_timestamp(const Timestamp & timestamp) override;

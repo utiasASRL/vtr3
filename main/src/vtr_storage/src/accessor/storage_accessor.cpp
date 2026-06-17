@@ -68,33 +68,35 @@ void StorageAccessor::open(const std::string& uri, const bool read_only) {
 
   if (!metadata_io_->metadata_file_exists(uri)) return;
 
-  /// Handle case where metadata exists, meaning there's already a bag
-  const auto metadata = metadata_io_->read_metadata(uri);
+  if (!read_only){
+    /// Handle case where metadata exists, meaning there's already a bag 
+    const auto metadata = metadata_io_->read_metadata(uri);
 
-  // sanity check
-  rcpputils::check_true(metadata.relative_file_paths.size() == 1,
-                        "VTR storage does not support multiple bag files.");
-  rcpputils::check_true(metadata.relative_file_paths[0] == relative_file_path,
-                        "Inconsistent database path name detected.");
+    // sanity check
+    rcpputils::check_true(metadata.relative_file_paths.size() == 1,
+                          "VTR storage does not support multiple bag files.");
+    rcpputils::check_true(metadata.relative_file_paths[0] == relative_file_path,
+                          "Inconsistent database path name detected.");
 
-  for (const auto& topic_info : metadata.topics_with_message_count) {
-    const auto insert_res = topics_names_to_info_.insert(
-        std::make_pair(topic_info.topic_metadata.name, topic_info));
-    if (!insert_res.second) {
-      std::stringstream errmsg;
-      errmsg << "Failed to insert topic \"" << topic_info.topic_metadata.name
-             << "\"!";
-      throw std::runtime_error(errmsg.str());
+    for (const auto& topic_info : metadata.topics_with_message_count) {
+      const auto insert_res = topics_names_to_info_.insert(
+          std::make_pair(topic_info.topic_metadata.name, topic_info));
+      if (!insert_res.second) {
+        std::stringstream errmsg;
+        errmsg << "Failed to insert topic \"" << topic_info.topic_metadata.name
+              << "\"!";
+        throw std::runtime_error(errmsg.str());
+      }
     }
   }
 }
 
-void StorageAccessor::close() {
+void StorageAccessor::close(const bool read_only) {
   std::lock_guard<std::mutex> storage_lock(storage_mutex_);
 
   if (!storage_) return;
 
-  if (!base_folder_.empty()) {
+  if (!base_folder_.empty() && !read_only) {
     auto metadata = storage_->get_metadata();
     // get_metadata function returns full path to the database file path, but
     // ros2 bag seems to require relative file paths

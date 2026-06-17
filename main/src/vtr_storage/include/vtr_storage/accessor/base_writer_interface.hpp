@@ -51,7 +51,7 @@ public:
   virtual ~BaseWriterInterface() {}
 
   virtual void open(const std::string & uri, const bool read_only) = 0;
-  virtual void close() = 0;
+  virtual void close(const bool read_only) = 0;
 
   virtual void write(const std::shared_ptr<SerializedBagMessage> & message) = 0;
   virtual void write(const std::vector<std::shared_ptr<SerializedBagMessage>> & messages) = 0;
