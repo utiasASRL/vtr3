@@ -85,7 +85,8 @@ void Tactic::setPipeline(const PipelineMode& pipeline_mode) {
   pipeline_mode_ = pipeline_mode;
 }
 
-void Tactic::addRun(const bool) {
+void Tactic::addRun(const bool ephemeral) {
+  // if (!ephemeral) { return;} //ANTHONY
   graph_->addRun();
   // re-initialize the run
   first_frame_ = true;
@@ -122,9 +123,7 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   CLOG(INFO, "tactic") << "Set path of size " << path.size();
   ///
   CLOG(DEBUG, "tactic") << "LoadLive start (setPath)";
-  graph_->loadVerticesLive();
-  graph_->loadEdgesLive();
-  graph_->populateEdgesLive();
+  graph_->loadLive();
   CLOG(DEBUG, "tactic") << "LoadLive end (setPath)";
 
   auto lock = chain_->guard();
@@ -229,10 +228,12 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
-  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_)";
-  graph_->loadVerticesLive();
-  graph_->loadEdgesLive();
-  graph_->populateEdgesLive();
+  auto ts = *(qdata->stamp.ptr());
+  uint n_sec_interval = 1;
+  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
+  if ((ts % static_cast<unsigned>(n_sec_interval * 1e9)) < (0.005 * 1e9)){ // only loadLive for a small interval each second ANTHONY
+    graph_->loadLive();
+  }
   CLOG(DEBUG, "tactic") << "LoadLive end (runOdometryMapping_)";
 
   // Setup caches
@@ -760,12 +761,12 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
-  *output_->odometry_success = *qdata->odo_success;
-
-  CLOG(DEBUG, "tactic") << "LoadLive start (runLocalization_)";
-  graph_->loadVerticesLive();
-  graph_->loadEdgesLive();
-  graph_->populateEdgesLive();
+  auto ts = *(qdata->stamp.ptr());
+  uint n_sec_interval = 1;
+  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
+  if ((ts % static_cast<unsigned>(n_sec_interval * 1e9)) < (0.005 * 1e9)){ // only loadLive for a small interval each second ANTHONY
+    graph_->loadLive();
+  }
   CLOG(DEBUG, "tactic") << "LoadLive end (runLocalization_)";
 
   switch (pipeline_mode_) {
