@@ -70,7 +70,7 @@ const ID_COLORS = [
   "#aaffc3", // 12 - mint
   "#a9a9a9", // 13 - grey
   "#ffffff", // 14 - white
-  "#000000", // 15 - black (avoid if using dark map tiles)
+  "#000000", // 15 - black
 ];
 
 /// robot constants
@@ -216,6 +216,11 @@ class GraphMap extends React.Component {
     this.props.socket.on("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.on("following_route", this.followingRouteCallback.bind(this));
     this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
+
+    // Poll for graph updates (e.g. topology-only edges populated with data in the background)
+    this.graphPollInterval = setInterval(() => {
+      this.fetchGraphState();
+    }, 5000);
   }
 
   componentWillUnmount() {
@@ -225,6 +230,8 @@ class GraphMap extends React.Component {
     this.props.socket.off("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.off("following_route", this.followingRouteCallback.bind(this));
     this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
+
+    clearInterval(this.graphPollInterval);
   }
 
   displayWaypointMarkers() {
@@ -480,7 +487,7 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** @brief Leaflet map creationg callback */
+  /** @brief Leaflet map creation callback */
   mapCreatedCallback(map) {
     console.debug("Leaflet map created.");
     //
@@ -534,7 +541,7 @@ class GraphMap extends React.Component {
       idCounts.set(robotId, (idCounts.get(robotId) || 0) + 1);
     });
     return [...idCounts.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
-}
+  }
 
   genDefaultWaypointName(id) {
       // Convert decimal string to hex via long division (avoids float64 precision loss)
@@ -555,7 +562,6 @@ class GraphMap extends React.Component {
 
       return "WP-" + vh.toString() + "-" + vl.toString();
   }
-
 
   handleMapClick(e) {
     // Only add waypoints when no tool is selected

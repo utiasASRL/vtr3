@@ -575,8 +575,8 @@ void GraphMapServer::updateVertexType() {
         graph->at(vertex.id)
             ->retrieve<tactic::EnvInfo>("env_info",
                                         "vtr_tactic_msgs/msg/EnvInfo");
-    if (env_info_msg == nullptr) continue; // not yet populated
-    vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
+    if (env_info_msg != nullptr) { vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type; } 
+    else { vertex.type = static_cast<uint8_t>(8); } // not yet populated
     graph->at(vertex.id)->SetTerrainType(vertex.type);
     int vertex_type = vertex.type;
     CLOG(DEBUG, "navigation.graph_map_server") << "Updating Graph Vertex Type: " << vertex_type;
