@@ -124,6 +124,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   void loadVerticesLive();
   void loadEdgesLive();
   void populateEdgesLive();
+  void loadLive();
 
  private:
   /** \brief Helper methods for loading from disk */

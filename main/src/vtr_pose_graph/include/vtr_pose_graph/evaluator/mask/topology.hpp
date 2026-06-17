@@ -39,7 +39,7 @@ ReturnType computeVertex(const GRAPH &graph, const VertexId &v) {
 
 template <class GRAPH>
 ReturnType computeEdge(const GRAPH &graph, const EdgeId &e) {
-  return graph.at(e)->isManual() ||
+  return (graph.at(e)->isManual() || graph.at(e)->isUnknown()) ||
          (computeVertex(graph, e.id1()) && computeVertex(graph, e.id2()));
 }
 

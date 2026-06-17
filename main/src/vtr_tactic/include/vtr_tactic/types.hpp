@@ -48,6 +48,8 @@ using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 template <class GraphT>
 using PrivilegedEvaluator = pose_graph::eval::mask::privileged::Eval<GraphT>;
 template <class GraphT>
+using TopologyEvaluator = pose_graph::eval::mask::topology::Eval<GraphT>;
+template <class GraphT>
 using TemporalEvaluator = pose_graph::eval::mask::temporal::Eval<GraphT>;
 template <class GraphT>
 using DistanceEvaluator = pose_graph::eval::weight::distance::Eval<GraphT>;

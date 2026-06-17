@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file privileged.hpp
+ * \file run_select.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
