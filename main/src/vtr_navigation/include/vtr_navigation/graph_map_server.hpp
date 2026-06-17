@@ -135,6 +135,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   GraphPtr getGraph() const;
   /** \brief Returns a privileged graph (only contains teach routes) */
   GraphBasePtr getPrivilegedGraph() const;
+  GraphBasePtr getTopologyGraph() const;
   /** \brief Compute graph in a privileged frame, changes vid2tf_map_ */
   void optimizeGraph(const GraphBasePtr& priv_graph);
   void updateVertexProjection();

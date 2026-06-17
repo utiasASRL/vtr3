@@ -114,7 +114,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 
   auto graph_lock = graph->guard();  // lock graph then internal lock
   UniqueLock lock(mutex_);
-  const auto priv_graph = getPrivilegedGraph();
+  const auto priv_graph = getTopologyGraph();
   optimizeGraph(priv_graph);
   updateVertexProjection();
   updateVertexType();
@@ -187,7 +187,7 @@ void GraphMapServer::annotateRouteCallback(
   //
   auto graph_lock = graph->guard();  // lock graph then internal lock
   UniqueLock lock(mutex_);
-  const auto priv_graph = getPrivilegedGraph();
+  const auto priv_graph = getTopologyGraph();
   updateVertexType();
   computeRoutes(priv_graph);
   //
@@ -333,7 +333,7 @@ void GraphMapServer::edgeAdded(const EdgePtr& e) {
   UniqueLock lock(mutex_);
   if (updateIncrementally(e)) return;
   //
-  const auto priv_graph = getPrivilegedGraph();
+  const auto priv_graph = getTopologyGraph();
   optimizeGraph(priv_graph);
   updateVertexProjection();
   updateVertexType();
@@ -348,7 +348,7 @@ void GraphMapServer::endRun() {
   UniqueLock lock(mutex_);
   if (getGraph()->numberOfVertices() <= 1) return;
 
-  const auto priv_graph = getPrivilegedGraph();
+  const auto priv_graph = getTopologyGraph();
   optimizeGraph(priv_graph);
   updateVertexProjection();
   updateVertexType();
@@ -427,6 +427,14 @@ auto GraphMapServer::getPrivilegedGraph() const -> GraphBasePtr {
   using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
   auto priv_eval = std::make_shared<PrivEval>(*graph);
   return graph->getSubgraph(priv_eval);
+}
+
+auto GraphMapServer::getTopologyGraph() const -> GraphBasePtr {
+  // get the current privileged graph
+  const auto graph = getGraph();
+  using TopEval = tactic::TopologyEvaluator<tactic::GraphBase>;
+  auto top_eval = std::make_shared<TopEval>(*graph);
+  return graph->getSubgraph(top_eval);
 }
 
 void GraphMapServer::optimizeGraph(const tactic::GraphBase::Ptr& priv_graph) {
@@ -629,8 +637,10 @@ void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
 }
 
 bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
-  // Autonomouse edges do not need to be considered
+  // Autonomous edges do not need to be considered
   if (e->isAutonomous()) return true;
+  // Unknown edges do not need to be considered
+  if (e->isUnknown()) return true;
   // Spatial edge always triggers a complete update
   if (e->isSpatial()) return false;
   // Simply ignore this edge if it is not connected to the main graph (trunk)
