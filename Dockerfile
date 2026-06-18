@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+FROM nvidia/cuda:12.6.0-devel-ubuntu22.04
 
 CMD ["/bin/bash"]
 
@@ -148,7 +148,7 @@ RUN mkdir -p ${HOMEDIR}/opencv/build && cd ${HOMEDIR}/opencv/build \
 -DBUILD_opencv_python3=ON \
 -DWITH_OPENMP=ON \
 -DWITH_CUDA=ON \
--D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.8 \
+-D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-12.6 \
 -DOPENCV_ENABLE_NONFREE=ON \
 -D OPENCV_GENERATE_PKGCONFIG=ON \
 -DWITH_TBB=ON \
@@ -169,7 +169,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   
   
 ##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip --output libtorch.zip
+RUN curl -L https://download.pytorch.org/libtorch/cu126/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcu126.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch && rm /libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}

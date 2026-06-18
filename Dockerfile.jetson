@@ -1,3 +1,5 @@
+# r36.2.0 ships PyTorch ~2.1.0; update tag when dusty-nv publishes a newer build
+# Desktop target uses LibTorch 2.7.1+cu126 — re-export .pt models at matching version for Jetson
 FROM dustynv/l4t-pytorch:r36.2.0
 
 CMD ["/bin/bash"]
