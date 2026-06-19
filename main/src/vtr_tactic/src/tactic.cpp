@@ -1038,7 +1038,7 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
                         EdgeType::Temporal, mode, T_r_v);
 
   // Write new vertex to disk
-  // graph_->saveLive(); ANTHONY
+  graph_->saveLive(); //ANTHONY
 }
 
 void Tactic::updatePersistentLoc(const Timestamp& t, const VertexId& v,

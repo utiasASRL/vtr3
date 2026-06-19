@@ -73,9 +73,9 @@ void EdgeBase::setTransform(const EdgeTransform& T_to_from) {
 
 std::ostream& operator<<(std::ostream& out, const EdgeBase& e) {
   if (e.type() == EdgeType::Spatial)
-    return out << "{" << e.from() << "--" << e.to() << "}";
+    return out << "{" << e.from() << "--" << e.to() << "}" << "mode" << static_cast<unsigned>(e.mode_);
   else if (e.type() == EdgeType::Temporal)
-    return out << "{" << e.from() << "==" << e.to() << "}";
+    return out << "{" << e.from() << "==" << e.to() << "}" << "mode" << static_cast<unsigned>(e.mode_);
   else
     return out << "{" << e.from() << "??" << e.to() << "}";
 }

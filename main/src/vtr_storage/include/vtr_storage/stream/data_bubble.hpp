@@ -250,7 +250,6 @@ bool DataBubble<DataType>::unload(bool clear) {
                   [&](std::pair<const Timestamp, MessagePtr>& element) {
                     messages.push_back(element.second);
                   });
-
     accessor->write(messages);
   }
 
