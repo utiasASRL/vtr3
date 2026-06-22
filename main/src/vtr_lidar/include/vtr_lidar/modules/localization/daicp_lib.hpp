@@ -562,7 +562,6 @@ inline void computeJacobianResidualInformation(
                                std::sqrt(source_pt_original(0) * source_pt_original(0) + 
                                         source_pt_original(1) * source_pt_original(1)));
       const Eigen::Matrix3d Sigma_pL_i = computeRangeBearingCovariance(range, azimuth, elevation, Sigma_du);
-      const Eigen::Matrix3d Sigma_p_world = R_combined * Sigma_pL_i * R_combined.transpose();
       
       // Compute variance components
       const Eigen::RowVector3d J_p = n_t.transpose() * R_combined;
@@ -578,7 +577,7 @@ inline void computeJacobianResidualInformation(
       const Eigen::Matrix3d Sigma_n_i = (sigma_n * sigma_n) * Pn;
       
       // Total variance
-      double cov_r = (J_p * Sigma_p_world * J_p.transpose())(0, 0) +
+      double cov_r = (J_p * Sigma_pL_i * J_p.transpose())(0, 0) +
                      (J_q * Sigma_q_i * J_q.transpose())(0, 0) +
                      (J_n * Sigma_n_i * J_n.transpose())(0, 0);
       
