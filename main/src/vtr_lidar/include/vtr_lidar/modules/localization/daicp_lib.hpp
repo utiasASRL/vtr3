@@ -377,7 +377,7 @@ inline void computeJacobianResidualInformation(
       
     Eigen::VectorXd jacobian(6);
     Eigen::Vector3d target_pt, target_normal;
-    Eigen::Matrix3d Sigma_q_i, Sigma_n_i, Sigma_pL_i, Sigma_p_world;
+    Eigen::Matrix3d Sigma_q_i, Sigma_n_i, Sigma_pL_i;
     Eigen::Vector4d source_pt_hom;
     Eigen::Matrix3d R_combined = T_combined.block<3,3>(0,0);
 
@@ -429,13 +429,9 @@ inline void computeJacobianResidualInformation(
     const Eigen::Matrix3d Pn = Eigen::Matrix3d::Identity() - n_t * n_t.transpose();
     Sigma_n_i = (sigma_n * sigma_n) * Pn;
 
-    // --- Transform LiDAR point covariance to the target/map frame ---
-    // Sigma_p (world) = R * Sigma_p (lidar) * R^T   (R: lidar->world here equals R_combined if p_lidar was in lidar frame)
-    Sigma_p_world = R_combined * Sigma_pL_i * R_combined.transpose();
-
     // --- Scalar residual variance ---
     double cov_r = 0.0;
-    cov_r += (J_p * Sigma_p_world * J_p.transpose())(0,0); // source point noise
+    cov_r += (J_p * Sigma_pL_i * J_p.transpose())(0,0); // source point noise
     cov_r += (J_q * Sigma_q_i    * J_q.transpose())(0,0);  // map point noise
     cov_r += (J_n * Sigma_n_i    * J_n.transpose())(0,0);  // normal noise
 
@@ -459,7 +455,7 @@ inline void computeJacobianResidualInformation(
 
     // Debug
     // CLOG(DEBUG, "lidar.localization_daicp") << "cov_r=" << cov_r
-    //     << "  | JpΣpJp^T=" << (J_p * Sigma_p_world * J_p.transpose())(0,0)
+    //     << "  | JpΣpJp^T=" << (J_p * Sigma_pL_i * J_p.transpose())(0,0)
     //     << "  | JqΣqJq^T=" << (J_q * Sigma_q_i    * J_q.transpose())(0,0)
     //     << "  | JnΣnJn^T=" << (J_n * Sigma_n_i    * J_n.transpose())(0,0);
 
