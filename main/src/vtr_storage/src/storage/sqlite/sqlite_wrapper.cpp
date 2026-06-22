@@ -80,9 +80,9 @@ SqliteWrapper::SqliteWrapper(
     }
     /// \note in rosbag2 the following "default" pragma has been replaced by
     /// user customizable pragma
+    prepare_statement("PRAGMA busy_timeout = 5000;")->execute_and_reset();
     prepare_statement("PRAGMA journal_mode = WAL;")->execute_and_reset();
     prepare_statement("PRAGMA synchronous = NORMAL;")->execute_and_reset();
-    prepare_statement("PRAGMA busy_timeout = 1000;")->execute_and_reset();
   }
 
   sqlite3_extended_result_codes(db_ptr, 1);

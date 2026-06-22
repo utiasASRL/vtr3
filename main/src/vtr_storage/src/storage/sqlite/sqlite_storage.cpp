@@ -179,7 +179,8 @@ void SqliteStorage::activate_transaction()
 #if false
   ROSBAG2_STORAGE_DEFAULT_PLUGINS_LOG_DEBUG_STREAM("begin transaction");
 #endif
-  database_->prepare_statement("BEGIN TRANSACTION;")->execute_and_reset();
+  database_->prepare_statement("BEGIN IMMEDIATE;")->execute_and_reset();
+  // database_->prepare_statement("BEGIN TRANSACTION;")->execute_and_reset(); ANTHONY
 
   active_transaction_ = true;
 }
@@ -201,7 +202,15 @@ void SqliteStorage::commit_transaction()
 void SqliteStorage::write(const std::shared_ptr<SerializedBagMessage> & message)
 {
   std::lock_guard<std::mutex> db_lock(database_write_mutex_);
+  
+  // Clear any active read snapshots on this connection
+  current_message_row_ = ReadQueryResult::Iterator(nullptr, ReadQueryResult::Iterator::POSITION_END);
+  message_result_ = ReadQueryResult(nullptr);
+  read_statement_ = nullptr;
+  
+  activate_transaction();
   write_locked(message);
+  commit_transaction();
 }
 
 void SqliteStorage::write(const std::vector<std::shared_ptr<SerializedBagMessage>> & messages)
@@ -212,15 +221,18 @@ void SqliteStorage::write(const std::vector<std::shared_ptr<SerializedBagMessage
   }
   /// \note cannot use transaction here because we need the last insertion id,
   /// which may not be correct if we use transaction.
-#if false
+// #if false
+  current_message_row_ = ReadQueryResult::Iterator(nullptr, ReadQueryResult::Iterator::POSITION_END);
+  message_result_ = ReadQueryResult(nullptr);
+  read_statement_ = nullptr;// ensure statement wrapper is freed
   activate_transaction();
-#endif
+// #endif
   for (const auto & message : messages) {
     write_locked(message);
   }
-#if false
+// #if false
   commit_transaction();
-#endif
+// #endif
 }
 
 void SqliteStorage::write_locked(const std::shared_ptr<SerializedBagMessage> & message)
@@ -576,6 +588,7 @@ void SqliteStorage::prepare_for_reading()
   message_result_ = read_statement_->execute_query<
     std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>();
   current_message_row_ = message_result_.begin();
+  read_statement_ = nullptr; // close the read transaction
 }
 
 void SqliteStorage::fill_topics_and_types()
