@@ -300,7 +300,7 @@
       feature_mapping:
         type: lidar.visual_map_maintenance
 
-        feature_voxel_size: 0.3       # landmark dedup voxel size (m)
+        feature_voxel_size: 0.1       # landmark dedup voxel size (m)
         feature_life_time: 20.0       # scans without re-observation before expiry
         descriptor_merge_dist: 50.0   # max ORB Hamming distance to merge as same landmark
         visualize: true
