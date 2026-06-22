@@ -36,8 +36,10 @@ enum class Action : int8_t {
                  // only replaces
   AppendGoal,    // Append a new temporary goal state (eg. taking a brief detour
                  // to reteach a bad looking area)
-  EndGoal  // User indication that a goal is complete (eg. mapping/repair is
+  EndGoal,  // User indication that a goal is complete (eg. mapping/repair is
            // done now)
+  ForceAddVertex, // Add a vertex at the robot's current pose during a teach
+  ExitPause,    // Exit the pause state and resume previous activity
 };
 
 std::ostream& operator<<(std::ostream& os, const Action& action);
@@ -51,7 +53,7 @@ enum class Signal : int8_t {
   Continue = 0,  // Keep going with this state (default action)
   // [teach::merge]
   AttemptClosure,  // Attempt to link back to the existing map
-  ContinueTeach    // Cannot merge or user has canceled merge, continue teaching
+  ContinueTeach,    // Cannot merge or user has canceled merge, continue teaching
 };
 
 std::ostream& operator<<(std::ostream& os, const Signal& signal);
@@ -67,7 +69,12 @@ struct Event {
   static Event::Ptr StartTeach();
   static Event::Ptr StartMerge(const std::vector<VertexId>& match_window);
   static Event::Ptr StartRepeat(const std::list<VertexId>& waypoints);
+  static Event::Ptr StartLocalize(const std::list<VertexId>& search_range);
+  static Event::Ptr StartPause();
+  static Event::Ptr SwitchController(const std::string& new_controller);
+
   static Event::Ptr Reset();
+  static Event::Ptr EndGoal();
 
   std::string signalName() const;
   std::string actionName() const;

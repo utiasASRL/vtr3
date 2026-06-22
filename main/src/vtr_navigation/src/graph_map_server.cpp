@@ -59,6 +59,7 @@ Eigen::Matrix4d fromLngLatTheta(const double lng, const double lat,
 void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
                            const GraphPtr& graph) {
   graph_ = graph;
+  graph_state_.name = graph->filePath();
 
   // clang-format off
   /// Parameters: default to UTIAS campus, only for initialization
@@ -382,6 +383,7 @@ void GraphMapServer::updateRobotProjection() {
     robot_state_.lat = lat;
     robot_state_.theta = theta;
     robot_state_.localized = robot_persistent_loc_.localized;
+    robot_state_.index = robot_persistent_loc_.v;
   } else {
     robot_state_.valid = false;
   }

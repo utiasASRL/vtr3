@@ -20,6 +20,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "vtr_pose_graph/tools/pose_graph_smoother.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/pipeline_interface.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
@@ -87,6 +88,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   void setPipeline(const PipelineMode& pipeline_mode) override;
   void addRun(const bool ephemeral = false) override;
   void finishRun() override;
+  void setForceAddVertex(const bool force_add_vertex) override; 
   void setPath(const VertexId::Vector& path, const unsigned& trunk_sid = 0,
                const EdgeTransform& T_twig_branch = EdgeTransform(true),
                const bool publish = false) override;
@@ -112,6 +114,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool teachMergeOdometryMapping(const QueryCache::Ptr& qdata);
   bool repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
   bool repeatFollowOdometryMapping(const QueryCache::Ptr& qdata);
+  bool localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
 
   /** \brief Performs the actual localization task */
   bool runLocalization_(const QueryCache::Ptr& qdata) override;
@@ -120,6 +123,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   bool teachMergeLocalization(const QueryCache::Ptr& qdata);
   bool repeatMetricLocLocalization(const QueryCache::Ptr& qdata);
   bool repeatFollowLocalization(const QueryCache::Ptr& qdata);
+  bool localizeMetricLocLocalization(const QueryCache::Ptr& qdata);
 
  private:
   /// pipeline helper functions and states
@@ -132,6 +136,13 @@ class Tactic : public PipelineInterface, public TacticInterface {
    * \note Only change this variable when pipeline is locked.
    */
   bool first_frame_ = true;
+
+  /**
+   * \brief Whether we have been commanded to add a vertex
+   * \note Only change this when pipeline is locked
+   */
+  bool force_add_vertex_ = false;
+
 
   /**
    * \brief Current vertex id for odometry, only used by odometry thread
@@ -151,6 +162,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
   const OutputCache::Ptr output_;
   const LocalizationChain::Ptr chain_;
   const Graph::Ptr graph_;
+  const pose_graph::GraphSmoother<Vertex, Edge> smoother_;
 
   /// robot status update related
  private:
@@ -181,6 +193,8 @@ class Tactic : public PipelineInterface, public TacticInterface {
   EdgeTransform T_w_v_odo_ = EdgeTransform(true);
   /** \brief Transformation from the localization vertex frame to world frame */
   EdgeTransform T_w_v_loc_ = EdgeTransform(true);
+
+  EdgeTransform T_m_w_ = EdgeTransform(true);
 
   friend class TacticCallbackInterface;
 };

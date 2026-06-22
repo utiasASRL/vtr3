@@ -29,6 +29,7 @@ namespace vtr::path_planning
 struct SpeedSchedConfig {
     double target_vel = 1;
     double min_vel = 0;
+    double eop_min_vel = 0;
     
     double planar_curv_weight = 0;
     double profile_curv_weight = 0;
@@ -37,5 +38,6 @@ struct SpeedSchedConfig {
 };
 
 double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params);
+double ScheduleSpeed(tactic::LocalizationChain::Ptr chain, const SpeedSchedConfig& params, bool direction_switch);
   
 } // namespace vtr::path_planning

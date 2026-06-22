@@ -22,19 +22,17 @@
 namespace vtr {
 namespace path_planning {
 
-// Default constructor definition
-VisualizationUtils::VisualizationUtils() {
-}
 
 VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
-    mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", 10);
+    mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
+    leader_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("leader_mpc_prediction", 10);
     robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
     path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
     corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
     corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
-    ref_pose_pub_tracking_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_tracking", 10);
-    ref_pose_pub_homotopy_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array_homotopy", 10);
+    ref_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array", 10);
+    local_ref_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseArray>("local_mpc_ref_pose_array", 10);
     path_info_for_external_navigation_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>("path_info_for_external_navigation", 10);
 }
 
@@ -47,8 +45,7 @@ void VisualizationUtils::visualize(
     const std::vector<lgmath::se3::Transformation>& mpc_prediction,
     const std::vector<Eigen::Vector2d>& mpc_velocities,
     const std::vector<lgmath::se3::Transformation>& robot_prediction,
-    const std::vector<lgmath::se3::Transformation>& tracking_pose_vec,
-    const std::vector<lgmath::se3::Transformation>& homotopy_pose_vec,
+    const std::vector<lgmath::se3::Transformation>& reference_pose_vec,
     const std::shared_ptr<std::vector<Pose>> cbit_path_ptr,
     const std::shared_ptr<CBITCorridor> corridor_ptr,
     const lgmath::se3::Transformation& T_w_p_interpolated_closest_to_robot,
@@ -170,19 +167,7 @@ void VisualizationUtils::visualize(
     }
 
     /// Publishing the MPC horizon prediction
-    {
-        nav_msgs::msg::Path mpc_path;
-        mpc_path.header.frame_id = "world";
-        mpc_path.header.stamp = rclcpp::Time(stamp);
-        auto& poses = mpc_path.poses;
-
-        // intermediate states
-        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
-        auto& pose = poses.emplace_back();
-        pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
-        }
-        mpc_path_pub_->publish(mpc_path);
-    }
+    publishMPCRollout(mpc_prediction, stamp);
 
     /// Publishing the history of the robots actual pose
     {
@@ -275,36 +260,91 @@ void VisualizationUtils::visualize(
         corridor_pub_r_->publish(corridor_right);
     }
 
+    publishReferencePoses(reference_pose_vec, stamp);
+
+    
+    return;
+}
+
     // Attempting to Publish the reference poses used in the mpc optimization as a pose array
-    {
+    void VisualizationUtils::publishReferencePoses(const std::vector<lgmath::se3::Transformation>& ref_poses, const tactic::Timestamp& stamp) {
+
         // create a PoseArray message
         geometry_msgs::msg::PoseArray pose_array_msg;
         pose_array_msg.header.frame_id = "world";
+        pose_array_msg.header.stamp = rclcpp::Time(stamp);
 
         // fill the PoseArray with some sample poses
-        for (size_t i = 0; i < tracking_pose_vec.size(); i++) {
-            auto T1 = tracking_pose_vec[i].matrix();
+        for (size_t i = 0; i < ref_poses.size(); i++) {
+            auto T1 = ref_poses[i].matrix();
             pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T1)));
         }
-        ref_pose_pub_tracking_->publish(pose_array_msg);
+        ref_pose_pub_->publish(pose_array_msg);
     }
 
-        // Attempting to Publish the reference poses used in the mpc optimization as a pose array
-    {
+    // Attempting to Publish the reference poses used in the mpc optimization as a pose array
+    void VisualizationUtils::publishLocalReferencePoses(const std::vector<lgmath::se3::Transformation>& ref_poses, const tactic::Timestamp& stamp) {
+
         // create a PoseArray message
         geometry_msgs::msg::PoseArray pose_array_msg;
-        pose_array_msg.header.frame_id = "world";
+        pose_array_msg.header.frame_id = "path";
+        pose_array_msg.header.stamp = rclcpp::Time(stamp);
 
         // fill the PoseArray with some sample poses
-        for (size_t i = 0; i < homotopy_pose_vec.size(); i++) {
-            auto T2 = homotopy_pose_vec[i].matrix();
-            pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T2)));
+        for (size_t i = 0; i < ref_poses.size(); i++) {
+            auto T1 = ref_poses[i].matrix();
+            pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T1)));
         }
-        ref_pose_pub_homotopy_->publish(pose_array_msg);
-    }
-    return;
+        local_ref_pose_pub_->publish(pose_array_msg);
     }
     
+
+    void VisualizationUtils::publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
+        nav_msgs::msg::Path mpc_path;
+        mpc_path.header.frame_id = "world";
+        mpc_path.header.stamp = rclcpp::Time(stamp);
+        auto& poses = mpc_path.poses;
+
+        // intermediate states
+        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
+            auto& pose = poses.emplace_back();
+            pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
+            pose.header.stamp = rclcpp::Time(stamp + i*dt*1e9);
+        }
+        mpc_path_pub_->publish(mpc_path);
+    }
+
+    void VisualizationUtils::publishMPCRollout(const std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>>& mpc_prediction) {
+        nav_msgs::msg::Path mpc_path;
+        mpc_path.header.frame_id = "world";
+        mpc_path.header.stamp = rclcpp::Time(mpc_prediction[1].first);
+        auto& poses = mpc_path.poses;
+
+        // intermediate states
+        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
+            auto& pose = poses.emplace_back();
+            pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].second.matrix()));
+            pose.header.stamp = rclcpp::Time(mpc_prediction[i].first);
+            pose.header.frame_id = "world";
+        }
+        mpc_path_pub_->publish(mpc_path);
+    }
+
+    void VisualizationUtils::publishLeaderRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
+        nav_msgs::msg::Path mpc_path;
+        mpc_path.header.frame_id = "world";
+        mpc_path.header.stamp = rclcpp::Time(stamp);
+        auto& poses = mpc_path.poses;
+
+        // intermediate states
+        for (unsigned i = 0; i < mpc_prediction.size(); ++i) {
+            auto& pose = poses.emplace_back();
+            pose.pose = tf2::toMsg(Eigen::Affine3d(mpc_prediction[i].matrix()));
+            pose.header.stamp = rclcpp::Time(stamp + i*dt*1e9);
+            pose.header.frame_id = "world";
+        }
+        leader_path_pub_->publish(mpc_path);
+    }
 
 
 } // namespace path_planning

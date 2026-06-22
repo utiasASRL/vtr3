@@ -27,8 +27,8 @@ class VTRUIProxy(BaseProxy):
   """Multiprocessing.Manager proxy for a VTRUI object."""
 
   _exposed_ = ('get_graph_state', 'get_robot_state', 'get_following_route', 'get_server_state', 'get_task_queue_state',
-               'set_pause', 'add_goal', 'cancel_goal', 'begin_goals', 'update_waypoint', 'annotate_route', 'move_graph', 'move_robot', 
-               'merge', 'confirm_merge', 'continue_teach', 'change_env_info', 'get_map_info')
+               'set_pause', 'add_goal', 'cancel_goal', 'cancel_all_goals', 'begin_goals', 'update_waypoint', 'annotate_route', 'move_graph', 'move_robot', 
+               'merge', 'confirm_merge', 'continue_teach', 'change_env_info', 'get_map_info', 'force_add_vertex')
 
   def get_graph_state(self):
     return self._callmethod('get_graph_state')
@@ -53,6 +53,9 @@ class VTRUIProxy(BaseProxy):
 
   def cancel_goal(self, command):
     return self._callmethod('cancel_goal', args=(command,))
+
+  def cancel_all_goals(self):
+    return self._callmethod('cancel_all_goals')
 
   def begin_goals(self):
     return self._callmethod('begin_goals')
@@ -83,6 +86,12 @@ class VTRUIProxy(BaseProxy):
   
   def get_map_info(self):
     return self._callmethod('get_map_info')
+  
+  def change_controller(self, command):
+    return self._callmethod('change_controller', args=(command,))
+
+  def force_add_vertex(self):
+    return self._callmethod('force_add_vertex')
 
 
 def build_master(vtr_ui_class=VTRUI):

@@ -44,7 +44,7 @@
 #include "vtr_path_planning/cbit/cbit_costmap.hpp"
 #include "vtr_path_planning/cbit/visualization_utils.hpp"
 #include "vtr_path_planning/mpc/speed_scheduler.hpp"
-#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+#include "vtr_path_planning/mpc/casadi_path_planners.hpp"
 
 #include "steam.hpp"
 
@@ -116,6 +116,7 @@ class CBIT : public BasePathPlanner {
     double robot_angular_velocity_scale = 1.0;
 
     // Add unicycle model param
+    std::string kinematic_model = "unicycle"; //Options are unicycle and ackermann
 
     // Misc
     int command_history_length = 100;
@@ -131,6 +132,7 @@ class CBIT : public BasePathPlanner {
 
   CBIT(const Config::ConstPtr& config,
                  const RobotState::Ptr& robot_state,
+                 const tactic::GraphBase::Ptr& graph,
                  const Callback::Ptr& callback);
   ~CBIT() override;
 
@@ -147,7 +149,7 @@ class CBIT : public BasePathPlanner {
 
   std::shared_ptr<CBITPlanner> planner_ptr_;
 
-  CasadiUnicycleMPC solver_;
+  CasadiMPC::Ptr solver_;
 
   // Pointers to the output path
   std::vector<Pose> cbit_path;

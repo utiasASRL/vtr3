@@ -50,7 +50,8 @@ namespace {
 
 EdgeTransform loadTransform(const std::string& source_frame,
                             const std::string& target_frame,
-                            const double tf_timeout) {
+                            const double tf_timeout,
+                            bool is_critical=true) {
   auto clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
@@ -71,6 +72,11 @@ EdgeTransform loadTransform(const std::string& source_frame,
   CLOG(WARNING, "navigation")
       << "Transform not found - source: " << source_frame
       << " target: " << target_frame << ". Default to identity.";
+  if (is_critical)
+    throw std::runtime_error(
+          "Navigator: Throwing error for missing transform between " + source_frame +
+          " and " + target_frame);
+
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
   return T_source_target;
@@ -110,7 +116,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   /// path planner
   auto planner_factory = std::make_shared<ROSPathPlannerFactory>(node_);
   path_planner_ =
-      planner_factory->get("path_planning", pipeline_output,
+      planner_factory->get("path_planning", pipeline_output, graph_,
                            std::make_shared<CommandPublisher>(node_));
 
   /// route planner
@@ -147,7 +153,7 @@ if (pipeline->name() == "lidar"){
     node_->declare_parameter<double>("gyro_bias.y", 0.0),
     node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_, tf_timeout_);
-  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_, false);
   // static transform
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
@@ -222,11 +228,15 @@ if (pipeline->name() == "radar") {
 }
 #endif
 
-  // Subscribe to the imu topic 
-  auto gyro_qos = rclcpp::QoS(100);
-  gyro_qos.reliable();
-  const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
-  gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
+  auto gyro_enabled = node_->declare_parameter<bool>("gyro_enabled", true);
+
+  if (gyro_enabled) {
+    // Subscribe to the imu topic
+    auto gyro_qos = rclcpp::QoS(100);
+    gyro_qos.reliable();
+    const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
+    gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
+  }
 
 
   /// This creates a thread to process the sensor input
@@ -310,7 +320,7 @@ void Navigator::lidarCallback(
   LockGuard lock(mutex_);
 
   /// Discard old frames if our queue is too big
-  if (queue_.size() > max_queue_size_) {
+  if (queue_.size() >= max_queue_size_) {
     CLOG(WARNING, "navigation")
         << "Dropping pointcloud message " << *queue_.front()->stamp << " because the queue is full.";
     queue_.pop();
@@ -349,7 +359,7 @@ void Navigator::radarCallback(
   // set the timestamp
   Timestamp timestamp_radar = msg->b_scan_img.header.stamp.sec * 1e9 + msg->b_scan_img.header.stamp.nanosec;
 
-  CLOG(DEBUG, "navigation") << "Received a radar Image with stamp " << timestamp_radar;
+  CLOG(DEBUG, "navigation") << "Received a radar image with stamp " << timestamp_radar;
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<radar::RadarQueryCache>();
@@ -357,7 +367,7 @@ void Navigator::radarCallback(
   LockGuard lock(mutex_);
 
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  if (queue_.size() > max_queue_size_) {
+  if (queue_.size() >= max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
     CLOG(WARNING, "navigation")
         << "Dropping old message because the queue is full.";
     queue_.pop();
@@ -385,7 +395,7 @@ void Navigator::radarCallback(
   query_data->T_s_r.emplace(T_radar_robot_);
 
   // add to the queue and notify the processing thread
-  CLOG(DEBUG, "navigation") << "Sam: In the callback: Adding radar message to the queue";
+  CLOG(DEBUG, "navigation") << "Adding radar message to the queue";
   queue_.push(query_data);
 
   cv_set_or_stop_.notify_one();
@@ -416,7 +426,7 @@ void Navigator::cameraCallback(
   CLOG(DEBUG, "navigation") << "Received an image.";
 
   /// Discard old frames if our queue is too big
-  if (queue_.size() > max_queue_size_) {
+  if (queue_.size() >= max_queue_size_) {
     CLOG(WARNING, "navigation")
         << "Dropping old image " << *queue_.front()->stamp << " because the queue is full.";
     queue_.pop();

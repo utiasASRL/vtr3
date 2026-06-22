@@ -44,6 +44,8 @@ class TacticInterface {
   virtual void addRun(bool ephemeral = false) = 0;
   /** \brief Indicate that the current run has finished */
   virtual void finishRun() = 0;
+  /** \brief Whether to force through a vertex add, commanded by user **/
+  virtual void setForceAddVertex(const bool force_add_vertex)  = 0;
   /** \brief Set the path being followed */
   virtual void setPath(const PathType& path, const unsigned& trunk_sid = 0,
                        const EdgeTransform& T_twig_branch = EdgeTransform(true),

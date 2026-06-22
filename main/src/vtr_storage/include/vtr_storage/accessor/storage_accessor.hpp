@@ -43,7 +43,7 @@ class StorageAccessor : public BaseReaderInterface, public BaseWriterInterface {
  public:
   ~StorageAccessor() override;
 
-  void open(const std::string &uri) override;
+  void open(const std::string &uri, const bool read_only = false) override;
   void close() override;
 
   /// Reader

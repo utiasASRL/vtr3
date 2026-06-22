@@ -73,6 +73,7 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
   config->min_vel = node->declare_parameter<double>(prefix + ".speed_scheduler.min_vel", config->min_vel);
 
   // CONTROLLER PARAMS
+  config->kinematic_model = node->declare_parameter<std::string>(prefix + ".mpc.vehicle_model", config->kinematic_model);
   config->extrapolate_robot_pose = node->declare_parameter<bool>(prefix + ".mpc.extrapolate_robot_pose", config->extrapolate_robot_pose);
   config->mpc_verbosity = node->declare_parameter<bool>(prefix + ".mpc.mpc_verbosity", config->mpc_verbosity);
   config->forward_vel = node->declare_parameter<double>(prefix + ".mpc.forward_vel", config->forward_vel);
@@ -97,11 +98,19 @@ auto CBIT::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::strin
 // Declare class as inherited from the BasePathPlanner
 CBIT::CBIT(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
+                               const tactic::GraphBase::Ptr& graph,
                                const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, callback), config_(config), solver_{config_->mpc_verbosity} {
+    : BasePathPlanner(config, robot_state, graph, callback), config_(config) {
   CLOG(INFO, "cbit.path_planning") << "Constructing the CBIT Class";
   robot_state_ = robot_state;
   const auto node = robot_state->node.ptr();
+
+  if(config->kinematic_model == "unicycle")
+    solver_ = std::make_shared<CasadiUnicycleMPC>(config->mpc_verbosity);
+  else{
+    CLOG(ERROR, "cbit") << "Config parameter vehicle_model must be one of 'unicycle'";
+    throw std::invalid_argument("Config parameter vehicle_model must be one of 'unicycle'");
+  }
 
   // Create visualizer and its corresponding pointer:
   VisualizationUtils visualization_utils(node);
@@ -360,18 +369,6 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
   // Dont proceed to mpc control unless we have a valid plan to follow from BIT*, else return a 0 velocity command to stop and wait
   if (cbit_path_ptr->size() != 0)
   {
-
-    CasadiUnicycleMPC::Config mpcConfig;
-    mpcConfig.vel_max = {config_->max_lin_vel, config_->max_ang_vel};
-
-
-    // Initializations from config
-    
-    // Schedule speed based on path curvatures + other factors
-    // TODO refactor to accept the chain and use the curvature of the links
-    mpcConfig.VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
-
-  
     // EXTRAPOLATING ROBOT POSE INTO THE FUTURE TO COMPENSATE FOR SYSTEM DELAYS
     // Removing for now. I'm not sure this is a good idea with noisy velocity estimates
     auto T_p_r_extp = T_p_r;
@@ -390,31 +387,46 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
 
       CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:"  << T_p_r_extp;
     }
-
-    lgmath::se3::Transformation T0 = T_p_r_extp;
-    mpcConfig.T0 = tf_to_global(T0);
-
     CLOG(DEBUG, "cbit.control") << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
 
-    double state_p = findRobotP(T_w_p * T_p_r_extp, chain);
+    double state_p = findRobotP(T_w_p * T_p_r_extp, chain).second;
+    std::shared_ptr<PoseResultHomotopy> referenceInfo;
 
-    std::vector<double> p_rollout;
-    for(int j = 1; j < mpcConfig.N+1; j++){
-      p_rollout.push_back(state_p + j*mpcConfig.VF*mpcConfig.DT);
+    CasadiMPC::Config::Ptr baseMpcConfig;
+
+    if (config_->kinematic_model == "unicycle"){
+      CasadiUnicycleMPC::Config::Ptr mpcConfig = std::make_shared<CasadiUnicycleMPC::Config>();;
+      mpcConfig->vel_max = {config_->max_lin_vel, config_->max_ang_vel};
+
+      // Initializations from config
+      
+      // Schedule speed based on path curvatures + other factors
+      // TODO refactor to accept the chain and use the curvature of the links
+      mpcConfig->VF = ScheduleSpeed(chain, {config_->forward_vel, config_->min_vel, config_->planar_curv_weight, config_->profile_curv_weight, config_->eop_weight, 7});
+
+      lgmath::se3::Transformation T0 = T_p_r_extp;
+      mpcConfig->T0 = tf_to_global(T0);
+
+      std::vector<double> p_rollout;
+      for(int j = 1; j < mpcConfig->N+1; j++){
+        p_rollout.push_back(state_p + j*mpcConfig->VF*mpcConfig->DT);
+      }
+
+      referenceInfo = std::make_shared<PoseResultHomotopy>(generateHomotopyReference(p_rollout, chain));
+
+      mpcConfig->reference_poses.clear();
+
+      for(const auto& Tf : referenceInfo->poses) {
+        mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
+        CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
+      }
+
+      mpcConfig->up_barrier_q = referenceInfo->barrier_q_max;
+      mpcConfig->low_barrier_q = referenceInfo->barrier_q_min;
+      
+      mpcConfig->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
+      baseMpcConfig = mpcConfig;
     }
-
-    mpcConfig.reference_poses.clear();
-    auto referenceInfo = generateHomotopyReference(p_rollout, chain);
-    for(const auto& Tf : referenceInfo.poses) {
-      mpcConfig.reference_poses.push_back(tf_to_global(T_w_p.inverse() *  Tf));
-      CLOG(DEBUG, "test") << "Target " << tf_to_global(T_w_p.inverse() *  Tf);
-    }
-
-    mpcConfig.up_barrier_q = referenceInfo.barrier_q_max;
-    mpcConfig.low_barrier_q = referenceInfo.barrier_q_min;
-    
-    mpcConfig.previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5, 0)};
-   
 
     // Create and solve the casadi optimization problem
     std::vector<lgmath::se3::Transformation> mpc_poses;
@@ -423,7 +435,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     std::vector<Eigen::Vector2d> mpc_velocities;
     try {
       CLOG(INFO, "cbit.control") << "Attempting to solve the MPC problem";
-      auto mpc_res = solver_.solve(mpcConfig);
+      auto mpc_res = solver_->solve(*baseMpcConfig);
       
       for(int i = 0; i < mpc_res["pose"].columns(); i++) {
         const auto& pose_i = mpc_res["pose"](casadi::Slice(), i).get_elements();
@@ -454,7 +466,7 @@ auto CBIT::computeCommand_(RobotState& robot_state) -> Command {
     lgmath::se3::Transformation T_w_p_interpolated_closest_to_robot = interpolatedPose(state_p, chain);
 
     // visualize the outputs
-    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_w_r, mpc_poses, mpc_velocities, robot_poses, referenceInfo.poses, referenceInfo.poses, cbit_path_ptr, corridor_ptr, T_w_p_interpolated_closest_to_robot, state_p, global_path_ptr, curr_sid);
+    visualization_ptr->visualize(stamp, T_w_p, T_p_r, T_p_r_extp, T_w_r, mpc_poses, mpc_velocities, robot_poses, referenceInfo->poses, cbit_path_ptr, corridor_ptr, T_w_p_interpolated_closest_to_robot, state_p, global_path_ptr, curr_sid);
 
     return command;
   }

@@ -116,6 +116,8 @@ def goal_handle_from_ros(ros_goal_handle):
     goal_handle["type"] = "teach"
   elif ros_goal_handle.type == GoalHandle.REPEAT:
     goal_handle["type"] = "repeat"
+  elif ros_goal_handle.type == GoalHandle.LOCALIZE:
+    goal_handle["type"] = "localize"
   else:
     goal_handle["type"] = "unknown"
   # pause before
@@ -235,6 +237,8 @@ class SocketVTRUI(VTRUI):
       ros_command.goal_handle.type = GoalHandle.TEACH
     elif (data['type'] == 'repeat'):
       ros_command.goal_handle.type = GoalHandle.REPEAT
+    elif (data['type'] == 'localize'):
+      ros_command.goal_handle.type = GoalHandle.LOCALIZE
     else:
       ros_command.goal_handle.type = GoalHandle.IDLE
     ros_command.goal_handle.pause_before = int(data['pause_before'] * 1000)
@@ -247,11 +251,22 @@ class SocketVTRUI(VTRUI):
     ros_command.type = MissionCommand.CANCEL_GOAL
     ros_command.goal_handle.id = [int(id) for id in data['id']]
     return super().cancel_goal(ros_command)
+
+  def cancel_all_goals(self):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.CANCEL_GOAL
+    ros_command.goal_handle.id = [0 for i in range(16)]
+    return super().cancel_goal(ros_command)
   
   def begin_goals(self):
     ros_command = MissionCommand()
     ros_command.type = MissionCommand.BEGIN_GOALS
     return super().begin_goals(ros_command)
+
+  def force_add_vertex(self):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.FORCE_ADD_VERTEX
+    return super().force_add_vertex(ros_command)
 
   def move_robot(self, data):
     ros_command = MissionCommand()
@@ -303,6 +318,14 @@ class SocketVTRUI(VTRUI):
     ros_env_info = EnvInfo()
     ros_env_info.terrain_type = int(data['terrain_type'])
     return super().change_env_info(ros_env_info)
+  
+  def change_controller(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.ADD_GOAL
+    ros_command.goal_handle.type = GoalHandle.SELECT_CONTROLLER
+    ros_command.goal_handle.controller_name = data['controller_name']
+    return super().change_controller(ros_command)
+
 
   def _notify_hook(self, name, *args, **kwargs):
     if name == 'graph_state':

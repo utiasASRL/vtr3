@@ -27,11 +27,11 @@ namespace vtr {
 namespace pose_graph {
 
 RCGraph::RCGraph(const std::string& file_path, const bool load,
-                 const CallbackPtr& callback)
+                 const CallbackPtr& callback, const bool read_only)
     : GraphType(callback),
       file_path_(file_path),
       name2accessor_map_(std::make_shared<LockableName2AccessorMap>(
-          fs::path{file_path} / "data", Name2AccessorMapBase())) {
+          fs::path{file_path} / "data", Name2AccessorMapBase())), read_only_(read_only) {
   if (load && fs::exists(fs::path(file_path_) / "index")) {
     CLOG(INFO, "pose_graph") << "Loading pose graph from " << file_path;
     loadGraphIndex();
@@ -39,6 +39,10 @@ RCGraph::RCGraph(const std::string& file_path, const bool load,
     loadEdges();
     buildSimpleGraph();
   } else {
+    if (read_only) {
+      CLOG(ERROR, "pose_graph") << "Requested pose graph as read only but requested to make a new one!";
+      throw std::runtime_error("Requested making a new read-only pose graph");
+    }
     CLOG(INFO, "pose_graph") << "Creating a new pose graph.";
     if (fs::exists(file_path_)) fs::remove_all(file_path_);
     auto data = std::make_shared<GraphMsg>();
@@ -48,6 +52,10 @@ RCGraph::RCGraph(const std::string& file_path, const bool load,
 
 void RCGraph::save() {
   std::unique_lock lock(mutex_);
+  if(read_only_) { 
+    CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
+    return;
+  }
   CLOG(INFO, "pose_graph") << "Saving pose graph";
   saveGraphIndex();
   saveVertices();
@@ -60,7 +68,7 @@ auto RCGraph::addVertex(const Timestamp& time) -> VertexPtr {
 }
 
 void RCGraph::loadGraphIndex() {
-  GraphMsgAccessor accessor{fs::path{file_path_}, "index", "vtr_pose_graph_msgs/msg/Graph"};
+  GraphMsgAccessor accessor{fs::path{file_path_}, "index", "vtr_pose_graph_msgs/msg/Graph", read_only_};
   msg_ = accessor.readAtIndex(1);
   if (!msg_) {
     std::string err{"Graph index message does not exist."};
@@ -83,7 +91,7 @@ void RCGraph::loadGraphIndex() {
 void RCGraph::loadVertices() {
   CLOG(DEBUG, "pose_graph") << "Loading vertices from disk";
 
-  VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
+  VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", read_only_};
   for (int index = 1;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
@@ -98,7 +106,7 @@ void RCGraph::loadVertices() {
 void RCGraph::loadEdges() {
   CLOG(DEBUG, "pose_graph") << "Loading edges from disk";
 
-  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
+  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", read_only_};
   for (int index = 1;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
@@ -120,6 +128,11 @@ void RCGraph::buildSimpleGraph() {
 }
 
 void RCGraph::saveGraphIndex() {
+  if(read_only_) { 
+    CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
+    return;
+  }
+
   GraphMsg data;
   data.curr_major_id = curr_major_id_;
   data.curr_minor_id = curr_minor_id_;
@@ -137,6 +150,11 @@ void RCGraph::saveGraphIndex() {
 }
 
 void RCGraph::saveVertices() {
+  if(read_only_) { 
+    CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
+    return;
+  }
+
   // save any unsaved data first
   CLOG(DEBUG, "pose_graph") << "Saving vertices to disk";
   for (auto iter = vertices_.begin(); iter != vertices_.end(); ++iter)
@@ -147,6 +165,11 @@ void RCGraph::saveVertices() {
 }
 
 void RCGraph::saveEdges() {
+  if(read_only_) { 
+    CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
+    return;
+  }
+
   CLOG(DEBUG, "pose_graph") << "Saving edges to disk";
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
   for (auto it = edges_.begin(); it != edges_.end(); ++it)

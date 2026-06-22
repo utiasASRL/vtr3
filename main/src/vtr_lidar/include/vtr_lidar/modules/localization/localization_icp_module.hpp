@@ -68,10 +68,6 @@ class LocalizationICPModule : public tactic::BaseModule {
     float max_trans_diff = 100.0;  // Maximum translation difference between ICP result and initial guess in meters
     float max_rot_diff = 0.5;      // Maximum rotation difference between ICP result and initial guess in radians
 
-    // Time above which the localization ICP module will be skipped. (in ms)
-    // For lidar running at 10 Hz, a good choice is < 50 ms to allow both odometry and localization to run
-    float target_loc_time = 1000000.0;
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };

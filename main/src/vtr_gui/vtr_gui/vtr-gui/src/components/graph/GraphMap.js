@@ -272,7 +272,7 @@ class GraphMap extends React.Component {
                   color="secondary"
                   size="small"
                   onClick={() => {
-                    if (this.state.new_goal_type === "repeat") {
+                    if (this.state.new_goal_type === "repeat" || this.state.new_goal_type === "localize") {
                       this.setNewGoalWaypoints([...this.state.new_goal_waypoints, key]);
                     }
                     else {
@@ -321,10 +321,11 @@ class GraphMap extends React.Component {
       move_robot_vertex,
       map_center
     } = this.state;
-    const imageBounds = [
+    const myhalImageBounds = [
       [43.660511, -79.397019], // Bottom-left coordinates of the image
       [43.661091, -79.395995], // Top-right coordinates of the image
     ];
+
     return (
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
@@ -343,7 +344,7 @@ class GraphMap extends React.Component {
             maxZoom={22}
           />
           {/* Add the ImageOverlay component to the map */}
-          <ImageOverlay url={MyhalPlan} bounds={imageBounds} />
+          <ImageOverlay url={MyhalPlan} bounds={myhalImageBounds} />
           <ZoomControl position="bottomright" />
           <this.WaypointMarkers />
         </MapContainer>
@@ -363,6 +364,8 @@ class GraphMap extends React.Component {
           moveGraphChange={move_graph_change}
           // move robot
           moveRobotVertex={move_robot_vertex}
+          // force add vertex
+          getClosestVertex={this.getClosestVertex.bind(this)}
         />
         <Box
           sx={{
@@ -505,7 +508,7 @@ class GraphMap extends React.Component {
 
         return {display_waypoints_map: disp_wps_map };
       });
-      if (this.state.new_goal_type === "repeat") {
+      if (this.state.new_goal_type === "repeat" || this.state.new_goal_type === "localize") {
         this.setState({ new_goal_waypoints: [...this.state.new_goal_waypoints, best.target.id] });
       }
     }

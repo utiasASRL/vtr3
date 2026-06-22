@@ -48,7 +48,6 @@ auto LocalizationICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
   config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
   config->max_iterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
-  config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
   config->max_trans_diff = node->declare_parameter<float>(param_prefix + ".max_trans_diff", config->max_trans_diff);
   config->max_rot_diff = node->declare_parameter<float>(param_prefix + ".max_rot_diff", config->max_rot_diff);
 
@@ -82,11 +81,6 @@ void LocalizationICPModule::run_(QueryCache &qdata0, OutputCache &output,
   //Check that
   if(!*qdata.odo_success) {
     CLOG(WARNING, "lidar.localization_icp") << "Odometry failed, skip localization";
-    return;
-  }
-
-  if (output.chain->isLocalized() && *qdata.loc_time > config_->target_loc_time && *qdata.pipeline_mode == tactic::PipelineMode::RepeatFollow) {
-    CLOG(WARNING, "lidar.localization_icp") << "Skipping localization to save on compute. EMA val=" << *qdata.loc_time;
     return;
   }
 

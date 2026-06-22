@@ -2,22 +2,9 @@ import sys
 sys.dont_write_bytecode = True
 
 import casadi as ca
-from casadi import sin, cos, pi
+from casadi import sin, cos
 
 #Compile Time Constants (Could use params to set!)
-
-# Pose Covariance
-Q_x = 10
-Q_y = 10
-Q_theta = 5
-# Command Covariance
-R1 = 1.0 #0.1
-R2 = 1.0 #0.1
-
-# Acceleration Cost Covariance
-Acc_R1 = 0.1
-Acc_R2 = 0.5 #0.01
-
 step_horizon = 0.25  # time between steps in seconds
 N = 15           # number of look ahead steps
 
@@ -63,8 +50,22 @@ last_controls = ca.vertcat(
 )
 
 # column vector for storing initial state and target states + initial velocity
-P = ca.SX.sym('P', n_states * (N+1) + n_controls)
-measured_velo = P[-2:]
+init_pose = ca.SX.sym('init_pose', n_states)
+ref_poses = ca.SX.sym('ref_poses', n_states*N)
+measured_velo = ca.SX.sym('measured_velo', n_controls)
+
+# Configurable cost paramets
+Q_x = ca.SX.sym('Q_x', 1)
+Q_y = ca.SX.sym('Q_y', 1)
+Q_theta = ca.SX.sym('Q_theta', 1)
+R1 = ca.SX.sym('R1', 1)
+R2 = ca.SX.sym('R2', 1)
+Acc_R1 = ca.SX.sym('Acc_R1', 1)
+Acc_R2 = ca.SX.sym('Acc_R2', 1)
+
+P = ca.vertcat(init_pose, ref_poses, measured_velo,            # Base MPC
+                Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2)    # Weights for tuning
+
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
 Q = ca.diagcat(Q_x, Q_y)
@@ -75,21 +76,8 @@ R = ca.diagcat(R1, R2)
 #Acceleration weith matrix
 R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
-
 RHS = ca.vertcat(v*cos(theta), v*sin(theta), last_omega*alpha + (1-alpha)*omega)
 motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
-# RHS_angle = ca.vertcat(x + v/omega*sin(theta + omega*step_horizon) - v/omega*sin(theta), 
-#                  y + v/omega*cos(theta) - v/omega*cos(theta + omega*step_horizon), 
-#                  theta + omega*step_horizon)
-
-# RHS_straight = ca.vertcat(x + v*cos(theta)*step_horizon, 
-#                  y + v*sin(theta)*step_horizon, 
-#                  theta)
-# straight_motion = ca.Function('straight_mm', [states, controls], [RHS_straight])
-# curved_motion = ca.Function('curved_mm', [states, controls], [RHS_angle])
-# if_motion_model = ca.Function.if_else('motion_model_cond', curved_motion, straight_motion)
-# motion_model = ca.Function("motion_model", [states, controls], [if_motion_model(ca.fabs(omega) > 1e-4, states, controls)])
-# motion_model = curved_motion
 
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
 

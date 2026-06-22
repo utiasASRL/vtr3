@@ -41,7 +41,8 @@ class DataStreamAccessorBase {
 
   DataStreamAccessorBase(const std::string &base_directory,
                          const std::string &stream_name,
-                         const std::string &stream_type);
+                         const std::string &stream_type,
+                         const bool read_only = false);
   virtual ~DataStreamAccessorBase() = default;
 
  protected:
@@ -59,8 +60,9 @@ class DataStreamAccessor : public DataStreamAccessorBase {
  public:
   DataStreamAccessor(const std::string &base_directory,
                      const std::string &stream_name = "",
-                     const std::string &stream_type = "UnknownType")
-      : DataStreamAccessorBase(base_directory, stream_name, stream_type) {}
+                     const std::string &stream_type = "UnknownType",
+                     const bool read_only = false)
+      : DataStreamAccessorBase(base_directory, stream_name, stream_type, read_only) {}
 
   // returns a nullptr if no data exist at the specified index/timestamp
   std::shared_ptr<LockableMessage<DataType>> readAtIndex(Index index);

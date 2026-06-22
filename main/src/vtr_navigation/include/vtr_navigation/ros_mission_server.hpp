@@ -42,7 +42,7 @@ class GoalInterface<vtr_navigation_msgs::msg::GoalHandle> {
   using IdHash = boost::hash<Id>;
 
   static const Id& InvalidId() {
-    static Id invalid_id = boost::uuids::random_generator()();
+    static Id invalid_id = boost::uuids::nil_generator()();
     return invalid_id;
   }
   static Id id(const GoalHandle& gh) {
@@ -58,6 +58,12 @@ class GoalInterface<vtr_navigation_msgs::msg::GoalHandle> {
         return GoalTarget::Teach;
       case GoalHandle::REPEAT:
         return GoalTarget::Repeat;
+      case GoalHandle::LOCALIZE:
+        return GoalTarget::Localize;
+      case GoalHandle::SELECT_CONTROLLER:
+        return GoalTarget::SelectController;
+      case GoalHandle::PAUSE:
+        return GoalTarget::Pause;
       default:
         return GoalTarget::Unknown;
     }
@@ -71,6 +77,9 @@ class GoalInterface<vtr_navigation_msgs::msg::GoalHandle> {
   }
   static std::chrono::milliseconds pause_after(const GoalHandle& gh) {
     return std::chrono::milliseconds(gh.pause_after);
+  }
+  static std::string controller_name(const GoalHandle& gh) {
+    return gh.controller_name;
   }
 };
 

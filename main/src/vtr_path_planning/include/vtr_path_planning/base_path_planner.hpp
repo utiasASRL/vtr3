@@ -76,9 +76,12 @@ class BasePathPlanner : public PathPlannerInterface {
   struct Config {
     PTR_TYPEDEFS(Config);
 
-    unsigned int control_period = 0;
+    unsigned int control_period = 100;
 
     virtual ~Config() = default;
+
+    static void loadBaseConfig(Config::Ptr config, const rclcpp::Node::SharedPtr& node,
+                       const std::string& prefix = "path_planning");
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
@@ -86,6 +89,7 @@ class BasePathPlanner : public PathPlannerInterface {
 
   BasePathPlanner(const Config::ConstPtr& config,
                   const RobotState::Ptr& robot_state,
+                  const tactic::GraphBase::Ptr& graph, 
                   const Callback::Ptr& callback);
   ~BasePathPlanner() override;
 
@@ -111,6 +115,8 @@ class BasePathPlanner : public PathPlannerInterface {
   const Config::ConstPtr config_;
   /** \brief shared memory that stores the current robot state */
   const RobotState::Ptr robot_state_;
+
+  const tactic::GraphBase::Ptr graph_;
   /** \brief callback functions on control finished */
   const Callback::Ptr callback_;
 
@@ -140,7 +146,7 @@ class BasePathPlanner : public PathPlannerInterface {
  private:
   /** \brief a map from type_str trait to a constructor function */
   using CtorFunc = std::function<Ptr(
-      const Config::ConstPtr&, const RobotState::Ptr&, const Callback::Ptr&)>;
+      const Config::ConstPtr&, const RobotState::Ptr&, const tactic::GraphBase::Ptr&, const Callback::Ptr&)>;
   using Name2Ctor = std::unordered_map<std::string, CtorFunc>;
   static Name2Ctor& name2Ctor() {
     static Name2Ctor name2ctor;
@@ -160,6 +166,7 @@ class BasePathPlanner : public PathPlannerInterface {
   friend class PathPlannerRegister;
   friend class PathPlannerFactory;
   friend class ROSPathPlannerFactory;
+  friend class DynamicPathPlanner;
 };
 
 template <typename T>
@@ -173,13 +180,14 @@ struct PathPlannerRegister {
                 BasePathPlanner::CtorFunc(
                     [](const BasePathPlanner::Config::ConstPtr& config,
                        const BasePathPlanner::RobotState::Ptr& robot_state,
+                       const tactic::GraphBase::Ptr& graph,
                        const BasePathPlanner::Callback::Ptr& callback) {
                       const auto& config_typed =
                           (config == nullptr
                                ? std::make_shared<const typename T::Config>()
                                : std::dynamic_pointer_cast<
                                      const typename T::Config>(config));
-                      return std::make_shared<T>(config_typed, robot_state,
+                      return std::make_shared<T>(config_typed, robot_state, graph,
                                                  callback);
                     }))
             .second;

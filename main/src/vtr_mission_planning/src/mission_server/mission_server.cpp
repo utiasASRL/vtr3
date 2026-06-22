@@ -74,6 +74,15 @@ std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target) {
     case GoalTarget::Repeat:
       os << "Repeat";
       return os;
+    case GoalTarget::Localize:
+      os << "Localize";
+      return os;
+    case GoalTarget::SelectController:
+      os << "SelectController";
+      return os;
+    case GoalTarget::Pause:
+      os << "Pause";
+      return os;
   };
   return os;
 }
@@ -95,6 +104,9 @@ std::ostream& operator<<(std::ostream& os,
       return os;
     case CommandTarget::ContinueTeach:
       os << "ContinueTeach";
+      return os;
+    case CommandTarget::ForceAddVertex:
+      os << "ForceAddVertex";
       return os;
   };
   return os;

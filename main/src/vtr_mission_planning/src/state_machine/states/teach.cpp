@@ -81,6 +81,12 @@ void Teach::processGoals(StateMachine &state_machine, const Event &event) {
   }
 
   switch (event.action) {
+    case Action::ForceAddVertex:
+    {
+      const auto tactic = getTactic(state_machine);
+      tactic->setForceAddVertex(true);
+      break;
+    }
     case Action::Continue:
       [[fallthrough]];
     default:

@@ -44,6 +44,10 @@ class LidarPipeline : public tactic::BasePipeline {
     double submap_translation_threshold = 0.0;  // in meters
     double submap_rotation_threshold = 0.0;     // in degrees
 
+    // Time above which the localization ICP module will be skipped. (in ms)
+    // For lidar running at 10 Hz, a good choice is < 50 ms to allow both odometry and localization to run
+    float target_loc_time = std::numeric_limits<float>::max();
+
     bool save_raw_point_cloud = false;
     bool save_nn_point_cloud = false;
 

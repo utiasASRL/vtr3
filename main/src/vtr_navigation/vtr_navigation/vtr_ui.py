@@ -161,6 +161,10 @@ class VTRUI(ROSManager):
     self._mission_command_pub.publish(msg)
 
   @ROSManager.on_ros
+  def force_add_vertex(self, msg):
+    self._mission_command_pub.publish(msg)
+
+  @ROSManager.on_ros
   def move_robot(self, msg):
     self._mission_command_pub.publish(msg)
 

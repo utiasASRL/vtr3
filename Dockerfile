@@ -32,8 +32,11 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models \
   GRIZZLY=${VTRROOT}/grizzly \
-  WARTHOG=${VTRROOT}/warthog
+  WARTHOG=${VTRROOT}/warthog \
+  HUNTER=${VTRROOT}/hunter
+
 ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+ENV MAKEFLAGS="-j2"
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
@@ -166,7 +169,7 @@ RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   
   
 ##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip --output libtorch.zip
+RUN curl -L https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch && rm /libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
 ENV LD_LIBRARY_PATH=$TORCH_LIB/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
@@ -185,6 +188,7 @@ ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
 RUN apt install -q -y vim htop
+RUN apt install -y ros-humble-rmw-zenoh-cpp
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

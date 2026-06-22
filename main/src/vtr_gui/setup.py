@@ -23,6 +23,10 @@ setup(
             'web_server = vtr_gui.web_server:main',
             'socket_server = vtr_gui.socket_server:main',
             'socket_client = vtr_gui.socket_client:main',
+            'multi_robot_web_server = vtr_gui.multi_robot_web_server:main',
+            'multi_robot_socket_server = vtr_gui.multi_robot_socket_server:main',
+            'multi_robot_socket_client = vtr_gui.multi_robot_socket_client:main',
+            'setup_client = vtr_gui.setup_client:main',
         ],
     },
 )

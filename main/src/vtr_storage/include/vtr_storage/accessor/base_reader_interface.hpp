@@ -55,7 +55,7 @@ public:
 
   virtual ~BaseReaderInterface() {}
 
-  virtual void open(const std::string & uri) = 0;
+  virtual void open(const std::string & uri, const bool read_only) = 0;
   virtual void close() = 0;
 
   virtual std::shared_ptr<SerializedBagMessage> read_at_timestamp(const Timestamp & timestamp) = 0;

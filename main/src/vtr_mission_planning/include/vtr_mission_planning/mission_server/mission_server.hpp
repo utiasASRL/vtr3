@@ -46,6 +46,9 @@ enum class GoalTarget : int8_t {
   Idle = 0,
   Teach = 1,
   Repeat = 2,
+  Localize = 3,
+  SelectController = 4,
+  Pause = 5,
 };
 std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target);
 
@@ -55,6 +58,7 @@ enum class CommandTarget : int8_t {
   StartMerge = 1,
   ConfirmMerge = 2,
   ContinueTeach = 3,
+  ForceAddVertex = 4,
 };
 
 struct Command {
@@ -73,7 +77,7 @@ class GoalInterface {
   using IdHash = std::hash<Id>;
 
   static const Id& InvalidId() {
-    static Id invalid_id{-1};
+    static Id invalid_id{0};
     return invalid_id;
   }
   static Id id(const GoalHandle& gh) { return gh.id; }
@@ -81,6 +85,7 @@ class GoalInterface {
   static std::list<tactic::VertexId> path(const GoalHandle& gh) { return gh.path; }
   static std::chrono::milliseconds pause_before(const GoalHandle& gh) { return gh.pause_before; }
   static std::chrono::milliseconds pause_after(const GoalHandle& gh) { return gh.pause_after; }
+  static std::string controller_name(const GoalHandle& gh) { return gh.controller_name;  }
   // clang-format on
 };
 
@@ -278,22 +283,33 @@ template <class GoalHandle>
 void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
   UniqueLock lock(mutex_);
   const auto goal_id = GoalInterface<GoalHandle>::id(gh);
-  //
-  for (auto iter = goal_queue_.begin(); iter != goal_queue_.end(); ++iter) {
-    if (*iter == goal_id) {
-      goal_queue_.erase(iter);
-      break;
+  CLOG(DEBUG, "mission.server") << "Requested remove goal " << goal_id;
+
+  if (goal_id != current_goal_id_) {
+    for (auto iter = goal_queue_.begin(); iter != goal_queue_.end(); ++iter) {
+      if (*iter == goal_id) {
+        goal_queue_.erase(iter);
+        goal_map_.erase(goal_id);
+        CLOG(DEBUG, "mission.server") << "Removing goal!";
+        break;
+      }
     }
   }
-  goal_map_.erase(goal_id);
-  //
-  auto reset_sm = (current_goal_id_ == goal_id) ? clearCurrentGoal() : false;
-  //
-  serverStateChanged();
+  
+  cv_stop_or_goal_changed_.notify_all();
+  
   lock.unlock();
-  if (!reset_sm) return;
-  if (const auto state_machine = getStateMachine())
-    state_machine->handle(Event::Reset());
+  if (const auto state_machine = getStateMachine()){
+    if (goal_id == GoalInterface<GoalHandle>::InvalidId()) {
+      state_machine->handle(Event::Reset());
+      goal_queue_.clear();
+      goal_map_.clear();
+    } else if (goal_id == current_goal_id_) {
+      state_machine->handle(Event::EndGoal());
+    }
+  }
+  serverStateChanged();
+    
 }
 
 template <class GoalHandle>
@@ -345,6 +361,10 @@ void MissionServer<GoalHandle>::processCommand(const Command& command) {
     }
     case CommandTarget::ContinueTeach: {
       state_machine->handle(std::make_shared<Event>(Signal::ContinueTeach));
+      return;
+    }
+    case CommandTarget::ForceAddVertex: {
+      state_machine->handle(std::make_shared<Event>(Action::ForceAddVertex));
       return;
     }
     default:
@@ -444,8 +464,22 @@ void MissionServer<GoalHandle>::startGoal() {
         state_machine->handle(Event::StartRepeat(path));
         break;
       }
+      case GoalTarget::Localize: {
+        const auto search_range = GoalInterface<GoalHandle>::path(current_goal);
+        state_machine->handle(Event::StartLocalize(search_range));
+        break;
+      }
+      case GoalTarget::SelectController: {
+        state_machine->handle(Event::SwitchController(GoalInterface<GoalHandle>::controller_name(current_goal)));
+        break;
+      }
+      case GoalTarget::Pause: {
+        state_machine->handle(Event::StartPause());
+        break;
+      }
       default:
-        throw std::runtime_error("Unknown goal target");
+        throw std::runtime_error("Unknown goal target " +
+                                 std::to_string(int(GoalInterface<GoalHandle>::target(current_goal))));
     }
   }
 }
@@ -544,11 +578,10 @@ bool MissionServer<GoalHandle>::clearCurrentGoal() {
       current_goal_state_ = GoalState::Empty;
       current_server_state_ = ServerState::Empty;
     } else {
-      current_goal_id_ = goal_queue_.front();
-      current_goal_state_ = GoalState::Starting;
+      current_goal_state_ = GoalState::Finishing;
+      return false;
     }
   }
-  cv_stop_or_goal_changed_.notify_all();
 
   return true;  // state machine needs reset
 }

@@ -66,6 +66,9 @@ enum class PipelineMode : uint8_t {
   TeachMerge,       // Teach - merging into existing path
   RepeatMetricLoc,  //
   RepeatFollow,     // Repeat - path following
+  LocalizeMetricLoc, // Localize - Metric localization
+  LocalizeTopoloc,   // Localize - Topological localization
+  PauseSpin,        // Pause - Spin in place
 };
 std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
@@ -82,6 +85,26 @@ struct Localization {
   VertexId v;
   EdgeTransform T;
   bool localized;
+};
+
+enum class Direction : uint {
+  Forward = 0,  
+  Backward = 1, 
+  Unknown = 2 // Unknown, unimportant, uninitialized direction
+};
+
+struct SegmentInfo {
+  Direction dir = Direction::Unknown; 
+  unsigned start_sid = 0;
+  unsigned end_sid = 0;   
+  bool direction_switch = false; 
+  double start_p = 0.0; 
+
+  SegmentInfo() = default;
+  SegmentInfo(Direction d, const unsigned start_sid, const unsigned end_sid)
+      : dir(d), start_sid(start_sid), end_sid(end_sid) {}
+  SegmentInfo(const unsigned start_sid, const unsigned end_sid)
+      : dir(Direction::Unknown), start_sid(start_sid), end_sid(end_sid) {}
 };
 
 }  // namespace tactic

@@ -43,11 +43,13 @@ class GoalForm extends React.Component {
   }
 
   render() {
-    const { goalType, goalWaypoints, setNewGoalWaypoints } = this.props;
+    const { goalType, goalWaypoints, setNewGoalWaypoints, cancelAllGoals } = this.props;
     const { goal_form_open, goal_waypoints_str, goal_waypoints_invalid, pause_after, pause_before } = this.state;
     return (
       <>
-        {goal_form_open ? (
+   
+        {
+        goal_form_open ? (
           <Card
             sx={{
               width: "100%",
@@ -64,21 +66,28 @@ class GoalForm extends React.Component {
               variant={"contained"}
             >
               <Button
-                sx={{ width: 140 }}
+                sx={{ width: 120 }}
                 color={goalType === "teach" ? "secondary" : "primary"}
                 onClick={this.selectGoalType.bind(this, "teach")}
               >
                 Teach
               </Button>
               <Button
-                sx={{ width: 140 }}
+                sx={{ width: 120 }}
                 color={goalType === "repeat" ? "secondary" : "primary"}
                 onClick={this.selectGoalType.bind(this, "repeat")}
               >
                 Repeat
               </Button>
+              <Button
+                sx={{ width: 120 }}
+                color={goalType === "localize" ? "secondary" : "primary"}
+                onClick={this.selectGoalType.bind(this, "localize")}
+              >
+                Localize
+              </Button>
             </ButtonGroup>
-            {goalType === "repeat" && (
+            { (goalType === "repeat" || goalType === "localize") && (
               <>
                 {/* Get input before and after time */}
                 <Box sx={{ mx: 1, my: 0.5, display: "flex", justifyContent: "center", flexDirection: "row" }}>

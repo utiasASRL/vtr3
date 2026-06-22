@@ -82,6 +82,10 @@ def handle_cancel_goal(data):
   logger.info('Received cancel goal command', data)
   build_remote().cancel_goal(data)
 
+@socketio.on('command/cancel_all_goals')
+def handle_cancel_all_goal():
+  logger.info('Received cancel all goals command')
+  build_remote().cancel_all_goals()
 
 @socketio.on('command/begin_goals')
 def handle_begin_goals():
@@ -136,6 +140,20 @@ def handle_change_env_info(data):
   logger.info('Received change env info command', data)
   build_remote().change_env_info(data)
 
+@socketio.on('command/change_controller')
+def handle_change_controller(data):
+  logger.info('Received change controller command', data)
+  build_remote().change_controller(data)
+
+@socketio.on('command/force_add_vertex')
+def handle_force_add_vertex():
+  logger.info('Received force add vertex command')
+  build_remote().force_add_vertex()
+
+@socketio.on('command/change_controller')
+def handle_change_controller(data):
+  logger.info('Received change controller command', data)
+  build_remote().change_controller(data)
 
 @socketio.on('notification/server_state')
 def handle_server_state(json):

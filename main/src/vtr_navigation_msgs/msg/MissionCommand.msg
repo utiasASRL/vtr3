@@ -10,6 +10,7 @@ uint8 LOCALIZE = 4
 uint8 START_MERGE = 5
 uint8 CONFIRM_MERGE = 6
 uint8 CONTINUE_TEACH = 7
+uint8 FORCE_ADD_VERTEX = 8
 uint8 type
 
 ## PAUSE

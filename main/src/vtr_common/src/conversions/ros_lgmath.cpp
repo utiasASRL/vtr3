@@ -70,6 +70,11 @@ geometry_msgs::msg::Transform toTransformMessage(
   return toTransformMessage(T_base_child.matrix());
 }
 
+lgmath::se3::Transformation tfFromPoseMessage(
+    const geometry_msgs::msg::Pose& pose) {
+  return lgmath::se3::Transformation{fromPoseMessage(pose)};
+}
+
 }  // namespace conversions
 }  // namespace common
 }  // namespace vtr

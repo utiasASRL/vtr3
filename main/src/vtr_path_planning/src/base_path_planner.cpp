@@ -33,8 +33,9 @@ auto BasePathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
 
 BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
                                  const RobotState::Ptr& robot_state,
+                                 const tactic::GraphBase::Ptr& graph, 
                                  const Callback::Ptr& callback)
-    : config_(config), robot_state_(robot_state), callback_(callback) {
+    : config_(config), robot_state_(robot_state), graph_(graph), callback_(callback) {
   //
   thread_count_ = 1;
   process_thread_ = std::thread(&BasePathPlanner::process, this);
@@ -62,8 +63,12 @@ void BasePathPlanner::stop() {
 void BasePathPlanner::process() {
   el::Helpers::setThreadName("path_planning");
   CLOG(INFO, "path_planning") << "Starting the base path planning thread.";
+  auto wait_until_time = std::chrono::steady_clock::now();
   while (true) {
     UniqueLock lock(mutex_);
+    if (!running_) {
+      callback_->commandReceived(Command());
+    }
     cv_terminate_or_state_changed_.wait(lock, [this] {
       waiting_ = true;
       cv_waiting_.notify_all();
@@ -77,6 +82,7 @@ void BasePathPlanner::process() {
       waiting_ = true;
       cv_waiting_.notify_all();
       --thread_count_;
+      callback_->commandReceived(Command());
       CLOG(INFO, "path_planning") << "Stopping the base path planning thread.";
       cv_thread_finish_.notify_all();
       return;
@@ -85,13 +91,16 @@ void BasePathPlanner::process() {
     /// \note command computation should not require the lock, and this is
     /// required to give other threads a chance to acquire the lock
     lock.unlock();
-    //
-    const auto wait_until_time =
-        std::chrono::steady_clock::now() +
-        std::chrono::milliseconds(config_->control_period);
-    const auto command = computeCommand(*robot_state_);
+    
+    wait_until_time += std::chrono::milliseconds(config_->control_period);
 
-    callback_->commandReceived(command);
+    if (!*robot_state_->odometry_success) {
+      CLOG(WARNING, "path_planning") << "Stopping robot because odometry failed!";
+      callback_->commandReceived(Command());
+    } else {
+      const auto command = computeCommand(*robot_state_);
+      callback_->commandReceived(command);
+    }
     if (config_->control_period > 0 &&
         wait_until_time < std::chrono::steady_clock::now()) {
       const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -101,7 +110,8 @@ void BasePathPlanner::process() {
           << "Command computation takes " << (dt + config_->control_period)
           << "ms, which is longer than the control period of "
           << config_->control_period << "ms.";
-    }
+      wait_until_time = std::chrono::steady_clock::now();
+    } 
     std::this_thread::sleep_until(wait_until_time);
   }
 }

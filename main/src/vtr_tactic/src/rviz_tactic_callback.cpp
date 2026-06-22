@@ -24,6 +24,7 @@
 #include <nav_msgs/msg/path.hpp>
 
 #include "vtr_tactic/rviz_tactic_callback.hpp"
+#include "vtr_common/conversions/tf2_ros_eigen.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -61,13 +62,15 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
   msg.child_frame_id = "odo vertex frame";
   tf_bc_->sendTransform(msg);
 
+
   // publish odometry
   OdometryMsg odometry;
   odometry.header.frame_id = "world";
+  odometry.child_frame_id = "robot";
   odometry.header.stamp = rclcpp::Time(stamp);
   odometry.pose.pose =
       tf2::toMsg(Eigen::Affine3d((T_w_v_odo * T_r_v_odo.inverse()).matrix()));
-  odometry.twist.twist = tf2::toMsg(w_r_in_r);
+  odometry.twist.twist = tf2::toMsg(Eigen::Vector<double, 6>(-w_r_in_r));
   odometry_pub_->publish(odometry);
 
   // publish current frame

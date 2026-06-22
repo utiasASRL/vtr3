@@ -35,8 +35,9 @@ auto StationaryPlanner::Config::fromROS(
 // Declare class as inherited from the BasePathPlanner
 StationaryPlanner::StationaryPlanner(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
+                               const tactic::GraphBase::Ptr& graph, 
                                const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, callback), config_(config) {}
+    : BasePathPlanner(config, robot_state, graph, callback), config_(config) {}
 
 StationaryPlanner::~StationaryPlanner() { stop(); }
 

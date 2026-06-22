@@ -1,0 +1,26 @@
+## Online Lidar VTR3
+session_name: vtr_online_ouster_hunter_convoy
+
+environment:
+  RMW_IMPLEMENTATION: rmw_zenoh_cpp
+  ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
+
+start_directory: ${VTRTEMP}
+suppress_history: false
+
+windows:
+  - window_name: vtr_navigation_system
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr -p ip_address:=192.168.2.42
+    panes:
+      - >
+        ros2 launch vtr_navigation vtr_hunters.launch.py
+        base_params:=ouster_hunter_default.yaml
+        start_new_graph:=false
+        use_sim_time:=false
+        planner:="dynamic_path_planner"
+        command_topic:=/$ROBOT_NAME/cmd_vel
+        model_dir:=${VTRROOT}/models
+        override_params:=hunter_convoy_params.yaml

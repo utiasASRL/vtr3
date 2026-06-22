@@ -30,8 +30,12 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models \
   GRIZZLY=${VTRROOT}/grizzly \
-  WARTHOG=${VTRROOT}/warthog
+  WARTHOG=${VTRROOT}/warthog \
+  HUNTER=${VTRROOT}/hunter
+
 ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
+ENV MAKEFLAGS="-j2"
+ENV VTR_PIPELINE=RADAR-LIDAR
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
@@ -125,7 +129,7 @@ RUN apt update && apt install -q -y vim
 RUN apt install -q -y libc6-dbg gdb valgrind
 
 ##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip --output libtorch.zip
+RUN curl -L https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch
 RUN rm libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
@@ -141,6 +145,8 @@ RUN cd ${HOMEDIR}/.casadi \
   && make -j${NUMPROC} install
 ENV PYTHONPATH=${PYTHONPATH}:/usr/local
 ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
+
+RUN apt install -y ros-humble-rmw-zenoh-cpp
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
