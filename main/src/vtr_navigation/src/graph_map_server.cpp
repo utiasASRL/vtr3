@@ -82,8 +82,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   following_route_pub_ = node->create_publisher<FollowingRoute>("following_route", 10);
   following_route_srv_ = node->create_service<FollowingRouteSrv>("following_route_srv", std::bind(&GraphMapServer::followingRouteSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
-
-   // graph manipulation
+  // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
   annotate_route_sub_ = node->create_subscription<AnnotateRouteMsg>("annotate_route", rclcpp::QoS(10), std::bind(&GraphMapServer::annotateRouteCallback, this, std::placeholders::_1), sub_opt);
@@ -412,11 +411,12 @@ void GraphMapServer::pathUpdated(const VertexId::Vector& path) {
 }
 
 auto GraphMapServer::getGraph() const -> GraphPtr {
-  if (auto graph_acquired = graph_.lock())
+  if (auto graph_acquired = graph_.lock()){
+    CLOG(DEBUG, "navigation.graph_map_server") << "getGraph() lastVertexIdx_ =  " << graph_acquired->lastVertexIdx_;
     return graph_acquired;
-  else {
+  } else {
     std::string err{"Graph has expired"};
-    CLOG(ERROR, "navigation.graph_map_server") << err;
+    CLOG(ERROR, "navigation.graph_map_server") << err;  
     throw std::runtime_error(err);
   }
   return nullptr;
@@ -638,6 +638,7 @@ void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
 }
 
 bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
+  CLOG(DEBUG, "navigation.graph_map_server") << "updateIncrementally";
   // Autonomous edges do not need to be considered
   if (e->isAutonomous()) return true;
   // Unknown edges do not need to be considered
@@ -670,8 +671,17 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   // vid2tfmap update
   vid2tf_map_[to] = T_to_from * vid2tf_map_.at(from);
 
+  publishUpdate(e);
+  CLOG(DEBUG, "navigation.graph_map_server") << "Incremental update succeeded";
+  return true;
+}
+
+void GraphMapServer::publishUpdate(const EdgePtr& e) {
+  const auto from = e->from();
+  const auto to = e->to();
+  CLOG(DEBUG, "navigation") << "publishUpdate: working on edge" << *e;
   // graph_state_.vertices.<id, neighbors>
-  auto& vertices = graph_state_.vertices;
+  auto& vertices = graph_state_.vertices; // NOTE: not simple graph
   // update from neighbors
   vertices[vid2idx_map_.at(from)].neighbors.push_back(to);
   // add to into the vertices
@@ -686,30 +696,38 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   vertex.lat = lat;
   vertex.theta = theta;
 
-  // vertex type
-  if (vertices[vid2idx_map_.at(from)].type == -1) {
+  // Add these lines to print the timestamps to the console/log:
+  const auto v_from = getGraph()->at(from);
+  const auto v_to = getGraph()->at(to);
+
+  CLOG(INFO, "navigation.graph_map_server") 
+      << "Vertex FROM: " << from << " | timestamp: " << v_from->vertexTime();
+  CLOG(INFO, "navigation.graph_map_server") 
+      << "Vertex TO: " << to << " | timestamp: " << v_to->vertexTime();
+  
+      // vertex type
+  CLOG(DEBUG, "navigation.graph_map_server") << "publishUpdate: vtx types to: " << (int)vertices[vid2idx_map_.at(from)].type << ", from: " << (int)vertices[vid2idx_map_.at(to)].type; 
+  if (vertices[vid2idx_map_.at(from)].type == -1 || vertices[vid2idx_map_.at(from)].type == 8) {
     const auto env_info_msg = getGraph()->at(from)->retrieve<tactic::EnvInfo>(
         "env_info", "vtr_tactic_msgs/msg/EnvInfo");
-    if (env_info_msg == nullptr) {
-      std::stringstream ss;
-      ss << "Cannot find env_info for vertex " << from
-         << ", which is assumed added at this moment.";
-      CLOG(ERROR, "navigation.graph_map_server") << ss.str();
-      throw std::runtime_error{ss.str()};
+    if (env_info_msg != nullptr) {
+      vertices[vid2idx_map_.at(from)].type = env_info_msg->sharedLocked().get().getData().terrain_type;
+    } else {
+      CLOG(WARNING, "navigation.graph_map_server") << "Missing env_info for vertex (from) " << from << ", defaulting.";
+      vertices[vid2idx_map_.at(from)].type = -1;
     }
-    vertices[vid2idx_map_.at(from)].type =
-        env_info_msg->sharedLocked().get().getData().terrain_type;
   }
-  const auto env_info_msg = getGraph()->at(to)->retrieve<tactic::EnvInfo>(
-      "env_info", "vtr_tactic_msgs/msg/EnvInfo");
-  if (env_info_msg == nullptr) {
-    std::stringstream ss;
-    ss << "Cannot find env_info for vertex " << to
-       << ", which is assumed added at this moment.";
-    CLOG(ERROR, "navigation.graph_map_server") << ss.str();
-    throw std::runtime_error{ss.str()};
+
+  if (vertices[vid2idx_map_.at(to)].type == -1 || vertices[vid2idx_map_.at(to)].type == 8) {
+    const auto env_info_msg = getGraph()->at(to)->retrieve<tactic::EnvInfo>(
+        "env_info", "vtr_tactic_msgs/msg/EnvInfo");
+    if (env_info_msg != nullptr) {
+      vertices[vid2idx_map_.at(to)].type = env_info_msg->sharedLocked().get().getData().terrain_type;
+    } else {
+      CLOG(WARNING, "navigation.graph_map_server") << "Missing env_info for vertex (to) " << to << ", defaulting.";
+      vertices[vid2idx_map_.at(to)].type = -1;
+    }
   }
-  vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
 
   // add to active route
   auto& active_routes = graph_state_.active_routes;
@@ -717,7 +735,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
     active_routes.emplace_back();
     auto& active_route = active_routes.back();
     active_route.type = vertices[vid2idx_map_.at(from)].type;
-    active_route.ids.emplace_back(from);
+    active_route.ids.emplace_back(from);  
   }
   active_routes.back().ids.emplace_back(to);
   if (active_routes.back().type != vertex.type) {
@@ -732,9 +750,6 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   graph_update.vertex_from = vertices[vid2idx_map_.at(from)];
   graph_update.vertex_to = vertices[vid2idx_map_.at(to)];
   graph_update_pub_->publish(graph_update);
-
-  CLOG(DEBUG, "navigation.graph_map_server") << "Incremental update succeeded";
-  return true;
 }
 
 }  // namespace navigation

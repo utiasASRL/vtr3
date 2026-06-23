@@ -117,7 +117,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   void poseCallback(const NavSatFix::ConstSharedPtr msg);
   void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
   void updateMissionCallback(const MissionCommandMsg::ConstSharedPtr msg);
-
+  void refreshGraphState();
+  
  private:
   /// these functions are called with graph mutex locked
   void vertexAdded(const VertexPtr& v) override;
@@ -144,6 +145,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   void computeRoutes(const GraphBasePtr& priv_graph);
   /** \brief Update the graph incrementally when no optimization is needed */
   bool updateIncrementally(const EdgePtr& e);
+  void publishUpdate(const EdgePtr& e);
 
   void updateRobotProjection();
 

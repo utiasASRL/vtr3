@@ -166,6 +166,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   std::queue<VertexPtr> vertices_to_write_;
   std::queue<EdgePtr> edges_to_write_;
   std::vector<int> topology_edges_;
+  std::unordered_map<VertexId, int> topology_vertices_;
 };
 
 template <typename DataType>

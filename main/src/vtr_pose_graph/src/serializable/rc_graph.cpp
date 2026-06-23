@@ -132,6 +132,10 @@ void RCGraph::loadVertices() {
 
     auto vertex_msg = msg->locked().get().getData();
     auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
+    if (vertex->vertexTime() == 0) {
+      topology_vertices_[vertex->id()] = index;
+      CLOG(DEBUG, "pose_graph") << "Live: Topology Vertex inserted, len " << topology_vertices_.size();
+    }
     vertices_.insert(std::make_pair(vertex->id(), vertex));
     CLOG(DEBUG, "pose_graph") << "- loaded vertex " << *vertex;
     lastVertexIdx_ = index;
@@ -167,26 +171,30 @@ void RCGraph::loadVerticesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading vertices from disk";
   VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
 
-  int tempIdx = 0;
-  for (int index = lastVertexIdx_;; index++) {
+  int index = lastVertexIdx_;
+  for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
 
     auto vertex_msg = msg->locked().get().getData();
     auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
-    // vertices_.insert(std::make_pair(vertex->id(), vertex)); ANTHONY
-    CLOG(DEBUG, "pose_graph") << "- live loaded vertex " << *vertex;
-    tempIdx = index;
+    CLOG(DEBUG, "pose_graph") << "loadVerticesLive: (vertex, time): (" << vertex->id() << ", " << vertex->vertexTime() << ")";
+    if (vertex->vertexTime() == 0) {
+      topology_vertices_[vertex->id()] = index;
+      CLOG(DEBUG, "pose_graph") << "Live: Topology Vertex inserted, len " << topology_vertices_.size();
+    }
+    vertices_.insert(std::make_pair(vertex->id(), vertex)); //ANTHONY
+    // CLOG(DEBUG, "pose_graph") << "- live loaded vertex " << *vertex;
   }
-  lastVertexIdx_ = tempIdx;
+  lastVertexIdx_ = index;
 }
 
 void RCGraph::loadEdgesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk";
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
-  int tempIdx = 0;
 
-  for (int index = lastEdgeIdx_;; index++) {
+  int index = lastEdgeIdx_;
+  for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
     auto edge_msg = msg->locked().get().getData();
@@ -201,34 +209,56 @@ void RCGraph::loadEdgesLive() {
       topology_edges_.push_back(index);
       CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
     }
-    tempIdx = index;
-    // edges_.insert(std::make_pair(eid, edge)); ANTHONY
-    // CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
+    edges_.insert(std::make_pair(eid, edge)); //ANTHONY
+    CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
   }
-  lastEdgeIdx_ = tempIdx;
+  lastEdgeIdx_ = index;
 }
 
 void RCGraph::populateEdgesLive() {
   CLOG(DEBUG, "pose_graph") << "Monitoring topology-only edges";
   CLOG(DEBUG, "pose_graph") << "# topology edges: " << topology_edges_.size();
-  // Monitor edges that were topology, if new then call extendSimpleGraph()
-  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
+  // Monitor edges that were topology, overwrite internal rep. of edges/vertices
+  EdgeMsgAccessor edge_accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
+  VertexMsgAccessor vtx_accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
+
   for (auto it = topology_edges_.begin(); it != topology_edges_.end();) {
-    const auto msg = accessor.readAtIndex(*it);
+    const auto msg = edge_accessor.readAtIndex(*it);
     if (!msg) break;
     auto edge_msg = msg->locked().get().getData();
     if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::MANUAL) {
       auto new_edge = RCEdge::MakeShared(edge_msg, msg);
       const auto& eid = new_edge->id();
+      CLOG(DEBUG, "pose_graph") << "populateEdgesLive: old: " << *edges_.at(eid) << " new: " << *new_edge;
+      
       {
         std::unique_lock lock(mutex_);
+
+        for (const auto& vid : {eid.id1(), eid.id2()}) {
+          auto vtx_it = topology_vertices_.find(vid);
+          if (vtx_it != topology_vertices_.end()) {
+            int db_index = vtx_it->second;
+
+            const auto vtx_msg_ptr = vtx_accessor.readAtIndex(db_index);
+            if (vtx_msg_ptr){
+            auto updated_vtx_msg = vtx_msg_ptr->locked().get().getData();
+            auto new_vertex = RCVertex::MakeShared(updated_vtx_msg, name2accessor_map_, vtx_msg_ptr);
+            
+            vertices_[vid] = new_vertex;
+            CLOG(DEBUG, "pose_graph") << "populateEdgesLive: overwrote vertex " << vid << " with real timestamp: " << new_vertex->vertexTime();
+            topology_vertices_.erase(vtx_it);
+            }
+          }
+        }
         edges_.at(eid) = new_edge;
+        *it = topology_edges_.back();
+        topology_edges_.pop_back();
       }
-      // callback_->edgeAdded(new_edge);
+
+      callback_->publishUpdate(new_edge);
 
       CLOG(DEBUG, "pose_graph") << "populateEdgesLive: overwrote edge" << eid;
-      *it = topology_edges_.back();
-      topology_edges_.pop_back();
+
     } else {
       ++it;
     }

@@ -33,6 +33,7 @@ class GraphCallbackInterface {
 
   virtual void vertexAdded(const VertexPtr&) {}
   virtual void edgeAdded(const EdgePtr&) {}
+  virtual void publishUpdate(const EdgePtr&) {}
 };
 
 }  // namespace pose_graph

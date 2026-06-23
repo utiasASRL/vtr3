@@ -107,6 +107,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
   /** \brief Performs the actual preprocessing task */
   bool preprocess_(const QueryCache::Ptr& qdata) override;
+  bool idle(const QueryCache::Ptr& qdata);
 
   /** \brief Performs the actual odometry mapping task */
   bool runOdometryMapping_(const QueryCache::Ptr& qdata) override;

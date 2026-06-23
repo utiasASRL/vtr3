@@ -121,7 +121,7 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
                      const EdgeTransform& T_twig_branch, const bool publish) {
   /// Set path and target localization
   CLOG(INFO, "tactic") << "Set path of size " << path.size();
-  ///
+  //
   CLOG(DEBUG, "tactic") << "LoadLive start (setPath)";
   graph_->loadLive();
   CLOG(DEBUG, "tactic") << "LoadLive end (setPath)";
@@ -230,11 +230,11 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
 bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   auto ts = *(qdata->stamp.ptr());
   uint n_sec_interval = 1;
-  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
   if ((ts % static_cast<unsigned>(n_sec_interval * 1e9)) < (0.005 * 1e9)){ // only loadLive for a small interval each second ANTHONY
+  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
     graph_->loadLive();
-  }
   CLOG(DEBUG, "tactic") << "LoadLive end (runOdometryMapping_)";
+  }
 
   // Setup caches
   qdata->vid_odo.emplace(current_vertex_id_);
@@ -763,11 +763,11 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
   auto ts = *(qdata->stamp.ptr());
   uint n_sec_interval = 1;
-  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
   if ((ts % static_cast<unsigned>(n_sec_interval * 1e9)) < (0.005 * 1e9)){ // only loadLive for a small interval each second ANTHONY
+   CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
     graph_->loadLive();
+    CLOG(DEBUG, "tactic") << "LoadLive end (runLocalization_)";
   }
-  CLOG(DEBUG, "tactic") << "LoadLive end (runLocalization_)";
 
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
@@ -1037,8 +1037,8 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
   auto edge = graph_->addEdge(previous_vertex_id, current_vertex_id_,
                         EdgeType::Temporal, mode, T_r_v);
 
-  // Write new vertex to disk
-  graph_->saveLive(); //ANTHONY
+  // Write new data to disk
+  graph_->saveLive();
 }
 
 void Tactic::updatePersistentLoc(const Timestamp& t, const VertexId& v,
