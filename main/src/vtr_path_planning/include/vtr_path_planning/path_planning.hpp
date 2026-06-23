@@ -14,7 +14,7 @@
 
 /**
  * \file path_planning.hpp
- * \author Jordy Sehn, Alec Krawciw Autonomous Space Robotics Lab (ASRL)
+ * \author Jordy Sehn, Alec Krawciw, Luka Antonyshyn Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -25,3 +25,9 @@
 #include "vtr_path_planning/mpc/bicycle_mpc_path_tracker.hpp"
 #include "vtr_path_planning/mpc/bicycle_mpc_path_tracker_follower.hpp"
 #include "vtr_path_planning/dynamic_path_planner.hpp"
+#include "vtr_path_planning/mpc/base_reference_adjustment_mpc_path_tracker.hpp"
+#include "vtr_path_planning/error_predictors/image_error_predictor_network.hpp"
+#include "vtr_path_planning/error_predictors/base_error_predictor.hpp"
+#include "vtr_path_planning/error_predictors/numerical_error_predictor_network.hpp"
+#include "vtr_path_planning/error_predictors/history_error_predictor.hpp"
+

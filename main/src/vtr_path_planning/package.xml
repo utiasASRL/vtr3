@@ -11,6 +11,8 @@
 
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>vtr_torch</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_eigen</depend>

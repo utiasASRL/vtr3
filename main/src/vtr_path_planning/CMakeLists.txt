@@ -24,6 +24,9 @@ find_package(vtr_tactic REQUIRED)
 find_package(vtr_path_planning_msgs REQUIRED)
 find_package(vtr_navigation_msgs REQUIRED)
 
+find_package(sensor_msgs REQUIRED)
+find_package(vtr_torch REQUIRED)
+
 
 # # find python libraries
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
@@ -116,11 +119,20 @@ ament_target_dependencies(${PROJECT_NAME}_cbit
   vtr_path_planning_msgs vtr_navigation_msgs
 )
 
+file(GLOB_RECURSE SRC src/error_predictors/*.cpp)
+add_library(${PROJECT_NAME}_error_predictors ${SRC})
+target_link_libraries(${PROJECT_NAME}_error_predictors ${PROJECT_NAME}_base)
+ament_target_dependencies(${PROJECT_NAME}_error_predictors
+  sensor_msgs
+  vtr_torch
+)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros tf2_eigen geometry_msgs matplotlib_cpp
   vtr_common vtr_logging vtr_tactic casadi
   vtr_path_planning_msgs vtr_navigation_msgs
+  sensor_msgs vtr_torch
 )
 
 install(
@@ -133,6 +145,7 @@ install(
     ${PROJECT_NAME}_base
     ${PROJECT_NAME}_mpc
     ${PROJECT_NAME}_cbit
+    ${PROJECT_NAME}_error_predictors
     solve_unicycle_mpc
     solve_bicycle_mpc
     solve_unicycle_follower_mpc
