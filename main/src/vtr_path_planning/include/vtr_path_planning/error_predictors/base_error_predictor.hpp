@@ -37,11 +37,16 @@ public:
 
   virtual void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time) = 0;
 
+  virtual void compute_gravity_vector(const RobotState& /* robot_state */) {}
+
 protected:
   struct ErrorSample {
     tactic::Timestamp timestamp;
     Eigen::VectorXd error;
   };
+
+  std::vector<ErrorSample> error_history_;
+  Eigen::VectorXd gravity_;
 };
 
 }  // namespace path_planning

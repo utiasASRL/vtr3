@@ -125,6 +125,7 @@ target_link_libraries(${PROJECT_NAME}_error_predictors ${PROJECT_NAME}_base)
 ament_target_dependencies(${PROJECT_NAME}_error_predictors
   sensor_msgs
   vtr_torch
+  lgmath
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)

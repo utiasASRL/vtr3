@@ -23,6 +23,7 @@
 #include "vtr_path_planning/error_predictors/base_error_predictor.hpp"
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <lgmath/se3/Transformation.hpp>
 
 namespace vtr {
 namespace path_planning {
@@ -37,11 +38,15 @@ public:
   ImageErrorPredictorNetwork(std::string model_path, bool use_gpu = false);
   ~ImageErrorPredictorNetwork();
 
-  void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time) override;
-  void setInputs(const ImageMsg& sig_img_msg, const ImageMsg& dpt_img_msg, const ImuMsg& imu_msg);
+  void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time) override {}
+  void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time,
+                    std::vector<lgmath::se3::Transformation>& reference_poses);
+  void setInputs(const std::shared_ptr<ImageMsg>& sig_img_msg,
+                 const std::shared_ptr<ImageMsg>& dpt_img_msg,
+                 const std::shared_ptr<ImuMsg>& imu_msg);
+  void clearInputs();
 
 private:
-  // Torch members are forward-declared via pimpl to keep this header Torch-free.
   struct Impl;
   std::unique_ptr<Impl> impl_;
 

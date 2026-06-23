@@ -138,7 +138,7 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   for (const auto& Tf : referenceInfo.poses) {
     mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() * Tf));
     local_reference_poses.push_back(T_w_p.inverse() * Tf);
-    
+
     CLOG(DEBUG, "cbit.control")
         << "Adding reference pose: " << tf_to_global(T_w_p.inverse() * Tf);
   }
@@ -151,6 +151,8 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   }
   else if (base_config_->reference_adjustment_mode == ReferenceAdjustmentMode::ImageNeuralNetwork) {
     CLOG(INFO, "cbit.control") << "Using image neural network for reference adjustment.";
+    image_error_predictor_->setInputs(sig_img_, dpt_img_, imu_msg_);
+    image_error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
   }
 
   // Detect end of path and set the corresponding cost weight vector element to zero
