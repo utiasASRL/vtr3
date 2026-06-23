@@ -177,8 +177,6 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
 
   lgmath::se3::Transformation T0 = T_p_r_extp;
   mpcConfig->T0 = tf_to_global(T0);
-  CLOG(DEBUG, "cbit.control") << "Rover position: " << mpcConfig->T0; 
-
 
   CLOG(DEBUG, "cbit.control")
       << "Last velocity " << w_p_r_in_r << " with stamp " << stamp;
