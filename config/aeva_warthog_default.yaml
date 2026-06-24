@@ -106,11 +106,11 @@
       type: lidar
       preprocessing:
         - conversion
-        #- filtering
+        # - filtering
         - doppler_filtering
         - curvature_filtering
       odometry:
-        #- icp
+        # - icp
         - doppler
         - mapping
         - vertex_test
@@ -120,7 +120,7 @@
         - memory
       localization:
         - recall
-        #- icp
+        # - icp
         - daicp
         #- safe_corridor
         #- change_detection_sync
@@ -250,7 +250,7 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
 
         crop_range_front: 80.0
         back_over_front_ratio: 0.5
