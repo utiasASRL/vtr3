@@ -22,6 +22,12 @@
 #include <vtr_torch/types.hpp>
 
 #include "vtr_path_planning/error_predictors/image_error_predictor_network.hpp"
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2/convert.h>
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <vtr_path_planning/cbit/utils.hpp>
 
 #include <stdexcept>
 
@@ -49,17 +55,30 @@ torch::Tensor imageToTensor(const ImageMsg& msg, torch::Device device) {
   return hw.unsqueeze(0).to(torch::kFloat32).div(255.0f).to(device);
 }
 
-// TODO: Need to change how we calculate the grav vec here
-torch::Tensor imuToTensor(const ImuMsg& msg, torch::Device device) {
-  std::array<float, 6> v{
-      static_cast<float>(msg.linear_acceleration.x),
-      static_cast<float>(msg.linear_acceleration.y),
-      static_cast<float>(msg.linear_acceleration.z),
-      static_cast<float>(msg.angular_velocity.x),
-      static_cast<float>(msg.angular_velocity.y),
-      static_cast<float>(msg.angular_velocity.z),
+torch::Tensor imuToOrientationTensor(const ImuMsg& msg, torch::Device device) {
+  // 1. Assume you receive a ROS 2 geometry_msgs Quaternion
+  geometry_msgs::msg::Quaternion msg_quat = msg.orientation;
+  
+  // 2. Convert geometry_msgs::msg::Quaternion to tf2::Quaternion
+  tf2::Quaternion tf2_quat;
+  tf2::fromMsg(msg_quat, tf2_quat);
+  
+  // 3. Convert tf2::Quaternion to tf2::Matrix3x3
+  tf2::Matrix3x3 matrix(tf2_quat);
+  
+  // 4. Extract Euler angles (Roll, Pitch, Yaw) in radians
+  double roll, pitch, yaw;
+  matrix.getRPY(roll, pitch, yaw);
+
+  std::array<float, 3> grav_vec{
+      static_cast<float>(roll),
+      static_cast<float>(pitch),
+      static_cast<float>(yaw),
   };
-  return torch::tensor(torch::ArrayRef<float>(v.data(), v.size())).to(device);
+
+  // TODO: Need to change how we calculate the grav vec here
+
+  return torch::tensor(torch::ArrayRef<float>(grav_vec.data(), grav_vec.size())).to(device);
 }
 
 // SE3 transformation → lie algebra vector [tx, ty, tz, φx, φy, φz].
@@ -125,7 +144,7 @@ void ImageErrorPredictorNetwork::clearInputs() {
 
 void ImageErrorPredictorNetwork::predictError(
     const RobotState& robot_state,
-    const tactic::Timestamp& /* curr_time */,
+    const tactic::Timestamp&,
     std::vector<lgmath::se3::Transformation>& reference_poses) {
 
   if (!cur_sig_img_msg_ || !cur_dpt_img_msg_ || !cur_imu_msg_) {
@@ -138,6 +157,12 @@ void ImageErrorPredictorNetwork::predictError(
         << "ImageErrorPredictorNetwork::predictError: reference_poses is empty.";
     return;
   }
+  auto& chain = robot_state.chain.ptr();
+
+  const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] =
+      getChainInfo(*chain);
+
+  auto T_w_r = T_w_p * T_p_r.inverse();
 
   torch::NoGradGuard no_grad;
 
@@ -159,10 +184,24 @@ void ImageErrorPredictorNetwork::predictError(
                                .to(impl_->device);
 
   // TODO: Need to correct this using current loc_res, the odom velocity and gravity vector
-  torch::Tensor vector = imuToTensor(*cur_imu_msg_, impl_->device).unsqueeze(0);  // (1,6)
+  auto loc_res = poseToVec(T_w_r);
+  auto loc_res_tensor = loc_res.unsqueeze(0).to(impl_->device);  // (1,6)
+  const auto& odom_vel = w_p_r_in_r;
+  std::array<float, 6> odom_vel_arr{
+      static_cast<float>(odom_vel(0)), static_cast<float>(odom_vel(1)),
+      static_cast<float>(odom_vel(2)), static_cast<float>(odom_vel(3)),
+      static_cast<float>(odom_vel(4)), static_cast<float>(odom_vel(5)),
+  };
+  auto odom_vel_tensor =
+      torch::tensor(torch::ArrayRef<float>(odom_vel_arr.data(), odom_vel_arr.size()))
+          .unsqueeze(0).to(impl_->device);  // (1,6)
+  torch::Tensor grav_vec = imuToOrientationTensor(*cur_imu_msg_, impl_->device).unsqueeze(0);  // (1,3)
+
+  std::vector<torch::Tensor> vec_inputs_list{loc_res_tensor, odom_vel_tensor, grav_vec};
+  torch::Tensor vector_inputs = torch::cat(vec_inputs_list, /*dim=*/1);
 
   // Run inference 
-  std::vector<torch::jit::IValue> inputs{vector, sequence, image};
+  std::vector<torch::jit::IValue> inputs{vector_inputs, sequence, image};
   torch::Tensor output;
   try {
     // Model output: (1, T, output_size) — typically output_size = 3 [x, y, yaw]
