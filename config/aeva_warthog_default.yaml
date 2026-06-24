@@ -120,7 +120,7 @@
         - memory
       localization:
         - recall
-        #- icp
+        # - icp
         - daicp
         #- safe_corridor
         #- change_detection_sync
@@ -250,7 +250,7 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
 
         crop_range_front: 80.0
         back_over_front_ratio: 0.5
@@ -337,8 +337,8 @@
         # (x is the GN perturbation in scaled coords). Larger = looser
         # constraint, closer to unconstrained step on borderline-degenerate
         # frames in feature-rich environments.
-        qp_eps_trans: 0.1                    # [m]   per-iter translation cap
-        qp_eps_rot: 0.05                      # [rad] per-iter rotation cap (~2.9 deg)
+        qp_eps_trans: 0.02                    # [m]   per-iter translation cap
+        qp_eps_rot: 0.02                      # [rad] per-iter rotation cap (~2.9 deg)
         # CasADi conic plugin: "qrqp" (recommended), "osqp", "qpoases", "nlpsol"
         qp_solver_name: "qrqp"
         # daicp - degenerate-direction covariance scaling
