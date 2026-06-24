@@ -60,6 +60,8 @@ SqliteWrapper::SqliteWrapper(
     int rc = sqlite3_open_v2(
       uri.c_str(), &db_ptr,
       SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nullptr);
+    //prepare_statement("PRAGMA schema_version;")->execute_and_reset();
+    sqlite3_busy_timeout(db_ptr, 5000);
     if (rc != SQLITE_OK) {
       std::stringstream errmsg;
       errmsg << "Could not read-only open database. SQLite error (" <<
@@ -67,7 +69,6 @@ SqliteWrapper::SqliteWrapper(
       throw SqliteException{errmsg.str()};
     }
     // throws an exception if the database is not valid.
-    prepare_statement("PRAGMA schema_version;")->execute_and_reset();
   } else {
     int rc = sqlite3_open_v2(
       uri.c_str(), &db_ptr,
