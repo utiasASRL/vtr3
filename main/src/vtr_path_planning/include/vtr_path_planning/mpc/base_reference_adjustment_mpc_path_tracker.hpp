@@ -83,28 +83,15 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
   ~BaseReferenceAdjustmentMPCPathTracker() override;
 
  protected:
-  void initializeRoute(RobotState& robot_state);
-  virtual Command computeCommand(RobotState& robot_state) override;
-  virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) = 0;
-  virtual CasadiMPC::Config::Ptr getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing)=0;
-  virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) = 0;
   virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                             const lgmath::se3::Transformation& T_p_r_extp,
                             const double state_p,
-                            RobotState& robot_state, 
-                            const tactic::Timestamp& curr_time);
+                            RobotState& robot_state,
+                            const tactic::Timestamp& curr_time) override;
 
-  VisualizationUtils::Ptr vis_;  
-
- private: 
-
+ private:
   const Config::ConstPtr base_config_;
-  // Store the previously applied velocity and a sliding window history of MPC results
-  Eigen::Vector2d applied_vel_;
-  std::vector<Eigen::Vector2d> vel_history;
-  tactic::Timestamp prev_vel_stamp_;
   RobotState::Ptr robot_state_;
-  Command computeCommand_(RobotState& robot_state);
 
   rclcpp::Publisher<Command>::SharedPtr command_pub_;
   rclcpp::Publisher<PathInfoMsg>::SharedPtr path_info_pub_;
