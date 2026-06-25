@@ -217,10 +217,10 @@ void RCGraph::loadEdgesLive() {
 
 void RCGraph::populateEdgesLive() {
   CLOG(DEBUG, "pose_graph") << "Monitoring topology-only edges";
-  CLOG(DEBUG, "pose_graph") << "# topology edges: " << topology_edges_.size();
+  CLOG(DEBUG, "pose_graph") << "# topology edges, vertices: " << topology_edges_.size();
   // Monitor edges that were topology, overwrite internal rep. of edges/vertices
   EdgeMsgAccessor edge_accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
-  VertexMsgAccessor vtx_accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
+  VertexMsgAccessor vtx_accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
 
   for (auto it = topology_edges_.begin(); it != topology_edges_.end();) {
     const auto msg = edge_accessor.readAtIndex(*it);
@@ -335,6 +335,7 @@ void RCGraph::saveVerticesLive() {
     vertices_to_write_.pop();
     vertex->unload();
     accessor.write(vertex->serialize());
+    lastVertexIdx_++;
   }  
 }
 
@@ -364,6 +365,7 @@ void RCGraph::saveEdgesLive() {
     auto edge = edges_to_write_.front();
     edges_to_write_.pop();
     accessor.write(edge->serialize());
+    lastEdgeIdx_++;
   }  
 }
 
