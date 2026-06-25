@@ -22,6 +22,7 @@
 
 #include "vtr_path_planning/error_predictors/base_error_predictor.hpp"
 #include <sensor_msgs/msg/imu.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 namespace vtr {
 namespace path_planning {
@@ -30,16 +31,21 @@ class NumericalErrorPredictorNetwork : public BaseErrorPredictor {
 public:
   PTR_TYPEDEFS(NumericalErrorPredictorNetwork);
 
-  NumericalErrorPredictorNetwork(std::string model_path, bool use_gpu = false);
+  NumericalErrorPredictorNetwork(rclcpp::Node::SharedPtr node,
+                                 const std::string& imu_topic,
+                                 const std::string& model_path,
+                                 bool use_gpu = false);
   ~NumericalErrorPredictorNetwork();
 
-  void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time) override;
-  void updateInputs(const sensor_msgs::msg::Imu& imu_msg);
+  void predictError(const RobotState& robot_state,
+                    const tactic::Timestamp& curr_time,
+                    std::vector<lgmath::se3::Transformation>& reference_poses) override;
 
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
 
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
   std::shared_ptr<sensor_msgs::msg::Imu> cur_imu_msg_ = nullptr;
 };
 

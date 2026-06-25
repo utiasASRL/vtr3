@@ -21,6 +21,7 @@
 #define VTR_PATH_PLANNING_ERROR_PREDICTORS_HISTORY_LOOKUP_ERROR_PREDICTOR_HPP
 
 #include "vtr_path_planning/error_predictors/base_error_predictor.hpp"
+#include <lgmath/se3/Transformation.hpp>
 
 namespace vtr::path_planning {
 
@@ -29,11 +30,11 @@ public:
   HistoryLookupErrorPredictor();
   ~HistoryLookupErrorPredictor();
 
-  void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time) override;
+  void predictError(const RobotState& robot_state,
+                    const tactic::Timestamp& curr_time,
+                    std::vector<lgmath::se3::Transformation>& reference_poses) override;
 
 private:
-  // History buffer for storing past errors
-  std::deque<ErrorSample> error_history_;
 };
 
 }  // namespace vtr::path_planning

@@ -21,6 +21,7 @@
 #include <vtr_tactic/types.hpp>
 #include <vtr_path_planning/base_path_planner.hpp>
 #include <vtr_common/utils/macros.hpp>
+#include <lgmath/se3/Transformation.hpp>
 
 #ifndef VTR_PATH_PLANNING_ERROR_PREDICTORS_BASE_ERROR_PREDICTOR_HPP
 #define VTR_PATH_PLANNING_ERROR_PREDICTORS_BASE_ERROR_PREDICTOR_HPP
@@ -35,9 +36,9 @@ public:
 
   virtual ~BaseErrorPredictor() = default;
 
-  virtual void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time) = 0;
-
-  virtual void compute_gravity_vector(const RobotState& /* robot_state */) {}
+  virtual void predictError(const RobotState& robot_state,
+                            const tactic::Timestamp& curr_time,
+                            std::vector<lgmath::se3::Transformation>& reference_poses) = 0;
 
 protected:
   struct ErrorSample {

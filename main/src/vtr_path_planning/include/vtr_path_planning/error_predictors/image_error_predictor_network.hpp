@@ -24,6 +24,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <lgmath/se3/Transformation.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 namespace vtr {
 namespace path_planning {
@@ -35,20 +36,25 @@ class ImageErrorPredictorNetwork : public BaseErrorPredictor {
 public:
   PTR_TYPEDEFS(ImageErrorPredictorNetwork);
 
-  ImageErrorPredictorNetwork(std::string model_path, bool use_gpu = false);
+  ImageErrorPredictorNetwork(rclcpp::Node::SharedPtr node,
+                             const std::string& sig_img_topic,
+                             const std::string& dpt_img_topic,
+                             const std::string& imu_topic,
+                             const std::string& model_path,
+                             bool use_gpu = false);
   ~ImageErrorPredictorNetwork();
 
-  void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time) override {}
-  void predictError(const RobotState& robot_state, const tactic::Timestamp& curr_time,
-                    std::vector<lgmath::se3::Transformation>& reference_poses);
-  void setInputs(const std::shared_ptr<ImageMsg>& sig_img_msg,
-                 const std::shared_ptr<ImageMsg>& dpt_img_msg,
-                 const std::shared_ptr<ImuMsg>& imu_msg);
-  void clearInputs();
+  void predictError(const RobotState& robot_state,
+                    const tactic::Timestamp& curr_time,
+                    std::vector<lgmath::se3::Transformation>& reference_poses) override;
 
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
+
+  rclcpp::Subscription<ImageMsg>::SharedPtr sig_img_sub_;
+  rclcpp::Subscription<ImageMsg>::SharedPtr dpt_img_sub_;
+  rclcpp::Subscription<ImuMsg>::SharedPtr imu_sub_;
 
   std::shared_ptr<ImageMsg> cur_sig_img_msg_ = nullptr;
   std::shared_ptr<ImageMsg> cur_dpt_img_msg_ = nullptr;

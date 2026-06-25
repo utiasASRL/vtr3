@@ -60,8 +60,8 @@ auto BicycleMPCPathTracker::Config::loadConfig(BicycleMPCPathTracker::Config::Pt
 auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
 
-  auto base_config = std::static_pointer_cast<BaseMPCPathTracker::Config>(config);
-  *base_config =  *BaseMPCPathTracker::Config::fromROS(node, prefix);
+  auto base_config = std::static_pointer_cast<BaseReferenceAdjustmentMPCPathTracker::Config>(config);
+  *base_config =  *BaseReferenceAdjustmentMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
   CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward parameters: "
@@ -90,7 +90,7 @@ BicycleMPCPathTracker::BicycleMPCPathTracker(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const tactic::GraphBase::Ptr& graph,
                                const Callback::Ptr& callback)
-    : BaseMPCPathTracker(config, robot_state, graph, callback), 
+    : BaseReferenceAdjustmentMPCPathTracker(config, robot_state, graph, callback),
     config_(config), 
     solver_{config_->mpc_verbosity} {
       CLOG(DEBUG, "cbit.control") << "Constructed Bicycle tracker";
@@ -149,7 +149,7 @@ void BicycleMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const 
                          RobotState& robot_state,
                          const tactic::Timestamp& t) {
   auto mpc_config = std::static_pointer_cast<CasadiBicycleMPC::Config>(mpcConfig);
-  BaseMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
+  BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
 
   //Temporary to maintain functionality. TODO remove
   mpcConfig->up_barrier_q.clear();

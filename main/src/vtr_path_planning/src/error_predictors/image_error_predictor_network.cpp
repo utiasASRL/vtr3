@@ -97,7 +97,12 @@ torch::Tensor poseToVec(const lgmath::se3::Transformation& T) {
 
 
 ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
-    std::string model_path, bool use_gpu)
+    rclcpp::Node::SharedPtr node,
+    const std::string& sig_img_topic,
+    const std::string& dpt_img_topic,
+    const std::string& imu_topic,
+    const std::string& model_path,
+    bool use_gpu)
     : impl_(std::make_unique<Impl>()) {
   if (use_gpu) {
     if (torch::cuda::is_available()) {
@@ -119,28 +124,23 @@ ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
 
   impl_->model.to(impl_->device);
   impl_->model.eval();
+
+  sig_img_sub_ = node->create_subscription<ImageMsg>(
+      sig_img_topic, rclcpp::QoS(1),
+      [this](const ImageMsg::SharedPtr msg) { cur_sig_img_msg_ = msg; });
+  dpt_img_sub_ = node->create_subscription<ImageMsg>(
+      dpt_img_topic, rclcpp::QoS(1),
+      [this](const ImageMsg::SharedPtr msg) { cur_dpt_img_msg_ = msg; });
+  imu_sub_ = node->create_subscription<ImuMsg>(
+      imu_topic, rclcpp::QoS(1),
+      [this](const ImuMsg::SharedPtr msg) { cur_imu_msg_ = msg; });
+
   CLOG(INFO, "path_planning")
       << "ImageErrorPredictorNetwork: loaded model from " << model_path
       << ", device = " << impl_->device;
 }
 
 ImageErrorPredictorNetwork::~ImageErrorPredictorNetwork() = default;
-
-
-// Input setter functions
-void ImageErrorPredictorNetwork::setInputs(const std::shared_ptr<ImageMsg>& sig_img_msg,
-                                            const std::shared_ptr<ImageMsg>& dpt_img_msg,
-                                            const std::shared_ptr<ImuMsg>& imu_msg) {
-  cur_sig_img_msg_ = sig_img_msg;
-  cur_dpt_img_msg_ = dpt_img_msg;
-  cur_imu_msg_     = imu_msg;
-}
-
-void ImageErrorPredictorNetwork::clearInputs() {
-  cur_sig_img_msg_.reset();
-  cur_dpt_img_msg_.reset();
-  cur_imu_msg_.reset();
-}
 
 
 void ImageErrorPredictorNetwork::predictError(

@@ -106,23 +106,10 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
   RobotState::Ptr robot_state_;
   Command computeCommand_(RobotState& robot_state);
 
-  // Subs, pubs
-  rclcpp::Subscription<ImageMsg>::SharedPtr sig_img_sub_;
-  rclcpp::Subscription<ImageMsg>::SharedPtr dpt_img_sub_;
-  rclcpp::Subscription<ImuMsg>::SharedPtr imu_sub_;
   rclcpp::Publisher<Command>::SharedPtr command_pub_;
   rclcpp::Publisher<PathInfoMsg>::SharedPtr path_info_pub_;
-  ImageMsg::SharedPtr sig_img_ = nullptr;
-  ImageMsg::SharedPtr dpt_img_ = nullptr;
-  ImuMsg::SharedPtr imu_msg_ = nullptr;
-  NumericalErrorPredictorNetwork::Ptr numerical_error_predictor_ = nullptr;
-  ImageErrorPredictorNetwork::Ptr image_error_predictor_ = nullptr;
-  HistoryLookupErrorPredictor::Ptr history_lookup_error_predictor_ = nullptr;
 
-  // Sub callbacks
-  void signalCallback(const ImageMsg::SharedPtr msg);
-  void depthCallback(const ImageMsg::SharedPtr msg);
-  void imuCallback(const ImuMsg::SharedPtr msg);
+  BaseErrorPredictor::Ptr error_predictor_ = nullptr;
 
 };
 

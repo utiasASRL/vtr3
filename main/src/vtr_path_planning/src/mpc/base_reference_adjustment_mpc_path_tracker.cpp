@@ -48,6 +48,14 @@ auto BaseReferenceAdjustmentMPCPathTracker::Config::loadConfig(BaseReferenceAdju
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
   config->alpha = node->declare_parameter<float>(prefix + ".mpc.alpha", config->alpha);
+
+  // REFERENCE ADJUSTMENT PARAMS
+  config->sig_img_topic = node->declare_parameter<std::string>(prefix + ".error_predictor.sig_img_topic", config->sig_img_topic);
+  config->dpt_img_topic = node->declare_parameter<std::string>(prefix + ".error_predictor.dpt_img_topic", config->dpt_img_topic);
+  config->imu_topic     = node->declare_parameter<std::string>(prefix + ".error_predictor.imu_topic", config->imu_topic);
+  config->reference_adjustment_model_path = node->declare_parameter<std::string>(prefix + ".error_predictor.model_path", config->reference_adjustment_model_path);
+  config->reference_adjustment_mode = static_cast<ReferenceAdjustmentMode>(
+      node->declare_parameter<int>(prefix + ".error_predictor.mode", static_cast<int>(config->reference_adjustment_mode)));
 }
 
 // Subclasses must implement their own Config::fromROS.
@@ -68,51 +76,33 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
       base_config_(config),
       robot_state_{robot_state} {
 
-  if(config->reference_adjustment_mode == ReferenceAdjustmentMode::ImageNeuralNetwork)
-  {
-    if(!config->reference_adjustment_model_path.empty())
-    {
-      // Initialize the image neural network
-      image_error_predictor_ = std::make_shared<ImageErrorPredictorNetwork>(base_config_->reference_adjustment_model_path);
-      // Sub to dependencies
-      sig_img_sub_ = robot_state_->node->create_subscription<ImageMsg>(
-          base_config_->sig_img_topic, rclcpp::QoS(1),
-          [this](const ImageMsg::SharedPtr msg) { signalCallback(msg); });
-      dpt_img_sub_ = robot_state_->node->create_subscription<ImageMsg>(
-          base_config_->dpt_img_topic, rclcpp::QoS(1),
-          [this](const ImageMsg::SharedPtr msg) { depthCallback(msg); });
-      imu_sub_ = robot_state_->node->create_subscription<ImuMsg>(
-          base_config_->imu_topic, rclcpp::QoS(1),
-          [this](const ImuMsg::SharedPtr msg) { imuCallback(msg); });
+  auto node = robot_state_->node.ptr();
+  if (config->reference_adjustment_mode == ReferenceAdjustmentMode::ImageNeuralNetwork) {
+    if (!config->reference_adjustment_model_path.empty()) {
+      error_predictor_ = std::make_shared<ImageErrorPredictorNetwork>(
+          node,
+          base_config_->sig_img_topic,
+          base_config_->dpt_img_topic,
+          base_config_->imu_topic,
+          base_config_->reference_adjustment_model_path);
       CLOG(INFO, "cbit.control") << "Initialized image neural network for reference adjustment.";
-    }
-    else
-    {
+    } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Image neural network will not be initialized.";
     }
-  }
-  else if (config->reference_adjustment_mode == ReferenceAdjustmentMode::NumericalNeuralNetwork)
-  {
-    if(!config->reference_adjustment_model_path.empty())
-    {
-      // Initialize the numerical error predictor
-      //numerical_error_predictor_ = std::make_shared<NumericalErrorPredictorNetwork>();
-      imu_sub_ = robot_state_->node->create_subscription<ImuMsg>(
-          base_config_->imu_topic, rclcpp::QoS(1),
-          [this](const ImuMsg::SharedPtr msg) { imuCallback(msg); });
+  } else if (config->reference_adjustment_mode == ReferenceAdjustmentMode::NumericalNeuralNetwork) {
+    if (!config->reference_adjustment_model_path.empty()) {
+      error_predictor_ = std::make_shared<NumericalErrorPredictorNetwork>(
+          node,
+          base_config_->imu_topic,
+          base_config_->reference_adjustment_model_path);
       CLOG(INFO, "cbit.control") << "Initialized numerical neural network for reference adjustment.";
-    }
-    else
-    {
+    } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Numerical neural network will not be initialized.";
     }
-  }
-  else if (config->reference_adjustment_mode == ReferenceAdjustmentMode::HistoryBased)
-  {
-    CLOG(INFO, "cbit.control") << "Using history-based reference adjustment.";
-  }
-  else
-  {
+  } else if (config->reference_adjustment_mode == ReferenceAdjustmentMode::HistoryBased) {
+    error_predictor_ = std::make_shared<HistoryLookupErrorPredictor>();
+    CLOG(INFO, "cbit.control") << "Initialized history-based reference adjustment.";
+  } else {
     CLOG(INFO, "cbit.control") << "No reference adjustment will be applied.";
   }
 }
@@ -143,16 +133,11 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
         << "Adding reference pose: " << tf_to_global(T_w_p.inverse() * Tf);
   }
 
-  if (base_config_->reference_adjustment_mode == ReferenceAdjustmentMode::HistoryBased) {
-    CLOG(INFO, "cbit.control") << "Using history-based reference adjustment.";
-  }
-  else if (base_config_->reference_adjustment_mode == ReferenceAdjustmentMode::NumericalNeuralNetwork) {
-    CLOG(INFO, "cbit.control") << "Using numerical neural network for reference adjustment.";
-  }
-  else if (base_config_->reference_adjustment_mode == ReferenceAdjustmentMode::ImageNeuralNetwork) {
-    CLOG(INFO, "cbit.control") << "Using image neural network for reference adjustment.";
-    image_error_predictor_->setInputs(sig_img_, dpt_img_, imu_msg_);
-    image_error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
+  if (error_predictor_) {
+    error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
+    mpcConfig->reference_poses.clear();
+    for (const auto& pose : local_reference_poses)
+      mpcConfig->reference_poses.push_back(tf_to_global(pose));
   }
 
   // Detect end of path and set the corresponding cost weight vector element to zero
@@ -194,19 +179,5 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
 }
 
-void BaseReferenceAdjustmentMPCPathTracker::signalCallback(const ImageMsg::SharedPtr msg) {
-  sig_img_ = msg;
-  CLOG(INFO, "cbit.control") << "Received signal image.";
-}
-
-void BaseReferenceAdjustmentMPCPathTracker::depthCallback(const ImageMsg::SharedPtr msg) {
-  dpt_img_ = msg;
-  CLOG(INFO, "cbit.control") << "Received depth image.";
-}
-
-void BaseReferenceAdjustmentMPCPathTracker::imuCallback(const ImuMsg::SharedPtr msg) {
-  imu_msg_ = msg;
-  CLOG(INFO, "cbit.control") << "Received IMU message.";
-}
 
 }  // namespace vtr::path_planning

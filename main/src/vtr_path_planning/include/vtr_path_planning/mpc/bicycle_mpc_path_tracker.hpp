@@ -20,7 +20,7 @@
 
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/types.hpp>
-#include <vtr_path_planning/mpc/base_mpc_path_tracker.hpp>
+#include <vtr_path_planning/mpc/base_reference_adjustment_mpc_path_tracker.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
 
@@ -29,14 +29,14 @@
 namespace vtr {
 namespace path_planning {
 
-class BicycleMPCPathTracker : public BaseMPCPathTracker {
+class BicycleMPCPathTracker : public BaseReferenceAdjustmentMPCPathTracker {
  public:
   PTR_TYPEDEFS(BicycleMPCPathTracker);
 
   static constexpr auto static_name = "bicycle_mpc";
 
   // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
-  struct Config : public BaseMPCPathTracker::Config {
+  struct Config : public BaseReferenceAdjustmentMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
 
     // MPC Costs
