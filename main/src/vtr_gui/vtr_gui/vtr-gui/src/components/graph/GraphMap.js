@@ -684,12 +684,9 @@ class GraphMap extends React.Component {
 
   /** @brief Refresh the pose graph completely */
   loadGraphState(graph, center = false) {
-    console.info("active_routes count before clear:", this.active_routes.length);
-    console.info("active_routes polylines:", this.active_routes.map(r => r.polyline?._leaflet_id));
-  
     console.info("Loading the current pose graph state (full).");
-    // root vid
     this.root_vid = graph.root_vid;
+    
     // id2vertex and kdtree
     this.id2vertex = new Map();
     let wps_map = new Map();
