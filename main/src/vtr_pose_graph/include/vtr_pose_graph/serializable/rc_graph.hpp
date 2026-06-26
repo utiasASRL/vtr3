@@ -102,8 +102,12 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   /** \brief Set the map display calibration */
   void setMapInfo(const MapInfoMsg& map_info) {
+    CLOG(DEBUG, "pose_graph") << "setMapInfo start";
     std::unique_lock lock(map_info_mutex_);
     map_info_ = map_info;
+    map_info_.root_vid = vertices_.end()->first;
+    if (!vertices_.empty()) { map_info_.root_vid = vertices_.begin()->first; }
+    CLOG(DEBUG, "pose_graph") << "setMapInfo done";
   }
 
   /** \brief Get the file path of the graph index */
@@ -115,7 +119,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
              const typename storage::LockableMessage<DataType>::Ptr& message);
   void saveGraphIndex();
 
-  // TODO (Anthony): Make these private
+  // TODO (ANTHONY): Make these private
   // keep track of .db3 cursors (watch for new data)
   int lastVertexIdx_ = 0;
   int lastEdgeIdx_ = 0;
@@ -123,7 +127,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   // keep track of topology only edges
   void loadVerticesLive();
   void loadEdgesLive();
-  void populateEdgesLive();
+  void populateLive();
   void loadLive();
 
  private:
@@ -165,7 +169,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   std::queue<VertexPtr> vertices_to_write_;
   std::queue<EdgePtr> edges_to_write_;
-  std::vector<int> topology_edges_;
+  std::unordered_map<EdgeId, int> topology_edges_;
   std::unordered_map<VertexId, int> topology_vertices_;
 };
 
