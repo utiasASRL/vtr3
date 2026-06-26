@@ -216,11 +216,6 @@ class GraphMap extends React.Component {
     this.props.socket.on("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.on("following_route", this.followingRouteCallback.bind(this));
     this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
-
-    // Poll for graph updates (e.g. topology-only edges populated with data in the background)
-    this.graphPollInterval = setInterval(() => {
-      this.fetchGraphState();
-    }, 5000);
   }
 
   componentWillUnmount() {
@@ -621,25 +616,82 @@ class GraphMap extends React.Component {
   route2Polyline(route) {
     // find the modal robot_id
     const color = ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length];
+    const weight = this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]);
+    const opacity = ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length];
+    const style = { color: color, weight: weight, opacity: opacity, pane: "graph", lineCap: "butt" };
+
+    let segments = [];
+    let current = [];
+
+    for (let i = 0; i < route.ids.length; i++) {
+      let id = route.ids[i];
+      let v = this.id2vertex.get(id);
+      if (!v) { current = []; continue; }
+
+      if (current.length === 0) {
+      current.push([v.lat, v.lng]);
+      } else {
+        let prev_id = route.ids[i - 1];
+        let prev_v = this.id2vertex.get(prev_id);
+        const a = prev_id < id ? `${prev_id},${id}` : `${id},${prev_id}`;
+        const connected = this.adjacency?.has(a) ?? true; // fallback true during live streaming
+        if (connected) {
+          current.push([v.lat, v.lng]);
+        } else {
+          if (current.length > 1) segments.push(current);
+            current = [[v.lat, v.lng]];
+        }
+      }
+    }
+    if (current.length > 1) segments.push(current);
+
+    const group = L.layerGroup();
+    segments.forEach(seg => L.polyline(seg, style).addTo(group));
+    group.addTo(this.map);
+
+    group.setStyle = (newStyle) => {
+      group.eachLayer(layer => layer.setStyle(newStyle));
+    };
+
+    group.addLatLng = ([lat, lng]) => {
+      const layers = Object.values(group._layers);
+      if (layers.length === 0) {
+        L.polyline([[lat, lng]], style).addTo(group);
+      } else {
+        layers[layers.length - 1].addLatLng([lat, lng]);
+      }
+    };
+
+    const _remove = group.remove.bind(group);
+    group.remove = () => {
+      group.clearLayers();
+      _remove();
+    };
+
+    return group;
+
     // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
     // let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
-    let latlngs = route.ids.map((id) => {
-      let v = this.id2vertex.get(id);
-      return [v.lat, v.lng];
-    });
-    let polyline = L.polyline(latlngs, { 
-      color: color,
-      weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
-      opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
-      pane: "graph",
-      lineCap: "butt",
-    });
-    polyline.addTo(this.map);
-    return polyline;
+    // let latlngs = route.ids.map((id) => {
+    //   let v = this.id2vertex.get(id);
+    //   return [v.lat, v.lng];
+    // });
+    // let polyline = L.polyline(latlngs, { 
+    //   color: color,
+    //   weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
+    //   opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
+    //   pane: "graph",
+    //   lineCap: "butt",
+    // });
+    // polyline.addTo(this.map);
+    // return polyline;
   }
 
   /** @brief Refresh the pose graph completely */
   loadGraphState(graph, center = false) {
+    console.info("active_routes count before clear:", this.active_routes.length);
+    console.info("active_routes polylines:", this.active_routes.map(r => r.polyline?._leaflet_id));
+  
     console.info("Loading the current pose graph state (full).");
     // root vid
     this.root_vid = graph.root_vid;
@@ -661,15 +713,26 @@ class GraphMap extends React.Component {
       } else {
         wps_map.set(v.id, this.genDefaultWaypointName(v.id));
       }
-
     });
+
+    this.adjacency = new Set();
+      graph.vertices.forEach((v) => {
+      v.neighbors.forEach((n) => {
+        // Store both directions as "smallId,largeId" for O(1) lookup
+        const key = v.id < n ? `${v.id},${n}` : `${n},${v.id}`;
+        this.adjacency.add(key);
+      });
+    });
+
     this.setState({waypoints_map: wps_map, display_waypoints_map: disp_wps_map});
-
     this.kdtree = new kdTree(graph.vertices, (a, b) => b.distanceTo(a), ["lat", "lng"]);
+    
+    this.active_routes.forEach((route) => route.polyline.remove());
+    this.active_routes = [];
+    this.robot_routes = new Map();
+    
     // fixed routes
-    this.fixed_routes.forEach((route) => {
-      route.polyline.remove();
-    });
+    this.fixed_routes.forEach((route) => route.polyline.remove());
     this.fixed_routes = graph.fixed_routes.flatMap((route) => {
       let polyline = this.route2Polyline(route);
       let route_centre = structuredClone(route);
@@ -678,9 +741,7 @@ class GraphMap extends React.Component {
       return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
     });
     // active routes
-    this.active_routes.forEach((route) => {
-      route.polyline.remove();
-    });
+    this.active_routes.forEach((route) => route.polyline.remove());
     this.active_routes = graph.active_routes.flatMap((route) => {
       let polyline = this.route2Polyline(route);
       let route_centre = structuredClone(route);
@@ -688,6 +749,17 @@ class GraphMap extends React.Component {
       let polyline_centre = this.route2Polyline(route_centre);
       return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
     });
+
+    this.robot_routes = new Map();
+    // active_routes are stored in pairs [route, route_centre], step by 2
+    for (let i = 0; i < this.active_routes.length; i += 2) {
+      const route = this.active_routes[i];
+      const route_centre = this.active_routes[i + 1];
+      if (route && route.ids.length > 0) {
+        const robot_id = this.getRobotId(route.ids[route.ids.length - 1]);
+        this.robot_routes.set(robot_id, { route, route_centre });
+      }
+    }
 
     // center set to root vertex
     if (center && this.id2vertex.has(this.root_vid)) {
@@ -836,49 +908,94 @@ class GraphMap extends React.Component {
   graphUpdateCallback(graph_update) {
     if (this.map === null) return;
     if (this.graph_loaded === false) return;
-    console.info("Received graph update: ", graph_update);
-
+    console.info("Processing graph update: ", graph_update);
+ 
     // from vertex
     let vf = graph_update.vertex_from;
     vf.valueOf = () => vf.id;
     vf.distanceTo = L.LatLng.prototype.distanceTo;
-    // only update if the vertex is not in the map (vertex position does not change)
-    if (!this.id2vertex.has(vf.id)) this.kdtree.insert(vf);
-    // always update the vertex map, because vertex neighbors may change
-    this.id2vertex.set(vf.id, vf);
-
+ 
     // to vertex
     let vt = graph_update.vertex_to;
     vt.valueOf = () => vt.id;
     vt.distanceTo = L.LatLng.prototype.distanceTo;
-    // only update if the vertex is not in the map (vertex position does not change)
-    if (!this.id2vertex.has(vt.id)) this.kdtree.insert(vt);
-    // always update the vertex map, because vertex neighbors may change
+ 
+    if (!this.id2vertex.has(vf.id)) {
+      if (this.kdtree) this.kdtree.insert(vf);
+    }
+    this.id2vertex.set(vf.id, vf);
+ 
+    if (!this.id2vertex.has(vt.id)) {
+      if (this.kdtree) this.kdtree.insert(vt);
+    }
     this.id2vertex.set(vt.id, vt);
+ 
+    // top 4 bits
+    const robot_id = this.getRobotId(vf.id);
+    
+    const existing = this.robot_routes.get(robot_id);
+    const tail_id = existing?.route.ids.at(-1);
+    const typeChanged = existing && existing.route.type !== vt.type;
+    const needNewSegment = !existing || tail_id?.toString() !== vf.id.toString() || typeChanged;
 
-    // active route update
-    if (this.active_routes.length === 0) {
-      let active_route = { ids: [vf.id], type: vf.type };
-      active_route = { ...active_route, polyline: this.route2Polyline(active_route) };
-      this.active_routes.push(active_route);
-      let active_route_centre = { ids: [vf.id], type: 7 };
-      active_route_centre = { ...active_route_centre, polyline: this.route2Polyline(active_route_centre) };
-      this.active_routes.push(active_route_centre);
+    if (needNewSegment) {
+      let route = { ids: [vf.id, vt.id], type: vt.type };
+      route.polyline = this.route2Polyline(route);
+      
+      let route_centre = { ids: [vf.id, vt.id], type: 7 };
+      route_centre.polyline = this.route2Polyline(route_centre);
+
+      this.active_routes.push(route, route_centre);
+      this.robot_routes.set(robot_id, { route: route, route_centre: route_centre });
+    } else {
+      // Extend the existing segment cleanly
+      const {route, route_centre} = existing;
+      route.ids.push(vt.id);
+      route.polyline.addLatLng([vt.lat, vt.lng]);
+      route_centre.ids.push(vt.id);
+      route_centre.polyline.addLatLng([vt.lat, vt.lng]);
+      
+      // NOTE: We removed the route.polyline.setStyle() block entirely!
     }
-    let active_route = this.active_routes[this.active_routes.length - 2];
-    active_route.ids.push(vt.id);
-    active_route.polyline.addLatLng([vt.lat, vt.lng]);
-    let active_route_centre = this.active_routes[this.active_routes.length - 1];
-    active_route_centre.ids.push(vt.id);
-    active_route_centre.polyline.addLatLng([vt.lat, vt.lng]);
-    if (active_route.type !== vt.type) {
-      let new_active_route = { ids: [vt.id], type: vt.type };
-      new_active_route = { ...new_active_route, polyline: this.route2Polyline(new_active_route) };
-      this.active_routes.push(new_active_route);
-      let new_active_route_centre = { ids: [vf.id], type: 7 };
-      new_active_route_centre = { ...new_active_route_centre, polyline: this.route2Polyline(new_active_route_centre) };
-      this.active_routes.push(new_active_route_centre);
-    }
+    // Continuity check: start a new segment if active_routes is empty OR if
+    // vf is not the last vertex of the current segment. This prevents scatter
+    // lines when batched updates arrive non-sequentially.
+    // const needNewRoute = this.active_routes.length === 0 ||
+    //   this.active_routes[this.active_routes.length - 2].ids[
+    //     this.active_routes[this.active_routes.length - 2].ids.length - 1
+    //   ].toString() !== vf.id.toString();
+ 
+    // if (needNewRoute) {
+    //   // Seed with both vf and vt so the edge is drawn immediately
+    //   let active_route = { ids: [vf.id, vt.id], type: vt.type };
+    //   active_route = { ...active_route, polyline: this.route2Polyline(active_route) };
+    //   this.active_routes.push(active_route);
+    //   let active_route_centre = { ids: [vf.id, vt.id], type: 7 };
+    //   active_route_centre = { ...active_route_centre, polyline: this.route2Polyline(active_route_centre) };
+    //   this.active_routes.push(active_route_centre);
+    //   return; // both vertices already added
+    // }
+ 
+    // // vf is confirmed as the current tail — just extend with vt
+    // let active_route = this.active_routes[this.active_routes.length - 2];
+    // let active_route_centre = this.active_routes[this.active_routes.length - 1];
+ 
+    // active_route.ids.push(vt.id);
+    // active_route.polyline.addLatLng([vt.lat, vt.lng]);
+    // active_route_centre.ids.push(vt.id);
+    // active_route_centre.polyline.addLatLng([vt.lat, vt.lng]);
+ 
+    // // If vertex type changed, update style in place (keeps colour correct)
+    // if (active_route.type !== vt.type) {
+    //   active_route.type = vt.type;
+    //   active_route.polyline.setStyle({
+    //     color: ID_COLORS[this.getModalRobotId(active_route.ids) % ID_COLORS.length],
+    //     weight: this.metres2pix(ROUTE_TYPE_WIDTH[vt.type % ROUTE_TYPE_COLOR.length]),
+    //     opacity: ROUTE_TYPE_OPACITY[vt.type % ROUTE_TYPE_COLOR.length],
+    //   });
+    // }
+ 
+    console.info("Graph update completed: ", graph_update);
   }
 
   /**
