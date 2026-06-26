@@ -207,6 +207,8 @@ class GraphMap extends React.Component {
 
     // waypoint marker generator
     this.WaypointMarkers = this.displayWaypointMarkers.bind(this);
+
+    this.update_buffer = [];
   }
 
   componentDidMount() {
@@ -607,9 +609,18 @@ class GraphMap extends React.Component {
     });
   }
     
+  flushUpdateBuffer() {
+    console.info(`Flushing ${this.update_buffer.length} buffered updates.`);
+    if (this.update_buffer.length > 0) {
+      this.update_buffer.forEach(update => this.graphUpdateCallback(update));
+      this.update_buffer = [];
+    }
+  }
+
   graphStateCallback(graph_state) {
     console.info("Received graph state: ", graph_state);
     this.loadGraphState(graph_state);
+    this.flushUpdateBuffer();
   }
   
   /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
@@ -669,22 +680,6 @@ class GraphMap extends React.Component {
     };
 
     return group;
-
-    // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
-    // let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
-    // let latlngs = route.ids.map((id) => {
-    //   let v = this.id2vertex.get(id);
-    //   return [v.lat, v.lng];
-    // });
-    // let polyline = L.polyline(latlngs, { 
-    //   color: color,
-    //   weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
-    //   opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
-    //   pane: "graph",
-    //   lineCap: "butt",
-    // });
-    // polyline.addTo(this.map);
-    // return polyline;
   }
 
   /** @brief Refresh the pose graph completely */
@@ -907,7 +902,11 @@ class GraphMap extends React.Component {
 
   graphUpdateCallback(graph_update) {
     if (this.map === null) return;
-    if (this.graph_loaded === false) return;
+    if (this.graph_loaded === false) {
+      console.warn("Graph not ready, buffering update for vertex:", graph_update.vertex_to.id);
+      this.update_buffer.push(graph_update);
+      return;
+    }
     console.info("Processing graph update: ", graph_update);
  
     // from vertex
@@ -954,47 +953,7 @@ class GraphMap extends React.Component {
       route.polyline.addLatLng([vt.lat, vt.lng]);
       route_centre.ids.push(vt.id);
       route_centre.polyline.addLatLng([vt.lat, vt.lng]);
-      
-      // NOTE: We removed the route.polyline.setStyle() block entirely!
     }
-    // Continuity check: start a new segment if active_routes is empty OR if
-    // vf is not the last vertex of the current segment. This prevents scatter
-    // lines when batched updates arrive non-sequentially.
-    // const needNewRoute = this.active_routes.length === 0 ||
-    //   this.active_routes[this.active_routes.length - 2].ids[
-    //     this.active_routes[this.active_routes.length - 2].ids.length - 1
-    //   ].toString() !== vf.id.toString();
- 
-    // if (needNewRoute) {
-    //   // Seed with both vf and vt so the edge is drawn immediately
-    //   let active_route = { ids: [vf.id, vt.id], type: vt.type };
-    //   active_route = { ...active_route, polyline: this.route2Polyline(active_route) };
-    //   this.active_routes.push(active_route);
-    //   let active_route_centre = { ids: [vf.id, vt.id], type: 7 };
-    //   active_route_centre = { ...active_route_centre, polyline: this.route2Polyline(active_route_centre) };
-    //   this.active_routes.push(active_route_centre);
-    //   return; // both vertices already added
-    // }
- 
-    // // vf is confirmed as the current tail — just extend with vt
-    // let active_route = this.active_routes[this.active_routes.length - 2];
-    // let active_route_centre = this.active_routes[this.active_routes.length - 1];
- 
-    // active_route.ids.push(vt.id);
-    // active_route.polyline.addLatLng([vt.lat, vt.lng]);
-    // active_route_centre.ids.push(vt.id);
-    // active_route_centre.polyline.addLatLng([vt.lat, vt.lng]);
- 
-    // // If vertex type changed, update style in place (keeps colour correct)
-    // if (active_route.type !== vt.type) {
-    //   active_route.type = vt.type;
-    //   active_route.polyline.setStyle({
-    //     color: ID_COLORS[this.getModalRobotId(active_route.ids) % ID_COLORS.length],
-    //     weight: this.metres2pix(ROUTE_TYPE_WIDTH[vt.type % ROUTE_TYPE_COLOR.length]),
-    //     opacity: ROUTE_TYPE_OPACITY[vt.type % ROUTE_TYPE_COLOR.length],
-    //   });
-    // }
- 
     console.info("Graph update completed: ", graph_update);
   }
 

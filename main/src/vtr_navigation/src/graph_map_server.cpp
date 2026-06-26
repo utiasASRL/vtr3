@@ -122,12 +122,16 @@ void GraphMapServer::buildAndPublishGraphState() {
   auto graph_lock = getGraph()->guard(); 
   UniqueLock lock(mutex_);
 
+  auto saved_active_routes = graph_state_.active_routes; // persist active routes
+
   const auto priv_graph = getTopologyGraph();
-  optimizeGraph(priv_graph);
+  optimizeGraph(priv_graph); // sets graph_state_
   updateVertexProjection(); 
   updateVertexType();       
   updateVertexName();       
   computeRoutes(priv_graph);
+
+  graph_state_.active_routes = saved_active_routes;
 
   if (graph_state_pub_) {
     graph_state_pub_->publish(graph_state_);
