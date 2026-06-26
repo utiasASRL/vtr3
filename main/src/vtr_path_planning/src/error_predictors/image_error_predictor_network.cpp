@@ -25,8 +25,6 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-#include <tf2/convert.h>
-#include <tf2_eigen/tf2_eigen.hpp>
 #include <vtr_path_planning/cbit/utils.hpp>
 
 #include <stdexcept>
@@ -42,44 +40,75 @@ struct ImageErrorPredictorNetwork::Impl {
 
 namespace {
 
-// ROS Image msg (single-channel uint8/uint16) → (1, H, W) float32 in [0,1].
 torch::Tensor imageToTensor(const ImageMsg& msg, torch::Device device) {
   const int64_t h = static_cast<int64_t>(msg.height);
   const int64_t w = static_cast<int64_t>(msg.width);
 
-  auto opts = torch::TensorOptions().dtype(torch::kUInt8);
-  torch::Tensor hw =
-      torch::from_blob(const_cast<uint8_t*>(msg.data.data()), {h, w}, opts)
-          .clone();
+  torch::Tensor hw;
+  if (msg.encoding == "mono16" || msg.encoding == "16UC1") {
+    // 16-bit: reinterpret the byte buffer as uint16
+    auto opts = torch::TensorOptions().dtype(torch::kInt16);
+    hw = torch::from_blob(const_cast<uint8_t*>(msg.data.data()), {h, w}, opts)
+             .clone()
+             .to(torch::kFloat32)
+             .view_as(torch::zeros({h, w}, torch::kFloat32));
+    hw = torch::from_blob(const_cast<uint8_t*>(msg.data.data()), {h, w},
+                          torch::TensorOptions().dtype(torch::kInt16))
+             .clone()
+             .to(torch::kInt32)
+             .bitwise_and(0xFFFF)
+             .to(torch::kFloat32);
+  } else {
+    // 8-bit default
+    hw = torch::from_blob(const_cast<uint8_t*>(msg.data.data()), {h, w},
+                          torch::TensorOptions().dtype(torch::kUInt8))
+             .clone()
+             .to(torch::kFloat32);
+  }
 
-  // (H, W) → (1, H, W), normalise to [0, 1]
-  return hw.unsqueeze(0).to(torch::kFloat32).div(255.0f).to(device);
+  // Per-image min-max stretch → [0, 1], matching cv2.NORM_MINMAX + /255
+  const float mn = hw.min().item<float>();
+  const float mx = hw.max().item<float>();
+  if (mx > mn) {
+    hw = (hw - mn) / (mx - mn);
+  } else {
+    hw = torch::zeros_like(hw);
+  }
+
+  // Resize to the training resolution (64×512) if needed
+  constexpr int64_t kTrainH = 64;
+  constexpr int64_t kTrainW = 512;
+  hw = hw.unsqueeze(0).unsqueeze(0);  
+  if (h != kTrainH || w != kTrainW) {
+    hw = torch::nn::functional::interpolate(
+        hw,
+        torch::nn::functional::InterpolateFuncOptions()
+            .size(std::vector<int64_t>{kTrainH, kTrainW})
+            .mode(torch::kBilinear)
+            .align_corners(false));
+  }
+  return hw.squeeze(0).to(device);  
 }
 
-torch::Tensor imuToOrientationTensor(const ImuMsg& msg, torch::Device device) {
-  // 1. Assume you receive a ROS 2 geometry_msgs Quaternion
-  geometry_msgs::msg::Quaternion msg_quat = msg.orientation;
-  
-  // 2. Convert geometry_msgs::msg::Quaternion to tf2::Quaternion
-  tf2::Quaternion tf2_quat;
-  tf2::fromMsg(msg_quat, tf2_quat);
-  
-  // 3. Convert tf2::Quaternion to tf2::Matrix3x3
-  tf2::Matrix3x3 matrix(tf2_quat);
-  
-  // 4. Extract Euler angles (Roll, Pitch, Yaw) in radians
-  double roll, pitch, yaw;
-  matrix.getRPY(roll, pitch, yaw);
+torch::Tensor imuToGravityTensor(const ImuMsg& msg, torch::Device device) {
+  const double ax = msg.linear_acceleration.x;
+  const double ay = msg.linear_acceleration.y;
+  const double az = msg.linear_acceleration.z;
 
-  std::array<float, 3> grav_vec{
-      static_cast<float>(roll),
-      static_cast<float>(pitch),
-      static_cast<float>(yaw),
+  tf2::Quaternion q;
+  tf2::fromMsg(msg.orientation, q);
+  tf2::Matrix3x3 R(q);
+
+  const double wx = R[0][0]*ax + R[0][1]*ay + R[0][2]*az;
+  const double wy = R[1][0]*ax + R[1][1]*ay + R[1][2]*az;
+  const double wz = R[2][0]*ax + R[2][1]*ay + R[2][2]*az;
+
+  std::array<float, 3> grav{
+      static_cast<float>(wx),
+      static_cast<float>(wy),
+      static_cast<float>(wz),
   };
-
-  // TODO: Need to change how we calculate the grav vec here
-
-  return torch::tensor(torch::ArrayRef<float>(grav_vec.data(), grav_vec.size())).to(device);
+  return torch::tensor(torch::ArrayRef<float>(grav.data(), grav.size())).to(device);
 }
 
 // SE3 transformation → lie algebra vector [tx, ty, tz, φx, φy, φz].
@@ -177,8 +206,6 @@ void ImageErrorPredictorNetwork::predictError(
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] =
       getChainInfo(*chain);
 
-  auto T_w_r = T_w_p * T_p_r.inverse();
-
   torch::NoGradGuard no_grad;
 
   // Image input: (1, 2, H, W) signal and range stacked on channel dim
@@ -193,14 +220,16 @@ void ImageErrorPredictorNetwork::predictError(
   for (const auto& pose : reference_poses) {
     pose_vecs.push_back(poseToVec(pose));
   }
+
   // Stack (T, 6) then unsqueeze batch dim -> (1, T, 6)
   torch::Tensor sequence = torch::stack(pose_vecs, 0)
                                .unsqueeze(0)
                                .to(impl_->device);
 
-  // TODO: Need to correct this using current loc_res, the odom velocity and gravity vector
-  auto loc_res = poseToVec(T_w_r);
-  auto loc_res_tensor = loc_res.unsqueeze(0).to(impl_->device);  // (1,6)
+  // loc_res: lie algebra of T_p_r (path→robot localization residual).
+  auto loc_res_tensor = poseToVec(T_p_r).unsqueeze(0).to(impl_->device);  // (1,6)
+
+  // odom: body-frame velocity twist w_p_r_in_r
   const auto& odom_vel = w_p_r_in_r;
   std::array<float, 6> odom_vel_arr{
       static_cast<float>(odom_vel(0)), static_cast<float>(odom_vel(1)),
@@ -210,10 +239,12 @@ void ImageErrorPredictorNetwork::predictError(
   auto odom_vel_tensor =
       torch::tensor(torch::ArrayRef<float>(odom_vel_arr.data(), odom_vel_arr.size()))
           .unsqueeze(0).to(impl_->device);  // (1,6)
-  torch::Tensor grav_vec = imuToOrientationTensor(*cur_imu_msg_, impl_->device).unsqueeze(0);  // (1,3)
+
+  // grav_vec: linear_acceleration rotated to world frame → (1,3).
+  torch::Tensor grav_vec = imuToGravityTensor(*cur_imu_msg_, impl_->device).unsqueeze(0);  // (1,3)
 
   std::vector<torch::Tensor> vec_inputs_list{loc_res_tensor, odom_vel_tensor, grav_vec};
-  torch::Tensor vector_inputs = torch::cat(vec_inputs_list, /*dim=*/1);
+  torch::Tensor vector_inputs = torch::cat(vec_inputs_list, 1);  // (1,15)
   timer[1]->stop();
 
   // Run inference 
@@ -231,7 +262,6 @@ void ImageErrorPredictorNetwork::predictError(
   timer[2]->stop();
 
   // Apply predicted errors to reference poses 
-  // output shape: (1, T, 3) where each row is [dx, dy, d_yaw] in the path frame
   timer[3]->start();
   auto out = output.squeeze(0);  // (T, 3)
   const int64_t n = std::min(T, out.size(0));
