@@ -107,7 +107,6 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
   /** \brief Performs the actual preprocessing task */
   bool preprocess_(const QueryCache::Ptr& qdata) override;
-  bool idle(const QueryCache::Ptr& qdata);
 
   /** \brief Performs the actual odometry mapping task */
   bool runOdometryMapping_(const QueryCache::Ptr& qdata) override;
@@ -157,6 +156,8 @@ class Tactic : public PipelineInterface, public TacticInterface {
    * \note Only change this when pipeline is locked
    */
   PipelineMode pipeline_mode_ = PipelineMode::Idle;
+
+  std::chrono::steady_clock::time_point last_load_live_{};
 
  private:
   Config::UniquePtr config_;

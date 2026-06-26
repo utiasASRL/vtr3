@@ -52,6 +52,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->save_localization_result = node->declare_parameter<bool>(prefix+".save_localization_result", false);
   config->visualize = node->declare_parameter<bool>(prefix+".visualize", false);
   // clang-format on
+
   return config;
 }
 
@@ -73,7 +74,7 @@ Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
   output_->chain = chain_;  // shared pointing to the same chain, no copy
   output_->odometry_success.emplace(false);
   //
-  pipeline_->initialize(output_, graph_);
+  pipeline_->initialize(output_, graph_);    
 }
 
 auto Tactic::lockPipeline() -> TacticInterface::PipelineLock {
@@ -86,7 +87,6 @@ void Tactic::setPipeline(const PipelineMode& pipeline_mode) {
 }
 
 void Tactic::addRun(const bool ephemeral) {
-  // if (!ephemeral) { return;} //ANTHONY
   graph_->addRun();
   // re-initialize the run
   first_frame_ = true;
@@ -122,9 +122,7 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   /// Set path and target localization
   CLOG(INFO, "tactic") << "Set path of size " << path.size();
   //
-  CLOG(DEBUG, "tactic") << "LoadLive start (setPath)";
   graph_->loadLive();
-  CLOG(DEBUG, "tactic") << "LoadLive end (setPath)";
 
   auto lock = chain_->guard();
   //
@@ -228,13 +226,12 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
-  auto ts = *(qdata->stamp.ptr());
-  uint n_sec_interval = 1;
-  if ((ts % static_cast<unsigned>(n_sec_interval * 1e9)) < (0.005 * 1e9)){ // only loadLive for a small interval each second ANTHONY
-  CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
+  auto now = std::chrono::steady_clock::now();
+  if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
+    last_load_live_ = now;
     graph_->loadLive();
-  CLOG(DEBUG, "tactic") << "LoadLive end (runOdometryMapping_)";
   }
+  CLOG(DEBUG, "tactic") << "LoadLive end (runOdometryMapping_)";
 
   // Setup caches
   qdata->vid_odo.emplace(current_vertex_id_);
@@ -761,13 +758,12 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
-  auto ts = *(qdata->stamp.ptr());
-  uint n_sec_interval = 1;
-  if ((ts % static_cast<unsigned>(n_sec_interval * 1e9)) < (0.005 * 1e9)){ // only loadLive for a small interval each second ANTHONY
-   CLOG(DEBUG, "tactic") << "LoadLive start (runOdometryMapping_) | ts: " << *(qdata->stamp.ptr());
+  auto now = std::chrono::steady_clock::now();
+  if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
+    last_load_live_ = now;
     graph_->loadLive();
-    CLOG(DEBUG, "tactic") << "LoadLive end (runLocalization_)";
   }
+  CLOG(DEBUG, "tactic") << "LoadLive end (runLocalization_)";
 
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
