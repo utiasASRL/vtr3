@@ -136,8 +136,12 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   if (error_predictor_) {
     error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
     mpcConfig->reference_poses.clear();
-    for (const auto& pose : local_reference_poses)
+    std::vector<lgmath::se3::Transformation> corrected_world_poses;
+    for (const auto& pose : local_reference_poses) {
       mpcConfig->reference_poses.push_back(tf_to_global(pose));
+      corrected_world_poses.push_back(T_w_p * pose);
+    }
+    vis_->publishCorrectedReferencePoses(corrected_world_poses, curr_time);
   }
 
   // Detect end of path and set the corresponding cost weight vector element to zero
