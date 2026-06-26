@@ -129,8 +129,10 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   chain_->setSequence(path);
   if (path.size() > 0) {
     chain_->expand();
+    // auto eval =
+    //       std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph_);
     auto eval =
-          std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph_);
+        std::make_shared<pose_graph::eval::mask::topology::Eval<Graph>>(*graph_);
     const auto graph_root = graph_->root();
     auto connected = graph_->dijkstraSearch(graph_root, path.front(), std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
     T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(graph_root), connected->end(), EdgeTransform(true));

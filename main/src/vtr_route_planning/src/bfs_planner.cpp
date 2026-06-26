@@ -30,7 +30,8 @@ auto BFSPlanner::path(const VertexId &from, const VertexId::List &to,
   }
   idx.clear();
 
-  const auto priv_graph = getPrivilegedGraph();
+  // const auto priv_graph = getPrivilegedGraph();
+  const auto priv_graph = getTopologyGraph();
 
   auto rval = path(priv_graph, from, to.front());
   idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
@@ -49,7 +50,8 @@ auto BFSPlanner::path(const VertexId &from, const VertexId::List &to,
 }
 
 auto BFSPlanner::path(const VertexId &from, const VertexId &to) -> PathType {
-  return path(getPrivilegedGraph(), from, to);
+  // return path(getPrivilegedGraph(), from, to);
+  return path(getTopologyGraph(), from, to);
 }
 
 auto BFSPlanner::getGraph() const -> GraphPtr {

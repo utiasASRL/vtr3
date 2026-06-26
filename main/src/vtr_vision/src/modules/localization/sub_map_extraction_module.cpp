@@ -86,7 +86,8 @@ tactic::GraphBase::Ptr SubMapExtractionModule::extractSubmap(
 
   // Iterate on the temporal edges to get the window.
   // PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
-  auto evaluator = std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(graph);
+  // auto evaluator = std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(graph);
+  auto evaluator = std::make_shared<pose_graph::eval::mask::topology::Eval<Graph>>(graph);
   // evaluator->setGraph((void *)&graph);
 
   // auto evaluator = pose_graph::eval::And(tempeval, direval);
@@ -128,7 +129,8 @@ int SubMapExtractionModule::calculateDepth(
   const auto lock = graph->guard();
 
   // Set up the evaluator to only iterate on privileged edges.
-  auto evaluator = std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph);
+  // auto evaluator = std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph);
+  auto evaluator = std::make_shared<pose_graph::eval::mask::topology::Eval<Graph>>(*graph);
 
   EdgeTransform init(true);
 

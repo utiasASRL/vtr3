@@ -196,8 +196,10 @@ void LocalizationChain<Graph>::updateBranchToTwigTransform(
     } else if (branch_vid == trunk_vid_) {
       return T_branch_trunk_;
     } else {
-      auto eval =
-          std::make_shared<eval::mask::privileged::Eval<Graph>>(*this->graph_);
+      // auto eval =
+      //     std::make_shared<eval::mask::privileged::Eval<Graph>>(*this->graph_);
+        auto eval =
+          std::make_shared<eval::mask::topology::Eval<Graph>>(*this->graph_);
       auto delta = this->graph_->dijkstraSearch(
           branch_vid_, branch_vid,
           std::make_shared<eval::weight::ConstEval>(1, 1), eval);
@@ -309,11 +311,13 @@ void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
     trunk_sid_ = best_sid;
     trunk_vid_ = this->sequence_[trunk_sid_];
 
-    auto priv_eval =
-        std::make_shared<eval::mask::privileged::Eval<Graph>>(*this->graph_);
+    // auto priv_eval =
+    //     std::make_shared<eval::mask::privileged::Eval<Graph>>(*this->graph_);
+    auto top_eval =
+        std::make_shared<eval::mask::topology::Eval<Graph>>(*this->graph_);
     auto delta = this->graph_->dijkstraSearch(
         branch_vid_, trunk_vid_,
-        std::make_shared<eval::weight::ConstEval>(1, 1), priv_eval);
+        std::make_shared<eval::weight::ConstEval>(1, 1), top_eval);
     T_branch_trunk_ = eval::ComposeTfAccumulator(
         delta->begin(branch_vid_), delta->end(), EdgeTransform(true));
   }

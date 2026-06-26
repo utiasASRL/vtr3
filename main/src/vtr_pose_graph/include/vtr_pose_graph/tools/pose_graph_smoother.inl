@@ -7,7 +7,8 @@ std::set<EdgeId> GraphSmoother<V, E>::findBranchEdges() const
 {
   std::set<EdgeId> branches;
 
-  for (auto it = priv_graph_->beginEdge(); it != priv_graph_->endEdge(); it++) 
+  // for (auto it = priv_graph_->beginEdge(); it != priv_graph_->endEdge(); it++) 
+  for (auto it = top_graph_->beginEdge(); it != top_graph_->endEdge(); it++) 
   {
     if (it->id().isValid() && it->from().majorId() != it->to().majorId()) {
       branches.insert(it->id());
@@ -33,7 +34,8 @@ void GraphSmoother<V, E>::smoothBranch(const EdgeId eid) const
   const Eigen::Vector<double, 6> branch_vec = branch->T().vec();
   const VertexId branch_id = eid.id2();
   const VertexId trunk_id = eid.id1();
-  auto nbs = priv_graph_->neighbors(branch_id);
+  // auto nbs = priv_graph_->neighbors(branch_id);
+  auto nbs = top_graph_->neighbors(branch_id);
 
   if (nbs.size() != 2) {
     CLOG(INFO, "pose_graph.smoothing") << "Can't process a branch without two neighbours";
@@ -52,13 +54,15 @@ void GraphSmoother<V, E>::smoothBranch(const EdgeId eid) const
     if (branch_vec.dot(next_branch_vec) < 0) {
       CLOG(DEBUG, "pose_graph.smoothing") << "Found mini direction switch at " << eid;
 
-      auto trunk_nbs = priv_graph_->neighbors(trunk_id);
+      // auto trunk_nbs = priv_graph_->neighbors(trunk_id);
+      auto trunk_nbs = top_graph_->neighbors(trunk_id);
       trunk_nbs.erase(branch_id);
 
       const auto const_eval = std::make_shared<eval::weight::ConstEval>(1, 1);
 
       for (const auto &t_nb : trunk_nbs) {
-        auto connected = priv_graph_->dijkstraSearch(t_nb, branch_id);
+        // auto connected = priv_graph_->dijkstraSearch(t_nb, branch_id);
+        auto connected = top_graph_->dijkstraSearch(t_nb, branch_id);
         const auto T_b_t = eval::ComposeTfAccumulator(connected->beginDfs(t_nb), connected->end(), EdgeTransform(true));
         if (next_branch_vec.dot(T_b_t.vec()) > 0) {
           const auto new_edge = EdgeId(branch_id, t_nb);
