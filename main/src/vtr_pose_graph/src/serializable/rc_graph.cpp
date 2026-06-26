@@ -73,7 +73,6 @@ void RCGraph::save() {
 }
 
 void RCGraph::saveLive() {
-  std::unique_lock lock(mutex_);
   if(read_only_) { 
     CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
     return;
@@ -223,27 +222,7 @@ void RCGraph::populateLive() {
   EdgeMsgAccessor edge_accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
   VertexMsgAccessor vtx_accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
 
-  { 
-    std::unique_lock lock(mutex_);
 
-    //populate vertices
-    for (auto vtx_it = topology_vertices_.begin(); vtx_it != topology_vertices_.end();) {
-      const auto msg = vtx_accessor.readAtIndex(vtx_it->second);
-      if (!msg) {break; }
-
-      auto updated_vtx_msg = msg->locked().get().getData();
-      auto new_vertex = RCVertex::MakeShared(updated_vtx_msg, name2accessor_map_, msg);
-      
-      if (new_vertex->vertexTime() != 0 ) {
-        const auto& vid = new_vertex->id();
-        vertices_[vid] = new_vertex;
-        CLOG(DEBUG, "pose_graph") << "populateLive: overwrote vertex " << vid << " with real timestamp: " << new_vertex->vertexTime();
-        vtx_it = topology_vertices_.erase(vtx_it);
-      } else {
-        ++vtx_it;
-      }
-    }
-  }
     
   std::vector<RCEdge::Ptr> edges_to_publish;
   {
@@ -268,9 +247,33 @@ void RCGraph::populateLive() {
     }
   }
 
+  { 
+    std::unique_lock lock(mutex_);
+
+    //populate vertices
+    for (auto vtx_it = topology_vertices_.begin(); vtx_it != topology_vertices_.end();) {
+      const auto msg = vtx_accessor.readAtIndex(vtx_it->second);
+      if (!msg) {break; }
+
+      auto updated_vtx_msg = msg->locked().get().getData();
+      auto new_vertex = RCVertex::MakeShared(updated_vtx_msg, name2accessor_map_, msg);
+      
+      if (new_vertex->vertexTime() != 0 ) {
+        const auto& vid = new_vertex->id();
+        vertices_[vid] = new_vertex;
+        CLOG(DEBUG, "pose_graph") << "populateLive: overwrote vertex " << vid << " with real timestamp: " << new_vertex->vertexTime();
+        vtx_it = topology_vertices_.erase(vtx_it);
+      } else {
+        ++vtx_it;
+      }
+    }
+  }
+
+  // publish UI updates
   for (const auto& edge : edges_to_publish) {
     callback_->publishUpdate(edge);
   }
+
 }
 
 void RCGraph::loadLive() {
@@ -334,16 +337,18 @@ void RCGraph::saveVerticesLive() {
     CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
     return;
   }
-
   // save any unsaved data first
   CLOG(DEBUG, "pose_graph") << "Saving vertices to disk, Vertex Q len : " << vertices_to_write_.size();
-  VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
-  while (vertices_to_write_.size() > 1){
-    auto vertex = vertices_to_write_.front();
-    vertices_to_write_.pop();
-    vertex->unload();
-    accessor.write(vertex->serialize());
-    lastVertexIdx_++;
+  {
+    std::unique_lock lock(mutex_);
+    VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
+    while (vertices_to_write_.size() > 1){
+      auto vertex = vertices_to_write_.front();
+      vertices_to_write_.pop();
+      vertex->unload();
+      accessor.write(vertex->serialize());
+      lastVertexIdx_++;
+    }
   }  
 }
 
@@ -364,16 +369,19 @@ void RCGraph::saveEdgesLive() {
     CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
     return;
   }
-
   // save any unsaved data first
   CLOG(DEBUG, "pose_graph") << "Saving Edges to disk, Edge Q len : " << edges_to_write_.size();
-  EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
-  // save all but current edge
-  while (edges_to_write_.size() > 1){
-    auto edge = edges_to_write_.front();
-    edges_to_write_.pop();
-    accessor.write(edge->serialize());
-    lastEdgeIdx_++;
+
+  {  
+    std::unique_lock lock(mutex_);
+    EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
+    // save all but current edge
+    while (edges_to_write_.size() > 1){
+      auto edge = edges_to_write_.front();
+      edges_to_write_.pop();
+      accessor.write(edge->serialize());
+      lastEdgeIdx_++;
+    }
   }  
 }
 
