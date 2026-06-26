@@ -124,7 +124,6 @@ torch::Tensor poseToVec(const lgmath::se3::Transformation& T) {
 
 }  
 
-
 ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
     rclcpp::Node::SharedPtr node,
     const std::string& sig_img_topic,
@@ -225,9 +224,13 @@ void ImageErrorPredictorNetwork::predictError(
   torch::Tensor sequence = torch::stack(pose_vecs, 0)
                                .unsqueeze(0)
                                .to(impl_->device);
+  CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: sequence = "
+                              << sequence;
 
   // loc_res: lie algebra of T_p_r (path→robot localization residual).
   auto loc_res_tensor = poseToVec(T_p_r).unsqueeze(0).to(impl_->device);  // (1,6)
+  CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: loc_res_tensor = "
+                              << loc_res_tensor;
 
   // odom: body-frame velocity twist w_p_r_in_r
   const auto& odom_vel = w_p_r_in_r;
@@ -236,6 +239,12 @@ void ImageErrorPredictorNetwork::predictError(
       static_cast<float>(odom_vel(2)), static_cast<float>(odom_vel(3)),
       static_cast<float>(odom_vel(4)), static_cast<float>(odom_vel(5)),
   };
+  CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: odom_vel_arr = "
+                              << odom_vel_arr[0] << ", " << odom_vel_arr[1]
+                              << ", " << odom_vel_arr[2] << ", "
+                              << odom_vel_arr[3] << ", " << odom_vel_arr[4]
+                              << ", " << odom_vel_arr[5];
+
   auto odom_vel_tensor =
       torch::tensor(torch::ArrayRef<float>(odom_vel_arr.data(), odom_vel_arr.size()))
           .unsqueeze(0).to(impl_->device);  // (1,6)
@@ -266,6 +275,8 @@ void ImageErrorPredictorNetwork::predictError(
   auto out = output.squeeze(0);  // (T, 3)
   const int64_t n = std::min(T, out.size(0));
   const float* data = out.data_ptr<float>();
+  CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: output = "
+                              << output;
 
   for (int64_t i = 0; i < n; ++i) {
     const float dx   = data[i * 3 + 0];
