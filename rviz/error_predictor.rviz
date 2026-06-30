@@ -1,0 +1,461 @@
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 0
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /TF1
+        #- /Reference Poses (Raw)1
+        #- /Reference Poses (Corrected)1
+        - /PTE Prediction1
+        - /Predicted Robot Track1
+        - /Pre-compensated Reference1
+        - /Signal Image1
+        - /Range Image1
+      Splitter Ratio: 0.45
+    Tree Height: 1391
+  - Class: rviz_common/Selection
+    Name: Selection
+  - Class: rviz_common/Tool Properties
+    Name: Tool Properties
+    Splitter Ratio: 0.5886790156364441
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz_common/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: ""
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 99999
+      Frames:
+        All Enabled: false
+        base_link:
+          Value: true
+        loc vertex frame:
+          Value: true
+        robot:
+          Value: true
+        world:
+          Value: false
+      Marker Scale: 4
+      Name: TF
+      Show Arrows: false
+      Show Axes: true
+      Show Names: true
+      Update Interval: 0
+      Value: true
+
+    # --- LiDAR: filtered/undistorted scan (live) ---
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 0; 255; 0
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Name: LiDAR Scan (undistorted)
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 2
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /col_mustard/vtr/udist_point_cloud
+      Use Fixed Frame: true
+      Use rainbow: false
+      Value: false
+
+    # --- LiDAR: filtered point cloud (after range/intensity filter) ---
+    - Alpha: 0.8
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 100; 220; 255
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Name: LiDAR Scan (filtered)
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 2
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /col_mustard/vtr/filtered_point_cloud
+      Use Fixed Frame: true
+      Use rainbow: false
+      Value: false
+
+    # --- LiDAR: localization submap ---
+    - Alpha: 0.5
+      Autocompute Intensity Bounds: false
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: icp_score
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 180; 0
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Name: Localization Submap
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 2
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/submap_loc
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+
+    # --- Teach path ---
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 255; 0; 0
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.10000000149011612
+      Name: Teach Path
+      Pose Style: None
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep All
+        Reliability Policy: Best Effort
+        Value: /col_mustard/vtr/loc_path
+      Value: true
+
+    # --- Planner path ---
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 0; 0; 255
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.07999999821186066
+      Name: Planner Solution
+      Pose Style: None
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/planning_path
+      Value: true
+
+    # --- Robot path ---
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 0; 0; 0
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.10000000149011612
+      Name: Robot Path
+      Pose Style: None
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/robot_path
+      Value: true
+
+    # --- MPC rollout ---
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 0; 255; 0
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.07999999821186066
+      Name: MPC Solution
+      Pose Style: Axes
+      Radius: 0.029999999329447746
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/mpc_prediction
+      Value: true
+
+    # --- Raw (uncorrected) reference poses — cyan arrows ---
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.25
+      Axes Radius: 0.02
+      Class: rviz_default_plugins/PoseArray
+      Color: 0; 220; 220
+      Enabled: true
+      Head Length: 0.15000000596046448
+      Head Radius: 0.05000000074505806
+      Name: Reference Poses (Raw)
+      Shaft Length: 0.20000000298023224
+      Shaft Radius: 0.02
+      Shape: Arrow (3D)
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/mpc_ref_pose_array
+      Value: true
+
+    # --- Corrected reference poses — orange arrows ---
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.25
+      Axes Radius: 0.02
+      Class: rviz_default_plugins/PoseArray
+      Color: 255; 140; 0
+      Enabled: true
+      Head Length: 0.15000000596046448
+      Head Radius: 0.05000000074505806
+      Name: Reference Poses (Corrected)
+      Shaft Length: 0.20000000298023224
+      Shaft Radius: 0.02
+      Shape: Arrow (3D)
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/corrected_mpc_ref_pose_array
+      Value: true
+
+    # --- PTE prediction horizon (path_info_for_external_navigation) ---
+    # Published as a Path so each predicted pose is a stamped waypoint.
+    # The C++ node publishes /col_mustard/vtr/path_info_for_external_navigation
+    # (custom msg); this display subscribes to the MPC prediction path as a
+    # proxy — replace with a dedicated PTE path topic if you add one.
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 255; 0; 255
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.05000000074505806
+      Name: PTE Prediction
+      Pose Style: Arrows
+      Shaft Diameter: 0.02
+      Head Diameter: 0.06
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/mpc_prediction
+      Value: true
+
+    # --- Predicted robot trajectory (where robot will actually go) — red path ---
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 255; 50; 50
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.05000000074505806
+      Name: Predicted Robot Track
+      Pose Style: None
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/predicted_robot_path
+      Value: true
+
+    # --- Pre-compensated reference (what MPC gets after correction) — green path ---
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.25
+      Axes Radius: 0.02
+      Class: rviz_default_plugins/PoseArray
+      Color: 50; 200; 50
+      Enabled: true
+      Head Length: 0.15000000596046448
+      Head Radius: 0.05000000074505806
+      Name: Pre-compensated Reference
+      Shaft Length: 0.20000000298023224
+      Shaft Radius: 0.02
+      Shape: Arrow (3D)
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/corrected_mpc_ref_pose_array
+      Value: true
+
+    # --- Signal image (ouster intensity) ---
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Signal Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /col_mustard/ouster/signal_image
+      Value: true
+
+    # --- Range image (ouster depth) ---
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Range Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /col_mustard/ouster/range_image
+      Value: true
+
+    # --- Obstacle costmap ---
+    - Alpha: 0.699999988079071
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: true
+      Name: Obstacle Detections
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/change_detection_costmap
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /col_mustard/vtr/change_detection_costmap_updates
+      Use Timestamp: false
+      Value: true
+
+  Enabled: true
+  Global Options:
+    Background Color: 50; 50; 50
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+    - Class: rviz_default_plugins/PublishPoint
+      Single click: false
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /clicked_point
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/ThirdPersonFollower
+      Distance: 16.0
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.55
+      Target Frame: robot
+      Value: ThirdPersonFollower (rviz_default_plugins)
+      Yaw: 3.14
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1080
+  Hide Left Dock: false
+  Hide Right Dock: false
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: false
+  Width: 1920
+  X: 0
+  Y: 0
