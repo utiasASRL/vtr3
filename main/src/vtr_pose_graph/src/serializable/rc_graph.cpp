@@ -171,7 +171,7 @@ void RCGraph::loadEdges() {
 }
 
 void RCGraph::loadVerticesLive() {
-  CLOG(DEBUG, "pose_graph") << "Live Loading vertices from disk" << lastVertexIdx_;
+  CLOG(DEBUG, "pose_graph") << "Live Loading vertices from disk | index: " << lastVertexIdx_;
   VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
 
   int index = lastVertexIdx_;
@@ -195,7 +195,7 @@ void RCGraph::loadVerticesLive() {
 }
 
 void RCGraph::loadEdgesLive() {
-  CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk" << lastEdgeIdx_;
+  CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk | index: " << lastEdgeIdx_;
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
 
   int index = lastEdgeIdx_;
@@ -214,13 +214,13 @@ void RCGraph::loadEdgesLive() {
       topology_edges_[edge->id()] = std::make_pair(index, false);
       CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
     }
+    CLOG(DEBUG, "pose_graph") << " - loading edge " << *edge;
     CLOG(DEBUG, "pose_graph") << "loadLive: edges_.insert";
     edges_.insert(std::make_pair(eid, edge)); // bookkeeping
     CLOG(DEBUG, "pose_graph") << "loadLive: graph_.addEdge";
     graph_.addEdge(edge->id()); // add to simpleGraph
     CLOG(DEBUG, "pose_graph") << "loadLive: callback_->edgeAdded";
     callback_->edgeAdded(edge);  // inform graph_map_server
-    CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
   }
   lastEdgeIdx_ = index;
 }
@@ -241,19 +241,18 @@ void RCGraph::populateLive() {
       const auto msg = edge_accessor.readAtIndex(e_it->second.first);
       if (!msg) break;
       auto updated_edge_msg = msg->locked().get().getData();
+      auto new_edge = RCEdge::MakeShared(updated_edge_msg, msg);
+      const auto& eid = new_edge->id();      
+
       if (updated_edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::MANUAL) {
-        auto new_edge = RCEdge::MakeShared(updated_edge_msg, msg);
-        const auto& eid = new_edge->id();
+        CLOG(DEBUG, "pose_graph") << "populateEdgesLive: overwrote edge" << eid;
         edges_.at(eid) = new_edge;
         edges_to_publish[e_it->second.first] = new_edge;
         e_it = topology_edges_.erase(e_it);
-        CLOG(DEBUG, "pose_graph") << "populateEdgesLive: overwrote edge" << eid;
       } else if (e_it->second.second == false) { // unpublished, new topology edge
-        auto new_edge = RCEdge::MakeShared(updated_edge_msg, msg);
-        const auto& eid = new_edge->id();
-        edges_to_publish[e_it->second.first] = new_edge;
-        e_it->second.second = true;
         CLOG(DEBUG, "pose_graph") << "populateEdgesLive: new topology edge" << eid;
+        edges_to_publish[e_it->second.first] = new_edge;
+        e_it->second.second = true; // advance e_it? ANTHONY
       } else {
         ++e_it;
       }
