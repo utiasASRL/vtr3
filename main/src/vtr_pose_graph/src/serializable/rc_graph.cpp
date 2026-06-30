@@ -252,7 +252,8 @@ void RCGraph::populateLive() {
       } else if (e_it->second.second == false) { // unpublished, new topology edge
         CLOG(DEBUG, "pose_graph") << "populateEdgesLive: new topology edge" << eid;
         edges_to_publish[e_it->second.first] = new_edge;
-        e_it->second.second = true; // advance e_it? ANTHONY
+        e_it->second.second = true;
+        ++e_it;
       } else {
         ++e_it;
       }
