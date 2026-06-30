@@ -331,8 +331,11 @@ void GraphMapServer::vertexAdded(const VertexPtr& v) {
 }
 
 void GraphMapServer::edgeAdded(const EdgePtr& e) {
+  CLOG(DEBUG, "navigation.graph_map_server") << "edgeAdded";
   UniqueLock lock(mutex_);
   if (updateIncrementally(e)) return;
+  CLOG(DEBUG, "navigation.graph_map_server") << "edgeAdded: buildAndPublishGraphState";
+
   //
   buildAndPublishGraphState();
 }
@@ -645,27 +648,26 @@ void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
 }
 
 bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
-  CLOG(DEBUG, "navigation.graph_map_server") << "updateIncrementally";
+  CLOG(DEBUG, "navigation.graph_map_server") << "updateIncrementally: " << *e;
   // Autonomous edges do not need to be considered
   if (e->isAutonomous()) return true;
-  // Unknown edges do not need to be considered
-  if (e->isUnknown()) return true;
   // Spatial edge always triggers a complete update
   if (e->isSpatial()) return false;
-  // Simply ignore this edge if it is not connected to the main graph (trunk)
-  if (vid2tf_map_.count(e->from()) == 0) {
-    std::stringstream ss;
-    ss << "Cannot find vertex " << e->from()
-       << " in vid2tf_map_, haven't localized to a trunk vertex yet so not "
-          "updating the map.";
-    CLOG(DEBUG, "navigation.graph_map_server") << ss.str();
-    return true;
-  }
 
   //
   const auto from = e->from();
   const auto to = e->to();
   const auto T_to_from = e->T();
+
+  // Simply ignore this edge if it is not connected to the main graph (trunk)
+  if (vid2tf_map_.count(from) == 0) {
+    std::stringstream ss;
+    ss << "Cannot find vertex " << from
+       << " in vid2tf_map_, haven't localized to a trunk vertex yet so not "
+          "updating the map.";
+    CLOG(DEBUG, "navigation.graph_map_server") << ss.str();
+    return true;
+  }
 
   // consistency check
   if (vid2tf_map_.count(to) != 0) {
@@ -684,24 +686,23 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
 }
 
 void GraphMapServer::publishUpdate(const EdgePtr& e) {
+  CLOG(DEBUG, "navigation") << "publishUpdate: working on edge" << *e;
   const auto from = e->from();
   const auto to = e->to();
-  CLOG(DEBUG, "navigation") << "publishUpdate: working on edge" << *e;
-  // graph_state_.vertices.<id, neighbors>
-  auto& vertices = graph_state_.vertices; // NOTE: not simple graph
-  // update from neighbors
-  vertices[vid2idx_map_.at(from)].neighbors.push_back(to);
-  // add to into the vertices
-  auto& vertex = vertices.emplace_back();
-  vertex.id = to;
-  vertex.neighbors.push_back(from);
-  vid2idx_map_[to] = vertices.size() - 1;
+
+  auto& from_idx = vid2idx_map_.at(from);
+  if (vid2idx_map_.count(to) == 0) {
+    auto& vertex = graph_state_.vertices.emplace_back();
+    vertex.id = to;
+    vid2idx_map_[to] = graph_state_.vertices.size() - 1;
+  }
 
   // projection
   const auto [lng, lat, theta] = project_vertex_(to);
-  vertex.lng = lng;
-  vertex.lat = lat;
-  vertex.theta = theta;
+  auto& vertex_msg = graph_state_.vertices[vid2idx_map_.at(to)];
+  vertex_msg.lng = lng;
+  vertex_msg.lat = lat;
+  vertex_msg.theta = theta;
 
   // Add these lines to print the timestamps to the console/log:
   const auto v_from = getGraph()->at(from);
@@ -712,27 +713,26 @@ void GraphMapServer::publishUpdate(const EdgePtr& e) {
   CLOG(INFO, "navigation.graph_map_server") 
       << "Vertex TO: " << to << " | timestamp: " << v_to->vertexTime();
   
-      // vertex type
-  CLOG(DEBUG, "navigation.graph_map_server") << "publishUpdate: vtx types to: " << (int)vertices[vid2idx_map_.at(from)].type << ", from: " << (int)vertices[vid2idx_map_.at(to)].type; 
-  if (vertices[vid2idx_map_.at(from)].type == -1 || vertices[vid2idx_map_.at(from)].type == 8) {
+  // vertex type
+  if (graph_state_.vertices[vid2idx_map_.at(from)].type == -1 || graph_state_.vertices[vid2idx_map_.at(from)].type == 8) {
     const auto env_info_msg = getGraph()->at(from)->retrieve<tactic::EnvInfo>(
         "env_info", "vtr_tactic_msgs/msg/EnvInfo");
     if (env_info_msg != nullptr) {
-      vertices[vid2idx_map_.at(from)].type = env_info_msg->sharedLocked().get().getData().terrain_type;
+      graph_state_.vertices[vid2idx_map_.at(from)].type = env_info_msg->sharedLocked().get().getData().terrain_type;
     } else {
       CLOG(WARNING, "navigation.graph_map_server") << "Missing env_info for vertex (from) " << from << ", defaulting.";
-      vertices[vid2idx_map_.at(from)].type = -1;
+      graph_state_.vertices[vid2idx_map_.at(from)].type = -1;
     }
   }
 
-  if (vertices[vid2idx_map_.at(to)].type == -1 || vertices[vid2idx_map_.at(to)].type == 8) {
+  if (graph_state_.vertices[vid2idx_map_.at(to)].type == -1 || graph_state_.vertices[vid2idx_map_.at(to)].type == 8) {
     const auto env_info_msg = getGraph()->at(to)->retrieve<tactic::EnvInfo>(
         "env_info", "vtr_tactic_msgs/msg/EnvInfo");
     if (env_info_msg != nullptr) {
-      vertices[vid2idx_map_.at(to)].type = env_info_msg->sharedLocked().get().getData().terrain_type;
+      graph_state_.vertices[vid2idx_map_.at(to)].type = env_info_msg->sharedLocked().get().getData().terrain_type;
     } else {
       CLOG(WARNING, "navigation.graph_map_server") << "Missing env_info for vertex (to) " << to << ", defaulting.";
-      vertices[vid2idx_map_.at(to)].type = -1;
+      graph_state_.vertices[vid2idx_map_.at(to)].type = -1;
     }
   }
 
@@ -741,21 +741,21 @@ void GraphMapServer::publishUpdate(const EdgePtr& e) {
   if (active_routes.empty()) {
     active_routes.emplace_back();
     auto& active_route = active_routes.back();
-    active_route.type = vertices[vid2idx_map_.at(from)].type;
+    active_route.type = graph_state_.vertices[vid2idx_map_.at(from)].type;
     active_route.ids.emplace_back(from);  
   }
   active_routes.back().ids.emplace_back(to);
-  if (active_routes.back().type != vertex.type) {
+  if (active_routes.back().type != vertex_msg.type) {
     active_routes.emplace_back();
     auto& active_route = active_routes.back();
-    active_route.type = vertex.type;
+    active_route.type = vertex_msg.type;
     active_route.ids.emplace_back(to);
   }
 
   // compute and publish the update message
   GraphUpdate graph_update;
-  graph_update.vertex_from = vertices[vid2idx_map_.at(from)];
-  graph_update.vertex_to = vertices[vid2idx_map_.at(to)];
+  graph_update.vertex_from = graph_state_.vertices[vid2idx_map_.at(from)];
+  graph_update.vertex_to = graph_state_.vertices[vid2idx_map_.at(to)];
   graph_update_pub_->publish(graph_update);
 }
 
