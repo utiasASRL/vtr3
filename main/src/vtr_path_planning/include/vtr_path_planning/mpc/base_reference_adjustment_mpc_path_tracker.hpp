@@ -32,6 +32,8 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <vtr_path_planning_msgs/msg/path_info_for_external_navigation.hpp>
+#include <fstream>
+#include <vector>
 
 namespace vtr {
 namespace path_planning {
@@ -66,6 +68,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     // Reference Pose Adjustment Modes and Info
     ReferenceAdjustmentMode reference_adjustment_mode = ReferenceAdjustmentMode::None;
     std::string reference_adjustment_model_path = "";
+    std::string prediction_log_path = "";  // CSV output path; empty = disabled
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,
@@ -98,6 +101,22 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
 
   BaseErrorPredictor::Ptr error_predictor_ = nullptr;
 
+  // Logging: prediction made at step t is compared against actual error at step t+1.
+  struct PredictionLogEntry {
+    int64_t  timestamp_ns;
+    unsigned sid;
+    double   actual_dx,  actual_dy,  actual_dyaw;   // T_r_p at this step
+    double   pred_dx,    pred_dy,    pred_dyaw;      // prediction made at previous step
+  };
+  struct PendingPrediction {
+    bool     valid = false;
+    int64_t  timestamp_ns;
+    unsigned sid;
+    double   pred_dx, pred_dy, pred_dyaw;
+  };
+  std::vector<PredictionLogEntry> prediction_log_;
+  PendingPrediction pending_pred_;
+  std::string log_path_;  // set from ros param; empty = disabled
 };
 
 }  // namespace path_planning

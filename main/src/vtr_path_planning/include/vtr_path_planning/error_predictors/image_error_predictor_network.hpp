@@ -25,6 +25,8 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <lgmath/se3/Transformation.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <deque>
+#include <mutex>
 
 namespace vtr {
 namespace path_planning {
@@ -58,7 +60,16 @@ private:
 
   std::shared_ptr<ImageMsg> cur_sig_img_msg_ = nullptr;
   std::shared_ptr<ImageMsg> cur_dpt_img_msg_ = nullptr;
-  std::shared_ptr<ImuMsg> cur_imu_msg_ = nullptr;
+
+  // Rolling buffer of world-frame gravity samples for averaging.
+  // Each entry is (timestamp_ns, accel_world_frame).
+  static constexpr double kGravWindowSeconds = 1.0;
+  struct ImuSample {
+    int64_t stamp_ns;
+    std::array<double, 3> accel_world;
+  };
+  std::deque<ImuSample> imu_buffer_;
+  std::mutex imu_mutex_;
 };
 
 }  // namespace path_planning
