@@ -67,6 +67,9 @@ public:
     void publishReferencePoses(const std::vector<lgmath::se3::Transformation>& reference_pose_vec, const tactic::Timestamp& stamp);
     void publishLocalReferencePoses(const std::vector<lgmath::se3::Transformation>& reference_pose_vec, const tactic::Timestamp& stamp);
     void publishCorrectedReferencePoses(const std::vector<lgmath::se3::Transformation>& reference_pose_vec, const tactic::Timestamp& stamp);
+    void publishPredictedRobotPath(
+        const std::vector<lgmath::se3::Transformation>& predicted_poses,
+        const tactic::Timestamp& stamp);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
@@ -79,6 +82,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ref_pose_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr local_ref_pose_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr corrected_ref_pose_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr predicted_robot_path_pub_;
     rclcpp::Publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>::SharedPtr path_info_for_external_navigation_pub_;
 };
 
