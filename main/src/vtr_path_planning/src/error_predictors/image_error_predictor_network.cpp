@@ -227,8 +227,8 @@ void ImageErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: sequence = "
                               << sequence;
 
-  // loc_res: lie algebra of T_p_r (path→robot localization residual).
-  auto loc_res_tensor = poseToVec(T_p_r).unsqueeze(0).to(impl_->device);  // (1,6)
+  // Dataset stores ne.T = T_r_p (robot→path), which is T_p_r.inverse().
+  auto loc_res_tensor = poseToVec(T_p_r.inverse()).unsqueeze(0).to(impl_->device);  // (1,6)
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: loc_res_tensor = "
                               << loc_res_tensor;
 
@@ -283,16 +283,20 @@ void ImageErrorPredictorNetwork::predictError(
     const float dy   = data[i * 3 + 1];
     const float dyaw = data[i * 3 + 2];
 
-    // Build a small SE3 correction from the predicted lateral/longitudinal/yaw error
+    // xi is the predicted tracking error (ref - actual), so we shift the
+    // reference by -xi to pre-compensate: corrected_ref * T(xi) = original_ref
     Eigen::Matrix<double, 6, 1> xi;
-    xi << static_cast<double>(dx),
-          static_cast<double>(dy),
+    xi << -static_cast<double>(dx),
+          -static_cast<double>(dy),
           0.0,
           0.0,
           0.0,
-          static_cast<double>(dyaw);
-
+          -static_cast<double>(dyaw);
+    CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: applying correction "
+                                  << xi.transpose() << " to reference pose " << i;
     reference_poses[i] = reference_poses[i] * lgmath::se3::Transformation(xi);
+    CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: updated reference pose: "
+                                  << reference_poses[i];
   }
   timer[3]->stop();
   timer[0]->stop();
