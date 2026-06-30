@@ -121,8 +121,8 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   // TODO (ANTHONY): Make these private
   // keep track of .db3 cursors (watch for new data)
-  int lastVertexIdx_ = 0;
-  int lastEdgeIdx_ = 0;
+  int lastVertexIdx_ = 1;
+  int lastEdgeIdx_ = 1;
 
   // keep track of topology only edges
   void loadVerticesLive();
@@ -169,8 +169,8 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   std::queue<VertexPtr> vertices_to_write_;
   std::queue<EdgePtr> edges_to_write_;
-  std::unordered_map<EdgeId, int> topology_edges_;
-  std::unordered_map<VertexId, int> topology_vertices_;
+  std::unordered_map<EdgeId, std::pair<int, bool>> topology_edges_;
+  std::unordered_map<VertexId, std::pair<int, bool>> topology_vertices_;
 };
 
 template <typename DataType>
