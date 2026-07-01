@@ -32,6 +32,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <vtr_path_planning_msgs/msg/path_info_for_external_navigation.hpp>
+#include <deque>
 #include <fstream>
 #include <vector>
 
@@ -56,7 +57,6 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
 
   static constexpr auto static_name = "base_mpc";
 
-  // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BaseMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
 
@@ -68,7 +68,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     // Reference Pose Adjustment Modes and Info
     ReferenceAdjustmentMode reference_adjustment_mode = ReferenceAdjustmentMode::None;
     std::string reference_adjustment_model_path = "";
-    std::string prediction_log_path = "";  // CSV output path; empty = disabled
+    std::string prediction_log_path = ""; 
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,
@@ -101,22 +101,30 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
 
   BaseErrorPredictor::Ptr error_predictor_ = nullptr;
 
-  // Logging: prediction made at step t is compared against actual error at step t+1.
-  struct PredictionLogEntry {
-    int64_t  timestamp_ns;
-    unsigned sid;
-    double   actual_dx,  actual_dy,  actual_dyaw;   // T_r_p at this step
-    double   pred_dx,    pred_dy,    pred_dyaw;      // prediction made at previous step
+  // Logging: raw streams written to CSV, matched post-hoc by process_prediction_log.py.
+  static constexpr int64_t kPredictionStepNs = 250000000LL;  // 0.25s in nanoseconds
+
+  // One row per control cycle: robot world pose for post-hoc interpolation.
+  struct PoseLogEntry {
+    int64_t timestamp_ns;
+    lgmath::se3::Transformation T_w_r;
   };
-  struct PendingPrediction {
-    bool     valid = false;
-    int64_t  timestamp_ns;
+
+  // One row per prediction: all world-frame context needed to compute actual error offline.
+  struct PredLogEntry {
+    int64_t  pred_timestamp_ns;
+    int64_t  target_timestamp_ns;
     unsigned sid;
+    int      step;
     double   pred_dx, pred_dy, pred_dyaw;
+    lgmath::se3::Transformation T_w_ref;
+    lgmath::se3::Transformation T_w_p_pred;
   };
-  std::vector<PredictionLogEntry> prediction_log_;
-  PendingPrediction pending_pred_;
-  std::string log_path_;  // set from ros param; empty = disabled
+
+  std::vector<PoseLogEntry> pose_log_;
+  std::vector<PredLogEntry> pred_log_;
+  std::string log_path_;
+
 };
 
 }  // namespace path_planning

@@ -321,7 +321,7 @@ Visualization Manager:
       Axes Radius: 0.019999999552965164
       Class: rviz_default_plugins/PoseArray
       Color: 255; 140; 0
-      Enabled: true
+      Enabled: false
       Head Length: 0.15000000596046448
       Head Radius: 0.05000000074505806
       Name: Reference Poses (Corrected)
@@ -335,7 +335,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /col_mustard/vtr/corrected_mpc_ref_pose_array
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -398,7 +398,7 @@ Visualization Manager:
       Axes Radius: 0.019999999552965164
       Class: rviz_default_plugins/PoseArray
       Color: 50; 200; 50
-      Enabled: true
+      Enabled: false
       Head Length: 0.15000000596046448
       Head Radius: 0.05000000074505806
       Name: Pre-compensated Reference
@@ -412,7 +412,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /col_mustard/vtr/corrected_mpc_ref_pose_array
-      Value: true
+      Value: false
     - Class: rviz_default_plugins/Image
       Enabled: true
       Max Value: 1
@@ -491,7 +491,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/ThirdPersonFollower
-      Distance: 9.481268882751465
+      Distance: 9.267088890075684
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -506,10 +506,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0399997234344482
+      Pitch: 1.1749995946884155
       Target Frame: robot
       Value: ThirdPersonFollower (rviz_default_plugins)
-      Yaw: 2.9399964809417725
+      Yaw: 3.184999465942383
     Saved: ~
 Window Geometry:
   Displays:

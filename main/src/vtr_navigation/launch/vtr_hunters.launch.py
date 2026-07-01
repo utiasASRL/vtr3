@@ -4,7 +4,7 @@ import os.path as osp
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch import LaunchDescription
-from launch.conditions import LaunchConfigurationEquals, LaunchConfigurationNotEquals
+from launch.conditions import LaunchConfigurationEquals, LaunchConfigurationNotEquals, IfCondition
 from launch_ros.actions import Node
 
 
@@ -22,6 +22,7 @@ def generate_launch_description():
         "output": 'screen',
         #"prefix": 'xterm -e gdb -ex run --args',
     }
+
 
 
     return LaunchDescription([

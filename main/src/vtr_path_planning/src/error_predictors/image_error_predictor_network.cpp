@@ -90,7 +90,7 @@ torch::Tensor imageToTensor(const ImageMsg& msg, torch::Device device) {
   return hw.squeeze(0).to(device);  
 }
 
-// Rotate body-frame accel to world frame using the IMU orientation quaternion.
+// Rotate body-frame accel to world frame using the IMU orientation quaternion
 std::array<double, 3> accelToWorld(const ImuMsg& msg) {
   const double ax = msg.linear_acceleration.x;
   const double ay = msg.linear_acceleration.y;
@@ -103,9 +103,7 @@ std::array<double, 3> accelToWorld(const ImuMsg& msg) {
           R[2][0]*ax + R[2][1]*ay + R[2][2]*az};
 }
 
-// Average world-frame accel samples and rotate into the robot body frame.
-// Matches dataset: gravity averaged over 1s in world frame, then expressed
-// per-vertex as  grav_body = T_r_w * g_world.
+// Average world-frame accel samples and rotate into the robot body frame
 torch::Tensor gravityTensor(const std::vector<Eigen::Vector3d>& world_accels,
                             const lgmath::se3::Transformation& T_r_w,
                             torch::Device device) {
@@ -123,9 +121,6 @@ torch::Tensor gravityTensor(const std::vector<Eigen::Vector3d>& world_accels,
   return torch::tensor(torch::ArrayRef<float>(grav.data(), grav.size())).to(device);
 }
 
-// SE3 → [tx, ty, tz, φx, φy, φz] matching dataset _reduce_se3_to_vec:
-//   translation: read directly from the matrix (not the se3 algebra rho)
-//   rotation:    axis-angle via φ/(2 sin φ) * [r21-r12, r02-r20, r10-r01]
 torch::Tensor poseToVec(const lgmath::se3::Transformation& T) {
   const Eigen::Matrix4d M = T.matrix();
   const double tx = M(0, 3), ty = M(1, 3), tz = M(2, 3);
@@ -201,7 +196,6 @@ ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
         auto world_accel = accelToWorld(*msg);
         std::lock_guard<std::mutex> lock(imu_mutex_);
         imu_buffer_.push_back({stamp_ns, world_accel});
-        // Trim samples older than the gravity averaging window
         const int64_t window_ns = static_cast<int64_t>(kGravWindowSeconds * 1e9);
         while (!imu_buffer_.empty() &&
                (stamp_ns - imu_buffer_.front().stamp_ns) > window_ns) {
@@ -273,13 +267,23 @@ void ImageErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: sequence = "
                               << sequence;
 
-  // Dataset: loc_res = ne.T = T_{teach,repeat} = T_p_r (path→robot). Pass directly.
-  auto loc_res_tensor = poseToVec(T_p_r.inverse()).unsqueeze(0).to(impl_->device);  // (1,6)
+  const Eigen::Matrix<double, 6, 1> loc_res_xi = T_p_r.vec();
+  const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ba_ina();
+  std::array<float, 6> loc_res_arr{
+      static_cast<float>(robot_xyz_in_path(0)),
+      static_cast<float>(robot_xyz_in_path(1)),
+      static_cast<float>(loc_res_xi(2)),
+      static_cast<float>(loc_res_xi(3)),
+      static_cast<float>(loc_res_xi(4)),
+      static_cast<float>(loc_res_xi(5)),
+  };
+  auto loc_res_tensor = torch::tensor(torch::ArrayRef<float>(loc_res_arr.data(), loc_res_arr.size()))
+                            .unsqueeze(0).to(impl_->device);  // (1,6)
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: loc_res_tensor = "
                               << loc_res_tensor;
 
-  // odom: body-frame velocity twist w_p_r_in_r
-  const auto& odom_vel = w_p_r_in_r;
+  // odom: body-frame velocity twist
+  const Eigen::Matrix<double, 6, 1> odom_vel = -w_p_r_in_r;
   std::array<float, 6> odom_vel_arr{
       static_cast<float>(odom_vel(0)), static_cast<float>(odom_vel(1)),
       static_cast<float>(odom_vel(2)), static_cast<float>(odom_vel(3)),
@@ -295,8 +299,7 @@ void ImageErrorPredictorNetwork::predictError(
       torch::tensor(torch::ArrayRef<float>(odom_vel_arr.data(), odom_vel_arr.size()))
           .unsqueeze(0).to(impl_->device);  // (1,6)
 
-  // grav_vec: world-frame gravity averaged over 1s, then rotated to robot body frame.
-  // Matches dataset: grav_body = T_v_w * g_world, where T_v_w = (T_w_p * T_p_r).inverse()
+  // grav_vec: world-frame gravity averaged over 1s at beginning, then rotated to robot body frame
   const lgmath::se3::Transformation T_r_w = (T_w_p * T_p_r).inverse();
   std::vector<Eigen::Vector3d> world_accels;
   {
@@ -343,16 +346,11 @@ void ImageErrorPredictorNetwork::predictError(
     const double dy   = static_cast<double>(data[i * 3 + 1]);
     const double dyaw = static_cast<double>(data[i * 3 + 2]);
 
-    // target_error = ref_xyz - actual_xyz in path frame (additive translation).
-    // Shift reference translation by -xi in path frame so the corrected reference
-    // sits where the robot will actually be, pulling MPC back onto the path.
-    // Apply directly to the translation column — NOT as a body-frame right-multiply,
-    // which would rotate xi by the reference body orientation.
+    // target_error = ref_xyz - actual_xyz in path frame 
     Eigen::Matrix4d M = reference_poses[i].matrix();
     M(0, 3) -= dx;
     M(1, 3) -= dy;
-    // yaw: apply as body-frame rotation (small angle, about z)
-    // This is a separate rotation correction independent of translation.
+    // yaw: apply as body-frame rotation 
     Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
     R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
     R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);

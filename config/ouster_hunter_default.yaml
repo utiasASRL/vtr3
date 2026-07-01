@@ -17,18 +17,18 @@
       #- tactic.module.graph_mem_manager
 
       # path planner
-      #- path_planning
+      - path_planning
       #- path_planning.cbit
       #- path_planning.cbit_planner
       #- cbit.path_planning
       #- cbit_planner.path_planning
       #- cbit.debug
-      #- mpc.solver
-      #- mpc.speed_scheduler
-      #- mpc.cost_function
-      #- mpc.cbit
-      #- mpc.debug
-      #- cbit.control
+      - mpc.solver
+      - mpc.speed_scheduler
+      - mpc.cost_function
+      - mpc.cbit
+      - mpc.debug
+      - cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
@@ -287,3 +287,12 @@
           r2: 1.0
           racc1: 2.0
           racc2: 3.5
+
+      # Error predictor (set mode > 0 and model_path to enable)
+      error_predictor:
+        mode: 2             # 0=None, 1=NumericalNN, 2=ImageNN, 3=HistoryBased
+        model_path: "/home/asrl/ASRL/vtr3/models/model.pt"      # absolute path to exported .pt TorchScript model
+        sig_img_topic: /col_mustard/ouster/signal_image
+        dpt_img_topic: /col_mustard/ouster/range_image
+        imu_topic: /col_mustard/ouster/imu
+        prediction_log_path: "/home/asrl/ASRL/vtr3/temp/prediction_log.csv"   # set to e.g. "/tmp/prediction_log.csv" to enable logging

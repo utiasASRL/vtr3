@@ -112,21 +112,42 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
 }
 
 BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() {
-  if (log_path_.empty() || prediction_log_.empty()) return;
+  if (log_path_.empty()) return;
+  if (pose_log_.empty() && pred_log_.empty()) return;
   std::ofstream f(log_path_);
   if (!f) {
     CLOG(WARNING, "cbit.control") << "Could not open prediction log: " << log_path_;
     return;
   }
-  f << std::fixed << std::setprecision(6);
-  f << "timestamp_ns,sid,actual_dx,actual_dy,actual_dyaw,pred_dx,pred_dy,pred_dyaw\n";
-  for (const auto& e : prediction_log_) {
-    f << e.timestamp_ns << ',' << e.sid << ','
-      << e.actual_dx  << ',' << e.actual_dy  << ',' << e.actual_dyaw  << ','
-      << e.pred_dx    << ',' << e.pred_dy    << ',' << e.pred_dyaw    << '\n';
+  f << std::fixed << std::setprecision(9);
+
+  auto write_mat = [&](const lgmath::se3::Transformation& T) {
+    const auto M = T.matrix();
+    for (int r = 0; r < 4; ++r)
+      for (int c = 0; c < 4; ++c)
+        f << ',' << M(r, c);
+  };
+
+  f << "type,t0_ns,t1_ns,sid,step,v0,v1,v2";
+  for (int i = 0; i < 16; ++i) f << ",m0_" << i;
+  for (int i = 0; i < 16; ++i) f << ",m1_" << i;
+  f << '\n';
+
+  for (const auto& e : pose_log_) {
+    f << "pose," << e.timestamp_ns << ",,,,,," ;
+    write_mat(e.T_w_r);
+    f << '\n';
   }
-  CLOG(INFO, "cbit.control") << "Wrote " << prediction_log_.size()
-                             << " prediction log entries to " << log_path_;
+  for (const auto& e : pred_log_) {
+    f << "pred," << e.pred_timestamp_ns << ',' << e.target_timestamp_ns << ','
+      << e.sid << ',' << e.step << ','
+      << e.pred_dx << ',' << e.pred_dy << ',' << e.pred_dyaw;
+    write_mat(e.T_w_ref);
+    write_mat(e.T_w_p_pred);
+    f << '\n';
+  }
+  CLOG(INFO, "cbit.control") << "Wrote " << pose_log_.size() << " pose + "
+                             << pred_log_.size() << " pred entries to " << log_path_;
 }
 
 void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
@@ -159,70 +180,50 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
     error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
     mpcConfig->reference_poses.clear();
     std::vector<lgmath::se3::Transformation> corrected_world_poses;
-    std::vector<lgmath::se3::Transformation> predicted_robot_world_poses;
     for (size_t i = 0; i < local_reference_poses.size(); ++i) {
       mpcConfig->reference_poses.push_back(tf_to_global(local_reference_poses[i]));
       corrected_world_poses.push_back(T_w_p * local_reference_poses[i]);
-      // target_error = ref_xyz - actual_xyz in path frame (additive translation offset).
-      // xi_translation = original.translation - corrected.translation (both in path frame).
-      // predicted robot position = original.translation + xi_translation
-      //                          = original.translation + (original - corrected).translation
-      // Keep the reference orientation (robot faces same direction as the reference waypoint).
-      const Eigen::Vector4d orig_t = original_local_poses[i].matrix().col(3);
-      const Eigen::Vector4d corr_t = local_reference_poses[i].matrix().col(3);
-      const Eigen::Vector4d xi_t   = orig_t - corr_t;  // path-frame translation offset
-
-      Eigen::Matrix4d pred_M = original_local_poses[i].matrix();
-      pred_M.col(3) = orig_t + xi_t;  // shift translation by +xi in path frame
-      predicted_robot_world_poses.push_back(T_w_p * lgmath::se3::Transformation(pred_M));
     }
     vis_->publishCorrectedReferencePoses(corrected_world_poses, curr_time);
-    vis_->publishPredictedRobotPath(predicted_robot_world_poses, curr_time);
+    vis_->publishPredictedRobotPath(corrected_world_poses, curr_time);
 
-    // Logging: record prediction now; match against actual at the next step.
-    // actual_dx/dy/dyaw = T_r_p (robot→path) = loc_res in dataset convention.
-    // pred_dx/dy/dyaw   = xi predicted for pose[0], extracted via the same
-    //                     axis-angle formula as dataset _reduce_se3_to_vec.
     if (!log_path_.empty() && !original_local_poses.empty()) {
       const auto [stamp, w_p_r_in_r, T_p_r, T_w_p_chain, T_w_v_odo, T_r_v_odo, curr_sid] =
           getChainInfo(*robot_state.chain.ptr());
 
-      // Axis-angle extraction matching dataset _reduce_se3_to_vec:
-      //   translation = matrix column 3; rotation = phi/(2 sin phi) * skew-sym terms
+      const int64_t now_ns = static_cast<int64_t>(curr_time);
+      const lgmath::se3::Transformation T_w_r_now = T_w_v_odo * T_r_v_odo.inverse();
+
+      // Record robot pose every cycle for post-hoc interpolation.
+      pose_log_.push_back({now_ns, T_w_r_now});
+
+      // Record prediction for all N horizon steps.
       auto matToAxisAngle = [](const lgmath::se3::Transformation& T)
           -> std::array<double, 3> {
         const auto M = T.matrix();
         const double tx  = M(0,3), ty = M(1,3);
         const double r00 = M(0,0), r11 = M(1,1), r22 = M(2,2);
-        const double r21 = M(2,1), r12 = M(1,2);
-        const double r02 = M(0,2), r20 = M(2,0);
         const double r10 = M(1,0), r01 = M(0,1);
         const double cos_phi = std::clamp((r00+r11+r22-1.0)/2.0, -1.0, 1.0);
         const double phi = std::acos(cos_phi);
         const double sinc = (std::abs(phi) < 1e-8) ? 1.0 : std::sin(phi)/phi;
-        const double scale = 0.5 / sinc;
-        return {tx, ty, scale*(r10 - r01)};  // [x, y, yaw]
+        return {tx, ty, 0.5 / sinc * (r10 - r01)};
       };
 
-      // actual: loc_res = ne.T = T_{teach,repeat} = T_p_r (path→robot). Pass directly.
-      const auto act = matToAxisAngle(T_p_r);
-
-      // Flush previous step's prediction paired with this step's actual
-      if (pending_pred_.valid) {
-        prediction_log_.push_back({
-            pending_pred_.timestamp_ns, pending_pred_.sid,
-            act[0], act[1], act[2],
-            pending_pred_.pred_dx, pending_pred_.pred_dy, pending_pred_.pred_dyaw
+      const int N = static_cast<int>(original_local_poses.size());
+      for (int j = 0; j < N; ++j) {
+        const auto xi_T = local_reference_poses[j].inverse() * original_local_poses[j];
+        const auto pred = matToAxisAngle(xi_T);
+        pred_log_.push_back({
+            now_ns,
+            now_ns + static_cast<int64_t>(j + 1) * kPredictionStepNs,
+            curr_sid,
+            j + 1,
+            pred[0], pred[1], pred[2],
+            T_w_p * original_local_poses[j],
+            T_w_p
         });
       }
-
-      // predicted xi for pose[0]: corrected[0] = original[0] * T(-xi)
-      // => T(xi) = corrected[0]^-1 * original[0]
-      const auto xi_T = local_reference_poses[0].inverse() * original_local_poses[0];
-      const auto pred = matToAxisAngle(xi_T);
-
-      pending_pred_ = {true, static_cast<int64_t>(curr_time), curr_sid,
-                       pred[0], pred[1], pred[2]};
     }
   }
 
