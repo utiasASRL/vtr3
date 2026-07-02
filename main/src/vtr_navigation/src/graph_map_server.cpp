@@ -183,6 +183,7 @@ void GraphMapServer::annotateRouteCallback(
       << "Received annotate graph request: ids: " << msg->ids
       << ", type: " << (int)msg->type;
   const auto graph = getGraph();
+  buildAndPublishGraphState();
   for (const auto& id : msg->ids) {
     const auto env_info_msg =
         graph->at(VertexId(id))
@@ -199,7 +200,6 @@ void GraphMapServer::annotateRouteCallback(
     env_info.terrain_type = msg->type;
     locked_env_info_msg.setData(env_info);
   }
-  buildAndPublishGraphState();
 }
 
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
@@ -208,6 +208,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
       << ", " << msg->theta << ", " << msg->scale << ">";
   //
   const auto graph = getGraph();
+  buildAndPublishGraphState();
   auto map_info = graph->getMapInfo();
   map_info.lng += msg->lng;
   map_info.lat += msg->lat;
@@ -218,7 +219,6 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
       << "Updated graph map info: <" << map_info.lng << ", " << map_info.lat
       << ", " << map_info.theta << ", " << map_info.scale << ">";
 
-  buildAndPublishGraphState();
 }
 
 float GraphMapServer::haversineDist(float lat1, float lat2, float lon1, float lon2) {
@@ -274,6 +274,7 @@ void GraphMapServer::updateWaypointCallback(
 
   
   const auto graph = getGraph();
+  buildAndPublishGraphState();
   {
   const auto waypoint_name_msg =
       graph->at(VertexId(msg->vertex_id))
@@ -303,8 +304,6 @@ void GraphMapServer::updateWaypointCallback(
 
   locked_waypoint_name_msg.setData(waypoint_name);
   }
-
-  buildAndPublishGraphState();
 }
 
 void GraphMapServer::vertexAdded(const VertexPtr& v) {
