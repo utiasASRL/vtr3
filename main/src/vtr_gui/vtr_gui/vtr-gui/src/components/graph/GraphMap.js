@@ -227,8 +227,6 @@ class GraphMap extends React.Component {
     this.props.socket.off("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.off("following_route", this.followingRouteCallback.bind(this));
     this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
-
-    clearInterval(this.graphPollInterval);
   }
 
   displayWaypointMarkers() {
@@ -487,15 +485,15 @@ class GraphMap extends React.Component {
   /** @brief Leaflet map creation callback */
   mapCreatedCallback(map) {
     console.debug("Leaflet map created.");
-    //
+    
     this.map = map;
     this.map.createPane("graph"); // used for the graph polylines and robot marker
     map.getPane("graph").style.zIndex = 500; // same as the shadow pane (polylines default)
-    //
+
+    this.graphLayerGroup = L.layerGroup().addTo(this.map);
+
     this.map.on("click", this.handleMapClick.bind(this));
-    //
     this.map.on("zoomend", this.zoomEnd, this);
-    //
     this.fetchGraphState(true);
   }
 
@@ -531,13 +529,60 @@ class GraphMap extends React.Component {
   }
 
   getModalRobotId(ids) {
-    // for colouring routes by the mode of IDs along the path
+    if (!ids || ids.length === 0) return 0; 
+    
     const idCounts = new Map();
     ids.forEach((id) => {
       const robotId = this.getRobotId(id);
       idCounts.set(robotId, (idCounts.get(robotId) || 0) + 1);
     });
-    return [...idCounts.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+    
+    // CHANGE to >= so that in a tie, the newer vertex dictates the color
+    return [...idCounts.entries()].reduce((a, b) => (b[1] >= a[1] ? b : a), [0, 0])[0];
+  }
+
+  splitRoutesByRobotId(routes) {
+    const unbatched = [];
+    routes.forEach(route => {
+      let current_ids = [];
+      let current_robot_id = null;
+
+      for (let i = 0; i < route.ids.length; i++) {
+        let id = route.ids[i];
+        let r_id = this.getRobotId(id);
+
+        if (current_ids.length === 0) {
+          current_ids.push(id);
+          current_robot_id = r_id;
+        } else {
+          // If the robot ID stays the same, continue the segment
+          if (r_id === current_robot_id) {
+            current_ids.push(id);
+          } else {
+            // Robot ID changed! Push the completed segment
+            if (current_ids.length > 0) {
+              unbatched.push({ type: route.type, ids: current_ids });
+            }
+            
+            // Start a new segment bridging from the previous vertex so there is no visual gap
+            const prev_id = route.ids[i - 1];
+            const a = prev_id < id ? `${prev_id},${id}` : `${id},${prev_id}`;
+            const connected = this.adjacency?.has(a) ?? true;
+
+            if (connected) {
+              current_ids = [prev_id, id];
+            } else {
+              current_ids = [id];
+            }
+            current_robot_id = r_id;
+          }
+        }
+      }
+      if (current_ids.length > 0) {
+        unbatched.push({ type: route.type, ids: current_ids });
+      }
+    });
+    return unbatched;
   }
 
   genDefaultWaypointName(id) {
@@ -625,6 +670,11 @@ class GraphMap extends React.Component {
   
   /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
   route2Polyline(route) {
+    // Guard against empty routes
+    if (!route || !route.ids || route.ids.length === 0) {
+      return L.layerGroup(); 
+    }
+
     // find the modal robot_id
     const color = ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length];
     const weight = this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]);
@@ -658,7 +708,11 @@ class GraphMap extends React.Component {
 
     const group = L.layerGroup();
     segments.forEach(seg => L.polyline(seg, style).addTo(group));
-    group.addTo(this.map);
+    // group.addTo(this.map);
+
+    if (this.graphLayerGroup) {
+      group.addTo(this.graphLayerGroup);
+    }
 
     group.setStyle = (newStyle) => {
       group.eachLayer(layer => layer.setStyle(newStyle));
@@ -673,11 +727,11 @@ class GraphMap extends React.Component {
       }
     };
 
-    const _remove = group.remove.bind(group);
-    group.remove = () => {
-      group.clearLayers();
-      _remove();
-    };
+    // const _remove = group.remove.bind(group);
+    // group.remove = () => {
+    //   group.clearLayers();
+    //   _remove();
+    // };
 
     return group;
   }
@@ -686,7 +740,11 @@ class GraphMap extends React.Component {
   loadGraphState(graph, center = false) {
     console.info("Loading the current pose graph state (full).");
     this.root_vid = graph.root_vid;
-    
+
+    if (this.graphLayerGroup) {
+      this.graphLayerGroup.clearLayers();
+    }
+
     // id2vertex and kdtree
     this.id2vertex = new Map();
     let wps_map = new Map();
@@ -719,22 +777,16 @@ class GraphMap extends React.Component {
     this.setState({waypoints_map: wps_map, display_waypoints_map: disp_wps_map});
     this.kdtree = new kdTree(graph.vertices, (a, b) => b.distanceTo(a), ["lat", "lng"]);
     
-    this.active_routes.forEach((route) => route.polyline.remove());
+    // this.active_routes.forEach((route) => route.polyline.remove());
+    // this.active_routes = [];
+    // this.robot_routes = new Map();
+    
     this.active_routes = [];
+    this.fixed_routes = [];
     this.robot_routes = new Map();
     
-    // fixed routes
-    this.fixed_routes.forEach((route) => route.polyline.remove());
-    this.fixed_routes = graph.fixed_routes.flatMap((route) => {
-      let polyline = this.route2Polyline(route);
-      let route_centre = structuredClone(route);
-      route_centre.type = 7;
-      let polyline_centre = this.route2Polyline(route_centre);
-      return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
-    });
-    // active routes
-    this.active_routes.forEach((route) => route.polyline.remove());
-    this.active_routes = graph.active_routes.flatMap((route) => {
+// fixed routes
+    this.fixed_routes = this.splitRoutesByRobotId(graph.fixed_routes).flatMap((route) => {
       let polyline = this.route2Polyline(route);
       let route_centre = structuredClone(route);
       route_centre.type = 7;
@@ -742,7 +794,15 @@ class GraphMap extends React.Component {
       return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
     });
 
-    this.robot_routes = new Map();
+    // active routes
+    this.active_routes = this.splitRoutesByRobotId(graph.active_routes).flatMap((route) => {
+      let polyline = this.route2Polyline(route);
+      let route_centre = structuredClone(route);
+      route_centre.type = 7;
+      let polyline_centre = this.route2Polyline(route_centre);
+      return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
+    });
+
     // active_routes are stored in pairs [route, route_centre], step by 2
     for (let i = 0; i < this.active_routes.length; i += 2) {
       const route = this.active_routes[i];
