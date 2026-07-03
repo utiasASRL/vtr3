@@ -119,7 +119,8 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 }
 
 void GraphMapServer::buildAndPublishGraphState() {
-  auto graph_lock = getGraph()->guard();
+  auto graph_lock = getGraph()->guard(); 
+
   auto saved_active_routes = graph_state_.active_routes; // persist active
 
   const auto priv_graph = getTopologyGraph();
@@ -400,7 +401,6 @@ void GraphMapServer::pathUpdated(const VertexId::Vector& path) {
 
 auto GraphMapServer::getGraph() const -> GraphPtr {
   if (auto graph_acquired = graph_.lock()){
-    CLOG(DEBUG, "navigation.graph_map_server") << "getGraph() lastVertexIdx_ =  " << graph_acquired->lastVertexIdx_;
     return graph_acquired;
   } else {
     std::string err{"Graph has expired"};

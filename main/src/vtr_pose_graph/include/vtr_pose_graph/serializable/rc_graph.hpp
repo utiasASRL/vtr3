@@ -118,11 +118,6 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
              const typename storage::LockableMessage<DataType>::Ptr& message);
   void saveGraphIndex();
 
-  // TODO (ANTHONY): Make these private
-  // keep track of .db3 cursors (watch for new data)
-  int lastVertexIdx_ = 1;
-  int lastEdgeIdx_ = 1;
-
   // keep track of topology only edges
   void loadVerticesLive();
   void loadEdgesLive();
@@ -170,6 +165,11 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   std::queue<EdgePtr> edges_to_write_;
   std::unordered_map<EdgeId, int> topology_edges_;
   std::unordered_map<VertexId, int> topology_vertices_;
+
+  // keep track of .db3 cursors (watch for new data)
+  int lastVertexIdx_ = 1;
+  int lastEdgeIdx_ = 1;
+
 };
 
 template <typename DataType>
