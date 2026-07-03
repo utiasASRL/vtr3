@@ -106,7 +106,7 @@ void Tactic::addRun(const bool ephemeral) {
 
 void Tactic::finishRun() {
   smoother_.runBranchSmoothing();
-  graph_->save();
+  // graph_->save(); // saveLive handles
 
   callback_->endRun();
 }
@@ -370,7 +370,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   qdata->T_r_v_loc.emplace(chain_->T_leaf_trunk());
 
 
-  graph_->save();
+  // graph_->save(); // saveLive handles
 
   return config_->localization_skippable;
 }
