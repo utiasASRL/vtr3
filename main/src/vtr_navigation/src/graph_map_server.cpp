@@ -119,8 +119,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 }
 
 void GraphMapServer::buildAndPublishGraphState() {
-  auto graph_lock = getGraph()->guard(); 
-
+  auto graph_lock = getGraph()->guard();
   auto saved_active_routes = graph_state_.active_routes; // persist active
 
   const auto priv_graph = getTopologyGraph();
