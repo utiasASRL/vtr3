@@ -214,6 +214,9 @@ void RCGraph::loadEdgesLive() {
       topology_edges_[edge->id()] = index;
       CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
     }
+    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::AUTONOMOUS) {
+      return;
+    }
     CLOG(DEBUG, "pose_graph") << " - loading edge " << *edge;
     CLOG(DEBUG, "pose_graph") << "loadLive: edges_.insert";
     edges_.insert(std::make_pair(eid, edge)); // bookkeeping
@@ -289,9 +292,13 @@ void RCGraph::populateLive() {
 
 void RCGraph::loadLive() {
   CLOG(DEBUG, "pose_graph") << "loadLive";
-  loadVerticesLive();
-  loadEdgesLive();
-  populateLive();
+  // guard against new graphs
+  if (fs::exists(fs::path(file_path_) / "vertices/vertices_0.db3")){
+    map_info_ = getMapInfo();
+    loadVerticesLive();
+    loadEdgesLive();
+    populateLive();
+  }
   return;
 }
 
