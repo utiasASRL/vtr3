@@ -254,7 +254,7 @@ class GraphMap extends React.Component {
               >
                 <TextField
                   sx={{ mx: 0.5, display: "flex", justifyContent: "center" }}
-                  style={{width: 120}}
+                  style={{width: 200}}
                   fullWidth={true}
                   label="Name"
                   variant="standard"
