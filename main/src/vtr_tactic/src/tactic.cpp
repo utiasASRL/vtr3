@@ -106,7 +106,6 @@ void Tactic::addRun(const bool ephemeral) {
 
 void Tactic::finishRun() {
   smoother_.runBranchSmoothing();
-  CLOG(ERROR, "tactic") << "Not an ERROR, FINISHED RUN";
   graph_->save();
 
   callback_->endRun();

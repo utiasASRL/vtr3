@@ -98,7 +98,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   if (!map_info.set) {
     CLOG(INFO, "navigation.graph_map_server")
         << "Initializing pose graph mapinfo";
-    map_info.root_vid = 0;
+    map_info.root_vid = -1;
     map_info.lng = lng;
     map_info.lat = lat;
     map_info.theta = theta;
@@ -119,8 +119,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 }
 
 void GraphMapServer::buildAndPublishGraphState() {
-  auto graph_lock = getGraph()->guard(); 
-
+  auto graph_lock = getGraph()->guard();
   auto saved_active_routes = graph_state_.active_routes; // persist active
 
   const auto priv_graph = getTopologyGraph();
@@ -672,7 +671,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   if (vid2tf_map_.count(to) != 0) {
     std::stringstream ss;
     ss << "Cannot connect to an existing vertex " << to
-       << " via a temporal edge";
+       << " via a temporal edge from " << from;
     CLOG(ERROR, "navigation.graph_map_server") << ss.str();
     throw std::runtime_error{ss.str()};
   }
