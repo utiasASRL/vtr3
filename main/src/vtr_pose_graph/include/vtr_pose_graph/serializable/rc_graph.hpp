@@ -105,7 +105,6 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
     CLOG(DEBUG, "pose_graph") << "setMapInfo start";
     std::unique_lock lock(map_info_mutex_);
     map_info_ = map_info;
-    map_info_.root_vid = vertices_.end()->first;
     if (!vertices_.empty()) { map_info_.root_vid = vertices_.begin()->first; }
     CLOG(DEBUG, "pose_graph") << "setMapInfo done";
   }
