@@ -24,6 +24,7 @@
 #include <vtr_path_planning/cbit/utils.hpp>
 #include <fstream>
 #include <iomanip>
+#include <sstream>
 
 namespace vtr::path_planning {
 
@@ -136,6 +137,10 @@ BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() 
   for (const auto& e : pose_log_) {
     f << "pose," << e.timestamp_ns << ",,,,,," ;
     write_mat(e.T_w_r);
+    // TEMPORARY: m1_* (unused for pose rows otherwise) carries the
+    // extrapolated planning pose T_w_r_extp for the extrapolation-mismatch
+    // diagnostic -- see PoseLogEntry::T_w_r_extp.
+    write_mat(e.T_w_r_extp);
     f << '\n';
   }
   for (const auto& e : pred_log_) {
@@ -157,6 +162,10 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
                          const tactic::Timestamp& curr_time) {
 
   auto& chain = robot_state.chain.ptr();
+
+  const auto [stamp, w_p_r_in_r, T_p_r, T_w_p_chain, T_w_v_odo, T_r_v_odo,
+              curr_sid] = getChainInfo(*robot_state.chain.ptr());
+
   std::vector<double> p_rollout;
   for (int j = 1; j < mpcConfig->N + 1; j++) {
     p_rollout.push_back(state_p + j * mpcConfig->VF * mpcConfig->DT);
@@ -165,58 +174,67 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   mpcConfig->reference_poses.clear();
   auto referenceInfo = generateHomotopyReference(p_rollout, chain, T_w_p*T_p_r_extp);
   std::vector<lgmath::se3::Transformation> local_reference_poses;
-  
-  for (const auto& Tf : referenceInfo.poses) {
-    mpcConfig->reference_poses.push_back(tf_to_global(T_w_p.inverse() * Tf));
-    local_reference_poses.push_back(T_w_p.inverse() * Tf);
+
+  for (size_t j = 0; j < referenceInfo.poses.size(); ++j) {
+    const auto& Tf = referenceInfo.poses[j];
+
+    const auto local = T_w_p.inverse() * Tf;
+    mpcConfig->reference_poses.push_back(tf_to_global(local));
+    local_reference_poses.push_back(local);
 
     CLOG(DEBUG, "cbit.control")
-        << "Adding reference pose: " << tf_to_global(T_w_p.inverse() * Tf);
+        << "Adding reference pose: " << tf_to_global(local);
   }
 
   if (error_predictor_) {
     std::vector<lgmath::se3::Transformation> original_local_poses = local_reference_poses;
-
     error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
+
     mpcConfig->reference_poses.clear();
     std::vector<lgmath::se3::Transformation> corrected_world_poses;
     for (size_t i = 0; i < local_reference_poses.size(); ++i) {
       mpcConfig->reference_poses.push_back(tf_to_global(local_reference_poses[i]));
       corrected_world_poses.push_back(T_w_p * local_reference_poses[i]);
     }
-    vis_->publishCorrectedReferencePoses(corrected_world_poses, curr_time);
-    vis_->publishPredictedRobotPath(corrected_world_poses, curr_time);
+    vis_->publishCorrectedReferencePoses(corrected_world_poses, stamp);
+    vis_->publishPredictedRobotPath(corrected_world_poses, stamp);
 
     if (!log_path_.empty() && !original_local_poses.empty()) {
-      const auto [stamp, w_p_r_in_r, T_p_r, T_w_p_chain, T_w_v_odo, T_r_v_odo, curr_sid] =
-          getChainInfo(*robot_state.chain.ptr());
-
-      const int64_t now_ns = static_cast<int64_t>(curr_time);
+      const int64_t stamp_ns = static_cast<int64_t>(stamp);
       const lgmath::se3::Transformation T_w_r_now = T_w_v_odo * T_r_v_odo.inverse();
+      // TEMPORARY diagnostic field: the extrapolated planning pose
+      // (T_w_p * T_p_r_extp) actually used to build this cycle's reference
+      // trajectory when extrapolate_robot_pose is enabled. Logged to check
+      // whether this (not T_w_r_now) is what pte_ds_from_graph.py's ground
+      // truth should be compared against -- remove once that's resolved.
+      const lgmath::se3::Transformation T_w_r_extp = T_w_p * T_p_r_extp;
 
       // Record robot pose every cycle for post-hoc interpolation.
-      pose_log_.push_back({now_ns, T_w_r_now});
+      pose_log_.push_back({stamp_ns, T_w_r_now, T_w_r_extp});
 
-      // Record prediction for all N horizon steps.
-      auto matToAxisAngle = [](const lgmath::se3::Transformation& T)
-          -> std::array<double, 3> {
+      // Record prediction for all N horizon steps. Must match
+      // pte_ds_from_graph.py's 'pte' target definition exactly:
+      auto yawOf = [](const lgmath::se3::Transformation& T) -> double {
         const auto M = T.matrix();
-        const double tx  = M(0,3), ty = M(1,3);
         const double r00 = M(0,0), r11 = M(1,1), r22 = M(2,2);
         const double r10 = M(1,0), r01 = M(0,1);
         const double cos_phi = std::clamp((r00+r11+r22-1.0)/2.0, -1.0, 1.0);
         const double phi = std::acos(cos_phi);
         const double sinc = (std::abs(phi) < 1e-8) ? 1.0 : std::sin(phi)/phi;
-        return {tx, ty, 0.5 / sinc * (r10 - r01)};
+        return 0.5 / sinc * (r10 - r01);
       };
 
       const int N = static_cast<int>(original_local_poses.size());
       for (int j = 0; j < N; ++j) {
-        const auto xi_T = local_reference_poses[j].inverse() * original_local_poses[j];
-        const auto pred = matToAxisAngle(xi_T);
+        const Eigen::Vector3d ref_xyz = original_local_poses[j].matrix().block<3, 1>(0, 3);
+        const Eigen::Vector3d robot_xyz = local_reference_poses[j].matrix().block<3, 1>(0, 3);
+        const Eigen::Vector3d err_t = ref_xyz - robot_xyz;
+        const lgmath::se3::Transformation T_ref_robot =
+            original_local_poses[j].inverse() * local_reference_poses[j];
+        const std::array<double, 3> pred{err_t(0), err_t(1), yawOf(T_ref_robot)};
         pred_log_.push_back({
-            now_ns,
-            now_ns + static_cast<int64_t>(j + 1) * kPredictionStepNs,
+            stamp_ns,
+            stamp_ns + static_cast<int64_t>(j + 1) * kPredictionStepNs,
             curr_sid,
             j + 1,
             pred[0], pred[1], pred[2],
@@ -255,8 +273,8 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
     last_pose = curr_pose;
   }
 
-  vis_->publishReferencePoses(referenceInfo.poses, curr_time);
-  vis_->publishLocalReferencePoses(local_reference_poses, curr_time);
+  vis_->publishReferencePoses(referenceInfo.poses, stamp);
+  vis_->publishLocalReferencePoses(local_reference_poses, stamp);
 
   if (end_ind == 0)
     end_ind = 1;

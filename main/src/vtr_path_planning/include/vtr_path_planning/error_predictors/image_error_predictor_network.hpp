@@ -25,7 +25,6 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <lgmath/se3/Transformation.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <deque>
 #include <mutex>
 
 namespace vtr {
@@ -61,14 +60,20 @@ private:
   std::shared_ptr<ImageMsg> cur_sig_img_msg_ = nullptr;
   std::shared_ptr<ImageMsg> cur_dpt_img_msg_ = nullptr;
 
-  // Rolling buffer of world-frame gravity samples for averaging.
-  // Each entry is (timestamp_ns, accel_world_frame).
+  // Max age of the last received signal/range image relative to the current
+  // planning cycle before we warn that it's stale
+  // Logging only for now.
+  static constexpr double kMaxImageStalenessSeconds = 0.05;
+
+  // Num. Secs to average IMU measurements to get gravity estimate
+  // at start of path
   static constexpr double kGravWindowSeconds = 1.0;
-  struct ImuSample {
-    int64_t stamp_ns;
-    std::array<double, 3> accel_world;
-  };
-  std::deque<ImuSample> imu_buffer_;
+  static constexpr int kGravMaxSamples = 500;
+  bool gravity_locked_ = false;
+  int64_t gravity_first_stamp_ns_ = -1;
+  Eigen::Vector3d gravity_world_sum_ = Eigen::Vector3d::Zero();
+  int gravity_sample_count_ = 0;
+  Eigen::Vector3d gravity_world_ = Eigen::Vector3d::Zero();
   std::mutex imu_mutex_;
 };
 

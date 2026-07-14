@@ -108,6 +108,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
   struct PoseLogEntry {
     int64_t timestamp_ns;
     lgmath::se3::Transformation T_w_r;
+    lgmath::se3::Transformation T_w_r_extp;
   };
 
   // One row per prediction: all world-frame context needed to compute actual error offline.

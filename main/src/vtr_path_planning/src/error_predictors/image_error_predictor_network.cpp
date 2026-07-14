@@ -103,14 +103,11 @@ std::array<double, 3> accelToWorld(const ImuMsg& msg) {
           R[2][0]*ax + R[2][1]*ay + R[2][2]*az};
 }
 
-// Average world-frame accel samples and rotate into the robot body frame
-torch::Tensor gravityTensor(const std::vector<Eigen::Vector3d>& world_accels,
+// Rotate the (already-averaged, fixed) world-frame gravity vector into the
+// robot body frame for the current cycle.
+torch::Tensor gravityTensor(const Eigen::Vector3d& g_world,
                             const lgmath::se3::Transformation& T_r_w,
                             torch::Device device) {
-  Eigen::Vector3d g_world = Eigen::Vector3d::Zero();
-  for (const auto& a : world_accels) g_world += a;
-  if (!world_accels.empty()) g_world /= static_cast<double>(world_accels.size());
-
   Eigen::Vector3d g_body = T_r_w.matrix().topLeftCorner<3,3>() * g_world;
 
   std::array<float, 3> grav{
@@ -193,14 +190,27 @@ ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
         if (!msg->header.stamp.sec && !msg->header.stamp.nanosec) return;
         const int64_t stamp_ns = static_cast<int64_t>(msg->header.stamp.sec) * 1000000000LL
                                  + msg->header.stamp.nanosec;
-        auto world_accel = accelToWorld(*msg);
+
         std::lock_guard<std::mutex> lock(imu_mutex_);
-        imu_buffer_.push_back({stamp_ns, world_accel});
+        if (gravity_locked_) return;
+
+        if (gravity_first_stamp_ns_ < 0) gravity_first_stamp_ns_ = stamp_ns;
         const int64_t window_ns = static_cast<int64_t>(kGravWindowSeconds * 1e9);
-        while (!imu_buffer_.empty() &&
-               (stamp_ns - imu_buffer_.front().stamp_ns) > window_ns) {
-          imu_buffer_.pop_front();
+        if ((stamp_ns - gravity_first_stamp_ns_) > window_ns ||
+            gravity_sample_count_ >= kGravMaxSamples) {
+          gravity_world_ = gravity_sample_count_ > 0
+                                ? Eigen::Vector3d(gravity_world_sum_ / static_cast<double>(gravity_sample_count_))
+                                : Eigen::Vector3d(Eigen::Vector3d::Zero());
+          gravity_locked_ = true;
+          CLOG(INFO, "path_planning")
+              << "ImageErrorPredictorNetwork: locked gravity estimate after "
+              << gravity_sample_count_ << " samples: " << gravity_world_.transpose();
+          return;
         }
+
+        auto world_accel = accelToWorld(*msg);
+        gravity_world_sum_ += Eigen::Vector3d(world_accel[0], world_accel[1], world_accel[2]);
+        ++gravity_sample_count_;
       });
 
   CLOG(INFO, "path_planning")
@@ -213,7 +223,7 @@ ImageErrorPredictorNetwork::~ImageErrorPredictorNetwork() = default;
 
 void ImageErrorPredictorNetwork::predictError(
     const RobotState& robot_state,
-    const tactic::Timestamp&,
+    const tactic::Timestamp& curr_time,
     std::vector<lgmath::se3::Transformation>& reference_poses) {
 
   if (!cur_sig_img_msg_ || !cur_dpt_img_msg_) {
@@ -221,6 +231,24 @@ void ImageErrorPredictorNetwork::predictError(
         << "ImageErrorPredictorNetwork::predictError called before inputs set.";
     return;
   }
+
+  const auto image_age = [&](const ImageMsg& msg) -> double {
+    const int64_t stamp_ns = static_cast<int64_t>(msg.header.stamp.sec) * 1000000000LL
+                             + msg.header.stamp.nanosec;
+    return static_cast<double>(static_cast<int64_t>(curr_time) - stamp_ns) * 1e-9;
+  };
+  const double sig_age = image_age(*cur_sig_img_msg_);
+  const double dpt_age = image_age(*cur_dpt_img_msg_);
+  CLOG(DEBUG, "path_planning")
+      << "ImageErrorPredictorNetwork: curr_time=" << static_cast<int64_t>(curr_time)
+      << " signal_age=" << sig_age << "s range_age=" << dpt_age << "s";
+  if (sig_age > kMaxImageStalenessSeconds || dpt_age > kMaxImageStalenessSeconds) {
+    CLOG(WARNING, "path_planning")
+        << "ImageErrorPredictorNetwork::predictError: stale image(s) — "
+        << "signal age=" << sig_age << "s, range age=" << dpt_age << "s "
+        << "(tolerance=" << kMaxImageStalenessSeconds << "s). Inferring anyway.";
+  }
+
   if (reference_poses.empty()) {
     CLOG(WARNING, "path_planning")
         << "ImageErrorPredictorNetwork::predictError: reference_poses is empty.";
@@ -244,6 +272,9 @@ void ImageErrorPredictorNetwork::predictError(
 
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] =
       getChainInfo(*chain);
+  CLOG(DEBUG, "path_planning")
+      << "ImageErrorPredictorNetwork: cycle stamp=" << static_cast<int64_t>(stamp)
+      << " curr_sid=" << curr_sid;
 
   torch::NoGradGuard no_grad;
 
@@ -299,24 +330,28 @@ void ImageErrorPredictorNetwork::predictError(
       torch::tensor(torch::ArrayRef<float>(odom_vel_arr.data(), odom_vel_arr.size()))
           .unsqueeze(0).to(impl_->device);  // (1,6)
 
-  // grav_vec: world-frame gravity averaged over 1s at beginning, then rotated to robot body frame
   const lgmath::se3::Transformation T_r_w = (T_w_p * T_p_r).inverse();
-  std::vector<Eigen::Vector3d> world_accels;
+  Eigen::Vector3d g_world;
+  bool grav_ready;
   {
     std::lock_guard<std::mutex> lock(imu_mutex_);
-    world_accels.reserve(imu_buffer_.size());
-    for (const auto& s : imu_buffer_) {
-      world_accels.emplace_back(s.accel_world[0], s.accel_world[1], s.accel_world[2]);
-    }
+    g_world = gravity_world_;
+    grav_ready = gravity_locked_;
   }
-  if (world_accels.empty()) {
+  if (!grav_ready) {
     CLOG(WARNING, "path_planning")
-        << "ImageErrorPredictorNetwork::predictError: IMU buffer empty, gravity will be zero.";
+        << "ImageErrorPredictorNetwork::predictError: gravity estimate not yet "
+           "locked (still accumulating first " << kGravWindowSeconds
+        << "s of IMU data); using zero gravity for this cycle.";
   }
-  torch::Tensor grav_vec = gravityTensor(world_accels, T_r_w, impl_->device).unsqueeze(0);  // (1,3)
+  torch::Tensor grav_vec = gravityTensor(g_world, T_r_w, impl_->device).unsqueeze(0);  // (1,3)
+  CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: grav_vec = " << grav_vec;
 
   std::vector<torch::Tensor> vec_inputs_list{loc_res_tensor, odom_vel_tensor, grav_vec};
   torch::Tensor vector_inputs = torch::cat(vec_inputs_list, 1);  // (1,15)
+  CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: vector_inputs "
+                              << "[loc_res(6), odom_vel(6), grav_vec(3)] = "
+                              << vector_inputs;
   timer[1]->stop();
 
   // Run inference 
@@ -345,12 +380,11 @@ void ImageErrorPredictorNetwork::predictError(
     const double dx   = static_cast<double>(data[i * 3 + 0]);
     const double dy   = static_cast<double>(data[i * 3 + 1]);
     const double dyaw = static_cast<double>(data[i * 3 + 2]);
-
-    // target_error = ref_xyz - actual_xyz in path frame 
+    // Reconstruct target errors from path frame
     Eigen::Matrix4d M = reference_poses[i].matrix();
     M(0, 3) -= dx;
     M(1, 3) -= dy;
-    // yaw: apply as body-frame rotation 
+    // yaw: apply as body-frame rotation
     Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
     R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
     R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);
