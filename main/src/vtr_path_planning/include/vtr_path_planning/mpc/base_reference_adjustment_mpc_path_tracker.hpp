@@ -65,10 +65,12 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     std::string dpt_img_topic = "depth";
     std::string imu_topic = "imu";
     
+
     // Reference Pose Adjustment Modes and Info
     ReferenceAdjustmentMode reference_adjustment_mode = ReferenceAdjustmentMode::None;
     std::string reference_adjustment_model_path = "";
     std::string prediction_log_path = ""; 
+    bool use_gpu = false;
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,

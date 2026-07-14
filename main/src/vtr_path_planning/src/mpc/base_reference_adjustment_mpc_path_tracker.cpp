@@ -60,6 +60,7 @@ auto BaseReferenceAdjustmentMPCPathTracker::Config::loadConfig(BaseReferenceAdju
   config->reference_adjustment_mode = static_cast<ReferenceAdjustmentMode>(
       node->declare_parameter<int>(prefix + ".error_predictor.mode", static_cast<int>(config->reference_adjustment_mode)));
   config->prediction_log_path = node->declare_parameter<std::string>(prefix + ".error_predictor.prediction_log_path", config->prediction_log_path);
+  config->use_gpu = node->declare_parameter<bool>(prefix + ".error_predictor.use_gpu", config->use_gpu);
 }
 
 // Subclasses must implement their own Config::fromROS.
@@ -89,7 +90,8 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
           base_config_->sig_img_topic,
           base_config_->dpt_img_topic,
           base_config_->imu_topic,
-          base_config_->reference_adjustment_model_path);
+          base_config_->reference_adjustment_model_path,
+	  base_config_->use_gpu);
       CLOG(INFO, "cbit.control") << "Initialized image neural network for reference adjustment.";
     } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Image neural network will not be initialized.";
@@ -99,7 +101,8 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
       error_predictor_ = std::make_shared<NumericalErrorPredictorNetwork>(
           node,
           base_config_->imu_topic,
-          base_config_->reference_adjustment_model_path);
+          base_config_->reference_adjustment_model_path,
+	  base_config_->use_gpu);
       CLOG(INFO, "cbit.control") << "Initialized numerical neural network for reference adjustment.";
     } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Numerical neural network will not be initialized.";
@@ -202,11 +205,6 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
     if (!log_path_.empty() && !original_local_poses.empty()) {
       const int64_t stamp_ns = static_cast<int64_t>(stamp);
       const lgmath::se3::Transformation T_w_r_now = T_w_v_odo * T_r_v_odo.inverse();
-      // TEMPORARY diagnostic field: the extrapolated planning pose
-      // (T_w_p * T_p_r_extp) actually used to build this cycle's reference
-      // trajectory when extrapolate_robot_pose is enabled. Logged to check
-      // whether this (not T_w_r_now) is what pte_ds_from_graph.py's ground
-      // truth should be compared against -- remove once that's resolved.
       const lgmath::se3::Transformation T_w_r_extp = T_w_p * T_p_r_extp;
 
       // Record robot pose every cycle for post-hoc interpolation.
