@@ -19,3 +19,4 @@ __pycache__/
 #auto generated C++ code for MPC
 main/src/vtr_path_planning/include/vtr_path_planning/mpc/generated/*
 main/src/vtr_path_planning/src/mpc/generated/*
+main/src/vtr_gui/vtr_gui/vtr-gui/package-lock.json
