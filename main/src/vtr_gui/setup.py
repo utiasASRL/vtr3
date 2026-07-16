@@ -19,6 +19,7 @@ def npm_build_vtr_ui():
         print(result.stdout)
     except subprocess.CalledProcessError as e:
         print(f"npm run build failed with code {e.returncode}", file=sys.stderr)
+        print(e.stdout, file=sys.stderr)
         print(e.stderr, file=sys.stderr)
         print(r"Likely you have not installed the npm packages. Run: npm --prefix ${VTRUI} install ${VTRUI}", file=sys.stderr)
         sys.exit(e.returncode)
