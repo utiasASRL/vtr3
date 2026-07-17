@@ -68,7 +68,7 @@
       y: -0.010622
       z: -0.003973
     gyro_enabled: false
-    graph_map:
+    graph_projection:
       origin_lat: 43.7822
       origin_lng: -79.4661
       origin_theta: 1.3
