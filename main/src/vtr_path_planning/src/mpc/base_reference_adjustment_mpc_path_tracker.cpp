@@ -140,9 +140,6 @@ BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() 
   for (const auto& e : pose_log_) {
     f << "pose," << e.timestamp_ns << ",,,,,," ;
     write_mat(e.T_w_r);
-    // TEMPORARY: m1_* (unused for pose rows otherwise) carries the
-    // extrapolated planning pose T_w_r_extp for the extrapolation-mismatch
-    // diagnostic -- see PoseLogEntry::T_w_r_extp.
     write_mat(e.T_w_r_extp);
     f << '\n';
   }
@@ -199,19 +196,18 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
       mpcConfig->reference_poses.push_back(tf_to_global(local_reference_poses[i]));
       corrected_world_poses.push_back(T_w_p * local_reference_poses[i]);
     }
-    vis_->publishCorrectedReferencePoses(corrected_world_poses, stamp);
+    // vis_->publishCorrectedReferencePoses(corrected_world_poses, stamp);
     vis_->publishPredictedRobotPath(corrected_world_poses, stamp);
 
     if (!log_path_.empty() && !original_local_poses.empty()) {
       const int64_t stamp_ns = static_cast<int64_t>(stamp);
-      const lgmath::se3::Transformation T_w_r_now = T_w_v_odo * T_r_v_odo.inverse();
+      const lgmath::se3::Transformation T_w_r_now = T_w_p * T_p_r;
       const lgmath::se3::Transformation T_w_r_extp = T_w_p * T_p_r_extp;
 
       // Record robot pose every cycle for post-hoc interpolation.
       pose_log_.push_back({stamp_ns, T_w_r_now, T_w_r_extp});
 
-      // Record prediction for all N horizon steps. Must match
-      // pte_ds_from_graph.py's 'pte' target definition exactly:
+      // Record prediction for all N horizon steps
       auto yawOf = [](const lgmath::se3::Transformation& T) -> double {
         const auto M = T.matrix();
         const double r00 = M(0,0), r11 = M(1,1), r22 = M(2,2);
