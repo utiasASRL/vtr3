@@ -186,8 +186,10 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
         << "Adding reference pose: " << tf_to_global(local);
   }
 
+  // Save pre-correction reference poses for logging
+  std::vector<lgmath::se3::Transformation> original_local_poses = local_reference_poses;
+
   if (error_predictor_) {
-    std::vector<lgmath::se3::Transformation> original_local_poses = local_reference_poses;
     error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
 
     mpcConfig->reference_poses.clear();
@@ -232,6 +234,7 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
             curr_sid,
             j + 1,
             pred[0], pred[1], pred[2],
+            // Log pre-correction application poses for comparison post-hoc
             T_w_p * original_local_poses[j],
             T_w_p
         });
@@ -268,7 +271,7 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   }
 
   vis_->publishReferencePoses(referenceInfo.poses, stamp);
-  vis_->publishLocalReferencePoses(local_reference_poses, stamp);
+  vis_->publishLocalReferencePoses(original_local_poses, stamp);
 
   if (end_ind == 0)
     end_ind = 1;

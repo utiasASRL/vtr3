@@ -283,9 +283,11 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
   }
+  const auto [stamp, w_p_r_in_r, T_p_r, tmp, T_w_v_odo, T_r_v_odo, curr_sid] =
+      getChainInfo(*chain);
 
-  vis_->publishReferencePoses(referenceInfo.poses, curr_time);
-  vis_->publishLocalReferencePoses(local_reference_poses, curr_time);
+  vis_->publishReferencePoses(referenceInfo.poses, stamp);
+  vis_->publishLocalReferencePoses(local_reference_poses, stamp);
 
   if (end_ind == 0)
     end_ind = 1;
