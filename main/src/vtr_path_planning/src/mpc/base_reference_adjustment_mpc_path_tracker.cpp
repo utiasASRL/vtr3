@@ -132,6 +132,7 @@ BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() 
         f << ',' << M(r, c);
   };
 
+
   f << "type,t0_ns,t1_ns,sid,step,v0,v1,v2";
   for (int i = 0; i < 16; ++i) f << ",m0_" << i;
   for (int i = 0; i < 16; ++i) f << ",m1_" << i;
