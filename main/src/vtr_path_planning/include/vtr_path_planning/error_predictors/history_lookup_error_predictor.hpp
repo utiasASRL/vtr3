@@ -22,19 +22,39 @@
 
 #include "vtr_path_planning/error_predictors/base_error_predictor.hpp"
 #include <lgmath/se3/Transformation.hpp>
+#include "vtr_path_planning/cbit/utils.hpp"
+#include <optional>
 
 namespace vtr::path_planning {
+  enum class HistoryLookupMode {
+    PreviousRepeat,
+    PathTrackingError,
+    KNearestNeighbour
+  };
+// vtr_tactic/types.hpp
+using Graph = pose_graph::RCGraph;
+using GraphBase = Graph::Base;
+using VertexId = pose_graph::VertexId;
+using EdgeId = pose_graph::EdgeId;
 
 class HistoryLookupErrorPredictor : public BaseErrorPredictor {
 public:
-  HistoryLookupErrorPredictor();
+  HistoryLookupErrorPredictor(HistoryLookupMode mode,
+                              const tactic::GraphBase::Ptr& graph);
   ~HistoryLookupErrorPredictor();
 
   void predictError(const RobotState& robot_state,
                     const tactic::Timestamp& curr_time,
-                    std::vector<lgmath::se3::Transformation>& reference_poses) override;
+                    std::vector<lgmath::se3::Transformation>& reference_poses,
+                    
+                    PredictorInputSnapshot* input_snapshot = nullptr) override;
 
 private:
+  HistoryLookupMode mode_;
+  tactic::GraphBase::Ptr graph_;
+
+  std::optional<lgmath::se3::Transformation> lookupLastRepeatError(
+      const tactic::VertexId& teach_vid) const;
 };
 
 }  // namespace vtr::path_planning

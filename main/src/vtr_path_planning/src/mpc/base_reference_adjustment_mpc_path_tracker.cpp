@@ -80,7 +80,9 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
     : BaseMPCPathTracker(config, robot_state, graph, callback),
       base_config_(config),
       robot_state_{robot_state},
+      graph_(graph),
       log_path_(config->prediction_log_path) {
+
 
   auto node = robot_state_->node.ptr();
   if (config->reference_adjustment_mode == ReferenceAdjustmentMode::ImageNeuralNetwork) {
@@ -108,7 +110,7 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Numerical neural network will not be initialized.";
     }
   } else if (config->reference_adjustment_mode == ReferenceAdjustmentMode::HistoryBased) {
-    error_predictor_ = std::make_shared<HistoryLookupErrorPredictor>();
+    error_predictor_ = std::make_shared<HistoryLookupErrorPredictor>(HistoryLookupMode::PreviousRepeat, graph_);
     CLOG(INFO, "cbit.control") << "Initialized history-based reference adjustment.";
   } else {
     CLOG(INFO, "cbit.control") << "No reference adjustment will be applied.";
@@ -117,7 +119,7 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
 
 BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() {
   if (log_path_.empty()) return;
-  if (pose_log_.empty() && pred_log_.empty()) return;
+  if (pose_log_.empty() && pred_log_.empty() && input_log_.empty()) return;
   std::ofstream f(log_path_);
   if (!f) {
     CLOG(WARNING, "cbit.control") << "Could not open prediction log: " << log_path_;
@@ -154,6 +156,46 @@ BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() 
   }
   CLOG(INFO, "cbit.control") << "Wrote " << pose_log_.size() << " pose + "
                              << pred_log_.size() << " pred entries to " << log_path_;
+
+  if (!input_log_.empty()) {
+    // Separate file: live predictError() input snapshot, one row per cycle.
+    // Sequence length (horizon) is variable, so it gets its own wide CSV
+    // rather than being squeezed into the fixed-width pose/pred schema above.
+    const std::string input_log_path = log_path_ + ".inputs.csv";
+    std::ofstream fi(input_log_path);
+    if (!fi) {
+      CLOG(WARNING, "cbit.control") << "Could not open input log: " << input_log_path;
+      return;
+    }
+    fi << std::fixed << std::setprecision(9);
+
+    size_t max_horizon = 0;
+    for (const auto& e : input_log_) max_horizon = std::max(max_horizon, e.sequence.size());
+
+    fi << "t0_ns,sid";
+    for (int i = 0; i < 6; ++i) fi << ",loc_res_" << i;
+    for (int i = 0; i < 6; ++i) fi << ",odom_vel_" << i;
+    for (int i = 0; i < 3; ++i) fi << ",grav_vec_" << i;
+    for (size_t s = 0; s < max_horizon; ++s)
+      for (int i = 0; i < 6; ++i) fi << ",seq" << s << '_' << i;
+    fi << '\n';
+
+    for (const auto& e : input_log_) {
+      fi << e.timestamp_ns << ',' << e.sid;
+      for (int i = 0; i < 6; ++i) fi << ',' << e.loc_res[i];
+      for (int i = 0; i < 6; ++i) fi << ',' << e.odom_vel[i];
+      for (int i = 0; i < 3; ++i) fi << ',' << e.grav_vec[i];
+      for (size_t s = 0; s < max_horizon; ++s) {
+        for (int i = 0; i < 6; ++i) {
+          if (s < e.sequence.size()) fi << ',' << e.sequence[s][i];
+          else fi << ',';
+        }
+      }
+      fi << '\n';
+    }
+    CLOG(INFO, "cbit.control") << "Wrote " << input_log_.size()
+                               << " input snapshot entries to " << input_log_path;
+  }
 }
 
 void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
@@ -191,7 +233,8 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   std::vector<lgmath::se3::Transformation> original_local_poses = local_reference_poses;
 
   if (error_predictor_) {
-    error_predictor_->predictError(robot_state, curr_time, local_reference_poses);
+    PredictorInputSnapshot input_snapshot;
+    error_predictor_->predictError(robot_state, curr_time, local_reference_poses, &input_snapshot);
 
     mpcConfig->reference_poses.clear();
     std::vector<lgmath::se3::Transformation> corrected_world_poses;
@@ -209,6 +252,18 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
 
       // Record robot pose every cycle for post-hoc interpolation.
       pose_log_.push_back({stamp_ns, T_w_r_now, T_w_r_extp});
+
+      // Record the exact live numeric inputs predictError() built this cycle.
+      if (input_snapshot.valid) {
+        input_log_.push_back({
+            stamp_ns,
+            curr_sid,
+            input_snapshot.loc_res,
+            input_snapshot.odom_vel,
+            input_snapshot.grav_vec,
+            input_snapshot.sequence,
+        });
+      }
 
       // Record prediction for all N horizon steps
       auto yawOf = [](const lgmath::se3::Transformation& T) -> double {

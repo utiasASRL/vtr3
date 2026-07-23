@@ -18,17 +18,92 @@
  */
 
 #include "vtr_path_planning/error_predictors/history_lookup_error_predictor.hpp"
+#include "vtr_path_planning/mpc/mpc_common.hpp"
+
+#include <algorithm>
+#include <cmath>
 
 namespace vtr::path_planning {
 
-HistoryLookupErrorPredictor::HistoryLookupErrorPredictor() = default;
+namespace {
+double yawOf(const lgmath::se3::Transformation& T) {
+  const auto M = T.matrix();
+  const double r00 = M(0, 0), r11 = M(1, 1), r22 = M(2, 2);
+  const double r10 = M(1, 0), r01 = M(0, 1);
+  const double cos_phi = std::clamp((r00 + r11 + r22 - 1.0) / 2.0, -1.0, 1.0);
+  const double phi = std::acos(cos_phi);
+  const double sinc = (std::abs(phi) < 1e-8) ? 1.0 : std::sin(phi) / phi;
+  return 0.5 / sinc * (r10 - r01);
+}
+
+lgmath::se3::Transformation applyPoseCorrection(
+    const lgmath::se3::Transformation& pose, double dx, double dy, double dyaw) {
+  Eigen::Matrix4d M = pose.matrix();
+  M(0, 3) -= dx;
+  M(1, 3) -= dy;
+  Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
+  R_dyaw(0, 0) = std::cos(-dyaw);  R_dyaw(0, 1) = -std::sin(-dyaw);
+  R_dyaw(1, 0) = std::sin(-dyaw);  R_dyaw(1, 1) = std::cos(-dyaw);
+  M = M * R_dyaw;
+  return lgmath::se3::Transformation(M);
+}
+}  // namespace
+
+HistoryLookupErrorPredictor::HistoryLookupErrorPredictor(HistoryLookupMode mode,
+                                                       const tactic::GraphBase::Ptr& graph)
+    : mode_(mode),
+      graph_(graph) {}
+
 HistoryLookupErrorPredictor::~HistoryLookupErrorPredictor() = default;
 
+std::optional<lgmath::se3::Transformation>
+HistoryLookupErrorPredictor::lookupLastRepeatError(
+    const tactic::VertexId& teach_vid) const {
+  if (!graph_ || !graph_->contains(teach_vid)) return std::nullopt;
+
+  const auto neighbours = graph_->neighbors(teach_vid);
+  for (auto it = neighbours.rbegin(); it != neighbours.rend(); ++it) {
+    const tactic::EdgeId edge_id(teach_vid, *it);
+    if (!graph_->contains(edge_id)) continue;
+    const auto edge = graph_->at(edge_id);
+    // Filter teach edges
+    if (!edge->isSpatial()) continue;
+    return lgmath::se3::Transformation(edge->T().inverse());
+  }
+  return std::nullopt;
+}
+
 void HistoryLookupErrorPredictor::predictError(
-    const RobotState& /*robot_state*/,
+    const RobotState& robot_state,
     const tactic::Timestamp& /*curr_time*/,
-    std::vector<lgmath::se3::Transformation>& /*reference_poses*/) {
-  // TODO: implement history-based lookup correction
+    std::vector<lgmath::se3::Transformation>& reference_poses,
+    PredictorInputSnapshot* /*input_snapshot*/) {
+  if (reference_poses.empty() || !graph_) return;
+
+  auto& chain = robot_state.chain.ptr();
+  const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo,
+              curr_sid] = getChainInfo(*chain);
+
+  unsigned last_sid = curr_sid;
+  for (size_t i = 0; i < reference_poses.size(); ++i) {
+    // Find closest segment for ref_pose at curr step
+    // Use this to find the teach vid, and find the associated error
+    // TODO: This needs to be done in such a way that we find the closest
+    // past repeat to the pose, not the teach vertex
+    // TODO: add switching based on defined enum modes
+    const lgmath::se3::Transformation T_wr = T_w_p * reference_poses[i];
+    const auto segment = findClosestSegment(T_wr, chain, last_sid);
+    last_sid = segment.start_sid;
+
+    const tactic::VertexId teach_vid = chain->sequence()[segment.start_sid];
+    const auto err = lookupLastRepeatError(teach_vid);
+    if (!err.has_value()) continue;  // cold start: no prior repeat
+
+    const double dx = err->r_ba_ina()(0);
+    const double dy = err->r_ba_ina()(1);
+    const double dyaw = yawOf(*err);
+    reference_poses[i] = applyPoseCorrection(reference_poses[i], dx, dy, dyaw);
+  }
 }
 
 }  // namespace vtr::path_planning
