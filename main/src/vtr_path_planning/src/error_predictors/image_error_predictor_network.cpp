@@ -118,7 +118,7 @@ torch::Tensor gravityTensor(const Eigen::Vector3d& g_world,
   return torch::tensor(torch::ArrayRef<float>(grav.data(), grav.size())).to(device);
 }
 
-torch::Tensor poseToVec(const lgmath::se3::Transformation& T) {
+std::array<double, 6> poseToVecArr(const lgmath::se3::Transformation& T) {
   const Eigen::Matrix4d M = T.matrix();
   const double tx = M(0, 3), ty = M(1, 3), tz = M(2, 3);
 
@@ -136,13 +136,18 @@ torch::Tensor poseToVec(const lgmath::se3::Transformation& T) {
       : std::sin(phi) / phi;
   const double scale = 0.5 / sinc_val;
 
+  return {tx, ty, tz,
+          scale * (r21 - r12),
+          scale * (r02 - r20),
+          scale * (r10 - r01)};
+}
+
+torch::Tensor poseToVec(const lgmath::se3::Transformation& T) {
+  const auto vals64 = poseToVecArr(T);
   std::array<float, 6> vals{
-      static_cast<float>(tx),
-      static_cast<float>(ty),
-      static_cast<float>(tz),
-      static_cast<float>(scale * (r21 - r12)),
-      static_cast<float>(scale * (r02 - r20)),
-      static_cast<float>(scale * (r10 - r01)),
+      static_cast<float>(vals64[0]), static_cast<float>(vals64[1]),
+      static_cast<float>(vals64[2]), static_cast<float>(vals64[3]),
+      static_cast<float>(vals64[4]), static_cast<float>(vals64[5]),
   };
   return torch::tensor(torch::ArrayRef<float>(vals.data(), vals.size()));
 }
@@ -224,7 +229,8 @@ ImageErrorPredictorNetwork::~ImageErrorPredictorNetwork() = default;
 void ImageErrorPredictorNetwork::predictError(
     const RobotState& robot_state,
     const tactic::Timestamp& curr_time,
-    std::vector<lgmath::se3::Transformation>& reference_poses) {
+    std::vector<lgmath::se3::Transformation>& reference_poses,
+    PredictorInputSnapshot* input_snapshot) {
 
   if (!cur_sig_img_msg_ || !cur_dpt_img_msg_) {
     CLOG(WARNING, "path_planning")
@@ -287,8 +293,10 @@ void ImageErrorPredictorNetwork::predictError(
   const int64_t T = static_cast<int64_t>(reference_poses.size());
   std::vector<torch::Tensor> pose_vecs;
   pose_vecs.reserve(T);
+  if (input_snapshot) input_snapshot->sequence.reserve(T);
   for (const auto& pose : reference_poses) {
     pose_vecs.push_back(poseToVec(pose));
+    if (input_snapshot) input_snapshot->sequence.push_back(poseToVecArr(pose));
   }
 
   // Stack (T, 6) then unsqueeze batch dim -> (1, T, 6)
@@ -312,6 +320,10 @@ void ImageErrorPredictorNetwork::predictError(
                             .unsqueeze(0).to(impl_->device);  // (1,6)
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: loc_res_tensor = "
                               << loc_res_tensor;
+  if (input_snapshot) {
+    for (size_t i = 0; i < loc_res_arr.size(); ++i)
+      input_snapshot->loc_res[i] = static_cast<double>(loc_res_arr[i]);
+  }
 
   // odom: body-frame velocity twist
   const Eigen::Matrix<double, 6, 1> odom_vel = -w_p_r_in_r;
@@ -329,6 +341,10 @@ void ImageErrorPredictorNetwork::predictError(
   auto odom_vel_tensor =
       torch::tensor(torch::ArrayRef<float>(odom_vel_arr.data(), odom_vel_arr.size()))
           .unsqueeze(0).to(impl_->device);  // (1,6)
+  if (input_snapshot) {
+    for (size_t i = 0; i < odom_vel_arr.size(); ++i)
+      input_snapshot->odom_vel[i] = static_cast<double>(odom_vel_arr[i]);
+  }
 
   const lgmath::se3::Transformation T_r_w = (T_w_p * T_p_r).inverse();
   Eigen::Vector3d g_world;
@@ -346,6 +362,12 @@ void ImageErrorPredictorNetwork::predictError(
   }
   torch::Tensor grav_vec = gravityTensor(g_world, T_r_w, impl_->device).unsqueeze(0);  // (1,3)
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: grav_vec = " << grav_vec;
+  if (input_snapshot) {
+    const Eigen::Vector3d g_body = T_r_w.matrix().topLeftCorner<3,3>() * g_world;
+    input_snapshot->grav_vec = {g_body(0), g_body(1), g_body(2)};
+  }
+
+  if (input_snapshot) input_snapshot->valid = true;
 
   std::vector<torch::Tensor> vec_inputs_list{loc_res_tensor, odom_vel_tensor, grav_vec};
   torch::Tensor vector_inputs = torch::cat(vec_inputs_list, 1);  // (1,15)

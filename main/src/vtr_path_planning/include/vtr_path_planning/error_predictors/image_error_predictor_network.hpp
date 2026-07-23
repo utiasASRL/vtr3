@@ -47,7 +47,8 @@ public:
 
   void predictError(const RobotState& robot_state,
                     const tactic::Timestamp& curr_time,
-                    std::vector<lgmath::se3::Transformation>& reference_poses) override;
+                    std::vector<lgmath::se3::Transformation>& reference_poses,
+                    PredictorInputSnapshot* input_snapshot = nullptr) override;
 
 private:
   struct Impl;
@@ -62,11 +63,9 @@ private:
 
   // Max age of the last received signal/range image relative to the current
   // planning cycle before we warn that it's stale
-  // Logging only for now.
   static constexpr double kMaxImageStalenessSeconds = 0.05;
 
   // Num. Secs to average IMU measurements to get gravity estimate
-  // at start of path
   static constexpr double kGravWindowSeconds = 1.0;
   static constexpr int kGravMaxSamples = 500;
   bool gravity_locked_ = false;

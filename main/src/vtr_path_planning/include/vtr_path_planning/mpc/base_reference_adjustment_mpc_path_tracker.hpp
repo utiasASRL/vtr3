@@ -97,6 +97,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
  private:
   const Config::ConstPtr base_config_;
   RobotState::Ptr robot_state_;
+  const tactic::GraphBase::Ptr graph_;
 
   rclcpp::Publisher<Command>::SharedPtr command_pub_;
   rclcpp::Publisher<PathInfoMsg>::SharedPtr path_info_pub_;
@@ -124,8 +125,20 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     lgmath::se3::Transformation T_w_p_pred;
   };
 
+  // One row per cycle: the exact live numeric inputs predictError() built and
+  // fed to the model, for direct comparison against offline reconstructions.
+  struct InputLogEntry {
+    int64_t  timestamp_ns;
+    unsigned sid;
+    std::array<double, 6> loc_res;
+    std::array<double, 6> odom_vel;
+    std::array<double, 3> grav_vec;
+    std::vector<std::array<double, 6>> sequence;
+  };
+
   std::vector<PoseLogEntry> pose_log_;
   std::vector<PredLogEntry> pred_log_;
+  std::vector<InputLogEntry> input_log_;
   std::string log_path_;
 
 };

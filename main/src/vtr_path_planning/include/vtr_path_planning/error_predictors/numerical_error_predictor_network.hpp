@@ -43,7 +43,8 @@ public:
 
   void predictError(const RobotState& robot_state,
                     const tactic::Timestamp& curr_time,
-                    std::vector<lgmath::se3::Transformation>& reference_poses) override;
+                    std::vector<lgmath::se3::Transformation>& reference_poses,
+                    PredictorInputSnapshot* input_snapshot = nullptr) override;
 
 private:
   struct Impl;
