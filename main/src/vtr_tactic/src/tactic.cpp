@@ -759,6 +759,7 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
+  *output_->odometry_success = *qdata->odo_success;
   auto now = std::chrono::steady_clock::now();
   if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
     last_load_live_ = now;
