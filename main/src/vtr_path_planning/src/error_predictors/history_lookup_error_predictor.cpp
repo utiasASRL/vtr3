@@ -86,18 +86,34 @@ void HistoryLookupErrorPredictor::predictError(
 
   unsigned last_sid = curr_sid;
   for (size_t i = 0; i < reference_poses.size(); ++i) {
-    // Find closest segment for ref_pose at curr step
-    // Use this to find the teach vid, and find the associated error
-    // TODO: This needs to be done in such a way that we find the closest
-    // past repeat to the pose, not the teach vertex
+    // Find nearest teach vertex, then use that to interpolate between two
+    // nearest realized vertices from last run.
     // TODO: add switching based on defined enum modes
     const lgmath::se3::Transformation T_wr = T_w_p * reference_poses[i];
     const auto segment = findClosestSegment(T_wr, chain, last_sid);
     last_sid = segment.start_sid;
 
-    const tactic::VertexId teach_vid = chain->sequence()[segment.start_sid];
-    const auto err = lookupLastRepeatError(teach_vid);
-    if (!err.has_value()) continue;  // cold start: no prior repeat
+    double interp = 0.0;
+    interpolatePath(T_wr, chain->pose(segment.start_sid),
+                    chain->pose(segment.end_sid), interp);
+    interp = std::clamp(interp, 0.0, 1.0);
+
+    const tactic::VertexId start_vid = chain->sequence()[segment.start_sid];
+    const tactic::VertexId end_vid = chain->sequence()[segment.end_sid];
+    const auto err_start = lookupLastRepeatError(start_vid);
+    const auto err_end = lookupLastRepeatError(end_vid);
+
+    std::optional<lgmath::se3::Transformation> err;
+    // Interpolate between the two errors to get the final error
+    if (err_start.has_value() && err_end.has_value()) {
+      const lgmath::se3::Transformation edge = err_start->inverse() * *err_end;
+      err = *err_start * lgmath::se3::Transformation(interp * edge.vec(), 0);
+    } else if (err_start.has_value()) {
+      err = err_start;
+    } else if (err_end.has_value()) {
+      err = err_end;
+    }
+    if (!err.has_value()) continue;  // cold start: no prior repeat here yet
 
     const double dx = err->r_ba_ina()(0);
     const double dy = err->r_ba_ina()(1);
