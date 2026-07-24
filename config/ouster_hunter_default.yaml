@@ -290,8 +290,9 @@
 
       # Error predictor (set mode > 0 and model_path to enable)
       error_predictor:
-        mode: 2             # 0=None, 1=NumericalNN, 2=ImageNN, 3=HistoryBased
-        model_path: "/home/asrl/ASRL/vtr3/models/image_model.pt"      # absolute path to exported .pt TorchScript model
+        mode: 3             # 0=None, 1=NumericalNN, 2=ImageNN, 3=HistoryBased
+        model_path: "/home/asrl/ASRL/vtr3/models/numerical_model.pt"      # absolute path to exported .pt TorchScript model
+        history_lookup_mode: 0 # 0=Last Repeat, 1=Accumulate Repeats, ... 
         sig_img_topic: /col_mustard/ouster/signal_image
         dpt_img_topic: /col_mustard/ouster/range_image
         imu_topic: /col_mustard/ouster/imu

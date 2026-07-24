@@ -59,6 +59,8 @@ auto BaseReferenceAdjustmentMPCPathTracker::Config::loadConfig(BaseReferenceAdju
   config->reference_adjustment_model_path = node->declare_parameter<std::string>(prefix + ".error_predictor.model_path", config->reference_adjustment_model_path);
   config->reference_adjustment_mode = static_cast<ReferenceAdjustmentMode>(
       node->declare_parameter<int>(prefix + ".error_predictor.mode", static_cast<int>(config->reference_adjustment_mode)));
+  config->history_lookup_mode = static_cast<HistoryLookupMode>(
+      node->declare_parameter<int>(prefix + ".error_predictor.history_lookup_mode", static_cast<int>(config->history_lookup_mode)));
   config->prediction_log_path = node->declare_parameter<std::string>(prefix + ".error_predictor.prediction_log_path", config->prediction_log_path);
   config->use_gpu = node->declare_parameter<bool>(prefix + ".error_predictor.use_gpu", config->use_gpu);
 }
@@ -110,7 +112,7 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Numerical neural network will not be initialized.";
     }
   } else if (config->reference_adjustment_mode == ReferenceAdjustmentMode::HistoryBased) {
-    error_predictor_ = std::make_shared<HistoryLookupErrorPredictor>(HistoryLookupMode::PreviousRepeat, graph_);
+    error_predictor_ = std::make_shared<HistoryLookupErrorPredictor>(config->history_lookup_mode, graph_);
     CLOG(INFO, "cbit.control") << "Initialized history-based reference adjustment.";
   } else {
     CLOG(INFO, "cbit.control") << "No reference adjustment will be applied.";

@@ -23,14 +23,19 @@
 #include "vtr_path_planning/error_predictors/base_error_predictor.hpp"
 #include <lgmath/se3/Transformation.hpp>
 #include "vtr_path_planning/cbit/utils.hpp"
+#include <vtr_path_planning_msgs/msg/accumulated_tracking_error.hpp>
 #include <optional>
 
 namespace vtr::path_planning {
+  // PreviousRepeat: apply the single most recent repeat's observed error as a correction
+  // Accumulating: integral-style accumulation across repeats
   enum class HistoryLookupMode {
     PreviousRepeat,
+    Accumulating,
     PathTrackingError,
     KNearestNeighbour
   };
+
 // vtr_tactic/types.hpp
 using Graph = pose_graph::RCGraph;
 using GraphBase = Graph::Base;
@@ -53,8 +58,19 @@ private:
   HistoryLookupMode mode_;
   tactic::GraphBase::Ptr graph_;
 
+  static constexpr char kAccumStreamName[] = "history_lookup_accumulated_error";
+  static constexpr char kAccumStreamType[] =
+      "vtr_path_planning_msgs/msg/AccumulatedTrackingError";
+
   std::optional<lgmath::se3::Transformation> lookupLastRepeatError(
       const tactic::VertexId& teach_vid) const;
+
+  std::optional<std::pair<uint32_t, lgmath::se3::Transformation>>
+  lookupResidualBeforeRun(const tactic::VertexId& teach_vid,
+                          std::optional<uint32_t> before_run) const;
+
+  std::optional<lgmath::se3::Transformation> lookupAccumulatedError(
+      const tactic::VertexId& teach_vid, const tactic::Timestamp& write_time);
 };
 
 }  // namespace vtr::path_planning

@@ -69,8 +69,11 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     // Reference Pose Adjustment Modes and Info
     ReferenceAdjustmentMode reference_adjustment_mode = ReferenceAdjustmentMode::None;
     std::string reference_adjustment_model_path = "";
-    std::string prediction_log_path = ""; 
+    std::string prediction_log_path = "";
     bool use_gpu = false;
+
+    // Sub-mode used when reference_adjustment_mode == HistoryBased.
+    HistoryLookupMode history_lookup_mode = HistoryLookupMode::PreviousRepeat;
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,
@@ -113,6 +116,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     lgmath::se3::Transformation T_w_r;
     lgmath::se3::Transformation T_w_r_extp;
   };
+
 
   // One row per prediction: all world-frame context needed to compute actual error offline.
   struct PredLogEntry {
