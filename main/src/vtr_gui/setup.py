@@ -3,8 +3,6 @@ import sys
 from setuptools import setup
 import os
 import subprocess
-
-from setuptools import setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
 
@@ -27,11 +25,13 @@ def npm_build_vtr_ui():
 class NPMBuildDevelop(develop):
     def run(self):
         npm_build_vtr_ui()
+        self.distribution.data_files.extend(package_files('vtr_gui/vtr-gui/build'))
         super().run()
 
 class NPMBuildInstall(install):
     def run(self):
         npm_build_vtr_ui()
+        self.distribution.data_files.extend(package_files('vtr_gui/vtr-gui/build'))
         super().run()
 
 
@@ -53,8 +53,7 @@ setup(
     packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
-        *package_files('vtr_gui/vtr-gui/build')
+        ('share/' + package_name, ['package.xml'])
     ],
     install_requires=['setuptools'],
     zip_safe=True,
