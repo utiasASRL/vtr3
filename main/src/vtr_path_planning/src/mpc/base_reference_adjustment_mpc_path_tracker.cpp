@@ -61,6 +61,8 @@ auto BaseReferenceAdjustmentMPCPathTracker::Config::loadConfig(BaseReferenceAdju
       node->declare_parameter<int>(prefix + ".error_predictor.mode", static_cast<int>(config->reference_adjustment_mode)));
   config->history_lookup_mode = static_cast<HistoryLookupMode>(
       node->declare_parameter<int>(prefix + ".error_predictor.history_lookup_mode", static_cast<int>(config->history_lookup_mode)));
+  config->history_lookup_invert_correction = node->declare_parameter<bool>(
+      prefix + ".error_predictor.history_lookup_invert_correction", config->history_lookup_invert_correction);
   config->prediction_log_path = node->declare_parameter<std::string>(prefix + ".error_predictor.prediction_log_path", config->prediction_log_path);
   config->use_gpu = node->declare_parameter<bool>(prefix + ".error_predictor.use_gpu", config->use_gpu);
 }
@@ -112,7 +114,8 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Numerical neural network will not be initialized.";
     }
   } else if (config->reference_adjustment_mode == ReferenceAdjustmentMode::HistoryBased) {
-    error_predictor_ = std::make_shared<HistoryLookupErrorPredictor>(config->history_lookup_mode, graph_);
+    error_predictor_ = std::make_shared<HistoryLookupErrorPredictor>(
+        config->history_lookup_mode, graph_, config->history_lookup_invert_correction);
     CLOG(INFO, "cbit.control") << "Initialized history-based reference adjustment.";
   } else {
     CLOG(INFO, "cbit.control") << "No reference adjustment will be applied.";
@@ -160,9 +163,6 @@ BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() 
                              << pred_log_.size() << " pred entries to " << log_path_;
 
   if (!input_log_.empty()) {
-    // Separate file: live predictError() input snapshot, one row per cycle.
-    // Sequence length (horizon) is variable, so it gets its own wide CSV
-    // rather than being squeezed into the fixed-width pose/pred schema above.
     const std::string input_log_path = log_path_ + ".inputs.csv";
     std::ofstream fi(input_log_path);
     if (!fi) {

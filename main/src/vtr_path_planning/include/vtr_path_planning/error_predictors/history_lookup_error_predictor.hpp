@@ -44,8 +44,17 @@ using EdgeId = pose_graph::EdgeId;
 
 class HistoryLookupErrorPredictor : public BaseErrorPredictor {
 public:
+  // invert_correction: A/B testing knob for the edge-transform sign
+  // convention. false (default) applies edge->T() directly as the
+  // correction (derivation: this matches T_p_r's T_trunk_robot convention,
+  // so the correction should offset -- not reflect -- the observed error).
+  // true applies edge->T().inverse() instead (the original, pre-fix
+  // convention), in case field testing shows it performs better in
+  // practice. Flip this and compare PTE across repeats to settle which is
+  // actually correct on real data.
   HistoryLookupErrorPredictor(HistoryLookupMode mode,
-                              const tactic::GraphBase::Ptr& graph);
+                              const tactic::GraphBase::Ptr& graph,
+                              bool invert_correction = false);
   ~HistoryLookupErrorPredictor();
 
   void predictError(const RobotState& robot_state,
@@ -57,6 +66,7 @@ public:
 private:
   HistoryLookupMode mode_;
   tactic::GraphBase::Ptr graph_;
+  bool invert_correction_;
 
   static constexpr char kAccumStreamName[] = "history_lookup_accumulated_error";
   static constexpr char kAccumStreamType[] =

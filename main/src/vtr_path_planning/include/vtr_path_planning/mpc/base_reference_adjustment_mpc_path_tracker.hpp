@@ -74,6 +74,8 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
 
     // Sub-mode used when reference_adjustment_mode == HistoryBased.
     HistoryLookupMode history_lookup_mode = HistoryLookupMode::PreviousRepeat;
+    // A/B testing knob -- see HistoryLookupErrorPredictor's constructor doc.
+    bool history_lookup_invert_correction = false;
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,

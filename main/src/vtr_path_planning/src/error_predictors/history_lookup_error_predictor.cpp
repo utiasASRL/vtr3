@@ -83,9 +83,11 @@ lgmath::se3::Transformation toTransform(const Correction& c) {
 }  // namespace
 
 HistoryLookupErrorPredictor::HistoryLookupErrorPredictor(HistoryLookupMode mode,
-                                                       const tactic::GraphBase::Ptr& graph)
+                                                       const tactic::GraphBase::Ptr& graph,
+                                                       bool invert_correction)
     : mode_(mode),
-      graph_(graph) {}
+      graph_(graph),
+      invert_correction_(invert_correction) {}
 
 HistoryLookupErrorPredictor::~HistoryLookupErrorPredictor() = default;
 
@@ -101,7 +103,8 @@ HistoryLookupErrorPredictor::lookupLastRepeatError(
     const auto edge = graph_->at(edge_id);
     // Filter teach edges
     if (!edge->isSpatial()) continue;
-    return lgmath::se3::Transformation(edge->T().inverse());
+    const auto T = edge->T();
+    return lgmath::se3::Transformation(invert_correction_ ? T.inverse() : T);
   }
   return std::nullopt;
 }
@@ -118,8 +121,11 @@ HistoryLookupErrorPredictor::lookupResidualBeforeRun(
     if (!graph_->contains(edge_id)) continue;
     const auto edge = graph_->at(edge_id);
     if (!edge->isSpatial()) continue;
+    // See lookupLastRepeatError: edge->T() = T_teach_repeat, matching T_p_r's
+    // convention directly. invert_correction_ gates the optional extra inverse.
+    const auto T = edge->T();
     return std::make_pair(it->majorId(),
-                          lgmath::se3::Transformation(edge->T().inverse()));
+                          lgmath::se3::Transformation(invert_correction_ ? T.inverse() : T));
   }
   return std::nullopt;
 }
