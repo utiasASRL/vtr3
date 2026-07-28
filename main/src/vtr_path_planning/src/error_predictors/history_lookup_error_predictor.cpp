@@ -18,6 +18,7 @@
  */
 
 #include "vtr_path_planning/error_predictors/history_lookup_error_predictor.hpp"
+#include "vtr_path_planning/error_predictors/correction_utils.hpp"
 #include "vtr_path_planning/mpc/mpc_common.hpp"
 
 #include <vtr_storage/stream/message.hpp>
@@ -37,18 +38,6 @@ double yawOf(const lgmath::se3::Transformation& T) {
   const double phi = std::acos(cos_phi);
   const double sinc = (std::abs(phi) < 1e-8) ? 1.0 : std::sin(phi) / phi;
   return 0.5 / sinc * (r10 - r01);
-}
-
-lgmath::se3::Transformation applyPoseCorrection(
-    const lgmath::se3::Transformation& pose, double dx, double dy, double dyaw) {
-  Eigen::Matrix4d M = pose.matrix();
-  M(0, 3) -= dx;
-  M(1, 3) -= dy;
-  Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
-  R_dyaw(0, 0) = std::cos(-dyaw);  R_dyaw(0, 1) = -std::sin(-dyaw);
-  R_dyaw(1, 0) = std::sin(-dyaw);  R_dyaw(1, 1) = std::cos(-dyaw);
-  M = M * R_dyaw;
-  return lgmath::se3::Transformation(M);
 }
 
 // A flat (dx, dy, dyaw) correction/error, in the teach-path/trunk frame
@@ -225,7 +214,7 @@ std::vector<std::array<double, 3>> HistoryLookupErrorPredictor::predictError(
 
     corrections[i] = {err->dx, err->dy, err->dyaw};
     if (apply_correction) {
-      reference_poses[i] = applyPoseCorrection(reference_poses[i], err->dx, err->dy, err->dyaw);
+      reference_poses[i] = applyLateralPoseCorrection(reference_poses[i], err->dx, err->dy, err->dyaw);
     }
   }
   return corrections;

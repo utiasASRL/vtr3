@@ -22,6 +22,7 @@
 #include <vtr_torch/types.hpp>
 
 #include "vtr_path_planning/error_predictors/image_error_predictor_network.hpp"
+#include "vtr_path_planning/error_predictors/correction_utils.hpp"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
@@ -414,18 +415,9 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
     corrections[i] = {dx, dy, dyaw};
 
     if (apply_correction) {
-      // Reconstruct target errors from path frame
-      Eigen::Matrix4d M = reference_poses[i].matrix();
-      M(0, 3) -= dx;
-      M(1, 3) -= dy;
-      // yaw: apply as body-frame rotation
-      Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
-      R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
-      R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);
-      M = M * R_dyaw;
       CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: applying correction "
                                     << "dx=" << dx << " dy=" << dy << " dyaw=" << dyaw;
-      reference_poses[i] = lgmath::se3::Transformation(M);
+      reference_poses[i] = applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw);
       CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: updated reference pose: "
                                     << reference_poses[i];
     }

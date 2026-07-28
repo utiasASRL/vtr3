@@ -18,6 +18,7 @@
  */
 
 #include "vtr_path_planning/error_predictors/numerical_error_predictor_network.hpp"
+#include "vtr_path_planning/error_predictors/correction_utils.hpp"
 
 #include <torch/script.h>
 #include <torch/cuda.h>
@@ -302,15 +303,7 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
     corrections[i] = {dx, dy, dyaw};
 
     if (apply_correction) {
-      Eigen::Matrix4d M = reference_poses[i].matrix();
-      M(0, 3) -= dx;
-      M(1, 3) -= dy;
-      // yaw: apply as body-frame rotation
-      Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
-      R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
-      R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);
-      M = M * R_dyaw;
-      reference_poses[i] = lgmath::se3::Transformation(M);
+      reference_poses[i] = applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw);
     }
   }
 
