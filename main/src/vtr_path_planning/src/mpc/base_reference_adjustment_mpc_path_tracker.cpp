@@ -67,6 +67,7 @@ auto BaseReferenceAdjustmentMPCPathTracker::Config::loadConfig(BaseReferenceAdju
       prefix + ".error_predictor.nn_invert_correction", config->nn_invert_correction);
   config->prediction_log_path = node->declare_parameter<std::string>(prefix + ".error_predictor.prediction_log_path", config->prediction_log_path);
   config->use_gpu = node->declare_parameter<bool>(prefix + ".error_predictor.use_gpu", config->use_gpu);
+  config->apply_corrections = node->declare_parameter<bool>(prefix + ".error_predictor.apply_corrections", config->apply_corrections);
 }
 
 // Subclasses must implement their own Config::fromROS.
@@ -240,7 +241,10 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
 
   if (error_predictor_) {
     PredictorInputSnapshot input_snapshot;
-    error_predictor_->predictError(robot_state, curr_time, local_reference_poses, &input_snapshot);
+    const auto predicted_errors = error_predictor_->predictError(
+        robot_state, curr_time, local_reference_poses,
+        base_config_->apply_corrections, &input_snapshot);
+    vis_->publishPredictedErrors(predicted_errors, stamp);
 
     mpcConfig->reference_poses.clear();
     std::vector<lgmath::se3::Transformation> corrected_world_poses;

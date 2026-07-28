@@ -228,16 +228,19 @@ ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
 ImageErrorPredictorNetwork::~ImageErrorPredictorNetwork() = default;
 
 
-void ImageErrorPredictorNetwork::predictError(
+std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
     const RobotState& robot_state,
     const tactic::Timestamp& curr_time,
     std::vector<lgmath::se3::Transformation>& reference_poses,
+    bool apply_correction,
     PredictorInputSnapshot* input_snapshot) {
+
+  std::vector<std::array<double, 3>> corrections(reference_poses.size(), {0.0, 0.0, 0.0});
 
   if (!cur_sig_img_msg_ || !cur_dpt_img_msg_) {
     CLOG(WARNING, "path_planning")
         << "ImageErrorPredictorNetwork::predictError called before inputs set.";
-    return;
+    return corrections;
   }
 
   const auto image_age = [&](const ImageMsg& msg) -> double {
@@ -260,7 +263,7 @@ void ImageErrorPredictorNetwork::predictError(
   if (reference_poses.empty()) {
     CLOG(WARNING, "path_planning")
         << "ImageErrorPredictorNetwork::predictError: reference_poses is empty.";
-    return;
+    return corrections;
   }
   using Stopwatch = common::timing::Stopwatch<>;
   std::vector<std::unique_ptr<Stopwatch>> timer;
@@ -388,7 +391,7 @@ void ImageErrorPredictorNetwork::predictError(
   } catch (const c10::Error& e) {
     CLOG(ERROR, "path_planning")
         << "ImageErrorPredictorNetwork: forward pass failed: " << e.what();
-    return;
+    return corrections;
   }
   timer[2]->stop();
 
@@ -408,20 +411,24 @@ void ImageErrorPredictorNetwork::predictError(
       dx = -dx;
       dy = -dy;
     }
-    // Reconstruct target errors from path frame
-    Eigen::Matrix4d M = reference_poses[i].matrix();
-    M(0, 3) -= dx;
-    M(1, 3) -= dy;
-    // yaw: apply as body-frame rotation
-    Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
-    R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
-    R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);
-    M = M * R_dyaw;
-    CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: applying correction "
-                                  << "dx=" << dx << " dy=" << dy << " dyaw=" << dyaw;
-    reference_poses[i] = lgmath::se3::Transformation(M);
-    CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: updated reference pose: "
-                                  << reference_poses[i];
+    corrections[i] = {dx, dy, dyaw};
+
+    if (apply_correction) {
+      // Reconstruct target errors from path frame
+      Eigen::Matrix4d M = reference_poses[i].matrix();
+      M(0, 3) -= dx;
+      M(1, 3) -= dy;
+      // yaw: apply as body-frame rotation
+      Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
+      R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
+      R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);
+      M = M * R_dyaw;
+      CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: applying correction "
+                                    << "dx=" << dx << " dy=" << dy << " dyaw=" << dyaw;
+      reference_poses[i] = lgmath::se3::Transformation(M);
+      CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: updated reference pose: "
+                                    << reference_poses[i];
+    }
   }
   timer[3]->stop();
   timer[0]->stop();
@@ -431,8 +438,10 @@ void ImageErrorPredictorNetwork::predictError(
   }
 
   CLOG(DEBUG, "path_planning")
-      << "ImageErrorPredictorNetwork: applied corrections to " << n
-      << " reference poses.";
+      << "ImageErrorPredictorNetwork: computed corrections for " << n
+      << " reference poses (applied=" << apply_correction << ").";
+
+  return corrections;
 }
 
 }  // namespace path_planning

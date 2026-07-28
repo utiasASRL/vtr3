@@ -121,8 +121,6 @@ HistoryLookupErrorPredictor::lookupResidualBeforeRun(
     if (!graph_->contains(edge_id)) continue;
     const auto edge = graph_->at(edge_id);
     if (!edge->isSpatial()) continue;
-    // See lookupLastRepeatError: edge->T() = T_teach_repeat, matching T_p_r's
-    // convention directly. invert_correction_ gates the optional extra inverse.
     const auto T = edge->T();
     return std::make_pair(it->majorId(),
                           lgmath::se3::Transformation(invert_correction_ ? T.inverse() : T));
@@ -180,12 +178,14 @@ HistoryLookupErrorPredictor::lookupAccumulatedError(
   return toTransform(total);
 }
 
-void HistoryLookupErrorPredictor::predictError(
+std::vector<std::array<double, 3>> HistoryLookupErrorPredictor::predictError(
     const RobotState& robot_state,
     const tactic::Timestamp& curr_time,
     std::vector<lgmath::se3::Transformation>& reference_poses,
+    bool apply_correction,
     PredictorInputSnapshot* /*input_snapshot*/) {
-  if (reference_poses.empty() || !graph_) return;
+  std::vector<std::array<double, 3>> corrections(reference_poses.size(), {0.0, 0.0, 0.0});
+  if (reference_poses.empty() || !graph_) return corrections;
 
   auto& chain = robot_state.chain.ptr();
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo,
@@ -223,8 +223,12 @@ void HistoryLookupErrorPredictor::predictError(
     }
     if (!err.has_value()) continue;  // cold start: no prior repeat here yet
 
-    reference_poses[i] = applyPoseCorrection(reference_poses[i], err->dx, err->dy, err->dyaw);
+    corrections[i] = {err->dx, err->dy, err->dyaw};
+    if (apply_correction) {
+      reference_poses[i] = applyPoseCorrection(reference_poses[i], err->dx, err->dy, err->dyaw);
+    }
   }
+  return corrections;
 }
 
 }  // namespace vtr::path_planning

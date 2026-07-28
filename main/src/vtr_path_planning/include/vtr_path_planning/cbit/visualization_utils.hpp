@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <array>
 #include <tuple>
 #include <Eigen/Core>
 #include <nav_msgs/msg/path.hpp>
@@ -30,6 +31,7 @@
 #include <tf2_ros/static_transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
 #include <vtr_path_planning_msgs/msg/path_info_for_external_navigation.hpp>
+#include <vtr_path_planning_msgs/msg/predicted_tracking_errors.hpp>
 #include "std_msgs/msg/header.hpp"
 
 #include "vtr_tactic/tactic.hpp"
@@ -70,6 +72,9 @@ public:
     void publishPredictedRobotPath(
         const std::vector<lgmath::se3::Transformation>& predicted_poses,
         const tactic::Timestamp& stamp);
+    void publishPredictedErrors(
+        const std::vector<std::array<double, 3>>& corrections,
+        const tactic::Timestamp& stamp);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
@@ -84,6 +89,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr corrected_ref_pose_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr predicted_robot_path_pub_;
     rclcpp::Publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>::SharedPtr path_info_for_external_navigation_pub_;
+    rclcpp::Publisher<vtr_path_planning_msgs::msg::PredictedTrackingErrors>::SharedPtr predicted_errors_pub_;
 };
 
 } // namespace path_planning

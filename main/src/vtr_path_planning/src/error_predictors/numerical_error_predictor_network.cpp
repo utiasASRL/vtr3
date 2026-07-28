@@ -167,16 +167,19 @@ NumericalErrorPredictorNetwork::NumericalErrorPredictorNetwork(
 
 NumericalErrorPredictorNetwork::~NumericalErrorPredictorNetwork() = default;
 
-void NumericalErrorPredictorNetwork::predictError(
+std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
     const RobotState& robot_state,
     const tactic::Timestamp& curr_time,
     std::vector<lgmath::se3::Transformation>& reference_poses,
+    bool apply_correction,
     PredictorInputSnapshot* input_snapshot) {
+
+  std::vector<std::array<double, 3>> corrections(reference_poses.size(), {0.0, 0.0, 0.0});
 
   if (reference_poses.empty()) {
     CLOG(WARNING, "path_planning")
         << "NumericalErrorPredictorNetwork::predictError: reference_poses is empty.";
-    return;
+    return corrections;
   }
 
   auto& chain = robot_state.chain.ptr();
@@ -278,7 +281,7 @@ void NumericalErrorPredictorNetwork::predictError(
   } catch (const c10::Error& e) {
     CLOG(ERROR, "path_planning")
         << "NumericalErrorPredictorNetwork: forward pass failed: " << e.what();
-    return;
+    return corrections;
   }
 
   // Apply predicted errors to reference poses
@@ -291,29 +294,31 @@ void NumericalErrorPredictorNetwork::predictError(
     double dx   = static_cast<double>(data[i * 3 + 0]);
     double dy   = static_cast<double>(data[i * 3 + 1]);
     const double dyaw = static_cast<double>(data[i * 3 + 2]);
-    // See invert_correction_ doc comment: the training label pipeline's
-    // (dx, dy) are believed to be sign-flipped relative to what
-    // applyPoseCorrection expects (dyaw is unaffected). This is a stopgap
-    // for testing pending a dataset/retrain fix.
     if (invert_correction_) {
-      dx = -dx;
+      //dx = -dx;
       dy = -dy;
     }
 
-    Eigen::Matrix4d M = reference_poses[i].matrix();
-    M(0, 3) -= dx;
-    M(1, 3) -= dy;
-    // yaw: apply as body-frame rotation
-    Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
-    R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
-    R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);
-    M = M * R_dyaw;
-    reference_poses[i] = lgmath::se3::Transformation(M);
+    corrections[i] = {dx, dy, dyaw};
+
+    if (apply_correction) {
+      Eigen::Matrix4d M = reference_poses[i].matrix();
+      M(0, 3) -= dx;
+      M(1, 3) -= dy;
+      // yaw: apply as body-frame rotation
+      Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
+      R_dyaw(0,0) =  std::cos(-dyaw);  R_dyaw(0,1) = -std::sin(-dyaw);
+      R_dyaw(1,0) =  std::sin(-dyaw);  R_dyaw(1,1) =  std::cos(-dyaw);
+      M = M * R_dyaw;
+      reference_poses[i] = lgmath::se3::Transformation(M);
+    }
   }
 
   CLOG(DEBUG, "path_planning")
-      << "NumericalErrorPredictorNetwork: applied corrections to " << n
-      << " reference poses.";
+      << "NumericalErrorPredictorNetwork: computed corrections for " << n
+      << " reference poses (applied=" << apply_correction << ").";
+
+  return corrections;
 }
 
 }  // namespace path_planning

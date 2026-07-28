@@ -37,10 +37,6 @@ class ImageErrorPredictorNetwork : public BaseErrorPredictor {
 public:
   PTR_TYPEDEFS(ImageErrorPredictorNetwork);
 
-  // invert_correction: see NumericalErrorPredictorNetwork's doc comment for
-  // the same param -- both predictors are believed to share the same
-  // sign-flipped (dx, dy) training labels from
-  // learning/construct_datasets/pte_ds_from_graph.py:509-510.
   ImageErrorPredictorNetwork(rclcpp::Node::SharedPtr node,
                              const std::string& sig_img_topic,
                              const std::string& dpt_img_topic,
@@ -50,10 +46,11 @@ public:
                              bool invert_correction = false);
   ~ImageErrorPredictorNetwork();
 
-  void predictError(const RobotState& robot_state,
-                    const tactic::Timestamp& curr_time,
-                    std::vector<lgmath::se3::Transformation>& reference_poses,
-                    PredictorInputSnapshot* input_snapshot = nullptr) override;
+  std::vector<std::array<double, 3>> predictError(
+      const RobotState& robot_state, const tactic::Timestamp& curr_time,
+      std::vector<lgmath::se3::Transformation>& reference_poses,
+      bool apply_correction = true,
+      PredictorInputSnapshot* input_snapshot = nullptr) override;
 
 private:
   struct Impl;

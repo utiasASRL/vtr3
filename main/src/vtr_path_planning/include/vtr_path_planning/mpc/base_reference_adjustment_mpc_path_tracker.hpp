@@ -77,6 +77,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     // A/B testing knobs -- see each predictor's constructor doc comment.
     bool history_lookup_invert_correction = false;
     bool nn_invert_correction = false;
+    bool apply_corrections = true;
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,

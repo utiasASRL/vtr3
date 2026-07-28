@@ -44,24 +44,16 @@ using EdgeId = pose_graph::EdgeId;
 
 class HistoryLookupErrorPredictor : public BaseErrorPredictor {
 public:
-  // invert_correction: A/B testing knob for the edge-transform sign
-  // convention. false (default) applies edge->T() directly as the
-  // correction (derivation: this matches T_p_r's T_trunk_robot convention,
-  // so the correction should offset -- not reflect -- the observed error).
-  // true applies edge->T().inverse() instead (the original, pre-fix
-  // convention), in case field testing shows it performs better in
-  // practice. Flip this and compare PTE across repeats to settle which is
-  // actually correct on real data.
   HistoryLookupErrorPredictor(HistoryLookupMode mode,
                               const tactic::GraphBase::Ptr& graph,
                               bool invert_correction = false);
   ~HistoryLookupErrorPredictor();
 
-  void predictError(const RobotState& robot_state,
-                    const tactic::Timestamp& curr_time,
-                    std::vector<lgmath::se3::Transformation>& reference_poses,
-                    
-                    PredictorInputSnapshot* input_snapshot = nullptr) override;
+  std::vector<std::array<double, 3>> predictError(
+      const RobotState& robot_state, const tactic::Timestamp& curr_time,
+      std::vector<lgmath::se3::Transformation>& reference_poses,
+      bool apply_correction = true,
+      PredictorInputSnapshot* input_snapshot = nullptr) override;
 
 private:
   HistoryLookupMode mode_;

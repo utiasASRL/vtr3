@@ -33,11 +33,6 @@ namespace vtr {
 namespace path_planning {
 using RobotState = tactic::OutputCache;
 
-// Snapshot of the exact numeric tensors a predictError() call built, for
-// direct offline logging -- avoids reconstructing (and potentially
-// mismatching) these inputs from bag/graph data after the fact. Image
-// inputs are intentionally excluded (large, not CSV-friendly); this covers
-// only the small numeric/sequence inputs.
 struct PredictorInputSnapshot {
   bool valid = false;
   std::array<double, 6> loc_res{};    // [x_in_path, y_in_path, z_log, rx, ry, rz]
@@ -52,16 +47,11 @@ public:
 
   virtual ~BaseErrorPredictor() = default;
 
-  // input_snapshot: optional output parameter. If non-null, implementations
-  // that build numeric/sequence tensors (ImageErrorPredictorNetwork,
-  // NumericalErrorPredictorNetwork) should fill it in with exactly the
-  // values passed to the model this call, for direct offline logging.
-  // Implementations that don't build these tensors (HistoryLookupErrorPredictor)
-  // may ignore it -- it is left with valid=false in that case.
-  virtual void predictError(const RobotState& robot_state,
-                            const tactic::Timestamp& curr_time,
-                            std::vector<lgmath::se3::Transformation>& reference_poses,
-                            PredictorInputSnapshot* input_snapshot = nullptr) = 0;
+  virtual std::vector<std::array<double, 3>> predictError(
+      const RobotState& robot_state, const tactic::Timestamp& curr_time,
+      std::vector<lgmath::se3::Transformation>& reference_poses,
+      bool apply_correction = true,
+      PredictorInputSnapshot* input_snapshot = nullptr) = 0;
 
 protected:
   struct ErrorSample {

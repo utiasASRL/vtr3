@@ -36,6 +36,7 @@ VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     corrected_ref_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseArray>("corrected_mpc_ref_pose_array", 10);
     predicted_robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("predicted_robot_path", 10);
     path_info_for_external_navigation_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>("path_info_for_external_navigation", 10);
+    predicted_errors_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PredictedTrackingErrors>("predicted_tracking_errors", 10);
 }
 
 void VisualizationUtils::visualize(
@@ -324,6 +325,23 @@ void VisualizationUtils::visualize(
             p.pose = tf2::toMsg(Eigen::Affine3d(pose.matrix()));
         }
         predicted_robot_path_pub_->publish(msg);
+    }
+
+    void VisualizationUtils::publishPredictedErrors(
+        const std::vector<std::array<double, 3>>& corrections,
+        const tactic::Timestamp& stamp) {
+        vtr_path_planning_msgs::msg::PredictedTrackingErrors msg;
+        msg.header.frame_id = "world";
+        msg.header.stamp = rclcpp::Time(stamp);
+        msg.dx.reserve(corrections.size());
+        msg.dy.reserve(corrections.size());
+        msg.dyaw.reserve(corrections.size());
+        for (const auto& c : corrections) {
+            msg.dx.push_back(static_cast<float>(c[0]));
+            msg.dy.push_back(static_cast<float>(c[1]));
+            msg.dyaw.push_back(static_cast<float>(c[2]));
+        }
+        predicted_errors_pub_->publish(msg);
     }
 
     void VisualizationUtils::publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
