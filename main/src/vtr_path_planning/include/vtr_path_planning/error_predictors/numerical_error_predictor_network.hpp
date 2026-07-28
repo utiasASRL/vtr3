@@ -38,7 +38,8 @@ public:
   NumericalErrorPredictorNetwork(rclcpp::Node::SharedPtr node,
                                  const std::string& imu_topic,
                                  const std::string& model_path,
-                                 bool use_gpu = false);
+                                 bool use_gpu = false,
+                                 bool invert_correction = false);
   ~NumericalErrorPredictorNetwork();
 
   void predictError(const RobotState& robot_state,
@@ -49,6 +50,8 @@ public:
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
+
+  bool invert_correction_;
 
   rclcpp::Subscription<ImuMsg>::SharedPtr imu_sub_;
   std::shared_ptr<ImuMsg> cur_imu_msg_ = nullptr;

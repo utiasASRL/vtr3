@@ -63,6 +63,8 @@ auto BaseReferenceAdjustmentMPCPathTracker::Config::loadConfig(BaseReferenceAdju
       node->declare_parameter<int>(prefix + ".error_predictor.history_lookup_mode", static_cast<int>(config->history_lookup_mode)));
   config->history_lookup_invert_correction = node->declare_parameter<bool>(
       prefix + ".error_predictor.history_lookup_invert_correction", config->history_lookup_invert_correction);
+  config->nn_invert_correction = node->declare_parameter<bool>(
+      prefix + ".error_predictor.nn_invert_correction", config->nn_invert_correction);
   config->prediction_log_path = node->declare_parameter<std::string>(prefix + ".error_predictor.prediction_log_path", config->prediction_log_path);
   config->use_gpu = node->declare_parameter<bool>(prefix + ".error_predictor.use_gpu", config->use_gpu);
 }
@@ -97,7 +99,8 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
           base_config_->dpt_img_topic,
           base_config_->imu_topic,
           base_config_->reference_adjustment_model_path,
-	  base_config_->use_gpu);
+	  base_config_->use_gpu,
+          base_config_->nn_invert_correction);
       CLOG(INFO, "cbit.control") << "Initialized image neural network for reference adjustment.";
     } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Image neural network will not be initialized.";
@@ -108,7 +111,8 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
           node,
           base_config_->imu_topic,
           base_config_->reference_adjustment_model_path,
-	  base_config_->use_gpu);
+	  base_config_->use_gpu,
+          base_config_->nn_invert_correction);
       CLOG(INFO, "cbit.control") << "Initialized numerical neural network for reference adjustment.";
     } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Numerical neural network will not be initialized.";

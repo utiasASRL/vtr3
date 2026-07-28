@@ -37,12 +37,17 @@ class ImageErrorPredictorNetwork : public BaseErrorPredictor {
 public:
   PTR_TYPEDEFS(ImageErrorPredictorNetwork);
 
+  // invert_correction: see NumericalErrorPredictorNetwork's doc comment for
+  // the same param -- both predictors are believed to share the same
+  // sign-flipped (dx, dy) training labels from
+  // learning/construct_datasets/pte_ds_from_graph.py:509-510.
   ImageErrorPredictorNetwork(rclcpp::Node::SharedPtr node,
                              const std::string& sig_img_topic,
                              const std::string& dpt_img_topic,
                              const std::string& imu_topic,
                              const std::string& model_path,
-                             bool use_gpu = false);
+                             bool use_gpu = false,
+                             bool invert_correction = false);
   ~ImageErrorPredictorNetwork();
 
   void predictError(const RobotState& robot_state,
@@ -53,6 +58,8 @@ public:
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
+
+  bool invert_correction_;
 
   rclcpp::Subscription<ImageMsg>::SharedPtr sig_img_sub_;
   rclcpp::Subscription<ImageMsg>::SharedPtr dpt_img_sub_;

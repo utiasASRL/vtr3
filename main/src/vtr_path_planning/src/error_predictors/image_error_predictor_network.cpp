@@ -160,8 +160,10 @@ ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
     const std::string& dpt_img_topic,
     const std::string& imu_topic,
     const std::string& model_path,
-    bool use_gpu)
-    : impl_(std::make_unique<Impl>()) {
+    bool use_gpu,
+    bool invert_correction)
+    : impl_(std::make_unique<Impl>()),
+      invert_correction_(invert_correction) {
   if (use_gpu) {
     if (torch::cuda::is_available()) {
       impl_->device = torch::kCUDA;
@@ -399,9 +401,13 @@ void ImageErrorPredictorNetwork::predictError(
                               << output;
 
   for (int64_t i = 0; i < n; ++i) {
-    const double dx   = static_cast<double>(data[i * 3 + 0]);
-    const double dy   = static_cast<double>(data[i * 3 + 1]);
+    double dx   = static_cast<double>(data[i * 3 + 0]);
+    double dy   = static_cast<double>(data[i * 3 + 1]);
     const double dyaw = static_cast<double>(data[i * 3 + 2]);
+    if (invert_correction_) {
+      dx = -dx;
+      dy = -dy;
+    }
     // Reconstruct target errors from path frame
     Eigen::Matrix4d M = reference_poses[i].matrix();
     M(0, 3) -= dx;
