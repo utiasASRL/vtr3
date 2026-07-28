@@ -331,7 +331,9 @@ void VisualizationUtils::visualize(
         const std::vector<std::array<double, 3>>& corrections,
         const tactic::Timestamp& stamp) {
         vtr_path_planning_msgs::msg::PredictedTrackingErrors msg;
-        msg.header.frame_id = "world";
+        // dx/dy/dyaw are path/planning-frame deltas (same convention as
+        // T_p_r.r_ba_ina()), NOT world-frame -- do not label "world" here.
+        msg.header.frame_id = "planning frame";
         msg.header.stamp = rclcpp::Time(stamp);
         msg.dx.reserve(corrections.size());
         msg.dy.reserve(corrections.size());
