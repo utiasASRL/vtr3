@@ -108,10 +108,12 @@ NumericalErrorPredictorNetwork::NumericalErrorPredictorNetwork(
     const std::string& model_path,
     bool use_gpu,
     bool invert_correction,
-    bool lateral_only_correction)
+    bool lateral_only_correction,
+    double smoothing_alpha)
     : impl_(std::make_unique<Impl>()),
       invert_correction_(invert_correction),
-      lateral_only_correction_(lateral_only_correction) {
+      lateral_only_correction_(lateral_only_correction),
+      smoothing_alpha_(smoothing_alpha) {
   if (use_gpu) {
     if (torch::cuda::is_available()) {
       impl_->device = torch::kCUDA;
@@ -293,14 +295,27 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
   const float* data = out.data_ptr<float>();
   CLOG(DEBUG, "path_planning") << "NumericalErrorPredictorNetwork: output = " << output;
 
+  const bool have_prev = (smoothing_alpha_ < 1.0) &&
+                         (prev_sid_ == static_cast<int>(curr_sid)) &&
+                         (static_cast<int64_t>(prev_corrections_.size()) >= n);
+  std::vector<std::array<double, 3>> filtered(n);
+
   for (int64_t i = 0; i < n; ++i) {
     double dx   = static_cast<double>(data[i * 3 + 0]);
     double dy   = static_cast<double>(data[i * 3 + 1]);
-    const double dyaw = static_cast<double>(data[i * 3 + 2]);
+    double dyaw = static_cast<double>(data[i * 3 + 2]);
     if (invert_correction_) {
       //dx = -dx;
       dy = -dy;
     }
+
+    if (have_prev) {
+      const auto& prev = prev_corrections_[i];
+      dx   = smoothing_alpha_ * dx   + (1.0 - smoothing_alpha_) * prev[0];
+      dy   = smoothing_alpha_ * dy   + (1.0 - smoothing_alpha_) * prev[1];
+      dyaw = smoothing_alpha_ * dyaw + (1.0 - smoothing_alpha_) * prev[2];
+    }
+    filtered[i] = {dx, dy, dyaw};
 
     corrections[i] = {dx, dy, dyaw};
 
@@ -309,6 +324,11 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
           ? applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw)
           : applyPoseCorrection(reference_poses[i], dx, dy, dyaw);
     }
+  }
+
+  if (smoothing_alpha_ < 1.0) {
+    prev_corrections_ = std::move(filtered);
+    prev_sid_ = static_cast<int>(curr_sid);
   }
 
   CLOG(DEBUG, "path_planning")

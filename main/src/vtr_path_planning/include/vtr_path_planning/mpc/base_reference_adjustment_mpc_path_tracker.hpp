@@ -79,6 +79,8 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     bool nn_invert_correction = false;
     bool apply_corrections = true;
     bool lateral_only_correction = true;
+    // Moving average filter alpha
+    double nn_smoothing_alpha = 1.0;
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,

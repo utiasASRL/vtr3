@@ -40,7 +40,8 @@ public:
                                  const std::string& model_path,
                                  bool use_gpu = false,
                                  bool invert_correction = false,
-                                 bool lateral_only_correction = true);
+                                 bool lateral_only_correction = true,
+                                 double smoothing_alpha = 1.0);
   ~NumericalErrorPredictorNetwork();
 
   std::vector<std::array<double, 3>> predictError(
@@ -55,6 +56,11 @@ private:
 
   bool invert_correction_;
   bool lateral_only_correction_;
+
+  // EMA smoothing of the per-horizon-step-index correction across cycles
+  double smoothing_alpha_;
+  std::vector<std::array<double, 3>> prev_corrections_;
+  int prev_sid_ = -1;
 
   rclcpp::Subscription<ImuMsg>::SharedPtr imu_sub_;
   std::shared_ptr<ImuMsg> cur_imu_msg_ = nullptr;
