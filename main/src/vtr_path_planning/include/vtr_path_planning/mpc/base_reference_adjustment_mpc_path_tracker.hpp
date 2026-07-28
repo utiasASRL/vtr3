@@ -78,6 +78,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
     bool history_lookup_invert_correction = false;
     bool nn_invert_correction = false;
     bool apply_corrections = true;
+    bool lateral_only_correction = true;
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,

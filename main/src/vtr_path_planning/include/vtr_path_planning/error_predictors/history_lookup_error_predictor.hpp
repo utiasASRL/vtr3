@@ -46,7 +46,8 @@ class HistoryLookupErrorPredictor : public BaseErrorPredictor {
 public:
   HistoryLookupErrorPredictor(HistoryLookupMode mode,
                               const tactic::GraphBase::Ptr& graph,
-                              bool invert_correction = false);
+                              bool invert_correction = false,
+                              bool lateral_only_correction = true);
   ~HistoryLookupErrorPredictor();
 
   std::vector<std::array<double, 3>> predictError(
@@ -59,6 +60,7 @@ private:
   HistoryLookupMode mode_;
   tactic::GraphBase::Ptr graph_;
   bool invert_correction_;
+  bool lateral_only_correction_;
 
   static constexpr char kAccumStreamName[] = "history_lookup_accumulated_error";
   static constexpr char kAccumStreamType[] =

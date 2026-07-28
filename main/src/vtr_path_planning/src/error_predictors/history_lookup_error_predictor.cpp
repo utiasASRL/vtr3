@@ -73,10 +73,12 @@ lgmath::se3::Transformation toTransform(const Correction& c) {
 
 HistoryLookupErrorPredictor::HistoryLookupErrorPredictor(HistoryLookupMode mode,
                                                        const tactic::GraphBase::Ptr& graph,
-                                                       bool invert_correction)
+                                                       bool invert_correction,
+                                                       bool lateral_only_correction)
     : mode_(mode),
       graph_(graph),
-      invert_correction_(invert_correction) {}
+      invert_correction_(invert_correction),
+      lateral_only_correction_(lateral_only_correction) {}
 
 HistoryLookupErrorPredictor::~HistoryLookupErrorPredictor() = default;
 
@@ -214,7 +216,9 @@ std::vector<std::array<double, 3>> HistoryLookupErrorPredictor::predictError(
 
     corrections[i] = {err->dx, err->dy, err->dyaw};
     if (apply_correction) {
-      reference_poses[i] = applyLateralPoseCorrection(reference_poses[i], err->dx, err->dy, err->dyaw);
+      reference_poses[i] = lateral_only_correction_
+          ? applyLateralPoseCorrection(reference_poses[i], err->dx, err->dy, err->dyaw)
+          : applyPoseCorrection(reference_poses[i], err->dx, err->dy, err->dyaw);
     }
   }
   return corrections;

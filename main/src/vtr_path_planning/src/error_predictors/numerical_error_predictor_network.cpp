@@ -107,9 +107,11 @@ NumericalErrorPredictorNetwork::NumericalErrorPredictorNetwork(
     const std::string& imu_topic,
     const std::string& model_path,
     bool use_gpu,
-    bool invert_correction)
+    bool invert_correction,
+    bool lateral_only_correction)
     : impl_(std::make_unique<Impl>()),
-      invert_correction_(invert_correction) {
+      invert_correction_(invert_correction),
+      lateral_only_correction_(lateral_only_correction) {
   if (use_gpu) {
     if (torch::cuda::is_available()) {
       impl_->device = torch::kCUDA;
@@ -303,7 +305,9 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
     corrections[i] = {dx, dy, dyaw};
 
     if (apply_correction) {
-      reference_poses[i] = applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw);
+      reference_poses[i] = lateral_only_correction_
+          ? applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw)
+          : applyPoseCorrection(reference_poses[i], dx, dy, dyaw);
     }
   }
 

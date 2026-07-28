@@ -39,7 +39,8 @@ public:
                                  const std::string& imu_topic,
                                  const std::string& model_path,
                                  bool use_gpu = false,
-                                 bool invert_correction = false);
+                                 bool invert_correction = false,
+                                 bool lateral_only_correction = true);
   ~NumericalErrorPredictorNetwork();
 
   std::vector<std::array<double, 3>> predictError(
@@ -53,6 +54,7 @@ private:
   std::unique_ptr<Impl> impl_;
 
   bool invert_correction_;
+  bool lateral_only_correction_;
 
   rclcpp::Subscription<ImuMsg>::SharedPtr imu_sub_;
   std::shared_ptr<ImuMsg> cur_imu_msg_ = nullptr;

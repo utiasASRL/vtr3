@@ -162,9 +162,11 @@ ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
     const std::string& imu_topic,
     const std::string& model_path,
     bool use_gpu,
-    bool invert_correction)
+    bool invert_correction,
+    bool lateral_only_correction)
     : impl_(std::make_unique<Impl>()),
-      invert_correction_(invert_correction) {
+      invert_correction_(invert_correction),
+      lateral_only_correction_(lateral_only_correction) {
   if (use_gpu) {
     if (torch::cuda::is_available()) {
       impl_->device = torch::kCUDA;
@@ -417,7 +419,9 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
     if (apply_correction) {
       CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: applying correction "
                                     << "dx=" << dx << " dy=" << dy << " dyaw=" << dyaw;
-      reference_poses[i] = applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw);
+      reference_poses[i] = lateral_only_correction_
+          ? applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw)
+          : applyPoseCorrection(reference_poses[i], dx, dy, dyaw);
       CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: updated reference pose: "
                                     << reference_poses[i];
     }

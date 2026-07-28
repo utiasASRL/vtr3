@@ -55,6 +55,22 @@ inline lgmath::se3::Transformation applyLateralPoseCorrection(
   return lgmath::se3::Transformation(M);
 }
 
+
+// Standard ref pose correction
+inline lgmath::se3::Transformation applyPoseCorrection(
+    const lgmath::se3::Transformation& pose, double dx, double dy, double dyaw) {
+  Eigen::Matrix4d M = pose.matrix();
+  M(0, 3) -= dx;
+  M(1, 3) -= dy;
+
+  Eigen::Matrix4d R_dyaw = Eigen::Matrix4d::Identity();
+  R_dyaw(0, 0) = std::cos(-dyaw);  R_dyaw(0, 1) = -std::sin(-dyaw);
+  R_dyaw(1, 0) = std::sin(-dyaw);  R_dyaw(1, 1) = std::cos(-dyaw);
+  M = M * R_dyaw;
+
+  return lgmath::se3::Transformation(M);
+}
+
 }  // namespace path_planning
 }  // namespace vtr
 
