@@ -275,25 +275,9 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
         });
       }
 
-      // Record prediction for all N horizon steps
-      auto yawOf = [](const lgmath::se3::Transformation& T) -> double {
-        const auto M = T.matrix();
-        const double r00 = M(0,0), r11 = M(1,1), r22 = M(2,2);
-        const double r10 = M(1,0), r01 = M(0,1);
-        const double cos_phi = std::clamp((r00+r11+r22-1.0)/2.0, -1.0, 1.0);
-        const double phi = std::acos(cos_phi);
-        const double sinc = (std::abs(phi) < 1e-8) ? 1.0 : std::sin(phi)/phi;
-        return 0.5 / sinc * (r10 - r01);
-      };
-
       const int N = static_cast<int>(original_local_poses.size());
-      for (int j = 0; j < N; ++j) {
-        const Eigen::Vector3d ref_xyz = original_local_poses[j].matrix().block<3, 1>(0, 3);
-        const Eigen::Vector3d robot_xyz = local_reference_poses[j].matrix().block<3, 1>(0, 3);
-        const Eigen::Vector3d err_t = ref_xyz - robot_xyz;
-        const lgmath::se3::Transformation T_ref_robot =
-            original_local_poses[j].inverse() * local_reference_poses[j];
-        const std::array<double, 3> pred{err_t(0), err_t(1), yawOf(T_ref_robot)};
+      for (int j = 0; j < N && j < static_cast<int>(predicted_errors.size()); ++j) {
+        const auto& pred = predicted_errors[j];
         pred_log_.push_back({
             stamp_ns,
             stamp_ns + static_cast<int64_t>(j + 1) * kPredictionStepNs,
