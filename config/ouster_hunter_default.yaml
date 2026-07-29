@@ -3,18 +3,18 @@
     log_to_file: true
     log_debug: true
     log_enabled:
-        # navigator
-        #- navigation
-        #- navigation.graph_map_server
-        #- navigation.command
+      # navigator
+      #- navigation
+      # - navigation.graph_map_server
+      #- navigation.command
     
-        # tactic
-        #- tactic
-        #- tactic.pipeline
-        #- tactic.eop
-        #- tactic.module
-        #- tactic.module.live_mem_manager
-      - tactic.module.graph_mem_manager
+      # tactic
+      #- tactic
+      #- tactic.pipeline
+      #- tactic.eop
+      #- tactic.module
+      #- tactic.module.live_mem_manager
+      # - tactic.module.graph_mem_manager
 
       # path planner
       #- path_planning
@@ -288,7 +288,7 @@
       #     racc1: 2.0
       #     racc2: 3.5
       #     q_f: 1.0 # Multiplier for terminal cost
-      type: unicycle_mpc
+      type: bicycle_mpc
       control_period: 100 # ms
 
       speed_scheduler:
@@ -298,18 +298,18 @@
         min_vel: 0.5
       mpc:
         # Controller Params
-        extrapolate_robot_pose: false
+        extrapolate_robot_pose: true
         mpc_verbosity: false
         forward_vel: 1.0
         max_lin_vel: 1.5
-        max_ang_vel: 0.5
-        max_ang_acc: 5.0
-        ang_alpha: 0.811
+        max_ang_vel: 0.46
+        max_ang_acc: 0.89
+        ang_alpha: 0.0
         lin_alpha: 0.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 
-        vehicle_model: "unicycle"
+        vehicle_model: "bicycle"
 
         q_x: 10.0
         q_y: 10.0
