@@ -315,7 +315,7 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
                               << sequence;
 
   const Eigen::Matrix<double, 6, 1> loc_res_xi = T_p_r.vec();
-  const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ba_ina();
+  const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ab_inb();
   std::array<float, 6> loc_res_arr{
       static_cast<float>(robot_xyz_in_path(0)),
       static_cast<float>(robot_xyz_in_path(1)),
