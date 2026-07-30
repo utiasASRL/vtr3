@@ -290,6 +290,14 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
       << "ImageErrorPredictorNetwork: cycle stamp=" << static_cast<int64_t>(stamp)
       << " curr_sid=" << curr_sid;
 
+  if (input_snapshot) {
+    input_snapshot->sid = curr_sid;
+    input_snapshot->T_p_r = T_p_r;
+    input_snapshot->T_w_p = T_w_p;
+    input_snapshot->w_p_r_in_r = w_p_r_in_r;
+    input_snapshot->reference_poses_raw = reference_poses;
+  }
+
   torch::NoGradGuard no_grad;
 
   // Image input: (1, 2, H, W) signal and range stacked on channel dim
@@ -409,15 +417,25 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: output = "
                               << output;
 
+  if (input_snapshot) {
+    input_snapshot->raw_output.resize(n);
+    input_snapshot->final_output.resize(n);
+  }
+
   for (int64_t i = 0; i < n; ++i) {
-    double dx   = static_cast<double>(data[i * 3 + 0]);
-    double dy   = static_cast<double>(data[i * 3 + 1]);
-    const double dyaw = static_cast<double>(data[i * 3 + 2]);
+    const double raw_dx   = static_cast<double>(data[i * 3 + 0]);
+    const double raw_dy   = static_cast<double>(data[i * 3 + 1]);
+    const double raw_dyaw = static_cast<double>(data[i * 3 + 2]);
+    if (input_snapshot) input_snapshot->raw_output[i] = {raw_dx, raw_dy, raw_dyaw};
+
+    double dx = raw_dx, dy = raw_dy;
+    const double dyaw = raw_dyaw;
     if (invert_correction_) {
       dx = -dx;
       dy = -dy;
     }
     corrections[i] = {dx, dy, dyaw};
+    if (input_snapshot) input_snapshot->final_output[i] = {dx, dy, dyaw};
 
     if (apply_correction) {
       CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: applying correction "

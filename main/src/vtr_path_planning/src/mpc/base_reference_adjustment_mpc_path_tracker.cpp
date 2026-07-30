@@ -253,6 +253,7 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
         robot_state, curr_time, local_reference_poses,
         base_config_->apply_corrections, &input_snapshot);
     vis_->publishPredictedErrors(predicted_errors, stamp);
+    vis_->publishNNInputsOutputs(input_snapshot, stamp);
 
     mpcConfig->reference_poses.clear();
     std::vector<lgmath::se3::Transformation> corrected_world_poses;
@@ -260,7 +261,7 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
       mpcConfig->reference_poses.push_back(tf_to_global(local_reference_poses[i]));
       corrected_world_poses.push_back(T_w_p * local_reference_poses[i]);
     }
-    // vis_->publishCorrectedReferencePoses(corrected_world_poses, stamp);
+
     vis_->publishPredictedRobotPath(corrected_world_poses, stamp);
 
     if (!log_path_.empty() && !original_local_poses.empty()) {

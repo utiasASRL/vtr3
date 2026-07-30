@@ -51,6 +51,12 @@ enum class ReferenceAdjustmentMode {
   HistoryBased = 3,
 };
 
+enum class NNTargetMode {
+  Trajectory = 0,
+  PathTracking = 1,
+  SE2 = 2,
+};
+
 class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
  public:
   PTR_TYPEDEFS(BaseReferenceAdjustmentMPCPathTracker);

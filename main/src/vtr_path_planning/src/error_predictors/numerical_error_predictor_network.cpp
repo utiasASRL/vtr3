@@ -194,6 +194,14 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
       << "NumericalErrorPredictorNetwork: cycle curr_time=" << static_cast<int64_t>(curr_time)
       << " stamp=" << static_cast<int64_t>(stamp) << " curr_sid=" << curr_sid;
 
+  if (input_snapshot) {
+    input_snapshot->sid = curr_sid;
+    input_snapshot->T_p_r = T_p_r;
+    input_snapshot->T_w_p = T_w_p;
+    input_snapshot->w_p_r_in_r = w_p_r_in_r;
+    input_snapshot->reference_poses_raw = reference_poses;
+  }
+
   torch::NoGradGuard no_grad;
 
   // Sequence input: (1, T, 6): reference poses from MPC in SE3
@@ -215,6 +223,7 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
   // frame), not the raw se3-log xi[:3], which only approximates it and
   // is exact only when there is no rotation between path and robot frames
   const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ab_inb();
+  // TODO: Try inverse here for the TF
   std::array<float, 6> loc_res_arr{
       static_cast<float>(robot_xyz_in_path(0)),
       static_cast<float>(robot_xyz_in_path(1)),
@@ -234,6 +243,7 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
 
   // Negate x vel
   const Eigen::Matrix<double, 6, 1> odom_vel = -w_p_r_in_r;
+  // TODO: Double check this
   std::array<float, 6> odom_vel_arr{
       static_cast<float>(odom_vel(0)), static_cast<float>(odom_vel(1)),
       static_cast<float>(odom_vel(2)), static_cast<float>(odom_vel(3)),
@@ -253,6 +263,7 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
   }
 
   const lgmath::se3::Transformation T_r_w = (T_w_p * T_p_r).inverse();
+  // Double check this as well
   Eigen::Vector3d g_world;
   bool grav_ready;
   {
@@ -303,12 +314,20 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
                          (static_cast<int64_t>(prev_corrections_.size()) >= n);
   std::vector<std::array<double, 3>> filtered(n);
 
+  if (input_snapshot) {
+    input_snapshot->raw_output.resize(n);
+    input_snapshot->final_output.resize(n);
+  }
+
   for (int64_t i = 0; i < n; ++i) {
-    double dx   = static_cast<double>(data[i * 3 + 0]);
-    double dy   = static_cast<double>(data[i * 3 + 1]);
-    double dyaw = static_cast<double>(data[i * 3 + 2]);
+    const double raw_dx   = static_cast<double>(data[i * 3 + 0]);
+    const double raw_dy   = static_cast<double>(data[i * 3 + 1]);
+    const double raw_dyaw = static_cast<double>(data[i * 3 + 2]);
+    if (input_snapshot) input_snapshot->raw_output[i] = {raw_dx, raw_dy, raw_dyaw};
+
+    double dx = raw_dx, dy = raw_dy, dyaw = raw_dyaw;
     if (invert_correction_) {
-      //dx = -dx;
+      dx = -dx;
       dy = -dy;
     }
 
@@ -321,6 +340,7 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
     filtered[i] = {dx, dy, dyaw};
 
     corrections[i] = {dx, dy, dyaw};
+    if (input_snapshot) input_snapshot->final_output[i] = {dx, dy, dyaw};
 
     if (apply_correction) {
       reference_poses[i] = lateral_only_correction_

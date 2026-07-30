@@ -18,6 +18,7 @@
  */
 
 #include "vtr_path_planning/cbit/visualization_utils.hpp"
+#include "vtr_common/conversions/ros_lgmath.hpp"
 
 namespace vtr {
 namespace path_planning {
@@ -37,6 +38,8 @@ VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     predicted_robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("predicted_robot_path", 10);
     path_info_for_external_navigation_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>("path_info_for_external_navigation", 10);
     predicted_errors_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PredictedTrackingErrors>("predicted_tracking_errors", 10);
+    nn_inputs_outputs_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::NNInputs>("nn_inputs_outputs", 10);
+    nn_true_quantities_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::NNTrueQuantities>("nn_true_quantities", 10);
 }
 
 void VisualizationUtils::visualize(
@@ -344,6 +347,58 @@ void VisualizationUtils::visualize(
             msg.dyaw.push_back(static_cast<float>(c[2]));
         }
         predicted_errors_pub_->publish(msg);
+    }
+
+    void VisualizationUtils::publishNNInputsOutputs(
+        const PredictorInputSnapshot& input_snapshot,
+        const tactic::Timestamp& stamp) {
+        if (!input_snapshot.valid) return;
+
+        // --- NNInputs: model inputs + outputs ---
+        vtr_path_planning_msgs::msg::NNInputs in_msg;
+        in_msg.header.frame_id = "planning frame";
+        in_msg.header.stamp = rclcpp::Time(stamp);
+        in_msg.sid = input_snapshot.sid;
+
+        in_msg.loc_res.assign(input_snapshot.loc_res.begin(), input_snapshot.loc_res.end());
+        in_msg.odom_vel.assign(input_snapshot.odom_vel.begin(), input_snapshot.odom_vel.end());
+        in_msg.grav_vec.assign(input_snapshot.grav_vec.begin(), input_snapshot.grav_vec.end());
+
+        in_msg.sequence_horizon = static_cast<uint32_t>(input_snapshot.sequence.size());
+        in_msg.sequence.reserve(input_snapshot.sequence.size() * 6);
+        for (const auto& step : input_snapshot.sequence)
+            for (double v : step) in_msg.sequence.push_back(static_cast<float>(v));
+
+        const size_t n_out = input_snapshot.raw_output.size();
+        in_msg.raw_dx.reserve(n_out); in_msg.raw_dy.reserve(n_out); in_msg.raw_dyaw.reserve(n_out);
+        for (const auto& o : input_snapshot.raw_output) {
+            in_msg.raw_dx.push_back(static_cast<float>(o[0]));
+            in_msg.raw_dy.push_back(static_cast<float>(o[1]));
+            in_msg.raw_dyaw.push_back(static_cast<float>(o[2]));
+        }
+        const size_t n_final = input_snapshot.final_output.size();
+        in_msg.final_dx.reserve(n_final); in_msg.final_dy.reserve(n_final); in_msg.final_dyaw.reserve(n_final);
+        for (const auto& o : input_snapshot.final_output) {
+            in_msg.final_dx.push_back(static_cast<float>(o[0]));
+            in_msg.final_dy.push_back(static_cast<float>(o[1]));
+            in_msg.final_dyaw.push_back(static_cast<float>(o[2]));
+        }
+        nn_inputs_outputs_pub_->publish(in_msg);
+
+        // --- NNTrueQuantities: raw quantities the inputs above were derived from ---
+        vtr_path_planning_msgs::msg::NNTrueQuantities true_msg;
+        true_msg.header.frame_id = "planning frame";
+        true_msg.header.stamp = rclcpp::Time(stamp);
+        true_msg.sid = input_snapshot.sid;
+        true_msg.t_p_r = common::conversions::toTransformMessage(input_snapshot.T_p_r);
+        true_msg.t_w_p = common::conversions::toTransformMessage(input_snapshot.T_w_p);
+        true_msg.w_p_r_in_r.reserve(6);
+        for (int i = 0; i < 6; ++i)
+            true_msg.w_p_r_in_r.push_back(static_cast<float>(input_snapshot.w_p_r_in_r(i)));
+        true_msg.reference_poses.reserve(input_snapshot.reference_poses_raw.size());
+        for (const auto& pose : input_snapshot.reference_poses_raw)
+            true_msg.reference_poses.push_back(common::conversions::toTransformMessage(pose));
+        nn_true_quantities_pub_->publish(true_msg);
     }
 
     void VisualizationUtils::publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
