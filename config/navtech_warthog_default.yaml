@@ -26,7 +26,7 @@
     gyro_bias: 
       z: 0.004203267148472062 # 0.004203267148472062
     queue_size: 100
-    graph_map:
+    graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220
       origin_lng: -79.4661 # UTIAS: -79.4661
       origin_theta: 1.3
