@@ -211,12 +211,14 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "NumericalErrorPredictorNetwork: sequence = " << sequence;
 
   const Eigen::Matrix<double, 6, 1> loc_res_xi = T_p_r.vec();
-  // TODO: Check correctness
+  // pos come from the exact r_ab_inb() (robot's position in the path
+  // frame), not the raw se3-log xi[:3], which only approximates it and
+  // is exact only when there is no rotation between path and robot frames
   const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ab_inb();
   std::array<float, 6> loc_res_arr{
       static_cast<float>(robot_xyz_in_path(0)),
       static_cast<float>(robot_xyz_in_path(1)),
-      static_cast<float>(loc_res_xi(2)),
+      static_cast<float>(robot_xyz_in_path(2)),
       static_cast<float>(loc_res_xi(3)),
       static_cast<float>(loc_res_xi(4)),
       static_cast<float>(loc_res_xi(5)),
