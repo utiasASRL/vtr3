@@ -71,7 +71,6 @@ tactic::Direction findDirection(const lgmath::se3::Transformation& T_wr, const t
 
 tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
     double best_distance = std::numeric_limits<double>::max();
-    double max_distance = -1.;
     unsigned best_sid = sid_start;
     const unsigned end_sid = std::min(sid_start + 20 + 1,
                                     unsigned(chain->size()));

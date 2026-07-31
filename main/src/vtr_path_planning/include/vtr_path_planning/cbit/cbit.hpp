@@ -114,7 +114,6 @@ class CBIT : public BasePathPlanner {
     double max_ang_acc = 10.0;
     double robot_linear_velocity_scale = 1.0;
     double robot_angular_velocity_scale = 1.0;
-    double turning_radius = 1.0;
 
     // Add unicycle model param
     std::string kinematic_model = "unicycle"; //Options are unicycle and ackermann

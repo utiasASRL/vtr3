@@ -32,6 +32,7 @@ VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     corridor_pub_l_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_left", 10);
     corridor_pub_r_ = node->create_publisher<nav_msgs::msg::Path>("corridor_path_right", 10);
     ref_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseArray>("mpc_ref_pose_array", 10);
+    local_ref_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseArray>("local_mpc_ref_pose_array", 10);
     path_info_for_external_navigation_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PathInfoForExternalNavigation>("path_info_for_external_navigation", 10);
 }
 
@@ -286,7 +287,7 @@ void VisualizationUtils::visualize(
 
         // create a PoseArray message
         geometry_msgs::msg::PoseArray pose_array_msg;
-        pose_array_msg.header.frame_id = "world";
+        pose_array_msg.header.frame_id = "path";
         pose_array_msg.header.stamp = rclcpp::Time(stamp);
 
         // fill the PoseArray with some sample poses
@@ -294,7 +295,7 @@ void VisualizationUtils::visualize(
             auto T1 = ref_poses[i].matrix();
             pose_array_msg.poses.push_back(tf2::toMsg(Eigen::Affine3d(T1)));
         }
-        ref_pose_pub_->publish(pose_array_msg);
+        local_ref_pose_pub_->publish(pose_array_msg);
     }
     
 

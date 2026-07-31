@@ -109,8 +109,6 @@ public:
 
   struct Config : public CasadiUnicycleMPC::Config {
     PTR_TYPEDEFS(Config);
-    // These values are defined the python code and exported
-    // TODO add an automatic way to keep the code in sync
     std::vector<DM> leader_reference_poses;
     double distance = 0.5;
     double distance_margin = 1.0;
@@ -143,8 +141,6 @@ public:
 
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
-    // These values are defined the python code and exported
-    // TODO add an automatic way to keep the code in sync
     double wheelbase = 0.55;
     // The below are passed to the Casadi solver as tunable parameters
     double Q_lat = 0.0;
@@ -156,7 +152,6 @@ public:
     double Acc_R2 = 0.0;
     double lin_acc_max = 1.0; // m/s^2
     double ang_acc_max = 1.0;
-    double Q_f = 0.0;
     bool repeat_flipped = false;
     bool recovery = false; 
 
@@ -202,44 +197,6 @@ public:
 
 
   CasadiBicycleMPCFollower(bool verbose=false, casadi::Dict iopt_config={ 
-    { "max_iter", 2000 }, 
-    { "acceptable_tol", 1e-8 } ,
-    {"acceptable_obj_change_tol", 1e-6}
-  });
-
-  std::map<std::string, casadi::DM> solve(const CasadiMPC::Config& mpcConf);
-
-
-private:
-  casadi::Function solve_mpc;
-  std::map<std::string, casadi::DM> arg_;
-
-};
-
-
-class CasadiBicycleMPCJoint : public CasadiMPC {
-public:
-  PTR_TYPEDEFS(CasadiBicycleMPCJoint);
-  
-
-  struct Config : public CasadiBicycleMPC::Config {
-    PTR_TYPEDEFS(Config);
-    
-    double distance = 0.5;
-    double distance_margin = 1.0;
-    double Q_dist = 1.0;
-
-    DM T0_follower;
-    DM previous_vel_follower;
-    std::vector<DM> follower_reference_poses;
-
-    Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
-        : CasadiBicycleMPC::Config(nStates, nControl, N, DT) {
-    };
-  };
-
-
-  CasadiBicycleMPCJoint(bool verbose=false, casadi::Dict iopt_config={ 
     { "max_iter", 2000 }, 
     { "acceptable_tol", 1e-8 } ,
     {"acceptable_obj_change_tol", 1e-6}

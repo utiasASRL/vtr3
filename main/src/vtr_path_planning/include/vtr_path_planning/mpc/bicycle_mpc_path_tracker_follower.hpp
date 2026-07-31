@@ -56,7 +56,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     PTR_TYPEDEFS(Config);
     std::string leader_namespace = "leader";
     
-    // Options: leader_vel euclidean external_dist
+    // Options: leader_vel euclidean
     std::string waypoint_selection = "leader_vel";
 
     double following_offset = 0.5; //m
@@ -110,7 +110,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   CasadiBicycleMPCFollower solver_;
   tactic::GraphBase::Ptr graph_;
 
-  // POTENTIALLY DELETE -> Inherited from some base class
   RobotState::Ptr robot_state_;
 
   PathMsg::SharedPtr recentLeaderPath_;
@@ -131,11 +130,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   rclcpp::Time requestTime_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
-  FloatMsg::SharedPtr recentLeaderDist_;
-  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
-  void onLeaderDist(const FloatMsg::SharedPtr distance);
-  float lastError_ = 0;
-  float errorIntegrator = 0;
   bool hasRequestedLeaderRoute_ = false;
 
 

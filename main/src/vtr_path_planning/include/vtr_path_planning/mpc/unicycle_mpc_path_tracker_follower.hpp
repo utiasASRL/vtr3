@@ -14,13 +14,13 @@
 
 /**
  * \file unicycle_mpc_path_tracker.hpp
- * \author Jordy Sehn, Alec Krawciw Autonomous Space Robotics Lab (ASRL)
+ * \author Alec Krawciw, Luka Antonyshyn Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <vtr_logging/logging.hpp>
-#include <vtr_common/conversions/ros_lgmath.hpp>
 #include <vtr_tactic/types.hpp>
+#include <vtr_common/conversions/ros_lgmath.hpp>
 #include <vtr_path_planning/mpc/unicycle_mpc_path_tracker.hpp>
 #include <vtr_path_planning/mpc/casadi_path_planners.hpp>
 #include <vtr_path_planning/mpc/speed_scheduler.hpp>
@@ -34,13 +34,6 @@
 #include <vtr_navigation_msgs/srv/following_route.hpp>
 #include "std_msgs/msg/float32.hpp"
 
-// #include <nav_msgs/msg/path.hpp>
-// #include <vtr_navigation_msgs/msg/graph_route.hpp>
-// #include <vtr_navigation_msgs/srv/graph_state.hpp>
-
-
-
-
 namespace vtr {
 namespace path_planning {
 
@@ -49,11 +42,6 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
   PTR_TYPEDEFS(UnicycleMPCPathTrackerFollower);
 
   static constexpr auto static_name = "unicycle_mpc_follower";
-
-  // using PathMsg = nav_msgs::msg::Path;
-  // using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
-  // using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
-  // using Transformation = lgmath::se3::Transformation;
 
   using PathMsg = nav_msgs::msg::Path;
   using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
@@ -67,8 +55,8 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
   struct Config : public UnicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
     std::string leader_namespace = "leader";
-
-    // Options: leader_vel euclidean external_dist
+    
+    // Options: leader_vel euclidean
     std::string waypoint_selection = "leader_vel";
 
     double following_offset = 0.5; //m
@@ -77,7 +65,6 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
 
     // Misc
     int command_history_length = 100;
-
 
     static void loadConfig(Config::Ptr config,  
 		           const rclcpp::Node::SharedPtr& node,
@@ -98,16 +85,14 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
  protected:
   void initializeRoute(RobotState& robot_state);
 
-  // DOUBLE CHECK ARGUMENTS
   void loadMPCConfig(
       CasadiUnicycleMPCFollower::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
 
   CasadiMPC::Config::Ptr getMPCConfig(
-      Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool) override;
-
+      Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool /*isReversing*/) override;
 
   virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
-  
+
   virtual void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
                            const lgmath::se3::Transformation& T_p_r_extp,
                            const double state_p,
@@ -124,7 +109,6 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
   CasadiUnicycleMPCFollower solver_;
   tactic::GraphBase::Ptr graph_;
 
-  // POTENTIALLY DELETE -> Inherited from some base class
   RobotState::Ptr robot_state_;
 
   PathMsg::SharedPtr recentLeaderPath_;
@@ -137,11 +121,7 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
 
   tactic::EdgeTransform T_fw_lw_;
   tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
-
-  // OLD UNICYCLE
-  // rclcpp::Subscription<RouteMsg>::SharedPtr leaderRouteSub_;
-  // void onLeaderRoute(const RouteMsg::SharedPtr route);
-
+  
   rclcpp::Client<FollowingRouteSrv>::SharedPtr leaderRouteSrv_;
   void leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
   rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
@@ -149,11 +129,6 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
   rclcpp::Time requestTime_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
-  FloatMsg::SharedPtr recentLeaderDist_;
-  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
-  void onLeaderDist(const FloatMsg::SharedPtr distance);
-  float lastError_ = 0;
-  float errorIntegrator = 0;
   bool hasRequestedLeaderRoute_ = false;
 
 

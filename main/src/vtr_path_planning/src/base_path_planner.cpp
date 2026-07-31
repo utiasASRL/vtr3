@@ -48,11 +48,7 @@ void BasePathPlanner::setRunning(const bool running) {
   running_ = running;
   cv_terminate_or_state_changed_.notify_all();
   // wait until the process thread starts waiting
-  if (running == false) {
-    CLOG(INFO, "path_planning") << "Stopping base planning";
-    cv_waiting_.wait(lock, [this] { return waiting_; });
-    CLOG(INFO, "path_planning") << "Stopped base planning";
-  }
+  if (running == false) cv_waiting_.wait(lock, [this] { return waiting_; });
   callback_->stateChanged(running_);
 }
 

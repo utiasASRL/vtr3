@@ -43,7 +43,6 @@ auto BicycleMPCPathTracker::Config::loadConfig(BicycleMPCPathTracker::Config::Pt
   config->f_r2 = node->declare_parameter<double>(prefix + ".mpc.forward.r2", config->f_r2);
   config->f_racc1 = node->declare_parameter<double>(prefix + ".mpc.forward.racc1", config->f_racc1);
   config->f_racc2 = node->declare_parameter<double>(prefix + ".mpc.forward.racc2", config->f_racc2);
-  config->f_q_f = node->declare_parameter<double>(prefix + ".mpc.forward.q_f", config->f_q_f);
 
   // We have one set for reverse, and one for forward, driving
   config->r_q_lat = node->declare_parameter<double>(prefix + ".mpc.reverse.q_lat", config->r_q_lat);
@@ -53,7 +52,6 @@ auto BicycleMPCPathTracker::Config::loadConfig(BicycleMPCPathTracker::Config::Pt
   config->r_r2 = node->declare_parameter<double>(prefix + ".mpc.reverse.r2", config->r_r2);
   config->r_racc1 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc1", config->r_racc1);
   config->r_racc2 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc2", config->r_racc2);
-  config->r_q_f = node->declare_parameter<double>(prefix + ".mpc.reverse.q_f", config->r_q_f);
 
   // MISC
   config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
@@ -66,7 +64,7 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   *base_config =  *BaseMPCPathTracker::Config::fromROS(node, prefix);
   loadConfig(config, node, prefix);
 
-  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward costs: "
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC forward parameters: "
       << "q_lat: " << config->f_q_lat
       << ", q_lon: " << config->f_q_lon
       << ", q_th: " << config->f_q_th
@@ -74,23 +72,20 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
       << ", r2: " << config->f_r2
       << ", racc1: " << config->f_racc1
       << ", racc2: " << config->f_racc2
-      << ", q_f: " << config->f_q_f
       << ", alpha: " << config->alpha;
 
-  CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse costs: "
+  CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse parameters: "
       << "q_lat: " << config->r_q_lat
       << ", q_lon: " << config->r_q_lon
       << ", q_th: " << config->r_q_th
       << ", r1: " << config->r_r1
       << ", r2: " << config->r_r2
       << ", racc1: " << config->r_racc1
-      << ", racc2: " << config->r_racc2
-      << ", q_f: " << config->r_q_f;
-
+      << ", racc2: " << config->r_racc2;
   return config;
 }
 
-// Declare class as inherited from the BasePathPlanner
+// Declare class as inherited from the BaseMPCPathTracker
 BicycleMPCPathTracker::BicycleMPCPathTracker(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const tactic::GraphBase::Ptr& graph,
@@ -122,7 +117,6 @@ void BicycleMPCPathTracker::loadMPCConfig(
   mpc_config->R2     = isReversing ? config_->r_r2 : config_->f_r2;
   mpc_config->Acc_R1 = isReversing ? config_->r_racc1 : config_->f_racc1;
   mpc_config->Acc_R2 = isReversing ? config_->r_racc2 : config_->f_racc2; 
-  mpc_config->Q_f    = isReversing ? config_->r_q_f : config_->f_q_f;
 
   if (failure_count >= config_->failure_threshold) {
     CLOG(WARNING, "cbit.control") << "Failure count exceeded threshold. Enabling recovery mode.";
@@ -136,7 +130,6 @@ void BicycleMPCPathTracker::loadMPCConfig(
     mpc_config->R2         = 0.0;
     mpc_config->Acc_R1     = 0.0;
     mpc_config->Acc_R2     = 0.0;
-    mpc_config->Q_f        = 0.0;
   }
 }
 
@@ -157,6 +150,10 @@ void BicycleMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const 
                          const tactic::Timestamp& t) {
   auto mpc_config = std::static_pointer_cast<CasadiBicycleMPC::Config>(mpcConfig);
   BaseMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
+
+  //Temporary to maintain functionality. TODO remove
+  mpcConfig->up_barrier_q.clear();
+  mpcConfig->low_barrier_q.clear();
 }
 
 std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
