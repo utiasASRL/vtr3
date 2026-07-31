@@ -1,4 +1,4 @@
-// Copyright 2023, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,43 +13,50 @@
 // limitations under the License.
 
 /**
- * \file sample_module.hpp
- * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
+ * \file odometry_gt_module.hpp
+ * \author Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-// Include PyTorch headers FIRST to avoid namespace conflicts with ROS/std
-#include <vtr_torch/modules/torch_module.hpp>
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
-// Now include other VTR headers
+#include "steam.hpp"
+
+#include "vtr_lidar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
-#include "vtr_lidar/cache.hpp"
-#include <vector>
 
 namespace vtr {
+
 namespace lidar {
 
-/** \brief Load and store Torch Models */
-class TestNNModule : public nn::TorchModule {
+/** \brief ICP for odometry. */
+class OdometryGTModule : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(TestNNModule);    
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "torch.sample";
+  static constexpr auto static_name = "lidar.odometry_gt";
 
   /** \brief Config parameters. */
-  struct Config : public nn::TorchModule::Config {
+  struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
+
+    // Undistortion trajectory parameters
+    Eigen::Matrix<double, 6, 1> traj_qc_diag =
+        Eigen::Matrix<double, 6, 1>::Ones();
+    // Number of threads for pointcloud processing
+    int num_threads = 4;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  TestNNModule(
+  OdometryGTModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
-      : nn::TorchModule{config, module_factory, name}, config_(config) {}
+      : tactic::BaseModule(module_factory, name), config_(config) {}
 
  private:
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
@@ -58,9 +65,8 @@ class TestNNModule : public nn::TorchModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(TestNNModule);
-
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometryGTModule);
 };
 
-}  // namespace nn
+}  // namespace lidar
 }  // namespace vtr

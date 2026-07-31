@@ -21,7 +21,7 @@
 
 #include "vtr_lidar/modules/preprocessing/conversions/aeva_conversion_module.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/aeva_conversion_module_v2.hpp"
-#include "vtr_lidar/modules/preprocessing/conversions/honeycomb_conversion_module_v2.hpp"
+// #include "vtr_lidar/modules/preprocessing/conversions/honeycomb_conversion_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/velodyne_conversion_module.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/velodyne_conversion_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing/conversions/ouster_conversion_module.hpp"
@@ -29,6 +29,7 @@
 #include "vtr_lidar/modules/preprocessing/preprocessing_module_v2.hpp"
 
 #include "vtr_lidar/modules/odometry/odometry_icp_module.hpp"
+#include "vtr_lidar/modules/odometry/odometry_gt_module.hpp"
 #include "vtr_lidar/modules/odometry/odometry_map_maintenance_module_v2.hpp"
 #include "vtr_lidar/modules/odometry/vertex_test_module.hpp"
 // #include "vtr_lidar/modules/odometry/sample_module.hpp"
@@ -41,7 +42,6 @@
 #include "vtr_lidar/modules/pointmap/intra_exp_merging_module_v2.hpp"
 
 #include "vtr_lidar/modules/planning/change_detection_module_v3.hpp"
-#include "vtr_lidar/modules/planning/leader_locator_module.hpp"
 // #include "vtr_lidar/modules/planning/ground_extraction_module.hpp"
 // #include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
 // #include "vtr_lidar/modules/planning/safe_corridor_module.hpp"
