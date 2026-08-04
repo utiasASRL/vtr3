@@ -78,11 +78,6 @@ public:
     void publishPredictedErrors(
         const std::vector<std::array<double, 3>>& corrections,
         const tactic::Timestamp& stamp);
-    // Publishes the model inputs/outputs and the raw quantities they were
-    // derived from (two separate, identically-stamped messages), both
-    // stamped with the chain's leaf stamp (the LiDAR cloud timestamp) for
-    // post-hoc association. No-op if !input_snapshot.valid (e.g.
-    // HistoryLookupErrorPredictor doesn't populate this snapshot).
     void publishNNInputsOutputs(
         const PredictorInputSnapshot& input_snapshot,
         const tactic::Timestamp& stamp);

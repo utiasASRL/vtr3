@@ -30,6 +30,7 @@ namespace vtr {
 namespace path_planning {
 
 using ImuMsg = sensor_msgs::msg::Imu;
+// NNTargetMode is declared in base_error_predictor.hpp (included above).
 
 class NumericalErrorPredictorNetwork : public BaseErrorPredictor {
 public:
@@ -41,6 +42,7 @@ public:
                                  bool use_gpu = false,
                                  bool invert_correction = false,
                                  bool lateral_only_correction = true,
+                                 NNTargetMode nn_target_mode = NNTargetMode::Trajectory,
                                  double smoothing_alpha = 1.0);
   ~NumericalErrorPredictorNetwork();
 
@@ -56,6 +58,7 @@ private:
 
   bool invert_correction_;
   bool lateral_only_correction_;
+  NNTargetMode nn_target_mode_;
 
   // EMA smoothing of the per-horizon-step-index correction across cycles
   double smoothing_alpha_;

@@ -369,6 +369,8 @@ void VisualizationUtils::visualize(
         for (const auto& step : input_snapshot.sequence)
             for (double v : step) in_msg.sequence.push_back(static_cast<float>(v));
 
+        in_msg.t_p_r_extp = common::conversions::toTransformMessage(input_snapshot.T_p_r_extp);
+
         const size_t n_out = input_snapshot.raw_output.size();
         in_msg.raw_dx.reserve(n_out); in_msg.raw_dy.reserve(n_out); in_msg.raw_dyaw.reserve(n_out);
         for (const auto& o : input_snapshot.raw_output) {

@@ -71,6 +71,17 @@ inline lgmath::se3::Transformation applyPoseCorrection(
   return lgmath::se3::Transformation(M);
 }
 
+inline lgmath::se3::Transformation applySE2Correction(const lgmath::se3::Transformation& pose, double dx, double dy, double dyaw) {
+  Eigen::Matrix4d T_target = Eigen::Matrix4d::Identity();
+  T_target(0, 0) = std::cos(dyaw);  T_target(0, 1) = -std::sin(dyaw);
+  T_target(1, 0) = std::sin(dyaw);  T_target(1, 1) = std::cos(dyaw);
+  T_target(0, 3) = dx;
+  T_target(1, 3) = dy;
+
+  const lgmath::se3::Transformation target(T_target);
+  return pose * target.inverse();
+}
+
 }  // namespace path_planning
 }  // namespace vtr
 

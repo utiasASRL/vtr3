@@ -109,10 +109,12 @@ NumericalErrorPredictorNetwork::NumericalErrorPredictorNetwork(
     bool use_gpu,
     bool invert_correction,
     bool lateral_only_correction,
+    NNTargetMode nn_target_mode,
     double smoothing_alpha)
     : impl_(std::make_unique<Impl>()),
       invert_correction_(invert_correction),
       lateral_only_correction_(lateral_only_correction),
+      nn_target_mode_(nn_target_mode),
       smoothing_alpha_(smoothing_alpha) {
   if (use_gpu) {
     if (torch::cuda::is_available()) {
@@ -225,6 +227,7 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "NumericalErrorPredictorNetwork: sequence = " << sequence;
 
   const Eigen::Matrix<double, 6, 1> loc_res_xi = T_p_r.vec();
+
   const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ab_inb();
   // TODO: Try inverse here for the TF
   std::array<float, 6> loc_res_arr{
@@ -346,8 +349,8 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
     if (input_snapshot) input_snapshot->final_output[i] = {dx, dy, dyaw};
 
     if (apply_correction) {
-      reference_poses[i] = lateral_only_correction_
-          ? applyLateralPoseCorrection(reference_poses[i], dx, dy, dyaw)
+      reference_poses[i] = (nn_target_mode_ == NNTargetMode::SE2)
+          ? applySE2Correction(reference_poses[i], dx, dy, dyaw)
           : applyPoseCorrection(reference_poses[i], dx, dy, dyaw);
     }
   }

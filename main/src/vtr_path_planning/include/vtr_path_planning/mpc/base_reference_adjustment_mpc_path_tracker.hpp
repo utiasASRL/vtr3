@@ -51,12 +51,6 @@ enum class ReferenceAdjustmentMode {
   HistoryBased = 3,
 };
 
-enum class NNTargetMode {
-  Trajectory = 0,
-  PathTracking = 1,
-  SE2 = 2,
-};
-
 class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
  public:
   PTR_TYPEDEFS(BaseReferenceAdjustmentMPCPathTracker);
@@ -80,6 +74,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
 
     // Sub-mode used when reference_adjustment_mode == HistoryBased.
     HistoryLookupMode history_lookup_mode = HistoryLookupMode::PreviousRepeat;
+    NNTargetMode nn_target_mode = NNTargetMode::Trajectory;
     // A/B testing knobs -- see each predictor's constructor doc comment.
     bool history_lookup_invert_correction = false;
     bool nn_invert_correction = false;

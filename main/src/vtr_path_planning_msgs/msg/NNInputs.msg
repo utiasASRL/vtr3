@@ -25,6 +25,9 @@ float32[] grav_vec
 float32[] sequence
 uint32 sequence_horizon  # T, i.e. sequence.size() / 6
 
+# T_p_r_extp, raw (not fed to the model -- see NNTrueQuantities.t_p_r_extp)
+geometry_msgs/Transform t_p_r_extp
+
 # --- Model outputs ---
 
 # Raw model output per horizon step, BEFORE invert_correction/smoothing

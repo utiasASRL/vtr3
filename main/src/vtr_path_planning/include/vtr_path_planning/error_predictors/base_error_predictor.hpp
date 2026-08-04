@@ -33,6 +33,12 @@ namespace vtr {
 namespace path_planning {
 using RobotState = tactic::OutputCache;
 
+enum class NNTargetMode {
+  Trajectory = 0,
+  PathTracking = 1,
+  SE2 = 2,
+};
+
 struct PredictorInputSnapshot {
   bool valid = false;
   std::array<double, 6> loc_res{};    // [x_in_path, y_in_path, z_log, rx, ry, rz]

@@ -72,6 +72,8 @@ auto BaseReferenceAdjustmentMPCPathTracker::Config::loadConfig(BaseReferenceAdju
       prefix + ".error_predictor.lateral_only_correction", config->lateral_only_correction);
   config->nn_smoothing_alpha = node->declare_parameter<double>(
       prefix + ".error_predictor.nn_smoothing_alpha", config->nn_smoothing_alpha);
+  config->nn_target_mode = static_cast<NNTargetMode>(
+      node->declare_parameter<int>(prefix + ".error_predictor.nn_target_mode", static_cast<int>(config->nn_target_mode)));
 }
 
 // Subclasses must implement their own Config::fromROS.
@@ -106,7 +108,8 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
           base_config_->reference_adjustment_model_path,
 	  base_config_->use_gpu,
           base_config_->nn_invert_correction,
-          base_config_->lateral_only_correction);
+          base_config_->lateral_only_correction,
+          base_config_->nn_target_mode);
       CLOG(INFO, "cbit.control") << "Initialized image neural network for reference adjustment.";
     } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Image neural network will not be initialized.";
@@ -120,6 +123,7 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
 	  base_config_->use_gpu,
           base_config_->nn_invert_correction,
           base_config_->lateral_only_correction,
+          base_config_->nn_target_mode,
           base_config_->nn_smoothing_alpha);
       CLOG(INFO, "cbit.control") << "Initialized numerical neural network for reference adjustment.";
     } else {

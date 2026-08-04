@@ -32,6 +32,7 @@ namespace path_planning {
 
 using ImageMsg = sensor_msgs::msg::Image;
 using ImuMsg = sensor_msgs::msg::Imu;
+// NNTargetMode is declared in base_error_predictor.hpp (included above).
 
 class ImageErrorPredictorNetwork : public BaseErrorPredictor {
 public:
@@ -44,7 +45,8 @@ public:
                              const std::string& model_path,
                              bool use_gpu = false,
                              bool invert_correction = false,
-                             bool lateral_only_correction = true);
+                             bool lateral_only_correction = true,
+                             NNTargetMode nn_target_mode = NNTargetMode::Trajectory);
   ~ImageErrorPredictorNetwork();
 
   std::vector<std::array<double, 3>> predictError(
@@ -59,6 +61,7 @@ private:
 
   bool invert_correction_;
   bool lateral_only_correction_;
+  NNTargetMode nn_target_mode_;
 
   rclcpp::Subscription<ImageMsg>::SharedPtr sig_img_sub_;
   rclcpp::Subscription<ImageMsg>::SharedPtr dpt_img_sub_;
