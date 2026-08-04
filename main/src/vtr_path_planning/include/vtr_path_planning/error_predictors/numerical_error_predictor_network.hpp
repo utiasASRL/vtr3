@@ -49,6 +49,7 @@ public:
   std::vector<std::array<double, 3>> predictError(
       const RobotState& robot_state, const tactic::Timestamp& curr_time,
       std::vector<lgmath::se3::Transformation>& reference_poses,
+      const lgmath::se3::Transformation& T_p_r_extp,
       bool apply_correction = true,
       PredictorInputSnapshot* input_snapshot = nullptr) override;
 

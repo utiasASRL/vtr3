@@ -255,7 +255,9 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
     PredictorInputSnapshot input_snapshot;
     const auto predicted_errors = error_predictor_->predictError(
         robot_state, curr_time, local_reference_poses,
-        base_config_->apply_corrections, &input_snapshot);
+        T_p_r_extp,
+        base_config_->apply_corrections, &input_snapshot
+        );
     vis_->publishPredictedErrors(predicted_errors, stamp);
     vis_->publishNNInputsOutputs(input_snapshot, stamp);
 

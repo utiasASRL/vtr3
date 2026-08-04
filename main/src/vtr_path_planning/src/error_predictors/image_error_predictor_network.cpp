@@ -235,6 +235,7 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
     const RobotState& robot_state,
     const tactic::Timestamp& curr_time,
     std::vector<lgmath::se3::Transformation>& reference_poses,
+    const lgmath::se3::Transformation& T_p_r_extp,
     bool apply_correction,
     PredictorInputSnapshot* input_snapshot) {
 
