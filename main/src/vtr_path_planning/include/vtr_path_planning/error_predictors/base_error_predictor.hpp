@@ -41,21 +41,19 @@ struct PredictorInputSnapshot {
   std::vector<std::array<double, 6>> sequence;  // one 6-vec (poseToVec) per horizon step
 
   // NN model outputs, one entry per horizon step. raw_* is the model's
-  // direct forward-pass output, before invert_correction/smoothing
-  // post-processing; final_* is after that post-processing (but before any
-  // lateral-only projection, which is applied directly to reference_poses).
-  // Left empty by predictors that don't run a model (e.g.
-  // HistoryLookupErrorPredictor).
   std::vector<std::array<double, 3>> raw_output;
   std::vector<std::array<double, 3>> final_output;
 
-  // Raw quantities the inputs above were derived from, for independent
-  // recomputation/cross-checking. Filled whenever valid=true.
   unsigned sid = 0;
   lgmath::se3::Transformation T_p_r;
+  lgmath::se3::Transformation T_p_r_extp;
   lgmath::se3::Transformation T_w_p;
   Eigen::Matrix<double, 6, 1> w_p_r_in_r = Eigen::Matrix<double, 6, 1>::Zero();
   std::vector<lgmath::se3::Transformation> reference_poses_raw;  // pre-correction
+
+  // Timing for T_p_r_extp: dt = extrap_wall_time - lidar_stamp for association, wall time for interpolation
+  tactic::Timestamp lidar_stamp = 0;
+  tactic::Timestamp extrap_wall_time = 0;
 };
 
 class BaseErrorPredictor {

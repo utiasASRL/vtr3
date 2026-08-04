@@ -104,8 +104,6 @@ std::array<double, 3> accelToWorld(const ImuMsg& msg) {
           R[2][0]*ax + R[2][1]*ay + R[2][2]*az};
 }
 
-// Rotate the (already-averaged, fixed) world-frame gravity vector into the
-// robot body frame for the current cycle.
 torch::Tensor gravityTensor(const Eigen::Vector3d& g_world,
                             const lgmath::se3::Transformation& T_r_w,
                             torch::Device device) {
@@ -296,6 +294,12 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
     input_snapshot->T_w_p = T_w_p;
     input_snapshot->w_p_r_in_r = w_p_r_in_r;
     input_snapshot->reference_poses_raw = reference_poses;
+
+    const double dt = static_cast<double>(curr_time - stamp) * 1e-9;
+    const Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
+    input_snapshot->T_p_r_extp = T_p_r * lgmath::se3::Transformation(xi_p_r_in_r);
+    input_snapshot->lidar_stamp = stamp;
+    input_snapshot->extrap_wall_time = curr_time;
   }
 
   torch::NoGradGuard no_grad;
@@ -323,9 +327,6 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
                               << sequence;
 
   const Eigen::Matrix<double, 6, 1> loc_res_xi = T_p_r.vec();
-  // pos come from the exact r_ab_inb() (robot's position in the path
-  // frame), not the raw se3-log xi[:3], which only approximates it and
-  // is exact only when there is no rotation between path and robot frames
   const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ab_inb();
   std::array<float, 6> loc_res_arr{
       static_cast<float>(robot_xyz_in_path(0)),

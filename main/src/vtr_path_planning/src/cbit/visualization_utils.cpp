@@ -391,7 +391,10 @@ void VisualizationUtils::visualize(
         true_msg.header.stamp = rclcpp::Time(stamp);
         true_msg.sid = input_snapshot.sid;
         true_msg.t_p_r = common::conversions::toTransformMessage(input_snapshot.T_p_r);
+        true_msg.t_p_r_extp = common::conversions::toTransformMessage(input_snapshot.T_p_r_extp);
         true_msg.t_w_p = common::conversions::toTransformMessage(input_snapshot.T_w_p);
+        true_msg.lidar_stamp = rclcpp::Time(input_snapshot.lidar_stamp);
+        true_msg.extrap_wall_time = rclcpp::Time(input_snapshot.extrap_wall_time);
         true_msg.w_p_r_in_r.reserve(6);
         for (int i = 0; i < 6; ++i)
             true_msg.w_p_r_in_r.push_back(static_cast<float>(input_snapshot.w_p_r_in_r(i)));

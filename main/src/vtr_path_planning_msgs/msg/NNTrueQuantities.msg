@@ -6,10 +6,15 @@
 # for post-hoc association.
 std_msgs/Header header
 
+builtin_interfaces/Time lidar_stamp
+
+builtin_interfaces/Time extrap_wall_time
+
 uint32 sid
 
-# T_p_r = T_planning_robot, raw (not decomposed into loc_res's convention).
 geometry_msgs/Transform t_p_r
+
+geometry_msgs/Transform t_p_r_extp
 
 # T_w_p = T_world_planning, raw.
 geometry_msgs/Transform t_w_p
