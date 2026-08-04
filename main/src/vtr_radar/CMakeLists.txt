@@ -30,6 +30,7 @@ find_package(vtr_tactic REQUIRED)
 find_package(vtr_radar_msgs REQUIRED)
 
 find_package(navtech_msgs REQUIRED)
+find_package(spinning_radar_doppler REQUIRED)
 
 if(DEFINED VTR_ENABLE_RADAR)
 
@@ -49,7 +50,7 @@ ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
   nav_msgs
-  lgmath steam
+  lgmath steam spinning_radar_doppler
   vtr_common vtr_logging vtr_tactic vtr_radar_msgs
 )
 
@@ -73,7 +74,7 @@ ament_export_dependencies(
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
   nav_msgs visualization_msgs
-  lgmath steam
+  lgmath steam spinning_radar_doppler
   vtr_common vtr_logging vtr_tactic vtr_radar_msgs navtech_msgs
 )
 

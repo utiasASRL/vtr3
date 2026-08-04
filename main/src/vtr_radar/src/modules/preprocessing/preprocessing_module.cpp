@@ -67,8 +67,8 @@ void PreprocessingModule::run_(QueryCache &qdata0, OutputCache &,
   // Get input point cloud
   const auto point_cloud = qdata.raw_point_cloud.ptr();
 
-  if (point_cloud->size() == 0) {
-    std::string err{"Empty point cloud."};
+  if (!point_cloud || point_cloud->size() == 0) {
+    std::string err{"Empty or null point cloud. Are you running the extraction module before the preprocessing module?"};
     CLOG(ERROR, "radar.preprocessing") << err;
     throw std::runtime_error{err};
   }

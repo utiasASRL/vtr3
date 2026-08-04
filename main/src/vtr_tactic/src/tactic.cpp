@@ -106,8 +106,6 @@ void Tactic::addRun(const bool ephemeral) {
 
 void Tactic::finishRun() {
   smoother_.runBranchSmoothing();
-  // graph_->save(); // saveLive handles
-
   callback_->endRun();
 }
 
@@ -128,8 +126,6 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   chain_->setSequence(path);
   if (path.size() > 0) {
     chain_->expand();
-    // auto eval =
-    //       std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph_);
     auto eval =
         std::make_shared<pose_graph::eval::mask::topology::Eval<Graph>>(*graph_);
     const auto graph_root = graph_->root();

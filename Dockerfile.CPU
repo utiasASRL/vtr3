@@ -35,6 +35,7 @@ ENV VTRSRC=${VTRROOT}/src \
 
 ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
 ENV MAKEFLAGS="-j2"
+ENV VTR_PIPELINE=RADAR-LIDAR
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
@@ -78,16 +79,18 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o
 ## Install VTR specific ROS2 dependencies
 RUN apt update && apt install -q -y \
   ros-humble-xacro \
+  ros-humble-vision-msgs \
   ros-humble-vision-opencv \
   ros-humble-perception-pcl ros-humble-pcl-ros \
-  ros-humble-rmw-cyclonedds-cpp
+  ros-humble-rmw-cyclonedds-cpp \
+  ros-humble-rosbag2-storage-mcap
 
 RUN apt install ros-humble-tf2-tools
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
   tmux \
-  nodejs npm protobuf-compiler \
+  protobuf-compiler \
   libboost-all-dev libomp-dev \
   libpcl-dev \
   libcanberra-gtk-module libcanberra-gtk3-module \
@@ -96,6 +99,11 @@ RUN apt update && apt install -q -y \
   virtualenv \
   texlive-latex-extra \
   clang-format
+
+## Install Node more recent version
+RUN curl -sL https://deb.nodesource.com/setup_25.x -o /tmp/nodesource_setup.sh
+RUN bash /tmp/nodesource_setup.sh
+RUN apt install nodejs
 
 ## Install python dependencies
 RUN pip3 install \
@@ -126,7 +134,7 @@ RUN apt update && apt install -q -y vim
 RUN apt install -q -y libc6-dbg gdb valgrind
 
 ##Install LibTorch
-RUN curl https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip --output libtorch.zip
+RUN curl -L https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip --output libtorch.zip
 RUN unzip libtorch.zip -d /opt/torch
 RUN rm libtorch.zip
 ENV TORCH_LIB=/opt/torch/libtorch
@@ -145,5 +153,11 @@ ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 
 RUN apt install -y ros-humble-rmw-zenoh-cpp
 
+RUN apt install gosu
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
+CMD ["bash"]

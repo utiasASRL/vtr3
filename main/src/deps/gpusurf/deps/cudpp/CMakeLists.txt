@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 project(cudpp)
 
-# Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(CUDA REQUIRED)
 
+# Find dependencies
+find_package(CUDA)
+
+
+if (CUDA_FOUND)
 # Libraries
 add_subdirectory(cudpp)
 
@@ -27,5 +30,5 @@ install(
   RUNTIME DESTINATION lib/${PROJECT_NAME}
   INCLUDES DESTINATION include
 )
-
+endif()
 ament_package()

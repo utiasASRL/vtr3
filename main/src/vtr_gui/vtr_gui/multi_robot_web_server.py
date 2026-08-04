@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import io
-import json
 import os
 import os.path as osp
 import logging
@@ -23,6 +22,8 @@ import flask
 import requests
 from requests.exceptions import RequestException
 from PIL import Image
+
+from ament_index_python.packages import get_package_share_directory
 
 from vtr_navigation.multi_robot_vtr_ui_builder import build_remote
 
@@ -38,7 +39,9 @@ fm = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 hd.setFormatter(fm)
 logger.addHandler(hd)
 
-app = flask.Flask(__name__, static_folder="vtr-gui/build", template_folder="vtr-gui/build", static_url_path="")
+build_folder = os.path.join(get_package_share_directory("vtr_gui"), "vtr_gui/vtr-gui/build")
+
+app = flask.Flask(__name__, static_folder=build_folder, template_folder=build_folder, static_url_path="")
 app.config['DEBUG'] = False
 app.config['CACHE'] = True
 app.config['CACHE_PATH'] = osp.abspath(osp.join(osp.dirname(__file__), 'cache'))

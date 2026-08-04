@@ -45,7 +45,6 @@ import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
 import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
 import MoveGraphScaleRefSvg from "../../images/move-graph-scale-ref.svg";
 import MyhalPlan from "../../images/myhal-plan.svg"
-import CSAPlan from "../../images/CSA_AT_TopView.jpg"
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -171,7 +170,7 @@ class MultiRobotGraphMap extends React.Component {
     };
     // Initialize robot and target markers for each robot
     robotIds.forEach((id, idx) => {
-      // Assign a different icon for each robot, cycling if more than 6
+      // Assign a different icon for each robot, cycling if more than 5
       const iconIdx = idx % ROBOT_ICONS_ARRAY.length;
       this.state.robotMarkers[id] = {
         valid: false,
@@ -377,11 +376,6 @@ class MultiRobotGraphMap extends React.Component {
       [43.660511, -79.397019], // Bottom-left coordinates of the image
       [43.661091, -79.395995], // Top-right coordinates of the image
     ];
-
-    const csaImageBounds = [
-      [45.517540, -73.393919], // Bottom-left coordinates of the image
-      [45.518265, -73.392324], // Top-right coordinates of the image
-    ];
     return (
       <>
         {/* Diagnostics message box */}
@@ -422,7 +416,6 @@ class MultiRobotGraphMap extends React.Component {
           />
           {/* Add the ImageOverlay component to the map */}
           <ImageOverlay url={MyhalPlan} bounds={myhalImageBounds} />
-          <ImageOverlay url={CSAPlan} bounds={csaImageBounds} />
           <ZoomControl position="bottomright" />
           <this.WaypointMarkers />
         </MapContainer>
@@ -580,16 +573,8 @@ class MultiRobotGraphMap extends React.Component {
   }
 
   genDefaultWaypointName(id) {
-    let n = id.toString(), hexId = '';
-    while (n !== '0' && n !== '') {
-      let r = 0, q = '';
-      for (const d of n) { const c = r * 10 + +d; const qd = Math.floor(c / 16); r = c % 16; if (q || qd) q += qd; }
-      hexId = r.toString(16) + hexId;
-      n = q || '0';
-    }
-    const fullHex = (hexId || '0').padStart(16, '0');
-    const vh = parseInt(fullHex.substring(0, 12), 16);
-    const vl = parseInt(fullHex.substring(12), 16);
+    let vl = parseInt(id % Math.pow(2, 32));
+    let vh = parseInt((id - vl) / Math.pow(2, 32));
     return "WP-" + vh.toString() + "-" + vl.toString();
   }
 
@@ -675,7 +660,7 @@ class MultiRobotGraphMap extends React.Component {
   loadGraphState(graph, center = false) {
     console.info("Loading the current pose graph state (full).");
     // root vid
-    this.root_vid = graph.root_vid;
+    this.root_vid = 0; // = graph.root_vid; /// \todo
     // id2vertex and kdtree
     this.id2vertex = new Map();
     let wps_map = new Map();
@@ -1190,7 +1175,7 @@ class MultiRobotGraphMap extends React.Component {
     // set up and add the center marker
     let closest_vertices = this.kdtree.nearest(center_pos, 1);
     selector.vertex.c = closest_vertices ? closest_vertices[0][0] : center_pos;
-    selector.vertex.c = this.id2vertex.get(this.root_vid) || this.id2vertex.values().next().value;
+    selector.vertex.c = this.id2vertex.get(0);
     selector.marker.c = L.marker(selector.vertex.c, {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
@@ -1714,9 +1699,7 @@ class MultiRobotGraphMap extends React.Component {
   }
 
   metres2pix(metres) {
-    let ref = this.id2vertex.get(this.root_vid) || this.id2vertex.values().next().value;
-    if (!ref) return metres;
-    let origin = L.latLng(ref);
+    let origin = L.latLng(this.id2vertex.get(this.root_vid));
     let origin_plus_metre = this.map.latLngToLayerPoint(L.latLng(origin.lat - 1, origin.lng));
     let metre_standard = origin_plus_metre.subtract(this.map.latLngToLayerPoint(origin));
     let factor = metre_standard.y * 0.000009;

@@ -52,7 +52,7 @@ RCGraph::RCGraph(const std::string& file_path, const bool load,
 
 void RCGraph::save() {
   std::unique_lock lock(mutex_);
-  if(read_only_) {
+  if(read_only_) { 
     CLOG(ERROR, "pose_graph") << "Tried to write to a read only graph!";
     return;
   }

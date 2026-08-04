@@ -22,8 +22,9 @@ The supported pipelines are:
 If the variable is unset, then all pipelines will be compiled, and the user can select at run time through the config file parameter `pipeline.type` which pipeline to use.
 
 The primary support version of VTR requires an NVidia Driver with Cuda capabilities.
-The current Dockerfile requires a CUDA driver capable of supporting 11.7.
+The current Dockerfile requires a CUDA driver capable of supporting 11.8.
 A GPU is required for all versions of the vision (camera) pipeline and features for LiDAR and RADAR that use PyTorch models for processing.
+Prebuilt Dockerfiles are available on DockerHub. The GPU version `utiasasrl/vtr3:latest` or CPU version `utiasasrl/vtr3:cpu-latest`
 
 If no GPU is available, a CPU only version is available, but **only for LiDAR**.
 Note that the CPU version of TorchLib is installed for easier compilation but the models are unlikely to run fast enough on a CPU to be useful. 

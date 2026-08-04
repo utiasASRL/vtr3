@@ -113,7 +113,7 @@ void OdometryGyroModule::run_(QueryCache &qdata0, OutputCache &,
   state_vars.emplace_back(T_r_m_var);
   state_vars.emplace_back(w_m_r_in_r_var);
 
-  auto w_m_s_in_s_var = compose_velocity(T_s_r_var,w_m_r_in_r_var);
+  auto w_m_s_in_s_var = compose_velocity(T_s_r_var, w_m_r_in_r_var);
 
   // initialize problem
   OptimizationProblem problem;

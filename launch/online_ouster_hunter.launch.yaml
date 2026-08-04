@@ -2,8 +2,8 @@
 session_name: vtr_online_ouster_hunter
 
 environment:
-  ROBOT_NAME: mr_green
-  ROBOT_ID: "15" # TODO: use robot-registry.yaml to automatically look up ID
+  RMW_IMPLEMENTATION: rmw_zenoh_cpp
+  ZENOH_ROUTER_CONFIG_URI: $VTRROOT/hunter/hunter2_zenoh.json5
 
 start_directory: ${VTRTEMP}
 suppress_history: false
@@ -13,14 +13,15 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
-      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
+      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
     panes:
       - >
         ros2 launch vtr_navigation vtr_hunters.launch.py
         base_params:=ouster_hunter_default.yaml
         start_new_graph:=false
         use_sim_time:=false
-        planner:="unicycle_mpc"
+        planner:="bicycle_mpc"
+        command_topic:=/$ROBOT_NAME/cmd_vel
         model_dir:=${VTRROOT}/models
         
 
@@ -32,19 +33,5 @@ windows:
       - ros2 run vtr_gui socket_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
       - ros2 run vtr_gui socket_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
       - ros2 run vtr_gui web_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
-      # - firefox --new-window "localhost:5200" # the webpage has to wait for everything above
-
-  - window_name: setup_client
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    panes:
-      - ros2 run vtr_gui setup_client  --ros-args -r __ns:=/$ROBOT_NAME/vtr
-
-  # - window_name: rviz2
-  #   layout: main-horizontal
-  #   shell_command_before:
-  #     - source ${VTRSRC}/main/install/setup.bash
-  #   panes:
-  #     - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/ouster.rviz
+      - ros2 run vtr_gui setup_server  --ros-args -r __ns:=/$ROBOT_NAME/vtr
 

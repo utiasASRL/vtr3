@@ -20,6 +20,8 @@ import flask
 import flask_socketio
 from flask_socketio import join_room, leave_room
 import argparse
+import ast
+import json
 
 
 import vtr_navigation.vtr_setup as vtr_setup
@@ -50,9 +52,9 @@ socketio = flask_socketio.SocketIO(app,
                                    ping_timeout=2,
                                    cors_allowed_origins="*")
 
-robots = []
-num_robots = 1
-robot_files = {}
+active_robots = []
+allowed_robots = []
+all_robot_files = {}
 
 @app.route('/')
 def main():
@@ -74,16 +76,21 @@ def on_disconnect():
 @socketio.on('join')
 def on_join(data):
     robot_name = data['namespace']
-    robots.append(robot_name)
-    join_room("robot")
-    logger.info("Robot " + robot_name + " is connected.")
-    flask_socketio.send('command/request_available_subdirs', to="robot")
+    if len(allowed_robots) == 0:
+      allowed_robots.append(robot_name)
+    if robot_name in allowed_robots:
+      active_robots.append(robot_name)
+      join_room("robot")
+      logger.info("Robot " + robot_name + " is connected.")
+      flask_socketio.send('command/request_available_subdirs', to="robot")
+    else:
+      logger.warning(f"Robot {robot_name} tried to join room but was not in whitelist. Skipped.")
 
 
 @socketio.on('leave')
 def on_leave(data):
     robot_name = data['namespace']
-    robots.remove(robot_name)
+    active_robots.remove(robot_name)
     leave_room("robot")
     logger.info("Robot + " + robot_name + " has disconnected.")
 
@@ -107,17 +114,28 @@ def handle_default_dir():
 
 @socketio.on('notification/robot_data')
 def handle_robot_files(data):
-  robot_files[data['namespace']] = set(data['files'])
-  if (len(robot_files.keys()) == num_robots):
-    common_elements = None
-    # Iterate through the rest of the sets and apply the intersection operator
-    for s in robot_files.values():
-      if common_elements is None:
-        common_elements = s
-      else:
-        common_elements = common_elements & s
+  all_robot_files[data['namespace']] = (data['times'], data['files'])
+
+  if (len(all_robot_files.keys()) == len(allowed_robots)):
+    common_files = set(list(all_robot_files.values())[0][1])
+    print(common_files)
+    for _, robot_files in all_robot_files.values():
+      print()
+      print(robot_files)
+      common_files.intersection_update(set(robot_files))
+
+    print(common_files)
+
+    common_elements = {fname: 0 for fname in common_files}
+
+    for robot_times, robot_files in all_robot_files.values():
+      for t_i, file_i in zip(robot_times, robot_files):
+        if file_i in common_files and t_i > common_elements[file_i]:
+          common_elements[file_i] = t_i
+
     logger.info('Broadcasting available subdirs')
-    socketio.emit(u"notification/available_subdirs", list(common_elements))
+
+    socketio.emit(u"notification/available_subdirs", sorted(common_elements, key=common_elements.get, reverse=True))
 
 
 @socketio.on('command/request_available_subdirs')
@@ -135,10 +153,11 @@ def handle_kill_setup_server():
 def main():
   logger.info("Launching the setup server.")
   parser = argparse.ArgumentParser(description="Setup Server")
-  parser.add_argument('--num-robots', type=int, default=1, help='Number of robots to expect')
+  parser.add_argument('--robots', type=str, default="[]", help='Robots allowed to join the room')
   args, unknown = parser.parse_known_args()
-  global num_robots
-  num_robots = args.num_robots
+  global allowed_robots
+  print(args.robots)
+  allowed_robots = ast.literal_eval(args.robots)
   socketio.run(app, host=SOCKET_ADDRESS, port=SOCKET_PORT, use_reloader=False)
 
 
