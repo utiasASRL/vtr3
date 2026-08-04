@@ -147,7 +147,23 @@ HistoryLookupErrorPredictor::lookupAccumulatedError(
       (!total_run.has_value() || newer->first > *total_run)) {
     const auto& [run_id, residual_tf] = *newer;
     const Correction residual = Correction::fromTransform(residual_tf);
-    const Correction new_total = total_run.has_value() ? (total + residual) : residual;
+
+    bool contiguous = false;
+    if (total_run.has_value()) {
+      const auto prev = lookupResidualBeforeRun(teach_vid, run_id);
+      contiguous = prev.has_value() && prev->first == *total_run;
+    }
+    if (total_run.has_value() && !contiguous) {
+      CLOG(DEBUG, "path_planning")
+          << "HistoryLookupErrorPredictor: accumulation gap before run " << run_id
+          << " (stored total was for run " << *total_run
+          << "); resetting accumulated total to this repeat's residual.";
+    } else {
+      CLOG(DEBUG, "path_planning")
+          << "HistoryLookupErrorPredictor: caught up with newer residual before run "
+          << newer->first;
+    }
+    const Correction new_total = contiguous ? (total + residual) : residual;
 
     auto msg = std::make_shared<AccumMsg>();
     msg->run_id = run_id;
