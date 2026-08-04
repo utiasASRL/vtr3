@@ -162,11 +162,13 @@ ImageErrorPredictorNetwork::ImageErrorPredictorNetwork(
     bool use_gpu,
     bool invert_correction,
     bool lateral_only_correction,
-    NNTargetMode nn_target_mode)
+    NNTargetMode nn_target_mode,
+    double smoothing_alpha)
     : impl_(std::make_unique<Impl>()),
       invert_correction_(invert_correction),
       lateral_only_correction_(lateral_only_correction),
-      nn_target_mode_(nn_target_mode) {
+      nn_target_mode_(nn_target_mode),
+      smoothing_alpha_(smoothing_alpha) {
   if (use_gpu) {
     if (torch::cuda::is_available()) {
       impl_->device = torch::kCUDA;
@@ -421,6 +423,11 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: output = "
                               << output;
 
+  const bool have_prev = (smoothing_alpha_ < 1.0) &&
+                         (prev_sid_ == static_cast<int>(curr_sid)) &&
+                         (static_cast<int64_t>(prev_corrections_.size()) >= n);
+  std::vector<std::array<double, 3>> filtered(n);
+
   if (input_snapshot) {
     input_snapshot->raw_output.resize(n);
     input_snapshot->final_output.resize(n);
@@ -432,12 +439,20 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
     const double raw_dyaw = static_cast<double>(data[i * 3 + 2]);
     if (input_snapshot) input_snapshot->raw_output[i] = {raw_dx, raw_dy, raw_dyaw};
 
-    double dx = raw_dx, dy = raw_dy;
-    const double dyaw = raw_dyaw;
+    double dx = raw_dx, dy = raw_dy, dyaw = raw_dyaw;
     if (invert_correction_) {
       dx = -dx;
       dy = -dy;
     }
+
+    if (have_prev) {
+      const auto& prev = prev_corrections_[i];
+      dx   = smoothing_alpha_ * dx   + (1.0 - smoothing_alpha_) * prev[0];
+      dy   = smoothing_alpha_ * dy   + (1.0 - smoothing_alpha_) * prev[1];
+      dyaw = smoothing_alpha_ * dyaw + (1.0 - smoothing_alpha_) * prev[2];
+    }
+    filtered[i] = {dx, dy, dyaw};
+
     corrections[i] = {dx, dy, dyaw};
     if (input_snapshot) input_snapshot->final_output[i] = {dx, dy, dyaw};
 
@@ -451,6 +466,12 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
                                     << reference_poses[i];
     }
   }
+
+  if (smoothing_alpha_ < 1.0) {
+    prev_corrections_ = std::move(filtered);
+    prev_sid_ = static_cast<int>(curr_sid);
+  }
+
   timer[3]->stop();
   timer[0]->stop();
   CLOG(DEBUG, "path_planning") << "Dump timing info: ";

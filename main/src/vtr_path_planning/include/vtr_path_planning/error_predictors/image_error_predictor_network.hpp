@@ -45,7 +45,8 @@ public:
                              bool use_gpu = false,
                              bool invert_correction = false,
                              bool lateral_only_correction = true,
-                             NNTargetMode nn_target_mode = NNTargetMode::Trajectory);
+                             NNTargetMode nn_target_mode = NNTargetMode::Trajectory,
+                             double smoothing_alpha = 1.0);
   ~ImageErrorPredictorNetwork();
 
   std::vector<std::array<double, 3>> predictError(
@@ -62,6 +63,11 @@ private:
   bool invert_correction_;
   bool lateral_only_correction_;
   NNTargetMode nn_target_mode_;
+
+  // EMA smoothing of the per-horizon-step-index correction across cycles
+  double smoothing_alpha_;
+  std::vector<std::array<double, 3>> prev_corrections_;
+  int prev_sid_ = -1;
 
   rclcpp::Subscription<ImageMsg>::SharedPtr sig_img_sub_;
   rclcpp::Subscription<ImageMsg>::SharedPtr dpt_img_sub_;

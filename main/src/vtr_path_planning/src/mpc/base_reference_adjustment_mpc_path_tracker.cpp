@@ -109,7 +109,8 @@ BaseReferenceAdjustmentMPCPathTracker::BaseReferenceAdjustmentMPCPathTracker(con
 	  base_config_->use_gpu,
           base_config_->nn_invert_correction,
           base_config_->lateral_only_correction,
-          base_config_->nn_target_mode);
+          base_config_->nn_target_mode,
+          base_config_->nn_smoothing_alpha);
       CLOG(INFO, "cbit.control") << "Initialized image neural network for reference adjustment.";
     } else {
       CLOG(WARNING, "cbit.control") << "Reference adjustment model path is empty. Image neural network will not be initialized.";
