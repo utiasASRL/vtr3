@@ -215,7 +215,7 @@ void RCGraph::loadEdgesLive() {
       CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
     }
     if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::AUTONOMOUS) {
-      return;
+      continue;
     }
     CLOG(DEBUG, "pose_graph") << " - loading edge " << *edge;
     CLOG(DEBUG, "pose_graph") << "loadLive: edges_.insert";
