@@ -50,7 +50,7 @@ class ChainTest : public TestWithParam<SE2Pose>  {
   }
   ~ChainTest() override {}
 
-  void createConstantCurve(const EdgeTransform& T_wr0, const EdgeTransform& T_wrf, const Timestamp& t1, const Timestamp& t2, unsigned nodes=2, bool is_teach=EdgeMode::Manual) {
+  void createConstantCurve(const EdgeTransform& T_wr0, const EdgeTransform& T_wrf, const Timestamp& t1, const Timestamp& t2, unsigned nodes=2, EdgeMode is_teach=EdgeMode::Manual) {
     ASSERT_GE(nodes, 2);
     ASSERT_GT(t2, t1);
 
@@ -526,7 +526,7 @@ TEST_P(RealChainTest, NoiseFreeRealMPC) {
   for(int i = 0; i < config.N; ++i) {
     auto new_vertex = graph_->addVertex(t_offset_ + (i + 1) * config.DT * 1e9);      
     graph_->addEdge(new_vertex->id() - 1, new_vertex->id(), EdgeType::Temporal,
-                      false, mpc_poses[i+1].inverse()*mpc_poses[i]);
+                      EdgeMode::Autonomous, mpc_poses[i+1].inverse()*mpc_poses[i]);
   }
 
 
