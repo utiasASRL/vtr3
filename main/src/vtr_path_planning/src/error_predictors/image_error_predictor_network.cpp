@@ -331,8 +331,8 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "ImageErrorPredictorNetwork: sequence = "
                               << sequence;
 
-  const Eigen::Matrix<double, 6, 1> loc_res_xi = T_p_r.vec();
-  const Eigen::Vector3d robot_xyz_in_path = T_p_r.r_ab_inb();
+  const Eigen::Matrix<double, 6, 1> loc_res_xi = T_p_r_extp.vec();
+  const Eigen::Vector3d robot_xyz_in_path = T_p_r_extp.r_ab_inb();
   std::array<float, 6> loc_res_arr{
       static_cast<float>(robot_xyz_in_path(0)),
       static_cast<float>(robot_xyz_in_path(1)),
@@ -371,7 +371,7 @@ std::vector<std::array<double, 3>> ImageErrorPredictorNetwork::predictError(
       input_snapshot->odom_vel[i] = static_cast<double>(odom_vel_arr[i]);
   }
 
-  const lgmath::se3::Transformation T_r_w = (T_w_p * T_p_r).inverse();
+  const lgmath::se3::Transformation T_r_w = (T_w_p * T_p_r_extp).inverse();
   Eigen::Vector3d g_world;
   bool grav_ready;
   {
