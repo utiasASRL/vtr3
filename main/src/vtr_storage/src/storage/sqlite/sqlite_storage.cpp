@@ -221,18 +221,14 @@ void SqliteStorage::write(const std::vector<std::shared_ptr<SerializedBagMessage
   }
   /// \note cannot use transaction here because we need the last insertion id,
   /// which may not be correct if we use transaction.
-// #if false
   current_message_row_ = ReadQueryResult::Iterator(nullptr, ReadQueryResult::Iterator::POSITION_END);
   message_result_ = ReadQueryResult(nullptr);
   read_statement_ = nullptr;// ensure statement wrapper is freed
   activate_transaction();
-// #endif
   for (const auto & message : messages) {
     write_locked(message);
   }
-// #if false
   commit_transaction();
-// #endif
 }
 
 void SqliteStorage::write_locked(const std::shared_ptr<SerializedBagMessage> & message)
