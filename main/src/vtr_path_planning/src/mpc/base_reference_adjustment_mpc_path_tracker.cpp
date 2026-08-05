@@ -238,7 +238,7 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   auto dt = static_cast<double>((now + ema_pred_time_) - stamp) * 1e-9;
   CLOG(DEBUG, "cbit.debug")
       << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose()
-      << " dt: " << dt << std::endl;
+      << " dt: " << dt  << " comprised of elapsed time: " << (now - stamp) * 1e-9  << " and prediction EMA: " << ema_pred_time_ << std::endl;
   Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
   T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
 
