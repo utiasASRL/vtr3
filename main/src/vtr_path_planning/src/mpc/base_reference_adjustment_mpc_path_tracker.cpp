@@ -359,6 +359,8 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
 
   vis_->publishReferencePoses(referenceInfo.poses, stamp);
   vis_->publishLocalReferencePoses(original_local_poses, stamp);
+  vis_->publishExtrapolatedRobotPose(
+      T_p_r_extp, stamp, static_cast<tactic::Timestamp>(now));
 
   if (end_ind == 0)
     end_ind = 1;

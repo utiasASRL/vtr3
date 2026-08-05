@@ -34,6 +34,7 @@
 #include <vtr_path_planning_msgs/msg/predicted_tracking_errors.hpp>
 #include <vtr_path_planning_msgs/msg/nn_inputs.hpp>
 #include <vtr_path_planning_msgs/msg/nn_true_quantities.hpp>
+#include <vtr_path_planning_msgs/msg/extrapolated_robot_pose.hpp>
 #include "std_msgs/msg/header.hpp"
 
 #include "vtr_tactic/tactic.hpp"
@@ -81,6 +82,10 @@ public:
     void publishNNInputsOutputs(
         const PredictorInputSnapshot& input_snapshot,
         const tactic::Timestamp& stamp);
+    void publishExtrapolatedRobotPose(
+        const lgmath::se3::Transformation& T_p_r_extp,
+        const tactic::Timestamp& lidar_stamp,
+        const tactic::Timestamp& extrap_wall_time);
 
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
@@ -98,6 +103,7 @@ private:
     rclcpp::Publisher<vtr_path_planning_msgs::msg::PredictedTrackingErrors>::SharedPtr predicted_errors_pub_;
     rclcpp::Publisher<vtr_path_planning_msgs::msg::NNInputs>::SharedPtr nn_inputs_outputs_pub_;
     rclcpp::Publisher<vtr_path_planning_msgs::msg::NNTrueQuantities>::SharedPtr nn_true_quantities_pub_;
+    rclcpp::Publisher<vtr_path_planning_msgs::msg::ExtrapolatedRobotPose>::SharedPtr extrapolated_robot_pose_pub_;
 };
 
 } // namespace path_planning

@@ -40,6 +40,7 @@ VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     predicted_errors_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::PredictedTrackingErrors>("predicted_tracking_errors", 10);
     nn_inputs_outputs_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::NNInputs>("nn_inputs_outputs", 10);
     nn_true_quantities_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::NNTrueQuantities>("nn_true_quantities", 10);
+    extrapolated_robot_pose_pub_ = node->create_publisher<vtr_path_planning_msgs::msg::ExtrapolatedRobotPose>("extrapolated_robot_pose", 10);
 }
 
 void VisualizationUtils::visualize(
@@ -404,6 +405,19 @@ void VisualizationUtils::visualize(
         for (const auto& pose : input_snapshot.reference_poses_raw)
             true_msg.reference_poses.push_back(common::conversions::toTransformMessage(pose));
         nn_true_quantities_pub_->publish(true_msg);
+    }
+
+    void VisualizationUtils::publishExtrapolatedRobotPose(
+        const lgmath::se3::Transformation& T_p_r_extp,
+        const tactic::Timestamp& lidar_stamp,
+        const tactic::Timestamp& extrap_wall_time) {
+        vtr_path_planning_msgs::msg::ExtrapolatedRobotPose msg;
+        msg.header.frame_id = "planning frame";
+        msg.header.stamp = rclcpp::Time(lidar_stamp);
+        msg.t_p_r_extp = common::conversions::toTransformMessage(T_p_r_extp);
+        msg.lidar_stamp = rclcpp::Time(lidar_stamp);
+        msg.extrap_wall_time = rclcpp::Time(extrap_wall_time);
+        extrapolated_robot_pose_pub_->publish(msg);
     }
 
     void VisualizationUtils::publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
