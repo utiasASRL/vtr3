@@ -23,9 +23,7 @@ namespace navigation {
 
 CommandPublisher::CommandPublisher(const rclcpp::Node::SharedPtr& node)
     : node_(node) {
-  const auto cmd_topic = node->declare_parameter<std::string>("command_topic", "command");
-
-  command_pub_ = node->create_publisher<Command>(cmd_topic, 10);
+  command_pub_ = node->create_publisher<Command>("command", 10);
 }
 
 tactic::Timestamp CommandPublisher::getCurrentTime() const {
