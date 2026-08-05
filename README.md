@@ -2,14 +2,15 @@
 
 ## What is VT&amp;R3?
 
-VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then closely repeat any part of the network. VT&amp;R3 is designed for easy adaptation to various sensors (camera, lidar, radar, GPS, etc) and robot combinations. So far, we have explored using VT&amp;R3 to perform teach and repeat navigation using a stereo camera, a lidar, or a combination of a stereo camera and GPS.
+VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then closely repeat any part of the network. VT&amp;R3 is designed for easy adaptation to various sensors (camera, lidar, radar, GPS, etc) and robot combinations. So far, we have explored using VT&amp;R3 to perform teach and repeat navigation using a stereo camera, a lidar, a radar, or a combination of a stereo camera and GPS.
 
 
 ## Software Support
-This repository contains active support for the following feature
+This repository contains active support for the following features
 * Multi-experience localization with a Stereo Camera
 * Deep-learned visual features with a Stereo Camera
 * LiDAR ICP odometry and localization
+* Radar ICP odometry and localization
 
 With support for so many sensors, the repository has grown quite large. 
 To reduce the required compilation time an environment variable `VTR_PIPELINE` has been added to allow for the pipeline to be selected at compile time, instead of run time. 
@@ -19,16 +20,15 @@ The supported pipelines are:
 * `RADAR`
 * `RADAR-LIDAR`
   
-If the variable is unset, then all pipelines will be compiled, and the user can select at run time through the config file parameter `pipeline.type` which pipeline to use.
+If the variable is unset, then all pipelines will be compiled, and the user can select at runtime through the config file parameter `pipeline.type` which pipeline to use.
 
-The primary support version of VTR requires an NVidia Driver with Cuda capabilities.
+The primary support version of VTR requires an NVIDIA driver with Cuda capabilities.
 The current Dockerfile requires a CUDA driver capable of supporting 11.8.
 A GPU is required for all versions of the vision (camera) pipeline and features for LiDAR and RADAR that use PyTorch models for processing.
 Prebuilt Dockerfiles are available on DockerHub. The GPU version `utiasasrl/vtr3:latest` or CPU version `utiasasrl/vtr3:cpu-latest`
 
-If no GPU is available, a CPU only version is available, but **only for LiDAR**.
+If no GPU is available, a CPU-only version is available, but **not for Vision**.
 Note that the CPU version of TorchLib is installed for easier compilation but the models are unlikely to run fast enough on a CPU to be useful. 
-If you have no NVidia drivers, then you will need to add an empty file called `COLCON_IGNORE` in the folder `main/src/deps/gpusurf`. This will skip this compilation. 
 
 ## Reproducing Results of VT&amp;R3 Papers
 
