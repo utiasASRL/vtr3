@@ -219,8 +219,8 @@ BaseReferenceAdjustmentMPCPathTracker::~BaseReferenceAdjustmentMPCPathTracker() 
 }
 
 void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
-                         const lgmath::se3::Transformation&,
-                         const double,
+                         const lgmath::se3::Transformation& T_p_r_extp,
+                         const double state_p,
                          RobotState& robot_state,
                          const tactic::Timestamp& curr_time) {
 
@@ -230,27 +230,9 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p_chain, T_w_v_odo, T_r_v_odo,
               curr_sid] = getChainInfo(*robot_state.chain.ptr());
 
-  // Re-extrapolate based on EMA of the prediction computation
-  auto T_p_r_extp = T_p_r;
-  auto now = robot_state.node->get_clock()
-                             ->now().nanoseconds();  // always in nanoseconds
-
-  auto dt = static_cast<double>((now + ema_pred_time_) - stamp) * 1e-9;
-  CLOG(DEBUG, "cbit.debug")
-      << "Robot velocity Used for Extrapolation: " << -w_p_r_in_r.transpose()
-      << " dt: " << dt  << " comprised of elapsed time: " << (now - stamp) * 1e-9  << " and prediction EMA: " << ema_pred_time_ << std::endl;
-  Eigen::Matrix<double, 6, 1> xi_p_r_in_r(-dt * w_p_r_in_r);
-  T_p_r_extp = T_p_r * tactic::EdgeTransform(xi_p_r_in_r);
-
-  CLOG(DEBUG, "cbit.debug") << "New extrapolated pose:" << T_p_r_extp;
-
-  auto segment_info = findRobotSegmentInfo(T_w_p * T_p_r_extp, chain);
-
-  double curr_p = segment_info.start_p;
-
   std::vector<double> p_rollout;
   for (int j = 1; j < mpcConfig->N + 1; j++) {
-    p_rollout.push_back(curr_p + j * mpcConfig->VF * mpcConfig->DT);
+    p_rollout.push_back(state_p + j * mpcConfig->VF * mpcConfig->DT);
   }
 
   mpcConfig->reference_poses.clear();
@@ -360,7 +342,7 @@ void BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
   vis_->publishReferencePoses(referenceInfo.poses, stamp);
   vis_->publishLocalReferencePoses(original_local_poses, stamp);
   vis_->publishExtrapolatedRobotPose(
-      T_p_r_extp, stamp, static_cast<tactic::Timestamp>(now));
+      T_p_r_extp, stamp, static_cast<tactic::Timestamp>(curr_time));
 
   if (end_ind == 0)
     end_ind = 1;
