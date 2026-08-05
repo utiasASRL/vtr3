@@ -10,7 +10,8 @@ class GraphSmoother {
   using GraphPtr = typename Graph<V, E>::Ptr;
   using Smoother = GraphSmoother<V, E>;
   using PrivEval = eval::mask::privileged::Eval<typename GraphSmoother<V, E>::Base>;
-  using TopEval = eval::mask::topology::Eval<typename GraphSmoother<V, E>::Base>;
+
+
   GraphSmoother(const GraphPtr graph) : graph_{graph}, priv_eval_{std::make_shared<PrivEval>(*graph)} 
   {
     priv_graph_ = graph_->getSubgraph(priv_eval_);
@@ -22,8 +23,6 @@ class GraphSmoother {
 
  private:
   GraphPtr graph_;
-  typename Base::Ptr top_graph_;
-  typename TopEval::Ptr top_eval_;
   typename Base::Ptr priv_graph_;
   typename PrivEval::Ptr priv_eval_;
 
