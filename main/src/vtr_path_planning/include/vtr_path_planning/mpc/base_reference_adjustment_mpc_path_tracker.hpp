@@ -108,6 +108,7 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
  private:
   const Config::ConstPtr base_config_;
   RobotState::Ptr robot_state_;
+  
   const tactic::GraphBase::Ptr graph_;
 
   rclcpp::Publisher<Command>::SharedPtr command_pub_;
@@ -117,6 +118,10 @@ class BaseReferenceAdjustmentMPCPathTracker : public BaseMPCPathTracker {
 
   // Logging: raw streams written to CSV, matched post-hoc by process_prediction_log.py.
   static constexpr int64_t kPredictionStepNs = 250000000LL;  // 0.25s in nanoseconds
+
+  // Moving average time for computation of prediction
+  double ema_pred_time_ = 0.0;
+  double ema_alpha_ = 0.1;
 
   // One row per control cycle: robot world pose for post-hoc interpolation.
   struct PoseLogEntry {
