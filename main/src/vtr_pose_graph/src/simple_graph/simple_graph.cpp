@@ -64,7 +64,6 @@ void SimpleGraph::addEdge(const EdgeId& edge) {
   if (std::find(adj.begin(), adj.end(), edge.id2()) != adj.end()) {
     CLOG(ERROR, "pose_graph") << "Edge " << edge << " already exists";
     throw std::invalid_argument("Tried to add edge that already exists!");
-    return;
   }
 
   // Add adjacency
