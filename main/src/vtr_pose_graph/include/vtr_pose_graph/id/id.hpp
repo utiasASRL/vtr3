@@ -14,7 +14,12 @@
 
 /**
  * \file base_id.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Anthony Beca, Autonomous Space Robotics Lab (ASRL)
+ * 
+ * Vertex ID are assigned according to the following (64-bit) bitfield:
+ *   bits 0-3 : ROBOT_ID -> env variable that is unique for each robot (up to 16 robots)
+ *   bits 4-44 : run id  -> 44-bit UUID that is generated per-run
+ *   bits 45-64 : vertex id -> 16-bit sequential incremented with each vertex
  */
 #pragma once
 
