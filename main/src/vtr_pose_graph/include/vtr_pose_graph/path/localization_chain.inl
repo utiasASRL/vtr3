@@ -196,8 +196,6 @@ void LocalizationChain<Graph>::updateBranchToTwigTransform(
     } else if (branch_vid == trunk_vid_) {
       return T_branch_trunk_;
     } else {
-      // auto eval =
-      //     std::make_shared<eval::mask::privileged::Eval<Graph>>(*this->graph_);
         auto eval =
           std::make_shared<eval::mask::topology::Eval<Graph>>(*this->graph_);
       auto delta = this->graph_->dijkstraSearch(
@@ -321,8 +319,6 @@ void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
     trunk_sid_ = best_sid;
     trunk_vid_ = this->sequence_[trunk_sid_];
 
-    // auto priv_eval =
-    //     std::make_shared<eval::mask::privileged::Eval<Graph>>(*this->graph_);
     auto top_eval =
         std::make_shared<eval::mask::topology::Eval<Graph>>(*this->graph_);
     auto delta = this->graph_->dijkstraSearch(
