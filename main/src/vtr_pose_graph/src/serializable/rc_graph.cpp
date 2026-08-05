@@ -127,7 +127,7 @@ void RCGraph::loadVertices() {
 
   VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", read_only_};
   int index = 1;
-  for (index;; index++) {
+  for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
 
@@ -148,7 +148,7 @@ void RCGraph::loadEdges() {
 
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", read_only_};
   int index = 1;
-  for (index;; index++) {
+  for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
 
@@ -189,7 +189,6 @@ void RCGraph::loadVerticesLive() {
     vertices_.insert(std::make_pair(vertex->id(), vertex)); // bookkeeping
     graph_.addVertex(vertex->id()); // add to simpleGraph
     callback_->vertexAdded(vertex); // inform graph_map_server
-    // CLOG(DEBUG, "pose_graph") << "- live loaded vertex " << *vertex;
   }
   lastVertexIdx_ = index;
 }

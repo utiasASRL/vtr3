@@ -32,19 +32,29 @@ template <class V, class E>
 Graph<V, E>::Graph(const CallbackPtr& callback) : callback_(callback) {}
 
 template <class V, class E>
+uint8_t Graph<V,E>::getRobotIdFromEnv() {
+  const char* env = std::getenv("ROBOT_ID");
+  if (!env) {
+    CLOG(ERROR, "pose_graph") << "ROBOT_ID environment variable not set";
+    throw std::runtime_error("ROBOT_ID environment variable not set");
+  }
+  int id = std::stoi(env);
+  if (id < 0 || id > 15) {
+    CLOG(ERROR, "pose_graph") << "ROBOT_ID out of range (0,15): " << id;
+    throw std::range_error("ROBOT_ID is out of range");
+  }
+  return static_cast<uint8_t>(id);
+}
+
+template <class V, class E>
 MajorIdType Graph<V, E>::addRun() {
   ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
-
-  CLOG(DEBUG, "pose_graph") << "ROBOT_ID: " << robot_id_;
-  if (robot_id_ > 15) {
-    CLOG(ERROR, "pose_graph") << "ROBOT_ID out of range: " << robot_id_;
-    throw std::range_error("ROBOT_ID out of range");
-  }
-
+  uint8_t robot_id = getRobotIdFromEnv();
+  CLOG(INFO, "pose_graph") << "ROBOT_ID is " << robot_id;
   if ((curr_major_id_ == InvalidMajorId) || (curr_minor_id_ != InvalidBaseId)) {
     do { 
-      curr_major_id_ = (rng_() & 0x00000FFFFFFFFFFFull) | (static_cast<MajorIdType>(robot_id_) << 44);
+      curr_major_id_ = (rng_() & 0x00000FFFFFFFFFFFull) | (static_cast<MajorIdType>(robot_id) << 44);
     } while (curr_major_id_ == InvalidMajorId);
     curr_minor_id_ = InvalidBaseId;
   } else {
@@ -53,7 +63,6 @@ MajorIdType Graph<V, E>::addRun() {
   }
 
   CLOG(DEBUG, "pose_graph") << "Added run " << curr_major_id_;
-
   return curr_major_id_;
 }
 
