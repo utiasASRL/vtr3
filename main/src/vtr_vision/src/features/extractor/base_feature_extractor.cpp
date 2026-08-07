@@ -170,9 +170,10 @@ ChannelFeatures BFE::extractChannelFeatures(const ChannelImages &channel,
 ChannelFeatures BFE::extractChannelFeaturesDisp(
     const ChannelImages &channel, const ChannelImages &channel_disp, 
     bool fully_matched = false) {
-  if (fully_matched && channel.cameras.size() == 2)
-    // return extractStereoFeaturesDisp(channel, channel_disp);
+  if (fully_matched && channel.cameras.size() == 2){
+    // CLOG(DEBUG, "stereo.learned_features") << "made it here";
     return extractStereoFeaturesDisp(channel, channel_disp);
+  }
 
   ChannelFeatures features;
   features.name = channel.name;

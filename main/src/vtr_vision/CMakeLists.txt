@@ -5,6 +5,8 @@ project(vtr_vision)
 #   add_compile_options(-Wall -Wextra -Wpedantic)
 # endif()
 
+#Add debug symbols
+# add_compile_options(-g -Og)
 
 
 # Common setup for vtr packages
