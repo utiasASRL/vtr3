@@ -58,6 +58,7 @@ void SimpleGraph::addEdge(const EdgeId& edge) {
   // Get iterators to id-node pairs, or create them
   auto node1 = (node_map_.emplace(edge.id1(), SimpleNode(edge.id1()))).first;
   auto node2 = (node_map_.emplace(edge.id2(), SimpleNode(edge.id2()))).first;
+  CLOG(WARNING, "pose_graph") << "addEdge: adding " << edge;
 
   // Check that edge does not exist
   const std::list<VertexId>& adj = node1->second.getAdjacent();
