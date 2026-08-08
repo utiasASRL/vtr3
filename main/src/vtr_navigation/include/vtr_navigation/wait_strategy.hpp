@@ -89,6 +89,8 @@ struct WaitStrategyConfig {
   // Debug visualization
   bool debug_plot_policy = false;  // Save plots of S(t), A_goal(C), A_avoid(W), J(W) on each episode
   std::string debug_plot_dir;      // Directory for debug plots (defaults to learned_data_dir/debug_plots)
+  int run_idx = 1;                 // Run index from config (for debug plot naming)
+  int starting_episode = 1;        // Starting episode number (from RealWorldLogger resume logic)
   
   double getWMax(const std::string& obs_type) const {
     auto it = W_max_per_type.find(obs_type);
@@ -171,15 +173,17 @@ class WaitStrategy {
    * \brief Called when obstacle clears (for updating models).
    * \param obs_type Obstacle type
    * \param wait_duration How long we actually waited
+   * \param episode Episode number when this occurred
    */
-  virtual void onObstacleCleared(const std::string& obs_type, double wait_duration) {}
+  virtual void onObstacleCleared(const std::string& obs_type, double wait_duration, int episode = 0) {}
   
   /**
    * \brief Called when we timeout and reroute (for updating models).
    * \param obs_type Obstacle type
    * \param wait_duration How long we waited before rerouting (censored sample)
+   * \param episode Episode number when this occurred
    */
-  virtual void onRerouteTimeout(const std::string& obs_type, double wait_duration) {}
+  virtual void onRerouteTimeout(const std::string& obs_type, double wait_duration, int episode = 0) {}
   
   /**
    * \brief Update memory after a censored wait (for Learned strategy).
@@ -195,6 +199,16 @@ class WaitStrategy {
    * \brief Reset all memory (called at start of new Repeat).
    */
   virtual void resetMemory() {}
+
+  /**
+   * \brief Notify the strategy that a new mission episode has started.
+   *
+   * Subclasses (LearnedStrategy) use this to reset per-episode counters
+   * such as the encounter index used in debug-plot filenames.
+   *
+   * \param episode_idx 1-indexed mission episode number.
+   */
+  virtual void notifyEpisodeStart(int /*episode_idx*/) {}
   
   /**
    * \brief For greedy CTP: check if an edge is permanently banned.
@@ -227,6 +241,13 @@ class WaitStrategy {
   virtual void setGraphAccess(
       route_planning::NeighborsFn get_neighbors,
       route_planning::TravelTimeFn get_travel_time) {}
+  
+  /**
+   * \brief Flush pending samples to KM model at episode end (per-episode update mode).
+   * This matches simulation behavior where KM is only updated at end of each episode,
+   * not after each individual encounter.
+   */
+  virtual void flushPendingSamplesToKM() {}
 };
 
 /**
@@ -387,12 +408,22 @@ class LearnedStrategy : public WaitStrategy {
       double t_now,
       double obstacle_t_first) override;
   
-  void onObstacleCleared(const std::string& obs_type, double wait_duration) override;
-  void onRerouteTimeout(const std::string& obs_type, double wait_duration) override;
+  void onObstacleCleared(const std::string& obs_type, double wait_duration, int episode) override;
+  void onRerouteTimeout(const std::string& obs_type, double wait_duration, int episode) override;
   
   void updateMemoryAfterCensoredWait(const EdgeIdSet& blocked_edges, double t_after_wait) override;
   void clearMemoryForEdge(const EdgeId& edge) override;
   void resetMemory() override;
+  void notifyEpisodeStart(int episode_idx) override;
+
+  /**
+   * \brief Seed memory for an edge with explicit t_first / t_last (sim hybrid).
+   * Used by Python↔C++ W* bridge to inject other remembered obstacles.
+   */
+  void seedMemoryForEdge(const EdgeId& edge,
+                         const std::string& obs_type,
+                         double t_first,
+                         double t_last_confirmed);
   
   StrategyType type() const override { return StrategyType::LEARNED; }
   SurvivalModel* survivalModel() override { return &survival_model_; }
@@ -413,7 +444,15 @@ class LearnedStrategy : public WaitStrategy {
     get_neighbors_ = get_neighbors;
     get_travel_time_ = get_travel_time;
   }
-  
+
+  /**
+   * \brief Public accessor for the fresh-edge expected wait (= p_block *
+   * E[type * duration]). The Navigator uses this to give its reroute TDSP
+   * the SAME uniform per-edge cost that the A_avoid TDSP uses in computeWaitTime,
+   * so the executed reroute path matches A_avoid (matches sim).
+   */
+  double freshEdgeExpectedWait() const { return computeExpectedWaitForNewObstacle(); }
+
  private:
   /**
    * \brief Compute expected wait time for a fresh edge (no memory).
@@ -464,6 +503,16 @@ class LearnedStrategy : public WaitStrategy {
    * \brief Detect run number by scanning existing files in debug_plot_dir.
    */
   int detectRunNumber() const;
+
+  /**
+   * \brief Detect the next episode number to log by scanning existing files
+   *        in debug_plot_dir for the current run_number_.
+   *
+   * Scans for files matching `run{run_number_}_episode{M}_encounter{K}_*`
+   * (the new naming format) and returns `max(M) + 1`. If no matching files
+   * exist for this run, returns max(1, config_.starting_episode).
+   */
+  int detectStartingEpisode() const;
   
   WaitStrategyConfig config_;
   SurvivalModel survival_model_;
@@ -475,14 +524,32 @@ class LearnedStrategy : public WaitStrategy {
   std::string survival_stats_file_;
   std::string obstacle_stats_file_;
   
-  // Debug plot tracking
+  // Debug plot tracking.
+  // Filenames are formatted as run{run_number_}_episode{episode_idx_}_encounter{encounter_in_episode_}_*.
+  // episode_idx_ is the 1-indexed mission episode (set via notifyEpisodeStart).
+  // encounter_in_episode_ counts obstacle encounters within the current episode (1-indexed when used).
   std::string debug_plot_dir_;
   int run_number_ = 1;
-  int episode_count_ = 0;
+  int episode_idx_ = 0;
+  int encounter_in_episode_ = 0;
   
   // Graph access functions
   route_planning::NeighborsFn get_neighbors_;
   route_planning::TravelTimeFn get_travel_time_;
+  
+  // Pending samples buffer (updated per-encounter, flushed to KM at episode end)
+  // This matches simulation's per_episode KM update mode
+  struct PendingSample {
+    std::string obs_type;
+    double duration;
+    bool censored;
+    int episode;
+  };
+  std::vector<PendingSample> pending_samples_;
+  
+public:
+  /** Flush pending samples to KM model (call at episode end to match sim behavior). */
+  void flushPendingSamplesToKM();
 };
 
 /**

@@ -76,12 +76,19 @@ LearnedStrategy::LearnedStrategy(const WaitStrategyConfig& config)
       CLOG(WARNING, "navigation") << "HSHMAT LearnedStrategy: Failed to create debug_plot_dir: " << e.what();
     }
     
-    // Detect run number from existing files
-    run_number_ = detectRunNumber();
-    episode_count_ = 0;
-    
-    CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Debug plotting enabled, dir=" 
-                             << debug_plot_dir_ << ", run=" << run_number_;
+    // Use run_idx from config; the starting episode is auto-detected from
+    // debug_plot_dir so resumed runs continue numbering correctly (mirrors how
+    // RealWorldLogger scans episode_stats.csv). Navigator will still call
+    // notifyEpisodeStart() with the authoritative mission episode once the
+    // goal starts.
+    run_number_ = config_.run_idx;
+    episode_idx_ = detectStartingEpisode();
+    encounter_in_episode_ = 0;
+
+    CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Debug plotting enabled, dir="
+                             << debug_plot_dir_ << ", run=" << run_number_
+                             << ", starting_episode=" << episode_idx_
+                             << " (config.starting_episode=" << config_.starting_episode << ")";
   }
   
   CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Initialized with "
@@ -118,7 +125,10 @@ double LearnedStrategy::computeExpectedWaitForNewObstacle() const {
   for (const auto& kv : type_dist) {
     const std::string& obs_type = kv.first;
     double prob_type = kv.second;
-    double mean_duration = survival_model_.meanSurvivalTime(obs_type);
+    // Pass per-type W_max so the tail integration horizon matches the sim
+    // (vtr3_sim agent.py:1582-1592, km.py mean_survival_time uses W_max_per_type).
+    double mean_duration =
+        survival_model_.meanSurvivalTime(obs_type, config_.getWMax(obs_type));
     expected_wait += prob_type * mean_duration;
   }
   
@@ -167,7 +177,10 @@ double LearnedStrategy::computeExpectedWaitForEdge(
   // E[wait | still blocked] = E[T | T > elapsed] - elapsed
   double expected_wait_if_blocked = 0.0;
   if (prob_still_blocked > 1e-10) {
-    double cond_expected = survival_model_.conditionalExpectedTime(obs_type, elapsed_at_arrival);
+    // Pass per-type W_max so the conditional-expectation integration horizon
+    // matches the sim (km.py conditional_expected_km uses W_max_per_type).
+    double cond_expected = survival_model_.conditionalExpectedTime(
+        obs_type, elapsed_at_arrival, config_.getWMax(obs_type));
     expected_wait_if_blocked = std::max(0.0, cond_expected - elapsed_at_arrival);
   }
   
@@ -277,11 +290,17 @@ WaitDecision LearnedStrategy::computeWaitTime(
   // ========================================================================
   const int n_T = std::max(16, config_.T_grid_points);
   double dt = W_max / n_T;
-  
+
   std::vector<double> t_clear(n_T);
   std::vector<double> override_times(n_T);
   for (int i = 0; i < n_T; ++i) {
-    t_clear[i] = (i + 1) * dt;  // Right endpoints: dt, 2*dt, ..., W_max
+    // NOTE: use the SAME formula as W_candidates below so that t_clear[i]
+    // and any W_candidates[j] that represent the same point are bitwise
+    // equal. Otherwise upper_bound() in the J(W) loop can drop a whole
+    // KM-event mass from clear_term at exactly that boundary, leaving S(W)
+    // and clear_term inconsistent and producing a single-row spurious dip
+    // in J(W) (which can then be selected as a bogus W*).
+    t_clear[i] = (static_cast<double>(i + 1) / n_T) * W_max;
     override_times[i] = t_now + t_clear[i];  // Global availability time
   }
   
@@ -366,9 +385,6 @@ WaitDecision LearnedStrategy::computeWaitTime(
   // ========================================================================
   // Step 6: Find optimal W* by minimizing J(W)
   // ========================================================================
-  double best_W = 0.0;
-  double best_J = A_avoid_arrivals[0] - t_now;  // J(0) = A_avoid(t0) - t0 = immediate detour time
-  
   // Collect J values for debug plotting
   std::vector<double> J_values(n_W + 1);
   
@@ -376,9 +392,15 @@ WaitDecision LearnedStrategy::computeWaitTime(
     double W = W_candidates[i];
     
     // clear_term: sum of p(t) * A_goal(t) for t <= W
+    // Use a small tolerance so that bins whose right-endpoint equals W
+    // (to within fp rounding) are INCLUDED. Must mirror how S(W) sees the
+    // KM step at that t; otherwise clear_term and S_W disagree by one bin's
+    // mass and J(W) gets a single-row spurious dip.
     double clear_term = 0.0;
     if (W > 0.0) {
-      auto it = std::upper_bound(t_clear.begin(), t_clear.end(), W);
+      constexpr double kBoundaryEps = 1e-9;
+      auto it = std::upper_bound(t_clear.begin(), t_clear.end(),
+                                 W + kBoundaryEps);
       if (it != t_clear.begin()) {
         int k = static_cast<int>(std::distance(t_clear.begin(), it)) - 1;
         clear_term = cum[k];
@@ -402,14 +424,27 @@ WaitDecision LearnedStrategy::computeWaitTime(
     double A_avoid_elapsed = A_avoid_arrivals[i] - t_now;
     double avoid_term = S_W * A_avoid_elapsed;
     
-    double J = clear_term + avoid_term;
-    J_values[i] = J;
-    
-    if (J < best_J) {
-      best_J = J;
-      best_W = W;
+    J_values[i] = clear_term + avoid_term;
+  }
+
+  // Argmin J(W) with tie-break matching Python sim (_w_star_min_idx_prefer_wmax):
+  // if J(W_max) is within tolerance of min J, prefer W_max over earlier grid points.
+  double best_J = J_values[0];
+  for (double J : J_values) {
+    best_J = std::min(best_J, J);
+  }
+  const double tol = 1e-6 * std::max(1.0, std::abs(best_J));
+  int best_idx = 0;
+  for (int i = 0; i <= n_W; ++i) {
+    if (std::abs(J_values[i] - best_J) <= tol) {
+      best_idx = i;
+      break;
     }
   }
+  if (std::abs(J_values[n_W] - best_J) <= tol) {
+    best_idx = n_W;
+  }
+  double best_W = W_candidates[best_idx];
 
   // Cold-start: no KM samples for this type — S(t)=0 degenerates J(W); use W*=W_max,
   // J*=A_goal(immediate clear)-t_now. Still run full grid above so debug plots are saved.
@@ -489,6 +524,88 @@ WaitDecision LearnedStrategy::computeWaitTime(
     CLOG(INFO, "navigation") << "  --> J(W*):         " << best_J << "s (expected arrival time)";
     CLOG(INFO, "navigation") << "  --> DECISION:      " << (best_W < 1e-3 ? "REROUTE NOW" : ("WAIT " + std::to_string(static_cast<int>(std::ceil(best_W))) + "s"));
     CLOG(INFO, "navigation") << "=====================================================";
+
+    // ======================================================================
+    // REAL PARITY: dump the chosen A_avoid(W=0) path edge-by-edge so we can
+    // compare vertex sequences and per-edge (travel, EW) with the simulator's
+    // [SIM PARITY] log. Keeps formatting symmetric with agent.py:
+    //   _log_avoid_path_for_parity.
+    // ======================================================================
+    {
+      const auto& path = result_avoid0.path;
+      std::ostringstream blocked_ss;
+      blocked_ss << "[";
+      bool first = true;
+      for (const auto& e : forbidden_for_avoid) {
+        if (!first) blocked_ss << ", ";
+        blocked_ss << "((" << e.majorId1() << "," << e.minorId1() << "),("
+                   << e.majorId2() << "," << e.minorId2() << "))";
+        first = false;
+      }
+      blocked_ss << "]";
+
+      CLOG(INFO, "navigation") << "[REAL PARITY] LearnedStrategy A_avoid(W=0) path";
+      CLOG(INFO, "navigation") << "  obs_type=" << obs_type
+                               << "  t0=" << std::fixed << std::setprecision(3) << t_now;
+      CLOG(INFO, "navigation") << "  start_vertex=" << current_vertex
+                               << "  goal_vertex=" << goal_vertex;
+      CLOG(INFO, "navigation") << "  blocked_edges=" << blocked_ss.str();
+      CLOG(INFO, "navigation") << "  p_block(frozen)=" << std::fixed << std::setprecision(6)
+                               << p_block_val;
+      CLOG(INFO, "navigation") << "  ew_fresh(p_block * E[type*duration])="
+                               << std::fixed << std::setprecision(4) << ew_fresh << "s";
+      CLOG(INFO, "navigation") << "  A_avoid_elapsed = A_avoid - t0 = "
+                               << std::fixed << std::setprecision(4) << A_avoid_0 << "s";
+      CLOG(INFO, "navigation") << "  path_len_nodes=" << path.size()
+                               << "  path_edges=" << (path.empty() ? 0 : path.size() - 1);
+
+      // Dump the full vertex sequence (parity with sim)
+      {
+        std::ostringstream ps;
+        ps << "  path=[";
+        for (size_t i = 0; i < path.size(); ++i) {
+          if (i) ps << ", ";
+          ps << "(" << path[i].majorId() << "," << path[i].minorId() << ")";
+        }
+        ps << "]";
+        CLOG(INFO, "navigation") << ps.str();
+      }
+
+      // Per-edge breakdown using the SAME ew_fn that drove the TDSP
+      CLOG(INFO, "navigation") << "  per-edge breakdown:";
+      CLOG(INFO, "navigation") << "    idx          edge                          travel   E[wait]  arrival";
+      double t_cursor = t_now;
+      double sum_travel = 0.0;
+      double sum_ew = 0.0;
+      const int n_edges = static_cast<int>(path.empty() ? 0 : path.size() - 1);
+      const int print_head = 5;
+      const int print_tail = 5;
+      for (int i = 0; i < n_edges; ++i) {
+        EdgeId edge(path[i], path[i + 1]);
+        double travel = get_travel_time_(edge);
+        double ew = ew_fn(edge, t_cursor);
+        sum_travel += travel;
+        sum_ew += ew;
+        t_cursor += travel + ew;
+        if (i < print_head || i >= n_edges - print_tail) {
+          std::ostringstream line;
+          line << "    " << std::setw(4) << i << "  "
+               << "(" << path[i].majorId() << "," << path[i].minorId() << ")"
+               << " -> "
+               << "(" << path[i + 1].majorId() << "," << path[i + 1].minorId() << ")"
+               << "  " << std::fixed << std::setprecision(3) << std::setw(8) << travel
+               << "  " << std::fixed << std::setprecision(3) << std::setw(8) << ew
+               << "  " << std::fixed << std::setprecision(3) << std::setw(9) << (t_cursor - t_now);
+          CLOG(INFO, "navigation") << line.str();
+        } else if (i == print_head) {
+          CLOG(INFO, "navigation") << "    ... (" << (n_edges - print_head - print_tail)
+                                   << " interior edges omitted) ...";
+        }
+      }
+      CLOG(INFO, "navigation") << "  totals: travel=" << std::fixed << std::setprecision(3)
+                               << sum_travel << "s  ew_sum=" << sum_ew
+                               << "s  total_elapsed=" << (sum_travel + sum_ew) << "s";
+    }
   }
   
   // ========================================================================
@@ -533,34 +650,51 @@ std::string LearnedStrategy::buildWaitSpeech(const std::string& obs_type, double
   return ss.str();
 }
 
-void LearnedStrategy::onObstacleCleared(const std::string& obs_type, double wait_duration) {
-  // Uncensored sample: we observed the actual clearance time
-  survival_model_.addSample(obs_type, wait_duration, false);
+void LearnedStrategy::onObstacleCleared(const std::string& obs_type, double wait_duration, int episode) {
+  // Buffer uncensored sample (will be added to KM at episode end to match sim behavior)
+  // Also buffer the obstacle type for stats update at episode end
+  pending_samples_.push_back({obs_type, wait_duration, false, episode});
   
-  // Record episode in global stats
-  obstacle_stats_.recordObstacleEpisode(obs_type);
-  
-  // Save all data
-  saveData();
-  
-  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Recorded uncensored sample for "
-                           << obs_type << ": " << wait_duration << "s"
-                           << " (total episodes: " << obstacle_stats_.totalObstacleEpisodes() << ")";
+  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Buffered uncensored sample for "
+                           << obs_type << ": " << wait_duration << "s, episode=" << episode
+                           << " (pending=" << pending_samples_.size() << ")";
 }
 
-void LearnedStrategy::onRerouteTimeout(const std::string& obs_type, double wait_duration) {
-  // Censored sample: we rerouted before obstacle cleared
-  survival_model_.addSample(obs_type, wait_duration, true);
+void LearnedStrategy::onRerouteTimeout(const std::string& obs_type, double wait_duration, int episode) {
+  // Buffer censored sample (will be added to KM at episode end to match sim behavior)
+  // Also buffer the obstacle type for stats update at episode end
+  pending_samples_.push_back({obs_type, wait_duration, true, episode});
   
-  // Record episode in global stats
-  obstacle_stats_.recordObstacleEpisode(obs_type);
+  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Buffered censored sample for "
+                           << obs_type << ": " << wait_duration << "s, episode=" << episode
+                           << " (pending=" << pending_samples_.size() << ")";
+}
+
+void LearnedStrategy::flushPendingSamplesToKM() {
+  if (pending_samples_.empty()) {
+    CLOG(DEBUG, "navigation") << "HSHMAT LearnedStrategy: No pending samples to flush";
+    return;
+  }
   
-  // Save all data
+  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Flushing " << pending_samples_.size() 
+                           << " pending samples to KM and obstacle stats (per-episode update)";
+  
+  for (const auto& sample : pending_samples_) {
+    // Add to KM survival model
+    survival_model_.addSample(sample.obs_type, sample.duration, sample.censored, sample.episode);
+    // Update obstacle stats (p_block numerator and type counts)
+    obstacle_stats_.recordObstacleEpisode(sample.obs_type);
+    CLOG(DEBUG, "navigation") << "  -> Added " << (sample.censored ? "censored" : "uncensored")
+                              << " sample: " << sample.obs_type << " " << sample.duration << "s"
+                              << ", episode=" << sample.episode;
+  }
+  pending_samples_.clear();
+  
+  // Save all data after batch update
   saveData();
   
-  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Recorded censored sample for "
-                           << obs_type << ": " << wait_duration << "s"
-                           << " (total episodes: " << obstacle_stats_.totalObstacleEpisodes() << ")";
+  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: KM model and obstacle stats updated and saved"
+                           << " (total_obstacle_episodes=" << obstacle_stats_.totalObstacleEpisodes() << ")";
 }
 
 void LearnedStrategy::updateMemoryAfterCensoredWait(
@@ -576,8 +710,32 @@ void LearnedStrategy::clearMemoryForEdge(const EdgeId& edge) {
   memory_.clearEdge(edge);
 }
 
+void LearnedStrategy::seedMemoryForEdge(const EdgeId& edge,
+                                        const std::string& obs_type,
+                                        double t_first,
+                                        double t_last_confirmed) {
+  EdgeIdSet edges;
+  edges.insert(edge);
+  memory_.recordObstacle(edges, obs_type, t_first);
+  if (t_last_confirmed > t_first) {
+    memory_.updateAfterCensoredWait(edge, t_last_confirmed);
+  }
+}
+
 void LearnedStrategy::resetMemory() {
   memory_.reset();
+}
+
+void LearnedStrategy::notifyEpisodeStart(int episode_idx) {
+  // Use the navigator's mission episode number directly so debug-plot filenames
+  // align with the episode counter in user-facing logs. encounter_in_episode_
+  // resets so the next saveDebugPlots() call writes ...encounter1_*.
+  if (episode_idx > 0) {
+    episode_idx_ = episode_idx;
+  }
+  encounter_in_episode_ = 0;
+  CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: notifyEpisodeStart -> episode "
+                           << episode_idx_ << " (encounter counter reset)";
 }
 
 int LearnedStrategy::detectRunNumber() const {
@@ -587,7 +745,9 @@ int LearnedStrategy::detectRunNumber() const {
     return 1;
   }
   
-  // Scan for files matching pattern run{N}_episode{M}_*.png or .csv
+  // Scan for files matching pattern run{N}_episode{M}_* (with or without
+  // _encounter{K} suffix). Older outputs used run{N}_episode{M} where M was
+  // actually an encounter counter; new outputs use run{N}_episode{M}_encounter{K}.
   std::regex run_pattern(R"(run(\d+)_episode\d+)");
   
   try {
@@ -608,6 +768,42 @@ int LearnedStrategy::detectRunNumber() const {
   return max_run + 1;  // Next run number
 }
 
+int LearnedStrategy::detectStartingEpisode() const {
+  // Default fallback if we cannot scan: trust the config value.
+  const int fallback = std::max(1, config_.starting_episode);
+
+  if (debug_plot_dir_.empty() || !std::filesystem::exists(debug_plot_dir_)) {
+    return fallback;
+  }
+
+  // Match the NEW naming format only: run{run_number_}_episode{M}_encounter{K}_*.
+  // Old-format files (run{N}_episode{M} without _encounter) are ignored so we
+  // do not confuse the legacy encounter counter with an episode index.
+  const std::string run_prefix = "run" + std::to_string(run_number_);
+  std::regex episode_pattern(run_prefix + R"(_episode(\d+)_encounter\d+)");
+
+  int max_ep = 0;
+  try {
+    for (const auto& entry : std::filesystem::directory_iterator(debug_plot_dir_)) {
+      if (!entry.is_regular_file()) continue;
+      const std::string filename = entry.path().filename().string();
+      std::smatch match;
+      if (std::regex_search(filename, match, episode_pattern)) {
+        int ep = std::stoi(match[1].str());
+        max_ep = std::max(max_ep, ep);
+      }
+    }
+  } catch (const std::exception& e) {
+    CLOG(WARNING, "navigation")
+        << "HSHMAT LearnedStrategy: Error scanning debug_plot_dir for episode: " << e.what();
+    return fallback;
+  }
+
+  // Next episode to log = max(M) + 1, but never below the config-provided value
+  // so resume logic in RealWorldLogger remains the lower bound.
+  return std::max(fallback, max_ep + 1);
+}
+
 void LearnedStrategy::saveDebugPlots(
     const std::string& obs_type,
     double W_max,
@@ -623,11 +819,15 @@ void LearnedStrategy::saveDebugPlots(
     double best_W,
     double best_J) {
   
-  ++episode_count_;
-  
-  std::string prefix = debug_plot_dir_ + "/run" + std::to_string(run_number_) 
-                     + "_episode" + std::to_string(episode_count_);
-  
+  // Each call to saveDebugPlots corresponds to one obstacle encounter within the
+  // current episode. encounter_in_episode_ resets when Navigator notifies us of
+  // a new episode (see notifyEpisodeStart).
+  ++encounter_in_episode_;
+
+  std::string prefix = debug_plot_dir_ + "/run" + std::to_string(run_number_)
+                     + "_episode" + std::to_string(episode_idx_)
+                     + "_encounter" + std::to_string(encounter_in_episode_);
+
   CLOG(INFO, "navigation") << "HSHMAT LearnedStrategy: Saving debug plots to " << prefix << "_*.csv";
   
   // === Save data to CSV files for external plotting ===
@@ -725,7 +925,9 @@ void LearnedStrategy::saveDebugPlots(
   // 6. Summary metadata
   {
     std::ofstream f(prefix + "_summary.yaml");
-    f << "# Debug plot summary for run " << run_number_ << " episode " << episode_count_ << "\n";
+    f << "# Debug plot summary for run " << run_number_
+      << " episode " << episode_idx_
+      << " encounter " << encounter_in_episode_ << "\n";
     f << "obs_type: " << obs_type << "\n";
     f << "W_max: " << W_max << "\n";
     f << "elapsed: " << elapsed << "\n";
@@ -747,8 +949,10 @@ void LearnedStrategy::saveDebugPlots(
     f << "set output '" << prefix << "_combined.png'\n\n";
     // CSV files are comma-separated; tell gnuplot how to split columns.
     f << "set datafile separator ','\n\n";
-    f << "set multiplot layout 2,2 title 'Learned Policy: " << obs_type 
-      << " (run " << run_number_ << " ep " << episode_count_ << ")' font ',14'\n\n";
+    f << "set multiplot layout 2,2 title 'Learned Policy: " << obs_type
+      << " (run " << run_number_
+      << " ep " << episode_idx_
+      << " enc " << encounter_in_episode_ << ")' font ',14'\n\n";
     
     // Plot 1: Survival function
     f << "set title 'Survival Function S(t)'\n";
