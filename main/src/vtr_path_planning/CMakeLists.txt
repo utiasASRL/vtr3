@@ -108,7 +108,7 @@ find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})
 
 
-file(GLOB_RECURSE SRC src/cbit/*.cpp)
+file(GLOB_RECURSE SRC src/cbit/*.cpp src/feedback_linearization/*.cpp)
 add_library(${PROJECT_NAME}_cbit ${SRC})
 target_link_libraries(${PROJECT_NAME}_cbit ${PROJECT_NAME}_mpc)
 target_link_libraries(${PROJECT_NAME}_cbit ${PYTHON_LIBRARIES})
