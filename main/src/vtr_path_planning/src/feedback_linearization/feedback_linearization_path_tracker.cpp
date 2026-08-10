@@ -89,7 +89,7 @@ FeedbackLinearizationPathTracker::~FeedbackLinearizationPathTracker() { stop(); 
 // Dynamics
 //[Delta L[k+1], Delta H[k+1]]^T = [Delta L[k], Delta H[k]\^T +  dt [v[k] sin \Delta H[k] v[k] / L tan psi[K]]
 // Select a coordinate change to linearize the dynamics 
-// z_1 [k] = \Delta H[k], z_2 [k] = v[k] sin Delta_H[k]
+// z_1 [k] = \Delta L[k], z_2 [k] = v[k] sin Delta_H[k]
 // Virtual Input is nu
 // nu [k] = v[k] cos Delta H[k] v[k]/L tan \psi[k] [1]
 // Coordinate change dynamics:
@@ -160,6 +160,7 @@ auto FeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state)
 
   double psi_cmd = 0.0;
   double v_cmd = v;
+  v_cmd = clampAbs(v_cmd, config_->max_lin_vel);
   if (std::abs(v) < config_->min_linearizing_speed) {
     // The linearization is singular at v == 0
     // so fall back if we are near that velocity
@@ -176,7 +177,7 @@ auto FeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state)
     psi_cmd = clampAbs(std::atan2(numer, denom), config_->max_steering_angle);
   }
 
-  v_cmd = clampAbs(v_cmd, config_->max_lin_vel);
+
 
   Command command;
   command.linear.x = v_cmd * config_->robot_linear_velocity_scale;
