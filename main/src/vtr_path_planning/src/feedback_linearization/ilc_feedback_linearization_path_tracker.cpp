@@ -132,6 +132,10 @@ auto ILCFeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state
   auto [lateral_error, heading_error] = calculateErrors(curr_sid, robot_state);
 
   if (curr_sid != current_accum_vid_) {
+    CLOG(DEBUG, "feedback_linearization.ilc")
+        << "Advancing accumulation vertex from " << current_accum_vid_
+        << " to " << curr_sid << ", finalizing bookkeeping for "
+        << lateral_error_mean_.size() << " vertices seen so far";
     updateBookkeeping();
     updateFeedForwardCorrections();
     current_accum_vid_ = curr_sid;
@@ -145,7 +149,18 @@ auto ILCFeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state
     heading_error_samples_.push_back(heading_error);
     linear_velocity_samples_.push_back(T_w_v_odo.r_ab_inb().norm());
     psi_k_i_ff = feedforwardCorrection(curr_sid);
+  } else {
+    CLOG(DEBUG, "feedback_linearization.ilc")
+        << "Skipping ILC sample accumulation at sid " << curr_sid
+        << ", v_k_i = " << v_k_i << " below activity threshold (0.1)";
   }
+
+  CLOG(DEBUG, "feedback_linearization.ilc")
+      << "sid: " << curr_sid << " | lateral_error: " << lateral_error
+      << " heading_error: " << heading_error
+      << " | psi_fb: " << psi_k_i_fb << " psi_ff: " << psi_k_i_ff
+      << " | psi_total: " << (psi_k_i_fb + psi_k_i_ff)
+      << " v: " << v_k_i;
 
   base_command.angular.z += psi_k_i_ff;
   return base_command;
@@ -161,6 +176,13 @@ double ILCFeedbackLinearizationPathTracker::feedforwardCorrection(
 }
 
 void ILCFeedbackLinearizationPathTracker::updateBookkeeping(){
+  if (lateral_error_samples_.empty()) {
+    CLOG(DEBUG, "feedback_linearization.ilc")
+        << "updateBookkeeping called for vertex " << current_accum_vid_
+        << " with no samples accumulated, skipping";
+    return;
+  }
+
   // Update cached feedforward corrections
   double lateral_error_accum = std::accumulate(lateral_error_samples_.begin(), lateral_error_samples_.end(), 0.0);
   double lat_err_mean = lateral_error_accum / lateral_error_samples_.size();
@@ -177,12 +199,22 @@ void ILCFeedbackLinearizationPathTracker::updateBookkeeping(){
   linear_velocity_mean_[current_accum_vid_] = lin_vel_mean;
   linear_velocity_samples_.clear();
 
+  CLOG(DEBUG, "feedback_linearization.ilc")
+      << "Vertex " << current_accum_vid_ << " bookkeeping: mean lateral_error="
+      << lat_err_mean << " mean heading_error=" << heading_err_mean
+      << " mean v=" << lin_vel_mean;
+
   return;
 }
 
 void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
   unsigned num_verts = lateral_error_mean_.size();
   auto config_lookahead_window = config_->lookahead_window;
+  CLOG(DEBUG, "feedback_linearization.ilc")
+      << "updateFeedForwardCorrections: " << num_verts
+      << " vertices with error data, lookahead_window="
+      << config_lookahead_window;
+  unsigned num_updated = 0;
   for (unsigned i = 0; i < num_verts; ++i) {
     // Average over next N SIDs, following Ostafew
     unsigned window_end = std::min(i + config_lookahead_window,
@@ -197,10 +229,10 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
       avg_err_lat += lateral_error_mean_.at(j);
       avg_err_yaw += heading_error_mean_.at(j);
     }
-    
+
     avg_err_lat /= lookahead_window;
     avg_err_yaw /= lookahead_window;
-   
+
     // Update the feedforward correction
     auto last_iter_ff_psi = config_->forgetting_factor * (psi_ff_correction_.find(i) != psi_ff_correction_.end() ? psi_ff_correction_.at(i) : 0.0);
     auto num = -config_->wheelbase*(config_->learning_gain_lateral * avg_err_lat + \
@@ -209,9 +241,18 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
 
     auto psi_curr_iter_ff = last_iter_ff_psi + std::atan2(num, denom);
 
-    psi_ff_correction_[i] = clampAbs(psi_curr_iter_ff, config_->feedforward_max);
-
+    const double clamped = clampAbs(psi_curr_iter_ff, config_->feedforward_max);
+    if (std::abs(clamped - psi_curr_iter_ff) > 1e-9) {
+      CLOG(DEBUG, "feedback_linearization.ilc")
+          << "Vertex " << i << " ff correction clamped: raw="
+          << psi_curr_iter_ff << " limit=" << config_->feedforward_max;
+    }
+    psi_ff_correction_[i] = clamped;
+    ++num_updated;
   }
+  CLOG(DEBUG, "feedback_linearization.ilc")
+      << "updateFeedForwardCorrections: updated " << num_updated << "/"
+      << num_verts << " vertex corrections";
 }
 
 }  // namespace vtr::path_planning

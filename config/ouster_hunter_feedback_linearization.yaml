@@ -29,6 +29,8 @@
       - mpc.cbit
       - mpc.debug
       - cbit.control
+      - feedback_linearization.control
+      - feedback_linearization.ilc
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
