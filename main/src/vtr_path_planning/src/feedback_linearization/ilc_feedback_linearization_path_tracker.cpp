@@ -47,7 +47,7 @@ auto ILCFeedbackLinearizationPathTracker::Config::loadConfig(
       prefix + ".ilc.forgetting_factor", config->forgetting_factor);
   config->feedforward_max = node->declare_parameter<double>(
       prefix + ".ilc.feedforward_max", config->feedforward_max);
-  config->lookahead_window = node->declare_parameter<double>(
+  config->lookahead_window = node->declare_parameter<unsigned>(
       prefix + ".ilc.lookahead_window", config->lookahead_window);
 }
 
@@ -74,9 +74,14 @@ ILCFeedbackLinearizationPathTracker::~ILCFeedbackLinearizationPathTracker() {
 }
 
 void ILCFeedbackLinearizationPathTracker::setRunning(const bool running) {
+  CLOG(DEBUG, "feedback_linearization.ilc") << "Setting running state to " << running;
   if (!running && lateral_error_mean_.size() > 0) {
     updateBookkeeping();
     updateFeedForwardCorrections();
+    CLOG(DEBUG, "feedback_linearization.ilc") << "Finalized bookkeeping and feedforward corrections";
+  }
+  else{
+    CLOG(DEBUG, "feedback_linearization.ilc") << "Not updating bookkeeping or feedforward corrections";
   }
   BasePathPlanner::setRunning(running);
 }
@@ -137,7 +142,6 @@ auto ILCFeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state
         << " to " << curr_sid << ", finalizing bookkeeping for "
         << lateral_error_mean_.size() << " vertices seen so far";
     updateBookkeeping();
-    updateFeedForwardCorrections();
     current_accum_vid_ = curr_sid;
   }
 
@@ -222,6 +226,10 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
     unsigned window_start = i + 2;
     unsigned lookahead_window = (window_end > window_start) ? (window_end - window_start) : 0;
     if (lookahead_window == 0) {
+      CLOG(DEBUG, "feedback_linearization.ilc")
+          << "Vertex " << i << " has no lookahead window (window_start="
+          << window_start << ", window_end=" << window_end
+          << "), skipping feedforward update";
       continue;
     }
     double avg_err_lat = 0.0, avg_err_yaw = 0.0;
