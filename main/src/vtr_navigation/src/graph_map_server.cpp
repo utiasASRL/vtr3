@@ -605,6 +605,7 @@ void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
   for (auto&& route : routes) {
     int curr_route_type = -1;
     for (auto&& id : route.elements()) {
+      if (vid2idx_map_.count(id) == 0) continue; // skip unindexed vertices
       const auto type = graph_state_.vertices[vid2idx_map_.at(id)].type;
       // new route
       if (curr_route_type == -1) {
@@ -688,16 +689,26 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
 
 void GraphMapServer::publishUpdate(const EdgePtr& e) {
   CLOG(DEBUG, "navigation") << "publishUpdate: working on edge" << *e;
+  UniqueLock lock(mutex_);
+
   const auto from = e->from();
   const auto to = e->to();
 
-  auto& from_idx = vid2idx_map_.at(from);
   if (vid2idx_map_.count(to) == 0) {
+    CLOG(WARNING, "navigation.graph_map_server") 
+        << "Vertex " << from << " not in vid2idx_map_. Triggering full state rebuild.";
+    lock.unlock();
+    buildAndPublishGraphState();
+    return;
+  }
+
+  auto& from_idx = vid2idx_map_.at(from);
+  if (vid2idx_map_.count(to) == 0){
     auto& vertex = graph_state_.vertices.emplace_back();
     vertex.id = to;
     vid2idx_map_[to] = graph_state_.vertices.size() - 1;
   }
-
+  
   // projection
   const auto [lng, lat, theta] = project_vertex_(to);
   auto& vertex_msg = graph_state_.vertices[vid2idx_map_.at(to)];
