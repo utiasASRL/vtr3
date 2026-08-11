@@ -121,6 +121,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 void GraphMapServer::buildAndPublishGraphState() {
   auto graph_lock = getGraph()->guard();
   auto saved_active_routes = graph_state_.active_routes; // persist active
+  CLOG(DEBUG, "navigation.graph_map_server") << "buildAndPublishGraphState()";
 
   const auto priv_graph = getTopologyGraph();
   optimizeGraph(priv_graph); // sets graph_state_
@@ -342,6 +343,7 @@ void GraphMapServer::endRun() {
   auto graph_lock = getGraph()->guard();  // lock graph then internal lock
   UniqueLock lock(mutex_);
   if (getGraph()->numberOfVertices() <= 1) return;
+  CLOG(DEBUG, "navigation.graph_map_server") << "endRun()";
 
   buildAndPublishGraphState();
 }
@@ -433,6 +435,8 @@ void GraphMapServer::optimizeGraph(const tactic::GraphBase::Ptr& priv_graph) {
   pose_graph::PoseGraphOptimizer<tactic::GraphBase> optimizer(
       priv_graph, root_vid, vid2tf_map_);
 
+  CLOG(DEBUG, "navigation.graph_map_server") << "optimizeGraph: posegraph opitmizer done";
+  
   // add pose graph relaxation factors
   // default covariance to use
   Eigen::Matrix<double, 6, 6> cov(Eigen::Matrix<double, 6, 6>::Identity());
