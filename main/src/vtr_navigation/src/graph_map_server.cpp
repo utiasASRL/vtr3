@@ -331,11 +331,11 @@ void GraphMapServer::vertexAdded(const VertexPtr& v) {
 
 void GraphMapServer::edgeAdded(const EdgePtr& e) {
   CLOG(DEBUG, "navigation.graph_map_server") << "edgeAdded";
-  UniqueLock lock(mutex_);
-  if (updateIncrementally(e)) return;
+  {
+    UniqueLock lock(mutex_);
+    if (updateIncrementally(e)) return;
+  }
   CLOG(DEBUG, "navigation.graph_map_server") << "edgeAdded: buildAndPublishGraphState";
-
-  //
   buildAndPublishGraphState();
 }
 
@@ -689,15 +689,14 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
 
 void GraphMapServer::publishUpdate(const EdgePtr& e) {
   CLOG(DEBUG, "navigation") << "publishUpdate: working on edge" << *e;
-  UniqueLock lock(mutex_);
 
   const auto from = e->from();
   const auto to = e->to();
 
-  if (vid2idx_map_.count(to) == 0) {
+  if (vid2idx_map_.count(from) == 0) {
     CLOG(WARNING, "navigation.graph_map_server") 
         << "Vertex " << from << " not in vid2idx_map_. Triggering full state rebuild.";
-    lock.unlock();
+    mutex_.unlock();
     buildAndPublishGraphState();
     return;
   }
