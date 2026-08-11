@@ -137,12 +137,17 @@ auto ILCFeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state
     current_accum_vid_ = curr_sid;
   }
 
-  lateral_error_samples_.push_back(lateral_error);
-  heading_error_samples_.push_back(heading_error);
-  linear_velocity_samples_.push_back(T_w_v_odo.r_ab_inb().norm());
-  auto psi_ki_ff = feedforwardCorrection(curr_sid);
+  // Temporary hack to see if the vehicle is active
+  // Don't want to bias errors with dead-man switched items
+  double psi_k_i_ff = 0.0d;
+  if (v_k_i >= 0.1) {
+    lateral_error_samples_.push_back(lateral_error);
+    heading_error_samples_.push_back(heading_error);
+    linear_velocity_samples_.push_back(T_w_v_odo.r_ab_inb().norm());
+    psi_k_i_ff = feedforwardCorrection(curr_sid);
+  }
 
-  base_command.angular.z += psi_ki_ff;
+  base_command.angular.z += psi_k_i_ff;
   return base_command;
 }
 
