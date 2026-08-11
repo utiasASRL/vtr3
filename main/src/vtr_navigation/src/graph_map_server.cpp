@@ -120,16 +120,16 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 
 void GraphMapServer::buildAndPublishGraphState() {
   auto graph_lock = getGraph()->guard();
-  auto saved_active_routes = graph_state_.active_routes; // persist active
-  CLOG(DEBUG, "navigation.graph_map_server") << "buildAndPublishGraphState()";
+  UniqueLock lock(mutex_);
 
+  CLOG(DEBUG, "navigation.graph_map_server") << "buildAndPublishGraphState()";
+  auto saved_active_routes = graph_state_.active_routes; // persist active
   const auto priv_graph = getTopologyGraph();
   optimizeGraph(priv_graph); // sets graph_state_
   updateVertexProjection(); 
   updateVertexType();       
   updateVertexName();       
   computeRoutes(priv_graph);
-
   graph_state_.active_routes = saved_active_routes;
 
   if (graph_state_pub_) {
@@ -183,7 +183,6 @@ void GraphMapServer::annotateRouteCallback(
       << "Received annotate graph request: ids: " << msg->ids
       << ", type: " << (int)msg->type;
   const auto graph = getGraph();
-  buildAndPublishGraphState();
   for (const auto& id : msg->ids) {
     const auto env_info_msg =
         graph->at(VertexId(id))
@@ -200,6 +199,7 @@ void GraphMapServer::annotateRouteCallback(
     env_info.terrain_type = msg->type;
     locked_env_info_msg.setData(env_info);
   }
+  buildAndPublishGraphState();
 }
 
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
@@ -208,7 +208,6 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
       << ", " << msg->theta << ", " << msg->scale << ">";
   //
   const auto graph = getGraph();
-  buildAndPublishGraphState();
   auto map_info = graph->getMapInfo();
   map_info.lng += msg->lng;
   map_info.lat += msg->lat;
@@ -218,7 +217,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   CLOG(DEBUG, "navigation.graph_map_server")
       << "Updated graph map info: <" << map_info.lng << ", " << map_info.lat
       << ", " << map_info.theta << ", " << map_info.scale << ">";
-
+  buildAndPublishGraphState();
 }
 
 float GraphMapServer::haversineDist(float lat1, float lat2, float lon1, float lon2) {
@@ -271,10 +270,8 @@ void GraphMapServer::updateWaypointCallback(
   CLOG(DEBUG, "navigation.graph_map_server")
       << "Received update waypoint request: vertex_id:" << msg->vertex_id << ", type:"
       << (int)msg->type << ", name:" << msg->name;
-
   
   const auto graph = getGraph();
-  buildAndPublishGraphState();
   {
   const auto waypoint_name_msg =
       graph->at(VertexId(msg->vertex_id))
@@ -304,6 +301,7 @@ void GraphMapServer::updateWaypointCallback(
 
   locked_waypoint_name_msg.setData(waypoint_name);
   }
+  buildAndPublishGraphState();
 }
 
 void GraphMapServer::vertexAdded(const VertexPtr& v) {
@@ -331,20 +329,20 @@ void GraphMapServer::vertexAdded(const VertexPtr& v) {
 
 void GraphMapServer::edgeAdded(const EdgePtr& e) {
   CLOG(DEBUG, "navigation.graph_map_server") << "edgeAdded";
+  bool ok;
   {
     UniqueLock lock(mutex_);
-    if (updateIncrementally(e)) return;
+    ok = updateIncrementally(e);
   }
-  CLOG(DEBUG, "navigation.graph_map_server") << "edgeAdded: buildAndPublishGraphState";
-  buildAndPublishGraphState();
+  if (!ok) {
+    CLOG(DEBUG, "navigation.graph_map_server") << "edgeAdded: buildAndPublishGraphState";
+    buildAndPublishGraphState();
+  }
 }
 
 void GraphMapServer::endRun() {
-  auto graph_lock = getGraph()->guard();  // lock graph then internal lock
-  UniqueLock lock(mutex_);
   if (getGraph()->numberOfVertices() <= 1) return;
   CLOG(DEBUG, "navigation.graph_map_server") << "endRun()";
-
   buildAndPublishGraphState();
 }
 
@@ -681,13 +679,11 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   }
   // vid2tfmap update
   vid2tf_map_[to] = T_to_from * vid2tf_map_.at(from);
-
-  publishUpdate(e);
   CLOG(DEBUG, "navigation.graph_map_server") << "Incremental update succeeded";
-  return true;
+  return publishUpdate(e);
 }
 
-void GraphMapServer::publishUpdate(const EdgePtr& e) {
+bool GraphMapServer::publishUpdate(const EdgePtr& e) {
   CLOG(DEBUG, "navigation") << "publishUpdate: working on edge" << *e;
 
   const auto from = e->from();
@@ -696,9 +692,7 @@ void GraphMapServer::publishUpdate(const EdgePtr& e) {
   if (vid2idx_map_.count(from) == 0) {
     CLOG(WARNING, "navigation.graph_map_server") 
         << "Vertex " << from << " not in vid2idx_map_. Triggering full state rebuild.";
-    mutex_.unlock();
-    buildAndPublishGraphState();
-    return;
+    return false;
   }
 
   auto& from_idx = vid2idx_map_.at(from);
@@ -768,6 +762,7 @@ void GraphMapServer::publishUpdate(const EdgePtr& e) {
   graph_update.vertex_from = graph_state_.vertices[vid2idx_map_.at(from)];
   graph_update.vertex_to = graph_state_.vertices[vid2idx_map_.at(to)];
   graph_update_pub_->publish(graph_update);
+  return true;
 }
 
 }  // namespace navigation
