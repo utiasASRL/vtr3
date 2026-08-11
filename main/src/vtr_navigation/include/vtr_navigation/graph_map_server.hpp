@@ -148,7 +148,7 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   /** \brief Update the graph incrementally when no optimization is needed */
   bool updateIncrementally(const EdgePtr& e);
-  void publishUpdate(const EdgePtr& e);
+  bool publishUpdate(const EdgePtr& e);
 
   void updateRobotProjection();
 
