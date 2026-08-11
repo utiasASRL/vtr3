@@ -182,13 +182,16 @@ void RCGraph::loadVerticesLive() {
     auto vertex_msg = msg->locked().get().getData();
     auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
     CLOG(DEBUG, "pose_graph") << "loadVerticesLive: (vertex, time): (" << vertex->id() << ", " << vertex->vertexTime() << ")";
-    if (vertex->vertexTime() == 0) {
-      topology_vertices_[vertex->id()] = index;
-      CLOG(DEBUG, "pose_graph") << "Live: Topology Vertex inserted, len " << topology_vertices_.size();
-    }
-    vertices_.insert(std::make_pair(vertex->id(), vertex)); // bookkeeping
-    graph_.addVertex(vertex->id()); // add to simpleGraph
-    callback_->vertexAdded(vertex); // inform graph_map_server
+    {    
+      std::unique_lock lock(mutex_);
+      if (vertex->vertexTime() == 0) {
+        topology_vertices_[vertex->id()] = index;
+        CLOG(DEBUG, "pose_graph") << "Live: Topology Vertex inserted, len " << topology_vertices_.size();
+      }
+      vertices_.insert(std::make_pair(vertex->id(), vertex)); // bookkeeping
+      graph_.addVertex(vertex->id()); // add to simpleGraph
+      callback_->vertexAdded(vertex); // inform graph_map_server
+    } 
   }
   lastVertexIdx_ = index;
 }
@@ -197,6 +200,7 @@ void RCGraph::loadEdgesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk | index: " << lastEdgeIdx_;
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
 
+
   int index = lastEdgeIdx_;
   for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
@@ -204,25 +208,29 @@ void RCGraph::loadEdgesLive() {
     auto edge_msg = msg->locked().get().getData();
     auto edge = RCEdge::MakeShared(edge_msg, msg);
     const auto& eid = edge->id();
-    if (vertices_.find(eid.id1()) == vertices_.end() ||
-        vertices_.find(eid.id2()) == vertices_.end()) {
-      CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
-      break;
-    }
-    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
-      topology_edges_[edge->id()] = index;
-      CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
-    }
-    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::AUTONOMOUS) {
-      continue;
-    }
-    CLOG(DEBUG, "pose_graph") << " - loading edge " << *edge;
-    CLOG(DEBUG, "pose_graph") << "loadLive: edges_.insert";
-    edges_.insert(std::make_pair(eid, edge)); // bookkeeping
-    CLOG(DEBUG, "pose_graph") << "loadLive: graph_.addEdge";
-    graph_.addEdge(edge->id()); // add to simpleGraph
-    CLOG(DEBUG, "pose_graph") << "loadLive: callback_->edgeAdded";
-    callback_->edgeAdded(edge);  // inform graph_map_server
+
+    {
+      std::unique_lock lock(mutex_);
+      if (vertices_.find(eid.id1()) == vertices_.end() ||
+          vertices_.find(eid.id2()) == vertices_.end()) {
+        CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
+        break;
+      }
+      if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
+        topology_edges_[edge->id()] = index;
+        CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
+      }
+      if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::AUTONOMOUS) {
+        continue;
+      }
+      CLOG(DEBUG, "pose_graph") << " - loading edge " << *edge;
+      CLOG(DEBUG, "pose_graph") << "loadLive: edges_.insert";
+      edges_.insert(std::make_pair(eid, edge)); // bookkeeping
+      CLOG(DEBUG, "pose_graph") << "loadLive: graph_.addEdge";
+      graph_.addEdge(edge->id()); // add to simpleGraph
+      CLOG(DEBUG, "pose_graph") << "loadLive: callback_->edgeAdded";
+      callback_->edgeAdded(edge);  // inform graph_map_server
+      }
   }
   lastEdgeIdx_ = index;
 }
@@ -249,7 +257,7 @@ void RCGraph::populateLive() {
       CLOG(DEBUG, "pose_graph") << "populateEdgesLive: considering edge" << *new_edge;
       if (new_edge->isManual()) {
         CLOG(DEBUG, "pose_graph") << "populateEdgesLive: overwrote edge" << eid;
-        edges[eid] = new_edge;
+        edges_[eid] = new_edge;
         edges_to_publish[e_it->second] = new_edge;
         e_it = topology_edges_.erase(e_it);
       } 
