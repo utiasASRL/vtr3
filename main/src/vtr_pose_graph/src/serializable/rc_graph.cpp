@@ -174,6 +174,7 @@ void RCGraph::loadVerticesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading vertices from disk | index: " << lastVertexIdx_;
   VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
 
+  std::vector<VertexPtr> vertices_to_notify;
   int index = lastVertexIdx_;
   for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
@@ -190,8 +191,12 @@ void RCGraph::loadVerticesLive() {
       }
       vertices_.insert(std::make_pair(vertex->id(), vertex)); // bookkeeping
       graph_.addVertex(vertex->id()); // add to simpleGraph
-      callback_->vertexAdded(vertex); // inform graph_map_server
+      vertices_to_notify.push_back(vertex);
     } 
+  }
+
+  for (const auto& vtx : vertices_to_notify) {
+      callback_->vertexAdded(vertex); // inform graph_map_server
   }
   lastVertexIdx_ = index;
 }
@@ -209,6 +214,7 @@ void RCGraph::loadEdgesLive() {
     auto edge = RCEdge::MakeShared(edge_msg, msg);
     const auto& eid = edge->id();
 
+    std::vector<EdgePtr> edges_to_notify;
     {
       std::unique_lock lock(mutex_);
       if (vertices_.find(eid.id1()) == vertices_.end() ||
@@ -228,11 +234,14 @@ void RCGraph::loadEdgesLive() {
       edges_.insert(std::make_pair(eid, edge)); // bookkeeping
       CLOG(DEBUG, "pose_graph") << "loadLive: graph_.addEdge";
       graph_.addEdge(edge->id()); // add to simpleGraph
-      CLOG(DEBUG, "pose_graph") << "loadLive: callback_->edgeAdded";
-      callback_->edgeAdded(edge);  // inform graph_map_server
+      edges_to_notify.push_back(edge);
       }
   }
   lastEdgeIdx_ = index;
+
+  for (const auto& edge : edges_to_notify) {
+    callback_->edgeAdded(edge);
+  }
 }
 
 void RCGraph::populateLive() {
