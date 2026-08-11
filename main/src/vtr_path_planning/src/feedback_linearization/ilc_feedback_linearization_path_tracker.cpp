@@ -47,7 +47,7 @@ auto ILCFeedbackLinearizationPathTracker::Config::loadConfig(
       prefix + ".ilc.forgetting_factor", config->forgetting_factor);
   config->feedforward_max = node->declare_parameter<double>(
       prefix + ".ilc.feedforward_max", config->feedforward_max);
-  config->lookahead_window = node->declare_parameter<unsigned>(
+  config->lookahead_window = node->declare_parameter<int>(
       prefix + ".ilc.lookahead_window", config->lookahead_window);
 }
 
