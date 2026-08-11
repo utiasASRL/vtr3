@@ -221,7 +221,7 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
   unsigned num_updated = 0;
   for (unsigned i = 0; i < num_verts; ++i) {
     // Average over next N SIDs, following Ostafew
-    unsigned window_end = std::min(i + config_lookahead_window,
+    unsigned window_end = std::min(i + 2 + config_lookahead_window,
                                 static_cast<unsigned>(num_verts));
     unsigned window_start = i + 2;
     unsigned lookahead_window = (window_end > window_start) ? (window_end - window_start) : 0;
