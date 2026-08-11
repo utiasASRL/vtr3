@@ -249,7 +249,7 @@ void RCGraph::populateLive() {
       CLOG(DEBUG, "pose_graph") << "populateEdgesLive: considering edge" << *new_edge;
       if (new_edge->isManual()) {
         CLOG(DEBUG, "pose_graph") << "populateEdgesLive: overwrote edge" << eid;
-        edges_.at(eid) = new_edge;
+        edges[eid] = new_edge;
         edges_to_publish[e_it->second] = new_edge;
         e_it = topology_edges_.erase(e_it);
       } 
