@@ -219,24 +219,35 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
       << " vertices with error data, lookahead_window="
       << config_lookahead_window;
   unsigned num_updated = 0;
-  for (unsigned i = 0; i < num_verts; ++i) {
+  // Iterate only over SIDs that actually have accumulated error data
+  for (const auto& [i, lat_err_i] : lateral_error_mean_) {
     // Average over next N SIDs, following Ostafew
-    unsigned window_end = std::min(i + 2 + config_lookahead_window,
-                                static_cast<unsigned>(num_verts));
-    unsigned window_start = i + 2;
-    unsigned lookahead_window = (window_end > window_start) ? (window_end - window_start) : 0;
+    double avg_err_lat = 0.0, avg_err_yaw = 0.0;
+    unsigned lookahead_window = 0;
+    for (unsigned j = i + 2; j < i + 2 + config_lookahead_window; ++j) {
+      const auto lat_it = lateral_error_mean_.find(j);
+      const auto yaw_it = heading_error_mean_.find(j);
+      if (lat_it == lateral_error_mean_.end() ||
+          yaw_it == heading_error_mean_.end())
+        continue;
+      avg_err_lat += lat_it->second;
+      avg_err_yaw += yaw_it->second;
+      ++lookahead_window;
+    }
     if (lookahead_window == 0) {
       CLOG(DEBUG, "feedback_linearization.ilc")
-          << "Vertex " << i << " has no lookahead window (window_start="
-          << window_start << ", window_end=" << window_end
-          << "), skipping feedforward update";
+          << "Vertex " << i << " has no lookahead window, skipping "
+          << "feedforward update";
       continue;
     }
-    double avg_err_lat = 0.0, avg_err_yaw = 0.0;
-    for (unsigned j = window_start; j < window_end; ++j) {
-      avg_err_lat += lateral_error_mean_.at(j);
-      avg_err_yaw += heading_error_mean_.at(j);
+    const auto lin_vel_it = linear_velocity_mean_.find(i);
+    if (lin_vel_it == linear_velocity_mean_.end()) {
+      CLOG(DEBUG, "feedback_linearization.ilc")
+          << "Vertex " << i << " has no linear velocity data, skipping "
+          << "feedforward update";
+      continue;
     }
+    const double lin_vel_i = lin_vel_it->second;
 
     avg_err_lat /= lookahead_window;
     avg_err_yaw /= lookahead_window;
@@ -244,8 +255,8 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
     // Update the feedforward correction
     auto last_iter_ff_psi = config_->forgetting_factor * (psi_ff_correction_.find(i) != psi_ff_correction_.end() ? psi_ff_correction_.at(i) : 0.0);
     auto num = -config_->wheelbase*(config_->learning_gain_lateral * avg_err_lat + \
-      config_->learning_gain_heading * linear_velocity_mean_.at(i) * sin(avg_err_yaw));
-    auto denom = linear_velocity_mean_.at(i) * linear_velocity_mean_.at(i) * cos(avg_err_yaw);
+      config_->learning_gain_heading * lin_vel_i * sin(avg_err_yaw));
+    auto denom = lin_vel_i * lin_vel_i * cos(avg_err_yaw);
 
     auto psi_curr_iter_ff = last_iter_ff_psi + std::atan2(num, denom);
 
