@@ -45,9 +45,15 @@ class FeedbackLinearizationPathTracker : public BasePathPlanner {
     // when the localization chain indicates a reverse segment.
     double forward_vel = 0.75;
 
+    // Speed scheduler config vals 
+    double planar_curv_weight = 2.50;
+    double profile_curv_weight = 0.5;
+    double eop_weight = 1.0;
+    double min_vel = 0.5;
+    double eop_min_vel = 0.5;
+
     // Output limits
     double max_lin_vel = 1.25;
-    double max_ang_vel = 0.75;
     double max_steering_angle = 0.6;  // [rad]
 
     // Feedback gains on the linearized (Delta_L, z_2 = v*sin(Delta_H))

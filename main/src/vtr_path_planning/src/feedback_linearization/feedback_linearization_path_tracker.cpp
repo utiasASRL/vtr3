@@ -19,6 +19,7 @@
 #include "vtr_path_planning/feedback_linearization/feedback_linearization_path_tracker.hpp"
 
 #include <vtr_path_planning/mpc/mpc_common.hpp>
+#include <vtr_path_planning/mpc/speed_scheduler.hpp>
 
 namespace vtr::path_planning {
 namespace {
@@ -42,10 +43,16 @@ auto FeedbackLinearizationPathTracker::Config::loadConfig(
       prefix + ".feedback_linearization.wheelbase", config->wheelbase);
   config->forward_vel = node->declare_parameter<double>(
       prefix + ".feedback_linearization.forward_vel", config->forward_vel);
-  config->max_lin_vel = node->declare_parameter<double>(
-      prefix + ".feedback_linearization.max_lin_vel", config->max_lin_vel);
-  config->max_ang_vel = node->declare_parameter<double>(
-      prefix + ".feedback_linearization.max_ang_vel", config->max_ang_vel);
+  config->planar_curv_weight = node->declare_parameter<double>(
+      prefix + ".speed_scheduler.planar_curv_weight", config->planar_curv_weight);
+  config->profile_curv_weight = node->declare_parameter<double>(
+      prefix + ".speed_scheduler.profile_curv_weight", config->profile_curv_weight);
+  config->eop_weight = node->declare_parameter<double>(
+      prefix + ".speed_scheduler.eop_weight", config->eop_weight);
+  config->min_vel = node->declare_parameter<double>(
+      prefix + ".speed_scheduler.min_vel", config->min_vel);
+  config->eop_min_vel = node->declare_parameter<double>(
+      prefix + ".speed_scheduler.eop_min_vel", config->eop_min_vel);
   config->max_steering_angle = node->declare_parameter<double>(
       prefix + ".feedback_linearization.max_steering_angle",
       config->max_steering_angle);
@@ -156,11 +163,14 @@ auto FeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state)
   const double delta_h = wrapToPi(theta - theta_ref);
 
   const bool is_reverse = (segment.dir == tactic::Direction::Backward);
-  const double v = is_reverse ? -config_->forward_vel : config_->forward_vel;
+  const double vf = ScheduleSpeed(
+      chain,
+      {config_->forward_vel, config_->min_vel, config_->eop_min_vel, config_->planar_curv_weight,
+       config_->profile_curv_weight, config_->eop_weight, 7}, segment.direction_switch);
+  const double v = is_reverse ? -vf : vf;
 
   double psi_cmd = 0.0;
   double v_cmd = v;
-  v_cmd = clampAbs(v_cmd, config_->max_lin_vel);
   if (std::abs(v) < config_->min_linearizing_speed) {
     // The linearization is singular at v == 0
     // so fall back if we are near that velocity
