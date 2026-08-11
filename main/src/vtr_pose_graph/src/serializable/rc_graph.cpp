@@ -196,7 +196,7 @@ void RCGraph::loadVerticesLive() {
   }
 
   for (const auto& vtx : vertices_to_notify) {
-      callback_->vertexAdded(vertex); // inform graph_map_server
+      callback_->vertexAdded(vtx); // inform graph_map_server
   }
   lastVertexIdx_ = index;
 }
@@ -205,7 +205,7 @@ void RCGraph::loadEdgesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk | index: " << lastEdgeIdx_;
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
 
-
+  std::vector<EdgePtr> edges_to_notify;
   int index = lastEdgeIdx_;
   for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
@@ -214,7 +214,6 @@ void RCGraph::loadEdgesLive() {
     auto edge = RCEdge::MakeShared(edge_msg, msg);
     const auto& eid = edge->id();
 
-    std::vector<EdgePtr> edges_to_notify;
     {
       std::unique_lock lock(mutex_);
       if (vertices_.find(eid.id1()) == vertices_.end() ||
