@@ -414,7 +414,8 @@ auto GraphMapServer::getPrivilegedGraph() const -> GraphBasePtr {
   const auto graph = getGraph();
   using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
   auto priv_eval = std::make_shared<PrivEval>(*graph);
-  return graph->getSubgraph(priv_eval);
+  const auto root_vid = getGraph()->root();
+  return graph->getSubgraph(root_vid, priv_eval);
 }
 
 auto GraphMapServer::getTopologyGraph() const -> GraphBasePtr {
@@ -422,7 +423,8 @@ auto GraphMapServer::getTopologyGraph() const -> GraphBasePtr {
   const auto graph = getGraph();
   using TopEval = tactic::TopologyEvaluator<tactic::GraphBase>;
   auto top_eval = std::make_shared<TopEval>(*graph);
-  const auto subgraph = graph->getSubgraph(top_eval);
+  const auto root_vid = getGraph()->root();
+  const auto subgraph = graph->getSubgraph(root_vid, top_eval);
   CLOG(DEBUG, "navigation.graph_map_server") << "getTopologyGraph: subgraph root" << subgraph->root();
   return subgraph;
 }
