@@ -422,7 +422,9 @@ auto GraphMapServer::getTopologyGraph() const -> GraphBasePtr {
   const auto graph = getGraph();
   using TopEval = tactic::TopologyEvaluator<tactic::GraphBase>;
   auto top_eval = std::make_shared<TopEval>(*graph);
-  return graph->getSubgraph(top_eval);
+  const auto subgraph = graph->getSubgraph(top_eval);
+  CLOG(DEBUG, "navigation.graph_map_server") << "getTopologyGraph: subgraph root" << subgraph->root();
+  return subgraph;
 }
 
 void GraphMapServer::optimizeGraph(const tactic::GraphBase::Ptr& priv_graph) {
