@@ -5,16 +5,16 @@
     log_enabled:
         # navigator
         #- navigation
-        #- navigation.graph_map_server
+      - navigation.graph_map_server
         #- navigation.command
     
         # tactic
       - tactic
-      #- tactic.pipeline
+      - tactic.pipeline
       #- tactic.eop
       #- tactic.module
-      #- tactic.module.live_mem_manager
-      #- tactic.module.graph_mem_manager
+      - tactic.module.live_mem_manager
+      - tactic.module.graph_mem_manager
 
       # path planner
       #- path_planning
@@ -34,14 +34,14 @@
       #- ouster
         
         # mission planner
-      #- mission.server
-      #- mission.state_machine
+      - mission.server
+      - mission.state_machine
 
         # pose graph
-      #- pose_graph
+      - pose_graph
 
         # lidar pipeline
-      #- lidar.pipeline
+      - lidar.pipeline
       #- lidar.preprocessing
       #- lidar.ouster_converter
       #- lidar.odometry_icp
