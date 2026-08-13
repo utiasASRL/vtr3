@@ -129,8 +129,11 @@ void RCGraph::loadVertices() {
   int index = 1;
   for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
-    if (!msg) break;
-
+    if (!msg) {
+      CLOG(DEBUG, "pose_graph") << "loadVertices: !msg break";
+      break;
+    }
+    lastVertexIdx_ = index;  
     auto vertex_msg = msg->locked().get().getData();
     auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
     if (vertex->vertexTime() == 0) {
@@ -140,7 +143,6 @@ void RCGraph::loadVertices() {
     vertices_.insert(std::make_pair(vertex->id(), vertex));
     CLOG(DEBUG, "pose_graph") << "- loaded vertex " << *vertex;
   }
-  lastVertexIdx_ = index;
 }
 
 void RCGraph::loadEdges() {
@@ -150,8 +152,10 @@ void RCGraph::loadEdges() {
   int index = 1;
   for (;; index++) {
     const auto msg = accessor.readAtIndex(index);
-    if (!msg) break;
-
+    if (!msg) {
+      CLOG(DEBUG, "pose_graph") << "loadEdges: !msg break";
+      break;
+    }
     auto edge_msg = msg->locked().get().getData();
     auto edge = RCEdge::MakeShared(edge_msg, msg);
     const auto& eid = edge->id();
@@ -160,6 +164,7 @@ void RCGraph::loadEdges() {
       CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
       break;
     }
+    lastEdgeIdx_ = index;
     if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
       topology_edges_[edge->id()] = index;
       CLOG(DEBUG, "pose_graph") << "Topology Edge inserted, len " << topology_edges_.size();
@@ -167,66 +172,102 @@ void RCGraph::loadEdges() {
     edges_.insert(std::make_pair(eid, edge));
     CLOG(DEBUG, "pose_graph") << " - loaded edge " << *edge;
   }
-  lastEdgeIdx_ = index;
 }
 
 void RCGraph::loadVerticesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading vertices from disk | index: " << lastVertexIdx_;
   VertexMsgAccessor accessor{fs::path{file_path_},  "vertices", "vtr_pose_graph_msgs/msg/Vertex", true};
 
-  int index = lastVertexIdx_;
-  for (;; index++) {
-    const auto msg = accessor.readAtIndex(index);
-    if (!msg) break;
+  std::vector<RCVertex::Ptr> vertices_to_announce;  
+  {
+    std::unique_lock lock(mutex_);
+    int index = lastVertexIdx_;
+    for (;; index++) {
+      const auto msg = accessor.readAtIndex(index);
+      if (!msg) {
+        CLOG(DEBUG, "pose_graph") << "loadVerticesLive: !msg break";
+        break;
+      }
+      CLOG(DEBUG, "pose_graph") << "lastVertexIdx_: " << lastVertexIdx_;
 
-    auto vertex_msg = msg->locked().get().getData();
-    auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
-    CLOG(DEBUG, "pose_graph") << "loadVerticesLive: (vertex, time): (" << vertex->id() << ", " << vertex->vertexTime() << ")";
-    if (vertex->vertexTime() == 0) {
-      topology_vertices_[vertex->id()] = index;
-      CLOG(DEBUG, "pose_graph") << "Live: Topology Vertex inserted, len " << topology_vertices_.size();
+      auto vertex_msg = msg->locked().get().getData();
+      auto vertex = RCVertex::MakeShared(vertex_msg, name2accessor_map_, msg);
+      CLOG(DEBUG, "pose_graph") << "loadVerticesLive: (vertex, time): (" << vertex->id() << ", " << vertex->vertexTime() << ")";
+      
+      // check if this is an echo (we already have this data)
+      if (vertices_.find(vertex->id()) != vertices_.end()) {
+        continue; // We already wrote this, ignore the echo
+      }
+      lastVertexIdx_ = index;
+      
+      // check if timestamp is popualated (if not -> topology)
+      if (vertex->vertexTime() == 0) {
+        topology_vertices_[vertex->id()] = index;
+        CLOG(DEBUG, "pose_graph") << "Live: Topology Vertex inserted, len " << topology_vertices_.size();
+      }
+      vertices_.insert(std::make_pair(vertex->id(), vertex)); // bookkeeping
+      graph_.addVertex(vertex->id()); // add to simpleGraph
+      vertices_to_announce.push_back(vertex); // store for callback
     }
-    vertices_.insert(std::make_pair(vertex->id(), vertex)); // bookkeeping
-    graph_.addVertex(vertex->id()); // add to simpleGraph
-    callback_->vertexAdded(vertex); // inform graph_map_server
   }
-  lastVertexIdx_ = index;
+  for (const auto& vertex : vertices_to_announce) {
+    CLOG(DEBUG, "pose_graph") << "loadVerticesLive: callback for " << vertex->id();
+    callback_->vertexAdded(vertex);  // inform graph_map_server
+  }
 }
 
 void RCGraph::loadEdgesLive() {
   CLOG(DEBUG, "pose_graph") << "Live Loading edges from disk | index: " << lastEdgeIdx_;
   EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
 
+  std::vector<RCEdge::Ptr> edges_to_announce;  
+  {
+    std::unique_lock lock(mutex_);
+    int index = lastEdgeIdx_;
+    for (;; index++) {
+      const auto msg = accessor.readAtIndex(index);
+      if (!msg) {
+        CLOG(DEBUG, "pose_graph") << "loadEdgesLive: !msg break";
+        break;
+      }
+      CLOG(DEBUG, "pose_graph") << "lastEdgeIdx_: " << lastEdgeIdx_;
 
-  int index = lastEdgeIdx_;
-  for (;; index++) {
-    const auto msg = accessor.readAtIndex(index);
-    if (!msg) break;
-    auto edge_msg = msg->locked().get().getData();
-    auto edge = RCEdge::MakeShared(edge_msg, msg);
-    const auto& eid = edge->id();
-    
-    if (vertices_.find(eid.id1()) == vertices_.end() ||
-        vertices_.find(eid.id2()) == vertices_.end()) {
-      CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
-      break;
+      auto edge_msg = msg->locked().get().getData();
+      auto edge = RCEdge::MakeShared(edge_msg, msg);
+      const auto& eid = edge->id();
+      
+      // check if we already have this edge
+      if (edges_.find(eid) != edges_.end()) { // does this skip teach edge?
+        continue; // We already wrote this, ignore the echo
+      }
+
+      if (vertices_.find(eid.id1()) == vertices_.end() ||
+          vertices_.find(eid.id2()) == vertices_.end()) {
+        CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
+        break;
+      }
+      lastEdgeIdx_ = index;
+      if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
+        topology_edges_[edge->id()] = index;
+        CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
+      }
+      if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::AUTONOMOUS) {
+        continue;
+      }
+      CLOG(DEBUG, "pose_graph") << " - loading edge " << *edge;
+      CLOG(DEBUG, "pose_graph") << "loadLive: edges_.insert";
+      edges_.insert(std::make_pair(eid, edge)); // bookkeeping
+      CLOG(DEBUG, "pose_graph") << "loadLive: graph_.addEdge";
+      graph_.addEdge(edge->id()); // add to simpleGraph
+      edges_to_announce.push_back(edge);
     }
-    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
-      topology_edges_[edge->id()] = index;
-      CLOG(DEBUG, "pose_graph") << "Live: Topology Edge inserted, len " << topology_edges_.size();
-    }
-    if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::AUTONOMOUS) {
-      continue;
-    }
-    CLOG(DEBUG, "pose_graph") << " - loading edge " << *edge;
-    CLOG(DEBUG, "pose_graph") << "loadLive: edges_.insert";
-    edges_.insert(std::make_pair(eid, edge)); // bookkeeping
-    CLOG(DEBUG, "pose_graph") << "loadLive: graph_.addEdge";
-    graph_.addEdge(edge->id()); // add to simpleGraph
-    CLOG(DEBUG, "pose_graph") << "loadLive: callback_->edgeAdded";
+  }
+
+  CLOG(DEBUG, "pose_graph") << "loadLive: callback_->edgeAdded";
+  for (const auto& edge : edges_to_announce){
+    CLOG(DEBUG, "pose_graph") << "loadEdgesLive: callback for " << edge->id();
     callback_->edgeAdded(edge);  // inform graph_map_server
   }
-  lastEdgeIdx_ = index;
 }
 
 void RCGraph::populateLive() {
@@ -243,7 +284,10 @@ void RCGraph::populateLive() {
     // populate edges
     for (auto e_it = topology_edges_.begin(); e_it != topology_edges_.end();) {
       const auto msg = edge_accessor.readAtIndex(e_it->second);
-      if (!msg) break;
+      if (!msg) {
+        CLOG(DEBUG, "pose_graph") << "populateEdgesLive: !msg break";
+        break;
+      }
       auto updated_edge_msg = msg->locked().get().getData();
       auto new_edge = RCEdge::MakeShared(updated_edge_msg, msg);
       const auto& eid = new_edge->id();      
@@ -267,8 +311,10 @@ void RCGraph::populateLive() {
     //populate vertices
     for (auto vtx_it = topology_vertices_.begin(); vtx_it != topology_vertices_.end();) {
       const auto msg = vtx_accessor.readAtIndex(vtx_it->second);
-      if (!msg) {break; }
-
+      if (!msg) {
+        CLOG(DEBUG, "pose_graph") << "populateVerticesLive: !msg break";
+        break;
+      }
       auto updated_vtx_msg = msg->locked().get().getData();
       auto new_vertex = RCVertex::MakeShared(updated_vtx_msg, name2accessor_map_, msg);
       
@@ -360,12 +406,11 @@ void RCGraph::saveVerticesLive() {
   {
     std::unique_lock lock(mutex_);
     VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
-    while (vertices_to_write_.size() > 1){
+    while (vertices_to_write_.size() > 0){
       auto vertex = vertices_to_write_.front();
       vertices_to_write_.pop();
       vertex->unload();
       accessor.write(vertex->serialize());
-      lastVertexIdx_++;
     }
   }  
 }
@@ -398,7 +443,6 @@ void RCGraph::saveEdgesLive() {
       auto edge = edges_to_write_.front();
       edges_to_write_.pop();
       accessor.write(edge->serialize());
-      lastEdgeIdx_++;
     }
   }  
 }
