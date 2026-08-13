@@ -78,6 +78,11 @@ void ILCFeedbackLinearizationPathTracker::setRunning(const bool running) {
   if (!running && lateral_error_mean_.size() > 0) {
     updateBookkeeping();
     updateFeedForwardCorrections();
+    // Clear these - set running is set to false twice for some reason?
+    // TODO: dig into this later maybe
+    lateral_error_mean_.clear();
+    heading_error_mean_.clear();
+    linear_velocity_mean_.clear();
     CLOG(DEBUG, "feedback_linearization.ilc") << "Finalized bookkeeping and feedforward corrections";
   }
   else{
@@ -254,7 +259,7 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
 
     // Update the feedforward correction
     auto last_iter_ff_psi = config_->forgetting_factor * (psi_ff_correction_.find(i) != psi_ff_correction_.end() ? psi_ff_correction_.at(i) : 0.0);
-    auto num = -config_->wheelbase*(config_->learning_gain_lateral * avg_err_lat + \
+    auto num = -config_->wheelbase * (config_->learning_gain_lateral * avg_err_lat + \
       config_->learning_gain_heading * lin_vel_i * sin(avg_err_yaw));
     auto denom = lin_vel_i * lin_vel_i * cos(avg_err_yaw);
 
