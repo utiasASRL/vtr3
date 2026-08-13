@@ -207,6 +207,11 @@ bool Tactic::routeCompleted() const {
 }
 
 bool Tactic::input_(const QueryCache::Ptr&) {
+  auto now = std::chrono::steady_clock::now();
+  if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
+    last_load_live_ = now;
+    graph_->loadLive();
+  }
   return config_->preprocessing_skippable;
 }
 
@@ -223,13 +228,6 @@ bool Tactic::preprocess_(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
-  auto now = std::chrono::steady_clock::now();
-  if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
-    last_load_live_ = now;
-    graph_->loadLive();
-  }
-  CLOG(DEBUG, "tactic") << "LoadLive end (runOdometryMapping_)";
-
   // Setup caches
   qdata->vid_odo.emplace(current_vertex_id_);
   qdata->vertex_test_result.emplace(VertexTestResult::DO_NOTHING);
@@ -756,13 +754,6 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
   *output_->odometry_success = *qdata->odo_success;
-  auto now = std::chrono::steady_clock::now();
-  if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
-    last_load_live_ = now;
-    graph_->loadLive();
-  }
-  CLOG(DEBUG, "tactic") << "LoadLive end (runLocalization_)";
-
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
     /// maybe we can combine them at some point, but for now, consider leaving
