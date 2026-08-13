@@ -70,7 +70,8 @@ auto BFSPlanner::getPrivilegedGraph() const -> GraphBasePtr {
   const auto graph = getGraph();
   using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
   auto priv_eval = std::make_shared<PrivEval>(*graph);
-  return graph->getSubgraph(priv_eval);
+  const auto root_vid = getGraph()->root();
+  return graph->getSubgraph(root_vid, priv_eval);
 }
 
 auto BFSPlanner::getTopologyGraph() const -> GraphBasePtr {
@@ -78,7 +79,8 @@ auto BFSPlanner::getTopologyGraph() const -> GraphBasePtr {
   const auto graph = getGraph();
   using TopEval = tactic::TopologyEvaluator<tactic::GraphBase>;
   auto top_eval = std::make_shared<TopEval>(*graph);
-  return graph->getSubgraph(top_eval);
+  const auto root_vid = getGraph()->root();
+  return graph->getSubgraph(root_vid, top_eval);
 }
 
 auto BFSPlanner::path(const GraphBasePtr &priv_graph, const VertexId &from,
