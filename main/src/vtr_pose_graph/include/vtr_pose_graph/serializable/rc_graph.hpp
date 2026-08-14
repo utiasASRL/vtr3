@@ -26,6 +26,8 @@
 #include "vtr_pose_graph_msgs/msg/map_info.hpp"
 #include "vtr_pose_graph_msgs/msg/timestamp.hpp"
 
+#include <queue>
+
 namespace vtr {
 namespace pose_graph {
 
@@ -75,9 +77,22 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   virtual ~RCGraph() { if(!read_only_) save(); }
 
   void save();
+  void saveLive();
 
   /** \brief Return a blank vertex with the next available Id */
   VertexPtr addVertex(const Timestamp& time);
+  EdgePtr addEdge(const VertexId& from, const VertexId& to,
+                  const EdgeType& type, const EdgeMode& mode,
+                  const EdgeTransform& T_to_from);
+
+  /** \brief Returns the root vertex using the stored map_info root_vid */
+  VertexId root() const override {
+    std::shared_lock lock(map_info_mutex_);
+    const auto vid = VertexId(map_info_.root_vid);
+    std::shared_lock graph_lock(mutex_);
+    if (graph_.hasVertex(vid)) return vid;
+    return VertexId::Invalid();
+  }
 
   /** \brief Get the map display calibration */
   MapInfoMsg getMapInfo() const {
@@ -87,8 +102,11 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   /** \brief Set the map display calibration */
   void setMapInfo(const MapInfoMsg& map_info) {
+    CLOG(DEBUG, "pose_graph") << "setMapInfo start";
     std::unique_lock lock(map_info_mutex_);
     map_info_ = map_info;
+    if (!vertices_.empty()) { map_info_.root_vid = vertices_.begin()->first; }
+    CLOG(DEBUG, "pose_graph") << "setMapInfo done";
   }
 
   /** \brief Get the file path of the graph index */
@@ -98,18 +116,29 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   template <typename DataType>
   void write(const std::string& stream_name, const std::string& stream_type,
              const typename storage::LockableMessage<DataType>::Ptr& message);
+  void saveGraphIndex();
+
+  // keep track of topology only edges
+  void loadVerticesLive();
+  void loadEdgesLive();
+  void populateLive();
+  void loadLive();
 
  private:
   /** \brief Helper methods for loading from disk */
   void loadGraphIndex();
   void loadVertices();
   void loadEdges();
-  void buildSimpleGraph();
 
+  void buildSimpleGraph();
+  
   /** \brief Helper methods for saving to disk */
-  void saveGraphIndex();
+  // void saveGraphIndex();
   void saveVertices();
   void saveEdges();
+
+  void saveVerticesLive();
+  void saveEdgesLive();
 
  private:
   using Base::mutex_;
@@ -131,6 +160,16 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   mutable std::shared_mutex map_info_mutex_;
   MapInfoMsg map_info_ = MapInfoMsg();
+
+  std::queue<VertexPtr> vertices_to_write_;
+  std::queue<EdgePtr> edges_to_write_;
+  std::unordered_map<EdgeId, int> topology_edges_;
+  std::unordered_map<VertexId, int> topology_vertices_;
+
+  // keep track of .db3 cursors (watch for new data)
+  int lastVertexIdx_ = 1;
+  int lastEdgeIdx_ = 1;
+
 };
 
 template <typename DataType>

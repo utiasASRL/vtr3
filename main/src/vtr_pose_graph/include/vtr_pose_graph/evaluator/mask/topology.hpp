@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file run_select.hpp
+ * \file topology.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -24,26 +24,23 @@ namespace vtr {
 namespace pose_graph {
 namespace eval {
 namespace mask {
-namespace runs {
-
-    using RunIdSet = std::set<pose_graph::BaseIdType>;
-
+namespace topology {
 
 namespace detail {
 
 template <class GRAPH>
-ReturnType computeVertex(const GRAPH &graph, const VertexId &v, const RunIdSet &valid_runs) {
+ReturnType computeVertex(const GRAPH &graph, const VertexId &v) {
   const auto nbs = graph.neighbors(v);
   for (const auto &nb : nbs) {
-    if (graph.at(EdgeId(v, nb))->isManual() && valid_runs.count(v.majorId()) > 0) return true;
+    if (graph.at(EdgeId(v, nb))->isManual() || graph.at(EdgeId(v, nb))->isUnknown()) return true;
   }
   return false;
 }
 
 template <class GRAPH>
-ReturnType computeEdge(const GRAPH &graph, const EdgeId &e, const RunIdSet &valid_runs) {
-  return graph.at(e)->isManual() ||
-         (computeVertex(graph, e.id1(), valid_runs) && computeVertex(graph, e.id2(), valid_runs));
+ReturnType computeEdge(const GRAPH &graph, const EdgeId &e) {
+  return (graph.at(e)->isManual() || graph.at(e)->isUnknown()) ||
+         (computeVertex(graph, e.id1()) && computeVertex(graph, e.id2()));
 }
 
 }  // namespace detail
@@ -53,20 +50,19 @@ class Eval : public BaseEval {
  public:
   PTR_TYPEDEFS(Eval);
 
-  Eval(const GRAPH &graph, const RunIdSet &selected_runs) : graph_(graph), valid_runs_(selected_runs) {}
+  Eval(const GRAPH &graph) : graph_(graph) {}
 
  protected:
   ReturnType computeEdge(const EdgeId &e) override {
-    return detail::computeEdge(graph_, e, valid_runs_);
+    return detail::computeEdge(graph_, e);
   }
 
   ReturnType computeVertex(const VertexId &v) override {
-    return detail::computeVertex(graph_, v, valid_runs_);
+    return detail::computeVertex(graph_, v);
   }
 
  private:
   const GRAPH &graph_;
-  const RunIdSet &valid_runs_;
 };
 
 template <class GRAPH>
@@ -74,21 +70,19 @@ class CachedEval : public BaseCachedEval {
  public:
   PTR_TYPEDEFS(CachedEval);
 
-  CachedEval(const GRAPH &graph, const RunIdSet &selected_runs) : graph_(graph), valid_runs_(selected_runs) {}
+  CachedEval(const GRAPH &graph) : graph_(graph) {}
 
  protected:
   ReturnType computeEdge(const EdgeId &e) override {
-    return detail::computeEdge(graph_, e, valid_runs_);
+    return detail::computeEdge(graph_, e);
   }
 
   ReturnType computeVertex(const VertexId &v) override {
-    return detail::computeVertex(graph_, v, valid_runs_);
+    return detail::computeVertex(graph_, v);
   }
 
  private:
   const GRAPH &graph_;
-  const RunIdSet &valid_runs_;
-
 };
 
 template <class GRAPH>
@@ -96,25 +90,23 @@ class WindowedEval : public BaseWindowedEval {
  public:
   PTR_TYPEDEFS(WindowedEval);
 
-  WindowedEval(const GRAPH &graph, const size_t &cache_size, const RunIdSet &selected_runs)
-      : BaseWindowedEval(cache_size), graph_(graph), valid_runs_(selected_runs){}
+  WindowedEval(const GRAPH &graph, const size_t &cache_size)
+      : BaseWindowedEval(cache_size), graph_(graph) {}
 
  protected:
   ReturnType computeEdge(const EdgeId &e) override {
-    return detail::computeEdge(graph_, e, valid_runs_);
+    return detail::computeEdge(graph_, e);
   }
 
   ReturnType computeVertex(const VertexId &v) override {
-    return detail::computeVertex(graph_, v, valid_runs_);
+    return detail::computeVertex(graph_, v);
   }
 
  private:
   const GRAPH &graph_;
-  const RunIdSet &valid_runs_;
-
 };
 
-}  // namespace privileged
+}  // namespace topology
 }  // namespace mask
 }  // namespace eval
 }  // namespace pose_graph

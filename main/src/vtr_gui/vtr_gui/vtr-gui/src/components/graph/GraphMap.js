@@ -53,6 +53,25 @@ const ANNOTATE_LINE_COLOR = "#000000";
 const ANNOTATE_LINE_WIDTH = 0.5;
 const GRAPH_OPACITY = 0.9;
 
+const ID_COLORS = [
+  "#3cb44b", //  0 - mr_green
+  "#911eb4", //  1 - prof_plum
+  "#ffe119", //  2 - col_mustard
+  "#4363d8", //  3 - mrs_peacock
+  "#e6194b", //  4 - red
+  "#f58231", //  5 - orange
+  "#bfef45", //  6 - lime
+  "#42d4f4", //  7 - cyan
+  "#f032e6", //  8 - magenta
+  "#fabebe", //  9 - pink
+  "#ffd8b1", // 10 - apricot
+  "#fffac8", // 11 - cream
+  "#aaffc3", // 12 - mint
+  "#a9a9a9", // 13 - grey
+  "#ffffff", // 14 - white
+  "#000000", // 15 - black
+];
+
 /// robot constants
 const ROBOT_OPACITY = 0.8;
 const ROBOT_UNLOCALIZED_OPACITY = 0.4;
@@ -187,6 +206,8 @@ class GraphMap extends React.Component {
 
     // waypoint marker generator
     this.WaypointMarkers = this.displayWaypointMarkers.bind(this);
+
+    this.update_buffer = [];
   }
 
   componentDidMount() {
@@ -232,7 +253,7 @@ class GraphMap extends React.Component {
               >
                 <TextField
                   sx={{ mx: 0.5, display: "flex", justifyContent: "center" }}
-                  style={{width: 120}}
+                  style={{width: 200}}
                   fullWidth={true}
                   label="Name"
                   variant="standard"
@@ -439,7 +460,7 @@ class GraphMap extends React.Component {
   zoomEnd = () => {
     this.fixed_routes.forEach((route) => {
       route.polyline.setStyle({ 
-        color: ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length],
+        color: ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length],
         weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
         opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
         lineCap: "butt",
@@ -447,7 +468,7 @@ class GraphMap extends React.Component {
     });
     this.active_routes.forEach((route) => {
       route.polyline.setStyle({ 
-        color: ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length],
+        color: ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length],
         weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
         opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
         lineCap: "butt",
@@ -455,18 +476,18 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** @brief Leaflet map creationg callback */
+  /** @brief Leaflet map creation callback */
   mapCreatedCallback(map) {
     console.debug("Leaflet map created.");
-    //
+    
     this.map = map;
     this.map.createPane("graph"); // used for the graph polylines and robot marker
     map.getPane("graph").style.zIndex = 500; // same as the shadow pane (polylines default)
-    //
+
+    this.graphLayerGroup = L.layerGroup().addTo(this.map);
+
     this.map.on("click", this.handleMapClick.bind(this));
-    //
     this.map.on("zoomend", this.zoomEnd, this);
-    //
     this.fetchGraphState(true);
   }
 
@@ -488,10 +509,94 @@ class GraphMap extends React.Component {
     else return { target: null, distance: max_dist };
   }
 
+  getRobotId(vertexId) {
+    // Re-derive the hex ID the same way genDefaultWaypointName does
+    let n = vertexId.toString(), hexId = '';
+    while (n !== '0' && n !== '') {
+      let r = 0, q = '';
+      for (const d of n) { const c = r * 10 + +d; const qd = Math.floor(c / 16); r = c % 16; if (q || qd) q += qd; }
+      hexId = r.toString(16) + hexId;
+      n = q || '0';
+    }
+    const fullHex = (hexId || '0').padStart(16, '0');
+    return parseInt(fullHex.substring(0, 1), 16); // first 4 bits = first hex digit (0–15)
+  }
+
+  getModalRobotId(ids) {
+    if (!ids || ids.length === 0) return 0; 
+    
+    const idCounts = new Map();
+    ids.forEach((id) => {
+      const robotId = this.getRobotId(id);
+      idCounts.set(robotId, (idCounts.get(robotId) || 0) + 1);
+    });
+    
+    // CHANGE to >= so that in a tie, the newer vertex dictates the color
+    return [...idCounts.entries()].reduce((a, b) => (b[1] >= a[1] ? b : a), [0, 0])[0];
+  }
+
+  splitRoutesByRobotId(routes) {
+    const unbatched = [];
+    routes.forEach(route => {
+      let current_ids = [];
+      let current_robot_id = null;
+
+      for (let i = 0; i < route.ids.length; i++) {
+        let id = route.ids[i];
+        let r_id = this.getRobotId(id);
+
+        if (current_ids.length === 0) {
+          current_ids.push(id);
+          current_robot_id = r_id;
+        } else {
+          // If the robot ID stays the same, continue the segment
+          if (r_id === current_robot_id) {
+            current_ids.push(id);
+          } else {
+            // Robot ID changed! Push the completed segment
+            if (current_ids.length > 0) {
+              unbatched.push({ type: route.type, ids: current_ids });
+            }
+            
+            // Start a new segment bridging from the previous vertex so there is no visual gap
+            const prev_id = route.ids[i - 1];
+            const a = prev_id < id ? `${prev_id},${id}` : `${id},${prev_id}`;
+            const connected = this.adjacency?.has(a) ?? true;
+
+            if (connected) {
+              current_ids = [prev_id, id];
+            } else {
+              current_ids = [id];
+            }
+            current_robot_id = r_id;
+          }
+        }
+      }
+      if (current_ids.length > 0) {
+        unbatched.push({ type: route.type, ids: current_ids });
+      }
+    });
+    return unbatched;
+  }
+
   genDefaultWaypointName(id) {
-    let vl = parseInt(id % Math.pow(2, 32));
-    let vh = parseInt((id - vl) / Math.pow(2, 32));
-    return "WP-" + vh.toString() + "-" + vl.toString();
+      // Convert decimal string to hex via long division (avoids float64 precision loss)
+      let n = id.toString(), hexId = '';
+      while (n !== '0' && n !== '') {
+        let r = 0, q = '';
+        for (const d of n) { const c = r * 10 + +d; const qd = Math.floor(c / 16); r = c % 16; if (q || qd) q += qd; }
+        hexId = r.toString(16) + hexId;
+        n = q || '0';
+      }
+      var fullHex = (hexId || '0').padStart(16, '0');
+
+      var vhHex = fullHex.substring(0, 12);
+      var vlHex = fullHex.substring(12);
+
+      var vh = parseInt(vhHex, 16);
+      var vl = parseInt(vlHex, 16);
+
+      return "WP-" + vh.toString() + "-" + vl.toString();
   }
 
   handleMapClick(e) {
@@ -543,35 +648,97 @@ class GraphMap extends React.Component {
     });
   }
     
+  flushUpdateBuffer() {
+    console.info(`Flushing ${this.update_buffer.length} buffered updates.`);
+    if (this.update_buffer.length > 0) {
+      this.update_buffer.forEach(update => this.graphUpdateCallback(update));
+      this.update_buffer = [];
+    }
+  }
+
   graphStateCallback(graph_state) {
     console.info("Received graph state: ", graph_state);
     this.loadGraphState(graph_state);
+    this.flushUpdateBuffer();
   }
   
   /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
   route2Polyline(route) {
-    // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
-    let color = ROUTE_TYPE_COLOR[route.type % ROUTE_TYPE_COLOR.length];
-    let latlngs = route.ids.map((id) => {
+    // Guard against empty routes
+    if (!route || !route.ids || route.ids.length === 0) {
+      return L.layerGroup(); 
+    }
+
+    // find the modal robot_id
+    const color = ID_COLORS[this.getModalRobotId(route.ids) % ID_COLORS.length];
+    const weight = this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]);
+    const opacity = ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length];
+    const style = { color: color, weight: weight, opacity: opacity, pane: "graph", lineCap: "butt" };
+
+    let segments = [];
+    let current = [];
+
+    for (let i = 0; i < route.ids.length; i++) {
+      let id = route.ids[i];
       let v = this.id2vertex.get(id);
-      return [v.lat, v.lng];
-    });
-    let polyline = L.polyline(latlngs, { 
-      color: color,
-      weight: this.metres2pix(ROUTE_TYPE_WIDTH[route.type % ROUTE_TYPE_COLOR.length]),
-      opacity: ROUTE_TYPE_OPACITY[route.type % ROUTE_TYPE_COLOR.length],
-      pane: "graph",
-      lineCap: "butt",
-    });
-    polyline.addTo(this.map);
-    return polyline;
+      if (!v) { current = []; continue; }
+
+      if (current.length === 0) {
+      current.push([v.lat, v.lng]);
+      } else {
+        let prev_id = route.ids[i - 1];
+        let prev_v = this.id2vertex.get(prev_id);
+        const a = prev_id < id ? `${prev_id},${id}` : `${id},${prev_id}`;
+        const connected = this.adjacency?.has(a) ?? true; // fallback true during live streaming
+        if (connected) {
+          current.push([v.lat, v.lng]);
+        } else {
+          if (current.length > 1) segments.push(current);
+            current = [[v.lat, v.lng]];
+        }
+      }
+    }
+    if (current.length > 1) segments.push(current);
+
+    const group = L.layerGroup();
+    segments.forEach(seg => L.polyline(seg, style).addTo(group));
+    // group.addTo(this.map);
+
+    if (this.graphLayerGroup) {
+      group.addTo(this.graphLayerGroup);
+    }
+
+    group.setStyle = (newStyle) => {
+      group.eachLayer(layer => layer.setStyle(newStyle));
+    };
+
+    group.addLatLng = ([lat, lng]) => {
+      const layers = Object.values(group._layers);
+      if (layers.length === 0) {
+        L.polyline([[lat, lng]], style).addTo(group);
+      } else {
+        layers[layers.length - 1].addLatLng([lat, lng]);
+      }
+    };
+
+    // const _remove = group.remove.bind(group);
+    // group.remove = () => {
+    //   group.clearLayers();
+    //   _remove();
+    // };
+
+    return group;
   }
 
   /** @brief Refresh the pose graph completely */
   loadGraphState(graph, center = false) {
     console.info("Loading the current pose graph state (full).");
-    // root vid
-    this.root_vid = 0; // = graph.root_vid; /// \todo
+    this.root_vid = graph.root_vid;
+
+    if (this.graphLayerGroup) {
+      this.graphLayerGroup.clearLayers();
+    }
+
     // id2vertex and kdtree
     this.id2vertex = new Map();
     let wps_map = new Map();
@@ -590,33 +757,55 @@ class GraphMap extends React.Component {
       } else {
         wps_map.set(v.id, this.genDefaultWaypointName(v.id));
       }
-
     });
+
+    this.adjacency = new Set();
+      graph.vertices.forEach((v) => {
+      v.neighbors.forEach((n) => {
+        // Store both directions as "smallId,largeId" for O(1) lookup
+        const key = v.id < n ? `${v.id},${n}` : `${n},${v.id}`;
+        this.adjacency.add(key);
+      });
+    });
+
     this.setState({waypoints_map: wps_map, display_waypoints_map: disp_wps_map});
-
     this.kdtree = new kdTree(graph.vertices, (a, b) => b.distanceTo(a), ["lat", "lng"]);
-    // fixed routes
-    this.fixed_routes.forEach((route) => {
-      route.polyline.remove();
-    });
-    this.fixed_routes = graph.fixed_routes.flatMap((route) => {
+    
+    // this.active_routes.forEach((route) => route.polyline.remove());
+    // this.active_routes = [];
+    // this.robot_routes = new Map();
+    
+    this.active_routes = [];
+    this.fixed_routes = [];
+    this.robot_routes = new Map();
+    
+// fixed routes
+    this.fixed_routes = this.splitRoutesByRobotId(graph.fixed_routes).flatMap((route) => {
       let polyline = this.route2Polyline(route);
       let route_centre = structuredClone(route);
       route_centre.type = 7;
       let polyline_centre = this.route2Polyline(route_centre);
       return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
     });
+
     // active routes
-    this.active_routes.forEach((route) => {
-      route.polyline.remove();
-    });
-    this.active_routes = graph.active_routes.flatMap((route) => {
+    this.active_routes = this.splitRoutesByRobotId(graph.active_routes).flatMap((route) => {
       let polyline = this.route2Polyline(route);
       let route_centre = structuredClone(route);
       route_centre.type = 7;
       let polyline_centre = this.route2Polyline(route_centre);
       return [{ ...route, polyline: polyline}, {...route_centre, polyline: polyline_centre}];
     });
+
+    // active_routes are stored in pairs [route, route_centre], step by 2
+    for (let i = 0; i < this.active_routes.length; i += 2) {
+      const route = this.active_routes[i];
+      const route_centre = this.active_routes[i + 1];
+      if (route && route.ids.length > 0) {
+        const robot_id = this.getRobotId(route.ids[route.ids.length - 1]);
+        this.robot_routes.set(robot_id, { route, route_centre });
+      }
+    }
 
     // center set to root vertex
     if (center && this.id2vertex.has(this.root_vid)) {
@@ -764,50 +953,59 @@ class GraphMap extends React.Component {
 
   graphUpdateCallback(graph_update) {
     if (this.map === null) return;
-    if (this.graph_loaded === false) return;
-    console.info("Received graph update: ", graph_update);
-
+    if (this.graph_loaded === false) {
+      console.warn("Graph not ready, buffering update for vertex:", graph_update.vertex_to.id);
+      this.update_buffer.push(graph_update);
+      return;
+    }
+    console.info("Processing graph update: ", graph_update);
+ 
     // from vertex
     let vf = graph_update.vertex_from;
     vf.valueOf = () => vf.id;
     vf.distanceTo = L.LatLng.prototype.distanceTo;
-    // only update if the vertex is not in the map (vertex position does not change)
-    if (!this.id2vertex.has(vf.id)) this.kdtree.insert(vf);
-    // always update the vertex map, because vertex neighbors may change
-    this.id2vertex.set(vf.id, vf);
-
+ 
     // to vertex
     let vt = graph_update.vertex_to;
     vt.valueOf = () => vt.id;
     vt.distanceTo = L.LatLng.prototype.distanceTo;
-    // only update if the vertex is not in the map (vertex position does not change)
-    if (!this.id2vertex.has(vt.id)) this.kdtree.insert(vt);
-    // always update the vertex map, because vertex neighbors may change
+ 
+    if (!this.id2vertex.has(vf.id)) {
+      if (this.kdtree) this.kdtree.insert(vf);
+    }
+    this.id2vertex.set(vf.id, vf);
+ 
+    if (!this.id2vertex.has(vt.id)) {
+      if (this.kdtree) this.kdtree.insert(vt);
+    }
     this.id2vertex.set(vt.id, vt);
+ 
+    // top 4 bits
+    const robot_id = this.getRobotId(vf.id);
+    
+    const existing = this.robot_routes.get(robot_id);
+    const tail_id = existing?.route.ids.at(-1);
+    const typeChanged = existing && existing.route.type !== vt.type;
+    const needNewSegment = !existing || tail_id?.toString() !== vf.id.toString() || typeChanged;
 
-    // active route update
-    if (this.active_routes.length === 0) {
-      let active_route = { ids: [vf.id], type: vf.type };
-      active_route = { ...active_route, polyline: this.route2Polyline(active_route) };
-      this.active_routes.push(active_route);
-      let active_route_centre = { ids: [vf.id], type: 7 };
-      active_route_centre = { ...active_route_centre, polyline: this.route2Polyline(active_route_centre) };
-      this.active_routes.push(active_route_centre);
+    if (needNewSegment) {
+      let route = { ids: [vf.id, vt.id], type: vt.type };
+      route.polyline = this.route2Polyline(route);
+      
+      let route_centre = { ids: [vf.id, vt.id], type: 7 };
+      route_centre.polyline = this.route2Polyline(route_centre);
+
+      this.active_routes.push(route, route_centre);
+      this.robot_routes.set(robot_id, { route: route, route_centre: route_centre });
+    } else {
+      // Extend the existing segment cleanly
+      const {route, route_centre} = existing;
+      route.ids.push(vt.id);
+      route.polyline.addLatLng([vt.lat, vt.lng]);
+      route_centre.ids.push(vt.id);
+      route_centre.polyline.addLatLng([vt.lat, vt.lng]);
     }
-    let active_route = this.active_routes[this.active_routes.length - 2];
-    active_route.ids.push(vt.id);
-    active_route.polyline.addLatLng([vt.lat, vt.lng]);
-    let active_route_centre = this.active_routes[this.active_routes.length - 1];
-    active_route_centre.ids.push(vt.id);
-    active_route_centre.polyline.addLatLng([vt.lat, vt.lng]);
-    if (active_route.type !== vt.type) {
-      let new_active_route = { ids: [vt.id], type: vt.type };
-      new_active_route = { ...new_active_route, polyline: this.route2Polyline(new_active_route) };
-      this.active_routes.push(new_active_route);
-      let new_active_route_centre = { ids: [vf.id], type: 7 };
-      new_active_route_centre = { ...new_active_route_centre, polyline: this.route2Polyline(new_active_route_centre) };
-      this.active_routes.push(new_active_route_centre);
-    }
+    console.info("Graph update completed: ", graph_update);
   }
 
   /**
@@ -1044,7 +1242,7 @@ class GraphMap extends React.Component {
     // set up and add the center marker
     let closest_vertices = this.kdtree.nearest(center_pos, 1);
     selector.vertex.c = closest_vertices ? closest_vertices[0][0] : center_pos;
-    selector.vertex.c = this.id2vertex.get(0);
+    selector.vertex.c = this.id2vertex.get(this.root_vid) || this.id2vertex.values().next().value;
     selector.marker.c = L.marker(selector.vertex.c, {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
@@ -1535,7 +1733,9 @@ class GraphMap extends React.Component {
   }
 
   metres2pix(metres) {
-    let origin = L.latLng(this.id2vertex.get(this.root_vid));
+    let ref = this.id2vertex.get(this.root_vid) || this.id2vertex.values().next().value;
+    if (!ref) return metres;
+    let origin = L.latLng(ref);
     let origin_plus_metre = this.map.latLngToLayerPoint(L.latLng(origin.lat - 1, origin.lng));
     let metre_standard = origin_plus_metre.subtract(this.map.latLngToLayerPoint(origin));
     let factor = metre_standard.y * 0.000009;

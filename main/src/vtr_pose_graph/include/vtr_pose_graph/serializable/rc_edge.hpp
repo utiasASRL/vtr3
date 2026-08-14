@@ -39,9 +39,9 @@ class RCEdge : public EdgeBase {
   using EdgeTransformMsg = vtr_common_msgs::msg::LieGroupTransform;
 
   static Ptr MakeShared(const VertexId& from_id, const VertexId& to_id,
-                        const EdgeType& type, const bool manual,
+                        const EdgeType& type, const EdgeMode& mode,
                         const EdgeTransform& T_to_from) {
-    return std::make_shared<RCEdge>(from_id, to_id, type, manual, T_to_from);
+    return std::make_shared<RCEdge>(from_id, to_id, type, mode, T_to_from);
   }
 
   static Ptr MakeShared(const EdgeMsg& msg,
@@ -50,7 +50,7 @@ class RCEdge : public EdgeBase {
   }
 
   RCEdge(const VertexId& from_id, const VertexId& to_id, const EdgeType& type,
-         const bool manual, const EdgeTransform& T_to_from);
+         const EdgeMode& mode, const EdgeTransform& T_to_from);
 
   RCEdge(const EdgeMsg& msg,
          const storage::LockableMessage<EdgeMsg>::Ptr& msg_ptr);

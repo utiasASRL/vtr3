@@ -117,7 +117,8 @@ class GraphMapServer : public tactic::Graph::Callback,
   void poseCallback(const NavSatFix::ConstSharedPtr msg);
   void updateWaypointCallback(const UpdateWaypointMsg::ConstSharedPtr msg);
   void updateMissionCallback(const MissionCommandMsg::ConstSharedPtr msg);
-
+  void refreshGraphState();
+  
  private:
   /// these functions are called with graph mutex locked
   void vertexAdded(const VertexPtr& v) override;
@@ -133,16 +134,21 @@ class GraphMapServer : public tactic::Graph::Callback,
   /// these functions are called by functions above, do not lock mutex inside
   /** \brief Helper to get a shared pointer to the graph */
   GraphPtr getGraph() const;
+
   /** \brief Returns a privileged graph (only contains teach routes) */
   GraphBasePtr getPrivilegedGraph() const;
+  GraphBasePtr getTopologyGraph() const;
   /** \brief Compute graph in a privileged frame, changes vid2tf_map_ */
   void optimizeGraph(const GraphBasePtr& priv_graph);
   void updateVertexProjection();
   void updateVertexType();
   void updateVertexName();
   void computeRoutes(const GraphBasePtr& priv_graph);
+  void buildAndPublishGraphState();
+
   /** \brief Update the graph incrementally when no optimization is needed */
   bool updateIncrementally(const EdgePtr& e);
+  bool publishUpdate(const EdgePtr& e);
 
   void updateRobotProjection();
 
@@ -213,6 +219,10 @@ class GraphMapServer : public tactic::Graph::Callback,
   const float dist_thres_ = 0.1;
   bool initial_pose_set_ = false;
   std::deque<std::pair<int, int>> gps_coords_ {2};
+
+  rclcpp::TimerBase::SharedPtr update_flush_timer_;
+  rclcpp::TimerBase::SharedPtr graph_state_refresh_timer_;
+  std::vector<GraphUpdate> pending_updates_; 
 };
 
 class RvizGraphMapServer : public GraphMapServer,

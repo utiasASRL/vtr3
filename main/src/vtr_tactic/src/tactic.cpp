@@ -52,6 +52,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->save_localization_result = node->declare_parameter<bool>(prefix+".save_localization_result", false);
   config->visualize = node->declare_parameter<bool>(prefix+".visualize", false);
   // clang-format on
+
   return config;
 }
 
@@ -73,7 +74,7 @@ Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
   output_->chain = chain_;  // shared pointing to the same chain, no copy
   output_->odometry_success.emplace(false);
   //
-  pipeline_->initialize(output_, graph_);
+  pipeline_->initialize(output_, graph_);    
 }
 
 auto Tactic::lockPipeline() -> TacticInterface::PipelineLock {
@@ -85,7 +86,7 @@ void Tactic::setPipeline(const PipelineMode& pipeline_mode) {
   pipeline_mode_ = pipeline_mode;
 }
 
-void Tactic::addRun(const bool) {
+void Tactic::addRun(const bool ephemeral) {
   graph_->addRun();
   // re-initialize the run
   first_frame_ = true;
@@ -100,16 +101,11 @@ void Tactic::addRun(const bool) {
   T_m_w_ = EdgeTransform(true);
   // re-initialize the pipeline
   pipeline_->reset();
-  //
   callback_->startRun();
 }
 
 void Tactic::finishRun() {
-  // saving graph here is optional as we save at destruction, just to avoid
-  // unexpected data loss
   smoother_.runBranchSmoothing();
-  graph_->save();
-  //
   callback_->endRun();
 }
 
@@ -122,16 +118,19 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
                      const EdgeTransform& T_twig_branch, const bool publish) {
   /// Set path and target localization
   CLOG(INFO, "tactic") << "Set path of size " << path.size();
-  ///
+  //
+  graph_->loadLive();
+
   auto lock = chain_->guard();
   //
   chain_->setSequence(path);
   if (path.size() > 0) {
     chain_->expand();
     auto eval =
-          std::make_shared<pose_graph::eval::mask::privileged::Eval<Graph>>(*graph_);
-    auto connected = graph_->dijkstraSearch(VertexId(0, 0), path.front(), std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
-    T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(VertexId(0, 0)), connected->end(), EdgeTransform(true));
+        std::make_shared<pose_graph::eval::mask::topology::Eval<Graph>>(*graph_);
+    const auto graph_root = graph_->root();
+    auto connected = graph_->dijkstraSearch(graph_root, path.front(), std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
+    T_m_w_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(graph_root), connected->end(), EdgeTransform(true));
     CLOG(INFO, "tactic") << "Setting tf from root to " << T_m_w_;
   }
   // used as initial guess for trunk
@@ -157,7 +156,7 @@ void Tactic::setTrunk(const VertexId& v) {
   callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }
 
-void Tactic::connectToTrunk(const bool privileged) {
+void Tactic::connectToTrunk(const EdgeMode& privileged) {
   const auto [twig_vid, branch_vid, T_twig_branch] = [&]() {
     auto lock = chain_->guard();
     return std::make_tuple(chain_->twigVertexId(), chain_->branchVertexId(),
@@ -165,7 +164,7 @@ void Tactic::connectToTrunk(const bool privileged) {
   }();
   CLOG(INFO, "tactic") << "Adding connection " << twig_vid << " --> "
                        << branch_vid << ", privileged: " << std::boolalpha
-                       << privileged << ", with T_to_from: "
+                       << static_cast<unsigned>(privileged) << ", with T_to_from: "
                        << T_twig_branch.inverse().vec().transpose();
   graph_->addEdge(twig_vid, branch_vid, EdgeType::Spatial, privileged,
                   T_twig_branch.inverse());
@@ -208,6 +207,11 @@ bool Tactic::routeCompleted() const {
 }
 
 bool Tactic::input_(const QueryCache::Ptr&) {
+  auto now = std::chrono::steady_clock::now();
+  if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
+    last_load_live_ = now;
+    graph_->loadLive();
+  }
   return config_->preprocessing_skippable;
 }
 
@@ -277,6 +281,13 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
     graph_->write<OdometryResult>("odometry_result",
                                   "vtr_tactic_msgs/msg/OdometryResult", msg);
+
+    // using edgeLM = storage::LockableMessage<EdgeResult>;
+    // auto edg_result = std::make_shared<EdgeResult>(
+    //     *qdata->stamp, T_w_v_odo_ * (*qdata->T_r_v_odo).inverse());
+    // auto edge_msg = std::make_shared<edgeLM>(edg_result, *qdata->stamp);
+    // graph_->write<EdgeResult>("edge",
+    //   "vtr_posegraph_msgs/msg/Edge", edge_msg);
   }
 
   // save odometry velocity result
@@ -323,7 +334,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Manual,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -351,6 +362,9 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   qdata->vid_loc.emplace(chain_->trunkVertexId());
   qdata->sid_loc.emplace(chain_->trunkSequenceId());
   qdata->T_r_v_loc.emplace(chain_->T_leaf_trunk());
+
+
+  // graph_->save(); // saveLive handles
 
   return config_->localization_skippable;
 }
@@ -425,7 +439,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX || force_add_vertex_) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Manual,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -521,7 +535,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), true,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Manual,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -593,7 +607,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), false,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Autonomous,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -663,7 +677,7 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& vertex_test_result = *qdata->vertex_test_result;
   if (vertex_test_result == VertexTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), false,
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_v_odo), EdgeMode::Autonomous,
                   *(qdata->env_info));
     CLOG(INFO, "tactic") << "Creating a new vertex with id "
                          << current_vertex_id_;
@@ -901,7 +915,8 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
     auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
     graph_->write<LocalizationResult>(
         "localization_result", "vtr_tactic_msgs/msg/LocalizationResult", msg);
-  }
+      
+}
 
   if (!(*qdata->loc_success)) {
     CLOG(WARNING, "tactic") << "Localization failed, skip updating pose graph "
@@ -924,7 +939,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
                           << *(qdata->vid_odo) << " and " << *(qdata->vid_loc)
                           << " to the graph.";
     graph_->addEdge(*(qdata->vid_odo), *(qdata->vid_loc), EdgeType::Spatial,
-                    false, T_v_odo_loc.inverse());
+                    EdgeMode::Autonomous, T_v_odo_loc.inverse());
     CLOG(DEBUG, "tactic") << "Done adding the spatial edge between "
                           << *(qdata->vid_odo) << " and " << *(qdata->vid_loc)
                           << " to the graph.";
@@ -982,7 +997,7 @@ bool Tactic::localizeMetricLocLocalization(const QueryCache::Ptr& qdata) {
 }
 
 void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
-                           const bool manual, const EnvInfo& env_info) {
+                           const EdgeMode& mode, const EnvInfo& env_info) {
   //
   const auto previous_vertex_id = current_vertex_id_;
 
@@ -1004,8 +1019,11 @@ void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_v,
 
   // Add the new edge
   if (!previous_vertex_id.isValid()) return;
-  (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
-                        EdgeType::Temporal, manual, T_r_v);
+  auto edge = graph_->addEdge(previous_vertex_id, current_vertex_id_,
+                        EdgeType::Temporal, mode, T_r_v);
+
+  // Write new data to disk
+  graph_->saveLive();
 }
 
 void Tactic::updatePersistentLoc(const Timestamp& t, const VertexId& v,

@@ -14,7 +14,12 @@
 
 /**
  * \file base_id.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Anthony Beca, Autonomous Space Robotics Lab (ASRL)
+ * 
+ * Vertex ID are assigned according to the following (64-bit) bitfield:
+ *   bits 0-3 : ROBOT_ID -> env variable that is unique for each robot (up to 16 robots)
+ *   bits 4-44 : run id  -> 44-bit UUID that is generated per-run
+ *   bits 45-64 : vertex id -> 16-bit sequential incremented with each vertex
  */
 #pragma once
 
@@ -28,6 +33,8 @@ namespace pose_graph {
 
 using BaseIdType = uint32_t;
 static constexpr BaseIdType InvalidBaseId = BaseIdType(-1);
+using MajorIdType = uint64_t;
+static constexpr MajorIdType InvalidMajorId = MajorIdType(0x0000FFFFFFFFFFFFull);
 using CombinedIdType = uint64_t;
 static constexpr CombinedIdType InvalidCombinedId = CombinedIdType(-1);
 
@@ -38,7 +45,7 @@ class VertexId {
   static constexpr VertexId Invalid() { return VertexId(); }
 
   constexpr VertexId() = default;
-  constexpr VertexId(const BaseIdType &major_id, const BaseIdType &minor_id)
+  constexpr VertexId(const MajorIdType &major_id, const BaseIdType &minor_id)
       : major_id_(major_id), minor_id_(minor_id) {}
   constexpr VertexId(const CombinedIdType &combined_id)
       : major_id_(upper(combined_id)), minor_id_(lower(combined_id)) {}
@@ -47,7 +54,7 @@ class VertexId {
 
   /** \brief Check if the id is valid */
   bool isValid() const {
-    return (major_id_ != InvalidBaseId) && (minor_id_ != InvalidBaseId);
+    return (major_id_ != InvalidMajorId) && (minor_id_ != InvalidBaseId);
   }
 
   /** \brief Hash operator for use in stl containers */
@@ -69,7 +76,7 @@ class VertexId {
   bool operator>=(const VertexId &rhs) const { return !(operator<(rhs)); }
 
   /** \brief Get the run id */
-  BaseIdType majorId() const { return major_id_; }
+  MajorIdType majorId() const { return major_id_; }
   /** \brief Get the container id, within the run */
   BaseIdType minorId() const { return minor_id_; }
 
@@ -102,20 +109,20 @@ class VertexId {
 
  private:
   static constexpr BaseIdType lower(const CombinedIdType &value) {
-    return (BaseIdType)(value & 0x00000000FFFFFFFF);
+    return (BaseIdType)(value & 0xFFFF);
   }
 
-  static constexpr BaseIdType upper(const CombinedIdType &value) {
-    return (BaseIdType)(value >> 32);
+  static constexpr MajorIdType upper(const CombinedIdType &value) {
+    return (MajorIdType)(value >> 16);
   }
 
-  static constexpr CombinedIdType combine(const BaseIdType &upper_value,
+  static constexpr CombinedIdType combine(const MajorIdType &upper_value,
                                           const BaseIdType &lower_value) {
-    return (CombinedIdType(upper_value) << 32) | CombinedIdType(lower_value);
+    return (CombinedIdType(upper_value) << 16) | CombinedIdType(lower_value & 0xFFFF);
   }
 
  protected:
-  BaseIdType major_id_ = InvalidBaseId;
+  MajorIdType major_id_ = InvalidMajorId;
   BaseIdType minor_id_ = InvalidBaseId;
 
  private:
@@ -160,11 +167,11 @@ class EdgeId {
   bool operator>=(const EdgeId &rhs) const { return !operator<(rhs); }
 
   VertexId id1() const { return id_.first; }
-  BaseIdType majorId1() const { return id_.first.majorId(); }
+  MajorIdType majorId1() const { return id_.first.majorId(); }
   BaseIdType minorId1() const { return id_.first.minorId(); }
 
   VertexId id2() const { return id_.second; }
-  BaseIdType majorId2() const { return id_.second.majorId(); }
+  MajorIdType majorId2() const { return id_.second.majorId(); }
   BaseIdType minorId2() const { return id_.second.minorId(); }
 
   /** \brief String output */

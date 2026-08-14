@@ -29,7 +29,7 @@ TEST(PoseGraph, edge_base_tests) {
   /// constructors
   // follow the convention of from a higher run to a lower run, so the edge is
   // reversed
-  EdgeBase edge(VertexId(3, 5), VertexId(1, 10), EdgeType::Temporal, false,
+  EdgeBase edge(VertexId(3, 5), VertexId(1, 10), EdgeType::Temporal, EdgeMode::Autonomous,
                 EdgeTransform(true));
   edge.setTransform(EdgeTransform(true));
 

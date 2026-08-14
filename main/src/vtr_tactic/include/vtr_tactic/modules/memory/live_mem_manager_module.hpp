@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <deque>
+
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"  /// include this header if using the task queue
 
@@ -54,8 +56,8 @@ class LiveMemManagerModule : public BaseModule {
                  const TaskExecutor::Ptr &, const Task::Priority &,
                  const Task::DepId &) override;
 
-  /** \brief Module configuration. */
   Config::ConstPtr config_;
+  std::deque<VertexId> vertex_window_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(LiveMemManagerModule);
 };

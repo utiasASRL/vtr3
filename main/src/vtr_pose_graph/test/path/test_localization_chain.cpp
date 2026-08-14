@@ -66,7 +66,7 @@ class ChainTest : public Test {
       EdgeTransform edge_transform(transform);
       edge_transform.setZeroCovariance();
       graph_->addEdge(VertexId(0, i), VertexId(0, i + 1), EdgeType::Temporal,
-                      true, edge_transform);
+                      EdgeMode::Manual, edge_transform);
     }
 
     // R1
@@ -79,7 +79,7 @@ class ChainTest : public Test {
       EdgeTransform edge_transform(transform);
       edge_transform.setZeroCovariance();
       graph_->addEdge(VertexId(1, i), VertexId(1, i + 1), EdgeType::Temporal,
-                      false, edge_transform);
+                      EdgeMode::Autonomous, edge_transform);
     }
 
     using PrivEvaluator = eval::mask::privileged::CachedEval<BasicGraph>;

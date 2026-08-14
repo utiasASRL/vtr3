@@ -53,7 +53,7 @@ class TacticInterface {
   /** \brief Set the current privileged vertex (topological localization) */
   virtual void setTrunk(const VertexId& v = VertexId::Invalid()) = 0;
   /** \brief Add a new vertex, link it to the current trunk and branch */
-  virtual void connectToTrunk(const bool privileged = false) = 0;
+  virtual void connectToTrunk(const EdgeMode& privileged = EdgeMode::Autonomous) = 0;
   /** \brief Get the current persistent localization (i.e. curr robot loc) */
   virtual Localization getPersistentLoc() const = 0;
   /** \brief Whether robot has been localized successfully */
