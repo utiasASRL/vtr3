@@ -16,8 +16,9 @@ class TorrentPlanner(Node):
         self.robot_name = os.getenv("ROBOT_NAME")
         print(f"ROBOT_NAME: {self.robot_name}")
         self.last_vtx = 0
-        self.following_gap = 5 # vertices
-
+        self.following_gap = 10 # vertices
+        self.first_pub = False # first pub comes from graphUpdate, subsequent from graphState
+    
         self.command_pub = self.create_publisher(
             MissionCommand,
             f'/{self.robot_name}/vtr/mission_command',
@@ -86,14 +87,28 @@ class TorrentPlanner(Node):
         print(f"vtx: {self.last_vtx}: robot_id {rid} | major_id {major_id} | minor_id {minor_id}")
 
         print("pub via graph state")
-        command_vtx = self.last_vtx - self.following_gap
+        if minor_id > self.following_gap:
+           command_vtx = self.last_vtx - self.following_gap
+        else:
+            command_vtx = self.last_vtx  
         self.pack_and_publish_msg(command_vtx)
 
     def update_callback(self, graph_update):
+        if self.first_pub == True:
+            return
+
         if graph_update.vertex_from.id - self.following_gap > self.last_vtx:
             print("pub via graph update")
             self.last_vtx = graph_update.vertex_from.id
-            command_vtx = self.last_vtx - self.following_gap
+            rid = (self.last_vtx >> 60) & 0xF
+            major_id = (self.last_vtx >> 16) & 0xFFFFFFFFFFF
+            minor_id = self.last_vtx & 0xFFFF
+
+            if minor_id > self.following_gap:
+                command_vtx = self.last_vtx - self.following_gap
+            else:
+                command_vtx = self.last_vtx  
+            self.first_pub = True
             self.pack_and_publish_msg(command_vtx)
 
 def main(args=None):
