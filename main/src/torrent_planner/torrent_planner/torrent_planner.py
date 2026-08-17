@@ -16,7 +16,7 @@ class TorrentPlanner(Node):
         self.robot_name = os.getenv("ROBOT_NAME")
         print(f"ROBOT_NAME: {self.robot_name}")
         self.last_vtx = 0
-        self.following_gap = 10 # vertices
+        self.following_gap = 5 # vertices
         self.first_pub = False # first pub comes from graphUpdate, subsequent from graphState
     
         self.command_pub = self.create_publisher(
