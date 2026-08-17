@@ -174,7 +174,7 @@ EdgeTransform Path<GraphT>::pose(unsigned seq_id) const {
   LockGuard lock(mutex_);
   if (seq_id >= sequence_.size()) {
     std::string err{"[Path][pose] id out of range."};
-    CLOG(ERROR, "pose_graph") << err;
+    CLOG(ERROR, "pose_graph") << "seq_id: " << seq_id << ", error: " << err;
     throw std::range_error(err);
   }
   // cheating so we can JIT expand
