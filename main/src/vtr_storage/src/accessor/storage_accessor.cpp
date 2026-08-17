@@ -70,8 +70,13 @@ void StorageAccessor::open(const std::string& uri, const bool read_only) {
 
   if (!read_only){
     /// Handle case where metadata exists, meaning there's already a bag 
-    const auto metadata = metadata_io_->read_metadata(uri);
-
+    BagMetadata metadata;
+    try {
+      metadata = metadata_io_->read_metadata(uri);
+    } catch (const std::exception& ex) {
+      // RCLCPP_WARN(logger, "Corrupt metadata file encountered: %s", ex.what());
+      return;
+    }
     // sanity check
     rcpputils::check_true(metadata.relative_file_paths.size() == 1,
                           "VTR storage does not support multiple bag files.");
