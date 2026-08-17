@@ -77,6 +77,7 @@ class TorrentPlanner(Node):
 
     def state_callback(self, graph_state):
         # get largest vid in the posegraph
+        curr_vtx= self.last_vtx
         for vtx in graph_state.vertices:
             if vtx.id > self.last_vtx:
                 self.last_vtx = vtx.id
@@ -87,11 +88,11 @@ class TorrentPlanner(Node):
         print(f"vtx: {self.last_vtx}: robot_id {rid} | major_id {major_id} | minor_id {minor_id}")
 
         print("pub via graph state")
-        if minor_id > self.following_gap:
-           command_vtx = self.last_vtx - self.following_gap
-        else:
-            command_vtx = self.last_vtx  
-        self.pack_and_publish_msg(command_vtx)
+        # if at beginning or end of path (within following gap) do nothing
+        if not(minor_id < self.following_gap or (minor_id - curr_vtx & 0xFFFF) < self.following_gap):
+            command_vtx = self.last_vtx - self.following_gap
+            print(f'waypoint to {command_vtx}')
+            self.pack_and_publish_msg(command_vtx)
 
     def update_callback(self, graph_update):
         if self.first_pub == True:
