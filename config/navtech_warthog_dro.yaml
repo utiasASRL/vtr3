@@ -103,8 +103,8 @@
             - 0.0
             - 1.0
           estimate_vy_bias: false
-          estimate_gyro_bias: true
-          use_gyro: true
+          estimate_gyro_bias: false
+          use_gyro: false
           vy_bias_prior: 0.0
           min_time_bias_init: 1.0
           gyro_bias_alpha: 0.01

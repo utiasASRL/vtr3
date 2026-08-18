@@ -44,7 +44,6 @@ Eigen::Vector2f DroWrapper::odometryStep(const RadarData& radar_data, const std:
     py::tuple result = dro_instance_.attr("odometryStep")(radar_py, imu_py_list);
     local_map = result[1].cast<cv::Mat>();
     // The Python function returns a numpy array via detach().cpu().numpy()[cite: 1].
-    // We cast it to a pybind11::array_t for safe C++ consumption.
     return result[0].cast<Eigen::Vector2f>();
 }
 

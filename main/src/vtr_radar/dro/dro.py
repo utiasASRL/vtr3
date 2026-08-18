@@ -336,9 +336,9 @@ class Dro():
 
             # Prepare the chirp direction
             if self.use_doppler:
-                self.chirp_up = (radar_data['chirps'][0] == 0)
+                self.chirp_up = radar_data['chirps'][0]
             else:
-                self.chirp_up = radar_data['chirps'][0] == 0
+                self.chirp_up = radar_data['chirps'][0]
                     
             # Prepare the timestamps
             if self.timestamps is None:

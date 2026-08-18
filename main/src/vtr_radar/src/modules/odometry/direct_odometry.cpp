@@ -190,11 +190,11 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
     imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL + 
                   static_cast<int64_t>(msg.header.stamp.nanosec) / 1000LL;
     if (imu_data.timestamp < rd.timestamps.front()) {
-      CLOG(DEBUG, static_name) << "Start message found";
+      CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
     }
 
     if (imu_data.timestamp > rd.timestamps.back()) {
-      CLOG(DEBUG, static_name) << "End message found";
+      CLOG(DEBUG, static_name) << "End message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.back()) / 1e6;
     }
     imu_data.angular_velocity = Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
     imu_data.linear_acceleration = Eigen::Vector3d(msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z);
