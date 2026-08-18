@@ -264,6 +264,11 @@ void ILCFeedbackLinearizationPathTracker::updateFeedForwardCorrections(){
     auto denom = lin_vel_i * lin_vel_i * cos(avg_err_yaw);
 
     auto psi_curr_iter_ff = last_iter_ff_psi + std::atan2(num, denom);
+    CLOG(DEBUG, "feedback_linearization.ilc") << "avg_err_lat: " << avg_err_lat
+        << " avg_err_yaw: " << avg_err_yaw
+        << " lin_vel_i: " << lin_vel_i
+        << " psi_curr_iter_ff: " << psi_curr_iter_ff;
+    CLOG(DEBUG, "feedback_linearization.ilc") << "Numerator: " << num << " Denominator: " << denom;
 
     const double clamped = clampAbs(psi_curr_iter_ff, config_->feedforward_max);
     if (std::abs(clamped - psi_curr_iter_ff) > 1e-9) {
