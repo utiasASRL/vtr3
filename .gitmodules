@@ -9,3 +9,6 @@
 [submodule "spinning-radar-doppler"]
     path = main/src/deps/spinning-radar-doppler
     url = ../spinning-radar-doppler.git
+[submodule "main/src/deps/cvnp"]
+	path = main/src/deps/cvnp
+	url = https://github.com/pthom/cvnp.git
