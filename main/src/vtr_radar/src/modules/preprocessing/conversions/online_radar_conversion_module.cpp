@@ -73,7 +73,7 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<int64_t> azimuth_times;
   for (const auto& time : qdata.scan_msg->timestamps) {
     azimuth_times.emplace_back(static_cast<int64_t>(time) * timescale);
-    up_chirps.emplace_back(false);
+    up_chirps.emplace_back(true);
   }
 
   std::vector<double> azimuth_angles;

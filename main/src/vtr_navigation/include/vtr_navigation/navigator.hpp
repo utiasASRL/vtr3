@@ -104,7 +104,7 @@ class Navigator {
   rclcpp::Subscription<ImuMsg>::SharedPtr gyro_sub_;
   std::string gyro_frame_;
   tactic::EdgeTransform T_gyro_robot_;
-  std::vector<ImuMsg> gyro_msgs_;
+  std::list<ImuMsg> gyro_msgs_;
   std::array<double, 3> gyro_bias_ = {0.0, 0.0, 0.0};
 #endif
 

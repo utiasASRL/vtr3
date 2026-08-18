@@ -19,3 +19,4 @@
 #pragma once
 
 #include "vtr_route_planning/bfs_planner.hpp"
+#include "vtr_route_planning/convoy_planner.hpp"

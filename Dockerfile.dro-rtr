@@ -1,0 +1,3 @@
+FROM utiasasrl/vtr3:latest
+RUN pip install torch torchvision
+RUN pip install --upgrade packaging

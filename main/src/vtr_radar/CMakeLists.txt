@@ -18,6 +18,10 @@ find_package(cv_bridge REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_ros REQUIRED)
 
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(pybind11 CONFIG QUIET)
+
 find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
@@ -54,6 +58,19 @@ ament_target_dependencies(${PROJECT_NAME}_components
   vtr_common vtr_logging vtr_tactic vtr_radar_msgs
 )
 
+add_subdirectory(../deps/cvnp "${CMAKE_CURRENT_BINARY_DIR}/cvnp_build")
+add_library(${PROJECT_NAME}_dro src/dro/dro_wrapper.cpp)
+
+ament_target_dependencies(${PROJECT_NAME}_dro
+  rclcpp
+  cv_bridge
+  pybind11
+  ament_index_cpp
+  Eigen3
+)
+target_link_libraries(${PROJECT_NAME}_dro cvnp)
+
+
 # pipelines and modules
 file(GLOB_RECURSE PIPELINE_SRC
   src/modules/*.cpp
@@ -61,6 +78,7 @@ file(GLOB_RECURSE PIPELINE_SRC
 )
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
+target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_dro)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 OpenCV
   cv_bridge pcl_conversions pcl_ros
@@ -72,6 +90,7 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 OpenCV
+  pybind11 ament_index_cpp
   cv_bridge pcl_conversions pcl_ros
   nav_msgs visualization_msgs
   lgmath steam spinning_radar_doppler
@@ -83,10 +102,18 @@ install(
   DESTINATION include
 )
 
+install(FILES
+  dro/dro.py
+  dro/dro_motion_models.py
+  DESTINATION share/${PROJECT_NAME}
+)
+
 install(
   TARGETS
+    cvnp
     ${PROJECT_NAME}_components
     ${PROJECT_NAME}_pipeline
+    ${PROJECT_NAME}_dro
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

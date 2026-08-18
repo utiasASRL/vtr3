@@ -207,8 +207,8 @@ if (pipeline->name() == "radar") {
       node_->declare_parameter<double>("gyro_bias.y", 0.0),
       node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   // there are a radar and gyro frames
-  T_radar_robot_ = loadTransform(radar_frame_, robot_frame_, tf_timeout_);
-  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_);
+  T_radar_robot_ = loadTransform(radar_frame_, robot_frame_, tf_timeout_, false);
+  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_, false);
   // static transform make a shared pointer to the static transform broadcaster
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg_radar = tf2::eigenToTransform(Eigen::Affine3d(T_radar_robot_.inverse().matrix()));
@@ -386,9 +386,26 @@ void Navigator::radarCallback(
 
   // put in the radar msg pointer into query data
   query_data->scan_msg = msg;
+  query_data->gyro_msgs.emplace();
 
-  query_data->gyro_msgs.emplace(gyro_msgs_);
-  gyro_msgs_.clear();
+  uint64_t scan_start = msg->timestamps.front();
+  uint64_t scan_end = msg->timestamps.back();
+
+  while (gyro_msgs_.size() > 2) {
+    const auto& msg_gyro = *std::next(gyro_msgs_.begin());
+    Timestamp timestamp_g = msg_gyro.header.stamp.sec * 1e9 + msg_gyro.header.stamp.nanosec;
+
+    if (timestamp_g > scan_start && timestamp_g < scan_end) {
+      query_data->gyro_msgs->push_back(gyro_msgs_.front());
+      gyro_msgs_.pop_front();
+    } else if (timestamp_g > scan_end) {
+      query_data->gyro_msgs->push_back(gyro_msgs_.front());
+      query_data->gyro_msgs->push_back(msg_gyro);
+      break;
+    } else {
+      gyro_msgs_.pop_front();
+    }
+  }
 
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r_gyro.emplace(T_gyro_robot_);

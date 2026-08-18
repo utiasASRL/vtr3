@@ -402,7 +402,7 @@ void RadarExtractionModule::run_(QueryCache &qdata0, OutputCache &,
     cv_bridge::CvImage scan_image;
     scan_image.header.frame_id = "radar";
     // scan_image.header.stamp = qdata.scan_msg->header.stamp;
-    scan_image.encoding = "mono8";
+    scan_image.encoding = "float32";
     scan_image.image = fft_scan;
     scan_pub_->publish(*scan_image.toImageMsg());
 

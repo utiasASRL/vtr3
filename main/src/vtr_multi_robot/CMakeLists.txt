@@ -33,8 +33,20 @@ ament_target_dependencies(
     vtr_route_planning
 )
 
+add_executable(graph_learning src/run_graph_things.cpp)
+
+ament_target_dependencies(
+    graph_learning
+    rclcpp
+    vtr_tactic
+    vtr_navigation_msgs
+    vtr_logging
+    vtr_route_planning
+)
+
 install(TARGETS
     convoy_planning_node
+    graph_learning
     RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 

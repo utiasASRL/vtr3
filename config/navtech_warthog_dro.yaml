@@ -1,0 +1,240 @@
+ /**:
+  ros__parameters:
+  ############ system configuration ############
+    log_to_file: true
+    log_debug: true
+    log_enabled:
+      # - navigation
+      # - navigation.sensor_input
+      - radar.online_converter
+      - radar.odometry_dro
+      # - tactic
+      # - tactic.pipeline
+      - tactic.module
+      # - mpc.debug
+      # - cbit.control
+      #- mission.state_machine
+      #- mission.server
+    robot_frame: w200_0066_base_link #w200_0066_base_link
+    env_info_topic: env_info
+    radar_frame: w200_0066_navtech_base # w200_0066_navtech_base #navtech_base
+    radar_topic: /radar_data/b_scan_msg
+    gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
+    gyro_topic: /ouster/imu
+    gyro_enabled: true
+    gyro_bias: 
+      z: 0.0
+    queue_size: 100
+    graph_projection:
+      origin_lat: 43.7822 # UTIAS: 43.78220
+      origin_lng: -79.4661 # UTIAS: -79.4661
+      origin_theta: 1.3
+      scale: 1.0
+    # Added Tactical Params
+    tactic:
+      enable_parallelization: false
+      preprocessing_skippable: false
+      odometry_mapping_skippable: false
+      localization_skippable: true
+      task_queue_num_threads: 1
+      task_queue_size: -1
+
+      route_completion_translation_threshold: 0.1
+
+      chain:
+        min_cusp_distance: 1.5
+        angle_weight: 7.0
+        search_depth: 5
+        search_back_depth: 10
+        distance_warning: 5.0
+      save_odometry_result: true
+      save_localization_result: true
+      visualize: true
+      rviz_loc_path_offset:
+        - 0.0
+        - 0.0
+        - 0.0                                                                                                                                                                  
+    ############ pipeline configuration ############
+    pipeline:
+      type: radar
+      preprocessing: 
+        - conversion
+      odometry:
+        - dro
+      localization: 
+        - recall
+        - icp
+        - memory
+      submap_translation_threshold: 1.5
+      submap_rotation_threshold: 30.0
+      save_raw_point_cloud: true
+      save_radar_images: true
+    preprocessing:
+      conversion:
+        type: radar.online_converter
+        radar_resolution: 0.040308
+        encoder_bin_size: 16000 # encoder bin size
+    odometry:
+      dro:
+        type: radar.odometry_dro
+
+        direct:
+          local_map_res: 0.1
+          local_map_update_alpha: 0.1
+          max_local_map_range: 80.0
+          max_range: 69.0
+          min_range: 0.0
+        estimation:
+          T_axle_radar:
+            - 1.0
+            - 0.0
+            - 0.0
+            - 0.0
+            - 0.0
+            - -1.0
+            - 0.0
+            - 0.0
+            - 0.0
+            - 0.0
+            - -1.0
+            - 1.0
+            - 0.0
+            - 0.0
+            - 0.0
+            - 1.0
+          estimate_vy_bias: false
+          estimate_gyro_bias: true
+          use_gyro: true
+          vy_bias_prior: 0.0
+          min_time_bias_init: 1.0
+          gyro_bias_alpha: 0.01
+          max_acceleration: 10.0
+        gp:
+          lengthscale_az: 2.0
+          lengthscale_range: 4.0
+          sz: 0.6
+        radar:
+          beta_corr_fact: 0.944
+          del_f: 893.0E6
+          ft: 76.04E9
+          meas_freq: 1600.0
+          range_offset: -0.31
+          resolution: 0.0403
+          doppler_enabled: false
+          nb_azimuths: 400
+        solver:
+          nb_iter: 50
+          cost_tol: 1.0E-4
+          step_tol: 1.0E-4
+
+        visualize: true
+      mapping:
+        type: radar.odometry_map_maintenance
+
+        map_voxel_size: 0.5
+
+        crop_range_front: 80.0
+        back_over_front_ratio: 1.0
+
+        point_life_time: 5.0
+
+        visualize: true
+
+      vertex_test:
+        type: radar.vertex_test
+
+        max_translation: 0.2
+        max_rotation: 10.0
+
+      memory:
+        type: "live_mem_manager"
+
+        window_size: 5 # unload data older than this many keyframes
+
+    localization:
+      recall:
+        type: radar.localization_map_recall
+
+        map_version: "pointmap"
+
+        visualize: true
+
+      icp:
+        type: radar.localization_icp
+
+        use_pose_prior: true
+        # ICP parameters #TO TUNE
+        num_threads: 10 # 8
+        first_num_steps: 4 # 2
+        initial_max_iter: 8 # 4
+        initial_max_pairing_dist: 1.5 # 5.0
+        initial_max_planar_dist: 1.0 # 5.0
+        refined_max_iter: 50 # 50
+        refined_max_pairing_dist: 1.0 # 5.0
+        refined_max_planar_dist: 0.3 # 5.0
+        averaging_num_steps: 5 # 5
+        huber_delta: 1.0 # 1.0
+        cauchy_k: 0.2
+
+        # steam parameters #TOTUNE
+        verbose: false
+        max_iterations: 3
+
+        # threshold #TOTUNE
+        min_matched_ratio: 0.30
+
+      memory:
+        type: "graph_mem_manager"
+
+        vertex_life_span: 5
+        window_size: 3
+
+    path_planning:
+      type: cbit # cbit for obstacle free path tracker, cbit.lidar for obstacle avoidance version
+      control_period: 100 # ms
+      cbit:
+        obstacle_avoidance: false
+        obs_padding: 0.0
+        curv_to_euclid_discretization: 10
+        sliding_window_width: 12.0
+        sliding_window_freespace_padding: 0.5
+        corridor_resolution: 0.2
+        state_update_freq: 2.0
+        update_state: true
+        rand_seed: 1
+
+        # Planner Tuning Params
+        initial_samples: 400
+        batch_samples: 200
+        pre_seed_resolution: 0.5
+        alpha: 0.25
+        q_max: 2.5
+        frame_interval: 50
+        iter_max: 10000000
+        eta: 1.0
+        rad_m_exhange: 1.00
+        initial_exp_rad: 0.75
+        extrapolation: false
+        incremental_plotting: false
+        plotting: true
+      costmap:
+        costmap_filter_value: 0.01
+        costmap_history: 15 # Note I dont think im actually using this one anymore, am using the one in the change detection v3 now
+
+      mpc:
+        # Controller Params
+        extrapolate_robot_pose: false
+        mpc_verbosity: false
+        forward_vel: 1.0
+        max_lin_vel: 1.5
+        max_ang_vel: 0.5
+        max_ang_acc: 5.0
+        ang_alpha: 0.0
+        lin_alpha: 0.0
+        robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
+        robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
+
+        vehicle_model: "unicycle"
+
+        # Misc
+        command_history_length: 100
