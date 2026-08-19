@@ -23,7 +23,8 @@
     gyro_topic: /ouster/imu
     gyro_enabled: true
     gyro_bias: 
-      z: 0.0
+      z: 0.000895
+
     queue_size: 100
     graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -56,19 +57,17 @@
         - 0.0                                                                                                                                                                  
     ############ pipeline configuration ############
     pipeline:
-      type: radar
+      type: direct_radar
       preprocessing: 
         - conversion
       odometry:
         - dro
+        - vertex_test
       localization: 
         - recall
-        - icp
         - memory
       submap_translation_threshold: 1.5
       submap_rotation_threshold: 30.0
-      save_raw_point_cloud: true
-      save_radar_images: true
     preprocessing:
       conversion:
         type: radar.online_converter
@@ -143,7 +142,7 @@
       vertex_test:
         type: radar.vertex_test
 
-        max_translation: 0.2
+        max_translation: 0.3
         max_rotation: 10.0
 
       memory:
@@ -158,30 +157,6 @@
         map_version: "pointmap"
 
         visualize: true
-
-      icp:
-        type: radar.localization_icp
-
-        use_pose_prior: true
-        # ICP parameters #TO TUNE
-        num_threads: 10 # 8
-        first_num_steps: 4 # 2
-        initial_max_iter: 8 # 4
-        initial_max_pairing_dist: 1.5 # 5.0
-        initial_max_planar_dist: 1.0 # 5.0
-        refined_max_iter: 50 # 50
-        refined_max_pairing_dist: 1.0 # 5.0
-        refined_max_planar_dist: 0.3 # 5.0
-        averaging_num_steps: 5 # 5
-        huber_delta: 1.0 # 1.0
-        cauchy_k: 0.2
-
-        # steam parameters #TOTUNE
-        verbose: false
-        max_iterations: 3
-
-        # threshold #TOTUNE
-        min_matched_ratio: 0.30
 
       memory:
         type: "graph_mem_manager"

@@ -68,7 +68,7 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
   tactic::Cache<pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
 
-  // odometry & mapping
+  // odometry & mapping for ICP pipeline
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
 #if false  /// store raw point cloud
   tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
@@ -88,6 +88,9 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior;
   tactic::Cache<Eigen::Matrix<double, 12, 12>> cov_prior;
   tactic::Cache<int64_t> timestamp_prior;
+
+  //odometry & mapping for direct pipeline
+  tactic::Cache<cv::Mat> smoothed_scan;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;

@@ -16,7 +16,7 @@
  * \file pipeline.cpp
  * \author Keenan Burnett, Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_radar/pipeline.hpp"
+#include "vtr_radar/icp_pipeline.hpp"
 
 #include "vtr_radar/data_types/pointmap_pointer.hpp"
 #include "vtr_tactic/modules/factory.hpp"
@@ -26,7 +26,7 @@ namespace radar {
 
 using namespace tactic;
 
-auto RadarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+auto RadarICPPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                     const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -49,7 +49,7 @@ auto RadarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-RadarPipeline::RadarPipeline(
+RadarICPPipeline::RadarICPPipeline(
     const Config::ConstPtr &config,
     const std::shared_ptr<ModuleFactory> &module_factory,
     const std::string &name)
@@ -65,11 +65,11 @@ RadarPipeline::RadarPipeline(
     localization_.push_back(factory()->get("localization." + module));
 }
 
-OutputCache::Ptr RadarPipeline::createOutputCache() const {
+OutputCache::Ptr RadarICPPipeline::createOutputCache() const {
   return std::make_shared<RadarOutputCache>();
 }
 
-void RadarPipeline::reset() {
+void RadarICPPipeline::reset() {
   // reset modules
   for (const auto &module : preprocessing_) module->reset();
   for (const auto &module : odometry_) module->reset();
@@ -98,7 +98,7 @@ void RadarPipeline::reset() {
   submap_loc_ = nullptr;
 }
 
-void RadarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
+void RadarICPPipeline::preprocess_(const QueryCache::Ptr &qdata0,
                                 const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
@@ -111,7 +111,7 @@ void RadarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
     module->run(*qdata0, *output0, graph, executor);
 }
 
-void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
+void RadarICPPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
                                  const OutputCache::Ptr &output0,
                                  const Graph::Ptr &graph,
                                  const TaskExecutor::Ptr &executor) {
@@ -164,7 +164,7 @@ void RadarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   }
 }
 
-void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
+void RadarICPPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const OutputCache::Ptr &output0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
@@ -180,7 +180,7 @@ void RadarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
   if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();
 }
 
-void RadarPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
+void RadarICPPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
                                       const OutputCache::Ptr &,
                                       const Graph::Ptr &graph,
                                       const TaskExecutor::Ptr &) {

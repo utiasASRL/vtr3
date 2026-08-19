@@ -74,7 +74,8 @@ target_link_libraries(${PROJECT_NAME}_dro cvnp)
 # pipelines and modules
 file(GLOB_RECURSE PIPELINE_SRC
   src/modules/*.cpp
-  src/pipeline.cpp
+  src/icp_pipeline.cpp
+  src/direct_pipeline.cpp
 )
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
 target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)

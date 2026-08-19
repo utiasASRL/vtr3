@@ -32,7 +32,8 @@
 #endif
 
 #ifdef VTR_ENABLE_RADAR
-#include "vtr_radar/pipeline.hpp"
+#include "vtr_radar/icp_pipeline.hpp"
+#include "vtr_radar/direct_pipeline.hpp"
 #endif
 #ifdef VTR_ENABLE_VISION
 #include "vtr_vision/pipeline.hpp"
@@ -198,7 +199,7 @@ if (pipeline->name() == "stereo") {
   // clang-format on
 
 #ifdef VTR_ENABLE_RADAR
-if (pipeline->name() == "radar") {
+if (pipeline->name() == "radar" || pipeline->name() == "direct_radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
   gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
@@ -228,15 +229,18 @@ if (pipeline->name() == "radar") {
 }
 #endif
 
-  auto gyro_enabled = node_->declare_parameter<bool>("gyro_enabled", true);
+#if defined(VTR_ENABLE_RADAR ) || defined(VTR_ENABLE_LIDAR)
 
-  if (gyro_enabled) {
+  gyro_enabled_ = node_->declare_parameter<bool>("gyro_enabled", gyro_enabled_);
+
+  if (gyro_enabled_) {
     // Subscribe to the imu topic
     auto gyro_qos = rclcpp::QoS(100);
     gyro_qos.reliable();
     const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
     gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
   }
+#endif
 
 
   /// This creates a thread to process the sensor input
@@ -373,7 +377,6 @@ void Navigator::radarCallback(
     queue_.pop();
   }
 
-
   // some modules require node for visualization
   query_data->node = node_;
 
@@ -386,36 +389,19 @@ void Navigator::radarCallback(
 
   // put in the radar msg pointer into query data
   query_data->scan_msg = msg;
-  query_data->gyro_msgs.emplace();
-
-  uint64_t scan_start = msg->timestamps.front();
-  uint64_t scan_end = msg->timestamps.back();
-
-  while (gyro_msgs_.size() > 2) {
-    const auto& msg_gyro = *std::next(gyro_msgs_.begin());
-    Timestamp timestamp_g = msg_gyro.header.stamp.sec * 1e9 + msg_gyro.header.stamp.nanosec;
-
-    if (timestamp_g > scan_start && timestamp_g < scan_end) {
-      query_data->gyro_msgs->push_back(gyro_msgs_.front());
-      gyro_msgs_.pop_front();
-    } else if (timestamp_g > scan_end) {
-      query_data->gyro_msgs->push_back(gyro_msgs_.front());
-      query_data->gyro_msgs->push_back(msg_gyro);
-      break;
-    } else {
-      gyro_msgs_.pop_front();
-    }
-  }
+  
 
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r_gyro.emplace(T_gyro_robot_);
   query_data->T_s_r.emplace(T_radar_robot_);
 
-  // add to the queue and notify the processing thread
-  CLOG(DEBUG, "navigation") << "Adding radar message to the queue";
-  queue_.push(query_data);
-
-  cv_set_or_stop_.notify_one();
+  if (gyro_enabled_){
+    pending_cache_ = query_data;
+  } else {
+    CLOG(DEBUG, "navigation") << "Adding radar message to the queue";
+    queue_.push(query_data);
+    cv_set_or_stop_.notify_one();
+  }
 }
 
 #endif
@@ -434,6 +420,42 @@ void Navigator::gyroCallback(
   msg->angular_velocity.y -= gyro_bias_[1];
   msg->angular_velocity.z -= gyro_bias_[2];
   gyro_msgs_.push_back(*msg);
+
+#ifdef VTR_ENABLE_RADAR
+  if(pending_cache_) {
+    auto radar_cache = std::dynamic_pointer_cast<radar::RadarQueryCache>(pending_cache_);
+    const auto& radar_msg = *radar_cache->scan_msg;
+    uint64_t scan_start = radar_msg.timestamps.front();
+    uint64_t scan_end = radar_msg.timestamps.back();
+
+    if (timestamp_gyro > scan_end) {
+      radar_cache->gyro_msgs.emplace();
+
+
+      while (gyro_msgs_.size() > 2) {
+        const auto& msg_gyro = *std::next(gyro_msgs_.begin());
+        Timestamp timestamp_g = msg_gyro.header.stamp.sec * 1e9 + msg_gyro.header.stamp.nanosec;
+
+        if (timestamp_g > scan_start && timestamp_g < scan_end) {
+          radar_cache->gyro_msgs->push_back(gyro_msgs_.front());
+          gyro_msgs_.pop_front();
+        } else if (timestamp_g > scan_end) {
+          radar_cache->gyro_msgs->push_back(gyro_msgs_.front());
+          radar_cache->gyro_msgs->push_back(msg_gyro);
+          break;
+        } else {
+          gyro_msgs_.pop_front();
+        }
+      }
+      // add to the queue and notify the processing thread
+      CLOG(DEBUG, "navigation") << "Adding radar message to the queue";
+      queue_.push(radar_cache);
+      pending_cache_.reset();
+      cv_set_or_stop_.notify_one();
+    }
+  }
+#endif
+
 }
 
 #ifdef VTR_ENABLE_VISION

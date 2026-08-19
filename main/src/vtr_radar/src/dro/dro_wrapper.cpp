@@ -17,7 +17,7 @@ DroWrapper::DroWrapper(py::dict opts) {
     dro_instance_ = dro_module.attr("Dro")(opts);
 }
 
-Eigen::Vector2f DroWrapper::odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map) {
+Eigen::VectorXf DroWrapper::odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map) {
 
     py::dict radar_py;
     radar_py["polar"] = radar_data.polar;
@@ -44,14 +44,13 @@ Eigen::Vector2f DroWrapper::odometryStep(const RadarData& radar_data, const std:
     py::tuple result = dro_instance_.attr("odometryStep")(radar_py, imu_py_list);
     local_map = result[1].cast<cv::Mat>();
     // The Python function returns a numpy array via detach().cpu().numpy()[cite: 1].
-    return result[0].cast<Eigen::Vector2f>();
+    return result[0].cast<Eigen::VectorXf>();
 }
 
 Eigen::Matrix4d DroWrapper::getPose(uint64_t time) {
     py::object result = dro_instance_.attr("getPose")(time);
     
     // The Python function returns a 4x4 pose numpy array of np.float64[cite: 1].
-    // We cast it to a pybind11::array_t<double> (which directly maps to float64).
     return result.cast<Eigen::Matrix4d>();
 }
     

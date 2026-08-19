@@ -93,6 +93,7 @@ class Navigator {
   rclcpp::Subscription<navtech_msgs::msg::RadarBScanMsg>::SharedPtr radar_sub_;
   std::string radar_frame_;
   tactic::EdgeTransform T_radar_robot_;
+  std::shared_ptr<tactic::QueryCache> pending_cache_;
 #endif
  
 #if defined(VTR_ENABLE_RADAR ) || defined(VTR_ENABLE_LIDAR)
@@ -105,6 +106,7 @@ class Navigator {
   std::string gyro_frame_;
   tactic::EdgeTransform T_gyro_robot_;
   std::list<ImuMsg> gyro_msgs_;
+  bool gyro_enabled_ = true;
   std::array<double, 3> gyro_bias_ = {0.0, 0.0, 0.0};
 #endif
 

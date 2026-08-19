@@ -342,9 +342,9 @@ class Dro():
                     
             # Prepare the timestamps
             if self.timestamps is None:
-                self.max_diff_vel = self.max_acc * (timestamps[-1] - timestamps[0]) * 10e-6
+                self.max_diff_vel = self.max_acc * (timestamps[-1] - timestamps[0]) * 1e-6
             self.timestamps = torch.tensor(timestamps).to(self.device).squeeze()
-            delta_time = 0.25#(self.timestamps[0] - last_scan_time)*10e-6
+            delta_time = 0.25#(self.timestamps[0] - last_scan_time)*1e-6
             
 
             # Update the pose and the local map
@@ -406,6 +406,10 @@ class Dro():
                     self.moveLocalMap(frame_pos, frame_rot)
                     self.local_map = self.one_minus_alpha * self.local_map + self.alpha * local_map_update
 
+                # Blur and normalise the local map
+                self.local_map_blurred = torchvision.transforms.functional.gaussian_blur(self.local_map.unsqueeze(0).unsqueeze(0), 3).squeeze()
+                normalizer = torch.max(self.local_map) / torch.max(self.local_map_blurred)
+                self.local_map_blurred *= normalizer
 
             torch.cuda.synchronize()
             t1 = time.time()

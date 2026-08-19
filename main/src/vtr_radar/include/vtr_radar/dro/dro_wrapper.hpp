@@ -21,7 +21,6 @@ public:
         std::vector<double> azimuths;
         std::vector<int64_t> timestamps;
         std::vector<bool> chirps;
-        int64_t timestamp;
     };
 
     struct ImuData {
@@ -32,7 +31,6 @@ public:
 
     /**
      * @brief Initializes the Dro C++ wrapper.
-     * @param module_name The name of your Python file (without the .py extension).
      * @param opts A pybind11 dictionary containing the DRO options.
      */
     DroWrapper(py::dict opts);
@@ -43,7 +41,7 @@ public:
      * @param imu_data A pybind11 list containing IMU dictionaries.
      * @return A NumPy array representing the result state.
      */
-    Eigen::Vector2f odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map);
+    Eigen::VectorXf odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map);
 
     /**
      * @brief Retrieves the pose at a specific time.

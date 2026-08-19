@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2026, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 /**
  * \file pipeline.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -32,12 +32,12 @@
 namespace vtr {
 namespace radar {
 
-class RadarPipeline : public tactic::BasePipeline {
+class RadarDirectPipeline : public tactic::BasePipeline {
  public:
-  PTR_TYPEDEFS(RadarPipeline);
+  PTR_TYPEDEFS(RadarDirectPipeline);
 
   /** \brief Static pipeline identifier. */
-  static constexpr auto static_name = "radar";
+  static constexpr auto static_name = "direct_radar";
 
   /** \brief Collection of config parameters */
   struct Config : public BasePipeline::Config {
@@ -50,20 +50,16 @@ class RadarPipeline : public tactic::BasePipeline {
     double submap_translation_threshold = 0.0;  // in meters
     double submap_rotation_threshold = 0.0;     // in degrees
 
-    bool save_raw_point_cloud = false;
-    // added for saving radar images
-    bool save_radar_images = false;
-
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  RadarPipeline(
+  RadarDirectPipeline(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name);
 
-  virtual ~RadarPipeline() {}
+  virtual ~RadarDirectPipeline() {}
 
   tactic::OutputCache::Ptr createOutputCache() const override;
 
@@ -97,33 +93,8 @@ class RadarPipeline : public tactic::BasePipeline {
   std::vector<tactic::BaseModule::Ptr> odometry_;
   std::vector<tactic::BaseModule::Ptr> localization_;
 
-  /// odometry cached data
-  /** \brief current sliding map for odometry */
-  std::shared_ptr<PointMap<PointWithInfo>> sliding_map_odo_;
-  /** \brief current timestamp*/
-  std::shared_ptr<tactic::Timestamp> timestamp_odo_;
-  std::shared_ptr<tactic::Timestamp> timestamp_odo_radar_;
-  /** \brief current pose and body velocity w.r.t the sliding map */
-  std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_;
-  std::shared_ptr<tactic::EdgeTransform> T_r_m_odo_radar_;
-  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_;
-  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_radar_;
-  std::shared_ptr<lgmath::se3::Transformation> T_r_m_odo_prior_;
-  std::shared_ptr<lgmath::se3::Transformation> T_s_world_gt_prev_;
-  std::shared_ptr<Eigen::Matrix<double, 6, 1>> v_s_gt_prev_;
-  std::shared_ptr<int64_t> timestamp_prior_;
-  std::shared_ptr<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo_prior_;
-  std::shared_ptr<Eigen::Matrix<double, 12, 12>> cov_prior_;
-  /** \brief vertex id of the last submap */
-  tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
-  /** \brief transformation from latest submap vertex to robot */
-  tactic::EdgeTransform T_sv_m_odo_ = tactic::EdgeTransform(true);
 
-  /// localization cached data
-  /** \brief Current submap for localization */
-  std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;
-
-  VTR_REGISTER_PIPELINE_DEC_TYPE(RadarPipeline);
+  VTR_REGISTER_PIPELINE_DEC_TYPE(RadarDirectPipeline);
 };
 
 }  // namespace radar

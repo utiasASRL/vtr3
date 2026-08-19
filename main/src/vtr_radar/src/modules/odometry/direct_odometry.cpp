@@ -152,7 +152,7 @@ DROModule::DROModule(const Config::ConstPtr &config, const std::shared_ptr<tacti
 
 
 void DROModule::run_(QueryCache &qdata0, OutputCache &,
-                             const Graph::Ptr &, const TaskExecutor::Ptr &) {
+                             const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   if(!qdata.radar_data)
@@ -173,9 +173,6 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   rd.polar = qdata.radar_data->fft_scan;
   rd.azimuths = qdata.radar_data->azimuth_angles;
   rd.chirps = qdata.radar_data->up_chirps;
-  rd.timestamp = *qdata.stamp / 1000;
-
-  CLOG(DEBUG, static_name) << "input scan size: " << rd.polar.rows << "X" << rd.polar.cols << cv::typeToString(rd.polar.type());
 
 
   rd.timestamps.reserve(qdata.radar_data->azimuth_times.size());
@@ -185,15 +182,25 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
 
   std::vector<ImuData> relevant_imus;
   relevant_imus.reserve(qdata.gyro_msgs->size());
+  int imu_state = 0;
+  ImuData middle_imu;
   for(const auto& msg : *qdata.gyro_msgs) {
     ImuData imu_data;
     imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL + 
                   static_cast<int64_t>(msg.header.stamp.nanosec) / 1000LL;
     if (imu_data.timestamp < rd.timestamps.front()) {
+      if(imu_state == 0)
+        imu_state++;
       CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
     }
 
+    if (imu_data.timestamp > *qdata.stamp / 1000 && middle_imu.timestamp == 0) {
+      middle_imu = imu_data;
+    }
+
     if (imu_data.timestamp > rd.timestamps.back()) {
+      if(imu_state == 1)
+        imu_state++;
       CLOG(DEBUG, static_name) << "End message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.back()) / 1e6;
     }
     imu_data.angular_velocity = Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
@@ -201,14 +208,36 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
     relevant_imus.push_back(imu_data);
   }
 
+  if (imu_state != 2) {
+    CLOG(ERROR, static_name) << "IMU data does not wrap around the scan times. DRO is considered failed";
+    *qdata.odo_success = false;
+    return;
+  }
+
   py::gil_scoped_acquire acquire;
   const auto vel = dro_->odometryStep(rd, relevant_imus, local_map);
   CLOG(DEBUG, static_name) << "DRO: vx " << vel(0) << ", vy " << vel(1);
   CLOG(DEBUG, static_name) << "local map size: " << local_map.rows << "X" << local_map.cols << cv::typeToString(local_map.type());
 
-  Eigen::Matrix4d current_odometry = dro_->getPose(rd.timestamp);
-  CLOG(DEBUG, static_name) << "DRO odom\n" << current_odometry;
 
+  if (vel.size() == 3)
+    *qdata.w_v_r_in_r_odo << vel(0), vel(1), 0, 0, 0, vel(2);
+  else
+    *qdata.w_v_r_in_r_odo << vel(0), vel(1), 0, 0, 0, middle_imu.angular_velocity(2);
+
+
+
+  const auto& T_s_r = *qdata.T_s_r;
+  Eigen::Matrix4d T_w_s = dro_->getPose(*qdata.stamp / 1000);
+  Eigen::Matrix4d T_r_rlast = (T_w_s * T_s_r.matrix()).inverse() * T_w_s_last_ * T_s_r.matrix();
+  
+
+  *qdata.T_r_v_odo *= tactic::EdgeTransform(T_r_rlast);
+  qdata.T_r_v_odo->setZeroCovariance();
+  *qdata.odo_success = true;
+  T_w_s_last_ = T_w_s;
+  
+  CLOG(DEBUG, static_name) << "DRO odom\n" << qdata.T_r_v_odo->matrix();
 
 
   if(config_->visualize) {

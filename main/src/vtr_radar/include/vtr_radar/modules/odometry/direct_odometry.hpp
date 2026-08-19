@@ -132,7 +132,7 @@ class DROModule : public tactic::BaseModule {
 
   bool publisher_initialized_ = false;
   rclcpp::Publisher<ImageMsg>::SharedPtr local_map_pub_;
-
+  Eigen::Matrix4d T_w_s_last_ = Eigen::Matrix4d::Identity();
 
   VTR_REGISTER_MODULE_DEC_TYPE(DROModule);
 };
