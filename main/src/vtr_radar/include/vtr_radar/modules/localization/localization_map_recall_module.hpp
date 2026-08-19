@@ -62,7 +62,6 @@ class LocalizationMapRecallModule : public tactic::BaseModule {
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr test_map_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(LocalizationMapRecallModule);
 };

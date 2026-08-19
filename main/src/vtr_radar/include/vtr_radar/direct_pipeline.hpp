@@ -35,6 +35,7 @@ namespace radar {
 class RadarDirectPipeline : public tactic::BasePipeline {
  public:
   PTR_TYPEDEFS(RadarDirectPipeline);
+  using ImageMsg = sensor_msgs::msg::Image;
 
   /** \brief Static pipeline identifier. */
   static constexpr auto static_name = "direct_radar";

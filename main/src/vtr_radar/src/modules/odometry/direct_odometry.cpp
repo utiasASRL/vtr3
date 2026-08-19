@@ -236,6 +236,8 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.T_r_v_odo->setZeroCovariance();
   *qdata.odo_success = true;
   T_w_s_last_ = T_w_s;
+
+  qdata.smoothed_scan.emplace(local_map);
   
   CLOG(DEBUG, static_name) << "DRO odom\n" << qdata.T_r_v_odo->matrix();
 

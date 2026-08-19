@@ -113,45 +113,31 @@ void RadarDirectPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   const auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
   auto vertex = graph->at(*qdata->vid_odo);
   
+  // Right now we save every image as a submap
+  cv_bridge::CvImage smoothed_scan_msg;
+  smoothed_scan_msg.header.frame_id = "radar";
+  smoothed_scan_msg.header.stamp = qdata->scan_msg->b_scan_img.header.stamp;
+  smoothed_scan_msg.encoding = "32FC1";
+  
+  using Image_LockMsg = storage::LockableMessage<ImageMsg>;
+  auto locked_image_msg =
+          std::make_shared<Image_LockMsg>(smoothed_scan_msg.toImageMsg(), *qdata->stamp);
+  vertex->insert<ImageMsg>("smoothed_scan", "sensor_msgs/msg/Image", locked_image_msg);
 
+  /// save a pointer to the latest submap
+  const auto submap_ptr = std::make_shared<PointMapPointer>();
+  submap_ptr->this_vid = *qdata->vid_odo;
+  submap_ptr->map_vid = *qdata->vid_odo;
 
-  /// save the sliding map as vertex submap if we have traveled far enough
-  // const bool create_submap = [&] {
-  //   //
-  //   if (!submap_vid_odo_.isValid()) return true;
-  //   //
-  //   const auto T_sv_r = T_sv_m_odo_ * T_r_m_odo_->inverse();
-  //   auto T_sv_r_vec = T_sv_r.vec();
-  //   auto dtran = T_sv_r_vec.head<3>().norm();
-  //   auto drot = T_sv_r_vec.tail<3>().norm() * 57.29577;  // 180/pi
-  //   if (dtran > config_->submap_translation_threshold ||
-  //       drot > config_->submap_rotation_threshold) {
-  //     return true;
-  //   }
-  //   //
-  //   return false;
-  // }();
-  // if (create_submap) {
-  //   CLOG(DEBUG, "radar.pipeline")
-  //       << "Create a submap for vertex " << *qdata->vid_odo;
-    
-  // }
-
-  // /// save a pointer to the latest submap
-  // const auto submap_ptr = std::make_shared<PointMapPointer>();
-  // submap_ptr->this_vid = *qdata->vid_odo;
-  // submap_ptr->map_vid = submap_vid_odo_;
-  // submap_ptr->T_v_this_map = (*T_r_m_odo_) * T_sv_m_odo_.inverse();
-  // //
-  // CLOG(DEBUG, "radar.pipeline")
-  //     << "Saving submap pointer from this vertex " << *qdata->vid_odo
-  //     << " to map vertex " << submap_vid_odo_ << " with transform T_v_map_this "
-  //     << submap_ptr->T_v_this_map.inverse().vec().transpose();
-  // using PointMapPointerLM = storage::LockableMessage<PointMapPointer>;
-  // auto submap_ptr_msg =
-  //     std::make_shared<PointMapPointerLM>(submap_ptr, *qdata->stamp);
-  // vertex->insert<PointMapPointer>(
-  //     "pointmap_ptr", "vtr_radar_msgs/msg/PointMapPointer", submap_ptr_msg);
+  CLOG(DEBUG, "radar.pipeline")
+      << "Saving submap pointer from this vertex " << submap_ptr->this_vid
+      << " to map vertex " << submap_ptr->map_vid << " with transform T_v_map_this "
+      << submap_ptr->T_v_this_map.inverse().vec().transpose();
+  using PointMapPointerLM = storage::LockableMessage<PointMapPointer>;
+  auto submap_ptr_msg =
+      std::make_shared<PointMapPointerLM>(submap_ptr, *qdata->stamp);
+  vertex->insert<PointMapPointer>(
+      "pointmap_ptr", "vtr_radar_msgs/msg/PointMapPointer", submap_ptr_msg);
 }
 
 
