@@ -30,6 +30,7 @@ auto ScanToMapModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->scan_resolution = node->declare_parameter<float>(param_prefix + ".scan_resolution", config->scan_resolution);
+  config->map_resolution = node->declare_parameter<float>(param_prefix + ".map_resolution", config->map_resolution);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
@@ -59,13 +60,17 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
 
   // construct output (construct the map if not exist)
   if (!qdata.sliding_map_odo)
-    qdata.sliding_map_odo.emplace(config_->scan_resolution);
+    qdata.sliding_map_odo.emplace(config_->map_resolution);
 
   // Get input and output data
   // input
   const auto &T_s_r = *qdata.T_s_r;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   const auto &scan_img = *qdata.smoothed_scan;
+
+  cv::Mat map_img;
+  const float scale_factor = config_->scan_resolution / config_->map_resolution;
+  cv::resize(scan_img, map_img, cv::Size(), scale_factor, scale_factor, cv::INTER_AREA);
 
 
 
@@ -77,25 +82,26 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
 
   pcl::PointCloud<PointWithInfo> scan_pc;
 
-  scan_pc.width = scan_img.cols;
-  scan_pc.height = scan_img.rows;
+  scan_pc.width = map_img.cols;
+  scan_pc.height = map_img.rows;
   scan_pc.is_dense = true;
   scan_pc.points.resize(scan_pc.width * scan_pc.height);
 
-  const float x_c = config_->scan_resolution * (static_cast<float>(scan_img.rows) / 2 + 0.5);
-  const float y_c = config_->scan_resolution * (static_cast<float>(scan_img.cols) / 2 + 0.5);
+  const float res = config_->map_resolution;
+  const float x_c = config_->map_resolution * (static_cast<float>(map_img.rows) / 2 + 0.5);
+  const float y_c = config_->map_resolution * (static_cast<float>(map_img.cols) / 2 + 0.5);
 
-  for (int r = 0; r < scan_img.rows; ++r) {
-      for (int c = 0; c < scan_img.cols; ++c) {
-          PointWithInfo point;
-          point.x = config_->scan_resolution * static_cast<float>(scan_img.rows - r) - x_c; 
-          point.y = config_->scan_resolution * static_cast<float>(scan_img.cols - c) - y_c;
-          point.z = 0.0f;                  
-          point.intensity = scan_img.at<float>(r, c);
+  map_img.forEach<float_t>([&scan_pc, &map_img, &res, &x_c, &y_c](float_t &pixel, const int *position) -> void {
+      PointWithInfo point;
+      int r = position[0];
+      int c = position[1];
+      point.x =  res * static_cast<float>(map_img.rows - r) - x_c; 
+      point.y = res * static_cast<float>(map_img.cols - c) - y_c;
+      point.z = 0.0f;                  
+      point.flex14 = pixel;
 
-          scan_pc.at(c, r) = point;
-      }
-  }
+      scan_pc.at(r, c) = point;
+    });
 
   sliding_map_odo.update(scan_pc);
 

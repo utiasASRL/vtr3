@@ -45,12 +45,6 @@ namespace radar {
       bool up_chirp; \
     }; \
     struct { \
-      float a; \
-      float b; \
-      float c; \
-      float intensity; \
-    }; \
-    struct { \
       float dynamic_obs; \
       float total_obs; \
       float static_score; \
