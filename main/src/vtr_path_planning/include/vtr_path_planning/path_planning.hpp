@@ -31,3 +31,4 @@
 #include "vtr_path_planning/error_predictors/numerical_error_predictor_network.hpp"
 #include "vtr_path_planning/feedback_linearization/feedback_linearization_path_tracker.hpp"
 #include "vtr_path_planning/feedback_linearization/ilc_feedback_linearization_path_tracker.hpp"
+#include "vtr_path_planning/mpc/bicycle_mpc_disturbance_model_path_tracker.hpp"

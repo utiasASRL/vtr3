@@ -73,7 +73,6 @@ BicycleMPCDisturbanceModelPathTracker::BicycleMPCDisturbanceModelPathTracker(con
 
     std::ifstream file(config->csv_path);
     std::string line;
-    int line_count = 0;
     if (!std::getline(file, line)){
       CLOG(INFO, "cbit.control") << "CSV file is empty, writing header";
       csv_writer_.open(config->csv_path, std::ios::app);
@@ -249,6 +248,7 @@ void BicycleMPCDisturbanceModelPathTracker::loadMPCPath(CasadiMPC::Config::Ptr m
                          const tactic::Timestamp& t) {
   auto mpc_config = std::static_pointer_cast<CasadiBicycleMPC::Config>(mpcConfig);
   BaseReferenceAdjustmentMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
+  auto& chain = robot_state.chain.ptr();
 
   const auto [stamp, w_p_r_in_r, T_p_r, tmp, T_w_v_odo, T_r_v_odo, curr_sid] =
       getChainInfo(*chain);
@@ -263,9 +263,10 @@ void BicycleMPCDisturbanceModelPathTracker::recordDisturbanceSample(lgmath::se3:
   auto lin_vel = w_p_r_in_r.head(3).norm();
   //Yaw rate
   auto ang_vel = w_p_r_in_r(5);
-  std::array<double, 2> v_k(lin_vel, ang_vel);
+  std::array<double, 2> v_k = {lin_vel, ang_vel};
   // SE3->vector space representation
-  auto x_k_p1 = tf_to_global(T_p_r);
+  auto tmp = tf_to_global(T_p_r);
+  std::array<double, 3> x_k_p1 = {tmp[0], tmp[1], tmp[2]};
   // Construct sample from cached values
   DisturbanceSample sample;
   sample.v_k_m1 = v_k_m1_;
@@ -277,8 +278,7 @@ void BicycleMPCDisturbanceModelPathTracker::recordDisturbanceSample(lgmath::se3:
   sample.trial_id = trial_id_;
   disturbance_samples_.push_back(sample);
   // Move window
-  v_k_m1_ = v_k_;
-  v_k_ = v_k;
+  v_k_m1_ = v_k;
   x_k_ = x_k_p1;
   // Control inputs are handled in that loop
   // Append to CSV
@@ -316,7 +316,7 @@ std::map<std::string, casadi::DM> BicycleMPCDisturbanceModelPathTracker::callSol
       if (failure_count < config_->failure_threshold){
           success_count = 0;
       }
-      u_k_ = std::array<double, 2> (0.0,0.0);
+      u_k_ = std::array<double, 2>({0.0,0.0});
       throw e;
   }
   
@@ -326,7 +326,7 @@ std::map<std::string, casadi::DM> BicycleMPCDisturbanceModelPathTracker::callSol
 
 std::array<double, 2> BicycleMPCDisturbanceModelPathTracker::casadiResToControlVec(std::map<std::string, casadi::DM> result){
   const auto inputs = result["vel"](casadi::Slice(), 0).get_elements();
-  std::array<double, 2> u(inputs[0], inputs[1]);
+  std::array<double, 2> u = {inputs[0], inputs[1]};
   return u;
 }
 

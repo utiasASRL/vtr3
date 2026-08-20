@@ -31,6 +31,20 @@
 namespace vtr {
 namespace path_planning {
 
+namespace{
+// Data sample structure necessary to fit / evaluate a GP-based disturbance model
+struct DisturbanceSample {
+  std::array<double, 2> v_k_m1;
+  std::array<double, 3> x_k;
+  std::array<double, 2> u_k;
+  std::array<double, 2> u_k_m1;
+  std::array<double, 3> x_k_p1;
+  // Bookkeeping for binning and FIFO bins
+  int vertex_id;
+  int trial_id;
+};
+}
+
 class BicycleMPCDisturbanceModelPathTracker : public BicycleMPCPathTracker {
  public:
   PTR_TYPEDEFS(BicycleMPCDisturbanceModelPathTracker);
@@ -57,17 +71,7 @@ class BicycleMPCDisturbanceModelPathTracker : public BicycleMPCPathTracker {
                        const std::string& prefix = "path_planning.mpc");
   };
 
-  // Data sample structure necessary to fit / evaluate a GP-based disturbance model
-  struct DisturbanceSample {
-    std::array<double, 2> v_k_m1;
-    std::array<double, 3> x_k;
-    std::array<double, 2> u_k;
-    std::array<double, 2> u_k_m1;
-    std::array<double, 3> x_k_p1;
-    // Bookkeeping for binning and FIFO bins
-    int vertex_id;
-    int trial_id;
-  };
+
 
   struct GPHyperParams {
     std::vector<double> length_scales;
@@ -105,13 +109,11 @@ class BicycleMPCDisturbanceModelPathTracker : public BicycleMPCPathTracker {
   void loadDisturbanceSamples();
   DisturbanceSample parseDisturbanceSample(const std::string& line) const;
 
-  void writeDisturbanceSamples();
   void writeDisturbanceSample(const DisturbanceSample& sample);
 
   int velocityBin(double v_cmd) const;
 
   // CSV to dump / read previous experiences from
-  std::string csv_path_;
   std::ofstream csv_writer_; 
 
   int failure_count = 0;
