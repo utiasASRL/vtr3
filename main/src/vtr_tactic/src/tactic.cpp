@@ -857,6 +857,7 @@ bool Tactic::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
 
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
+  qdata->loc_map_recall_failed.emplace(false);
   pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to localization vertex ("
@@ -891,6 +892,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
 
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
+  qdata->loc_map_recall_failed.emplace(false);
   pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to localization vertex ("
@@ -962,6 +964,7 @@ bool Tactic::localizeMetricLocLocalization(const QueryCache::Ptr& qdata) {
 
   // Run the localizer against the closest vertex
   qdata->loc_success.emplace(false);
+  qdata->loc_map_recall_failed.emplace(false);
   pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
   CLOG(DEBUG, "tactic")
       << "Estimated transformation from robot to localization vertex ("
