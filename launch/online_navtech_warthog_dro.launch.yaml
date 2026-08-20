@@ -42,3 +42,9 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/radar.rviz
+
+  - window_name: play_bag
+    shell_command_before:
+      - source $VTRSRC/main/install/setup.bash
+    panes:
+      - ros2 bag play $WARTHOG/rosbag2_2026_08_19-14_16_40

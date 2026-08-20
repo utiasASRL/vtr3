@@ -62,6 +62,12 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
   if (!qdata.sliding_map_odo)
     qdata.sliding_map_odo.emplace(config_->map_resolution);
 
+      // Do not update the map if registration failed.
+  if (!(*qdata.odo_success)) {
+    CLOG(WARNING, static_name) << "DRO failed - not converting to map.";
+    return;
+  }
+
   // Get input and output data
   // input
   const auto &T_s_r = *qdata.T_s_r;
@@ -74,11 +80,6 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
 
 
 
-  // Do not update the map if registration failed.
-  if (!(*qdata.odo_success)) {
-    CLOG(WARNING, static_name) << "DRO failed - not converting to map.";
-    return;
-  }
 
   pcl::PointCloud<PointWithInfo> scan_pc;
 
