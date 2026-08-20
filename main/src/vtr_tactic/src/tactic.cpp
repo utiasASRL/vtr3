@@ -745,35 +745,37 @@ bool Tactic::localizeMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
 bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
   *output_->odometry_success = *qdata->odo_success;
+
+  bool result;
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
     /// maybe we can combine them at some point, but for now, consider leaving
     /// them separate so that it is slightly more clear what is happening during
     /// each pipeline mode.
     case PipelineMode::TeachMetricLoc:
-      return teachMetricLocLocalization(qdata);
+      result = teachMetricLocLocalization(qdata);
       break; // need to fall through
     case PipelineMode::TeachBranch:
-      return teachBranchLocalization(qdata);
+      result = teachBranchLocalization(qdata);
       break; // need to fall through
     case PipelineMode::TeachMerge:
-      return teachMergeLocalization(qdata);
+      result = teachMergeLocalization(qdata);
       break; // need to fall through
     case PipelineMode::RepeatMetricLoc:
-      return repeatMetricLocLocalization(qdata);
+      result = repeatMetricLocLocalization(qdata);
       break; // need to fall through
     case PipelineMode::RepeatFollow:
-      return repeatFollowLocalization(qdata);
+      result = repeatFollowLocalization(qdata);
       break; // need to fall through
     case PipelineMode::LocalizeMetricLoc:
-      return localizeMetricLocLocalization(qdata);
+      result = localizeMetricLocLocalization(qdata);
       break; // need to fall through
     default:
       return true;
   }
   *output_->localization_map_success = !(qdata->loc_map_recall_failed && *qdata->loc_map_recall_failed);
 
-  return true;
+  return result;
 }
 
 bool Tactic::teachMetricLocLocalization(const QueryCache::Ptr& qdata) {
