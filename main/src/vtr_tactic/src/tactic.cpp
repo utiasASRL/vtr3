@@ -73,6 +73,7 @@ Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
   //
   output_->chain = chain_;  // shared pointing to the same chain, no copy
   output_->odometry_success.emplace(false);
+  output_->localization_map_success.emplace(false);
   //
   pipeline_->initialize(output_, graph_);    
 }
