@@ -56,17 +56,21 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
   const auto &vid_loc = *qdata.vid_loc;
 
   /// load the map pointer
-  const auto pointmap_ptr = [&] {
-    const auto vertex = graph->at(vid_loc);
-    const auto msg = vertex->retrieve<PointMapPointer>(
-        "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
-    auto locked_msg = msg->sharedLocked();
-    return locked_msg.get().getData();
-  }();
+  const auto vertex = graph->at(vid_loc);
+  CLOG(DEBUG, "lidar.localization_map_recall") << "Loading pointmap pointer!";
+  const auto msg = vertex->retrieve<PointMapPointer>(
+      "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
+  if (msg == nullptr) {
+    CLOG(WARNING, "lidar.localization_map_recall") << "msg (PointmapPtr) is nullptr";
+    qdata.loc_map_recall_failed.emplace(true);
+    return;
+  }
+  auto locked_msg = msg->sharedLocked();
+  const auto pointmap_ptr = locked_msg.get().getData();
 
   CLOG(INFO, "lidar.localization_map_recall")
-      << "Loaded pointmap pointer with this_vid " << pointmap_ptr.this_vid
-      << " and map_vid " << pointmap_ptr.map_vid;
+    << "Loaded pointmap pointer with this_vid " << pointmap_ptr.this_vid
+    << " and map_vid " << pointmap_ptr.map_vid;
 
   /// sanity check
   if (pointmap_ptr.this_vid != vid_loc) {
