@@ -111,29 +111,9 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     qdata.submap_loc_changed.emplace(true);
   }
 
-      /// update the submap to vertex transformation
-      qdata.T_v_m_loc.emplace(pointmap_ptr.T_v_this_map *
-                            qdata.submap_loc->T_vertex_this());
-    }
-  } else if (config_->version == "smoothed_scan") {
-    auto vertex = graph->at(pointmap_ptr.map_vid);
-    CLOG(INFO, "radar.localization_map_recall")
-        << "Loading map " << config_->map_version << " from vertex " << vid_loc;
-    const auto specified_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-        config_->map_version, "sensor_msgs/msg/Image");
-    if (specified_map_msg == nullptr) {
-      CLOG(ERROR, "radar.localization_map_recall")
-          << "Could not find map " << config_->map_version << " at vertex "
-          << vid_loc;
-      throw std::runtime_error("Could not find map " + config_->map_version +
-                              " at vertex " + std::to_string(vid_loc));
-    }
-    auto locked_specified_map_msg = specified_map_msg->sharedLocked();
-    qdata.submap_loc = std::make_shared<PointMap<PointWithInfo>>(
-        locked_specified_map_msg.get().getData());
-    // signal that loc map did change
-    qdata.submap_loc_changed.emplace(true);
-  }
+  /// update the submap to vertex transformation
+  qdata.T_v_m_loc.emplace(pointmap_ptr.T_v_this_map *
+                        qdata.submap_loc->T_vertex_this());
 
 
   /// \note this visualization converts point map from its own frame to the

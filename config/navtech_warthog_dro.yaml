@@ -11,6 +11,7 @@
       # - tactic
       # - tactic.pipeline
       - tactic.module
+      - radar.pipeline
       # - mpc.debug
       # - cbit.control
       #- mission.state_machine
@@ -33,7 +34,7 @@
       scale: 1.0
     # Added Tactical Params
     tactic:
-      enable_parallelization: false
+      enable_parallelization: true
       preprocessing_skippable: false
       odometry_mapping_skippable: false
       localization_skippable: true
@@ -57,12 +58,14 @@
         - 0.0                                                                                                                                                                  
     ############ pipeline configuration ############
     pipeline:
-      type: direct_radar
+      type: radar
       preprocessing: 
         - conversion
       odometry:
         - dro
         - vertex_test
+        - scan_to_pointmap
+        - memory
       localization: 
         - recall
         - memory
@@ -80,7 +83,7 @@
         direct:
           local_map_res: 0.1
           local_map_update_alpha: 0.1
-          max_local_map_range: 80.0
+          max_local_map_range: 40.0
           max_range: 69.0
           min_range: 0.0
         estimation:
@@ -144,6 +147,10 @@
 
         max_translation: 0.3
         max_rotation: 10.0
+      scan_to_pointmap:
+        type: radar.scan_to_pointmap
+        scan_resolution: 1.0
+        visualize: true
 
       memory:
         type: "live_mem_manager"

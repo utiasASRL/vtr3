@@ -29,6 +29,7 @@
 
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 #include "vtr_radar/modules/odometry/direct_odometry.hpp"
+#include "vtr_radar/modules/odometry/direct_scan_to_pointmap_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_map_maintenance_module.hpp"
 #include "vtr_radar/modules/odometry/vertex_test_module.hpp"
 

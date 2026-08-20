@@ -193,7 +193,7 @@ void RadarICPPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
 
   /// store the live frame point cloud
   // motion compensated point cloud
-  {
+  if (qdata->undistorted_point_cloud) {
     auto scan_odo = std::make_shared<PointScan<PointWithInfo>>();
     scan_odo->point_cloud() = *qdata->undistorted_point_cloud;
     scan_odo->T_vertex_this() = qdata->T_s_r->inverse();

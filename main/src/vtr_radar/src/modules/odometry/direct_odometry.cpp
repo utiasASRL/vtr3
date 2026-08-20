@@ -225,8 +225,6 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   else
     *qdata.w_v_r_in_r_odo << vel(0), vel(1), 0, 0, 0, middle_imu.angular_velocity(2);
 
-
-
   const auto& T_s_r = *qdata.T_s_r;
   Eigen::Matrix4d T_w_s = dro_->getPose(*qdata.stamp / 1000);
   Eigen::Matrix4d T_r_rlast = (T_w_s * T_s_r.matrix()).inverse() * T_w_s_last_ * T_s_r.matrix();
@@ -234,6 +232,10 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
 
   *qdata.T_r_v_odo *= tactic::EdgeTransform(T_r_rlast);
   qdata.T_r_v_odo->setZeroCovariance();
+  if (qdata.T_r_m_odo.valid())
+    *qdata.T_r_m_odo *= tactic::EdgeTransform(T_r_rlast);
+  else
+    *qdata.T_r_m_odo.emplace(*qdata.T_r_v_odo);
   *qdata.odo_success = true;
   T_w_s_last_ = T_w_s;
 
