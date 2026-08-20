@@ -335,11 +335,8 @@ class Dro():
                 self.initialize({**radar_data, 'polar': polar_image})
 
             # Prepare the chirp direction
-            if self.use_doppler:
-                self.chirp_up = radar_data['chirps'][0]
-            else:
-                self.chirp_up = radar_data['chirps'][0]
-                    
+            self.chirp_up = radar_data['chirps'][0]
+
             # Prepare the timestamps
             if self.timestamps is None:
                 self.max_diff_vel = self.max_acc * (timestamps[-1] - timestamps[0]) * 1e-6
@@ -365,7 +362,7 @@ class Dro():
                 # Get the shift for each line 
                 shift = (vel_body.reshape((-1,1,2)) @ self.vel_to_bin_vec.reshape((-1,2,1))).squeeze()
                 per_line_shift = shift/2.0
-                if not self.prev_chirp_up:
+                if self.prev_chirp_up:
                     per_line_shift = -per_line_shift
                 if self.use_doppler:
                     per_line_shift[1::2] *= -1
@@ -834,7 +831,7 @@ class Dro():
             d_vel_d_state[~mask,1,:] = d_vel_d_state[~mask,1,:] + self.vy_bias/3.0 * d_vel_d_state[~mask,0,:]
             shifts = (velocities @ self.vel_to_bin_vec.reshape((-1,2,1))).squeeze()
             d_shift_d_state = self.vel_to_bin_vec.reshape((-1,1,2)) @ d_vel_d_state
-            if not self.chirp_up:
+            if self.chirp_up:
                 shifts = -shifts
                 d_shift_d_state = -d_shift_d_state
 
