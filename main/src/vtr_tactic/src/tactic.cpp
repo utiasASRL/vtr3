@@ -752,16 +752,22 @@ bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
     /// each pipeline mode.
     case PipelineMode::TeachMetricLoc:
       return teachMetricLocLocalization(qdata);
+      break; // need to fall through
     case PipelineMode::TeachBranch:
       return teachBranchLocalization(qdata);
+      break; // need to fall through
     case PipelineMode::TeachMerge:
       return teachMergeLocalization(qdata);
+      break; // need to fall through
     case PipelineMode::RepeatMetricLoc:
       return repeatMetricLocLocalization(qdata);
+      break; // need to fall through
     case PipelineMode::RepeatFollow:
       return repeatFollowLocalization(qdata);
+      break; // need to fall through
     case PipelineMode::LocalizeMetricLoc:
       return localizeMetricLocLocalization(qdata);
+      break; // need to fall through
     default:
       return true;
   }
