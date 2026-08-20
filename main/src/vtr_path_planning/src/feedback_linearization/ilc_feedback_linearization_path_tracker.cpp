@@ -156,7 +156,7 @@ auto ILCFeedbackLinearizationPathTracker::computeCommand(RobotState& robot_state
   if (v_k_i >= 0.1) {
     lateral_error_samples_.push_back(lateral_error);
     heading_error_samples_.push_back(heading_error);
-    linear_velocity_samples_.push_back(T_w_v_odo.r_ab_inb().norm());
+    linear_velocity_samples_.push_back(w_p_r_in_r.head(3).norm());
     psi_k_i_ff = feedforwardCorrection(curr_sid);
   } else {
     CLOG(DEBUG, "feedback_linearization.ilc")
