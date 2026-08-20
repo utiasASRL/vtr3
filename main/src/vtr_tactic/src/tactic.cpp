@@ -764,6 +764,8 @@ bool Tactic::runLocalization_(const QueryCache::Ptr& qdata) {
     default:
       return true;
   }
+  *output_->localization_map_success = !(qdata->loc_map_recall_failed && *qdata->loc_map_recall_failed);
+
   return true;
 }
 
