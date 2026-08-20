@@ -40,6 +40,7 @@ class ScanToMapModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     float scan_resolution = 0.1; //m
+    float map_resolution = 1.0;
     bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
