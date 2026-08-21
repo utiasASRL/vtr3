@@ -145,18 +145,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
 
   max_queue_size_ = node->declare_parameter<int>("queue_size", max_queue_size_);
 
+    // static transform
+  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
+
 #ifdef VTR_ENABLE_LIDAR
 if (pipeline->name() == "lidar"){
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
-  gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  gyro_bias_ = {
-    node_->declare_parameter<double>("gyro_bias.x", 0.0),
-    node_->declare_parameter<double>("gyro_bias.y", 0.0),
-    node_->declare_parameter<double>("gyro_bias.z", 0.0)};
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_, tf_timeout_);
-  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_, false);
   // static transform
-  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_lidar_robot_.inverse().matrix()));
   msg.header.frame_id = "robot";
   msg.child_frame_id = "lidar";
@@ -176,8 +172,6 @@ if (pipeline->name() == "stereo") {
 
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "camera");
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_, tf_timeout_);
-  // static transform
-  tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg = tf2::eigenToTransform(Eigen::Affine3d(T_camera_robot_.inverse().matrix()));
   msg.header.frame_id = "robot";
   msg.child_frame_id = "camera";
@@ -202,24 +196,14 @@ if (pipeline->name() == "stereo") {
 if (pipeline->name() == "radar" || pipeline->name() == "direct_radar") {
 
   radar_frame_ = node_->declare_parameter<std::string>("radar_frame", "radar");
-  gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
-  gyro_bias_ = {
-      node_->declare_parameter<double>("gyro_bias.x", 0.0),
-      node_->declare_parameter<double>("gyro_bias.y", 0.0),
-      node_->declare_parameter<double>("gyro_bias.z", 0.0)};
-  // there are a radar and gyro frames
-  T_radar_robot_ = loadTransform(radar_frame_, robot_frame_, tf_timeout_, false);
-  T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_, false);
+  T_radar_robot_ = loadTransform(radar_frame_, robot_frame_, tf_timeout_);
   // static transform make a shared pointer to the static transform broadcaster
   tf_sbc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
   auto msg_radar = tf2::eigenToTransform(Eigen::Affine3d(T_radar_robot_.inverse().matrix()));
   msg_radar.header.frame_id = "robot";
   msg_radar.child_frame_id = "radar";
-  auto msg_gyro = tf2::eigenToTransform(Eigen::Affine3d(T_gyro_robot_.inverse().matrix()));
-  msg_gyro.header.frame_id = "robot";
-  msg_gyro.child_frame_id = "gyro";
-  std::vector<geometry_msgs::msg::TransformStamped> tfs = {msg_radar,msg_gyro};
-  tf_sbc_->sendTransform(tfs);
+  
+  tf_sbc_->sendTransform(msg_radar);
   // radar pointcloud data subscription this is the default value
   const auto radar_topic = node_->declare_parameter<std::string>("radar_topic", "/radar_data/b_scan_msg");
   // not sure if the  radar data rate is low as well
@@ -234,6 +218,17 @@ if (pipeline->name() == "radar" || pipeline->name() == "direct_radar") {
   gyro_enabled_ = node_->declare_parameter<bool>("gyro_enabled", gyro_enabled_);
 
   if (gyro_enabled_) {
+    gyro_frame_ = node_->declare_parameter<std::string>("gyro_frame", "gyro");
+    gyro_bias_ = {
+      node_->declare_parameter<double>("gyro_bias.x", 0.0),
+      node_->declare_parameter<double>("gyro_bias.y", 0.0),
+      node_->declare_parameter<double>("gyro_bias.z", 0.0)};
+    T_gyro_robot_ = loadTransform(gyro_frame_, robot_frame_, tf_timeout_);
+    auto msg_gyro = tf2::eigenToTransform(Eigen::Affine3d(T_gyro_robot_.inverse().matrix()));
+    msg_gyro.header.frame_id = "robot";
+    msg_gyro.child_frame_id = "gyro";
+    tf_sbc_->sendTransform(msg_gyro);
+
     // Subscribe to the imu topic
     auto gyro_qos = rclcpp::QoS(100);
     gyro_qos.reliable();

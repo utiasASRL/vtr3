@@ -35,3 +35,4 @@
 
 #include "vtr_radar/modules/localization/localization_icp_module.hpp"
 #include "vtr_radar/modules/localization/localization_map_recall_module.hpp"
+#include "vtr_radar/modules/localization/direct_localization_module.hpp"

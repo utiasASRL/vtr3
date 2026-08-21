@@ -55,11 +55,13 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
   // output
   auto &result = *qdata.vertex_test_result;
 
-  // check first frame
-  if (first_frame) result = VertexTestResult::CREATE_VERTEX;
 
   // check if we successfully register this frame
   if (!success) return;
+  
+  // check first frame
+  if (first_frame) result = VertexTestResult::CREATE_VERTEX;
+
 
   auto se3vec = T_r_v.vec();
   auto translation_distance = se3vec.head<3>().norm();

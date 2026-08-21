@@ -54,67 +54,71 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
-  if (*qdata.vertex_test_result != VertexTestResult::CREATE_VERTEX) { 
-    return;
-  }
 
   // construct output (construct the map if not exist)
   if (!qdata.sliding_map_odo)
     qdata.sliding_map_odo.emplace(config_->map_resolution);
 
-  // Get input and output data
-  // input
-  const auto &T_s_r = *qdata.T_s_r;
-  auto &sliding_map_odo = *qdata.sliding_map_odo;
-  const auto &scan_img = *qdata.smoothed_scan;
-
-  cv::Mat map_img;
-  const float scale_factor = config_->scan_resolution / config_->map_resolution;
-  cv::resize(scan_img, map_img, cv::Size(), scale_factor, scale_factor, cv::INTER_AREA);
-
-
-
-  // Do not update the map if registration failed.
+      // Do not update the map if registration failed.
   if (!(*qdata.odo_success)) {
     CLOG(WARNING, static_name) << "DRO failed - not converting to map.";
     return;
   }
 
-  pcl::PointCloud<PointWithInfo> scan_pc;
+  // Get input and output data
+  // input
+  const auto T_r_s = qdata.T_s_r->inverse();
+  auto& T_r_m_odo = *qdata.T_r_m_odo;
+  auto &sliding_map_odo = *qdata.sliding_map_odo;
+  const auto &scan_img = *qdata.smoothed_scan;
 
-  scan_pc.width = map_img.cols;
-  scan_pc.height = map_img.rows;
-  scan_pc.is_dense = true;
-  scan_pc.points.resize(scan_pc.width * scan_pc.height);
 
-  const float res = config_->map_resolution;
-  const float x_c = config_->map_resolution * (static_cast<float>(map_img.rows) / 2 + 0.5);
-  const float y_c = config_->map_resolution * (static_cast<float>(map_img.cols) / 2 + 0.5);
+  if (*qdata.vertex_test_result == VertexTestResult::CREATE_VERTEX) { 
+    sliding_map_odo.clear();
+    cv::Mat map_img;
+    const float scale_factor = config_->scan_resolution / config_->map_resolution;
+    cv::resize(scan_img, map_img, cv::Size(), scale_factor, scale_factor, cv::INTER_AREA);
 
-  map_img.forEach<float_t>([&scan_pc, &map_img, &res, &x_c, &y_c](float_t &pixel, const int *position) -> void {
-      PointWithInfo point;
-      int r = position[0];
-      int c = position[1];
-      point.x =  res * static_cast<float>(map_img.rows - r) - x_c; 
-      point.y = res * static_cast<float>(map_img.cols - c) - y_c;
-      point.z = 0.0f;                  
-      point.flex14 = pixel;
 
-      scan_pc.at(r, c) = point;
-    });
 
-  sliding_map_odo.update(scan_pc);
 
+    pcl::PointCloud<PointWithInfo> scan_pc;
+
+    scan_pc.width = map_img.cols;
+    scan_pc.height = map_img.rows;
+    scan_pc.is_dense = true;
+    scan_pc.points.resize(scan_pc.width * scan_pc.height);
+
+    const float res = config_->map_resolution;
+    const float x_c = config_->map_resolution * (static_cast<float>(map_img.rows) / 2 + 0.5);
+    const float y_c = config_->map_resolution * (static_cast<float>(map_img.cols) / 2 + 0.5);
+
+    map_img.forEach<float_t>([&scan_pc, &map_img, &res, &x_c, &y_c](float_t &pixel, const int *position) -> void {
+        PointWithInfo point;
+        int r = position[0];
+        int c = position[1];
+        point.x =  res * static_cast<float>(map_img.rows - r) - x_c; 
+        point.y = res * static_cast<float>(c) - y_c;
+        point.z = 0.0f;                  
+        point.intensity = pixel;
+
+        scan_pc.at(r, c) = point;
+      });
+    
+    sliding_map_odo.update(scan_pc);
+    T_r_m_odo = T_r_s;
+
+    CLOG(DEBUG, static_name) << "Subamp has size " << sliding_map_odo.size() << " compared to " << scan_pc.size();
+  }
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {
     // clang-format off
-    const auto T_v_m = sliding_map_odo.T_vertex_this().matrix().cast<float>();
     // publish the map
     {
       auto point_map = sliding_map_odo.point_cloud();  // makes a copy
       auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-      map_point_mat = T_v_m * map_point_mat;
+      map_point_mat = T_r_m_odo.matrix().cast<float>() * map_point_mat;
 
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(point_map, pc2_msg);

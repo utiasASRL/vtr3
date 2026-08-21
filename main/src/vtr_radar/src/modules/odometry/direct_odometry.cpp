@@ -156,7 +156,7 @@ DROModule::DROModule(const Config::ConstPtr &config, const std::shared_ptr<tacti
 
 
 void DROModule::run_(QueryCache &qdata0, OutputCache &,
-                             const Graph::Ptr &graph, const TaskExecutor::Ptr &) {
+                             const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
   if(!qdata.radar_data)
@@ -238,7 +238,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
 
   const auto& T_s_r = *qdata.T_s_r;
   const auto T_r_s = T_s_r.inverse();
-  const auto Ad_T_r_s = lgmath::se3::tranAd(T_r_s.matrix());
+  const auto Ad_T_r_s = T_r_s.adjoint();
 
   // Transform motion from sensor frame to robot frame
   Eigen::Vector3d vel_s;
@@ -257,8 +257,8 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   if (qdata.T_r_m_odo.valid())
     *qdata.T_r_m_odo = tactic::EdgeTransform(T_r_rlast) * *qdata.T_r_m_odo;
   else
-    *qdata.T_r_m_odo.emplace(*qdata.T_r_v_odo);
-  *qdata.odo_success = true;
+    *qdata.T_r_m_odo.emplace(T_r_s);
+  *qdata.odo_success = !*qdata.first_frame;
   T_w_s_last_ = T_w_s;
 
   qdata.smoothed_scan.emplace(local_map);

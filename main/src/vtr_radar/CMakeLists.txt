@@ -48,6 +48,7 @@ include_directories(PUBLIC
 file(GLOB_RECURSE COMPONENTS_SRC
   src/data_types/*.cpp
   src/utils/*.cpp
+  src/dr_ba/*.cpp
 )
 add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
