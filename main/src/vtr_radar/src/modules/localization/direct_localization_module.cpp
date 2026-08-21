@@ -38,10 +38,10 @@ auto DirectLocalizationModule::Config::fromROS(const rclcpp::Node::SharedPtr &no
   config->gauss_blur_sigma = node->declare_parameter<int>(param_prefix + ".gauss_blur_sigma", config->gauss_blur_sigma);
   config->gauss_blur_ksize = node->declare_parameter<int>(param_prefix + ".gauss_blur_ksize", config->gauss_blur_ksize);
 
-  config->max_iter = node->declare_parameter<long>(param_prefix + ".max_iter", config->max_iter);
+  config->max_iter = node->declare_parameter<long>(param_prefix + ".max_iterations", config->max_iter);
 
   config->alpha = node->declare_parameter<double>(param_prefix + ".alpha", config->alpha);
-  config->conv_tol = node->declare_parameter<double>(param_prefix + ".conv_tol", config->conv_tol);
+  config->conv_tol = node->declare_parameter<double>(param_prefix + ".convergence_tol", config->conv_tol);
 
   config->ba_opts.meas_std = node->declare_parameter<double>(param_prefix + ".meas_std", config->ba_opts.meas_std);
   config->ba_opts.range_factor = node->declare_parameter<double>(param_prefix + ".range_factor", config->ba_opts.range_factor);
@@ -58,7 +58,6 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
 
   if(!qdata.radar_data)
   {
-    // Just assume the localization status did not change, if we don't have a new scan to do ICP on
     // This works if we have a last value - assuming we localized at least once
     // If not, just let loc_success be the default, which should be set to false by the pipeline
     return;
@@ -77,12 +76,7 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
   Eigen::MatrixXf local_map;
   cv::cv2eigen(local_scan, local_map);
 
-
-
-  // Scan resolution comes from the live message (set by dro_node from its own
-  // config), not a separately-configured value here: this is what the DRO
-  // local map actually was published at, so it can never drift out of sync.
-  ba::LocalMapScan scan(0, 0, qdata.submap_loc->dl(), config_->ba_opts, tactic::EdgeTransform(), tactic::EdgeTransform(), local_map);
+  ba::LocalMapScan scan(0, 0, 0.1, config_->ba_opts, tactic::EdgeTransform(), tactic::EdgeTransform(), local_map);
 
   // Optimization loop
   double cost = 0.0;
@@ -110,7 +104,7 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
           const auto& point = point_map[i];
           double voxel_x = point.x;
           double voxel_y = point.y;
-          double vox_intensity = point.flex14;
+          double vox_intensity = point.intensity;
 
           std::optional<ba::Scan::Measurement> interp_meas = scan.interpolate(voxel_x, voxel_y);
           if (!interp_meas.has_value()) {
@@ -152,21 +146,21 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
       if (iter != 0 && delta.norm() < config_->conv_tol) break;
   }
 
+  CLOG(INFO, static_name) << "Final pose\n" << scan.pose();
 
   /// Outputs
-  // if (matched_points_ratio > config_->min_matched_ratio) {
-  //   // update map to robot transform
-  //   // *qdata.T_r_v_loc = T_r_v_icp;
-  //   // set success
-  //   *qdata.loc_success = true;
-  // } else {
-  //   CLOG(WARNING, "radar.localization_icp")
-  //       << "Matched points ratio " << matched_points_ratio
-  //       << " is below the threshold. ICP is considered failed.";
-  //   // no update to map to robot transform
-  //   // set success
-  //   *qdata.loc_success = false;
-  // }
+  if (final_iter < config_->max_iter) {
+    // update map to robot transform
+    *qdata.T_r_v_loc = T_s_r.inverse() * scan.pose() * T_v_m.inverse();
+    // set success
+    *qdata.loc_success = true;
+  } else {
+    CLOG(WARNING, static_name)
+        << "DRL ran to maximum iterations. Localization is considered failed.";
+    // no update to map to robot transform
+    // set success
+    *qdata.loc_success = false;
+  }
   // clang-format on
 }
 

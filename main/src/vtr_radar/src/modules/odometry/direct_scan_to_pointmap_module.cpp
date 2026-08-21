@@ -72,6 +72,7 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
   // input
   const auto &T_s_r = *qdata.T_s_r;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
+  sliding_map_odo.clear();
   const auto &scan_img = *qdata.smoothed_scan;
 
   cv::Mat map_img;
@@ -99,12 +100,13 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
       point.x =  res * static_cast<float>(map_img.rows - r) - x_c; 
       point.y = res * static_cast<float>(map_img.cols - c) - y_c;
       point.z = 0.0f;                  
-      point.flex14 = pixel;
+      point.intensity = pixel;
 
       scan_pc.at(r, c) = point;
     });
-
+  
   sliding_map_odo.update(scan_pc);
+  CLOG(DEBUG, static_name) << "Subamp has size" << sliding_map_odo.size() << " compared to " << scan_pc.size();
 
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.

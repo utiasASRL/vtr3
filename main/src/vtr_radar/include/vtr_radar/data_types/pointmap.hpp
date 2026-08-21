@@ -98,6 +98,11 @@ class PointMap : public PointScan<PointT> {
   template <class Callback = DefaultFilterCb>
   void filter(const Callback& callback = DefaultFilterCb());
 
+  void clear() {
+    this->point_cloud_.clear();
+    samples_.clear();
+  }
+
  protected:
   using VoxKey = pointmap::VoxKey;
   VoxKey getKey(const PointT& p) const {

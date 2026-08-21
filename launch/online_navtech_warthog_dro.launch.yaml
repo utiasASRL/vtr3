@@ -20,7 +20,7 @@ windows:
         base_params:=navtech_warthog_dro.yaml
         start_new_graph:=true
         use_sim_time:=false
-        planner:="cbit"
+        planner:="stationary"
         model_dir:=${VTRROOT}/models
         data_dir:=${VTRTEMP}/radar/dro000
         

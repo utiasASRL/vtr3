@@ -236,7 +236,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
     *qdata.T_r_m_odo *= tactic::EdgeTransform(T_r_rlast);
   else
     *qdata.T_r_m_odo.emplace(*qdata.T_r_v_odo);
-  *qdata.odo_success = true;
+  *qdata.odo_success = !*qdata.first_frame;
   T_w_s_last_ = T_w_s;
 
   qdata.smoothed_scan.emplace(local_map);
