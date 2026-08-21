@@ -88,13 +88,14 @@ void OnlineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   float radar_resolution = config_->radar_resolution;
   float cart_resolution = config_->cart_resolution;
 
-  // Convert to cartesian BEV image
-  int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
+  if (cart_resolution > 0) {
+    // Convert to cartesian BEV image
+    int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;
 
-  radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
-                           radar_resolution, cart_resolution, cart_pixel_width,
-                           true, CV_32F);
-
+    radar_polar_to_cartesian(fft_scan, azimuth_angles, cartesian,
+                            radar_resolution, cart_resolution, cart_pixel_width,
+                            true, CV_32F);
+  }
   
   qdata.radar_data.emplace();
   /// store them to the cache

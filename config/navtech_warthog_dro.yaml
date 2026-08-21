@@ -79,6 +79,7 @@
         type: radar.online_converter
         radar_resolution: 0.040308
         encoder_bin_size: 16000 # encoder bin size
+        cart_resolution: 0.0
     odometry:
       dro:
         type: radar.odometry_dro
