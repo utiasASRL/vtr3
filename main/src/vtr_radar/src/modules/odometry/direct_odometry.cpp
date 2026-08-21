@@ -219,16 +219,21 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   CLOG(DEBUG, static_name) << "DRO: vx " << vel(0) << ", vy " << vel(1);
   CLOG(DEBUG, static_name) << "local map size: " << local_map.rows << "X" << local_map.cols << cv::typeToString(local_map.type());
 
-
-  if (vel.size() == 3)
-    *qdata.w_v_r_in_r_odo << vel(0), vel(1), 0, 0, 0, vel(2);
-  else
-    *qdata.w_v_r_in_r_odo << vel(0), vel(1), 0, 0, 0, middle_imu.angular_velocity(2);
-
   const auto& T_s_r = *qdata.T_s_r;
+  const auto T_r_s = T_s_r.inverse();
+  const auto Ad_T_r_s = lgmath::se3::tranAd(T_r_s.matrix());
+
+  // Transform motion from sensor frame to robot frame
+  Eigen::Vector3d vel_s;
+  if (vel.size() == 3)
+    vel_s << vel(0), vel(1), vel(2);
+  else
+    vel_s << vel(0), vel(1), middle_imu.angular_velocity(2);
+  *qdata.w_v_r_in_r_odo = Ad_T_r_s * vec2Dto3D(-vel_s);
+
   Eigen::Matrix4d T_w_s = dro_->getPose(*qdata.stamp / 1000);
   Eigen::Matrix4d T_r_rlast = (T_w_s * T_s_r.matrix()).inverse() * T_w_s_last_ * T_s_r.matrix();
-  
+
 
   *qdata.T_r_v_odo *= tactic::EdgeTransform(T_r_rlast);
   qdata.T_r_v_odo->setZeroCovariance();
@@ -242,6 +247,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   qdata.smoothed_scan.emplace(local_map);
   
   CLOG(DEBUG, static_name) << "DRO odom\n" << qdata.T_r_v_odo->matrix();
+  CLOG(DEBUG, static_name) << "DRO odom vel\n" << qdata.w_v_r_in_r_odo->transpose();
 
 
   if(config_->visualize) {
