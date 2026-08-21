@@ -107,6 +107,9 @@ class DROModule : public tactic::BaseModule {
 
     bool visualize = false;
 
+    // Maximum number of threads to use for PyTorch. If <= 0, uses PyTorch's default.
+    int64_t num_threads = -1;
+
     py::dict toPythonDict() const;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
