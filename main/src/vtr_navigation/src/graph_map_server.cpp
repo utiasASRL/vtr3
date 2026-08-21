@@ -675,13 +675,12 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
 
   // consistency check
   if (vid2tf_map_.count(to) != 0) {
-    std::stringstream ss;
-    ss << "Cannot connect to an existing vertex " << to
-       << " via a temporal edge from " << from;
-    CLOG(ERROR, "navigation.graph_map_server") << ss.str();
-    throw std::runtime_error{ss.str()};
+    CLOG(DEBUG, "navigation.graph_map_server")
+        << "Vertex " << to << " already present in vid2tf_map_ "
+          "(likely from a prior topology rebuild); updating with this edge's transform.";
+    vid2tf_map_[to] = T_to_from * vid2tf_map_.at(from);
+    return publishUpdate(e);
   }
-  // vid2tfmap update
   vid2tf_map_[to] = T_to_from * vid2tf_map_.at(from);
   CLOG(DEBUG, "navigation.graph_map_server") << "Incremental update succeeded";
   return publishUpdate(e);
