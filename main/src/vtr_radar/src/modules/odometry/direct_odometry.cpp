@@ -80,6 +80,7 @@ auto DROModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->solver.step_tol = node->declare_parameter<double>(param_prefix + ".solver.step_tol", config->solver.step_tol);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
+  config->num_threads = node->declare_parameter<int64_t>(param_prefix + ".num_threads", config->num_threads);
   // clang-format on
   return config;
 }
@@ -140,6 +141,9 @@ py::dict DROModule::Config::toPythonDict() const {
   solver["step_tol"] = this->solver.step_tol;
   opts["solver"] = solver;
 
+  // 7. thread cap (manually controlled; unset/<=0 leaves torch's default)
+  opts["num_threads"] = (this->num_threads > 0) ? py::cast(this->num_threads) : py::none();
+
   return opts;
 }
 
@@ -183,19 +187,34 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<ImuData> relevant_imus;
   relevant_imus.reserve(qdata.gyro_msgs->size());
   int imu_state = 0;
-  ImuData middle_imu;
+
+  // Gyro measurements arrive in the gyro's own sensor frame. DRO expects
+  // angular_velocity already expressed in the radar (sensor) frame
+  const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+  const Eigen::Matrix3d R_radar_gyro =
+      qdata.T_s_r->matrix().block<3, 3>(0, 0) *
+      T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose();
+
+  double middle_yaw_rate;
+  bool middle_yaw_rate_set = false;
   for(const auto& msg : *qdata.gyro_msgs) {
     ImuData imu_data;
-    imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL + 
+    imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL +
                   static_cast<int64_t>(msg.header.stamp.nanosec) / 1000LL;
+
+    // Rotate into the radar frame
+    // We don't load acceleration because it's not needed
+    imu_data.angular_velocity = R_radar_gyro * Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
+
     if (imu_data.timestamp < rd.timestamps.front()) {
       if(imu_state == 0)
         imu_state++;
       CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
     }
 
-    if (imu_data.timestamp > *qdata.stamp / 1000 && middle_imu.timestamp == 0) {
-      middle_imu = imu_data;
+    if (imu_data.timestamp > *qdata.stamp / 1000 && !middle_yaw_rate_set) {
+      middle_yaw_rate = imu_data.angular_velocity(2);
+      middle_yaw_rate_set = true;
     }
 
     if (imu_data.timestamp > rd.timestamps.back()) {
@@ -203,8 +222,6 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
         imu_state++;
       CLOG(DEBUG, static_name) << "End message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.back()) / 1e6;
     }
-    imu_data.angular_velocity = Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
-    imu_data.linear_acceleration = Eigen::Vector3d(msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z);
     relevant_imus.push_back(imu_data);
   }
 
@@ -228,17 +245,17 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   if (vel.size() == 3)
     vel_s << vel(0), vel(1), vel(2);
   else
-    vel_s << vel(0), vel(1), middle_imu.angular_velocity(2);
+    vel_s << vel(0), vel(1), middle_yaw_rate;
   *qdata.w_v_r_in_r_odo = Ad_T_r_s * vec2Dto3D(-vel_s);
 
   Eigen::Matrix4d T_w_s = dro_->getPose(*qdata.stamp / 1000);
   Eigen::Matrix4d T_r_rlast = (T_w_s * T_s_r.matrix()).inverse() * T_w_s_last_ * T_s_r.matrix();
 
 
-  *qdata.T_r_v_odo *= tactic::EdgeTransform(T_r_rlast);
+  *qdata.T_r_v_odo = tactic::EdgeTransform(T_r_rlast) * *qdata.T_r_v_odo;
   qdata.T_r_v_odo->setZeroCovariance();
   if (qdata.T_r_m_odo.valid())
-    *qdata.T_r_m_odo *= tactic::EdgeTransform(T_r_rlast);
+    *qdata.T_r_m_odo = tactic::EdgeTransform(T_r_rlast) * *qdata.T_r_m_odo;
   else
     *qdata.T_r_m_odo.emplace(*qdata.T_r_v_odo);
   *qdata.odo_success = true;
