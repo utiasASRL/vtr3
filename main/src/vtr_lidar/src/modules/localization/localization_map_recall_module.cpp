@@ -62,7 +62,7 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
       "pointmap_ptr", "vtr_lidar_msgs/msg/PointMapPointer");
   if (msg == nullptr) {
     CLOG(WARNING, "lidar.localization_map_recall") << "msg (PointmapPtr) is nullptr";
-    qdata.loc_map_recall_failed.emplace(true);
+    qdata.loc_map_recall_failed = true;
     return;
   }
   auto locked_msg = msg->sharedLocked();
