@@ -111,14 +111,14 @@
             - 1.0
           estimate_vy_bias: false
           estimate_gyro_bias: false
-          use_gyro: false
+          use_gyro: true
           vy_bias_prior: 0.0
           min_time_bias_init: 1.0
           gyro_bias_alpha: 0.01
           max_acceleration: 10.0
         gp:
-          lengthscale_az: 2.0
-          lengthscale_range: 4.0
+          lengthscale_az: 1.0
+          lengthscale_range: 1.0
           sz: 0.6
         radar:
           beta_corr_fact: 0.944
@@ -130,9 +130,9 @@
           doppler_enabled: false
           nb_azimuths: 400
         solver:
-          nb_iter: 50
-          cost_tol: 1.0E-4
-          step_tol: 1.0E-4
+          nb_iter: 250
+          cost_tol: 1.0E-6
+          step_tol: 1.0E-5
 
         visualize: true
 

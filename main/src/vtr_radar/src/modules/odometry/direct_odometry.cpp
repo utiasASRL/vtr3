@@ -232,9 +232,6 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   py::gil_scoped_acquire acquire;
-  if(*qdata.first_frame) {
-    dro_->odometryStep(rd, relevant_imus, local_map);
-  }
   const auto [T_delta, vel] = dro_->odometryStep(rd, relevant_imus, local_map);
   CLOG(DEBUG, static_name) << "DRO: vx " << vel(0) << ", vy " << vel(1);
 
