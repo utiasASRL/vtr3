@@ -11,7 +11,7 @@
       - radar.scan_to_pointmap
       - radar.localization_drl
       - radar.localization_map_recall
-      # - tactic
+      - tactic
       # - tactic.pipeline
       - tactic.module
       - radar.pipeline

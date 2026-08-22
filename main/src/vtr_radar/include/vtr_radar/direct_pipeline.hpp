@@ -97,6 +97,7 @@ class RadarDirectPipeline : public tactic::BasePipeline {
   tactic::EdgeTransform T_v_odo_submap_v_ = tactic::EdgeTransform(true);
   tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
 
+  std::shared_ptr<const PointMap<PointWithInfo>> submap_loc_;
 
   VTR_REGISTER_PIPELINE_DEC_TYPE(RadarDirectPipeline);
 };

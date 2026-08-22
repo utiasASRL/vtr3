@@ -74,7 +74,8 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
   Eigen::MatrixXf local_map;
   cv::cv2eigen(local_scan, local_map);
 
-  ba::LocalMapScan scan(0, 0, 0.1, config_->ba_opts, tactic::EdgeTransform(), tactic::EdgeTransform(), local_map);
+  CLOG(DEBUG, static_name) << "Initial guess\n" << (T_s_r * T_r_v * T_v_m).inverse();
+  ba::LocalMapScan scan(*qdata.stamp, 0, 0.1, config_->ba_opts, (T_s_r * T_r_v * T_v_m).inverse(), tactic::EdgeTransform(), local_map);
 
   // Optimization loop
   double cost = 0.0;
@@ -135,6 +136,7 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
       total_voxels_used += num_voxels_used;
 
       if (num_voxels_used == 0 || lhs.determinant() == 0.0) {
+          final_iter = config_->max_iter;
           break;
       }
 
@@ -149,7 +151,7 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
   /// Outputs
   if (final_iter < config_->max_iter) {
     // update map to robot transform
-    *qdata.T_r_v_loc = T_s_r.inverse() * scan.pose() * T_v_m.inverse();
+    *qdata.T_r_v_loc = (T_v_m * scan.pose() * T_s_r).inverse();
     // set success
     *qdata.loc_success = true;
   } else {

@@ -17,8 +17,10 @@ Panels:
         - /undistorted point cloud1
         - /curr map odo1
         - /curr map loc1
+        - /Odometry1
+        - /Odometry1/Shape1
       Splitter Ratio: 0.4539544880390167
-    Tree Height: 395
+    Tree Height: 746
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -59,12 +61,12 @@ Visualization Manager:
       Reference Frame: world
       Value: false
     - Class: rviz_default_plugins/Axes
-      Enabled: true
-      Length: 10
+      Enabled: false
+      Length: 1
       Name: Axes
       Radius: 1
       Reference Frame: robot
-      Value: true
+      Value: false
     - Class: rviz_default_plugins/TF
       Enabled: false
       Frame Timeout: 99999
@@ -108,7 +110,7 @@ Visualization Manager:
         Value: /vtr/fft_scan
       Value: false
     - Class: rviz_default_plugins/Image
-      Enabled: false
+      Enabled: true
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -120,7 +122,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /vtr/local_map
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -223,7 +225,7 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
-    - Alpha: 1
+    - Alpha: 0.5
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
         Max Value: 10
@@ -235,11 +237,11 @@ Visualization Manager:
       Color: 239; 41; 41
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
-      Max Color: 255; 255; 255
+      Max Color: 85; 85; 255
       Max Intensity: 1
-      Min Color: 0; 0; 0
+      Min Color: 255; 255; 255
       Min Intensity: 0
       Name: curr map odo
       Position Transformer: XYZ
@@ -256,7 +258,7 @@ Visualization Manager:
         Value: /vtr/submap_odo
       Use Fixed Frame: true
       Use rainbow: false
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -285,7 +287,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/loc_path
       Value: true
-    - Alpha: 1
+    - Alpha: 0.5
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
         Max Value: 1.0326114892959595
@@ -299,9 +301,9 @@ Visualization Manager:
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
-      Max Color: 255; 255; 255
+      Max Color: 255; 0; 0
       Max Intensity: 1
-      Min Color: 0; 0; 0
+      Min Color: 255; 255; 255
       Min Intensity: 0
       Name: curr map loc
       Position Transformer: XYZ
@@ -347,9 +349,48 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /vtr/robot_path
       Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz_default_plugins/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 1000
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.5
+        Value: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/odometry
+      Value: true
   Enabled: true
   Global Options:
-    Background Color: 0; 170; 255
+    Background Color: 255; 255; 255
     Fixed Frame: world
     Frame Rate: 30
   Name: root
@@ -392,7 +433,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -1.5499995946884155
+      Angle: -1.0999990701675415
       Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -402,19 +443,19 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 10
+      Scale: 9.673981666564941
       Target Frame: world
       Value: TopDownOrtho (rviz_default_plugins)
-      X: 0
-      Y: 0
+      X: -5.607069969177246
+      Y: -5.888376235961914
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 540
+  Height: 891
   Hide Left Dock: false
-  Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd00000004000000000000019e000001c6fc0200000009fb0000001200530065006c0065006300740069006f006e000000003d0000007e0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000001c6000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d006100670065000000063e000004590000000000000000000000010000033000000563fc0200000005fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb000000100072006100770020007300630061006e000000003d000001260000002800fffffffb0000000a00560069006500770073000000003b000000a1000000a000fffffffb0000001200620065007600200069006d00610067006500000000e2000004bc0000002800fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000780000000befc0100000003fb000000100066006600740020007300630061006e0000000000000007800000006100fffffffb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d006501000000000000045000000000000000000000074b000001c600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd00000004000000000000019e00000325fc0200000009fb0000001200530065006c0065006300740069006f006e000000003d0000007e0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b00000325000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d006100670065000000063e000004590000000000000000000000010000033000000325fc0200000005fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb000000100072006100770020007300630061006e000000003d000001260000002800fffffffb0000000a00560069006500770073010000003b000000a0000000a000fffffffb0000001200620065007600200069006d00610067006501000000e10000027f0000002800fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000780000000befc0100000003fb000000100066006600740020007300630061006e0000000000000007800000006100fffffffb0000000800540069006d00650000000000000005000000025300fffffffb0000000800540069006d00650100000000000004500000000000000000000004150000032500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -422,12 +463,12 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
+    collapsed: false
   Width: 2287
   X: 70
   Y: 39
   bev image:
-    collapsed: true
+    collapsed: false
   fft scan:
     collapsed: false
   raw scan:

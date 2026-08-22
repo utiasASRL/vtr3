@@ -72,7 +72,7 @@ void RadarDirectPipeline::reset() {
   for (const auto &module : odometry_) module->reset();
   for (const auto &module : localization_) module->reset();
   T_v_odo_submap_v_ = tactic::EdgeTransform(true);
-  
+  submap_loc_ = nullptr;
 }
 
 void RadarDirectPipeline::preprocess_(const QueryCache::Ptr &qdata0,
@@ -106,8 +106,14 @@ void RadarDirectPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
                                      const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
   
+    // set the current map for localization
+  if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
+
   for (const auto &module : localization_)
     module->run(*qdata0, *output0, graph, executor);
+
+  /// store the current map for localization
+  if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();
 
 }
 

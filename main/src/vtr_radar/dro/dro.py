@@ -74,7 +74,7 @@ class Dro():
             self.kImgPadding = 200
             self.kOptFirstStep = 0.1
 
-            self.max_diff_vel = opts['estimation']['max_acceleration'] * 0.25
+            self.max_diff_vel = opts['estimation']['max_acceleration'] * opts['radar']['nb_azimuths'] / opts['radar']['meas_freq']
 
             # Load the motion model
             self.use_gyro = opts['estimation']['use_gyro']
@@ -351,7 +351,7 @@ class Dro():
             self.chirp_up = radar_data['chirps'][0]
 
             # Prepare the timestamps
-            if self.timestamps is None:
+            if self.timestamps is not None:
                 self.max_diff_vel = self.max_acc * (timestamps[-1] - timestamps[0]) * 1e-6
             self.timestamps = torch.tensor(timestamps).to(self.device).squeeze()
             delta_time = 0.25#(self.timestamps[0] - last_scan_time)*1e-6
@@ -427,7 +427,6 @@ class Dro():
                 self.local_map_blurred *= normalizer
 
             torch.cuda.synchronize()
-            t1 = time.time()
 
             # Update the IMU data in the motion model
             if self.use_gyro:
@@ -589,10 +588,15 @@ class Dro():
 
             self.mid_pos, self.mid_rot = self.motion_model.getPosRotSingle(self.state_init, timestamps[len(timestamps) // 2 - 1])
 
-            local_map_backup = self.local_map.clone()
-            self.moveLocalMap(self.mid_pos, self.mid_rot)
-            local_map_mid = self.local_map.clone()
-            self.local_map = local_map_backup
+            if self.step_counter > 0:
+                local_map_backup = self.local_map.clone()
+                self.moveLocalMap(self.mid_pos, self.mid_rot)
+                local_map_mid = self.local_map.clone()
+                self.local_map = local_map_backup
+            else:
+                temp_polar_to_interp = self.prepareLocalMapPolarCoords(self.local_map_polar, res)
+                local_map_mid = self.bilinearInterpolation(self.polar_intensity[:,:self.max_id], temp_polar_to_interp)
+                
 
             self.mid_pos = self.mid_pos.double()
             self.mid_rot = self.mid_rot.double()
