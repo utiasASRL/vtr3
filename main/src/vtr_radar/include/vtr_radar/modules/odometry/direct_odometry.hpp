@@ -61,6 +61,9 @@ class DROModule : public tactic::BaseModule {
       double max_acceleration = 10.0;
       double min_time_bias_init = 1.0;
       double gyro_bias_alpha = 0.01;
+      // Calibrated radar angular-velocity bias; only applied when yaw is
+      // estimated rather than gyro-measured (i.e. use_gyro == false).
+      double ang_vel_bias = 0.0;
       std::vector<double> T_axle_radar = {
           1.0, 0.0, 0.0, 0.0,
           0.0, 1.0, 0.0, 0.0,

@@ -84,6 +84,10 @@ class Dro():
                 self.motion_model = ConstVelConstW(device=self.device)
             self.state_init = self.motion_model.getInitialState()
 
+            # Calibrated radar angular-velocity bias, only meaningful when the
+            # yaw is estimated rather than measured (ConstVelConstW)
+            self.ang_vel_bias = float(opts['estimation'].get('ang_vel_bias', 0.0))
+
             self.offset = opts['radar']['range_offset']
 
 
@@ -367,6 +371,8 @@ class Dro():
                 rot_mat = torch.tensor([[torch.cos(self.current_rot), -torch.sin(self.current_rot)], [torch.sin(self.current_rot), torch.cos(self.current_rot)]]).to(self.device)
                 self.current_pos = self.current_pos + rot_mat @ frame_pos.double()
                 self.current_rot = self.current_rot + frame_rot.double()
+                if isinstance(self.motion_model, ConstVelConstW):
+                    self.current_rot -= self.ang_vel_bias * delta_time
                 
                 # Prepare the local map (undistort the previous scan, project it and the local map 
                 # to the beginning of the current scan, and update the local map)
@@ -1033,9 +1039,8 @@ class Dro():
         with torch.no_grad():
             # As there is no local map yet at the first scan, we remove the angular velocity
             # from the state (if any)
-            if (not self.use_gyro) and (self.step_counter == 0 or doppler_only):
+            if (not self.use_gyro) and (self.step_counter == 0):
                 remove_angular = torch.tensor(True).to(self.device)
-                doppler_only = True
             else:
                 remove_angular = torch.tensor(False).to(self.device)
             # If there is no local map yet and no Doppler cost, we return the initial state
@@ -1110,7 +1115,7 @@ class Dro():
             try_degraded = try_degraded or (torch.abs(torch.norm(vel[-1,:]) - self.previous_vel) > self.max_diff_vel)
             if try_degraded:
                 if not degraded:
-                    state = self.solve(state_init, nb_iter=nb_iter, cost_tol=cost_tol, step_tol=step_tol, degraded=True)
+                    state = self.solve(state_init, nb_iter=nb_iter, cost_tol=cost_tol, step_tol=step_tol, degraded=True, doppler_only=doppler_only)
 
             if not degraded:
                 vel, _, _ = self.motion_model.getVelPosRot(state, with_jac=False)
@@ -1181,7 +1186,11 @@ class Dro():
 
     def getPose(self, time):
         with torch.no_grad():
-            frame_pos, frame_rot = self.motion_model.getPosRotSingle(self.state_init, time)
+            state = self.state_init
+            if isinstance(self.motion_model, ConstVelConstW) and self.ang_vel_bias != 0.0:
+                state = self.state_init.clone()
+                state[2] -= self.ang_vel_bias
+            frame_pos, frame_rot = self.motion_model.getPosRotSingle(state, time)
             frame_pos = frame_pos.detach().cpu().numpy().astype(np.float64)
             frame_rot = frame_rot.detach().cpu().numpy().astype(np.float64)
 

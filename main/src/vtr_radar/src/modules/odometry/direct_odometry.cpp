@@ -40,6 +40,7 @@ auto DROModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->estimation.max_acceleration = node->declare_parameter<double>(param_prefix + ".estimation.max_acceleration", config->estimation.max_acceleration);
   config->estimation.min_time_bias_init = node->declare_parameter<double>(param_prefix + ".estimation.min_time_bias_init", config->estimation.min_time_bias_init);
   config->estimation.gyro_bias_alpha = node->declare_parameter<double>(param_prefix + ".estimation.gyro_bias_alpha", config->estimation.gyro_bias_alpha);
+  config->estimation.ang_vel_bias = node->declare_parameter<double>(param_prefix + ".estimation.ang_vel_bias", config->estimation.ang_vel_bias);
 
   auto t_axle_vec = node->declare_parameter<std::vector<double>>(param_prefix + ".estimation.T_axle_radar", config->estimation.T_axle_radar);
   if (t_axle_vec.size() == 16) {
@@ -97,6 +98,7 @@ py::dict DROModule::Config::toPythonDict() const {
   estimation["max_acceleration"] = this->estimation.max_acceleration;
   estimation["min_time_bias_init"] = this->estimation.min_time_bias_init;
   estimation["gyro_bias_alpha"] = this->estimation.gyro_bias_alpha;
+  estimation["ang_vel_bias"] = this->estimation.ang_vel_bias;
   estimation["T_axle_radar"] = py::array_t<double>({4, 4}, this->estimation.T_axle_radar.data());
   opts["estimation"] = estimation;
 
