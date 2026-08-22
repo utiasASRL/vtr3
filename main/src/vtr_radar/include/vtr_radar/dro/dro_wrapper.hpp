@@ -29,6 +29,11 @@ public:
         Eigen::Vector3d linear_acceleration;
     };
 
+    struct OdometryResult {
+        Eigen::Matrix4d T;
+        Eigen::VectorXf v;
+    };
+
     /**
      * @brief Initializes the Dro C++ wrapper.
      * @param opts A pybind11 dictionary containing the DRO options.
@@ -41,7 +46,7 @@ public:
      * @param imu_data A pybind11 list containing IMU dictionaries.
      * @return A NumPy array representing the result state.
      */
-    Eigen::VectorXf odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map);
+    OdometryResult odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map);
 
     /**
      * @brief Retrieves the pose at a specific time.

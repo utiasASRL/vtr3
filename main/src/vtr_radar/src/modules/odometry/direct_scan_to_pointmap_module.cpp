@@ -68,7 +68,6 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
   // Get input and output data
   // input
   const auto T_r_s = qdata.T_s_r->inverse();
-  auto& T_r_m_odo = *qdata.T_r_m_odo;
   auto &sliding_map_odo = *qdata.sliding_map_odo;
   const auto &scan_img = *qdata.smoothed_scan;
 
@@ -78,8 +77,6 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
     cv::Mat map_img;
     const float scale_factor = config_->scan_resolution / config_->map_resolution;
     cv::resize(scan_img, map_img, cv::Size(), scale_factor, scale_factor, cv::INTER_AREA);
-
-
 
 
     pcl::PointCloud<PointWithInfo> scan_pc;
@@ -106,29 +103,32 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
       });
     
     sliding_map_odo.update(scan_pc);
-    T_r_m_odo = T_r_s;
+    sliding_map_odo.T_vertex_this() = T_r_s;
 
-    CLOG(DEBUG, static_name) << "Subamp has size " << sliding_map_odo.size() << " compared to " << scan_pc.size();
-  }
-  /// \note this visualization converts point map from its own frame to the
-  /// vertex frame, so can be slow.
-  if (config_->visualize) {
-    // clang-format off
-    // publish the map
-    {
-      auto point_map = sliding_map_odo.point_cloud();  // makes a copy
-      auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-      map_point_mat = T_r_m_odo.matrix().cast<float>() * map_point_mat;
+    CLOG(DEBUG, static_name) << "Submap has size " << sliding_map_odo.size() << " compared to " << scan_pc.size();
+  
+    /// \note this visualization converts point map from its own frame to the
+    /// vertex frame, so can be slow.
+    if (config_->visualize) {
+      // clang-format off
+      // publish the map
+      {
+        auto point_map = sliding_map_odo.point_cloud();  // makes a copy
+        auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+        map_point_mat = T_r_s.matrix().cast<float>() * map_point_mat;
 
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(point_map, pc2_msg);
-      pc2_msg.header.frame_id = "odo vertex frame";
-      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
-      map_pub_->publish(pc2_msg);
+        PointCloudMsg pc2_msg;
+        pcl::toROSMsg(point_map, pc2_msg);
+        pc2_msg.header.frame_id = "odo vertex frame";
+        pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+        map_pub_->publish(pc2_msg);
+      }
+
+      // clang-format on
     }
-
-    // clang-format on
+  
   }
+  
 }
 
 }  // namespace radar

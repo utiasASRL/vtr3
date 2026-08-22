@@ -17,7 +17,7 @@ DroWrapper::DroWrapper(py::dict opts) {
     dro_instance_ = dro_module.attr("Dro")(opts);
 }
 
-Eigen::VectorXf DroWrapper::odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map) {
+DroWrapper::OdometryResult DroWrapper::odometryStep(const RadarData& radar_data, const std::vector<ImuData>& imu_data, cv::Mat& local_map) {
 
     py::dict radar_py;
     radar_py["polar"] = radar_data.polar;
@@ -42,9 +42,9 @@ Eigen::VectorXf DroWrapper::odometryStep(const RadarData& radar_data, const std:
                 });
 
     py::tuple result = dro_instance_.attr("odometryStep")(radar_py, imu_py_list);
-    local_map = result[1].cast<cv::Mat>();
-    // The Python function returns a numpy array via detach().cpu().numpy()[cite: 1].
-    return result[0].cast<Eigen::VectorXf>();
+    local_map = result[2].cast<cv::Mat>();
+
+    return {result[0].cast<Eigen::Matrix4d>(), result[1].cast<Eigen::VectorXf>()};
 }
 
 Eigen::Matrix4d DroWrapper::getPose(uint64_t time) {

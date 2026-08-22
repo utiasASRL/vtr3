@@ -128,6 +128,8 @@ class Dro():
             self.step_counter = 0
 
             self.kImgPadding = torch.tensor(self.kImgPadding).to(self.device)
+            self.mid_pos = None
+            self.mid_rot_mat = None
 
             if opts['radar']['nb_azimuths'] is not None and opts['radar']['resolution'] is not None and opts['radar']['doppler_enabled'] is not None:
                 temp_radar_info = {
@@ -354,9 +356,14 @@ class Dro():
 
                 # Update the current position and rotation
                 rot_mat = torch.tensor([[torch.cos(self.current_rot), -torch.sin(self.current_rot)], [torch.sin(self.current_rot), torch.cos(self.current_rot)]]).to(self.device)
-                self.current_pos = self.current_pos + rot_mat @ frame_pos.double()
-                self.current_rot = self.current_rot + frame_rot.double()
-                
+                self.current_pos += rot_mat @ frame_pos.double()
+                self.current_rot += frame_rot.double()
+
+                if self.mid_pos is None:
+                    raise ValueError("Problem in the logic! Sorry Alec")
+                delta_half_pos = self.mid_rot_mat.T @ (frame_pos - self.mid_pos)
+                delta_half_rot = self.mid_rot_mat.T @ rot_mat
+
                 # Prepare the local map (undistort the previous scan, project it and the local map 
                 # to the beginning of the current scan, and update the local map)
                 # Get the shift for each line 
@@ -510,8 +517,8 @@ class Dro():
             ### Perform the optimisation
             if self.motion_model.state_size == 3 and self.use_gyro:
                 self.state_init[:2] = self.state_init[:2]*(1+self.state_init[2]*delta_time)
-            if torch.norm(self.state_init[:2]) < 0.75:
-                self.state_init[:] = 0.0
+            # if torch.norm(self.state_init[:2]) < 0.75:
+            #     self.state_init[:] = 0.0
             result = self.solve(self.state_init, self.opts['solver']['nb_iter'], self.opts['solver']['cost_tol'], self.opts['solver']['step_tol'])
 
 
@@ -562,9 +569,29 @@ class Dro():
 
             self.state_init = result.clone()
 
+            self.mid_pos, self.mid_rot = self.motion_model.getPosRotSingle(self.state_init, timestamps[len(timestamps) // 2 - 1])
+
+            local_map_backup = self.local_map.clone()
+            self.moveLocalMap(self.mid_pos, self.mid_rot)
+            local_map_mid = self.local_map.clone()
+            self.local_map = local_map_backup
+
+            self.mid_pos = self.mid_pos.double()
+            self.mid_rot = self.mid_rot.double()
+            self.mid_rot_mat = torch.tensor([[torch.cos(self.mid_rot), -torch.sin(self.mid_rot)], [torch.sin(self.mid_rot), torch.cos(self.mid_rot)]]).to(self.device)
+            T_delta = torch.eye(4, device=self.device)
+
+            if self.step_counter > 0:
+                T_delta[0:2,0:2] = delta_half_rot @ self.mid_rot_mat
+                T_delta[0:2,3] = delta_half_pos + delta_half_rot @ self.mid_pos
+            else:
+                T_delta[0:2,0:2] = self.mid_rot_mat
+                T_delta[0:2,3] = self.mid_pos
+
+
             self.prev_chirp_up = self.chirp_up
             self.step_counter += 1
-            return result.detach().cpu().numpy(), self.local_map.detach().cpu().numpy()
+            return T_delta.detach().cpu().numpy().astype(np.float64), result.detach().cpu().numpy(), local_map_mid.detach().cpu().numpy()
         
     
     def isDopplerEnabled(self, radar_data):
@@ -1165,21 +1192,24 @@ class Dro():
     def getPose(self, time):
         with torch.no_grad():
             frame_pos, frame_rot = self.motion_model.getPosRotSingle(self.state_init, time)
-            frame_pos = frame_pos.detach().cpu().numpy().astype(np.float64)
-            frame_rot = frame_rot.detach().cpu().numpy().astype(np.float64)
+            return self.toTransformation(frame_pos, frame_rot)
 
-            c_rot = np.cos(self.current_rot.detach().cpu().numpy().astype(np.float64))
-            s_rot = np.sin(self.current_rot.detach().cpu().numpy().astype(np.float64))
-            rot_mat = np.array([[c_rot, -s_rot], [s_rot, c_rot]])
-            pos = (rot_mat @ frame_pos.T).T + self.current_pos.detach().cpu().numpy().astype(np.float64)
-            rot = frame_rot + self.current_rot.detach().cpu().numpy().astype(np.float64)
-            pose = np.zeros((4,4), dtype=np.float64)
-            pose[0:2,0:2] = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
-            pose[0:2,3] = pos
-            pose[2,2] = 1.0
-            pose[3,3] = 1.0
+    def toTransformation(self, pos, rot):
+        frame_pos = pos.detach().cpu().numpy().astype(np.float64)
+        frame_rot = rot.detach().cpu().numpy().astype(np.float64)
 
-            return pose
+        c_rot = np.cos(self.current_rot.detach().cpu().numpy().astype(np.float64))
+        s_rot = np.sin(self.current_rot.detach().cpu().numpy().astype(np.float64))
+        rot_mat = np.array([[c_rot, -s_rot], [s_rot, c_rot]])
+        pos = (rot_mat @ frame_pos.T).T + self.current_pos.detach().cpu().numpy().astype(np.float64)
+        rot = frame_rot + self.current_rot.detach().cpu().numpy().astype(np.float64)
+        pose = np.zeros((4,4), dtype=np.float64)
+        pose[0:2,0:2] = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
+        pose[0:2,3] = pos
+        pose[2,2] = 1.0
+        pose[3,3] = 1.0
+
+        return pose
 
 
 

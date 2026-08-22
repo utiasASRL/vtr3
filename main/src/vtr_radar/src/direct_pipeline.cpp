@@ -71,6 +71,7 @@ void RadarDirectPipeline::reset() {
   for (const auto &module : preprocessing_) module->reset();
   for (const auto &module : odometry_) module->reset();
   for (const auto &module : localization_) module->reset();
+  T_v_odo_submap_v_ = tactic::EdgeTransform(true);
   
 }
 
@@ -92,6 +93,10 @@ void RadarDirectPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
   
   for (const auto &module : odometry_)
     module->run(*qdata0, *output0, graph, executor);
+
+  if (*qdata0->vertex_test_result == VertexTestResult::CREATE_VERTEX) {
+    T_v_odo_submap_v_ = *qdata0->T_r_v_odo * T_v_odo_submap_v_;
+  }
 
 }
 
@@ -124,14 +129,52 @@ void RadarDirectPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
           std::make_shared<Image_LockMsg>(smoothed_scan_msg.toImageMsg(), *qdata->stamp);
   vertex->insert<ImageMsg>("smoothed_scan", "sensor_msgs/msg/Image", locked_image_msg);
 
+  // save the sliding map as vertex submap if we have traveled far enough
+  const bool create_submap = [&] {
+    //
+    if (!submap_vid_odo_.isValid()) return true;
+    //
+    auto T_submap_r_vec = T_v_odo_submap_v_.vec();
+    auto dtran = T_submap_r_vec.head<3>().norm();
+    auto drot = T_submap_r_vec.tail<3>().norm() * 57.29577;  // 180/pi
+    if (dtran > config_->submap_translation_threshold ||
+        drot > config_->submap_rotation_threshold) {
+      return true;
+    }
+    //
+    return false;
+  }();
+  if (create_submap) {
+    CLOG(DEBUG, "radar.pipeline")
+        << "Create a submap for vertex " << *qdata->vid_odo;
+    // copy the current sliding map
+    auto submap_odo =
+        std::make_shared<PointMap<PointWithInfo>>(*qdata->sliding_map_odo);
+    // save the submap
+    using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+    auto submap_msg = std::make_shared<PointMapLM>(submap_odo, *qdata->stamp);
+    vertex->insert<PointMap<PointWithInfo>>(
+        "pointmap", "vtr_radar_msgs/msg/PointMap", submap_msg);
+    // save a copy
+    auto submap2_msg = std::make_shared<PointMapLM>(submap_odo, *qdata->stamp);
+    vertex->insert<PointMap<PointWithInfo>>(
+        "pointmap_v" + std::to_string(submap_odo->version()),
+        "vtr_radar_msgs/msg/PointMap", submap2_msg);
+
+    // save the submap vertex id and transform
+    submap_vid_odo_ = *qdata->vid_odo;
+    T_v_odo_submap_v_ = tactic::EdgeTransform(true);
+  }
+
   /// save a pointer to the latest submap
   const auto submap_ptr = std::make_shared<PointMapPointer>();
   submap_ptr->this_vid = *qdata->vid_odo;
-  submap_ptr->map_vid = *qdata->vid_odo;
-
+  submap_ptr->map_vid = submap_vid_odo_;
+  submap_ptr->T_v_this_map = T_v_odo_submap_v_;
+  //
   CLOG(DEBUG, "radar.pipeline")
-      << "Saving submap pointer from this vertex " << submap_ptr->this_vid
-      << " to map vertex " << submap_ptr->map_vid << " with transform T_v_map_this "
+      << "Saving submap pointer from this vertex " << *qdata->vid_odo
+      << " to map vertex " << submap_vid_odo_ << " with transform T_v_map_this "
       << submap_ptr->T_v_this_map.inverse().vec().transpose();
   using PointMapPointerLM = storage::LockableMessage<PointMapPointer>;
   auto submap_ptr_msg =

@@ -215,9 +215,11 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   py::gil_scoped_acquire acquire;
-  const auto vel = dro_->odometryStep(rd, relevant_imus, local_map);
+  if(*qdata.first_frame) {
+    dro_->odometryStep(rd, relevant_imus, local_map);
+  }
+  const auto [T_delta, vel] = dro_->odometryStep(rd, relevant_imus, local_map);
   CLOG(DEBUG, static_name) << "DRO: vx " << vel(0) << ", vy " << vel(1);
-  CLOG(DEBUG, static_name) << "local map size: " << local_map.rows << "X" << local_map.cols << cv::typeToString(local_map.type());
 
   const auto& T_s_r = *qdata.T_s_r;
   const auto T_r_s = T_s_r.inverse();
@@ -234,14 +236,13 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   Eigen::Matrix4d T_w_s = dro_->getPose(*qdata.stamp / 1000);
   Eigen::Matrix4d T_r_rlast = (T_w_s * T_s_r.matrix()).inverse() * T_w_s_last_ * T_s_r.matrix();
 
+  Eigen::Matrix4d T_delta_robot_frame = T_s_r.inverse().matrix() * T_delta.inverse() * T_s_r.matrix();
+
+  CLOG(DEBUG, static_name) << "T_delta\n" << T_delta_robot_frame << "\nOld\n" << T_r_rlast;
 
   *qdata.T_r_v_odo *= tactic::EdgeTransform(T_r_rlast);
   qdata.T_r_v_odo->setZeroCovariance();
-  if (qdata.T_r_m_odo.valid())
-    *qdata.T_r_m_odo *= tactic::EdgeTransform(T_r_rlast);
-  else
-    *qdata.T_r_m_odo.emplace(T_r_s);
-  *qdata.odo_success = !*qdata.first_frame;
+  *qdata.odo_success = true;
   T_w_s_last_ = T_w_s;
 
   qdata.smoothed_scan.emplace(local_map);

@@ -6,10 +6,11 @@
     log_enabled:
       # - navigation
       # - navigation.sensor_input
-      - radar.online_converter
+      # - radar.online_converter
       - radar.odometry_dro
       - radar.scan_to_pointmap
       - radar.localization_drl
+      - radar.localization_map_recall
       # - tactic
       # - tactic.pipeline
       - tactic.module
@@ -60,7 +61,7 @@
         - 0.0                                                                                                                                                                  
     ############ pipeline configuration ############
     pipeline:
-      type: radar
+      type: direct_radar
       preprocessing: 
         - conversion
       odometry:

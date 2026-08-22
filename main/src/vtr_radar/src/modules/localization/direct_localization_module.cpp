@@ -56,10 +56,8 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
-  if(!qdata.radar_data)
+  if(!qdata.smoothed_scan)
   {
-    // This works if we have a last value - assuming we localized at least once
-    // If not, just let loc_success be the default, which should be set to false by the pipeline
     return;
   }
 

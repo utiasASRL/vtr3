@@ -94,6 +94,9 @@ class RadarDirectPipeline : public tactic::BasePipeline {
   std::vector<tactic::BaseModule::Ptr> odometry_;
   std::vector<tactic::BaseModule::Ptr> localization_;
 
+  tactic::EdgeTransform T_v_odo_submap_v_ = tactic::EdgeTransform(true);
+  tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
+
 
   VTR_REGISTER_PIPELINE_DEC_TYPE(RadarDirectPipeline);
 };
