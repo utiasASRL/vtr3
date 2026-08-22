@@ -87,15 +87,15 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
     scan_pc.points.resize(scan_pc.width * scan_pc.height);
 
     const float res = config_->map_resolution;
-    const float x_c = config_->map_resolution * (static_cast<float>(map_img.rows) / 2 + 0.5);
-    const float y_c = config_->map_resolution * (static_cast<float>(map_img.cols) / 2 + 0.5);
+    const float x_c = config_->map_resolution * (static_cast<float>(map_img.rows) / 2);
+    const float y_c = config_->map_resolution * (static_cast<float>(map_img.cols) / 2);
 
     map_img.forEach<float_t>([&scan_pc, &map_img, &res, &x_c, &y_c](float_t &pixel, const int *position) -> void {
         PointWithInfo point;
         int r = position[0];
         int c = position[1];
-        point.x =  res * static_cast<float>(map_img.rows - r) - x_c; 
-        point.y = res * static_cast<float>(c) - y_c;
+        point.x =  res * static_cast<float>(map_img.rows - r - 0.5) - x_c; 
+        point.y = res * static_cast<float>(c + 0.5) - y_c;
         point.z = 0.0f;                  
         point.intensity = pixel;
 
