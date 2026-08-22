@@ -57,6 +57,13 @@ kDefaultDroOpts = {
 class Dro():
     def __init__(self, opts):
         torch.set_float32_matmul_precision('high')
+
+        # Cap thread usage for PyTorch
+        num_threads = opts.get('num_threads')
+        if num_threads is not None and num_threads > 0:
+            torch.set_num_threads(int(num_threads))
+            os.environ.setdefault("TORCHINDUCTOR_COMPILE_THREADS", str(int(num_threads)))
+
         with torch.no_grad():
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             self.initialized = False
@@ -111,6 +118,10 @@ class Dro():
             self.local_map_polar = torch.zeros((self.local_map_xy.shape[0], self.local_map_xy.shape[1], 2)).to(self.device)
             self.local_map_polar[:, :, 0] = torch.atan2(self.local_map_xy[:, :, 1, 0], self.local_map_xy[:, :, 0, 0])
             self.local_map_polar[:, :, 1] = torch.sqrt(self.local_map_xy[:, :, 0, 0]**2 + self.local_map_xy[:, :, 1, 0]**2)
+
+            # Mask of local map cells within the valid sensing range
+            self.local_map_mask = (self.local_map_polar[:, :, 1] < max_local_map_range) & \
+                                   (self.local_map_polar[:, :, 1] > float(opts['direct']['min_range']))
 
             local_map_update_alpha = float(opts['direct']['local_map_update_alpha'])
             self.one_minus_alpha = torch.tensor(1 - local_map_update_alpha).to(self.device)
@@ -403,12 +414,12 @@ class Dro():
                 local_map_update = self.bilinearInterpolation(polar_target, temp_polar_to_interp)
 
 
-                # Update the local map
+                # Update the local map (only within the valid sensing range)
                 if self.step_counter == 1:
-                    self.local_map = local_map_update
+                    self.local_map[self.local_map_mask] = local_map_update[self.local_map_mask]
                 else:
                     self.moveLocalMap(frame_pos, frame_rot)
-                    self.local_map = self.one_minus_alpha * self.local_map + self.alpha * local_map_update
+                    self.local_map[self.local_map_mask] = self.one_minus_alpha * self.local_map[self.local_map_mask] + self.alpha * local_map_update[self.local_map_mask]
 
                 # Blur and normalise the local map
                 self.local_map_blurred = torchvision.transforms.functional.gaussian_blur(self.local_map.unsqueeze(0).unsqueeze(0), 3).squeeze()
@@ -467,14 +478,20 @@ class Dro():
 
             ### Preparation for the direct cost
             # Create the polar coordinates for the image
-            self.polar_intensity = torch.tensor(polar_image[:,:max(self.max_id, self.max_range_idx_direct)]).to(self.device)
-            polar_std = torch.std(self.polar_intensity, dim=1)
-            polar_mean = torch.mean(self.polar_intensity, dim=1)
-            self.polar_intensity -= (polar_mean.unsqueeze(1) + 2*polar_std.unsqueeze(1))
-            self.polar_intensity[self.polar_intensity < 0] = 0
-            self.polar_intensity = torchvision.transforms.functional.gaussian_blur(self.polar_intensity.unsqueeze(0), (9,1), 3).squeeze()
-            self.polar_intensity /= torch.max(self.polar_intensity, dim=1, keepdim=True)[0]
-            self.polar_intensity[torch.isnan(self.polar_intensity)] = 0
+            if self.use_doppler:
+                # Build the direct-cost/local-map source from the GP-smoothed
+                self.polar_intensity = torch.zeros((self.nb_azimuths, self.min_range_idx + odd_img.shape[1])).to(self.device)
+                self.polar_intensity[::2, self.min_range_idx:] = even_img[::2, :]
+                self.polar_intensity[1::2, self.min_range_idx:] = odd_img[1::2, :]
+            else:
+                self.polar_intensity = torch.tensor(polar_image[:,:max(self.max_id, self.max_range_idx_direct)]).to(self.device)
+                polar_std = torch.std(self.polar_intensity, dim=1)
+                polar_mean = torch.mean(self.polar_intensity, dim=1)
+                self.polar_intensity -= (polar_mean.unsqueeze(1) + 2*polar_std.unsqueeze(1))
+                self.polar_intensity[self.polar_intensity < 0] = 0
+                self.polar_intensity = torchvision.transforms.functional.gaussian_blur(self.polar_intensity.unsqueeze(0), (9,1), 3).squeeze()
+                self.polar_intensity /= torch.max(self.polar_intensity, dim=1, keepdim=True)[0]
+                self.polar_intensity[torch.isnan(self.polar_intensity)] = 0
 
             # Preparation for the future localMap update (at the loop)
             range_vec = torch.arange(self.max_range_idx).to(self.device).float() * res + (res*0.5)
@@ -530,6 +547,9 @@ class Dro():
                         result[2] = self.prev_state[2]
                 self.prev_state = result.clone()
 
+            # Save the result for the next iteration
+            self.state_init = result.clone()
+
             # Update the vy bias if needed
             if self.use_doppler and self.estimate_vy_bias and np.linalg.norm(result[:2].cpu().numpy()) > 3.0:
                 save_vy_bias = self.vy_bias
@@ -564,10 +584,8 @@ class Dro():
                         self.gyr_bias_init = True
                     else:
                         self.gyr_bias = self.gyr_bias_alpha * self.mean_gyr[len(self.mean_gyr)//2] + (1 - self.gyr_bias_alpha) * self.gyr_bias
-                
 
 
-            self.state_init = result.clone()
 
             self.mid_pos, self.mid_rot = self.motion_model.getPosRotSingle(self.state_init, timestamps[len(timestamps) // 2 - 1])
 
@@ -683,7 +701,6 @@ class Dro():
             temp_X2[:, 0] = temp_X2[:, 0] / l_az
             temp_X1[:, 1] = temp_X1[:, 1] / l_range
             temp_X2[:, 1] = temp_X2[:, 1] / l_range
-            # Replace dist with np only operations to avoid potential issues with torch and the GPU
             dist = np.sum((temp_X1[:, np.newaxis, :] - temp_X2[np.newaxis, :, :])**2, axis=2)
             return np.exp(-dist/2)
 
