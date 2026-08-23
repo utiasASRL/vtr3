@@ -74,8 +74,11 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
   Eigen::MatrixXf local_map;
   cv::cv2eigen(local_scan, local_map);
 
-  CLOG(DEBUG, static_name) << "Initial guess\n" << (T_s_r * T_r_v * T_v_m).inverse();
-  ba::LocalMapScan scan(*qdata.stamp, 0, 0.1, config_->ba_opts, (T_s_r * T_r_v * T_v_m).inverse(), tactic::EdgeTransform(), local_map);
+  // Force SE2 to avoid complaining about SE3 conversions
+  const auto T_m_s_init = (T_s_r * T_r_v * T_v_m).inverse().toSE2().toSE3();
+
+  CLOG(DEBUG, static_name) << "Initial guess\n" << T_m_s_init;
+  ba::LocalMapScan scan(*qdata.stamp, 0, 0.1, config_->ba_opts, T_m_s_init, tactic::EdgeTransform(), local_map);
 
   // Optimization loop
   double cost = 0.0;
