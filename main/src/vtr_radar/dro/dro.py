@@ -131,6 +131,11 @@ class Dro():
             self.one_minus_alpha = torch.tensor(1 - local_map_update_alpha).to(self.device)
             self.alpha = torch.tensor(local_map_update_alpha).to(self.device)
 
+            # Blend weights folded from the static sensing-range mask
+            mask_f = self.local_map_mask.float()
+            self.blend_w_old = 1.0 - mask_f*local_map_update_alpha
+            self.blend_w_new = mask_f*local_map_update_alpha
+
             self.max_range_local_map = np.sqrt(2)*max_local_map_range
 
             self.current_rot = torch.tensor(0.0).to(self.device).double()
@@ -292,8 +297,8 @@ class Dro():
         warmup_sparse_azr = torch.zeros((warmup_sparse_count, 2), device=self.device)
 
         self.getUpDownPolarImages(warmup_img_np[:, self.min_range_idx:(self.max_range_idx+1)])
-        self.prepareLocalMapPolarCoords(self.local_map_polar, float(self.local_map_res))
-        self.bilinearInterpolation(self.local_map, self.local_map_polar.clone())
+        self.prepareLocalMapPolarCoords()
+        self.bilinearInterpolation(self.local_map, self.local_map_az_idx, self.local_map_r_idx)
         self.polarToCartCoordCorrectionSparse(warmup_pos, warmup_rot, warmup_shift)
         polar_coord_corrected = self.polarCoordCorrection(warmup_pos, warmup_rot)
         if self.use_doppler:
@@ -309,10 +314,10 @@ class Dro():
         polar_coord_corrected[:,:,1] -= (res / 2.0)
         polar_coord_corrected[:,:,1] /= res
         prev_shifted = torch.concatenate((prev_shifted, prev_shifted[0,:].unsqueeze(0)), dim=0)
-        polar_target = self.bilinearInterpolation(prev_shifted, polar_coord_corrected)
-        temp_polar_to_interp = self.prepareLocalMapPolarCoords(self.local_map_polar, float(res))
+        polar_target = self.bilinearInterpolation(prev_shifted, polar_coord_corrected[:,:,0], polar_coord_corrected[:,:,1])
+        local_map_az_idx = self.prepareLocalMapPolarCoords()
         polar_target = torch.concatenate((polar_target, polar_target[0,:].unsqueeze(0)), dim=0)
-        local_map_update = self.bilinearInterpolation(polar_target, temp_polar_to_interp)
+        local_map_update = self.bilinearInterpolation(polar_target, local_map_az_idx, self.local_map_r_idx)
         self.local_map_blurred = torchvision.transforms.functional.gaussian_blur(local_map_update.unsqueeze(0).unsqueeze(0), 3).squeeze()
         self.bilinearInterpolationSparse(self.local_map_blurred, cart_idx_sparse)
         self.moveLocalMap(torch.zeros((2,), device=self.device), torch.tensor(0.0, device=self.device))
@@ -392,8 +397,6 @@ class Dro():
                 if self.use_doppler:
                     per_line_shift[1::2] *= -1
                 
-                torch.cuda.synchronize()
-                temp_t1 = time.time()
                 # Correct for the Doppler shift
                 prev_shifted = self.perLineInterpolation(self.polar_intensity[:,:self.max_id], per_line_shift)
 
@@ -412,13 +415,13 @@ class Dro():
                 polar_coord_corrected[:,:,1] -= (res/2.0)
                 polar_coord_corrected[:,:,1] /= res
                 prev_shifted = torch.concatenate((prev_shifted, prev_shifted[0,:].unsqueeze(0)), dim=0)
-                polar_target = self.bilinearInterpolation(prev_shifted, polar_coord_corrected)
+                polar_target = self.bilinearInterpolation(prev_shifted, polar_coord_corrected[:,:,0], polar_coord_corrected[:,:,1])
 
 
                 # Get the coordinates of the local map in the undistorted polar image
-                temp_polar_to_interp = self.prepareLocalMapPolarCoords(self.local_map_polar, res)
+                local_map_az_idx = self.prepareLocalMapPolarCoords()
                 polar_target = torch.concatenate((polar_target, polar_target[0,:].unsqueeze(0)), dim=0)
-                local_map_update = self.bilinearInterpolation(polar_target, temp_polar_to_interp)
+                local_map_update = self.bilinearInterpolation(polar_target, local_map_az_idx, self.local_map_r_idx)
 
 
                 # Update the local map (only within the valid sensing range)
@@ -426,14 +429,12 @@ class Dro():
                     self.local_map[self.local_map_mask] = local_map_update[self.local_map_mask]
                 else:
                     self.moveLocalMap(frame_pos, frame_rot)
-                    self.local_map[self.local_map_mask] = self.one_minus_alpha * self.local_map[self.local_map_mask] + self.alpha * local_map_update[self.local_map_mask]
+                    self.local_map.mul_(self.blend_w_old).addcmul_(local_map_update, self.blend_w_new)
 
                 # Blur and normalise the local map
                 self.local_map_blurred = torchvision.transforms.functional.gaussian_blur(self.local_map.unsqueeze(0).unsqueeze(0), 3).squeeze()
                 normalizer = torch.max(self.local_map) / torch.max(self.local_map_blurred)
                 self.local_map_blurred *= normalizer
-
-            torch.cuda.synchronize()
 
             # Update the IMU data in the motion model
             if self.use_gyro:
@@ -601,8 +602,8 @@ class Dro():
                 local_map_mid = self.local_map.clone()
                 self.local_map = local_map_backup
             else:
-                temp_polar_to_interp = self.prepareLocalMapPolarCoords(self.local_map_polar, res)
-                local_map_mid = self.bilinearInterpolation(self.polar_intensity[:,:self.max_id], temp_polar_to_interp)
+                local_map_az_idx = self.prepareLocalMapPolarCoords()
+                local_map_mid = self.bilinearInterpolation(self.polar_intensity[:,:self.max_id], local_map_az_idx, self.local_map_r_idx)
                 
 
             self.mid_pos = self.mid_pos.double()
@@ -645,6 +646,14 @@ class Dro():
                     self.max_range_idx_direct = torch.tensor(available_range_bins).to(self.device)
                 if available_range_bins < self.max_id:
                     self.max_id = available_range_bins
+
+            # Local map polar grid in image-index units; only the per-scan
+            # azimuth offset changes between frames
+            az_idx_scale = float(self.opts['radar']['nb_azimuths']) / (2*np.pi)
+            self.az_idx_scale = torch.tensor(az_idx_scale).to(self.device)
+            self.local_map_az_wrap = torch.tensor(2*np.pi*az_idx_scale).to(self.device)
+            self.local_map_az_idx = self.local_map_polar[:, :, 0] * az_idx_scale
+            self.local_map_r_idx = (self.local_map_polar[:, :, 1] - res/2.0) / res
 
             # Doppler shift to range
             self.shift_to_range = torch.tensor(res / 2.0).to(self.device)
@@ -789,42 +798,38 @@ class Dro():
 
 
             
-    def prepareLocalMapPolarCoords(self, local_map_polar, res):
+    # Azimuth indices of the local map's polar grid in the current scan's image
+    def prepareLocalMapPolarCoords(self):
         with torch.no_grad():
-            temp_polar_to_interp = local_map_polar.clone()
-            temp_polar_to_interp[:,:,0] -= (self.azimuths[0])
-            temp_polar_to_interp[temp_polar_to_interp[:,:,0]<0] = temp_polar_to_interp[temp_polar_to_interp[:,:,0]<0] + torch.tensor((2*torch.pi, 0)).to(self.device)
-            temp_polar_to_interp[:,:,0] *= ((self.nb_azimuths) / (2*torch.pi))
-            temp_polar_to_interp[:,:,1] -= (res/2.0)
-            temp_polar_to_interp[:,:,1] /= res
-            return temp_polar_to_interp
+            az_idx = self.local_map_az_idx - self.azimuths[0]*self.az_idx_scale
+            return torch.where(az_idx < 0, az_idx + self.local_map_az_wrap, az_idx)
 
 
-    # Perform the bilinear interpolation of the image im at the coordinates az_r (az the vertical axis, r the horizontal axis)
-    def bilinearInterpolation(self, im, az_r):
+    # Perform the bilinear interpolation of the image im at the coordinates az, r (az the vertical axis, r the horizontal axis)
+    def bilinearInterpolation(self, im, az, r):
         with torch.no_grad():
-            az0 = torch.floor(az_r[:, :, 0]).int()
+            az0 = torch.floor(az).int()
             az1 = az0 + 1
             
-            r0 = torch.floor(az_r[:, :, 1]).int()
+            r0 = torch.floor(r).int()
             r1 = r0 + 1
 
             az0 = torch.clamp(az0, 0, im.shape[0]-1)
             az1 = torch.clamp(az1, 0, im.shape[0]-1)
             r0 = torch.clamp(r0, 0, im.shape[1]-1)
             r1 = torch.clamp(r1, 0, im.shape[1]-1)
-            az_r[:,:,0] = torch.clamp(az_r[:,:,0], 0, im.shape[0]-1)
-            az_r[:,:,1] = torch.clamp(az_r[:,:,1], 0, im.shape[1]-1)
+            az = torch.clamp(az, 0, im.shape[0]-1)
+            r = torch.clamp(r, 0, im.shape[1]-1)
             
             Ia = im[ az0, r0 ]
             Ib = im[ az1, r0 ]
             Ic = im[ az0, r1 ]
             Id = im[ az1, r1 ]
             
-            local_1_minus_r = (r1.float()-az_r[:, :, 1])
-            local_r = (az_r[:, :, 1]-r0.float())
-            local_1_minus_az = (az1.float()-az_r[:, :, 0])
-            local_az = (az_r[:, :, 0]-az0.float())
+            local_1_minus_r = (r1.float()-r)
+            local_r = (r-r0.float())
+            local_1_minus_az = (az1.float()-az)
+            local_az = (az-az0.float())
             wa = local_1_minus_az * local_1_minus_r
             wb = local_az * local_1_minus_r
             wc = local_1_minus_az * local_r
@@ -894,7 +899,7 @@ class Dro():
             if doppler:
                 interp_sparse, aligned_odd_coeff_sparse = self.imgDopplerInterpAndJacobian(shifts)
                 residual = interp_sparse * self.temp_even_img_sparse
-                jacobian = aligned_odd_coeff_sparse.reshape((-1, 1, 1)) @ d_shift_d_state[self.doppler_az_ids_sparse,:,:] * (self.temp_even_img_sparse.unsqueeze(-1).unsqueeze(-1))
+                jacobian = aligned_odd_coeff_sparse.reshape((-1, 1, 1)) * d_shift_d_state[self.doppler_az_ids_sparse,:,:] * (self.temp_even_img_sparse.unsqueeze(-1).unsqueeze(-1))
                 residual = residual.flatten()
                 jacobian = jacobian.reshape((-1,state_size))
                 if degraded:
@@ -910,15 +915,15 @@ class Dro():
                 interp_direct_sparse, d_interp_direct_d_xy_sparse = self.bilinearInterpolationSparse(self.local_map_blurred, cart_idx_sparse)
                 residual_direct_sparse = interp_direct_sparse * (self.polar_intensity_sparse)
 
-                d_cart_sparse_d_state = (d_cart_d_shift_sparse @ d_shift_d_state.reshape((-1,1,state_size)))[self.direct_az_ids_sparse,:,:]
+                d_cart_sparse_d_state = (d_cart_d_shift_sparse * d_shift_d_state.reshape((-1,1,state_size)))[self.direct_az_ids_sparse,:,:]
                 if d_rot_d_state is not None:
-                    d_cart_sparse_d_state[:,:,-1] += (d_cart_d_rot_sparse@(d_rot_d_state[self.direct_az_ids_sparse].reshape((-1,1,1))) ).squeeze()
+                    d_cart_sparse_d_state[:,:,-1] += (d_cart_d_rot_sparse*(d_rot_d_state[self.direct_az_ids_sparse].reshape((-1,1,1))) ).squeeze()
                 d_cart_sparse_d_state += d_pos_d_state[self.direct_az_ids_sparse].reshape((-1,2,state_size))
                 d_cart_sparse_d_state[:,0,:] = d_cart_sparse_d_state[:,0,:] / (-self.local_map_res)
                 d_cart_sparse_d_state[:,1,:] = d_cart_sparse_d_state[:,1,:] / self.local_map_res
 
 
-                jacobian_direct_sparse = ((d_interp_direct_d_xy_sparse @ d_cart_sparse_d_state) * (self.polar_intensity_sparse.unsqueeze(-1).unsqueeze(-1))).squeeze()
+                jacobian_direct_sparse = ((d_interp_direct_d_xy_sparse.transpose(1, 2) * d_cart_sparse_d_state).sum(1, keepdim=True) * (self.polar_intensity_sparse.unsqueeze(-1).unsqueeze(-1))).squeeze()
 
 
                 residual_direct = residual_direct_sparse.flatten()
@@ -1185,15 +1190,20 @@ class Dro():
             self.local_map[:, -1] = 0
 
             # Get the coordinate of the new localMap in the former localMap
-            temp_rot_mat = torch.tensor([[torch.cos(rot), -torch.sin(rot)], [torch.sin(rot), torch.cos(rot)]]).to(self.device)
-            temp_pos = pos.reshape((-1,1))
+            c_rot = torch.cos(rot)
+            s_rot = torch.sin(rot)
+            temp_pos = pos.reshape(-1)
 
-            # Get the new coordinates
-            new_xy = temp_rot_mat @ self.local_map_xy + temp_pos
-            new_idx = self.cartToLocalMapID(new_xy)
+            # Explicit rotation: a broadcast 2x2 matmul here is one tiny GEMM per cell
+            X = self.local_map_xy[:, :, 0, 0]
+            Y = self.local_map_xy[:, :, 1, 0]
+            new_x = c_rot * X - s_rot * Y + temp_pos[0]
+            new_y = s_rot * X + c_rot * Y + temp_pos[1]
+            new_az = new_x / (-self.local_map_res) + self.local_map_zero_idx
+            new_r = new_y / (self.local_map_res) + self.local_map_zero_idx
 
             # Get the new localMap via bilinear interpolation
-            self.local_map = self.bilinearInterpolation(self.local_map, new_idx).squeeze().float()
+            self.local_map = self.bilinearInterpolation(self.local_map, new_az, new_r).squeeze().float()
 
 
 
