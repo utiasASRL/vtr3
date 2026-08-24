@@ -262,6 +262,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   T_w_s_last_ = T_w_s;
 
   qdata.smoothed_scan.emplace(local_map);
+  qdata.smoothed_scan_res.emplace(config_->direct.local_map_res);
   
   CLOG(DEBUG, static_name) << "DRO odom\n" << qdata.T_r_v_odo->matrix();
   CLOG(DEBUG, static_name) << "DRO odom vel\n" << qdata.w_v_r_in_r_odo->transpose();
