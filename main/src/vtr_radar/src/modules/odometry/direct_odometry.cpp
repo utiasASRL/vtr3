@@ -18,6 +18,9 @@
  */
 #include "vtr_radar/modules/odometry/direct_odometry.hpp"
 
+#include <algorithm>
+#include <string>
+
 #include "vtr_common/conversions/se2_to_se3.hpp"
 
 namespace vtr {
@@ -187,8 +190,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   std::vector<ImuData> relevant_imus;
-  relevant_imus.reserve(qdata.gyro_msgs->size());
-  int imu_state = 0;
+  relevant_imus.reserve(qdata.gyro_msgs->size() + 2);
 
   // Gyro measurements arrive in the gyro's own sensor frame. DRO expects
   // angular_velocity already expressed in the radar (sensor) frame
@@ -208,29 +210,40 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
     // We don't load acceleration because it's not needed
     imu_data.angular_velocity = R_radar_gyro * Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
 
-    if (imu_data.timestamp < rd.timestamps.front()) {
-      if(imu_state == 0)
-        imu_state++;
-      CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
-    }
-
+    // Find the middle yaw rate for this scan, which DRO doesn't return
     if (imu_data.timestamp > *qdata.stamp / 1000 && !middle_yaw_rate_set) {
       middle_yaw_rate = imu_data.angular_velocity(2);
       middle_yaw_rate_set = true;
     }
 
-    if (imu_data.timestamp > rd.timestamps.back()) {
-      if(imu_state == 1)
-        imu_state++;
-      CLOG(DEBUG, static_name) << "End message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.back()) / 1e6;
-    }
     relevant_imus.push_back(imu_data);
   }
 
-  if (imu_state != 2) {
-    CLOG(ERROR, static_name) << "IMU data does not wrap around the scan times. DRO is considered failed";
+  if (relevant_imus.empty()) {
+    CLOG(ERROR, static_name) << "No gyro data for this scan. DRO is considered failed";
     *qdata.odo_success = false;
     return;
+  }
+
+  // Handle cases where gyro doesn't fully cover scan due to dropped messages
+  // or initialization/deactivation of offline pipelines
+  // TODO: Ideally DRO should handle this inside, but for now we'll just extrapolate
+  const int64_t scan_start = rd.timestamps.front();
+  const int64_t scan_end = rd.timestamps.back();
+
+  // Handle case where gyro arrives after scan start
+  if (relevant_imus.front().timestamp > scan_start) {
+    CLOG(WARNING, static_name) << "Gyro starts after scan start. Extrapolating first sample back to scan start.";
+    ImuData extrapolated = relevant_imus.front();
+    extrapolated.timestamp = scan_start - 1; // Just before scan start
+    relevant_imus.insert(relevant_imus.begin(), extrapolated);
+  }
+  // Handle case where gyro ends before scan end
+  if (relevant_imus.back().timestamp < scan_end) {
+    CLOG(WARNING, static_name) << "Gyro ends before scan end. Extrapolating last sample forward to scan end.";
+    ImuData extrapolated = relevant_imus.back();
+    extrapolated.timestamp = scan_end + 1; // Just after scan end
+    relevant_imus.push_back(extrapolated);
   }
 
   py::gil_scoped_acquire acquire;
