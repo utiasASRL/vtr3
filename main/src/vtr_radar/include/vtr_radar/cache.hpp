@@ -91,6 +91,9 @@ struct RadarQueryCache : virtual public tactic::QueryCache {
 
   //odometry & mapping for direct pipeline
   tactic::Cache<cv::Mat> smoothed_scan;
+  /// m/pixel of smoothed_scan, set by whichever module produces it so that
+  /// downstream consumers cannot disagree with it
+  tactic::Cache<double> smoothed_scan_res;
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> submap_loc;

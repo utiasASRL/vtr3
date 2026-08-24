@@ -49,6 +49,9 @@ class DirectLocalizationModule : public tactic::BaseModule {
     double alpha = 1;
     double conv_tol = 1e-3;
 
+    // radius around the initial guess to query map voxels (<=0 uses all)
+    double max_dist = 100.0;
+
     ba::OptimizationOptions ba_opts;
 
     /// ICP parameters
