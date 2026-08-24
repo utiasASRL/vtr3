@@ -123,17 +123,13 @@ void RadarDirectPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
                                       const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
   auto vertex = graph->at(*qdata->vid_odo);
-  
-  // Right now we save every image as a submap
-  cv_bridge::CvImage smoothed_scan_msg;
-  smoothed_scan_msg.header.frame_id = "radar";
-  smoothed_scan_msg.header.stamp = qdata->scan_msg->b_scan_img.header.stamp;
-  smoothed_scan_msg.encoding = "32FC1";
-  
-  using Image_LockMsg = storage::LockableMessage<ImageMsg>;
-  auto locked_image_msg =
-          std::make_shared<Image_LockMsg>(smoothed_scan_msg.toImageMsg(), *qdata->stamp);
-  vertex->insert<ImageMsg>("smoothed_scan", "sensor_msgs/msg/Image", locked_image_msg);
+
+  /// the sliding map is anchored to this scan's sensor frame, and this scan's
+  /// robot frame is the vertex that was just created
+  if (qdata->sliding_map_odo) {
+    qdata->sliding_map_odo->T_vertex_this() = qdata->T_s_r->inverse();
+    qdata->sliding_map_odo->vertex_id() = *qdata->vid_odo;
+  }
 
   // save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {
@@ -154,8 +150,7 @@ void RadarDirectPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
     CLOG(DEBUG, "radar.pipeline")
         << "Create a submap for vertex " << *qdata->vid_odo;
     // copy the current sliding map
-    auto submap_odo =
-        std::make_shared<PointMap<PointWithInfo>>(*qdata->sliding_map_odo);
+    auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(*qdata->sliding_map_odo);
     // save the submap
     using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
     auto submap_msg = std::make_shared<PointMapLM>(submap_odo, *qdata->stamp);
