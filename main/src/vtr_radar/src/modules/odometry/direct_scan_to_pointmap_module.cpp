@@ -113,9 +113,15 @@ void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &,
       // clang-format off
       // publish the map
       {
+        /// \note The "odo vertex frame" tf is broadcast after this module runs
+        /// (see Tactic::teach*OdometryMapping), so it still refers to the
+        /// previous vertex, whereas the map is anchored to the vertex about to
+        /// be created (i.e. this scan's robot frame). Go through the previous
+        /// vertex here so the published cloud matches the tf.
+        const auto T_v_odo_s = qdata.T_r_v_odo->inverse() * T_r_s;
         auto point_map = sliding_map_odo.point_cloud();  // makes a copy
         auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-        map_point_mat = T_r_s.matrix().cast<float>() * map_point_mat;
+        map_point_mat = T_v_odo_s.matrix().cast<float>() * map_point_mat;
 
         PointCloudMsg pc2_msg;
         pcl::toROSMsg(point_map, pc2_msg);
