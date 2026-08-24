@@ -161,6 +161,13 @@ class Dro():
 
                 self.warmupCompiledCallables(opts)
 
+    def reset(self):
+        with torch.no_grad():
+            self.state_init = self.motion_model.getInitialState()
+            self.current_rot = torch.tensor(0.0).to(self.device).double()
+            self.current_pos = torch.zeros(2).to(self.device).double()
+            self.step_counter = 0
+            self.local_map = self.local_map * 0
 
 
     # Ugly code to force the compilation of the callables during initialization, so that the first call to odometryStep is not much slower than the others.
