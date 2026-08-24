@@ -941,7 +941,7 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   T_w_v_loc_ = chain_->T_start_trunk();
   //
   if (config_->visualize)
-    callback_->publishLocalizationRviz(*qdata->stamp, T_w_v_loc_);
+    callback_->publishLocalizationRviz(*qdata->stamp, T_m_w_ * T_w_v_loc_);
 
   return true;
 }
