@@ -10,11 +10,11 @@
       - radar.odometry_dro
       - radar.scan_to_pointmap
       - radar.localization_drl
-      - radar.localization_map_recall
-      - tactic
+      #- radar.localization_map_recall
+      #- tactic
       # - tactic.pipeline
       - tactic.module
-      - radar.pipeline
+      #- radar.pipeline
       # - mpc.debug
       # - cbit.control
       #- mission.state_machine
