@@ -10,6 +10,7 @@
       - radar.pc_extractor
       - radar.odometry_icp
       - radar.localization_icp
+      - radar.pipeline
       # - tactic
       # - tactic.pipeline
       - tactic.module
@@ -24,7 +25,7 @@
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
     gyro_bias: 
-      z: 0.004203267148472062 # 0.004203267148472062
+      z: 0.001050591194103346
     queue_size: 100
     graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220

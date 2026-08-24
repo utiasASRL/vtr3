@@ -27,7 +27,7 @@
     gyro_topic: /ouster/imu
     gyro_enabled: true
     gyro_bias: 
-      z: 0.000895
+      z: 0.001050591194103346
 
     queue_size: 100
     graph_projection:
