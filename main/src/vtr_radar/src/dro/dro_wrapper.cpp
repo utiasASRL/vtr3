@@ -53,5 +53,9 @@ Eigen::Matrix4d DroWrapper::getPose(uint64_t time) {
     // The Python function returns a 4x4 pose numpy array of np.float64[cite: 1].
     return result.cast<Eigen::Matrix4d>();
 }
+
+void DroWrapper::reset() {
+    dro_instance_.attr("reset")();
+}
     
 } // namespace vtr::radar

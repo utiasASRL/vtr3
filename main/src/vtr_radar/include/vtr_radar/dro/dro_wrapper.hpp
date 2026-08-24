@@ -55,6 +55,11 @@ public:
      */
     Eigen::Matrix4d getPose(uint64_t time);
 
+    /**
+     * @brief reset DRO to identity and begin tracking again
+     */
+    void reset();
+
     py::object dro_instance_; // Holds the instantiated Python Dro object
 };
 
