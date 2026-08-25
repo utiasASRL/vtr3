@@ -386,8 +386,8 @@ void RCGraph::resolveDanglingEdges(){
 
   // publish UI updates
   for (const auto& [index, edge] : edges_to_publish) {
-    CLOG(DEBUG, "pose_graph") << "populateLive: publishing " << *edge;
-    callback_->publishUpdate(edge);
+    CLOG(DEBUG, "pose_graph") << "resolveDanglingEdges: announcing " << *edge;
+    callback_->edgeAdded(edge);
   }
 }
 
