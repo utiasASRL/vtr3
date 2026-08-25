@@ -377,10 +377,10 @@ void RCGraph::resolveDanglingEdges(){
       if (updated_edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
         topology_edges_[new_edge->id()] = index;
       }
-      edges_[eid] = new_edge;
+      edges_.insert(std::make_pair(eid, new_edge)); // bookkeeping
       graph_.addEdge(new_edge->id()); // add to simpleGraph
       edges_to_publish[e_it->second] = new_edge;
-      e_it = topology_edges_.erase(e_it);
+      e_it = dangling_edges_.erase(e_it);
     }
   }
 
