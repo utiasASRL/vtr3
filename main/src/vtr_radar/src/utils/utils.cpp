@@ -23,16 +23,18 @@ namespace vtr {
 namespace radar {
 
 void load_radar(const std::string &path, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data) {
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data,
+                int encoder_bin_size) {
   const cv::Mat raw_data = cv::imread(path, cv::IMREAD_GRAYSCALE);
-  load_radar(raw_data, timestamps, azimuths, up_chirps, fft_data);
+  load_radar(raw_data, timestamps, azimuths, up_chirps, fft_data, encoder_bin_size);
 }
 
 void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data) {
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data,
+                int encoder_bin_size) {
 
   const int64_t time_convert = 1000;
-  const double encoder_conversion = 2 * M_PI / 5600;
+  const double encoder_conversion = 2 * M_PI / encoder_bin_size;
   const uint N = raw_data.rows;
   const uint M = raw_data.cols;
   timestamps = std::vector<int64_t>(N, 0);
