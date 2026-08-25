@@ -30,6 +30,7 @@
 #include <vtr_path_planning/cbit/utils.hpp>
 
 #include <stdexcept>
+#include "vtr_common/timing/stopwatch.hpp"
 
 namespace vtr {
 namespace path_planning {
@@ -190,6 +191,20 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
     return corrections;
   }
 
+  using Stopwatch = common::timing::Stopwatch<>;
+  std::vector<std::unique_ptr<Stopwatch>> timer;
+  std::vector<std::string> clock_str;
+  clock_str.push_back("NumericalErrorPredictorNetwork::predictError: ");
+  timer.push_back(std::make_unique<Stopwatch>());
+  clock_str.push_back("NumericalErrorPredictorNetwork::input_setup: ");
+  timer.push_back(std::make_unique<Stopwatch>());
+  clock_str.push_back("NumericalErrorPredictorNetwork::forward_pass: ");
+  timer.push_back(std::make_unique<Stopwatch>());
+  clock_str.push_back("NumericalErrorPredictorNetwork::post_processing: ");
+  timer.push_back(std::make_unique<Stopwatch>());
+
+  timer[0]->start();
+  timer[1]->start();
   auto& chain = robot_state.chain.ptr();
   const auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_w_v_odo, T_r_v_odo, curr_sid] =
       getChainInfo(*chain);
@@ -297,20 +312,24 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
   CLOG(DEBUG, "path_planning") << "NumericalErrorPredictorNetwork: vector_inputs "
                               << "[loc_res(6), odom_vel(6), grav_vec(3)] = "
                               << vector_inputs;
+  timer[1]->stop();
 
   // Run inference
+  timer[2]->start();
   std::vector<torch::jit::IValue> inputs{vector_inputs, sequence};
   torch::Tensor output;
   try {
-    // Model output: (1, T, 3) 
+    // Model output: (1, T, 3)
     output = impl_->model.forward(inputs).toTensor().cpu();
   } catch (const c10::Error& e) {
     CLOG(ERROR, "path_planning")
         << "NumericalErrorPredictorNetwork: forward pass failed: " << e.what();
     return corrections;
   }
+  timer[2]->stop();
 
   // Apply predicted errors to reference poses
+  timer[3]->start();
   auto out = output.squeeze(0);  // (T, 3)
   const int64_t n = std::min(T, out.size(0));
   const float* data = out.data_ptr<float>();
@@ -359,6 +378,13 @@ std::vector<std::array<double, 3>> NumericalErrorPredictorNetwork::predictError(
   if (smoothing_alpha_ < 1.0) {
     prev_corrections_ = std::move(filtered);
     prev_sid_ = static_cast<int>(curr_sid);
+  }
+
+  timer[3]->stop();
+  timer[0]->stop();
+  CLOG(DEBUG, "path_planning") << "Dump timing info: ";
+  for (size_t i = 0; i < clock_str.size(); i++) {
+    CLOG(DEBUG, "path_planning") << clock_str[i] << timer[i]->count() << "ms";
   }
 
   CLOG(DEBUG, "path_planning")
