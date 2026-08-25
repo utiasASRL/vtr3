@@ -25,11 +25,16 @@
 namespace vtr {
 namespace radar {
 
+// encoder_bin_size: encoder counts per full rotation, as recorded in the raw
+// scan's per-row encoder value. Boreas/Oxford radars use 5600; Navtech RAS3
+// units (e.g. the Warthog's) use 16000
 void load_radar(const std::string &path, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data);
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data,
+                int encoder_bin_size = 5600);
 
 void load_radar(const cv::Mat &raw_data, std::vector<int64_t> &timestamps,
-                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data);
+                std::vector<double> &azimuths, std::vector<bool> &up_chirps, cv::Mat &fft_data,
+                int encoder_bin_size = 5600);
 
 /** \brief Returns the cartesian image of a radar scan */
 // clang-format off

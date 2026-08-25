@@ -41,6 +41,10 @@ class OfflineRadarConversionModule : public tactic::BaseModule {
     double cartesian_maxr = 100;  // maximum cartesian visualization distance
     double radar_resolution = 0.0438;
     double cart_resolution = 0.25;
+    // encoder counts per full rotation, as recorded in the raw scan's per-row
+    // encoder value. Boreas/Oxford radars use 5600; Navtech RAS3 units (e.g.
+    // the Warthog's) use 16000.
+    int encoder_bin_size = 5600;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
