@@ -189,7 +189,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   std::vector<ImuData> relevant_imus;
   double middle_yaw_rate;
 
-  if(config_->estimation.use_gyro != (qdata.gyro_msgs)) {
+  if(config_->estimation.use_gyro != qdata.gyro_msgs.valid()) {
     CLOG(ERROR, static_name) << "Gyro state mismatched. Odom is failed";
     *qdata.odo_success = false;
     return;
