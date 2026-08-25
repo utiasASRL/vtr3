@@ -25,9 +25,9 @@
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
-    gyro_enabled: true
+    gyro_enabled: false
     gyro_bias: 
-      z: 0.001050591194103346
+      z: 0.0009918980359367015
 
     queue_size: 100
     graph_projection:
@@ -88,7 +88,7 @@
         direct:
           local_map_res: 0.1
           local_map_update_alpha: 0.1
-          max_local_map_range: 80.0
+          max_local_map_range: 40.0
           max_range: 69.0
           min_range: 2.0
         estimation:
@@ -109,9 +109,9 @@
             - 0.0
             - 0.0
             - 1.0
-          estimate_vy_bias: true
-          estimate_gyro_bias: true
-          use_gyro: true
+          estimate_vy_bias: false
+          estimate_gyro_bias: false
+          use_gyro: false
           vy_bias_prior: 0.11
           min_time_bias_init: 1.0
           gyro_bias_alpha: 0.01
@@ -149,7 +149,7 @@
 
         # radius each scan is cropped to and contributes over, must fit inside
         # odometry.dro.direct.max_local_map_range
-        scan_max_range: 69.0
+        scan_max_range: 40.0
 
         window_max_dist: 0.1 # drop scans farther than this from the submap center in meters (<=0 keeps all)
 

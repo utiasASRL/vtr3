@@ -187,50 +187,59 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   std::vector<ImuData> relevant_imus;
-  relevant_imus.reserve(qdata.gyro_msgs->size());
-  int imu_state = 0;
-
-  // Gyro measurements arrive in the gyro's own sensor frame. DRO expects
-  // angular_velocity already expressed in the radar (sensor) frame
-  const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
-  const Eigen::Matrix3d R_radar_gyro =
-      qdata.T_s_r->matrix().block<3, 3>(0, 0) *
-      T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose();
-
   double middle_yaw_rate;
-  bool middle_yaw_rate_set = false;
-  for(const auto& msg : *qdata.gyro_msgs) {
-    ImuData imu_data;
-    imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL +
-                  static_cast<int64_t>(msg.header.stamp.nanosec) / 1000LL;
 
-    // Rotate into the radar frame
-    // We don't load acceleration because it's not needed
-    imu_data.angular_velocity = R_radar_gyro * Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
-
-    if (imu_data.timestamp < rd.timestamps.front()) {
-      if(imu_state == 0)
-        imu_state++;
-      CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
-    }
-
-    if (imu_data.timestamp > *qdata.stamp / 1000 && !middle_yaw_rate_set) {
-      middle_yaw_rate = imu_data.angular_velocity(2);
-      middle_yaw_rate_set = true;
-    }
-
-    if (imu_data.timestamp > rd.timestamps.back()) {
-      if(imu_state == 1)
-        imu_state++;
-      CLOG(DEBUG, static_name) << "End message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.back()) / 1e6;
-    }
-    relevant_imus.push_back(imu_data);
-  }
-
-  if (imu_state != 2) {
-    CLOG(ERROR, static_name) << "IMU data does not wrap around the scan times. DRO is considered failed";
+  if(config_->estimation.use_gyro != (qdata.gyro_msgs)) {
+    CLOG(ERROR, static_name) << "Gyro state mismatched. Odom is failed";
     *qdata.odo_success = false;
     return;
+  }
+
+  if(qdata.gyro_msgs){
+    relevant_imus.reserve(qdata.gyro_msgs->size());
+    int imu_state = 0;
+
+    // Gyro measurements arrive in the gyro's own sensor frame. DRO expects
+    // angular_velocity already expressed in the radar (sensor) frame
+    const auto &T_s_r_gyro = *qdata.T_s_r_gyro;
+    const Eigen::Matrix3d R_radar_gyro =
+        qdata.T_s_r->matrix().block<3, 3>(0, 0) *
+        T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose();
+
+    bool middle_yaw_rate_set = false;
+    for(const auto& msg : *qdata.gyro_msgs) {
+      ImuData imu_data;
+      imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL +
+                    static_cast<int64_t>(msg.header.stamp.nanosec) / 1000LL;
+
+      // Rotate into the radar frame
+      // We don't load acceleration because it's not needed
+      imu_data.angular_velocity = R_radar_gyro * Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
+
+      if (imu_data.timestamp < rd.timestamps.front()) {
+        if(imu_state == 0)
+          imu_state++;
+        CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
+      }
+
+      if (imu_data.timestamp > *qdata.stamp / 1000 && !middle_yaw_rate_set) {
+        middle_yaw_rate = imu_data.angular_velocity(2);
+        middle_yaw_rate_set = true;
+      }
+
+      if (imu_data.timestamp > rd.timestamps.back()) {
+        if(imu_state == 1)
+          imu_state++;
+        CLOG(DEBUG, static_name) << "End message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.back()) / 1e6;
+      }
+      relevant_imus.push_back(imu_data);
+    }
+
+    if (imu_state != 2) {
+      CLOG(ERROR, static_name) << "IMU data does not wrap around the scan times. DRO is considered failed";
+      *qdata.odo_success = false;
+      return;
+    }
   }
 
   py::gil_scoped_acquire acquire;
