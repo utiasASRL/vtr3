@@ -37,10 +37,6 @@ auto BicycleMPCDisturbanceModelPathTracker::Config::loadConfig(BicycleMPCDisturb
   config->vertex_range = node->declare_parameter<int>(prefix + ".dist_model.vertex_range", config->vertex_range);
   config->velocity_bin_range = node->declare_parameter<int>(prefix + ".dist_model.velocity_bin_range", config->velocity_bin_range);
   config->n_gp_inputs = node->declare_parameter<int>(prefix + ".dist_model.n_gp_inputs", config->n_gp_inputs);
-
-  // MISC
-  config->r_racc2 = node->declare_parameter<double>(prefix + ".mpc.reverse.racc2", config->r_racc2);
-  config->command_history_length = node->declare_parameter<int>(prefix + ".mpc.command_history_length", config->command_history_length);
 }
 
 auto BicycleMPCDisturbanceModelPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node, const std::string& prefix) -> Ptr {
