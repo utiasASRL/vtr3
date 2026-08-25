@@ -101,7 +101,6 @@ void BicycleMPCDisturbanceModelPathTracker::writeDisturbanceSample(const Disturb
               << sample.u_k[1] << ","
               << sample.u_k_m1[0] << ","
               << sample.u_k_m1[1] << ","
-              << sample.u_k_m1[2] << ","
               << sample.x_k_p1[0] << ","
               << sample.x_k_p1[1] << ","
               << sample.x_k_p1[2]
@@ -140,7 +139,7 @@ void BicycleMPCDisturbanceModelPathTracker::loadDisturbanceSamples() {
     disturbance_samples_.push_back(sample);
 
     // Populate bins with FIFO eviction, same as recordDisturbanceSample should do
-    BinKey key{sample.vertex_id, velocityBin(sample.v_k_m1[0])};
+    BinKey key{sample.vertex_id, velocityBin(sample.u_k[0])};
     auto& bin = bins_[key];
     bin.push_back(sample);
     if (static_cast<int>(bin.size()) > config_->bin_size) {
