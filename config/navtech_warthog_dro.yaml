@@ -127,7 +127,7 @@
           ft: 76.04E9
           meas_freq: 1600.0
           range_offset: -0.220240
-          resolution: 0.0403
+          resolution: 0.040308
           doppler_enabled: false
           nb_azimuths: 400
         solver:
@@ -151,7 +151,7 @@
         # odometry.dro.direct.max_local_map_range
         scan_max_range: 69.0
 
-        window_max_dist: 0.1 # drop scans farther than this from the submap center in meters (<=0 keeps all)
+        num_scans: 10 # number of most recent scans (keyframe or not) fused into the submap at each keyframe
 
         # scan blurring, mirrors the dr_ba offline mapper
         gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
