@@ -122,6 +122,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   void loadVerticesLive();
   void loadEdgesLive();
   void populateLive();
+  void resolveDanglingEdges();
   void loadLive();
 
  private:
@@ -163,6 +164,7 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   std::queue<VertexPtr> vertices_to_write_;
   std::queue<EdgePtr> edges_to_write_;
+  std::unordered_map<EdgeId, int> dangling_edges_;
   std::unordered_map<EdgeId, int> topology_edges_;
   std::unordered_map<VertexId, int> topology_vertices_;
 

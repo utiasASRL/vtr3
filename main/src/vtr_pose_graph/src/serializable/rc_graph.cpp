@@ -143,6 +143,7 @@ void RCGraph::loadVertices() {
     vertices_.insert(std::make_pair(vertex->id(), vertex));
     CLOG(DEBUG, "pose_graph") << "- loaded vertex " << *vertex;
   }
+  resolveDanglingEdges();  
 }
 
 void RCGraph::loadEdges() {
@@ -162,7 +163,8 @@ void RCGraph::loadEdges() {
     if (vertices_.find(eid.id1()) == vertices_.end() ||
         vertices_.find(eid.id2()) == vertices_.end()) {
       CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
-      break;
+      dangling_edges_[edge->id()] = index;
+      continue;
     }
     lastEdgeIdx_ = index;
     if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
@@ -214,6 +216,7 @@ void RCGraph::loadVerticesLive() {
     CLOG(DEBUG, "pose_graph") << "loadVerticesLive: callback for " << vertex->id();
     callback_->vertexAdded(vertex);  // inform graph_map_server
   }
+  resolveDanglingEdges();  
 }
 
 void RCGraph::loadEdgesLive() {
@@ -244,7 +247,9 @@ void RCGraph::loadEdgesLive() {
       if (vertices_.find(eid.id1()) == vertices_.end() ||
           vertices_.find(eid.id2()) == vertices_.end()) {
         CLOG(WARNING, "pose_graph") << "Skipping dangling edge " << eid;
-        break;
+        dangling_edges_[edge->id()] = index;
+        CLOG(DEBUG, "pose_graph") << "Live: Dangling Edge inserted, len " << dangling_edges_.size();
+        continue;
       }
       lastEdgeIdx_ = index;
       if (edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
@@ -334,7 +339,56 @@ void RCGraph::populateLive() {
     CLOG(DEBUG, "pose_graph") << "populateLive: publishing " << *edge;
     callback_->publishUpdate(edge);
   }
+}
 
+void RCGraph::resolveDanglingEdges(){
+  // retry edges that were at the tip of a run (when the next map is added, they are no longer dangling)
+  if (dangling_edges_.empty()) return;
+
+  CLOG(DEBUG, "pose_graph") << "Monitoring dangling edges";
+  CLOG(DEBUG, "pose_graph") << "# dangling edges: " << dangling_edges_.size();
+
+  EdgeMsgAccessor edge_accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge", true};
+  std::map<int, RCEdge::Ptr> edges_to_publish;  
+
+  {
+    std::unique_lock lock(mutex_);
+
+    // populate edges
+    for (auto e_it = dangling_edges_.begin(); e_it != dangling_edges_.end();) {
+      const auto& eid = e_it->first;
+      const int index = e_it->second;
+      const auto msg = edge_accessor.readAtIndex(index);
+      if (!msg) {
+        CLOG(DEBUG, "pose_graph") << "resolveDanglingEdges: !msg break";
+        break;
+      }
+
+      if (vertices_.find(eid.id1()) == vertices_.end() ||
+          vertices_.find(eid.id2()) == vertices_.end()) {
+          ++e_it; // still dangling
+          continue;
+      }
+
+      auto updated_edge_msg = msg->locked().get().getData();
+      auto new_edge = RCEdge::MakeShared(updated_edge_msg, msg);
+      CLOG(DEBUG, "pose_graph") << "resolveDanglingEdges: resolved" << eid;
+      
+      if (updated_edge_msg.mode.mode == vtr_pose_graph_msgs::msg::EdgeMode::UNKNOWN) {
+        topology_edges_[new_edge->id()] = index;
+      }
+      edges_[eid] = new_edge;
+      graph_.addEdge(new_edge->id()); // add to simpleGraph
+      edges_to_publish[e_it->second] = new_edge;
+      e_it = topology_edges_.erase(e_it);
+    }
+  }
+
+  // publish UI updates
+  for (const auto& [index, edge] : edges_to_publish) {
+    CLOG(DEBUG, "pose_graph") << "populateLive: publishing " << *edge;
+    callback_->publishUpdate(edge);
+  }
 }
 
 void RCGraph::loadLive() {
