@@ -208,14 +208,14 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
 
     for(const auto& msg : *qdata.gyro_msgs) {
       ImuData imu_data;
-      imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL +
-                    static_cast<int64_t>(msg.header.stamp.nanosec) / 1000LL;
+      imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000L +
+                    static_cast<int64_t>(msg.header.stamp.nanosec) / 1000L;
 
       // Rotate into the radar frame
       // We don't load acceleration because it's not needed
       imu_data.angular_velocity = R_radar_gyro * Eigen::Vector3d(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z);
 
-      if (imu_data.timestamp < rd.timestamps.front()) {
+      if (imu_data.timestamp <= rd.timestamps.front()) {
         if(imu_state == 0)
           imu_state++;
         CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
@@ -225,7 +225,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
         middle_yaw_rate += imu_data.angular_velocity(2);
       }
 
-      if (imu_data.timestamp > rd.timestamps.back()) {
+      if (imu_data.timestamp >= rd.timestamps.back()) {
         if(imu_state == 1)
           imu_state++;
         CLOG(DEBUG, static_name) << "End message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.back()) / 1e6;
@@ -234,7 +234,10 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
     }
 
     if (imu_state != 2) {
-      CLOG(ERROR, static_name) << "IMU data does not wrap around the scan times. DRO is considered failed";
+      CLOG(ERROR, static_name) << "IMU data does not wrap around the scan times. DRO is considered failed. Start: "
+       << static_cast<float>(relevant_imus.front().timestamp - rd.timestamps.front()) / 1e6
+       << " End: " << static_cast<float>(relevant_imus.back().timestamp - rd.timestamps.back()) / 1e6
+       << " Size: " << relevant_imus.size();
       *qdata.odo_success = false;
       return;
     }
