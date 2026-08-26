@@ -24,7 +24,7 @@
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
-    gyro_enabled: false
+    gyro_enabled: true
     gyro_bias: 
       z: 0.0009918980359367015
     queue_size: 100

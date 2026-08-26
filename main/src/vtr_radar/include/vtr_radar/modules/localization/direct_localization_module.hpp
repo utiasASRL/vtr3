@@ -52,6 +52,8 @@ class DirectLocalizationModule : public tactic::BaseModule {
     // radius around the initial guess to query map voxels (<=0 uses all)
     double max_dist = 100.0;
 
+    Eigen::Vector3d prior_cov = Eigen::Vector3d::Zero();
+
     ba::OptimizationOptions ba_opts;
 
     /// ICP parameters
