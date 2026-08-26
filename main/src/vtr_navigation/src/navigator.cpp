@@ -424,7 +424,7 @@ void Navigator::gyroCallback(
     uint64_t scan_end = radar_msg.timestamps.back();
 
     if (abs(timestamp_gyro - *radar_cache->stamp) > 5e8) {
-      CLOG(WARNING, "navigator") << "Radar and Gyro are more than 0.5s out of synch. Check NTP status";
+      CLOG_EVERY_N(100, WARNING, "navigator") << "Radar and Gyro are more than 0.5s out of synch. Check NTP status";
     }
 
     if (timestamp_gyro > scan_end) {
