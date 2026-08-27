@@ -14,7 +14,7 @@
 
 /**
  * \file odometry_icp_module.cpp
- * \author Alec Krawciw Autonomous Space Robotics Lab (ASRL)
+ * \author Alec Krawciw, Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar/modules/odometry/direct_odometry.hpp"
 
@@ -177,6 +177,11 @@ cv::Mat DROModule::blurLocalMap(const cv::Mat &scan) const {
     if (!config_->direct.adaptive_blur || sigma > config_->direct.max_blur_sigma) break;
     sigma += 2.0;
   } while (percent_nonzero < config_->direct.min_percent_nonzero);
+
+  if (config_->direct.adaptive_blur) {
+    CLOG(DEBUG, static_name) << "Adaptive blur converged at sigma " << sigma << " (" << percent_nonzero
+                              << "% nonzero)";
+  }
 
   cv::threshold(blurred, blurred, 0.0, 0.0, cv::THRESH_TOZERO);
   cv::threshold(blurred, blurred, 1.0, 1.0, cv::THRESH_TRUNC);
