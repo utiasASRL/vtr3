@@ -16,7 +16,7 @@
  * \file odometry_icp_module.cpp
  * \author Alec Krawciw, Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_radar/modules/odometry/direct_odometry.hpp"
+#include "vtr_radar/modules/odometry/direct_odometry_module.hpp"
 
 #include "vtr_common/conversions/se2_to_se3.hpp"
 

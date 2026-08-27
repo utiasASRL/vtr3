@@ -96,7 +96,7 @@ class Navigator {
   std::shared_ptr<tactic::QueryCache> pending_cache_;
 #endif
  
-#if defined(VTR_ENABLE_RADAR ) || defined(VTR_ENABLE_LIDAR)
+#if defined(VTR_ENABLE_RADAR) || defined(VTR_ENABLE_LIDAR)
   // gyro
   using ImuMsg = sensor_msgs::msg::Imu;
   const std::string &gyro_frame() const { return gyro_frame_; }

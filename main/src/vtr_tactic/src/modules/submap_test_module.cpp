@@ -13,17 +13,15 @@
 // limitations under the License.
 
 /**
- * \file vertex_test_module.cpp
+ * \file submap_test_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_radar/modules/odometry/vertex_test_module.hpp"
+#include "vtr_tactic/modules/submap_test_module.hpp"
 
 namespace vtr {
-namespace radar {
+namespace tactic {
 
-using namespace tactic;
-
-auto VertexTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+auto SubmapTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                        const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
@@ -34,47 +32,34 @@ auto VertexTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
+void SubmapTestModule::run_(QueryCache &qdata, OutputCache &,
                             const Graph::Ptr &, const TaskExecutor::Ptr &) {
-  auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
 
-  // default to
-  qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
-
-  // Do nothing if qdata does not contain any radar data (was populated by gyro)
-  // This means that we will only create vertices when radar data arrives (which I think is what we wanna do)
-  if(!qdata.radar_data)
-  {
-    return;
-  }
-
-  // input
+   // input
   const auto &first_frame = *qdata.first_frame;
   const auto &T_r_v = *qdata.T_r_v_odo;
   const auto &success = *qdata.odo_success;
   // output
-  auto &result = *qdata.vertex_test_result;
+  auto &result = *qdata.submap_test_result;
 
+  // check first frame
+  if (first_frame) result = SubmapTestResult::CREATE_SUBMAP;
 
   // check if we successfully register this frame
   if (!success) return;
-  
-  // check first frame
-  if (first_frame) result = VertexTestResult::CREATE_VERTEX;
-
 
   auto se3vec = T_r_v.vec();
   auto translation_distance = se3vec.head<3>().norm();
   auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
-  CLOG(DEBUG, "radar.vertex_test")
+  CLOG(DEBUG, "submap_test")
       << "Total translation: " << translation_distance
       << ", total rotation: " << rotation_distance;
 
   if (translation_distance >= config_->max_translation ||
       rotation_distance >= config_->max_rotation) {
-    result = VertexTestResult::CREATE_VERTEX;
+    result = SubmapTestResult::CREATE_SUBMAP;
   }
 }
 
-}  // namespace radar
+}  // namespace tactic
 }  // namespace vtr

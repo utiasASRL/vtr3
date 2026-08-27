@@ -155,11 +155,13 @@ void ScanToMapModule::updateSubmap(RadarQueryCache &qdata) const {
                            << " voxels fused from the current scan";
 }
 
-void ScanToMapModule::run_(QueryCache &, OutputCache &, const Graph::Ptr &,
+void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,
                                         const TaskExecutor::Ptr &) {
-  // No-op: this module is not run automatically as part of a pipeline's
-  // module list. The pipeline calls updateSubmap() directly, and only once
-  // it already knows the result will be saved as a submap.
+  auto &qdata = dynamic_cast<RadarQueryCache &>(qdata0);
+
+  if(*qdata.submap_test_result == SubmapTestResult::CREATE_SUBMAP) {
+    updateSubmap(qdata);
+  }
 }
 
 }  // namespace radar

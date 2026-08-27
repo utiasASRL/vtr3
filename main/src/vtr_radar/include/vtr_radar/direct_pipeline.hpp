@@ -94,11 +94,6 @@ class RadarDirectPipeline : public tactic::BasePipeline {
   std::vector<tactic::BaseModule::Ptr> odometry_;
   std::vector<tactic::BaseModule::Ptr> localization_;
 
-  /// Builds the odometry submap; called directly by onVertexCreation_ only
-  /// once a submap is actually needed, rather than run every keyframe as
-  /// part of odometry_.
-  std::shared_ptr<ScanToMapModule> scan_to_pointmap_;
-
   tactic::EdgeTransform T_v_odo_submap_v_ = tactic::EdgeTransform(true);
   tactic::VertexId submap_vid_odo_ = tactic::VertexId::Invalid();
 

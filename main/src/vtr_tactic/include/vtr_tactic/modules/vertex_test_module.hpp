@@ -18,18 +18,17 @@
  */
 #pragma once
 
-#include "vtr_radar/cache.hpp"
+#include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
-namespace radar {
+namespace tactic {
 
-/** \brief Preprocesses raw pointcloud points and computes normals. */
 class VertexTestModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "radar.vertex_test";
+  static constexpr auto static_name = "vertex_distance_test";
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
@@ -58,5 +57,5 @@ class VertexTestModule : public tactic::BaseModule {
   VTR_REGISTER_MODULE_DEC_TYPE(VertexTestModule);
 };
 
-}  // namespace radar
+}  // namespace tactic
 }  // namespace vtr

@@ -48,7 +48,11 @@ ament_target_dependencies(${PROJECT_NAME}_tactic
   vtr_tactic_msgs vtr_logging vtr_pose_graph
 )
 
-file(GLOB_RECURSE PIPELINES_SRC src/modules/memory/*.cpp)
+file(GLOB_RECURSE PIPELINES_SRC 
+  src/modules/memory/*.cpp
+  src/modules/vertex_test_module.cpp
+  src/modules/submap_test_module.cpp
+)
 add_library(${PROJECT_NAME}_pipelines ${PIPELINES_SRC})
 target_link_libraries(${PROJECT_NAME}_pipelines ${PROJECT_NAME}_tactic)
 

@@ -95,7 +95,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   CLOG(INFO, "navigation") << "Data directory set to: " << data_dir;
 
   /// graph map server (pose graph callback, tactic callback)
-  // graph_map_server_ = std::make_shared<GraphMapServer>();
   graph_map_server_ = std::make_shared<RvizGraphMapServer>(node_);
 
   /// pose graph
@@ -337,8 +336,16 @@ void Navigator::lidarCallback(
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
 
-  query_data->gyro_msgs.emplace(gyro_msgs_);
-  gyro_msgs_.clear();
+  if (gyro_enabled_) {
+    auto& cache_msgs = query_data->gyro_msgs.emplace();
+    cache_msgs->reserve(gyro_msgs_.size());
+
+    cache_msgs->assign(
+        std::make_move_iterator(gyro_msgs_.begin()), 
+        std::make_move_iterator(gyro_msgs_.end())
+    );
+    gyro_msgs_.clear();
+  }
 
   // fill in the vehicle to sensor transform and frame names
   query_data->T_s_r_gyro.emplace(T_gyro_robot_);

@@ -75,6 +75,9 @@ std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 /** \brief the vertex creation test result */
 enum class VertexTestResult : int { CREATE_VERTEX = 0, DO_NOTHING = 1, CREATE_CANDIDATE = 2};
 
+/** \brief the vertex creation test result */
+enum class SubmapTestResult : int { CREATE_SUBMAP = 0, DO_NOTHING = 1};
+
 /** \brief Full metric and topological localization in one package */
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
