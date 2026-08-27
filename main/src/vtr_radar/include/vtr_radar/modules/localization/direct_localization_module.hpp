@@ -41,9 +41,6 @@ class DirectLocalizationModule : public tactic::BaseModule {
     /// Prior terms
     bool use_pose_prior = false;
 
-    int gauss_blur_sigma = 1;
-    int gauss_blur_ksize = 1;
-
     long max_iter = 1000;
 
     double alpha = 1;

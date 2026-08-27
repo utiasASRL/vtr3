@@ -34,6 +34,7 @@ auto OfflineRadarConversionModule::Config::fromROS(
   config->cartesian_maxr = node->declare_parameter<double>(param_prefix + ".cartesian_maxr", config->cartesian_maxr);
   config->radar_resolution = node->declare_parameter<double>(param_prefix + ".radar_resolution", config->radar_resolution);
   config->cart_resolution = node->declare_parameter<double>(param_prefix + ".cart_resolution", config->cart_resolution);
+  config->encoder_bin_size = node->declare_parameter<int>(param_prefix + ".encoder_bin_size", config->encoder_bin_size);
 
   // clang-format on
   return config;
@@ -66,7 +67,8 @@ void OfflineRadarConversionModule::run_(QueryCache &qdata0, OutputCache &,
   float cart_resolution = config_->cart_resolution;
 
   // Load scan, times, azimuths from scan
-  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, fft_scan);
+  load_radar(scan, azimuth_times, azimuth_angles, up_chirps, fft_scan,
+             config_->encoder_bin_size);
 
   // Convert to cartesian BEV image
   int cart_pixel_width = (2 * config_->cartesian_maxr) / cart_resolution;

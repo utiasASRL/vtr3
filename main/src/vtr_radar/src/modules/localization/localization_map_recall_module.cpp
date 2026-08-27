@@ -128,6 +128,10 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     Eigen::Vector3f r_m_v_in_v = (T_v_m.block<3, 1>(0, 3)).cast<float>();
     map_point_mat = (C_v_m * map_point_mat).colwise() + r_m_v_in_v;
 
+    // \note visualization-only offset so the submap doesn't occlude the
+    // repeat trajectory in rviz
+    map_point_mat.row(2).array() -= 1.0f;
+
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
     pc2_msg.header.frame_id = "loc vertex frame (offset)";

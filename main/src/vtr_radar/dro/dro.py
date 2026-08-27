@@ -19,6 +19,7 @@ kDefaultDroOpts = {
         'min_time_bias_init': 1.0,
         'T_axle_radar': np.eye(4),
         'gyro_bias_alpha': 0.01,
+        'zero_vel_threshold': 0.0,
     },
     'gp': {
         'lengthscale_az': 2.0,
@@ -143,7 +144,12 @@ class Dro():
 
             self.max_acc = torch.tensor(float(opts['estimation']['max_acceleration'])).to(self.device)
 
+            # If the carried-forward speed prior is below this, zero the
+            # initial velocity guess before the next solve. <= 0 disables it.
+            self.zero_vel_threshold = float(opts['estimation'].get('zero_vel_threshold', 0.0))
+
             self.previous_vel = torch.tensor(0.0).to(self.device)
+            self.previous_vel_vec = torch.zeros(2).to(self.device)
 
             self.step_counter = 0
 
@@ -333,12 +339,14 @@ class Dro():
         saved_step_counter = self.step_counter
         saved_state_init = self.state_init.clone()
         saved_previous_vel = self.previous_vel.clone()
+        saved_previous_vel_vec = self.previous_vel_vec.clone()
         saved_max_diff_vel = self.max_diff_vel.clone() if isinstance(self.max_diff_vel, torch.Tensor) else self.max_diff_vel
         self.step_counter = 0
         _ = self.solve(self.state_init.clone(), nb_iter=self.opts['solver']['nb_iter'], cost_tol=self.opts['solver']['cost_tol'], step_tol=self.opts['solver']['step_tol'])
         self.step_counter = saved_step_counter
         self.state_init = saved_state_init
         self.previous_vel = saved_previous_vel
+        self.previous_vel_vec = saved_previous_vel_vec
         self.max_diff_vel = saved_max_diff_vel
 
 
@@ -548,8 +556,8 @@ class Dro():
             ### Perform the optimisation
             if self.motion_model.state_size == 3 and self.use_gyro:
                 self.state_init[:2] = self.state_init[:2]*(1+self.state_init[2]*delta_time)
-            # if torch.norm(self.state_init[:2]) < 0.75:
-            #     self.state_init[:] = 0.0
+            if self.zero_vel_threshold > 0.0 and torch.norm(self.state_init[:2]) < self.zero_vel_threshold:
+                self.state_init[:] = 0.0
             result = self.solve(self.state_init, self.opts['solver']['nb_iter'], self.opts['solver']['cost_tol'], self.opts['solver']['step_tol'])
 
 
@@ -1164,6 +1172,7 @@ class Dro():
             if not degraded:
                 vel, _, _ = self.motion_model.getVelPosRot(state, with_jac=False)
                 self.previous_vel = torch.norm(vel[-1,:])
+                self.previous_vel_vec = vel[-1,:].clone()
                 self.max_diff_vel = self.motion_model.time[-1] * self.max_acc
             
             
