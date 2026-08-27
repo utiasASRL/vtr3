@@ -86,7 +86,7 @@
 
         direct:
           local_map_res: 0.1
-          local_map_update_alpha: 0.1
+          local_map_update_alpha: 0.25
           max_local_map_range: 40.0
           max_range: 69.0
           min_range: 2.0
