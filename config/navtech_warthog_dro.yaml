@@ -90,12 +90,9 @@
           max_local_map_range: 40.0
           max_range: 69.0
           min_range: 2.0
-          # Blurring of DRO's local map, only for downstream (mapping, DRL) consumption
+          # Fixed blurring of DRO's local map, for downstream (mapping, DRL)
+          # consumption. scan_to_pointmap may blur further, for mapping only.
           gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
-          adaptive_blur: false # raise sigma until min_percent_nonzero of the scan is non-zero
-          max_blur_sigma: 15.0 # max sigma for adaptive blur
-          min_int_val_tol: 0.5 # min intensity value to consider a pixel non-zero
-          min_percent_nonzero: 0.3 # percent of pixels above min_int_val_tol to stop blurring
         estimation:
           T_axle_radar:
             - 1.0
@@ -151,6 +148,13 @@
       scan_to_pointmap:
         type: radar.scan_to_pointmap
         map_resolution: 0.5 # submap voxel size in meters
+
+        # Additional blurring on top of DRO's fixed gauss_blur_sigma blur,
+        # applied only when building the submap (not for drl/localization)
+        adaptive_blur: false # raise sigma further until min_percent_nonzero of the scan is non-zero
+        max_blur_sigma: 15.0 # max additional sigma for adaptive blur
+        min_int_val_tol: 0.5 # min intensity value to consider a pixel non-zero
+        min_percent_nonzero: 0.3 # percent of pixels above min_int_val_tol to stop blurring
 
       memory:
         type: "live_mem_manager"

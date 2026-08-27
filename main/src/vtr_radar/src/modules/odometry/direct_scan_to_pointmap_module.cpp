@@ -33,8 +33,52 @@ auto ScanToMapModule::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->map_resolution = node->declare_parameter<float>(param_prefix + ".map_resolution", config->map_resolution);
+  config->adaptive_blur = node->declare_parameter<bool>(param_prefix + ".adaptive_blur", config->adaptive_blur);
+  config->blur_sigma_step = node->declare_parameter<double>(param_prefix + ".blur_sigma_step", config->blur_sigma_step);
+  config->max_num_reblur = node->declare_parameter<int>(param_prefix + ".max_num_reblur", config->max_num_reblur);
+  config->min_int_val_tol = node->declare_parameter<double>(param_prefix + ".min_int_val_tol", config->min_int_val_tol);
+  config->min_percent_nonzero = node->declare_parameter<double>(param_prefix + ".min_percent_nonzero", config->min_percent_nonzero);
   // clang-format on
   return config;
+}
+
+cv::Mat ScanToMapModule::adaptiveBlur(const cv::Mat &scan) const {
+  cv::Mat img;
+  scan.convertTo(img, CV_32F, 1.0 / 255.0);
+
+  const auto percentNonzero = [&](const cv::Mat &m) {
+    return 100.0 * cv::countNonZero(m > config_->min_int_val_tol) / (m.rows * m.cols);
+  };
+
+  double percent_nonzero = percentNonzero(img);
+  if (percent_nonzero >= config_->min_percent_nonzero) return scan;  // already enough coverage
+
+  // Repeatedly re-blur with a fixed sigma (compounding) until enough of the
+  // scan is non-zero, or max_num_reblur passes have been applied.
+  const double sigma = config_->blur_sigma_step;
+  const int ksize = (static_cast<int>(std::ceil(6.0 * sigma)) | 1);
+  cv::Mat blurred = img;
+  int num_reblur = 0;
+  do {
+    cv::GaussianBlur(blurred, blurred, cv::Size(ksize, ksize), sigma);
+    ++num_reblur;
+
+    double min_val, max_val;
+    cv::minMaxLoc(blurred, &min_val, &max_val);
+    blurred = (blurred - min_val) / std::max(max_val - min_val, 1e-9);
+
+    percent_nonzero = percentNonzero(blurred);
+  } while (percent_nonzero < config_->min_percent_nonzero && num_reblur < config_->max_num_reblur);
+
+  CLOG(DEBUG, static_name) << "Adaptive blur converged after " << num_reblur << " passes ("
+                           << percent_nonzero << "% nonzero)";
+
+  cv::threshold(blurred, blurred, 0.0, 0.0, cv::THRESH_TOZERO);
+  cv::threshold(blurred, blurred, 1.0, 1.0, cv::THRESH_TRUNC);
+
+  cv::Mat quantized;
+  blurred.convertTo(quantized, CV_8U, 255.0);
+  return quantized;
 }
 
 void ScanToMapModule::rebuildMap(PointMap<PointWithInfo> &map,
@@ -99,8 +143,9 @@ void ScanToMapModule::updateSubmap(RadarQueryCache &qdata) const {
   }
 
   auto &sliding_map_odo = *qdata.sliding_map_odo;
-  rebuildMap(sliding_map_odo, *qdata.smoothed_scan, *qdata.smoothed_scan_res,
-            *qdata.stamp);
+  const cv::Mat scan = config_->adaptive_blur ? adaptiveBlur(*qdata.smoothed_scan)
+                                              : *qdata.smoothed_scan;
+  rebuildMap(sliding_map_odo, scan, *qdata.smoothed_scan_res, *qdata.stamp);
 
   // Update the sliding map's tf
   const auto T_r_s = qdata.T_s_r->inverse();

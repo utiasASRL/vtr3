@@ -28,12 +28,8 @@ namespace radar {
 /**
  * \brief Turns the current keyframe's smoothed scan into the odometry submap.
  *
- * qdata.smoothed_scan (DRO's output, already blurred there so it matches
- * what localization's drl consumes) is resampled onto a voxel grid at
- * map_resolution and becomes the new submap, replacing whatever was there
- * before. updateSubmap() does the actual work and is meant to be called
- * directly (e.g. by the pipeline, once it knows a submap is actually
- * needed) rather than run every keyframe.
+ * This is controlled by direct_odometry and is not run on every keyframe
+ * since we only care to construct submap when we want to save one.
  */
 class ScanToMapModule : public tactic::BaseModule {
  public:
@@ -45,6 +41,13 @@ class ScanToMapModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     float map_resolution = 1.0;   // submap voxel size in meters
+
+    // Possible additional blurring on top of DRO's fixed gauss_blur_sigma blur for mapping
+    bool adaptive_blur = false;   // repeatedly re-blur until min_percent_nonzero of the scan is non-zero
+    double blur_sigma_step = 3.0; // fixed sigma applied on each re-blur pass
+    int max_num_reblur = 5;       // cap on the number of re-blur passes
+    double min_int_val_tol = 0.5; // min intensity value to consider a pixel non-zero
+    double min_percent_nonzero = 0.3; // percent of pixels above min_int_val_tol to stop blurring
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -70,6 +73,12 @@ class ScanToMapModule : public tactic::BaseModule {
   /** \brief Rebuilds the map from the given (already blurred) scan. */
   void rebuildMap(PointMap<PointWithInfo> &map, const cv::Mat &scan,
                   double scan_res, tactic::Timestamp stamp) const;
+
+  /** \brief If scan doesn't already have enough non-zero coverage, repeatedly
+   *  re-blurs it with blur_sigma_step (compounding, up to max_num_reblur
+   *  passes) until it does. Returns scan unchanged if it already satisfies
+   *  min_percent_nonzero. */
+  cv::Mat adaptiveBlur(const cv::Mat &scan) const;
 
   Config::ConstPtr config_;
 

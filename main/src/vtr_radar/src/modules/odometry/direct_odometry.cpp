@@ -72,10 +72,6 @@ auto DROModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->direct.max_local_map_range = node->declare_parameter<double>(param_prefix + ".direct.max_local_map_range", config->direct.max_local_map_range);
   config->direct.local_map_update_alpha = node->declare_parameter<double>(param_prefix + ".direct.local_map_update_alpha", config->direct.local_map_update_alpha);
   config->direct.gauss_blur_sigma = node->declare_parameter<double>(param_prefix + ".direct.gauss_blur_sigma", config->direct.gauss_blur_sigma);
-  config->direct.adaptive_blur = node->declare_parameter<bool>(param_prefix + ".direct.adaptive_blur", config->direct.adaptive_blur);
-  config->direct.max_blur_sigma = node->declare_parameter<double>(param_prefix + ".direct.max_blur_sigma", config->direct.max_blur_sigma);
-  config->direct.min_int_val_tol = node->declare_parameter<double>(param_prefix + ".direct.min_int_val_tol", config->direct.min_int_val_tol);
-  config->direct.min_percent_nonzero = node->declare_parameter<double>(param_prefix + ".direct.min_percent_nonzero", config->direct.min_percent_nonzero);
 
   // 5. Doppler
   config->doppler.min_range = node->declare_parameter<double>(param_prefix + ".doppler.min_range", config->doppler.min_range);
@@ -160,28 +156,14 @@ cv::Mat DROModule::blurLocalMap(const cv::Mat &scan) const {
   cv::Mat img;
   scan.convertTo(img, CV_32F);
 
-  // Raise sigma until enough of the scan is non-zero, as the dr_ba mapper does
+  const double sigma = config_->direct.gauss_blur_sigma;
+  const int ksize = (static_cast<int>(std::ceil(6.0 * sigma)) | 1);
   cv::Mat blurred;
-  double sigma = config_->direct.adaptive_blur ? 3.0 : config_->direct.gauss_blur_sigma;
-  double percent_nonzero = 0.0;
-  do {
-    const int ksize = (static_cast<int>(std::ceil(6.0 * sigma)) | 1);
-    cv::GaussianBlur(img, blurred, cv::Size(ksize, ksize), sigma);
+  cv::GaussianBlur(img, blurred, cv::Size(ksize, ksize), sigma);
 
-    double min_val, max_val;
-    cv::minMaxLoc(blurred, &min_val, &max_val);
-    blurred = (blurred - min_val) / std::max(max_val - min_val, 1e-9);
-
-    percent_nonzero = 100.0 * cv::countNonZero(blurred > config_->direct.min_int_val_tol) /
-                      (blurred.rows * blurred.cols);
-    if (!config_->direct.adaptive_blur || sigma > config_->direct.max_blur_sigma) break;
-    sigma += 2.0;
-  } while (percent_nonzero < config_->direct.min_percent_nonzero);
-
-  if (config_->direct.adaptive_blur) {
-    CLOG(DEBUG, static_name) << "Adaptive blur converged at sigma " << sigma << " (" << percent_nonzero
-                              << "% nonzero)";
-  }
+  double min_val, max_val;
+  cv::minMaxLoc(blurred, &min_val, &max_val);
+  blurred = (blurred - min_val) / std::max(max_val - min_val, 1e-9);
 
   cv::threshold(blurred, blurred, 0.0, 0.0, cv::THRESH_TOZERO);
   cv::threshold(blurred, blurred, 1.0, 1.0, cv::THRESH_TRUNC);
