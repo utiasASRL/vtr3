@@ -67,7 +67,6 @@
       odometry:
         - dro
         - vertex_test
-        - scan_to_pointmap
         - memory
       localization: 
         - recall
@@ -91,6 +90,12 @@
           max_local_map_range: 40.0
           max_range: 69.0
           min_range: 2.0
+          # Blurring of DRO's local map, only for downstream (mapping, DRL) consumption
+          gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
+          adaptive_blur: false # raise sigma until min_percent_nonzero of the scan is non-zero
+          max_blur_sigma: 15.0 # max sigma for adaptive blur
+          min_int_val_tol: 0.5 # min intensity value to consider a pixel non-zero
+          min_percent_nonzero: 0.3 # percent of pixels above min_int_val_tol to stop blurring
         estimation:
           T_axle_radar:
             - 1.0
@@ -147,26 +152,6 @@
         type: radar.scan_to_pointmap
         map_resolution: 0.5 # submap voxel size in meters
 
-        # radius each scan is cropped to and contributes over, must fit inside
-        # odometry.dro.direct.max_local_map_range
-        scan_max_range: 40.0
-
-        num_scans: 10 # number of most recent scans (keyframe or not) fused into the submap at each keyframe
-
-        # scan blurring, mirrors the dr_ba offline mapper
-        gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
-        adaptive_blur: false # raise sigma until min_percent_nonzero of the scan is non-zero
-        max_blur_sigma: 15.0 # max sigma for adaptive blur
-        min_int_val_tol: 0.5 # min intensity value to consider a pixel non-zero
-        min_percent_nonzero: 0.3 # percent of pixels above min_int_val_tol to stop blurring
-
-        # inverse-variance fusion weights, matched with the drl module
-        meas_std: 0.1 # intensity measurement noise std-dev (normalised [0,1] scale)
-        range_factor: 0.0005 # adds range-dependent intensity uncertainty
-
-        num_threads: 8
-        visualize: true
-
       memory:
         type: "live_mem_manager"
 
@@ -182,8 +167,6 @@
 
       drl:
         type: "radar.localization_drl"
-        gauss_blur_sigma: 3    # Gaussian blur kernel sigma (pixels) applied to incoming scan
-        gauss_blur_ksize: 19     # Gaussian blur kernel size (must be odd); formula: (int(ceil(3 * sigma)) | 1)
 
         max_iterations: 25
         convergence_tol: 1.0e-4

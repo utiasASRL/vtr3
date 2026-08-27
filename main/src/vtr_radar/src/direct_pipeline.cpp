@@ -60,6 +60,9 @@ RadarDirectPipeline::RadarDirectPipeline(
   // localization
   for (auto module : config_->localization)
     localization_.push_back(factory()->get("localization." + module));
+  // submap builder
+  scan_to_pointmap_ = std::dynamic_pointer_cast<ScanToMapModule>(
+      factory()->get("odometry.scan_to_pointmap"));
 }
 
 OutputCache::Ptr RadarDirectPipeline::createOutputCache() const {
@@ -71,6 +74,7 @@ void RadarDirectPipeline::reset() {
   for (const auto &module : preprocessing_) module->reset();
   for (const auto &module : odometry_) module->reset();
   for (const auto &module : localization_) module->reset();
+  scan_to_pointmap_->reset();
   T_v_odo_submap_v_ = tactic::EdgeTransform(true);
   submap_loc_ = nullptr;
 }
@@ -124,13 +128,6 @@ void RadarDirectPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   const auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
   auto vertex = graph->at(*qdata->vid_odo);
 
-  /// the sliding map is anchored to this scan's sensor frame, and this scan's
-  /// robot frame is the vertex that was just created
-  if (qdata->sliding_map_odo) {
-    qdata->sliding_map_odo->T_vertex_this() = qdata->T_s_r->inverse();
-    qdata->sliding_map_odo->vertex_id() = *qdata->vid_odo;
-  }
-
   // save the sliding map as vertex submap if we have traveled far enough
   const bool create_submap = [&] {
     //
@@ -149,6 +146,17 @@ void RadarDirectPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   if (create_submap) {
     CLOG(DEBUG, "radar.pipeline")
         << "Create a submap for vertex " << *qdata->vid_odo;
+
+    // Only build the submap now that we know it will actually be saved.
+    scan_to_pointmap_->updateSubmap(*qdata);
+
+    /// the sliding map is anchored to this scan's sensor frame, and this
+    /// scan's robot frame is the vertex that was just created
+    if (qdata->sliding_map_odo) {
+      qdata->sliding_map_odo->T_vertex_this() = qdata->T_s_r->inverse();
+      qdata->sliding_map_odo->vertex_id() = *qdata->vid_odo;
+    }
+
     // copy the current sliding map
     auto submap_odo = std::make_shared<PointMap<PointWithInfo>>(*qdata->sliding_map_odo);
     // save the submap
