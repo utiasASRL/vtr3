@@ -243,7 +243,6 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
         qdata.T_s_r->matrix().block<3, 3>(0, 0) *
         T_s_r_gyro.matrix().block<3, 3>(0, 0).transpose();
 
-    bool middle_yaw_rate_set = false;
     for(const auto& msg : *qdata.gyro_msgs) {
       ImuData imu_data;
       imu_data.timestamp = static_cast<int64_t>(msg.header.stamp.sec) * 1000000LL +
@@ -259,9 +258,8 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
         CLOG(DEBUG, static_name) << "Start message found. dt: " << static_cast<float>(imu_data.timestamp - rd.timestamps.front()) / 1e6;
       }
 
-      if (imu_data.timestamp > *qdata.stamp / 1000 && !middle_yaw_rate_set) {
-        middle_yaw_rate = imu_data.angular_velocity(2);
-        middle_yaw_rate_set = true;
+      if (imu_data.timestamp > rd.timestamps.front() && imu_data.timestamp < rd.timestamps.back()) {
+        middle_yaw_rate += imu_data.angular_velocity(2);
       }
 
       if (imu_data.timestamp > rd.timestamps.back()) {
@@ -278,6 +276,8 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
       return;
     }
   }
+
+  middle_yaw_rate /= (relevant_imus.size() - 2);
 
   py::gil_scoped_acquire acquire;
 

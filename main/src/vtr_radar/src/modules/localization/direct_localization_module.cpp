@@ -37,6 +37,11 @@ auto DirectLocalizationModule::Config::fromROS(const rclcpp::Node::SharedPtr &no
   auto config = std::make_shared<Config>();
   // clang-format off
   config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
+  std::vector<double> prior_cov_diag = node->declare_parameter<std::vector<double>>(param_prefix + ".prior_cov_diag", {});
+  if (config->use_pose_prior && prior_cov_diag.size() != 3) {
+    CLOG(ERROR, static_name) << "Pose prior covariance did not have three values as required";
+  }
+  config->prior_cov << Eigen::Map<Eigen::Vector3d>(prior_cov_diag.data());
 
   config->max_iter = node->declare_parameter<long>(param_prefix + ".max_iterations", config->max_iter);
 
@@ -155,6 +160,15 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
       }
       num_iters = iter + 1;
 
+      if(config_->use_pose_prior) {
+        //Pose prior cost
+        const auto xi_total = (T_m_s_init.inverse() * scan.pose()).toSE2().vec();
+        const auto J = lgmath::se2::vec2jac(xi_total);
+        lhs += J.transpose() * J;
+        cost += 0.5 * config_->prior_cov.transpose() * xi_total.array().square().matrix();
+        rhs += J * (config_->prior_cov.array().sqrt() * xi_total.array()).matrix();
+      }
+     
       if (num_voxels_used == 0 || lhs.determinant() == 0.0) {
           solve_failed = true;
           break;
