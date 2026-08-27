@@ -54,6 +54,9 @@ class SubmapTestModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
+  EdgeTransform T_v_odo_submap_v_ = EdgeTransform(true);
+
+
   VTR_REGISTER_MODULE_DEC_TYPE(SubmapTestModule);
 };
 

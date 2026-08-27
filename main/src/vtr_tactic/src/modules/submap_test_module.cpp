@@ -39,6 +39,7 @@ void SubmapTestModule::run_(QueryCache &qdata, OutputCache &,
   const auto &first_frame = *qdata.first_frame;
   const auto &T_r_v = *qdata.T_r_v_odo;
   const auto &success = *qdata.odo_success;
+  const auto& vertex_result = *qdata.vertex_test_result;
   // output
   auto &result = *qdata.submap_test_result;
 
@@ -48,16 +49,21 @@ void SubmapTestModule::run_(QueryCache &qdata, OutputCache &,
   // check if we successfully register this frame
   if (!success) return;
 
-  auto se3vec = T_r_v.vec();
-  auto translation_distance = se3vec.head<3>().norm();
-  auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
-  CLOG(DEBUG, "submap_test")
-      << "Total translation: " << translation_distance
-      << ", total rotation: " << rotation_distance;
+  if (vertex_result == VertexTestResult::CREATE_VERTEX) {
+    T_v_odo_submap_v_ = T_r_v * T_v_odo_submap_v_;
 
-  if (translation_distance >= config_->max_translation ||
-      rotation_distance >= config_->max_rotation) {
-    result = SubmapTestResult::CREATE_SUBMAP;
+    auto se3vec = T_v_odo_submap_v_.vec();
+    auto translation_distance = se3vec.head<3>().norm();
+    auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
+    CLOG(DEBUG, "submap_test")
+        << "Total translation: " << translation_distance
+        << ", total rotation: " << rotation_distance;
+
+    if (translation_distance >= config_->max_translation ||
+        rotation_distance >= config_->max_rotation) {
+      result = SubmapTestResult::CREATE_SUBMAP;
+      T_v_odo_submap_v_ = EdgeTransform(true);
+    }
   }
 }
 
