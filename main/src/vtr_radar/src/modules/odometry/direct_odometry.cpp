@@ -38,6 +38,7 @@ auto DROModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->estimation.estimate_vy_bias = node->declare_parameter<bool>(param_prefix + ".estimation.estimate_vy_bias", config->estimation.estimate_vy_bias);
   config->estimation.vy_bias_prior = node->declare_parameter<double>(param_prefix + ".estimation.vy_bias_prior", config->estimation.vy_bias_prior);
   config->estimation.max_acceleration = node->declare_parameter<double>(param_prefix + ".estimation.max_acceleration", config->estimation.max_acceleration);
+  config->estimation.zero_vel_threshold = node->declare_parameter<double>(param_prefix + ".estimation.zero_vel_threshold", config->estimation.zero_vel_threshold);
   config->estimation.min_time_bias_init = node->declare_parameter<double>(param_prefix + ".estimation.min_time_bias_init", config->estimation.min_time_bias_init);
   config->estimation.gyro_bias_alpha = node->declare_parameter<double>(param_prefix + ".estimation.gyro_bias_alpha", config->estimation.gyro_bias_alpha);
   config->estimation.ang_vel_bias = node->declare_parameter<double>(param_prefix + ".estimation.ang_vel_bias", config->estimation.ang_vel_bias);
@@ -96,6 +97,7 @@ py::dict DROModule::Config::toPythonDict() const {
   estimation["estimate_vy_bias"] = this->estimation.estimate_vy_bias;
   estimation["vy_bias_prior"] = this->estimation.vy_bias_prior;
   estimation["max_acceleration"] = this->estimation.max_acceleration;
+  estimation["zero_vel_threshold"] = this->estimation.zero_vel_threshold;
   estimation["min_time_bias_init"] = this->estimation.min_time_bias_init;
   estimation["gyro_bias_alpha"] = this->estimation.gyro_bias_alpha;
   estimation["ang_vel_bias"] = this->estimation.ang_vel_bias;
