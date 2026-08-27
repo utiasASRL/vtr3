@@ -94,23 +94,6 @@
           # consumption. scan_to_pointmap may blur further, for mapping only.
           gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
         estimation:
-          T_axle_radar:
-            - 1.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - -1.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - -1.0
-            - 1.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 1.0
           estimate_vy_bias: false
           estimate_gyro_bias: false
           use_gyro: false
