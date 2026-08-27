@@ -230,7 +230,7 @@ if (pipeline->name() == "radar" || pipeline->name() == "direct_radar") {
     tf_sbc_->sendTransform(msg_gyro);
 
     // Subscribe to the imu topic
-    auto gyro_qos = rclcpp::QoS(100);
+    auto gyro_qos = rclcpp::QoS(10);
     gyro_qos.reliable();
     const auto gyro_topic = node_->declare_parameter<std::string>("gyro_topic", "/ouster/imu");
     gyro_sub_ = node_->create_subscription<sensor_msgs::msg::Imu>(gyro_topic, gyro_qos, std::bind(&Navigator::gyroCallback, this, std::placeholders::_1), sub_opt);
@@ -431,7 +431,7 @@ void Navigator::gyroCallback(
       radar_cache->gyro_msgs.emplace();
 
 
-      while (gyro_msgs_.size() > 2) {
+      while (gyro_msgs_.size() >= 2) {
         const auto& msg_gyro = *std::next(gyro_msgs_.begin());
         Timestamp timestamp_g = msg_gyro.header.stamp.sec * 1e9 + msg_gyro.header.stamp.nanosec;
 
