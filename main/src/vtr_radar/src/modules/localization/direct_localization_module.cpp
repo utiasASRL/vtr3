@@ -38,9 +38,6 @@ auto DirectLocalizationModule::Config::fromROS(const rclcpp::Node::SharedPtr &no
   // clang-format off
   config->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config->use_pose_prior);
 
-  config->gauss_blur_sigma = node->declare_parameter<int>(param_prefix + ".gauss_blur_sigma", config->gauss_blur_sigma);
-  config->gauss_blur_ksize = node->declare_parameter<int>(param_prefix + ".gauss_blur_ksize", config->gauss_blur_ksize);
-
   config->max_iter = node->declare_parameter<long>(param_prefix + ".max_iterations", config->max_iter);
 
   config->alpha = node->declare_parameter<double>(param_prefix + ".alpha", config->alpha);
@@ -73,18 +70,9 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
   const auto &T_v_m = *qdata.T_v_m_loc;
   auto &point_map = qdata.submap_loc->point_cloud();
 
-  // Prepare scan for alignment
-  // TODO: This should really be done once in some processing module for both
-  // mapping and localization.... but its doubled up for now
-  const int ksize = config_->gauss_blur_ksize;
+  // Convert the local scan to a float matrix for the DRL optimization
   cv::Mat prepared;
-  cv::GaussianBlur(local_scan, prepared, cv::Size(ksize, ksize), config_->gauss_blur_sigma);
-
-  double min_val, max_val;
-  cv::minMaxLoc(prepared, &min_val, &max_val);
-  prepared = (prepared - min_val) / std::max(max_val - min_val, 1e-9);
-  cv::threshold(prepared, prepared, 0.0, 0.0, cv::THRESH_TOZERO);
-  cv::threshold(prepared, prepared, 1.0, 1.0, cv::THRESH_TRUNC);
+  local_scan.convertTo(prepared, CV_32F, 1.0 / 255.0);
 
   Eigen::MatrixXf local_map;
   cv::cv2eigen(prepared, local_map);

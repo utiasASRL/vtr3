@@ -71,6 +71,11 @@ auto DROModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->direct.local_map_res = node->declare_parameter<double>(param_prefix + ".direct.local_map_res", config->direct.local_map_res);
   config->direct.max_local_map_range = node->declare_parameter<double>(param_prefix + ".direct.max_local_map_range", config->direct.max_local_map_range);
   config->direct.local_map_update_alpha = node->declare_parameter<double>(param_prefix + ".direct.local_map_update_alpha", config->direct.local_map_update_alpha);
+  config->direct.gauss_blur_sigma = node->declare_parameter<double>(param_prefix + ".direct.gauss_blur_sigma", config->direct.gauss_blur_sigma);
+  config->direct.adaptive_blur = node->declare_parameter<bool>(param_prefix + ".direct.adaptive_blur", config->direct.adaptive_blur);
+  config->direct.max_blur_sigma = node->declare_parameter<double>(param_prefix + ".direct.max_blur_sigma", config->direct.max_blur_sigma);
+  config->direct.min_int_val_tol = node->declare_parameter<double>(param_prefix + ".direct.min_int_val_tol", config->direct.min_int_val_tol);
+  config->direct.min_percent_nonzero = node->declare_parameter<double>(param_prefix + ".direct.min_percent_nonzero", config->direct.min_percent_nonzero);
 
   // 5. Doppler
   config->doppler.min_range = node->declare_parameter<double>(param_prefix + ".doppler.min_range", config->doppler.min_range);
@@ -149,6 +154,36 @@ py::dict DROModule::Config::toPythonDict() const {
   opts["num_threads"] = (this->num_threads > 0) ? py::cast(this->num_threads) : py::none();
 
   return opts;
+}
+
+cv::Mat DROModule::blurLocalMap(const cv::Mat &scan) const {
+  cv::Mat img;
+  scan.convertTo(img, CV_32F);
+
+  // Raise sigma until enough of the scan is non-zero, as the dr_ba mapper does
+  cv::Mat blurred;
+  double sigma = config_->direct.adaptive_blur ? 3.0 : config_->direct.gauss_blur_sigma;
+  double percent_nonzero = 0.0;
+  do {
+    const int ksize = (static_cast<int>(std::ceil(6.0 * sigma)) | 1);
+    cv::GaussianBlur(img, blurred, cv::Size(ksize, ksize), sigma);
+
+    double min_val, max_val;
+    cv::minMaxLoc(blurred, &min_val, &max_val);
+    blurred = (blurred - min_val) / std::max(max_val - min_val, 1e-9);
+
+    percent_nonzero = 100.0 * cv::countNonZero(blurred > config_->direct.min_int_val_tol) /
+                      (blurred.rows * blurred.cols);
+    if (!config_->direct.adaptive_blur || sigma > config_->direct.max_blur_sigma) break;
+    sigma += 2.0;
+  } while (percent_nonzero < config_->direct.min_percent_nonzero);
+
+  cv::threshold(blurred, blurred, 0.0, 0.0, cv::THRESH_TOZERO);
+  cv::threshold(blurred, blurred, 1.0, 1.0, cv::THRESH_TRUNC);
+
+  cv::Mat quantized;
+  blurred.convertTo(quantized, CV_8U, 255.0);
+  return quantized;
 }
 
 DROModule::DROModule(const Config::ConstPtr &config, const std::shared_ptr<tactic::ModuleFactory> &module_factory,
@@ -277,7 +312,9 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   *qdata.odo_success = true;
   T_w_s_last_ = T_w_s;
 
-  qdata.smoothed_scan.emplace(local_map);
+  // Blurred once here so odometry's scan_to_pointmap and localization's drl
+  // both consume the identical, already-blurred scan
+  qdata.smoothed_scan.emplace(blurLocalMap(local_map));
   qdata.smoothed_scan_res.emplace(config_->direct.local_map_res);
   
   CLOG(DEBUG, static_name) << "DRO odom\n" << qdata.T_r_v_odo->matrix();

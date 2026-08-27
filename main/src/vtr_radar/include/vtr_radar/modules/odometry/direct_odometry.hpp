@@ -96,6 +96,13 @@ class DROModule : public tactic::BaseModule {
       double local_map_res = 0.1;
       double max_local_map_range = 120.0;
       double local_map_update_alpha = 0.1;
+
+      // Blurring applied once to the local map exported as qdata.smoothed_scan,
+      double gauss_blur_sigma = 3.0;
+      bool adaptive_blur = false;
+      double max_blur_sigma = 15.0;
+      double min_int_val_tol = 0.5;
+      double min_percent_nonzero = 0.3;
     } direct;
 
     struct Doppler {
@@ -134,6 +141,10 @@ class DROModule : public tactic::BaseModule {
   void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
             const tactic::Graph::Ptr &graph,
             const tactic::TaskExecutor::Ptr &executor) override;
+
+  /** \brief Blurs, renormalizes and quantizes DRO's local map before it is
+   *  exported as qdata.smoothed_scan, shared by scan_to_pointmap and drl. */
+  cv::Mat blurLocalMap(const cv::Mat &scan) const;
 
   Config::ConstPtr config_;
 
