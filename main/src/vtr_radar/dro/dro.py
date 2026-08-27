@@ -149,6 +149,7 @@ class Dro():
             self.zero_vel_threshold = float(opts['estimation'].get('zero_vel_threshold', 0.0))
 
             self.previous_vel = torch.tensor(0.0).to(self.device)
+            self.previous_vel_vec = torch.zeros(2).to(self.device)
 
             self.step_counter = 0
 
