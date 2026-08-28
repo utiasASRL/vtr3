@@ -124,6 +124,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   // odometry and mapping - initialized in tactic, modified by pipeline
   Cache<VertexId> vid_odo;
   Cache<VertexTestResult> vertex_test_result;
+  Cache<SubmapTestResult> submap_test_result;
   Cache<bool> odo_success;
   Cache<EdgeTransform> T_r_v_odo;
   Cache<Eigen::Matrix<double, 6, 1>> w_v_r_in_r_odo;  // body centric velocity

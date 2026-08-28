@@ -60,9 +60,6 @@ RadarDirectPipeline::RadarDirectPipeline(
   // localization
   for (auto module : config_->localization)
     localization_.push_back(factory()->get("localization." + module));
-  // submap builder
-  scan_to_pointmap_ = std::dynamic_pointer_cast<ScanToMapModule>(
-      factory()->get("odometry.scan_to_pointmap"));
 }
 
 OutputCache::Ptr RadarDirectPipeline::createOutputCache() const {
@@ -74,7 +71,6 @@ void RadarDirectPipeline::reset() {
   for (const auto &module : preprocessing_) module->reset();
   for (const auto &module : odometry_) module->reset();
   for (const auto &module : localization_) module->reset();
-  scan_to_pointmap_->reset();
   T_v_odo_submap_v_ = tactic::EdgeTransform(true);
   submap_loc_ = nullptr;
 }
@@ -128,27 +124,9 @@ void RadarDirectPipeline::onVertexCreation_(const QueryCache::Ptr &qdata0,
   const auto qdata = std::dynamic_pointer_cast<RadarQueryCache>(qdata0);
   auto vertex = graph->at(*qdata->vid_odo);
 
-  // save the sliding map as vertex submap if we have traveled far enough
-  const bool create_submap = [&] {
-    //
-    if (!submap_vid_odo_.isValid()) return true;
-    //
-    auto T_submap_r_vec = T_v_odo_submap_v_.vec();
-    auto dtran = T_submap_r_vec.head<3>().norm();
-    auto drot = T_submap_r_vec.tail<3>().norm() * 57.29577;  // 180/pi
-    if (dtran > config_->submap_translation_threshold ||
-        drot > config_->submap_rotation_threshold) {
-      return true;
-    }
-    //
-    return false;
-  }();
-  if (create_submap) {
+  if (*qdata0->submap_test_result == SubmapTestResult::CREATE_SUBMAP) {
     CLOG(DEBUG, "radar.pipeline")
         << "Create a submap for vertex " << *qdata->vid_odo;
-
-    // Only build the submap now that we know it will actually be saved.
-    scan_to_pointmap_->updateSubmap(*qdata);
 
     /// the sliding map is anchored to this scan's sensor frame, and this
     /// scan's robot frame is the vertex that was just created

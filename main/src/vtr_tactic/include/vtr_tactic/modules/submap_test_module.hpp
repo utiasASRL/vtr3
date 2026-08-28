@@ -1,4 +1,4 @@
-// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+// Copyright 2026, Autonomous Space Robotics Lab (ASRL)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,23 +13,22 @@
 // limitations under the License.
 
 /**
- * \file vertex_test_module.hpp
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \file submap_test_module.hpp
+ * \author Alec Krawciw, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include "vtr_lidar/cache.hpp"
+#include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
-namespace lidar {
+namespace tactic {
 
-/** \brief Preprocesses raw pointcloud points and computes normals. */
-class VertexTestModule : public tactic::BaseModule {
+class SubmapTestModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.vertex_test";
+  static constexpr auto static_name = "submap_distance_test";
 
   /** \brief Config parameters. */
   struct Config : public BaseModule::Config {
@@ -42,7 +41,7 @@ class VertexTestModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  VertexTestModule(
+  SubmapTestModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -55,8 +54,11 @@ class VertexTestModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(VertexTestModule);
+  EdgeTransform T_v_odo_submap_v_ = EdgeTransform(true);
+
+
+  VTR_REGISTER_MODULE_DEC_TYPE(SubmapTestModule);
 };
 
-}  // namespace lidar
+}  // namespace tactic
 }  // namespace vtr

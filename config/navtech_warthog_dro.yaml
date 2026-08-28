@@ -67,13 +67,13 @@
       odometry:
         - dro
         - vertex_test
+        - submap_test
+        - scan_to_pointmap
         - memory
       localization: 
         - recall
         - drl
         - memory
-      submap_translation_threshold: 1.5
-      submap_rotation_threshold: 30.0
     preprocessing:
       conversion:
         type: radar.online_converter
@@ -123,10 +123,16 @@
         visualize: true
 
       vertex_test:
-        type: radar.vertex_test
+        type: vertex_distance_test
 
         max_translation: 0.3
         max_rotation: 10.0
+
+      submap_test:
+        type: submap_distance_test
+
+        max_translation: 1.5
+        max_rotation: 30.0
 
       scan_to_pointmap:
         type: radar.scan_to_pointmap

@@ -16,12 +16,10 @@
  * \file vertex_test_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry/vertex_test_module.hpp"
+#include "vtr_tactic/modules/vertex_test_module.hpp"
 
 namespace vtr {
-namespace lidar {
-
-using namespace tactic;
+namespace tactic {
 
 auto VertexTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                        const std::string &param_prefix)
@@ -34,18 +32,13 @@ auto VertexTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
+void VertexTestModule::run_(QueryCache &qdata, OutputCache &,
                             const Graph::Ptr &, const TaskExecutor::Ptr &) {
-  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  // default to
-  qdata.vertex_test_result = VertexTestResult::DO_NOTHING;
-
-  // input
+   // input
   const auto &first_frame = *qdata.first_frame;
   const auto &T_r_v = *qdata.T_r_v_odo;
   const auto &success = *qdata.odo_success;
-  const auto &pipeline_mode = *qdata.pipeline_mode;
   // output
   auto &result = *qdata.vertex_test_result;
 
@@ -55,18 +48,10 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
   // check if we successfully register this frame
   if (!success) return;
 
-  #ifdef SAVE_ALL_REPEATS
-  if (pipeline_mode == PipelineMode::RepeatMetricLoc || pipeline_mode == PipelineMode::RepeatFollow){
-    result = VertexTestResult::CREATE_VERTEX;
-    return;
-  }
-
-  #endif
-
   auto se3vec = T_r_v.vec();
   auto translation_distance = se3vec.head<3>().norm();
   auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
-  CLOG(DEBUG, "lidar.vertex_test")
+  CLOG(DEBUG, "vertex_test")
       << "Total translation: " << translation_distance
       << ", total rotation: " << rotation_distance;
 
@@ -76,5 +61,5 @@ void VertexTestModule::run_(QueryCache &qdata0, OutputCache &,
   }
 }
 
-}  // namespace lidar
+}  // namespace tactic
 }  // namespace vtr

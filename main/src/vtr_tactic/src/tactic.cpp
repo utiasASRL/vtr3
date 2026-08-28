@@ -227,6 +227,7 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   // Setup caches
   qdata->vid_odo.emplace(current_vertex_id_);
   qdata->vertex_test_result.emplace(VertexTestResult::DO_NOTHING);
+  qdata->submap_test_result.emplace(SubmapTestResult::DO_NOTHING);
   qdata->odo_success.emplace(false);
   if (force_add_vertex_) force_add_vertex_ = false;
 
