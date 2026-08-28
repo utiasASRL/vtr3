@@ -47,7 +47,6 @@ auto DirectLocalizationModule::Config::fromROS(const rclcpp::Node::SharedPtr &no
 
   config->alpha = node->declare_parameter<double>(param_prefix + ".alpha", config->alpha);
   config->conv_tol = node->declare_parameter<double>(param_prefix + ".convergence_tol", config->conv_tol);
-  config->max_dist = node->declare_parameter<double>(param_prefix + ".max_dist", config->max_dist);
 
   config->ba_opts.meas_std = node->declare_parameter<double>(param_prefix + ".meas_std", config->ba_opts.meas_std);
   config->ba_opts.range_factor = node->declare_parameter<double>(param_prefix + ".range_factor", config->ba_opts.range_factor);
@@ -87,22 +86,7 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
 
   CLOG(DEBUG, static_name) << "Initial guess\n" << T_m_s_init;
   ba::LocalMapScan scan(*qdata.stamp, 0, scan_res, config_->ba_opts, T_m_s_init, tactic::EdgeTransform(), local_map);
-
-  // Crop the map once around the initial guess, which the estimate shoudl
-  // stay within over the optimization
-  std::vector<size_t> active_points;
-  active_points.reserve(point_map.size());
-  {
-    const Eigen::Vector3d r_m_s = T_m_s_init.r_ab_inb();
-    const double max_dist_sq = std::pow(config_->max_dist, 2);
-    for (size_t i = 0; i < point_map.size(); ++i) {
-      const double dx = point_map[i].x - r_m_s(0);
-      const double dy = point_map[i].y - r_m_s(1);
-      if (config_->max_dist <= 0.0 || dx * dx + dy * dy <= max_dist_sq)
-        active_points.push_back(i);
-    }
-  }
-  CLOG(DEBUG, static_name) << "Using " << active_points.size() << " of " << point_map.size() << " map voxels";
+  CLOG(DEBUG, static_name) << "Map size: " << point_map.size();
 
   // Optimization loop
   double cost = 0.0;
@@ -123,9 +107,9 @@ void DirectLocalizationModule::run_(QueryCache &qdata0, OutputCache &output,
       std::vector<int> count_threads(config_->num_threads, 0);
 
       #pragma omp parallel for num_threads(config_->num_threads)
-      for (size_t i = 0; i < active_points.size(); ++i) {
+      for (size_t i = 0; i < point_map.size(); ++i) {
           int tid = omp_get_thread_num();
-          const auto& point = point_map[active_points[i]];
+          const auto& point = point_map[i];
           double voxel_x = point.x;
           double voxel_y = point.y;
           double vox_intensity = point.intensity;

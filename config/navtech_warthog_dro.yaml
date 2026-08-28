@@ -158,7 +158,6 @@
         max_iterations: 25
         convergence_tol: 1.0e-4
         alpha: 1.0          # Gauss-Newton step size
-        max_dist: 0.0     # radius (m) around the initial guess to query map voxels (<=0 uses all)
         meas_std: 0.1       # intensity measurement noise std-dev (normalised [0,1] scale)
         range_factor: 0.0005   # adds range-dependent intensity uncertainty
         num_threads: 8

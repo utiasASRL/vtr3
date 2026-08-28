@@ -46,9 +46,6 @@ class DirectLocalizationModule : public tactic::BaseModule {
     double alpha = 1;
     double conv_tol = 1e-3;
 
-    // radius around the initial guess to query map voxels (<=0 uses all)
-    double max_dist = 100.0;
-
     Eigen::Vector3d prior_cov = Eigen::Vector3d::Zero();
 
     ba::OptimizationOptions ba_opts;
