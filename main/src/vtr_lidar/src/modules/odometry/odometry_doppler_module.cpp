@@ -644,7 +644,18 @@ void OdometryDopplerModule::run_(QueryCache &qdata0, OutputCache &,
 
     auto &sliding_map_odo = *qdata.sliding_map_odo;
 
+    // using principle Doppler odom covariance. 
     EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, P_query);
+
+    // ===== cov param variable sweep for paper ablation study =====
+    // cov = s * (0.001, 0.001, 0.001, 1e-6, 1e-6, 1e-6)
+    // with s = {0.01, 0.1, 1, 10, 100}
+
+    // ===== cov =====
+    // Eigen::Matrix<double, 1, 6> cov;
+    // double s = 100;
+    // cov << s * 0.001, s * 0.001, s * 0.001, s * 1e-6, s * 1e-6, s * 1e-6;
+    // EdgeTransform T_r_m_dop(*qdata.T_r_m_odo, cov.asDiagonal() * Eigen::Matrix<double, 6, 6>::Identity());
 
     *qdata.T_r_v_odo = T_r_m_dop * sliding_map_odo.T_vertex_this().inverse(); // T_r_m * T_m_v
     *qdata.w_v_r_in_r_odo = *qdata.w_m_r_in_r_odo;
