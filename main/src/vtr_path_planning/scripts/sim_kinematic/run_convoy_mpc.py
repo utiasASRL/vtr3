@@ -25,8 +25,8 @@ v_ref = 1.0
 lin_acc_max = 1.00
 ang_acc_max = 0.5
 
-Q_x = 5
-Q_y = 5
+Q_long = 5
+Q_lat = 5
 Q_theta = 1.5
 
 # Input costs
@@ -236,11 +236,11 @@ if __name__ == '__main__':
                        ca.DM(last_u_l,))
         
         args_l['p'] = ca.vertcat(args_l['p'],
-                       ca.DM(Q_x)
+                       ca.DM(Q_long)
                 )
 
         args_l['p'] = ca.vertcat(args_l['p'],
-                       ca.DM(Q_y)
+                       ca.DM(Q_lat)
                 )
 
         args_l['p'] = ca.vertcat(args_l['p'],

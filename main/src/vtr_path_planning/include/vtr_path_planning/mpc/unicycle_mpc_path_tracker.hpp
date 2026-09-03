@@ -40,8 +40,8 @@ class UnicycleMPCPathTracker : public BaseMPCPathTracker {
     PTR_TYPEDEFS(Config);
 
     // Add unicycle model param
-    double q_x = 0.0;
-    double q_y = 0.0;
+    double q_long = 0.0;
+    double q_lat = 0.0;
     double q_th = 0.0;
     double r1 = 0.0;
     double r2 = 0.0;

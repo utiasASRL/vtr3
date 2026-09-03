@@ -40,8 +40,8 @@ TEST_P(CasadiTests, UnicycleMPC) {
   config.VF = 1.0;
   config.vel_max = {1.5, 0.5};
   config.vel_min = {0, -0.5};
-  config.Q_x = 10;
-  config.Q_y = 4.0;
+  config.Q_long = 10;
+  config.Q_lat = 4.0;
   config.Q_th = 7;
   config.R1 = 0;
   config.R2 = 3;
@@ -79,8 +79,8 @@ TEST_P(CasadiTests, UnicycleFollowerMPC) {
   config.VF = 1.0;
   config.vel_max = {1.5, 0.5};
   config.vel_min = {0, -0.5};
-  config.Q_x = 10;
-  config.Q_y = 4.0;
+  config.Q_long = 10;
+  config.Q_lat = 4.0;
   config.Q_th = 7;
   config.R1 = 0;
   config.R2 = 3;

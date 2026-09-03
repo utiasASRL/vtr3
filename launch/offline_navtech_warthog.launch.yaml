@@ -22,7 +22,7 @@ windows:
         use_sim_time:=true
         planner:="stationary"
         model_dir:=${VTRROOT}/models
-        data_dir:=${VTRTEMP}/radar/rtr_offline000
+        data_dir:=${VTRTEMP}/radar/rtr_dome_compare
 
   - window_name: vtr_gui
     layout: main-horizontal
@@ -46,4 +46,4 @@ windows:
     shell_command_before:
       - source $VTRSRC/main/install/setup.bash
     panes:
-      - ros2 bag play --clock 100 $VTRDATA/rtr2/garage_tennis/rosbag2_2026_08_24-13_56_20
+      - ros2 bag play --clock 100 $VTRDATA/rtr2/dome/rosbag2_2026_09_03-18_10_31

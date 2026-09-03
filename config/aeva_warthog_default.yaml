@@ -365,8 +365,8 @@
         max_ang_acc: 5.0
         ang_alpha: 0.811
         lin_alpha: 0.0
-        q_x: 10.0
-        q_y: 10.0
+        q_long: 10.0
+        q_lat: 10.0
         q_th: 5.0
         r1: 1.0
         r2: 1.0

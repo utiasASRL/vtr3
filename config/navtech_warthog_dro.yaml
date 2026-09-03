@@ -25,9 +25,9 @@
     radar_topic: /radar_data/b_scan_msg
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
-    gyro_enabled: false
+    gyro_enabled: true
     gyro_bias: 
-      z: 0.0007706056060006737
+      z: -0.0006657902725198095
 
     queue_size: 1
     graph_projection:
@@ -87,17 +87,17 @@
         direct:
           local_map_res: 0.1
           local_map_update_alpha: 0.25
-          max_local_map_range: 40.0
+          max_local_map_range: 80.0
           max_range: 69.0
-          min_range: 2.0
+          min_range: 4.0
           # Fixed blurring of DRO's local map, for downstream (mapping, DRL)
           # consumption. scan_to_pointmap may blur further, for mapping only.
           gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
         estimation:
           estimate_vy_bias: false
           estimate_gyro_bias: false
-          use_gyro: false
-          vy_bias_prior: 0.11
+          use_gyro: true
+          vy_bias_prior: 0.0
           min_time_bias_init: 1.0
           gyro_bias_alpha: 0.01
           max_acceleration: 10.0
@@ -180,8 +180,8 @@
       control_period: 100 # ms
 
       speed_scheduler:
-        planar_curv_weight: 0.0
-        profile_curv_weight: 0.0 
+        planar_curv_weight: 1.0
+        profile_curv_weight: 2.0 
         eop_weight: 1.0
         min_vel: 0.5
       mpc:
@@ -195,10 +195,8 @@
         ang_alpha: 0.811
         lin_alpha: 0.0
        
-        vehicle_model: "unicycle"
-
-        q_x: 10.0
-        q_y: 10.0
+        q_long: 1.0
+        q_lat: 10.0
         q_th: 5.0
         r1: 1.0
         r2: 1.0
