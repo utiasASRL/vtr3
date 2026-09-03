@@ -70,8 +70,8 @@ public:
   struct Config : public CasadiMPC::Config {
     PTR_TYPEDEFS(Config);
 
-    double Q_x = 0.0;
-    double Q_y = 0.0;
+    double Q_long = 0.0;
+    double Q_lat = 0.0;
     double Q_th = 0.0;
     double R1 = 0.0;
     double R2 = 0.0;

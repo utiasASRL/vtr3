@@ -55,8 +55,8 @@ ref_poses = ca.SX.sym('ref_poses', n_states*N)
 measured_velo = ca.SX.sym('measured_velo', n_controls)
 
 # Configurable cost paramets
-Q_x = ca.SX.sym('Q_x', 1)
-Q_y = ca.SX.sym('Q_y', 1)
+Q_long = ca.SX.sym('Q_long', 1)
+Q_lat = ca.SX.sym('Q_lat', 1)
 Q_theta = ca.SX.sym('Q_theta', 1)
 R1 = ca.SX.sym('R1', 1)
 R2 = ca.SX.sym('R2', 1)
@@ -64,11 +64,11 @@ Acc_R1 = ca.SX.sym('Acc_R1', 1)
 Acc_R2 = ca.SX.sym('Acc_R2', 1)
 
 P = ca.vertcat(init_pose, ref_poses, measured_velo,            # Base MPC
-                Q_x, Q_y, Q_theta, R1, R2, Acc_R1 , Acc_R2)    # Weights for tuning
+                Q_long, Q_lat, Q_theta, R1, R2, Acc_R1 , Acc_R2)    # Weights for tuning
 
 
 # state weights matrix (Q_X, Q_Y, Q_THETA)
-Q = ca.diagcat(Q_x, Q_y)
+Q = ca.diagcat(Q_long, Q_lat)
 
 # controls weights matrix
 R = ca.diagcat(R1, R2)
@@ -78,7 +78,6 @@ R_acc = ca.diagcat(Acc_R1, Acc_R2)
 
 RHS = ca.vertcat(v*cos(theta), v*sin(theta), last_omega*alpha + (1-alpha)*omega)
 motion_model = ca.Function('motion_model', [states, controls, last_controls], [RHS])
-
 theta_to_so2 = ca.Function('theta2rotm', [theta], [rot_2d_z])
 
 cost_fn = 0  # cost function
@@ -94,11 +93,13 @@ k = 0
 st = X[:, k]
 con = U[:, k]
 last_vel = measured_velo
+ref_theta = ref_poses[n_states*k + 2]
+path_rot = theta_to_so2(ref_theta)
 st_next = X[:, k+1]
 cost_fn = cost_fn \
-        + (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]).T @ Q @ (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]) \
+        + (st_next[:2] - ref_poses[n_states*k:n_states*(k+1)-1]).T @ path_rot.T @ Q @ path_rot @ (st_next[:2] - ref_poses[n_states*k:n_states*(k+1)-1]) \
         + con.T @ R @ con \
-        + so2_error(P[n_states*(k+1) + 2], st_next[2]) * Q_theta * so2_error(P[n_states*(k+1) + 2], st_next[2])
+        + Q_theta * so2_error(ref_poses[n_states*k + 2], st_next[2])**2
 k1 = motion_model(st, con, last_vel)
 k2 = motion_model(st + step_horizon/2*k1, con, last_vel)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
@@ -112,13 +113,14 @@ g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 for k in range(1, N):
     st = X[:, k]
     st_next = X[:, k+1]
-
+    ref_theta = ref_poses[n_states*k + 2]
+    path_rot = theta_to_so2(ref_theta)
     con = U[:, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
     cost_fn = cost_fn \
-        + (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]).T @ Q @ (st_next[:2] - P[n_states*(k+1):n_states*(k+2)-1]) \
+        + (st_next[:2] - ref_poses[n_states*k:n_states*(k+1)-1]).T @ path_rot.T @ Q @ path_rot @ (st_next[:2] - ref_poses[n_states*k:n_states*(k+1)-1]) \
         + con.T @ R @ con \
-        + so2_error(P[n_states*(k+1) + 2], st_next[2]) * Q_theta * so2_error(P[n_states*(k+1) + 2], st_next[2])
+        + Q_theta * so2_error(ref_poses[n_states*k + 2], st_next[2])**2
 
     k1 = motion_model(st, con, last_vel)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel)

@@ -31,8 +31,8 @@ auto UnicycleMPCPathTracker::Config::loadConfig(UnicycleMPCPathTracker::Config::
                            const std::string& prefix)->void{
   // MPC Configs:
   // SPEED SCHEDULER PARAMETERS
-  config->q_x   = node->declare_parameter<double>(prefix + ".mpc.q_x", config->q_x);
-  config->q_y   = node->declare_parameter<double>(prefix + ".mpc.q_y", config->q_y);
+  config->q_long   = node->declare_parameter<double>(prefix + ".mpc.q_long", config->q_long);
+  config->q_lat   = node->declare_parameter<double>(prefix + ".mpc.q_lat", config->q_lat);
   config->q_th  = node->declare_parameter<double>(prefix + ".mpc.q_th", config->q_th);
   config->r1    = node->declare_parameter<double>(prefix + ".mpc.r1", config->r1);
   config->r2    = node->declare_parameter<double>(prefix + ".mpc.r2", config->r2);
@@ -47,8 +47,8 @@ auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node
   loadConfig(config, node, prefix);
 
   CLOG(DEBUG, "cbit.control") << "Unicycle MPC parameters: "
-      << "q_x: " << config->q_x
-      << ", q_y: " << config->q_y
+      << "q_long: " << config->q_long
+      << ", q_lat: " << config->q_lat
       << ", q_th: " << config->q_th
       << ", r1: " << config->r1
       << ", r2: " << config->r2
@@ -82,8 +82,8 @@ void UnicycleMPCPathTracker::loadMPCConfig(
   mpc_config->vel_min(1)   = -config_->max_ang_vel;
   mpc_config->previous_vel = {-w_p_r_in_r(0, 0), -w_p_r_in_r(5,0)};
 
-  mpc_config->Q_x    = config_->q_x;
-  mpc_config->Q_y    = config_->q_y;
+  mpc_config->Q_long    = config_->q_long;
+  mpc_config->Q_lat    = config_->q_lat;
   mpc_config->Q_th   = config_->q_th;
   mpc_config->R1     = config_->r1; 
   mpc_config->R2     = config_->r2;

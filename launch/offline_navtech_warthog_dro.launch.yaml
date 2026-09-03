@@ -18,11 +18,11 @@ windows:
       - >
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=navtech_warthog_dro.yaml
-        start_new_graph:=false
+        start_new_graph:=true
         use_sim_time:=true
         planner:="stationary"
         model_dir:=${VTRROOT}/models
-        data_dir:=${VTRTEMP}/radar/dro_test4
+        data_dir:=${VTRTEMP}/radar/dro_dome_compare
         
 
   - window_name: vtr_gui
@@ -47,4 +47,4 @@ windows:
     shell_command_before:
       - source $VTRSRC/main/install/setup.bash
     panes:
-      - ros2 bag play --clock 100 $VTRDATA/rtr2/garage_tennis/rosbag2_2026_08_24-13_56_20
+      - ros2 bag play --clock 100 $VTRDATA/rtr2/dome/rosbag2_2026_09_03-18_10_31

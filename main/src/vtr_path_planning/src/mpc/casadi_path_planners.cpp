@@ -76,8 +76,8 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPC::solve(const CasadiMPC::Conf
   arg["p"] = vertcat(arg["p"], mpcConf.previous_vel);
 
   // Costs and other configurables
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_long));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lat));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_th));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
@@ -162,8 +162,8 @@ std::map<std::string, casadi::DM> CasadiUnicycleMPCFollower::solve(const CasadiM
   arg["p"] = vertcat(arg["p"], mpcConf.distance);
 
     // Costs and other configurables
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_x));
-  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_y));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_long));
+  arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_lat));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.Q_th));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R1));
   arg["p"] = vertcat(arg["p"], DM(mpcConf.R2));
