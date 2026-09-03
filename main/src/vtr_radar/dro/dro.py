@@ -70,6 +70,8 @@ class Dro():
             self.initialized = False
             self.opts = opts
             self.timestamps = None
+            self.last_scan_start_time = None
+            self.nominal_delta_time = opts['radar']['nb_azimuths'] / opts['radar']['meas_freq']
 
             # Some hardcoded parameters
             self.kImgPadding = 200
@@ -378,14 +380,21 @@ class Dro():
             if self.timestamps is not None:
                 self.max_diff_vel = self.max_acc * (timestamps[-1] - timestamps[0]) * 1e-6
             self.timestamps = torch.tensor(timestamps).to(self.device).squeeze()
-            delta_time = 0.25#(self.timestamps[0] - last_scan_time)*1e-6
-            
 
-            # Update the pose and the local map
+            # Compute the actual delta time since the start of the last scan, rather
+            # than assuming a fixed nominal period, so occasional dropped frames
+            # (which produce a larger-than-nominal gap) are accounted for correctly
+            current_scan_start_time = float(timestamps[0])
+            if self.last_scan_start_time is not None:
+                delta_time = (current_scan_start_time - self.last_scan_start_time) * 1e-6
+            else:
+                delta_time = self.nominal_delta_time
+            self.last_scan_start_time = current_scan_start_time
+
+
+            # Update the pose and project the local map (already fused with every scan
+            # up to and including the previous one) to the beginning of the current scan
             if self.step_counter > 0:
-                # Get the velocities and positions of the previous scan's azimuths
-                vel_body, prev_scan_pos, prev_scan_rot = self.motion_model.getVelPosRot(self.state_init, with_jac=False)
-
                 # Get delta pose from the beginning of the previous scan to the beginning of the current scan
                 frame_pos, frame_rot = self.motion_model.getPosRotSingle(self.state_init, self.timestamps[0])
 
@@ -401,50 +410,9 @@ class Dro():
 
                 if isinstance(self.motion_model, ConstVelConstW):
                     self.current_rot -= self.ang_vel_bias * delta_time
-                
-                # Prepare the local map (undistort the previous scan, project it and the local map 
-                # to the beginning of the current scan, and update the local map)
-                # Get the shift for each line 
-                shift = (vel_body.reshape((-1,1,2)) @ self.vel_to_bin_vec.reshape((-1,2,1))).squeeze()
-                per_line_shift = shift/2.0
-                if self.prev_chirp_up:
-                    per_line_shift = -per_line_shift
-                if self.use_doppler:
-                    per_line_shift[1::2] *= -1
-                
-                # Correct for the Doppler shift
-                prev_shifted = self.perLineInterpolation(self.polar_intensity[:,:self.max_id], per_line_shift)
 
-
-
-                rot_mats_transposed = torch.concatenate((torch.cos(prev_scan_rot), torch.sin(prev_scan_rot), -torch.sin(prev_scan_rot), torch.cos(prev_scan_rot)), dim=1).reshape((-1,2,2))
-                prev_scan_pos = prev_scan_pos.reshape((-1,2,1))
-                pos = rot_mats_transposed@(-prev_scan_pos + frame_pos.reshape((-1,2,1))) 
-                rot = -prev_scan_rot + frame_rot
-
-
-                polar_coord_corrected = self.polarCoordCorrection(pos, rot)
-                polar_coord_corrected[:,:,0] -= (self.azimuths[0])
-                polar_coord_corrected[polar_coord_corrected[:,:,0]<0] = polar_coord_corrected[polar_coord_corrected[:,:,0]<0] + torch.tensor((2*torch.pi, 0)).to(self.device)
-                polar_coord_corrected[:,:,0] *= ((self.nb_azimuths) / (2*torch.pi))
-                polar_coord_corrected[:,:,1] -= (res/2.0)
-                polar_coord_corrected[:,:,1] /= res
-                prev_shifted = torch.concatenate((prev_shifted, prev_shifted[0,:].unsqueeze(0)), dim=0)
-                polar_target = self.bilinearInterpolation(prev_shifted, polar_coord_corrected[:,:,0], polar_coord_corrected[:,:,1])
-
-
-                # Get the coordinates of the local map in the undistorted polar image
-                local_map_az_idx = self.prepareLocalMapPolarCoords()
-                polar_target = torch.concatenate((polar_target, polar_target[0,:].unsqueeze(0)), dim=0)
-                local_map_update = self.bilinearInterpolation(polar_target, local_map_az_idx, self.local_map_r_idx)
-
-
-                # Update the local map (only within the valid sensing range)
-                if self.step_counter == 1:
-                    self.local_map[self.local_map_mask] = local_map_update[self.local_map_mask]
-                else:
-                    self.moveLocalMap(frame_pos, frame_rot)
-                    self.local_map.mul_(self.blend_w_old).addcmul_(local_map_update, self.blend_w_new)
+                # Project the local map to the beginning of the current scan
+                self.moveLocalMap(frame_pos, frame_rot)
 
                 # Blur and normalise the local map
                 self.local_map_blurred = torchvision.transforms.functional.gaussian_blur(self.local_map.unsqueeze(0).unsqueeze(0), 3).squeeze()
@@ -607,19 +575,56 @@ class Dro():
                     else:
                         self.gyr_bias = self.gyr_bias_alpha * self.mean_gyr[len(self.mean_gyr)//2] + (1 - self.gyr_bias_alpha) * self.gyr_bias
 
+            # Fuse the current scan into the local map (already aligned to the beginning of the current scan)
+            vel_body, own_scan_pos, own_scan_rot = self.motion_model.getVelPosRot(self.state_init, with_jac=False)
 
+            # Get the shift for each line
+            shift = (vel_body.reshape((-1,1,2)) @ self.vel_to_bin_vec.reshape((-1,2,1))).squeeze()
+            per_line_shift = shift/2.0
+            if self.chirp_up:
+                per_line_shift = -per_line_shift
+            if self.use_doppler:
+                per_line_shift[1::2] *= -1
+
+            # Correct for the Doppler shift
+            own_shifted = self.perLineInterpolation(self.polar_intensity[:,:self.max_id], per_line_shift)
+
+            rot_mats_transposed = torch.concatenate((torch.cos(own_scan_rot), torch.sin(own_scan_rot), -torch.sin(own_scan_rot), torch.cos(own_scan_rot)), dim=1).reshape((-1,2,2))
+            own_scan_pos = own_scan_pos.reshape((-1,2,1))
+            pos = rot_mats_transposed@(-own_scan_pos)
+            rot = -own_scan_rot
+
+            polar_coord_corrected = self.polarCoordCorrection(pos, rot)
+            polar_coord_corrected[:,:,0] -= (self.azimuths[0])
+            polar_coord_corrected[polar_coord_corrected[:,:,0]<0] = polar_coord_corrected[polar_coord_corrected[:,:,0]<0] + torch.tensor((2*torch.pi, 0)).to(self.device)
+            polar_coord_corrected[:,:,0] *= ((self.nb_azimuths) / (2*torch.pi))
+            polar_coord_corrected[:,:,1] -= (res/2.0)
+            polar_coord_corrected[:,:,1] /= res
+            own_shifted = torch.concatenate((own_shifted, own_shifted[0,:].unsqueeze(0)), dim=0)
+            polar_target = self.bilinearInterpolation(own_shifted, polar_coord_corrected[:,:,0], polar_coord_corrected[:,:,1])
+
+            # Get the coordinates of the local map in the undistorted polar image
+            local_map_az_idx = self.prepareLocalMapPolarCoords()
+            polar_target = torch.concatenate((polar_target, polar_target[0,:].unsqueeze(0)), dim=0)
+            local_map_update = self.bilinearInterpolation(polar_target, local_map_az_idx, self.local_map_r_idx)
+
+            # Update the local map (only within the valid sensing range). On the very
+            # first scan the map is still all zero, so overwrite instead of blending.
+            if self.step_counter == 0:
+                self.local_map[self.local_map_mask] = local_map_update[self.local_map_mask]
+            else:
+                self.local_map.mul_(self.blend_w_old).addcmul_(local_map_update, self.blend_w_new)
 
             self.mid_pos, self.mid_rot = self.motion_model.getPosRotSingle(self.state_init, timestamps[len(timestamps) // 2 - 1])
 
-            if self.step_counter > 0:
-                local_map_backup = self.local_map.clone()
-                self.moveLocalMap(self.mid_pos, self.mid_rot)
-                local_map_mid = self.local_map.clone()
-                self.local_map = local_map_backup
-            else:
-                local_map_az_idx = self.prepareLocalMapPolarCoords()
-                local_map_mid = self.bilinearInterpolation(self.polar_intensity[:,:self.max_id], local_map_az_idx, self.local_map_r_idx)
-                
+            # Snapshot the map at the mid-scan pose for VTR and revert to 
+            # DRO-expected start-of-scan pose for the next iteration.
+            # TODO: switch DRO to work off middle scan
+            local_map_backup = self.local_map.clone()
+            self.moveLocalMap(self.mid_pos, self.mid_rot)
+            local_map_mid = self.local_map.clone()
+            self.local_map = local_map_backup
+
 
             self.mid_pos = self.mid_pos.double()
             self.mid_rot = self.mid_rot.double()
