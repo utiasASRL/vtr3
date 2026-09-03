@@ -1167,6 +1167,7 @@ class Dro():
             try_degraded = try_degraded or (torch.abs(torch.norm(vel[-1,:]) - self.previous_vel) > self.max_diff_vel)
             if try_degraded:
                 if not degraded:
+                    print("Running DRO degraded!")
                     state = self.solve(state_init, nb_iter=nb_iter, cost_tol=cost_tol, step_tol=step_tol, degraded=True, doppler_only=doppler_only)
 
             if not degraded:

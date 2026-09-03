@@ -273,6 +273,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
 
   if (*qdata.first_frame) { 
     dro_->reset();
+    T_w_s_last_ = Eigen::Matrix4d::Identity();
   }
 
   const auto [T_delta, vel] = dro_->odometryStep(rd, relevant_imus, local_map);

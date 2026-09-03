@@ -373,7 +373,7 @@ void Navigator::radarCallback(
   LockGuard lock(mutex_);
 
   // Drop frames if queue is too big and if it is not a scan message (just gyro)
-  if (queue_.size() >= max_queue_size_ && !(std::dynamic_pointer_cast<radar::RadarQueryCache>(queue_.front())->scan_msg)) {
+  if (queue_.size() >= max_queue_size_) {
     CLOG(WARNING, "navigation")
         << "Dropping old message because the queue is full.";
     queue_.pop();
@@ -398,6 +398,7 @@ void Navigator::radarCallback(
   query_data->T_s_r.emplace(T_radar_robot_);
 
   if (gyro_enabled_){
+    CLOG_IF(pending_cache_, WARNING, "navigation") << "Warning dropping pending radar scan";
     pending_cache_ = query_data;
   } else {
     CLOG(DEBUG, "navigation") << "Adding radar message to the queue";
