@@ -9,6 +9,7 @@
       # - radar.online_converter
       - radar.odometry_dro
       - radar.scan_to_pointmap
+      - radar.submap_test
       - radar.submap_similarity_test
       - radar.localization_drl
       - navigation.gyro_bias_removal
@@ -93,17 +94,17 @@
         type: radar.odometry_dro
 
         direct:
-          local_map_res: 0.1
-          local_map_update_alpha: 0.25
-          max_local_map_range: 80.0
-          max_range: 69.0
+          local_map_res: 0.05
+          local_map_update_alpha: 0.05
+          max_local_map_range: 40.0
+          max_range: 40.0
           min_range: 4.0
           # Fixed blurring of DRO's local map, for downstream (mapping, DRL)
           # consumption. scan_to_pointmap may blur further, for mapping only.
           gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
         estimation:
           estimate_vy_bias: false
-          estimate_gyro_bias: false
+          estimate_gyro_bias: true
           use_gyro: true
           vy_bias_prior: 0.0
           min_time_bias_init: 1.0
@@ -111,8 +112,8 @@
           max_acceleration: 10.0
           ang_vel_bias: 0.0 # Constant ang vel bias for gyro-free operation, needs to be tuned
         gp:
-          lengthscale_az: 1.0
-          lengthscale_range: 1.0
+          lengthscale_az: 2.0
+          lengthscale_range: 4.0
           sz: 0.6
         radar:
           beta_corr_fact: 0.944
@@ -124,7 +125,7 @@
           doppler_enabled: false
           nb_azimuths: 400
         solver:
-          nb_iter: 50
+          nb_iter: 25
           cost_tol: 1.0E-4
           step_tol: 1.0E-4
 
