@@ -11,6 +11,7 @@
       - radar.odometry_icp
       - radar.localization_icp
       - radar.pipeline
+      - navigation.gyro_bias_removal
       # - tactic
       # - tactic.pipeline
       - tactic.module
@@ -25,8 +26,8 @@
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
     gyro_enabled: true
-    gyro_bias: 
-      z: -0.0006657902725198095
+    # gyro_bias: 
+    #   z: -0.0006657902725198095
     queue_size: 100
     graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220
@@ -69,6 +70,7 @@
         - mapping
         - vertex_test
         - memory
+        - gyro_bias_removal
       localization: 
         - recall
         - icp
@@ -91,7 +93,7 @@
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.05 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.220240 # -0.319910 # RAS3 range offset in meters -0.220240  -0.3088
+        range_offset: -0.319910 # -0.319910 # RAS3 range offset in meters
         kpeaks:
           kstrong: 4
           threshold2: 0.0
@@ -143,7 +145,6 @@
         min_linearity_score: -1.0 # min linearity score (negative value means no filtering)
 
         visualize: true
-
     odometry:
       icp:
         type: radar.odometry_icp
@@ -200,7 +201,10 @@
         type: "live_mem_manager"
 
         window_size: 5 # unload data older than this many keyframes
-
+      gyro_bias_removal:
+        type: navigation.gyro_bias_removal
+        window_size: 1000
+        max_velocity: 0.05 #m/s
     localization:
       recall:
         type: radar.localization_map_recall

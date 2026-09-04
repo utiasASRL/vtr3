@@ -26,6 +26,7 @@
 
 #include "vtr_path_planning/path_planning.hpp"
 #include "vtr_route_planning/route_planning.hpp"
+#include "vtr_navigation/modules/gyro_bias_estimation_module.hpp"
 
 #ifdef VTR_ENABLE_LIDAR
 #include "vtr_lidar/pipeline.hpp"

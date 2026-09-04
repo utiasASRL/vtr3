@@ -67,7 +67,7 @@ ament_target_dependencies(${PROJECT_NAME}_task_queue_server
   vtr_common vtr_logging vtr_mission_planning vtr_navigation_msgs
 )
 
-file(GLOB_RECURSE SRC src/navigator.cpp)
+file(GLOB_RECURSE SRC src/navigator.cpp src/modules/*.cpp)
 add_library(${PROJECT_NAME}_navigator ${SRC})
 
 

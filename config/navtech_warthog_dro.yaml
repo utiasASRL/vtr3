@@ -11,6 +11,7 @@
       - radar.scan_to_pointmap
       - radar.submap_similarity_test
       - radar.localization_drl
+      - navigation.gyro_bias_removal
       #- radar.localization_map_recall
       #- tactic
       # - tactic.pipeline
@@ -27,8 +28,8 @@
     gyro_frame: w200_0066_os_imu #w200_0066_os_imu #navtech_base
     gyro_topic: /ouster/imu
     gyro_enabled: true
-    gyro_bias: 
-      z: -0.0006657902725198095
+    # gyro_bias: 
+    #   z: -0.0006657902725198095
 
     queue_size: 1
     graph_projection:
@@ -70,6 +71,7 @@
         - vertex_test
         - submap_test
         - scan_to_pointmap
+        - gyro_bias_removal
         # - submap_similarity_test
         - memory
       localization: 
@@ -83,6 +85,10 @@
         encoder_bin_size: 16000 # encoder bin size
         cart_resolution: 0.0
     odometry:
+      gyro_bias_removal:
+        type: navigation.gyro_bias_removal
+        window_size: 1000
+        max_velocity: 0.05 #m/s
       dro:
         type: radar.odometry_dro
 
