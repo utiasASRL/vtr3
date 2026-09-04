@@ -14,7 +14,7 @@
 
 /**
  * \file pipeline.cpp
- * \author Keenan Burnett, Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \author Alec Krawciw, Daniil Lisus, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_radar/direct_pipeline.hpp"
 

@@ -30,6 +30,7 @@
 #include "vtr_radar/modules/odometry/odometry_icp_module.hpp"
 #include "vtr_radar/modules/odometry/direct_odometry_module.hpp"
 #include "vtr_radar/modules/odometry/direct_scan_to_pointmap_module.hpp"
+#include "vtr_radar/modules/odometry/direct_submap_similarity_test_module.hpp"
 #include "vtr_radar/modules/odometry/odometry_map_maintenance_module.hpp"
 
 #include "vtr_radar/modules/localization/localization_icp_module.hpp"

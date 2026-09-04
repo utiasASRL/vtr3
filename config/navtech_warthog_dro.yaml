@@ -9,6 +9,7 @@
       # - radar.online_converter
       - radar.odometry_dro
       - radar.scan_to_pointmap
+      - radar.submap_similarity_test
       - radar.localization_drl
       #- radar.localization_map_recall
       #- tactic
@@ -69,6 +70,7 @@
         - vertex_test
         - submap_test
         - scan_to_pointmap
+        # - submap_similarity_test
         - memory
       localization: 
         - recall
@@ -133,6 +135,19 @@
 
         max_translation: 1.5
         max_rotation: 30.0
+
+      submap_similarity_test:
+        type: radar.submap_similarity_test
+
+        # Registration score (scaled cross-correlation between the current
+        # smoothed scan and the reference scan from the last submap,
+        # aligned by the accumulated pose estimate) below which a new
+        # submap is created
+        min_registration_score: 0.9
+
+        # Hard-cap fallback
+        max_translation: 30.0
+        max_rotation: 45.0
 
       scan_to_pointmap:
         type: radar.scan_to_pointmap
