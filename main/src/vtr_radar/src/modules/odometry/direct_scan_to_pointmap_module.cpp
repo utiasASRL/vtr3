@@ -20,6 +20,7 @@
 
 #include <opencv2/core/eigen.hpp>
 
+#include "pcl_conversions/pcl_conversions.h"
 #include "vtr_radar/dr_ba/scans/local_map_scan.hpp"
 
 namespace vtr {
@@ -38,6 +39,7 @@ auto ScanToMapModule::Config::fromROS(
   config->max_num_reblur = node->declare_parameter<int>(param_prefix + ".max_num_reblur", config->max_num_reblur);
   config->min_int_val_tol = node->declare_parameter<double>(param_prefix + ".min_int_val_tol", config->min_int_val_tol);
   config->min_percent_nonzero = node->declare_parameter<double>(param_prefix + ".min_percent_nonzero", config->min_percent_nonzero);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
 }
@@ -127,6 +129,13 @@ void ScanToMapModule::updateSubmap(RadarQueryCache &qdata) const {
   // Do nothing if qdata does not contain any radar data (was populated by gyro)
   if (!qdata.radar_data) return;
 
+  if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("submap_odo", 5);
+    // clang-format on
+    publisher_initialized_ = true;
+  }
+
   // construct output (construct the map if not exist)
   if (!qdata.sliding_map_odo)
     qdata.sliding_map_odo.emplace(config_->map_resolution);
@@ -153,6 +162,28 @@ void ScanToMapModule::updateSubmap(RadarQueryCache &qdata) const {
 
   CLOG(DEBUG, static_name) << "Submap has " << sliding_map_odo.size()
                            << " voxels fused from the current scan";
+
+  /// \note this visualization converts point map from its own frame to the
+  /// vertex frame, so can be slow.
+  if (config_->visualize) {
+    // clang-format off
+    // publish the map
+    {
+      Eigen::Matrix4f T_v_m = sliding_map_odo.T_vertex_this().matrix().cast<float>();
+      // Sink the published copy so it does not bury the path; stored map is untouched
+      T_v_m(2, 3) -= 1.0f;
+      auto point_map = sliding_map_odo.point_cloud();  // makes a copy
+      auto map_point_mat = point_map.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      map_point_mat = T_v_m * map_point_mat;
+
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_map, pc2_msg);
+      pc2_msg.header.frame_id = "odo vertex frame";
+      pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
+      map_pub_->publish(pc2_msg);
+    }
+    // clang-format on
+  }
 }
 
 void ScanToMapModule::run_(QueryCache &qdata0, OutputCache &, const Graph::Ptr &,

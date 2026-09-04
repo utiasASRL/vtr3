@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include "sensor_msgs/msg/point_cloud2.hpp"
+
 #include "vtr_radar/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
@@ -36,6 +38,8 @@ class ScanToMapModule : public tactic::BaseModule {
   /** \brief Static module identifier. */
   static constexpr auto static_name = "radar.scan_to_pointmap";
 
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
@@ -48,6 +52,8 @@ class ScanToMapModule : public tactic::BaseModule {
     int max_num_reblur = 5;       // cap on the number of re-blur passes
     double min_int_val_tol = 0.5; // min intensity value to consider a pixel non-zero
     double min_percent_nonzero = 0.3; // percent of pixels above min_int_val_tol to stop blurring
+
+    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -81,6 +87,9 @@ class ScanToMapModule : public tactic::BaseModule {
   cv::Mat adaptiveBlur(const cv::Mat &scan) const;
 
   Config::ConstPtr config_;
+
+  mutable bool publisher_initialized_ = false;
+  mutable rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(ScanToMapModule);
 };
