@@ -283,6 +283,22 @@ typedef message_filters::sync_policies::ApproximateTime<
   // HSHMAT: Graph access for Learned strategy
   void setupLearnedStrategyGraphAccess();  // Set up TDSP callbacks
   EdgeIdSet computeBlockedEdges() const;   // Get edges blocked by current obstacle
+
+  // HSHMAT SPARROW: observed status of edges incident to a vertex.
+  // 1 = blocked, 0 = free, -1 = unknown (out of sensor range / no TF).
+  // Combines the current detection (current_blocked_edges_) with a corridor
+  // check of each adjacent teach edge against the obstacle costmap (which is
+  // built from the lidar pointcloud by vtr_path_obstacle_detector).
+  std::map<tactic::EdgeId, int> computeAdjacentEdgeStatuses(
+      const tactic::VertexId& v) const;
+  // Check the corridor leaving `v` towards `n` against the obstacle costmap.
+  // Returns 1 blocked / 0 free / -1 unknown.
+  int checkEdgeCorridorInCostmap(const tactic::VertexId& v,
+                                 const tactic::VertexId& n) const;
+  // Strategy accessors that work for both LEARNED and SPARROW.
+  GlobalObstacleStats* strategyObstacleStats() const;
+  double strategyFreshEdgeExpectedWait() const;
+  bool strategyLearnsStats() const;  // LEARNED or SPARROW
   tactic::VertexId getCurrentVertex() const;  // Get current robot position
   tactic::VertexId getGoalVertex() const;     // Get goal vertex
 
@@ -298,6 +314,11 @@ typedef message_filters::sync_policies::ApproximateTime<
   
   // Current blocked edges (computed in startObstacleEpisode)
   EdgeIdSet current_blocked_edges_;
+
+  // HSHMAT SPARROW: adjacent-edge costmap check knobs
+  bool sparrow_use_costmap_edge_check_ = true;
+  double sparrow_edge_check_length_m_ = 2.5;
+  double sparrow_edge_check_radius_m_ = 0.4;
   
   // Learned p_block: index along stored following_route_ids_. On obstacle or mission end: add (idx - last_path_index_), then last_path_index_=idx.
   // New repeat -> 0. Each following_route that replaces the path -> re-anchor to current vertex index (reroute included).

@@ -19,7 +19,10 @@
 #include "vtr_navigation/navigator.hpp"
 #include "vtr_navigation/survival_model.hpp"
 #include "vtr_navigation/wait_strategy.hpp"
+#include "vtr_navigation/sparrow_strategy.hpp"
 #include "vtr_navigation/obstacle_memory.hpp"
+#include <deque>
+#include <Eigen/Dense>
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/float64.hpp>
@@ -330,6 +333,45 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       }
     }
     
+    // HSHMAT SPARROW: POMCP search parameters (defaults mirror the simulation)
+    {
+      auto& sp = wait_strategy_config_.sparrow;
+      const std::string p = "route_planning.obstacle_strategy.sparrow.";
+      sp.num_simulations =
+          node_->declare_parameter<int>(p + "num_simulations", sp.num_simulations);
+      sp.max_planning_time_s = node_->declare_parameter<double>(
+          p + "max_planning_time_s", sp.max_planning_time_s);
+      sp.max_depth = node_->declare_parameter<int>(p + "max_depth", sp.max_depth);
+      sp.max_sim_time_s =
+          node_->declare_parameter<double>(p + "max_sim_time_s", sp.max_sim_time_s);
+      sp.c_uct = node_->declare_parameter<double>(p + "c_uct", sp.c_uct);
+      sp.duration_bin_width = node_->declare_parameter<double>(
+          p + "duration_bin_width", sp.duration_bin_width);
+      sp.num_particles =
+          node_->declare_parameter<int>(p + "num_particles", sp.num_particles);
+      sp.wait_durations = node_->declare_parameter<std::vector<double>>(
+          p + "wait_durations", sp.wait_durations);
+      sp.delta_obs_s =
+          node_->declare_parameter<double>(p + "delta_obs_s", sp.delta_obs_s);
+      sp.allow_observe =
+          node_->declare_parameter<bool>(p + "allow_observe", sp.allow_observe);
+      sp.corridor_traversal = node_->declare_parameter<bool>(
+          p + "corridor_traversal", sp.corridor_traversal);
+      sp.max_total_wait_s = node_->declare_parameter<double>(
+          p + "max_total_wait_s", sp.max_total_wait_s);
+      sp.p_block_override = node_->declare_parameter<double>(
+          p + "p_block_override", sp.p_block_override);
+      sp.planner_seed =
+          node_->declare_parameter<int>(p + "planner_seed", sp.planner_seed);
+      // Navigator-side sensing knobs (adjacent-edge costmap check)
+      sparrow_use_costmap_edge_check_ = node_->declare_parameter<bool>(
+          p + "use_costmap_edge_check", true);
+      sparrow_edge_check_length_m_ = node_->declare_parameter<double>(
+          p + "edge_check_length_m", 2.5);
+      sparrow_edge_check_radius_m_ = node_->declare_parameter<double>(
+          p + "edge_check_radius_m", 0.4);
+    }
+    
     // Initialize the real-world logger FIRST so we can get starting_episode for debug plots
     real_world_logger_ = std::make_unique<RealWorldLogger>();
     if (real_world_logger_->init(logging_output_dir_, strategyTypeToString(strategy_type))) {
@@ -387,7 +429,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     std_msgs::msg::Bool chatgpt_msg;
     if (wait_strategy_) {
       StrategyType stype = wait_strategy_->type();
-      chatgpt_msg.data = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED);
+      chatgpt_msg.data = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED ||
+                          stype == StrategyType::SPARROW);
     } else {
       chatgpt_msg.data = false;  // Default to false if no strategy
     }
@@ -525,7 +568,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
               
               // Check if strategy needs VLM classification (rule_based or learned)
               StrategyType stype = wait_strategy_ ? wait_strategy_->type() : StrategyType::ALWAYS_WAIT;
-              bool needs_vlm = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED);
+              bool needs_vlm = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED ||
+                                stype == StrategyType::SPARROW);
               
               if (needs_vlm) {
                 // Wait for VLM to classify obstacle before making decision
@@ -941,12 +985,9 @@ void Navigator::resetObstacleState() {
       << "HSHMAT: Resetting obstacle state. Previous FSM=" << obstacleStateToString(obstacle_state_);
   
   // Save learned strategy data before resetting (preserves statistics from previous run)
-  if (wait_strategy_ && wait_strategy_->type() == StrategyType::LEARNED) {
-    auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
-    if (learned) {
-      learned->saveData();
-      CLOG(INFO, "navigation") << "HSHMAT: Saved learned strategy data before reset";
-    }
+  if (strategyLearnsStats()) {
+    wait_strategy_->saveData();
+    CLOG(INFO, "navigation") << "HSHMAT: Saved learned strategy data before reset";
   }
   
   // Stop any running timers
@@ -995,11 +1036,11 @@ void Navigator::resetObstacleState() {
 }
 
 void Navigator::setupLearnedStrategyGraphAccess() {
-  // HSHMAT: Set up graph access functions for Learned strategy's TDSP
+  // HSHMAT: Set up graph access functions for Learned/Sparrow strategies
   if (!wait_strategy_ || !graph_) return;
   
-  auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
-  if (!learned) return;
+  const StrategyType st = wait_strategy_->type();
+  if (st != StrategyType::LEARNED && st != StrategyType::SPARROW) return;
   
   // Create privileged subgraph ONCE and capture by shared_ptr for all queries
   // This avoids expensive getSubgraph() calls on every neighbor/edge lookup
@@ -1045,8 +1086,42 @@ void Navigator::setupLearnedStrategyGraphAccess() {
     return std::numeric_limits<double>::infinity();
   };
   
-  learned->setGraphAccess(get_neighbors, get_travel_time);
-  CLOG(INFO, "navigation") << "HSHMAT: Set up graph access for LearnedStrategy (cached subgraph).";
+  wait_strategy_->setGraphAccess(get_neighbors, get_travel_time);
+
+  // HSHMAT SPARROW: also wire the adjacent-edge status hook so the belief can
+  // condition on which edges around the decision vertex are free/blocked.
+  if (auto* sparrow = dynamic_cast<SparrowStrategy*>(wait_strategy_.get())) {
+    sparrow->setAdjacentEdgeStatusFn(
+        [this](const tactic::VertexId& v) {
+          return computeAdjacentEdgeStatuses(v);
+        });
+  }
+  CLOG(INFO, "navigation") << "HSHMAT: Set up graph access for "
+                           << strategyTypeToString(st) << " (cached subgraph).";
+}
+
+GlobalObstacleStats* Navigator::strategyObstacleStats() const {
+  if (!wait_strategy_) return nullptr;
+  if (auto* l = dynamic_cast<LearnedStrategy*>(wait_strategy_.get()))
+    return l->obstacleStats();
+  if (auto* s = dynamic_cast<SparrowStrategy*>(wait_strategy_.get()))
+    return s->obstacleStats();
+  return nullptr;
+}
+
+double Navigator::strategyFreshEdgeExpectedWait() const {
+  if (!wait_strategy_) return 0.0;
+  if (auto* l = dynamic_cast<LearnedStrategy*>(wait_strategy_.get()))
+    return l->freshEdgeExpectedWait();
+  if (auto* s = dynamic_cast<SparrowStrategy*>(wait_strategy_.get()))
+    return s->freshEdgeExpectedWait();
+  return 0.0;
+}
+
+bool Navigator::strategyLearnsStats() const {
+  if (!wait_strategy_) return false;
+  const StrategyType st = wait_strategy_->type();
+  return st == StrategyType::LEARNED || st == StrategyType::SPARROW;
 }
 
 EdgeIdSet Navigator::computeBlockedEdges() const {
@@ -1119,6 +1194,200 @@ EdgeIdSet Navigator::computeBlockedEdges() const {
   return blocked;
 }
 
+std::map<tactic::EdgeId, int> Navigator::computeAdjacentEdgeStatuses(
+    const tactic::VertexId& v) const {
+  // HSHMAT SPARROW: status of every teach edge incident to `v`.
+  // 1 = blocked (part of the current detection, or costmap shows obstacle in
+  //     the corridor), 0 = free (costmap visibly clear), -1 = unknown.
+  std::map<tactic::EdgeId, int> out;
+  if (!graph_ || !v.isValid()) return out;
+  try {
+    using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+    auto priv_eval = std::make_shared<PrivEval>(*graph_);
+    auto priv_graph = graph_->getSubgraph(priv_eval);
+    for (const auto& n : priv_graph->neighbors(v)) {
+      const tactic::EdgeId eid(v, n);
+      int status = -1;
+      if (current_blocked_edges_.count(eid) > 0) {
+        status = 1;
+      } else if (sparrow_use_costmap_edge_check_) {
+        status = checkEdgeCorridorInCostmap(v, n);
+      }
+      out[eid] = status;
+    }
+  } catch (const std::exception& e) {
+    CLOG(WARNING, "navigation")
+        << "HSHMAT SPARROW: computeAdjacentEdgeStatuses failed: " << e.what();
+  }
+  {
+    std::stringstream ss;
+    ss << "HSHMAT SPARROW: adjacent statuses @" << v << ": ";
+    for (const auto& kv : out) {
+      ss << kv.first << "="
+         << (kv.second == 1 ? "BLOCKED" : (kv.second == 0 ? "free" : "unknown"))
+         << " ";
+    }
+    CLOG(INFO, "navigation") << ss.str();
+  }
+  return out;
+}
+
+int Navigator::checkEdgeCorridorInCostmap(const tactic::VertexId& v,
+                                          const tactic::VertexId& n) const {
+  // Walk the teach corridor leaving `v` towards `n` (composing privileged
+  // edge transforms) and test it against the obstacle costmap that
+  // vtr_path_obstacle_detector builds from the lidar pointcloud.
+  // Grid values: 100 = on-path obstacle, 50 = off-path obstacle, 0 = free.
+  const auto& grid = last_obstacle_grid_;
+  if (grid.data.empty() || grid.info.resolution <= 0.0) return -1;
+  if (!tf_buffer_ || !tactic_) return -1;
+
+  try {
+    const auto loc = tactic_->getPersistentLoc();
+    if (!loc.v.isValid()) return -1;
+
+    using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+    auto priv_eval = std::make_shared<PrivEval>(*graph_);
+    auto priv_graph = graph_->getSubgraph(priv_eval);
+
+    // ---- 1. Vertex poses in the loc-vertex frame (BFS transform chain) ----
+    // T_loc_x maps points in x's frame into the loc vertex frame.
+    // edge->T() is T_to_from, so:
+    //   from == a, to == b :  T_b_a = e->T()   =>  T_a_b = e->T().inverse()
+    std::unordered_map<uint64_t, Eigen::Matrix4d> pose;
+    std::deque<tactic::VertexId> queue;
+    std::unordered_map<uint64_t, double> dist;
+    pose[static_cast<uint64_t>(loc.v)] = Eigen::Matrix4d::Identity();
+    dist[static_cast<uint64_t>(loc.v)] = 0.0;
+    queue.push_back(loc.v);
+    constexpr double kMaxChainDist = 60.0;  // meters of teach path to expand
+    constexpr size_t kMaxChainVerts = 5000;
+    while (!queue.empty() && pose.size() < kMaxChainVerts) {
+      const tactic::VertexId a = queue.front();
+      queue.pop_front();
+      const Eigen::Matrix4d T_loc_a = pose.at(static_cast<uint64_t>(a));
+      const double d_a = dist.at(static_cast<uint64_t>(a));
+      if (d_a > kMaxChainDist) continue;
+      for (const auto& b : priv_graph->neighbors(a)) {
+        if (pose.count(static_cast<uint64_t>(b))) continue;
+        auto edge_ptr = priv_graph->at(tactic::EdgeId(a, b));
+        if (!edge_ptr) continue;
+        Eigen::Matrix4d T_a_b;
+        if (edge_ptr->from() == a) {
+          T_a_b = edge_ptr->T().inverse().matrix();
+        } else {
+          T_a_b = edge_ptr->T().matrix();
+        }
+        const Eigen::Matrix4d T_loc_b = T_loc_a * T_a_b;
+        pose[static_cast<uint64_t>(b)] = T_loc_b;
+        dist[static_cast<uint64_t>(b)] =
+            d_a + T_a_b.block<3, 1>(0, 3).norm();
+        queue.push_back(b);
+      }
+    }
+    if (!pose.count(static_cast<uint64_t>(v)) ||
+        !pose.count(static_cast<uint64_t>(n))) {
+      return -1;
+    }
+
+    // ---- 2. Corridor sample points (loc-vertex frame) ---------------------
+    std::vector<Eigen::Vector3d> pts;
+    tactic::VertexId prev = v;
+    tactic::VertexId cur = n;
+    Eigen::Vector3d p_prev =
+        pose.at(static_cast<uint64_t>(v)).block<3, 1>(0, 3);
+    double walked = 0.0;
+    constexpr double kSampleStep = 0.15;  // meters between samples
+    while (true) {
+      auto pit = pose.find(static_cast<uint64_t>(cur));
+      if (pit == pose.end()) break;
+      const Eigen::Vector3d p_cur = pit->second.block<3, 1>(0, 3);
+      const double seg = (p_cur - p_prev).norm();
+      const int n_samples = std::max(1, static_cast<int>(seg / kSampleStep));
+      for (int i = 1; i <= n_samples; ++i) {
+        const double t = static_cast<double>(i) / n_samples;
+        pts.push_back(p_prev + t * (p_cur - p_prev));
+      }
+      walked += seg;
+      if (walked >= sparrow_edge_check_length_m_) break;
+      // Continue along the degree-2 chain.
+      std::vector<tactic::VertexId> nbrs;
+      for (const auto& w : priv_graph->neighbors(cur)) nbrs.push_back(w);
+      if (nbrs.size() != 2) break;
+      const tactic::VertexId next = (nbrs[0] == prev) ? nbrs[1] : nbrs[0];
+      prev = cur;
+      cur = next;
+      p_prev = p_cur;
+    }
+    if (pts.empty()) return -1;
+
+    // ---- 3. TF: loc vertex frame -> costmap frame --------------------------
+    Eigen::Matrix4d T_grid_loc = Eigen::Matrix4d::Identity();
+    try {
+      const auto tf = tf_buffer_->lookupTransform(
+          grid.header.frame_id, "loc vertex frame", tf2::TimePointZero,
+          tf2::durationFromSec(0.05));
+      const auto& tr = tf.transform.translation;
+      const auto& q = tf.transform.rotation;
+      Eigen::Quaterniond quat(q.w, q.x, q.y, q.z);
+      T_grid_loc.block<3, 3>(0, 0) = quat.toRotationMatrix();
+      T_grid_loc.block<3, 1>(0, 3) = Eigen::Vector3d(tr.x, tr.y, tr.z);
+    } catch (const std::exception& ex) {
+      CLOG(DEBUG, "navigation")
+          << "HSHMAT SPARROW: no TF " << grid.header.frame_id
+          << " <- loc vertex frame (" << ex.what() << ")";
+      return -1;
+    }
+
+    // ---- 4. Occupancy test --------------------------------------------------
+    const auto& info = grid.info;
+    const double res = info.resolution;
+    const int rad_cells = std::max(
+        0, static_cast<int>(std::ceil(sparrow_edge_check_radius_m_ / res)));
+    int occupied = 0;
+    int visible = 0;
+    for (const auto& p : pts) {
+      const Eigen::Vector4d ph(p.x(), p.y(), p.z(), 1.0);
+      const Eigen::Vector4d pg = T_grid_loc * ph;
+      const int cx =
+          static_cast<int>((pg.x() - info.origin.position.x) / res);
+      const int cy =
+          static_cast<int>((pg.y() - info.origin.position.y) / res);
+      bool any_in = false;
+      bool occ = false;
+      for (int dy = -rad_cells; dy <= rad_cells && !occ; ++dy) {
+        for (int dx = -rad_cells; dx <= rad_cells; ++dx) {
+          const int x = cx + dx;
+          const int y = cy + dy;
+          if (x < 0 || y < 0 || x >= static_cast<int>(info.width) ||
+              y >= static_cast<int>(info.height)) {
+            continue;
+          }
+          any_in = true;
+          const int8_t val = grid.data[y * info.width + x];
+          if (val >= 50) {  // off-path (50) or on-path (100) obstacle
+            occ = true;
+            break;
+          }
+        }
+      }
+      if (any_in) {
+        ++visible;
+        if (occ) ++occupied;
+      }
+    }
+    if (visible == 0) return -1;
+    if (occupied >= 2) return 1;  // >= 2 occupied samples: blocked
+    // Declare free only when most of the corridor was actually visible.
+    if (visible >= static_cast<int>(0.7 * pts.size())) return 0;
+    return -1;
+  } catch (const std::exception& e) {
+    CLOG(DEBUG, "navigation")
+        << "HSHMAT SPARROW: checkEdgeCorridorInCostmap failed: " << e.what();
+    return -1;
+  }
+}
+
 tactic::VertexId Navigator::getCurrentVertex() const {
   if (!tactic_) return tactic::VertexId::Invalid();
   auto loc = tactic_->getPersistentLoc();
@@ -1142,12 +1411,9 @@ int Navigator::followingRouteIndexOf(const tactic::VertexId& v) const {
 
 void Navigator::recordLearnedEdgeProgressUpToIndex(int idx_in_route) {
   if (idx_in_route < 0) return;
-  if (!wait_strategy_ || wait_strategy_->type() != StrategyType::LEARNED) return;
+  if (!strategyLearnsStats()) return;  // LEARNED or SPARROW
 
   LockGuard lock(obstacle_mutex_);
-
-  auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
-  if (!learned) return;
 
   const int baseline = last_path_index_;
   int edge_delta = idx_in_route - baseline;
@@ -1168,9 +1434,9 @@ void Navigator::recordLearnedEdgeProgressUpToIndex(int idx_in_route) {
       tactic::VertexId v1(following_route_ids_[i]);
       tactic::VertexId v2(following_route_ids_[i + 1]);
       tactic::EdgeId edge(v1, v2);
-      learned->clearMemoryForEdge(edge);
+      wait_strategy_->clearMemoryForEdge(edge);
       tactic::EdgeId edge_rev(v2, v1);
-      learned->clearMemoryForEdge(edge_rev);
+      wait_strategy_->clearMemoryForEdge(edge_rev);
     }
     CLOG(DEBUG, "navigation") << "HSHMAT: Cleared memory for " << edge_delta
                                 << " successfully traversed edges";
@@ -1178,7 +1444,7 @@ void Navigator::recordLearnedEdgeProgressUpToIndex(int idx_in_route) {
 }
 
 void Navigator::flushLearnedEdgeTraversalsForEpisode() {
-  if (!wait_strategy_ || wait_strategy_->type() != StrategyType::LEARNED) return;
+  if (!strategyLearnsStats()) return;  // LEARNED or SPARROW
 
   int idx_in_route = -1;
   {
@@ -1208,20 +1474,20 @@ void Navigator::flushLearnedEdgeTraversalsForEpisode() {
   // Buffer any remaining edges from last obstacle to goal
   recordLearnedEdgeProgressUpToIndex(idx_in_route);
 
-  auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
-  if (learned && learned->obstacleStats()) {
+  auto* stats = strategyObstacleStats();
+  if (stats) {
     // Now flush all buffered edge traversals to obstacle stats
     if (pending_edge_traversals_ > 0) {
-      learned->obstacleStats()->recordEdgeTraversals(pending_edge_traversals_);
+      stats->recordEdgeTraversals(pending_edge_traversals_);
       CLOG(INFO, "navigation") << "HSHMAT: Flushed " << pending_edge_traversals_
                                 << " buffered edge traversals to obstacle_stats";
     }
     pending_edge_traversals_ = 0;
     
-    learned->saveData();
+    wait_strategy_->saveData();
     CLOG(INFO, "navigation") << "HSHMAT: Saved learned stats after episode end "
                               << "(total_edges_traversed="
-                              << learned->obstacleStats()->totalEdgesTraversed() << ")";
+                              << stats->totalEdgesTraversed() << ")";
   }
   // Reset for next episode
   episode_route_size_ = 0;
@@ -1581,7 +1847,8 @@ void Navigator::onNoAlternateRoute() {
     }
     
     case StrategyType::RULE_BASED:
-    case StrategyType::LEARNED: {
+    case StrategyType::LEARNED:
+    case StrategyType::SPARROW: {
       // HSHMAT: Same as ALWAYS_DETOUR - wait for obstacle to clear
       // These strategies attempted reroute but failed; wait for original path to clear
       speakAndWait("No alternate path to goal. Waiting.", 5.0);
@@ -1663,6 +1930,8 @@ void Navigator::handleObstacleCleared(ObstacleState previous_state) {
 
 void Navigator::onWaitTimeout() {
   // HSHMAT: Called when W* expires without obstacle clearing
+  const bool is_sparrow =
+      wait_strategy_ && wait_strategy_->type() == StrategyType::SPARROW;
   double elapsed;
   std::string episode_type;
   {
@@ -1678,9 +1947,80 @@ void Navigator::onWaitTimeout() {
       wait_timer_.reset();
     }
     
-    obstacle_state_ = ObstacleState::Rerouting;
+    // SPARROW re-plans below and may decide to keep waiting; every other
+    // strategy transitions to Rerouting immediately (unchanged behavior).
+    if (!is_sparrow) obstacle_state_ = ObstacleState::Rerouting;
   }
   // Lock released
+
+  if (is_sparrow) {
+    // HSHMAT SPARROW: a MaxWait expiring is not a commitment to reroute -
+    // the POMCP re-plans with the (now older) observed age, exactly like the
+    // simulation replans after every executed action. If it chooses another
+    // MaxWait, extend the wait; if it chooses Traverse, fall through to the
+    // normal reroute path.
+    bool wait_again = false;
+    double extra_W = 0.0;
+    try {
+      const tactic::VertexId current_v = getCurrentVertex();
+      const tactic::VertexId goal_v = getGoalVertex();
+      const double t_now = node_->get_clock()->now().seconds();
+      const double t_first =
+          (wait_episode_start_sec_ > 0.0) ? wait_episode_start_sec_ : 0.0;
+      setupLearnedStrategyGraphAccess();
+      WaitDecision d = wait_strategy_->computeWaitTime(
+          episode_type, current_blocked_edges_, current_v, goal_v, t_now,
+          t_first);
+      if (d.should_wait && d.W_star > 0.0 && std::isfinite(d.W_star)) {
+        wait_again = true;
+        extra_W = d.W_star;
+      }
+    } catch (const std::exception& e) {
+      CLOG(WARNING, "mission.state_machine")
+          << "HSHMAT SPARROW: re-plan on timeout failed (" << e.what()
+          << ") - rerouting.";
+    }
+
+    if (wait_again) {
+      bool still_waiting = false;
+      {
+        LockGuard lock(obstacle_mutex_);
+        // The obstacle may have cleared while we were planning.
+        if (obstacle_state_ == ObstacleState::Waiting) {
+          still_waiting = true;
+          current_W_star_ = elapsed + extra_W;  // measured from episode start
+          // Reset countdown announcements relative to the new remaining time.
+          next_countdown_idx_ = 0;
+          for (size_t i = 0; i < countdown_intervals_.size(); ++i) {
+            if (countdown_intervals_[i] < extra_W) {
+              next_countdown_idx_ = static_cast<int>(i);
+              break;
+            }
+          }
+        }
+      }
+      if (still_waiting) {
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT SPARROW: re-plan chose to keep waiting "
+            << extra_W << "s more (total budget now " << current_W_star_
+            << "s, elapsed " << elapsed << "s).";
+        speak("Continuing to wait " +
+              std::to_string(static_cast<int>(std::llround(extra_W))) +
+              " seconds.");
+        wait_timer_ = node_->create_wall_timer(
+            std::chrono::seconds(1), [this]() { onWaitTimerTick(); },
+            obstacle_callback_group_);
+      }
+      return;
+    }
+
+    // SPARROW chose to detour: enter Rerouting and continue below.
+    {
+      LockGuard lock(obstacle_mutex_);
+      if (obstacle_state_ != ObstacleState::Waiting) return;
+      obstacle_state_ = ObstacleState::Rerouting;
+    }
+  }
   
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: Wait timeout after " << elapsed << "s (W*=" << current_W_star_ << "s). Rerouting.";
@@ -2380,7 +2720,8 @@ void Navigator::triggerReroute() {
     // LEARNED strategy uses survival model only for W* decision (wait vs detour);
     // the actual routing just needs to avoid the blocked edge.
     if (wait_strategy_ && (wait_strategy_->type() == StrategyType::ALWAYS_DETOUR ||
-                           wait_strategy_->type() == StrategyType::LEARNED)) {
+                           wait_strategy_->type() == StrategyType::LEARNED ||
+                           wait_strategy_->type() == StrategyType::SPARROW)) {
       edge_blockages_.clear();
       CLOG(INFO, "mission.state_machine")
           << "HSHMAT: " << strategyTypeToString(wait_strategy_->type()) 
@@ -2437,26 +2778,23 @@ void Navigator::triggerReroute() {
             << "HSHMAT: greedy_ctp - banned " << edges_to_ban.size() << " edges";
             
       } else if (st == StrategyType::ALWAYS_DETOUR || st == StrategyType::RULE_BASED ||
-                 st == StrategyType::LEARNED) {
-        // ALWAYS_DETOUR / RULE_BASED / LEARNED: Ban current blocked edges only (memoryless)
-        // For LEARNED: W* uses EW-TDSP (A_avoid). Reroute must use the same per-edge
-        // expected-wait cost model, otherwise the executed path can differ from A_avoid
-        // (e.g. pure-travel picks 2->7->24->11 while EW-TDSP picks straight branch 2).
-        // Sim executes the EW detour; real must match for scenario site parity.
+                 st == StrategyType::LEARNED || st == StrategyType::SPARROW) {
+        // ALWAYS_DETOUR / RULE_BASED / LEARNED / SPARROW: Ban current blocked
+        // edges only (memoryless). For LEARNED/SPARROW: the reroute must use
+        // the same per-edge expected-wait cost model as the strategy's own
+        // planning, otherwise the executed path can differ from what was priced.
         for (const auto& e : affected_edges) {
           edges_to_ban.insert(e);
         }
         tdsp->setBannedEdges(edges_to_ban);
         tdsp->setStaticEdgeDelays({});
         tdsp->setEdgeBlockages({});
-        if (st == StrategyType::LEARNED) {
-          auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
-          const double ew_uniform =
-              learned ? learned->freshEdgeExpectedWait() : 0.0;
+        if (st == StrategyType::LEARNED || st == StrategyType::SPARROW) {
+          const double ew_uniform = strategyFreshEdgeExpectedWait();
           tdsp->setUniformEdgeDelay(ew_uniform);
           CLOG(INFO, "mission.state_machine")
-              << "HSHMAT: LEARNED - banned " << edges_to_ban.size()
-              << " edges + uniform EW delay " << ew_uniform << "s/edge (matches A_avoid TDSP)";
+              << "HSHMAT: " << strategyTypeToString(st) << " - banned " << edges_to_ban.size()
+              << " edges + uniform EW delay " << ew_uniform << "s/edge (matches strategy pricing)";
         } else {
           tdsp->setUniformEdgeDelay(0.0);
           CLOG(INFO, "mission.state_machine")

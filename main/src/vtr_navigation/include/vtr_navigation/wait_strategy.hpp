@@ -62,6 +62,29 @@ struct WaitDecision {
 };
 
 /**
+ * \brief SPARROW (POMCP) search parameters.
+ *
+ * HSHMAT: Defaults mirror vtr_obstacle_simulation config.POMCPConfig, so a
+ * freshly configured robot searches with the same budget as the simulation.
+ */
+struct SparrowParams {
+  int num_simulations = 500;        // pomcp.search.num_simulations
+  double max_planning_time_s = 5.0; // wall-clock budget on the robot (<=0: off)
+  int max_depth = 40;               // pomcp.search.max_depth
+  double max_sim_time_s = 600.0;    // pomcp.search.max_sim_time_s
+  double c_uct = 30.0;              // pomcp.search.c_uct (seconds)
+  double duration_bin_width = 1.0;  // pomcp.duration_bin_width
+  int num_particles = 500;          // pomcp.belief.num_particles
+  std::vector<double> wait_durations = {5.0, 10.0, 15.0, 20.0, 30.0};
+  double delta_obs_s = 3.0;         // Observe cost inside the search
+  bool allow_observe = true;        // Observe available inside the search
+  bool corridor_traversal = true;   // collapse degree-2 chains into one action
+  double max_total_wait_s = 600.0;  // safety cap across re-plans (<=0: off)
+  double p_block_override = -1.0;   // >=0 pins occupancy (debug); <0 learned
+  int planner_seed = 0;             // 0 = time-derived (non-reproducible)
+};
+
+/**
  * \brief Configuration for wait strategies.
  */
 struct WaitStrategyConfig {
@@ -85,6 +108,9 @@ struct WaitStrategyConfig {
   
   // Robot speed (for computing edge travel times)
   double robot_speed_mps = 1.0;
+
+  // SPARROW (POMCP) parameters
+  SparrowParams sparrow;
   
   // Debug visualization
   bool debug_plot_policy = false;  // Save plots of S(t), A_goal(C), A_avoid(W), J(W) on each episode
@@ -111,7 +137,8 @@ enum class StrategyType {
   ALWAYS_DETOUR,
   RULE_BASED,
   GREEDY_CTP,
-  LEARNED
+  LEARNED,
+  SPARROW
 };
 
 /**
@@ -123,6 +150,7 @@ inline StrategyType parseStrategyType(const std::string& s) {
   if (s == "rule_based") return StrategyType::RULE_BASED;
   if (s == "greedy_ctp") return StrategyType::GREEDY_CTP;
   if (s == "learned") return StrategyType::LEARNED;
+  if (s == "sparrow") return StrategyType::SPARROW;
   throw std::invalid_argument("Unknown strategy type: " + s);
 }
 
@@ -136,6 +164,7 @@ inline std::string strategyTypeToString(StrategyType t) {
     case StrategyType::RULE_BASED: return "rule_based";
     case StrategyType::GREEDY_CTP: return "greedy_ctp";
     case StrategyType::LEARNED: return "learned";
+    case StrategyType::SPARROW: return "sparrow";
   }
   return "unknown";
 }
@@ -248,6 +277,12 @@ class WaitStrategy {
    * not after each individual encounter.
    */
   virtual void flushPendingSamplesToKM() {}
+
+  /**
+   * \brief Persist any learned data (survival model, obstacle stats).
+   * Default no-op; implemented by LEARNED and SPARROW.
+   */
+  virtual void saveData() {}
 };
 
 /**

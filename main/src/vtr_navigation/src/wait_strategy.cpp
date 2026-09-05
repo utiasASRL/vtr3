@@ -19,6 +19,7 @@
  * HSHMAT: LearnedStrategy uses time-dependent TDSP exactly matching Python simulation.
  */
 #include "vtr_navigation/wait_strategy.hpp"
+#include "vtr_navigation/sparrow_strategy.hpp"
 
 #include <cmath>
 #include <sstream>
@@ -1020,6 +1021,9 @@ std::unique_ptr<WaitStrategy> createWaitStrategy(
       
     case StrategyType::LEARNED:
       return std::make_unique<LearnedStrategy>(config);
+      
+    case StrategyType::SPARROW:
+      return std::make_unique<SparrowStrategy>(config);
       
     default:
       CLOG(ERROR, "navigation") << "HSHMAT: Unknown strategy type, defaulting to always_wait";
