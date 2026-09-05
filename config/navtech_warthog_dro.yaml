@@ -95,7 +95,7 @@
 
         direct:
           local_map_res: 0.05
-          local_map_update_alpha: 0.05
+          local_map_update_alpha: 0.1
           max_local_map_range: 40.0
           max_range: 40.0
           min_range: 4.0
@@ -104,7 +104,7 @@
           gauss_blur_sigma: 3.0 # pixels, kernel size is (ceil(6 * sigma) | 1)
         estimation:
           estimate_vy_bias: false
-          estimate_gyro_bias: true
+          estimate_gyro_bias: false
           use_gyro: true
           vy_bias_prior: 0.0
           min_time_bias_init: 1.0

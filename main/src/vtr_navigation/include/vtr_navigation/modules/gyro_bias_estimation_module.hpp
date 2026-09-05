@@ -72,6 +72,7 @@ class GyroBiasEstimationModule : public tactic::BaseModule {
   Config::ConstPtr config_;
 
   Eigen::Vector3d gyro_bias_ = Eigen::Vector3d::Zero();
+  unsigned long count_ = 0;
 
   VTR_REGISTER_MODULE_DEC_TYPE(GyroBiasEstimationModule);
 };
