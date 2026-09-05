@@ -20,6 +20,7 @@
 
 #include <fstream>
 #include <filesystem>
+#include <set>
 
 #include "vtr_logging/logging.hpp"
 
@@ -187,25 +188,30 @@ double GlobalObstacleStats::p_block() const {
 double GlobalObstacleStats::p_obs_type(const std::string& obs_type) const {
   std::lock_guard<std::mutex> lock(mutex_);
   
-  // Use default if not enough data
-  if (total_obstacle_episodes_ < 5) {
-    auto it = default_type_weights_.find(obs_type);
-    if (it != default_type_weights_.end()) {
-      return it->second;
-    }
-    // Uniform over known types
-    if (!default_type_weights_.empty()) {
-      return 1.0 / default_type_weights_.size();
-    }
-    return 0.2;  // Fallback
+  // Match simulation's Dirichlet prior logic exactly:
+  // P(type) = (count + alpha) / (total + n_types * alpha)
+  const double alpha = 1.0;
+  
+  // Get all known types
+  std::set<std::string> all_types;
+  for (const auto& kv : default_type_weights_) {
+    all_types.insert(kv.first);
   }
+  for (const auto& kv : type_counts_) {
+    all_types.insert(kv.first);
+  }
+  
+  if (all_types.empty()) {
+    return 0.25;  // Fallback: assume 4 types
+  }
+  
+  int n_types = static_cast<int>(all_types.size());
+  double total_with_prior = static_cast<double>(total_obstacle_episodes_) + n_types * alpha;
   
   auto it = type_counts_.find(obs_type);
-  if (it == type_counts_.end()) {
-    return 0.0;
-  }
+  double count = (it != type_counts_.end()) ? static_cast<double>(it->second) : 0.0;
   
-  return static_cast<double>(it->second) / total_obstacle_episodes_;
+  return (count + alpha) / total_with_prior;
 }
 
 std::map<std::string, double> GlobalObstacleStats::getTypeDistribution() const {
@@ -213,13 +219,32 @@ std::map<std::string, double> GlobalObstacleStats::getTypeDistribution() const {
   
   std::map<std::string, double> dist;
   
-  // Use default if not enough data
-  if (total_obstacle_episodes_ < 5) {
-    return default_type_weights_;
+  // Match simulation's Dirichlet prior logic exactly:
+  // P(type) = (count + alpha) / (total + n_types * alpha)
+  // where alpha = 1.0 (uniform prior pseudo-count per type)
+  const double alpha = 1.0;
+  
+  // Get all known types from default_type_weights_ (defines the type universe)
+  std::set<std::string> all_types;
+  for (const auto& kv : default_type_weights_) {
+    all_types.insert(kv.first);
+  }
+  // Also include any types we've actually seen
+  for (const auto& kv : type_counts_) {
+    all_types.insert(kv.first);
   }
   
-  for (const auto& kv : type_counts_) {
-    dist[kv.first] = static_cast<double>(kv.second) / total_obstacle_episodes_;
+  if (all_types.empty()) {
+    return dist;  // No types known
+  }
+  
+  int n_types = static_cast<int>(all_types.size());
+  double total_with_prior = static_cast<double>(total_obstacle_episodes_) + n_types * alpha;
+  
+  for (const auto& obs_type : all_types) {
+    auto it = type_counts_.find(obs_type);
+    double count = (it != type_counts_.end()) ? static_cast<double>(it->second) : 0.0;
+    dist[obs_type] = (count + alpha) / total_with_prior;
   }
   
   return dist;

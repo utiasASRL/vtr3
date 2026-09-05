@@ -52,6 +52,13 @@
     lidar_topic: /ouster/points
     route_planning:
       # =========================
+      # Real-world logging (HSHMAT)
+      # =========================
+      run_idx: 14                     # Match sim batch run_6 / seed 13 (base 7 + 6). run14 is person/chair real world exp 
+      graph_name: "may23"        # Logs + learned data: ${VTRTEMP}/<graph_name>/run<run_idx>
+      mission_time_limit: 2000.0      # Seconds; for success/failure logging (robot continues past this)
+      
+      # =========================
       # User toggles
       # =========================
       enable_reroute: true            # If false -> normal teach-and-repeat (no obstacle handling)
@@ -72,7 +79,7 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned
-        type: "learned"
+        type: "always_wait"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         # unknown_W_max is the fallback for any obstacle type not listed in W_max_per_type
@@ -89,14 +96,11 @@
         
         # For learned strategy
         # p_block is always computed from data as (obstacle_episodes / edges_traversed); 0/0 -> 0
-        W_grid_points: 100    # Number of W candidates in grid search
-        T_grid_points: 100    # Number of time points for J(W) integration
+        W_grid_points: 300    # Number of W candidates in grid search
+        T_grid_points: 300    # Number of time points for J(W) integration
         
-        # Directory for learned policy data (environment-specific)
-        # Contains: survival_stats.yaml (Kaplan-Meier samples), obstacle_stats.yaml (p_block, type counts)
-        # Example: ${VTRDATA}/myhal_fifthfloor or ${VTRDATA}/utias_hallway
-        # learned_data_dir: "${VTRDATA}/myhal_fifthfloor"
-        learned_data_dir: "${VTRDATA}/may14_debug"
+        # learned_data_dir is set automatically to ${VTRTEMP}/<graph_name>/run<run_idx>
+        # (survival_stats.yaml, obstacle_stats.yaml, encounters_learned.csv, debug_plots/)
         
         # Seed samples (uncensored durations, seconds). Empty = no YAML prior; use survival_stats.yaml if present, else cold start.
         # seed_samples:
@@ -109,7 +113,7 @@
         # Debug visualization for learned policy
         # Saves plots of S(t), A_goal(C), A_avoid(W), J(W) on each obstacle episode
         debug_plot_policy: true  # Set to true to enable
-        # debug_plot_dir: "${VTRDATA}/myhal_fifthfloor/debug_plots"  # Optional, defaults to learned_data_dir/debug_plots
+        # debug_plot_dir: optional override; default is <learned_data_dir>/debug_plots
         
         # Speech settings for countdown announcements (learned strategy)
         countdown_intervals: [60, 30, 15, 10, 5]  # Announce when this many seconds remain
@@ -135,7 +139,7 @@
       task_queue_num_threads: 1
       task_queue_size: -1
       
-      route_completion_translation_threshold: 0.01 # tactic.cpp route completed. # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
+      route_completion_translation_threshold: 0.1 # for RL this has to be smaller than the RL threshold so that we can get the localization results and stuff
       route_completion_angle_threshold: 0.0349066 #0.26
 
       chain:

@@ -184,7 +184,13 @@ class EWTDSPPlanner {
   struct QItem {
     double t;
     VertexId v;
-    bool operator>(const QItem& other) const { return t > other.t; }
+    // Primary: earlier arrival wins (min-heap via std::greater, so larger t has lower priority)
+    // Tie-break: smaller vertex ID wins (lexicographic: major, then minor)
+    // This matches Python heapq behavior with (arrival_time, (major, minor)) tuples
+    bool operator>(const QItem& other) const {
+      if (t != other.t) return t > other.t;
+      return v > other.v;  // smaller vertex ID has higher priority
+    }
   };
 };
 

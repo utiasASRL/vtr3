@@ -21,6 +21,8 @@
 
 #include "vtr_navigation/obstacle_memory.hpp"
 
+#include <algorithm>
+
 namespace vtr {
 namespace navigation {
 
@@ -49,12 +51,14 @@ void ObstacleMemoryManager::updateAfterCensoredWait(const EdgeId& edge,
   auto it = edge_memories_.find(edge);
   if (it == edge_memories_.end()) return;
   
-  // Update t_last_confirmed for all edges in the group
+  // Update t_last_confirmed for all edges in the group. Use max() to be
+  // monotone, matching vtr3_sim memory.py update_after_censored_wait.
   const auto& blocked_edges = it->second.blocked_edges;
   for (const auto& e : blocked_edges) {
     auto edge_it = edge_memories_.find(e);
     if (edge_it != edge_memories_.end()) {
-      edge_it->second.t_last_confirmed = t_after_wait;
+      edge_it->second.t_last_confirmed =
+          std::max(edge_it->second.t_last_confirmed, t_after_wait);
     }
   }
 }

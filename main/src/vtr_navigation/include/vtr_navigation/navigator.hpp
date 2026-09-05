@@ -31,6 +31,7 @@
 #include "std_msgs/msg/string.hpp" // Hshmat: for ChatGPT decision subscription
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "vtr_navigation/wait_strategy.hpp"  // HSHMAT: Strategy pattern for wait time decisions
+#include "vtr_navigation/real_world_logger.hpp"  // HSHMAT: Real-world episode/encounter logging
 #include <unordered_map>
 #include <limits>
 #include <chrono> // Hshmat: for debouncing obstacle detection
@@ -298,9 +299,18 @@ typedef message_filters::sync_policies::ApproximateTime<
   // Current blocked edges (computed in startObstacleEpisode)
   EdgeIdSet current_blocked_edges_;
   
-  // Learned p_block: index along stored following_route_ids_. On obstacle: add (idx - last_path_index_), then last_path_index_=idx.
+  // Learned p_block: index along stored following_route_ids_. On obstacle or mission end: add (idx - last_path_index_), then last_path_index_=idx.
   // New repeat -> 0. Each following_route that replaces the path -> re-anchor to current vertex index (reroute included).
   int last_path_index_ = 0;
+  // Total vertices in following_route when first received (edges = this - 1). Preserved even if route clears at mission end.
+  int episode_route_size_ = 0;
+  // Buffered edge traversals to flush at episode end (keeps p_block constant within episode)
+  int pending_edge_traversals_ = 0;
+
+  /** Track edges traversed (buffer only, don't update stats until episode end). */
+  void recordLearnedEdgeProgressUpToIndex(int idx_in_route);
+  /** At goal finish: flush all buffered updates (edges, KM, type counts). */
+  void flushLearnedEdgeTraversalsForEpisode();
   
   void setRobotPaused(bool paused);
   void triggerReroute();  // Centralized reroute flow
@@ -328,6 +338,38 @@ typedef message_filters::sync_policies::ApproximateTime<
 
   // HSHMAT: Debouncing for obstacle detection
   std::optional<std::chrono::steady_clock::time_point> last_obstacle_time_;
+
+  // =========================================================================
+  // HSHMAT: Real-world episode logging
+  // =========================================================================
+  std::unique_ptr<RealWorldLogger> real_world_logger_;
+  int current_episode_ = 0;                         // Episode counter (per-run)
+  rclcpp::Time mission_start_time_;                 // When current mission started
+  double mission_time_limit_ = 2000.0;              // Time limit for success/failure
+  int episode_reroute_count_ = 0;                   // Reroutes in current episode
+  double episode_wait_time_ = 0.0;                  // Total wait time in current episode
+  std::map<std::string, int> episode_encounter_counts_;  // Per-type encounter counts
+  std::string graph_name_;                          // Graph name from config
+  int run_idx_ = 1;                                 // Run index from config
+  std::string logging_output_dir_;                  // Output directory for logging
+  bool episode_finalized_ = false;                  // Prevent double-finalization on goal finish
+  
+  // Per-encounter tracking (for computing duration)
+  double current_encounter_start_sec_ = -1.0;       // When current encounter started
+  std::string current_encounter_blocked_edges_;     // Blocked edges for current encounter
+  
+  // HSHMAT: Deadman-based timing (time_to_goal = deadman release - deadman press)
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr deadman_sub_;
+  bool deadman_pressed_ = false;                    // Current deadman state
+  rclcpp::Time deadman_press_time_;                 // When deadman was first pressed this episode
+  rclcpp::Time deadman_release_time_;               // When deadman was last released
+  bool deadman_timing_valid_ = false;               // True if we have valid press time for this episode
+  
+  // Helper to format EdgeIdSet as string for logging
+  std::string formatBlockedEdges(const EdgeIdSet& edges) const;
+  
+  // Called when goal reaches FINISHING state
+  void onGoalFinishing();
 
   /// Threading
   bool stop_ = false;

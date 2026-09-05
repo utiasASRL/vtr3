@@ -36,12 +36,14 @@ namespace navigation {
  * - time: Duration in seconds the obstacle was observed
  * - censored: true if we rerouted before obstacle cleared (right-censored),
  *             false if we observed the actual clearance time (uncensored)
+ * - episode: Episode number when this sample was recorded (for traceability)
  */
 struct SurvivalSample {
   double time;
   bool censored;
+  int episode;
   
-  SurvivalSample(double t = 0.0, bool c = false) : time(t), censored(c) {}
+  SurvivalSample(double t = 0.0, bool c = false, int ep = 0) : time(t), censored(c), episode(ep) {}
 };
 
 /**
@@ -77,8 +79,9 @@ class SurvivalModel {
    * \param obs_type Obstacle type (e.g., "person", "chair")
    * \param duration Duration in seconds
    * \param censored true if rerouted before clear, false if observed clear
+   * \param episode Episode number when this sample was recorded
    */
-  void addSample(const std::string& obs_type, double duration, bool censored);
+  void addSample(const std::string& obs_type, double duration, bool censored, int episode = 0);
   
   /**
    * \brief Add seed samples for initialization (uncensored).
@@ -113,13 +116,17 @@ class SurvivalModel {
   double meanSurvivalTime(const std::string& obs_type, double W_max = 300.0) const;
   
   /**
-   * \brief Compute conditional expected time E[T | T > elapsed].
+   * \brief Compute conditional expected time E[T | T > c].
+   * 
+   * Uses exact analytical integration over KM step function + exponential tail
+   * to guarantee FIFO compliance: E[T | T > c] is non-decreasing in c.
+   * 
    * \param obs_type Obstacle type
-   * \param elapsed Time already waited
+   * \param c Conditioning threshold (time already confirmed blocked)
    * \param W_max Maximum time to integrate to (default 300s)
-   * \return Expected total clearance time given we've waited elapsed seconds
+   * \return Expected total clearance time given obstacle lasted at least c seconds
    */
-  double conditionalExpectedTime(const std::string& obs_type, double elapsed, double W_max = 300.0) const;
+  double conditionalExpectedTime(const std::string& obs_type, double c, double W_max = 300.0) const;
   
   /**
    * \brief Get the maximum observed event time for an obstacle type.
@@ -154,9 +161,13 @@ class SurvivalModel {
    * Precomputed from samples for efficient S(t) queries.
    */
   struct KMEstimate {
-    std::vector<double> times;      // Sorted event times
+    std::vector<double> times;      // Sorted event times (all, for step function queries)
     std::vector<double> survival;   // S(t) at each time point
+    // Uncensored event times only (for exact integration in conditionalExpectedTime)
+    std::vector<double> uncensored_times;
+    std::vector<double> survival_at_uncensored;
     double max_event_time = 0.0;    // Largest uncensored time
+    double tail_lambda = 0.0;       // Exponential tail hazard rate for t > max_event_time
   };
   
   /**

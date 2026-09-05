@@ -81,6 +81,12 @@ class TDSPPlanner : public RoutePlannerInterface {
     banned_edges_ = banned;
   }
 
+  /** \brief Per-edge delay (seconds) added to every traversable arc (e.g. LEARNED EW). */
+  void setUniformEdgeDelay(const double delay_sec) {
+    uniform_static_delay_sec_ = delay_sec;
+  }
+  double uniformEdgeDelay() const { return uniform_static_delay_sec_; }
+
   /** \brief Path from -> to using departure time = now_sec() */
   PathType path(const VertexId &from, const VertexId &to) override;
 
@@ -122,6 +128,7 @@ class TDSPPlanner : public RoutePlannerInterface {
   std::function<double()> now_sec_;
 
   double nominal_speed_mps_ = 0.5;
+  double uniform_static_delay_sec_ = 0.0;
   std::unordered_map<EdgeId, double> static_edge_delays_;
   std::unordered_map<EdgeId, BlockageInterval> edge_blockages_;
   std::unordered_set<EdgeId> banned_edges_;

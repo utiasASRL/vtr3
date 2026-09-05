@@ -221,6 +221,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   
   // HSHMAT: Load wait strategy configuration
   {
+    run_idx_ = node_->declare_parameter<int>("route_planning.run_idx", 1);
+    graph_name_ = node_->declare_parameter<std::string>(
+        "route_planning.graph_name", "default_graph");
+    mission_time_limit_ = node_->declare_parameter<double>(
+        "route_planning.mission_time_limit", 2000.0);
+
+    // Learned data + real-world logs: ${VTRTEMP}/{graph_name}/run{run_idx}
+    std::string vtr_temp = common::utils::expand_env("${VTRTEMP}");
+    if (vtr_temp.empty()) vtr_temp = "/home/asrl/ASRL/vtr3/temp";
+    logging_output_dir_ = vtr_temp + "/" + graph_name_ + "/run" + std::to_string(run_idx_);
+
     std::string strategy_str = node_->declare_parameter<std::string>(
         "route_planning.obstacle_strategy.type", "learned");
     wait_strategy_config_.unknown_W_max = node_->declare_parameter<double>(
@@ -243,15 +254,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         "route_planning.obstacle_strategy.W_grid_points", 100);
     wait_strategy_config_.T_grid_points = node_->declare_parameter<int>(
         "route_planning.obstacle_strategy.T_grid_points", 50);
-    wait_strategy_config_.learned_data_dir = node_->declare_parameter<std::string>(
-        "route_planning.obstacle_strategy.learned_data_dir", "");
-    
-    // Expand environment variables in path
-    if (!wait_strategy_config_.learned_data_dir.empty()) {
-      wait_strategy_config_.learned_data_dir = 
-          common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.learned_data_dir));
-    }
-    
+
+    // Derived from route_planning.graph_name + run_idx (do not set learned_data_dir in YAML).
+    wait_strategy_config_.learned_data_dir = logging_output_dir_;
+
     // Load wait_types for rule_based strategy
     try {
       auto wait_types_vec = node_->declare_parameter<std::vector<std::string>>(
@@ -278,10 +284,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         "route_planning.obstacle_strategy.debug_plot_policy", false);
     wait_strategy_config_.debug_plot_dir = node_->declare_parameter<std::string>(
         "route_planning.obstacle_strategy.debug_plot_dir", "");
-    // Expand environment variables in debug_plot_dir
     if (!wait_strategy_config_.debug_plot_dir.empty()) {
-      wait_strategy_config_.debug_plot_dir = 
-          common::utils::expand_user(common::utils::expand_env(wait_strategy_config_.debug_plot_dir));
+      wait_strategy_config_.debug_plot_dir =
+          common::utils::expand_user(
+              common::utils::expand_env(wait_strategy_config_.debug_plot_dir));
+    } else {
+      wait_strategy_config_.debug_plot_dir = logging_output_dir_ + "/debug_plots";
     }
     
     // Create the strategy
@@ -322,13 +330,40 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       }
     }
     
-    wait_strategy_ = createWaitStrategy(strategy_type, wait_strategy_config_);
-    CLOG(INFO, "navigation") << "HSHMAT: Initialized wait strategy: " 
-                              << strategyTypeToString(strategy_type)
-                              << ", unknown_W_max=" << wait_strategy_config_.unknown_W_max << "s";
+    // Initialize the real-world logger FIRST so we can get starting_episode for debug plots
+    real_world_logger_ = std::make_unique<RealWorldLogger>();
+    if (real_world_logger_->init(logging_output_dir_, strategyTypeToString(strategy_type))) {
+      CLOG(INFO, "navigation") << "HSHMAT: Real-world logger initialized at " << logging_output_dir_;
+    } else {
+      CLOG(WARNING, "navigation") << "HSHMAT: Failed to initialize real-world logger";
+    }
     
-    // For learned strategy, set up graph access (done after graph is available)
-    // This will be called in setupLearnedStrategyGraphAccess()
+    // Initialize episode tracking
+    // Use logger's starting episode minus 1, so first increment yields correct episode number
+    // This handles resume: if last logged episode was 5, starting_episode=6, so current_episode_=5
+    // and after first increment on STARTING it becomes 6.
+    if (real_world_logger_ && real_world_logger_->isInitialized()) {
+      current_episode_ = real_world_logger_->getStartingEpisode() - 1;
+      CLOG(INFO, "navigation") << "HSHMAT: Resuming from episode " << (current_episode_ + 1)
+                               << " (last logged episode: " << current_episode_ << ")";
+    } else {
+      current_episode_ = 0;
+    }
+    
+    // Pass run_idx and starting_episode to config for debug plot naming
+    wait_strategy_config_.run_idx = run_idx_;
+    wait_strategy_config_.starting_episode = (real_world_logger_ && real_world_logger_->isInitialized())
+        ? real_world_logger_->getStartingEpisode() : 1;
+
+    wait_strategy_ = createWaitStrategy(strategy_type, wait_strategy_config_);
+    CLOG(INFO, "navigation") << "HSHMAT: Initialized wait strategy: "
+                              << strategyTypeToString(strategy_type)
+                              << ", unknown_W_max=" << wait_strategy_config_.unknown_W_max
+                              << "s, learned_data_dir=" << wait_strategy_config_.learned_data_dir;
+    episode_reroute_count_ = 0;
+    episode_wait_time_ = 0.0;
+    episode_encounter_counts_.clear();
+    current_encounter_start_sec_ = -1.0;
   }
 
   // HSHMAT: Create publishers
@@ -374,6 +409,49 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           CLOG(DEBUG, "mission.state_machine") << "HSHMAT: Speech completed signal received.";
         }
       });
+  
+  // HSHMAT: Subscribe to deadman state from repeat_deadman node for timing
+  // Time starts on first deadman press, ends on deadman release
+  {
+    const auto clock_type = node_->get_clock()->get_clock_type();
+    deadman_press_time_ = rclcpp::Time(0, 0, clock_type);
+    deadman_release_time_ = rclcpp::Time(0, 0, clock_type);
+    deadman_pressed_ = false;
+    deadman_timing_valid_ = false;
+  }
+  deadman_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
+      "/vtr/deadman_pressed", rclcpp::SystemDefaultsQoS(),
+      [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        if (!msg) return;
+        
+        const bool pressed = msg->data;
+        const bool was_pressed = deadman_pressed_;
+        deadman_pressed_ = pressed;
+        
+        // Press edge: record start time (only if we have a valid episode)
+        if (pressed && !was_pressed && current_episode_ > 0) {
+          // Only set press time if we don't already have a valid one for this episode
+          if (!deadman_timing_valid_) {
+            deadman_press_time_ = node_->get_clock()->now();
+            deadman_timing_valid_ = true;
+            CLOG(INFO, "mission.state_machine") 
+                << "HSHMAT: Deadman PRESSED - episode " << current_episode_ 
+                << " timer started at " << deadman_press_time_.seconds();
+          } else {
+            CLOG(DEBUG, "mission.state_machine") 
+                << "HSHMAT: Deadman re-pressed - keeping original start time";
+          }
+        }
+        
+        // Release edge: record end time
+        if (!pressed && was_pressed && current_episode_ > 0) {
+          deadman_release_time_ = node_->get_clock()->now();
+          CLOG(INFO, "mission.state_machine") 
+              << "HSHMAT: Deadman RELEASED - episode " << current_episode_ 
+              << " timer stopped at " << deadman_release_time_.seconds();
+        }
+      });
+  CLOG(INFO, "navigation") << "HSHMAT: Subscribed to /vtr/deadman_pressed for timing";
   
   {
     std_msgs::msg::Bool msg;
@@ -541,6 +619,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           const tactic::VertexId cur = getCurrentVertex();
           const int ri = followingRouteIndexOf(cur);
           last_path_index_ = (ri >= 0) ? ri : 0;
+          // Remember route size for mission-end flush (route may be cleared before onGoalFinishing)
+          episode_route_size_ = static_cast<int>(following_route_ids_.size());
           CLOG(DEBUG, "navigation") << "HSHMAT: following_route stored (" << following_route_ids_.size()
                                     << " verts), last_path_index_=" << last_path_index_;
         }
@@ -623,6 +703,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
         // Detect transition to STARTING state (new goal beginning)
         const bool goal_starting = (msg->current_goal_state == ServerStateMsg::STARTING) &&
                                    (last_goal_state_ != ServerStateMsg::STARTING);
+        // Detect transition to FINISHING state (goal completed)
+        const bool goal_finishing = (msg->current_goal_state == ServerStateMsg::FINISHING) &&
+                                    (last_goal_state_ != ServerStateMsg::FINISHING);
         last_goal_state_ = msg->current_goal_state;
         
         if (goal_starting) {
@@ -640,7 +723,37 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             CLOG(INFO, "mission.state_machine")
                 << "HSHMAT: Repeat goal starting - resetting obstacle state.";
             resetObstacleState();
+            
+            // HSHMAT: Reset episode counters and record start time for logging
+            current_episode_++;
+            mission_start_time_ = node_->get_clock()->now();
+            episode_reroute_count_ = 0;
+            episode_wait_time_ = 0.0;
+            episode_encounter_counts_.clear();
+            current_encounter_start_sec_ = -1.0;
+            episode_finalized_ = false;
+
+            // HSHMAT: Notify wait strategy of the new episode so debug-plot
+            // filenames use the authoritative mission episode index and reset
+            // the encounter counter to 1 for the first encounter of this episode.
+            if (wait_strategy_) {
+              wait_strategy_->notifyEpisodeStart(current_episode_);
+            }
+            
+            // HSHMAT: Reset deadman timing for new episode
+            deadman_timing_valid_ = false;
+            deadman_pressed_ = false;
+            
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT: Episode " << current_episode_ << " started - logging enabled (deadman timing reset).";
           }
+        }
+        
+        // HSHMAT: Handle goal finishing - log episode statistics
+        if (goal_finishing) {
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: Goal finishing detected - finalizing episode " << current_episode_;
+          onGoalFinishing();
         }
       },
       obstacle_sub_opt);
@@ -851,6 +964,7 @@ void Navigator::resetObstacleState() {
   
   // Reset learned edge stats baseline for new repeat
   last_path_index_ = 0;
+  pending_edge_traversals_ = 0;
   
   // Ensure robot is not paused
   if (robot_paused_) {
@@ -1026,6 +1140,93 @@ int Navigator::followingRouteIndexOf(const tactic::VertexId& v) const {
   return -1;
 }
 
+void Navigator::recordLearnedEdgeProgressUpToIndex(int idx_in_route) {
+  if (idx_in_route < 0) return;
+  if (!wait_strategy_ || wait_strategy_->type() != StrategyType::LEARNED) return;
+
+  LockGuard lock(obstacle_mutex_);
+
+  auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
+  if (!learned) return;
+
+  const int baseline = last_path_index_;
+  int edge_delta = idx_in_route - baseline;
+  if (edge_delta < 0) edge_delta = 0;
+  last_path_index_ = idx_in_route;
+
+  if (edge_delta <= 0) return;
+
+  // Buffer edge traversals (don't update stats yet - keeps p_block constant within episode)
+  pending_edge_traversals_ += edge_delta;
+  CLOG(INFO, "navigation") << "HSHMAT: Buffered +" << edge_delta
+                            << " edges (path index " << baseline << " -> " << idx_in_route
+                            << ", pending_total=" << pending_edge_traversals_ << ")";
+
+  // Clear memory for traversed edges (this is fine mid-episode - affects future decisions on these edges)
+  if (baseline >= 0 && idx_in_route > baseline) {
+    for (int i = baseline; i < idx_in_route && i + 1 < static_cast<int>(following_route_ids_.size()); ++i) {
+      tactic::VertexId v1(following_route_ids_[i]);
+      tactic::VertexId v2(following_route_ids_[i + 1]);
+      tactic::EdgeId edge(v1, v2);
+      learned->clearMemoryForEdge(edge);
+      tactic::EdgeId edge_rev(v2, v1);
+      learned->clearMemoryForEdge(edge_rev);
+    }
+    CLOG(DEBUG, "navigation") << "HSHMAT: Cleared memory for " << edge_delta
+                                << " successfully traversed edges";
+  }
+}
+
+void Navigator::flushLearnedEdgeTraversalsForEpisode() {
+  if (!wait_strategy_ || wait_strategy_->type() != StrategyType::LEARNED) return;
+
+  int idx_in_route = -1;
+  {
+    LockGuard lock(obstacle_mutex_);
+    // If following_route_ids_ was cleared (planner publishes empty route at end),
+    // fall back to the saved episode_route_size_ to credit remaining edges.
+    if (following_route_ids_.empty()) {
+      if (episode_route_size_ <= 0) {
+        CLOG(DEBUG, "navigation")
+            << "HSHMAT: Mission end edge flush skipped (no route info)";
+        return;
+      }
+      // Assume completed to goal: use last vertex index
+      idx_in_route = episode_route_size_ - 1;
+      CLOG(DEBUG, "navigation")
+          << "HSHMAT: Route cleared but episode_route_size_=" << episode_route_size_
+          << ", using idx_in_route=" << idx_in_route;
+    } else {
+      idx_in_route = followingRouteIndexOf(getCurrentVertex());
+      if (idx_in_route < 0) idx_in_route = followingRouteIndexOf(getGoalVertex());
+      if (idx_in_route < 0) {
+        idx_in_route = static_cast<int>(following_route_ids_.size()) - 1;
+      }
+    }
+  }
+
+  // Buffer any remaining edges from last obstacle to goal
+  recordLearnedEdgeProgressUpToIndex(idx_in_route);
+
+  auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
+  if (learned && learned->obstacleStats()) {
+    // Now flush all buffered edge traversals to obstacle stats
+    if (pending_edge_traversals_ > 0) {
+      learned->obstacleStats()->recordEdgeTraversals(pending_edge_traversals_);
+      CLOG(INFO, "navigation") << "HSHMAT: Flushed " << pending_edge_traversals_
+                                << " buffered edge traversals to obstacle_stats";
+    }
+    pending_edge_traversals_ = 0;
+    
+    learned->saveData();
+    CLOG(INFO, "navigation") << "HSHMAT: Saved learned stats after episode end "
+                              << "(total_edges_traversed="
+                              << learned->obstacleStats()->totalEdgesTraversed() << ")";
+  }
+  // Reset for next episode
+  episode_route_size_ = 0;
+}
+
 bool Navigator::routesSameRemaining(
     const std::vector<uint64_t>& snapshot,
     const std::vector<uint64_t>& new_route,
@@ -1098,54 +1299,28 @@ void Navigator::startObstacleEpisode() {
       CLOG(INFO, "mission.state_machine") << ss.str();
     }
     
+    // HSHMAT: Track encounter for logging
+    episode_encounter_counts_[last_obstacle_type_]++;
+    current_encounter_start_sec_ = obstacle_start_time_.seconds() - mission_start_time_.seconds();
+    current_encounter_blocked_edges_ = formatBlockedEdges(current_blocked_edges_);
+    CLOG(DEBUG, "mission.state_machine") 
+        << "HSHMAT: Encounter started - type=" << last_obstacle_type_ 
+        << ", t_see=" << current_encounter_start_sec_ << "s";
+    
     // Get current and goal vertices for TDSP
     tactic::VertexId current_v = getCurrentVertex();
     tactic::VertexId goal_v = getGoalVertex();
     double t_now = node_->get_clock()->now().seconds();
 
-    // Learned p_block: edges along stored path since last obstacle (or since route anchor).
-    // Example: first obstacle at index 23 -> +23, last_path_index_=23; next at 40 -> +17.
-    // No lock needed: same MutuallyExclusive callback group handles following_route + obstacle_status.
-    if (wait_strategy_ && wait_strategy_->type() == StrategyType::LEARNED) {
-      const int idx_in_route = followingRouteIndexOf(current_v);
-      if (idx_in_route >= 0) {
-        const int baseline = last_path_index_;
-        int edge_delta = idx_in_route - baseline;
-        if (edge_delta < 0) edge_delta = 0;
-        last_path_index_ = idx_in_route;
-        
-        if (edge_delta > 0) {
-          auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
-          if (learned && learned->obstacleStats()) {
-            learned->obstacleStats()->recordEdgeTraversals(edge_delta);
-            CLOG(INFO, "navigation") << "HSHMAT: Learned obstacle_stats: +" << edge_delta
-                                      << " edges (path index " << baseline << " -> " << idx_in_route << ")";
-          }
-          
-          // HSHMAT: Clear memory for successfully traversed edges.
-          // If robot traversed an edge that was previously marked as blocked in memory,
-          // we now know it's free. This ensures memory stays consistent with reality.
-          // Clear memory for edges from baseline to idx_in_route.
-          if (learned && baseline >= 0 && idx_in_route > baseline) {
-            for (int i = baseline; i < idx_in_route && i + 1 < static_cast<int>(following_route_ids_.size()); ++i) {
-              tactic::VertexId v1(following_route_ids_[i]);
-              tactic::VertexId v2(following_route_ids_[i + 1]);
-              tactic::EdgeId edge(v1, v2);
-              learned->clearMemoryForEdge(edge);
-              // Also clear reverse edge
-              tactic::EdgeId edge_rev(v2, v1);
-              learned->clearMemoryForEdge(edge_rev);
-            }
-            CLOG(DEBUG, "navigation") << "HSHMAT: Cleared memory for " << edge_delta 
-                                      << " successfully traversed edges";
-          }
-        }
-      } else if (!following_route_ids_.empty()) {
-        CLOG(WARNING, "navigation")
-            << "HSHMAT: Current vertex " << current_v
-            << " not found in following_route (" << following_route_ids_.size()
-            << " verts); edge count for this episode skipped.";
-      }
+    // Learned p_block: edges along stored path since last anchor (or mission start).
+    const int idx_in_route = followingRouteIndexOf(current_v);
+    if (idx_in_route >= 0) {
+      recordLearnedEdgeProgressUpToIndex(idx_in_route);
+    } else if (!following_route_ids_.empty()) {
+      CLOG(WARNING, "navigation")
+          << "HSHMAT: Current vertex " << current_v
+          << " not found in following_route (" << following_route_ids_.size()
+          << " verts); edge count for this episode skipped.";
     }
     
     // Ensure graph access is set up for learned strategy
@@ -1171,6 +1346,30 @@ void Navigator::startObstacleEpisode() {
       // Immediate reroute - speak and WAIT before triggering reroute
       // This ensures speech completes before robot might start moving
       CLOG(INFO, "mission.state_machine") << "HSHMAT: Starting speakAndWait for reroute...";
+      
+      // HSHMAT: Record encounter to logger (immediate reroute, duration=0)
+      if (real_world_logger_ && real_world_logger_->isInitialized() && current_episode_ > 0) {
+        RealWorldLogger::EncounterRecord rec;
+        rec.episode = current_episode_;
+        rec.blocked_edge = current_encounter_blocked_edges_;
+        rec.obs_type = last_obstacle_type_;
+        rec.W_star = current_W_star_;
+        rec.decision = "reroute";
+        rec.t_see = current_encounter_start_sec_;
+        rec.duration = 0.0;  // Immediate reroute, no waiting
+        real_world_logger_->recordEncounter(rec);
+        episode_reroute_count_++;
+      }
+      // HSHMAT: An immediate reroute still observed an obstacle (we just chose
+      // not to wait). To stay in lockstep with the simulator's sim2real ingest
+      // — which treats every encounter row as a censored-at-0 KM sample and
+      // bumps obstacle_stats type_counts / total_obstacle_episodes — we record
+      // the same here. Without this, p_block and the type mixture (and hence
+      // E[wait|new] used by TDSP) drift between sim and real after every
+      // reroute, with the drift being especially large for bins (long mean).
+      wait_strategy_->onRerouteTimeout(last_obstacle_type_, 0.0, current_episode_);
+      current_encounter_start_sec_ = -1.0;  // Reset for next encounter
+      
       speakAndWait(decision.speech, 5.0);
       CLOG(INFO, "mission.state_machine") << "HSHMAT: speakAndWait completed, triggering reroute...";
       {
@@ -1297,8 +1496,25 @@ void Navigator::onObstacleCleared() {
     wait_timer_.reset();
   }
   
+  // HSHMAT: Record encounter to logger (decision=wait, obstacle cleared)
+  if (real_world_logger_ && real_world_logger_->isInitialized() && current_episode_ > 0) {
+    RealWorldLogger::EncounterRecord rec;
+    rec.episode = current_episode_;
+    rec.blocked_edge = current_encounter_blocked_edges_;
+    rec.obs_type = episode_type;
+    rec.W_star = current_W_star_;
+    rec.decision = "wait";
+    rec.t_see = current_encounter_start_sec_;
+    rec.duration = elapsed;
+    real_world_logger_->recordEncounter(rec);
+    
+    // Accumulate wait time for episode stats
+    episode_wait_time_ += elapsed;
+  }
+  current_encounter_start_sec_ = -1.0;  // Reset for next encounter
+  
   // Record uncensored sample for learned strategy (survival model)
-  wait_strategy_->onObstacleCleared(episode_type, elapsed);
+  wait_strategy_->onObstacleCleared(episode_type, elapsed, current_episode_);
   
   // HSHMAT: Speak and WAIT for speech to complete BEFORE resuming robot
   // This ensures the robot doesn't start moving while saying "Obstacle cleared"
@@ -1469,8 +1685,26 @@ void Navigator::onWaitTimeout() {
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: Wait timeout after " << elapsed << "s (W*=" << current_W_star_ << "s). Rerouting.";
   
+  // HSHMAT: Record encounter to logger (decision=reroute, timeout)
+  if (real_world_logger_ && real_world_logger_->isInitialized() && current_episode_ > 0) {
+    RealWorldLogger::EncounterRecord rec;
+    rec.episode = current_episode_;
+    rec.blocked_edge = current_encounter_blocked_edges_;
+    rec.obs_type = episode_type;
+    rec.W_star = current_W_star_;
+    rec.decision = "reroute";
+    rec.t_see = current_encounter_start_sec_;
+    rec.duration = elapsed;
+    real_world_logger_->recordEncounter(rec);
+    
+    // Accumulate wait time and increment reroute count
+    episode_wait_time_ += elapsed;
+    episode_reroute_count_++;
+  }
+  current_encounter_start_sec_ = -1.0;  // Reset for next encounter
+  
   // Record censored sample for learned strategy
-  wait_strategy_->onRerouteTimeout(episode_type, elapsed);
+  wait_strategy_->onRerouteTimeout(episode_type, elapsed, current_episode_);
   
   // HSHMAT: Update memory timestamp after censored wait.
   // This updates t_last_confirmed so that future expected wait calculations
@@ -2198,29 +2432,44 @@ void Navigator::triggerReroute() {
         tdsp->setBannedEdges(edges_to_ban);
         tdsp->setStaticEdgeDelays({});
         tdsp->setEdgeBlockages({});
+        tdsp->setUniformEdgeDelay(0.0);
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT: greedy_ctp - banned " << edges_to_ban.size() << " edges";
             
       } else if (st == StrategyType::ALWAYS_DETOUR || st == StrategyType::RULE_BASED ||
                  st == StrategyType::LEARNED) {
         // ALWAYS_DETOUR / RULE_BASED / LEARNED: Ban current blocked edges only (memoryless)
-        // For LEARNED: The survival model is used for W* decision (wait vs detour), but
-        // once we've decided to reroute, we simply ban the blocked edges and find an alternate path.
-        // The expected-wait edge costs from the survival model were already used in computeWaitTime().
+        // For LEARNED: W* uses EW-TDSP (A_avoid). Reroute must use the same per-edge
+        // expected-wait cost model, otherwise the executed path can differ from A_avoid
+        // (e.g. pure-travel picks 2->7->24->11 while EW-TDSP picks straight branch 2).
+        // Sim executes the EW detour; real must match for scenario site parity.
         for (const auto& e : affected_edges) {
           edges_to_ban.insert(e);
         }
         tdsp->setBannedEdges(edges_to_ban);
         tdsp->setStaticEdgeDelays({});
         tdsp->setEdgeBlockages({});
-        CLOG(INFO, "mission.state_machine")
-            << "HSHMAT: " << strategyTypeToString(st) << " - banned " << edges_to_ban.size() << " edges";
+        if (st == StrategyType::LEARNED) {
+          auto* learned = dynamic_cast<LearnedStrategy*>(wait_strategy_.get());
+          const double ew_uniform =
+              learned ? learned->freshEdgeExpectedWait() : 0.0;
+          tdsp->setUniformEdgeDelay(ew_uniform);
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: LEARNED - banned " << edges_to_ban.size()
+              << " edges + uniform EW delay " << ew_uniform << "s/edge (matches A_avoid TDSP)";
+        } else {
+          tdsp->setUniformEdgeDelay(0.0);
+          CLOG(INFO, "mission.state_machine")
+              << "HSHMAT: " << strategyTypeToString(st) << " - banned "
+              << edges_to_ban.size() << " edges";
+        }
             
       } else {
         // ALWAYS_WAIT or unknown: no special planner config
         tdsp->setBannedEdges({});
         tdsp->setStaticEdgeDelays({});
         tdsp->setEdgeBlockages({});
+        tdsp->setUniformEdgeDelay(0.0);
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT: " << strategyTypeToString(st) << " - no edge bans";
       }
@@ -2492,6 +2741,109 @@ void Navigator::cameraCallback(
   cv_set_or_stop_.notify_one();
 };
 #endif
+
+// =========================================================================
+// HSHMAT: Real-world logging helper functions
+// =========================================================================
+
+std::string Navigator::formatBlockedEdges(const EdgeIdSet& edges) const {
+  std::ostringstream ss;
+  bool first = true;
+  for (const auto& e : edges) {
+    if (!first) ss << ";";
+    ss << "(" << e.majorId1() << "," << e.minorId1() << ")-("
+       << e.majorId2() << "," << e.minorId2() << ")";
+    first = false;
+  }
+  return ss.str();
+}
+
+void Navigator::onGoalFinishing() {
+  // Only log if we have a valid episode (started via goal STARTING)
+  if (current_episode_ <= 0) {
+    CLOG(DEBUG, "mission.state_machine") 
+        << "HSHMAT: onGoalFinishing called but no active episode (current_episode_=" << current_episode_ << ")";
+    return;
+  }
+  
+  // Prevent double-finalization (e.g., goal reached then Ctrl+C prompt)
+  if (episode_finalized_) {
+    CLOG(DEBUG, "mission.state_machine") 
+        << "HSHMAT: Episode already finalized, skipping.";
+    return;
+  }
+  
+  if (!real_world_logger_ || !real_world_logger_->isInitialized()) {
+    CLOG(WARNING, "mission.state_machine") << "HSHMAT: Logger not initialized, skipping episode finalization";
+    return;
+  }
+  
+  // HSHMAT: Compute time_to_goal using deadman timing (first press → last release)
+  // Falls back to mission server timing if deadman was never pressed
+  double time_to_goal = 0.0;
+  
+  if (deadman_timing_valid_) {
+    // Use deadman-based timing: release_time - press_time
+    // If deadman is currently pressed (no release yet), use now as end time
+    rclcpp::Time end_time = deadman_pressed_ ? node_->get_clock()->now() : deadman_release_time_;
+    time_to_goal = (end_time - deadman_press_time_).seconds();
+    
+    CLOG(INFO, "mission.state_machine") 
+        << "HSHMAT: Using deadman timing - press=" << deadman_press_time_.seconds()
+        << ", release=" << end_time.seconds() << ", duration=" << time_to_goal << "s";
+  } else {
+    // Fallback: use mission server timing (STARTING → now)
+    time_to_goal = (node_->get_clock()->now() - mission_start_time_).seconds();
+    CLOG(WARNING, "mission.state_machine") 
+        << "HSHMAT: No deadman timing - falling back to mission server timing: " << time_to_goal << "s";
+  }
+  
+  // Determine success based on time limit
+  bool success = (time_to_goal <= mission_time_limit_);
+  
+  // If failed, cap time_to_goal at the limit for logging
+  if (!success) {
+    CLOG(INFO, "mission.state_machine") 
+        << "HSHMAT: Episode " << current_episode_ << " exceeded time limit (" 
+        << time_to_goal << "s > " << mission_time_limit_ << "s) - marking as failed";
+    time_to_goal = mission_time_limit_;
+  }
+  
+  // Credit path edges for learned p_block even when no obstacles were encountered.
+  flushLearnedEdgeTraversalsForEpisode();
+  
+  // Flush pending KM samples to model (per-episode update to match simulation behavior)
+  if (wait_strategy_) {
+    wait_strategy_->flushPendingSamplesToKM();
+  }
+
+  // Get strategy name
+  std::string strategy_name = "UNKNOWN";
+  if (wait_strategy_) {
+    strategy_name = strategyTypeToString(wait_strategy_->type());
+  }
+  
+  // Build episode stats
+  RealWorldLogger::EpisodeStats stats;
+  stats.episode = current_episode_;
+  stats.strategy = strategy_name;
+  stats.time_to_goal = time_to_goal;
+  stats.success = success;
+  stats.reroutes = episode_reroute_count_;
+  stats.waiting_time = episode_wait_time_;
+  stats.encounters = episode_encounter_counts_;
+  
+  // Log to file
+  real_world_logger_->finalizeEpisode(stats);
+  
+  // Mark as finalized to prevent double-logging on shutdown
+  episode_finalized_ = true;
+  
+  CLOG(INFO, "mission.state_machine") 
+      << "HSHMAT: Episode " << current_episode_ << " finalized - "
+      << "time=" << stats.time_to_goal << "s, success=" << (stats.success ? "true" : "false")
+      << ", reroutes=" << stats.reroutes << ", wait_time=" << stats.waiting_time << "s";
+}
 
 }  // namespace navigation
 }  // namespace vtr

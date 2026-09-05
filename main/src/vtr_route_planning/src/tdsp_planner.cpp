@@ -125,7 +125,13 @@ auto TDSPPlanner::tdsp(const VertexId &from, const VertexId &to,
     VertexId v;
   };
   struct Cmp {
-    bool operator()(const QItem &a, const QItem &b) const { return a.t > b.t; }
+    // Primary: earlier arrival wins (min-heap, so larger t has lower priority)
+    // Tie-break: smaller vertex ID wins (lexicographic: major, then minor)
+    // This matches Python heapq behavior with (arrival_time, (major, minor)) tuples
+    bool operator()(const QItem &a, const QItem &b) const {
+      if (a.t != b.t) return a.t > b.t;
+      return a.v > b.v;  // smaller vertex ID has higher priority
+    }
   };
   std::priority_queue<QItem, std::vector<QItem>, Cmp> pq;
   pq.push({depart_sec, from});
@@ -193,9 +199,9 @@ double TDSPPlanner::arcArrival(const GraphBasePtr &graph, const EdgeId &e,
   const double travel = len_m * inv_speed;
 
   // Static edge delay (seconds), e.g. huge_delay from grid intersections.
-  double static_delay = 0.0;
+  double static_delay = uniform_static_delay_sec_;
   if (auto it = static_edge_delays_.find(e); it != static_edge_delays_.end()) {
-    static_delay = it->second;
+    static_delay += it->second;
   }
 
   // FIFO blockage waiting: if arrival is within [start,end), wait until end.
