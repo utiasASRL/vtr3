@@ -282,6 +282,9 @@ WaitDecision SparrowStrategy::computeWaitTime(
   const double age = (obstacle_t_first > 0.0 && t_now > obstacle_t_first)
                          ? (t_now - obstacle_t_first)
                          : 0.0;
+  // Fresh encounter (first plan for this obstacle): the VLM has not been
+  // called yet, so Observe is available again.
+  if (obstacle_t_first <= 0.0) observe_used_ = false;
   for (const auto& e : blocked_s) {
     auto& mem = memory_[e];
     const double first = t_now - age;
@@ -358,11 +361,26 @@ WaitDecision SparrowStrategy::computeWaitTime(
   static const std::vector<SVertex> kNoNbrs;
   auto nit = ctx.neighbors.find(planning_vertex);
   const auto& pv_nbrs = (nit == ctx.neighbors.end()) ? kNoNbrs : nit->second;
-  // Observe is never a root action on the robot (VLM already classified).
-  const auto root_actions =
+  // HSHMAT: Observe IS a root action when the front obstacle is unlabeled -
+  // this is the whole point of SPARROW: the VLM is only called when the POMCP
+  // decides the classification is worth delta_obs_s, not on every detection.
+  // Only the edge(s) the robot is actually facing can be classified by the
+  // camera, so Observe on other adjacent blocked edges is filtered out.
+  const bool root_observe =
+      sp.allow_observe && label.empty() && !observe_used_;
+  auto root_actions =
       sparrow::valid_actions(planning_vertex, root_statuses, pv_nbrs,
                              /*classified=*/{}, sp.wait_durations,
-                             /*allow_observe=*/false);
+                             /*allow_observe=*/root_observe);
+  if (root_observe) {
+    root_actions.erase(
+        std::remove_if(root_actions.begin(), root_actions.end(),
+                       [&](const SAction& a) {
+                         return a.kind == SAction::OBSERVE &&
+                                blocked_s.count(a.edge) == 0;
+                       }),
+        root_actions.end());
+  }
   if (root_actions.empty()) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: No root actions at vertex "
@@ -416,6 +434,12 @@ WaitDecision SparrowStrategy::computeWaitTime(
   }
 
   const SAction& best = result.action.value();
+  if (best.kind == SAction::OBSERVE) {
+    // The POMCP decided the VLM label is worth its cost. The Navigator will
+    // request one classification and call computeWaitTime again with it.
+    observe_used_ = true;
+    return WaitDecision::observe("Observing obstacle.");
+  }
   if (best.kind == SAction::MAXWAIT) {
     // Safety valve: cap the cumulative wait across re-plans of one episode.
     const double waited_so_far = age;

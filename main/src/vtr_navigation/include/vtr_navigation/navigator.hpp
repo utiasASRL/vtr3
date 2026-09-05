@@ -319,6 +319,13 @@ typedef message_filters::sync_policies::ApproximateTime<
   bool sparrow_use_costmap_edge_check_ = true;
   double sparrow_edge_check_length_m_ = 2.5;
   double sparrow_edge_check_radius_m_ = 0.4;
+
+  // HSHMAT SPARROW: on-demand VLM classification (Observe action).
+  // The POMCP chose Observe: we published /vtr/request_classification, entered
+  // AwaitingClassification, and when /vtr/obstacle_type arrives
+  // startObstacleEpisode() re-plans WITHOUT redoing episode bookkeeping.
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr request_classification_pub_;
+  bool sparrow_observe_pending_ = false;
   
   // Learned p_block: index along stored following_route_ids_. On obstacle or mission end: add (idx - last_path_index_), then last_path_index_=idx.
   // New repeat -> 0. Each following_route that replaces the path -> re-anchor to current vertex index (reroute included).

@@ -146,6 +146,10 @@ class SparrowStrategy : public WaitStrategy {
 
   int episode_idx_ = 0;
   uint64_t plan_counter_ = 0;  // varies the search seed across encounters
+  // HSHMAT: one on-demand VLM call per encounter. Reset when a fresh
+  // encounter starts (obstacle_t_first == 0), so a re-plan after Observe (or
+  // after a MaxWait expires) cannot loop the VLM if it keeps saying unknown.
+  bool observe_used_ = false;
 };
 
 }  // namespace navigation

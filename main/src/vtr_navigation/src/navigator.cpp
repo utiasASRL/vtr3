@@ -423,14 +423,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       "/vtr/use_chatgpt", latched_qos);
   
   // HSHMAT: Publish use_chatgpt based on strategy type.
-  // Only rule_based and learned need ChatGPT for obstacle type classification.
-  // always_wait, always_detour, and greedy_ctp don't care about obstacle type.
+  // Only rule_based and learned need ChatGPT auto-classification on every
+  // detection. always_wait, always_detour, and greedy_ctp don't care about
+  // obstacle type. SPARROW deliberately publishes FALSE: it never wants the
+  // VLM called automatically - the POMCP itself decides when a classification
+  // is worth its cost, and only then does the Navigator request one via
+  // /vtr/request_classification.
   {
     std_msgs::msg::Bool chatgpt_msg;
     if (wait_strategy_) {
       StrategyType stype = wait_strategy_->type();
-      chatgpt_msg.data = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED ||
-                          stype == StrategyType::SPARROW);
+      chatgpt_msg.data = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED);
     } else {
       chatgpt_msg.data = false;  // Default to false if no strategy
     }
@@ -438,6 +441,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     CLOG(INFO, "navigation") << "HSHMAT: Published use_chatgpt=" << (chatgpt_msg.data ? "true" : "false")
                              << " based on strategy type.";
   }
+
+  // HSHMAT SPARROW: On-demand VLM classification request. Published only when
+  // the POMCP chooses the Observe action; the decision node answers on
+  // /vtr/obstacle_type.
+  request_classification_pub_ = node_->create_publisher<std_msgs::msg::Bool>(
+      "/vtr/request_classification", rclcpp::SystemDefaultsQoS());
   
   // HSHMAT: Subscribe to speech completion signal from decision node
   // NOTE: This must NOT use the MutuallyExclusive callback_group_ (sub_opt) because
@@ -568,8 +577,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
               
               // Check if strategy needs VLM classification (rule_based or learned)
               StrategyType stype = wait_strategy_ ? wait_strategy_->type() : StrategyType::ALWAYS_WAIT;
-              bool needs_vlm = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED ||
-                                stype == StrategyType::SPARROW);
+              bool needs_vlm = (stype == StrategyType::RULE_BASED || stype == StrategyType::LEARNED);
               
               if (needs_vlm) {
                 // Wait for VLM to classify obstacle before making decision
@@ -580,7 +588,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
                 CLOG(INFO, "mission.state_machine")
                     << "HSHMAT: DETECTED + Idle -> AwaitingClassification (waiting for VLM)";
               } else {
-                // Strategies that don't need VLM (always_wait, always_detour, greedy_ctp)
+                // Strategies that don't need VLM up front (always_wait,
+                // always_detour, greedy_ctp, sparrow). SPARROW plans
+                // immediately with an unlabeled obstacle and only calls the
+                // VLM if the POMCP picks the Observe action.
+                if (stype == StrategyType::SPARROW) {
+                  last_obstacle_type_ = "unknown";
+                  sparrow_observe_pending_ = false;
+                }
                 obstacle_state_ = ObstacleState::Waiting;
                 should_start_episode = true;
                 CLOG(INFO, "mission.state_machine")
@@ -1540,53 +1555,77 @@ void Navigator::startObstacleEpisode() {
   // HSHMAT: Called when obstacle detected
   // NOTE: obstacle_state_ is already set to Waiting by caller as a guard against re-entry
   
+  // HSHMAT SPARROW: if this call is the re-plan after an Observe action (VLM
+  // label just arrived on /vtr/obstacle_type), the episode already started -
+  // keep its start time / encounter bookkeeping and only re-run the planner
+  // with the new label and the true obstacle age.
+  bool observe_replan = false;
+  {
+    LockGuard lock(obstacle_mutex_);
+    observe_replan = sparrow_observe_pending_;
+    sparrow_observe_pending_ = false;
+  }
+  
   try {
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: ============================================================";
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: OBSTACLE DETECTED! Type='" << last_obstacle_type_ << "'";
-    CLOG(INFO, "mission.state_machine")
-        << "HSHMAT: ============================================================";
-    
-    obstacle_start_time_ = node_->get_clock()->now();
-    wait_episode_type_ = last_obstacle_type_;
-    wait_episode_start_sec_ = obstacle_start_time_.seconds();
-    
-    // Pause robot immediately
-    setRobotPaused(true);
-    
-    // Compute which edges are blocked by this obstacle
-    current_blocked_edges_ = computeBlockedEdges();
-    {
-      std::stringstream ss;
-      ss << "HSHMAT: Blocked edges (" << current_blocked_edges_.size() << "): ";
-      for (const auto& e : current_blocked_edges_) ss << e << " ";
-      ss << " [current_v=" << getCurrentVertex() << "]";
-      CLOG(INFO, "mission.state_machine") << ss.str();
+    if (!observe_replan) {
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: ============================================================";
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: OBSTACLE DETECTED! Type='" << last_obstacle_type_ << "'";
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT: ============================================================";
+      
+      obstacle_start_time_ = node_->get_clock()->now();
+      wait_episode_type_ = last_obstacle_type_;
+      wait_episode_start_sec_ = obstacle_start_time_.seconds();
+      
+      // Pause robot immediately
+      setRobotPaused(true);
+      
+      // Compute which edges are blocked by this obstacle
+      current_blocked_edges_ = computeBlockedEdges();
+      {
+        std::stringstream ss;
+        ss << "HSHMAT: Blocked edges (" << current_blocked_edges_.size() << "): ";
+        for (const auto& e : current_blocked_edges_) ss << e << " ";
+        ss << " [current_v=" << getCurrentVertex() << "]";
+        CLOG(INFO, "mission.state_machine") << ss.str();
+      }
+      
+      // HSHMAT: Track encounter for logging
+      episode_encounter_counts_[last_obstacle_type_]++;
+      current_encounter_start_sec_ = obstacle_start_time_.seconds() - mission_start_time_.seconds();
+      current_encounter_blocked_edges_ = formatBlockedEdges(current_blocked_edges_);
+      CLOG(DEBUG, "mission.state_machine") 
+          << "HSHMAT: Encounter started - type=" << last_obstacle_type_ 
+          << ", t_see=" << current_encounter_start_sec_ << "s";
+    } else {
+      // Same encounter, fresher information: update the label used for
+      // learning records, keep everything else.
+      wait_episode_type_ = last_obstacle_type_;
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT SPARROW: VLM answered '" << last_obstacle_type_
+          << "' - re-planning same encounter (started "
+          << (node_->get_clock()->now().seconds() - wait_episode_start_sec_)
+          << "s ago)";
     }
-    
-    // HSHMAT: Track encounter for logging
-    episode_encounter_counts_[last_obstacle_type_]++;
-    current_encounter_start_sec_ = obstacle_start_time_.seconds() - mission_start_time_.seconds();
-    current_encounter_blocked_edges_ = formatBlockedEdges(current_blocked_edges_);
-    CLOG(DEBUG, "mission.state_machine") 
-        << "HSHMAT: Encounter started - type=" << last_obstacle_type_ 
-        << ", t_see=" << current_encounter_start_sec_ << "s";
     
     // Get current and goal vertices for TDSP
     tactic::VertexId current_v = getCurrentVertex();
     tactic::VertexId goal_v = getGoalVertex();
     double t_now = node_->get_clock()->now().seconds();
 
-    // Learned p_block: edges along stored path since last anchor (or mission start).
-    const int idx_in_route = followingRouteIndexOf(current_v);
-    if (idx_in_route >= 0) {
-      recordLearnedEdgeProgressUpToIndex(idx_in_route);
-    } else if (!following_route_ids_.empty()) {
-      CLOG(WARNING, "navigation")
-          << "HSHMAT: Current vertex " << current_v
-          << " not found in following_route (" << following_route_ids_.size()
-          << " verts); edge count for this episode skipped.";
+    if (!observe_replan) {
+      // Learned p_block: edges along stored path since last anchor (or mission start).
+      const int idx_in_route = followingRouteIndexOf(current_v);
+      if (idx_in_route >= 0) {
+        recordLearnedEdgeProgressUpToIndex(idx_in_route);
+      } else if (!following_route_ids_.empty()) {
+        CLOG(WARNING, "navigation")
+            << "HSHMAT: Current vertex " << current_v
+            << " not found in following_route (" << following_route_ids_.size()
+            << " verts); edge count for this episode skipped.";
+      }
     }
     
     // Ensure graph access is set up for learned strategy
@@ -1600,8 +1639,32 @@ void Navigator::startObstacleEpisode() {
         current_v,
         goal_v,
         t_now,
-        0.0);  // obstacle_t_first = 0 for new obstacle
+        // 0 for a brand-new obstacle; on an Observe re-plan pass the original
+        // detection time so the strategy sees the true obstacle age.
+        observe_replan ? wait_episode_start_sec_ : 0.0);
     current_W_star_ = decision.W_star;
+    
+    // HSHMAT SPARROW: the POMCP chose Observe - request one VLM classification
+    // and re-plan when /vtr/obstacle_type arrives (handled by its callback,
+    // which sends us through startObstacleEpisode again with
+    // sparrow_observe_pending_ set).
+    if (decision.request_observation) {
+      {
+        LockGuard lock(obstacle_mutex_);
+        obstacle_state_ = ObstacleState::AwaitingClassification;
+        sparrow_observe_pending_ = true;
+      }
+      std_msgs::msg::Bool req;
+      req.data = true;
+      request_classification_pub_->publish(req);
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT SPARROW: Observe chosen -> requested VLM classification, "
+             "FSM -> AwaitingClassification";
+      // Speak AFTER publishing: the decision node waits for this speech to
+      // finish before grabbing a fresh mask + image (stable-mask delay).
+      speakAndWait(decision.speech, 5.0);
+      return;
+    }
     
     CLOG(INFO, "mission.state_machine")
         << "HSHMAT: Strategy=" << strategyTypeToString(wait_strategy_->type())
@@ -1960,6 +2023,8 @@ void Navigator::onWaitTimeout() {
     // MaxWait, extend the wait; if it chooses Traverse, fall through to the
     // normal reroute path.
     bool wait_again = false;
+    bool observe_now = false;
+    std::string observe_speech;
     double extra_W = 0.0;
     try {
       const tactic::VertexId current_v = getCurrentVertex();
@@ -1971,7 +2036,11 @@ void Navigator::onWaitTimeout() {
       WaitDecision d = wait_strategy_->computeWaitTime(
           episode_type, current_blocked_edges_, current_v, goal_v, t_now,
           t_first);
-      if (d.should_wait && d.W_star > 0.0 && std::isfinite(d.W_star)) {
+      if (d.request_observation) {
+        // Waited without a label; now the POMCP wants the VLM before deciding.
+        observe_now = true;
+        observe_speech = d.speech;
+      } else if (d.should_wait && d.W_star > 0.0 && std::isfinite(d.W_star)) {
         wait_again = true;
         extra_W = d.W_star;
       }
@@ -1979,6 +2048,29 @@ void Navigator::onWaitTimeout() {
       CLOG(WARNING, "mission.state_machine")
           << "HSHMAT SPARROW: re-plan on timeout failed (" << e.what()
           << ") - rerouting.";
+    }
+
+    if (observe_now) {
+      bool do_request = false;
+      {
+        LockGuard lock(obstacle_mutex_);
+        // The obstacle may have cleared while we were planning.
+        if (obstacle_state_ == ObstacleState::Waiting) {
+          obstacle_state_ = ObstacleState::AwaitingClassification;
+          sparrow_observe_pending_ = true;
+          do_request = true;
+        }
+      }
+      if (do_request) {
+        std_msgs::msg::Bool req;
+        req.data = true;
+        request_classification_pub_->publish(req);
+        CLOG(INFO, "mission.state_machine")
+            << "HSHMAT SPARROW: timeout re-plan chose Observe -> requested "
+               "VLM classification, FSM -> AwaitingClassification";
+        speakAndWait(observe_speech, 5.0);
+      }
+      return;
     }
 
     if (wait_again) {
