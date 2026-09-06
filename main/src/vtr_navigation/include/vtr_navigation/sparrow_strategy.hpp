@@ -18,30 +18,30 @@
  *        WaitStrategy interface and the sparrow_planner POMCP core.
  *
  * HSHMAT: SPARROW is the POMCP planner from vtr_obstacle_simulation
- * ("POMCP" strategy in the sim, SPARROW in the paper). At every obstacle
- * encounter (and, unlike other strategies, again at every wait timeout) it:
+ * ("POMCP" strategy in the sim, SPARROW in the paper). At every decision
+ * epoch - obstacle encounter, wait timeout, Observe completion, and junction
+ * approach with a relevant belief (every-decision replanning, paper
+ * Table VII) - it:
  *
  *  1. Builds a graph context from the privileged (teach) graph via the same
  *     graph-access lambdas the Learned strategy uses.
  *  2. Assembles the robot's local observation: which adjacent edges are
  *     blocked / free / unknown (from the obstacle detector + costmap via the
- *     Navigator's adjacent-edge-status hook), the observed age of the current
- *     encounter, its VLM class label, and remembered past sightings.
+ *     Navigator's adjacent-edge-status hook), the observed ages / labels of
+ *     blocked edges, and remembered / archived past sightings.
  *  3. Draws N fresh particles conditioned on that observation from a frozen
  *     snapshot of the learned model (KM survival fits + obstacle stats).
  *  4. Runs cost-minimizing POMCP and maps the root action to a WaitDecision:
- *     MaxWait(W) -> wait(W), Traverse(detour) -> detour.
+ *     MaxWait(W) -> wait(W), Observe(e) -> request one VLM classification of
+ *     edge e (this is the ONLY path that calls the VLM), Traverse -> detour
+ *     committed to the chosen corridor (the Navigator bans the alternative
+ *     corridor entrances so the reroute executes exactly this action).
  *
- * Differences from the simulation, by design of the Navigator FSM:
- *  - Observe is never offered at the root: the VLM classification already
- *    happened before computeWaitTime is called (Observe still exists inside
- *    the search for hypothetical future encounters).
- *  - A root Traverse decision hands route choice to the Navigator's reroute
- *    (TDSP with banned blocked edges + uniform expected-wait delay), same as
- *    the Learned strategy.
- *  - Adjacent edges out of sensor range are "unknown": the belief samples
- *    them from the steady-state prior and a root Traverse onto them is
- *    allowed (the detector will re-trigger if they turn out blocked).
+ * Continuous monitoring: the Navigator calls updateEdgeMonitoring at ~1 Hz
+ * with the costmap-derived statuses of the edges around the robot. This keeps
+ * per-edge sighting streaks honest: a gap longer than monitor_gap_s means the
+ * edge genuinely left view, so the old record is archived and the belief's
+ * same-obstacle-vs-new-obstacle mixture applies on the next sighting.
  */
 #pragma once
 
@@ -101,10 +101,47 @@ class SparrowStrategy : public WaitStrategy {
    */
   double freshEdgeExpectedWait() const;
 
+  /**
+   * \brief Every-decision replanning entry point: plan at an upcoming
+   *        decision vertex (junction) while the robot is still driving
+   *        toward it. No front blockage is required; blocked information
+   *        comes from the adjacent-status hook and remembered sightings.
+   */
+  WaitDecision planEnRoute(const tactic::VertexId& robot_vertex,
+                           const tactic::VertexId& junction_vertex,
+                           const tactic::VertexId& goal_vertex, double t_now);
+
+  /**
+   * \brief Continuous monitoring update (~1 Hz from the Navigator): statuses
+   *        of edges currently in costmap view (1 blocked / 0 free / -1
+   *        unknown). Maintains per-edge sighting streaks so "re-sighting"
+   *        means the edge genuinely left view, not "a wait cycle passed".
+   */
+  void updateEdgeMonitoring(const std::map<tactic::EdgeId, int>& statuses,
+                            double t_now);
+
+  /** \brief Edges currently remembered as blocked (junction-replan trigger). */
+  std::vector<std::pair<uint64_t, uint64_t>> rememberedBlockedEdges() const;
+
   /** \brief Persist survival model + obstacle stats. */
   void saveData();
 
  private:
+  /// Shared core of computeWaitTime / planEnRoute. If plan_vertex_override is
+  /// nonzero, planning happens at that vertex (junction replanning);
+  /// otherwise at the nearest endpoint of the nearest blocked edge.
+  WaitDecision planInternal(const std::string& obs_type,
+                            const EdgeIdSet& blocked_edges,
+                            const tactic::VertexId& current_vertex,
+                            const tactic::VertexId& goal_vertex, double t_now,
+                            double obstacle_t_first,
+                            const tactic::VertexId& plan_vertex_override);
+
+  /// Record a blocked sighting of `e` whose current streak started at
+  /// `streak_start`. Detects re-sightings (gap > monitor_gap_s since t_last):
+  /// archives the old record for the belief mixture and restarts the streak.
+  void noteBlockedSighting(const sparrow::SEdge& e, double streak_start,
+                           double t_now);
   /// Snapshot the learned model (KM + stats) into a frozen SparrowModel.
   sparrow::SparrowModel snapshotModel(int num_edges) const;
   /// Enumerate the privileged graph reachable from the given seeds.
@@ -129,11 +166,17 @@ class SparrowStrategy : public WaitStrategy {
 
   // Memory of past sightings (ports belief.EdgeMemory bookkeeping).
   struct MemEntry {
-    double t_first = 0.0;          // first sighting of this encounter
+    double t_first = 0.0;          // start of the current sighting streak
     double t_last = 0.0;           // last time confirmed still blocked
-    std::string label;             // VLM label if known
+    std::string label;             // VLM label if known (current streak)
   };
   std::map<sparrow::SEdge, MemEntry> memory_;
+  // Archived pre-gap sightings: when an edge is re-sighted blocked after
+  // leaving view, the old streak's record lands here so every belief
+  // (re)initialization during the new streak runs the same-obstacle-vs-new-
+  // obstacle mixture. Erased when the edge is confirmed free; replaced on the
+  // next gap.
+  std::map<sparrow::SEdge, sparrow::EdgeMemoryRec> archived_sightings_;
 
   // Pending KM samples, flushed at episode end (matches sim per-episode mode).
   struct PendingSample {

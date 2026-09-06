@@ -61,6 +61,10 @@ struct WaitDecision {
   // horizon parity with the simulation: the plan commits ONE action; the rest
   // of the TDSP route is tentative and revised at the next decision point).
   std::vector<std::pair<uint64_t, uint64_t>> detour_ban_edges;
+  // The committed Traverse action as (planning_vertex, first_hop); {0,0} if
+  // the decision is not a Traverse. Junction replanning compares first_hop
+  // with the route continuation to detect "plan agrees with current route".
+  std::pair<uint64_t, uint64_t> traverse_edge{0, 0};
   
   static WaitDecision wait(double duration, const std::string& msg) {
     return {duration, true, msg};
@@ -104,12 +108,19 @@ struct SparrowParams {
   double max_total_wait_s = 600.0;  // safety cap across re-plans (<=0: off)
   double p_block_override = -1.0;   // >=0 pins occupancy (debug); <0 learned
   int planner_seed = 0;             // 0 = time-derived (non-reproducible)
-  // Gap (s) since an edge was last confirmed blocked after which a new
-  // sighting counts as a RE-sighting: the old record moves into belief
-  // memory and the same-obstacle-vs-new-obstacle mixture decides, instead of
-  // pretending the edge was watched continuously. Must exceed the largest
-  // wait duration (re-plans during one wait leave gaps up to W).
-  double resight_gap_s = 90.0;
+  // Continuity tolerance (s) for the Navigator's continuous edge monitoring.
+  // Monitoring refreshes each watched edge's last-confirmed-blocked time at
+  // ~1 Hz, so a gap longer than a few sensor periods means the edge genuinely
+  // left the robot's view. On the next sighting the old record is archived
+  // into belief memory and the same-obstacle-vs-new-obstacle mixture decides;
+  // a smaller gap extends the same continuously-watched streak. This is NOT a
+  // belief parameter - only the detector of "did we look away".
+  double monitor_gap_s = 5.0;
+  // Every-decision replanning (paper Table VII): as the robot approaches a
+  // decision vertex (junction) it re-plans if the belief is relevant there,
+  // continuing seamlessly when the plan agrees with the current route.
+  bool junction_replan = true;
+  int junction_lookahead_edges = 10;  // micro-edges before J to start planning
 };
 
 /**

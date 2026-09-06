@@ -195,6 +195,62 @@ GraphContext SparrowStrategy::buildContext(
 }
 
 // ============================================================================
+// Sighting streaks + continuous monitoring
+// ============================================================================
+
+void SparrowStrategy::noteBlockedSighting(const SEdge& e, double streak_start,
+                                          double t_now) {
+  auto& mem = memory_[e];
+  const bool resight =
+      mem.t_last > 0.0 &&
+      mem.t_last < streak_start - config_.sparrow.monitor_gap_s;
+  if (resight) {
+    // The edge left view and is blocked again: archive the old streak for the
+    // belief's same-obstacle-vs-new-obstacle mixture and restart. Any old
+    // label becomes probabilistic (conditions the mixture, no longer forced).
+    sparrow::EdgeMemoryRec rec;
+    rec.blocked = true;
+    rec.t_obs = mem.t_last;
+    rec.age_at_obs = std::max(0.0, mem.t_last - mem.t_first);
+    rec.label = mem.label;
+    archived_sightings_[e] = rec;
+    mem.t_first = streak_start;
+    mem.label.clear();
+  }
+  if (mem.t_first <= 0.0) {
+    mem.t_first = streak_start;
+  } else if (!resight) {
+    // e.g. the detector reports an age implying an earlier streak start.
+    mem.t_first = std::min(mem.t_first, streak_start);
+  }
+  mem.t_last = std::max(mem.t_last, t_now);
+}
+
+void SparrowStrategy::updateEdgeMonitoring(
+    const std::map<tactic::EdgeId, int>& statuses, double t_now) {
+  for (const auto& kv : statuses) {
+    const SEdge se = toSEdge(kv.first);
+    if (kv.second == 0) {
+      // Confirmed free: any remembered obstacle is gone and the archived
+      // record is obsolete (the next blockage is a fresh encounter).
+      memory_.erase(se);
+      archived_sightings_.erase(se);
+    } else if (kv.second == 1) {
+      noteBlockedSighting(se, t_now, t_now);
+    }
+    // -1 (unknown / out of view): no update; the streak gap grows naturally.
+  }
+}
+
+std::vector<std::pair<uint64_t, uint64_t>>
+SparrowStrategy::rememberedBlockedEdges() const {
+  std::vector<std::pair<uint64_t, uint64_t>> out;
+  out.reserve(memory_.size());
+  for (const auto& kv : memory_) out.push_back(kv.first);
+  return out;
+}
+
+// ============================================================================
 // The decision
 // ============================================================================
 
@@ -202,16 +258,35 @@ WaitDecision SparrowStrategy::computeWaitTime(
     const std::string& obs_type, const EdgeIdSet& blocked_edges,
     const tactic::VertexId& current_vertex, const tactic::VertexId& goal_vertex,
     double t_now, double obstacle_t_first) {
+  if (blocked_edges.empty()) {
+    CLOG(WARNING, "navigation")
+        << "HSHMAT SparrowStrategy: No blocked edges reported, waiting";
+    return WaitDecision::waitForever(obs_type + ". Waiting.");
+  }
+  return planInternal(obs_type, blocked_edges, current_vertex, goal_vertex,
+                      t_now, obstacle_t_first, tactic::VertexId::Invalid());
+}
+
+WaitDecision SparrowStrategy::planEnRoute(const tactic::VertexId& robot_vertex,
+                                          const tactic::VertexId& junction_vertex,
+                                          const tactic::VertexId& goal_vertex,
+                                          double t_now) {
+  // Every-decision replanning: no front blockage; blocked information comes
+  // from the adjacent-status hook at the junction and remembered sightings.
+  return planInternal("unknown", EdgeIdSet{}, robot_vertex, goal_vertex, t_now,
+                      /*obstacle_t_first=*/0.0, junction_vertex);
+}
+
+WaitDecision SparrowStrategy::planInternal(
+    const std::string& obs_type, const EdgeIdSet& blocked_edges,
+    const tactic::VertexId& current_vertex, const tactic::VertexId& goal_vertex,
+    double t_now, double obstacle_t_first,
+    const tactic::VertexId& plan_vertex_override) {
   const auto& sp = config_.sparrow;
 
   if (!get_neighbors_ || !get_travel_time_) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: No graph access, defaulting to wait";
-    return WaitDecision::waitForever(obs_type + ". Waiting.");
-  }
-  if (blocked_edges.empty()) {
-    CLOG(WARNING, "navigation")
-        << "HSHMAT SparrowStrategy: No blocked edges reported, waiting";
     return WaitDecision::waitForever(obs_type + ". Waiting.");
   }
 
@@ -257,7 +332,18 @@ WaitDecision SparrowStrategy::computeWaitTime(
     }
   }
   SVertex planning_vertex = current_u;
-  {
+  if (plan_vertex_override.isValid()) {
+    // Junction replanning: the decision epoch is the upcoming decision
+    // vertex, planned for while the robot is still driving toward it.
+    const SVertex ov = static_cast<uint64_t>(plan_vertex_override);
+    if (ctx.neighbors.count(ov)) {
+      planning_vertex = ov;
+    } else {
+      CLOG(WARNING, "navigation")
+          << "HSHMAT SparrowStrategy: plan vertex override " << ov
+          << " not in context; planning from current vertex";
+    }
+  } else {
     double best = kInf;
     for (const auto& e : blocked_s) {
       for (const SVertex endpoint : {e.first, e.second}) {
@@ -268,7 +354,7 @@ WaitDecision SparrowStrategy::computeWaitTime(
         }
       }
     }
-    if (!std::isfinite(best)) {
+    if (!blocked_s.empty() && !std::isfinite(best)) {
       CLOG(WARNING, "navigation")
           << "HSHMAT SparrowStrategy: Blocked edges unreachable in context; "
              "planning from current vertex";
@@ -304,40 +390,16 @@ WaitDecision SparrowStrategy::computeWaitTime(
   }
   const bool label_is_front =
       !observed_edge.has_value() || blocked_s.count(*observed_edge) > 0;
-  // Re-sighting handling: if an edge we remember as blocked is seen blocked
-  // again after a gap, do NOT pretend it was watched the whole time. The old
-  // sighting is exported to the belief's memory records so the particle
-  // installer runs its same-obstacle-vs-fresh-obstacle mixture; the current
-  // streak restarts and any old label becomes probabilistic (it conditions
-  // the mixture but no longer forces the class).
-  std::map<SEdge, sparrow::EdgeMemoryRec> resight_records;
-  auto handle_resight = [&](const SEdge& e, MemEntry& mem,
-                            double streak_start) {
-    if (mem.t_last > 0.0 &&
-        mem.t_last < streak_start - config_.sparrow.resight_gap_s) {
-      sparrow::EdgeMemoryRec rec;
-      rec.blocked = true;
-      rec.t_obs = mem.t_last;
-      rec.age_at_obs = std::max(0.0, mem.t_last - mem.t_first);
-      rec.label = mem.label;
-      resight_records[e] = rec;
-      mem.t_first = streak_start;
-      mem.label.clear();
-      return true;
-    }
-    return false;
-  };
+  // Sighting-streak update for the detector's blocked edges. Re-sightings
+  // (edge left view since its last confirmation) are detected inside
+  // noteBlockedSighting: the old streak is archived for the belief's
+  // same-obstacle-vs-new-obstacle mixture and the streak restarts. Because
+  // the Navigator's continuous monitoring refreshes t_last at ~1 Hz while an
+  // edge is in costmap view, a gap here means the robot genuinely looked
+  // away - not merely that a wait cycle passed between plans.
   for (const auto& e : blocked_s) {
-    auto& mem = memory_[e];
-    const double first = t_now - age;
-    const bool resight = handle_resight(e, mem, first);
-    if (mem.t_first <= 0.0) {
-      mem.t_first = first;
-    } else if (!resight && first < mem.t_first) {
-      mem.t_first = first;
-    }
-    mem.t_last = t_now;
-    if (!label.empty() && label_is_front) mem.label = label;
+    noteBlockedSighting(e, t_now - age, t_now);
+    if (!label.empty() && label_is_front) memory_[e].label = label;
   }
 
   // ---- 4. Local observation ------------------------------------------------
@@ -365,16 +427,15 @@ WaitDecision SparrowStrategy::computeWaitTime(
         ++n_free;
         // A confirmed-free sighting invalidates any stale blocked memory.
         memory_.erase(se);
+        archived_sightings_.erase(se);
       } else if (kv.second == 1) {
         local.statuses[se] = 1;
         // Track the sighting so re-plans know how long this edge has been
         // seen blocked, and carry any label a previous Observe produced.
-        // After a gap this is a RE-sighting: streak restarts at age 0 and the
-        // old record goes to the belief's mixture instead.
-        auto& mem = memory_[se];
-        handle_resight(se, mem, t_now);
-        if (mem.t_first <= 0.0) mem.t_first = t_now;
-        mem.t_last = t_now;
+        // After a genuine out-of-view gap this is a RE-sighting: the streak
+        // restarts and the old record goes to the belief's mixture instead.
+        noteBlockedSighting(se, t_now, t_now);
+        const auto& mem = memory_[se];
         local.ages[se] = std::max(0.0, t_now - mem.t_first);
         if (!mem.label.empty()) local.labels[se] = mem.label;
         ++n_unknown;  // blocked adjacent edge (counted for the log only)
@@ -393,9 +454,13 @@ WaitDecision SparrowStrategy::computeWaitTime(
     local.memory[kv.first] = rec;
   }
   // Re-sighted edges: currently observed blocked (in statuses) AND carrying an
-  // old sighting record - the belief's install_tracked_blockage mixes
+  // archived pre-gap sighting - the belief's install_tracked_blockage mixes
   // "same obstacle survived the gap" vs "cleared and a new one spawned".
-  for (const auto& kv : resight_records) {
+  // Archived records persist across replans of the same streak so every
+  // fresh belief initialization applies the same mixture.
+  for (const auto& kv : archived_sightings_) {
+    auto sit = local.statuses.find(kv.first);
+    if (sit == local.statuses.end() || sit->second != 1) continue;
     if (!ctx.travel_time.count(kv.first)) continue;
     local.memory[kv.first] = kv.second;
   }
@@ -529,6 +594,7 @@ WaitDecision SparrowStrategy::computeWaitTime(
   // tentative and gets revised at the next obstacle encounter.
   WaitDecision d = WaitDecision::detour(obs_type + ". Rerouting.");
   if (best.kind == SAction::TRAVERSE) {
+    d.traverse_edge = {planning_vertex, best.first_hop};
     const auto pit = dist_from_robot.find(planning_vertex);
     const double d_pv = (pit != dist_from_robot.end()) ? pit->second : 0.0;
     for (const auto& w : pv_nbrs) {
@@ -540,11 +606,16 @@ WaitDecision SparrowStrategy::computeWaitTime(
       d.detour_ban_edges.push_back(
           sparrow::canonical_edge(planning_vertex, w));
     }
+    // Also ban every edge currently OBSERVED blocked (front + adjacent): the
+    // POMCP's Traverse routed around them, so the reroute must too.
+    for (const auto& kv : local.statuses) {
+      if (kv.second == 1) d.detour_ban_edges.push_back(kv.first);
+    }
     CLOG(INFO, "navigation")
         << "HSHMAT SparrowStrategy: Traverse commits corridor "
-        << planning_vertex << "->" << best.first_hop << "; banning "
+        << planning_vertex << "->" << best.first_hop << "; reroute bans "
         << d.detour_ban_edges.size()
-        << " alternative corridor entrances for the reroute";
+        << " edges (alternative corridor entrances + observed blocked)";
   }
   return d;
 }
@@ -577,6 +648,13 @@ void SparrowStrategy::flushPendingSamplesToKM() {
       << "HSHMAT SparrowStrategy: Flushing " << pending_samples_.size()
       << " pending samples to KM and obstacle stats";
   for (const auto& s : pending_samples_) {
+    // Paper Sec. IV-A: samples enter D_k only when the class is known from
+    // Observe; unlabeled encounters count toward occupancy (p_block) but are
+    // NOT assigned to a class (no KM sample, no class-mixture count).
+    if (s.obs_type.empty() || s.obs_type == "unknown") {
+      obstacle_stats_.recordUnlabeledEpisode();
+      continue;
+    }
     survival_model_.addSample(s.obs_type, s.duration, s.censored, s.episode);
     obstacle_stats_.recordObstacleEpisode(s.obs_type);
   }
@@ -596,9 +674,13 @@ void SparrowStrategy::updateMemoryAfterCensoredWait(
 
 void SparrowStrategy::clearMemoryForEdge(const EdgeId& edge) {
   memory_.erase(toSEdge(edge));
+  archived_sightings_.erase(toSEdge(edge));
 }
 
-void SparrowStrategy::resetMemory() { memory_.clear(); }
+void SparrowStrategy::resetMemory() {
+  memory_.clear();
+  archived_sightings_.clear();
+}
 
 void SparrowStrategy::notifyEpisodeStart(int episode_idx) {
   if (episode_idx > 0) episode_idx_ = episode_idx;

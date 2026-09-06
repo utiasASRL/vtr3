@@ -76,6 +76,14 @@ class GlobalObstacleStats {
    * \param obs_type Obstacle type (e.g., "person", "chair")
    */
   void recordObstacleEpisode(const std::string& obs_type);
+
+  /**
+   * \brief Record an obstacle episode whose class was never observed.
+   *        Counts toward occupancy (p_block) but NOT toward the class
+   *        mixture - unlabeled encounters are not assigned to a class
+   *        (SPARROW; paper Sec. IV-A).
+   */
+  void recordUnlabeledEpisode();
   
   /**
    * \brief Get probability of obstacle on any edge.

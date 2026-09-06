@@ -143,11 +143,21 @@
           max_total_wait_s: 600.0     # safety cap on cumulative wait per episode
           p_block_override: -1.0      # >=0 pins occupancy (debug); <0 learned
           planner_seed: 0             # 0 = time-derived; set >0 for reproducible searches
-          # Gap (s) after which seeing an edge blocked again counts as a
-          # RE-sighting: the belief mixes "same obstacle survived" vs "cleared
-          # and a new one spawned" instead of assuming continuous observation.
-          # Must exceed the largest wait duration.
-          resight_gap_s: 90.0
+          # Continuity tolerance (s) for continuous edge monitoring. The
+          # Navigator refreshes each in-view edge's last-confirmed time at
+          # ~1 Hz, so a gap beyond a few sensor periods means the edge
+          # genuinely left view; the next sighting archives the old record
+          # and the belief mixes "same obstacle survived" vs "cleared and a
+          # new one spawned". Not a belief parameter - only the look-away
+          # detector.
+          monitor_gap_s: 5.0
+          # Every-decision replanning (paper Table VII): plan at upcoming
+          # decision vertices while still moving, whenever the belief is
+          # relevant there (a remembered blockage on the remaining route or
+          # incident to the junction). "Continue" costs no stop; a divert is
+          # an on-the-fly reroute; Wait/Observe pause and start an episode.
+          junction_replan: true
+          junction_lookahead_edges: 10  # micro-edges before the junction to plan
           # Adjacent-edge sensing (costmap corridor check in the Navigator)
           use_costmap_edge_check: true
           edge_check_length_m: 2.5    # corridor length checked per adjacent edge

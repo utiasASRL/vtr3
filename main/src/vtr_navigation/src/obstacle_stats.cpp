@@ -178,6 +178,15 @@ void GlobalObstacleStats::recordObstacleEpisode(const std::string& obs_type) {
                            << ", type_count=" << type_counts_[obs_type];
 }
 
+void GlobalObstacleStats::recordUnlabeledEpisode() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  ++total_obstacle_episodes_;
+  CLOG(INFO, "navigation")
+      << "HSHMAT GlobalObstacleStats: Recorded UNLABELED episode - "
+         "total_episodes="
+      << total_obstacle_episodes_ << " (class mixture unchanged)";
+}
+
 double GlobalObstacleStats::p_block() const {
   std::lock_guard<std::mutex> lock(mutex_);
   // Always computed from data: episodes / edges, with 0/0 := 0.

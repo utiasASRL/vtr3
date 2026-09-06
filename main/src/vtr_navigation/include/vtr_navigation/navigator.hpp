@@ -348,6 +348,24 @@ typedef message_filters::sync_policies::ApproximateTime<
   // Extra micro-edges to ban in the next SPARROW reroute so the executed
   // route starts with the corridor the POMCP's Traverse action chose.
   std::vector<std::pair<uint64_t, uint64_t>> sparrow_detour_bans_;
+
+  // HSHMAT SPARROW: continuous edge monitoring + every-decision replanning
+  // (paper Table VII: replanning at every decision epoch, not only when the
+  // route is blocked). A 1 Hz timer keeps the strategy's per-edge sighting
+  // streaks fresh from the costmap, and as the robot approaches a decision
+  // vertex (junction) with a relevant belief, it plans WHILE STILL MOVING:
+  // "continue" costs no stop; a different corridor becomes an on-the-fly
+  // reroute; Wait/Observe pause the robot and start a standard episode.
+  rclcpp::TimerBase::SharedPtr sparrow_monitor_timer_;
+  void onSparrowMonitorTick();
+  // Junction the last en-route plan was made for (avoid replan loops).
+  uint64_t sparrow_junction_handled_ = 0;
+  // True while the current episode was triggered at a junction (adjacent
+  // blocked edges, no detector front obstacle). Guards: startObstacleEpisode
+  // keeps the injected blocked set, the detector's continuous CLEARED stream
+  // is ignored (it cannot see adjacent edges), and clearance comes from the
+  // costmap monitor instead.
+  bool sparrow_junction_encounter_ = false;
   
   // Learned p_block: index along stored following_route_ids_. On obstacle or mission end: add (idx - last_path_index_), then last_path_index_=idx.
   // New repeat -> 0. Each following_route that replaces the path -> re-anchor to current vertex index (reroute included).

@@ -365,8 +365,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           p + "p_block_override", sp.p_block_override);
       sp.planner_seed =
           node_->declare_parameter<int>(p + "planner_seed", sp.planner_seed);
-      sp.resight_gap_s = node_->declare_parameter<double>(
-          p + "resight_gap_s", sp.resight_gap_s);
+      sp.monitor_gap_s = node_->declare_parameter<double>(
+          p + "monitor_gap_s", sp.monitor_gap_s);
+      sp.junction_replan = node_->declare_parameter<bool>(
+          p + "junction_replan", sp.junction_replan);
+      sp.junction_lookahead_edges = node_->declare_parameter<int>(
+          p + "junction_lookahead_edges", sp.junction_lookahead_edges);
       // Navigator-side sensing knobs (adjacent-edge costmap check)
       sparrow_use_costmap_edge_check_ = node_->declare_parameter<bool>(
           p + "use_costmap_edge_check", true);
@@ -622,10 +626,20 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
               CLOG(DEBUG, "mission.state_machine")
                   << "HSHMAT: Ignoring CLEARED during VLM classification";
             } else if (obstacle_state_ == ObstacleState::Waiting) {
-              // Obstacle cleared while waiting (always_wait) - handle it
-              should_handle_cleared = true;
-              CLOG(INFO, "mission.state_machine")
-                  << "HSHMAT: CLEARED + Waiting -> handling";
+              if (sparrow_junction_encounter_) {
+                // SPARROW junction episode: the wait is for a blocked
+                // ADJACENT edge the front-facing detector cannot see, so its
+                // continuous "no obstacle on path" stream means nothing here.
+                // Clearance comes from the costmap monitor tick instead.
+                CLOG(DEBUG, "mission.state_machine")
+                    << "HSHMAT: Ignoring detector CLEARED during junction "
+                       "encounter (adjacent edge; costmap monitor decides)";
+              } else {
+                // Obstacle cleared while waiting (always_wait) - handle it
+                should_handle_cleared = true;
+                CLOG(INFO, "mission.state_machine")
+                    << "HSHMAT: CLEARED + Waiting -> handling";
+              }
             } else if (obstacle_state_ == ObstacleState::Rerouting) {
               // Only care about CLEARED if we're stuck with no alternate
               if (no_alternate_exists_ && !announcing_no_alternate_) {
@@ -730,6 +744,15 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
             last_obstacle_grid_ = *msg;
           },
           sub_opt);
+
+  // HSHMAT SPARROW: 1 Hz continuous edge monitoring + every-decision
+  // replanning at junction approach. Same mutually-exclusive callback group
+  // as the obstacle callbacks, so no locking races with episode handling.
+  if (wait_strategy_ && wait_strategy_->type() == StrategyType::SPARROW) {
+    sparrow_monitor_timer_ = node_->create_wall_timer(
+        std::chrono::seconds(1), [this]() { onSparrowMonitorTick(); },
+        obstacle_callback_group_);
+  }
 
   // Hshmat: Obstacle type (person/chair/...) from VLM/decision node.
   // For rule_based/learned strategies, this triggers startObstacleEpisode when VLM responds.
@@ -1048,6 +1071,11 @@ void Navigator::resetObstacleState() {
   // Clear current blocked edges
   current_blocked_edges_.clear();
   
+  // HSHMAT SPARROW: clear junction replanning state
+  sparrow_junction_encounter_ = false;
+  sparrow_junction_handled_ = 0;
+  sparrow_detour_bans_.clear();
+  
   // Clear reroute tracking
   reroute_snapshot_route_.clear();
   awaiting_new_route_ = false;
@@ -1243,6 +1271,7 @@ std::map<tactic::EdgeId, int> Navigator::computeAdjacentEdgeStatuses(
         << "HSHMAT SPARROW: computeAdjacentEdgeStatuses failed: " << e.what();
   }
   {
+    // DEBUG: this now also runs at 1 Hz from the SPARROW monitor tick.
     std::stringstream ss;
     ss << "HSHMAT SPARROW: adjacent statuses @" << v << ": ";
     for (const auto& kv : out) {
@@ -1250,7 +1279,7 @@ std::map<tactic::EdgeId, int> Navigator::computeAdjacentEdgeStatuses(
          << (kv.second == 1 ? "BLOCKED" : (kv.second == 0 ? "free" : "unknown"))
          << " ";
     }
-    CLOG(INFO, "navigation") << ss.str();
+    CLOG(DEBUG, "navigation") << ss.str();
   }
   return out;
 }
@@ -1474,6 +1503,203 @@ int Navigator::checkEdgeCorridorInCostmap(const tactic::VertexId& v,
   }
 }
 
+void Navigator::onSparrowMonitorTick() {
+  // HSHMAT SPARROW: 1 Hz continuous edge monitoring + every-decision
+  // replanning (paper Table VII). Runs in obstacle_callback_group_
+  // (mutually exclusive), so it never races the obstacle callbacks.
+  if (!wait_strategy_ || wait_strategy_->type() != StrategyType::SPARROW)
+    return;
+  auto* sparrow = dynamic_cast<SparrowStrategy*>(wait_strategy_.get());
+  if (!sparrow || !graph_ || following_route_ids_.empty()) return;
+  try {
+    if (state_machine_->name().find("Repeat") == std::string::npos) return;
+  } catch (...) {
+    return;
+  }
+  const tactic::VertexId v = getCurrentVertex();
+  if (!v.isValid()) return;
+  const double t_now = node_->get_clock()->now().seconds();
+
+  ObstacleState state_snapshot;
+  bool junction_encounter;
+  {
+    LockGuard lock(obstacle_mutex_);
+    state_snapshot = obstacle_state_;
+    junction_encounter = sparrow_junction_encounter_;
+  }
+  if (state_snapshot != ObstacleState::Idle &&
+      state_snapshot != ObstacleState::Waiting)
+    return;
+
+  // ---- 1. Continuous monitoring: keep per-edge sighting streaks fresh -----
+  // While an edge is in costmap view its last-confirmed time refreshes every
+  // second, so a plan-time gap > monitor_gap_s means the robot genuinely
+  // looked away (drove off and came back) - the re-sighting mixture applies.
+  const auto statuses = computeAdjacentEdgeStatuses(v);
+  sparrow->updateEdgeMonitoring(statuses, t_now);
+
+  if (state_snapshot == ObstacleState::Waiting) {
+    // ---- 1b. Junction-encounter clearance ----------------------------------
+    // The detector's obstacle_status stream only sees the route ahead, so a
+    // junction wait (adjacent blockage) gets its clearance from the costmap.
+    if (!junction_encounter || current_blocked_edges_.empty()) return;
+    const tactic::VertexId junction(sparrow_junction_handled_);
+    const auto jst = (junction.isValid() && !(junction == v))
+                         ? computeAdjacentEdgeStatuses(junction)
+                         : statuses;
+    if (!(junction == v)) sparrow->updateEdgeMonitoring(jst, t_now);
+    bool all_free = true;
+    for (const auto& e : current_blocked_edges_) {
+      auto it = jst.find(e);
+      if (it == jst.end() || it->second != 0) {
+        all_free = false;
+        break;
+      }
+    }
+    if (all_free) {
+      CLOG(INFO, "mission.state_machine")
+          << "HSHMAT SPARROW: junction-encounter edges confirmed free in "
+             "costmap - handling as cleared.";
+      handleObstacleCleared(ObstacleState::Waiting);
+    }
+    return;
+  }
+
+  // ---- 2. Every-decision replanning at junction approach -------------------
+  if (!wait_strategy_config_.sparrow.junction_replan) return;
+  // Reaching the previously handled junction re-arms it for future visits.
+  if (static_cast<uint64_t>(v) == sparrow_junction_handled_)
+    sparrow_junction_handled_ = 0;
+  const int ri = followingRouteIndexOf(v);
+  if (ri < 0) return;
+
+  // Next decision vertex (degree != 2) on the route within the lookahead.
+  int jidx = -1;
+  try {
+    using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+    auto priv_eval = std::make_shared<PrivEval>(*graph_);
+    auto priv_graph = graph_->getSubgraph(priv_eval);
+    const int lookahead =
+        std::max(1, wait_strategy_config_.sparrow.junction_lookahead_edges);
+    const int last = static_cast<int>(following_route_ids_.size()) - 1;
+    for (int i = ri + 1; i <= std::min(ri + lookahead, last); ++i) {
+      size_t deg = 0;
+      for (const auto& n : priv_graph->neighbors(
+               tactic::VertexId(following_route_ids_[i]))) {
+        (void)n;
+        ++deg;
+      }
+      if (deg != 2) {
+        jidx = i;
+        break;
+      }
+    }
+  } catch (const std::exception& e) {
+    CLOG(DEBUG, "navigation")
+        << "HSHMAT SPARROW: junction scan failed: " << e.what();
+    return;
+  }
+  if (jidx < 0) return;
+  const uint64_t J = following_route_ids_[jidx];
+  if (J == sparrow_junction_handled_) return;
+  if (jidx + 1 >= static_cast<int>(following_route_ids_.size())) {
+    sparrow_junction_handled_ = J;  // route ends at J (goal): nothing to plan
+    return;
+  }
+
+  // Relevance gate: the POMCP at a junction with an empty belief provably
+  // returns "traverse the cheapest corridor toward goal" = the current route,
+  // so planning is only informative when a remembered-blocked edge lies on
+  // the remaining route or touches J. This is what makes every-decision
+  // replanning free of stop-and-go: quiet junctions are passed at speed.
+  bool relevant = false;
+  {
+    const auto mem_edges = sparrow->rememberedBlockedEdges();
+    if (!mem_edges.empty()) {
+      std::set<std::pair<uint64_t, uint64_t>> route_edges;
+      for (size_t i = static_cast<size_t>(ri);
+           i + 1 < following_route_ids_.size(); ++i) {
+        const uint64_t a = following_route_ids_[i];
+        const uint64_t b = following_route_ids_[i + 1];
+        route_edges.insert({std::min(a, b), std::max(a, b)});
+      }
+      for (const auto& e : mem_edges) {
+        if (route_edges.count(e) || e.first == J || e.second == J) {
+          relevant = true;
+          break;
+        }
+      }
+    }
+  }
+  if (!relevant) {
+    sparrow_junction_handled_ = J;
+    return;
+  }
+
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT SPARROW: approaching decision vertex " << J
+      << " with a relevant belief - planning while moving.";
+  setupLearnedStrategyGraphAccess();
+  const WaitDecision d =
+      sparrow->planEnRoute(v, tactic::VertexId(J), getGoalVertex(), t_now);
+  sparrow_junction_handled_ = J;
+
+  const uint64_t route_next = following_route_ids_[jidx + 1];
+  const bool is_traverse = !d.should_wait && !d.request_observation;
+  if (is_traverse && d.traverse_edge.first == J &&
+      d.traverse_edge.second == route_next) {
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT SPARROW: junction plan agrees with the current route - "
+           "continuing without stopping.";
+    return;
+  }
+  if (is_traverse) {
+    // Different corridor: swap the route on the fly - no stop needed.
+    {
+      LockGuard lock(obstacle_mutex_);
+      if (obstacle_state_ != ObstacleState::Idle) return;
+      obstacle_state_ = ObstacleState::Rerouting;
+      sparrow_detour_bans_ = d.detour_ban_edges;
+    }
+    CLOG(INFO, "mission.state_machine")
+        << "HSHMAT SPARROW: junction plan diverts to corridor ("
+        << d.traverse_edge.first << "->" << d.traverse_edge.second
+        << ") - rerouting on the fly.";
+    triggerReroute();
+    return;
+  }
+
+  // Wait or Observe at the junction: the plan itself wants this stop. Run a
+  // standard obstacle episode on the blocked adjacent edges so all machinery
+  // (wait timer, countdowns, Observe/VLM pipeline, logging) applies.
+  EdgeIdSet blk;
+  for (const auto& kv : computeAdjacentEdgeStatuses(tactic::VertexId(J))) {
+    if (kv.second == 1) blk.insert(kv.first);
+  }
+  if (blk.empty()) {
+    CLOG(WARNING, "mission.state_machine")
+        << "HSHMAT SPARROW: junction plan chose wait/observe but no blocked "
+           "adjacent edges are visible at " << J << " - continuing.";
+    return;
+  }
+  {
+    LockGuard lock(obstacle_mutex_);
+    if (obstacle_state_ != ObstacleState::Idle) return;
+    obstacle_state_ = ObstacleState::Waiting;  // re-entry guard
+    sparrow_junction_encounter_ = true;
+    sparrow_observe_pending_ = false;
+  }
+  setRobotPaused(true);
+  last_obstacle_type_ = "unknown";
+  current_blocked_edges_ = blk;
+  CLOG(INFO, "mission.state_machine")
+      << "HSHMAT SPARROW: junction plan chose "
+      << (d.request_observation ? "Observe" : "MaxWait")
+      << " at decision vertex " << J << " (" << blk.size()
+      << " blocked adjacent edges) - pausing and starting episode.";
+  startObstacleEpisode();
+}
+
 tactic::VertexId Navigator::getCurrentVertex() const {
   if (!tactic_) return tactic::VertexId::Invalid();
   auto loc = tactic_->getPersistentLoc();
@@ -1653,8 +1879,12 @@ void Navigator::startObstacleEpisode() {
       // Pause robot immediately
       setRobotPaused(true);
       
-      // Compute which edges are blocked by this obstacle
-      current_blocked_edges_ = computeBlockedEdges();
+      // Compute which edges are blocked by this obstacle. Junction-triggered
+      // episodes (SPARROW every-decision replanning) already installed the
+      // blocked adjacent edges; the detector cannot see them, so keep them.
+      if (!sparrow_junction_encounter_) {
+        current_blocked_edges_ = computeBlockedEdges();
+      }
       {
         std::stringstream ss;
         ss << "HSHMAT: Blocked edges (" << current_blocked_edges_.size() << "): ";
@@ -2289,6 +2519,8 @@ void Navigator::completeEpisode() {
     no_alternate_exists_ = false;
     awaiting_new_route_ = false;
     announcing_no_alternate_ = false;
+    // HSHMAT SPARROW: junction-triggered episode (if any) is over.
+    sparrow_junction_encounter_ = false;
     // 500ms cooldown: ignore DETECTED signals while path detector updates to new route.
     // Without this, resuming after "obstacle cleared" immediately re-triggers an episode.
     reroute_complete_time_ = node_->get_clock()->now();
@@ -2833,10 +3065,16 @@ void Navigator::triggerReroute() {
   // localization refined to vertex 14 by planning time).
   EdgeIdSet fresh_blocked = computeBlockedEdges();
   
-  // Also update current_blocked_edges_ for consistency with route validation
+  // Also update current_blocked_edges_ for consistency with route validation.
+  // Exception: SPARROW junction encounters - the blocked edges are ADJACENT
+  // corridors the front-facing detector cannot see, so keep the installed set.
   {
     LockGuard lock(obstacle_mutex_);
-    current_blocked_edges_ = fresh_blocked;
+    if (sparrow_junction_encounter_) {
+      fresh_blocked = current_blocked_edges_;
+    } else {
+      current_blocked_edges_ = fresh_blocked;
+    }
   }
   
   std::vector<vtr::tactic::EdgeId> affected_edges;
