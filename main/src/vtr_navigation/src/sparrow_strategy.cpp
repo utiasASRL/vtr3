@@ -304,10 +304,38 @@ WaitDecision SparrowStrategy::computeWaitTime(
   }
   const bool label_is_front =
       !observed_edge.has_value() || blocked_s.count(*observed_edge) > 0;
+  // Re-sighting handling: if an edge we remember as blocked is seen blocked
+  // again after a gap, do NOT pretend it was watched the whole time. The old
+  // sighting is exported to the belief's memory records so the particle
+  // installer runs its same-obstacle-vs-fresh-obstacle mixture; the current
+  // streak restarts and any old label becomes probabilistic (it conditions
+  // the mixture but no longer forces the class).
+  std::map<SEdge, sparrow::EdgeMemoryRec> resight_records;
+  auto handle_resight = [&](const SEdge& e, MemEntry& mem,
+                            double streak_start) {
+    if (mem.t_last > 0.0 &&
+        mem.t_last < streak_start - config_.sparrow.resight_gap_s) {
+      sparrow::EdgeMemoryRec rec;
+      rec.blocked = true;
+      rec.t_obs = mem.t_last;
+      rec.age_at_obs = std::max(0.0, mem.t_last - mem.t_first);
+      rec.label = mem.label;
+      resight_records[e] = rec;
+      mem.t_first = streak_start;
+      mem.label.clear();
+      return true;
+    }
+    return false;
+  };
   for (const auto& e : blocked_s) {
     auto& mem = memory_[e];
     const double first = t_now - age;
-    if (mem.t_first <= 0.0 || first < mem.t_first) mem.t_first = first;
+    const bool resight = handle_resight(e, mem, first);
+    if (mem.t_first <= 0.0) {
+      mem.t_first = first;
+    } else if (!resight && first < mem.t_first) {
+      mem.t_first = first;
+    }
     mem.t_last = t_now;
     if (!label.empty() && label_is_front) mem.label = label;
   }
@@ -341,7 +369,10 @@ WaitDecision SparrowStrategy::computeWaitTime(
         local.statuses[se] = 1;
         // Track the sighting so re-plans know how long this edge has been
         // seen blocked, and carry any label a previous Observe produced.
+        // After a gap this is a RE-sighting: streak restarts at age 0 and the
+        // old record goes to the belief's mixture instead.
         auto& mem = memory_[se];
+        handle_resight(se, mem, t_now);
         if (mem.t_first <= 0.0) mem.t_first = t_now;
         mem.t_last = t_now;
         local.ages[se] = std::max(0.0, t_now - mem.t_first);
@@ -360,6 +391,13 @@ WaitDecision SparrowStrategy::computeWaitTime(
     rec.age_at_obs = std::max(0.0, kv.second.t_last - kv.second.t_first);
     rec.label = kv.second.label;
     local.memory[kv.first] = rec;
+  }
+  // Re-sighted edges: currently observed blocked (in statuses) AND carrying an
+  // old sighting record - the belief's install_tracked_blockage mixes
+  // "same obstacle survived the gap" vs "cleared and a new one spawned".
+  for (const auto& kv : resight_records) {
+    if (!ctx.travel_time.count(kv.first)) continue;
+    local.memory[kv.first] = kv.second;
   }
 
   // ---- 5. Frozen model + belief ---------------------------------------------

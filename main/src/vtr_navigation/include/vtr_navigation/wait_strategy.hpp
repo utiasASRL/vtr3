@@ -98,6 +98,12 @@ struct SparrowParams {
   double max_total_wait_s = 600.0;  // safety cap across re-plans (<=0: off)
   double p_block_override = -1.0;   // >=0 pins occupancy (debug); <0 learned
   int planner_seed = 0;             // 0 = time-derived (non-reproducible)
+  // Gap (s) since an edge was last confirmed blocked after which a new
+  // sighting counts as a RE-sighting: the old record moves into belief
+  // memory and the same-obstacle-vs-new-obstacle mixture decides, instead of
+  // pretending the edge was watched continuously. Must exceed the largest
+  // wait duration (re-plans during one wait leave gaps up to W).
+  double resight_gap_s = 90.0;
 };
 
 /**

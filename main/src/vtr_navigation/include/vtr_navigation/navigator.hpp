@@ -30,6 +30,8 @@
 #include "std_msgs/msg/float64.hpp" // Hshmat: for obstacle distance subscription
 #include "std_msgs/msg/string.hpp" // Hshmat: for ChatGPT decision subscription
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "nav_msgs/msg/path.hpp"
+#include <Eigen/Core>
 #include "vtr_navigation/wait_strategy.hpp"  // HSHMAT: Strategy pattern for wait time decisions
 #include "vtr_navigation/real_world_logger.hpp"  // HSHMAT: Real-world episode/encounter logging
 #include <unordered_map>
@@ -295,6 +297,16 @@ typedef message_filters::sync_policies::ApproximateTime<
   // Returns 1 blocked / 0 free / -1 unknown.
   int checkEdgeCorridorInCostmap(const tactic::VertexId& v,
                                  const tactic::VertexId& n) const;
+  // Sample teach-corridor points along edge (va,vb) in the loc-vertex frame,
+  // starting from the endpoint closer to the robot and continuing down the
+  // degree-2 chain up to length_m. Shared by the costmap edge check and the
+  // observe-corridor publisher.
+  bool computeEdgeCorridorPoints(uint64_t va, uint64_t vb, double length_m,
+                                 std::vector<Eigen::Vector3d>& pts) const;
+  // HSHMAT SPARROW: tell the detector which corridor the Observe action
+  // targets (it builds a mask restricted to that corridor for the VLM).
+  void publishObserveCorridor(const std::pair<uint64_t, uint64_t>& edge) const;
+  void clearObserveCorridor() const;
   // Strategy accessors that work for both LEARNED and SPARROW.
   GlobalObstacleStats* strategyObstacleStats() const;
   double strategyFreshEdgeExpectedWait() const;
@@ -325,6 +337,8 @@ typedef message_filters::sync_policies::ApproximateTime<
   // AwaitingClassification, and when /vtr/obstacle_type arrives
   // startObstacleEpisode() re-plans WITHOUT redoing episode bookkeeping.
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr request_classification_pub_;
+  // Corridor of the edge being observed, for the detector's observe mask.
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr observe_corridor_pub_;
   bool sparrow_observe_pending_ = false;
   // Canonical (min,max) vertex pair of the edge the Observe action targeted,
   // and when the request went out (to log the measured VLM latency - the

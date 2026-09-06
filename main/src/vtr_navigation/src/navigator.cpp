@@ -25,6 +25,8 @@
 #include <Eigen/Dense>
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
@@ -363,6 +365,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           p + "p_block_override", sp.p_block_override);
       sp.planner_seed =
           node_->declare_parameter<int>(p + "planner_seed", sp.planner_seed);
+      sp.resight_gap_s = node_->declare_parameter<double>(
+          p + "resight_gap_s", sp.resight_gap_s);
       // Navigator-side sensing knobs (adjacent-edge costmap check)
       sparrow_use_costmap_edge_check_ = node_->declare_parameter<bool>(
           p + "use_costmap_edge_check", true);
@@ -447,6 +451,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // /vtr/obstacle_type.
   request_classification_pub_ = node_->create_publisher<std_msgs::msg::Bool>(
       "/vtr/request_classification", rclcpp::SystemDefaultsQoS());
+  // HSHMAT SPARROW: corridor of the edge the Observe action targets, consumed
+  // by vtr_path_obstacle_detector to build an edge-specific obstacle mask.
+  observe_corridor_pub_ = node_->create_publisher<nav_msgs::msg::Path>(
+      "/vtr/observe_corridor", rclcpp::SystemDefaultsQoS());
   
   // HSHMAT: Subscribe to speech completion signal from decision node
   // NOTE: This must NOT use the MutuallyExclusive callback_group_ (sub_opt) because
@@ -1247,6 +1255,140 @@ std::map<tactic::EdgeId, int> Navigator::computeAdjacentEdgeStatuses(
   return out;
 }
 
+bool Navigator::computeEdgeCorridorPoints(
+    uint64_t va, uint64_t vb, double length_m,
+    std::vector<Eigen::Vector3d>& pts) const {
+  // Sample the teach corridor along edge (va,vb) - continuing down the
+  // degree-2 chain up to length_m - expressed in the loc-vertex frame.
+  // The endpoint closer to the robot (by chain distance) is used as the start.
+  pts.clear();
+  if (!tactic_) return false;
+  const auto loc = tactic_->getPersistentLoc();
+  if (!loc.v.isValid()) return false;
+
+  using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
+  auto priv_eval = std::make_shared<PrivEval>(*graph_);
+  auto priv_graph = graph_->getSubgraph(priv_eval);
+
+  // ---- 1. Vertex poses in the loc-vertex frame (BFS transform chain) ----
+  // T_loc_x maps points in x's frame into the loc vertex frame.
+  // edge->T() is T_to_from, so:
+  //   from == a, to == b :  T_b_a = e->T()   =>  T_a_b = e->T().inverse()
+  std::unordered_map<uint64_t, Eigen::Matrix4d> pose;
+  std::deque<tactic::VertexId> queue;
+  std::unordered_map<uint64_t, double> dist;
+  pose[static_cast<uint64_t>(loc.v)] = Eigen::Matrix4d::Identity();
+  dist[static_cast<uint64_t>(loc.v)] = 0.0;
+  queue.push_back(loc.v);
+  constexpr double kMaxChainDist = 60.0;  // meters of teach path to expand
+  constexpr size_t kMaxChainVerts = 5000;
+  while (!queue.empty() && pose.size() < kMaxChainVerts) {
+    const tactic::VertexId a = queue.front();
+    queue.pop_front();
+    const Eigen::Matrix4d T_loc_a = pose.at(static_cast<uint64_t>(a));
+    const double d_a = dist.at(static_cast<uint64_t>(a));
+    if (d_a > kMaxChainDist) continue;
+    for (const auto& b : priv_graph->neighbors(a)) {
+      if (pose.count(static_cast<uint64_t>(b))) continue;
+      auto edge_ptr = priv_graph->at(tactic::EdgeId(a, b));
+      if (!edge_ptr) continue;
+      Eigen::Matrix4d T_a_b;
+      if (edge_ptr->from() == a) {
+        T_a_b = edge_ptr->T().inverse().matrix();
+      } else {
+        T_a_b = edge_ptr->T().matrix();
+      }
+      const Eigen::Matrix4d T_loc_b = T_loc_a * T_a_b;
+      pose[static_cast<uint64_t>(b)] = T_loc_b;
+      dist[static_cast<uint64_t>(b)] =
+          d_a + T_a_b.block<3, 1>(0, 3).norm();
+      queue.push_back(b);
+    }
+  }
+  if (!pose.count(va) || !pose.count(vb)) return false;
+
+  // Start from the endpoint the robot can actually see/reach first.
+  tactic::VertexId v(va), n(vb);
+  if (dist.count(va) && dist.count(vb) && dist.at(vb) < dist.at(va)) {
+    v = tactic::VertexId(vb);
+    n = tactic::VertexId(va);
+  }
+
+  // ---- 2. Corridor sample points (loc-vertex frame) ---------------------
+  tactic::VertexId prev = v;
+  tactic::VertexId cur = n;
+  Eigen::Vector3d p_prev =
+      pose.at(static_cast<uint64_t>(v)).block<3, 1>(0, 3);
+  double walked = 0.0;
+  constexpr double kSampleStep = 0.15;  // meters between samples
+  while (true) {
+    auto pit = pose.find(static_cast<uint64_t>(cur));
+    if (pit == pose.end()) break;
+    const Eigen::Vector3d p_cur = pit->second.block<3, 1>(0, 3);
+    const double seg = (p_cur - p_prev).norm();
+    const int n_samples = std::max(1, static_cast<int>(seg / kSampleStep));
+    for (int i = 1; i <= n_samples; ++i) {
+      const double t = static_cast<double>(i) / n_samples;
+      pts.push_back(p_prev + t * (p_cur - p_prev));
+    }
+    walked += seg;
+    if (walked >= length_m) break;
+    // Continue along the degree-2 chain.
+    std::vector<tactic::VertexId> nbrs;
+    for (const auto& w : priv_graph->neighbors(cur)) nbrs.push_back(w);
+    if (nbrs.size() != 2) break;
+    const tactic::VertexId next = (nbrs[0] == prev) ? nbrs[1] : nbrs[0];
+    prev = cur;
+    cur = next;
+    p_prev = p_cur;
+  }
+  return !pts.empty();
+}
+
+void Navigator::publishObserveCorridor(
+    const std::pair<uint64_t, uint64_t>& edge) const {
+  // HSHMAT SPARROW: tell the path obstacle detector which teach corridor the
+  // Observe action targets. The detector builds an obstacle mask restricted
+  // to this corridor (instead of the on-route mask) so the VLM gets a proper
+  // image of THAT obstacle, and the decision node re-centers the panoramic
+  // reflectivity image on the masked pixels.
+  if (!observe_corridor_pub_) return;
+  nav_msgs::msg::Path path;
+  path.header.stamp = node_->get_clock()->now();
+  path.header.frame_id = "loc vertex frame";
+  std::vector<Eigen::Vector3d> pts;
+  try {
+    if (edge.first != 0 || edge.second != 0) {
+      computeEdgeCorridorPoints(edge.first, edge.second,
+                                sparrow_edge_check_length_m_, pts);
+    }
+  } catch (const std::exception& e) {
+    CLOG(WARNING, "navigation")
+        << "HSHMAT SPARROW: observe corridor sampling failed: " << e.what();
+  }
+  for (const auto& p : pts) {
+    geometry_msgs::msg::PoseStamped ps;
+    ps.header = path.header;
+    ps.pose.position.x = p.x();
+    ps.pose.position.y = p.y();
+    ps.pose.position.z = p.z();
+    ps.pose.orientation.w = 1.0;
+    path.poses.push_back(ps);
+  }
+  observe_corridor_pub_->publish(path);
+  CLOG(INFO, "navigation")
+      << "HSHMAT SPARROW: published observe corridor for edge (" << edge.first
+      << "," << edge.second << ") with " << path.poses.size() << " points";
+}
+
+void Navigator::clearObserveCorridor() const {
+  if (!observe_corridor_pub_) return;
+  nav_msgs::msg::Path path;
+  path.header.stamp = node_->get_clock()->now();
+  path.header.frame_id = "loc vertex frame";
+  observe_corridor_pub_->publish(path);  // empty = deactivate
+}
+
 int Navigator::checkEdgeCorridorInCostmap(const tactic::VertexId& v,
                                           const tactic::VertexId& n) const {
   // Walk the teach corridor leaving `v` towards `n` (composing privileged
@@ -1258,83 +1400,12 @@ int Navigator::checkEdgeCorridorInCostmap(const tactic::VertexId& v,
   if (!tf_buffer_ || !tactic_) return -1;
 
   try {
-    const auto loc = tactic_->getPersistentLoc();
-    if (!loc.v.isValid()) return -1;
-
-    using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
-    auto priv_eval = std::make_shared<PrivEval>(*graph_);
-    auto priv_graph = graph_->getSubgraph(priv_eval);
-
-    // ---- 1. Vertex poses in the loc-vertex frame (BFS transform chain) ----
-    // T_loc_x maps points in x's frame into the loc vertex frame.
-    // edge->T() is T_to_from, so:
-    //   from == a, to == b :  T_b_a = e->T()   =>  T_a_b = e->T().inverse()
-    std::unordered_map<uint64_t, Eigen::Matrix4d> pose;
-    std::deque<tactic::VertexId> queue;
-    std::unordered_map<uint64_t, double> dist;
-    pose[static_cast<uint64_t>(loc.v)] = Eigen::Matrix4d::Identity();
-    dist[static_cast<uint64_t>(loc.v)] = 0.0;
-    queue.push_back(loc.v);
-    constexpr double kMaxChainDist = 60.0;  // meters of teach path to expand
-    constexpr size_t kMaxChainVerts = 5000;
-    while (!queue.empty() && pose.size() < kMaxChainVerts) {
-      const tactic::VertexId a = queue.front();
-      queue.pop_front();
-      const Eigen::Matrix4d T_loc_a = pose.at(static_cast<uint64_t>(a));
-      const double d_a = dist.at(static_cast<uint64_t>(a));
-      if (d_a > kMaxChainDist) continue;
-      for (const auto& b : priv_graph->neighbors(a)) {
-        if (pose.count(static_cast<uint64_t>(b))) continue;
-        auto edge_ptr = priv_graph->at(tactic::EdgeId(a, b));
-        if (!edge_ptr) continue;
-        Eigen::Matrix4d T_a_b;
-        if (edge_ptr->from() == a) {
-          T_a_b = edge_ptr->T().inverse().matrix();
-        } else {
-          T_a_b = edge_ptr->T().matrix();
-        }
-        const Eigen::Matrix4d T_loc_b = T_loc_a * T_a_b;
-        pose[static_cast<uint64_t>(b)] = T_loc_b;
-        dist[static_cast<uint64_t>(b)] =
-            d_a + T_a_b.block<3, 1>(0, 3).norm();
-        queue.push_back(b);
-      }
-    }
-    if (!pose.count(static_cast<uint64_t>(v)) ||
-        !pose.count(static_cast<uint64_t>(n))) {
+    std::vector<Eigen::Vector3d> pts;
+    if (!computeEdgeCorridorPoints(static_cast<uint64_t>(v),
+                                   static_cast<uint64_t>(n),
+                                   sparrow_edge_check_length_m_, pts)) {
       return -1;
     }
-
-    // ---- 2. Corridor sample points (loc-vertex frame) ---------------------
-    std::vector<Eigen::Vector3d> pts;
-    tactic::VertexId prev = v;
-    tactic::VertexId cur = n;
-    Eigen::Vector3d p_prev =
-        pose.at(static_cast<uint64_t>(v)).block<3, 1>(0, 3);
-    double walked = 0.0;
-    constexpr double kSampleStep = 0.15;  // meters between samples
-    while (true) {
-      auto pit = pose.find(static_cast<uint64_t>(cur));
-      if (pit == pose.end()) break;
-      const Eigen::Vector3d p_cur = pit->second.block<3, 1>(0, 3);
-      const double seg = (p_cur - p_prev).norm();
-      const int n_samples = std::max(1, static_cast<int>(seg / kSampleStep));
-      for (int i = 1; i <= n_samples; ++i) {
-        const double t = static_cast<double>(i) / n_samples;
-        pts.push_back(p_prev + t * (p_cur - p_prev));
-      }
-      walked += seg;
-      if (walked >= sparrow_edge_check_length_m_) break;
-      // Continue along the degree-2 chain.
-      std::vector<tactic::VertexId> nbrs;
-      for (const auto& w : priv_graph->neighbors(cur)) nbrs.push_back(w);
-      if (nbrs.size() != 2) break;
-      const tactic::VertexId next = (nbrs[0] == prev) ? nbrs[1] : nbrs[0];
-      prev = cur;
-      cur = next;
-      p_prev = p_cur;
-    }
-    if (pts.empty()) return -1;
 
     // ---- 3. TF: loc vertex frame -> costmap frame --------------------------
     Eigen::Matrix4d T_grid_loc = Eigen::Matrix4d::Identity();
@@ -1616,6 +1687,7 @@ void Navigator::startObstacleEpisode() {
         }
       }
       if (observed_is_front) wait_episode_type_ = last_obstacle_type_;
+      clearObserveCorridor();  // observation done - back to the on-route mask
       const double observe_took =
           node_->get_clock()->now().seconds() - sparrow_observe_request_sec_;
       CLOG(INFO, "mission.state_machine")
@@ -1675,6 +1747,9 @@ void Navigator::startObstacleEpisode() {
         sparrow_observe_edge_ = decision.observe_edge;
         sparrow_observe_request_sec_ = node_->get_clock()->now().seconds();
       }
+      // Corridor first (so the detector can build the edge mask), then the
+      // request, then speech (the decision node waits for speech + fresh mask).
+      publishObserveCorridor(decision.observe_edge);
       std_msgs::msg::Bool req;
       req.data = true;
       request_classification_pub_->publish(req);
@@ -2088,6 +2163,7 @@ void Navigator::onWaitTimeout() {
         }
       }
       if (do_request) {
+        publishObserveCorridor(observe_edge);
         std_msgs::msg::Bool req;
         req.data = true;
         request_classification_pub_->publish(req);
