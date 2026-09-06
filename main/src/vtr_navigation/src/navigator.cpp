@@ -1600,12 +1600,31 @@ void Navigator::startObstacleEpisode() {
           << "HSHMAT: Encounter started - type=" << last_obstacle_type_ 
           << ", t_see=" << current_encounter_start_sec_ << "s";
     } else {
-      // Same encounter, fresher information: update the label used for
-      // learning records, keep everything else.
-      wait_episode_type_ = last_obstacle_type_;
+      // Same encounter, fresher information. The label belongs to the edge
+      // the Observe targeted: only adopt it as the episode's type (used for
+      // KM learning records) when that edge is one of the detector's blocked
+      // edges; a label for some other adjacent edge stays per-edge inside the
+      // strategy's memory.
+      bool observed_is_front = false;
+      for (const auto& e : current_blocked_edges_) {
+        const uint64_t a = uint64_t(e.id1()), b = uint64_t(e.id2());
+        const auto mm = std::minmax(a, b);
+        if (mm.first == sparrow_observe_edge_.first &&
+            mm.second == sparrow_observe_edge_.second) {
+          observed_is_front = true;
+          break;
+        }
+      }
+      if (observed_is_front) wait_episode_type_ = last_obstacle_type_;
+      const double observe_took =
+          node_->get_clock()->now().seconds() - sparrow_observe_request_sec_;
       CLOG(INFO, "mission.state_machine")
           << "HSHMAT SPARROW: VLM answered '" << last_obstacle_type_
-          << "' - re-planning same encounter (started "
+          << "' for edge (" << sparrow_observe_edge_.first << ","
+          << sparrow_observe_edge_.second << ")"
+          << (observed_is_front ? " [detector edge]" : " [other adjacent edge]")
+          << " - observation took " << observe_took
+          << "s (tree assumed delta_obs_s); re-planning same encounter (started "
           << (node_->get_clock()->now().seconds() - wait_episode_start_sec_)
           << "s ago)";
     }
@@ -1653,13 +1672,16 @@ void Navigator::startObstacleEpisode() {
         LockGuard lock(obstacle_mutex_);
         obstacle_state_ = ObstacleState::AwaitingClassification;
         sparrow_observe_pending_ = true;
+        sparrow_observe_edge_ = decision.observe_edge;
+        sparrow_observe_request_sec_ = node_->get_clock()->now().seconds();
       }
       std_msgs::msg::Bool req;
       req.data = true;
       request_classification_pub_->publish(req);
       CLOG(INFO, "mission.state_machine")
-          << "HSHMAT SPARROW: Observe chosen -> requested VLM classification, "
-             "FSM -> AwaitingClassification";
+          << "HSHMAT SPARROW: Observe chosen for edge ("
+          << decision.observe_edge.first << "," << decision.observe_edge.second
+          << ") -> requested VLM classification, FSM -> AwaitingClassification";
       // Speak AFTER publishing: the decision node waits for this speech to
       // finish before grabbing a fresh mask + image (stable-mask delay).
       speakAndWait(decision.speech, 5.0);
@@ -2025,6 +2047,7 @@ void Navigator::onWaitTimeout() {
     bool wait_again = false;
     bool observe_now = false;
     std::string observe_speech;
+    std::pair<uint64_t, uint64_t> observe_edge{0, 0};
     double extra_W = 0.0;
     try {
       const tactic::VertexId current_v = getCurrentVertex();
@@ -2040,6 +2063,7 @@ void Navigator::onWaitTimeout() {
         // Waited without a label; now the POMCP wants the VLM before deciding.
         observe_now = true;
         observe_speech = d.speech;
+        observe_edge = d.observe_edge;
       } else if (d.should_wait && d.W_star > 0.0 && std::isfinite(d.W_star)) {
         wait_again = true;
         extra_W = d.W_star;
@@ -2058,6 +2082,8 @@ void Navigator::onWaitTimeout() {
         if (obstacle_state_ == ObstacleState::Waiting) {
           obstacle_state_ = ObstacleState::AwaitingClassification;
           sparrow_observe_pending_ = true;
+          sparrow_observe_edge_ = observe_edge;
+          sparrow_observe_request_sec_ = node_->get_clock()->now().seconds();
           do_request = true;
         }
       }
@@ -2066,8 +2092,9 @@ void Navigator::onWaitTimeout() {
         req.data = true;
         request_classification_pub_->publish(req);
         CLOG(INFO, "mission.state_machine")
-            << "HSHMAT SPARROW: timeout re-plan chose Observe -> requested "
-               "VLM classification, FSM -> AwaitingClassification";
+            << "HSHMAT SPARROW: timeout re-plan chose Observe for edge ("
+            << observe_edge.first << "," << observe_edge.second
+            << ") -> requested VLM classification, FSM -> AwaitingClassification";
         speakAndWait(observe_speech, 5.0);
       }
       return;

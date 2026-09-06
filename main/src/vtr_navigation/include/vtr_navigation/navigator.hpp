@@ -326,6 +326,11 @@ typedef message_filters::sync_policies::ApproximateTime<
   // startObstacleEpisode() re-plans WITHOUT redoing episode bookkeeping.
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr request_classification_pub_;
   bool sparrow_observe_pending_ = false;
+  // Canonical (min,max) vertex pair of the edge the Observe action targeted,
+  // and when the request went out (to log the measured VLM latency - the
+  // real-world analogue of delta_obs_s in the search).
+  std::pair<uint64_t, uint64_t> sparrow_observe_edge_{0, 0};
+  double sparrow_observe_request_sec_ = 0.0;
   
   // Learned p_block: index along stored following_route_ids_. On obstacle or mission end: add (idx - last_path_index_), then last_path_index_=idx.
   // New repeat -> 0. Each following_route that replaces the path -> re-anchor to current vertex index (reroute included).

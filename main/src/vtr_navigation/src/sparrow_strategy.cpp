@@ -282,15 +282,34 @@ WaitDecision SparrowStrategy::computeWaitTime(
   const double age = (obstacle_t_first > 0.0 && t_now > obstacle_t_first)
                          ? (t_now - obstacle_t_first)
                          : 0.0;
-  // Fresh encounter (first plan for this obstacle): the VLM has not been
-  // called yet, so Observe is available again.
-  if (obstacle_t_first <= 0.0) observe_used_ = false;
+  // Fresh encounter (first plan for this obstacle): no VLM calls made yet.
+  if (obstacle_t_first <= 0.0) {
+    observed_edges_.clear();
+    pending_observe_edge_.reset();
+  }
+  // Route an on-demand VLM answer to the specific edge that was observed.
+  // The label applies to the detector's blocked edges only when they are what
+  // was observed (or when it came from an auto-classifying flow with no
+  // pending Observe).
+  std::optional<SEdge> observed_edge;
+  if (pending_observe_edge_) {
+    observed_edge = *pending_observe_edge_;
+    pending_observe_edge_.reset();
+    if (!label.empty()) {
+      auto& mem = memory_[*observed_edge];
+      if (mem.t_first <= 0.0) mem.t_first = t_now;
+      mem.t_last = t_now;
+      mem.label = label;
+    }
+  }
+  const bool label_is_front =
+      !observed_edge.has_value() || blocked_s.count(*observed_edge) > 0;
   for (const auto& e : blocked_s) {
     auto& mem = memory_[e];
     const double first = t_now - age;
     if (mem.t_first <= 0.0 || first < mem.t_first) mem.t_first = first;
     mem.t_last = t_now;
-    if (!label.empty()) mem.label = label;
+    if (!label.empty() && label_is_front) mem.label = label;
   }
 
   // ---- 4. Local observation ------------------------------------------------
@@ -301,7 +320,10 @@ WaitDecision SparrowStrategy::computeWaitTime(
     if (!ctx.travel_time.count(e)) continue;  // outside context
     local.statuses[e] = 1;
     local.ages[e] = age;
-    if (!label.empty()) local.labels[e] = label;
+    // memory_ holds the per-edge label (routed there from the VLM answer).
+    const auto mit = memory_.find(e);
+    if (mit != memory_.end() && !mit->second.label.empty())
+      local.labels[e] = mit->second.label;
   }
   int n_free = 0, n_unknown = 0;
   if (adjacent_status_fn_) {
@@ -313,10 +335,18 @@ WaitDecision SparrowStrategy::computeWaitTime(
       if (kv.second == 0) {
         local.statuses[se] = 0;
         ++n_free;
+        // A confirmed-free sighting invalidates any stale blocked memory.
+        memory_.erase(se);
       } else if (kv.second == 1) {
         local.statuses[se] = 1;
-        local.ages[se] = 0.0;
-        ++n_unknown;  // blocked but fresh (counted for the log only)
+        // Track the sighting so re-plans know how long this edge has been
+        // seen blocked, and carry any label a previous Observe produced.
+        auto& mem = memory_[se];
+        if (mem.t_first <= 0.0) mem.t_first = t_now;
+        mem.t_last = t_now;
+        local.ages[se] = std::max(0.0, t_now - mem.t_first);
+        if (!mem.label.empty()) local.labels[se] = mem.label;
+        ++n_unknown;  // blocked adjacent edge (counted for the log only)
       }
       // -1 (unknown): leave unobserved; belief samples the prior.
     }
@@ -361,26 +391,18 @@ WaitDecision SparrowStrategy::computeWaitTime(
   static const std::vector<SVertex> kNoNbrs;
   auto nit = ctx.neighbors.find(planning_vertex);
   const auto& pv_nbrs = (nit == ctx.neighbors.end()) ? kNoNbrs : nit->second;
-  // HSHMAT: Observe IS a root action when the front obstacle is unlabeled -
-  // this is the whole point of SPARROW: the VLM is only called when the POMCP
-  // decides the classification is worth delta_obs_s, not on every detection.
-  // Only the edge(s) the robot is actually facing can be classified by the
-  // camera, so Observe on other adjacent blocked edges is filtered out.
-  const bool root_observe =
-      sp.allow_observe && label.empty() && !observe_used_;
-  auto root_actions =
+  // HSHMAT: Observe IS a root action - this is the whole point of SPARROW:
+  // the VLM is only called when the POMCP decides a classification is worth
+  // delta_obs_s, not on every detection. ANY adjacent blocked edge (statuses
+  // come from the lidar costmap + teach graph) can be observed, except edges
+  // that already have a label or already used their one VLM call this
+  // encounter.
+  std::set<SEdge> root_classified(observed_edges_);
+  for (const auto& kv : local.labels) root_classified.insert(kv.first);
+  const auto root_actions =
       sparrow::valid_actions(planning_vertex, root_statuses, pv_nbrs,
-                             /*classified=*/{}, sp.wait_durations,
-                             /*allow_observe=*/root_observe);
-  if (root_observe) {
-    root_actions.erase(
-        std::remove_if(root_actions.begin(), root_actions.end(),
-                       [&](const SAction& a) {
-                         return a.kind == SAction::OBSERVE &&
-                                blocked_s.count(a.edge) == 0;
-                       }),
-        root_actions.end());
-  }
+                             root_classified, sp.wait_durations,
+                             /*allow_observe=*/sp.allow_observe);
   if (root_actions.empty()) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: No root actions at vertex "
@@ -435,10 +457,14 @@ WaitDecision SparrowStrategy::computeWaitTime(
 
   const SAction& best = result.action.value();
   if (best.kind == SAction::OBSERVE) {
-    // The POMCP decided the VLM label is worth its cost. The Navigator will
-    // request one classification and call computeWaitTime again with it.
-    observe_used_ = true;
-    return WaitDecision::observe("Observing obstacle.");
+    // The POMCP decided the VLM label on this edge is worth its cost. The
+    // Navigator requests one classification and calls computeWaitTime again;
+    // the answer will be routed to pending_observe_edge_. In the tree Observe
+    // costs the constant delta_obs_s; in the real world its cost is simply
+    // the measured wall-clock time, absorbed into the obstacle age.
+    observed_edges_.insert(best.edge);
+    pending_observe_edge_ = best.edge;
+    return WaitDecision::observe("Observing obstacle.", best.edge);
   }
   if (best.kind == SAction::MAXWAIT) {
     // Safety valve: cap the cumulative wait across re-plans of one episode.

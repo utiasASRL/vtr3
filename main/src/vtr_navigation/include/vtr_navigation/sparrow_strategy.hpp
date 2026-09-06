@@ -146,10 +146,14 @@ class SparrowStrategy : public WaitStrategy {
 
   int episode_idx_ = 0;
   uint64_t plan_counter_ = 0;  // varies the search seed across encounters
-  // HSHMAT: one on-demand VLM call per encounter. Reset when a fresh
-  // encounter starts (obstacle_t_first == 0), so a re-plan after Observe (or
-  // after a MaxWait expires) cannot loop the VLM if it keeps saying unknown.
-  bool observe_used_ = false;
+  // HSHMAT: on-demand VLM bookkeeping. Any adjacent blocked edge may be
+  // observed, but each edge gets at most ONE VLM call per encounter (so a VLM
+  // that answers "unknown" cannot be looped on). pending_observe_edge_ is the
+  // edge the last Observe decision asked about: the label in the next
+  // computeWaitTime call is routed to it. Both reset when a fresh encounter
+  // starts (obstacle_t_first == 0).
+  std::set<sparrow::SEdge> observed_edges_;
+  std::optional<sparrow::SEdge> pending_observe_edge_;
 };
 
 }  // namespace navigation

@@ -47,11 +47,14 @@ struct WaitDecision {
   double W_star;           // Optimal wait time in seconds (INFINITY = wait forever, 0 = detour now)
   bool should_wait;        // true if W_star > 0 (wait), false if should detour immediately
   std::string speech;      // What to announce
-  // HSHMAT SPARROW: true = the strategy wants a VLM classification of the
-  // obstacle in front before committing (Observe action). The Navigator
-  // requests one from the decision node and calls computeWaitTime again once
-  // /vtr/obstacle_type arrives.
+  // HSHMAT SPARROW: true = the strategy wants a VLM classification (Observe
+  // action) before committing. observe_edge is the canonical (min,max) vertex
+  // pair of the adjacent blocked edge to classify - any adjacent blocked edge
+  // can be chosen, not just the one the detector flagged. The Navigator
+  // requests the classification and calls computeWaitTime again once
+  // /vtr/obstacle_type arrives; the strategy routes that label to observe_edge.
   bool request_observation = false;
+  std::pair<uint64_t, uint64_t> observe_edge{0, 0};
   
   static WaitDecision wait(double duration, const std::string& msg) {
     return {duration, true, msg};
@@ -65,9 +68,11 @@ struct WaitDecision {
     return {std::numeric_limits<double>::infinity(), true, msg};
   }
 
-  static WaitDecision observe(const std::string& msg) {
+  static WaitDecision observe(const std::string& msg,
+                              std::pair<uint64_t, uint64_t> edge) {
     WaitDecision d{0.0, true, msg};
     d.request_observation = true;
+    d.observe_edge = edge;
     return d;
   }
 };
