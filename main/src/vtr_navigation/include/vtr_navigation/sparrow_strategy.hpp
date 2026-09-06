@@ -46,8 +46,10 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 
+#include "vtr_navigation/sparrow_explorer.hpp"
 #include "vtr_navigation/sparrow_planner.hpp"
 #include "vtr_navigation/wait_strategy.hpp"
 
@@ -141,6 +143,14 @@ class SparrowStrategy : public WaitStrategy {
    */
   uint64_t beliefRevision() const { return belief_revision_.load(); }
 
+  /**
+   * \brief True while a committed knowledge-gradient learning wait (macro
+   *        MaxWait(W*)) is executing. The Navigator must not cut such a wait
+   *        short on belief revisions: commitment is what makes the priced
+   *        KM sample land instead of being censored early.
+   */
+  bool learningMacroActive() const { return macro_wait_active_.load(); }
+
   /** \brief Edges currently remembered as blocked (diagnostics). */
   std::vector<std::pair<uint64_t, uint64_t>> rememberedBlockedEdges() const;
 
@@ -207,6 +217,18 @@ class SparrowStrategy : public WaitStrategy {
   // Bumped on every belief-relevant observation transition (see
   // beliefRevision()).
   std::atomic<uint64_t> belief_revision_{0};
+
+  // -- Knowledge-gradient exploration (ports the runner's macro machinery) ---
+  // A committed macro overrides the search: Observe (when unlabeled), then -
+  // once the label is known and the class still has learning value -
+  // MaxWait(W*). `kg_consumed_` maps edge -> t_first of an encounter that
+  // already ran its macro, so each encounter explores at most once.
+  enum class MacroStage { kNone, kObserve };
+  std::unique_ptr<sparrow::KmExplorer> explorer_;
+  MacroStage macro_stage_ = MacroStage::kNone;
+  sparrow::SEdge macro_edge_{0, 0};
+  std::map<sparrow::SEdge, double> kg_consumed_;
+  std::atomic<bool> macro_wait_active_{false};
 
   // Pending KM samples, flushed at episode end (matches sim per-episode mode).
   struct PendingSample {

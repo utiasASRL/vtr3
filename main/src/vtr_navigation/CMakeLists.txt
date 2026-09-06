@@ -81,6 +81,7 @@ add_library(${PROJECT_NAME}_wait_policy
   src/obstacle_memory.cpp
   src/obstacle_stats.cpp
   src/sparrow_planner.cpp
+  src/sparrow_explorer.cpp
   src/sparrow_strategy.cpp
 )
 set_target_properties(${PROJECT_NAME}_wait_policy PROPERTIES
@@ -251,6 +252,7 @@ if(TARGET pybind11::module OR pybind11_FOUND)
     src/obstacle_memory.cpp
     src/obstacle_stats.cpp
     src/sparrow_planner.cpp
+    src/sparrow_explorer.cpp
     src/sparrow_strategy.cpp
     ${_VTR_SRC_ROOT}/vtr_route_planning/src/ew_tdsp_planner.cpp
     ${_VTR_SRC_ROOT}/vtr_logging/src/easylogging++.cc

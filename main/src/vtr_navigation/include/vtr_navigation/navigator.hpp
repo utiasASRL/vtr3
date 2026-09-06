@@ -277,7 +277,10 @@ typedef message_filters::sync_policies::ApproximateTime<
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr use_chatgpt_pub_;
   
   // HSHMAT: Episode management
-  void startObstacleEpisode();  // Idle -> Waiting/Rerouting
+  // Idle -> Waiting/Rerouting. `precomputed` executes an already-planned
+  // decision (SPARROW junction arrivals: one epoch = one plan; re-planning
+  // here would break committed learning macros and sim parity).
+  void startObstacleEpisode(const WaitDecision* precomputed = nullptr);
   void onObstacleCleared();     // Obstacle cleared during Waiting
   void onWaitTimeout();         // W* expired, Waiting -> Rerouting
   void completeEpisode();       // Episode ends -> Idle

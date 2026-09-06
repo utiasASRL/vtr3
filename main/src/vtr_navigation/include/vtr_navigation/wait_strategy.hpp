@@ -120,17 +120,33 @@ struct SparrowParams {
   // Minimum period (s) between monitoring passes over the costmap (the
   // detector publishes at sensor rate; edge-corridor checks are throttled).
   double monitor_period_s = 1.0;
-  // Every-decision replanning (paper Table VII): as the robot approaches a
-  // decision vertex (junction) it plans WHILE STILL MOVING, continuing
-  // seamlessly when the plan agrees with the current route. Re-plans happen
-  // whenever the belief is revised (an edge transitioned blocked<->free or a
-  // re-sighting occurred) since the last plan.
+  // Every-decision replanning (paper Table VII), with the simulation's exact
+  // observation semantics: adjacent edge statuses are only OBSERVED upon
+  // completing an action, i.e. on ARRIVAL at a decision vertex. The plan runs
+  // at arrival while the robot keeps driving through the junction (the search
+  // takes tens of milliseconds); "continue" costs no stop, a divert becomes
+  // an immediate route swap, and Wait/Observe pause the robot there.
   bool junction_replan = true;
-  int junction_lookahead_edges = 10;  // micro-edges before J to start planning
   // Hysteresis: divert off the current route only when the POMCP's chosen
   // corridor beats the route continuation by at least this many seconds of
   // expected cost. Prevents dithering when Q-values are within search noise.
   double junction_divert_margin_s = 2.0;
+
+  // Knowledge-gradient exploration of the KM fits (paper Sec. IV-D; direct
+  // port of pomcp/exploration.py). Prices the value one more clearance-time
+  // sample has for FUTURE episodes; when it exceeds its immediate cost the
+  // robot commits to a learning macro Observe -> MaxWait(W*). Defaults match
+  // the simulation's main-table runs.
+  bool kg_enabled = false;
+  int kg_num_episodes = 0;  ///< N: total missions planned for this deployment
+  double kg_encounter_rate_prior = 1.0;
+  std::string kg_mean_uncertainty = "conjugate";  ///< or "greenwood"
+  std::string kg_detour_cost = "free";            ///< or "inflated"
+  std::string kg_value_mode = "horizon";  ///< "horizon"|"acceleration"|"capped"
+  double kg_horizon_cap = 5.0;
+  double kg_value_scale = 1.0;
+  double kg_censored_credit = 0.0;
+  double kg_w_max_s = 300.0;  ///< W_max planning horizon (all classes)
 };
 
 /**

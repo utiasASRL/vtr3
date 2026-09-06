@@ -11,6 +11,7 @@
 #include <iostream>
 
 #include "vtr_logging/logging_init.hpp"  // defines easylogging storage
+#include "vtr_navigation/sparrow_explorer.hpp"
 #include "vtr_navigation/sparrow_planner.hpp"
 #include "vtr_navigation/survival_model.hpp"
 
@@ -141,6 +142,88 @@ static PlanResult run_observe_scenario() {
   return solver.plan(belief.particles(), roots);
 }
 
+// Scenario D/E: knowledge-gradient exploration (ports pomcp/exploration.py).
+// Diamond graph, one unlabeled blocked edge, one class with zero KM data.
+//  D) sim-default "free" costing, early episode, zero KM data -> the class
+//     mean is uncertain at prior scale, many episodes remain -> the explorer
+//     commits an Observe macro (needs_observe; W* set only after the label).
+//  E1) "inflated" costing gives the same commitment with the surcharge priced
+//     by expected waits; the post-Observe collapsed re-evaluation still finds
+//     value (zero samples for the revealed class).
+//  E2) FINAL episode -> episodes_left = 0 -> V = 0 -> exploration shuts off.
+static void run_explorer_scenarios() {
+  std::map<SVertex, std::vector<SVertex>> nbrs = {
+      {0, {1, 2}}, {1, {0, 3}}, {2, {0, 3}}, {3, {1, 2}}};
+  std::map<SEdge, double> tt = {
+      {canonical_edge(0, 1), 10.0}, {canonical_edge(1, 3), 10.0},
+      {canonical_edge(0, 2), 30.0}, {canonical_edge(2, 3), 30.0}};
+  GraphContext ctx(nbrs, tt, /*goal=*/3);
+
+  static SurvivalModel sm_empty;  // no KM data: everything left to learn
+  SparrowModel model;
+  model.class_names = {"pedestrian"};
+  model.class_probs = {1.0};
+  model.p_block = 0.10;
+  model.num_edges = static_cast<int>(ctx.edges.size());
+  model.prior_residual_mean = 60.0;
+  model.km = &sm_empty;
+  model.spawn_rate_hz = model.p_block * model.num_edges / 60.0;
+
+  KgConfig base;
+  base.enabled = true;
+  base.num_episodes = 15;
+  base.w_max_s = 300.0;
+  base.delta_obs_exec_s = 3.0;
+  base.wait_durations = {5.0, 10.0, 20.0, 30.0, 60.0};
+
+  const std::vector<KmExplorer::Candidate> cands = {
+      {canonical_edge(0, 1), 5.0, std::string()}};
+
+  {  // D: sim-default "free" costing, early episode -> Observe macro.
+    KmExplorer ex(base);
+    ex.beginEpisode(&ctx, &model, /*episode_idx=*/2, /*episodes_done=*/2,
+                    /*encounters_seen=*/4);
+    ex.setLiveBlockages(cands);
+    const auto d = ex.propose(0, cands, /*w_cap=*/300.0);
+    std::cout << "Scenario D (KG, free costing, episode 2/15): D_bar="
+              << ex.typicalDetour() << "s proposal="
+              << (d ? d->detail : "<none>") << "\n";
+    // Diamond D_bar = mean(60,60,20,20) = 40s; mu = 60s at prior-scale
+    // sigma -> KG > 0, 12 episodes remain -> commit, label needed first.
+    assert(d.has_value() && d->needs_observe && d->wait_s > 0.0);
+  }
+  KgConfig inflated = base;
+  inflated.detour_cost = "inflated";
+  {  // E1: inflated costing, early episode -> Observe macro committed.
+    KmExplorer ex(inflated);
+    ex.beginEpisode(&ctx, &model, /*episode_idx=*/2, /*episodes_done=*/2,
+                    /*encounters_seen=*/4);
+    ex.setLiveBlockages(cands);
+    const auto d = ex.propose(0, cands, /*w_cap=*/300.0);
+    std::cout << "Scenario E1 (KG, inflated, episode 2/15): D_bar="
+              << ex.typicalDetour() << "s proposal="
+              << (d ? d->detail : "<none>") << "\n";
+    assert(d.has_value() && d->needs_observe && d->wait_s > 0.0);
+    // After the Observe reveals the class, the collapsed re-evaluation still
+    // finds value (the class has zero samples).
+    const auto follow =
+        ex.evaluateEdge(0, canonical_edge(0, 1), 8.0, "pedestrian", 300.0);
+    std::cout << "  post-observe follow-up: "
+              << (follow ? follow->detail : "<none>") << "\n";
+    assert(follow.has_value() && !follow->needs_observe);
+  }
+  {  // E2: final episode -> episodes_left = 0 -> V = 0 -> exploration off.
+    KmExplorer ex(inflated);
+    ex.beginEpisode(&ctx, &model, /*episode_idx=*/14, /*episodes_done=*/14,
+                    /*encounters_seen=*/20);
+    ex.setLiveBlockages(cands);
+    const auto d = ex.propose(0, cands, /*w_cap=*/300.0);
+    std::cout << "Scenario E2 (KG, inflated, final episode): proposal="
+              << (d ? d->detail : "<none>") << "\n";
+    assert(!d.has_value());
+  }
+}
+
 int main() {
   auto a = run_scenario(100.0);
   report("Scenario A (expensive detour, expect MAXWAIT)", a);
@@ -154,6 +237,8 @@ int main() {
   auto c = run_observe_scenario();
   report("Scenario C (unlabeled, class matters, expect OBSERVE)", c);
   assert(c.action && c.action->kind == SAction::OBSERVE);
+
+  run_explorer_scenarios();
 
   std::cout << "SMOKE TEST PASSED\n";
   return 0;

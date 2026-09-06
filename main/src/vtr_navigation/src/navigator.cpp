@@ -371,10 +371,29 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           p + "monitor_period_s", sp.monitor_period_s);
       sp.junction_replan = node_->declare_parameter<bool>(
           p + "junction_replan", sp.junction_replan);
-      sp.junction_lookahead_edges = node_->declare_parameter<int>(
-          p + "junction_lookahead_edges", sp.junction_lookahead_edges);
       sp.junction_divert_margin_s = node_->declare_parameter<double>(
           p + "junction_divert_margin_s", sp.junction_divert_margin_s);
+      // Knowledge-gradient exploration (paper Sec. IV-D)
+      sp.kg_enabled = node_->declare_parameter<bool>(
+          p + "kg_enabled", sp.kg_enabled);
+      sp.kg_num_episodes = node_->declare_parameter<int>(
+          p + "kg_num_episodes", sp.kg_num_episodes);
+      sp.kg_encounter_rate_prior = node_->declare_parameter<double>(
+          p + "kg_encounter_rate_prior", sp.kg_encounter_rate_prior);
+      sp.kg_mean_uncertainty = node_->declare_parameter<std::string>(
+          p + "kg_mean_uncertainty", sp.kg_mean_uncertainty);
+      sp.kg_detour_cost = node_->declare_parameter<std::string>(
+          p + "kg_detour_cost", sp.kg_detour_cost);
+      sp.kg_value_mode = node_->declare_parameter<std::string>(
+          p + "kg_value_mode", sp.kg_value_mode);
+      sp.kg_horizon_cap = node_->declare_parameter<double>(
+          p + "kg_horizon_cap", sp.kg_horizon_cap);
+      sp.kg_value_scale = node_->declare_parameter<double>(
+          p + "kg_value_scale", sp.kg_value_scale);
+      sp.kg_censored_credit = node_->declare_parameter<double>(
+          p + "kg_censored_credit", sp.kg_censored_credit);
+      sp.kg_w_max_s = node_->declare_parameter<double>(
+          p + "kg_w_max_s", sp.kg_w_max_s);
       // Navigator-side sensing knobs (adjacent-edge costmap check)
       sparrow_use_costmap_edge_check_ = node_->declare_parameter<bool>(
           p + "use_costmap_edge_check", true);
@@ -1601,7 +1620,13 @@ void Navigator::onSparrowOccupancyUpdate() {
     // new information. Ongoing "still blocked" confirmations do NOT interrupt:
     // their aging effect is deterministic and was already priced by the
     // search that chose this wait - re-planning on them is only due at
-    // decision epochs (the wait's own expiry).
+    // decision epochs (the wait's own expiry). Committed learning-macro waits
+    // (knowledge-gradient exploration) are NEVER cut: commitment is what
+    // makes the priced KM sample land instead of being censored early.
+    if (sparrow->learningMacroActive()) {
+      sparrow_wait_revision_baseline_ = sparrow->beliefRevision();
+      return;
+    }
     if (sparrow->beliefRevision() != sparrow_wait_revision_baseline_) {
       sparrow_wait_revision_baseline_ = sparrow->beliefRevision();
       LockGuard lock(obstacle_mutex_);
@@ -1617,64 +1642,57 @@ void Navigator::onSparrowOccupancyUpdate() {
   // Not waiting: re-arm the wait baseline for the next wait.
   sparrow_wait_revision_baseline_ = std::numeric_limits<uint64_t>::max();
 
-  // ---- 2. Every-decision replanning at junction approach -------------------
+  // ---- 2. Every-decision replanning at junction ARRIVAL ---------------------
+  // Simulation-exact observation semantics: adjacent edge statuses are only
+  // OBSERVED upon completing an action, i.e. on arrival at a decision vertex.
+  // No planning ahead with assumed statuses of edges we have not seen yet.
+  // The plan runs at arrival while the robot keeps driving through the
+  // junction (the search takes tens of ms); "continue" costs no stop, a
+  // divert becomes an immediate route swap, Wait/Observe pause here.
   if (!wait_strategy_config_.sparrow.junction_replan) return;
-  // Reaching the previously handled junction re-arms it for future visits.
-  if (static_cast<uint64_t>(v) == sparrow_junction_handled_)
-    sparrow_junction_handled_ = 0;
   const int ri = followingRouteIndexOf(v);
   if (ri < 0) return;
 
-  // Next decision vertex (degree != 2) on the route within the lookahead.
-  int jidx = -1;
+  // Decision epoch only at decision vertices (degree != 2 in the teach graph).
+  size_t deg = 0;
   try {
     auto priv_graph = privilegedGraph();
     if (!priv_graph) return;
-    const int lookahead =
-        std::max(1, wait_strategy_config_.sparrow.junction_lookahead_edges);
-    const int last = static_cast<int>(following_route_ids_.size()) - 1;
-    for (int i = ri + 1; i <= std::min(ri + lookahead, last); ++i) {
-      size_t deg = 0;
-      for (const auto& n : priv_graph->neighbors(
-               tactic::VertexId(following_route_ids_[i]))) {
-        (void)n;
-        ++deg;
-      }
-      if (deg != 2) {
-        jidx = i;
-        break;
-      }
+    for (const auto& n : priv_graph->neighbors(v)) {
+      (void)n;
+      ++deg;
     }
   } catch (const std::exception& e) {
     CLOG(DEBUG, "navigation")
-        << "HSHMAT SPARROW: junction scan failed: " << e.what();
+        << "HSHMAT SPARROW: junction degree check failed: " << e.what();
     return;
   }
-  if (jidx < 0) return;
-  const uint64_t J = following_route_ids_[jidx];
+  if (deg == 2) {
+    // Mid-corridor: no decisions here (the corridor is the committed action).
+    // Leaving a junction re-arms it for future visits (e.g. detour loops).
+    sparrow_junction_handled_ = 0;
+    return;
+  }
+  const uint64_t J = static_cast<uint64_t>(v);
+  if (ri + 1 >= static_cast<int>(following_route_ids_.size()))
+    return;  // arrived at the goal: nothing to plan
 
-  // Every-decision replanning: plan once per junction approach. A belief
-  // revision (edge transitioned blocked<->free, re-sighting) re-arms the same
-  // junction, so new information arriving between the plan and the arrival
-  // still triggers a fresh plan. No stop-and-go: the plan runs while the
-  // robot keeps driving, and "continue" costs nothing.
+  // Plan once per arrival. A belief revision (edge transitioned
+  // blocked<->free, re-sighting) while still localized at the junction
+  // re-arms it, so new information immediately triggers a fresh plan.
   const uint64_t rev = sparrow->beliefRevision();
   if (J == sparrow_junction_handled_ &&
       rev == sparrow_junction_planned_revision_)
     return;
-  if (jidx + 1 >= static_cast<int>(following_route_ids_.size())) {
-    sparrow_junction_handled_ = J;  // route ends at J (goal): nothing to plan
-    sparrow_junction_planned_revision_ = rev;
-    return;
-  }
 
-  const uint64_t route_next = following_route_ids_[jidx + 1];
+  const uint64_t route_next = following_route_ids_[ri + 1];
   CLOG(INFO, "mission.state_machine")
-      << "HSHMAT SPARROW: approaching decision vertex " << J
-      << " (belief revision " << rev << ") - planning while moving.";
+      << "HSHMAT SPARROW: arrived at decision vertex " << J
+      << " (belief revision " << rev
+      << ") - observing adjacent edges and planning.";
   setupLearnedStrategyGraphAccess();
   const WaitDecision d = sparrow->planEnRoute(
-      v, tactic::VertexId(J), getGoalVertex(), t_now, route_next);
+      v, /*junction=*/v, getGoalVertex(), t_now, route_next);
   sparrow_junction_handled_ = J;
   sparrow_junction_planned_revision_ = rev;
   const bool is_traverse = !d.should_wait && !d.request_observation;
@@ -1729,7 +1747,8 @@ void Navigator::onSparrowOccupancyUpdate() {
       << (d.request_observation ? "Observe" : "MaxWait")
       << " at decision vertex " << J << " (" << blk.size()
       << " blocked adjacent edges) - pausing and starting episode.";
-  startObstacleEpisode();
+  // Execute the decision planned at THIS epoch (no second plan).
+  startObstacleEpisode(&d);
 }
 
 tactic::VertexId Navigator::getCurrentVertex() const {
@@ -1880,7 +1899,7 @@ bool Navigator::routesSameRemaining(
   return true;
 }
 
-void Navigator::startObstacleEpisode() {
+void Navigator::startObstacleEpisode(const WaitDecision* precomputed) {
   // HSHMAT: Called when obstacle detected
   // NOTE: obstacle_state_ is already set to Waiting by caller as a guard against re-entry
   
@@ -1984,17 +2003,19 @@ void Navigator::startObstacleEpisode() {
     // Ensure graph access is set up for learned strategy
     setupLearnedStrategyGraphAccess();
     
-    // Compute W* using the configured strategy (new interface)
+    // Compute W* using the configured strategy (new interface). SPARROW
+    // junction arrivals pass the decision already planned at this epoch -
+    // one epoch, one plan (re-planning would break committed macros).
     CLOG(INFO, "mission.state_machine") << "HSHMAT: Computing wait decision...";
-    WaitDecision decision = wait_strategy_->computeWaitTime(
-        last_obstacle_type_,
-        current_blocked_edges_,
-        current_v,
-        goal_v,
-        t_now,
-        // 0 for a brand-new obstacle; on an Observe re-plan pass the original
-        // detection time so the strategy sees the true obstacle age.
-        observe_replan ? wait_episode_start_sec_ : 0.0);
+    WaitDecision decision =
+        precomputed ? *precomputed
+                    : wait_strategy_->computeWaitTime(
+                          last_obstacle_type_, current_blocked_edges_,
+                          current_v, goal_v, t_now,
+                          // 0 for a brand-new obstacle; on an Observe re-plan
+                          // pass the original detection time so the strategy
+                          // sees the true obstacle age.
+                          observe_replan ? wait_episode_start_sec_ : 0.0);
     current_W_star_ = decision.W_star;
     
     // HSHMAT SPARROW: the POMCP chose Observe - request one VLM classification

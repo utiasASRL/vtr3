@@ -497,8 +497,141 @@ WaitDecision SparrowStrategy::planInternal(
     local.memory[kv.first] = kv.second;
   }
 
-  // ---- 5. Frozen model + belief ---------------------------------------------
+  // ---- 5. Frozen model --------------------------------------------------------
   const SparrowModel model = snapshotModel(static_cast<int>(ctx.edges.size()));
+
+  // ---- 5b. Knowledge-gradient exploration (paper Sec. IV-D) -------------------
+  // Ports the runner's macro machinery: at real decision points, price the
+  // value one more KM sample has for future episodes; when it beats its
+  // immediate cost, commit to Observe -> MaxWait(W*) and override the search.
+  macro_wait_active_ = false;  // any re-plan ends a running macro wait
+  // Episode-zero guard mirrors the sim (episode 0's samples are discarded);
+  // episode_idx_ is the 1-based mission number, sim indices are 0-based.
+  const bool kg_on =
+      sp.kg_enabled && sp.kg_num_episodes > 0 && episode_idx_ > 1;
+  if (kg_on) {
+    if (!explorer_) {
+      sparrow::KgConfig kc;
+      kc.enabled = true;
+      kc.num_episodes = sp.kg_num_episodes;
+      kc.encounter_rate_prior = sp.kg_encounter_rate_prior;
+      kc.mean_uncertainty = sp.kg_mean_uncertainty;
+      kc.detour_cost = sp.kg_detour_cost;
+      kc.value_mode = sp.kg_value_mode;
+      kc.horizon_cap = sp.kg_horizon_cap;
+      kc.value_scale = sp.kg_value_scale;
+      kc.censored_credit = sp.kg_censored_credit;
+      kc.w_max_s = sp.kg_w_max_s;
+      kc.delta_obs_exec_s = sp.delta_obs_s;
+      kc.wait_durations = sp.wait_durations;
+      explorer_ = std::make_unique<sparrow::KmExplorer>(kc);
+    }
+    const int ep0 = episode_idx_ - 1;  // 0-based, as in the sim
+    explorer_->beginEpisode(&ctx, &model, ep0, /*episodes_done=*/ep0,
+                            obstacle_stats_.totalObstacleEpisodes());
+
+    // Largest learning wait allowed (the sim reserves mission budget; the
+    // robot's analog is the per-episode cumulative wait cap).
+    double w_cap = explorer_->maxWMax();
+    if (sp.max_total_wait_s > 0.0)
+      w_cap = std::min(w_cap, sp.max_total_wait_s - age);
+
+    // Candidate encounters: adjacent blocked edges whose encounter has not
+    // already run its macro (consumed is keyed on the streak start t_first,
+    // so a NEW obstacle on the same edge is eligible again).
+    std::vector<sparrow::KmExplorer::Candidate> candidates;
+    for (const auto& kv : local.statuses) {
+      if (kv.second != 1) continue;
+      auto mit = memory_.find(kv.first);
+      const double t_first =
+          (mit != memory_.end()) ? mit->second.t_first : t_now;
+      auto cit = kg_consumed_.find(kv.first);
+      if (cit != kg_consumed_.end() && cit->second == t_first) continue;
+      const auto ait = local.ages.find(kv.first);
+      const auto lit = local.labels.find(kv.first);
+      candidates.emplace_back(
+          kv.first, (ait != local.ages.end()) ? ait->second : 0.0,
+          (lit != local.labels.end()) ? lit->second : std::string());
+    }
+
+    if (macro_stage_ == MacroStage::kObserve) {
+      // The committed Observe has been answered: re-run the optimisation
+      // with the posterior collapsed to the revealed class.
+      const auto sit = local.statuses.find(macro_edge_);
+      const bool still_blocked =
+          sit != local.statuses.end() && sit->second == 1;
+      std::string lbl;
+      const auto lit = local.labels.find(macro_edge_);
+      if (lit != local.labels.end()) lbl = lit->second;
+      macro_stage_ = MacroStage::kNone;
+      if (still_blocked && !lbl.empty() && w_cap > 0.0) {
+        const auto mit = memory_.find(macro_edge_);
+        const double t_first =
+            (mit != memory_.end()) ? mit->second.t_first : t_now;
+        const auto ait = local.ages.find(macro_edge_);
+        const auto follow = explorer_->evaluateEdge(
+            planning_vertex, macro_edge_,
+            (ait != local.ages.end()) ? ait->second : 0.0, lbl, w_cap);
+        // Either way the encounter is consumed: it got its one macro.
+        kg_consumed_[macro_edge_] = t_first;
+        if (follow.has_value()) {
+          // The revealed class still has positive net learning value:
+          // commit the wait sized for it.
+          macro_wait_active_ = true;
+          CLOG(INFO, "navigation")
+              << "HSHMAT SparrowStrategy: EXPLORE macro wait | "
+              << follow->detail;
+          std::ostringstream speech;
+          speech << lbl << ". Waiting up to "
+                 << static_cast<int>(std::llround(follow->wait_s))
+                 << " seconds to learn.";
+          return WaitDecision::wait(follow->wait_s, speech.str());
+        }
+        // Nothing left to learn from this class: release control back to
+        // the search; the labeled (possibly censored) sample still lands.
+        CLOG(INFO, "navigation")
+            << "HSHMAT SparrowStrategy: EXPLORE macro released after "
+               "Observe (class '" << lbl << "' has no net learning value)";
+      }
+      // Cleared while observing: the uncensored sample was already recorded
+      // by the clearance hooks; the macro simply completes (not consumed -
+      // the encounter is over).
+    } else if (!candidates.empty() && w_cap > 0.0) {
+      // Known blockages elsewhere make some detours worse than the
+      // steady-state term alone suggests.
+      explorer_->setLiveBlockages(candidates);
+      auto decision = explorer_->propose(planning_vertex, candidates, w_cap);
+      // The macro must respect the planner's information structure: without
+      // the Observe action there is no way to label the sample, and an
+      // unlabeled clearance is dropped from the KM, so it teaches nothing.
+      if (decision.has_value() && decision->needs_observe &&
+          !sp.allow_observe)
+        decision.reset();
+      if (decision.has_value()) {
+        CLOG(INFO, "navigation")
+            << "HSHMAT SparrowStrategy: EXPLORE macro | " << decision->detail;
+        if (decision->needs_observe) {
+          macro_stage_ = MacroStage::kObserve;
+          macro_edge_ = decision->edge;
+          observed_edges_.insert(decision->edge);
+          pending_observe_edge_ = decision->edge;
+          return WaitDecision::observe("Observing obstacle.", decision->edge);
+        }
+        // Already labeled: commit the learning wait directly.
+        const auto mit = memory_.find(decision->edge);
+        kg_consumed_[decision->edge] =
+            (mit != memory_.end()) ? mit->second.t_first : t_now;
+        macro_wait_active_ = true;
+        std::ostringstream speech;
+        speech << "Waiting up to "
+               << static_cast<int>(std::llround(decision->wait_s))
+               << " seconds to learn.";
+        return WaitDecision::wait(decision->wait_s, speech.str());
+      }
+    }
+  }
+
+  // ---- 5c. Belief -------------------------------------------------------------
   const uint64_t seed =
       (sp.planner_seed != 0)
           ? sparrow::derive_seed(static_cast<uint64_t>(sp.planner_seed),
@@ -735,6 +868,9 @@ void SparrowStrategy::resetMemory() {
   std::lock_guard<std::mutex> lock(state_mutex_);
   memory_.clear();
   archived_sightings_.clear();
+  kg_consumed_.clear();
+  macro_stage_ = MacroStage::kNone;
+  macro_wait_active_ = false;
 }
 
 void SparrowStrategy::notifyEpisodeStart(int episode_idx) {

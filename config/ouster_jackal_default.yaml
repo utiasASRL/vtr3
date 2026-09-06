@@ -154,18 +154,37 @@
           # Min period (s) between monitoring passes; monitoring itself is
           # driven by the detector's costmap updates (sensor rate).
           monitor_period_s: 1.0
-          # Every-decision replanning (paper Table VII): plan at every
-          # upcoming decision vertex while still moving; re-plans are re-armed
-          # by belief revisions (an edge transitioned blocked<->free or was
-          # re-sighted). "Continue" costs no stop; a divert is an on-the-fly
-          # reroute; Wait/Observe pause and start an episode. Belief revisions
-          # during a wait cut the wait short so the planner reconsiders.
+          # Every-decision replanning (paper Table VII), with the simulation's
+          # exact observation semantics: adjacent edge statuses are only
+          # OBSERVED on ARRIVAL at a decision vertex (after completing the
+          # corridor traverse) - no planning ahead with assumed statuses. The
+          # plan runs at arrival while the robot keeps driving (tens of ms);
+          # "continue" costs no stop, a divert is an immediate route swap,
+          # Wait/Observe pause there. Belief revisions during a (non-macro)
+          # wait cut the wait short so the planner reconsiders.
           junction_replan: true
-          junction_lookahead_edges: 10  # micro-edges before the junction to plan
           # Divert off the current route only when the chosen corridor beats
           # the route continuation by this margin (s) - prevents dithering on
           # Q-values within search noise.
           junction_divert_margin_s: 2.0
+          # Knowledge-gradient exploration of the KM fits (paper Sec. IV-D;
+          # exact port of pomcp/exploration.py, defaults = sim main-table
+          # runs). Prices the value one more clearance-time sample has for
+          # future episodes; when it beats its immediate cost the robot
+          # commits to a learning macro Observe -> MaxWait(W*), which is
+          # never cut short. kg_num_episodes is N, the total number of
+          # missions this deployment will run (value of a sample scales with
+          # the missions still ahead; set it to your experiment size).
+          kg_enabled: true
+          kg_num_episodes: 15
+          kg_encounter_rate_prior: 1.0
+          kg_mean_uncertainty: conjugate   # or greenwood
+          kg_detour_cost: free             # or inflated
+          kg_value_mode: horizon           # horizon | acceleration | capped
+          kg_horizon_cap: 5.0
+          kg_value_scale: 1.0
+          kg_censored_credit: 0.0
+          kg_w_max_s: 300.0                # W_max planning horizon (s)
           # Adjacent-edge sensing (costmap corridor check in the Navigator)
           use_costmap_edge_check: true
           edge_check_length_m: 2.5    # corridor length checked per adjacent edge
