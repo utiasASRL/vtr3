@@ -55,6 +55,12 @@ struct WaitDecision {
   // /vtr/obstacle_type arrives; the strategy routes that label to observe_edge.
   bool request_observation = false;
   std::pair<uint64_t, uint64_t> observe_edge{0, 0};
+  // HSHMAT SPARROW: when the decision is a Traverse (detour), these extra
+  // micro-edges must be banned in the reroute so the executed route leaves the
+  // planning vertex through the corridor the POMCP actually chose (receding-
+  // horizon parity with the simulation: the plan commits ONE action; the rest
+  // of the TDSP route is tentative and revised at the next decision point).
+  std::vector<std::pair<uint64_t, uint64_t>> detour_ban_edges;
   
   static WaitDecision wait(double duration, const std::string& msg) {
     return {duration, true, msg};

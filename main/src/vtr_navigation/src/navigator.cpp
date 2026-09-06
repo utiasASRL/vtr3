@@ -1801,6 +1801,8 @@ void Navigator::startObstacleEpisode() {
       {
         LockGuard lock(obstacle_mutex_);
         obstacle_state_ = ObstacleState::Rerouting;
+        // SPARROW: the reroute must execute the POMCP's chosen corridor.
+        sparrow_detour_bans_ = decision.detour_ban_edges;
       }
       triggerReroute();
     } else {
@@ -2123,6 +2125,7 @@ void Navigator::onWaitTimeout() {
     bool observe_now = false;
     std::string observe_speech;
     std::pair<uint64_t, uint64_t> observe_edge{0, 0};
+    std::vector<std::pair<uint64_t, uint64_t>> detour_bans;
     double extra_W = 0.0;
     try {
       const tactic::VertexId current_v = getCurrentVertex();
@@ -2142,6 +2145,9 @@ void Navigator::onWaitTimeout() {
       } else if (d.should_wait && d.W_star > 0.0 && std::isfinite(d.W_star)) {
         wait_again = true;
         extra_W = d.W_star;
+      } else {
+        // Detour: remember the corridor commitment for the reroute below.
+        detour_bans = d.detour_ban_edges;
       }
     } catch (const std::exception& e) {
       CLOG(WARNING, "mission.state_machine")
@@ -2214,6 +2220,8 @@ void Navigator::onWaitTimeout() {
       LockGuard lock(obstacle_mutex_);
       if (obstacle_state_ != ObstacleState::Waiting) return;
       obstacle_state_ = ObstacleState::Rerouting;
+      // The reroute must execute the POMCP's chosen corridor.
+      sparrow_detour_bans_ = detour_bans;
     }
   }
   
@@ -2980,6 +2988,25 @@ void Navigator::triggerReroute() {
         // planning, otherwise the executed path can differ from what was priced.
         for (const auto& e : affected_edges) {
           edges_to_ban.insert(e);
+        }
+        // HSHMAT SPARROW: additionally ban the alternative corridor entrances
+        // at the planning vertex, so the route executes the POMCP's chosen
+        // Traverse action (one-action-at-a-time receding horizon).
+        if (st == StrategyType::SPARROW) {
+          std::vector<std::pair<uint64_t, uint64_t>> corridor_bans;
+          {
+            LockGuard lock(obstacle_mutex_);
+            corridor_bans.swap(sparrow_detour_bans_);
+          }
+          for (const auto& pr : corridor_bans) {
+            edges_to_ban.insert(tactic::EdgeId(tactic::VertexId(pr.first),
+                                               tactic::VertexId(pr.second)));
+          }
+          if (!corridor_bans.empty()) {
+            CLOG(INFO, "mission.state_machine")
+                << "HSHMAT SPARROW: banned " << corridor_bans.size()
+                << " alternative corridor entrances (POMCP corridor commitment)";
+          }
         }
         tdsp->setBannedEdges(edges_to_ban);
         tdsp->setStaticEdgeDelays({});

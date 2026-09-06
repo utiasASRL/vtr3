@@ -521,9 +521,32 @@ WaitDecision SparrowStrategy::computeWaitTime(
     return WaitDecision::wait(best.W, speech.str());
   }
 
-  // TRAVERSE (or, defensively, anything else): detour. The Navigator's
-  // reroute TDSP (blocked edges banned + uniform EW) chooses the route.
-  return WaitDecision::detour(obs_type + ". Rerouting.");
+  // TRAVERSE (or, defensively, anything else): detour. Receding-horizon
+  // parity with the simulation: the POMCP committed to ONE action - leaving
+  // the planning vertex through best.first_hop. Ban the other corridors out
+  // of the planning vertex (except the approach the robot arrives by) so the
+  // Navigator's reroute TDSP executes that action; the rest of its route is
+  // tentative and gets revised at the next obstacle encounter.
+  WaitDecision d = WaitDecision::detour(obs_type + ". Rerouting.");
+  if (best.kind == SAction::TRAVERSE) {
+    const auto pit = dist_from_robot.find(planning_vertex);
+    const double d_pv = (pit != dist_from_robot.end()) ? pit->second : 0.0;
+    for (const auto& w : pv_nbrs) {
+      if (w == best.first_hop) continue;
+      auto dit = dist_from_robot.find(w);
+      const bool is_approach =
+          dit != dist_from_robot.end() && dit->second < d_pv - 1e-9;
+      if (is_approach) continue;  // robot needs this edge to reach the vertex
+      d.detour_ban_edges.push_back(
+          sparrow::canonical_edge(planning_vertex, w));
+    }
+    CLOG(INFO, "navigation")
+        << "HSHMAT SparrowStrategy: Traverse commits corridor "
+        << planning_vertex << "->" << best.first_hop << "; banning "
+        << d.detour_ban_edges.size()
+        << " alternative corridor entrances for the reroute";
+  }
+  return d;
 }
 
 // ============================================================================
