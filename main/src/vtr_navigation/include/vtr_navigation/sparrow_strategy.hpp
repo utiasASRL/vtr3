@@ -45,6 +45,9 @@
  */
 #pragma once
 
+#include <atomic>
+#include <mutex>
+
 #include "vtr_navigation/sparrow_planner.hpp"
 #include "vtr_navigation/wait_strategy.hpp"
 
@@ -106,21 +109,39 @@ class SparrowStrategy : public WaitStrategy {
    *        decision vertex (junction) while the robot is still driving
    *        toward it. No front blockage is required; blocked information
    *        comes from the adjacent-status hook and remembered sightings.
+   * \param route_next_hop The vertex the current route continues to after the
+   *        junction (0 = unknown). Used for divert hysteresis: the plan only
+   *        leaves the route when its corridor beats the route continuation by
+   *        junction_divert_margin_s of expected cost.
    */
   WaitDecision planEnRoute(const tactic::VertexId& robot_vertex,
                            const tactic::VertexId& junction_vertex,
-                           const tactic::VertexId& goal_vertex, double t_now);
+                           const tactic::VertexId& goal_vertex, double t_now,
+                           uint64_t route_next_hop);
 
   /**
-   * \brief Continuous monitoring update (~1 Hz from the Navigator): statuses
-   *        of edges currently in costmap view (1 blocked / 0 free / -1
-   *        unknown). Maintains per-edge sighting streaks so "re-sighting"
-   *        means the edge genuinely left view, not "a wait cycle passed".
+   * \brief Continuous monitoring update, driven by the detector's occupancy
+   *        (costmap) updates: statuses of edges currently in view (1 blocked
+   *        / 0 free / -1 unknown). Maintains per-edge sighting streaks so
+   *        "re-sighting" means the edge genuinely left view, and bumps the
+   *        belief revision on every transition (new blockage, confirmed
+   *        clearance, re-sighting) so the Navigator knows a re-plan is due.
    */
   void updateEdgeMonitoring(const std::map<tactic::EdgeId, int>& statuses,
                             double t_now);
 
-  /** \brief Edges currently remembered as blocked (junction-replan trigger). */
+  /**
+   * \brief Monotonic counter of belief-relevant observation events: a
+   *        previously free/unseen edge seen blocked, a remembered-blocked
+   *        edge seen free, or a re-sighting after a gap. Ongoing "still
+   *        blocked" confirmations do NOT bump it - their effect on the
+   *        belief (aging) is deterministic and already priced by the last
+   *        plan's search, so they only warrant re-planning at decision
+   *        epochs (junction approach / wait expiry), not continuously.
+   */
+  uint64_t beliefRevision() const { return belief_revision_.load(); }
+
+  /** \brief Edges currently remembered as blocked (diagnostics). */
   std::vector<std::pair<uint64_t, uint64_t>> rememberedBlockedEdges() const;
 
   /** \brief Persist survival model + obstacle stats. */
@@ -135,12 +156,14 @@ class SparrowStrategy : public WaitStrategy {
                             const tactic::VertexId& current_vertex,
                             const tactic::VertexId& goal_vertex, double t_now,
                             double obstacle_t_first,
-                            const tactic::VertexId& plan_vertex_override);
+                            const tactic::VertexId& plan_vertex_override,
+                            uint64_t route_next_hop);
 
   /// Record a blocked sighting of `e` whose current streak started at
   /// `streak_start`. Detects re-sightings (gap > monitor_gap_s since t_last):
   /// archives the old record for the belief mixture and restarts the streak.
-  void noteBlockedSighting(const sparrow::SEdge& e, double streak_start,
+  /// Returns true when a re-sighting was archived. Caller holds state_mutex_.
+  bool noteBlockedSighting(const sparrow::SEdge& e, double streak_start,
                            double t_now);
   /// Snapshot the learned model (KM + stats) into a frozen SparrowModel.
   sparrow::SparrowModel snapshotModel(int num_edges) const;
@@ -177,6 +200,13 @@ class SparrowStrategy : public WaitStrategy {
   // obstacle mixture. Erased when the edge is confirmed free; replaced on the
   // next gap.
   std::map<sparrow::SEdge, sparrow::EdgeMemoryRec> archived_sightings_;
+  // Serializes planning against monitoring: plans run from the Navigator's
+  // episode callbacks while monitoring is driven by the detector's costmap
+  // callback (different callback groups -> different threads).
+  mutable std::mutex state_mutex_;
+  // Bumped on every belief-relevant observation transition (see
+  // beliefRevision()).
+  std::atomic<uint64_t> belief_revision_{0};
 
   // Pending KM samples, flushed at episode end (matches sim per-episode mode).
   struct PendingSample {

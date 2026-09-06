@@ -198,7 +198,7 @@ GraphContext SparrowStrategy::buildContext(
 // Sighting streaks + continuous monitoring
 // ============================================================================
 
-void SparrowStrategy::noteBlockedSighting(const SEdge& e, double streak_start,
+bool SparrowStrategy::noteBlockedSighting(const SEdge& e, double streak_start,
                                           double t_now) {
   auto& mem = memory_[e];
   const bool resight =
@@ -224,19 +224,45 @@ void SparrowStrategy::noteBlockedSighting(const SEdge& e, double streak_start,
     mem.t_first = std::min(mem.t_first, streak_start);
   }
   mem.t_last = std::max(mem.t_last, t_now);
+  return resight;
 }
 
 void SparrowStrategy::updateEdgeMonitoring(
     const std::map<tactic::EdgeId, int>& statuses, double t_now) {
+  // Never stall the sensor callback behind a plan in flight: monitoring is
+  // periodic, so skipping one pass while the search runs is harmless.
+  std::unique_lock<std::mutex> lock(state_mutex_, std::try_to_lock);
+  if (!lock.owns_lock()) return;
   for (const auto& kv : statuses) {
     const SEdge se = toSEdge(kv.first);
     if (kv.second == 0) {
       // Confirmed free: any remembered obstacle is gone and the archived
       // record is obsolete (the next blockage is a fresh encounter).
-      memory_.erase(se);
+      // Erasing a remembered blockage IS a belief revision (a route through
+      // this edge may just have become viable).
+      if (memory_.erase(se) > 0) {
+        ++belief_revision_;
+        CLOG(INFO, "navigation")
+            << "HSHMAT SparrowStrategy: monitored edge (" << se.first << ","
+            << se.second << ") transitioned BLOCKED->free (belief revision "
+            << belief_revision_.load() << ")";
+      }
       archived_sightings_.erase(se);
     } else if (kv.second == 1) {
-      noteBlockedSighting(se, t_now, t_now);
+      const bool was_known = memory_.count(se) > 0;
+      const bool resight = noteBlockedSighting(se, t_now, t_now);
+      // New blockage or re-sighting revises the belief; an ongoing
+      // "still blocked" confirmation does not (its aging effect is
+      // deterministic and priced at decision epochs).
+      if (!was_known || resight) {
+        ++belief_revision_;
+        CLOG(INFO, "navigation")
+            << "HSHMAT SparrowStrategy: monitored edge (" << se.first << ","
+            << se.second << ") "
+            << (resight ? "RE-sighted blocked after a gap"
+                        : "transitioned free->BLOCKED")
+            << " (belief revision " << belief_revision_.load() << ")";
+      }
     }
     // -1 (unknown / out of view): no update; the streak gap grows naturally.
   }
@@ -244,6 +270,7 @@ void SparrowStrategy::updateEdgeMonitoring(
 
 std::vector<std::pair<uint64_t, uint64_t>>
 SparrowStrategy::rememberedBlockedEdges() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   std::vector<std::pair<uint64_t, uint64_t>> out;
   out.reserve(memory_.size());
   for (const auto& kv : memory_) out.push_back(kv.first);
@@ -264,24 +291,29 @@ WaitDecision SparrowStrategy::computeWaitTime(
     return WaitDecision::waitForever(obs_type + ". Waiting.");
   }
   return planInternal(obs_type, blocked_edges, current_vertex, goal_vertex,
-                      t_now, obstacle_t_first, tactic::VertexId::Invalid());
+                      t_now, obstacle_t_first, tactic::VertexId::Invalid(),
+                      /*route_next_hop=*/0);
 }
 
 WaitDecision SparrowStrategy::planEnRoute(const tactic::VertexId& robot_vertex,
                                           const tactic::VertexId& junction_vertex,
                                           const tactic::VertexId& goal_vertex,
-                                          double t_now) {
+                                          double t_now,
+                                          uint64_t route_next_hop) {
   // Every-decision replanning: no front blockage; blocked information comes
   // from the adjacent-status hook at the junction and remembered sightings.
   return planInternal("unknown", EdgeIdSet{}, robot_vertex, goal_vertex, t_now,
-                      /*obstacle_t_first=*/0.0, junction_vertex);
+                      /*obstacle_t_first=*/0.0, junction_vertex,
+                      route_next_hop);
 }
 
 WaitDecision SparrowStrategy::planInternal(
     const std::string& obs_type, const EdgeIdSet& blocked_edges,
     const tactic::VertexId& current_vertex, const tactic::VertexId& goal_vertex,
     double t_now, double obstacle_t_first,
-    const tactic::VertexId& plan_vertex_override) {
+    const tactic::VertexId& plan_vertex_override, uint64_t route_next_hop) {
+  // Serialize against the costmap-driven monitoring updates.
+  std::lock_guard<std::mutex> lock(state_mutex_);
   const auto& sp = config_.sparrow;
 
   if (!get_neighbors_ || !get_travel_time_) {
@@ -558,7 +590,27 @@ WaitDecision SparrowStrategy::planInternal(
     return WaitDecision::waitForever(obs_type + ". Waiting.");
   }
 
-  const SAction& best = result.action.value();
+  SAction best = result.action.value();
+  // Divert hysteresis (junction replanning only): stay on the current route
+  // unless the chosen corridor beats the route continuation by a clear
+  // margin. Q-values within search noise must not cause route dithering.
+  if (route_next_hop != 0 && best.kind == SAction::TRAVERSE &&
+      best.first_hop != route_next_hop) {
+    double q_best = kInf, q_route = kInf;
+    for (const auto& s : result.root_actions) {
+      if (s.action.kind != SAction::TRAVERSE) continue;
+      if (s.action.first_hop == best.first_hop) q_best = s.q_cost;
+      if (s.action.first_hop == route_next_hop) q_route = s.q_cost;
+    }
+    if (std::isfinite(q_route) &&
+        q_route <= q_best + sp.junction_divert_margin_s) {
+      CLOG(INFO, "navigation")
+          << "HSHMAT SparrowStrategy: divert hysteresis - route continuation "
+             "(Q=" << q_route << "s) within " << sp.junction_divert_margin_s
+          << "s of best corridor (Q=" << q_best << "s); staying on route";
+      best.first_hop = route_next_hop;
+    }
+  }
   if (best.kind == SAction::OBSERVE) {
     // The POMCP decided the VLM label on this edge is worth its cost. The
     // Navigator requests one classification and calls computeWaitTime again;
@@ -664,6 +716,7 @@ void SparrowStrategy::flushPendingSamplesToKM() {
 
 void SparrowStrategy::updateMemoryAfterCensoredWait(
     const EdgeIdSet& blocked_edges, double t_after_wait) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   for (const auto& e : blocked_edges) {
     auto it = memory_.find(toSEdge(e));
     if (it != memory_.end()) {
@@ -673,11 +726,13 @@ void SparrowStrategy::updateMemoryAfterCensoredWait(
 }
 
 void SparrowStrategy::clearMemoryForEdge(const EdgeId& edge) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   memory_.erase(toSEdge(edge));
   archived_sightings_.erase(toSEdge(edge));
 }
 
 void SparrowStrategy::resetMemory() {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   memory_.clear();
   archived_sightings_.clear();
 }

@@ -109,18 +109,28 @@ struct SparrowParams {
   double p_block_override = -1.0;   // >=0 pins occupancy (debug); <0 learned
   int planner_seed = 0;             // 0 = time-derived (non-reproducible)
   // Continuity tolerance (s) for the Navigator's continuous edge monitoring.
-  // Monitoring refreshes each watched edge's last-confirmed-blocked time at
-  // ~1 Hz, so a gap longer than a few sensor periods means the edge genuinely
-  // left the robot's view. On the next sighting the old record is archived
-  // into belief memory and the same-obstacle-vs-new-obstacle mixture decides;
-  // a smaller gap extends the same continuously-watched streak. This is NOT a
+  // Monitoring is driven by the detector's occupancy (costmap) updates and
+  // refreshes each in-view edge's last-confirmed-blocked time, so a gap
+  // longer than a few update periods means the edge genuinely left the
+  // robot's view. On the next sighting the old record is archived into
+  // belief memory and the same-obstacle-vs-new-obstacle mixture decides; a
+  // smaller gap extends the same continuously-watched streak. This is NOT a
   // belief parameter - only the detector of "did we look away".
   double monitor_gap_s = 5.0;
+  // Minimum period (s) between monitoring passes over the costmap (the
+  // detector publishes at sensor rate; edge-corridor checks are throttled).
+  double monitor_period_s = 1.0;
   // Every-decision replanning (paper Table VII): as the robot approaches a
-  // decision vertex (junction) it re-plans if the belief is relevant there,
-  // continuing seamlessly when the plan agrees with the current route.
+  // decision vertex (junction) it plans WHILE STILL MOVING, continuing
+  // seamlessly when the plan agrees with the current route. Re-plans happen
+  // whenever the belief is revised (an edge transitioned blocked<->free or a
+  // re-sighting occurred) since the last plan.
   bool junction_replan = true;
   int junction_lookahead_edges = 10;  // micro-edges before J to start planning
+  // Hysteresis: divert off the current route only when the POMCP's chosen
+  // corridor beats the route continuation by at least this many seconds of
+  // expected cost. Prevents dithering when Q-values are within search noise.
+  double junction_divert_margin_s = 2.0;
 };
 
 /**

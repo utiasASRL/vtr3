@@ -286,6 +286,12 @@ typedef message_filters::sync_policies::ApproximateTime<
   void setupLearnedStrategyGraphAccess();  // Set up TDSP callbacks
   EdgeIdSet computeBlockedEdges() const;   // Get edges blocked by current obstacle
 
+  // Cached privileged (teach) subgraph, shared by all graph queries
+  // (adjacent-edge checks, corridors, junction scans). Created lazily,
+  // invalidated on obstacle-state reset (new repeat).
+  tactic::GraphBase::Ptr privilegedGraph() const;
+  mutable tactic::GraphBase::Ptr cached_priv_graph_;
+
   // HSHMAT SPARROW: observed status of edges incident to a vertex.
   // 1 = blocked, 0 = free, -1 = unknown (out of sensor range / no TF).
   // Combines the current detection (current_blocked_edges_) with a corridor
@@ -351,15 +357,23 @@ typedef message_filters::sync_policies::ApproximateTime<
 
   // HSHMAT SPARROW: continuous edge monitoring + every-decision replanning
   // (paper Table VII: replanning at every decision epoch, not only when the
-  // route is blocked). A 1 Hz timer keeps the strategy's per-edge sighting
-  // streaks fresh from the costmap, and as the robot approaches a decision
-  // vertex (junction) with a relevant belief, it plans WHILE STILL MOVING:
-  // "continue" costs no stop; a different corridor becomes an on-the-fly
-  // reroute; Wait/Observe pause the robot and start a standard episode.
-  rclcpp::TimerBase::SharedPtr sparrow_monitor_timer_;
-  void onSparrowMonitorTick();
-  // Junction the last en-route plan was made for (avoid replan loops).
+  // route is blocked). Monitoring is driven by the detector's occupancy
+  // (costmap) updates - throttled to monitor_period_s - and keeps the
+  // strategy's per-edge sighting streaks fresh. As the robot approaches a
+  // decision vertex (junction), it plans WHILE STILL MOVING: "continue"
+  // costs no stop; a different corridor becomes an on-the-fly reroute;
+  // Wait/Observe pause the robot and start a standard episode. Re-plans are
+  // re-armed by the strategy's belief revision counter (edge transitions).
+  void onSparrowOccupancyUpdate();
+  double sparrow_last_monitor_sec_ = 0.0;
+  // Junction the last en-route plan was made for, and the belief revision it
+  // used (a revision bump re-arms the same junction within the lookahead).
   uint64_t sparrow_junction_handled_ = 0;
+  uint64_t sparrow_junction_planned_revision_ = 0;
+  // Belief revision when the current SPARROW wait started; a bump while
+  // waiting means new information arrived (an edge transitioned) -> the wait
+  // is cut short so the planner can reconsider with the new belief.
+  uint64_t sparrow_wait_revision_baseline_ = std::numeric_limits<uint64_t>::max();
   // True while the current episode was triggered at a junction (adjacent
   // blocked edges, no detector front obstacle). Guards: startObstacleEpisode
   // keeps the injected blocked set, the detector's continuous CLEARED stream
