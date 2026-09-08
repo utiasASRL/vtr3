@@ -72,9 +72,9 @@
         - dro
         - gyro_bias_removal
         - vertex_test
-        - submap_test
+        # - submap_test
+        - submap_similarity_test
         - scan_to_pointmap
-        # - submap_similarity_test
         - memory
       localization: 
         - recall
@@ -113,8 +113,8 @@
           max_acceleration: 10.0
           ang_vel_bias: 0.0 # Constant ang vel bias for gyro-free operation, needs to be tuned
         gp:
-          lengthscale_az: 2.0
-          lengthscale_range: 4.0
+          lengthscale_az: 1.0
+          lengthscale_range: 1.0
           sz: 0.6
         radar:
           beta_corr_fact: 0.944
@@ -151,11 +151,11 @@
         # smoothed scan and the reference scan from the last submap,
         # aligned by the accumulated pose estimate) below which a new
         # submap is created
-        min_registration_score: 0.9
+        min_registration_score: 0.95
 
         # Hard-cap fallback
         max_translation: 30.0
-        max_rotation: 45.0
+        max_rotation: 60.0
 
       scan_to_pointmap:
         type: radar.scan_to_pointmap
@@ -185,7 +185,7 @@
         type: "radar.localization_drl"
 
         max_iterations: 25
-        convergence_tol: 1.0e-4
+        convergence_tol: 1.0e-3
         alpha: 1.0          # Gauss-Newton step size
         meas_std: 0.1       # intensity measurement noise std-dev (normalised [0,1] scale)
         range_factor: 0.0005   # adds range-dependent intensity uncertainty
