@@ -36,10 +36,10 @@ class GyroBiasEstimationModule : public tactic::BaseModule {
  public:
   using ImuMsg = sensor_msgs::msg::Imu;
 
-  #if defined(VTR_ENABLE_LIDAR)
-    using CacheType = lidar::LidarQueryCache;
-  #elif defined(VTR_ENABLE_RADAR)
+  #if defined(VTR_ENABLE_RADAR)
     using CacheType = radar::RadarQueryCache;
+  #elif defined(VTR_ENABLE_LIDAR)
+    using CacheType = lidar::LidarQueryCache;
   #else
     using CacheType = tactic::QueryCache;
   #endif
@@ -53,6 +53,7 @@ class GyroBiasEstimationModule : public tactic::BaseModule {
 
     double max_vel = 0.1;  // maximum velocity below which gyro messages will be averaged
     double alpha = 0.001;
+    double min_bias_time = 0.0;  // seconds below max_vel required before bias updates start
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
@@ -73,6 +74,18 @@ class GyroBiasEstimationModule : public tactic::BaseModule {
 
   Eigen::Vector3d gyro_bias_ = Eigen::Vector3d::Zero();
   unsigned long count_ = 0;
+
+  // Raw gyro readings cached before the in-place correction step, for the update step to use.
+  std::vector<Eigen::Vector3d> raw_gyro_cache_;
+
+  // Running total of the bias subtracted from the gyro readings, per axis.
+  Eigen::Vector3d total_bias_correction_ = Eigen::Vector3d::Zero();
+
+  // Toggles each call since odo_success alone can't tell a not-yet-run odometry step apart from a failed one.
+  bool awaiting_odometry_ = true;
+
+  // Stamp at which the velocity most recently dropped below max_vel, or -1 if not currently below it.
+  tactic::Timestamp low_vel_start_stamp_ = -1;
 
   VTR_REGISTER_MODULE_DEC_TYPE(GyroBiasEstimationModule);
 };
