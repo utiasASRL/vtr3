@@ -104,7 +104,6 @@ target_link_libraries(solve_bicycle_follower_mpc casadi)
 add_library(solve_bicycle_joint_mpc SHARED src/mpc/generated/bicycle_joint_mpc_solver.cpp)
 add_dependencies(solve_bicycle_joint_mpc generate_headers)
 target_link_libraries(solve_bicycle_joint_mpc casadi)
-target_compile_options(solve_bicycle_joint_mpc PRIVATE  -W)
 
 find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})

@@ -56,7 +56,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     PTR_TYPEDEFS(Config);
     std::string leader_namespace = "leader";
     
-    // Options: leader_vel euclidean
+    // Options: leader_vel euclidean external_dist
     std::string waypoint_selection = "leader_vel";
 
     double following_offset = 0.5; //m
@@ -130,6 +130,14 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   rclcpp::Time requestTime_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
+<<<<<<< HEAD
+=======
+  FloatMsg::SharedPtr recentLeaderDist_;
+  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
+  void onLeaderDist(const FloatMsg::SharedPtr distance);
+  float lastError_ = 0;
+  float errorIntegrator = 0;
+>>>>>>> parent of 731608f0 (Cleanup related to Luka review)
   bool hasRequestedLeaderRoute_ = false;
 
 
