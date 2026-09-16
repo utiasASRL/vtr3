@@ -51,7 +51,6 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
   using FloatMsg = std_msgs::msg::Float32;
   using OdomMsg = nav_msgs::msg::Odometry;
 
-  // Note all rosparams that are in the config yaml file need to be declared here first, though they can be then changes using the declareparam function for ros in the cpp file
   struct Config : public BicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
     std::string follower_namespace = "follower";
@@ -84,10 +83,10 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
   void initializeRoute(RobotState& robot_state);
 
   void loadMPCConfig(
-      CasadiBicycleMPCJoint::Config::Ptr mpc_config, const bool isReversing,   Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel);
+      CasadiBicycleMPCJoint::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing);
 
-  CasadiMPC::Config::Ptr getMPCConfig(
-      const bool isReversing,  Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) override;
+  CasadiMPC::Config::Ptr getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel,
+                            const bool isReversing) override;
   
   virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
 

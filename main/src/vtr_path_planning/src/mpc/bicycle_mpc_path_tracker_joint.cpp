@@ -94,17 +94,17 @@ BicycleMPCJointPathTracker::BicycleMPCJointPathTracker(const Config::ConstPtr& c
 BicycleMPCJointPathTracker::~BicycleMPCJointPathTracker() {}
 
 void BicycleMPCJointPathTracker::loadMPCConfig(
-    CasadiBicycleMPCJoint::Config::Ptr mpc_config, const bool isReversing, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) { 
-  BicycleMPCPathTracker::loadMPCConfig(mpc_config, isReversing, w_p_r_in_r, applied_vel);
+    CasadiBicycleMPCJoint::Config::Ptr mpc_config, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing) { 
+  BicycleMPCPathTracker::loadMPCConfig(mpc_config, w_p_r_in_r, applied_vel, isReversing);
   mpc_config->Q_dist = isReversing ? config_->r_q_dist : config_->f_q_dist;
   mpc_config->distance = config_->following_offset;
   mpc_config->distance_margin = config_->distance_margin;
   mpc_config->recovery = false;
 }
 
-CasadiMPC::Config::Ptr BicycleMPCJointPathTracker::getMPCConfig(const bool isReversing, Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel) {
+CasadiMPC::Config::Ptr BicycleMPCJointPathTracker::getMPCConfig(Eigen::Matrix<double, 6, 1> w_p_r_in_r, Eigen::Vector2d applied_vel, const bool isReversing) {
   auto mpcConfig = std::make_shared<CasadiBicycleMPCJoint::Config>();
-  loadMPCConfig(mpcConfig, isReversing, w_p_r_in_r, applied_vel);
+  loadMPCConfig(mpcConfig, w_p_r_in_r, applied_vel, isReversing);
   return mpcConfig;
 }
 
