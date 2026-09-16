@@ -64,6 +64,11 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     double f_q_dist = 1.0;
     double r_q_dist = 1.0;
 
+    //Distance PID Gains
+    double kp = 1.0;
+    double kd = 0.0;
+    double ki = 0.0;
+
     // Misc
     int command_history_length = 100;
 
@@ -130,14 +135,11 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   rclcpp::Time requestTime_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
-<<<<<<< HEAD
-=======
   FloatMsg::SharedPtr recentLeaderDist_;
   rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
   void onLeaderDist(const FloatMsg::SharedPtr distance);
   float lastError_ = 0;
   float errorIntegrator = 0;
->>>>>>> parent of 731608f0 (Cleanup related to Luka review)
   bool hasRequestedLeaderRoute_ = false;
 
 
