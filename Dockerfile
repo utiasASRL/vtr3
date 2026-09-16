@@ -93,7 +93,7 @@ RUN apt install ros-humble-tf2-tools
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
   tmux \
-  nodejs npm protobuf-compiler \
+  protobuf-compiler \
   libboost-all-dev libomp-dev \
   libpcl-dev \
   libcanberra-gtk-module libcanberra-gtk3-module \
@@ -102,6 +102,11 @@ RUN apt update && apt install -q -y \
   virtualenv \
   unzip \
   clang-format
+
+## Install Node more recent version
+RUN curl -sL https://deb.nodesource.com/setup_25.x -o /tmp/nodesource_setup.sh
+RUN bash /tmp/nodesource_setup.sh
+RUN apt install nodejs
 
 ## Install python dependencies
 RUN pip3 install \
@@ -189,6 +194,11 @@ ENV LD_LIBRARY_PATH=/usr/local/casadi:${LD_LIBRARY_PATH}
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
 RUN apt install -q -y vim htop
 RUN apt install -y ros-humble-rmw-zenoh-cpp
+
+RUN apt install gosu
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

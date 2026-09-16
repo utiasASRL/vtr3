@@ -67,7 +67,7 @@
       y: 0.0
       z: 0.0
     queue_size: 1
-    graph_map:
+    graph_projection:
       origin_lat: 43.7822
       origin_lng: -79.4661
       origin_theta: 1.3

@@ -29,13 +29,10 @@ ENV VTRSRC=${VTRROOT}/src \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp \
   VTRMODELS=${VTRROOT}/models \
-  GRIZZLY=${VTRROOT}/grizzly \
-  WARTHOG=${VTRROOT}/warthog \
   HUNTER=${VTRROOT}/hunter
 
 ENV VTRUI=${VTRSRC}/main/src/vtr_gui/vtr_gui/vtr-gui
-ENV MAKEFLAGS="-j2"
-ENV VTR_PIPELINE=RADAR-LIDAR
+ENV VTR_PIPELINE=LIDAR
 
 RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix ${VTRUI} run build'" >> ~/.bashrc
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ~/.bashrc
@@ -90,7 +87,7 @@ RUN apt install ros-humble-tf2-tools
 # ## Install misc dependencies
 RUN apt update && apt install -q -y \
   tmux \
-  nodejs npm protobuf-compiler \
+  protobuf-compiler \
   libboost-all-dev libomp-dev \
   libpcl-dev \
   libcanberra-gtk-module libcanberra-gtk3-module \
@@ -100,9 +97,14 @@ RUN apt update && apt install -q -y \
   texlive-latex-extra \
   clang-format
 
+## Install Node more recent version
+RUN curl -sL https://deb.nodesource.com/setup_25.x -o /tmp/nodesource_setup.sh
+RUN bash /tmp/nodesource_setup.sh
+RUN apt install nodejs
+
 ## Install python dependencies
 RUN apt remove -y -q python3-blinker
-RUN pip3 install \
+RUN pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
   tmuxp \
   pyyaml \
   pyproj \
@@ -121,24 +123,8 @@ RUN pip3 install \
 RUN apt install wget
 RUN apt install nano
 
-## sam install opencv 4.10.0
 RUN apt install -q -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 
-
-RUN mkdir -p ${HOMEDIR}/opencv && cd ${HOMEDIR}/opencv \
-&& git clone https://github.com/opencv/opencv.git . 
-
-RUN cd ${HOMEDIR}/opencv && git checkout 4.10.0
-RUN mkdir -p ${HOMEDIR}/opencv_contrib && cd ${HOMEDIR}/opencv_contrib \
-&& git clone https://github.com/opencv/opencv_contrib.git . 
-RUN cd ${HOMEDIR}/opencv_contrib && git checkout 4.10.0 
-
-
-RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
-# # generate Makefiles (note that install prefix is customized to: /usr/local/opencv_cuda)
-
-
-# ENV LD_LIBRARY_PATH=/usr/local/opencv_cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 RUN mkdir -p ${HOMEDIR}/.matplotcpp && cd ${HOMEDIR}/.matplotcpp \
   && git clone https://github.com/lava/matplotlib-cpp.git . \
@@ -165,6 +151,10 @@ ENV NVIDIA_DRIVER_CAPABILITIES="compute,utility,graphics"
 
 RUN apt install -q -y vim htop
 
+RUN apt install gosu
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 ## Switch to specified user
 USER ${USERID}:${GROUPID}
