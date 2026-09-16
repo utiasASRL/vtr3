@@ -61,8 +61,12 @@
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
         control_period: 100
-        distance_margin: 50.0
-        waypoint_selection: arclength
+        distance_margin: 1.0
+        waypoint_selection: euclidean
+        longitudinal_control:
+          kp: 2.0
+          ki: 0.5
+          kd: 0.0
         speed_scheduler:
           planar_curv_weight: 0.0
           profile_curv_weight: 1.0 
@@ -139,31 +143,31 @@
     bicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 7.5
+      follow_distance: 1.5
 
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
     bicycle_mpc_follower:
       leader_namespace:
-        /col_mustard 
-      follow_distance: 2.5
+        /prof_plum 
+      follow_distance: 1.5
 
-/col_mustard/vtr/navigator:
-  ros__parameters:
-   path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /mr_green
-      follow_distance: 2.5
+# /col_mustard/vtr/navigator:
+#   ros__parameters:
+#    path_planning:
+#     bicycle_mpc_follower:
+#       leader_namespace:
+#         /mr_green
+#       follow_distance: 2.5
 
-/mrs_peacock/vtr/navigator:
-  ros__parameters:
-   path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /mr_green
-      follow_distance: 5.0
+# /mrs_peacock/vtr/navigator:
+#   ros__parameters:
+#    path_planning:
+#     bicycle_mpc_follower:
+#       leader_namespace:
+#         /mr_green
+#       follow_distance: 5.0
 
 /vtr/convoy_planning_node:
   ros__parameters:
@@ -173,11 +177,11 @@
     prof_plum:
       leader_mpc: bicycle_mpc
       follower_mpc: bicycle_mpc_follower
-    col_mustard:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
-    mrs_peacock:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
+    # col_mustard:
+    #   leader_mpc: bicycle_mpc
+    #   follower_mpc: bicycle_mpc_follower
+    # mrs_peacock:
+    #   leader_mpc: bicycle_mpc
+    #   follower_mpc: bicycle_mpc_follower
 
     
