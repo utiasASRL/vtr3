@@ -65,6 +65,21 @@ class DROModule : public tactic::BaseModule {
       // Calibrated radar angular-velocity bias; only applied when yaw is
       // estimated rather than gyro-measured (i.e. use_gyro == false).
       double ang_vel_bias = 0.0;
+
+      // Weight the whole Doppler cost with the curvature of the direct cost.
+      // The Hessian of the direct-only cost is recomputed every
+      // 'hessian_update_distance' travelled metres and its largest eigenvalue
+      // maps to the Doppler weight: 1 above 'hessian_weight_full' (the direct
+      // cost barely constrains that direction), 0 below
+      // 'hessian_weight_threshold' (it is well constrained), linear in between.
+      // Requires the Doppler cost, so it is disabled on a radar without it.
+      bool doppler_hessian_weighting = false;
+      double hessian_update_distance = 15.0;
+      double hessian_weight_full = -10.0;
+      double hessian_weight_threshold = -25.0;
+      // Finite difference steps used to compute that Hessian
+      double hessian_fd_step = 0.05;
+      double hessian_fd_step_ang = 0.005;
       std::vector<double> T_axle_radar = {
           1.0, 0.0, 0.0, 0.0,
           0.0, 1.0, 0.0, 0.0,

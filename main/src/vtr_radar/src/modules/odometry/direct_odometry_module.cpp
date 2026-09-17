@@ -43,6 +43,20 @@ auto DROModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->estimation.gyro_bias_alpha = node->declare_parameter<double>(param_prefix + ".estimation.gyro_bias_alpha", config->estimation.gyro_bias_alpha);
   config->estimation.ang_vel_bias = node->declare_parameter<double>(param_prefix + ".estimation.ang_vel_bias", config->estimation.ang_vel_bias);
 
+  config->estimation.doppler_hessian_weighting = node->declare_parameter<bool>(param_prefix + ".estimation.doppler_hessian_weighting", config->estimation.doppler_hessian_weighting);
+  config->estimation.hessian_update_distance = node->declare_parameter<double>(param_prefix + ".estimation.hessian_update_distance", config->estimation.hessian_update_distance);
+  config->estimation.hessian_weight_full = node->declare_parameter<double>(param_prefix + ".estimation.hessian_weight_full", config->estimation.hessian_weight_full);
+  config->estimation.hessian_weight_threshold = node->declare_parameter<double>(param_prefix + ".estimation.hessian_weight_threshold", config->estimation.hessian_weight_threshold);
+  config->estimation.hessian_fd_step = node->declare_parameter<double>(param_prefix + ".estimation.hessian_fd_step", config->estimation.hessian_fd_step);
+  config->estimation.hessian_fd_step_ang = node->declare_parameter<double>(param_prefix + ".estimation.hessian_fd_step_ang", config->estimation.hessian_fd_step_ang);
+
+  if (config->estimation.hessian_weight_full <= config->estimation.hessian_weight_threshold) {
+    CLOG(WARNING, static_name) << "'estimation.hessian_weight_full' must be greater than 'estimation.hessian_weight_threshold'. Disabling the Doppler Hessian weighting.";
+    config->estimation.doppler_hessian_weighting = false;
+    config->estimation.hessian_weight_full = -10.0;
+    config->estimation.hessian_weight_threshold = -25.0;
+  }
+
   auto t_axle_vec = node->declare_parameter<std::vector<double>>(param_prefix + ".estimation.T_axle_radar", config->estimation.T_axle_radar);
   if (t_axle_vec.size() == 16) {
     config->estimation.T_axle_radar = std::move(t_axle_vec);
@@ -102,6 +116,12 @@ py::dict DROModule::Config::toPythonDict() const {
   estimation["min_time_bias_init"] = this->estimation.min_time_bias_init;
   estimation["gyro_bias_alpha"] = this->estimation.gyro_bias_alpha;
   estimation["ang_vel_bias"] = this->estimation.ang_vel_bias;
+  estimation["doppler_hessian_weighting"] = this->estimation.doppler_hessian_weighting;
+  estimation["hessian_update_distance"] = this->estimation.hessian_update_distance;
+  estimation["hessian_weight_full"] = this->estimation.hessian_weight_full;
+  estimation["hessian_weight_threshold"] = this->estimation.hessian_weight_threshold;
+  estimation["hessian_fd_step"] = this->estimation.hessian_fd_step;
+  estimation["hessian_fd_step_ang"] = this->estimation.hessian_fd_step_ang;
   estimation["T_axle_radar"] = py::array_t<double>({4, 4}, this->estimation.T_axle_radar.data());
   opts["estimation"] = estimation;
 
@@ -211,7 +231,7 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
   }
 
   std::vector<ImuData> relevant_imus;
-  double middle_yaw_rate;
+  double middle_yaw_rate = 0.0;
 
   if(config_->estimation.use_gyro != qdata.gyro_msgs.valid()) {
     CLOG(ERROR, static_name) << "Gyro state mismatched. Odom is failed";
@@ -267,7 +287,13 @@ void DROModule::run_(QueryCache &qdata0, OutputCache &,
     }
   }
 
-  middle_yaw_rate /= (relevant_imus.size() - 2);
+  // Fall back to the bracketing samples when nothing landed inside the sweep:
+  if (relevant_imus.size() > 2) {
+    middle_yaw_rate /= (relevant_imus.size() - 2);
+  } else if (!relevant_imus.empty()) {
+    middle_yaw_rate = 0.5 * (relevant_imus.front().angular_velocity(2) +
+                             relevant_imus.back().angular_velocity(2));
+  }
 
   py::gil_scoped_acquire acquire;
 
