@@ -90,7 +90,8 @@
       gyro_bias_removal:
         type: navigation.gyro_bias_removal
         window_size: 1000
-        max_velocity: 0.05 #m/s
+        max_velocity: 0.1 #m/s
+        min_bias_time: 3.0 # seconds, minimum time between bias updates
       dro:
         type: radar.odometry_dro
 

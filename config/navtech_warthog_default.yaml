@@ -28,7 +28,7 @@
     gyro_enabled: true
     # gyro_bias: 
     #   z: -0.0006657902725198095
-    queue_size: 100
+    queue_size: 1
     graph_projection:
       origin_lat: 43.7822 # UTIAS: 43.78220
       origin_lng: -79.4661 # UTIAS: -79.4661
@@ -66,11 +66,12 @@
         - extraction
         - filtering
       odometry:
+        - gyro_bias_removal
         - icp
+        - gyro_bias_removal
         - mapping
         - vertex_test
         - memory
-        - gyro_bias_removal
       localization: 
         - recall
         - icp
@@ -93,7 +94,7 @@
         # TODO: make cart_resolution an integer mult of radar_resolution
         cart_resolution: 0.2384 # m/pixel of BEV Cartesian radar image
         beta: 0.05 # Doppler correction factor (set to 0 to turn this off)
-        range_offset: -0.319910 # -0.319910 # RAS3 range offset in meters
+        range_offset: -0.32 # -0.319910 # RAS3 range offset in meters
         kpeaks:
           kstrong: 4
           threshold2: 0.0
@@ -204,7 +205,8 @@
       gyro_bias_removal:
         type: navigation.gyro_bias_removal
         window_size: 1000
-        max_velocity: 0.05 #m/s
+        max_velocity: 0.1 #m/s
+        min_bias_time: 3.0 # seconds, minimum time between bias updates
     localization:
       recall:
         type: radar.localization_map_recall
