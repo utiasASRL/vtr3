@@ -48,9 +48,11 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <set>
 
 #include "vtr_navigation/sparrow_explorer.hpp"
 #include "vtr_navigation/sparrow_planner.hpp"
+#include "vtr_navigation/sparrow_contract.hpp"
 #include "vtr_navigation/wait_strategy.hpp"
 
 namespace vtr {
@@ -62,6 +64,20 @@ namespace navigation {
  */
 using AdjacentEdgeStatusFn =
     std::function<std::map<tactic::EdgeId, int>(const tactic::VertexId&)>;
+
+/**
+ * \brief Function the Navigator provides to report the observed status of each
+ *        CORRIDOR (macro-edge) incident to the planning vertex.
+ *
+ * A corridor is a series of micro-edges, so it is blocked when any of them is,
+ * free only when all of them were actually seen free, and unknown otherwise.
+ * `robot_at` is the micro-vertex the robot has reached; when it is part-way
+ * down a corridor only the part AHEAD of it is reported, because a blockage it
+ * has already driven past must not stop it. Pass 0 to check whole corridors.
+ */
+using MacroEdgeStatusFn = std::function<std::map<sparrow::SEdge, int>(
+    sparrow::SVertex root, const sparrow::MacroPlan& plan,
+    sparrow::SVertex robot_at)>;
 
 class SparrowStrategy : public WaitStrategy {
  public:
@@ -99,6 +115,9 @@ class SparrowStrategy : public WaitStrategy {
   void setAdjacentEdgeStatusFn(AdjacentEdgeStatusFn fn) {
     adjacent_status_fn_ = fn;
   }
+
+  /** \brief Navigator hook: observed status of each corridor at a vertex. */
+  void setMacroEdgeStatusFn(MacroEdgeStatusFn fn) { macro_status_fn_ = fn; }
 
   /**
    * \brief Uniform per-edge expected wait for the reroute TDSP
@@ -142,6 +161,30 @@ class SparrowStrategy : public WaitStrategy {
    *        epochs (junction approach / wait expiry), not continuously.
    */
   uint64_t beliefRevision() const { return belief_revision_.load(); }
+
+  /**
+   * \brief Declare the edges of the wait currently being served (the "focus"
+   *        edges), or pass an empty list when no wait is in progress.
+   *
+   * Two things key off this set, both only while a wait is in progress:
+   *  - waitFocusRevision() counts only the revisions that can change THIS
+   *    wait-vs-detour decision, so detector flicker on an unrelated edge no
+   *    longer cuts a committed wait short.
+   *  - a monitor_gap_s dropout on a focus edge counts as a sensing gap rather
+   *    than "the obstacle left and a new one arrived": the robot is parked
+   *    looking at the thing, so its sighting streak (and hence its age) must
+   *    keep running.
+   */
+  void setWaitFocusEdges(const std::vector<sparrow::SEdge>& edges);
+
+  /**
+   * \brief Monotonic counter of the belief revisions that can change the
+   *        wait-vs-detour decision for the wait in progress: a status change
+   *        on one of the focus edges, or a remembered blockage clearing
+   *        (which may have opened a detour). Every other revision bumps
+   *        beliefRevision() only.
+   */
+  uint64_t waitFocusRevision() const { return wait_focus_revision_.load(); }
 
   /**
    * \brief True while a committed knowledge-gradient learning wait (macro
@@ -196,6 +239,26 @@ class SparrowStrategy : public WaitStrategy {
   route_planning::NeighborsFn get_neighbors_;
   route_planning::TravelTimeFn get_travel_time_;
   AdjacentEdgeStatusFn adjacent_status_fn_;
+  MacroEdgeStatusFn macro_status_fn_;
+  // Corner vertices parsed once from SparrowParams::corner_vertices.
+  std::set<sparrow::SVertex> corner_vertices_;
+  bool corner_vertices_parsed_ = false;
+
+  // Macro-plan cache. The contraction depends ONLY on the graph, the root, and
+  // the set of believed-blocked edges kept explicit - not on the model - so it
+  // is reusable across decisions and across episodes. Without it every
+  // mid-corridor interruption re-walks the whole taught graph, and at high
+  // obstacle load that happens many times per episode.
+  struct MacroCacheKey {
+    sparrow::SVertex root = 0;
+    std::set<sparrow::SVertex> extra_nodes;
+    bool operator==(const MacroCacheKey& o) const {
+      return root == o.root && extra_nodes == o.extra_nodes;
+    }
+  };
+  MacroCacheKey macro_cache_key_;
+  sparrow::MacroPlan macro_cache_plan_;
+  bool macro_cache_valid_ = false;
 
   // Memory of past sightings (ports belief.EdgeMemory bookkeeping).
   struct MemEntry {
@@ -217,6 +280,10 @@ class SparrowStrategy : public WaitStrategy {
   // Bumped on every belief-relevant observation transition (see
   // beliefRevision()).
   std::atomic<uint64_t> belief_revision_{0};
+  // Edges of the wait currently being served (see setWaitFocusEdges).
+  std::set<sparrow::SEdge> wait_focus_edges_;
+  // Bumped only on the subset of revisions relevant to the wait in progress.
+  std::atomic<uint64_t> wait_focus_revision_{0};
 
   // -- Knowledge-gradient exploration (ports the runner's macro machinery) ---
   // A committed macro overrides the search: Observe (when unlabeled), then -

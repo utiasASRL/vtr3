@@ -104,6 +104,14 @@ struct SparrowParams {
   std::vector<double> wait_durations = {5.0, 10.0, 15.0, 20.0, 30.0};
   double delta_obs_s = 3.0;         // Observe cost inside the search
   bool allow_observe = true;        // Observe available inside the search
+  // One paid observation identifies the OBSTACLE, not just one edge. The
+  // per-encounter bookkeeping (observed_edges_) is keyed per EDGE, so without
+  // this the POMCP observes one edge, then pays again for another edge of the
+  // same physical obstacle: on sparrow_test3 it classified (17,18) and then
+  // (16,17) - 33 s of wall clock for two labels of one chair, and the second
+  // edge was not even in the detector's blocked set. Set false only to study
+  // per-edge classification with an untrusted classifier.
+  bool single_observe_per_encounter = true;
   bool corridor_traversal = true;   // collapse degree-2 chains into one action
   double max_total_wait_s = 600.0;  // safety cap across re-plans (<=0: off)
   double p_block_override = -1.0;   // >=0 pins occupancy (debug); <0 learned
@@ -120,6 +128,20 @@ struct SparrowParams {
   // Minimum period (s) between monitoring passes over the costmap (the
   // detector publishes at sensor rate; edge-corridor checks are throttled).
   double monitor_period_s = 1.0;
+  // Cut a committed wait short only for a belief revision that can change
+  // THIS wait-vs-detour decision: a status change on an edge of this wait, or
+  // a remembered blockage clearing (a detour may have opened). With this off,
+  // any revision anywhere cuts the wait, so costmap hysteresis on one
+  // unrelated edge re-runs the search and re-announces a new wait every few
+  // seconds without ever letting one elapse.
+  bool wait_interrupt_relevant_only = true;
+  // Floor on the time between wait interruptions (s). Even a relevant edge can
+  // toggle repeatedly; without a floor each toggle re-plans and re-announces.
+  double wait_interrupt_min_period_s = 10.0;
+  // Treat a monitor_gap_s dropout on the edges of the wait in progress as a
+  // sensing gap rather than the obstacle leaving and a new one arriving, so
+  // the obstacle's age keeps running while the robot is parked looking at it.
+  bool pin_wait_edge_continuity = true;
   // Every-decision replanning (paper Table VII), with the simulation's exact
   // observation semantics: adjacent edge statuses are only OBSERVED upon
   // completing an action, i.e. on ARRIVAL at a decision vertex. The plan runs
@@ -127,10 +149,68 @@ struct SparrowParams {
   // takes tens of milliseconds); "continue" costs no stop, a divert becomes
   // an immediate route swap, and Wait/Observe pause the robot there.
   bool junction_replan = true;
+  // Take the wait/detour decision where the ROBOT is, not at the blockage.
+  //
+  // Planning at the nearest endpoint of the nearest blocked edge was justified
+  // by "the travel cost to get there is common to every action, so it drops
+  // out". That is false for the one action that matters when the way ahead is
+  // shut: backing out does not require reaching the blockage at all. Worse,
+  // the blockage vertex is by construction surrounded by blocked edges, so
+  // valid_actions() there often yields no TRAVERSE and the robot can only sit
+  // and wait (sparrow_test3 21:22:47 and 21:23:31).
+  //
+  // Rooted at the robot, buildMacroPlan keeps the root explicit, so the
+  // corridor splits at the robot into a forward part carrying the blockage
+  // (BLOCKED -> MaxWait/Observe) and a backward part to the previous junction
+  // (free -> Traverse). Both options exist, priced correctly.
+  bool plan_at_robot = true;
   // Hysteresis: divert off the current route only when the POMCP's chosen
   // corridor beats the route continuation by at least this many seconds of
   // expected cost. Prevents dithering when Q-values are within search noise.
   double junction_divert_margin_s = 2.0;
+
+  // Finer per-class MaxWait grids, used only on edges the robot has PAID to
+  // Observe (handoff sec. 1.8 / sec. 5). A known class has a known clearance
+  // law, so its grid can be resolved around its own mean instead of spanning
+  // every class. Deployment: person 3/9/22 s, chair 13/39/104 s. Classes
+  // without an entry fall back to wait_durations.
+  std::map<std::string, std::vector<double>> wait_durations_by_class;
+
+  // Reserve an even floor of the simulation budget across the root's actions
+  // before UCB concentrates (handoff sec. 1.4). Deployment value: 0.5.
+  double root_explore_frac = 0.25;
+  // Stratify that floor by action TYPE (wait / reroute / observe) rather than
+  // over individual actions, so a long wait grid cannot drown out the single
+  // Traverse. Deployment value: true (POMCP_EXPLORE_BY_CLASS=1).
+  bool root_explore_by_class = false;
+  // Decide between root actions on COST once they are explored comparably.
+  // See SparrowSearchSettings::robust_visit_frac; 1.0 = plain robust child.
+  double robust_visit_frac = 0.75;
+
+  // Occupancy estimate (handoff sec. 1.5). p_block accuracy dominates planner
+  // compute, so these two go together and should be enabled as a pair.
+  //   p_block_live: Jeffreys-smoothed (k + 0.5) / (n + 1), usable from the
+  //     first decision instead of 0/0.
+  //   teach_prior:  seed the counters with this many passable traversals - the
+  //     taught graph exists because the robot drove it. Use the number of
+  //     CORRIDORS (39 on sep12_4), not micro-edges.
+  bool p_block_live = false;
+  int teach_prior = 0;
+
+  // HSHMAT SPARROW: plan on the CONTRACTED graph (handoff sec. 2). The world
+  // and the executor stay at taught-edge resolution; this is only what the
+  // search reasons over. Off by default - the uncontracted path is what has
+  // been run so far.
+  bool contracted = false;
+  // Cap on one macro-edge's travel time; longer corridors are split into
+  // ceil(L/cap) equal pieces. 0 = no splitting, which is the deployment
+  // setting: the corner vertices already break up sep12_4's long corridors.
+  double max_macro_len_s = 0.0;
+  // Corner vertices kept explicit, as "run:vertex,run:vertex,...". The
+  // automatic bounding-box rule picks the wrong vertex on a non-rectangular
+  // building, so on sep12_4 they must be named (handoff sec. 2.2):
+  //   2:0,2:123,20:41,20:87,16:13,2:97,0:17,0:35,0:52,20:19
+  std::string corner_vertices;
 
   // Knowledge-gradient exploration of the KM fits (paper Sec. IV-D; direct
   // port of pomcp/exploration.py). Prices the value one more clearance-time
@@ -165,6 +245,15 @@ struct WaitStrategyConfig {
   int T_grid_points = 50;    // Number of time points for integration
   std::string learned_data_dir;  // Directory for learned policy data (survival_stats.yaml, obstacle_stats.yaml)
   std::map<std::string, std::vector<double>> seed_samples;  // Initial samples per type
+  // Right-CENSORED initial samples per type ("still blocked when we gave up").
+  // At least one is needed whenever seed_samples is used to hand the robot a
+  // known clearance law: Kaplan-Meier drops to exactly S=0 at the largest
+  // UNCENSORED observation, so an all-uncensored seed tells the planner an
+  // obstacle older than the largest seed is CERTAINLY gone - S(t)=0, residual
+  // wait 0 - and it will happily wait forever for a clearance it believes is
+  // imminent. One censored sample past the last event leaves S>0 there and
+  // lets the exponential tail fit, at a cost of <1% on the truncated mean.
+  std::map<std::string, std::vector<double>> seed_samples_censored;
   
   // Obstacle parameters (defaults, overridden by learned stats when available)
   // p_block is no longer configured here: it is always computed from observed data

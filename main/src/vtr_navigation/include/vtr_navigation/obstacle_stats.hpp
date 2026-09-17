@@ -91,6 +91,33 @@ class GlobalObstacleStats {
    *         Returns 0.0 if no edges have been traversed yet (0/0 := 0).
    */
   double p_block() const;
+
+  /**
+   * \brief Jeffreys-smoothed occupancy, (k + 0.5) / (n + 1). Handoff sec. 1.5.
+   *
+   * The raw fraction is 0/0 at the start of a deployment, and whichever way
+   * that is defined is wrong: 0 tells the planner nothing can ever block, 1
+   * tells it every edge in the graph is blocked. Jeffreys gives 0.5 with no
+   * data and converges to the empirical rate, so the estimate is usable from
+   * the first decision.
+   *
+   * Pair it with applyTeachPrior(): p_block accuracy dominates planner compute
+   * (a rollout reaches the goal only if a whole route is clear, so on a
+   * 109-micro-edge route that probability is (1 - p)^109 - at the true 0.0119
+   * it is 0.271, at 0.05 it is 0.0037, and rollouts that fail to reach the
+   * goal run to the simulated-time cap instead of terminating).
+   */
+  double pBlockJeffreys() const;
+
+  /**
+   * \brief Seed the counters with `n` traversals, none blocked (the teach pass).
+   *
+   * The taught graph exists because the robot drove every edge of it and they
+   * were passable. `n` should be the number of CORRIDORS (39 on sep12_4), not
+   * micro-edges: one teach pass does not give independent samples within a
+   * corridor. Idempotent - calling it twice does not double-count.
+   */
+  void applyTeachPrior(int n);
   
   /**
    * \brief Get probability of a specific obstacle type.
@@ -144,6 +171,7 @@ class GlobalObstacleStats {
   mutable std::mutex mutex_;
   
   int total_edges_traversed_ = 0;
+  bool teach_prior_applied_ = false;
   int total_obstacle_episodes_ = 0;
   std::map<std::string, int> type_counts_;
   

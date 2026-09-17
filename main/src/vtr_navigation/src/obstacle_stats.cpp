@@ -168,6 +168,26 @@ void GlobalObstacleStats::recordEdgeTraversals(int count) {
   total_edges_traversed_ += count;
 }
 
+double GlobalObstacleStats::pBlockJeffreys() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  const double n = static_cast<double>(total_edges_traversed_);
+  const double k = static_cast<double>(total_obstacle_episodes_);
+  return std::min(1.0, std::max(0.0, (k + 0.5) / (n + 1.0)));
+}
+
+void GlobalObstacleStats::applyTeachPrior(int n) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (teach_prior_applied_ || n <= 0) return;
+  teach_prior_applied_ = true;
+  // Only seed a COLD start. total_edges_traversed_ is persisted to
+  // obstacle_stats.yaml, so a resumed deployment has already banked the prior
+  // in its saved counters - adding it again on every restart would inflate the
+  // denominator without bound and drive the learned occupancy to zero. The
+  // in-memory flag alone cannot catch that, because it is not persisted.
+  if (total_edges_traversed_ > 0) return;
+  total_edges_traversed_ += n;
+}
+
 void GlobalObstacleStats::recordObstacleEpisode(const std::string& obs_type) {
   std::lock_guard<std::mutex> lock(mutex_);
   ++total_obstacle_episodes_;

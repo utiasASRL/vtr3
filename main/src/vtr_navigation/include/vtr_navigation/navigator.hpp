@@ -33,6 +33,7 @@
 #include "nav_msgs/msg/path.hpp"
 #include <Eigen/Core>
 #include "vtr_navigation/wait_strategy.hpp"  // HSHMAT: Strategy pattern for wait time decisions
+#include "vtr_navigation/sparrow_contract.hpp"  // HSHMAT SPARROW: corridor contraction
 #include "vtr_navigation/real_world_logger.hpp"  // HSHMAT: Real-world episode/encounter logging
 #include <unordered_map>
 #include <limits>
@@ -232,6 +233,33 @@ typedef message_filters::sync_policies::ApproximateTime<
   std::unique_ptr<WaitStrategy> wait_strategy_;
   WaitStrategyConfig wait_strategy_config_;
   double current_W_star_ = 0.0;  // Current wait time limit (seconds)
+
+  // HSHMAT: absolute deadline of the wait in progress, and the budget it was
+  // armed with. The wait clock starts when the ANNOUNCEMENT finishes, so TTS
+  // latency and search time are charged to the obstacle's age
+  // (obstacle_start_time_) but not to W*: "waiting up to 15 seconds" used to
+  // mean "up to 15 seconds counted from before the sentence was spoken", i.e.
+  // ~10 s of actual waiting, and a 4 s wait had already expired by the time
+  // the robot finished saying it would wait.
+  rclcpp::Time wait_deadline_;
+  bool wait_deadline_valid_ = false;
+  double current_wait_budget_ = 0.0;
+  // Last wait announcement and when it was spoken, to suppress an identical
+  // re-announcement a second or two later.
+  // True when the wait in progress was cut short by a belief revision rather
+  // than running to its deadline, so the re-plan can say it RECONSIDERED
+  // instead of claiming to be "continuing".
+  bool wait_cut_short_ = false;
+  int last_wait_announcement_s_ = -1;
+  double last_wait_announcement_sec_ = 0.0;
+  /// Start the wait clock NOW with the given budget (s) and reset the
+  /// countdown announcements to it. Caller holds obstacle_mutex_.
+  void armWaitDeadlineLocked(double budget_s);
+  /// Seconds left in the wait in progress (<= 0 means expired).
+  double waitRemainingLocked() const;
+  /// Tell the SPARROW strategy which edges the current wait is on (empty to
+  /// clear). No-op for other strategies.
+  void setSparrowWaitFocus(bool active);
   
   // HSHMAT: Wait timer for countdown
   rclcpp::TimerBase::SharedPtr wait_timer_;
@@ -304,6 +332,8 @@ typedef message_filters::sync_policies::ApproximateTime<
       const tactic::VertexId& v) const;
   // Check the corridor leaving `v` towards `n` against the obstacle costmap.
   // Returns 1 blocked / 0 free / -1 unknown.
+  /// Hysteresis filter for one edge's costmap status (see edge_status_filter_).
+  int filterEdgeStatus(const tactic::EdgeId& eid, int raw) const;
   int checkEdgeCorridorInCostmap(const tactic::VertexId& v,
                                  const tactic::VertexId& n) const;
   // Sample teach-corridor points along edge (va,vb) in the loc-vertex frame,
@@ -312,6 +342,24 @@ typedef message_filters::sync_policies::ApproximateTime<
   // observe-corridor publisher.
   bool computeEdgeCorridorPoints(uint64_t va, uint64_t vb, double length_m,
                                  std::vector<Eigen::Vector3d>& pts) const;
+  // HSHMAT SPARROW (contracted planning): teach-vertex poses in the
+  // loc-vertex frame, plus chain distance from the localized vertex. Hoisted
+  // out of computeEdgeCorridorPoints because it BFSes up to 60 m / 5000
+  // vertices of the privileged graph - fine once per decision, ruinous once
+  // per micro-edge of a 100-micro-edge corridor.
+  bool computeTeachPoses(std::unordered_map<uint64_t, Eigen::Matrix4d>& pose,
+                         std::unordered_map<uint64_t, double>& dist) const;
+  // Costmap frame <- "loc vertex frame". Also hoisted: one TF lookup per
+  // decision instead of one per edge.
+  bool lookupGridFromLoc(Eigen::Matrix4d& T_grid_loc) const;
+  // Status of every MACRO-edge incident to `root`, i.e. of each contracted
+  // corridor: blocked if any micro-edge in it is blocked, free only when all
+  // of them were actually seen free, unknown otherwise. When the robot is
+  // part-way down a corridor, `robot_at` restricts that corridor to the part
+  // still AHEAD of it - a blockage already driven past must not stop it.
+  std::map<std::pair<uint64_t, uint64_t>, int> computeMacroEdgeStatuses(
+      uint64_t root, const sparrow::MacroPlan& plan,
+      uint64_t robot_at = 0) const;
   // HSHMAT SPARROW: tell the detector which corridor the Observe action
   // targets (it builds a mask restricted to that corridor for the VLM).
   void publishObserveCorridor(const std::pair<uint64_t, uint64_t>& edge) const;
@@ -340,6 +388,40 @@ typedef message_filters::sync_policies::ApproximateTime<
   bool sparrow_use_costmap_edge_check_ = true;
   double sparrow_edge_check_length_m_ = 2.5;
   double sparrow_edge_check_radius_m_ = 0.4;
+  // Share of a corridor's VISIBLE samples that must be occupied before it is
+  // called blocked (floor of 2 samples). An absolute 2 condemned the clear
+  // stretch behind an obstacle, because the disc around the sample nearest
+  // the obstacle-touching vertex always reads occupied.
+  double sparrow_edge_check_blocked_frac_ = 0.25;
+  // Hysteresis on costmap-derived edge statuses.
+  //
+  // For an edge whose far end sits near an obstacle, the corridor check lands
+  // right on its own threshold and its raw answer flips with every sensor
+  // update. Measured on sparrow_test3 22:35: edge <2,26>-<2,27>, the one
+  // directly ahead of the parked robot, went BLOCKED->free->BLOCKED->free->
+  // BLOCKED inside ~14 s while the robot and the person were both stationary.
+  // Every flip is a belief revision, and every revision cuts a committed wait
+  // short - which is what turned "Waiting up to 2 minutes" into "waiting 15
+  // seconds" moments later. A flip at sensor rate is not information; require
+  // the new value to hold for this many consecutive monitoring passes before
+  // the status is allowed to change. 1 disables the filter.
+  struct EdgeStatusFilter {
+    int stable = -2;     // -2 = nothing recorded yet
+    int candidate = -2;  // value currently accumulating evidence
+    int count = 0;       // consecutive passes agreeing on `candidate`
+  };
+  mutable std::map<tactic::EdgeId, EdgeStatusFilter> edge_status_filter_;
+  int sparrow_edge_status_hysteresis_n_ = 3;
+  // Metres of corridor to ignore next to a vertex that an obstacle is sitting
+  // on. Every edge incident to that vertex passes through the obstacle's own
+  // footprint, so without this the thing the robot is trying to route AROUND
+  // condemns every way out of the junction it is standing at. Measured on
+  // sparrow_test3 23:43: robot at <0,0>, chair on {<0,0>,<0,1>}, and the
+  // alternative {<0,0>,<2,0>} read BLOCKED in 183 of 186 samples - so
+  // valid_actions() offered no TRAVERSE and the robot waited out chair grid
+  // 13/104/39/13/39... with nowhere to go. Roughly obstacle half-width plus
+  // edge_check_radius_m. 0 disables.
+  double sparrow_edge_check_skip_near_m_ = 0.8;
 
   // HSHMAT SPARROW: on-demand VLM classification (Observe action).
   // The POMCP chose Observe: we published /vtr/request_classification, entered
@@ -377,12 +459,20 @@ typedef message_filters::sync_policies::ApproximateTime<
   // waiting means new information arrived (an edge transitioned) -> the wait
   // is cut short so the planner can reconsider with the new belief.
   uint64_t sparrow_wait_revision_baseline_ = std::numeric_limits<uint64_t>::max();
+  // Clock time of the last wait interruption, for the interrupt debounce
+  // (sparrow.wait_interrupt_min_period_s).
+  double sparrow_last_wait_interrupt_sec_ = 0.0;
   // True while the current episode was triggered at a junction (adjacent
   // blocked edges, no detector front obstacle). Guards: startObstacleEpisode
   // keeps the injected blocked set, the detector's continuous CLEARED stream
   // is ignored (it cannot see adjacent edges), and clearance comes from the
   // costmap monitor instead.
   bool sparrow_junction_encounter_ = false;
+  // One retry per episode without the POMCP's corridor-commitment bans. Those
+  // bans force the reroute to execute the chosen Traverse, but they can leave
+  // the TDSP with no route at all - and "no alternate path to goal" is then an
+  // artifact of over-constraining the executor, not a fact about the graph.
+  bool sparrow_ban_retry_done_ = false;
   
   // Learned p_block: index along stored following_route_ids_. On obstacle or mission end: add (idx - last_path_index_), then last_path_index_=idx.
   // New repeat -> 0. Each following_route that replaces the path -> re-anchor to current vertex index (reroute included).

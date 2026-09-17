@@ -288,7 +288,12 @@ std::vector<SAction> valid_actions(SVertex vertex,
                                    const std::vector<SVertex>& neighbors,
                                    const std::set<SEdge>& classified_edges,
                                    const std::vector<double>& wait_set,
-                                   bool allow_observe);
+                                   bool allow_observe,
+                                   const std::map<std::string,
+                                                  std::vector<double>>*
+                                       wait_set_by_class = nullptr,
+                                   const std::map<SEdge, std::string>*
+                                       edge_classes = nullptr);
 
 // ---------------------------------------------------------------------------
 // Transition model / generator (ports generator.TransitionModel)
@@ -311,6 +316,18 @@ class TransitionModel {
         corridor_traversal_(corridor_traversal),
         bin_width_(duration_bin_width) {}
 
+  /**
+   * \brief Finer per-class wait budgets (handoff sec. 1.8).
+   *
+   * Once the robot has PAID to Observe an edge, the class is known and its
+   * clearance law with it - so offer a grid resolved around that class's own
+   * mean (person 3/9/22 s, chair 13/39/104 s) instead of one grid spanning
+   * every class. Classes without an entry keep the shared grid.
+   */
+  void setWaitSetByClass(std::map<std::string, std::vector<double>> by_class) {
+    wait_set_by_class_ = std::move(by_class);
+  }
+
   bool is_terminal(const PlannerState& s) const {
     return s.robot_vertex == ctx_->goal;
   }
@@ -326,6 +343,7 @@ class TransitionModel {
   bool allow_observe_;
   bool corridor_traversal_;
   double bin_width_;
+  std::map<std::string, std::vector<double>> wait_set_by_class_;
 };
 
 // ---------------------------------------------------------------------------
@@ -361,7 +379,39 @@ class ParticleBelief {
   void initialize(const LocalObservation& local);
   const std::vector<PlannerState>& particles() const { return particles_; }
 
+  /**
+   * \brief Per-edge occupancy weights for CONTRACTED planning.
+   *
+   * `raw[e] = macroPBlock(p_micro, n_micro(e)) / p_micro`, so `p_block * w_e`
+   * recovers `1 - (1 - p_micro)^n` exactly - the composed occupancy of a whole
+   * corridor. Ports belief.ParticleBelief's `_edge_p` / `_edge_weight`.
+   *
+   * Two derived maps, and they are NOT interchangeable:
+   *   - `edge_p_` keeps the weights UNNORMALISED, because it is an absolute
+   *     probability. Mean-normalising first destroys the scale: on trap_23 the
+   *     80-micro-edge trap has p_macro = 0.57, but p_block * (mean-1 weight)
+   *     gave 0.02, so 5.6% of particles believed it blocked instead of 57%,
+   *     the search priced it at free-run cost, and the planner drove into it
+   *     every episode. Invisible when corridors are similar lengths, severe
+   *     when they are not.
+   *   - `edge_weight_` IS mean-normalised, because the spawn rate only needs
+   *     the RELATIVE preference between edges.
+   *
+   * Pass the map keyed by canonical macro-edge. Calling this with an empty map
+   * restores the flat scalar `model_->p_block` (the uncontracted behaviour).
+   */
+  void setEdgeWeights(const std::map<SEdge, double>& raw);
+
+  /// Steady-state occupancy the belief assigns to one edge under the frozen
+  /// model. With contracted weights set this is the COMPOSED corridor
+  /// occupancy; without them, the flat p_block. Public for diagnostics and
+  /// for the parity check against the simulator.
+  double p_edge(const SEdge& edge) const;
+
  private:
+  /// Relative spawn rate multiplier for one edge (mean-normalised).
+  double weight_edge(const SEdge& edge) const;
+
   PlannerState new_particle(const LocalObservation& local);
   void install_tracked_blockage(PlannerState& st, const LocalObservation& local,
                                 const SEdge& edge, Rng& rng);
@@ -379,6 +429,9 @@ class ParticleBelief {
   uint64_t seed_;
   int stream_counter_ = 0;
   std::vector<PlannerState> particles_;
+  // Empty in uncontracted planning: p_edge() then returns the flat p_block.
+  std::map<SEdge, double> edge_p_;       // absolute, UNNORMALISED
+  std::map<SEdge, double> edge_weight_;  // relative, mean-normalised
 };
 
 // ---------------------------------------------------------------------------
@@ -392,6 +445,43 @@ struct SparrowSearchSettings {
   double c_uct = 30.0;
   double duration_bin_width = 1.0;
   double cutoff_congestion_factor = 1.0;
+  /**
+   * Among root actions whose visit count is at least this fraction of the
+   * most-visited one, return the action with the LOWEST mean cost.
+   *
+   * Plain robust-child ("most visits, tie-break on Q") is the standard POMCP
+   * rule, but it interacts badly with an even exploration floor spread over
+   * action CLASSES: the single Traverse and the five MaxWaits get comparable
+   * floors, then UCB concentrates on one MaxWait, so a wait wins the visit
+   * count while Traverse holds the better Q. Measured (sparrow_test3
+   * 22:32:24, a bin): Traverse Q=123.187s with 293 visits LOST to
+   * MaxWait(120) Q=124.675s with 375 visits - a 1.2% Q difference, well
+   * inside search noise, that cost two more minutes of standing still.
+   * 1.0 restores exact robust-child behaviour.
+   */
+  double robust_visit_frac = 0.75;
+  /**
+   * Fraction of the simulation budget reserved as an EVEN FLOOR across the
+   * root's actions before UCB is allowed to concentrate (handoff sec. 1.4).
+   *
+   * Clearance times are heavy-tailed, so one unlucky rollout can strand a good
+   * action at a ruinous Q with 1-2 visits, and c_uct can never fund a revisit.
+   * Measured on trap_aisles: the 40 s aisle route scored q=228 from n=2
+   * rollouts (one drew a bin's slow component) against q=76 for the 32 s
+   * hallway; 2997 of 3000 simulations then went to the hallway and the
+   * alternative was never re-examined. Deployment value: 0.5.
+   */
+  double root_explore_frac = 0.25;
+  /**
+   * Stratify that floor by action TYPE rather than spreading it evenly over
+   * individual actions.
+   *
+   * Wait vs reroute vs observe are genuinely different decisions, whereas two
+   * wait durations are near-duplicates that can share evidence. Splitting the
+   * budget evenly across actions lets a long wait grid drown out the single
+   * Traverse; splitting it across types keeps the comparison that matters.
+   */
+  bool root_explore_by_class = false;
 };
 
 struct RootActionStat {
@@ -440,7 +530,8 @@ class SparrowSolver {
   double simulate(PlannerState state, HistoryNode& node, int depth,
                   double sim_start_time,
                   const std::vector<SAction>* forced_actions);
-  const SAction* select(HistoryNode& node, const std::vector<SAction>& actions);
+  const SAction* select(HistoryNode& node, const std::vector<SAction>& actions,
+                        bool is_root);
   double rollout(PlannerState state, double sim_start_time);
   double cutoff_cost(const PlannerState& state) const;
   SAction rollout_action(PlannerState& state,

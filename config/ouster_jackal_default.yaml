@@ -55,7 +55,7 @@
       # Real-world logging (HSHMAT)
       # =========================
       run_idx: 14                     # Match sim batch run_6 / seed 13 (base 7 + 6). run14 is person/chair real world exp 
-      graph_name: "may23"        # Logs + learned data: ${VTRTEMP}/<graph_name>/run<run_idx>
+      graph_name: "sparrow_test3"  # Logs + learned data: ${VTRTEMP}/<graph_name>/run<run_idx>
       mission_time_limit: 2000.0      # Seconds; for success/failure logging (robot continues past this)
       
       # =========================
@@ -79,7 +79,7 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned | sparrow
-        type: "always_wait"
+        type: "sparrow"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         # unknown_W_max is the fallback for any obstacle type not listed in W_max_per_type
@@ -102,14 +102,81 @@
         # learned_data_dir is set automatically to ${VTRTEMP}/<graph_name>/run<run_idx>
         # (survival_stats.yaml, obstacle_stats.yaml, encounters_learned.csv, debug_plots/)
         
-        # Seed samples (uncensored durations, seconds). Empty = no YAML prior; use survival_stats.yaml if present, else cold start.
-        # seed_samples:
-        #   person: []
-        #   chair: []
-        #   bin: []
-        #   sonotube: []
-        #   unknown: []
-        
+        # Prior over obstacle CLASS for an encounter the robot has not paid to
+        # Observe. The belief mixes the per-class clearance laws below with
+        # these weights, so they set what an "unknown" obstacle is expected to
+        # do. These are the simulation's ground-truth class frequencies
+        # (vtr_obstacle_simulation/configs/generalization_may23.yaml).
+        # Without them the built-in default (person .6 / chair .15 / bin .15 /
+        # sonotube .1) puts 40% of the mass on the three slow classes and an
+        # unknown obstacle looks like a ~58 s wait instead of ~13 s.
+        type_weights:
+          person: 0.944265   # 2626/2781 encounters
+          chair: 0.042790   # 119/2781 encounters
+          bin: 0.010068   # 28/2781 encounters
+          sonotube: 0.002877   # 8/2781 encounters
+
+        # GROUND-TRUTH survival functions: the robot is handed the true
+        # clearance law of each class instead of learning it.
+        #
+        # 64 uncensored samples per class at the (i+0.5)/65 quantiles of the
+        # simulation's ground-truth lognormals, plus ONE right-censored sample
+        # at the 64.5/65 quantile. The censored one is not optional:
+        # Kaplan-Meier drops to exactly S=0 at the largest UNCENSORED sample,
+        # so an all-uncensored seed makes the planner certain that a chair it
+        # has watched for longer than the largest seed has already gone -
+        # S(t)=0, residual wait 0 - and it will wait forever for a clearance
+        # it believes is about to happen. With the censored sample, S stays
+        # positive there and the exponential tail fits.
+        #
+        # Verified against the real SurvivalModel (vtr_navigation): truncated
+        # mean within 1% of analytic and max |S_km - S_true| < 0.01 -
+        # person 7.41 vs 7.39 s, chair 88.98 vs 88.68 s, bin 126.03 vs
+        # 125.57 s, sonotube 221.04 vs 218.83 s.
+        #
+        # Applied on a COLD start only: SparrowStrategy skips a class whose
+        # survival_stats.yaml already holds at least this many samples, so a
+        # resumed deployment keeps its own banked data. Comment both blocks
+        # out to learn the fits from scratch again - every class then falls
+        # back to prior_residual_mean = 60 s until its first sample, which is
+        # why an unknown chair kept looking like a good thing to wait for.
+        # 'unknown' is deliberately absent: an unlabeled obstacle must stay a
+        # mixture over the classes, not a class of its own.
+        seed_samples:
+          # person: lognormal(mu=1.84884, sigma=0.55) -> median 6.4s, mean 7.4s
+          person: [1.68, 2.12, 2.40, 2.62, 2.81, 2.98, 3.14, 3.29, 3.43, 3.56, 3.69, 3.81, 3.94, 4.06,
+            4.18, 4.30, 4.41, 4.53, 4.64, 4.76, 4.88, 4.99, 5.11, 5.23, 5.35, 5.47, 5.59, 5.71,
+            5.83, 5.96, 6.09, 6.22, 6.35, 6.49, 6.63, 6.77, 6.92, 7.07, 7.22, 7.38, 7.55, 7.72,
+            7.90, 8.08, 8.27, 8.48, 8.69, 8.91, 9.14, 9.39, 9.66, 9.94, 10.25, 10.58, 10.94,
+            11.34, 11.78, 12.28, 12.85, 13.53, 14.35, 15.39, 16.81, 19.02]
+          # chair: lognormal(mu=4.33374, sigma=0.55) -> median 76.2s, mean 88.7s
+          chair: [20.11, 25.46, 28.81, 31.47, 33.75, 35.79, 37.67, 39.43, 41.11, 42.71, 44.27, 45.78,
+            47.25, 48.71, 50.14, 51.55, 52.95, 54.35, 55.74, 57.13, 58.52, 59.92, 61.32, 62.73,
+            64.15, 65.59, 67.04, 68.51, 70.00, 71.52, 73.06, 74.63, 76.23, 77.86, 79.54, 81.25,
+            83.01, 84.81, 86.67, 88.59, 90.58, 92.63, 94.76, 96.98, 99.29, 101.71, 104.25,
+            106.92, 109.74, 112.72, 115.90, 119.31, 122.97, 126.94, 131.27, 136.04, 141.35,
+            147.36, 154.25, 162.36, 172.19, 184.66, 201.66, 228.25]
+          # bin: lognormal(mu=4.65296, sigma=0.6) -> median 104.9s, mean 125.6s
+          bin: [24.51, 31.71, 36.29, 39.96, 43.12, 45.98, 48.62, 51.11, 53.48, 55.76, 57.98, 60.14,
+            62.26, 64.35, 66.41, 68.46, 70.49, 72.52, 74.55, 76.58, 78.62, 80.66, 82.73, 84.80,
+            86.91, 89.03, 91.18, 93.37, 95.59, 97.85, 100.15, 102.50, 104.90, 107.35, 109.87,
+            112.45, 115.11, 117.85, 120.67, 123.59, 126.61, 129.74, 133.01, 136.41, 139.96,
+            143.68, 147.59, 151.72, 156.09, 160.73, 165.68, 170.99, 176.73, 182.96, 189.78,
+            197.32, 205.74, 215.29, 226.31, 239.31, 255.16, 275.38, 303.16, 347.01]
+          # sonotube: lognormal(mu=5.1511, sigma=0.7) -> median 172.6s, mean 220.5s
+          sonotube: [31.65, 42.75, 50.04, 55.98, 61.19, 65.95, 70.39, 74.61, 78.66, 82.59, 86.43, 90.21,
+            93.93, 97.61, 101.27, 104.92, 108.57, 112.22, 115.89, 119.58, 123.30, 127.06,
+            130.86, 134.70, 138.60, 142.56, 146.59, 150.70, 154.89, 159.16, 163.54, 168.02,
+            172.62, 177.35, 182.21, 187.22, 192.39, 197.73, 203.27, 209.02, 214.99, 221.22,
+            227.72, 234.52, 241.66, 249.18, 257.12, 265.52, 274.46, 284.00, 294.24, 305.28,
+            317.25, 330.34, 344.75, 360.77, 378.81, 399.40, 423.34, 451.86, 486.96, 532.27,
+            595.43, 697.07]
+        seed_samples_censored:
+          person: [24.09]    # the 64.5/65 quantile
+          chair: [289.02]    # the 64.5/65 quantile
+          bin: [448.93]    # the 64.5/65 quantile
+          sonotube: [941.37]    # the 64.5/65 quantile
+
         # Debug visualization for learned policy
         # Saves plots of S(t), A_goal(C), A_avoid(W), J(W) on each obstacle episode
         debug_plot_policy: true  # Set to true to enable
@@ -123,15 +190,34 @@
         # Defaults mirror vtr_obstacle_simulation config.POMCPConfig.
         # =========================
         sparrow:
-          num_simulations: 500        # POMCP simulations per decision
+          num_simulations: 1000       # POMCP simulations per decision
+          # Whichever of max_planning_time_s and num_simulations binds first
+          # ends the search. Do NOT lower this to make the cold start cheap: a
+          # truncated search produces a confused policy that replans constantly
+          # (measured 21-219 reroutes in episode 1 against 0-14 uncapped). The
+          # 5 s deadline is only safe because teach_prior keeps the belief
+          # accurate - the two go together.
           max_planning_time_s: 5.0    # wall-clock budget per decision (<=0: off)
           max_depth: 40               # tree depth limit (decisions, not meters)
           max_sim_time_s: 600.0       # simulated-seconds cap per rollout
           c_uct: 30.0                 # exploration constant (seconds)
-          duration_bin_width: 1.0     # observation duration binning (s)
+          duration_bin_width: 5.0     # observation duration binning (s)
           num_particles: 500          # belief particles per decision
-          wait_durations: [5.0, 10.0, 15.0, 20.0, 30.0]  # MaxWait grid (s)
-          delta_obs_s: 3.0            # Observe (VLM call) cost assumed inside the search
+          wait_durations: [4.0, 15.0, 45.0, 120.0]  # shared MaxWait grid (s)
+          # Finer grids for edges the robot has PAID to Observe: a known class
+          # has a known clearance law, so the grid can be resolved around its
+          # own mean instead of spanning every class. Empty list = use the
+          # shared grid above.
+          wait_durations_by_class:
+            person: [3.0, 9.0, 22.0]
+            chair: [13.0, 39.0, 104.0]
+          # MEASURED on the 20:03 run: 17.1 s and 16.4 s of wall clock per VLM
+          # call, against the 5.0 s the tree assumed - so Observe looked ~3x
+          # cheaper than it is and the search over-ordered it. Cropping the
+          # panorama to the mask cut the model's reasoning from 251-516 to
+          # 99-177 tokens, which should bring real latency down; re-measure and
+          # set this to what you actually observe.
+          delta_obs_s: 5.0            # Observe (VLM call) cost assumed inside the search (tau_obs)
                                       # (real cost = measured wall clock, absorbed into age)
           # Observe as an action: SPARROW never auto-calls the VLM on detection
           # (unlike oscar/rule_based). The VLM is queried on demand, only when
@@ -139,9 +225,38 @@
           # lidar costmap + teach graph) can be observed; each edge gets at
           # most one VLM call per encounter.
           allow_observe: true
+          # One paid observation identifies the OBSTACLE, not one edge. The
+          # per-encounter bookkeeping is keyed per EDGE, so without this the
+          # POMCP classified (17,18) and then paid again for (16,17) - the same
+          # chair, 33 s of wall clock, and the second edge was not even in the
+          # detector's blocked set. Set false only to study per-edge
+          # classification with an untrusted classifier.
+          single_observe_per_encounter: true
           corridor_traversal: true    # collapse degree-2 chains into one action
           max_total_wait_s: 600.0     # safety cap on cumulative wait per episode
-          p_block_override: -1.0      # >=0 pins occupancy (debug); <0 learned
+          # GROUND-TRUTH occupancy: probability that any given MICRO-edge is
+          # blocked (macroPBlock(p_micro, n) lifts it to a corridor, so this is
+          # a per-taught-edge rate, NOT per corridor).
+          #
+          # Calibrated to "1-5 obstacles encountered per episode". Routes on
+          # this graph measured 29-67 micro-vertices (28-66 edges, median ~45),
+          # so expected encounters = p * 45:
+          #     p=0.0208 (the Jeffreys estimate it was using) -> 0.9   too low
+          #     p=0.04                                        -> 1.8
+          #     p=0.05                                        -> 2.2   <- set
+          #     p=0.08                                        -> 3.6
+          #     p=0.111                                       -> 5.0   top of range
+          # 0.05 sits mid-range and matches the simulation's own
+          # target_active_obstacles_edge_fraction. Raise toward 0.08-0.11 for a
+          # denser course, but watch the search: a rollout only reaches the
+          # goal if the whole route is clear, (1-p)^45 = 0.39 at 0.0208, 0.10
+          # at 0.05, 0.02 at 0.08 - and rollouts that never arrive run to
+          # max_sim_time_s instead of terminating, which costs planning
+          # quality, not just time.
+          #
+          # Setting this >= 0 overrides p_block_live/teach_prior for the
+          # PLANNER; the learned counters keep accumulating for the logs.
+          p_block_override: 0.03
           planner_seed: 0             # 0 = time-derived; set >0 for reproducible searches
           # Continuity tolerance (s) for continuous edge monitoring. The
           # Navigator refreshes each in-view edge's last-confirmed time at
@@ -154,6 +269,21 @@
           # Min period (s) between monitoring passes; monitoring itself is
           # driven by the detector's costmap updates (sensor rate).
           monitor_period_s: 1.0
+          # Cut a committed wait short only for a belief revision that can
+          # change THIS wait-vs-detour decision: a status change on an edge of
+          # this wait, or a remembered blockage clearing (a detour may have
+          # opened). With this false, ANY revision anywhere cut the wait, so
+          # costmap hysteresis on one unrelated edge re-ran the search and
+          # re-announced a new wait every few seconds and no wait ever elapsed.
+          wait_interrupt_relevant_only: true
+          # Floor between wait interruptions (s). Even a relevant edge can
+          # toggle repeatedly; without a floor each toggle re-plans and speaks.
+          wait_interrupt_min_period_s: 10.0
+          # While parked on a wait, a monitor_gap_s dropout on the edges of
+          # THAT wait is a sensing gap, not the obstacle leaving and a new one
+          # arriving - so the obstacle's age keeps running instead of being
+          # reset to 0 while the robot stares at it.
+          pin_wait_edge_continuity: true
           # Every-decision replanning (paper Table VII), with the simulation's
           # exact observation semantics: adjacent edge statuses are only
           # OBSERVED on ARRIVAL at a decision vertex (after completing the
@@ -163,10 +293,80 @@
           # Wait/Observe pause there. Belief revisions during a (non-macro)
           # wait cut the wait short so the planner reconsiders.
           junction_replan: true
+          # Take the wait/detour decision where the ROBOT is, not at the
+          # blockage. Planning at the blocked edge's near endpoint was
+          # justified by "the travel cost to get there is common to every
+          # action, so it drops out" - but that is false for backing out,
+          # which never reaches the blockage. And the blockage vertex is
+          # surrounded by blocked edges by construction, so the search was
+          # repeatedly offered no TRAVERSE at all and could only wait
+          # (sparrow_test3 21:22:47, 21:23:31). Rooted at the robot the
+          # corridor splits there: forward carries the blockage (BLOCKED ->
+          # MaxWait/Observe), backward runs to the previous junction (free ->
+          # Traverse). Set false to restore the old blockage-rooted behaviour.
+          plan_at_robot: true
           # Divert off the current route only when the chosen corridor beats
           # the route continuation by this margin (s) - prevents dithering on
           # Q-values within search noise.
           junction_divert_margin_s: 2.0
+          # Root exploration floor (handoff sec. 1.4). Clearance times are
+          # heavy-tailed, so one unlucky rollout can strand a good action at a
+          # ruinous Q with 1-2 visits and c_uct can never fund a revisit
+          # (measured: 2997 of 3000 sims went to one route and the alternative
+          # was never re-examined). Reserve this fraction of the budget as an
+          # even floor across root actions first. Deployment: 0.5.
+          root_explore_frac: 0.5
+          # Stratify that floor by action TYPE (wait / reroute / observe), not
+          # over individual actions - two wait durations are near-duplicates,
+          # but a long wait grid would otherwise drown out the one Traverse.
+          root_explore_by_class: true
+          # Decide between root actions on COST once they have been explored
+          # comparably: lowest mean cost among those with at least this
+          # fraction of the top visit count. Plain robust-child (1.0) lets an
+          # action UCB happened to concentrate on beat a better-scoring one -
+          # measured on a bin at 22:32:24, Traverse Q=123.187s/293 visits LOST
+          # to MaxWait(120) Q=124.675s/375 visits, a 1.2% Q gap well inside
+          # search noise that bought two more minutes of standing still.
+          robust_visit_frac: 0.75
+          # Occupancy estimate (handoff sec. 1.5). These two go together:
+          # p_block accuracy dominates planner compute, because a rollout only
+          # reaches the goal if a whole route is clear - (1-p)^109 on sep12_4's
+          # shortest route is 0.271 at the true 0.0119 but 0.0037 at 0.05, and
+          # rollouts that fail to terminate run to the simulated-time cap.
+          p_block_live: true          # Jeffreys (k+0.5)/(n+1), not raw 0/0
+          # = CORRIDOR count of the graph being repeated, NOT the micro-edge
+          # count. sep12_4 contracts to 29 decision vertices / 39 corridors
+          # (verified C++ == Python, scripts/verify_cpp_contraction.py), and the
+          # simulation runs it with POMCP_TEACH_PRIOR=39 (scripts/submit_ov67.sh).
+          # It was 23 for sparrow_test3 - leaving that in place on sep12_4 tells
+          # the belief the graph was driven clear 23 times instead of 39, so the
+          # Jeffreys occupancy comes out ~1.7x too high.
+          teach_prior: 39
+          # Corridor contraction (handoff sec. 2). The search plans over
+          # CORRIDORS instead of taught edges: on sep12_4 that is 29 decision
+          # vertices / 39 corridors instead of 664 vertices / 674 edges, which
+          # is a horizon the search can actually cover. The executor is
+          # unaffected - it still drives taught edges and still stops for an
+          # obstacle appearing part-way down a corridor.
+          contracted: true             # plan on the abstract graph (handoff sec. 5)
+          # Cap on one corridor's travel time; longer ones are split into
+          # ceil(L/cap) equal pieces. 0 = no splitting, the deployment value:
+          # the corner vertices below already break up sep12_4's long runs.
+          max_macro_len_s: 0.0
+          # Corners kept as explicit decision vertices, "run:vertex,...".
+          # These MUST be named on sep12_4: the automatic bounding-box rule
+          # picks the wrong vertex on a non-rectangular building (the real
+          # top-right bend at (14.13, 20.84) loses to a vertex 6.8 m from the
+          # bbox corner against its own 7.8 m). Verify with
+          # scripts/verify_cpp_contraction.py -> 29 nodes / 39 corridors.
+          # sep12_4's ten corners, exactly as the simulation exports them in
+          # scripts/submit_ov67.sh (POMCP_CORNER_VERTICES). These MUST be named:
+          # the automatic bounding-box rule picks the wrong vertex on this
+          # building's non-rectangular outline (handoff 2.2). "8:8,8:30" was
+          # sparrow_test3's two bends and means nothing on this graph - neither
+          # vertex constrains the contraction, so the long runs get swallowed
+          # into single atomic corridors.
+          corner_vertices: "2:0,2:123,20:41,20:87,16:13,2:97,0:17,0:35,0:52,20:19"
           # Knowledge-gradient exploration of the KM fits (paper Sec. IV-D;
           # exact port of pomcp/exploration.py, defaults = sim main-table
           # runs). Prices the value one more clearance-time sample has for
@@ -176,19 +376,50 @@
           # missions this deployment will run (value of a sample scales with
           # the missions still ahead; set it to your experiment size).
           kg_enabled: true
-          kg_num_episodes: 15
+          kg_num_episodes: 5          # N = missions this session (set 50 for the real sep12_4 run)
           kg_encounter_rate_prior: 1.0
           kg_mean_uncertainty: conjugate   # or greenwood
           kg_detour_cost: free             # or inflated
           kg_value_mode: horizon           # horizon | acceleration | capped
           kg_horizon_cap: 5.0
-          kg_value_scale: 1.0
+          kg_value_scale: 8.0
           kg_censored_credit: 0.0
           kg_w_max_s: 300.0                # W_max planning horizon (s)
           # Adjacent-edge sensing (costmap corridor check in the Navigator)
           use_costmap_edge_check: true
           edge_check_length_m: 2.5    # corridor length checked per adjacent edge
           edge_check_radius_m: 0.4    # corridor half-width checked
+          # Share of a corridor's VISIBLE samples that must be occupied before
+          # it counts as blocked (floor: 2 samples). The old absolute "2 or
+          # more" condemned the CLEAR stretch behind an obstacle, because the
+          # 0.4 m disc around the samples nearest the obstacle-touching vertex
+          # always reads occupied. Combined with the walk running 2.5 m in
+          # whichever direction started nearer the robot, one chair on
+          # (17,18)..(19,20) also blocked (16,17) - so both edges at v17 were
+          # blocked, the search was offered no TRAVERSE, and the robot could
+          # not take the obvious escape of backing up.
+          edge_check_blocked_frac: 0.25
+          # Hysteresis on costmap edge statuses: a new value must hold for this
+          # many consecutive ~1 Hz monitoring passes before the status changes.
+          # An edge whose far end sits near an obstacle lands right on the
+          # corridor check's threshold and its raw answer flips every sensor
+          # update - measured on sparrow_test3 22:35, edge <2,26>-<2,27>
+          # directly ahead of the PARKED robot went BLOCKED->free->BLOCKED->
+          # free->BLOCKED in ~14 s with nothing moving. Each flip is a belief
+          # revision, and each revision cuts the committed wait short, which is
+          # what turned "Waiting up to 2 minutes" into a new 15 s wait moments
+          # later. 1 disables the filter.
+          edge_status_hysteresis_n: 3
+          # Metres of corridor ignored next to a vertex an obstacle sits on.
+          # Every edge leaving that vertex passes through the obstacle's own
+          # footprint, so without this the thing the robot is trying to route
+          # AROUND condemns every way out of the junction it is standing at.
+          # sparrow_test3 23:43: robot at <0,0>, chair on {<0,0>,<0,1>}, and
+          # the alternative {<0,0>,<2,0>} read BLOCKED in 183 of 186 samples -
+          # no TRAVERSE was offered and it waited out 13/104/39/13/39s of the
+          # chair grid with nowhere to go. Roughly obstacle half-width plus
+          # edge_check_radius_m. 0 disables.
+          edge_check_skip_near_m: 0.8
 
     graph_projection:
       # # UTIAS coordinates (original)

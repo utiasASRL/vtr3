@@ -404,7 +404,12 @@ std::vector<SAction> valid_actions(SVertex vertex,
                                    const std::vector<SVertex>& neighbors,
                                    const std::set<SEdge>& classified_edges,
                                    const std::vector<double>& wait_set,
-                                   bool allow_observe) {
+                                   bool allow_observe,
+                                   const std::map<std::string,
+                                                  std::vector<double>>*
+                                       wait_set_by_class,
+                                   const std::map<SEdge, std::string>*
+                                       edge_classes) {
   std::vector<SAction> actions;
   // Traverse: only onto observed-free edges (sorted neighbor order).
   for (const auto& w : neighbors) {
@@ -428,7 +433,25 @@ std::vector<SAction> valid_actions(SVertex vertex,
     const SEdge ce = canonical_edge(vertex, w);
     auto it = statuses.find(ce);
     if (it == statuses.end() || !it->second) continue;
-    for (const double W : waits) {
+    // A blockage the robot has PAID to Observe has a known clearance law, so
+    // offer a grid resolved around THAT class's own mean rather than one grid
+    // spanning every class - which is the point of having paid for the label.
+    // Falls back to the shared grid for any class without its own.
+    const std::set<double>* grid = &waits;
+    std::set<double> class_waits;
+    if (wait_set_by_class != nullptr && edge_classes != nullptr) {
+      auto cit = edge_classes->find(ce);
+      if (cit != edge_classes->end()) {
+        auto git = wait_set_by_class->find(cit->second);
+        if (git != wait_set_by_class->end()) {
+          for (const double x : git->second) {
+            if (x > 0.0) class_waits.insert(x);
+          }
+          if (!class_waits.empty()) grid = &class_waits;
+        }
+      }
+    }
+    for (const double W : *grid) {
       SAction a;
       a.kind = SAction::MAXWAIT;
       a.edge = ce;
@@ -453,17 +476,27 @@ std::vector<SAction> TransitionModel::actions(PlannerState& s) const {
   settle(s);
   const auto statuses = s.adjacent_statuses(*ctx_);
   std::set<SEdge> classified;
+  // Only edges the robot has PAID to Observe carry a class, and only those may
+  // use a per-class wait grid (ports state.classified_adjacent_classes).
+  std::map<SEdge, std::string> edge_classes;
   auto iit = ctx_->incident_edges.find(s.robot_vertex);
   if (iit != ctx_->incident_edges.end()) {
     for (const auto& e : iit->second) {
-      if (s.is_classified(e)) classified.insert(e);
+      if (!s.is_classified(e)) continue;
+      classified.insert(e);
+      if (!wait_set_by_class_.empty()) {
+        const ActiveObs* ob = s.process.obstacle_on(e);
+        if (ob != nullptr) edge_classes[e] = ob->obs_type;
+      }
     }
   }
   auto nit = ctx_->neighbors.find(s.robot_vertex);
   static const std::vector<SVertex> kNoNeighbors;
   const auto& nbrs = (nit == ctx_->neighbors.end()) ? kNoNeighbors : nit->second;
   return valid_actions(s.robot_vertex, statuses, nbrs, classified, wait_set_,
-                       allow_observe_);
+                       allow_observe_,
+                       wait_set_by_class_.empty() ? nullptr : &wait_set_by_class_,
+                       edge_classes.empty() ? nullptr : &edge_classes);
 }
 
 StepResult TransitionModel::step(const PlannerState& s,
@@ -531,6 +564,45 @@ StepResult TransitionModel::step(const PlannerState& s,
 // ParticleBelief (ports belief.ParticleBelief)
 // ===========================================================================
 
+void ParticleBelief::setEdgeWeights(const std::map<SEdge, double>& raw) {
+  edge_p_.clear();
+  edge_weight_.clear();
+  if (raw.empty()) return;
+
+  double total = 0.0;
+  for (const auto& kv : raw) total += kv.second;
+  const size_t n = raw.size();
+  if (total <= 0.0 || n == 0) return;
+
+  for (const auto& kv : raw) {
+    // Absolute occupancy: p_block * w_e == 1 - (1 - p_micro)^n_micro.
+    // Deliberately NOT normalised - see the header.
+    edge_p_[kv.first] = kv.second;
+    // Relative spawn preference only: mean-normalised.
+    edge_weight_[kv.first] = kv.second * static_cast<double>(n) / total;
+  }
+}
+
+double ParticleBelief::p_edge(const SEdge& edge) const {
+  double p = std::max(0.0, std::min(1.0, model_->p_block));
+  if (!edge_p_.empty()) {
+    auto it = edge_p_.find(edge);
+    if (it != edge_p_.end()) return std::min(0.95, p * it->second);
+  }
+  if (!edge_weight_.empty()) {
+    auto it = edge_weight_.find(edge);
+    const double w = (it == edge_weight_.end()) ? 1.0 : it->second;
+    p = std::min(0.95, p * w);
+  }
+  return p;
+}
+
+double ParticleBelief::weight_edge(const SEdge& edge) const {
+  if (edge_weight_.empty()) return 1.0;
+  auto it = edge_weight_.find(edge);
+  return (it == edge_weight_.end()) ? 1.0 : it->second;
+}
+
 void ParticleBelief::initialize(const LocalObservation& local) {
   particles_.clear();
   particles_.reserve(num_particles_);
@@ -553,7 +625,9 @@ PlannerState ParticleBelief::new_particle(const LocalObservation& local) {
       install_from_memory(process, local, edge, mit->second, rng);
       continue;
     }
-    const double p = std::max(0.0, std::min(1.0, model_->p_block));
+    // Contracted planning: the composed occupancy of the whole corridor,
+    // not the flat micro rate.
+    const double p = p_edge(edge);
     if (rng.uniform() >= p) continue;
     const std::string obs_type = model_->sample_class(rng);
     const double residual = model_->sample_residual(obs_type, rng, 0.0);
@@ -649,10 +723,10 @@ void ParticleBelief::maybe_fresh_spawn(ObstacleProcess& process,
                                        const LocalObservation& local,
                                        const SEdge& edge, double delta,
                                        Rng& rng) {
-  const double p_block = std::max(0.0, std::min(1.0, model_->p_block));
+  const double p_block = p_edge(edge);
   if (p_block <= 0.0 || delta <= 0.0) return;
   const double rate_edge =
-      model_->spawn_rate_hz / std::max(1, model_->num_edges);
+      weight_edge(edge) * model_->spawn_rate_hz / std::max(1, model_->num_edges);
   const double p_new =
       p_block * (1.0 - std::exp(-rate_edge * delta / p_block));
   if (rng.uniform() >= p_new) return;
@@ -695,9 +769,9 @@ void ParticleBelief::install_tracked_blockage(PlannerState& state,
       w_same += kv.second * model_->residual_survival(kv.first, delta, a1);
     }
     const double gap = std::max(0.0, first_sight - mem.t_obs);
-    const double p_block = std::max(0.0, std::min(1.0, model_->p_block));
+    const double p_block = p_edge(edge);
     const double rate_edge =
-        model_->spawn_rate_hz / std::max(1, model_->num_edges);
+        weight_edge(edge) * model_->spawn_rate_hz / std::max(1, model_->num_edges);
     const double p_new =
         (p_block > 0.0)
             ? p_block * (1.0 - std::exp(-rate_edge * gap / p_block))
@@ -781,11 +855,33 @@ PlanResult SparrowSolver::plan(const std::vector<PlannerState>& particles,
               if (a.visits != b.visits) return a.visits > b.visits;
               return a.q_cost < b.q_cost;
             });
-  // Robust child: most visits, tie-break lowest running mean.
-  for (const auto& s : result.root_actions) {
-    if (s.visits > 0) {
-      result.action = s.action;
-      break;
+  // Robust child, but decided on COST among the actions that were explored
+  // comparably: take the lowest mean cost among those with at least
+  // robust_visit_frac of the top visit count. With a pure visit count an
+  // action that UCB happened to concentrate on beats a better-scoring one it
+  // merely sampled less (see robust_visit_frac).
+  {
+    int top_visits = 0;
+    for (const auto& s : result.root_actions)
+      top_visits = std::max(top_visits, s.visits);
+    if (top_visits > 0) {
+      const double frac = std::min(1.0, std::max(0.0,
+                                                 settings_.robust_visit_frac));
+      const int cutoff = static_cast<int>(std::ceil(frac * top_visits));
+      double best_q = std::numeric_limits<double>::infinity();
+      for (const auto& s : result.root_actions) {
+        if (s.visits <= 0 || s.visits < cutoff) continue;
+        if (s.q_cost < best_q) {
+          best_q = s.q_cost;
+          result.action = s.action;
+        }
+      }
+      // Nothing cleared the bar (frac == 1.0 with no exact tie): fall back.
+      if (!result.action.has_value()) {
+        for (const auto& s : result.root_actions) {
+          if (s.visits > 0) { result.action = s.action; break; }
+        }
+      }
     }
   }
   return result;
@@ -820,7 +916,9 @@ double SparrowSolver::simulate(PlannerState state, HistoryNode& node,
     node.children.emplace(a, ActionNode{});
   }
 
-  const SAction* action = select(node, actions);
+  // forced_actions is non-null only for the root history node.
+  const SAction* action =
+      select(node, actions, /*is_root=*/forced_actions != nullptr);
   ActionNode& action_node = node.children.at(*action);
 
   StepResult sr = transition_->step(state, *action);
@@ -841,10 +939,40 @@ double SparrowSolver::simulate(PlannerState state, HistoryNode& node,
 }
 
 const SAction* SparrowSolver::select(HistoryNode& node,
-                                     const std::vector<SAction>& actions) {
+                                     const std::vector<SAction>& actions,
+                                     bool is_root) {
   for (const auto& a : actions) {
     if (node.children.at(a).visits == 0) return &a;
   }
+
+  // Reserve an even floor of the budget across the root's actions before UCB
+  // concentrates. See SparrowSearchSettings::root_explore_frac.
+  if (is_root && settings_.root_explore_frac > 0.0 && !actions.empty()) {
+    const double budget =
+        settings_.num_simulations * settings_.root_explore_frac;
+    if (settings_.root_explore_by_class) {
+      std::map<int, int> members;  // SAction::kind -> how many share the class
+      for (const auto& a : actions) members[static_cast<int>(a.kind)] += 1;
+      const double per_class =
+          budget / static_cast<double>(std::max<size_t>(1, members.size()));
+      for (const auto& a : actions) {
+        const int floor_visits = static_cast<int>(
+            per_class / std::max(1, members[static_cast<int>(a.kind)]));
+        if (floor_visits > 0 && node.children.at(a).visits < floor_visits) {
+          return &a;
+        }
+      }
+    } else {
+      const int floor_visits =
+          static_cast<int>(budget / static_cast<double>(actions.size()));
+      if (floor_visits > 0) {
+        for (const auto& a : actions) {
+          if (node.children.at(a).visits < floor_visits) return &a;
+        }
+      }
+    }
+  }
+
   const double log_n = std::log(std::max(1, node.visits));
   const SAction* best = nullptr;
   double best_score = kInf;

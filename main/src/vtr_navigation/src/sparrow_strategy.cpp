@@ -29,6 +29,58 @@
 namespace vtr {
 namespace navigation {
 
+namespace {
+
+// HSHMAT SPARROW speech.
+//
+// OSCAR always classifies before it decides, so every announcement can lead
+// with the class ("Chair. Waiting 50 seconds."). SPARROW cannot: it plans with
+// an UNLABELED obstacle and only calls the VLM when the POMCP actually picks
+// the Observe action, which is roughly a quarter of the time. Feeding the raw
+// obs_type into the speech therefore made the robot say the literal word
+// "unknown" ("unknown. Rerouting."). These helpers make the class name
+// optional: it is spoken when the robot genuinely knows it, and silently
+// dropped when it does not.
+std::string classPrefix(const std::string& obs_type) {
+  if (obs_type.empty() || obs_type == "unknown") return std::string();
+  return obs_type + ". ";
+}
+
+// "45 seconds" / "1 minute 30 seconds", matching LearnedStrategy's phrasing so
+// the two planners sound like the same robot.
+std::string spokenDuration(double seconds_d) {
+  const int seconds = static_cast<int>(std::llround(seconds_d));
+  std::ostringstream ss;
+  if (seconds >= 60) {
+    const int minutes = seconds / 60;
+    const int secs = seconds % 60;
+    ss << minutes << " minute" << (minutes > 1 ? "s" : "");
+    if (secs != 0) ss << " " << secs << " seconds";
+  } else {
+    ss << seconds << " second" << (seconds == 1 ? "" : "s");
+  }
+  return ss.str();
+}
+
+// SPARROW's MaxWait is a BUDGET, not a countdown to a reroute: the wait ends
+// the moment the edge clears, and when it expires the planner re-plans and may
+// well wait again. "Waiting up to N" is the honest description; OSCAR's
+// "Waiting N" would promise a commitment SPARROW has not made.
+std::string waitSpeech(const std::string& obs_type, double W,
+                       bool for_learning) {
+  std::ostringstream ss;
+  ss << classPrefix(obs_type) << "Waiting up to " << spokenDuration(W);
+  if (for_learning) ss << " to learn";
+  ss << ".";
+  return ss.str();
+}
+
+std::string rerouteSpeech(const std::string& obs_type) {
+  return classPrefix(obs_type) + "Rerouting.";
+}
+
+}  // namespace
+
 using sparrow::GraphContext;
 using sparrow::LocalObservation;
 using sparrow::ParticleBelief;
@@ -58,9 +110,42 @@ SparrowStrategy::SparrowStrategy(const WaitStrategyConfig& config)
     obstacle_stats_.loadFromFile(obstacle_stats_file_);
   }
   obstacle_stats_.setDefaultTypeWeights(config_.type_weights);
-  for (const auto& kv : config_.seed_samples) {
-    if (survival_model_.sampleCount(kv.first) < kv.second.size()) {
-      survival_model_.addSeedSamples(kv.first, kv.second);
+  // Apply the teach prior here as well as at episode start, so the occupancy
+  // estimate is correct even for a decision taken before the first
+  // notifyEpisodeStart. It runs AFTER loadFromFile, and applyTeachPrior seeds
+  // only a cold start, so a resumed deployment keeps its banked counters.
+  if (config_.sparrow.teach_prior > 0) {
+    obstacle_stats_.applyTeachPrior(config_.sparrow.teach_prior);
+  }
+  // Seed the KM fits on a COLD start only: a class whose banked data already
+  // has at least as many samples as the seed lists keeps its own.
+  {
+    std::set<std::string> seeded_types;
+    for (const auto& kv : config_.seed_samples) seeded_types.insert(kv.first);
+    for (const auto& kv : config_.seed_samples_censored)
+      seeded_types.insert(kv.first);
+    for (const auto& type : seeded_types) {
+      const auto u_it = config_.seed_samples.find(type);
+      const auto c_it = config_.seed_samples_censored.find(type);
+      const size_t n_u =
+          (u_it != config_.seed_samples.end()) ? u_it->second.size() : 0;
+      const size_t n_c = (c_it != config_.seed_samples_censored.end())
+                             ? c_it->second.size()
+                             : 0;
+      if (survival_model_.sampleCount(type) >= n_u + n_c) continue;
+      if (n_u > 0) survival_model_.addSeedSamples(type, u_it->second);
+      for (double d : (n_c > 0 ? c_it->second : std::vector<double>{}))
+        survival_model_.addSample(type, d, /*censored=*/true);
+      CLOG(INFO, "navigation")
+          << "HSHMAT SparrowStrategy: seeded '" << type << "' with " << n_u
+          << " uncensored + " << n_c << " censored samples -> E[T] = "
+          << survival_model_.meanSurvivalTime(type, config_.getWMax(type))
+          << "s, S(last event) = "
+          << survival_model_.survival(
+                 type, u_it != config_.seed_samples.end() && n_u > 0
+                           ? *std::max_element(u_it->second.begin(),
+                                               u_it->second.end())
+                           : 0.0);
     }
   }
   CLOG(INFO, "navigation")
@@ -110,7 +195,9 @@ SparrowModel SparrowStrategy::snapshotModel(int num_edges) const {
   // pinned via config for experiments/debugging.
   m.p_block = (config_.sparrow.p_block_override >= 0.0)
                   ? config_.sparrow.p_block_override
-                  : obstacle_stats_.p_block();
+                  : (config_.sparrow.p_block_live
+                         ? obstacle_stats_.pBlockJeffreys()
+                         : obstacle_stats_.p_block());
   m.p_block = std::max(0.0, std::min(1.0, m.p_block));
 
   // Spawn rate from Little's law so the model's steady state matches the
@@ -201,8 +288,17 @@ GraphContext SparrowStrategy::buildContext(
 bool SparrowStrategy::noteBlockedSighting(const SEdge& e, double streak_start,
                                           double t_now) {
   auto& mem = memory_[e];
+  // A focus edge is one the robot is parked in front of, waiting on. Such an
+  // edge drops out of the costmap corridor check now and then (hysteresis at
+  // the edge of the view), and calling that a re-sighting archives the streak
+  // and restarts t_first - so a chair the robot has been staring at for a
+  // minute reads as brand new and "wait a little longer" keeps winning. Hold
+  // the streak open for focus edges; a genuine departure arrives as status 0
+  // (confirmed free), which the caller handles.
+  const bool pinned = config_.sparrow.pin_wait_edge_continuity &&
+                      wait_focus_edges_.count(e) > 0;
   const bool resight =
-      mem.t_last > 0.0 &&
+      !pinned && mem.t_last > 0.0 &&
       mem.t_last < streak_start - config_.sparrow.monitor_gap_s;
   if (resight) {
     // The edge left view and is blocked again: archive the old streak for the
@@ -242,6 +338,10 @@ void SparrowStrategy::updateEdgeMonitoring(
       // this edge may just have become viable).
       if (memory_.erase(se) > 0) {
         ++belief_revision_;
+        // A remembered blockage clearing always matters to a wait in
+        // progress: it is either the edge being waited on, or an edge a
+        // detour could now use.
+        ++wait_focus_revision_;
         CLOG(INFO, "navigation")
             << "HSHMAT SparrowStrategy: monitored edge (" << se.first << ","
             << se.second << ") transitioned BLOCKED->free (belief revision "
@@ -256,6 +356,10 @@ void SparrowStrategy::updateEdgeMonitoring(
       // deterministic and priced at decision epochs).
       if (!was_known || resight) {
         ++belief_revision_;
+        // A new blockage somewhere else on the graph does not change the
+        // wait-vs-detour question for the edge we are parked at; it is priced
+        // at the next decision epoch.
+        if (wait_focus_edges_.count(se) > 0) ++wait_focus_revision_;
         CLOG(INFO, "navigation")
             << "HSHMAT SparrowStrategy: monitored edge (" << se.first << ","
             << se.second << ") "
@@ -266,6 +370,12 @@ void SparrowStrategy::updateEdgeMonitoring(
     }
     // -1 (unknown / out of view): no update; the streak gap grows naturally.
   }
+}
+
+void SparrowStrategy::setWaitFocusEdges(const std::vector<SEdge>& edges) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  wait_focus_edges_.clear();
+  wait_focus_edges_.insert(edges.begin(), edges.end());
 }
 
 std::vector<std::pair<uint64_t, uint64_t>>
@@ -288,7 +398,7 @@ WaitDecision SparrowStrategy::computeWaitTime(
   if (blocked_edges.empty()) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: No blocked edges reported, waiting";
-    return WaitDecision::waitForever(obs_type + ". Waiting.");
+    return WaitDecision::waitForever(classPrefix(obs_type) + "Waiting.");
   }
   return planInternal(obs_type, blocked_edges, current_vertex, goal_vertex,
                       t_now, obstacle_t_first, tactic::VertexId::Invalid(),
@@ -319,7 +429,7 @@ WaitDecision SparrowStrategy::planInternal(
   if (!get_neighbors_ || !get_travel_time_) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: No graph access, defaulting to wait";
-    return WaitDecision::waitForever(obs_type + ". Waiting.");
+    return WaitDecision::waitForever(classPrefix(obs_type) + "Waiting.");
   }
 
   const auto t_start = std::chrono::steady_clock::now();
@@ -331,7 +441,7 @@ WaitDecision SparrowStrategy::planInternal(
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: Graph context unusable (verts="
         << ctx.neighbors.size() << "), defaulting to wait";
-    return WaitDecision::waitForever(obs_type + ". Waiting.");
+    return WaitDecision::waitForever(classPrefix(obs_type) + "Waiting.");
   }
 
   std::set<SEdge> blocked_s;
@@ -375,6 +485,11 @@ WaitDecision SparrowStrategy::planInternal(
           << "HSHMAT SparrowStrategy: plan vertex override " << ov
           << " not in context; planning from current vertex";
     }
+  } else if (sp.plan_at_robot) {
+    // Decide where the robot actually is. It has already stopped; its real
+    // options are to wait here or to turn around, and only a root at the robot
+    // offers both.
+    planning_vertex = current_u;
   } else {
     double best = kInf;
     for (const auto& e : blocked_s) {
@@ -420,8 +535,11 @@ WaitDecision SparrowStrategy::planInternal(
       mem.label = label;
     }
   }
+  // NOTE: which edge was observed no longer gates whether the class is
+  // applied - see the loop below. One encounter is one obstacle.
   const bool label_is_front =
       !observed_edge.has_value() || blocked_s.count(*observed_edge) > 0;
+  (void)label_is_front;
   // Sighting-streak update for the detector's blocked edges. Re-sightings
   // (edge left view since its last confirmation) are detected inside
   // noteBlockedSighting: the old streak is archived for the belief's
@@ -430,8 +548,27 @@ WaitDecision SparrowStrategy::planInternal(
   // edge is in costmap view, a gap here means the robot genuinely looked
   // away - not merely that a wait cycle passed between plans.
   for (const auto& e : blocked_s) {
-    noteBlockedSighting(e, t_now - age, t_now);
-    if (!label.empty() && label_is_front) memory_[e].label = label;
+    const bool resight = noteBlockedSighting(e, t_now - age, t_now);
+    // A known class sticks to the obstacle for as long as the sighting streak
+    // is unbroken, and every particle is then installed with it
+    // (install_particle forces obs_type when a label is present), so the
+    // belief cannot drift back to "might be a person" while the robot is
+    // staring at a chair.
+    //
+    // It applies to EVERY edge this obstacle blocks, not just the one the VLM
+    // was pointed at. The POMCP usually picks an adjacent edge to observe, so
+    // gating on that left the detector's blocked edges unlabelled: at
+    // sparrow_test3 23:07 the robot announced "chair" and then waited 120 s
+    // from the SHARED grid, because the edges it was waiting on carried no
+    // class and the per-class grid [13,39,104] never applied.
+    //
+    // But not across a break in the streak. noteBlockedSighting clears the
+    // label when the edge was out of view long enough to be a re-sighting,
+    // and re-asserting the episode's class here would defeat that: after a
+    // gap this may be a different obstacle, so the class must go back to the
+    // mixture. A confirmed-free reading erases the memory entry outright
+    // (updateEdgeMonitoring), which covers "cleared, then blocked again".
+    if (!label.empty() && !resight) memory_[e].label = label;
   }
 
   // ---- 4. Local observation ------------------------------------------------
@@ -581,11 +718,9 @@ WaitDecision SparrowStrategy::planInternal(
           CLOG(INFO, "navigation")
               << "HSHMAT SparrowStrategy: EXPLORE macro wait | "
               << follow->detail;
-          std::ostringstream speech;
-          speech << lbl << ". Waiting up to "
-                 << static_cast<int>(std::llround(follow->wait_s))
-                 << " seconds to learn.";
-          return WaitDecision::wait(follow->wait_s, speech.str());
+          return WaitDecision::wait(
+              follow->wait_s,
+              waitSpeech(lbl, follow->wait_s, /*for_learning=*/true));
         }
         // Nothing left to learn from this class: release control back to
         // the search; the labeled (possibly censored) sample still lands.
@@ -615,19 +750,142 @@ WaitDecision SparrowStrategy::planInternal(
           macro_edge_ = decision->edge;
           observed_edges_.insert(decision->edge);
           pending_observe_edge_ = decision->edge;
-          return WaitDecision::observe("Observing obstacle.", decision->edge);
+          // Exploration macro: the label is being bought to improve the model
+          // for FUTURE missions, not to settle this encounter.
+          return WaitDecision::observe("Identifying obstacle to learn.",
+                                       decision->edge);
         }
         // Already labeled: commit the learning wait directly.
         const auto mit = memory_.find(decision->edge);
         kg_consumed_[decision->edge] =
             (mit != memory_.end()) ? mit->second.t_first : t_now;
         macro_wait_active_ = true;
-        std::ostringstream speech;
-        speech << "Waiting up to "
-               << static_cast<int>(std::llround(decision->wait_s))
-               << " seconds to learn.";
-        return WaitDecision::wait(decision->wait_s, speech.str());
+        return WaitDecision::wait(
+            decision->wait_s,
+            waitSpeech(obs_type, decision->wait_s, /*for_learning=*/true));
       }
+    }
+  }
+
+  // ---- 5b2. Contracted planning view (handoff sec. 2) ------------------------
+  // The search's horizon is measured in ACTIONS, and the taught graph is mostly
+  // degree-2 filler (sep12_4: 645 of 664 vertices), so a micro-edge search
+  // cannot see far enough to compare routes. Contract each corridor into one
+  // atomic "drive this corridor" action.
+  //
+  // The world and the executor are untouched: this only changes what the search
+  // reasons over. Below, `ctx` and `local` are SWAPPED to the contracted view,
+  // so every downstream stage (root actions, belief, transition, solver) works
+  // on corridors without further change. `micro_local` keeps the taught-edge
+  // view for the reroute bans, which the Navigator needs in micro terms.
+  const LocalObservation micro_local = local;
+  sparrow::MacroPlan macro_plan;
+  bool contracted = false;
+  std::map<SEdge, double> macro_weights;
+  if (sp.contracted) {
+    if (!corner_vertices_parsed_) {
+      corner_vertices_ = sparrow::parseCornerSpec(sp.corner_vertices);
+      corner_vertices_parsed_ = true;
+      CLOG(INFO, "navigation")
+          << "HSHMAT SPARROW: " << corner_vertices_.size()
+          << " corner vertices kept explicit";
+    }
+    // Believed-blocked micro-edges stay their own planning vertices, so the
+    // search can wait at them or route around them at the right cost; the
+    // corners keep a bend from being swallowed into a single long corridor.
+    const auto bs = sparrow::blockedVertexSet(local, model);
+    // Blocked micro-edges stay their own planning vertices. I briefly dropped
+    // this when rooting at the robot, so that the forward corridor would carry
+    // the blockage and read BLOCKED (giving the root a MaxWait). That made
+    // every corridor MAXIMAL, and on a graph with few junctions both
+    // directions out of the robot then contain the blockage - sparrow_test3
+    // 23:06, root 11 with "Neighbours: 23=BLOCKED 8589934604=BLOCKED" while
+    // the backward MICRO edge {<0,10>,<0,11>} read free in 277 of 285 samples.
+    // Splitting at blockages keeps a corridor from being condemned by an
+    // obstacle at its far end.
+    std::set<SVertex> extra = bs.nodes;
+    extra.insert(corner_vertices_.begin(), corner_vertices_.end());
+
+    // Reuse the contraction when the robot is at the same root with the same
+    // believed-blocked set: it depends on neither the model nor the time.
+    const MacroCacheKey key{planning_vertex, extra};
+    if (macro_cache_valid_ && macro_cache_key_ == key) {
+      macro_plan = macro_cache_plan_;
+    } else {
+      macro_plan = sparrow::buildMacroPlan(ctx, planning_vertex, extra,
+                                           sp.max_macro_len_s);
+      macro_cache_key_ = key;
+      macro_cache_plan_ = macro_plan;
+      macro_cache_valid_ = true;
+    }
+    if (macro_plan.context.neighbors.count(planning_vertex) &&
+        !macro_plan.macros.empty()) {
+      // Per-corridor occupancy: w_e = macroPBlock(p, n) / p, so the belief's
+      // p_block * w_e is 1 - (1 - p_micro)^n. A 109-micro-edge corridor is
+      // ~73% blocked, not 1.2%; pricing it at the flat micro rate is what made
+      // a long trap look safer than a short ladder.
+      const double p_micro = std::max(0.0, std::min(1.0, model.p_block));
+      for (const auto& kv : macro_plan.macros) {
+        const size_t n = kv.second.n_micro();
+        macro_weights[kv.first] =
+            (p_micro > 0.0)
+                ? sparrow::macroPBlock(p_micro, n) / p_micro
+                : static_cast<double>(n);
+      }
+
+      // Corridor statuses from the lidar: blocked if ANY micro-edge in the
+      // corridor is, and while part-way down one, only the part ahead counts.
+      LocalObservation ml;
+      ml.vertex = planning_vertex;
+      ml.time = local.time;
+      if (macro_status_fn_) {
+        const SVertex robot_at =
+            (current_u != planning_vertex) ? current_u : 0;
+        for (const auto& kv :
+             macro_status_fn_(planning_vertex, macro_plan, robot_at)) {
+          if (kv.second >= 0) ml.statuses[kv.first] = kv.second;
+        }
+      }
+      // Age / label / memory ride on the macro-edge that CONTAINS the micro
+      // sighting, so a remembered blockage deep in a corridor still prices it.
+      for (const auto& kv : macro_plan.macros) {
+        const auto chain = sparrow::macroChainFrom(kv.second, kv.second.u);
+        for (size_t i = 0; i + 1 < chain.size(); ++i) {
+          const SEdge me = sparrow::canonical_edge(chain[i], chain[i + 1]);
+          auto ait = local.ages.find(me);
+          if (ait != local.ages.end()) {
+            auto cur = ml.ages.find(kv.first);
+            if (cur == ml.ages.end() || ait->second > cur->second)
+              ml.ages[kv.first] = ait->second;
+          }
+          auto lit = local.labels.find(me);
+          if (lit != local.labels.end()) ml.labels[kv.first] = lit->second;
+          auto mit2 = local.memory.find(me);
+          if (mit2 != local.memory.end() && mit2->second.blocked) {
+            auto cur = ml.memory.find(kv.first);
+            if (cur == ml.memory.end() ||
+                mit2->second.t_obs > cur->second.t_obs)
+              ml.memory[kv.first] = mit2->second;
+          }
+          // A micro-edge KNOWN blocked blocks its whole corridor, even if the
+          // costmap hook is unavailable.
+          auto sit = local.statuses.find(me);
+          if (sit != local.statuses.end() && sit->second == 1)
+            ml.statuses[kv.first] = 1;
+        }
+      }
+      ctx = macro_plan.context;
+      local = ml;
+      contracted = true;
+      CLOG(INFO, "navigation")
+          << "HSHMAT SPARROW: contracted view rooted at " << planning_vertex
+          << ": " << ctx.neighbors.size() << " decision vertices, "
+          << macro_plan.macros.size() << " corridors ("
+          << bs.edges.size() << " believed-blocked micro-edges kept explicit)";
+    } else {
+      CLOG(WARNING, "navigation")
+          << "HSHMAT SPARROW: contraction produced no usable view at "
+          << planning_vertex << "; planning on the micro graph";
     }
   }
 
@@ -642,6 +900,8 @@ WaitDecision SparrowStrategy::planInternal(
                 ++plan_counter_);
   ParticleBelief belief(&ctx, &model, sp.num_particles,
                         /*planner_no_adjacent_blocking=*/false, seed);
+  // No-op when uncontracted, so the micro path keeps the flat p_block exactly.
+  if (contracted) belief.setEdgeWeights(macro_weights);
   belief.initialize(local);
 
   // ---- 6. Root actions ------------------------------------------------------
@@ -656,6 +916,42 @@ WaitDecision SparrowStrategy::planInternal(
                                                        : false;
     }
   }
+  // The robot stopped BECAUSE of this encounter's blocked edges, and waiting
+  // for them to clear is a legitimate action wherever it happens to be
+  // standing. But the detector stops it several vertices short of the
+  // obstacle, so those edges are usually NOT adjacent to the root - and
+  // valid_actions() only offers MaxWait/Observe on adjacent blocked edges.
+  // The result was a robot that announced "Obstacle detected" and then
+  // "Rerouting" without waiting ever being in the action set at all:
+  // sparrow_test3 00:00:10, robot at <0,7>, blockage on <0,0>..<0,2>, root
+  // offered Traverse(->8) and Traverse(->2) and nothing else.
+  //
+  // A corridor that runs INTO one of those edges is shut, whatever its own
+  // micro-edges say. Blocked micro-edges are kept as explicit vertices, so
+  // such a corridor terminates exactly at the blockage - mark it blocked and
+  // the root regains MaxWait/Observe on the way the robot actually wanted to
+  // go, while the other corridors stay traversable.
+  size_t n_lead_to_block = 0;
+  for (auto& kv : root_statuses) {
+    if (kv.second) continue;
+    const SVertex far = (kv.first.first == planning_vertex) ? kv.first.second
+                                                            : kv.first.first;
+    for (const auto& be : blocked_s) {
+      if (be.first == far || be.second == far) {
+        kv.second = true;
+        ++n_lead_to_block;
+        break;
+      }
+    }
+  }
+  if (n_lead_to_block > 0) {
+    CLOG(INFO, "navigation")
+        << "HSHMAT SparrowStrategy: " << n_lead_to_block
+        << " corridor(s) out of " << planning_vertex
+        << " run into this encounter's blockage - offering MaxWait/Observe on "
+           "them even though the robot has not reached it yet.";
+  }
+
   static const std::vector<SVertex> kNoNbrs;
   auto nit = ctx.neighbors.find(planning_vertex);
   const auto& pv_nbrs = (nit == ctx.neighbors.end()) ? kNoNbrs : nit->second;
@@ -667,27 +963,113 @@ WaitDecision SparrowStrategy::planInternal(
   // encounter.
   std::set<SEdge> root_classified(observed_edges_);
   for (const auto& kv : local.labels) root_classified.insert(kv.first);
-  const auto root_actions =
-      sparrow::valid_actions(planning_vertex, root_statuses, pv_nbrs,
-                             root_classified, sp.wait_durations,
-                             /*allow_observe=*/sp.allow_observe);
+  // Root edges that already carry a VLM label get that class's own wait grid,
+  // the same rule the in-tree actions use.
+  std::map<SEdge, std::string> root_edge_classes;
+  if (!sp.wait_durations_by_class.empty()) {
+    for (const auto& kv : local.labels) {
+      if (!kv.second.empty()) root_edge_classes[kv.first] = kv.second;
+    }
+    // local.labels is keyed by the MICRO edge the VLM was pointed at, but on
+    // the contracted view the root's actions are MACRO edges - so the lookup
+    // never hit and a classified obstacle still drew from the shared grid.
+    // Worse, the label lands on whichever edge was observed, which is often
+    // an adjacent one rather than the detector's: sparrow_test3 23:07 asked
+    // about (2:11,2:12), got 'chair', and then announced "chair. Waiting up
+    // to 2 minutes" - 120 s from the shared [4,15,45,120] grid, when chair's
+    // own grid is [13,39,104] and tops out at 104.
+    //
+    // One encounter is one obstacle, so its class applies to every blocked
+    // edge at the root, whatever the contraction keyed them as.
+    if (!label.empty()) {
+      for (const SVertex w : pv_nbrs) {
+        const SEdge ce = sparrow::canonical_edge(planning_vertex, w);
+        auto it = root_statuses.find(ce);
+        if (it != root_statuses.end() && it->second) root_edge_classes[ce] = label;
+      }
+    }
+  }
+  // One observation per encounter: with a trusted classifier, a second VLM
+  // call on another edge of the same obstacle buys nothing and costs real
+  // seconds (measured 16-17 s each, while the tree prices them at
+  // delta_obs_s).
+  const bool observe_budget_left =
+      !sp.single_observe_per_encounter || observed_edges_.empty();
+  if (!observe_budget_left && sp.allow_observe) {
+    CLOG(INFO, "navigation")
+        << "HSHMAT SparrowStrategy: observation already spent this encounter ("
+        << observed_edges_.size()
+        << " edge(s) classified) - Observe withheld from the action set.";
+  }
+  const auto root_actions = sparrow::valid_actions(
+      planning_vertex, root_statuses, pv_nbrs, root_classified,
+      sp.wait_durations,
+      /*allow_observe=*/sp.allow_observe && observe_budget_left,
+      sp.wait_durations_by_class.empty() ? nullptr : &sp.wait_durations_by_class,
+      root_edge_classes.empty() ? nullptr : &root_edge_classes);
   if (root_actions.empty()) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: No root actions at vertex "
         << planning_vertex << ", waiting";
-    return WaitDecision::waitForever(obs_type + ". Waiting.");
+    return WaitDecision::waitForever(classPrefix(obs_type) + "Waiting.");
+  }
+
+  // A root with no TRAVERSE cannot reroute: the only actions are waits and
+  // observes, so the episode can only end when the obstacle clears or
+  // max_total_wait_s fires. That happens when the planning vertex sits
+  // mid-corridor with every neighbour believed blocked - one chair between
+  // v17 and v18 on sparrow_test3 also marked (16,17) through the costmap
+  // corridor check, which removed the one escape and left the robot waiting
+  // out the full safety valve. Say so loudly: it is invisible otherwise,
+  // reading only as "the robot kept choosing to wait".
+  {
+    bool has_traverse = false;
+    for (const auto& a : root_actions) {
+      if (a.kind == SAction::TRAVERSE) { has_traverse = true; break; }
+    }
+    if (!has_traverse) {
+      std::stringstream ss;
+      ss << "HSHMAT SparrowStrategy: NO TRAVERSE ACTION at planning vertex "
+         << planning_vertex << " - the search cannot reroute from here and "
+            "can only wait/observe until the obstacle clears or "
+            "max_total_wait_s (" << sp.max_total_wait_s << "s) fires. "
+            "Neighbours:";
+      for (SVertex n : pv_nbrs) {
+        const SEdge e = sparrow::canonical_edge(planning_vertex, n);
+        auto it = root_statuses.find(e);
+        const int st = (it == root_statuses.end()) ? -1 : it->second;
+        ss << " " << n << "="
+           << (st == 0 ? "free" : (st == 1 ? "BLOCKED" : "unknown"));
+      }
+      ss << ". If a neighbour is blocked only because the costmap corridor "
+            "check over-attributed one obstacle to several edges, widen the "
+            "planning root or shrink edge_check_length_m.";
+      CLOG(WARNING, "navigation") << ss.str();
+    }
   }
 
   // ---- 7. Search -------------------------------------------------------------
+  // Macro-edges ARE corridors, so the transition must not collapse chains a
+  // second time: a macro node of degree 2 (a corner, say) would otherwise have
+  // its two corridors merged into one action, undoing the explicit decision
+  // vertex the contraction just created. Ports _ensure_macro's
+  // corridor_traversal=False.
+  // The tree must not value future Observes that the root will never offer.
   TransitionModel transition(&ctx, sp.delta_obs_s, sp.wait_durations,
-                             sp.allow_observe, sp.corridor_traversal,
+                             sp.allow_observe && observe_budget_left,
+                             contracted ? false : sp.corridor_traversal,
                              sp.duration_bin_width);
+  if (!sp.wait_durations_by_class.empty())
+    transition.setWaitSetByClass(sp.wait_durations_by_class);
   SparrowSearchSettings settings;
   settings.num_simulations = sp.num_simulations;
   settings.max_planning_time_s = sp.max_planning_time_s;
   settings.max_depth = sp.max_depth;
   settings.max_sim_time_s = sp.max_sim_time_s;
   settings.c_uct = sp.c_uct;
+  settings.root_explore_frac = sp.root_explore_frac;
+  settings.root_explore_by_class = sp.root_explore_by_class;
+  settings.robust_visit_frac = sp.robust_visit_frac;
   settings.duration_bin_width = sp.duration_bin_width;
   SparrowSolver solver(&transition, settings, seed);
   const PlanResult result = solver.plan(belief.particles(), root_actions);
@@ -720,7 +1102,7 @@ WaitDecision SparrowStrategy::planInternal(
   if (!result.action.has_value()) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: Search returned no action, waiting";
-    return WaitDecision::waitForever(obs_type + ". Waiting.");
+    return WaitDecision::waitForever(classPrefix(obs_type) + "Waiting.");
   }
 
   SAction best = result.action.value();
@@ -744,15 +1126,38 @@ WaitDecision SparrowStrategy::planInternal(
       best.first_hop = route_next_hop;
     }
   }
+  // On the contracted view an action's edge is a CORRIDOR, but everything
+  // outside the search - the VLM corridor publisher, the blocked-edge
+  // bookkeeping, the wait timers - addresses taught edges. Resolve a macro
+  // edge to the micro edge that actually carries the sighting: the blocked
+  // one inside that corridor if we know of one, else its first micro hop.
+  auto micro_edge_of = [&](const SEdge& e) -> SEdge {
+    if (!contracted) return e;
+    auto mit = macro_plan.macros.find(e);
+    if (mit == macro_plan.macros.end()) return e;
+    const auto chain = sparrow::macroChainFrom(mit->second, mit->second.u);
+    for (size_t i = 0; i + 1 < chain.size(); ++i) {
+      const SEdge me = sparrow::canonical_edge(chain[i], chain[i + 1]);
+      auto sit = micro_local.statuses.find(me);
+      if (sit != micro_local.statuses.end() && sit->second == 1) return me;
+    }
+    for (size_t i = 0; i + 1 < chain.size(); ++i) {
+      const SEdge me = sparrow::canonical_edge(chain[i], chain[i + 1]);
+      if (micro_local.memory.count(me)) return me;
+    }
+    return chain.size() >= 2 ? sparrow::canonical_edge(chain[0], chain[1]) : e;
+  };
+
   if (best.kind == SAction::OBSERVE) {
     // The POMCP decided the VLM label on this edge is worth its cost. The
     // Navigator requests one classification and calls computeWaitTime again;
     // the answer will be routed to pending_observe_edge_. In the tree Observe
     // costs the constant delta_obs_s; in the real world its cost is simply
     // the measured wall-clock time, absorbed into the obstacle age.
-    observed_edges_.insert(best.edge);
-    pending_observe_edge_ = best.edge;
-    return WaitDecision::observe("Observing obstacle.", best.edge);
+    const SEdge obs_edge = micro_edge_of(best.edge);
+    observed_edges_.insert(obs_edge);
+    pending_observe_edge_ = obs_edge;
+    return WaitDecision::observe("Identifying obstacle.", obs_edge);
   }
   if (best.kind == SAction::MAXWAIT) {
     // Safety valve: cap the cumulative wait across re-plans of one episode.
@@ -763,12 +1168,10 @@ WaitDecision SparrowStrategy::planInternal(
           << "HSHMAT SparrowStrategy: max_total_wait_s ("
           << sp.max_total_wait_s << "s) would be exceeded (waited "
           << waited_so_far << "s + W=" << best.W << "s) -> forcing detour";
-      return WaitDecision::detour(obs_type + ". Rerouting.");
+      return WaitDecision::detour(rerouteSpeech(obs_type));
     }
-    std::ostringstream speech;
-    speech << obs_type << ". Waiting up to "
-           << static_cast<int>(std::llround(best.W)) << " seconds.";
-    return WaitDecision::wait(best.W, speech.str());
+    return WaitDecision::wait(
+        best.W, waitSpeech(obs_type, best.W, /*for_learning=*/false));
   }
 
   // TRAVERSE (or, defensively, anything else): detour. Receding-horizon
@@ -777,9 +1180,18 @@ WaitDecision SparrowStrategy::planInternal(
   // of the planning vertex (except the approach the robot arrives by) so the
   // Navigator's reroute TDSP executes that action; the rest of its route is
   // tentative and gets revised at the next obstacle encounter.
-  WaitDecision d = WaitDecision::detour(obs_type + ". Rerouting.");
+  WaitDecision d = WaitDecision::detour(rerouteSpeech(obs_type));
   if (best.kind == SAction::TRAVERSE) {
-    d.traverse_edge = {planning_vertex, best.first_hop};
+    // On the contracted view best.first_hop is the far END of a corridor, but
+    // the Navigator drives taught edges - so translate it back to the first
+    // MICRO hop of that corridor. toMicro handles either orientation.
+    auto to_micro_hop = [&](SVertex w) -> SVertex {
+      if (!contracted) return w;
+      const auto hop = macro_plan.toMicro(planning_vertex, w);
+      return hop.has_value() ? *hop : w;
+    };
+    const SVertex commit_hop = to_micro_hop(best.first_hop);
+    d.traverse_edge = {planning_vertex, commit_hop};
     const auto pit = dist_from_robot.find(planning_vertex);
     const double d_pv = (pit != dist_from_robot.end()) ? pit->second : 0.0;
     for (const auto& w : pv_nbrs) {
@@ -788,12 +1200,16 @@ WaitDecision SparrowStrategy::planInternal(
       const bool is_approach =
           dit != dist_from_robot.end() && dit->second < d_pv - 1e-9;
       if (is_approach) continue;  // robot needs this edge to reach the vertex
+      const SVertex hop = to_micro_hop(w);
+      if (hop == commit_hop) continue;  // never ban the committed corridor
       d.detour_ban_edges.push_back(
-          sparrow::canonical_edge(planning_vertex, w));
+          sparrow::canonical_edge(planning_vertex, hop));
     }
     // Also ban every edge currently OBSERVED blocked (front + adjacent): the
-    // POMCP's Traverse routed around them, so the reroute must too.
-    for (const auto& kv : local.statuses) {
+    // POMCP's Traverse routed around them, so the reroute must too. These come
+    // from the MICRO observation - the Navigator's TDSP bans taught edges, and
+    // a macro-edge id is not one.
+    for (const auto& kv : micro_local.statuses) {
       if (kv.second == 1) d.detour_ban_edges.push_back(kv.first);
     }
     CLOG(INFO, "navigation")
@@ -871,13 +1287,25 @@ void SparrowStrategy::resetMemory() {
   kg_consumed_.clear();
   macro_stage_ = MacroStage::kNone;
   macro_wait_active_ = false;
+  // The contraction is keyed on the believed-blocked set, which memory feeds.
+  macro_cache_valid_ = false;
 }
 
 void SparrowStrategy::notifyEpisodeStart(int episode_idx) {
   if (episode_idx > 0) episode_idx_ = episode_idx;
+  // The teach pass is evidence the graph is drivable: seed the occupancy
+  // counters with one passable observation per corridor, so the planner does
+  // not start the deployment believing every edge is blocked. Idempotent, so
+  // repeating it across episodes is harmless.
+  if (config_.sparrow.teach_prior > 0) {
+    obstacle_stats_.applyTeachPrior(config_.sparrow.teach_prior);
+  }
   CLOG(INFO, "navigation")
       << "HSHMAT SparrowStrategy: notifyEpisodeStart -> episode "
-      << episode_idx_;
+      << episode_idx_ << " (p_block="
+      << (config_.sparrow.p_block_live ? obstacle_stats_.pBlockJeffreys()
+                                       : obstacle_stats_.p_block())
+      << ", edges_traversed=" << obstacle_stats_.totalEdgesTraversed() << ")";
 }
 
 }  // namespace navigation

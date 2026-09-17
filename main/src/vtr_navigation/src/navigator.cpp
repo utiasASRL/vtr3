@@ -310,12 +310,31 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     // p_block is computed from data (obstacle_episodes / edges_traversed); no YAML default.
     wait_strategy_config_.robot_speed_mps = route_cfg_.nominal_speed_mps;
     
-    // Type weights (probability distribution over obstacle types)
-    // Default: assume "person" is most common
+    // Type weights: the prior over obstacle CLASS, used for an encounter the
+    // robot has not paid to Observe (the belief mixes the per-class clearance
+    // laws with these weights). Defaults assume "person" is most common;
+    // route_planning.obstacle_strategy.type_weights.<class> overrides, so a
+    // deployment can be handed the same class prior the simulation samples
+    // from. Weights need not sum to 1 - they are normalized downstream.
     wait_strategy_config_.type_weights["person"] = 0.6;
     wait_strategy_config_.type_weights["chair"] = 0.15;
     wait_strategy_config_.type_weights["bin"] = 0.15;
     wait_strategy_config_.type_weights["sonotube"] = 0.1;
+    for (const auto& type : std::vector<std::string>{"person", "chair", "bin",
+                                                     "sonotube"}) {
+      try {
+        const double w = node_->declare_parameter<double>(
+            "route_planning.obstacle_strategy.type_weights." + type, -1.0);
+        if (w >= 0.0) wait_strategy_config_.type_weights[type] = w;
+      } catch (...) {
+      }
+    }
+    {
+      std::stringstream ss;
+      for (const auto& kv : wait_strategy_config_.type_weights)
+        ss << kv.first << "=" << kv.second << " ";
+      CLOG(INFO, "navigation") << "HSHMAT: Obstacle class prior: " << ss.str();
+    }
     
     // Load seed samples for survival model initialization
     // These provide initial estimates before we collect real data
@@ -329,6 +348,19 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           wait_strategy_config_.seed_samples[type] = samples;
           CLOG(DEBUG, "navigation") << "HSHMAT: Loaded " << samples.size() 
                                     << " seed samples for '" << type << "'";
+        }
+        // Right-censored seeds ("still blocked when we stopped watching").
+        // Needed alongside seed_samples: KM hits S=0 at the largest
+        // UNCENSORED sample, which would tell the planner an obstacle older
+        // than that is certainly gone.
+        auto censored = node_->declare_parameter<std::vector<double>>(
+            "route_planning.obstacle_strategy.seed_samples_censored." + type,
+            std::vector<double>{});
+        if (!censored.empty()) {
+          wait_strategy_config_.seed_samples_censored[type] = censored;
+          CLOG(DEBUG, "navigation")
+              << "HSHMAT: Loaded " << censored.size()
+              << " censored seed samples for '" << type << "'";
         }
       } catch (...) {
         // Type not configured, skip
@@ -353,10 +385,21 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           node_->declare_parameter<int>(p + "num_particles", sp.num_particles);
       sp.wait_durations = node_->declare_parameter<std::vector<double>>(
           p + "wait_durations", sp.wait_durations);
+      // Per-class grids: ROS2 parameters are flat, so each class is its own
+      // key under wait_durations_by_class.<class>. Declared for the classes
+      // the deployment knows about; an empty list means "use the shared grid".
+      for (const char* cls :
+           {"person", "chair", "bin", "sonotube", "unknown"}) {
+        const auto grid = node_->declare_parameter<std::vector<double>>(
+            p + "wait_durations_by_class." + cls, std::vector<double>{});
+        if (!grid.empty()) sp.wait_durations_by_class[cls] = grid;
+      }
       sp.delta_obs_s =
           node_->declare_parameter<double>(p + "delta_obs_s", sp.delta_obs_s);
       sp.allow_observe =
           node_->declare_parameter<bool>(p + "allow_observe", sp.allow_observe);
+      sp.single_observe_per_encounter = node_->declare_parameter<bool>(
+          p + "single_observe_per_encounter", sp.single_observe_per_encounter);
       sp.corridor_traversal = node_->declare_parameter<bool>(
           p + "corridor_traversal", sp.corridor_traversal);
       sp.max_total_wait_s = node_->declare_parameter<double>(
@@ -369,10 +412,36 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           p + "monitor_gap_s", sp.monitor_gap_s);
       sp.monitor_period_s = node_->declare_parameter<double>(
           p + "monitor_period_s", sp.monitor_period_s);
+      sp.wait_interrupt_relevant_only = node_->declare_parameter<bool>(
+          p + "wait_interrupt_relevant_only", sp.wait_interrupt_relevant_only);
+      sp.wait_interrupt_min_period_s = node_->declare_parameter<double>(
+          p + "wait_interrupt_min_period_s", sp.wait_interrupt_min_period_s);
+      sp.pin_wait_edge_continuity = node_->declare_parameter<bool>(
+          p + "pin_wait_edge_continuity", sp.pin_wait_edge_continuity);
       sp.junction_replan = node_->declare_parameter<bool>(
           p + "junction_replan", sp.junction_replan);
+      sp.plan_at_robot = node_->declare_parameter<bool>(
+          p + "plan_at_robot", sp.plan_at_robot);
       sp.junction_divert_margin_s = node_->declare_parameter<double>(
           p + "junction_divert_margin_s", sp.junction_divert_margin_s);
+      // Root exploration floor + occupancy estimate - handoff sec. 1.4 / 1.5
+      sp.root_explore_frac = node_->declare_parameter<double>(
+          p + "root_explore_frac", sp.root_explore_frac);
+      sp.root_explore_by_class = node_->declare_parameter<bool>(
+          p + "root_explore_by_class", sp.root_explore_by_class);
+      sp.robust_visit_frac = node_->declare_parameter<double>(
+          p + "robust_visit_frac", sp.robust_visit_frac);
+      sp.p_block_live = node_->declare_parameter<bool>(
+          p + "p_block_live", sp.p_block_live);
+      sp.teach_prior =
+          node_->declare_parameter<int>(p + "teach_prior", sp.teach_prior);
+      // Contracted (corridor-level) planning - handoff sec. 2
+      sp.contracted =
+          node_->declare_parameter<bool>(p + "contracted", sp.contracted);
+      sp.max_macro_len_s = node_->declare_parameter<double>(
+          p + "max_macro_len_s", sp.max_macro_len_s);
+      sp.corner_vertices = node_->declare_parameter<std::string>(
+          p + "corner_vertices", sp.corner_vertices);
       // Knowledge-gradient exploration (paper Sec. IV-D)
       sp.kg_enabled = node_->declare_parameter<bool>(
           p + "kg_enabled", sp.kg_enabled);
@@ -401,6 +470,12 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
           p + "edge_check_length_m", 2.5);
       sparrow_edge_check_radius_m_ = node_->declare_parameter<double>(
           p + "edge_check_radius_m", 0.4);
+      sparrow_edge_check_blocked_frac_ = node_->declare_parameter<double>(
+          p + "edge_check_blocked_frac", sparrow_edge_check_blocked_frac_);
+      sparrow_edge_status_hysteresis_n_ = node_->declare_parameter<int>(
+          p + "edge_status_hysteresis_n", sparrow_edge_status_hysteresis_n_);
+      sparrow_edge_check_skip_near_m_ = node_->declare_parameter<double>(
+          p + "edge_check_skip_near_m", sparrow_edge_check_skip_near_m_);
     }
     
     // Initialize the real-world logger FIRST so we can get starting_episode for debug plots
@@ -630,6 +705,22 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
                 if (stype == StrategyType::SPARROW) {
                   last_obstacle_type_ = "unknown";
                   sparrow_observe_pending_ = false;
+                  // Stop the robot BEFORE announcing. startObstacleEpisode
+                  // pauses too, but speakAndWait below blocks for up to 3 s
+                  // waiting on /vtr/speech_done, and the robot must not keep
+                  // driving at the obstacle for the length of a TTS clip. The
+                  // VLM branch above pauses first for the same reason; this
+                  // call is idempotent, so the one inside the episode start is
+                  // harmless.
+                  setRobotPaused(true);
+                  // SPARROW plans before it classifies, so it has nothing to
+                  // announce about the obstacle yet - but the robot has just
+                  // stopped dead, and the POMCP search can take up to
+                  // max_planning_time_s. Announce the detection so the stop is
+                  // explained; the decision ("Waiting up to 30 seconds.",
+                  // "Rerouting.", "Identifying obstacle.") follows from
+                  // startObstacleEpisode once the search returns.
+                  should_speak_detected = true;
                 }
                 obstacle_state_ = ObstacleState::Waiting;
                 should_start_episode = true;
@@ -1072,6 +1163,9 @@ void Navigator::resetObstacleState() {
   obstacle_state_ = ObstacleState::Idle;
   last_obstacle_status_msg_ = false;
   current_W_star_ = 0.0;
+  wait_deadline_valid_ = false;
+  current_wait_budget_ = 0.0;
+  last_wait_announcement_s_ = -1;
   last_obstacle_type_ = "unknown";
   wait_episode_start_sec_ = -1.0;
   wait_episode_type_ = "unknown";
@@ -1103,7 +1197,12 @@ void Navigator::resetObstacleState() {
   sparrow_junction_handled_ = 0;
   sparrow_junction_planned_revision_ = 0;
   sparrow_wait_revision_baseline_ = std::numeric_limits<uint64_t>::max();
+  sparrow_last_wait_interrupt_sec_ = 0.0;
+  sparrow_ban_retry_done_ = false;
+  edge_status_filter_.clear();
   sparrow_detour_bans_.clear();
+  if (auto* sp = dynamic_cast<SparrowStrategy*>(wait_strategy_.get()))
+    sp->setWaitFocusEdges({});
   // The teach graph may have grown between missions - rebuild lazily.
   cached_priv_graph_.reset();
   
@@ -1167,6 +1266,14 @@ void Navigator::setupLearnedStrategyGraphAccess() {
     sparrow->setAdjacentEdgeStatusFn(
         [this](const tactic::VertexId& v) {
           return computeAdjacentEdgeStatuses(v);
+        });
+    // ...and the corridor-level hook used when planning on the contracted
+    // graph: one status per macro-edge, blocked if any micro-edge in it is,
+    // restricted to the part ahead of the robot when it is mid-corridor.
+    sparrow->setMacroEdgeStatusFn(
+        [this](sparrow::SVertex root, const sparrow::MacroPlan& plan,
+               sparrow::SVertex robot_at) {
+          return computeMacroEdgeStatuses(root, plan, robot_at);
         });
   }
   CLOG(INFO, "navigation") << "HSHMAT: Set up graph access for "
@@ -1283,6 +1390,41 @@ tactic::GraphBase::Ptr Navigator::privilegedGraph() const {
   return cached_priv_graph_;
 }
 
+int Navigator::filterEdgeStatus(const tactic::EdgeId& eid, int raw) const {
+  // Schmitt-trigger the costmap's per-edge answer: a new value must hold for
+  // sparrow_edge_status_hysteresis_n_ consecutive passes before it replaces
+  // the stable one. Monitoring runs at ~1 Hz, so a genuine change still lands
+  // within a few seconds, while a threshold-straddling edge stops emitting a
+  // belief revision every sensor update.
+  auto& f = edge_status_filter_[eid];
+  if (f.stable == -2) {  // first sighting: nothing to debounce against
+    f.stable = raw;
+    f.candidate = raw;
+    f.count = 0;
+    return f.stable;
+  }
+  if (raw == f.stable) {
+    f.candidate = raw;
+    f.count = 0;
+    return f.stable;
+  }
+  if (raw == f.candidate) {
+    ++f.count;
+  } else {
+    f.candidate = raw;
+    f.count = 1;
+  }
+  if (sparrow_edge_status_hysteresis_n_ <= 1 ||
+      f.count >= sparrow_edge_status_hysteresis_n_) {
+    CLOG(DEBUG, "navigation")
+        << "HSHMAT SPARROW: edge " << eid << " status " << f.stable << " -> "
+        << f.candidate << " after " << f.count << " agreeing passes";
+    f.stable = f.candidate;
+    f.count = 0;
+  }
+  return f.stable;
+}
+
 std::map<tactic::EdgeId, int> Navigator::computeAdjacentEdgeStatuses(
     const tactic::VertexId& v) const {
   // HSHMAT SPARROW: status of every teach edge incident to `v`.
@@ -1297,9 +1439,17 @@ std::map<tactic::EdgeId, int> Navigator::computeAdjacentEdgeStatuses(
       const tactic::EdgeId eid(v, n);
       int status = -1;
       if (current_blocked_edges_.count(eid) > 0) {
+        // The detector is authoritative for the edges of the CURRENT episode:
+        // accept immediately and reset the filter so a later clearance still
+        // has to earn its way back.
         status = 1;
+        auto& f = edge_status_filter_[eid];
+        f.stable = 1;
+        f.candidate = 1;
+        f.count = 0;
       } else if (sparrow_use_costmap_edge_check_) {
-        status = checkEdgeCorridorInCostmap(v, n);
+        const int raw = checkEdgeCorridorInCostmap(v, n);
+        status = filterEdgeStatus(eid, raw);
       }
       out[eid] = status;
     }
@@ -1321,27 +1471,23 @@ std::map<tactic::EdgeId, int> Navigator::computeAdjacentEdgeStatuses(
   return out;
 }
 
-bool Navigator::computeEdgeCorridorPoints(
-    uint64_t va, uint64_t vb, double length_m,
-    std::vector<Eigen::Vector3d>& pts) const {
-  // Sample the teach corridor along edge (va,vb) - continuing down the
-  // degree-2 chain up to length_m - expressed in the loc-vertex frame.
-  // The endpoint closer to the robot (by chain distance) is used as the start.
-  pts.clear();
-  if (!tactic_) return false;
-  const auto loc = tactic_->getPersistentLoc();
-  if (!loc.v.isValid()) return false;
-
-  auto priv_graph = privilegedGraph();
-  if (!priv_graph) return false;
-
-  // ---- 1. Vertex poses in the loc-vertex frame (BFS transform chain) ----
+bool Navigator::computeTeachPoses(
+    std::unordered_map<uint64_t, Eigen::Matrix4d>& pose,
+    std::unordered_map<uint64_t, double>& dist) const {
+  // Vertex poses in the loc-vertex frame (BFS transform chain), plus chain
+  // distance from the localized vertex.
   // T_loc_x maps points in x's frame into the loc vertex frame.
   // edge->T() is T_to_from, so:
   //   from == a, to == b :  T_b_a = e->T()   =>  T_a_b = e->T().inverse()
-  std::unordered_map<uint64_t, Eigen::Matrix4d> pose;
+  pose.clear();
+  dist.clear();
+  if (!tactic_) return false;
+  const auto loc = tactic_->getPersistentLoc();
+  if (!loc.v.isValid()) return false;
+  auto priv_graph = privilegedGraph();
+  if (!priv_graph) return false;
+
   std::deque<tactic::VertexId> queue;
-  std::unordered_map<uint64_t, double> dist;
   pose[static_cast<uint64_t>(loc.v)] = Eigen::Matrix4d::Identity();
   dist[static_cast<uint64_t>(loc.v)] = 0.0;
   queue.push_back(loc.v);
@@ -1365,11 +1511,237 @@ bool Navigator::computeEdgeCorridorPoints(
       }
       const Eigen::Matrix4d T_loc_b = T_loc_a * T_a_b;
       pose[static_cast<uint64_t>(b)] = T_loc_b;
-      dist[static_cast<uint64_t>(b)] =
-          d_a + T_a_b.block<3, 1>(0, 3).norm();
+      dist[static_cast<uint64_t>(b)] = d_a + T_a_b.block<3, 1>(0, 3).norm();
       queue.push_back(b);
     }
   }
+  return !pose.empty();
+}
+
+bool Navigator::lookupGridFromLoc(Eigen::Matrix4d& T_grid_loc) const {
+  T_grid_loc = Eigen::Matrix4d::Identity();
+  if (!tf_buffer_) return false;
+  const auto& grid = last_obstacle_grid_;
+  if (grid.data.empty() || grid.info.resolution <= 0.0) return false;
+  try {
+    const auto tf = tf_buffer_->lookupTransform(
+        grid.header.frame_id, "loc vertex frame", tf2::TimePointZero,
+        tf2::durationFromSec(0.05));
+    const auto& tr = tf.transform.translation;
+    const auto& q = tf.transform.rotation;
+    Eigen::Quaterniond quat(q.w, q.x, q.y, q.z);
+    T_grid_loc.block<3, 3>(0, 0) = quat.toRotationMatrix();
+    T_grid_loc.block<3, 1>(0, 3) = Eigen::Vector3d(tr.x, tr.y, tr.z);
+    return true;
+  } catch (const std::exception& ex) {
+    CLOG(DEBUG, "navigation")
+        << "HSHMAT SPARROW: no TF " << grid.header.frame_id
+        << " <- loc vertex frame (" << ex.what() << ")";
+    return false;
+  }
+}
+
+std::map<std::pair<uint64_t, uint64_t>, int> Navigator::computeMacroEdgeStatuses(
+    uint64_t root, const sparrow::MacroPlan& plan, uint64_t robot_at) const {
+  // HSHMAT SPARROW: blocked/free/unknown for each CORRIDOR incident to the
+  // robot's planning vertex.
+  //
+  // The planner reasons over macro-edges, so it needs a status per corridor,
+  // not per taught edge. A corridor is just a series of micro-edges, so it is
+  // blocked as soon as any of them is - which is the OSCAR test (project the
+  // pointcloud to the ground plane, check overlap with a band around the
+  // micro-edge) applied along the whole chain rather than to one edge.
+  //
+  // Efficiency: the per-edge entry point (checkEdgeCorridorInCostmap) BFSes
+  // the privileged graph and does a TF lookup EVERY call. Called once per
+  // micro-edge of a 100-micro-edge corridor that is 100 BFS expansions and 100
+  // TF lookups per decision. Both are hoisted here: one BFS, one TF, then pure
+  // arithmetic per sample.
+  std::map<std::pair<uint64_t, uint64_t>, int> out;
+
+  const auto& grid = last_obstacle_grid_;
+  if (grid.data.empty() || grid.info.resolution <= 0.0) return out;
+
+  std::unordered_map<uint64_t, Eigen::Matrix4d> pose;
+  std::unordered_map<uint64_t, double> dist;
+  if (!computeTeachPoses(pose, dist)) return out;
+  Eigen::Matrix4d T_grid_loc;
+  if (!lookupGridFromLoc(T_grid_loc)) return out;
+
+  const auto& info = grid.info;
+  const double res = info.resolution;
+  const int rad_cells = std::max(
+      0, static_cast<int>(std::ceil(sparrow_edge_check_radius_m_ / res)));
+  constexpr double kSampleStep = 0.15;  // meters between samples
+
+  // LINE OF SIGHT.
+  //
+  // The detector fills the whole costmap with 0 and then paints 50/100 where
+  // lidar returns exceed point_threshold, so a cell that was never observed is
+  // INDISTINGUISHABLE from one observed to be clear. A corridor that bends
+  // around a corner - sparrow_test3 has two 85-degree bends at the ends of its
+  // top run - therefore reads "free" for the half the sensor cannot physically
+  // see, and the planner would drive into whatever is behind the corner.
+  //
+  // Lidar only sees straight lines, so a sample counts as OBSERVED only if the
+  // ray from the sensor to it is unobstructed. Anything behind an occluder is
+  // UNKNOWN, which the belief prices instead of assuming clear.
+  //
+  // The grid is robot-centred in its own frame (origin = (-back, -lateral/2)),
+  // so the sensor sits at world (0,0) of that frame.
+  const int sx = static_cast<int>(-info.origin.position.x / res);
+  const int sy = static_cast<int>(-info.origin.position.y / res);
+  auto in_bounds = [&](int x, int y) {
+    return x >= 0 && y >= 0 && x < static_cast<int>(info.width) &&
+           y < static_cast<int>(info.height);
+  };
+  // Bresenham from the sensor to (tx,ty), stopping before the target: the
+  // target cell being occupied is the blockage we are trying to detect, not an
+  // occluder of itself.
+  auto has_line_of_sight = [&](int tx, int ty) {
+    int x = sx, y = sy;
+    const int dx = std::abs(tx - sx), dy = -std::abs(ty - sy);
+    const int stepx = (sx < tx) ? 1 : -1, stepy = (sy < ty) ? 1 : -1;
+    int err = dx + dy;
+    while (x != tx || y != ty) {
+      const int e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x += stepx; }
+      if (e2 <= dx) { err += dx; y += stepy; }
+      if (x == tx && y == ty) break;
+      if (!in_bounds(x, y)) return false;  // ray left the observed region
+      if (grid.data[y * info.width + x] >= 50) return false;  // occluded
+    }
+    return true;
+  };
+
+  // One micro-edge: sample it, dilate each sample by the corridor radius, and
+  // count occupied / visible. Returns false when the segment's endpoints have
+  // no pose (outside the expanded teach chain).
+  auto sample_micro = [&](uint64_t a, uint64_t b, int& occupied,
+                          int& visible, int& total) -> bool {
+    auto pa = pose.find(a);
+    auto pb = pose.find(b);
+    if (pa == pose.end() || pb == pose.end()) return false;
+    const Eigen::Vector3d p0 = pa->second.block<3, 1>(0, 3);
+    const Eigen::Vector3d p1 = pb->second.block<3, 1>(0, 3);
+    const double seg = (p1 - p0).norm();
+    const int n_samples = std::max(1, static_cast<int>(seg / kSampleStep));
+    for (int i = 1; i <= n_samples; ++i) {
+      const double t = static_cast<double>(i) / n_samples;
+      const Eigen::Vector3d p = p0 + t * (p1 - p0);
+      const Eigen::Vector4d pg =
+          T_grid_loc * Eigen::Vector4d(p.x(), p.y(), p.z(), 1.0);
+      const int cx = static_cast<int>((pg.x() - info.origin.position.x) / res);
+      const int cy = static_cast<int>((pg.y() - info.origin.position.y) / res);
+      bool any_in = false;
+      bool occ = false;
+      for (int dy = -rad_cells; dy <= rad_cells && !occ; ++dy) {
+        for (int dx = -rad_cells; dx <= rad_cells; ++dx) {
+          const int x = cx + dx;
+          const int y = cy + dy;
+          if (x < 0 || y < 0 || x >= static_cast<int>(info.width) ||
+              y >= static_cast<int>(info.height)) {
+            continue;
+          }
+          any_in = true;
+          if (grid.data[y * info.width + x] >= 50) {  // 50 off-path, 100 on-path
+            occ = true;
+            break;
+          }
+        }
+      }
+      ++total;
+      // Occupied is occupied regardless of the ray - a return came back from
+      // there, so it was seen. Only "free" needs line of sight: without it we
+      // cannot tell an empty cell from an unobserved one.
+      if (any_in && (occ || has_line_of_sight(cx, cy))) {
+        ++visible;
+        if (occ) ++occupied;
+      }
+    }
+    return true;
+  };
+
+  for (const auto& kv : plan.macros) {
+    const auto& m = kv.second;
+    if (root != m.u && root != m.v) continue;
+
+    // Only the part of the corridor still AHEAD of the robot: a blockage it
+    // has already driven past must not stop it.
+    const std::vector<uint64_t> chain =
+        (robot_at != 0) ? sparrow::remainingChainFrom(m, root, robot_at)
+                        : sparrow::macroChainFrom(m, root);
+    if (chain.size() < 2) {
+      out[kv.first] = sparrow::kEdgeUnknown;
+      continue;
+    }
+
+    // Per micro-edge visibility (so an unseen far end stays UNKNOWN rather
+    // than being averaged away), but the occupancy threshold is applied over
+    // the whole corridor: >= 2 occupied samples is ~0.3 m of blocked path at
+    // the 0.15 m sample step, which is the same physical noise-rejection scale
+    // the single-edge check uses - not a per-edge count, which on a 0.3 m
+    // micro-edge would demand that literally every sample be occupied.
+    int occupied = 0;
+    bool all_seen = true;
+    bool any_seen = false;
+    for (size_t i = 0; i + 1 < chain.size(); ++i) {
+      int occ = 0, vis = 0, tot = 0;
+      if (!sample_micro(chain[i], chain[i + 1], occ, vis, tot)) {
+        all_seen = false;
+        continue;
+      }
+      occupied += occ;
+      if (vis > 0) any_seen = true;
+      if (vis < static_cast<int>(0.7 * tot)) all_seen = false;
+    }
+
+    int status;
+    if (occupied >= 2) {
+      status = sparrow::kEdgeBlocked;
+    } else if (all_seen && any_seen) {
+      status = sparrow::kEdgeFree;
+    } else {
+      status = sparrow::kEdgeUnknown;
+    }
+
+    // A corridor the detector has already flagged blocked stays blocked even
+    // if the costmap momentarily disagrees: current_blocked_edges_ is what
+    // stopped the robot.
+    for (size_t i = 0; i + 1 < chain.size() && status != sparrow::kEdgeBlocked;
+         ++i) {
+      if (current_blocked_edges_.count(
+              tactic::EdgeId(tactic::VertexId(chain[i]),
+                             tactic::VertexId(chain[i + 1]))) > 0) {
+        status = sparrow::kEdgeBlocked;
+      }
+    }
+    out[kv.first] = status;
+  }
+  return out;
+}
+
+bool Navigator::computeEdgeCorridorPoints(
+    uint64_t va, uint64_t vb, double length_m,
+    std::vector<Eigen::Vector3d>& pts) const {
+  // Sample the teach corridor along edge (va,vb) - continuing down the
+  // degree-2 chain up to length_m - expressed in the loc-vertex frame.
+  // The endpoint closer to the robot (by chain distance) is used as the start.
+  pts.clear();
+  if (!tactic_) return false;
+  const auto loc = tactic_->getPersistentLoc();
+  if (!loc.v.isValid()) return false;
+
+  auto priv_graph = privilegedGraph();
+  if (!priv_graph) return false;
+
+  // ---- 1. Vertex poses in the loc-vertex frame (BFS transform chain) ----
+  // T_loc_x maps points in x's frame into the loc vertex frame.
+  // edge->T() is T_to_from, so:
+  //   from == a, to == b :  T_b_a = e->T()   =>  T_a_b = e->T().inverse()
+  std::unordered_map<uint64_t, Eigen::Matrix4d> pose;
+  std::unordered_map<uint64_t, double> dist;
+  if (!computeTeachPoses(pose, dist)) return false;
   if (!pose.count(va) || !pose.count(vb)) return false;
 
   // Start from the endpoint the robot can actually see/reach first.
@@ -1377,6 +1749,25 @@ bool Navigator::computeEdgeCorridorPoints(
   if (dist.count(va) && dist.count(vb) && dist.at(vb) < dist.at(va)) {
     v = tactic::VertexId(vb);
     n = tactic::VertexId(va);
+  }
+  // ...unless that points the walk INTO a known blockage. The chain extension
+  // runs for length_m (2.5 m) regardless of direction, so for the edge just
+  // behind an obstacle the robot-nearer endpoint sends the walk straight
+  // through it: on sparrow_test3, checking the backward edge (16,17) started
+  // at 16, crossed 17, and sampled 2.4 m of the chair sitting on (17,18)..
+  // (19,20). Walking outward from the endpoint that touches the blockage
+  // instead keeps the samples on the stretch we are actually asking about -
+  // the way the robot came, which is the obvious escape.
+  auto touches_blocked = [&](const tactic::VertexId& x,
+                             const tactic::VertexId& other) {
+    for (const auto& w : priv_graph->neighbors(x)) {
+      if (w == other) continue;  // the edge under test itself
+      if (current_blocked_edges_.count(tactic::EdgeId(x, w)) > 0) return true;
+    }
+    return false;
+  };
+  if (touches_blocked(n, v) && !touches_blocked(v, n)) {
+    std::swap(v, n);
   }
 
   // ---- 2. Corridor sample points (loc-vertex frame) ---------------------
@@ -1403,9 +1794,50 @@ bool Navigator::computeEdgeCorridorPoints(
     for (const auto& w : priv_graph->neighbors(cur)) nbrs.push_back(w);
     if (nbrs.size() != 2) break;
     const tactic::VertexId next = (nbrs[0] == prev) ? nbrs[1] : nbrs[0];
+    // STOP at a micro-edge we already know is blocked.
+    //
+    // The walk starts from whichever endpoint is nearer the robot, so for the
+    // edge BEHIND an obstacle it heads towards the obstacle and - without
+    // this - keeps going straight through it for the full length_m. On
+    // sparrow_test3 the chair occupied (17,18),(18,19),(19,20); checking the
+    // backward edge (16,17) started at 16, walked through 17 and 2.5 m
+    // further into the chair, found its cells, and reported (16,17) BLOCKED.
+    // Both edges at v17 were then blocked, valid_actions() produced no
+    // TRAVERSE, and the robot could only wait out max_total_wait_s - unable
+    // to take the obvious escape of backing up the way it came.
+    if (current_blocked_edges_.count(tactic::EdgeId(cur, next)) > 0) {
+      CLOG(DEBUG, "navigation")
+          << "HSHMAT SPARROW: corridor walk from " << v << " towards " << n
+          << " stopped at known-blocked edge " << tactic::EdgeId(cur, next)
+          << " after " << walked << "m (would otherwise sample through the "
+             "obstacle and condemn this edge too)";
+      break;
+    }
     prev = cur;
     cur = next;
     p_prev = p_cur;
+  }
+
+  // An obstacle sitting ON `v` contaminates the start of EVERY corridor
+  // leaving `v`, including the ones that lead away from it. Drop the samples
+  // inside that footprint so the blockage cannot condemn its own escape
+  // routes; keep a floor of samples so a short corridor still gets judged on
+  // something.
+  if (sparrow_edge_check_skip_near_m_ > 0.0 && touches_blocked(v, n)) {
+    const Eigen::Vector3d p_v = pose.at(static_cast<uint64_t>(v)).block<3, 1>(0, 3);
+    size_t drop = 0;
+    while (drop < pts.size() &&
+           (pts[drop] - p_v).norm() < sparrow_edge_check_skip_near_m_) {
+      ++drop;
+    }
+    constexpr size_t kMinKeep = 4;
+    if (drop > 0 && pts.size() - drop >= kMinKeep) {
+      CLOG(DEBUG, "navigation")
+          << "HSHMAT SPARROW: corridor " << v << "->" << n << " skipping "
+          << drop << " of " << pts.size() << " samples within "
+          << sparrow_edge_check_skip_near_m_ << "m of the obstacle at " << v;
+      pts.erase(pts.begin(), pts.begin() + drop);
+    }
   }
   return !pts.empty();
 }
@@ -1528,7 +1960,15 @@ int Navigator::checkEdgeCorridorInCostmap(const tactic::VertexId& v,
       }
     }
     if (visible == 0) return -1;
-    if (occupied >= 2) return 1;  // >= 2 occupied samples: blocked
+    // Blocked needs a real share of the corridor, not two samples. The disc
+    // checked around each sample has radius edge_check_radius_m, so the one or
+    // two samples nearest a vertex that touches an obstacle ALWAYS read
+    // occupied - with an absolute threshold of 2 that alone condemned the
+    // clear stretch behind a chair. Keep 2 as the floor for short corridors.
+    const int occ_needed =
+        std::max(2, static_cast<int>(std::ceil(
+                        sparrow_edge_check_blocked_frac_ * visible)));
+    if (occupied >= occ_needed) return 1;
     // Declare free only when most of the corridor was actually visible.
     if (visible >= static_cast<int>(0.7 * pts.size())) return 0;
     return -1;
@@ -1578,11 +2018,15 @@ void Navigator::onSparrowOccupancyUpdate() {
   const auto statuses = computeAdjacentEdgeStatuses(v);
   sparrow->updateEdgeMonitoring(statuses, t_now);
 
+  const bool relevant_only =
+      wait_strategy_config_.sparrow.wait_interrupt_relevant_only;
   if (state_snapshot == ObstacleState::Waiting) {
-    const uint64_t rev = sparrow->beliefRevision();
+    const uint64_t rev =
+        relevant_only ? sparrow->waitFocusRevision() : sparrow->beliefRevision();
     if (sparrow_wait_revision_baseline_ ==
         std::numeric_limits<uint64_t>::max()) {
       sparrow_wait_revision_baseline_ = rev;  // first update of this wait
+      sparrow_last_wait_interrupt_sec_ = t_now;
     }
 
     // ---- 1b. Junction-encounter clearance ----------------------------------
@@ -1624,17 +2068,42 @@ void Navigator::onSparrowOccupancyUpdate() {
     // (knowledge-gradient exploration) are NEVER cut: commitment is what
     // makes the priced KM sample land instead of being censored early.
     if (sparrow->learningMacroActive()) {
-      sparrow_wait_revision_baseline_ = sparrow->beliefRevision();
+      sparrow_wait_revision_baseline_ = rev;
       return;
     }
-    if (sparrow->beliefRevision() != sparrow_wait_revision_baseline_) {
-      sparrow_wait_revision_baseline_ = sparrow->beliefRevision();
+    if (rev != sparrow_wait_revision_baseline_) {
+      // Debounce, so every committed wait gets at least min_period of
+      // commitment. A single edge sitting on the costmap's decision boundary
+      // toggles every few seconds, and every toggle used to re-run the search
+      // and re-announce a new wait, so no wait ever elapsed and the robot
+      // talked itself in a circle (sparrow_test3, 17:42:16-17:43:52: seven
+      // interruptions, not one of them a wait that ran out).
+      // This does NOT delay a real clearance: the obstacle clearing arrives on
+      // the detector's CLEARED stream, or for a junction encounter through the
+      // costmap check in 1b above - both of which run before this point.
+      const double since = t_now - sparrow_last_wait_interrupt_sec_;
+      const double min_period =
+          wait_strategy_config_.sparrow.wait_interrupt_min_period_s;
+      if (min_period > 0.0 && since < min_period) {
+        CLOG(DEBUG, "mission.state_machine")
+            << "HSHMAT SPARROW: belief revised during wait but only " << since
+            << "s since the last interruption (min " << min_period
+            << "s) - keeping the committed wait; it will be priced at expiry.";
+        return;  // baseline NOT advanced: re-checked once the floor passes
+      }
+      sparrow_wait_revision_baseline_ = rev;
+      sparrow_last_wait_interrupt_sec_ = t_now;
       LockGuard lock(obstacle_mutex_);
       if (obstacle_state_ == ObstacleState::Waiting) {
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT SPARROW: belief revised during wait - cutting the "
                "wait short so the planner reconsiders.";
-        current_W_star_ = 0.0;  // wait timer fires the timeout on next tick
+        // Expire the armed deadline; the wait timer fires the timeout on its
+        // next tick, which re-plans.
+        current_W_star_ = 0.0;
+        wait_deadline_ = node_->get_clock()->now();
+        current_wait_budget_ = 0.0;
+        wait_cut_short_ = true;
       }
     }
     return;
@@ -1980,6 +2449,15 @@ void Navigator::startObstacleEpisode(const WaitDecision* precomputed) {
           << "s (tree assumed delta_obs_s); re-planning same encounter (started "
           << (node_->get_clock()->now().seconds() - wait_episode_start_sec_)
           << "s ago)";
+      // Say the result of the observation out loud. A successful label is
+      // already spoken as the prefix of the decision that follows ("chair.
+      // Waiting up to 39 seconds.", OSCAR's phrasing), so only the failure
+      // needs its own line - otherwise the robot pays for a VLM call, learns
+      // nothing, and says nothing about it, which is indistinguishable from
+      // having never looked.
+      if (last_obstacle_type_.empty() || last_obstacle_type_ == "unknown") {
+        speak("Could not identify the obstacle.");
+      }
     }
     
     // Get current and goal vertices for TDSP
@@ -2098,16 +2576,15 @@ void Navigator::startObstacleEpisode(const WaitDecision* precomputed) {
       {
         LockGuard lock(obstacle_mutex_);
         obstacle_state_ = ObstacleState::Waiting;  // Confirm final state
-        
-        // Set up countdown announcements
-        next_countdown_idx_ = 0;
-        for (size_t i = 0; i < countdown_intervals_.size(); ++i) {
-          if (countdown_intervals_[i] < current_W_star_) {
-            next_countdown_idx_ = static_cast<int>(i);
-            break;
-          }
-        }
+        // Arm AFTER the announcement: the robot waits the W* it just promised.
+        armWaitDeadlineLocked(current_W_star_);
+        last_wait_announcement_s_ = static_cast<int>(std::llround(current_W_star_));
+        last_wait_announcement_sec_ = node_->get_clock()->now().seconds();
       }
+
+      // The edges of this wait: flicker elsewhere must not cut it short, and a
+      // costmap dropout on them must not reset the obstacle's age.
+      setSparrowWaitFocus(true);
       
       // Start 1-second timer for countdown (uses obstacle callback group)
       wait_timer_ = node_->create_wall_timer(
@@ -2116,7 +2593,10 @@ void Navigator::startObstacleEpisode(const WaitDecision* precomputed) {
           obstacle_callback_group_);
       
       CLOG(INFO, "mission.state_machine")
-          << "HSHMAT: FSM: Idle -> Waiting. Timer started for " << current_W_star_ << "s.";
+          << "HSHMAT: FSM: Idle -> Waiting. Timer started for " << current_W_star_
+          << "s (obstacle age "
+          << (node_->get_clock()->now() - obstacle_start_time_).seconds()
+          << "s at wait start).";
     }
   } catch (const std::exception& e) {
     CLOG(ERROR, "mission.state_machine")
@@ -2139,6 +2619,50 @@ void Navigator::startObstacleEpisode(const WaitDecision* precomputed) {
   }
 }
 
+void Navigator::armWaitDeadlineLocked(double budget_s) {
+  wait_cut_short_ = false;
+  // The wait clock starts HERE - after the announcement was spoken and after
+  // the search that produced the budget - so W* is time actually spent
+  // waiting. The obstacle's age keeps running from obstacle_start_time_ and
+  // still includes speech and planning, which is what the belief wants.
+  current_wait_budget_ = std::max(0.0, budget_s);
+  wait_deadline_ = node_->get_clock()->now() +
+                   rclcpp::Duration::from_seconds(current_wait_budget_);
+  wait_deadline_valid_ = true;
+  // Announce only the countdown marks that actually fall inside this budget.
+  next_countdown_idx_ = static_cast<int>(countdown_intervals_.size());
+  for (size_t i = 0; i < countdown_intervals_.size(); ++i) {
+    if (countdown_intervals_[i] < current_wait_budget_) {
+      next_countdown_idx_ = static_cast<int>(i);
+      break;
+    }
+  }
+}
+
+double Navigator::waitRemainingLocked() const {
+  if (!wait_deadline_valid_) {
+    // No armed deadline (e.g. an infinite wait set by the reroute path):
+    // fall back to the old age-based accounting.
+    return current_W_star_ -
+           (node_->get_clock()->now() - obstacle_start_time_).seconds();
+  }
+  return (wait_deadline_ - node_->get_clock()->now()).seconds();
+}
+
+void Navigator::setSparrowWaitFocus(bool active) {
+  auto* sparrow = dynamic_cast<SparrowStrategy*>(wait_strategy_.get());
+  if (!sparrow) return;
+  std::vector<std::pair<uint64_t, uint64_t>> focus;
+  if (active) {
+    LockGuard lock(obstacle_mutex_);
+    for (const auto& e : current_blocked_edges_) {
+      focus.push_back(sparrow::canonical_edge(uint64_t(e.id1()),
+                                              uint64_t(e.id2())));
+    }
+  }
+  sparrow->setWaitFocusEdges(focus);
+}
+
 void Navigator::onWaitTimerTick() {
   bool should_timeout = false;
   bool should_announce = false;
@@ -2155,20 +2679,36 @@ void Navigator::onWaitTimerTick() {
       return;
     }
     
-    double elapsed = (node_->get_clock()->now() - obstacle_start_time_).seconds();
-    double remaining = current_W_star_ - elapsed;
+    const double age =
+        (node_->get_clock()->now() - obstacle_start_time_).seconds();
+    const double remaining = waitRemainingLocked();
     
-    CLOG(DEBUG, "mission.state_machine")
-        << "HSHMAT: Wait tick - elapsed=" << elapsed << "s, remaining=" << remaining << "s";
+    if (wait_deadline_valid_) {
+      CLOG(DEBUG, "mission.state_machine")
+          << "HSHMAT: Wait tick - waited="
+          << (current_wait_budget_ - remaining) << "s of "
+          << current_wait_budget_ << "s, remaining=" << remaining
+          << "s (obstacle age " << age << "s)";
+    } else {
+      CLOG(DEBUG, "mission.state_machine")
+          << "HSHMAT: Wait tick - unbounded wait, obstacle age " << age << "s";
+    }
     
-    // Check for countdown announcements
-    if (next_countdown_idx_ < static_cast<int>(countdown_intervals_.size())) {
-      int next_announce = countdown_intervals_[next_countdown_idx_];
-      if (remaining <= next_announce && remaining > next_announce - 1) {
-        should_announce = true;
-        announce_seconds = next_announce;
+    // Countdown announcements. Driven off the real remaining time, and a tick
+    // that runs late (the search can stall this thread for a few hundred ms)
+    // must not skip a mark and then announce a stale, larger number: advance
+    // to the largest mark that is still ahead of `remaining`.
+    if (remaining > 0.5 &&
+        next_countdown_idx_ < static_cast<int>(countdown_intervals_.size()) &&
+        remaining <= countdown_intervals_[next_countdown_idx_]) {
+      while (next_countdown_idx_ + 1 <
+                 static_cast<int>(countdown_intervals_.size()) &&
+             remaining <= countdown_intervals_[next_countdown_idx_ + 1]) {
         next_countdown_idx_++;
       }
+      should_announce = true;
+      announce_seconds = countdown_intervals_[next_countdown_idx_];
+      next_countdown_idx_++;
     }
     
     // Check for timeout
@@ -2260,6 +2800,31 @@ void Navigator::onNoAlternateRoute() {
   
   CLOG(INFO, "mission.state_machine")
       << "HSHMAT: onNoAlternateRoute - strategy=" << strategyTypeToString(strategy_type);
+
+  // SPARROW: the corridor-commitment bans are a PREFERENCE - they make the
+  // reroute execute the Traverse the POMCP just committed to - not a statement
+  // that the other corridors are impassable. Banning them on top of the
+  // genuinely blocked edges can leave the TDSP with nothing at all, and the
+  // robot then announces the goal unreachable moments after the search told it
+  // a corridor was viable. Measured on sparrow_test3 23:29:48: 2 blocked edges
+  // + 2 banned entrances = 4, and 'TDSPPlanner: no route under current
+  // costs/mask'. Retry once with the blocked edges alone before giving up;
+  // sparrow_detour_bans_ was consumed by the first attempt, so a plain
+  // re-trigger re-plans without them.
+  if (strategy_type == StrategyType::SPARROW && !sparrow_ban_retry_done_) {
+    sparrow_ban_retry_done_ = true;
+    {
+      LockGuard lock(obstacle_mutex_);
+      no_alternate_exists_ = false;
+      announcing_no_alternate_ = false;
+    }
+    CLOG(WARNING, "mission.state_machine")
+        << "HSHMAT SPARROW: no route WITH the corridor-commitment bans - "
+           "retrying with the blocked edges alone before declaring the goal "
+           "unreachable.";
+    triggerReroute();
+    return;
+  }
   
   switch (strategy_type) {
     case StrategyType::ALWAYS_DETOUR: {
@@ -2488,30 +3053,53 @@ void Navigator::onWaitTimeout() {
 
     if (wait_again) {
       bool still_waiting = false;
+      bool announce = false;
+      bool cut_short = false;
+      const int extra_int = static_cast<int>(std::llround(extra_W));
       {
         LockGuard lock(obstacle_mutex_);
         // The obstacle may have cleared while we were planning.
         if (obstacle_state_ == ObstacleState::Waiting) {
           still_waiting = true;
-          current_W_star_ = elapsed + extra_W;  // measured from episode start
-          // Reset countdown announcements relative to the new remaining time.
-          next_countdown_idx_ = 0;
-          for (size_t i = 0; i < countdown_intervals_.size(); ++i) {
-            if (countdown_intervals_[i] < extra_W) {
-              next_countdown_idx_ = static_cast<int>(i);
-              break;
-            }
+          // current_W_star_ stays cumulative-from-episode-start: it is what
+          // the encounter records report. The timer runs off the freshly
+          // armed deadline, so the search time above is not deducted from
+          // extra_W.
+          current_W_star_ = elapsed + extra_W;
+          // Saying the same line again two seconds later is noise, not
+          // information.
+          const double now_s = node_->get_clock()->now().seconds();
+          cut_short = wait_cut_short_;
+          announce = (extra_int != last_wait_announcement_s_) ||
+                     (now_s - last_wait_announcement_sec_ >=
+                      std::max(5.0, extra_W * 0.5));
+          if (announce) {
+            last_wait_announcement_s_ = extra_int;
+            last_wait_announcement_sec_ = now_s;
           }
+          armWaitDeadlineLocked(extra_W);  // clears wait_cut_short_
         }
       }
       if (still_waiting) {
+        // The junction refresh above may have dropped edges confirmed free.
+        setSparrowWaitFocus(true);
         CLOG(INFO, "mission.state_machine")
             << "HSHMAT SPARROW: re-plan chose to keep waiting "
             << extra_W << "s more (total budget now " << current_W_star_
-            << "s, elapsed " << elapsed << "s).";
-        speak("Continuing to wait " +
-              std::to_string(static_cast<int>(std::llround(extra_W))) +
-              " seconds.");
+            << "s, elapsed " << elapsed << "s)"
+            << (announce ? "." : " - identical to the last announcement, "
+                               "staying quiet.");
+        if (announce) {
+          // "Continuing" is only true when the previous wait actually ran out.
+          // When a belief revision cut it short, the plan CHANGED - and the
+          // new number is often smaller than the one just announced, so
+          // "continuing to wait 15 seconds" after "up to 2 minutes" reads as a
+          // contradiction. Say which of the two happened.
+          speak(cut_short ? ("Rechecked. Waiting up to " +
+                             std::to_string(extra_int) + " seconds.")
+                          : ("Still waiting. Up to " +
+                             std::to_string(extra_int) + " more seconds."));
+        }
         wait_timer_ = node_->create_wall_timer(
             std::chrono::seconds(1), [this]() { onWaitTimerTick(); },
             obstacle_callback_group_);
@@ -2562,8 +3150,16 @@ void Navigator::onWaitTimeout() {
   CLOG(DEBUG, "navigation") << "HSHMAT: Updated memory for " << current_blocked_edges_.size()
                             << " blocked edges after censored wait (t=" << t_after_wait << ")";
   
-  // Use speakAndWait to ensure speech completes before robot starts moving
-  speakAndWait("Time limit exceeded. Rerouting.", 5.0);
+  // Use speakAndWait to ensure speech completes before robot starts moving.
+  // HSHMAT SPARROW: reaching here is NOT a failed wait. OSCAR commits to a
+  // single W* and gives up when it elapses, so "Time limit exceeded" is an
+  // accurate account of what happened to it. SPARROW's MaxWait is one action
+  // of a receding-horizon plan: when the budget expires the POMCP re-plans
+  // with the older obstacle age and may keep waiting (handled above, "
+  // Continuing to wait ...") or, as here, deliberately choose the detour.
+  // Announcing a time limit would report a giving-up the planner never did.
+  speakAndWait(is_sparrow ? "Rerouting." : "Time limit exceeded. Rerouting.",
+               5.0);
   
   triggerReroute();
 }
@@ -2585,10 +3181,15 @@ void Navigator::completeEpisode() {
     } catch (...) {}
   }
   
+  setSparrowWaitFocus(false);
   {
     LockGuard lock(obstacle_mutex_);
+    sparrow_ban_retry_done_ = false;
     obstacle_state_ = ObstacleState::Idle;
     current_W_star_ = 0.0;
+    wait_deadline_valid_ = false;
+    current_wait_budget_ = 0.0;
+    last_wait_announcement_s_ = -1;
     wait_episode_start_sec_ = -1.0;
     no_alternate_exists_ = false;
     awaiting_new_route_ = false;
@@ -3102,6 +3703,7 @@ void Navigator::triggerReroute() {
         LockGuard lock(obstacle_mutex_);
         obstacle_state_ = ObstacleState::Waiting;
         current_W_star_ = std::numeric_limits<double>::infinity();
+        wait_deadline_valid_ = false;  // unbounded: wait for the clearance
       }
       return;
     }
@@ -3115,6 +3717,7 @@ void Navigator::triggerReroute() {
       LockGuard lock(obstacle_mutex_);
       obstacle_state_ = ObstacleState::Waiting;
       current_W_star_ = std::numeric_limits<double>::infinity();
+      wait_deadline_valid_ = false;  // unbounded: wait for the clearance
     }
     return;
   }
