@@ -55,6 +55,7 @@ add_custom_command(
          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
+         "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_joint_mpc_solver.hpp"
   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
@@ -62,6 +63,7 @@ add_custom_command(
           "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unicycle_follower_solver.py"
           "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_solver_pt.py"
           "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_follower_solver_pt.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_follower_joint_solver_pt.py"
 )
 
 add_custom_target(generate_headers ALL
@@ -69,6 +71,7 @@ add_custom_target(generate_headers ALL
           "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
           "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
           "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
+          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_joint_mpc_solver.hpp"
 )
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp EXCLUDE src/mpc/generated/*)
