@@ -55,9 +55,6 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 def main_page():
   return flask.redirect("index.html")
 
-#@app.route("/index.html")
-#def load_main_page():
-#  return flask.render_template("index.html", multi_robot=True, robots=json.dumps(build_remote().get_robot_namespaces()))
 
 @app.after_request
 def set_response_headers(response):
@@ -73,10 +70,14 @@ def get_tile(s, x, y, z):
   fname = x + '.jpg'
   fdir = osp.join(app.config['CACHE_PATH'], 'tile', z, y)
   fpath = osp.join(fdir, fname)
+  global internet
 
   if app.config['CACHE'] and osp.isfile(fpath):
     logger.debug(f"Using cached tile {x},{y},{z}")
     return flask.send_from_directory(fdir, fname, max_age=60 * 60 * 24 * 30)
+
+  if not internet:
+    return flask.send_from_directory(get_package_share_directory("vtr_gui"), "blank_tile.jpg", max_age=60 * 60 * 24 * 30)
 
   headers = {'Accept': 'image/webp,image/*,*/*;q=0.8', 'User-Agent': flask.request.user_agent.string}
   # Google Map service
@@ -87,8 +88,9 @@ def get_tile(s, x, y, z):
   try:
     res = requests.get(url, headers=headers, verify=False)
   except RequestException as e:
-    logger.error(f'Error loading tile {x},{y},{z}: {e}')
-    flask.abort(500)
+    logger.error(f'Error loading tile {x},{y},{z}: {e}. Sending blank')
+    internet = False
+    return flask.send_from_directory(get_package_share_directory("vtr_gui"), "blank_tile.jpg", max_age=60 * 60 * 24 * 30)
 
   if not res.ok:
     logger.error(f"Tile {x},{y},{z} did not exist on server")
