@@ -432,22 +432,9 @@ std::map<std::string, casadi::DM> CasadiBicycleMPCJoint::solve(const CasadiMPC::
   arg["ubx"].set(mpcConf.vel_max(Slice(1)), true, Slice(2*mpcConf.nStates*(mpcConf.N+1)+1, 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*mpcConf.N, 2));
   arg["lbx"].set(mpcConf.vel_min(Slice(1)), true, Slice(2*mpcConf.nStates*(mpcConf.N+1)+1, 2*mpcConf.nStates*(mpcConf.N+1) + 2*mpcConf.nControl*mpcConf.N, 2));
 
-  // Set velocity constraint to zero once we've reached the end of the path
-  // if (mpcConf.eop_index >= 0){
-  //   arg["ubx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-  //   arg["lbx"].set(0, true, Slice(mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.eop_index, mpcConf.nStates*(mpcConf.N+1) + mpcConf.nControl*mpcConf.N, 2));
-  // }
 
   arg["lbg"] = DM::zeros(2*mpcConf.nStates*(mpcConf.N+1) + 2*(mpcConf.N-1)*mpcConf.nControl + mpcConf.N, 1);
   arg["ubg"] = DM::zeros(2*mpcConf.nStates*(mpcConf.N+1) + 2*(mpcConf.N-1)*mpcConf.nControl + mpcConf.N, 1);
-
-  if (false && mpcConf.up_barrier_q.size() > 0 && mpcConf.low_barrier_q.size() > 0) {
-    arg["ubg"].set(DM(mpcConf.up_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-    arg["lbg"].set(DM(mpcConf.low_barrier_q), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-  } else {
-    arg["ubg"].set(DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-    arg["lbg"].set(-DM::inf(), true, Slice(mpcConf.nStates*(mpcConf.N+1), mpcConf.nStates*(mpcConf.N+1) + mpcConf.N));
-  }
   
   arg["x0"] = reshape(repmat(vertcat(mpcConf.T0, mpcConf.T0_follower), 1, mpcConf.N+1), 2*mpcConf.nStates*(mpcConf.N+1), 1);
   arg["x0"] = vertcat(arg["x0"], DM::zeros(2 * mpcConf.nControl* mpcConf.N, 1));

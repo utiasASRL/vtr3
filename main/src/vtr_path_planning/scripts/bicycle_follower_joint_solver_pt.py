@@ -222,10 +222,6 @@ for k in range(1, N):
     g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
-
-# for ref_theta in [leader_ref_poses[2::3], follower_ref_poses[2::3]]:
-#     g = ca.vertcat(g, ca.vertcat(-sin(ref_theta), cos(ref_theta)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
-
 #Acceleration constraints
 cost_fn += (U[:, 0] - ca.vertcat(measured_velo_leader, measured_velo_follower)).T @ R_acc @ (U[:, 0] - ca.vertcat(measured_velo_leader, measured_velo_follower))
 g = ca.vertcat(g, U[:, 0])
@@ -241,9 +237,6 @@ for k in range(0, N):
     cost_fn += Q_dist * (ca.norm_2((leader_st_next[:2] - follower_st_next[:2])) - d)**2
 
     g = ca.vertcat(g, ca.norm_2((leader_st_next[:2] - follower_st_next[:2])))
-
-# Terminal cost
-# cost_fn += calc_cost(P, X, con, N-1, cost_fn)
 
 
 OPT_variables = ca.vertcat(

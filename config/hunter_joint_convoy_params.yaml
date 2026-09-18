@@ -59,7 +59,7 @@
             racc2: 3.5
       stationary:
         type: stationary
-        control_period: 9000000000000000000
+        control_period: 60000
     log_enabled:
       #- navigation
       #- navigation.graph_map_server
