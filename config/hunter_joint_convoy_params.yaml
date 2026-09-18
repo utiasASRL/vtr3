@@ -1,0 +1,118 @@
+/**:
+  ros__parameters:
+    pipeline:
+      preprocessing:
+        - conversion
+        - filtering
+        - locate_leader
+    preprocessing:
+      locate_leader:
+        type: lidar.leader_locator
+        maximum_distance: 5.0
+        minimum_distance: 0.0
+        intensity_threshold: 10000.0
+    path_planning:
+      bicycle_mpc_joint:
+        type: bicycle_mpc_joint
+        control_period: 100 # ms
+        follow_distance: 1.5
+        distance_margin: 0.5
+        waypoint_selection: euclidean
+
+        speed_scheduler:
+          planar_curv_weight: 0.0
+          profile_curv_weight: 1.0 
+          eop_weight: 1.0
+          min_vel: 0.5
+        mpc:
+          # Controller Params
+          extrapolate_robot_pose: true
+          mpc_verbosity: false
+          forward_vel: 1.00
+          max_lin_vel: 1.5
+          max_ang_vel: 0.46
+          max_ang_acc: 0.89
+          ang_alpha: 0.0
+          lin_alpha: 0.0
+          max_lin_acc: 0.5
+          vehicle_model: "bicycle"
+          wheelbase: 0.65
+          recovery_steps: 15
+          failure_threshold: 5
+
+          # Tunable controller parameters
+          forward:
+            q_lat: 10.0
+            q_lon: 4.0
+            q_th: 7.0
+            r1: 0.0
+            r2: 3.0
+            racc1: 4.0
+            racc2: 40.0
+          reverse:
+            q_lat: 10.0
+            q_lon: 3.0
+            q_th: 7.0
+            r1: 0.1
+            r2: 1.0
+            racc1: 2.0
+            racc2: 3.5
+    log_enabled:
+      #- navigation
+      #- navigation.graph_map_server
+      #- navigation.command
+        # tactic
+      #- tactic
+      #- tactic.pipeline
+      - tactic.module
+      #- tactic.module.live_mem_manager
+      #- tactic.module.graph_mem_manager
+      #- mission.state_machine
+      #- mission.server
+        # planner manager
+      - cbit.control
+      #- cbit.debug
+      #- cbit.path_planning
+        # mpc
+      - mpc.speed_scheduler
+      - mpc.debug
+      - mpc.solver
+      - mpc.follower
+      - mpc.follower.target
+        # path planner
+      #- cbit_planner.path_planning
+        # pose graph
+      #- pose_graph
+        # lidar pipeline
+      #- lidar.pipeline
+      #- lidar.preprocessing
+      - lidar.odometry_icp
+      #- lidar.odometry_map_maintenance
+      #- lidar.vertex_test
+      #- lidar.localization_map_recall
+      - lidar.localization_icp
+      #- lidar.intra_exp_merging
+      #- lidar.inter_exp_merging
+    
+/prof_plum/vtr/navigator:
+  ros__parameters:
+   path_planning:
+    bicycle_mpc_joint:
+      follower_namespace:
+        /mr_green 
+
+/mr_green/vtr/navigator:
+  ros__parameters:
+   path_planning:
+    bicycle_mpc_follower:
+      follower_namespace:
+        /prof_plum 
+
+/vtr/convoy_planning_node:
+  ros__parameters:
+    mr_green:
+      leader_mpc: bicycle_mpc_joint
+      follower_mpc: stationary
+    prof_plum:
+      leader_mpc: bicycle_mpc_joint
+      follower_mpc: stationary

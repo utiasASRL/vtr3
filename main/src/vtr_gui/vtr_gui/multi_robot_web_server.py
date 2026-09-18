@@ -50,6 +50,8 @@ app.secret_key = 'asecretekey'
 app.logger.setLevel(logging.ERROR)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
+internet = False
+
 
 @app.route("/")
 def main_page():
