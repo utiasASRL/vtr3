@@ -127,7 +127,7 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     return false;
   }
 
-  if (recentLeaderPath_ == nullptr) {
+  if (leaderPathInterp_ == nullptr) {
     CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
     return false;
   }
