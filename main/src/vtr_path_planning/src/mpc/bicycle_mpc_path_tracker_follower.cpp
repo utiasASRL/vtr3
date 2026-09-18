@@ -167,8 +167,8 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   estimatedDistancePub_->publish(internal_dist);
 
   mpcConfig->VF = abs(leader_vel_(0));
-  if (config_->waypoint_selection == "external_dist") {
-    const float distance = (recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
+  if (config_->waypoint_selection == "reflector" || config_->waypoint_selection == "estimated_dist") {
+    const float distance = (config_->waypoint_selection == "reflector" && recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
     const double error = distance - config_->following_offset;
     if (abs(chain->leaf_velocity()(0)) > 0.05)
       errorIntegrator += error * config_->control_period / 1000.0;
@@ -250,7 +250,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
     }
     
-    if (config_->waypoint_selection != "external_dist")
+    if (config_->waypoint_selection != "reflector" && config_->waypoint_selection != "estimated_dist" )
       mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
 

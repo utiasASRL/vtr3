@@ -54,8 +54,8 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     PTR_TYPEDEFS(Config);
     std::string leader_namespace = "leader";
     
-    // Options: leader_vel euclidean external_dist
-    std::string waypoint_selection = "leader_vel";
+    // Options: leader_vel euclidean arclength reflector estimated_dist
+    std::string waypoint_selection = "euclidean";
 
     double following_offset = 0.5; //m
     double distance_margin = 1.0;
