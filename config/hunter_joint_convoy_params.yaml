@@ -57,6 +57,9 @@
             r2: 1.0
             racc1: 2.0
             racc2: 3.5
+      stationary:
+        type: stationary
+        control_period: 10000000000000000000
     log_enabled:
       #- navigation
       #- navigation.graph_map_server
