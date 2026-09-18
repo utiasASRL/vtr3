@@ -265,7 +265,7 @@ void BicycleMPCJointPathTracker::followerRouteCallback(const rclcpp::Client<Foll
 void BicycleMPCJointPathTracker::onFollowerOdom(const OdomMsg::SharedPtr leader_pose) {
   using namespace vtr::common::conversions;
   T_fw_f_ = tfFromPoseMessage(leader_pose->pose.pose);
-  follower_vel_ << leader_pose->twist.twist.linear.x, leader_pose->twist.twist.angular.z;
+  follower_vel_ << -leader_pose->twist.twist.linear.x, -leader_pose->twist.twist.angular.z;
   follower_stamp_ = rclcpp::Time(leader_pose->header.stamp).nanoseconds();
   CLOG(DEBUG, "mpc.follower") << "Received odom from follower at time " << rclcpp::Time(leader_pose->header.stamp).seconds();
 }
