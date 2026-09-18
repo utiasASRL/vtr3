@@ -29,8 +29,7 @@
 #include <vtr_path_planning/cbit/visualization_utils.hpp>
 
 #include <rclcpp/rclcpp.hpp>
-#include <vtr_navigation_msgs/msg/graph_route.hpp>
-#include <vtr_navigation_msgs/srv/graph_state.hpp>
+#include <vtr_navigation_msgs/srv/following_route.hpp>
 #include "std_msgs/msg/float32.hpp"
 #include <nav_msgs/msg/odometry.hpp>
 
@@ -45,8 +44,7 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
 
   using PathMsg = nav_msgs::msg::Path;
   using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
-  using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
-  using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
+  using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
   using Transformation = lgmath::se3::Transformation;
   using FloatMsg = std_msgs::msg::Float32;
   using OdomMsg = nav_msgs::msg::Odometry;
@@ -107,20 +105,19 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
 
   RobotState::Ptr robot_state_;
 
-  rclcpp::Subscription<RouteMsg>::SharedPtr followerRouteSub_;
-  void onFollowerRoute(const RouteMsg::SharedPtr route);
   tactic::EdgeTransform T_lw_fw_;
   tactic::VertexId follower_root_ = tactic::VertexId::Invalid();
 
+  rclcpp::Client<FollowingRouteSrv>::SharedPtr followerRouteSrv_;
+  void followerRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
+  rclcpp::Time requestTime_;
+  bool hasRequestedLeaderRoute_ = false;
+  
   rclcpp::Subscription<OdomMsg>::SharedPtr followerOdomSub_;
   void onFollowerOdom(const OdomMsg::SharedPtr follower_pose);
   tactic::EdgeTransform T_fw_f_;
   Eigen::Vector2d follower_vel_;
   tactic::Timestamp follower_stamp_;
-
-
-  rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
-  rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
 
 
   rclcpp::Publisher<Command>::SharedPtr followerCommandPub_;

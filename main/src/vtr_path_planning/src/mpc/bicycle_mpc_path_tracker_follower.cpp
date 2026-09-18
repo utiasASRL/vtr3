@@ -86,9 +86,6 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
 
   leaderRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(leader_route_service);
 
-  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
-  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
-
   estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
   leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
@@ -309,8 +306,8 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
 }
 
-void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future){
-  auto result = Future.get();
+void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture future){
+  auto result = future.get();
   auto route = result->following_route;
   if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route.ids.size() > 0 && route.ids.front() != leader_root_) { 
     leader_root_ = route.ids.front();

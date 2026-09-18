@@ -75,20 +75,18 @@ BicycleMPCJointPathTracker::BicycleMPCJointPathTracker(const Config::ConstPtr& c
   const auto follower_cmd_topic = config_->follower_namespace + "/cmd_vel";
   const auto follower_odom_topic = config_->follower_namespace + "/vtr/odometry";
   const auto follower_graph_topic = config_->follower_namespace + "/vtr/graph_state_srv";
-  const auto follower_route_topic = config_->follower_namespace + "/vtr/following_route";
+  const auto follower_route_service = config_->follower_namespace + "/vtr/following_route_srv";
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << follower_graph_topic;
-  CLOG(INFO, "mpc.follower") << "Listening for route on " << follower_route_topic;
+  CLOG(INFO, "mpc.follower") << "Listening for route on " << follower_route_service;
   CLOG(INFO, "mpc.follower") << "Listening for pose on " << follower_odom_topic;
   CLOG(INFO, "mpc.follower") << "Sending leader velocities to " << follower_cmd_topic;
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->following_offset;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
-  followerRouteSub_ = robot_state->node->create_subscription<RouteMsg>(follower_route_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCJointPathTracker::onFollowerRoute, this, _1));
+  followerRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(follower_route_service);
   followerOdomSub_ = robot_state->node->create_subscription<OdomMsg>(follower_odom_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCJointPathTracker::onFollowerOdom, this, _1));
   followerCommandPub_ = robot_state->node->create_publisher<Command>(follower_cmd_topic, 10);
-  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
-  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(follower_graph_topic);
-
+ 
 }
 
 BicycleMPCJointPathTracker::~BicycleMPCJointPathTracker() {}
@@ -109,6 +107,17 @@ CasadiMPC::Config::Ptr BicycleMPCJointPathTracker::getMPCConfig(Eigen::Matrix<do
 }
 
 bool BicycleMPCJointPathTracker::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic::Timestamp& curr_time){
+  if (follower_root_ == tactic::VertexId::Invalid()){
+    if (!hasRequestedLeaderRoute_ || robot_state_->node->now() - requestTime_ > rclcpp::Duration(1, 0)){
+      CLOG(INFO, "cbit.control") << "Follower root not yet set. Calling service";
+      auto request = std::make_shared<FollowingRouteSrv::Request>();
+      followerRouteSrv_->async_send_request(request, std::bind(&BicycleMPCJointPathTracker::followerRouteCallback, this, std::placeholders::_1));
+      hasRequestedLeaderRoute_ = true;
+      requestTime_ = robot_state_->node->now();
+    }
+    return false;
+  }
+  
   if (follower_stamp_ == 0) {
     CLOG_EVERY_N(1, WARNING, "cbit.control") << "Leader has received no odom info from the follower yet. Stopping";
     return false;
@@ -234,12 +243,12 @@ std::map<std::string, casadi::DM> BicycleMPCJointPathTracker::callSolver(CasadiM
 }
 
 
-void BicycleMPCJointPathTracker::onFollowerRoute(const RouteMsg::SharedPtr route) {
-  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route->ids.size() > 0 && route->ids.front() != follower_root_) { 
+void BicycleMPCJointPathTracker::followerRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture future) {
+  auto result = future.get();
+  auto route = result->following_route;
+  if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route.ids.size() > 0 && route.ids.front() != follower_root_) { 
 
-    //TODO Figure out the best time to check if we are using the same graph for leader and follower. 
-    // leaderGraphSrv_->async_send_request()
-    follower_root_ = route->ids.front();
+    follower_root_ = route.ids.front();
     CLOG(INFO, "mpc.follower") << "Updated follower's root to: " << follower_root_;
     const auto leader_root = robot_state_->chain->sequence().front();
     CLOG(INFO, "mpc.follower") << "Leader's root is: " << leader_root;
