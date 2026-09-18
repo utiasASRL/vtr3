@@ -2,7 +2,7 @@
 session_name: vtr_convoy_manager
 environment:
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
-  ROBOTS: "['prof_plum', 'mr_green']" # Figure out how to easily make this configurable
+  ROBOTS: "['prof_plum','mr_green']" # Figure out how to easily make this configurable
 
 start_directory: ${VTRDATA}
 suppress_history: false
@@ -32,8 +32,8 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      ->
-         ros2 bag record /mr_green/cmd_vel /prof_plum/cmd_vel
+      - >
+        ros2 bag record /mr_green/cmd_vel /prof_plum/cmd_vel
           /mr_green/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction 
           /mr_green/vtr/odometry /prof_plum/vtr/odometry
           /mr_green/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction
